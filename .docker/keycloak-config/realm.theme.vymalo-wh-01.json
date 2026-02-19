@@ -1,0 +1,44 @@
+{
+  "id": "lightbridge-dev",
+  "realm": "lightbridge-dev",
+  "displayName": "LightBridge DEV",
+  "displayNameHtml": "<b>LightBridge</b> DEV",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "enabled": true,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "users": [
+    {
+      "email": "test@admin",
+      "username": "test",
+      "firstName": "DevOps",
+      "lastName": "SRE",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "test@admin"
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "self-service",
+      "rootUrl": "http://localhost:8081",
+      "adminUrl": "http://localhost:8081",
+      "redirectUris": ["http://localhost:8081/*"],
+      "webOrigins": ["+"],
+      "bearerOnly": false,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "attributes": {}
+    }
+  ]
+}

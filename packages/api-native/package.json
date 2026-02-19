@@ -1,0 +1,17 @@
+{
+  "name": "@lightbridge/api-native",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.72"
+  },
+  "dependencies": {
+    "expo-clipboard": "~8.0.8"
+  }
+}

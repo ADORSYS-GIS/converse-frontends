@@ -1,0 +1,25 @@
+{
+  "name": "lightbridge-ss",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter self-service start",
+    "android": "pnpm --filter self-service android",
+    "ios": "pnpm --filter self-service ios",
+    "web": "pnpm --filter self-service web",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json,css,md}\" --write"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.2",
+    "eslint-config-expo": "~10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "typescript": "~5.9.3"
+  }
+}

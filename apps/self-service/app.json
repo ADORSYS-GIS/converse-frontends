@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "self-service",
+    "slug": "self-service",
+    "scheme": "self-service",
+    "version": "1.0.0",
+
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Self Service",
+      "shortName": "Self Service",
+      "description": "Self-service portal",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": ".",
+      "lang": "en",
+      "bundler": "metro"
+    },
+
+    "experiments": {
+      "tsconfigPaths": true
+    },
+
+    "plugins": ["expo-router"],
+
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+
+    "userInterfaceStyle": "light",
+
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    }
+  }
+}

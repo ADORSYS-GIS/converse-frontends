@@ -1,0 +1,8 @@
+{
+  "backendUrl": "${EXPO_PUBLIC_BACKEND_URL}",
+  "keycloak": {
+    "issuer": "${EXPO_PUBLIC_KEYCLOAK_ISSUER}",
+    "clientId": "${EXPO_PUBLIC_KEYCLOAK_CLIENT_ID}",
+    "scheme": "${EXPO_PUBLIC_KEYCLOAK_SCHEME}"
+  }
+}

@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: Lightbridge API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+    post:
+      operationId: createApiKey
+      summary: Create API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+  /api-keys/{id}:
+    get:
+      operationId: getApiKey
+      summary: Get API key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        '404':
+          description: Not found
+    patch:
+      operationId: updateApiKey
+      summary: Update API key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApiKeyInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+    delete:
+      operationId: deleteApiKey
+      summary: Delete API key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+  /usage:
+    get:
+      operationId: getTokenUsage
+      summary: Get token usage
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TokenUsage'
+components:
+  schemas:
+    ApiKey:
+      type: object
+      required:
+        - id
+        - name
+        - key
+        - createdAt
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        key:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+    CreateApiKeyInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    UpdateApiKeyInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    TokenUsage:
+      type: object
+      required:
+        - date
+        - tokens
+        - requests
+      properties:
+        date:
+          type: string
+          format: date
+        tokens:
+          type: integer
+        requests:
+          type: integer

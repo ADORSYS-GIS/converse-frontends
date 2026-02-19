@@ -1,0 +1,11 @@
+.git
+.gitignore
+.idea
+.docker/keycloak-config
+node_modules
+**/node_modules
+dist
+**/dist
+.expo
+**/.expo
+.DS_Store

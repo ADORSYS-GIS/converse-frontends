@@ -26,3 +26,6 @@ android
 
 
 packages/**/client
+
+.qwen/
+gha-creds-*.json

@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-      - master
-      - feat/container-image-pipeline
+      
     tags:
       - 'v*'
   workflow_dispatch:

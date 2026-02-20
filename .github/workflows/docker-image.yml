@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/container-image-pipeline
       
     tags:
       - 'v*'
@@ -31,7 +32,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.QWEN_GITHUB_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta

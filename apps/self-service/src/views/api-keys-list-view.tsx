@@ -6,8 +6,25 @@ import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui
 import type { ApiKey } from '@lightbridge/api-rest';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
+const MOCK_API_KEYS: ApiKey[] = [
+  {
+    id: '123',
+    name: 'My API Key',
+    key: 'sk_live_abc123xyz789',
+    createdAt: '2024-01-01T00:00:00Z',
+    lastUsedAt: '2024-01-10T12:00:00Z',
+  },
+  {
+    id: '456',
+    name: 'Another API Key',
+    key: 'sk_live_def456uvw123',
+    createdAt: '2024-01-02T00:00:00Z',
+    lastUsedAt: null,
+  },
+];
+
 type ApiKeysListViewProps = {
-  items: ApiKey[];
+  items?: ApiKey[];
   onBack: () => void;
   onCreate: () => void;
   onCopy: (value: string) => void;
@@ -28,9 +45,12 @@ const formatDate = (value: string) => {
   });
 };
 
-export function ApiKeysListView({ items, onBack, onCreate, onCopy }: ApiKeysListViewProps) {
+export function ApiKeysListView({ items = MOCK_API_KEYS, onBack, onCreate, onCopy }: ApiKeysListViewProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+
+  // Use mock data when items is empty or undefined
+  const displayItems = items.length === 0 ? MOCK_API_KEYS : items;
 
   return (
     <Scroll tone="muted" pad="md">
@@ -62,7 +82,7 @@ export function ApiKeysListView({ items, onBack, onCreate, onCopy }: ApiKeysList
         <Text intent="body">{t('apiKeys.subtitle')}</Text>
 
         <Stack gap="md">
-          {items.map((item) => {
+          {displayItems.map((item) => {
             const createdLabel = t('apiKeys.createdOn', {
               date: formatDate(item.createdAt),
             });

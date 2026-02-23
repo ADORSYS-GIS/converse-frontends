@@ -34,3 +34,7 @@ export async function readFromClipboard() {
 
   return await Clipboard.getStringAsync();
 }
+
+export function isWebPlatform() {
+  return Platform.OS === "web";
+}

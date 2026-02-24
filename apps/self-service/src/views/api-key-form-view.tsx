@@ -11,7 +11,7 @@ import {
   Stack,
   Text,
 } from "@lightbridge/ui";
-import { useThemeColors } from "../hooks/use-theme-colors";
+import { getThemeColors } from "../theme/theme-colors";
 
 type PlatformId = "vscode" | "cursor" | "claude" | "intellij";
 type ServerId = "brave-search" | "firecrawl" | "browserless" | "context7";
@@ -34,6 +34,10 @@ type PlatformDefinition = {
   labelKey: string;
   configTitleKey: string;
   filePath: string;
+  iconName: keyof typeof Ionicons.glyphMap;
+  iconTone: "brand" | "secondary" | "accent" | "surface";
+  iconBackground: "primary" | "secondary" | "accent" | "ink";
+  iconColor: "surface" | "ink";
 };
 
 const serverDefinitions: ServerDefinition[] = [
@@ -93,24 +97,40 @@ const platformDefinitions: PlatformDefinition[] = [
     labelKey: "apiKeyBuilder.platforms.vscode",
     configTitleKey: "apiKeyBuilder.configCards.vscode",
     filePath: ".vscode/mcp.json",
+    iconName: "code-slash",
+    iconTone: "brand",
+    iconBackground: "primary",
+    iconColor: "surface",
   },
   {
     id: "cursor",
     labelKey: "apiKeyBuilder.platforms.cursor",
     configTitleKey: "apiKeyBuilder.configCards.cursor",
     filePath: "~/.cursor/mcp.json",
+    iconName: "terminal-outline",
+    iconTone: "surface",
+    iconBackground: "ink",
+    iconColor: "surface",
   },
   {
     id: "claude",
     labelKey: "apiKeyBuilder.platforms.claude",
     configTitleKey: "apiKeyBuilder.configCards.claude",
     filePath: "claude_desktop_config.json",
+    iconName: "sparkles",
+    iconTone: "secondary",
+    iconBackground: "secondary",
+    iconColor: "surface",
   },
   {
     id: "intellij",
     labelKey: "apiKeyBuilder.platforms.intellij",
     configTitleKey: "apiKeyBuilder.configCards.intellij",
     filePath: ".idea/mcp.xml",
+    iconName: "layers",
+    iconTone: "accent",
+    iconBackground: "accent",
+    iconColor: "surface",
   },
 ];
 
@@ -149,24 +169,100 @@ function buildConfig(
   return JSON.stringify({ [rootKey]: result }, null, 2);
 }
 
+function getJsonKeyColor(key: string, colors: ReturnType<typeof getThemeColors>) {
+  if (key === "servers" || key === "mcpServers") {
+    return colors.primary;
+  }
+
+  if (/^[A-Z0-9_]+$/.test(key)) {
+    return colors.secondary;
+  }
+
+  if (key === "command" || key === "args" || key === "env" || key === "type") {
+    return colors.accent;
+  }
+
+  return colors.success;
+}
+
+function renderHighlightedJson(
+  jsonText: string,
+  colors: ReturnType<typeof getThemeColors>,
+) {
+  const lines = jsonText.split("\n");
+
+  return lines.map((line, lineIndex) => {
+    const keyMatch = line.match(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/);
+
+    if (!keyMatch) {
+      return (
+        <Text
+          key={`json-line-${lineIndex}`}
+          style={{
+            color: colors.ink,
+            fontSize: 12,
+            lineHeight: 19,
+            fontWeight: "500",
+            fontFamily: "monospace",
+          }}
+        >
+          {line}
+          {lineIndex < lines.length - 1 ? "\n" : ""}
+        </Text>
+      );
+    }
+
+    const [, indent, key, separator, rest] = keyMatch;
+
+    return (
+      <Text
+        key={`json-line-${lineIndex}`}
+        style={{
+          color: colors.ink,
+          fontSize: 12,
+          lineHeight: 19,
+          fontWeight: "500",
+          fontFamily: "monospace",
+        }}
+      >
+        {indent}
+        <Text style={{ color: colors.ink, fontFamily: "monospace" }}>
+          {'"'}
+        </Text>
+        <Text
+          style={{
+            color: getJsonKeyColor(key, colors),
+            fontFamily: "monospace",
+          }}
+        >
+          {key}
+        </Text>
+        <Text style={{ color: colors.ink, fontFamily: "monospace" }}>
+          {'"'}
+          {separator}
+          {rest}
+        </Text>
+        {lineIndex < lines.length - 1 ? "\n" : ""}
+      </Text>
+    );
+  });
+}
+
 export function ApiKeyFormView({
   onBack,
   onCopy,
-  onPaste,
 }: {
   onBack: () => void;
   onCopy: (value: string) => Promise<void> | void;
-  onPaste: () => Promise<string>;
 }) {
   const { t } = useTranslation();
-  const colors = useThemeColors();
+  const colors = useMemo(() => getThemeColors("light"), []);
   const [activePlatform, setActivePlatform] = useState<PlatformId>("vscode");
   const [selectedServers, setSelectedServers] = useState<
     Record<ServerId, boolean>
   >(initialSelectedServers);
   const [configText, setConfigText] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [pasteState, setPasteState] = useState<"idle" | "pasted">("idle");
   const feedbackResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeConfig = useMemo(
@@ -205,7 +301,6 @@ export function ApiKeyFormView({
     try {
       await onCopy(configText);
       setCopyState("copied");
-      setPasteState("idle");
 
       if (feedbackResetTimer.current) {
         clearTimeout(feedbackResetTimer.current);
@@ -219,35 +314,22 @@ export function ApiKeyFormView({
     }
   };
 
-  const handlePaste = async () => {
-    try {
-      const value = await onPaste();
-      setConfigText(value);
-      setPasteState("pasted");
-      setCopyState("idle");
-
-      if (feedbackResetTimer.current) {
-        clearTimeout(feedbackResetTimer.current);
-      }
-
-      feedbackResetTimer.current = setTimeout(() => {
-        setPasteState("idle");
-      }, 1800);
-    } catch {
-      setPasteState("idle");
-    }
-  };
-
   return (
-    <Div tone="muted" width="full" style={{ flex: 1 }}>
+    <Div
+      tone="muted"
+      width="full"
+      style={{ flex: 1, backgroundColor: colors.muted }}
+    >
       <Div
         tone="surface"
         width="full"
         style={{
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
+          minHeight: 58,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          backgroundColor: colors.surface,
         }}
       >
         <Stack direction="row" align="center" justify="between" width="full">
@@ -260,7 +342,10 @@ export function ApiKeyFormView({
             <Ionicons name="arrow-back" size={21} color={colors.ink} />
           </Button>
 
-          <Heading tone="subtitle" style={{ fontSize: 18, color: colors.ink }}>
+          <Heading
+            tone="title"
+            style={{ fontSize: 20, color: colors.ink, fontWeight: "700" }}
+          >
             {t("apiKeyBuilder.title")}
           </Heading>
 
@@ -273,11 +358,12 @@ export function ApiKeyFormView({
           width="full"
           style={{
             paddingHorizontal: 20,
-            paddingTop: 18,
+            paddingTop: 22,
             paddingBottom: 140,
+            backgroundColor: colors.muted,
           }}
         >
-          <Stack gap="md">
+          <Stack gap="lg">
             <Text intent="eyebrow" style={{ letterSpacing: 0.3 }}>
               {t("apiKeyBuilder.sections.servers")}
             </Text>
@@ -294,8 +380,17 @@ export function ApiKeyFormView({
                     accessibilityRole="button"
                     onPress={() => toggleServer(server.id)}
                     style={{
+                      padding: 12,
+                      borderRadius: 14,
+                      minHeight: 76,
                       borderWidth: 1,
                       borderColor: colors.border,
+                      backgroundColor: colors.surface,
+                      shadowColor: colors.ink,
+                      shadowOpacity: 0.03,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 2 },
+                      elevation: 1,
                     }}
                   >
                     <Stack
@@ -336,8 +431,8 @@ export function ApiKeyFormView({
                       <Div
                         rounded="full"
                         style={{
-                          width: 50,
-                          height: 28,
+                          width: 52,
+                          height: 30,
                           padding: 3,
                           backgroundColor: enabled
                             ? colors.primary
@@ -348,8 +443,8 @@ export function ApiKeyFormView({
                           tone="surface"
                           rounded="full"
                           style={{
-                            width: 22,
-                            height: 22,
+                            width: 24,
+                            height: 24,
                             alignSelf: enabled ? "flex-end" : "flex-start",
                           }}
                         />
@@ -360,23 +455,25 @@ export function ApiKeyFormView({
               })}
             </Stack>
 
-            <Div style={{ height: 10 }} />
+            <Div style={{ height: 4 }} />
 
             <Text intent="eyebrow" style={{ letterSpacing: 0.3 }}>
               {t("apiKeyBuilder.sections.generated")}
             </Text>
 
             <Div
-              tone="surface"
+              tone="muted"
               rounded="xl"
               pad="sm"
               width="full"
               style={{
-                borderWidth: 1,
-                borderColor: colors.border,
+                borderRadius: 10,
+                borderWidth: 0,
+                padding: 4,
+                backgroundColor: colors.border,
               }}
             >
-              <Stack direction="row" width="full" style={{ gap: 6 }}>
+              <Stack direction="row" width="full" style={{ gap: 4 }}>
                 {platformDefinitions.map((platform) => {
                   const active = platform.id === activePlatform;
 
@@ -389,9 +486,12 @@ export function ApiKeyFormView({
                       justify="center"
                       style={{
                         flex: 1,
+                        minHeight: 40,
                         paddingVertical: 8,
+                        borderRadius: 8,
                         borderWidth: active ? 1 : 0,
                         borderColor: colors.border,
+                        backgroundColor: active ? colors.surface : "transparent",
                       }}
                       accessibilityRole="button"
                       onPress={() => setActivePlatform(platform.id)}
@@ -399,7 +499,12 @@ export function ApiKeyFormView({
                       <Text
                         intent={active ? "link" : "caption"}
                         align="center"
-                        style={{ fontSize: 12 }}
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: active ? "700" : "600",
+                          color: active ? colors.primary : colors.soft,
+                        }}
                       >
                         {t(platform.labelKey)}
                       </Text>
@@ -412,10 +517,12 @@ export function ApiKeyFormView({
             <Card
               size="sm"
               style={{
+                borderRadius: 14,
                 borderWidth: 1,
                 borderColor: colors.border,
                 overflow: "hidden",
                 padding: 0,
+                backgroundColor: colors.surface,
               }}
             >
               <Div
@@ -424,7 +531,7 @@ export function ApiKeyFormView({
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
                   paddingHorizontal: 12,
-                  paddingVertical: 12,
+                  paddingVertical: 9,
                 }}
               >
                 <Stack
@@ -435,16 +542,17 @@ export function ApiKeyFormView({
                 >
                   <Stack direction="row" align="center" gap="sm">
                     <Div
-                      tone="brand"
+                      tone={activeConfig.iconTone}
                       rounded="md"
                       size="iconSm"
                       align="center"
                       justify="center"
+                      style={{ backgroundColor: colors[activeConfig.iconBackground] }}
                     >
                       <Ionicons
-                        name="code-slash"
+                        name={activeConfig.iconName}
                         size={14}
-                        color={colors.surface}
+                        color={colors[activeConfig.iconColor]}
                       />
                     </Div>
                     <Text intent="bodyStrong">
@@ -458,33 +566,16 @@ export function ApiKeyFormView({
                       rounded="md"
                       pad="sm"
                       accessibilityRole="button"
-                      onPress={() => {
-                        void handlePaste();
+                      onPress={async () => {
+                        await handleCopy();
                       }}
-                    >
-                      <Stack direction="row" align="center" gap="xs">
-                        <Ionicons
-                          name={
-                            pasteState === "pasted" ? "checkmark" : "clipboard"
-                          }
-                          size={14}
-                          color={colors.primary}
-                        />
-                        <Text intent="link" style={{ fontSize: 14 }}>
-                          {pasteState === "pasted"
-                            ? t("apiKeyBuilder.pasted")
-                            : t("apiKeyBuilder.paste")}
-                        </Text>
-                      </Stack>
-                    </Div>
-
-                    <Div
-                      tone="brandSoft"
-                      rounded="md"
-                      pad="sm"
-                      accessibilityRole="button"
-                      onPress={() => {
-                        void handleCopy();
+                      style={{
+                        minHeight: 32,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: colors.border,
                       }}
                     >
                       <Stack direction="row" align="center" gap="xs">
@@ -523,7 +614,12 @@ export function ApiKeyFormView({
                   <Div
                     tone="brandSoft"
                     rounded="sm"
-                    style={{ paddingHorizontal: 8, paddingVertical: 3 }}
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
                   >
                     <Text intent="link" style={{ fontSize: 12 }}>
                       {t("apiKeyBuilder.json")}
@@ -539,19 +635,13 @@ export function ApiKeyFormView({
                     borderWidth: 1,
                     borderColor: colors.border,
                     padding: 12,
+                    backgroundColor: colors.muted,
+                    minHeight: 210,
+                    borderRadius: 10,
                   }}
                 >
-                  <Text
-                    intent="key"
-                    selectable
-                    style={{
-                      color: colors.ink,
-                      fontSize: 11,
-                      lineHeight: 18,
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {configText}
+                  <Text intent="body" selectable>
+                    {renderHighlightedJson(configText, colors)}
                   </Text>
                 </Div>
               </Div>

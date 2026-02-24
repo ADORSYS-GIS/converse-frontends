@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "expo-router";
-import { copyToClipboard, readFromClipboard } from "@lightbridge/api-native";
+import { copyToClipboard } from "@lightbridge/api-native";
 import { ApiKeyFormView } from "../views/api-key-form-view";
 
 export function ApiKeyEditorScreen() {
@@ -17,7 +17,6 @@ export function ApiKeyEditorScreen() {
         router.navigate("/home");
       }}
       onCopy={copyToClipboard}
-      onPaste={readFromClipboard}
     />
   );
 }

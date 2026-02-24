@@ -39,7 +39,7 @@ const resources = {
           "Keep your API keys secure. Never share them in publicly accessible areas such as GitHub or client-side code.",
       },
       apiKeyBuilder: {
-        title: "MCP Config Studio",
+        title: "Unified Config Builder",
         back: "Go back",
         sections: {
           servers: "Select MCP Servers",

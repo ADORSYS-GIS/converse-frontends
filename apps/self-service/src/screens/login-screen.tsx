@@ -12,7 +12,7 @@ export function LoginScreen() {
   const router = useRouter();
 
   if (isAuthenticated) {
-    return <Redirect href="/api-keys" />;
+    return <Redirect href="/home" />;
   }
 
   return (

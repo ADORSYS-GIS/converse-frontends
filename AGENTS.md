@@ -26,6 +26,7 @@ This document describes the working method used to evolve this repository. It is
 ## 3) Architecture: MVC Layering
 
 ### View Layer (App)
+
 - Routes and layouts live in `apps/self-service/src/app` (Expo Router).
 - Screens and views live in `apps/self-service/src/screens` and `apps/self-service/src/views`.
 - Only composes UI primitives from `@lightbridge/ui`.
@@ -34,16 +35,19 @@ This document describes the working method used to evolve this repository. It is
 - No literal user-visible strings; always use `t('...')`.
 
 ### Service Layer (Hooks)
+
 - Lives in `packages/hooks`.
 - Uses TanStack Query for cache, mutations, and optimistic updates.
 - Exposes hooks consumed by screens (e.g., `useApiKeys`, `useTokenUsage`).
 - Owns TanStack DB collections and backend sync logic.
 
 ### API Layer
+
 - `packages/api-rest`: generated REST client via Hey API (OpenAPI)
 - `packages/api-native`: native device/system capabilities, via Expo or RN APIs
 
 ### i18n Layer
+
 - `packages/i18n`: i18n initialization and translation resources.
 - App uses `I18nProvider` and `useTranslation()` for all visible text.
 - `I18nProvider` must initialize i18n before any `useTranslation()` calls (including splash/fallback UI).

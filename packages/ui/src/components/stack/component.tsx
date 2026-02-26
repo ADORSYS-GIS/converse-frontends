@@ -8,7 +8,17 @@ import type { StackProps } from './types';
 
 const ViewBase = View as React.ComponentType<ViewProps & { className?: string }>;
 
-export function Stack({ direction, gap, align, justify, wrap, flex, top, width, ...props }: StackProps) {
+export function Stack({
+  direction,
+  gap,
+  align,
+  justify,
+  wrap,
+  flex,
+  top,
+  width,
+  ...props
+}: StackProps) {
   return (
     <ViewBase
       className={cn(stackVariants({ direction, gap, align, justify, wrap, flex, top, width }))}

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiKeysQueryKey } from '../api-keys';
-import { refreshTokenUsage } from '../usage';
 
 type SyncState = {
   isOnline: boolean;
@@ -22,8 +20,8 @@ export function useBackendSync() {
 
     try {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey }),
-        refreshTokenUsage(),
+        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+        queryClient.invalidateQueries({ queryKey: ['usage'] }),
       ]);
 
       setState((prev) => ({

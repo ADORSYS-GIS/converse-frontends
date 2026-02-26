@@ -1,9 +1,9 @@
-import React from "react";
-import { Ionicons } from "@expo/vector-icons";
-import { useTranslation } from "react-i18next";
+import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
-import { Card, Div, Heading, Scroll, Stack, Text } from "@lightbridge/ui";
-import { useThemeColors } from "../hooks/use-theme-colors";
+import { Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { useThemeColors } from '../hooks/use-theme-colors';
 
 const quickActionIconSize = 20;
 const notificationIconSize = 20;
@@ -32,82 +32,58 @@ export function HomeView({
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  const displayName = userName || t("home.defaultName");
+  const displayName = userName || t('home.defaultName');
   const clampedPercent = Math.min(Math.max(usagePercent, 0), 100);
-  const percentLabel = t("home.usagePercent", {
+  const percentLabel = t('home.usagePercent', {
     percent: clampedPercent.toFixed(1),
   });
 
-  const summaryLabel = t("home.usageSummary", {
+  const summaryLabel = t('home.usageSummary', {
     used: usedRequests.toLocaleString(),
     total: totalRequests.toLocaleString(),
   });
 
   const quickActions = [
     {
-      key: "new-token",
-      label: t("home.quickActions.newToken"),
-      icon: (
-        <Ionicons
-          name="add"
-          size={quickActionIconSize}
-          color={colors.primary}
-        />
-      ),
-      tone: "brandSoft" as const,
+      key: 'new-token',
+      label: t('home.quickActions.newToken'),
+      icon: <Ionicons name="add" size={quickActionIconSize} color={colors.primary} />,
+      tone: 'brandSoft' as const,
       onPress: onNewToken,
     },
     {
-      key: "endpoints",
-      label: t("home.quickActions.endpoints"),
-      icon: (
-        <Ionicons
-          name="cube"
-          size={quickActionIconSize}
-          color={colors.accent}
-        />
-      ),
-      tone: "accentSoft" as const,
+      key: 'endpoints',
+      label: t('home.quickActions.endpoints'),
+      icon: <Ionicons name="cube" size={quickActionIconSize} color={colors.accent} />,
+      tone: 'accentSoft' as const,
       onPress: onEndpoints,
     },
     {
-      key: "usage-logs",
-      label: t("home.quickActions.usageLogs"),
-      icon: (
-        <Ionicons
-          name="receipt"
-          size={quickActionIconSize}
-          color={colors.secondary}
-        />
-      ),
-      tone: "warningSoft" as const,
+      key: 'usage-logs',
+      label: t('home.quickActions.usageLogs'),
+      icon: <Ionicons name="receipt" size={quickActionIconSize} color={colors.secondary} />,
+      tone: 'warningSoft' as const,
       onPress: onUsageLogs,
     },
     {
-      key: "support",
-      label: t("home.quickActions.support"),
-      icon: (
-        <Ionicons
-          name="help-circle"
-          size={quickActionIconSize}
-          color={colors.success}
-        />
-      ),
-      tone: "successSoft" as const,
+      key: 'support',
+      label: t('home.quickActions.support'),
+      icon: <Ionicons name="help-circle" size={quickActionIconSize} color={colors.success} />,
+      tone: 'successSoft' as const,
       onPress: onSupport,
     },
   ];
 
   const services = [
     {
-      key: "production-gateway",
-      name: t("home.services.productionGateway"),
-      version: t("home.version", { version: "2.4.1" }),
+      key: 'production-gateway',
+      name: t('home.services.productionGateway'),
+      version: t('home.version', { version: '2.4.1' }),
     },
     {
-      key: "analytics-engine",
-      name: t("home.services.analyticsEngine"),
-      version: t("home.version", { version: "1.8.0" }),
+      key: 'analytics-engine',
+      name: t('home.services.analyticsEngine'),
+      version: t('home.version', { version: '1.8.0' }),
     },
   ];
 
@@ -116,35 +92,18 @@ export function HomeView({
       <Stack gap="lg">
         <Stack direction="row" justify="between" align="center" width="full">
           <Stack gap="xs">
-            <Text intent="body">{t("home.welcomeBack")}</Text>
-            <Heading tone="title">
-              {t("home.greeting", { name: displayName })}
-            </Heading>
+            <Text intent="body">{t('home.welcomeBack')}</Text>
+            <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
           </Stack>
-          <Div
-            tone="brandSoft"
-            rounded="full"
-            size="iconLg"
-            align="center"
-            justify="center"
-          >
-            <Ionicons
-              name="notifications"
-              size={notificationIconSize}
-              color={colors.primary}
-            />
+          <Div tone="brandSoft" rounded="full" size="iconLg" align="center" justify="center">
+            <Ionicons name="notifications" size={notificationIconSize} color={colors.primary} />
           </Div>
         </Stack>
 
         <Div tone="brand" rounded="xl" shadow="lg" pad="lg" width="full">
           <Stack gap="md">
-            <Stack
-              direction="row"
-              justify="between"
-              align="center"
-              width="full"
-            >
-              <Text intent="inverseBodyStrong">{t("home.currentUsage")}</Text>
+            <Stack direction="row" justify="between" align="center" width="full">
+              <Text intent="inverseBodyStrong">{t('home.currentUsage')}</Text>
               <Ionicons name="stats-chart" size={18} color={colors.surface} />
             </Stack>
 
@@ -165,7 +124,7 @@ export function HomeView({
         </Div>
 
         <Stack gap="md">
-          <Text intent="eyebrow">{t("home.quickActions.title")}</Text>
+          <Text intent="eyebrow">{t('home.quickActions.title')}</Text>
           <Stack direction="row" wrap="wrap" gap="md" width="full">
             {quickActions.map((action) => (
               <Card
@@ -173,16 +132,14 @@ export function HomeView({
                 size="sm"
                 accessibilityRole="button"
                 onPress={action.onPress}
-                style={{ width: "48%", minHeight: 116 }}
-              >
+                style={{ flexBasis: '47%', flexGrow: 1, minHeight: 116 }}>
                 <Stack gap="sm" justify="between" style={{ flex: 1 }}>
                   <Div
                     tone={action.tone}
                     rounded="xl"
                     size="iconLg"
                     align="center"
-                    justify="center"
-                  >
+                    justify="center">
                     {action.icon}
                   </Div>
                   <Text intent="bodyStrong">{action.label}</Text>
@@ -193,17 +150,12 @@ export function HomeView({
         </Stack>
 
         <Stack gap="md">
-          <Text intent="eyebrow">{t("home.activeServices.title")}</Text>
+          <Text intent="eyebrow">{t('home.activeServices.title')}</Text>
           <Card size="sm">
             <Stack gap="sm">
               {services.map((service, index) => (
                 <Stack key={service.key} gap="sm">
-                  <Stack
-                    direction="row"
-                    justify="between"
-                    align="center"
-                    width="full"
-                  >
+                  <Stack direction="row" justify="between" align="center" width="full">
                     <Stack direction="row" align="center" gap="sm">
                       <Div tone="success" rounded="full" size="dot" />
                       <Text intent="bodyStrong">{service.name}</Text>

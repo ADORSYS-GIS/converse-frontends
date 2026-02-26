@@ -21,9 +21,7 @@ export function DeleteApiKeyView({
       <Card>
         <Stack gap="sm">
           <Text intent="value">{t('deleteKey.title')}</Text>
-          <Text intent="body">
-            {t('deleteKey.description', { name })}
-          </Text>
+          <Text intent="body">{t('deleteKey.description', { name })}</Text>
           <Stack direction="row" gap="sm">
             <Button variant="ghost" onPress={onCancel}>
               {t('deleteKey.cancel')}

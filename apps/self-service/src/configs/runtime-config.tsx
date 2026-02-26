@@ -86,7 +86,7 @@ export function RuntimeConfigProvider({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [onReady]);
 
   if (!config) {
     return <>{fallback}</>;

@@ -1,30 +1,14 @@
-import React from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
-import type { ApiKey } from '@lightbridge/api-rest';
+import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
-const MOCK_API_KEYS: ApiKey[] = [
-  {
-    id: '123',
-    name: 'My API Key',
-    key: 'sk_live_abc123xyz789',
-    createdAt: '2024-01-01T00:00:00Z',
-    lastUsedAt: '2024-01-10T12:00:00Z',
-  },
-  {
-    id: '456',
-    name: 'Another API Key',
-    key: 'sk_live_def456uvw123',
-    createdAt: '2024-01-02T00:00:00Z',
-    lastUsedAt: null,
-  },
-];
-
 type ApiKeysListViewProps = {
-  items?: ApiKey[];
+  items?: ApiKeyBackendApiKey[];
+  isLoading?: boolean;
   onBack: () => void;
   onCreate: () => void;
   onCopy: (value: string) => void;
@@ -45,12 +29,40 @@ const formatDate = (value: string) => {
   });
 };
 
-export function ApiKeysListView({ items = MOCK_API_KEYS, onBack, onCreate, onCopy }: ApiKeysListViewProps) {
+export function ApiKeysListView({
+  items = [],
+  isLoading = false,
+  onBack,
+  onCreate,
+  onCopy,
+}: ApiKeysListViewProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
+  const resetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // Use mock data when items is empty or undefined
-  const displayItems = items.length === 0 ? MOCK_API_KEYS : items;
+  const handleCopy = useCallback(
+    (id: string, value: string) => {
+      onCopy(value);
+      setCopiedIds((prev) => new Set(prev).add(id));
+      if (resetTimers.current.has(id)) {
+        clearTimeout(resetTimers.current.get(id)!);
+      }
+      resetTimers.current.set(
+        id,
+        setTimeout(() => {
+          setCopiedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }, 1800)
+      );
+    },
+    [onCopy]
+  );
+
+  const displayItems = items;
 
   return (
     <Scroll tone="muted" pad="md">
@@ -61,8 +73,7 @@ export function ApiKeysListView({ items = MOCK_API_KEYS, onBack, onCreate, onCop
               variant="ghost"
               size="iconSm"
               onPress={onBack}
-              accessibilityLabel={t('apiKeys.back')}
-            >
+              accessibilityLabel={t('apiKeys.back')}>
               <Ionicons name="arrow-back" size={iconSize} color={colors.ink} />
             </Button>
             <Heading tone="title">{t('apiKeys.title')}</Heading>
@@ -72,8 +83,7 @@ export function ApiKeysListView({ items = MOCK_API_KEYS, onBack, onCreate, onCop
             size="icon"
             shape="circle"
             onPress={onCreate}
-            accessibilityLabel={t('apiKeys.new')}
-          >
+            accessibilityLabel={t('apiKeys.new')}>
             <Ionicons name="add" size={iconSize} color={colors.surface} />
           </Button>
         </Stack>
@@ -81,31 +91,51 @@ export function ApiKeysListView({ items = MOCK_API_KEYS, onBack, onCreate, onCop
         <Text intent="body">{t('apiKeys.subtitle')}</Text>
 
         <Stack gap="md">
-          {displayItems.map((item) => {
-            const createdLabel = t('apiKeys.createdOn', {
-              date: formatDate(item.createdAt),
-            });
+          {isLoading && (
+            <Card size="md">
+              <Stack align="center" justify="center">
+                <Text intent="caption">{t('apiKeys.loading')}</Text>
+              </Stack>
+            </Card>
+          )}
 
-            return (
-              <Card key={item.id} size="md">
-                <Stack direction="row" align="center" justify="between" width="full">
-                  <Stack gap="xs">
-                    <Text intent="bodyStrong">{item.key}</Text>
-                    <Text intent="caption">{createdLabel}</Text>
+          {!isLoading && displayItems.length === 0 && (
+            <Card size="md">
+              <Stack align="center" justify="center">
+                <Text intent="caption">{t('apiKeys.emptyState')}</Text>
+              </Stack>
+            </Card>
+          )}
+
+          {!isLoading &&
+            displayItems.map((item) => {
+              const createdLabel = t('apiKeys.createdOn', {
+                date: formatDate(item.created_at),
+              });
+
+              return (
+                <Card key={item.id} size="md">
+                  <Stack direction="row" align="center" justify="between" width="full">
+                    <Stack gap="xs">
+                      <Text intent="bodyStrong">{item.key_prefix}...</Text>
+                      <Text intent="caption">{createdLabel}</Text>
+                    </Stack>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      shape="circle"
+                      onPress={() => handleCopy(item.id, `${item.key_prefix}...`)}
+                      accessibilityLabel={t('apiKeys.copy')}>
+                      <Ionicons
+                        name={copiedIds.has(item.id) ? 'checkmark' : 'copy'}
+                        size={listIconSize}
+                        color={copiedIds.has(item.id) ? colors.success : colors.primary}
+                      />
+                    </Button>
                   </Stack>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    shape="circle"
-                    onPress={() => onCopy(item.key)}
-                    accessibilityLabel={t('apiKeys.copy')}
-                  >
-                    <Ionicons name="copy" size={listIconSize} color={colors.primary} />
-                  </Button>
-                </Stack>
-              </Card>
-            );
-          })}
+                </Card>
+              );
+            })}
         </Stack>
 
         <Div tone="warningSoft" rounded="xl" pad="md" width="full">

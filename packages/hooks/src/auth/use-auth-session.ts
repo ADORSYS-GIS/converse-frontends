@@ -32,9 +32,7 @@ export function useAuthHydration() {
       try {
         const stored = await loadStoredSession();
         const hasTokens = Boolean(
-          stored?.tokens?.accessToken ||
-            stored?.tokens?.idToken ||
-            stored?.tokens?.refreshToken
+          stored?.tokens?.accessToken || stored?.tokens?.idToken || stored?.tokens?.refreshToken
         );
 
         if (stored && hasTokens) {

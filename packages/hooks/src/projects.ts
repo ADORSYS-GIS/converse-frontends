@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next';
 import type { ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateProject, apiKeyBackendListProjects } from '@lightbridge/api-rest';
 import { useCurrentAccount } from './accounts';
-import { getAuthReady } from './auth/use-auth-session';
+import { useAuthReady } from './auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
 }
 
 export function useProjects(accountId?: string) {
-  const authReady = getAuthReady();
+  const authReady = useAuthReady();
 
   const query = useQuery({
     queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],

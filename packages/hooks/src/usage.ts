@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usageBackendQueryUsage } from '@lightbridge/api-rest';
 import { usageCollection, setTokenUsage } from './data/usage-store';
 import { useCurrentProject } from './projects';
-import { getAuthReady } from './auth/use-auth-session';
+import { useAuthReady } from './auth-session';
 
 export function useTokenUsage() {
   const { data } = useLiveQuery((q) => q.from({ usage: usageCollection }));
@@ -22,7 +22,7 @@ export function useTokenUsage() {
 
 export function useQueryUsage() {
   const { data: project } = useCurrentProject();
-  const authReady = getAuthReady();
+  const authReady = useAuthReady();
 
   return useQuery({
     queryKey: ['usage', project?.id],

@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateAccount, apiKeyBackendListAccounts } from '@lightbridge/api-rest';
-import { useAuthSession, getAuthReady } from './auth-session';
+import { useAuthSession, useAuthReady } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
 
 export function useAccounts(enabled = true) {
-  const authReady = getAuthReady();
+  const authReady = useAuthReady();
 
   const query = useQuery({
     queryKey: accountsQueryKey,

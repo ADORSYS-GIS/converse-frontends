@@ -75,6 +75,12 @@ export function useEnsureHydrated() {
   return isHydrated;
 }
 
+// Reactive hook to check if auth is ready for API calls
+export function useAuthReady() {
+  const { isHydrated } = useAuthHydration();
+  return isHydrated;
+}
+
 export async function persistAuthSession(session: AuthSession) {
   await saveStoredSession(session);
 }

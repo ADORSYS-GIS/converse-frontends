@@ -13,7 +13,7 @@ import {
   apiKeyBackendUpdateApiKey,
 } from '@lightbridge/api-rest';
 import { useCurrentProject } from './projects';
-import { getAuthReady } from './auth/use-auth-session';
+import { useAuthReady } from './auth-session';
 
 export function apiKeysQueryKey(projectId: string) {
   return ['projects', projectId, 'api-keys'] as const;
@@ -22,7 +22,7 @@ export function apiKeysQueryKey(projectId: string) {
 export function useApiKeys(projectIdOverride?: string) {
   const { data: currentProject } = useCurrentProject(!projectIdOverride);
   const projectId = projectIdOverride ?? currentProject?.id;
-  const authReady = getAuthReady();
+  const authReady = useAuthReady();
 
   const query = useQuery({
     queryKey: projectId ? apiKeysQueryKey(projectId) : ['projects', 'unknown', 'api-keys'],

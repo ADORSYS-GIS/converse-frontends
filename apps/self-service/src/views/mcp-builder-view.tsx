@@ -192,7 +192,7 @@ function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getTh
   const lines = jsonText.split('\n');
 
   return lines.map((line, lineIndex) => {
-    const keyMatch = line.match(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/);
+    const keyMatch = new RegExp(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/).exec(line);
 
     if (!keyMatch) {
       return (
@@ -249,13 +249,13 @@ export function McpBuilderView({
   onCreateKey,
   isCreating = false,
   generatedSecret = null,
-}: {
+}: Readonly<{
   onBack: () => void;
   onCopy: (value: string) => Promise<void> | void;
   onCreateKey: () => void;
   isCreating?: boolean;
   generatedSecret?: string | null;
-}) {
+}>) {
   const { t } = useTranslation();
   const colors = useMemo(() => getThemeColors('light'), []);
   const [activePlatform, setActivePlatform] = useState<PlatformId>('vscode');
@@ -558,7 +558,6 @@ export function McpBuilderView({
                   </Stack>
 
                   <Stack direction="row" align="center" gap="xs">
-
                     <Div
                       tone="brandSoft"
                       rounded="md"

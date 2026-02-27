@@ -57,9 +57,18 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ input, projectId }: { input: ApiKeyBackendCreateApiKey; projectId: string }) => {
+    mutationFn: async ({
+      input,
+      projectId,
+    }: {
+      input: ApiKeyBackendCreateApiKey;
+      projectId: string;
+    }) => {
       if (!projectId) throw new Error('Project ID is required');
-      const response = await apiKeyBackendCreateApiKey<true>({ path: { project_id: projectId }, body: input });
+      const response = await apiKeyBackendCreateApiKey<true>({
+        path: { project_id: projectId },
+        body: input,
+      });
       return response.data;
     },
     onSuccess: (_, { projectId }) => {
@@ -79,7 +88,15 @@ export function useUpdateApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, projectId, input }: { id: string; projectId: string; input: ApiKeyBackendUpdateApiKey }) =>
+    mutationFn: async ({
+      id,
+      projectId,
+      input,
+    }: {
+      id: string;
+      projectId: string;
+      input: ApiKeyBackendUpdateApiKey;
+    }) =>
       apiKeyBackendUpdateApiKey<true>({
         body: input,
         path: {
@@ -103,7 +120,8 @@ export function useDeleteApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
+    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) =>
+      apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });

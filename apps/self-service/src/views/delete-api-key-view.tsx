@@ -8,12 +8,12 @@ export function DeleteApiKeyView({
   onConfirm,
   onCancel,
   loading,
-}: {
+}: Readonly<{
   name: string;
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
-}) {
+}>) {
   const { t } = useTranslation();
 
   return (

@@ -51,7 +51,9 @@ export function useEnsureDefaultProject() {
 
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const projectsResponse = await apiKeyBackendListProjects<true>({ path: { account_id: accountId } });
+      const projectsResponse = await apiKeyBackendListProjects<true>({
+        path: { account_id: accountId },
+      });
       const existing = projectsResponse.data;
 
       if (existing && existing.length > 0) {

@@ -10,11 +10,11 @@ export function LoginView({
   onSsoPress,
   onHelpPress,
   loading,
-}: {
+}: Readonly<{
   onSsoPress: () => void;
   onHelpPress: () => void;
   loading?: boolean;
-}) {
+}>) {
   const { t } = useTranslation();
 
   return (

@@ -14,7 +14,17 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
   latestUsageOptions = usageOptions;
 
   if (!isInitialized) {
-    const methods = ['request', 'get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
+    const methods = [
+      'request',
+      'get',
+      'post',
+      'put',
+      'delete',
+      'patch',
+      'head',
+      'options',
+      'trace',
+    ] as const;
 
     methods.forEach((method) => {
       const original = (client as any)[method].bind(client);
@@ -45,7 +55,9 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
           const authValue = await (typeof targetConfig.auth === 'function'
             ? targetConfig.auth({ type: 'http' } as any)
             : targetConfig.auth);
-          console.log(`[API Client] ${method.toUpperCase()} ${actualOptions.url} -> ${baseUrl}${actualOptions.url}`);
+          console.log(
+            `[API Client] ${method.toUpperCase()} ${actualOptions.url} -> ${baseUrl}${actualOptions.url}`
+          );
           console.log(`[API Client] Auth Token: ${authValue ? 'Present' : 'Missing'}`);
           if (!authValue) {
             console.log(`[API Client] Warning: No auth token available for request`);

@@ -16,9 +16,7 @@
   "paths": {
     "/api/v1/accounts": {
       "get": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "operationId": "list_accounts",
         "responses": {
           "200": {
@@ -37,9 +35,7 @@
         }
       },
       "post": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "operationId": "create_account",
         "requestBody": {
           "content": {
@@ -67,9 +63,7 @@
     },
     "/api/v1/accounts/{account_id}": {
       "get": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "operationId": "get_account",
         "parameters": [
           {
@@ -96,9 +90,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "operationId": "delete_account",
         "parameters": [
           {
@@ -118,9 +110,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "operationId": "update_account",
         "parameters": [
           {
@@ -159,9 +149,7 @@
     },
     "/api/v1/accounts/{account_id}/projects": {
       "get": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "list_projects",
         "parameters": [
           {
@@ -191,9 +179,7 @@
         }
       },
       "post": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "create_project",
         "parameters": [
           {
@@ -232,9 +218,7 @@
     },
     "/api/v1/api-keys/{key_id}": {
       "get": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "get_api_key",
         "parameters": [
           {
@@ -261,9 +245,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "delete_api_key",
         "parameters": [
           {
@@ -283,9 +265,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "update_api_key",
         "parameters": [
           {
@@ -324,9 +304,7 @@
     },
     "/api/v1/api-keys/{key_id}/revoke": {
       "post": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "revoke_api_key",
         "parameters": [
           {
@@ -355,9 +333,7 @@
     },
     "/api/v1/api-keys/{key_id}/rotate": {
       "post": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "rotate_api_key",
         "parameters": [
           {
@@ -396,9 +372,7 @@
     },
     "/api/v1/projects/{project_id}": {
       "get": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "get_project",
         "parameters": [
           {
@@ -425,9 +399,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "delete_project",
         "parameters": [
           {
@@ -447,9 +419,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "update_project",
         "parameters": [
           {
@@ -488,9 +458,7 @@
     },
     "/api/v1/projects/{project_id}/api-keys": {
       "get": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "list_api_keys",
         "parameters": [
           {
@@ -520,9 +488,7 @@
         }
       },
       "post": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "create_api_key",
         "parameters": [
           {
@@ -564,12 +530,7 @@
     "schemas": {
       "Account": {
         "type": "object",
-        "required": [
-          "id",
-          "billing_identity",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["id", "billing_identity", "created_at", "updated_at"],
         "properties": {
           "billing_identity": {
             "type": "string"
@@ -595,24 +556,14 @@
       },
       "ApiKey": {
         "type": "object",
-        "required": [
-          "id",
-          "project_id",
-          "name",
-          "key_prefix",
-          "created_at",
-          "status"
-        ],
+        "required": ["id", "project_id", "name", "key_prefix", "created_at", "status"],
         "properties": {
           "created_at": {
             "type": "string",
             "format": "date-time"
           },
           "expires_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "id": {
@@ -622,16 +573,10 @@
             "type": "string"
           },
           "last_ip": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "last_used_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "name": {
@@ -641,10 +586,7 @@
             "type": "string"
           },
           "revoked_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "status": {
@@ -654,10 +596,7 @@
       },
       "ApiKeySecret": {
         "type": "object",
-        "required": [
-          "api_key",
-          "secret"
-        ],
+        "required": ["api_key", "secret"],
         "properties": {
           "api_key": {
             "$ref": "#/components/schemas/ApiKey"
@@ -669,16 +608,11 @@
       },
       "ApiKeyStatus": {
         "type": "string",
-        "enum": [
-          "active",
-          "revoked"
-        ]
+        "enum": ["active", "revoked"]
       },
       "CreateAccount": {
         "type": "object",
-        "required": [
-          "billing_identity"
-        ],
+        "required": ["billing_identity"],
         "properties": {
           "billing_identity": {
             "type": "string"
@@ -693,15 +627,10 @@
       },
       "CreateApiKey": {
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "properties": {
           "expires_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "name": {
@@ -711,16 +640,10 @@
       },
       "CreateProject": {
         "type": "object",
-        "required": [
-          "name",
-          "billing_plan"
-        ],
+        "required": ["name", "billing_plan"],
         "properties": {
           "allowed_models": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             }
@@ -747,47 +670,28 @@
         "type": "object",
         "properties": {
           "concurrent_requests": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "requests_per_day": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "requests_per_second": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         }
       },
       "Project": {
         "type": "object",
-        "required": [
-          "id",
-          "account_id",
-          "name",
-          "billing_plan",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["id", "account_id", "name", "billing_plan", "created_at", "updated_at"],
         "properties": {
           "account_id": {
             "type": "string"
           },
           "allowed_models": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             }
@@ -825,24 +729,15 @@
         "type": "object",
         "properties": {
           "expires_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "grace_period_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64"
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -850,16 +745,10 @@
         "type": "object",
         "properties": {
           "billing_identity": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "owners_admins": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             }
@@ -870,17 +759,11 @@
         "type": "object",
         "properties": {
           "expires_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -888,19 +771,13 @@
         "type": "object",
         "properties": {
           "allowed_models": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             }
           },
           "billing_plan": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "default_limits": {
             "oneOf": [
@@ -913,10 +790,7 @@
             ]
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       }

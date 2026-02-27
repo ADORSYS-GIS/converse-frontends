@@ -11,7 +11,7 @@ import { getThemeColors } from '../theme/theme-colors';
 
 const iconSize = 22;
 
-export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<BottomTabBarProps>) {
   const isDesktop = useIsDesktop();
   const { t } = useTranslation();
   const colorScheme = useColorScheme();

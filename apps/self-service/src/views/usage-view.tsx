@@ -5,7 +5,7 @@ import { Card, Stack, Text } from '@lightbridge/ui';
 import { UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { ScreenShell } from './screen-shell';
 
-export function UsageView({ usage }: { usage: UsageBackendUsageSeriesPoint[] }) {
+export function UsageView({ usage }: Readonly<{ usage: UsageBackendUsageSeriesPoint[] }>) {
   const { t } = useTranslation();
 
   return (

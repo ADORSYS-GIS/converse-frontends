@@ -28,7 +28,7 @@ export function HomeView({
   onEndpoints,
   onUsageLogs,
   onSupport,
-}: HomeViewProps) {
+}: Readonly<HomeViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 

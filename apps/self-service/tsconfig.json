@@ -3,7 +3,19 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@app/*": ["./src/*"]
-    }
-  }
+      "@app/*": [
+        "./src/*"
+      ]
+    },
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "./src/types/**/*.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }

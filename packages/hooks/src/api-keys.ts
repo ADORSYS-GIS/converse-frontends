@@ -13,14 +13,16 @@ import {
   apiKeyBackendUpdateApiKey,
 } from '@lightbridge/api-rest';
 import { useCurrentProject } from './projects';
+import { getAuthReady } from './auth/use-auth-session';
 
 export function apiKeysQueryKey(projectId: string) {
   return ['projects', projectId, 'api-keys'] as const;
 }
 
-export function useApiKeys() {
-  const { data: currentProject } = useCurrentProject();
-  const projectId = currentProject?.id;
+export function useApiKeys(projectIdOverride?: string) {
+  const { data: currentProject } = useCurrentProject(!projectIdOverride);
+  const projectId = projectIdOverride ?? currentProject?.id;
+  const authReady = getAuthReady();
 
   const query = useQuery({
     queryKey: projectId ? apiKeysQueryKey(projectId) : ['projects', 'unknown', 'api-keys'],
@@ -29,7 +31,7 @@ export function useApiKeys() {
       const response = await apiKeyBackendListApiKeys<true>({ path: { project_id: projectId } });
       return response.data;
     },
-    enabled: !!projectId,
+    enabled: !!projectId && authReady,
   });
 
   const items = useMemo<ApiKeyBackendApiKey[]>(() => query.data ?? [], [query.data]);
@@ -53,20 +55,16 @@ export function useApiKey(id?: string | null) {
 
 export function useCreateApiKey() {
   const queryClient = useQueryClient();
-  const { data: currentProject } = useCurrentProject();
-  const projectId = currentProject?.id;
 
   const mutation = useMutation({
-    mutationFn: async ({ input, projectId: projectIdOverride }: { input: ApiKeyBackendCreateApiKey; projectId?: string }) => {
-      const activeProjectId = projectIdOverride ?? projectId;
-      if (!activeProjectId) throw new Error('Project ID is required');
-      const response = await apiKeyBackendCreateApiKey<true>({ path: { project_id: activeProjectId }, body: input });
+    mutationFn: async ({ input, projectId }: { input: ApiKeyBackendCreateApiKey; projectId: string }) => {
+      if (!projectId) throw new Error('Project ID is required');
+      const response = await apiKeyBackendCreateApiKey<true>({ path: { project_id: projectId }, body: input });
       return response.data;
     },
-    onSuccess: (_, { projectId: projectIdOverride }) => {
-      const activeProjectId = projectIdOverride ?? projectId;
-      if (activeProjectId) {
-        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(activeProjectId) });
+    onSuccess: (_, { projectId }) => {
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
       }
     },
   });
@@ -79,18 +77,16 @@ export function useCreateApiKey() {
 
 export function useUpdateApiKey() {
   const queryClient = useQueryClient();
-  const { data: currentProject } = useCurrentProject();
-  const projectId = currentProject?.id;
 
   const mutation = useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: ApiKeyBackendUpdateApiKey }) =>
+    mutationFn: async ({ id, projectId, input }: { id: string; projectId: string; input: ApiKeyBackendUpdateApiKey }) =>
       apiKeyBackendUpdateApiKey<true>({
         body: input,
         path: {
           key_id: id,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
       }
@@ -105,12 +101,10 @@ export function useUpdateApiKey() {
 
 export function useDeleteApiKey() {
   const queryClient = useQueryClient();
-  const { data: currentProject } = useCurrentProject();
-  const projectId = currentProject?.id;
 
   const mutation = useMutation({
-    mutationFn: async (id: string) => apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
-    onSuccess: () => {
+    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
+    onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
       }

@@ -4,12 +4,15 @@ import { useTranslation } from 'react-i18next';
 import type { ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateProject, apiKeyBackendListProjects } from '@lightbridge/api-rest';
 import { useCurrentAccount } from './accounts';
+import { getAuthReady } from './auth/use-auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
 }
 
 export function useProjects(accountId?: string) {
+  const authReady = getAuthReady();
+
   const query = useQuery({
     queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],
     queryFn: async () => {
@@ -17,7 +20,7 @@ export function useProjects(accountId?: string) {
       const response = await apiKeyBackendListProjects<true>({ path: { account_id: accountId } });
       return response.data;
     },
-    enabled: !!accountId,
+    enabled: !!accountId && authReady,
   });
 
   const items = useMemo<ApiKeyBackendProject[]>(() => query.data ?? [], [query.data]);
@@ -25,8 +28,8 @@ export function useProjects(accountId?: string) {
   return { ...query, data: items };
 }
 
-export function useCurrentProject() {
-  const { data: currentAccount, isLoading: isAccountLoading } = useCurrentAccount();
+export function useCurrentProject(enabled = true) {
+  const { data: currentAccount, isLoading: isAccountLoading } = useCurrentAccount(enabled);
   const accountId = currentAccount?.id;
 
   const { data: projects, ...query } = useProjects(accountId);
@@ -39,6 +42,7 @@ export function useCurrentProject() {
     ...query,
     data: current,
     isLoading: isAccountLoading || query.isLoading,
+    enabled: enabled && !!accountId,
   };
 }
 export function useEnsureDefaultProject() {

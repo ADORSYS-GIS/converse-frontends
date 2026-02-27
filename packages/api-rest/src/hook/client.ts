@@ -1,5 +1,5 @@
 import { client } from '../client/client.gen';
-import { ClientOptions, RequestOptions } from '../client/client';
+import { ClientOptions } from '../client/client';
 import { Config as ApiConfig } from '../client/core/types.gen';
 
 export type ClientInitOptions = ClientOptions & ApiConfig;
@@ -9,50 +9,61 @@ let latestApiOptions: ClientInitOptions;
 let latestUsageOptions: ClientInitOptions;
 
 export function useClientInit(apiOptions: ClientInitOptions, usageOptions: ClientInitOptions) {
+  // Update options on every render to get fresh auth tokens
   latestApiOptions = apiOptions;
   latestUsageOptions = usageOptions;
 
   if (!isInitialized) {
-    const originalRequest = client.request.bind(client);
+    const methods = ['request', 'get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
 
-    // Proxy the request method to inject the correct baseURL and security on the fly
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (client.request as any) = async (options: any) => {
-      const isUsage =
-        options.url?.startsWith('/v1/usage') ||
-        options.url?.startsWith('/v1/otel') ||
-        options.url?.startsWith('/health');
+    methods.forEach((method) => {
+      const original = (client as any)[method].bind(client);
 
-      const targetConfig = isUsage ? latestUsageOptions : latestApiOptions;
-      const baseUrl = targetConfig.baseURL;
+      (client as any)[method] = async (options: any) => {
+        // Handle both (options) and (url, options) signatures
+        let actualOptions = options;
+        if (typeof options === 'string') {
+          // This case might happen if called with request(url, options)
+          // Though our generated SDK usually uses the single options object
+        }
 
-      // Ensure security is present so setAuthParams is called
-      const security = options.security ?? [{ type: 'http', scheme: 'bearer' }];
+        const isUsage =
+          actualOptions.url?.startsWith('/v1/usage') ||
+          actualOptions.url?.startsWith('/v1/otel') ||
+          actualOptions.url?.startsWith('/health');
 
-      // Debugging 401
-      if (__DEV__) {
-        const authValue = await (typeof targetConfig.auth === 'function'
-          ? targetConfig.auth({ type: 'http' } as any)
-          : targetConfig.auth);
-        console.log(`[API Client] Request: ${options.url} -> ${baseUrl}${options.url}`);
-        console.log(`[API Client] Auth Token: ${authValue ? 'Present (starts with ' + (authValue as string).substring(0, 10) + '...)' : 'Missing'}`);
-        console.log(`[API Client] Security Config: ${JSON.stringify(security)}`);
-      }
+        // CRITICAL: Get fresh options on EACH request - this ensures we get the latest auth token
+        // The closure captures these variables, but we reassign them on each render, so we get fresh values
+        const targetConfig = isUsage ? latestUsageOptions : latestApiOptions;
+        const baseUrl = targetConfig.baseURL;
 
-      // @ts-ignore - dynamic baseURL injection and async return type
-      return originalRequest({
-        ...options,
-        security,
-        baseURL: baseUrl,
-      });
-    };
+        // Ensure security is present so setAuthParams is called
+        const security = actualOptions.security ?? [{ type: 'http', scheme: 'bearer' }];
+
+        // Debugging 401 and 404
+        if (__DEV__) {
+          const authValue = await (typeof targetConfig.auth === 'function'
+            ? targetConfig.auth({ type: 'http' } as any)
+            : targetConfig.auth);
+          console.log(`[API Client] ${method.toUpperCase()} ${actualOptions.url} -> ${baseUrl}${actualOptions.url}`);
+          console.log(`[API Client] Auth Token: ${authValue ? 'Present' : 'Missing'}`);
+          if (!authValue) {
+            console.log(`[API Client] Warning: No auth token available for request`);
+          }
+        }
+
+        return original({
+          ...actualOptions,
+          security,
+          baseURL: baseUrl,
+        });
+      };
+    });
 
     isInitialized = true;
   }
 
-  // Still call setConfig to apply global settings (headers, auth, etc.)
-  // We use apiOptions as the "base" config since auth/etc should be same
-  // We add security here as well just in case
+  // Call setConfig on each render to ensure latest options are used
   client.setConfig({
     ...(apiOptions as unknown as ClientOptions),
     // @ts-ignore

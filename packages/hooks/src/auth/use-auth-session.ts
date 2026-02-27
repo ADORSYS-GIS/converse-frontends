@@ -5,6 +5,17 @@ import type { AuthSession } from './auth-types';
 import { authSessionCollection, clearAuthSession, setAuthSession } from './auth-store';
 import { clearStoredSession, loadStoredSession, saveStoredSession } from './auth-storage';
 
+// Global state to track if auth is ready for API calls
+let isAuthReady = false;
+
+export function setAuthReady(ready: boolean) {
+  isAuthReady = ready;
+}
+
+export function getAuthReady(): boolean {
+  return isAuthReady;
+}
+
 export function useAuthSession() {
   const { data } = useLiveQuery((q) => q.from({ auth: authSessionCollection }));
 
@@ -43,6 +54,7 @@ export function useAuthHydration() {
       } finally {
         if (isMounted) {
           setIsHydrated(true);
+          setAuthReady(true);
         }
       }
     };
@@ -55,6 +67,12 @@ export function useAuthHydration() {
   }, []);
 
   return { isHydrated };
+}
+
+// Hook that can be used to ensure auth is hydrated before proceeding
+export function useEnsureHydrated() {
+  const { isHydrated } = useAuthHydration();
+  return isHydrated;
 }
 
 export async function persistAuthSession(session: AuthSession) {

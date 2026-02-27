@@ -2,17 +2,20 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateAccount, apiKeyBackendListAccounts } from '@lightbridge/api-rest';
-import { useAuthSession } from './auth-session';
+import { useAuthSession, getAuthReady } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
 
-export function useAccounts() {
+export function useAccounts(enabled = true) {
+  const authReady = getAuthReady();
+
   const query = useQuery({
     queryKey: accountsQueryKey,
     queryFn: async () => {
       const response = await apiKeyBackendListAccounts<true>();
       return response.data;
     },
+    enabled: enabled && authReady,
   });
 
   const items = useMemo<ApiKeyBackendAccount[]>(() => query.data ?? [], [query.data]);
@@ -20,8 +23,8 @@ export function useAccounts() {
   return { ...query, data: items };
 }
 
-export function useCurrentAccount() {
-  const { data, ...query } = useAccounts();
+export function useCurrentAccount(enabled = true) {
+  const { data, ...query } = useAccounts(enabled);
 
   const current = useMemo<ApiKeyBackendAccount | undefined>(() => {
     return data && data.length > 0 ? data[0] : undefined;
@@ -29,6 +32,7 @@ export function useCurrentAccount() {
 
   return { ...query, data: current };
 }
+
 export function useEnsureDefaultAccount() {
   const queryClient = useQueryClient();
   const { session } = useAuthSession();

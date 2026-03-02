@@ -24,13 +24,14 @@ export function useAccounts(enabled = true) {
 }
 
 export function useCurrentAccount(enabled = true) {
+  const authReady = useAuthReady();
   const { data, ...query } = useAccounts(enabled);
 
   const current = useMemo<ApiKeyBackendAccount | undefined>(() => {
     return data && data.length > 0 ? data[0] : undefined;
   }, [data]);
 
-  return { ...query, data: current };
+  return { ...query, data: current, enabled: enabled && authReady };
 }
 
 export function useEnsureDefaultAccount() {

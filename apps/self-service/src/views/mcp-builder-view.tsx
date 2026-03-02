@@ -197,7 +197,7 @@ function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getTh
     if (!keyMatch) {
       return (
         <Text
-          key={`json-line-${lineIndex}`}
+          key={`json-line-${line}`}
           style={{
             color: colors.ink,
             fontSize: 12,
@@ -215,7 +215,7 @@ function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getTh
 
     return (
       <Text
-        key={`json-line-${lineIndex}`}
+        key={`json-line-${line}`}
         style={{
           color: colors.ink,
           fontSize: 12,

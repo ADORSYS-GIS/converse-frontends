@@ -99,6 +99,11 @@ const resources = {
         title: 'Token Usage',
         tokens: '{{formatted}} tokens',
         requests: '{{formatted}} requests',
+        comingSoon: 'Coming Soon',
+      },
+      help: {
+        title: 'Help',
+        comingSoon: 'Coming Soon',
       },
       deleteKey: {
         title: 'Delete API key',

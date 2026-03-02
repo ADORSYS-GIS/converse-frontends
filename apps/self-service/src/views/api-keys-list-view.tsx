@@ -1,17 +1,16 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
-import { useThemeColors } from '../hooks/use-theme-colors';
+import { getThemeColors } from '../theme/theme-colors';
 
 type ApiKeysListViewProps = {
   items?: ApiKeyBackendApiKey[];
   isLoading?: boolean;
   onBack: () => void;
   onCreate: () => void;
-  onCopy: (value: string) => void;
   onDelete: (id: string, name: string) => void;
 };
 
@@ -34,34 +33,10 @@ export function ApiKeysListView({
   isLoading = false,
   onBack,
   onCreate,
-  onCopy,
   onDelete,
 }: Readonly<ApiKeysListViewProps>) {
   const { t } = useTranslation();
-  const colors = useThemeColors();
-  const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
-  const resetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
-  const handleCopy = useCallback(
-    (id: string, value: string) => {
-      onCopy(value);
-      setCopiedIds((prev) => new Set(prev).add(id));
-      if (resetTimers.current.has(id)) {
-        clearTimeout(resetTimers.current.get(id));
-      }
-      resetTimers.current.set(
-        id,
-        setTimeout(() => {
-          setCopiedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }, 1800)
-      );
-    },
-    [onCopy]
-  );
+  const colors = useMemo(() => getThemeColors('light'), []);
 
   const displayItems = items;
 
@@ -134,36 +109,19 @@ export function ApiKeysListView({
                   <Card key={item.id} size="md">
                     <Stack direction="row" align="center" justify="between" width="full">
                       <Stack gap="xs">
-                        <Text intent="bodyStrong">{item.key_prefix}...</Text>
+                        <Text intent="bodyStrong">{item.name}</Text>
                         <Text intent="caption">{createdLabel}</Text>
                       </Stack>
-                      <Stack direction="row" align="center" gap="sm">
-                        <Button
-                          variant="ghost"
-                          onPress={() => handleCopy(item.id, `${item.key_prefix}...`)}
-                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                          <Stack direction="row" align="center" gap="xs">
-                            <Ionicons
-                              name={copiedIds.has(item.id) ? 'checkmark' : 'copy'}
-                              size={18}
-                              color={colors.primary}
-                            />
-                            <Text intent="link">
-                              {copiedIds.has(item.id) ? t('apiKeys.copied') : t('apiKeys.copy')}
-                            </Text>
-                          </Stack>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onPress={() => onDelete(item.id, item.key_prefix)}
-                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                          <Ionicons
-                            name="trash-outline"
-                            size={18}
-                            color={colors.error}
-                          />
-                        </Button>
-                      </Stack>
+                      <Button
+                        variant="ghost"
+                        onPress={() => onDelete(item.id, item.name)}
+                        style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                        <Ionicons
+                          name="trash-outline"
+                          size={18}
+                          color={colors.error}
+                        />
+                      </Button>
                     </Stack>
                   </Card>
                 );

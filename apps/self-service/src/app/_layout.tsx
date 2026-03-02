@@ -34,12 +34,20 @@ function AppBootstrap() {
     {
       baseURL: runtimeConfig.backendUrl,
       auth: async (_a) => {
+        // Wait for auth to be hydrated before returning token
+        if (!isHydrated) {
+          return '';
+        }
         return session.tokens?.accessToken ?? '';
       },
     },
     {
       baseURL: runtimeConfig.usageUrl,
       auth: async (_a) => {
+        // Wait for auth to be hydrated before returning token
+        if (!isHydrated) {
+          return '';
+        }
         return session.tokens?.accessToken ?? '';
       },
     }

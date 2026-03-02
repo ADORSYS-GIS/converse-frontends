@@ -8,6 +8,12 @@ import { useThemeColors } from '../hooks/use-theme-colors';
 const quickActionIconSize = 20;
 const notificationIconSize = 20;
 
+function getServiceStatusTone(status: ServiceStatus): 'success' | 'error' | 'muted' {
+  if (status === 'healthy') return 'success';
+  if (status === 'unhealthy') return 'error';
+  return 'muted';
+}
+
 export type ServiceStatus = 'healthy' | 'unhealthy' | 'unknown';
 
 export type ServiceInfo = {
@@ -174,7 +180,7 @@ export function HomeView({
                   <Stack direction="row" justify="between" align="center" width="full">
                     <Stack direction="row" align="center" gap="sm">
                       <Div
-                        tone={service.status === 'healthy' ? 'success' : service.status === 'unhealthy' ? 'error' : 'muted'}
+                        tone={getServiceStatusTone(service.status)}
                         rounded="full"
                         size="dot"
                       />

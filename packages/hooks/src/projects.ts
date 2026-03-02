@@ -29,6 +29,7 @@ export function useProjects(accountId?: string) {
 }
 
 export function useCurrentProject(enabled = true) {
+  const authReady = useAuthReady();
   const { data: currentAccount, isLoading: isAccountLoading } = useCurrentAccount(enabled);
   const accountId = currentAccount?.id;
 
@@ -42,7 +43,7 @@ export function useCurrentProject(enabled = true) {
     ...query,
     data: current,
     isLoading: isAccountLoading || query.isLoading,
-    enabled: enabled && !!accountId,
+    enabled: enabled && !!accountId && authReady,
   };
 }
 export function useEnsureDefaultProject() {

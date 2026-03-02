@@ -1,38 +1,38 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { copyToClipboard } from '@lightbridge/api-native';
-import { useApiKeys, useCurrentProject, useEnsureDefaultAccount, useEnsureDefaultProject } from '@lightbridge/hooks';
+import { useApiKeys, useCurrentProject, useCreateApiKey } from '@lightbridge/hooks';
 import { McpBuilderView } from '../views/mcp-builder-view';
 
 export function McpBuilderScreen() {
   const router = useRouter();
   const { data: apiKeys = [] } = useApiKeys();
-  useCurrentProject();
-  useEnsureDefaultAccount();
-  useEnsureDefaultProject();
+  const { data: project } = useCurrentProject();
+  const createApiKey = useCreateApiKey();
+  const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
 
   // Get the most recent API key if available
-  const existingKey = useMemo(() => {
-    if (apiKeys.length > 0) {
-      // Sort by creation date descending and get the most recent
-      const sorted = [...apiKeys].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      return sorted[0];
-    }
-    return null;
-  }, [apiKeys]);
 
-  // Generate a mock secret from the existing key prefix for display
-  // In real usage, the full key would be retrieved from a secure store
-  const generatedSecret = existingKey ? `${existingKey.key_prefix}****************` : null;
-
-  const handleCreate = async () => {
-    // Only redirect if there's no existing key
-    if (!existingKey) {
-      router.navigate('/api-keys/new');
+  const handleCreateKey = useCallback(async () => {
+    if (!project?.id) {
+      return;
     }
-  };
+
+    try {
+      // Create a new API key and get the secret
+      const newKey = await createApiKey.mutate({
+        projectId: project.id,
+        input: {
+          name: 'MCP Key',
+        },
+      });
+
+      // The secret is returned in the response
+      setGeneratedSecret(newKey.secret);
+    } catch (error) {
+      console.error('Failed to create API key:', error);
+    }
+  }, [project, createApiKey]);
 
   return (
     <McpBuilderView
@@ -45,8 +45,8 @@ export function McpBuilderScreen() {
         router.navigate('/home');
       }}
       onCopy={copyToClipboard}
-      onCreateKey={handleCreate}
-      isCreating={false}
+      onCreateKey={handleCreateKey}
+      isCreating={createApiKey.isPending}
       generatedSecret={generatedSecret}
     />
   );

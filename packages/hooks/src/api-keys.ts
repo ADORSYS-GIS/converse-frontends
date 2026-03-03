@@ -90,7 +90,6 @@ export function useUpdateApiKey() {
   const mutation = useMutation({
     mutationFn: async ({
       id,
-      projectId,
       input,
     }: {
       id: string;

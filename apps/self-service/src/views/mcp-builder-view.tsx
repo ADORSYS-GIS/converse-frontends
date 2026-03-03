@@ -197,7 +197,7 @@ function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getTh
     if (!keyMatch) {
       return (
         <Text
-          key={`json-line-${line}`}
+          key={`json-line-${lineIndex}-${line}`}
           style={{
             color: colors.ink,
             fontSize: 12,
@@ -215,7 +215,7 @@ function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getTh
 
     return (
       <Text
-        key={`json-line-${line}`}
+        key={`json-line-${lineIndex}-${line}`}
         style={{
           color: colors.ink,
           fontSize: 12,
@@ -369,17 +369,14 @@ export function McpBuilderView({
                     size="sm"
                     accessibilityRole="button"
                     onPress={() => toggleServer(server.id)}
-                    style={{
+                     style={{
                       padding: 12,
                       borderRadius: 14,
                       minHeight: 76,
                       borderWidth: 1,
                       borderColor: colors.border,
                       backgroundColor: colors.surface,
-                      shadowColor: colors.ink,
-                      shadowOpacity: 0.03,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
+                      boxShadow: `0 2px 8px rgba(0, 0, 0, 0.03)`,
                       elevation: 1,
                     }}>
                     <Stack direction="row" align="center" justify="between" width="full">

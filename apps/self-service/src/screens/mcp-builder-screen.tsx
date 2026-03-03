@@ -1,24 +1,23 @@
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { copyToClipboard } from '@lightbridge/api-native';
-import { useApiKeys, useCurrentProject, useCreateApiKey } from '@lightbridge/hooks';
+import { useCreateApiKey, useEnsureDefaultAccount, useEnsureDefaultProject } from '@lightbridge/hooks';
 import { McpBuilderView } from '../views/mcp-builder-view';
 
 export function McpBuilderScreen() {
   const router = useRouter();
-  const { data: apiKeys = [] } = useApiKeys();
-  const { data: project } = useCurrentProject();
-  const createApiKey = useCreateApiKey();
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const { mutate: ensureAccount, isPending: isAccountEnsuring } = useEnsureDefaultAccount();
+  const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
+  const createApiKey = useCreateApiKey();
 
   // Get the most recent API key if available
 
   const handleCreateKey = useCallback(async () => {
-    if (!project?.id) {
-      return;
-    }
-
     try {
+      const account = await ensureAccount();
+      const project = await ensureProject(account.id);
+      
       // Create a new API key and get the secret
       const newKey = await createApiKey.mutate({
         projectId: project.id,
@@ -32,7 +31,9 @@ export function McpBuilderScreen() {
     } catch (error) {
       console.error('Failed to create API key:', error);
     }
-  }, [project, createApiKey]);
+  }, [createApiKey, ensureAccount, ensureProject]);
+
+  const isCreating = createApiKey.isPending || isAccountEnsuring || isProjectEnsuring;
 
   return (
     <McpBuilderView
@@ -46,7 +47,7 @@ export function McpBuilderScreen() {
       }}
       onCopy={copyToClipboard}
       onCreateKey={handleCreateKey}
-      isCreating={createApiKey.isPending}
+      isCreating={isCreating}
       generatedSecret={generatedSecret}
     />
   );

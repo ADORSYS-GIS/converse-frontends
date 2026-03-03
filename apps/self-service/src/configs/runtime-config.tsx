@@ -15,7 +15,7 @@ function getEnvConfig(): AppRuntimeConfig {
   const clientId = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID;
   const scheme = process.env.EXPO_PUBLIC_KEYCLOAK_SCHEME;
 
-  if (!backendUrl || !usageUrl || !issuer || !clientId || !scheme) {
+  if (!backendUrl || !issuer || !clientId || !scheme) {
     throw new Error('Missing required EXPO_PUBLIC_* config values.');
   }
 

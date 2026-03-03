@@ -42,7 +42,7 @@ function AppBootstrap() {
       },
     },
     {
-      baseURL: runtimeConfig.usageUrl,
+      baseURL: runtimeConfig.usageUrl || runtimeConfig.backendUrl,
       auth: async (_a) => {
         // Wait for auth to be hydrated before returning token
         if (!isHydrated) {

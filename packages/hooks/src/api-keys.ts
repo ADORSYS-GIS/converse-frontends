@@ -29,7 +29,7 @@ export function useApiKeys(projectIdOverride?: string) {
     queryFn: async () => {
       if (!projectId) throw new Error('Project ID is required');
       const response = await apiKeyBackendListApiKeys<true>({
-        path: { project_id: projectId, limit: 100, offset: 0 },
+        path: { project_id: projectId, limit: 10, offset: 0 },
       });
       return response.data;
     },

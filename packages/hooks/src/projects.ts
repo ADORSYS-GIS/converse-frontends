@@ -18,7 +18,7 @@ export function useProjects(accountId?: string) {
     queryFn: async () => {
       if (!accountId) throw new Error('Account ID is required');
       const response = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 100, offset: 0 },
+        path: { account_id: accountId, limit: 10, offset: 0 },
       });
       return response.data;
     },
@@ -55,7 +55,7 @@ export function useEnsureDefaultProject() {
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
       const projectsResponse = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 100, offset: 0 },
+        path: { account_id: accountId, limit: 10, offset: 0 },
       });
       const existing = projectsResponse.data;
 

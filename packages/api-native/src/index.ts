@@ -1,9 +1,9 @@
-import * as Clipboard from "expo-clipboard";
-import { Linking, Platform } from "react-native";
+import * as Clipboard from 'expo-clipboard';
+import { Linking, Platform } from 'react-native';
 
 export async function openExternalUrl(url: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    window.open(url, "_blank", "noopener,noreferrer");
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
 
@@ -11,11 +11,7 @@ export async function openExternalUrl(url: string) {
 }
 
 export async function copyToClipboard(value: string) {
-  if (
-    Platform.OS === "web" &&
-    typeof navigator !== "undefined" &&
-    navigator.clipboard
-  ) {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
     await navigator.clipboard.writeText(value);
     return;
   }
@@ -24,11 +20,7 @@ export async function copyToClipboard(value: string) {
 }
 
 export async function readFromClipboard() {
-  if (
-    Platform.OS === "web" &&
-    typeof navigator !== "undefined" &&
-    navigator.clipboard?.readText
-  ) {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
     return await navigator.clipboard.readText();
   }
 
@@ -36,5 +28,5 @@ export async function readFromClipboard() {
 }
 
 export function isWebPlatform() {
-  return Platform.OS === "web";
+  return Platform.OS === 'web';
 }

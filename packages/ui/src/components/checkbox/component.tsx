@@ -23,7 +23,7 @@ export function Checkbox({ size, disabled, value, ...props }: CheckboxProps) {
           size,
           checked: resolvedValue,
           disabled: resolvedDisabled,
-        }),
+        })
       )}
       {...props}
     />

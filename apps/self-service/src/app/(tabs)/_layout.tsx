@@ -13,13 +13,12 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneContainerStyle: isDesktop ? { paddingLeft: 256 } : undefined,
+        sceneStyle: isDesktop ? { paddingLeft: 256 } : undefined,
       }}
-      tabBar={(props) => <ResponsiveTabBar {...props} />}
-    >
+      tabBar={(props) => <ResponsiveTabBar {...props} />}>
       <Tabs.Screen name="home" options={{ title: t('nav.home') }} />
       <Tabs.Screen name="api-keys" options={{ title: t('nav.apiKeys') }} />
-      <Tabs.Screen name="api-key-editor" options={{ title: t('nav.apiKeyEditor') }} />
+      <Tabs.Screen name="mcp" options={{ title: t('nav.apiKeyEditor') }} />
       <Tabs.Screen name="usage" options={{ title: t('nav.usage') }} />
     </Tabs>
   );

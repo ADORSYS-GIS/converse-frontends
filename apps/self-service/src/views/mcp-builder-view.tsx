@@ -1,32 +1,25 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
-import {
-  Button,
-  Card,
-  Div,
-  Heading,
-  Scroll,
-  Stack,
-  Text,
-} from "@lightbridge/ui";
-import { getThemeColors } from "../theme/theme-colors";
+import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { getThemeColors } from '../theme/theme-colors';
 
-type PlatformId = "vscode" | "cursor" | "claude" | "intellij";
-type ServerId = "brave-search" | "firecrawl" | "browserless" | "context7";
+type PlatformId = 'vscode' | 'cursor' | 'claude' | 'intellij';
+type ServerId = 'brave-search' | 'firecrawl' | 'browserless' | 'context7';
 
 type ServerDefinition = {
   id: ServerId;
   nameKey: string;
   descriptionKey: string;
   iconName: keyof typeof Ionicons.glyphMap;
-  iconTone: "warningSoft" | "errorSoft" | "successSoft" | "accentSoft";
-  iconColor: "secondary" | "error" | "success" | "accent";
+  iconTone: 'warningSoft' | 'errorSoft' | 'successSoft' | 'accentSoft';
+  iconColor: 'secondary' | 'error' | 'success' | 'accent';
   command: string;
   args: string[];
   env: Record<string, string>;
-  type: "stdio" | "sse";
+  type: 'stdio' | 'sse';
+  envKey: string;
 };
 
 type PlatformDefinition = {
@@ -35,107 +28,111 @@ type PlatformDefinition = {
   configTitleKey: string;
   filePath: string;
   iconName: keyof typeof Ionicons.glyphMap;
-  iconTone: "brand" | "secondary" | "accent" | "surface";
-  iconBackground: "primary" | "secondary" | "accent" | "ink";
-  iconColor: "surface" | "ink";
+  iconTone: 'brand' | 'secondary' | 'accent' | 'surface';
+  iconBackground: 'primary' | 'secondary' | 'accent' | 'ink';
+  iconColor: 'surface' | 'ink';
 };
 
 const serverDefinitions: ServerDefinition[] = [
   {
-    id: "brave-search",
-    nameKey: "apiKeyBuilder.servers.braveSearch.name",
-    descriptionKey: "apiKeyBuilder.servers.braveSearch.description",
-    iconName: "search",
-    iconTone: "warningSoft",
-    iconColor: "secondary",
-    command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-brave-search"],
-    env: { BRAVE_API_KEY: "YOUR_API_KEY_HERE" },
-    type: "stdio",
+    id: 'brave-search',
+    nameKey: 'apiKeyBuilder.servers.braveSearch.name',
+    descriptionKey: 'apiKeyBuilder.servers.braveSearch.description',
+    iconName: 'search',
+    iconTone: 'warningSoft',
+    iconColor: 'secondary',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-brave-search'],
+    env: { BRAVE_API_KEY: 'REPLACE_ME' },
+    envKey: 'BRAVE_API_KEY',
+    type: 'stdio',
   },
   {
-    id: "firecrawl",
-    nameKey: "apiKeyBuilder.servers.firecrawl.name",
-    descriptionKey: "apiKeyBuilder.servers.firecrawl.description",
-    iconName: "flame",
-    iconTone: "errorSoft",
-    iconColor: "error",
-    command: "npx",
-    args: ["-y", "firecrawl-mcp"],
-    env: { FC_API_KEY: "YOUR_API_KEY_HERE" },
-    type: "stdio",
+    id: 'firecrawl',
+    nameKey: 'apiKeyBuilder.servers.firecrawl.name',
+    descriptionKey: 'apiKeyBuilder.servers.firecrawl.description',
+    iconName: 'flame',
+    iconTone: 'errorSoft',
+    iconColor: 'error',
+    command: 'npx',
+    args: ['-y', 'firecrawl-mcp'],
+    env: { FC_API_KEY: 'REPLACE_ME' },
+    envKey: 'FC_API_KEY',
+    type: 'stdio',
   },
   {
-    id: "browserless",
-    nameKey: "apiKeyBuilder.servers.browserless.name",
-    descriptionKey: "apiKeyBuilder.servers.browserless.description",
-    iconName: "globe",
-    iconTone: "successSoft",
-    iconColor: "success",
-    command: "npx",
-    args: ["-y", "@browserless/mcp-server"],
-    env: { BLESS_TOKEN: "YOUR_TOKEN_HERE" },
-    type: "sse",
+    id: 'browserless',
+    nameKey: 'apiKeyBuilder.servers.browserless.name',
+    descriptionKey: 'apiKeyBuilder.servers.browserless.description',
+    iconName: 'globe',
+    iconTone: 'successSoft',
+    iconColor: 'success',
+    command: 'npx',
+    args: ['-y', '@browserless/mcp-server'],
+    env: { BLESS_TOKEN: 'REPLACE_ME' },
+    envKey: 'BLESS_TOKEN',
+    type: 'sse',
   },
   {
-    id: "context7",
-    nameKey: "apiKeyBuilder.servers.context7.name",
-    descriptionKey: "apiKeyBuilder.servers.context7.description",
-    iconName: "hardware-chip",
-    iconTone: "accentSoft",
-    iconColor: "accent",
-    command: "npx",
-    args: ["-y", "context7-mcp"],
-    env: { C7_TOKEN: "YOUR_TOKEN_HERE" },
-    type: "stdio",
+    id: 'context7',
+    nameKey: 'apiKeyBuilder.servers.context7.name',
+    descriptionKey: 'apiKeyBuilder.servers.context7.description',
+    iconName: 'hardware-chip',
+    iconTone: 'accentSoft',
+    iconColor: 'accent',
+    command: 'npx',
+    args: ['-y', 'context7-mcp'],
+    env: { C7_TOKEN: 'REPLACE_ME' },
+    envKey: 'C7_TOKEN',
+    type: 'stdio',
   },
 ];
 
 const platformDefinitions: PlatformDefinition[] = [
   {
-    id: "vscode",
-    labelKey: "apiKeyBuilder.platforms.vscode",
-    configTitleKey: "apiKeyBuilder.configCards.vscode",
-    filePath: ".vscode/mcp.json",
-    iconName: "code-slash",
-    iconTone: "brand",
-    iconBackground: "primary",
-    iconColor: "surface",
+    id: 'vscode',
+    labelKey: 'apiKeyBuilder.platforms.vscode',
+    configTitleKey: 'apiKeyBuilder.configCards.vscode',
+    filePath: '.vscode/mcp.json',
+    iconName: 'code-slash',
+    iconTone: 'brand',
+    iconBackground: 'primary',
+    iconColor: 'surface',
   },
   {
-    id: "cursor",
-    labelKey: "apiKeyBuilder.platforms.cursor",
-    configTitleKey: "apiKeyBuilder.configCards.cursor",
-    filePath: "~/.cursor/mcp.json",
-    iconName: "terminal-outline",
-    iconTone: "surface",
-    iconBackground: "ink",
-    iconColor: "surface",
+    id: 'cursor',
+    labelKey: 'apiKeyBuilder.platforms.cursor',
+    configTitleKey: 'apiKeyBuilder.configCards.cursor',
+    filePath: '~/.cursor/mcp.json',
+    iconName: 'terminal-outline',
+    iconTone: 'surface',
+    iconBackground: 'ink',
+    iconColor: 'surface',
   },
   {
-    id: "claude",
-    labelKey: "apiKeyBuilder.platforms.claude",
-    configTitleKey: "apiKeyBuilder.configCards.claude",
-    filePath: "claude_desktop_config.json",
-    iconName: "sparkles",
-    iconTone: "secondary",
-    iconBackground: "secondary",
-    iconColor: "surface",
+    id: 'claude',
+    labelKey: 'apiKeyBuilder.platforms.claude',
+    configTitleKey: 'apiKeyBuilder.configCards.claude',
+    filePath: 'claude_desktop_config.json',
+    iconName: 'sparkles',
+    iconTone: 'secondary',
+    iconBackground: 'secondary',
+    iconColor: 'surface',
   },
   {
-    id: "intellij",
-    labelKey: "apiKeyBuilder.platforms.intellij",
-    configTitleKey: "apiKeyBuilder.configCards.intellij",
-    filePath: ".idea/mcp.xml",
-    iconName: "layers",
-    iconTone: "accent",
-    iconBackground: "accent",
-    iconColor: "surface",
+    id: 'intellij',
+    labelKey: 'apiKeyBuilder.platforms.intellij',
+    configTitleKey: 'apiKeyBuilder.configCards.intellij',
+    filePath: '.idea/mcp.xml',
+    iconName: 'layers',
+    iconTone: 'accent',
+    iconBackground: 'accent',
+    iconColor: 'surface',
   },
 ];
 
 const initialSelectedServers: Record<ServerId, boolean> = {
-  "brave-search": true,
+  'brave-search': true,
   firecrawl: true,
   browserless: true,
   context7: true,
@@ -144,8 +141,9 @@ const initialSelectedServers: Record<ServerId, boolean> = {
 function buildConfig(
   platform: PlatformId,
   selectedServers: Record<ServerId, boolean>,
+  secretKey: string = 'YOUR_API_KEY_HERE'
 ) {
-  const rootKey = platform === "vscode" ? "servers" : "mcpServers";
+  const rootKey = platform === 'vscode' ? 'servers' : 'mcpServers';
   const result: Record<string, unknown> = {};
 
   for (const server of serverDefinitions) {
@@ -153,13 +151,18 @@ function buildConfig(
       continue;
     }
 
+    const env = { ...server.env };
+    if (server.envKey) {
+      env[server.envKey] = secretKey;
+    }
+
     const entry: Record<string, unknown> = {
       command: server.command,
       args: server.args,
-      env: server.env,
+      env: env,
     };
 
-    if (platform === "vscode") {
+    if (platform === 'vscode') {
       entry.type = server.type;
     }
 
@@ -170,7 +173,7 @@ function buildConfig(
 }
 
 function getJsonKeyColor(key: string, colors: ReturnType<typeof getThemeColors>) {
-  if (key === "servers" || key === "mcpServers") {
+  if (key === 'servers' || key === 'mcpServers') {
     return colors.primary;
   }
 
@@ -178,36 +181,32 @@ function getJsonKeyColor(key: string, colors: ReturnType<typeof getThemeColors>)
     return colors.secondary;
   }
 
-  if (key === "command" || key === "args" || key === "env" || key === "type") {
+  if (key === 'command' || key === 'args' || key === 'env' || key === 'type') {
     return colors.accent;
   }
 
   return colors.success;
 }
 
-function renderHighlightedJson(
-  jsonText: string,
-  colors: ReturnType<typeof getThemeColors>,
-) {
-  const lines = jsonText.split("\n");
+function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getThemeColors>) {
+  const lines = jsonText.split('\n');
 
   return lines.map((line, lineIndex) => {
-    const keyMatch = line.match(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/);
+    const keyMatch = new RegExp(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/).exec(line);
 
     if (!keyMatch) {
       return (
         <Text
-          key={`json-line-${lineIndex}`}
+          key={`json-line-${lineIndex}-${line}`}
           style={{
             color: colors.ink,
             fontSize: 12,
             lineHeight: 19,
-            fontWeight: "500",
-            fontFamily: "monospace",
-          }}
-        >
+            fontWeight: '500',
+            fontFamily: 'monospace',
+          }}>
           {line}
-          {lineIndex < lines.length - 1 ? "\n" : ""}
+          {lineIndex < lines.length - 1 ? '\n' : ''}
         </Text>
       );
     }
@@ -216,65 +215,66 @@ function renderHighlightedJson(
 
     return (
       <Text
-        key={`json-line-${lineIndex}`}
+        key={`json-line-${lineIndex}-${line}`}
         style={{
           color: colors.ink,
           fontSize: 12,
           lineHeight: 19,
-          fontWeight: "500",
-          fontFamily: "monospace",
-        }}
-      >
+          fontWeight: '500',
+          fontFamily: 'monospace',
+        }}>
         {indent}
-        <Text style={{ color: colors.ink, fontFamily: "monospace" }}>
-          {'"'}
-        </Text>
+        <Text style={{ color: colors.ink, fontFamily: 'monospace' }}>{'"'}</Text>
         <Text
           style={{
             color: getJsonKeyColor(key, colors),
-            fontFamily: "monospace",
-          }}
-        >
+            fontFamily: 'monospace',
+          }}>
           {key}
         </Text>
-        <Text style={{ color: colors.ink, fontFamily: "monospace" }}>
+        <Text style={{ color: colors.ink, fontFamily: 'monospace' }}>
           {'"'}
           {separator}
           {rest}
         </Text>
-        {lineIndex < lines.length - 1 ? "\n" : ""}
+        {lineIndex < lines.length - 1 ? '\n' : ''}
       </Text>
     );
   });
 }
 
-export function ApiKeyFormView({
+export function McpBuilderView({
   onBack,
   onCopy,
-}: {
+  onCreateKey,
+  isCreating = false,
+  generatedSecret = null,
+}: Readonly<{
   onBack: () => void;
   onCopy: (value: string) => Promise<void> | void;
-}) {
+  onCreateKey: () => void;
+  isCreating?: boolean;
+  generatedSecret?: string | null;
+}>) {
   const { t } = useTranslation();
-  const colors = useMemo(() => getThemeColors("light"), []);
-  const [activePlatform, setActivePlatform] = useState<PlatformId>("vscode");
-  const [selectedServers, setSelectedServers] = useState<
-    Record<ServerId, boolean>
-  >(initialSelectedServers);
-  const [configText, setConfigText] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const colors = useMemo(() => getThemeColors('light'), []);
+  const [activePlatform, setActivePlatform] = useState<PlatformId>('vscode');
+  const [selectedServers, setSelectedServers] =
+    useState<Record<ServerId, boolean>>(initialSelectedServers);
+  const [configText, setConfigText] = useState('');
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const feedbackResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeConfig = useMemo(
     () =>
       platformDefinitions.find((platform) => platform.id === activePlatform) ??
       platformDefinitions[0],
-    [activePlatform],
+    [activePlatform]
   );
 
   const generatedConfigText = useMemo(
-    () => buildConfig(activePlatform, selectedServers),
-    [activePlatform, selectedServers],
+    () => buildConfig(activePlatform, selectedServers, generatedSecret || undefined),
+    [activePlatform, selectedServers, generatedSecret]
   );
 
   useEffect(() => {
@@ -287,7 +287,7 @@ export function ApiKeyFormView({
         clearTimeout(feedbackResetTimer.current);
       }
     },
-    [],
+    []
   );
 
   const toggleServer = (serverId: ServerId) => {
@@ -300,26 +300,22 @@ export function ApiKeyFormView({
   const handleCopy = async () => {
     try {
       await onCopy(configText);
-      setCopyState("copied");
+      setCopyState('copied');
 
       if (feedbackResetTimer.current) {
         clearTimeout(feedbackResetTimer.current);
       }
 
       feedbackResetTimer.current = setTimeout(() => {
-        setCopyState("idle");
+        setCopyState('idle');
       }, 1800);
     } catch {
-      setCopyState("idle");
+      setCopyState('idle');
     }
   };
 
   return (
-    <Div
-      tone="muted"
-      width="full"
-      style={{ flex: 1, backgroundColor: colors.muted }}
-    >
+    <Div tone="muted" width="full" style={{ flex: 1, backgroundColor: colors.muted }}>
       <Div
         tone="surface"
         width="full"
@@ -330,23 +326,18 @@ export function ApiKeyFormView({
           paddingHorizontal: 16,
           paddingVertical: 10,
           backgroundColor: colors.surface,
-        }}
-      >
+        }}>
         <Stack direction="row" align="center" justify="between" width="full">
           <Button
             variant="ghost"
             size="iconSm"
             onPress={onBack}
-            accessibilityLabel={t("apiKeyBuilder.back")}
-          >
+            accessibilityLabel={t('apiKeyBuilder.back')}>
             <Ionicons name="arrow-back" size={21} color={colors.ink} />
           </Button>
 
-          <Heading
-            tone="title"
-            style={{ fontSize: 20, color: colors.ink, fontWeight: "700" }}
-          >
-            {t("apiKeyBuilder.title")}
+          <Heading tone="title" style={{ fontSize: 20, color: colors.ink, fontWeight: '700' }}>
+            {t('apiKeyBuilder.title')}
           </Heading>
 
           <Div size="iconSm" />
@@ -359,13 +350,12 @@ export function ApiKeyFormView({
           style={{
             paddingHorizontal: 20,
             paddingTop: 22,
-            paddingBottom: 140,
+            paddingBottom: 32,
             backgroundColor: colors.muted,
-          }}
-        >
+          }}>
           <Stack gap="lg">
             <Text intent="eyebrow" style={{ letterSpacing: 0.3 }}>
-              {t("apiKeyBuilder.sections.servers")}
+              {t('apiKeyBuilder.sections.servers')}
             </Text>
 
             <Stack gap="sm" width="full">
@@ -379,52 +369,35 @@ export function ApiKeyFormView({
                     size="sm"
                     accessibilityRole="button"
                     onPress={() => toggleServer(server.id)}
-                    style={{
+                     style={{
                       padding: 12,
                       borderRadius: 14,
                       minHeight: 76,
                       borderWidth: 1,
                       borderColor: colors.border,
                       backgroundColor: colors.surface,
-                      shadowColor: colors.ink,
-                      shadowOpacity: 0.03,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
+                      boxShadow: `0 2px 8px rgba(0, 0, 0, 0.03)`,
                       elevation: 1,
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      align="center"
-                      justify="between"
-                      width="full"
-                    >
+                    }}>
+                    <Stack direction="row" align="center" justify="between" width="full">
                       <Stack
                         direction="row"
                         align="center"
                         gap="sm"
                         width="full"
-                        style={{ flex: 1 }}
-                      >
+                        style={{ flex: 1 }}>
                         <Div
                           tone={server.iconTone}
                           rounded="xl"
                           size="iconMd"
                           align="center"
-                          justify="center"
-                        >
-                          <Ionicons
-                            name={server.iconName}
-                            size={19}
-                            color={iconColor}
-                          />
+                          justify="center">
+                          <Ionicons name={server.iconName} size={19} color={iconColor} />
                         </Div>
 
                         <Stack gap="xs" width="full" style={{ flex: 1 }}>
                           <Text intent="bodyStrong">{t(server.nameKey)}</Text>
-                          <Text intent="caption">
-                            {t(server.descriptionKey)}
-                          </Text>
+                          <Text intent="caption">{t(server.descriptionKey)}</Text>
                         </Stack>
                       </Stack>
 
@@ -434,18 +407,15 @@ export function ApiKeyFormView({
                           width: 52,
                           height: 30,
                           padding: 3,
-                          backgroundColor: enabled
-                            ? colors.primary
-                            : colors.border,
-                        }}
-                      >
+                          backgroundColor: enabled ? colors.primary : colors.border,
+                        }}>
                         <Div
                           tone="surface"
                           rounded="full"
                           style={{
                             width: 24,
                             height: 24,
-                            alignSelf: enabled ? "flex-end" : "flex-start",
+                            alignSelf: enabled ? 'flex-end' : 'flex-start',
                           }}
                         />
                       </Div>
@@ -455,10 +425,47 @@ export function ApiKeyFormView({
               })}
             </Stack>
 
-            <Div style={{ height: 4 }} />
+            {!generatedSecret && (
+              <Card
+                size="md"
+                style={{
+                  padding: 16,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                }}>
+                <Stack gap="md">
+                  <Stack direction="row" align="center" gap="sm">
+                    <Div
+                      tone="brandSoft"
+                      rounded="md"
+                      size="iconMd"
+                      align="center"
+                      justify="center">
+                      <Ionicons name="key-outline" size={20} color={colors.primary} />
+                    </Div>
+                    <Stack gap="xs" style={{ flex: 1 }}>
+                      <Text intent="bodyStrong">{t('apiKeyBuilder.setupAuth.title')}</Text>
+                      <Text intent="caption">{t('apiKeyBuilder.setupAuth.description')}</Text>
+                    </Stack>
+                  </Stack>
+                  <Button
+                    variant="primary"
+                    onPress={onCreateKey}
+                    disabled={isCreating}
+                    width="full"
+                    style={{ height: 44 }}>
+                    <Text intent="inverseBodyStrong">
+                      {isCreating ? t('apiKeys.saving') : t('apiKeyBuilder.setupAuth.button')}
+                    </Text>
+                  </Button>
+                </Stack>
+              </Card>
+            )}
 
             <Text intent="eyebrow" style={{ letterSpacing: 0.3 }}>
-              {t("apiKeyBuilder.sections.generated")}
+              {t('apiKeyBuilder.sections.generated')}
             </Text>
 
             <Div
@@ -471,8 +478,7 @@ export function ApiKeyFormView({
                 borderWidth: 0,
                 padding: 4,
                 backgroundColor: colors.border,
-              }}
-            >
+              }}>
               <Stack direction="row" width="full" style={{ gap: 4 }}>
                 {platformDefinitions.map((platform) => {
                   const active = platform.id === activePlatform;
@@ -481,7 +487,7 @@ export function ApiKeyFormView({
                     <Div
                       key={platform.id}
                       rounded="md"
-                      tone={active ? "surface" : "default"}
+                      tone={active ? 'surface' : 'default'}
                       align="center"
                       justify="center"
                       style={{
@@ -491,21 +497,19 @@ export function ApiKeyFormView({
                         borderRadius: 8,
                         borderWidth: active ? 1 : 0,
                         borderColor: colors.border,
-                        backgroundColor: active ? colors.surface : "transparent",
+                        backgroundColor: active ? colors.surface : 'transparent',
                       }}
                       accessibilityRole="button"
-                      onPress={() => setActivePlatform(platform.id)}
-                    >
+                      onPress={() => setActivePlatform(platform.id)}>
                       <Text
-                        intent={active ? "link" : "caption"}
+                        intent={active ? 'link' : 'caption'}
                         align="center"
                         numberOfLines={1}
                         style={{
                           fontSize: 12,
-                          fontWeight: active ? "700" : "600",
+                          fontWeight: active ? '700' : '600',
                           color: active ? colors.primary : colors.soft,
-                        }}
-                      >
+                        }}>
                         {t(platform.labelKey)}
                       </Text>
                     </Div>
@@ -520,11 +524,10 @@ export function ApiKeyFormView({
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: colors.border,
-                overflow: "hidden",
+                overflow: 'hidden',
                 padding: 0,
                 backgroundColor: colors.surface,
-              }}
-            >
+              }}>
               <Div
                 tone="muted"
                 style={{
@@ -532,14 +535,8 @@ export function ApiKeyFormView({
                   borderBottomColor: colors.border,
                   paddingHorizontal: 12,
                   paddingVertical: 9,
-                }}
-              >
-                <Stack
-                  direction="row"
-                  align="center"
-                  justify="between"
-                  width="full"
-                >
+                }}>
+                <Stack direction="row" align="center" justify="between" width="full">
                   <Stack direction="row" align="center" gap="sm">
                     <Div
                       tone={activeConfig.iconTone}
@@ -547,17 +544,14 @@ export function ApiKeyFormView({
                       size="iconSm"
                       align="center"
                       justify="center"
-                      style={{ backgroundColor: colors[activeConfig.iconBackground] }}
-                    >
+                      style={{ backgroundColor: colors[activeConfig.iconBackground] }}>
                       <Ionicons
                         name={activeConfig.iconName}
                         size={14}
                         color={colors[activeConfig.iconColor]}
                       />
                     </Div>
-                    <Text intent="bodyStrong">
-                      {t(activeConfig.configTitleKey)}
-                    </Text>
+                    <Text intent="bodyStrong">{t(activeConfig.configTitleKey)}</Text>
                   </Stack>
 
                   <Stack direction="row" align="center" gap="xs">
@@ -576,18 +570,17 @@ export function ApiKeyFormView({
                         borderRadius: 8,
                         borderWidth: 1,
                         borderColor: colors.border,
-                      }}
-                    >
+                      }}>
                       <Stack direction="row" align="center" gap="xs">
                         <Ionicons
-                          name={copyState === "copied" ? "checkmark" : "copy"}
+                          name={copyState === 'copied' ? 'checkmark' : 'copy'}
                           size={14}
                           color={colors.primary}
                         />
                         <Text intent="link" style={{ fontSize: 14 }}>
-                          {copyState === "copied"
-                            ? t("apiKeyBuilder.copied")
-                            : t("apiKeyBuilder.copy")}
+                          {copyState === 'copied'
+                            ? t('apiKeyBuilder.copied')
+                            : t('apiKeyBuilder.copy')}
                         </Text>
                       </Stack>
                     </Div>
@@ -595,16 +588,21 @@ export function ApiKeyFormView({
                 </Stack>
               </Div>
 
-              <Div
-                tone="surface"
-                style={{ paddingHorizontal: 12, paddingVertical: 12 }}
-              >
-                <Stack
-                  direction="row"
-                  align="center"
-                  justify="between"
-                  width="full"
-                >
+              {generatedSecret && (
+                <Div
+                  tone="successSoft"
+                  style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <Stack direction="row" align="center" gap="sm">
+                    <Ionicons name="shield-checkmark" size={16} color={colors.success} />
+                    <Text intent="caption" style={{ color: colors.success, flex: 1 }}>
+                      {t('apiKeys.securityNote')}
+                    </Text>
+                  </Stack>
+                </Div>
+              )}
+
+              <Div tone="surface" style={{ paddingHorizontal: 12, paddingVertical: 12 }}>
+                <Stack direction="row" align="center" justify="between" width="full">
                   <Stack direction="row" align="center" gap="xs">
                     <Ionicons name="folder" size={14} color={colors.subtle} />
                     <Text intent="caption" style={{ fontSize: 13 }}>
@@ -619,10 +617,9 @@ export function ApiKeyFormView({
                       paddingVertical: 3,
                       borderWidth: 1,
                       borderColor: colors.border,
-                    }}
-                  >
+                    }}>
                     <Text intent="link" style={{ fontSize: 12 }}>
-                      {t("apiKeyBuilder.json")}
+                      {t('apiKeyBuilder.json')}
                     </Text>
                   </Div>
                 </Stack>
@@ -638,8 +635,7 @@ export function ApiKeyFormView({
                     backgroundColor: colors.muted,
                     minHeight: 210,
                     borderRadius: 10,
-                  }}
-                >
+                  }}>
                   <Text intent="body" selectable>
                     {renderHighlightedJson(configText, colors)}
                   </Text>

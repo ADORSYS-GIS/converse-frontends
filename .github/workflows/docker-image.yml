@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feat/container-image-pipeline
+      - 8-align-lightbridge-ui-with-authz-usage-apis-before-deployment
       
     tags:
       - 'v*'
@@ -45,7 +45,7 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push
+      - name: Build and push multi-platform image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -55,3 +55,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64

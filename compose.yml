@@ -18,3 +18,14 @@ services:
         /opt/keycloak/bin/kc.sh start-dev --import-realm # Start Keycloak in dev mode and import the realm
     volumes:
       - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
+
+    
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    ports:
+      - "18888:8080"
+    volumes:
+      - ./wiremock:/home/wiremock:ro
+    command:
+      - --enable-stub-cors
+      - --global-response-templating

@@ -1,5 +1,8 @@
 {
   "backendUrl": "${EXPO_PUBLIC_BACKEND_URL}",
+  "usageUrl": "${EXPO_PUBLIC_USAGE_URL}",
+  "gatewayUrl": "${EXPO_PUBLIC_GATEWAY_URL}",
+  "analyticsUrl": "${EXPO_PUBLIC_ANALYTICS_URL}",
   "keycloak": {
     "issuer": "${EXPO_PUBLIC_KEYCLOAK_ISSUER}",
     "clientId": "${EXPO_PUBLIC_KEYCLOAK_CLIENT_ID}",

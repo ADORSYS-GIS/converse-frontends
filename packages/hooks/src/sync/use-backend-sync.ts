@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiKeysQueryKey } from '../api-keys';
-import { refreshTokenUsage } from '../usage';
+
+import { getAuthReady } from '../auth/use-auth-session';
 
 type SyncState = {
   isOnline: boolean;
@@ -18,12 +18,17 @@ export function useBackendSync() {
   });
 
   const syncNow = useCallback(async () => {
+    // Don't sync if auth is not ready yet
+    if (!getAuthReady()) {
+      return;
+    }
+
     setState((prev) => ({ ...prev, isSyncing: true }));
 
     try {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey }),
-        refreshTokenUsage(),
+        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+        queryClient.invalidateQueries({ queryKey: ['usage'] }),
       ]);
 
       setState((prev) => ({

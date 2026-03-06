@@ -16,7 +16,8 @@ COPY packages/hooks/package.json packages/hooks/package.json
 COPY packages/i18n/package.json packages/i18n/package.json
 COPY packages/ui/package.json packages/ui/package.json
 
-RUN pnpm install --frozen-lockfile
+# Install dependencies without running postinstall
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS build
 WORKDIR /app

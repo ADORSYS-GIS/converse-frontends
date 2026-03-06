@@ -1,5 +1,8 @@
 export type AppRuntimeConfig = {
   backendUrl: string;
+  usageUrl?: string;
+  gatewayUrl?: string;
+  analyticsUrl?: string;
   keycloak: {
     issuer: string;
     clientId: string;
@@ -16,6 +19,7 @@ export function isAppRuntimeConfig(value: unknown): value is AppRuntimeConfig {
 
   return (
     typeof config.backendUrl === 'string' &&
+    (config.usageUrl === undefined || typeof config.usageUrl === 'string') &&
     typeof config.keycloak?.issuer === 'string' &&
     typeof config.keycloak?.clientId === 'string' &&
     typeof config.keycloak?.scheme === 'string'

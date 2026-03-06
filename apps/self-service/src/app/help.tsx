@@ -5,11 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { HelpScreen } from '../screens/help-screen';
 
 export default function HelpRoute() {
-  const { t } = useTranslation();
+  useTranslation();
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: t('help.title') }} />
+      <Stack.Screen options={{ headerShown: true, title: '' }} />
       <HelpScreen />
     </>
   );

@@ -8,6 +8,9 @@ const RuntimeConfigContext = createContext<AppRuntimeConfig | null>(null);
 
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+  const usageUrl = process.env.EXPO_PUBLIC_USAGE_URL;
+  const gatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
+  const analyticsUrl = process.env.EXPO_PUBLIC_ANALYTICS_URL;
   const issuer = process.env.EXPO_PUBLIC_KEYCLOAK_ISSUER;
   const clientId = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID;
   const scheme = process.env.EXPO_PUBLIC_KEYCLOAK_SCHEME;
@@ -18,6 +21,9 @@ function getEnvConfig(): AppRuntimeConfig {
 
   return {
     backendUrl,
+    usageUrl,
+    gatewayUrl,
+    analyticsUrl,
     keycloak: {
       issuer,
       clientId,
@@ -28,7 +34,7 @@ function getEnvConfig(): AppRuntimeConfig {
 
 async function fetchWebConfig(): Promise<AppRuntimeConfig> {
   if (typeof document === 'undefined') {
-    throw new Error('config.json is not available without a document.');
+    throw new TypeError('config.json is not available without a document.');
   }
 
   const url = new URL('/config.json', document.baseURI).toString();
@@ -62,11 +68,11 @@ export function RuntimeConfigProvider({
   children,
   fallback = null,
   onReady,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
   onReady?: (config: AppRuntimeConfig) => void;
-}) {
+}>) {
   const [config, setConfig] = useState<AppRuntimeConfig | null>(null);
 
   useEffect(() => {
@@ -86,7 +92,7 @@ export function RuntimeConfigProvider({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [onReady]);
 
   if (!config) {
     return <>{fallback}</>;

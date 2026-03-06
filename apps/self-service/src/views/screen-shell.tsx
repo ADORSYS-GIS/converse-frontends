@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { Heading, Page, Stack, Text } from '@lightbridge/ui';
 
-export function ScreenShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function ScreenShell({
+  title,
+  children,
+}: Readonly<{ title: string; children: React.ReactNode }>) {
   const { t } = useTranslation();
 
   return (

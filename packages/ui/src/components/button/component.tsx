@@ -29,9 +29,11 @@ export function Button({
       accessibilityRole="button"
       disabled={resolvedDisabled}
       className={cn(buttonVariants({ variant, shape, size, width, disabled: resolvedDisabled }))}
-      {...props}
-    >
-      <TextBase className={cn(buttonTextVariants({ variant, size }))} {...textProps} style={textStyle}>
+      {...props}>
+      <TextBase
+        className={cn(buttonTextVariants({ variant, size }))}
+        {...textProps}
+        style={textStyle}>
         {children}
       </TextBase>
     </PressableBase>

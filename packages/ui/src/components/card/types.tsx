@@ -1,5 +1,5 @@
-import type { PressableProps, ViewProps } from "react-native";
+import type { PressableProps, ViewProps } from 'react-native';
 
-import type { CardVariantProps } from "./cva";
+import type { CardVariantProps } from './cva';
 
 export type CardProps = (ViewProps | PressableProps) & CardVariantProps;

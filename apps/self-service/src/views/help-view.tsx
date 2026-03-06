@@ -1,18 +1,19 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Page, Stack, Text } from '@lightbridge/ui';
+import { Stack, Text } from '@lightbridge/ui';
+import { ScreenShell } from './screen-shell';
 
 export function HelpView() {
   const { t } = useTranslation();
 
   return (
-    <Page tone="muted">
-      <Stack gap="md">
-        <Text intent="bodyStrong">{t('help.heading')}</Text>
-        <Text intent="body">{t('help.description')}</Text>
-        <Text intent="body">{t('help.contact')}</Text>
+    <ScreenShell title={t('help.title')}>
+      <Stack gap="sm" align="center" justify="center" flex="grow">
+        <Text intent="eyebrow" align="center">
+          {t('help.comingSoon')}
+        </Text>
       </Stack>
-    </Page>
+    </ScreenShell>
   );
 }

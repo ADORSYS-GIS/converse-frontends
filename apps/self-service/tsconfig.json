@@ -2,8 +2,25 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "paths": {
-      "@app/*": ["./src/*"]
-    }
-  }
+      "@app/*": [
+        "./src/*"
+      ]
+    },
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "./src/types/**/*.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }

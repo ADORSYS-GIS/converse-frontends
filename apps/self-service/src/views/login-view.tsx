@@ -10,11 +10,11 @@ export function LoginView({
   onSsoPress,
   onHelpPress,
   loading,
-}: {
+}: Readonly<{
   onSsoPress: () => void;
   onHelpPress: () => void;
   loading?: boolean;
-}) {
+}>) {
   const { t } = useTranslation();
 
   return (
@@ -24,8 +24,7 @@ export function LoginView({
           variant="icon"
           size="iconSm"
           onPress={onHelpPress}
-          accessibilityLabel={t('login.help')}
-        >
+          accessibilityLabel={t('login.help')}>
           <Ionicons name="help" size={18} color="#ffffff" />
         </Button>
       </Div>
@@ -58,10 +57,8 @@ export function LoginView({
                 size="lg"
                 width="full"
                 disabled={loading}
-                onPress={onSsoPress}
-              >
-                <Ionicons name="lock-closed" size={18} color="#ffffff" />
-                {' '}
+                onPress={onSsoPress}>
+                <Ionicons name="lock-closed" size={18} color="#ffffff" />{' '}
                 {loading ? t('login.ssoLoading') : t('login.sso')}
               </Button>
 
@@ -71,12 +68,7 @@ export function LoginView({
             </Stack>
 
             <Stack align="center" width="full">
-              <Text
-                intent="link"
-                align="center"
-                onPress={onHelpPress}
-                accessibilityRole="link"
-              >
+              <Text intent="link" align="center" onPress={onHelpPress} accessibilityRole="link">
                 {t('login.trouble')}
               </Text>
             </Stack>

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feat/container-image-pipeline
+      - 8-align-lightbridge-ui-with-authz-usage-apis-before-deployment
       
     tags:
       - 'v*'

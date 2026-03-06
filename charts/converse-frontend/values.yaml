@@ -1,0 +1,82 @@
+global:
+  labels:
+    app: converse-frontend
+    team: ""
+
+conversefrontend:
+  controllers:
+    main:
+      type: deployment
+      strategy: RollingUpdate
+      replicas: 2
+      pod:
+        labels:
+          app: converse-frontend-app
+      containers:
+        frontend:
+          image:
+            repository: ghcr.io/adorsys-gis/converse-frontends
+            tag: sha-9d48
+            pullPolicy: IfNotPresent
+
+         
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          env:
+            EXPO_PUBLIC_BACKEND_URL: ""
+            EXPO_PUBLIC_USAGE_URL: ""
+            EXPO_PUBLIC_GATEWAY_URL: ""
+            EXPO_PUBLIC_ANALYTICS_URL: ""
+
+
+            EXPO_PUBLIC_KEYCLOAK_ISSUER: ""
+            EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: ""
+            EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+          probes:
+            liveness:
+              enabled: true
+              type: HTTP
+              path: /
+              spec:
+                httpGet:
+                  port: http
+            readiness:
+              enabled: true
+              type: HTTP
+              path: /
+              spec:
+                httpGet:
+                  port: http
+            startup:
+              enabled: true
+              type: HTTP
+              path: /
+              spec:
+                httpGet:
+                  port: http
+                failureThreshold: 30
+                periodSeconds: 5
+
+  service:
+    frontend:
+      enabled: true
+      annotations: {}
+      type: ClusterIP
+      controller: main
+      ports:
+        http:
+          enabled: true
+          port: 80
+          targetPort: http

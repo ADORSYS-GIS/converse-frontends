@@ -1,19 +1,34 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore, useState } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
 
 import type { AuthSession } from './auth-types';
 import { authSessionCollection, clearAuthSession, setAuthSession } from './auth-store';
 import { clearStoredSession, loadStoredSession, saveStoredSession } from './auth-storage';
 
-// Global state to track if auth is ready for API calls
 let isAuthReady = false;
+const authReadyListeners = new Set<() => void>();
+
+function subscribeToAuthReady(listener: () => void) {
+  authReadyListeners.add(listener);
+  return () => authReadyListeners.delete(listener);
+}
 
 export function setAuthReady(ready: boolean) {
   isAuthReady = ready;
+  authReadyListeners.forEach((l) => l());
 }
 
 export function getAuthReady(): boolean {
   return isAuthReady;
+}
+
+// Check if token is expired or about to expire (with 10 minute buffer)
+export function isTokenExpired(expiresAt?: number): boolean {
+  if (!expiresAt) {
+    return false;
+  }
+  const buffer = Math.min(60 * 1000, Math.max(0, (expiresAt - Date.now()) / 2));
+  return Date.now() >= expiresAt - buffer;
 }
 
 export function useAuthSession() {
@@ -30,7 +45,20 @@ export function useAuthSession() {
     session.tokens?.accessToken || session.tokens?.idToken || session.tokens?.refreshToken
   );
 
-  return { session, isAuthenticated };
+  const isTokenValid = useMemo(() => {
+    return isAuthenticated && !isTokenExpired(session.tokens?.expiresAt);
+  }, [isAuthenticated, session.tokens?.expiresAt]);
+
+  const isTokenExpiredResult = useMemo(() => {
+    return isAuthenticated && isTokenExpired(session.tokens?.expiresAt);
+  }, [isAuthenticated, session.tokens?.expiresAt]);
+
+  return {
+    session,
+    isAuthenticated,
+    isTokenValid,
+    isTokenExpired: isTokenExpiredResult,
+  };
 }
 
 export function useAuthHydration() {
@@ -77,8 +105,7 @@ export function useEnsureHydrated() {
 
 // Reactive hook to check if auth is ready for API calls
 export function useAuthReady() {
-  const { isHydrated } = useAuthHydration();
-  return isHydrated;
+  return useSyncExternalStore(subscribeToAuthReady, getAuthReady, getAuthReady);
 }
 
 export async function persistAuthSession(session: AuthSession) {

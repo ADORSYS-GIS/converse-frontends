@@ -7,7 +7,7 @@ import { useAuthSession, useAuthReady } from './auth-session';
 export const accountsQueryKey = ['accounts'] as const;
 
 export function useAccounts(enabled = true) {
-  const authReady = useAuthReady();
+  const { isAuthenticated } = useAuthSession();
 
   const query = useQuery({
     queryKey: accountsQueryKey,
@@ -17,7 +17,7 @@ export function useAccounts(enabled = true) {
       });
       return response.data;
     },
-    enabled: enabled && authReady,
+    enabled: enabled && isAuthenticated,
   });
 
   const items = useMemo<ApiKeyBackendAccount[]>(() => query.data ?? [], [query.data]);
@@ -26,14 +26,14 @@ export function useAccounts(enabled = true) {
 }
 
 export function useCurrentAccount(enabled = true) {
-  const authReady = useAuthReady();
+  const { isAuthenticated } = useAuthSession();
   const { data, ...query } = useAccounts(enabled);
 
   const current = useMemo<ApiKeyBackendAccount | undefined>(() => {
     return data && data.length > 0 ? data[0] : undefined;
   }, [data]);
 
-  return { ...query, data: current, enabled: enabled && authReady };
+  return { ...query, data: current, enabled: enabled && isAuthenticated };
 }
 
 export function useEnsureDefaultAccount() {

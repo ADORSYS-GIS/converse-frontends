@@ -20,6 +20,7 @@ import { useClientInit } from '@lightbridge/api-rest';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
+import { clearPersistedAuthSession } from '../../../../packages/hooks/src/auth/use-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 enableScreens();
@@ -27,7 +28,7 @@ void SplashScreen.preventAutoHideAsync();
 
 function AppBootstrap() {
   const runtimeConfig = useRuntimeConfig();
-  const { isAuthenticated, session } = useAuthSession();
+  const { isAuthenticated, session, isTokenExpired } = useAuthSession();
   const { isHydrated } = useAuthHydration();
 
   useClientInit(
@@ -73,16 +74,36 @@ function AppBootstrap() {
       first === 'login';
     const inHelpRoute =
       pathname === '/help' || pathname?.startsWith('/help/') || segments.includes('help');
+    const inApiKeysRoute =
+      pathname === '/api-keys/new' ||
+      pathname?.startsWith('/api-keys/') ||
+      pathname === '/delete-api-key' ||
+      pathname?.startsWith('/delete-api-key');
+    const inTabsGroup = segments.includes('(tabs)');
 
     if (!isAuthenticated && !inAuthGroup && !inHelpRoute) {
       router.replace('/login');
       return;
     }
 
-    if (isAuthenticated && inAuthGroup) {
+    if (isAuthenticated && !inTabsGroup && !inHelpRoute && !inApiKeysRoute) {
       router.replace('/home');
+      return;
     }
-  }, [isAuthenticated, isHydrated, pathname, router, segments]);
+
+    if (isTokenExpired && isAuthenticated && !inAuthGroup) {
+      void clearPersistedAuthSession();
+      router.replace('/login');
+    }
+  }, [
+    isAuthenticated,
+    isHydrated,
+    pathname,
+    router,
+    segments,
+    isTokenExpired,
+    session.tokens?.expiresAt,
+  ]);
 
   return (
     <>

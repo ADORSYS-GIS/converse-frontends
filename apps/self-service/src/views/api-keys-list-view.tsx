@@ -126,11 +126,7 @@ export function ApiKeysListView({
                         variant="ghost"
                         onPress={() => onDelete(item.id, item.name)}
                         style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                        <Ionicons
-                          name="trash-outline"
-                          size={18}
-                          color={colors.error}
-                        />
+                        <Ionicons name="trash-outline" size={18} color={colors.error} />
                       </Button>
                     </Stack>
                   </Card>

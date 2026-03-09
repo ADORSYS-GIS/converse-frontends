@@ -369,7 +369,7 @@ export function McpBuilderView({
                     size="sm"
                     accessibilityRole="button"
                     onPress={() => toggleServer(server.id)}
-                     style={{
+                    style={{
                       padding: 12,
                       borderRadius: 14,
                       minHeight: 76,

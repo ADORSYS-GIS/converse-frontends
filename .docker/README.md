@@ -86,11 +86,13 @@ This function explicitly checks for the presence of required variables and throw
 These variables must be provided for the app to function properly.
 
 ### Backend API Configuration
+
 - **`EXPO_PUBLIC_BACKEND_URL`** - Base URL for the backend API
   - Example: `https://api.example.com`
   - Required: Yes (checked in `getEnvConfig()`)
 
 ### Keycloak Authentication Configuration
+
 - **`EXPO_PUBLIC_KEYCLOAK_ISSUER`** - Keycloak issuer URL for authentication
   - Example: `https://keycloak.example.com/realms/lightbridge`
   - Required: Yes (checked in `getEnvConfig()`)
@@ -108,6 +110,7 @@ These variables must be provided for the app to function properly.
 These variables are optional but can be configured if needed.
 
 ### API Configuration
+
 - **`EXPO_PUBLIC_USAGE_URL`** - URL for usage reporting API (defaults to backend URL if not provided)
   - Example: `https://usage.example.com`
   - Required: No (marked as optional in type definition)
@@ -130,11 +133,11 @@ kind: ConfigMap
 metadata:
   name: lightbridge-config
 data:
-  backendUrl: "https://api.example.com"
-  keycloakIssuer: "https://keycloak.example.com/realms/lightbridge"
-  keycloakClientId: "lightbridge-ss"
-  keycloakScheme: "openid-connect"
-  usageUrl: "https://usage.example.com" # Optional
+  backendUrl: 'https://api.example.com'
+  keycloakIssuer: 'https://keycloak.example.com/realms/lightbridge'
+  keycloakClientId: 'lightbridge-ss'
+  keycloakScheme: 'openid-connect'
+  usageUrl: 'https://usage.example.com' # Optional
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -144,34 +147,34 @@ spec:
   template:
     spec:
       containers:
-      - name: lightbridge-ss
-        image: ghcr.io/adorsys-gis/converse-frontends:latest
-        env:
-        - name: EXPO_PUBLIC_BACKEND_URL
-          valueFrom:
-            configMapKeyRef:
-              name: lightbridge-config
-              key: backendUrl
-        - name: EXPO_PUBLIC_KEYCLOAK_ISSUER
-          valueFrom:
-            configMapKeyRef:
-              name: lightbridge-config
-              key: keycloakIssuer
-        - name: EXPO_PUBLIC_KEYCLOAK_CLIENT_ID
-          valueFrom:
-            configMapKeyRef:
-              name: lightbridge-config
-              key: keycloakClientId
-        - name: EXPO_PUBLIC_KEYCLOAK_SCHEME
-          valueFrom:
-            configMapKeyRef:
-              name: lightbridge-config
-              key: keycloakScheme
-        - name: EXPO_PUBLIC_USAGE_URL
-          valueFrom:
-            configMapKeyRef:
-              name: lightbridge-config
-              key: usageUrl
+        - name: lightbridge-ss
+          image: ghcr.io/adorsys-gis/converse-frontends:latest
+          env:
+            - name: EXPO_PUBLIC_BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lightbridge-config
+                  key: backendUrl
+            - name: EXPO_PUBLIC_KEYCLOAK_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: lightbridge-config
+                  key: keycloakIssuer
+            - name: EXPO_PUBLIC_KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: lightbridge-config
+                  key: keycloakClientId
+            - name: EXPO_PUBLIC_KEYCLOAK_SCHEME
+              valueFrom:
+                configMapKeyRef:
+                  name: lightbridge-config
+                  key: keycloakScheme
+            - name: EXPO_PUBLIC_USAGE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lightbridge-config
+                  key: usageUrl
 ```
 
 ## Local Development

@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next';
 import type { ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateProject, apiKeyBackendListProjects } from '@lightbridge/api-rest';
 import { useCurrentAccount } from './accounts';
-import { useAuthReady } from './auth-session';
+import { useAuthSession } from './auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
 }
 
 export function useProjects(accountId?: string) {
-  const authReady = useAuthReady();
+  const { isAuthenticated } = useAuthSession();
 
   const query = useQuery({
     queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],
@@ -23,7 +23,7 @@ export function useProjects(accountId?: string) {
       });
       return response.data;
     },
-    enabled: !!accountId && authReady,
+    enabled: !!accountId && isAuthenticated,
   });
 
   const items = useMemo<ApiKeyBackendProject[]>(() => query.data ?? [], [query.data]);
@@ -32,7 +32,7 @@ export function useProjects(accountId?: string) {
 }
 
 export function useCurrentProject(enabled = true) {
-  const authReady = useAuthReady();
+  const { isAuthenticated } = useAuthSession();
   const { data: currentAccount, isLoading: isAccountLoading } = useCurrentAccount(enabled);
   const accountId = currentAccount?.id;
 
@@ -46,7 +46,7 @@ export function useCurrentProject(enabled = true) {
     ...query,
     data: current,
     isLoading: isAccountLoading || query.isLoading,
-    enabled: enabled && !!accountId && authReady,
+    enabled: enabled && !!accountId && isAuthenticated,
   };
 }
 export function useEnsureDefaultProject() {

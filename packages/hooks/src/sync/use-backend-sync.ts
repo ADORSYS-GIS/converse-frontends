@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { getAuthReady } from '../auth/use-auth-session';
+import { useAuthSession } from '../auth/use-auth-session';
 
 type SyncState = {
   isOnline: boolean;
@@ -12,14 +12,14 @@ type SyncState = {
 
 export function useBackendSync() {
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuthSession();
   const [state, setState] = useState<SyncState>({
     isOnline: true,
     isSyncing: false,
   });
 
   const syncNow = useCallback(async () => {
-    // Don't sync if auth is not ready yet
-    if (!getAuthReady()) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -38,7 +38,7 @@ export function useBackendSync() {
     } finally {
       setState((prev) => ({ ...prev, isSyncing: false }));
     }
-  }, [queryClient]);
+  }, [queryClient, isAuthenticated]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((status) => {

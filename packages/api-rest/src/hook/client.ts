@@ -2,17 +2,58 @@ import { client } from '../client/client.gen';
 import { ClientOptions } from '../client/client';
 import { Config as ApiConfig } from '../client/core/types.gen';
 
-export type ClientInitOptions = ClientOptions & ApiConfig;
+export type ClientInitOptions = ClientOptions &
+  ApiConfig & {
+    refreshAuth?: () => Promise<boolean>;
+    getExpiresAt?: () => number | undefined;
+  };
 
 let isInitialized = false;
 let latestApiOptions: ClientInitOptions;
 let latestUsageOptions: ClientInitOptions;
-let refreshPromise: Promise<unknown> | null = null;
+let refreshPromise: Promise<boolean> | null = null;
+
+const TOKEN_REFRESH_BUFFER_MS = 60 * 1000; // Refresh if token expires within 60 seconds
+
+async function tryProactiveRefresh(targetConfig: ClientInitOptions): Promise<void> {
+  if (!targetConfig.refreshAuth || !targetConfig.getExpiresAt) {
+    return;
+  }
+
+  const expiresAt = targetConfig.getExpiresAt();
+  if (!expiresAt) {
+    return;
+  }
+
+  const timeUntilExpiry = expiresAt - Date.now();
+  if (timeUntilExpiry <= TOKEN_REFRESH_BUFFER_MS) {
+    if (refreshPromise === null) {
+      refreshPromise = targetConfig.refreshAuth();
+      try {
+        const success = await refreshPromise;
+        if (!success) {
+          console.log('[API Client] Proactive token refresh failed');
+        }
+      } catch (err) {
+        console.log('[API Client] Proactive token refresh error:', err);
+      } finally {
+        refreshPromise = null;
+      }
+    } else {
+      await refreshPromise;
+    }
+  }
+}
 
 // Helper to determine if request is for usage API
 function isUsageRequest(url: string | undefined): boolean {
   if (!url) return false;
-  return url.startsWith('/v1/usage') || url.startsWith('/v1/otel') || url.startsWith('/health');
+  return (
+    url.startsWith('/usage/v1') ||
+    url.startsWith('/v1/usage') ||
+    url.startsWith('/v1/otel') ||
+    url.startsWith('/health')
+  );
 }
 
 // Helper for debugging
@@ -53,6 +94,7 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
       (client as any)[method] = async (options: any) => {
         let actualOptions = options;
         if (typeof options === 'string') {
+          /* empty */
         }
 
         const isUsage = isUsageRequest(actualOptions.url);
@@ -61,6 +103,7 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
 
         const security = actualOptions.security ?? [{ type: 'http', scheme: 'bearer' }];
 
+        await tryProactiveRefresh(targetConfig);
         await debugAuth(method, actualOptions.url, targetConfig);
 
         try {
@@ -74,14 +117,28 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
           if (error?.status === 401 || error?.response?.status === 401) {
             console.log('[API Client] 401 Unauthorized - Token may be expired');
 
-            if (refreshPromise === null) {
-              refreshPromise = Promise.resolve();
+            if (refreshPromise === null && targetConfig.refreshAuth) {
+              refreshPromise = targetConfig.refreshAuth();
               try {
-                throw new Error('Token expired');
+                const success = await refreshPromise;
+                if (!success) {
+                  console.log('[API Client] Token refresh failed, re-throwing 401');
+                  throw error;
+                }
+                // Token refreshed, retry the request
+                return await original({
+                  ...actualOptions,
+                  security,
+                  baseURL: baseUrl,
+                  auth: targetConfig.auth,
+                });
+              } catch (refreshError) {
+                console.log('[API Client] Token refresh error:', refreshError);
+                throw error;
               } finally {
                 refreshPromise = null;
               }
-            } else {
+            } else if (refreshPromise !== null) {
               await refreshPromise;
               return await original({
                 ...actualOptions,

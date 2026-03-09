@@ -1,3 +1,4 @@
+---
 openapi: 3.1.0
 info:
   title: lightbridge-authz-usage-rest
@@ -8,8 +9,32 @@ info:
   license:
     name: MIT
     identifier: MIT
-  version: 0.6.5
+  version: 0.6.6
 paths:
+  "/usage/v1/usage/query":
+    post:
+      tags:
+      - usage
+      operationId: query_usage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UsageQueryRequest"
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UsageQueryResponse"
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UsageErrorResponse"
   "/v1/otel/metrics":
     post:
       tags:
@@ -50,30 +75,6 @@ paths:
                 "$ref": "#/components/schemas/IngestResponse"
         '400':
           description: ''
-  "/v1/usage/query":
-    post:
-      tags:
-      - usage
-      operationId: query_usage
-      requestBody:
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/UsageQueryRequest"
-        required: true
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/UsageQueryResponse"
-        '400':
-          description: ''
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/UsageErrorResponse"
 components:
   schemas:
     IngestResponse:

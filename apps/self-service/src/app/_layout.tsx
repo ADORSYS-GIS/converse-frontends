@@ -13,6 +13,7 @@ import {
   useAuthSession,
   useBackendSync,
   useLocaleSync,
+  refreshAccessToken,
 } from '@lightbridge/hooks';
 import { AppFont, useAppFonts } from '@lightbridge/ui';
 import { queryClient } from '../queries';
@@ -31,26 +32,43 @@ function AppBootstrap() {
   const { isAuthenticated, session, isTokenExpired } = useAuthSession();
   const { isHydrated } = useAuthHydration();
 
+  const handleRefreshAuth = async () => {
+    const refreshToken = session.tokens?.refreshToken;
+    if (!refreshToken) {
+      return false;
+    }
+    const result = await refreshAccessToken(
+      {
+        issuer: runtimeConfig.keycloak.issuer,
+        clientId: runtimeConfig.keycloak.clientId,
+      },
+      refreshToken
+    );
+    return result !== null;
+  };
+
   useClientInit(
     {
       baseURL: runtimeConfig.backendUrl,
       auth: async (_a) => {
-        // Wait for auth to be hydrated before returning token
         if (!isHydrated) {
           return '';
         }
         return session.tokens?.accessToken ?? '';
       },
+      refreshAuth: handleRefreshAuth,
+      getExpiresAt: () => session.tokens?.expiresAt,
     },
     {
       baseURL: runtimeConfig.usageUrl || runtimeConfig.backendUrl,
       auth: async (_a) => {
-        // Wait for auth to be hydrated before returning token
         if (!isHydrated) {
           return '';
         }
         return session.tokens?.accessToken ?? '';
       },
+      refreshAuth: handleRefreshAuth,
+      getExpiresAt: () => session.tokens?.expiresAt,
     }
   );
 

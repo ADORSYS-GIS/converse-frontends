@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import {
-  useAuthSession,
-  useSignOut,
-  useCurrentProject,
-  useQueryUsage,
-} from '@lightbridge/hooks';
+import { useAuthSession, useSignOut, useCurrentProject, useQueryUsage } from '@lightbridge/hooks';
 import { HomeView } from '../views/home-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
+
+const getUtcDayStamp = (value: Date) =>
+  value.getUTCFullYear() * 10_000 + (value.getUTCMonth() + 1) * 100 + value.getUTCDate();
 
 export type ServiceStatus = 'healthy' | 'unhealthy' | 'unknown';
 
@@ -40,22 +38,33 @@ export function HomeScreen() {
   const { data: project } = useCurrentProject();
   const config = useRuntimeConfig();
 
-  const [dayStamp, setDayStamp] = useState(() => {
-    const now = new Date();
-    return now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate();
-  });
+  const [dayStamp, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
 
   useEffect(() => {
-    // Keep the “start of today” computation in sync if the app stays open past midnight.
-    const interval = setInterval(() => {
+    // Keep the 'start of today' computation in sync if the app stays open past midnight (UTC).
+    // Avoid polling: schedule a single wake-up at the next UTC midnight.
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNextUtcMidnight = () => {
       const now = new Date();
-      const nextStamp =
-        now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate();
+      const nextUtcMidnight = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+      );
+      const msUntilNext = Math.max(0, nextUtcMidnight.getTime() - now.getTime());
 
-      setDayStamp((prev) => (prev === nextStamp ? prev : nextStamp));
-    }, 60_000);
+      timeout = setTimeout(() => {
+        setDayStamp(getUtcDayStamp(new Date()));
+        scheduleNextUtcMidnight();
+      }, msUntilNext + 1_000);
+    };
 
-    return () => clearInterval(interval);
+    scheduleNextUtcMidnight();
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, []);
 
   const startOfToday = useMemo(() => {
@@ -63,7 +72,7 @@ export function HomeScreen() {
     const month = Math.floor((dayStamp % 10_000) / 100); // 1-12
     const day = dayStamp % 100;
 
-    return new Date(year, month - 1, day);
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
   }, [dayStamp]);
 
   const usageQueryParams = useMemo(

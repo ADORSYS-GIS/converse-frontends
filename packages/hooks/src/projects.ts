@@ -24,6 +24,7 @@ export function useProjects(accountId?: string) {
       return response.data;
     },
     enabled: !!accountId && isAuthenticated,
+    staleTime: 5 * 60_000,
   });
 
   const items = useMemo<ApiKeyBackendProject[]>(() => query.data ?? [], [query.data]);

@@ -20,7 +20,8 @@ export function apiKeysQueryKey(projectId: string) {
 }
 
 export function useApiKeys(projectIdOverride?: string) {
-  const { data: currentProject } = useCurrentProject(!projectIdOverride);
+  const { data: currentProject, isLoading: isProjectLoading } =
+    useCurrentProject(!projectIdOverride);
   const projectId = projectIdOverride ?? currentProject?.id;
   const { isAuthenticated } = useAuthSession();
 
@@ -35,11 +36,17 @@ export function useApiKeys(projectIdOverride?: string) {
       return response.data;
     },
     enabled: !!projectId && isAuthenticated,
+    staleTime: 30_000,
   });
 
   const items = useMemo<ApiKeyBackendApiKey[]>(() => query.data ?? [], [query.data]);
 
-  return { ...query, data: items };
+  return {
+    ...query,
+    data: items,
+    // Prevent an empty-state flash while the project id is still resolving.
+    isLoading: isProjectLoading || query.isLoading,
+  };
 }
 
 // TODO We cannot get a full list just to take a single item

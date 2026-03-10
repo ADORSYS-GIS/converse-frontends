@@ -30,10 +30,6 @@ conversefrontend:
             EXPO_PUBLIC_KEYCLOAK_ISSUER: "https://keycloak.example.com/realms/your-realm"
             EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: "converse-ui"
             EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
-
-> Note: for local/testing you can bypass auth validation by setting
-> `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: "disabled"`. In this mode, `EXPO_PUBLIC_KEYCLOAK_ISSUER` and
-> `EXPO_PUBLIC_KEYCLOAK_SCHEME` are not required, but `EXPO_PUBLIC_BACKEND_URL` remains required.
 ```
 
 Install/upgrade:

@@ -6,7 +6,7 @@ type: application
 version: 0.1.0
 
 # Tracks the container image tag by default
-appVersion: "sha-1d554a6"
+appVersion: 0.1.0
 
 keywords:
   - converse

@@ -1,6 +1,7 @@
 .git
 .gitignore
 .idea
+.github
 .docker/keycloak-config
 node_modules
 **/node_modules
@@ -9,3 +10,5 @@ dist
 .expo
 **/.expo
 .DS_Store
+**/.turbo
+**/.cache

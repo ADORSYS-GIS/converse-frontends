@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "converse-frontend values",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "app": { "type": "string" },
+            "team": { "type": "string" }
+          }
+        }
+      }
+    },
+    "conversefrontend": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "controllers": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "main": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "containers": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "frontend": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "env": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "EXPO_PUBLIC_BACKEND_URL": {
+                              "type": "string",
+                              "minLength": 1,
+                              "format": "uri"
+                            },
+                            "EXPO_PUBLIC_USAGE_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [
+                                { "const": "" },
+                                { "type": "string", "format": "uri" }
+                              ]
+                            },
+                            "EXPO_PUBLIC_GATEWAY_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [
+                                { "const": "" },
+                                { "type": "string", "format": "uri" }
+                              ]
+                            },
+                            "EXPO_PUBLIC_ANALYTICS_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [
+                                { "const": "" },
+                                { "type": "string", "format": "uri" }
+                              ]
+                            },
+                            "EXPO_PUBLIC_KEYCLOAK_ISSUER": {
+                              "type": "string",
+                              "minLength": 1,
+                              "format": "uri"
+                            },
+                            "EXPO_PUBLIC_KEYCLOAK_CLIENT_ID": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "EXPO_PUBLIC_KEYCLOAK_SCHEME": {
+                              "type": "string",
+                              "default": "https",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "EXPO_PUBLIC_BACKEND_URL",
+                            "EXPO_PUBLIC_KEYCLOAK_ISSUER",
+                            "EXPO_PUBLIC_KEYCLOAK_CLIENT_ID",
+                            "EXPO_PUBLIC_KEYCLOAK_SCHEME"
+                          ]
+                        }
+                      },
+                      "required": ["env"]
+                    }
+                  },
+                  "required": ["frontend"]
+                }
+              },
+              "required": ["containers"]
+            }
+          },
+          "required": ["main"]
+        }
+      },
+      "required": ["controllers"]
+    }
+  },
+  "required": ["conversefrontend"]
+}

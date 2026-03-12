@@ -15,6 +15,22 @@ export function ApiKeyCreateScreen() {
   const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
   const { mutate: createKey, isPending: isKeyCreating } = useCreateApiKey();
 
+  const handleBack = () => {
+    // After key creation, the user intent is to go back to the API Keys list (not the previous route).
+    // Use `replace` so the create screen is not kept in the back stack.
+    if (generatedSecret) {
+      router.replace('/api-keys');
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.navigate('/api-keys');
+  };
+
   const handleCreate = async (name: string) => {
     try {
       const account = await ensureAccount();
@@ -38,13 +54,7 @@ export function ApiKeyCreateScreen() {
 
   return (
     <ApiKeyCreateView
-      onBack={() => {
-        if (router.canGoBack()) {
-          router.back();
-          return;
-        }
-        router.navigate('/api-keys');
-      }}
+      onBack={handleBack}
       onCopy={copyToClipboard}
       onCreate={handleCreate}
       isCreating={isPending}

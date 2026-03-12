@@ -2,7 +2,7 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 const quickActionIconSize = 20;
@@ -33,6 +33,8 @@ type HomeViewProps = {
   onEndpoints: () => void;
   onUsageLogs: () => void;
   onSupport: () => void;
+  isSigningOut?: boolean;
+  onLogout: () => void;
 };
 
 export function HomeView({
@@ -45,6 +47,8 @@ export function HomeView({
   onEndpoints,
   onUsageLogs,
   onSupport,
+  isSigningOut,
+  onLogout,
 }: Readonly<HomeViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -118,9 +122,14 @@ export function HomeView({
             <Text intent="body">{t('home.welcomeBack')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
           </Stack>
-          <Div tone="brandSoft" rounded="full" size="iconLg" align="center" justify="center">
-            <Ionicons name="notifications" size={notificationIconSize} color={colors.primary} />
-          </Div>
+          <Stack direction="row" gap="sm" align="center">
+            <Div tone="brandSoft" rounded="full" size="iconLg" align="center" justify="center">
+              <Ionicons name="notifications" size={notificationIconSize} color={colors.primary} />
+            </Div>
+            <Button variant="ghost" size="sm" onPress={onLogout} disabled={Boolean(isSigningOut)}>
+              {t('nav.logout')}
+            </Button>
+          </Stack>
         </Stack>
 
         <Div tone="brand" rounded="xl" shadow="lg" pad="lg" width="full">

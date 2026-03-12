@@ -118,6 +118,7 @@ const resources = {
         apiKeys: 'API Keys',
         apiKeyEditor: 'Config Studio',
         usage: 'Usage',
+        logout: 'Log out',
       },
       home: {
         welcomeBack: 'Welcome back,',

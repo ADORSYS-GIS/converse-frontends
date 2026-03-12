@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Div, Heading, Scroll, Stack, Text, TextField } from '@lightbridge/ui';
@@ -24,6 +24,18 @@ export function ApiKeyCreateView({
   const [name, setName] = useState('');
   const [copiedSecret, setCopiedSecret] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trimmedName = name.trim();
+  const isSubmitDisabled = isCreating || !trimmedName;
+
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current) {
+        clearTimeout(copyTimer.current);
+        copyTimer.current = null;
+      }
+    };
+  }, []);
 
   const handleCopy = (value: string) => {
     onCopy(value);
@@ -127,12 +139,20 @@ export function ApiKeyCreateView({
                       onChangeText={setName}
                       selectionColor={colors.primary}
                       autoFocus
+                      editable={!isCreating}
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      onSubmitEditing={() => {
+                        if (!isSubmitDisabled) {
+                          onCreate(trimmedName);
+                        }
+                      }}
                     />
                   </Stack>
                   <Button
                     variant="primary"
-                    onPress={() => onCreate(name)}
-                    disabled={isCreating || !name.trim()}
+                    onPress={() => onCreate(trimmedName)}
+                    disabled={isSubmitDisabled}
                     width="full">
                     <Text intent="inverseBodyStrong">
                       {isCreating ? t('apiKeys.saving') : t('apiKeys.save')}

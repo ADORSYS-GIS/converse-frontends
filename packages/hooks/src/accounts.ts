@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateAccount, apiKeyBackendListAccounts } from '@lightbridge/api-rest';
-import { useAuthSession, useAuthReady } from './auth-session';
+import { useAuthSession } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
 
@@ -18,6 +18,7 @@ export function useAccounts(enabled = true) {
       return response.data;
     },
     enabled: enabled && isAuthenticated,
+    staleTime: 5 * 60_000,
   });
 
   const items = useMemo<ApiKeyBackendAccount[]>(() => query.data ?? [], [query.data]);
@@ -56,7 +57,6 @@ export function useEnsureDefaultAccount() {
       }
 
       const billingIdentity = session.user.email ?? session.user.name ?? session.user.id;
-      const ownerAdmin = session.user.email ?? session.user.id;
 
       const createResponse = await apiKeyBackendCreateAccount<true>({
         body: {

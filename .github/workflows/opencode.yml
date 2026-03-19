@@ -114,6 +114,8 @@ jobs:
         env:
           MCP_PATH: ${{ steps.mcp-install.outputs.mcp_path }}
           MCP_AVAILABLE: ${{ steps.mcp-install.outcome == 'success' }}
+          LIGHTBRIDGE_API_KEY_VALUE: ${{ secrets.LIGHTBRIDGE_API_KEY }}
+          LIGHTBRIDGE_BASE_URL_VALUE: ${{ vars.LIGHTBRIDGE_BASE_URL }}
         run: |
           python3 << 'PYEOF'
           import json, os
@@ -155,15 +157,20 @@ jobs:
           }
 
           if mcp_available and mcp_path and os.path.isfile(mcp_path):
+              # Read actual env var values for the MCP server environment
+              lb_api_key = os.environ.get("LIGHTBRIDGE_API_KEY_VALUE", "")
+              lb_base_url = os.environ.get("LIGHTBRIDGE_BASE_URL_VALUE", "")
+
               config["mcp"] = {
                   "code_search": {
                       "type": "local",
                       "command": ["node", mcp_path],
-                      "env": {
+                      "enabled": True,
+                      "environment": {
                           "QDRANT_URL": "http://localhost:6333",
                           "EMBEDDING_PROVIDER": "openai",
-                          "OPENAI_API_KEY": "{env:LIGHTBRIDGE_API_KEY}",
-                          "EMBEDDING_BASE_URL": "{env:LIGHTBRIDGE_BASE_URL}",
+                          "OPENAI_API_KEY": lb_api_key,
+                          "EMBEDDING_BASE_URL": lb_base_url,
                           "EMBEDDING_MODEL": "text-embedding-3-small",
                           "CODE_ENABLE_AST": "true",
                           "CODE_CHUNK_SIZE": "2500"

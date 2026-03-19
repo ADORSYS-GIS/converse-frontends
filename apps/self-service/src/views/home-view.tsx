@@ -2,11 +2,10 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 const quickActionIconSize = 20;
-const notificationIconSize = 20;
 
 function getServiceStatusTone(status: ServiceStatus): 'success' | 'error' | 'muted' {
   if (status === 'healthy') return 'success';
@@ -122,14 +121,18 @@ export function HomeView({
             <Text intent="body">{t('home.welcomeBack')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
           </Stack>
-          <Stack direction="row" gap="sm" align="center">
-            <Div tone="brandSoft" rounded="full" size="iconLg" align="center" justify="center">
-              <Ionicons name="notifications" size={notificationIconSize} color={colors.primary} />
-            </Div>
-            <Button variant="ghost" size="sm" onPress={onLogout} disabled={Boolean(isSigningOut)}>
-              {t('nav.logout')}
-            </Button>
-          </Stack>
+          <Div
+            tone="brand"
+            rounded="full"
+            size="iconMd"
+            align="center"
+            justify="center"
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.logout')}
+            disabled={Boolean(isSigningOut)}
+            onPress={onLogout}>
+            <Ionicons name="log-out-outline" size={22} color={colors.surface} />
+          </Div>
         </Stack>
 
         <Div tone="brand" rounded="xl" shadow="lg" pad="lg" width="full">

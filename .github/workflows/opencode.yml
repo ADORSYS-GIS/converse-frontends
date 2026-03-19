@@ -45,6 +45,8 @@ jobs:
         run: |
           PR_NUMBER=${{ github.event.issue.number || github.event.pull_request.number }}
           gh pr checkout "$PR_NUMBER"
+          echo ".opencode/" >> .gitignore
+          echo "opencode.json" >> .gitignore
 
       - name: Bot Details
         id: bot-details
@@ -101,9 +103,10 @@ jobs:
           CXXFLAGS: "-std=c++20"
         run: |
           npm install -g @iflow-mcp/qdrant-mcp-server --legacy-peer-deps --quiet
-          echo "mcp_path=$(which qdrant-mcp-server)" >> "$GITHUB_OUTPUT"
+          MCP_BIN=$(which qdrant-mcp-server)
+          echo "mcp_path=$MCP_BIN" >> "$GITHUB_OUTPUT"
           echo "mcp_available=true" >> "$GITHUB_OUTPUT"
-          qdrant-mcp-server --version || echo "MCP server installed but version check failed"
+          echo "Installed MCP server at $MCP_BIN"
         continue-on-error: true
 
       - name: Verify Qdrant connectivity
@@ -125,8 +128,6 @@ jobs:
         env:
           MCP_PATH: ${{ steps.mcp-install.outputs.mcp_path }}
           MCP_AVAILABLE: ${{ steps.mcp-install.outcome == 'success' }}
-          LIGHTBRIDGE_API_KEY_VALUE: ${{ secrets.LIGHTBRIDGE_API_KEY }}
-          LIGHTBRIDGE_BASE_URL_VALUE: ${{ vars.LIGHTBRIDGE_BASE_URL }}
         run: |
           python3 << 'PYEOF'
           import json, os
@@ -167,11 +168,7 @@ jobs:
               }
           }
 
-          if mcp_available and mcp_path and os.path.isfile(mcp_path):
-              # Read actual env var values for the MCP server environment
-              lb_api_key = os.environ.get("LIGHTBRIDGE_API_KEY_VALUE", "")
-              lb_base_url = os.environ.get("LIGHTBRIDGE_BASE_URL_VALUE", "")
-
+          if mcp_available and mcp_path:
               config["mcp"] = {
                   "code_search": {
                       "type": "local",
@@ -180,8 +177,8 @@ jobs:
                       "environment": {
                           "QDRANT_URL": "http://localhost:6333",
                           "EMBEDDING_PROVIDER": "openai",
-                          "OPENAI_API_KEY": lb_api_key,
-                          "EMBEDDING_BASE_URL": lb_base_url,
+                          "OPENAI_API_KEY": "{env:LIGHTBRIDGE_API_KEY}",
+                          "EMBEDDING_BASE_URL": "{env:LIGHTBRIDGE_BASE_URL}",
                           "EMBEDDING_MODEL": "text-embedding-3-small",
                           "CODE_ENABLE_AST": "true",
                           "CODE_CHUNK_SIZE": "2500"

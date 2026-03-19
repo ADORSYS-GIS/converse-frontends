@@ -1,4 +1,20 @@
 # Review Rules
+# Repository Review Conventions
+
+## Critical Constraints
+- **IGNORE ALL CHANGES** in `.opencode/` directory and `opencode.json`. These are CI-generated artifacts.
+- **IGNORE ALL CHANGES** in `charts/` directory unless the PR description specifically requests a Helm chart review.
+- **Focus** your review on `apps/self-service` and `packages/*`.
+- **Secrets**: Never allow hardcoded secrets. Flag any string that looks like a key or token.
+
+## Priority 1: Architecture & Work Method
+Follow the [AGENTS.md](file:///home/runner/work/converse-frontends/converse-frontends/AGENTS.md) strictly:
+ in app pages: no direct `react-native` imports in screens/views
+- All classnames inside UI components via `cva` + `cn`, never raw className in app code
+- Theme tokens only: no hardcoded colors (`bg-[#...]`, `text-white`, etc.)
+- All visible text via i18n `t('key')`, no literal user-facing strings
+- Kebab-case filenames for all new files
+- Hooks in `packages/hooks`, API logic in `packages/api-rest` or `packages/api-native`
 
 ## Priorities (in order)
 1. Correctness and logic errors

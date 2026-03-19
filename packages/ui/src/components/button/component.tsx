@@ -17,6 +17,8 @@ export function Button({
   size,
   width,
   disabled,
+  leadingIcon,
+  trailingIcon,
   children,
   ...props
 }: ButtonProps) {
@@ -30,12 +32,14 @@ export function Button({
       disabled={resolvedDisabled}
       className={cn(buttonVariants({ variant, shape, size, width, disabled: resolvedDisabled }))}
       {...props}>
+      {leadingIcon ? <>{leadingIcon}</> : null}
       <TextBase
         className={cn(buttonTextVariants({ variant, size }))}
         {...textProps}
         style={textStyle}>
         {children}
       </TextBase>
+      {trailingIcon ? <>{trailingIcon}</> : null}
     </PressableBase>
   );
 }

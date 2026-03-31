@@ -1,61 +1,155 @@
 # Coding Conventions — Converse-frontends
 
+> Source of truth: `AGENTS.md`, `prettier.config.js`, `eslint.config.js`, `package.json`
+
+---
+
 ## Naming Standards
-<!-- TODO: Define naming conventions for your project -->
 
 | Element | Convention | Example |
 |---------|-----------|---------|
-| Variables | <!-- TODO --> | <!-- TODO --> |
-| Functions | <!-- TODO --> | <!-- TODO --> |
-| Classes | <!-- TODO --> | <!-- TODO --> |
-| Constants | <!-- TODO --> | <!-- TODO --> |
-| Files | <!-- TODO --> | <!-- TODO --> |
-| Database tables | <!-- TODO --> | <!-- TODO --> |
-| API endpoints | <!-- TODO --> | <!-- TODO --> |
+| Variables | `camelCase` | `isLoading`, `scopeId` |
+| Functions | `camelCase` | `loadStoredSession`, `useQueryUsage` |
+| React hooks | `camelCase` prefixed with `use` | `useAuthSession`, `useKeycloakLogin` |
+| Classes / Types / Interfaces | `PascalCase` | `AuthSession`, `UsageQueryParams` |
+| Enums | `PascalCase` | `ApiKeyStatus` |
+| Constants (compile-time) | `SCREAMING_SNAKE_CASE` | `STORAGE_KEY`, `WEB_DB_NAME` |
+| Constants (derived/computed) | `camelCase` | `webStore` |
+| Boolean variables | `is`, `has`, `should`, `can` prefix | `isAuthenticated`, `hasPermission` |
+| Files — modules | `kebab-case.ts` / `kebab-case.tsx` | `auth-storage.ts`, `usage-view.tsx` |
+| Files — classes/components | `kebab-case.tsx` (React Native convention) | `usage-view.tsx` |
+| Interfaces | No `I` prefix | `UserService` not `IUserService` |
+| Type parameters | Single uppercase or descriptive | `T`, `TResult`, `TInput` |
+| API endpoints | Defined by OpenAPI spec (snake_case path segments) | `/api/v1/api-keys/{key_id}` |
+
+---
 
 ## File Organization
-<!-- TODO: Describe the project directory structure and where different types of files belong -->
+
 ```
-<!-- TODO: Replace with actual project structure -->
-src/
-  modules/
-  shared/
-  config/
-tests/
-docs/
+converse-frontends/
+├── apps/
+│   └── self-service/
+│       └── src/
+│           ├── app/          # Expo Router routes (thin, render screens only)
+│           ├── screens/      # Assemble views; no business logic
+│           ├── views/        # Presentational; calls hooks, renders UI
+│           ├── configs/      # App-level configuration
+│           ├── hooks/        # App-specific hooks (wrap package hooks)
+│           ├── navigation/   # Navigation config
+│           ├── queries/      # Query key factories
+│           ├── theme/        # App theme overrides
+│           └── types/        # App-specific shared types
+├── packages/
+│   ├── api-rest/             # Auto-generated REST client (do NOT hand-edit)
+│   ├── api-native/           # Native API utilities
+│   ├── hooks/                # Shared hooks (auth, usage, projects, accounts, API keys)
+│   ├── i18n/                 # Translation resources
+│   └── ui/                   # Shared design-system components
+├── openapi/                  # OpenAPI specs — source of truth for backend
+├── docs/knowledge/           # Agent-readable knowledge base
+└── charts/                   # Helm chart for Kubernetes deployment
 ```
+
+---
 
 ## Code Formatting
-<!-- TODO: Specify formatter, configuration, and rules -->
-- Formatter: <!-- TODO: e.g., Prettier, Black, gofmt -->
-- Config file: <!-- TODO: e.g., .prettierrc, pyproject.toml -->
-- Max line length: <!-- TODO: e.g., 100, 120 -->
-- Indentation: <!-- TODO: e.g., 2 spaces, 4 spaces, tabs -->
-- Trailing commas: <!-- TODO: e.g., always, never, es5 -->
+
+- **Formatter:** Prettier `^3.8.1` (`prettier.config.js`)
+- **Print width:** 100 characters
+- **Indentation:** 2 spaces (`tabWidth: 2`)
+- **Quotes:** Single quotes (`singleQuote: true`)
+- **Trailing commas:** ES5 style (`trailingComma: 'es5'`)
+- **Bracket same line:** `true` (closing bracket on same line for JSX)
+- **Plugin:** `prettier-plugin-tailwindcss` (auto-sorts Tailwind classes in `className` attributes)
+
+Run formatter:
+```bash
+pnpm format
+# Runs: eslint --fix + prettier --write on all .js/.jsx/.ts/.tsx/.json/.css/.md files
+```
+
+Check without writing:
+```bash
+pnpm lint
+# Runs: eslint check + prettier -c (check mode)
+```
+
+---
+
+## Linting
+
+- **Linter:** ESLint `^9.39.2` (`eslint.config.js`)
+- **Base config:** `eslint-config-expo/flat` (covers React, React Native, TypeScript rules)
+- **Ignores:** `dist/*`, `apps/*/dist/*`
+- **Custom rules:**
+  - `react/display-name: off` (disabled — display names not required)
+
+---
 
 ## Import Ordering
-<!-- TODO: Define the order and grouping for imports -->
-1. <!-- TODO: e.g., Standard library -->
-2. <!-- TODO: e.g., Third-party packages -->
-3. <!-- TODO: e.g., Internal/project modules -->
-4. <!-- TODO: e.g., Relative imports -->
 
-Enforce with: <!-- TODO: e.g., eslint-plugin-import, isort -->
+Imports must be ordered as follows, **separated by blank lines**:
+
+1. Node built-ins (e.g., `path`, `fs`)
+2. External packages (e.g., `react`, `expo-auth-session`, `@tanstack/react-query`)
+3. Internal package aliases (e.g., `@lightbridge/hooks`, `@lightbridge/ui`)
+4. Relative imports (e.g., `./auth-types`, `../views/usage-view`)
+
+```typescript
+// ✅ Correct
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+import { usageBackendQueryUsage } from '@lightbridge/api-rest';
+
+import { useAuthSession } from './auth-session';
+```
+
+Use **named exports** over default exports. Default exports are allowed only for Expo Router route files (framework requirement).
+
+---
+
+## TypeScript Rules
+
+- `strict: true` — always enabled, never disabled per-file
+- No `any` — use `unknown` + type guards
+- No non-null assertions (`!`) — use `?.` and `??`
+- No `@ts-ignore` — use `@ts-expect-error` with a comment
+- Prefer `interface` for extensible shapes; `type` for unions/intersections
+- Use discriminated unions for state modeling instead of optional fields
+
+---
 
 ## Comment Standards
-<!-- TODO: Define when and how to write comments -->
-- Public APIs: <!-- TODO: e.g., JSDoc, docstrings required -->
-- Complex logic: <!-- TODO: e.g., explain WHY, not WHAT -->
-- TODO format: <!-- TODO: e.g., TODO(username): description -->
-- Deprecated code: <!-- TODO: e.g., @deprecated annotation with migration path -->
+
+- **Public APIs:** JSDoc comments on exported functions and types explaining purpose, parameters, and return values
+- **Complex logic:** Comments explain **why**, not what (the diff shows what)
+- **TODOs:** Format as `// TODO(username): description` — never anonymous
+- **Deprecated:** Annotate with `@deprecated` and describe migration path
+- **`NOTE(context):`** Used for implementation notes that affect maintainers (e.g., `// NOTE(web): avoid idb-keyval default DB/store`)
+
+---
 
 ## Commit Message Format
-<!-- TODO: Define commit message conventions -->
-<!-- e.g., Conventional Commits: type(scope): description -->
+
+**Conventional Commits:** `type(scope): description`
+
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+- Scope: optional (e.g., `feat(auth): add OAuth2 flow`)
+- Subject: imperative mood, lowercase, no period, max 72 characters
+- Body: explain **why**, not what
+
+---
 
 ## Code Review Checklist
-<!-- TODO: Define what reviewers should check -->
-- [ ] <!-- TODO: e.g., Tests included for new functionality -->
-- [ ] <!-- TODO: e.g., No hardcoded secrets or credentials -->
-- [ ] <!-- TODO: e.g., Error handling is appropriate -->
-- [ ] <!-- TODO: e.g., Documentation updated if needed -->
+
+- [ ] Tests included for new functionality
+- [ ] No hardcoded secrets, API keys, tokens, or credentials
+- [ ] Error handling is appropriate and typed (no swallowed exceptions)
+- [ ] No `any` types introduced
+- [ ] All user-visible strings go through `t('key')` — no hardcoded text
+- [ ] New components use `cva`/`cn` and design tokens — no raw `className` strings
+- [ ] Documentation updated if behavior has changed
+- [ ] Imports ordered correctly and use named exports
+- [ ] No floating promises (every `await` or `.catch()` is present)

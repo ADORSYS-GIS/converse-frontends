@@ -30,6 +30,13 @@
             "cache_read": 0.2
           }
         },
+        "gemini-3.1-flash-lite": {
+          "name": "Gemini 3.1 Flash Lite",
+          "limit": {
+            "context": 950000,
+            "output": 60800
+          }
+        },
         "kimi-k2.5": {
           "name": "Kimi K2.5",
           "limit": {
@@ -47,7 +54,7 @@
   },
   "agent": {
     "moa-orchestrator": {
-      "description": "Entry agent that coordinates ideation, research, rejection, security, and TDD to produce a final plan.",
+      "description": "Coordinates research, selection, TDD planning, implementation, and resumable execution across the MoA workflow.",
       "mode": "primary",
       "model": "lightbridge/glm-5",
       "prompt": "{file:./prompts/moa-orchestrator.txt}",
@@ -64,7 +71,7 @@
       "description": "Generates a few high-quality strategic paths.",
       "mode": "subagent",
       "hidden": true,
-      "model": "lightbridge/gemini-3-flash",
+      "model": "lightbridge/glm-5",
       "prompt": "{file:./prompts/moa-ideation.txt}",
       "temperature": 0.7
     },
@@ -80,7 +87,7 @@
     },
 
     "moa-rejection": {
-      "description": "Finds fatal flaws, worst-case scenarios, and kill criteria.",
+      "description": "Finds fatal flaws, worst-case scenarios, kill criteria, and structural failure signals from test findings.",
       "mode": "subagent",
       "hidden": true,
       "model": "lightbridge/glm-5",
@@ -107,11 +114,38 @@
     },
 
     "moa-tdd": {
-      "description": "Creates a strict test-first implementation plan.",
+      "description": "Creates a strict test-first phased execution plan and canonical resumable todo list.",
       "mode": "subagent",
       "hidden": true,
-      "model": "lightbridge/glm-5",
+      "model": "lightbridge/kimi-k2.5",
       "prompt": "{file:./prompts/moa-tdd.txt}",
+      "temperature": 0.1
+    },
+
+    "moa-implementer": {
+      "description": "Executes the canonical phased plan one slice at a time and updates resumable execution state.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/kimi-k2.5",
+      "prompt": "{file:./prompts/moa-implementer.txt}",
+      "temperature": 0.1
+    },
+
+    "moa-test-triage-lite": {
+      "description": "Runs predefined validation commands and cheaply classifies failures into actionable findings.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/gemini-3.1-flash-lite",
+      "prompt": "{file:./prompts/moa-test-triage-lite.txt}",
+      "temperature": 0.1
+    },
+
+    "moa-quick-scout": {
+      "description": "Handles tiny investigations and very easy low-risk tasks cheaply.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/gemini-3.1-flash-lite",
+      "prompt": "{file:./prompts/moa-quick-scout.txt}",
       "temperature": 0.1
     }
   }

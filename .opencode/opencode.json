@@ -52,7 +52,45 @@
       }
     }
   },
+  "mcp": {
+    "code_search": {
+      "type": "local",
+      "command": ["bash", ".opencode/scripts/start-code-search.sh"],
+      "enabled": true,
+      "environment": {
+        "QDRANT_COLLECTION": "code-repository",
+        "EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2"
+      }
+    }
+  },
+  "mode": {
+    "review": {
+      "prompt": "{file:./prompts/review.txt}",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": true,
+        "read": true,
+        "grep": true,
+        "glob": true
+      }
+    }
+  },
   "agent": {
+    "auto-review": {
+      "description": "Automatic PR review triggered on PR open/sync",
+      "mode": "primary",
+      "hidden": true,
+      "model": "lightbridge/gemini-3.1-flash-lite",
+      "temperature": 0.1
+    },
+    "manual-review": {
+      "description": "Manual PR review triggered via /oc or /opencode",
+      "mode": "primary",
+      "hidden": true,
+      "model": "lightbridge/kimi-k2.5",
+      "temperature": 0.1
+    },
     "moa-orchestrator": {
       "description": "Coordinates research, selection, TDD planning, implementation, and resumable execution across the MoA workflow.",
       "mode": "primary",
@@ -66,7 +104,6 @@
         }
       }
     },
-
     "moa-ideation": {
       "description": "Generates a few high-quality strategic paths.",
       "mode": "subagent",
@@ -75,7 +112,6 @@
       "prompt": "{file:./prompts/moa-ideation.txt}",
       "temperature": 0.7
     },
-
     "moa-brainstorming": {
       "description": "Explores many solution variants and unconventional options.",
       "mode": "subagent",
@@ -85,7 +121,6 @@
       "top_p": 0.9,
       "temperature": 0.95
     },
-
     "moa-rejection": {
       "description": "Finds fatal flaws, worst-case scenarios, kill criteria, and structural failure signals from test findings.",
       "mode": "subagent",
@@ -94,7 +129,6 @@
       "prompt": "{file:./prompts/moa-rejection.txt}",
       "temperature": 0.1
     },
-
     "moa-constraint-research": {
       "description": "Researches technical, runtime, vendor, and compliance constraints.",
       "mode": "subagent",
@@ -103,7 +137,6 @@
       "prompt": "{file:./prompts/moa-constraint-research.txt}",
       "temperature": 0.2
     },
-
     "moa-security": {
       "description": "Threat-models proposals and defines mandatory controls.",
       "mode": "subagent",
@@ -112,7 +145,6 @@
       "prompt": "{file:./prompts/moa-security.txt}",
       "temperature": 0.1
     },
-
     "moa-tdd": {
       "description": "Creates a strict test-first phased execution plan and canonical resumable todo list.",
       "mode": "subagent",
@@ -121,7 +153,6 @@
       "prompt": "{file:./prompts/moa-tdd.txt}",
       "temperature": 0.1
     },
-
     "moa-implementer": {
       "description": "Executes the canonical phased plan one slice at a time and updates resumable execution state.",
       "mode": "subagent",
@@ -130,7 +161,6 @@
       "prompt": "{file:./prompts/moa-implementer.txt}",
       "temperature": 0.1
     },
-
     "moa-test-triage-lite": {
       "description": "Runs predefined validation commands and cheaply classifies failures into actionable findings.",
       "mode": "subagent",
@@ -139,7 +169,6 @@
       "prompt": "{file:./prompts/moa-test-triage-lite.txt}",
       "temperature": 0.1
     },
-
     "moa-quick-scout": {
       "description": "Handles tiny investigations and very easy low-risk tasks cheaply.",
       "mode": "subagent",

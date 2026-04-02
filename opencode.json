@@ -12,12 +12,107 @@
       },
       "models": {
         "gemini-3-flash": {
-          "name": "Gemini 3 Flash"
+          "name": "Gemini 3 Flash",
+          "limit": {
+            "context": 996147,
+            "output": 62259
+          }
         },
         "glm-5": {
-          "name": "GLM-5"
+          "name": "GLM-5",
+          "limit": {
+            "context": 200000,
+            "output": 72600
+          },
+          "cost": {
+            "input": 1,
+            "output": 3.2,
+            "cache_read": 0.2
+          }
+        },
+        "kimi-k2.5": {
+          "name": "Kimi K2.5",
+          "limit": {
+            "context": 260000,
+            "output": 32000
+          },
+          "cost": {
+            "input": 0.6,
+            "output": 3.0,
+            "cache_read": 0.1
+          }
         }
       }
+    }
+  },
+  "agent": {
+    "moa-orchestrator": {
+      "description": "Entry agent that coordinates ideation, research, rejection, security, and TDD to produce a final plan.",
+      "mode": "primary",
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-orchestrator.txt}",
+      "temperature": 0.2,
+      "permission": {
+        "task": {
+          "*": "deny",
+          "moa-*": "allow"
+        }
+      }
+    },
+
+    "moa-ideation": {
+      "description": "Generates a few high-quality strategic paths.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/gemini-3-flash",
+      "prompt": "{file:./prompts/moa-ideation.txt}",
+      "temperature": 0.7
+    },
+
+    "moa-brainstorming": {
+      "description": "Explores many solution variants and unconventional options.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-brainstorming.txt}",
+      "top_p": 0.9,
+      "temperature": 0.95
+    },
+
+    "moa-rejection": {
+      "description": "Finds fatal flaws, worst-case scenarios, and kill criteria.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-rejection.txt}",
+      "temperature": 0.1
+    },
+
+    "moa-constraint-research": {
+      "description": "Researches technical, runtime, vendor, and compliance constraints.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-constraint-research.txt}",
+      "temperature": 0.2
+    },
+
+    "moa-security": {
+      "description": "Threat-models proposals and defines mandatory controls.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-security.txt}",
+      "temperature": 0.1
+    },
+
+    "moa-tdd": {
+      "description": "Creates a strict test-first implementation plan.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "lightbridge/glm-5",
+      "prompt": "{file:./prompts/moa-tdd.txt}",
+      "temperature": 0.1
     }
   }
 }

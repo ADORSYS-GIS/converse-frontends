@@ -6,7 +6,6 @@ import { Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 const quickActionIconSize = 20;
-const notificationIconSize = 20;
 
 function getServiceStatusTone(status: ServiceStatus): 'success' | 'error' | 'muted' {
   if (status === 'healthy') return 'success';
@@ -33,6 +32,8 @@ type HomeViewProps = {
   onEndpoints: () => void;
   onUsageLogs: () => void;
   onSupport: () => void;
+  isSigningOut?: boolean;
+  onLogout: () => void;
 };
 
 export function HomeView({
@@ -45,6 +46,8 @@ export function HomeView({
   onEndpoints,
   onUsageLogs,
   onSupport,
+  isSigningOut,
+  onLogout,
 }: Readonly<HomeViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -118,8 +121,17 @@ export function HomeView({
             <Text intent="body">{t('home.welcomeBack')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
           </Stack>
-          <Div tone="brandSoft" rounded="full" size="iconLg" align="center" justify="center">
-            <Ionicons name="notifications" size={notificationIconSize} color={colors.primary} />
+          <Div
+            tone="brand"
+            rounded="full"
+            size="iconMd"
+            align="center"
+            justify="center"
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.logout')}
+            disabled={Boolean(isSigningOut)}
+            onPress={onLogout}>
+            <Ionicons name="log-out-outline" size={22} color={colors.surface} />
           </Div>
         </Stack>
 

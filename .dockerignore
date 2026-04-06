@@ -12,3 +12,25 @@ dist
 .DS_Store
 **/.turbo
 **/.cache
+
+# AI Agent Metadata and Rules
+.claude
+.cursorrules
+.roo
+.kilocode
+.opencode
+.windsurfrules
+AGENTS.md
+
+# Documentation
+docs/
+**/*.md
+
+# Local Development and Orchestration
+wiremock/
+charts/
+
+# Other non-runtime config
+cesconfig.jsonc
+agentic-config.conf
+opencode.json

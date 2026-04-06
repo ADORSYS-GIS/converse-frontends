@@ -1,14 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import {
-  useAuthSession,
-  useTokenUsage,
-  useCurrentProject,
-  useQueryUsage,
-} from '@lightbridge/hooks';
+import { useAuthSession, useSignOut, useCurrentProject, useQueryUsage } from '@lightbridge/hooks';
 import { HomeView } from '../views/home-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
+
+const getUtcDayStamp = (value: Date) =>
+  value.getUTCFullYear() * 10_000 + (value.getUTCMonth() + 1) * 100 + value.getUTCDate();
 
 export type ServiceStatus = 'healthy' | 'unhealthy' | 'unknown';
 
@@ -33,11 +31,91 @@ async function checkServiceHealth(url: string): Promise<ServiceStatus> {
 
 export function HomeScreen() {
   const { session } = useAuthSession();
-  const { data: usage = [] } = useTokenUsage();
+  const { signOut } = useSignOut();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const isSigningOutRef = useRef(false);
+  const isMountedRef = useRef(true);
   const { data: project } = useCurrentProject();
   const config = useRuntimeConfig();
-  useQueryUsage();
+
+  const [dayStamp, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
+
+  useEffect(() => {
+    // Keep the 'start of today' computation in sync if the app stays open past midnight (UTC).
+    // Avoid polling: schedule a single wake-up at the next UTC midnight.
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNextUtcMidnight = () => {
+      const now = new Date();
+      const nextUtcMidnight = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+      );
+      const msUntilNext = Math.max(0, nextUtcMidnight.getTime() - now.getTime());
+
+      timeout = setTimeout(() => {
+        setDayStamp(getUtcDayStamp(new Date()));
+        scheduleNextUtcMidnight();
+      }, msUntilNext + 1_000);
+    };
+
+    scheduleNextUtcMidnight();
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, []);
+
+  const startOfToday = useMemo(() => {
+    const year = Math.floor(dayStamp / 10_000);
+    const month = Math.floor((dayStamp % 10_000) / 100); // 1-12
+    const day = dayStamp % 100;
+
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  }, [dayStamp]);
+
+  const usageQueryParams = useMemo(
+    () => ({
+      startTime: startOfToday,
+      bucket: '1 day' as const,
+    }),
+    [startOfToday]
+  );
+
+  const { data: usageResponse } = useQueryUsage(usageQueryParams);
+
   const router = useRouter();
+
+  useEffect(() => {
+    // React 18 StrictMode (dev) mounts/unmounts effects twice.
+    // Ensure we re-mark as mounted on the second pass.
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const onLogout = useCallback(() => {
+    // Guard against rapid double taps; refs update synchronously.
+    if (isSigningOutRef.current) return;
+
+    isSigningOutRef.current = true;
+    setIsSigningOut(true);
+
+    void (async () => {
+      try {
+        await signOut();
+      } catch (error) {
+        console.error('Sign out failed', error);
+      } finally {
+        isSigningOutRef.current = false;
+        if (isMountedRef.current) {
+          setIsSigningOut(false);
+        }
+      }
+    })();
+  }, [signOut]);
 
   const { data: services = [] } = useQuery({
     queryKey: ['service-health'],
@@ -72,7 +150,8 @@ export function HomeScreen() {
   });
 
   const { usedRequests, totalRequests, usagePercent } = useMemo(() => {
-    const used = usage.reduce((acc, item) => acc + (item.requests || 0), 0);
+    const points = usageResponse?.points ?? [];
+    const used = points.reduce((acc, item) => acc + (item.requests ?? 0), 0);
     const total = project?.default_limits?.requests_per_day || 1000;
     const percent = total > 0 ? (used / total) * 100 : 0;
 
@@ -81,7 +160,7 @@ export function HomeScreen() {
       totalRequests: total,
       usagePercent: percent,
     };
-  }, [usage, project]);
+  }, [usageResponse, project]);
 
   return (
     <HomeView
@@ -94,6 +173,8 @@ export function HomeScreen() {
       onEndpoints={() => router.push('/api-keys')}
       onUsageLogs={() => router.push('/usage')}
       onSupport={() => router.push('/help')}
+      isSigningOut={isSigningOut}
+      onLogout={onLogout}
     />
   );
 }

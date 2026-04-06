@@ -25,14 +25,7 @@ export type UsageQueryParams = {
     signal_type?: string;
     user_id?: string;
   };
-  groupBy?: Array<
-    | 'account_id'
-    | 'project_id'
-    | 'user_id'
-    | 'model'
-    | 'metric_name'
-    | 'signal_type'
-  >;
+  groupBy?: ('account_id' | 'project_id' | 'user_id' | 'model' | 'metric_name' | 'signal_type')[];
   limit?: number;
 };
 
@@ -62,11 +55,13 @@ export function useQueryUsage(params?: Partial<UsageQueryParams>) {
 
       if (!scopeId) return null;
 
-      const startTime = params?.startTime ?? (() => {
-        const lastMonth = new Date();
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        return lastMonth;
-      })();
+      const startTime =
+        params?.startTime ??
+        (() => {
+          const lastMonth = new Date();
+          lastMonth.setMonth(lastMonth.getMonth() - 1);
+          return lastMonth;
+        })();
 
       const endTime = params?.endTime ?? new Date();
 

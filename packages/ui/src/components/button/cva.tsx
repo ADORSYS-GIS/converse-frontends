@@ -1,9 +1,10 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 
-export const buttonVariants = cva('flex-row items-center justify-center', {
+export const buttonVariants = cva('flex-row items-center justify-center gap-2', {
   variants: {
     variant: {
       primary: 'bg-primary shadow-md',
+      brandSoft: 'bg-primary/10',
       ghost: 'bg-transparent',
       neutral: 'bg-surface shadow-sm',
       icon: 'bg-ink',
@@ -40,6 +41,7 @@ export const buttonTextVariants = cva('font-semibold', {
   variants: {
     variant: {
       primary: 'text-surface',
+      brandSoft: 'text-primary',
       ghost: 'text-primary',
       neutral: 'text-ink',
       icon: 'text-surface',

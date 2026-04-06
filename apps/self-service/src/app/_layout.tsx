@@ -131,15 +131,21 @@ function AppBootstrap() {
   );
 }
 
+const APP_FONTS = [
+  AppFont.BakbakOne,
+  AppFont.EricaOne,
+  AppFont.MontserratRegular,
+  AppFont.MontserratSemiBold,
+];
+
 export default function RootLayout() {
-  const fontsLoaded = useAppFonts([
-    AppFont.BakbakOne,
-    AppFont.EricaOne,
-    AppFont.MontserratRegular,
-    AppFont.MontserratSemiBold,
-  ]);
+  const fontsLoaded = useAppFonts(APP_FONTS);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const webFallback = isWebPlatform() ? <AppSplashView /> : null;
+
+  const handleRuntimeReady = React.useCallback(() => {
+    setRuntimeReady(true);
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded && runtimeReady) {
@@ -149,7 +155,7 @@ export default function RootLayout() {
 
   return (
     <I18nProvider>
-      <RuntimeConfigProvider fallback={webFallback} onReady={() => setRuntimeReady(true)}>
+      <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
         <QueryClientProvider client={queryClient}>
           {fontsLoaded ? <AppBootstrap /> : webFallback}
         </QueryClientProvider>

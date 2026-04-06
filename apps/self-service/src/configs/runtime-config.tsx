@@ -74,6 +74,11 @@ export function RuntimeConfigProvider({
   onReady?: (config: AppRuntimeConfig) => void;
 }>) {
   const [config, setConfig] = useState<AppRuntimeConfig | null>(null);
+  const onReadyRef = React.useRef(onReady);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     let mounted = true;
@@ -82,7 +87,7 @@ export function RuntimeConfigProvider({
       .then((next) => {
         if (mounted) {
           setConfig(next);
-          onReady?.(next);
+          onReadyRef.current?.(next);
         }
       })
       .catch((error) => {
@@ -92,7 +97,7 @@ export function RuntimeConfigProvider({
     return () => {
       mounted = false;
     };
-  }, [onReady]);
+  }, []); // Only run once on mount
 
   if (!config) {
     return <>{fallback}</>;

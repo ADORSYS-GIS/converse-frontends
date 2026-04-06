@@ -1,7 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react",
     "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "paths": {
       "@app/*": ["./src/*"]

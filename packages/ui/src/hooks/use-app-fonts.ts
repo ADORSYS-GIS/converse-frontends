@@ -1,9 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
-
-type FontSource = number;
-
-type FontRecord = Record<string, FontSource>;
 
 export enum AppFont {
   BakbakOne = 'BakbakOne-Regular',
@@ -12,19 +8,23 @@ export enum AppFont {
   MontserratSemiBold = 'Montserrat-SemiBold',
 }
 
-const FONT_SOURCES: Record<AppFont, FontSource> = {
-  [AppFont.BakbakOne]: require('../assets/fonts/bakbak-one/bakbak-one-regular.ttf'),
-  [AppFont.EricaOne]: require('../assets/fonts/erica-one/erica-one-regular.ttf'),
-  [AppFont.MontserratRegular]: require('../assets/fonts/montserrat/montserrat-regular.ttf'),
-  [AppFont.MontserratSemiBold]: require('../assets/fonts/montserrat/montserrat-semibold.ttf'),
-};
+const FONT_LOADING_TIMEOUT_MS = 5000;
 
-export function useAppFonts(fonts: AppFont[]) {
-  const selectedFonts = useMemo<FontRecord>(() => {
-    const entries = fonts.map((font) => [font, FONT_SOURCES[font]] as const);
-    return Object.fromEntries(entries);
-  }, [fonts]);
+export function useAppFonts(fontSources: Record<string, any>) {
+  const [loaded, error] = useFonts(fontSources);
+  const [timedOut, setTimedOut] = useState(false);
 
-  const [loaded] = useFonts(selectedFonts);
-  return loaded;
+  useEffect(() => {
+    if (loaded || error) return;
+
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+      console.warn('Font loading timed out, proceeding with system fonts');
+    }, FONT_LOADING_TIMEOUT_MS);
+
+    return () => clearTimeout(timer);
+  }, [loaded, error]);
+
+  // Return true if loaded OR if there was an error OR if it timed out
+  return loaded || !!error || timedOut;
 }

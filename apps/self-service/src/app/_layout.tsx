@@ -131,15 +131,15 @@ function AppBootstrap() {
   );
 }
 
-const APP_FONTS = [
-  AppFont.BakbakOne,
-  AppFont.EricaOne,
-  AppFont.MontserratRegular,
-  AppFont.MontserratSemiBold,
-];
+const APP_FONT_SOURCES = {
+  [AppFont.BakbakOne]: require('../../assets/fonts/bakbak-one/bakbak-one-regular.ttf'),
+  [AppFont.EricaOne]: require('../../assets/fonts/erica-one/erica-one-regular.ttf'),
+  [AppFont.MontserratRegular]: require('../../assets/fonts/montserrat/montserrat-regular.ttf'),
+  [AppFont.MontserratSemiBold]: require('../../assets/fonts/montserrat/montserrat-semibold.ttf'),
+};
 
 export default function RootLayout() {
-  const fontsLoaded = useAppFonts(APP_FONTS);
+  const fontsLoaded = useAppFonts(APP_FONT_SOURCES);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const webFallback = isWebPlatform() ? <AppSplashView /> : null;
 

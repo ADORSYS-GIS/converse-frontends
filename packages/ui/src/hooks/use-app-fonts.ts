@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 
 export enum AppFont {
@@ -11,6 +12,12 @@ export enum AppFont {
 const FONT_LOADING_TIMEOUT_MS = 5000;
 
 export function useAppFonts(fontSources: Record<string, any>) {
+  // On Web, we load fonts via +html.tsx <link> tags for maximum reliability.
+  // We return true immediately to allow the app to bootstrap.
+  if (Platform.OS === 'web') {
+    return true;
+  }
+
   const [loaded, error] = useFonts(fontSources);
   const [timedOut, setTimedOut] = useState(false);
 

@@ -16,7 +16,7 @@ import {
   refreshAccessToken,
   clearPersistedAuthSession,
 } from '@lightbridge/hooks';
-import { AppFont, useAppFonts } from '@lightbridge/ui';
+import { useAppFonts } from '@lightbridge/ui';
 import { queryClient } from '../queries';
 import { useClientInit } from '@lightbridge/api-rest';
 import { isWebPlatform } from '@lightbridge/api-native';
@@ -131,15 +131,8 @@ function AppBootstrap() {
   );
 }
 
-const APP_FONT_SOURCES = {
-  [AppFont.BakbakOne]: '/fonts/BakbakOne_400Regular.ttf',
-  [AppFont.EricaOne]: '/fonts/EricaOne_400Regular.ttf',
-  [AppFont.MontserratRegular]: '/fonts/Montserrat_400Regular.ttf',
-  [AppFont.MontserratSemiBold]: '/fonts/Montserrat_600SemiBold.ttf',
-};
-
 export default function RootLayout() {
-  const fontsLoaded = useAppFonts(APP_FONT_SOURCES);
+  const fontsLoaded = useAppFonts({});
   const [runtimeReady, setRuntimeReady] = useState(false);
   const webFallback = isWebPlatform() ? <AppSplashView /> : null;
 

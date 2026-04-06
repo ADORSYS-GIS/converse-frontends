@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ViewProps } from 'react-native';
 import { Asset } from 'expo-asset';
 import LottieView from 'lottie-react-native';
+import type { LottieViewProps } from 'lottie-react-native';
 
 import { cn } from '../../cn';
 import { lottieVariants } from './cva';
@@ -30,7 +31,9 @@ export function Lottie({
   autoPlay = true,
   ...props
 }: LottieProps) {
-  const [resolvedSource, setResolvedSource] = useState<LottieSource>(source);
+  const [resolvedSource, setResolvedSource] = useState<LottieViewProps['source'] | undefined>(
+    isModuleSource(source) ? undefined : (source as any)
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -52,7 +55,7 @@ export function Lottie({
           })
           .catch(() => {
             if (isMounted) {
-              setResolvedSource(source);
+              setResolvedSource(undefined);
             }
           });
       }

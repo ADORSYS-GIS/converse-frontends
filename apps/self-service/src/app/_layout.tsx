@@ -17,6 +17,9 @@ import {
   clearPersistedAuthSession,
 } from '@lightbridge/hooks';
 import { AppFont, useAppFonts } from '@lightbridge/ui';
+import { BakbakOne_400Regular } from '@expo-google-fonts/bakbak-one';
+import { EricaOne_400Regular } from '@expo-google-fonts/erica-one';
+import { Montserrat_400Regular, Montserrat_600SemiBold } from '@expo-google-fonts/montserrat';
 import { queryClient } from '../queries';
 import { useClientInit } from '@lightbridge/api-rest';
 import { isWebPlatform } from '@lightbridge/api-native';
@@ -132,10 +135,10 @@ function AppBootstrap() {
 }
 
 const APP_FONT_SOURCES = {
-  [AppFont.BakbakOne]: require('../../assets/fonts/bakbak-one/bakbak-one-regular.ttf'),
-  [AppFont.EricaOne]: require('../../assets/fonts/erica-one/erica-one-regular.ttf'),
-  [AppFont.MontserratRegular]: require('../../assets/fonts/montserrat/montserrat-regular.ttf'),
-  [AppFont.MontserratSemiBold]: require('../../assets/fonts/montserrat/montserrat-semibold.ttf'),
+  [AppFont.BakbakOne]: BakbakOne_400Regular,
+  [AppFont.EricaOne]: EricaOne_400Regular,
+  [AppFont.MontserratRegular]: Montserrat_400Regular,
+  [AppFont.MontserratSemiBold]: Montserrat_600SemiBold,
 };
 
 export default function RootLayout() {

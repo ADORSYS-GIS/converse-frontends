@@ -31,9 +31,10 @@ COPY . .
 RUN pnpm --dir packages/api-rest codegen && \
     pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
 
-# Remove unused icon fonts (only Ionicons is used) - run separately for clarity
-RUN find apps/self-service/dist -name "*.ttf" ! -iname "*ionicons*" -delete 2>/dev/null || true && \
-    find apps/self-service/dist -type d -empty -delete 2>/dev/null || true
+### Commented out as it was too aggressive and deleted custom fonts required for the UI
+# Remove unused icon fonts (only Ionicons is used)
+# RUN find apps/self-service/dist -name "*.ttf" ! -iname "*ionicons*" -delete 2>/dev/null || true && \
+#    find apps/self-service/dist -type d -empty -delete 2>/dev/null || true
 
 # Runtime stage
 FROM nginx:1.27-alpine-slim

@@ -17,12 +17,27 @@ export type ServiceInfo = {
   status: ServiceStatus;
 };
 
-async function checkServiceHealth(url: string): Promise<ServiceStatus> {
+async function checkServiceHealth(
+  url: string,
+  options?: { headers?: Record<string, string>; noCors?: boolean }
+): Promise<ServiceStatus> {
+  if (!url || !url.startsWith('http')) {
+    return 'unknown';
+  }
+
   try {
     const response = await fetch(url, {
       method: 'GET',
       credentials: 'omit',
+      headers: options?.headers,
+      mode: options?.noCors ? 'no-cors' : 'cors',
     });
+
+    if (options?.noCors) {
+      // In no-cors mode, we can't read the status, but reachability is enough.
+      return 'healthy';
+    }
+
     return response.ok ? 'healthy' : 'unhealthy';
   } catch {
     return 'unhealthy';
@@ -123,7 +138,16 @@ export function HomeScreen() {
       const results: ServiceInfo[] = [];
 
       if (config.gatewayUrl) {
-        const status = await checkServiceHealth(config.gatewayUrl);
+        const url = config.gatewayUrl.endsWith('/')
+          ? `${config.gatewayUrl}v1/models`
+          : `${config.gatewayUrl}/v1/models`;
+
+        const status = await checkServiceHealth(url, {
+          headers: config.gatewayBearerToken
+            ? { Authorization: `Bearer ${config.gatewayBearerToken}` }
+            : undefined,
+        });
+
         results.push({
           key: 'production-gateway',
           name: 'Production Gateway',
@@ -133,7 +157,9 @@ export function HomeScreen() {
       }
 
       if (config.analyticsUrl) {
-        const status = await checkServiceHealth(config.analyticsUrl);
+        const status = await checkServiceHealth(config.analyticsUrl, {
+          noCors: true,
+        });
         results.push({
           key: 'analytics-engine',
           name: 'Analytics Engine',

@@ -9,8 +9,9 @@ const RuntimeConfigContext = createContext<AppRuntimeConfig | null>(null);
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
   const usageUrl = process.env.EXPO_PUBLIC_USAGE_URL;
-  const gatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
   const analyticsUrl = process.env.EXPO_PUBLIC_ANALYTICS_URL;
+  const gatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
+  const gatewayBearerToken = process.env.EXPO_PUBLIC_GATEWAY_TOKEN;
   const issuer = process.env.EXPO_PUBLIC_KEYCLOAK_ISSUER;
   const clientId = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID;
   const scheme = process.env.EXPO_PUBLIC_KEYCLOAK_SCHEME;
@@ -23,6 +24,7 @@ function getEnvConfig(): AppRuntimeConfig {
     backendUrl,
     usageUrl,
     gatewayUrl,
+    gatewayBearerToken,
     analyticsUrl,
     keycloak: {
       issuer,

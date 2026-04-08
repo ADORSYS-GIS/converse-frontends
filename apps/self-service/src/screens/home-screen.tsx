@@ -34,7 +34,6 @@ async function checkServiceHealth(
     });
 
     if (options?.noCors) {
-      // In no-cors mode, we can't read the status, but reachability is enough.
       return 'healthy';
     }
 
@@ -56,8 +55,6 @@ export function HomeScreen() {
   const [dayStamp, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
 
   useEffect(() => {
-    // Keep the 'start of today' computation in sync if the app stays open past midnight (UTC).
-    // Avoid polling: schedule a single wake-up at the next UTC midnight.
     let timeout: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleNextUtcMidnight = () => {
@@ -82,20 +79,22 @@ export function HomeScreen() {
     };
   }, []);
 
-  const startOfToday = useMemo(() => {
+  const startOfPeriod = useMemo(() => {
     const year = Math.floor(dayStamp / 10_000);
     const month = Math.floor((dayStamp % 10_000) / 100); // 1-12
     const day = dayStamp % 100;
 
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    return new Date(Date.UTC(year, month - 1, day - 29, 0, 0, 0, 0));
   }, [dayStamp]);
 
   const usageQueryParams = useMemo(
     () => ({
-      startTime: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+      startTime: startOfPeriod,
       bucket: '30 days' as const,
+      groupBy: ['model'] as Array<'model'>, // Aligns cache with usage-screen.tsx!
+      limit: 50,
     }),
-    []
+    [startOfPeriod]
   );
 
   const { data: usageResponse } = useQueryUsage(usageQueryParams);
@@ -103,8 +102,6 @@ export function HomeScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    // React 18 StrictMode (dev) mounts/unmounts effects twice.
-    // Ensure we re-mark as mounted on the second pass.
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -112,7 +109,6 @@ export function HomeScreen() {
   }, []);
 
   const onLogout = useCallback(() => {
-    // Guard against rapid double taps; refs update synchronously.
     if (isSigningOutRef.current) return;
 
     isSigningOutRef.current = true;
@@ -151,14 +147,15 @@ export function HomeScreen() {
 
       return results;
     },
-    enabled: !!(config.gatewayUrl || config.analyticsUrl),
+    enabled: !!config.analyticsUrl,
     refetchInterval: 30000,
     refetchOnWindowFocus: false,
   });
 
   const { usedCost, totalBudget, usagePercent } = useMemo(() => {
     const points = usageResponse?.points ?? [];
-    // total_cost is in microUSD
+    
+    // Aggregate over identical array shapes as usage-screen
     const microUsed = points.reduce((acc, item) => acc + (item.total_cost ?? 0), 0);
     const used = microUsed / 1_000_000;
     const total = 30; // $30 budget per user request

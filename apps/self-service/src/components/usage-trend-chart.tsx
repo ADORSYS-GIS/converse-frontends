@@ -49,7 +49,7 @@ export function UsageTrendChart({ points, isLoading }: Props) {
             
             return (
               <Stack key={index} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
-                <Div tone="brand" rounded="sm" style={{ height: `${heightPercent}%`, width: '100%', minHeight: 4 }} />
+                <Div tone="brand" rounded="sm" style={{ height: `${heightPercent}%`, width: '100%', maxWidth: 32, minHeight: 4 }} />
               </Stack>
             );
           })}

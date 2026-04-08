@@ -36,23 +36,25 @@ export function UsageView({ totals, trendData, modelData, isTrendLoading, isMode
     <ScreenShell title={t('usage.title')}>
       <Stack gap="lg" style={{ paddingBottom: 60 }}>
         {/* Top KPI Cards Layout */}
-        <Stack direction="row" gap="sm" wrap="wrap">
+        <Stack gap="sm">
           <UsageKpiCard 
             variant="brand"
             label={t('usage.totalCost')} 
             value={formatCost(totals.cost)} 
             icon={<Ionicons name="card" size={iconSize} color={colors.surface} />}
           />
-          <UsageKpiCard 
-            label={t('usage.totalRequests')} 
-            value={totals.requests.toLocaleString()} 
-            icon={<Ionicons name="swap-horizontal" size={iconSize} color={colors.primary} />}
-          />
-          <UsageKpiCard 
-            label={t('usage.totalTokens')} 
-            value={totals.tokens.toLocaleString()} 
-            icon={<Ionicons name="layers" size={iconSize} color={colors.primary} />}
-          />
+          <Stack direction="row" gap="sm" wrap="wrap">
+            <UsageKpiCard 
+              label={t('usage.totalRequests')} 
+              value={totals.requests.toLocaleString()} 
+              icon={<Ionicons name="swap-horizontal" size={iconSize} color={colors.accent} />}
+            />
+            <UsageKpiCard 
+              label={t('usage.totalTokens')} 
+              value={totals.tokens.toLocaleString()} 
+              icon={<Ionicons name="layers" size={iconSize} color={colors.success} />}
+            />
+          </Stack>
         </Stack>
         
         <UsageTrendChart points={trendData?.points} isLoading={isTrendLoading} />

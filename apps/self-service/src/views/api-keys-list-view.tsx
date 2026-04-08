@@ -118,9 +118,9 @@ export function ApiKeysListView({
                 return (
                   <Card key={item.id} size="md">
                     <Stack direction="row" align="center" justify="between" width="full">
-                      <Stack gap="xs">
-                        <Text intent="bodyStrong">{item.name}</Text>
-                        <Text intent="caption">{createdLabel}</Text>
+                      <Stack gap="xs" style={{ flex: 1, paddingRight: 8, overflow: 'hidden' }}>
+                        <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                        <Text intent="caption" numberOfLines={1}>{createdLabel}</Text>
                       </Stack>
                       <Button
                         variant="ghost"

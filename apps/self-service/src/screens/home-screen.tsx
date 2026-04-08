@@ -79,22 +79,13 @@ export function HomeScreen() {
     };
   }, []);
 
-  const startOfPeriod = useMemo(() => {
-    const year = Math.floor(dayStamp / 10_000);
-    const month = Math.floor((dayStamp % 10_000) / 100); // 1-12
-    const day = dayStamp % 100;
-
-    return new Date(Date.UTC(year, month - 1, day - 29, 0, 0, 0, 0));
-  }, [dayStamp]);
-
   const usageQueryParams = useMemo(
     () => ({
-      startTime: startOfPeriod,
-      bucket: '1 day' as const,
-      groupBy: ['model'] as Array<'model'>, // Aligns cache with usage-screen.tsx!
-      limit: 1000,
+      bucket: '30 days' as const,
+      groupBy: ['model'] as Array<'model'>, 
+      limit: 50,
     }),
-    [startOfPeriod]
+    []
   );
 
   const { data: usageResponse } = useQueryUsage(usageQueryParams);

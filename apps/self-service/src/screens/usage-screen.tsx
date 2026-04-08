@@ -1,61 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useQueryUsage } from '@lightbridge/hooks';
 import type { UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { UsageView } from '../views/usage-view';
 
-const getUtcDayStamp = (value: Date) =>
-  value.getUTCFullYear() * 10_000 + (value.getUTCMonth() + 1) * 100 + value.getUTCDate();
-
 export function UsageScreen() {
-  const [dayStamp] = useState(() => getUtcDayStamp(new Date()));
+  const trendParams = useMemo(() => ({ bucket: "1 day" as const, limit: 35 }), []);
+  const modelParams = useMemo(() => ({ bucket: "30 days" as const, groupBy: ["model"] as Array<"model">, limit: 50 }), []);
 
-  const startOfPeriod = useMemo(() => {
-    const year = Math.floor(dayStamp / 10_000);
-    const month = Math.floor((dayStamp % 10_000) / 100); // 1-12
-    const day = dayStamp % 100;
-    // exactly 30 days ago at midnight UTC
-    return new Date(Date.UTC(year, month - 1, day - 29, 0, 0, 0, 0));
-  }, [dayStamp]);
+  const { data: trendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
+  const { data: rawModelData, isLoading: isModelLoading } = useQueryUsage(modelParams);
 
-  const queryParams = useMemo(() => ({ 
-    bucket: "1 day" as const, 
-    groupBy: ["model"] as Array<"model">, 
-    startTime: startOfPeriod, 
-    limit: 1000 
-  }), [startOfPeriod]);
-
-  // Combine both trend and model requirements into ONE reliable request
-  const { data: rawData, isLoading } = useQueryUsage(queryParams);
-
-  // Deriving Daily Trend Data (Date Aggr)
-  const trendData = useMemo(() => {
-    if (!rawData?.points) return null;
-    const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
-
-    rawData.points.forEach((point) => {
-      const key = point.bucket_start || "Unknown";
-      if (!aggregated[key]) {
-        aggregated[key] = { ...point, model: undefined };
-      } else {
-        aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
-        aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
-        aggregated[key].total_tokens = (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
-      }
-    });
-
-    const sortedPoints = Object.values(aggregated).sort(
-      (a, b) => (a.bucket_start || "").localeCompare(b.bucket_start || "")
-    );
-
-    return { ...rawData, points: sortedPoints };
-  }, [rawData]);
-
-  // Deriving breakdown Data (Model Aggr)
+  // Aggregate duplicates gracefully on the frontend without relying on rigid array matching
   const modelData = useMemo(() => {
-    if (!rawData?.points) return null;
+    if (!rawModelData?.points) return rawModelData;
     const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
     
-    rawData.points.forEach(point => {
+    rawModelData.points.forEach(point => {
       const key = (point.model || "Unknown").trim().toLowerCase();
       if (!aggregated[key]) {
         aggregated[key] = { ...point, model: point.model?.trim() };
@@ -65,8 +25,9 @@ export function UsageScreen() {
         aggregated[key].total_tokens = (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
       }
     });
-    return { ...rawData, points: Object.values(aggregated) };
-  }, [rawData]);
+
+    return { ...rawModelData, points: Object.values(aggregated) };
+  }, [rawModelData]);
 
   const totals = useMemo(() => {
     let cost = 0;
@@ -88,8 +49,8 @@ export function UsageScreen() {
       totals={totals}
       trendData={trendData}
       modelData={modelData}
-      isTrendLoading={isLoading}
-      isModelLoading={isLoading}
+      isTrendLoading={isTrendLoading}
+      isModelLoading={isModelLoading}
     />
   );
 }

@@ -17,18 +17,45 @@ export function UsageScreen() {
     return new Date(Date.UTC(year, month - 1, day - 29, 0, 0, 0, 0));
   }, [dayStamp]);
 
-  const trendParams = useMemo(() => ({ bucket: "1 day" as const, startTime: startOfPeriod, limit: 35 }), [startOfPeriod]);
-  const modelParams = useMemo(() => ({ bucket: "30 days" as const, groupBy: ["model"] as Array<"model">, startTime: startOfPeriod, limit: 50 }), [startOfPeriod]);
+  const queryParams = useMemo(() => ({ 
+    bucket: "1 day" as const, 
+    groupBy: ["model"] as Array<"model">, 
+    startTime: startOfPeriod, 
+    limit: 1000 
+  }), [startOfPeriod]);
 
-  const { data: trendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
-  const { data: rawModelData, isLoading: isModelLoading } = useQueryUsage(modelParams);
+  // Combine both trend and model requirements into ONE reliable request
+  const { data: rawData, isLoading } = useQueryUsage(queryParams);
 
-  // Aggregate duplicates if there are multiple buckets returned for the same model
+  // Deriving Daily Trend Data (Date Aggr)
+  const trendData = useMemo(() => {
+    if (!rawData?.points) return null;
+    const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
+
+    rawData.points.forEach((point) => {
+      const key = point.bucket_start || "Unknown";
+      if (!aggregated[key]) {
+        aggregated[key] = { ...point, model: undefined };
+      } else {
+        aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
+        aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
+        aggregated[key].total_tokens = (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
+      }
+    });
+
+    const sortedPoints = Object.values(aggregated).sort(
+      (a, b) => (a.bucket_start || "").localeCompare(b.bucket_start || "")
+    );
+
+    return { ...rawData, points: sortedPoints };
+  }, [rawData]);
+
+  // Deriving breakdown Data (Model Aggr)
   const modelData = useMemo(() => {
-    if (!rawModelData?.points) return rawModelData;
+    if (!rawData?.points) return null;
     const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
     
-    rawModelData.points.forEach(point => {
+    rawData.points.forEach(point => {
       const key = (point.model || "Unknown").trim().toLowerCase();
       if (!aggregated[key]) {
         aggregated[key] = { ...point, model: point.model?.trim() };
@@ -38,8 +65,8 @@ export function UsageScreen() {
         aggregated[key].total_tokens = (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
       }
     });
-    return { ...rawModelData, points: Object.values(aggregated) };
-  }, [rawModelData]);
+    return { ...rawData, points: Object.values(aggregated) };
+  }, [rawData]);
 
   const totals = useMemo(() => {
     let cost = 0;
@@ -61,8 +88,8 @@ export function UsageScreen() {
       totals={totals}
       trendData={trendData}
       modelData={modelData}
-      isTrendLoading={isTrendLoading}
-      isModelLoading={isModelLoading}
+      isTrendLoading={isLoading}
+      isModelLoading={isLoading}
     />
   );
 }

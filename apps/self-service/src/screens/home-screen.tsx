@@ -90,9 +90,9 @@ export function HomeScreen() {
   const usageQueryParams = useMemo(
     () => ({
       startTime: startOfPeriod,
-      bucket: '30 days' as const,
+      bucket: '1 day' as const,
       groupBy: ['model'] as Array<'model'>, // Aligns cache with usage-screen.tsx!
-      limit: 50,
+      limit: 1000,
     }),
     [startOfPeriod]
   );

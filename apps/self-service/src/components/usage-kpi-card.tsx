@@ -12,8 +12,8 @@ export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageK
   const isBrand = variant === 'brand';
 
   const content = (
-    <Stack gap="sm" flex="grow">
-      <Stack direction="row" align="center" justify="between" width="full">
+    <Stack gap="sm" flex="grow" style={{ width: '100%', minWidth: '100%' }}>
+      <Stack direction="row" align="center" justify="between" style={{ width: '100%' }}>
         <Text intent={isBrand ? 'inverseEyebrow' : 'eyebrow'}>{label}</Text>
         {icon && (
            <Div 

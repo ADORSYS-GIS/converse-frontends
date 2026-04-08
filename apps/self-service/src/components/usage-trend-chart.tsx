@@ -33,8 +33,9 @@ export function UsageTrendChart({ points, isLoading }: Props) {
     );
   }
 
-  // Calculate max usage for relative chart heights
-  const maxUsage = Math.max(...points.map(p => (p.total_cost ?? 0) / 1_000_000));
+  // Calculate max cost for relative chart bar heights (microUSD values — division
+  // is unnecessary for proportional sizing since both max and per-bar scale equally)
+  const maxUsage = Math.max(...points.map(p => p.total_cost ?? 0));
   
   return (
     <Card size="md">
@@ -44,7 +45,7 @@ export function UsageTrendChart({ points, isLoading }: Props) {
         {/* Chart Area */}
         <Stack direction="row" align="end" gap="xs" style={{ height: 160 }}>
           {points.map((point, index) => {
-            const val = (point.total_cost ?? 0) / 1_000_000;
+            const val = point.total_cost ?? 0;
             const heightPercent = maxUsage > 0 ? Math.max((val / maxUsage) * 100, 2) : 2;
             
             return (

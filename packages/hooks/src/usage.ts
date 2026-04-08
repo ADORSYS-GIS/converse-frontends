@@ -7,7 +7,7 @@ import {
   UsageBackendUsageScope,
   usageBackendQueryUsage,
 } from '@lightbridge/api-rest';
-import { usageCollection, setTokenUsage } from './data/usage-store';
+import { usageCollection } from './data/usage-store';
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
 
@@ -89,10 +89,6 @@ export function useQueryUsage(params?: Partial<UsageQueryParams>) {
       const response = await usageBackendQueryUsage({
         body: requestBody,
       });
-
-      if (response.data?.points) {
-        await setTokenUsage(response.data.points);
-      }
 
       return response.data;
     },

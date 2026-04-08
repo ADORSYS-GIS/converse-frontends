@@ -33,17 +33,18 @@ export function UsageModelBreakdown({ points, isLoading }: Props) {
     );
   }
 
-  // Find max cost to calculate percentages.
-  // total_cost comes as microUSD
-  const maxCost = Math.max(...points.map(p => (p.total_cost ?? 0) / 1_000_000));
+  // Find max cost for proportional bar widths (raw microUSD values)
+  const maxCost = Math.max(...points.map(p => p.total_cost ?? 0));
 
-  const formatCost = (cost: number) => {
+  // Convert microUSD → USD for display only
+  const formatCost = (microUsd: number) => {
+    const usd = microUsd / 1_000_000;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 6,
-    }).format(cost);
+    }).format(usd);
   };
 
   return (
@@ -53,7 +54,7 @@ export function UsageModelBreakdown({ points, isLoading }: Props) {
         <Stack gap="sm">
           {/* using slice to avoid mutating the original array */}
           {points.slice().sort((a, b) => (b.total_cost ?? 0) - (a.total_cost ?? 0)).slice(0, 8).map((point, index) => {
-            const cost = (point.total_cost ?? 0) / 1_000_000;
+            const cost = point.total_cost ?? 0;
             const percentage = maxCost > 0 ? (cost / maxCost) * 100 : 0;
             return (
               <Stack key={point.model ?? index} gap="xs">

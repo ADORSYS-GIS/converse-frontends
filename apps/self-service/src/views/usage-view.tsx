@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from '@lightbridge/ui';
+import { Scroll, Stack } from '@lightbridge/ui';
 import { ScreenShell } from './screen-shell';
 import { UsageKpiCard } from '../components/usage-kpi-card';
 import { UsageTrendChart } from '../components/usage-trend-chart';
@@ -34,32 +34,34 @@ export function UsageView({ totals, trendData, modelData, isTrendLoading, isMode
 
   return (
     <ScreenShell title={t('usage.title')}>
-      <Stack gap="lg" style={{ paddingBottom: 60 }}>
-        {/* Top KPI Cards Layout */}
-        <Stack gap="sm">
-          <UsageKpiCard 
-            variant="brand"
-            label={t('usage.totalCost')} 
-            value={formatCost(totals.cost)} 
-            icon={<Ionicons name="card" size={iconSize} color={colors.surface} />}
-          />
-          <Stack direction="row" gap="sm" wrap="wrap">
+      <Scroll>
+        <Stack gap="lg" style={{ paddingBottom: 100 }}>
+          {/* Top KPI Cards Layout */}
+          <Stack gap="sm">
             <UsageKpiCard 
-              label={t('usage.totalRequests')} 
-              value={totals.requests.toLocaleString()} 
-              icon={<Ionicons name="swap-horizontal" size={iconSize} color={colors.accent} />}
+              variant="brand"
+              label={t('usage.totalCost')} 
+              value={formatCost(totals.cost)} 
+              icon={<Ionicons name="card" size={iconSize} color={colors.surface} />}
             />
-            <UsageKpiCard 
-              label={t('usage.totalTokens')} 
-              value={totals.tokens.toLocaleString()} 
-              icon={<Ionicons name="layers" size={iconSize} color={colors.success} />}
-            />
+            <Stack direction="row" gap="sm" wrap="wrap">
+              <UsageKpiCard 
+                label={t('usage.totalRequests')} 
+                value={totals.requests.toLocaleString()} 
+                icon={<Ionicons name="swap-horizontal" size={iconSize} color={colors.accent} />}
+              />
+              <UsageKpiCard 
+                label={t('usage.totalTokens')} 
+                value={totals.tokens.toLocaleString()} 
+                icon={<Ionicons name="layers" size={iconSize} color={colors.success} />}
+              />
+            </Stack>
           </Stack>
+          
+          <UsageTrendChart points={trendData?.points} isLoading={isTrendLoading} />
+          <UsageModelBreakdown points={modelData?.points} isLoading={isModelLoading} />
         </Stack>
-        
-        <UsageTrendChart points={trendData?.points} isLoading={isTrendLoading} />
-        <UsageModelBreakdown points={modelData?.points} isLoading={isModelLoading} />
-      </Stack>
+      </Scroll>
     </ScreenShell>
   );
 }

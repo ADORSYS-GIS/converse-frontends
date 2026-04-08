@@ -141,12 +141,12 @@ export function HomeView({
               <Text intent="inverseCaption">{summaryLabel}</Text>
             </Stack>
 
-            <Div tone="brandSoft" rounded="full" height="xs" width="full">
+            <Div tone="muted" rounded="full" height="xs" width="full">
               <Div
-                tone="surface"
+                tone="brand"
                 rounded="full"
                 height="xs"
-                style={{ width: `${clampedPercent}%`, minWidth: clampedPercent > 0 ? 8 : 0 }}
+                style={{ width: `${clampedPercent}%`, minWidth: clampedPercent > 0 ? 12 : 0 }}
               />
             </Div>
           </Stack>

@@ -13,13 +13,8 @@ export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageK
 
   const content = (
     <Stack gap="sm" flex="grow">
-      <Text intent={isBrand ? 'inverseEyebrow' : 'eyebrow'}>{label}</Text>
       <Stack direction="row" align="center" justify="between" width="full">
-        <Div style={{ flex: 1, paddingRight: 8, overflow: 'hidden' }}>
-          <Text intent={isBrand ? 'inverseValue' : 'value'} numberOfLines={1} ellipsizeMode="tail">
-            {value}
-          </Text>
-        </Div>
+        <Text intent={isBrand ? 'inverseEyebrow' : 'eyebrow'}>{label}</Text>
         {icon && (
            <Div 
             tone={isBrand ? 'brandSoft' : 'muted'} 
@@ -33,6 +28,9 @@ export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageK
           </Div>
         )}
       </Stack>
+      <Text intent={isBrand ? 'inverseValue' : 'value'} numberOfLines={1} ellipsizeMode="tail">
+        {value}
+      </Text>
     </Stack>
   );
 

@@ -11,6 +11,13 @@ interface Props {
 export function UsageTrendChart({ points, isLoading }: Props) {
   const { t } = useTranslation();
   
+  // Calculate max cost for relative chart bar heights (microUSD values — division
+  // is unnecessary for proportional sizing since both max and per-bar scale equally)
+  const maxUsage = React.useMemo(() => {
+    if (!points || points.length === 0) return 0;
+    return Math.max(...points.map(p => p.total_cost ?? 0));
+  }, [points]);
+
   if (isLoading) {
     return (
       <Card size="md">
@@ -32,13 +39,6 @@ export function UsageTrendChart({ points, isLoading }: Props) {
       </Card>
     );
   }
-
-  // Calculate max cost for relative chart bar heights (microUSD values — division
-  // is unnecessary for proportional sizing since both max and per-bar scale equally)
-  const maxUsage = React.useMemo(() => {
-    if (!points || points.length === 0) return 0;
-    return Math.max(...points.map(p => p.total_cost ?? 0));
-  }, [points]);
   
   return (
     <Card size="md">

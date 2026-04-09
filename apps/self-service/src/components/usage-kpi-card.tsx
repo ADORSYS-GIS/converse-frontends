@@ -6,33 +6,11 @@ interface UsageKpiCardProps {
   value: string | number;
   icon?: React.ReactNode;
   variant?: 'default' | 'brand';
+  tone?: 'muted' | 'brandSoft' | 'accentSoft' | 'successSoft';
 }
 
-export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageKpiCardProps) {
+export function UsageKpiCard({ label, value, icon, variant = 'default', tone = 'muted' }: UsageKpiCardProps) {
   const isBrand = variant === 'brand';
-
-  const content = (
-    <Stack gap="md" justify="between" style={{ flex: 1, minHeight: 96 }}>
-      {icon && (
-        <Div 
-          tone={isBrand ? 'brandSoft' : 'muted'} 
-          rounded="xl" 
-          size="iconLg" 
-          align="center" 
-          justify="center"
-          style={{ flexShrink: 0, ...(isBrand ? { backgroundColor: 'rgba(255, 255, 255, 0.2)' } : {}) }}
-        >
-          {icon}
-        </Div>
-      )}
-      <Stack gap="xs">
-        <Text intent={isBrand ? 'inverseEyebrow' : 'eyebrow'}>{label}</Text>
-        <Text intent={isBrand ? 'inverseValue' : 'value'} numberOfLines={1} ellipsizeMode="tail">
-          {value}
-        </Text>
-      </Stack>
-    </Stack>
-  );
 
   if (isBrand) {
     return (
@@ -41,16 +19,40 @@ export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageK
         rounded="xl" 
         shadow="lg" 
         pad="lg" 
-        style={{ flexGrow: 1, flexBasis: '30%', minWidth: 140 }}
+        width="full"
       >
-        {content}
+        <Stack gap="md">
+          <Stack direction="row" justify="between" align="center" width="full">
+            <Text intent="inverseBodyStrong">{label}</Text>
+            {icon}
+          </Stack>
+          <Stack gap="xs">
+            <Text intent="inverseValue">{value}</Text>
+          </Stack>
+        </Stack>
       </Div>
     );
   }
 
   return (
-    <Card size="md" style={{ flexGrow: 1, flexBasis: '30%', minWidth: 140 }}>
-      {content}
+    <Card size="sm" style={{ flexBasis: '47%', flexGrow: 1, minHeight: 116 }}>
+      <Stack gap="sm" justify="between" style={{ flex: 1 }}>
+        {icon && (
+          <Div
+            tone={tone}
+            rounded="xl"
+            size="iconLg"
+            align="center"
+            justify="center"
+            style={{ flexShrink: 0 }}>
+            {icon}
+          </Div>
+        )}
+        <Stack gap="none">
+          <Text intent="eyebrow">{label}</Text>
+          <Text intent="bodyStrong" numberOfLines={1}>{value}</Text>
+        </Stack>
+      </Stack>
     </Card>
   );
 }

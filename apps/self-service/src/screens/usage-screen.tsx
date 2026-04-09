@@ -27,8 +27,53 @@ export function UsageScreen() {
     limit: 50,
   }), [timeWindow]);
 
-  const { data: trendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
+  const { data: rawTrendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
   const { data: rawModelData, isLoading: isModelLoading } = useQueryUsage(modelParams);
+
+  // Fill gaps in trend data to ensure the chart represents the full timeline accurately
+  const trendData = useMemo(() => {
+    if (!rawTrendData) return rawTrendData;
+    
+    const points = rawTrendData.points ?? [];
+    const pointMap = new Map(points.map(p => {
+      // Just use the YYYY-MM-DD part for stable lookup
+      const dateKey = p.bucket_start?.substring(0, 10);
+      return [dateKey, p];
+    }));
+
+    const fullPoints: UsageBackendUsageSeriesPoint[] = [];
+    const current = new Date(timeWindow.startTime);
+    const end = new Date(timeWindow.endTime);
+
+    while (current < end) {
+      const dateKey = current.toISOString().substring(0, 10);
+      const existing = pointMap.get(dateKey);
+      
+      if (existing) {
+        fullPoints.push(existing);
+      } else {
+        fullPoints.push({
+          bucket_start: current.toISOString(),
+          total_cost: 0,
+          requests: 0,
+          total_tokens: 0,
+          usage_value: 0,
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          account_id: null,
+          project_id: null,
+          user_id: null,
+          model: null,
+          metric_name: null,
+          signal_type: null,
+        });
+      }
+      
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return { ...rawTrendData, points: fullPoints };
+  }, [rawTrendData, timeWindow]);
 
   // Totals: sum all daily trend points (microUSD → USD for cost)
   const totals = useMemo(() => {

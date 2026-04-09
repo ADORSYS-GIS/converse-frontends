@@ -43,14 +43,30 @@ export function UsageTrendChart({ points, isLoading }: Props) {
         <Text intent="bodyStrong">{t('usage.dailyUsage')}</Text>
         
         {/* Chart Area */}
-        <Stack direction="row" align="end" gap="xs" style={{ height: 160 }}>
+        <Stack 
+          direction="row" 
+          align="end" 
+          gap={points.length > 30 ? 'none' : 'xs'} 
+          style={{ height: 160, width: '100%' }}
+        >
           {points.map((point, index) => {
             const val = point.total_cost ?? 0;
             const heightPercent = maxUsage > 0 ? Math.max((val / maxUsage) * 100, 2) : 2;
             
             return (
               <Stack key={index} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
-                <Div tone="brand" rounded="sm" style={{ height: `${heightPercent}%`, width: '100%', maxWidth: 32, minHeight: 4 }} />
+                <Div 
+                  tone="brand" 
+                  rounded="sm" 
+                  style={{ 
+                    height: `${heightPercent}%`, 
+                    width: '100%', 
+                    maxWidth: points.length > 50 ? undefined : 32, 
+                    minHeight: 4,
+                    // Add a tiny bit of separation even with gap="none" if there's enough space
+                    marginHorizontal: points.length > 50 ? 0.5 : 0 
+                  }} 
+                />
               </Stack>
             );
           })}
@@ -58,6 +74,11 @@ export function UsageTrendChart({ points, isLoading }: Props) {
 
         <Stack direction="row" justify="between">
           <Text intent="caption">{points[0]?.bucket_start?.substring(5, 10) ?? ''}</Text>
+          {points.length > 40 && (
+            <Text intent="caption">
+              {points[Math.floor(points.length / 2)]?.bucket_start?.substring(5, 10) ?? ''}
+            </Text>
+          )}
           <Text intent="caption">{points[points.length - 1]?.bucket_start?.substring(5, 10) ?? ''}</Text>
         </Stack>
       </Stack>

@@ -19,18 +19,18 @@ interface UsageViewProps {
 
 const iconSize = 20;
 
+const costFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
+});
+
 export function UsageView({ totals, trendData, modelData, isTrendLoading, isModelLoading }: UsageViewProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  const formatCost = (cost: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(cost);
-  };
+  const formatCost = (cost: number) => costFormatter.format(cost);
 
   return (
     <ScreenShell title={t('usage.title')}>

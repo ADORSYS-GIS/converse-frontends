@@ -12,25 +12,25 @@ export function UsageKpiCard({ label, value, icon, variant = 'default' }: UsageK
   const isBrand = variant === 'brand';
 
   const content = (
-    <Stack gap="sm" flex="grow" style={{ width: '100%', minWidth: '100%' }}>
-      <Stack direction="row" align="center" justify="between" style={{ width: '100%' }}>
+    <Stack gap="md" justify="between" style={{ flex: 1, minHeight: 96 }}>
+      {icon && (
+        <Div 
+          tone={isBrand ? 'brandSoft' : 'muted'} 
+          rounded="xl" 
+          size="iconLg" 
+          align="center" 
+          justify="center"
+          style={{ flexShrink: 0, ...(isBrand ? { backgroundColor: 'rgba(255, 255, 255, 0.2)' } : {}) }}
+        >
+          {icon}
+        </Div>
+      )}
+      <Stack gap="xs">
         <Text intent={isBrand ? 'inverseEyebrow' : 'eyebrow'}>{label}</Text>
-        {icon && (
-           <Div 
-            tone={isBrand ? 'brandSoft' : 'muted'} 
-            rounded="full" 
-            size="iconSm" 
-            align="center" 
-            justify="center"
-            style={isBrand ? { backgroundColor: 'rgba(255, 255, 255, 0.2)' } : undefined}
-          >
-            {icon}
-          </Div>
-        )}
+        <Text intent={isBrand ? 'inverseValue' : 'value'} numberOfLines={1} ellipsizeMode="tail">
+          {value}
+        </Text>
       </Stack>
-      <Text intent={isBrand ? 'inverseValue' : 'value'} numberOfLines={1} ellipsizeMode="tail">
-        {value}
-      </Text>
     </Stack>
   );
 

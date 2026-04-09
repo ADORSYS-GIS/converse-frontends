@@ -7,11 +7,8 @@ export function ScreenShell({
   title,
   children,
 }: Readonly<{ title: string; children: React.ReactNode }>) {
-  const { t } = useTranslation();
-
   return (
     <Page>
-      <Text intent="eyebrow">{t('app.brand')}</Text>
       <Heading tone="title">{title}</Heading>
       <Stack gap="md" top="lg" flex="grow">
         {children}

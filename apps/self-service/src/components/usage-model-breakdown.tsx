@@ -8,9 +8,21 @@ interface Props {
   isLoading: boolean;
 }
 
+const costFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
+});
+
 export function UsageModelBreakdown({ points, isLoading }: Props) {
   const { t } = useTranslation();
   
+  const sortedPoints = React.useMemo(() => {
+    if (!points) return [];
+    return points.slice().sort((a, b) => (b.total_cost ?? 0) - (a.total_cost ?? 0)).slice(0, 8);
+  }, [points]);
+
   if (isLoading) {
     return (
       <Card size="md">
@@ -22,7 +34,7 @@ export function UsageModelBreakdown({ points, isLoading }: Props) {
     );
   }
 
-  if (!points || points.length === 0) {
+  if (sortedPoints.length === 0) {
     return (
       <Card size="md">
         <Stack gap="sm" align="center" justify="center">
@@ -33,18 +45,12 @@ export function UsageModelBreakdown({ points, isLoading }: Props) {
     );
   }
 
-  // Find max cost for proportional bar widths (raw microUSD values)
-  const maxCost = Math.max(...points.map(p => p.total_cost ?? 0));
+  // The first element in the descending sorted array is the max cost
+  const maxCost = sortedPoints[0].total_cost ?? 0;
 
   // Convert microUSD → USD for display only
   const formatCost = (microUsd: number) => {
-    const usd = microUsd / 1_000_000;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(usd);
+    return costFormatter.format(microUsd / 1_000_000);
   };
 
   return (
@@ -52,8 +58,7 @@ export function UsageModelBreakdown({ points, isLoading }: Props) {
       <Stack gap="md">
         <Text intent="bodyStrong">{t('usage.costByModel')}</Text>
         <Stack gap="sm">
-          {/* using slice to avoid mutating the original array */}
-          {points.slice().sort((a, b) => (b.total_cost ?? 0) - (a.total_cost ?? 0)).slice(0, 8).map((point, index) => {
+          {sortedPoints.map((point, index) => {
             const cost = point.total_cost ?? 0;
             const percentage = maxCost > 0 ? (cost / maxCost) * 100 : 0;
             return (

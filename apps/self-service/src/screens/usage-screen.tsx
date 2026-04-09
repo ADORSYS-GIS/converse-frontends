@@ -4,11 +4,12 @@ import type { UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { UsageView } from '../views/usage-view';
 
 export function UsageScreen() {
-  // Time window: February 1 2026 → midnight after today
+  // Time window: March 31 2026 → end of current month
   const timeWindow = useMemo(() => {
-    const startTime = new Date('2026-02-01T00:00:00Z');
+    const startTime = new Date('2026-03-31T00:00:00Z');
     const now = new Date();
-    const endTime = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    // next month, day 1 is the start of next month (effectively end of current month)
+    const endTime = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     return { startTime, endTime };
   }, []);
 
@@ -16,15 +17,15 @@ export function UsageScreen() {
   const trendParams = useMemo(() => ({
     ...timeWindow,
     bucket: '1 day' as const,
-    limit: 100,
+    limit: 1000,
   }), [timeWindow]);
 
-  // Model breakdown: 30-day bucket grouped by model
+  // Model breakdown: daily buckets grouped by model, aggregated client-side
   const modelParams = useMemo(() => ({
     ...timeWindow,
-    bucket: '30 days' as const,
+    bucket: '1 day' as const,
     groupBy: ['model'] as Array<'model'>,
-    limit: 50,
+    limit: 1000,
   }), [timeWindow]);
 
   const { data: rawTrendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);

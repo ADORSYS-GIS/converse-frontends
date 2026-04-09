@@ -13,7 +13,7 @@ export function ScreenShell({
     <Page>
       <Text intent="eyebrow">{t('app.brand')}</Text>
       <Heading tone="title">{title}</Heading>
-      <Stack gap="md" top="lg">
+      <Stack gap="md" top="lg" flex="grow">
         {children}
       </Stack>
     </Page>

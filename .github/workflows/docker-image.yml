@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - 8-align-lightbridge-ui-with-authz-usage-apis-before-deployment
-      
+      - sec/ci-scanning-rollout
     tags:
       - 'v*'
   workflow_dispatch:
@@ -44,6 +44,18 @@ jobs:
             type=ref,event=tag
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build local image for scanning
+        run: docker build -t scan-target .
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'scan-target'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
 
       - name: Build and push multi-platform image
         uses: docker/build-push-action@v6

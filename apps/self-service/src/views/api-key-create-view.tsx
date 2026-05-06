@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Div, Heading, Scroll, Stack, Text, TextField } from '@lightbridge/ui';
+import {
+  Button,
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Scroll,
+  Stack,
+  Text,
+  TextField,
+} from '@lightbridge/ui';
 import { getThemeColors } from '../theme/theme-colors';
 
 type ApiKeyCreateViewProps = {
@@ -52,9 +62,9 @@ export function ApiKeyCreateView({
         style={{
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          minHeight: 58,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+          minHeight: designTokens.layout.topBarMinHeight,
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
+          paddingVertical: designTokens.spacing.topBarVertical,
           backgroundColor: colors.surface,
         }}>
         <Stack direction="row" align="center" justify="between" width="full">
@@ -63,10 +73,10 @@ export function ApiKeyCreateView({
             size="iconSm"
             onPress={onBack}
             accessibilityLabel={t('apiKeys.back')}>
-            <Ionicons name="arrow-back" size={21} color={colors.ink} />
+            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
 
-          <Heading tone="title" style={{ fontSize: 20 }}>
+          <Heading tone="title" style={{ fontSize: designTokens.typography.compactTitle }}>
             {t('apiKeys.new')}
           </Heading>
 
@@ -79,14 +89,18 @@ export function ApiKeyCreateView({
           width="full"
           pad="lg"
           style={{
-            paddingBottom: 140,
+            paddingBottom: designTokens.layout.formFooterClearance,
           }}>
           <Stack gap="lg">
             {generatedSecret ? (
               <Stack gap="lg">
                 <Div tone="successSoft" rounded="xl" pad="md" width="full">
                   <Stack direction="row" gap="sm" align="start">
-                    <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={designTokens.icon.prominent}
+                      color={colors.success}
+                    />
                     <Stack gap="xs" style={{ flex: 1 }}>
                       <Text intent="bodyStrong">{t('apiKeys.createdSuccessfully')}</Text>
                       <Text intent="caption">{t('apiKeys.securityNote')}</Text>

@@ -2,10 +2,8 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
-
-const quickActionIconSize = 20;
 
 function getServiceStatusTone(status: ServiceStatus): 'success' | 'error' | 'muted' {
   if (status === 'healthy') return 'success';
@@ -67,28 +65,28 @@ export function HomeView({
     {
       key: 'new-token',
       label: t('home.quickActions.newToken'),
-      icon: <Ionicons name="add" size={quickActionIconSize} color={colors.primary} />,
+      icon: <Ionicons name="add" size={designTokens.icon.action} color={colors.primary} />,
       tone: 'brandSoft' as const,
       onPress: onNewToken,
     },
     {
       key: 'endpoints',
       label: t('home.quickActions.endpoints'),
-      icon: <Ionicons name="cube" size={quickActionIconSize} color={colors.accent} />,
+      icon: <Ionicons name="cube" size={designTokens.icon.action} color={colors.accent} />,
       tone: 'accentSoft' as const,
       onPress: onEndpoints,
     },
     {
       key: 'usage-logs',
       label: t('home.quickActions.usageLogs'),
-      icon: <Ionicons name="receipt" size={quickActionIconSize} color={colors.secondary} />,
+      icon: <Ionicons name="receipt" size={designTokens.icon.action} color={colors.secondary} />,
       tone: 'warningSoft' as const,
       onPress: onUsageLogs,
     },
     {
       key: 'support',
       label: t('home.quickActions.support'),
-      icon: <Ionicons name="help-circle" size={quickActionIconSize} color={colors.success} />,
+      icon: <Ionicons name="help-circle" size={designTokens.icon.action} color={colors.success} />,
       tone: 'successSoft' as const,
       onPress: onSupport,
     },
@@ -125,7 +123,7 @@ export function HomeView({
             accessibilityLabel={t('nav.logout')}
             disabled={Boolean(isSigningOut)}
             onPress={onLogout}>
-            <Ionicons name="log-out-outline" size={22} color={colors.surface} />
+            <Ionicons name="log-out-outline" size={designTokens.icon.nav} color={colors.surface} />
           </Div>
         </Stack>
 

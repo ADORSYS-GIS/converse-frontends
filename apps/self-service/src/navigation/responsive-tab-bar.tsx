@@ -1,19 +1,16 @@
 import React from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-
-import { NavContainer, NavItem, Stack, Text } from '@lightbridge/ui';
-import { useIsDesktop } from './use-is-desktop';
-import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 
-import { getThemeColors } from '../theme/theme-colors';
+import { designTokens, NavContainer, NavItem, Stack } from '@lightbridge/ui';
 
-const iconSize = 22;
+import { getThemeColors } from '../theme/theme-colors';
+import { tabRouteIcons } from './tab-routes';
+import { useIsDesktop } from './use-is-desktop';
 
 export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<BottomTabBarProps>) {
   const isDesktop = useIsDesktop();
-  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = getThemeColors(colorScheme);
 
@@ -29,15 +26,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   };
 
   const getIconName = (routeName: string, focused: boolean) => {
-    type IoniconName = keyof typeof Ionicons.glyphMap;
-    const iconMap: Record<string, { active: IoniconName; inactive: IoniconName }> = {
-      home: { active: 'home', inactive: 'home' },
-      'api-keys': { active: 'key', inactive: 'key-outline' },
-      mcp: { active: 'options', inactive: 'options-outline' },
-      usage: { active: 'person', inactive: 'person-outline' },
-    };
-
-    const icon = iconMap[routeName];
+    const icon = tabRouteIcons[routeName];
     if (!icon) {
       return null;
     }
@@ -48,35 +37,30 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   if (isDesktop) {
     return (
       <NavContainer placement="sidebar">
-        <Stack gap="md" flex="grow" justify="between">
-          <Stack gap="sm" align="center">
-            <Text
-              intent="eyebrow"
-              align="center"
-              style={{
-                width: '100%',
-                textAlign: 'center',
-                paddingHorizontal: 8,
-              }}>
-              {t('app.brand')}
-            </Text>
-          </Stack>
-          <Stack gap="sm" flex="grow">
-            {state.routes.map((route, index) => {
-              const label = getLabel(route.key, route.name);
-              const isFocused = state.index === index;
+        <Stack gap="sm" align="center">
+          {state.routes.map((route, index) => {
+            const label = getLabel(route.key, route.name);
+            const isFocused = state.index === index;
+            const iconName = getIconName(route.name, isFocused);
+            const iconColor = isFocused ? colors.surface : colors.subtle;
 
-              return (
-                <NavItem
-                  key={route.key}
-                  placement="sidebar"
-                  active={isFocused}
-                  label={label}
-                  onPress={() => navigation.navigate(route.name)}
-                />
-              );
-            })}
-          </Stack>
+            return (
+              <NavItem
+                key={route.key}
+                placement="sidebar"
+                active={isFocused}
+                label={label}
+                showLabel={false}
+                accessibilityLabel={label}
+                icon={
+                  iconName ? (
+                    <Ionicons name={iconName} size={designTokens.icon.nav} color={iconColor} />
+                  ) : null
+                }
+                onPress={() => navigation.navigate(route.name)}
+              />
+            );
+          })}
         </Stack>
       </NavContainer>
     );
@@ -97,7 +81,12 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
             active={isFocused}
             label={label}
             showLabel={false}
-            icon={iconName ? <Ionicons name={iconName} size={iconSize} color={iconColor} /> : null}
+            accessibilityLabel={label}
+            icon={
+              iconName ? (
+                <Ionicons name={iconName} size={designTokens.icon.nav} color={iconColor} />
+              ) : null
+            }
             onPress={() => navigation.navigate(route.name)}
           />
         );

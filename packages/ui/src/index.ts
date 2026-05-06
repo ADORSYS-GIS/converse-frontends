@@ -1,6 +1,7 @@
 export { cva } from 'class-variance-authority';
 export { clsx } from 'clsx';
 export { cn } from './cn';
+export { designTokens } from './design/tokens';
 export { Card, cardVariants } from './components/card';
 export type { CardProps } from './components/card';
 export { Button, buttonTextVariants, buttonVariants } from './components/button';

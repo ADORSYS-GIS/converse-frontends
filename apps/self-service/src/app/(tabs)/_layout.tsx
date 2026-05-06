@@ -1,8 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { designTokens } from '@lightbridge/ui';
 
 import { ResponsiveTabBar } from '../../navigation/responsive-tab-bar';
+import { tabRoutes } from '../../navigation/tab-routes';
 import { useIsDesktop } from '../../navigation/use-is-desktop';
 
 export default function TabsLayout() {
@@ -13,13 +15,12 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: isDesktop ? { paddingLeft: 256 } : undefined,
+        sceneStyle: isDesktop ? { paddingLeft: designTokens.layout.navRailWidth } : undefined,
       }}
       tabBar={(props) => <ResponsiveTabBar {...props} />}>
-      <Tabs.Screen name="home" options={{ title: t('nav.home') }} />
-      <Tabs.Screen name="api-keys" options={{ title: t('nav.apiKeys') }} />
-      <Tabs.Screen name="mcp" options={{ title: t('nav.apiKeyEditor') }} />
-      <Tabs.Screen name="usage" options={{ title: t('nav.usage') }} />
+      {tabRoutes.map((route) => (
+        <Tabs.Screen key={route.name} name={route.name} options={{ title: t(route.titleKey) }} />
+      ))}
     </Tabs>
   );
 }

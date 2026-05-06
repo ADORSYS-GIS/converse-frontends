@@ -5,15 +5,19 @@ import { designTokens, Heading, Page, Scroll, Stack } from '@lightbridge/ui';
 import { UsageKpiCard } from '../components/usage-kpi-card';
 import { UsageTrendChart } from '../components/usage-trend-chart';
 import { UsageModelBreakdown } from '../components/usage-model-breakdown';
-import type { UsageBackendQueryUsageResponse } from '@lightbridge/api-rest';
+import { UsageApiKeyBreakdown } from '../components/usage-api-key-breakdown';
+import type { ApiKeyBackendApiKey, UsageBackendQueryUsageResponse } from '@lightbridge/api-rest';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 interface UsageViewProps {
   totals: { cost: number; requests: number; tokens: number };
   trendData?: UsageBackendQueryUsageResponse | null;
   modelData?: UsageBackendQueryUsageResponse | null;
+  apiKeyData?: UsageBackendQueryUsageResponse | null;
+  apiKeys?: ApiKeyBackendApiKey[];
   isTrendLoading: boolean;
   isModelLoading: boolean;
+  isApiKeyLoading: boolean;
 }
 
 const costFormatter = new Intl.NumberFormat('en-US', {
@@ -27,8 +31,11 @@ export function UsageView({
   totals,
   trendData,
   modelData,
+  apiKeyData,
+  apiKeys,
   isTrendLoading,
   isModelLoading,
+  isApiKeyLoading,
 }: UsageViewProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -77,6 +84,11 @@ export function UsageView({
 
           <UsageTrendChart points={trendData?.points} isLoading={isTrendLoading} />
           <UsageModelBreakdown points={modelData?.points} isLoading={isModelLoading} />
+          <UsageApiKeyBreakdown
+            apiKeys={apiKeys}
+            points={apiKeyData?.points}
+            isLoading={isApiKeyLoading}
+          />
         </Stack>
       </Scroll>
     </Page>

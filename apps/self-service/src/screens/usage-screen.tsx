@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
-import { useQueryUsage } from '@lightbridge/hooks';
-import type { UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
+import { useApiKeys, useQueryUsage } from '@lightbridge/hooks';
+import type { UsageBackendUsageGroupBy, UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { UsageView } from '../views/usage-view';
+
+const modelGroupBy: UsageBackendUsageGroupBy[] = ['model'];
+const apiKeyGroupBy: UsageBackendUsageGroupBy[] = ['api_key_id'];
 
 export function UsageScreen() {
   // Time window: March 31 2026 → end of current month
@@ -14,33 +17,53 @@ export function UsageScreen() {
   }, []);
 
   // Trend: daily buckets — also used to compute totals
-  const trendParams = useMemo(() => ({
-    ...timeWindow,
-    bucket: '1 day' as const,
-    limit: 1000,
-  }), [timeWindow]);
+  const trendParams = useMemo(
+    () => ({
+      ...timeWindow,
+      bucket: '1 day' as const,
+      limit: 1000,
+    }),
+    [timeWindow]
+  );
 
   // Model breakdown: daily buckets grouped by model, aggregated client-side
-  const modelParams = useMemo(() => ({
-    ...timeWindow,
-    bucket: '1 day' as const,
-    groupBy: ['model'] as Array<'model'>,
-    limit: 1000,
-  }), [timeWindow]);
+  const modelParams = useMemo(
+    () => ({
+      ...timeWindow,
+      bucket: '1 day' as const,
+      groupBy: modelGroupBy,
+      limit: 1000,
+    }),
+    [timeWindow]
+  );
+
+  const apiKeyParams = useMemo(
+    () => ({
+      ...timeWindow,
+      bucket: '1 day' as const,
+      groupBy: apiKeyGroupBy,
+      limit: 1000,
+    }),
+    [timeWindow]
+  );
 
   const { data: rawTrendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
   const { data: rawModelData, isLoading: isModelLoading } = useQueryUsage(modelParams);
+  const { data: rawApiKeyData, isLoading: isApiKeyUsageLoading } = useQueryUsage(apiKeyParams);
+  const { data: apiKeys, isLoading: isApiKeysLoading } = useApiKeys();
 
   // Fill gaps in trend data to ensure the chart represents the full timeline accurately
   const trendData = useMemo(() => {
     if (!rawTrendData) return rawTrendData;
-    
+
     const points = rawTrendData.points ?? [];
-    const pointMap = new Map(points.map(p => {
-      // Just use the YYYY-MM-DD part for stable lookup
-      const dateKey = p.bucket_start?.substring(0, 10);
-      return [dateKey, p];
-    }));
+    const pointMap = new Map(
+      points.map((p) => {
+        // Just use the YYYY-MM-DD part for stable lookup
+        const dateKey = p.bucket_start?.substring(0, 10);
+        return [dateKey, p];
+      })
+    );
 
     const fullPoints: UsageBackendUsageSeriesPoint[] = [];
     const current = new Date(timeWindow.startTime);
@@ -49,7 +72,7 @@ export function UsageScreen() {
     while (current < end) {
       const dateKey = current.toISOString().substring(0, 10);
       const existing = pointMap.get(dateKey);
-      
+
       if (existing) {
         fullPoints.push(existing);
       } else {
@@ -69,7 +92,7 @@ export function UsageScreen() {
           signal_type: null,
         });
       }
-      
+
       current.setUTCDate(current.getUTCDate() + 1);
     }
 
@@ -103,20 +126,43 @@ export function UsageScreen() {
       } else {
         aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
         aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
-        aggregated[key].total_tokens = (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
+        aggregated[key].total_tokens =
+          (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
       }
     }
 
     return { ...rawModelData, points: Object.values(aggregated) };
   }, [rawModelData]);
 
+  const apiKeyData = useMemo(() => {
+    if (!rawApiKeyData?.points) return rawApiKeyData;
+    const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
+
+    for (const point of rawApiKeyData.points) {
+      const key = point.api_key_id ?? 'unknown';
+      if (!aggregated[key]) {
+        aggregated[key] = { ...point };
+      } else {
+        aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
+        aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
+        aggregated[key].total_tokens =
+          (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
+      }
+    }
+
+    return { ...rawApiKeyData, points: Object.values(aggregated) };
+  }, [rawApiKeyData]);
+
   return (
-    <UsageView 
+    <UsageView
       totals={totals}
       trendData={trendData}
       modelData={modelData}
+      apiKeyData={apiKeyData}
+      apiKeys={apiKeys}
       isTrendLoading={isTrendLoading}
       isModelLoading={isModelLoading}
+      isApiKeyLoading={isApiKeyUsageLoading || isApiKeysLoading}
     />
   );
 }

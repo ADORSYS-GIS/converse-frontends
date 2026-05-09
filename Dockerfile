@@ -17,21 +17,24 @@ COPY packages/hooks/package.json packages/hooks/package.json
 COPY packages/i18n/package.json packages/i18n/package.json
 COPY packages/ui/package.json packages/ui/package.json
 
+# Copy OpenAPI specs and config needed for postinstall codegen
+COPY openapi ./openapi
+COPY packages/api-rest/openapi-ts.config.ts packages/api-rest/openapi-ts.config.ts
+
 # Fetch dependencies (highly cacheable)
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm fetch
 
 # Install offline using fetched packages (include dev dependencies for build)
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --offline --frozen-lockfile --ignore-scripts
+    pnpm install --offline --frozen-lockfile
 
 COPY . .
 
 # Set NODE_ENV to production only after install to ensure devDependencies are available for build
 ENV NODE_ENV=production
 
-RUN pnpm --dir packages/api-rest codegen && \
-    pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
+RUN pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
 
 ### Commented out as it was too aggressive and deleted custom fonts required for the UI
 # Remove unused icon fonts (only Ionicons is used)

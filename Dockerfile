@@ -34,7 +34,13 @@ COPY . .
 RUN pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
 
 # Runtime stage
-FROM nginx:1.27-alpine-slim
+# Using Alpine 3.23 which has the latest security patches
+FROM nginx:1.30.0-alpine3.23-slim
+
+# Update Alpine packages to latest security patches
+RUN apk update && \
+    apk upgrade --no-cache && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /usr/share/nginx/html
 

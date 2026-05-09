@@ -7,49 +7,38 @@ RUN corepack enable
 
 WORKDIR /app
 
-# Copy only dependency metadata first
+# Copy dependency files
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY apps/self-service/package.json apps/self-service/
+COPY packages/api-native/package.json packages/api-native/
+COPY packages/api-rest/package.json packages/api-rest/
+COPY packages/hooks/package.json packages/hooks/
+COPY packages/i18n/package.json packages/i18n/
+COPY packages/ui/package.json packages/ui/
 
-COPY apps/self-service/package.json apps/self-service/package.json
-COPY packages/api-native/package.json packages/api-native/package.json
-COPY packages/api-rest/package.json packages/api-rest/package.json
-COPY packages/hooks/package.json packages/hooks/package.json
-COPY packages/i18n/package.json packages/i18n/package.json
-COPY packages/ui/package.json packages/ui/package.json
-
-# Copy OpenAPI specs and config needed for postinstall codegen
+# Copy OpenAPI specs for codegen
 COPY openapi ./openapi
-COPY packages/api-rest/openapi-ts.config.ts packages/api-rest/openapi-ts.config.ts
+COPY packages/api-rest/openapi-ts.config.ts packages/api-rest/
 
-# Fetch dependencies (highly cacheable)
+# Fetch and install dependencies
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm fetch
 
-# Install offline using fetched packages (include dev dependencies for build)
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile
 
+# Copy source files
 COPY . .
 
-# Set NODE_ENV to production only after install to ensure devDependencies are available for build
-ENV NODE_ENV=production
-
+# Build the web export
 RUN pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
-
-### Commented out as it was too aggressive and deleted custom fonts required for the UI
-# Remove unused icon fonts (only Ionicons is used)
-# RUN find apps/self-service/dist -name "*.ttf" ! -iname "*ionicons*" -delete 2>/dev/null || true && \
-#    find apps/self-service/dist -type d -empty -delete 2>/dev/null || true
 
 # Runtime stage
 FROM nginx:1.27-alpine-slim
 
 WORKDIR /usr/share/nginx/html
 
-# nginx config
 COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-
-# runtime config injection
 COPY --chmod=755 .docker/nginx/entrypoint.sh /docker-entrypoint.d/40-runtime-config.sh
 
 COPY --from=build /app/apps/self-service/dist/ /usr/share/nginx/html/

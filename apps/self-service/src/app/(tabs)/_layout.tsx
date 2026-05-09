@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 import { designTokens } from '@lightbridge/ui';
 
 import { ResponsiveTabBar } from '../../navigation/responsive-tab-bar';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Stack, Text, Div } from '@lightbridge/ui';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 import { UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 
 interface Props {

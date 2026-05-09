@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button, Div, Heading, Lottie, Page, Stack, Text } from '@lightbridge/ui';

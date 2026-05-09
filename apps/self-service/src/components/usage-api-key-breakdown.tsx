@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 import type { ApiKeyBackendApiKey, UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { Card, Div, Stack, Text } from '@lightbridge/ui';
 

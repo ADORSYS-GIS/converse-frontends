@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 
 import { Stack, Text } from '@lightbridge/ui';
 import { ScreenShell } from './screen-shell';

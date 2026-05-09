@@ -17,4 +17,7 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.unstable_enablePackageExports = true;
 
+// Ensure workspace packages can resolve their dependencies
+config.resolver.disableHierarchicalLookup = false;
+
 module.exports = withNativeWind(config, { input: './global.css' });

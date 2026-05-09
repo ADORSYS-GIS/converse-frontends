@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 
 import { Heading, Page, Stack, Text } from '@lightbridge/ui';
 

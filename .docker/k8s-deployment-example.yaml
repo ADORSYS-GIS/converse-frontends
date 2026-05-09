@@ -31,6 +31,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false  # nginx needs to write to /var/cache, /var/log, /var/run
+          # To use readOnlyRootFilesystem: true, uncomment the volumeMounts below
           capabilities:
             drop:
             - ALL
@@ -73,6 +74,24 @@ spec:
         env:
         - name: TZ
           value: "UTC"
+        
+        # Uncomment these volume mounts if using readOnlyRootFilesystem: true
+        # volumeMounts:
+        # - name: cache
+        #   mountPath: /var/cache/nginx
+        # - name: logs
+        #   mountPath: /var/log/nginx
+        # - name: run
+        #   mountPath: /var/run
+      
+      # Uncomment these volumes if using readOnlyRootFilesystem: true
+      # volumes:
+      # - name: cache
+      #   emptyDir: {}
+      # - name: logs
+      #   emptyDir: {}
+      # - name: run
+      #   emptyDir: {}
 
 ---
 apiVersion: v1

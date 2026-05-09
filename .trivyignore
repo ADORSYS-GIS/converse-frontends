@@ -1,9 +1,11 @@
 # Trivy Ignore File
 # This file contains vulnerabilities that are accepted risks or false positives
 
-# Add CVE IDs here if they are false positives or accepted risks
-# Example:
-# CVE-2024-12345
+# KSV-0014: readOnlyRootFilesystem for nginx
+# Reason: nginx requires write access to /var/cache/nginx, /var/log/nginx, and /var/run/nginx.pid
+# Mitigation: Container runs as non-root user (UID 101) with minimal privileges
+# Alternative: Mount emptyDir volumes for these paths if readOnlyRootFilesystem is required
+KSV-0014
 
 # Note: All HIGH and CRITICAL vulnerabilities should be addressed.
 # Only add entries here after careful security review.

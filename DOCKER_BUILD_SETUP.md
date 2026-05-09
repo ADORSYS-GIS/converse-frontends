@@ -231,6 +231,20 @@ If you encounter "Unable to resolve module" errors:
 
 The CI pipeline includes Trivy security scanning for vulnerabilities in the Docker image.
 
+### Applying Dependency Updates
+
+The pnpm overrides in `package.json` force all dependencies to use patched versions. To apply them:
+
+```bash
+# Run the update script
+./scripts/update-dependencies.sh
+
+# Or manually:
+pnpm install
+```
+
+This will update the `pnpm-lock.yaml` file with the fixed versions specified in the overrides.
+
 ### Base Image Selection
 
 We use `nginx:1.30.0-alpine3.23-slim` for the runtime stage because:

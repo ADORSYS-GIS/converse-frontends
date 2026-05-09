@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@lightbridge/i18n';
 import type { ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { apiKeyBackendCreateProject, apiKeyBackendListProjects } from '@lightbridge/api-rest';
 import { useCurrentAccount } from './accounts';

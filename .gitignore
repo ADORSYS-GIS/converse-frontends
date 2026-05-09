@@ -31,3 +31,5 @@ packages/**/client
 gha-creds-*.json
 .opencode/
 opencode.json
+.opencode/
+opencode.json

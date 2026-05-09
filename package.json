@@ -1,0 +1,42 @@
+{
+  "name": "lightbridge-ss",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "pnpm": {
+    "overrides": {
+      "axios": "^1.15.2",
+      "@xmldom/xmldom": "^0.9.10",
+      "minimatch": "^10.2.3",
+      "node-forge": "^1.4.0",
+      "picomatch": "^4.0.4",
+      "tar": "^7.5.11",
+      "undici": "^7.24.0",
+      "@expo/metro-runtime": "^55.0.11",
+      "react": "19.2.0",
+      "react-native": "0.83.6"
+    }
+  },
+  "scripts": {
+    "codegen": "pnpm --filter @lightbridge/api-rest codegen",
+    "codegen:all": "pnpm -r --if-present --filter './apps/**' --filter './packages/**' run codegen",
+    "postinstall": "pnpm codegen:all",
+    "dev": "pnpm --filter self-service start",
+    "android": "pnpm --filter self-service android",
+    "ios": "pnpm --filter self-service ios",
+    "web": "pnpm --filter self-service web",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json,css,md}\" --write"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-config-expo": "~10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.7.4",
+    "typescript": "~5.9.3"
+  }
+}

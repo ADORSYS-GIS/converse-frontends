@@ -7,21 +7,17 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// Merge with default watchFolders instead of replacing
+// Required for pnpm workspace: merge workspace root with default watchFolders
 const defaultWatchFolders = config.watchFolders || [];
 config.watchFolders = [...defaultWatchFolders, workspaceRoot];
 
+// Required for pnpm workspace: resolve from both project and workspace node_modules
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Required for pnpm workspace support
-// @ts-expect-error - unstable_enableSymlinks is not in the type definition but required for pnpm
-config.resolver.unstable_enableSymlinks = true;
+// Required for some workspace packages that use package.json exports
 config.resolver.unstable_enablePackageExports = true;
-
-// Ensure workspace packages can resolve their dependencies
-config.resolver.disableHierarchicalLookup = false;
 
 module.exports = withNativeWind(config, { input: './global.css' });

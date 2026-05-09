@@ -50,6 +50,24 @@ COPY --chmod=755 .docker/nginx/entrypoint.sh /docker-entrypoint.d/40-runtime-con
 COPY --from=build /app/apps/self-service/dist/ /usr/share/nginx/html/
 COPY --from=build /app/apps/self-service/example.config.json /usr/share/nginx/html/config.template.json
 
-EXPOSE 80
+# Set permissions for Kubernetes compatibility
+# Use group permissions so any UID in the root group (GID 0) can access files
+# This is the OpenShift/Kubernetes pattern for arbitrary UIDs
+RUN chgrp -R 0 /usr/share/nginx/html && \
+    chmod -R g=u /usr/share/nginx/html && \
+    chgrp -R 0 /var/cache/nginx && \
+    chmod -R g=u /var/cache/nginx && \
+    chgrp -R 0 /var/log/nginx && \
+    chmod -R g=u /var/log/nginx && \
+    chgrp -R 0 /etc/nginx/conf.d && \
+    chmod -R g=u /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chgrp 0 /var/run/nginx.pid && \
+    chmod g=u /var/run/nginx.pid
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+# Use a non-root user by default (can be overridden by K8s securityContext)
+USER 101
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1

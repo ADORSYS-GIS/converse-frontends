@@ -125,6 +125,16 @@ These variables are optional but can be configured if needed.
 
 ## Usage in Kubernetes
 
+### Security Context
+
+The container is designed to run with arbitrary UIDs in Kubernetes. It uses the **group permissions pattern** where files are owned by `root:root` but group-writable (GID 0). This allows any UID to run the container as long as it's in the root group.
+
+**Important:** The container listens on port **8080** (not 80) to support non-root users.
+
+See `.docker/k8s-deployment-example.yaml` for a complete example with proper security contexts.
+
+### Environment Variables
+
 To use these variables in a Kubernetes deployment, define them in a ConfigMap and reference them in your Deployment:
 
 ```yaml
@@ -149,6 +159,9 @@ spec:
       containers:
         - name: lightbridge-ss
           image: ghcr.io/adorsys-gis/converse-frontends:latest
+          ports:
+            - containerPort: 8080  # Container listens on 8080, not 80
+              name: http
           env:
             - name: EXPO_PUBLIC_BACKEND_URL
               valueFrom:
@@ -195,7 +208,7 @@ To verify that your configuration is correct, you can run the container locally 
 
 ```bash
 docker run -d --name lightbridge-ss \
-  -p 80:80 \
+  -p 8080:8080 \
   -e EXPO_PUBLIC_BACKEND_URL="https://api.example.com" \
   -e EXPO_PUBLIC_KEYCLOAK_ISSUER="https://keycloak.example.com/realms/lightbridge" \
   -e EXPO_PUBLIC_KEYCLOAK_CLIENT_ID="lightbridge-ss" \
@@ -204,6 +217,8 @@ docker run -d --name lightbridge-ss \
 
 # Check the generated config.json
 docker exec lightbridge-ss cat /usr/share/nginx/html/config.json
+
+# Access the app at http://localhost:8080
 ```
 
 This will show the actual configuration being used by the app.

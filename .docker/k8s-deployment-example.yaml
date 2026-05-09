@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-service-frontend
+  labels:
+    app: self-service-frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: self-service-frontend
+  template:
+    metadata:
+      labels:
+        app: self-service-frontend
+    spec:
+      # Security context for the pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000        # Can be any non-root UID
+        runAsGroup: 0          # Must be root group (GID 0) for file access
+        fsGroup: 0             # For volume mounts
+        seccompProfile:
+          type: RuntimeDefault
+      
+      containers:
+      - name: frontend
+        image: ghcr.io/your-org/self-service:latest
+        
+        # Container-level security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # nginx needs to write to /var/cache, /var/log, /var/run
+          capabilities:
+            drop:
+            - ALL
+        
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        
+        # Environment variables (if needed)
+        env:
+        - name: TZ
+          value: "UTC"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: self-service-frontend
+  labels:
+    app: self-service-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: self-service-frontend
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: self-service-frontend
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - app.example.com
+    secretName: self-service-tls
+  rules:
+  - host: app.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: self-service-frontend
+            port:
+              number: 80

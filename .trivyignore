@@ -1,0 +1,9 @@
+# Trivy Ignore File
+# This file contains vulnerabilities that are accepted risks or false positives
+
+# Add CVE IDs here if they are false positives or accepted risks
+# Example:
+# CVE-2024-12345
+
+# Note: All HIGH and CRITICAL vulnerabilities should be addressed.
+# Only add entries here after careful security review.

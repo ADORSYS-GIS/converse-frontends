@@ -15,6 +15,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
     "@lightbridge/api-native": "workspace:*",
     "@lightbridge/api-rest": "workspace:*",
     "@lightbridge/hooks": "workspace:*",

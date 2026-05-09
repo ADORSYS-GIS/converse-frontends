@@ -14,11 +14,11 @@
     "@react-native-community/netinfo": "^11.5.1",
     "@tanstack/react-db": "^0.1.69",
     "@tanstack/react-query": "^5.90.20",
-    "expo-auth-session": "~7.0.10",
-    "expo-crypto": "~15.0.8",
-    "expo-localization": "~17.0.8",
-    "expo-secure-store": "~15.0.8",
-    "expo-web-browser": "~15.0.10",
+    "expo-auth-session": "~55.0.15",
+    "expo-crypto": "~55.0.14",
+    "expo-localization": "~55.0.13",
+    "expo-secure-store": "~55.0.13",
+    "expo-web-browser": "~55.0.15",
     "idb-keyval": "^6.2.2"
   },
   "peerDependencies": {

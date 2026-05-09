@@ -4,7 +4,6 @@
     "slug": "self-service",
     "scheme": "self-service",
     "version": "1.0.0",
-
     "web": {
       "favicon": "./assets/favicon.png",
       "name": "Self Service",
@@ -18,24 +17,28 @@
       "lang": "en",
       "bundler": "metro"
     },
-
     "experiments": {
       "tsconfigPaths": true
     },
-
-    "plugins": ["expo-router"],
-
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-image",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },

@@ -7,13 +7,17 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [workspaceRoot];
+// Merge with default watchFolders instead of replacing
+const defaultWatchFolders = config.watchFolders || [];
+config.watchFolders = [...defaultWatchFolders, workspaceRoot];
+
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Enable symlink support for pnpm
+// Required for pnpm workspace support
+// @ts-expect-error - unstable_enableSymlinks is not in the type definition but required for pnpm
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.unstable_enablePackageExports = true;
 

@@ -21,10 +21,11 @@ COPY openapi ./openapi
 COPY packages/api-rest/openapi-ts.config.ts packages/api-rest/
 
 # Fetch and install dependencies
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+# Changed cache id from pnpm-store to pnpm-store-v2 to force re-fetch after lockfile override changes
+RUN --mount=type=cache,id=pnpm-store-v2,target=/pnpm/store \
     pnpm fetch
 
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+RUN --mount=type=cache,id=pnpm-store-v2,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile
 
 # Copy source files

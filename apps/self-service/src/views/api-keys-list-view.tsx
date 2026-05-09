@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
 import { getThemeColors } from '../theme/theme-colors';
 
@@ -18,8 +18,6 @@ type ApiKeysListViewProps = {
   canPrev: boolean;
   page: number;
 };
-
-const iconSize = 22;
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -58,9 +56,9 @@ export function ApiKeysListView({
         style={{
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          minHeight: 58,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+          minHeight: designTokens.layout.topBarMinHeight,
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
+          paddingVertical: designTokens.spacing.topBarVertical,
           backgroundColor: colors.surface,
         }}>
         <Stack direction="row" align="center" justify="between" width="full">
@@ -69,10 +67,16 @@ export function ApiKeysListView({
             size="iconSm"
             onPress={onBack}
             accessibilityLabel={t('apiKeys.back')}>
-            <Ionicons name="arrow-back" size={iconSize} color={colors.ink} />
+            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
 
-          <Heading tone="title" style={{ fontSize: 20, color: colors.ink, fontWeight: '700' }}>
+          <Heading
+            tone="title"
+            style={{
+              fontSize: designTokens.typography.compactTitle,
+              color: colors.ink,
+              fontWeight: '700',
+            }}>
             {t('apiKeys.title')}
           </Heading>
 
@@ -83,7 +87,7 @@ export function ApiKeysListView({
             onPress={onCreate}
             accessibilityLabel={t('apiKeys.new')}
             style={{ width: 36, height: 36 }}>
-            <Ionicons name="add" size={iconSize} color={colors.surface} />
+            <Ionicons name="add" size={designTokens.icon.nav} color={colors.surface} />
           </Button>
         </Stack>
       </Div>
@@ -118,9 +122,19 @@ export function ApiKeysListView({
                 return (
                   <Card key={item.id} size="md">
                     <Stack direction="row" align="center" justify="between" width="full">
-                      <Stack gap="xs" style={{ flex: 1, paddingRight: 8, overflow: 'hidden' }}>
-                        <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-                        <Text intent="caption" numberOfLines={1}>{createdLabel}</Text>
+                      <Stack
+                        gap="xs"
+                        style={{
+                          flex: 1,
+                          paddingRight: designTokens.spacing.inlineXs,
+                          overflow: 'hidden',
+                        }}>
+                        <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
+                          {item.name}
+                        </Text>
+                        <Text intent="caption" numberOfLines={1}>
+                          {createdLabel}
+                        </Text>
                       </Stack>
                       <Button
                         variant="ghost"
@@ -136,7 +150,11 @@ export function ApiKeysListView({
 
           <Div tone="warningSoft" rounded="xl" pad="md" width="full">
             <Stack direction="row" gap="sm" align="start">
-              <Ionicons name="shield-checkmark" size={20} color={colors.secondary} />
+              <Ionicons
+                name="shield-checkmark"
+                size={designTokens.icon.action}
+                color={colors.secondary}
+              />
               <Text intent="warning">{t('apiKeys.securityNote')}</Text>
             </Stack>
           </Div>
@@ -149,7 +167,7 @@ export function ApiKeysListView({
         style={{
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          paddingHorizontal: 16,
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
           paddingVertical: 12,
           backgroundColor: colors.surface,
         }}>

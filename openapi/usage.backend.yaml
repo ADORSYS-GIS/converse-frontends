@@ -1,4 +1,3 @@
----
 openapi: 3.1.0
 info:
   title: lightbridge-authz-usage-rest
@@ -11,16 +10,16 @@ info:
     identifier: MIT
   version: 0.8.1
 paths:
-  "/usage/v1/usage/query":
+  /usage/v1/usage/query:
     post:
       tags:
-      - usage
+        - usage
       operationId: query_usage
       requestBody:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/UsageQueryRequest"
+              $ref: '#/components/schemas/UsageQueryRequest'
         required: true
       responses:
         '200':
@@ -28,17 +27,17 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/UsageQueryResponse"
+                $ref: '#/components/schemas/UsageQueryResponse'
         '400':
           description: ''
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/UsageErrorResponse"
-  "/v1/otel/logs":
+                $ref: '#/components/schemas/UsageErrorResponse'
+  /v1/otel/logs:
     post:
       tags:
-      - ingest
+        - ingest
       operationId: ingest_logs
       requestBody:
         content:
@@ -52,13 +51,13 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/IngestResponse"
+                $ref: '#/components/schemas/IngestResponse'
         '400':
           description: ''
-  "/v1/otel/metrics":
+  /v1/otel/metrics:
     post:
       tags:
-      - ingest
+        - ingest
       operationId: ingest_metrics
       requestBody:
         content:
@@ -72,13 +71,13 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/IngestResponse"
+                $ref: '#/components/schemas/IngestResponse'
         '400':
           description: ''
-  "/v1/otel/traces":
+  /v1/otel/traces:
     post:
       tags:
-      - ingest
+        - ingest
       operationId: ingest_traces
       requestBody:
         content:
@@ -92,7 +91,7 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/IngestResponse"
+                $ref: '#/components/schemas/IngestResponse'
         '400':
           description: ''
 components:
@@ -100,7 +99,7 @@ components:
     IngestResponse:
       type: object
       required:
-      - accepted_events
+        - accepted_events
       properties:
         accepted_events:
           type: integer
@@ -108,53 +107,63 @@ components:
     UsageErrorResponse:
       type: object
       required:
-      - error
+        - error
       properties:
         error:
           type: string
     UsageGroupBy:
       type: string
       enum:
-      - account_id
-      - project_id
-      - user_id
-      - model
-      - metric_name
-      - signal_type
+        - account_id
+        - project_id
+        - api_key_id
+        - user_id
+        - user_name
+        - model
+        - metric_name
+        - signal_type
     UsageQueryFilters:
       type: object
       properties:
         account_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
+        api_key_id:
+          type:
+            - string
+            - 'null'
         metric_name:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         model:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         project_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         signal_type:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         user_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
+        user_name:
+          type:
+            - string
+            - 'null'
     UsageQueryRequest:
       type: object
       required:
-      - scope
-      - scope_id
-      - start_time
-      - end_time
+        - scope
+        - scope_id
+        - start_time
+        - end_time
       properties:
         bucket:
           type: string
@@ -162,17 +171,17 @@ components:
           type: string
           format: date-time
         filters:
-          "$ref": "#/components/schemas/UsageQueryFilters"
+          $ref: '#/components/schemas/UsageQueryFilters'
         group_by:
           type: array
           items:
-            "$ref": "#/components/schemas/UsageGroupBy"
+            $ref: '#/components/schemas/UsageGroupBy'
         limit:
           type: integer
           format: int32
           minimum: 0
         scope:
-          "$ref": "#/components/schemas/UsageScope"
+          $ref: '#/components/schemas/UsageScope'
         scope_id:
           type: string
         start_time:
@@ -181,33 +190,38 @@ components:
     UsageQueryResponse:
       type: object
       required:
-      - points
+        - points
       properties:
         points:
           type: array
           items:
-            "$ref": "#/components/schemas/UsageSeriesPoint"
+            $ref: '#/components/schemas/UsageSeriesPoint'
     UsageScope:
       type: string
       enum:
-      - user
-      - project
-      - account
+        - user
+        - api_key
+        - project
+        - account
     UsageSeriesPoint:
       type: object
       required:
-      - bucket_start
-      - requests
-      - usage_value
-      - total_cost
-      - prompt_tokens
-      - completion_tokens
-      - total_tokens
+        - bucket_start
+        - requests
+        - usage_value
+        - total_cost
+        - prompt_tokens
+        - completion_tokens
+        - total_tokens
       properties:
         account_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
+        api_key_id:
+          type:
+            - string
+            - 'null'
         bucket_start:
           type: string
           format: date-time
@@ -216,16 +230,16 @@ components:
           format: int64
         metric_name:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         model:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         project_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         prompt_tokens:
           type: integer
           format: int64
@@ -234,8 +248,8 @@ components:
           format: int64
         signal_type:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
         total_cost:
           type: number
           format: double
@@ -247,10 +261,14 @@ components:
           format: double
         user_id:
           type:
-          - string
-          - 'null'
+            - string
+            - 'null'
+        user_name:
+          type:
+            - string
+            - 'null'
 tags:
-- name: ingest
-  description: OTEL ingest endpoints
-- name: usage
-  description: Timeseries usage query endpoint
+  - name: ingest
+    description: OTEL ingest endpoints
+  - name: usage
+    description: Timeseries usage query endpoint

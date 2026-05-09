@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { useQuery } from '@tanstack/react-query';
 
-import {
+import { usageBackendQueryUsage } from '@lightbridge/api-rest';
+import type {
+  UsageBackendUsageGroupBy,
+  UsageBackendUsageQueryFilters,
   UsageBackendUsageQueryRequest,
   UsageBackendUsageScope,
-  usageBackendQueryUsage,
 } from '@lightbridge/api-rest';
 import { usageCollection } from './data/usage-store';
 import { useCurrentProject } from './projects';
@@ -17,15 +19,8 @@ export type UsageQueryParams = {
   startTime: Date;
   endTime: Date;
   bucket?: string;
-  filters?: {
-    account_id?: string;
-    metric_name?: string;
-    model?: string;
-    project_id?: string;
-    signal_type?: string;
-    user_id?: string;
-  };
-  groupBy?: ('account_id' | 'project_id' | 'user_id' | 'model' | 'metric_name' | 'signal_type')[];
+  filters?: UsageBackendUsageQueryFilters;
+  groupBy?: UsageBackendUsageGroupBy[];
   limit?: number;
 };
 

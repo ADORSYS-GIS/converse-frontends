@@ -104,9 +104,11 @@ const resources = {
         totalRequests: 'Total Requests',
         totalTokens: 'Total Tokens',
         costByModel: 'Cost by Model',
+        costByApiKey: 'Cost by API Key',
         dailyUsage: 'Daily Usage Tracking',
         noData: 'No usage data available for this period.',
-        loading: 'Loading usage data...'
+        loading: 'Loading usage data...',
+        unknownApiKey: 'Unknown API key',
       },
       help: {
         title: 'Help',

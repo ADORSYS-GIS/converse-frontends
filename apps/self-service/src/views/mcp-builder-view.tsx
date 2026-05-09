@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Button, Card, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { getThemeColors } from '../theme/theme-colors';
 
 type PlatformId = 'vscode' | 'cursor' | 'claude' | 'intellij';
@@ -322,9 +322,9 @@ export function McpBuilderView({
         style={{
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          minHeight: 58,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+          minHeight: designTokens.layout.topBarMinHeight,
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
+          paddingVertical: designTokens.spacing.topBarVertical,
           backgroundColor: colors.surface,
         }}>
         <Stack direction="row" align="center" justify="between" width="full">
@@ -333,10 +333,16 @@ export function McpBuilderView({
             size="iconSm"
             onPress={onBack}
             accessibilityLabel={t('apiKeyBuilder.back')}>
-            <Ionicons name="arrow-back" size={21} color={colors.ink} />
+            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
 
-          <Heading tone="title" style={{ fontSize: 20, color: colors.ink, fontWeight: '700' }}>
+          <Heading
+            tone="title"
+            style={{
+              fontSize: designTokens.typography.compactTitle,
+              color: colors.ink,
+              fontWeight: '700',
+            }}>
             {t('apiKeyBuilder.title')}
           </Heading>
 
@@ -348,9 +354,9 @@ export function McpBuilderView({
         <Div
           width="full"
           style={{
-            paddingHorizontal: 20,
-            paddingTop: 22,
-            paddingBottom: 32,
+            paddingHorizontal: designTokens.spacing.contentHorizontal,
+            paddingTop: designTokens.spacing.contentTop,
+            paddingBottom: designTokens.spacing.contentBottom,
             backgroundColor: colors.muted,
           }}>
           <Stack gap="lg">
@@ -392,7 +398,11 @@ export function McpBuilderView({
                           size="iconMd"
                           align="center"
                           justify="center">
-                          <Ionicons name={server.iconName} size={19} color={iconColor} />
+                          <Ionicons
+                            name={server.iconName}
+                            size={designTokens.icon.action}
+                            color={iconColor}
+                          />
                         </Div>
 
                         <Stack gap="xs" width="full" style={{ flex: 1 }}>
@@ -443,7 +453,11 @@ export function McpBuilderView({
                       size="iconMd"
                       align="center"
                       justify="center">
-                      <Ionicons name="key-outline" size={20} color={colors.primary} />
+                      <Ionicons
+                        name="key-outline"
+                        size={designTokens.icon.action}
+                        color={colors.primary}
+                      />
                     </Div>
                     <Stack gap="xs" style={{ flex: 1 }}>
                       <Text intent="bodyStrong">{t('apiKeyBuilder.setupAuth.title')}</Text>

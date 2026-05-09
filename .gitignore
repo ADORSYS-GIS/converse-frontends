@@ -29,3 +29,5 @@ packages/**/client
 
 .qwen/
 gha-creds-*.json
+.opencode/
+opencode.json

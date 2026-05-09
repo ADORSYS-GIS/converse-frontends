@@ -33,4 +33,4 @@ charts/
 # Other non-runtime config
 cesconfig.jsonc
 agentic-config.conf
-opencode.json
+.opencode/opencode.json

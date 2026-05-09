@@ -2,7 +2,6 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_ENV=production
 
 RUN corepack enable
 
@@ -22,11 +21,14 @@ COPY packages/ui/package.json packages/ui/package.json
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm fetch
 
-# Install offline using fetched packages
+# Install offline using fetched packages (include dev dependencies for build)
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile --ignore-scripts
 
 COPY . .
+
+# Set NODE_ENV to production only after install to ensure devDependencies are available for build
+ENV NODE_ENV=production
 
 RUN pnpm --dir packages/api-rest codegen && \
     pnpm --dir apps/self-service exec expo export --platform web --output-dir dist

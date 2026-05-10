@@ -51,22 +51,19 @@ COPY --chmod=755 .docker/nginx/entrypoint.sh /docker-entrypoint.d/40-runtime-con
 COPY --from=build /app/apps/self-service/dist/ /usr/share/nginx/html/
 COPY --from=build /app/apps/self-service/example.config.json /usr/share/nginx/html/config.template.json
 
-# Set permissions for Kubernetes compatibility
-# Use group permissions so any UID in the root group (GID 0) can access files
-# This is the OpenShift/Kubernetes pattern for arbitrary UIDs
-RUN chgrp -R 0 /usr/share/nginx/html && \
-    chmod -R g=u /usr/share/nginx/html && \
-    chgrp -R 0 /var/cache/nginx && \
-    chmod -R g=u /var/cache/nginx && \
-    chgrp -R 0 /var/log/nginx && \
-    chmod -R g=u /var/log/nginx && \
-    chgrp -R 0 /etc/nginx/conf.d && \
-    chmod -R g=u /etc/nginx/conf.d && \
+# Set ownership and permissions for nginx user (101:101)
+RUN chown -R 101:101 /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html && \
+    chown -R 101:101 /var/cache/nginx && \
+    chmod -R 755 /var/cache/nginx && \
+    chown -R 101:101 /var/log/nginx && \
+    chmod -R 755 /var/log/nginx && \
+    chown -R 101:101 /etc/nginx/conf.d && \
+    chmod -R 644 /etc/nginx/conf.d/*.conf && \
     touch /var/run/nginx.pid && \
-    chgrp 0 /var/run/nginx.pid && \
-    chmod g=u /var/run/nginx.pid
+    chown 101:101 /var/run/nginx.pid && \
+    chmod 644 /var/run/nginx.pid
 
-# Use a non-root user by default (can be overridden by K8s securityContext)
 USER 101
 
 EXPOSE 8080

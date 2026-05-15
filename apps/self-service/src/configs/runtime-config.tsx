@@ -18,6 +18,19 @@ function getEnvConfig(): AppRuntimeConfig {
     throw new Error('Missing required EXPO_PUBLIC_* config values.');
   }
 
+  // Parse audience configuration from environment variables
+  const expectedAudience = process.env.EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE;
+  const audienceRequired = process.env.EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED;
+  
+  // Build audience config if expected audience is set
+  const audienceConfig = expectedAudience ? {
+    expectedAudience: expectedAudience.includes(',')
+      ? expectedAudience.split(',').map((a: string) => a.trim())
+      : expectedAudience,
+    allowMissingAudience: audienceRequired === 'false',
+    enabled: true,
+  } : undefined;
+
   return {
     backendUrl,
     usageUrl,
@@ -26,6 +39,7 @@ function getEnvConfig(): AppRuntimeConfig {
       issuer,
       clientId,
       scheme,
+      audience: audienceConfig,
     },
   };
 }

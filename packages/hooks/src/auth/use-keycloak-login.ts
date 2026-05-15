@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import { CodeChallengeMethod } from 'expo-auth-session';
 
-import type { AuthSession as StoredSession } from './auth-types';
+import type { AuthSession as StoredSession, AudienceConfig } from './auth-types';
 import { persistAuthSession } from './use-auth-session';
 import { setAuthSession } from './auth-store';
+import { decodeJwt, getJwtAudience, validateJwtAudience } from './jwt-utils';
 
 export type KeycloakConfig = {
   issuer: string;
@@ -12,7 +13,41 @@ export type KeycloakConfig = {
   scopes?: string[];
   redirectUri?: string;
   scheme?: string;
+  /** JWT audience validation configuration */
+  audience?: AudienceConfig;
 };
+
+/**
+ * Extracts and validates audience from a JWT access token
+ * Returns the audience claim and validation result
+ */
+function extractAndValidateAudience(
+  accessToken: string,
+  audienceConfig?: AudienceConfig
+): { audience: string[] | undefined; valid: boolean; errors: string[] } {
+  // If audience validation is disabled or not configured, skip validation
+  if (audienceConfig?.enabled === false) {
+    return { audience: getJwtAudience(accessToken) ?? undefined, valid: true, errors: [] };
+  }
+
+  // If expected audience is configured, validate it
+  if (audienceConfig?.expectedAudience) {
+    const result = validateJwtAudience(accessToken, {
+      expectedAudience: audienceConfig.expectedAudience,
+      allowMissingAudience: audienceConfig.allowMissingAudience,
+      checkExpiration: false, // Expiration checked separately
+    });
+
+    return {
+      audience: result.payload?.aud ? (Array.isArray(result.payload.aud) ? result.payload.aud : [result.payload.aud]) : undefined,
+      valid: result.valid,
+      errors: result.errors,
+    };
+  }
+
+  // No audience config, just extract audience without validation
+  return { audience: getJwtAudience(accessToken) ?? undefined, valid: true, errors: [] };
+}
 
 export async function refreshAccessToken(
   config: KeycloakConfig,
@@ -43,6 +78,17 @@ export async function refreshAccessToken(
 
     const tokenResult = await response.json();
 
+    // Extract and validate audience from the access token
+    const audienceResult = extractAndValidateAudience(tokenResult.access_token, config.audience);
+    
+    if (!audienceResult.valid) {
+      console.error('[Auth] JWT audience validation failed during token refresh:', audienceResult.errors);
+      // Log each validation error
+      audienceResult.errors.forEach(err => console.error(`[Auth] ${err}`));
+      // Block authentication - audience mismatch means token is not intended for this client
+      throw new Error(`JWT audience validation failed: ${audienceResult.errors.join(', ')}`);
+    }
+
     const tokens = {
       accessToken: tokenResult.access_token,
       refreshToken: tokenResult.refresh_token || refreshToken,
@@ -50,6 +96,7 @@ export async function refreshAccessToken(
       expiresAt: tokenResult.expires_in ? Date.now() + tokenResult.expires_in * 1000 : undefined,
       tokenType: tokenResult.token_type,
       scope: tokenResult.scope,
+      audience: audienceResult.audience,
     };
 
     let user = null;
@@ -141,6 +188,19 @@ export function useKeycloakLogin(config: KeycloakConfig) {
           discovery
         );
 
+        // Extract and validate audience from the access token
+        const audienceResult = extractAndValidateAudience(tokenResult.accessToken, config.audience);
+        
+        if (!audienceResult.valid) {
+          console.error('[Auth] JWT audience validation failed during login:', audienceResult.errors);
+          // Log each validation error
+          audienceResult.errors.forEach(err => console.error(`[Auth] ${err}`));
+          // Block authentication - audience mismatch means token is not intended for this client
+          throw new Error(`JWT audience validation failed: ${audienceResult.errors.join(', ')}`);
+        } else if (audienceResult.audience) {
+          console.log('[Auth] JWT audience validated:', audienceResult.audience);
+        }
+
         const tokens = {
           accessToken: tokenResult.accessToken,
           refreshToken: tokenResult.refreshToken,
@@ -148,6 +208,7 @@ export function useKeycloakLogin(config: KeycloakConfig) {
           expiresAt: tokenResult.expiresIn ? Date.now() + tokenResult.expiresIn * 1000 : undefined,
           tokenType: tokenResult.tokenType,
           scope: tokenResult.scope,
+          audience: audienceResult.audience,
         };
 
         let user = null;

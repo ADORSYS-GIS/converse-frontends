@@ -1,12 +1,18 @@
+import type { AudienceConfig } from '@lightbridge/hooks';
+
+export type KeycloakConfig = {
+  issuer: string;
+  clientId: string;
+  scheme: string;
+  /** JWT audience validation configuration */
+  audience?: AudienceConfig;
+};
+
 export type AppRuntimeConfig = {
   backendUrl: string;
   usageUrl?: string;
   analyticsUrl?: string;
-  keycloak: {
-    issuer: string;
-    clientId: string;
-    scheme: string;
-  };
+  keycloak: KeycloakConfig;
 };
 
 export function isAppRuntimeConfig(value: unknown): value is AppRuntimeConfig {

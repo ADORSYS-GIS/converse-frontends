@@ -10,10 +10,12 @@ export function LoginView({
   onSsoPress,
   onHelpPress,
   loading,
+  error,
 }: Readonly<{
   onSsoPress: () => void;
   onHelpPress: () => void;
   loading?: boolean;
+  error?: string | null;
 }>) {
   const { t } = useTranslation();
 
@@ -51,6 +53,20 @@ export function LoginView({
                   {t('login.description')}
                 </Heading>
               </Stack>
+
+              {/* Error message display */}
+              {error && (
+                <Div
+                  tone="errorSoft"
+                  rounded="md"
+                  pad="md"
+                  width="full"
+                >
+                  <Text intent="body" align="center">
+                    {error}
+                  </Text>
+                </Div>
+              )}
 
               <Button
                 variant="primary"

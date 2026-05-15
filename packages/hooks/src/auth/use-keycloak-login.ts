@@ -6,6 +6,7 @@ import type { AuthSession as StoredSession, AudienceConfig } from './auth-types'
 import { persistAuthSession } from './use-auth-session';
 import { setAuthSession } from './auth-store';
 import { decodeJwt, getJwtAudience, validateJwtAudience } from './jwt-utils';
+import { createAudienceError, isAuthenticationError } from './auth-errors';
 
 export type KeycloakConfig = {
   issuer: string;
@@ -83,10 +84,8 @@ export async function refreshAccessToken(
     
     if (!audienceResult.valid) {
       console.error('[Auth] JWT audience validation failed during token refresh:', audienceResult.errors);
-      // Log each validation error
-      audienceResult.errors.forEach(err => console.error(`[Auth] ${err}`));
       // Block authentication - audience mismatch means token is not intended for this client
-      throw new Error(`JWT audience validation failed: ${audienceResult.errors.join(', ')}`);
+      throw createAudienceError(audienceResult.errors);
     }
 
     const tokens = {
@@ -193,10 +192,8 @@ export function useKeycloakLogin(config: KeycloakConfig) {
         
         if (!audienceResult.valid) {
           console.error('[Auth] JWT audience validation failed during login:', audienceResult.errors);
-          // Log each validation error
-          audienceResult.errors.forEach(err => console.error(`[Auth] ${err}`));
           // Block authentication - audience mismatch means token is not intended for this client
-          throw new Error(`JWT audience validation failed: ${audienceResult.errors.join(', ')}`);
+          throw createAudienceError(audienceResult.errors);
         } else if (audienceResult.audience) {
           console.log('[Auth] JWT audience validated:', audienceResult.audience);
         }

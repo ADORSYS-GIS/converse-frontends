@@ -18,3 +18,12 @@ export {
   getJwtIssuer,
   isAudienceValid
 } from './auth/jwt-utils';
+
+// Export authentication error utilities
+export {
+  AuthenticationError,
+  createAudienceError,
+  isAuthenticationError,
+  getAuthErrorMessage
+} from './auth/auth-errors';
+export type { AuthErrorCode } from './auth/auth-errors';

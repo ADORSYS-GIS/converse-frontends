@@ -22,12 +22,16 @@ function getEnvConfig(): AppRuntimeConfig {
   const expectedAudience = process.env.EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE;
   const audienceRequired = process.env.EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED;
   
-  // Build audience config if expected audience is set
-  const audienceConfig = expectedAudience ? {
+  // AUDIENCE_REQUIRED=false means validation is completely disabled
+  // AUDIENCE_REQUIRED=true (or not set) means validation is enabled
+  const isValidationEnabled = audienceRequired !== 'false';
+  
+  // Build audience config if expected audience is set and validation is enabled
+  const audienceConfig = (expectedAudience && isValidationEnabled) ? {
     expectedAudience: expectedAudience.includes(',')
       ? expectedAudience.split(',').map((a: string) => a.trim())
       : expectedAudience,
-    allowMissingAudience: audienceRequired === 'false',
+    allowMissingAudience: false, // If validation is enabled, audience is required
     enabled: true,
   } : undefined;
 

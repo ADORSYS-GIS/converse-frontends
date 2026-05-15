@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useRouter } from 'expo-router';
-import { useAuthSession, useAuthHydration, useKeycloakLogin } from '@lightbridge/hooks';
+import { useAuthSession, useAuthHydration, useKeycloakLogin, isAuthenticationError, getAuthErrorMessage } from '@lightbridge/hooks';
 import { useRuntimeConfig } from '../configs/runtime-config';
 import { LoginView } from '../views/login-view';
 
@@ -11,6 +11,20 @@ export function LoginScreen() {
   const runtimeConfig = useRuntimeConfig();
   const { promptAsync, isLoading } = useKeycloakLogin(runtimeConfig.keycloak);
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    setError(null);
+    try {
+      await promptAsync();
+    } catch (err) {
+      if (isAuthenticationError(err)) {
+        setError(err.getUserMessage());
+      } else {
+        setError(getAuthErrorMessage(err));
+      }
+    }
+  };
 
   useEffect(() => {
     if (isHydrated && isAuthenticated) {
@@ -24,9 +38,10 @@ export function LoginScreen() {
 
   return (
     <LoginView
-      onSsoPress={() => promptAsync()}
+      onSsoPress={handleLogin}
       onHelpPress={() => router.push('/help')}
       loading={isLoading}
+      error={error}
     />
   );
 }

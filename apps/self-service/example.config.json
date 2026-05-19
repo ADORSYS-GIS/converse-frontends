@@ -7,6 +7,8 @@
   "keycloak": {
     "issuer": "${EXPO_PUBLIC_KEYCLOAK_ISSUER}",
     "clientId": "${EXPO_PUBLIC_KEYCLOAK_CLIENT_ID}",
-    "scheme": "${EXPO_PUBLIC_KEYCLOAK_SCHEME}"
+    "scheme": "${EXPO_PUBLIC_KEYCLOAK_SCHEME}",
+    "expectedAudience": "${EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE}",
+    "audienceRequired": "${EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED}"
   }
 }

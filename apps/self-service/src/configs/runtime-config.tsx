@@ -21,11 +21,11 @@ function getEnvConfig(): AppRuntimeConfig {
   // Parse audience configuration from environment variables
   const expectedAudience = process.env.EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE;
   const audienceRequired = process.env.EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED;
-  
+
   // AUDIENCE_REQUIRED=false means validation is completely disabled
   // AUDIENCE_REQUIRED=true (or not set) means validation is enabled
   const isValidationEnabled = audienceRequired !== 'false';
-  
+
   // Build audience config if expected audience is set and validation is enabled
   const audienceConfig = (expectedAudience && isValidationEnabled) ? {
     expectedAudience: expectedAudience.includes(',')
@@ -64,6 +64,24 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
 
   if (!isAppRuntimeConfig(json)) {
     throw new Error('Invalid config.json payload.');
+  }
+
+  const rawKeycloak = (json as any).keycloak || {};
+  const expectedAudience = rawKeycloak.expectedAudience;
+  const audienceRequired = rawKeycloak.audienceRequired;
+
+  const isValidationEnabled = audienceRequired !== 'false';
+
+  const audienceConfig = (expectedAudience && isValidationEnabled) ? {
+    expectedAudience: expectedAudience.includes(',')
+      ? expectedAudience.split(',').map((a: string) => a.trim())
+      : expectedAudience,
+    allowMissingAudience: false,
+    enabled: true,
+  } : undefined;
+
+  if (audienceConfig) {
+    json.keycloak.audience = audienceConfig;
   }
 
   return json;

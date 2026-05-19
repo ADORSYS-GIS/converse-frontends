@@ -4,6 +4,7 @@ export {
   useEnsureHydrated,
   useAuthReady,
   getAuthReady,
+  getLatestAuthSession,
   clearPersistedAuthSession,
 } from './auth/use-auth-session';
 export { useSignOut } from './auth/use-sign-out';

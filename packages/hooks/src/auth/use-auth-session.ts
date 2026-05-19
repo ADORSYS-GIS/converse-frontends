@@ -23,6 +23,17 @@ export function getAuthReady(): boolean {
   return isAuthReady;
 }
 
+export function getLatestAuthSession(): AuthSession {
+  const data = authSessionCollection.get('current');
+  return (
+    data ?? {
+      id: 'current',
+      user: null,
+      tokens: null,
+    }
+  );
+}
+
 // Check if token is expired or about to expire (with 10 minute buffer)
 export function isTokenExpired(expiresAt?: number): boolean {
   if (!expiresAt) {

@@ -6,6 +6,7 @@ export type ClientInitOptions = ClientOptions &
   ApiConfig & {
     refreshAuth?: () => Promise<boolean>;
     getExpiresAt?: () => number | undefined;
+    onRefreshFailure?: () => void;
   };
 
 let isInitialized = false;
@@ -82,11 +83,12 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
         await tryProactiveRefresh(targetConfig);
 
         try {
+          const currentConfig = isUsage ? latestUsageOptions : latestApiOptions;
           return await original({
             ...actualOptions,
             security,
             baseURL: baseUrl,
-            auth: targetConfig.auth,
+            auth: currentConfig.auth,
           });
         } catch (error: any) {
           if (error?.status === 401 || error?.response?.status === 401) {
@@ -95,13 +97,17 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
               try {
                 const success = await refreshPromise;
                 if (!success) {
+                  if (targetConfig.onRefreshFailure) {
+                    targetConfig.onRefreshFailure();
+                  }
                   throw error;
                 }
+                const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
                 return await original({
                   ...actualOptions,
                   security,
                   baseURL: baseUrl,
-                  auth: targetConfig.auth,
+                  auth: latestConfig.auth,
                 });
               } catch {
                 throw error;
@@ -110,11 +116,12 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
               }
             } else if (refreshPromise !== null) {
               await refreshPromise;
+              const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
               return await original({
                 ...actualOptions,
                 security,
                 baseURL: baseUrl,
-                auth: targetConfig.auth,
+                auth: latestConfig.auth,
               });
             }
           }

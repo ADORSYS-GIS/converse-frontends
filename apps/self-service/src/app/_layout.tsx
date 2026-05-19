@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
+import { Alert } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -15,6 +16,7 @@ import {
   useLocaleSync,
   refreshAccessToken,
   clearPersistedAuthSession,
+  getLatestAuthSession,
 } from '@lightbridge/hooks';
 import { AppFont, useAppFonts } from '@lightbridge/ui';
 import { queryClient } from '../queries';
@@ -47,6 +49,15 @@ function AppBootstrap() {
     return result !== null;
   };
 
+  const handleRefreshFailure = React.useCallback(() => {
+    console.warn('[Auth] Token refresh failed definitively. Logging out.');
+    Alert.alert(
+      'Session Expired',
+      'Your session has expired. Please log in again to continue.',
+      [{ text: 'OK', onPress: () => clearPersistedAuthSession() }]
+    );
+  }, []);
+
   useClientInit(
     {
       baseURL: runtimeConfig.backendUrl,
@@ -54,10 +65,11 @@ function AppBootstrap() {
         if (!isHydrated) {
           return '';
         }
-        return session.tokens?.accessToken ?? '';
+        return getLatestAuthSession().tokens?.accessToken ?? '';
       },
       refreshAuth: handleRefreshAuth,
-      getExpiresAt: () => session.tokens?.expiresAt,
+      getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
+      onRefreshFailure: handleRefreshFailure,
     },
     {
       baseURL: runtimeConfig.usageUrl || runtimeConfig.backendUrl,
@@ -65,10 +77,11 @@ function AppBootstrap() {
         if (!isHydrated) {
           return '';
         }
-        return session.tokens?.accessToken ?? '';
+        return getLatestAuthSession().tokens?.accessToken ?? '';
       },
       refreshAuth: handleRefreshAuth,
-      getExpiresAt: () => session.tokens?.expiresAt,
+      getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
+      onRefreshFailure: handleRefreshFailure,
     }
   );
 
@@ -109,8 +122,9 @@ function AppBootstrap() {
       return;
     }
 
-    if (isTokenExpired && isAuthenticated && !inAuthGroup) {
-      clearPersistedAuthSession();
+    // Only clear session if we are definitely NOT authenticated and NOT in auth group
+    // The actual token refresh failure is handled by useClientInit's onRefreshFailure
+    if (!isAuthenticated && !inAuthGroup && !inHelpRoute) {
       router.replace('/login');
     }
   }, [

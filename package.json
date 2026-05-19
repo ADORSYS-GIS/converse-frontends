@@ -6,19 +6,17 @@
     "apps/*",
     "packages/*"
   ],
-  "pnpm": {
-    "overrides": {
-      "axios": "^1.15.2",
-      "@xmldom/xmldom": "^0.9.10",
-      "minimatch": "^10.2.3",
-      "node-forge": "^1.4.0",
-      "picomatch": "^4.0.4",
-      "tar": "^7.5.11",
-      "undici": "^7.24.0",
-      "@expo/metro-runtime": "^55.0.11",
-      "react": "19.2.0",
-      "react-native": "0.83.6"
-    }
+  "overrides": {
+    "axios": "^1.15.2",
+    "@xmldom/xmldom": "^0.9.10",
+    "minimatch": "^10.2.3",
+    "node-forge": "^1.4.0",
+    "picomatch": "^4.0.4",
+    "tar": "^7.5.11",
+    "undici": "^7.24.0",
+    "@expo/metro-runtime": "^55.0.11",
+    "react": "19.2.0",
+    "react-native": "0.83.6"
   },
   "scripts": {
     "codegen": "pnpm --filter @lightbridge/api-rest codegen",

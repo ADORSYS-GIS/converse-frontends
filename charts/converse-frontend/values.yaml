@@ -30,11 +30,15 @@ conversefrontend:
             EXPO_PUBLIC_USAGE_URL: ""
             EXPO_PUBLIC_GATEWAY_URL: ""
             EXPO_PUBLIC_ANALYTICS_URL: ""
-
-
+ 
             EXPO_PUBLIC_KEYCLOAK_ISSUER: ""
             EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: ""
             EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
+            # JWT Audience validation - ensures tokens are intended for this API
+            # Set to "true" to enable audience validation
+            EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED: "false"
+            # Comma-separated list of expected audience values (e.g., "converse-frontend" or "converse-frontend,api-key")
+            EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE: ""
 
           resources:
             requests:

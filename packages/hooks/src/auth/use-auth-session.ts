@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useSyncExternalStore, useState } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
 
-import type { AuthSession } from './auth-types';
+import type { AuthSession, AudienceConfig } from './auth-types';
 import { authSessionCollection, clearAuthSession, setAuthSession } from './auth-store';
 import { clearStoredSession, loadStoredSession, saveStoredSession } from './auth-storage';
+import { validateJwtAudience, getJwtAudience } from './jwt-utils';
 
 let isAuthReady = false;
 const authReadyListeners = new Set<() => void>();
@@ -29,6 +30,48 @@ export function isTokenExpired(expiresAt?: number): boolean {
   }
   const buffer = Math.min(60 * 1000, Math.max(0, (expiresAt - Date.now()) / 2));
   return Date.now() >= expiresAt - buffer;
+}
+
+/**
+ * Validates the audience claim in the stored access token
+ * Returns validation result with any errors
+ */
+export function validateStoredTokenAudience(
+  accessToken: string,
+  audienceConfig?: AudienceConfig
+): { valid: boolean; audience: string[] | undefined; errors: string[] } {
+  // If audience validation is disabled or not configured, skip validation
+  if (audienceConfig?.enabled === false) {
+    return {
+      audience: getJwtAudience(accessToken) ?? undefined,
+      valid: true,
+      errors: []
+    };
+  }
+
+  // If expected audience is configured, validate it
+  if (audienceConfig?.expectedAudience) {
+    const result = validateJwtAudience(accessToken, {
+      expectedAudience: audienceConfig.expectedAudience,
+      allowMissingAudience: audienceConfig.allowMissingAudience,
+      checkExpiration: false, // Expiration checked separately
+    });
+
+    return {
+      audience: result.payload?.aud
+        ? (Array.isArray(result.payload.aud) ? result.payload.aud : [result.payload.aud])
+        : undefined,
+      valid: result.valid,
+      errors: result.errors,
+    };
+  }
+
+  // No audience config, just extract audience without validation
+  return {
+    audience: getJwtAudience(accessToken) ?? undefined,
+    valid: true,
+    errors: []
+  };
 }
 
 export function useAuthSession() {

@@ -18,6 +18,23 @@ function getEnvConfig(): AppRuntimeConfig {
     throw new Error('Missing required EXPO_PUBLIC_* config values.');
   }
 
+  // Parse audience configuration from environment variables
+  const expectedAudience = process.env.EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE;
+  const audienceRequired = process.env.EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED;
+  
+  // AUDIENCE_REQUIRED=false means validation is completely disabled
+  // AUDIENCE_REQUIRED=true (or not set) means validation is enabled
+  const isValidationEnabled = audienceRequired !== 'false';
+  
+  // Build audience config if expected audience is set and validation is enabled
+  const audienceConfig = (expectedAudience && isValidationEnabled) ? {
+    expectedAudience: expectedAudience.includes(',')
+      ? expectedAudience.split(',').map((a: string) => a.trim())
+      : expectedAudience,
+    allowMissingAudience: false, // If validation is enabled, audience is required
+    enabled: true,
+  } : undefined;
+
   return {
     backendUrl,
     usageUrl,
@@ -26,6 +43,7 @@ function getEnvConfig(): AppRuntimeConfig {
       issuer,
       clientId,
       scheme,
+      audience: audienceConfig,
     },
   };
 }

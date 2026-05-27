@@ -9,9 +9,20 @@ export function LoginScreen() {
   const { isAuthenticated } = useAuthSession();
   const { isHydrated } = useAuthHydration();
   const runtimeConfig = useRuntimeConfig();
-  const { promptAsync, isLoading } = useKeycloakLogin(runtimeConfig.keycloak);
+  const { promptAsync, isLoading, error: authError } = useKeycloakLogin(runtimeConfig.keycloak);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+
+  // Sync internal error state with hook's error
+  useEffect(() => {
+    if (authError) {
+      if (isAuthenticationError(authError)) {
+        setError(authError.getUserMessage());
+      } else {
+        setError(getAuthErrorMessage(authError));
+      }
+    }
+  }, [authError]);
 
   const handleLogin = async () => {
     setError(null);

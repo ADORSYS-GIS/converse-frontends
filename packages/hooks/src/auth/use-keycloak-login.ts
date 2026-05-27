@@ -74,6 +74,11 @@ export async function refreshAccessToken(
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `[Auth] Token refresh failed with status ${response.status}:`,
+        errorText || 'No error details provided'
+      );
       return null;
     }
 
@@ -81,7 +86,7 @@ export async function refreshAccessToken(
 
     // Extract and validate audience from the access token
     const audienceResult = extractAndValidateAudience(tokenResult.access_token, config.audience);
-    
+
     if (!audienceResult.valid) {
       console.error('[Auth] JWT audience validation failed during token refresh:', audienceResult.errors);
       // Block authentication - audience mismatch means token is not intended for this client
@@ -133,7 +138,8 @@ export async function refreshAccessToken(
     await persistAuthSession(session);
 
     return session;
-  } catch {
+  } catch (error) {
+    console.error('[Auth] Unexpected error during token refresh:', error);
     return null;
   }
 }
@@ -151,6 +157,7 @@ export function useKeycloakLogin(config: KeycloakConfig) {
   );
 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const processedResponseRef = useRef(false);
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
@@ -175,6 +182,12 @@ export function useKeycloakLogin(config: KeycloakConfig) {
       setIsLoading(true);
 
       try {
+        console.log('[Auth] Exchanging code for tokens:', {
+          clientId: config.clientId,
+          redirectUri,
+          code: response.params.code ? 'PRESENT' : 'MISSING',
+        });
+
         const tokenResult = await AuthSession.exchangeCodeAsync(
           {
             clientId: config.clientId,
@@ -189,7 +202,7 @@ export function useKeycloakLogin(config: KeycloakConfig) {
 
         // Extract and validate audience from the access token
         const audienceResult = extractAndValidateAudience(tokenResult.accessToken, config.audience);
-        
+
         if (!audienceResult.valid) {
           console.error('[Auth] JWT audience validation failed during login:', audienceResult.errors);
           // Block authentication - audience mismatch means token is not intended for this client
@@ -241,6 +254,10 @@ export function useKeycloakLogin(config: KeycloakConfig) {
 
         setAuthSession(session);
         await persistAuthSession(session);
+        console.log('[Auth] Login successful and session persisted');
+      } catch (err: any) {
+        console.error('[Auth] Login failed:', err);
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setIsLoading(false);
       }
@@ -252,8 +269,10 @@ export function useKeycloakLogin(config: KeycloakConfig) {
   return {
     request,
     isLoading,
+    error,
     promptAsync: () => {
       processedResponseRef.current = false;
+      setError(null);
       return promptAsync();
     },
   };

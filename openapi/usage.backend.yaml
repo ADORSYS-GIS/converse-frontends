@@ -10,7 +10,7 @@ info:
     identifier: MIT
   version: 0.8.1
 paths:
-  /usage/v1/usage/query:
+  /v1/usage/query:
     post:
       tags:
         - usage

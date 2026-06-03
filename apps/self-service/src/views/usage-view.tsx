@@ -10,7 +10,7 @@ import type { ApiKeyBackendApiKey, UsageBackendQueryUsageResponse } from '@light
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 interface UsageViewProps {
-  totals: { cost: number; requests: number; tokens: number };
+  totals: { cost: number; requests: number; tokens: number; promptTokens: number; completionTokens: number };
   trendData?: UsageBackendQueryUsageResponse | null;
   modelData?: UsageBackendQueryUsageResponse | null;
   apiKeyData?: UsageBackendQueryUsageResponse | null;
@@ -52,10 +52,10 @@ export function UsageView({
           <Stack gap="md">
             <UsageKpiCard
               variant="brand"
-              label={t('usage.totalCost')}
-              value={formatCost(totals.cost)}
+              label={t('usage.totalTokens')}
+              value={totals.tokens.toLocaleString()}
               icon={
-                <Ionicons name="card" size={designTokens.icon.prominent} color={colors.surface} />
+                <Ionicons name="layers" size={designTokens.icon.prominent} color={colors.surface} />
               }
             />
             <Stack direction="row" gap="md" wrap="wrap">
@@ -72,11 +72,29 @@ export function UsageView({
                 }
               />
               <UsageKpiCard
-                label={t('usage.totalTokens')}
-                value={totals.tokens.toLocaleString()}
+                label={t('usage.totalCost')}
+                value={formatCost(totals.cost)}
                 tone="successSoft"
                 icon={
-                  <Ionicons name="layers" size={designTokens.icon.action} color={colors.success} />
+                  <Ionicons name="card" size={designTokens.icon.action} color={colors.success} />
+                }
+              />
+            </Stack>
+            <Stack direction="row" gap="md" wrap="wrap">
+              <UsageKpiCard
+                label={t('usage.promptTokens')}
+                value={totals.promptTokens.toLocaleString()}
+                tone="muted"
+                icon={
+                  <Ionicons name="arrow-up" size={designTokens.icon.action} color={colors.ink} />
+                }
+              />
+              <UsageKpiCard
+                label={t('usage.completionTokens')}
+                value={totals.completionTokens.toLocaleString()}
+                tone="muted"
+                icon={
+                  <Ionicons name="arrow-down" size={designTokens.icon.action} color={colors.ink} />
                 }
               />
             </Stack>

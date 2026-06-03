@@ -82,8 +82,6 @@ export function HomeScreen() {
   const usageQueryParams = useMemo(
     () => ({
       bucket: '30 days' as const,
-      groupBy: ['model'] as Array<'model'>, 
-      limit: 50,
     }),
     []
   );
@@ -145,10 +143,7 @@ export function HomeScreen() {
 
   const { usedCost, totalBudget, usagePercent } = useMemo(() => {
     const points = usageResponse?.points ?? [];
-    
-    // Aggregate over identical array shapes as usage-screen
-    const microUsed = points.reduce((acc, item) => acc + (item.total_cost ?? 0), 0);
-    const used = microUsed / 1_000_000;
+    const used = points.reduce((acc, point) => acc + ((point.usage_value ?? 0) / 1_000_000), 0);
     const total = 30; // $30 budget per user request
     const percent = total > 0 ? (used / total) * 100 : 0;
 

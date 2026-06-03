@@ -2,21 +2,42 @@ import React, { useMemo } from 'react';
 import { useApiKeys, useQueryUsage } from '@lightbridge/hooks';
 import type { UsageBackendUsageGroupBy, UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
 import { UsageView } from '../views/usage-view';
+import { useRuntimeConfig } from '../configs/runtime-config';
 
 const modelGroupBy: UsageBackendUsageGroupBy[] = ['model'];
 const apiKeyGroupBy: UsageBackendUsageGroupBy[] = ['api_key_id'];
 
-export function UsageScreen() {
-  // Time window: March 31 2026 → end of current month
-  const timeWindow = useMemo(() => {
-    const startTime = new Date('2026-03-31T00:00:00Z');
-    const now = new Date();
-    // next month, day 1 is the start of next month (effectively end of current month)
-    const endTime = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-    return { startTime, endTime };
-  }, []);
+/** Default billing cycle start day when not configured. */
+const DEFAULT_BILLING_DAY = 6;
 
-  // Trend: daily buckets — also used to compute totals
+/**
+ * Compute the start of the current billing period.
+ * If today is on or after the billing day, the period started on the billing day of this month.
+ * Otherwise, the period started on the billing day of the previous month.
+ */
+function getBillingPeriodStart(billingDay: number, now: Date): Date {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+
+  if (now.getUTCDate() >= billingDay) {
+    return new Date(Date.UTC(year, month, billingDay, 0, 0, 0));
+  }
+  return new Date(Date.UTC(year, month - 1, billingDay, 0, 0, 0));
+}
+
+export function UsageScreen() {
+  const config = useRuntimeConfig();
+  const billingDay = config.usageBillingDay ?? DEFAULT_BILLING_DAY;
+
+  // Time window: billing cycle start → now
+  const timeWindow = useMemo(() => {
+    const now = new Date();
+    const startTime = getBillingPeriodStart(billingDay, now);
+    const endTime = now;
+    return { startTime, endTime };
+  }, [billingDay]);
+
+  // Trend: daily buckets for the trend chart
   const trendParams = useMemo(
     () => ({
       ...timeWindow,
@@ -26,28 +47,45 @@ export function UsageScreen() {
     [timeWindow]
   );
 
-  // Model breakdown: daily buckets grouped by model, aggregated client-side
+  const daysDifference = useMemo(() => {
+    return Math.max(
+      1,
+      Math.ceil((timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24))
+    );
+  }, [timeWindow]);
+
+  // Totals: query a single bucket representing the entire range
+  const totalsParams = useMemo(
+    () => ({
+      ...timeWindow,
+      bucket: `${daysDifference} days` as const,
+    }),
+    [timeWindow, daysDifference]
+  );
+
+  // Model breakdown: query the entire period as a single bucket to let the backend aggregate
   const modelParams = useMemo(
     () => ({
       ...timeWindow,
-      bucket: '1 day' as const,
+      bucket: `${daysDifference} days` as const,
       groupBy: modelGroupBy,
       limit: 1000,
     }),
-    [timeWindow]
+    [timeWindow, daysDifference]
   );
 
   const apiKeyParams = useMemo(
     () => ({
       ...timeWindow,
-      bucket: '1 day' as const,
+      bucket: `${daysDifference} days` as const,
       groupBy: apiKeyGroupBy,
       limit: 1000,
     }),
-    [timeWindow]
+    [timeWindow, daysDifference]
   );
 
   const { data: rawTrendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
+  const { data: rawTotalsData } = useQueryUsage(totalsParams);
   const { data: rawModelData, isLoading: isModelLoading } = useQueryUsage(modelParams);
   const { data: rawApiKeyData, isLoading: isApiKeyUsageLoading } = useQueryUsage(apiKeyParams);
   const { data: apiKeys, isLoading: isApiKeysLoading } = useApiKeys();
@@ -99,22 +137,27 @@ export function UsageScreen() {
     return { ...rawTrendData, points: fullPoints };
   }, [rawTrendData, timeWindow]);
 
-  // Totals: sum all daily trend points (microUSD → USD for cost)
+  // Totals: read directly from the aggregated totals point(s), summing if multiple exist due to bucket alignment
   const totals = useMemo(() => {
+    const points = rawTotalsData?.points ?? [];
     let cost = 0;
     let requests = 0;
     let tokens = 0;
-    if (trendData?.points) {
-      for (const point of trendData.points) {
-        cost += point.total_cost ?? 0;
-        requests += point.requests ?? 0;
-        tokens += point.total_tokens ?? 0;
-      }
-    }
-    return { cost: cost / 1_000_000, requests, tokens };
-  }, [trendData]);
+    let promptTokens = 0;
+    let completionTokens = 0;
 
-  // Model data may span multiple 30-day buckets — aggregate by model
+    for (const point of points) {
+      tokens += point.total_tokens ?? 0;
+      promptTokens += point.prompt_tokens ?? 0;
+      completionTokens += point.completion_tokens ?? 0;
+      requests += point.requests ?? 0;
+      cost += (point.usage_value ?? 0) / 1_000_000;
+    }
+
+    return { cost, requests, tokens, promptTokens, completionTokens };
+  }, [rawTotalsData]);
+
+  // Model data may span multiple buckets — aggregate by model to merge them
   const modelData = useMemo(() => {
     if (!rawModelData?.points) return rawModelData;
     const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
@@ -122,18 +165,24 @@ export function UsageScreen() {
     for (const point of rawModelData.points) {
       const key = (point.model ?? 'Unknown').trim().toLowerCase();
       if (!aggregated[key]) {
-        aggregated[key] = { ...point, model: point.model?.trim() };
+        aggregated[key] = { ...point, model: point.model?.trim() ?? null };
       } else {
-        aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
         aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
         aggregated[key].total_tokens =
           (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
+        aggregated[key].prompt_tokens =
+          (aggregated[key].prompt_tokens ?? 0) + (point.prompt_tokens ?? 0);
+        aggregated[key].completion_tokens =
+          (aggregated[key].completion_tokens ?? 0) + (point.completion_tokens ?? 0);
+        aggregated[key].usage_value =
+          (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
       }
     }
 
     return { ...rawModelData, points: Object.values(aggregated) };
   }, [rawModelData]);
 
+  // API key data may span multiple buckets — aggregate by API key to merge them
   const apiKeyData = useMemo(() => {
     if (!rawApiKeyData?.points) return rawApiKeyData;
     const aggregated: Record<string, UsageBackendUsageSeriesPoint> = {};
@@ -143,10 +192,15 @@ export function UsageScreen() {
       if (!aggregated[key]) {
         aggregated[key] = { ...point };
       } else {
-        aggregated[key].total_cost = (aggregated[key].total_cost ?? 0) + (point.total_cost ?? 0);
         aggregated[key].requests = (aggregated[key].requests ?? 0) + (point.requests ?? 0);
         aggregated[key].total_tokens =
           (aggregated[key].total_tokens ?? 0) + (point.total_tokens ?? 0);
+        aggregated[key].prompt_tokens =
+          (aggregated[key].prompt_tokens ?? 0) + (point.prompt_tokens ?? 0);
+        aggregated[key].completion_tokens =
+          (aggregated[key].completion_tokens ?? 0) + (point.completion_tokens ?? 0);
+        aggregated[key].usage_value =
+          (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
       }
     }
 

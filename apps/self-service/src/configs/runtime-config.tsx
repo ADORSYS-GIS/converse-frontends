@@ -6,6 +6,13 @@ import { isAppRuntimeConfig } from './runtime-config-types';
 
 const RuntimeConfigContext = createContext<AppRuntimeConfig | null>(null);
 
+function parseBillingDay(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 31) return undefined;
+  return parsed;
+}
+
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
   const usageUrl = process.env.EXPO_PUBLIC_USAGE_URL;
@@ -17,6 +24,9 @@ function getEnvConfig(): AppRuntimeConfig {
   if (!backendUrl || !issuer || !clientId || !scheme) {
     throw new Error('Missing required EXPO_PUBLIC_* config values.');
   }
+
+  // Parse usage billing day from environment (1–31, defaults to 6 if not set)
+  const usageBillingDay = parseBillingDay(process.env.EXPO_PUBLIC_USAGE_BILLING_DAY);
 
   // Parse audience configuration from environment variables
   const expectedAudience = process.env.EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE;
@@ -39,6 +49,7 @@ function getEnvConfig(): AppRuntimeConfig {
     backendUrl,
     usageUrl,
     analyticsUrl,
+    usageBillingDay,
     keycloak: {
       issuer,
       clientId,

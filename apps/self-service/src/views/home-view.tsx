@@ -19,10 +19,8 @@ export type ServiceInfo = {
   version: string;
   status: ServiceStatus;
 };
-
 type HomeViewProps = {
   userName?: string | null;
-  usagePercent: number;
   usedRequests: number;
   startDate: string;
   services?: ServiceInfo[];
@@ -34,9 +32,9 @@ type HomeViewProps = {
   onLogout: () => void;
 };
 
+
 export function HomeView({
   userName,
-  usagePercent,
   usedRequests,
   startDate,
   services: servicesProp,
@@ -51,10 +49,6 @@ export function HomeView({
   const colors = useThemeColors();
 
   const displayName = userName || t('home.defaultName');
-  const clampedPercent = Math.min(Math.max(usagePercent, 0), 100);
-  const percentLabel = t('home.usagePercent', {
-    percent: clampedPercent.toFixed(1),
-  });
 
   const summaryLabel = t('home.usageCostSummary', {
     used: usedRequests.toFixed(2),
@@ -135,18 +129,11 @@ export function HomeView({
             </Stack>
 
             <Stack gap="xs">
-              <Text intent="inverseValue">{percentLabel}</Text>
+              <Text intent="inverseValue">${usedRequests.toFixed(2)}</Text>
               <Text intent="inverseCaption">{summaryLabel}</Text>
             </Stack>
 
-            <Div tone="muted" rounded="full" height="xs" width="full">
-              <Div
-                tone="brand"
-                rounded="full"
-                height="xs"
-                style={{ width: `${clampedPercent}%`, minWidth: clampedPercent > 0 ? 12 : 0 }}
-              />
-            </Div>
+              
           </Stack>
         </Div>
 

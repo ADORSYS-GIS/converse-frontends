@@ -52,10 +52,11 @@ export function UsageView({
           <Stack gap="md">
             <UsageKpiCard
               variant="brand"
-              label={t('usage.totalTokens')}
-              value={totals.tokens.toLocaleString()}
+              label={t('usage.totalCost')}
+              value={formatCost(totals.cost)}
+              tone="successSoft"
               icon={
-                <Ionicons name="layers" size={designTokens.icon.prominent} color={colors.surface} />
+                <Ionicons name="card" size={designTokens.icon.prominent} color={colors.success} />
               }
             />
             <Stack direction="row" gap="md" wrap="wrap">
@@ -72,11 +73,11 @@ export function UsageView({
                 }
               />
               <UsageKpiCard
-                label={t('usage.totalCost')}
-                value={formatCost(totals.cost)}
-                tone="successSoft"
+                label={t('usage.totalTokens')}
+                value={totals.tokens.toLocaleString()}
+                tone="muted"
                 icon={
-                  <Ionicons name="card" size={designTokens.icon.action} color={colors.success} />
+                  <Ionicons name="layers" size={designTokens.icon.prominent} color={colors.primary} />
                 }
               />
             </Stack>
@@ -86,7 +87,7 @@ export function UsageView({
                 value={totals.promptTokens.toLocaleString()}
                 tone="muted"
                 icon={
-                  <Ionicons name="arrow-up" size={designTokens.icon.action} color={colors.ink} />
+                  <Ionicons name="arrow-up" size={designTokens.icon.action} color={colors.success} />
                 }
               />
               <UsageKpiCard
@@ -94,7 +95,7 @@ export function UsageView({
                 value={totals.completionTokens.toLocaleString()}
                 tone="muted"
                 icon={
-                  <Ionicons name="arrow-down" size={designTokens.icon.action} color={colors.ink} />
+                  <Ionicons name="arrow-down" size={designTokens.icon.action} color={colors.success} />
                 }
               />
             </Stack>

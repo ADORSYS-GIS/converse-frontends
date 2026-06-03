@@ -173,15 +173,12 @@ export function HomeScreen() {
     refetchOnWindowFocus: false,
   });
 
-  const { usedCost, usagePercent } = useMemo(() => {
+  const { usedCost } = useMemo(() => {
     const points = usageResponse?.points ?? [];
     const used = points.reduce((acc, point) => acc + ((point.usage_value ?? 0) / 1_000_000), 0);
-    const total = 30; // $30 budget per user request
-    const percent = total > 0 ? (used / total) * 100 : 0;
 
     return {
       usedCost: used,
-      usagePercent: percent,
     };
   }, [usageResponse]);
 
@@ -195,9 +192,8 @@ export function HomeScreen() {
   }, [timeWindow.startTime]);
 
   return (
-    <HomeView
+        <HomeView
       userName={session.user?.name}
-      usagePercent={usagePercent}
       usedRequests={usedCost}
       startDate={startDateString}
       services={services}

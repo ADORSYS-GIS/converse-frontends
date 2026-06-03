@@ -1,12 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthSession, useSignOut, useCurrentProject, useQueryUsage } from '@lightbridge/hooks';
+import { useAuthSession, useSignOut, useQueryUsage } from '@lightbridge/hooks';
 import { HomeView } from '../views/home-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
 const getUtcDayStamp = (value: Date) =>
   value.getUTCFullYear() * 10_000 + (value.getUTCMonth() + 1) * 100 + value.getUTCDate();
+
+/** Default billing cycle start day when not configured. */
+const DEFAULT_BILLING_DAY = 6;
+
+/**
+ * Compute the start of the current billing period.
+ */
+function getBillingPeriodStart(billingDay: number, now: Date): Date {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+
+  if (now.getUTCDate() >= billingDay) {
+    return new Date(Date.UTC(year, month, billingDay, 0, 0, 0));
+  }
+  return new Date(Date.UTC(year, month - 1, billingDay, 0, 0, 0));
+}
 
 export type ServiceStatus = 'healthy' | 'unhealthy' | 'unknown';
 
@@ -49,10 +65,9 @@ export function HomeScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isSigningOutRef = useRef(false);
   const isMountedRef = useRef(true);
-  const { data: project } = useCurrentProject();
   const config = useRuntimeConfig();
 
-  const [dayStamp, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
+  const [, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -79,11 +94,28 @@ export function HomeScreen() {
     };
   }, []);
 
+  const billingDay = config.usageBillingDay ?? DEFAULT_BILLING_DAY;
+
+  const timeWindow = useMemo(() => {
+    const now = new Date();
+    const startTime = getBillingPeriodStart(billingDay, now);
+    const endTime = now;
+    return { startTime, endTime };
+  }, [billingDay]);
+
+  const daysDifference = useMemo(() => {
+    return Math.max(
+      1,
+      Math.ceil((timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24))
+    );
+  }, [timeWindow]);
+
   const usageQueryParams = useMemo(
     () => ({
-      bucket: '30 days' as const,
+      ...timeWindow,
+      bucket: `${daysDifference} days` as const,
     }),
-    []
+    [timeWindow, daysDifference]
   );
 
   const { data: usageResponse } = useQueryUsage(usageQueryParams);
@@ -141,7 +173,7 @@ export function HomeScreen() {
     refetchOnWindowFocus: false,
   });
 
-  const { usedCost, totalBudget, usagePercent } = useMemo(() => {
+  const { usedCost, usagePercent } = useMemo(() => {
     const points = usageResponse?.points ?? [];
     const used = points.reduce((acc, point) => acc + ((point.usage_value ?? 0) / 1_000_000), 0);
     const total = 30; // $30 budget per user request
@@ -149,17 +181,25 @@ export function HomeScreen() {
 
     return {
       usedCost: used,
-      totalBudget: total,
       usagePercent: percent,
     };
   }, [usageResponse]);
+
+  const startDateString = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return formatter.format(timeWindow.startTime);
+  }, [timeWindow.startTime]);
 
   return (
     <HomeView
       userName={session.user?.name}
       usagePercent={usagePercent}
       usedRequests={usedCost}
-      totalRequests={totalBudget}
+      startDate={startDateString}
       services={services}
       onNewToken={() => router.navigate('/api-keys/new')}
       onEndpoints={() => router.push('/api-keys')}

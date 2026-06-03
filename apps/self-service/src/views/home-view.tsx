@@ -24,7 +24,7 @@ type HomeViewProps = {
   userName?: string | null;
   usagePercent: number;
   usedRequests: number;
-  totalRequests: number;
+  startDate: string;
   services?: ServiceInfo[];
   onNewToken: () => void;
   onEndpoints: () => void;
@@ -38,7 +38,7 @@ export function HomeView({
   userName,
   usagePercent,
   usedRequests,
-  totalRequests,
+  startDate,
   services: servicesProp,
   onNewToken,
   onEndpoints,
@@ -58,7 +58,7 @@ export function HomeView({
 
   const summaryLabel = t('home.usageCostSummary', {
     used: usedRequests.toFixed(2),
-    total: totalRequests.toFixed(2),
+    startDate,
   });
 
   const quickActions = [

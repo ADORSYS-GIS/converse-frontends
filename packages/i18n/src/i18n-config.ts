@@ -142,7 +142,7 @@ const resources = {
         currentUsage: 'Current API Usage',
         usagePercent: '{{percent}}%',
         usageSummary: '{{used}} of {{total}} monthly requests',
-        usageCostSummary: '${{used}} of ${{total}} monthly budget',
+        usageCostSummary: '${{used}} consumed since {{startDate}}',
         quickActions: {
           title: 'Quick Actions',
           newToken: 'New Token',

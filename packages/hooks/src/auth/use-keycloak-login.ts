@@ -39,8 +39,13 @@ function extractAndValidateAudience(
       checkExpiration: false, // Expiration checked separately
     });
 
+    const rawAud = result.payload?.aud;
+    const audience = rawAud
+      ? (Array.isArray(rawAud) ? rawAud : [rawAud])
+      : undefined;
+
     return {
-      audience: result.payload?.aud ? (Array.isArray(result.payload.aud) ? result.payload.aud : [result.payload.aud]) : undefined,
+      audience,
       valid: result.valid,
       errors: result.errors,
     };

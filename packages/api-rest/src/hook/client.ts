@@ -14,10 +14,36 @@ let latestApiOptions: ClientInitOptions;
 let latestUsageOptions: ClientInitOptions;
 let refreshPromise: Promise<boolean> | null = null;
 
+/** Timestamp until which refresh attempts should be skipped after a definitive failure. */
+let refreshCooldownUntil = 0;
+const REFRESH_COOLDOWN_MS = 60 * 1000;
+
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+function isRefreshInCooldown(): boolean {
+  return Date.now() < refreshCooldownUntil;
+}
+
+/**
+ * Mark refresh as definitively failed (e.g. invalid_grant).
+ * Prevents further refresh attempts for REFRESH_COOLDOWN_MS to avoid
+ * hammering the IdP with a dead refresh token.
+ */
+function markRefreshFailed(): void {
+  refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS;
+}
+
+/** Reset the cooldown — called after a successful refresh or re-login. */
+function resetRefreshCooldown(): void {
+  refreshCooldownUntil = 0;
+}
 
 async function tryProactiveRefresh(targetConfig: ClientInitOptions): Promise<void> {
   if (!targetConfig.refreshAuth || !targetConfig.getExpiresAt) {
+    return;
+  }
+
+  if (isRefreshInCooldown()) {
     return;
   }
 
@@ -31,12 +57,29 @@ async function tryProactiveRefresh(targetConfig: ClientInitOptions): Promise<voi
     if (refreshPromise === null) {
       refreshPromise = targetConfig.refreshAuth();
       try {
-        await refreshPromise;
+        const success = await refreshPromise;
+        if (success) {
+          resetRefreshCooldown();
+        } else {
+          markRefreshFailed();
+          if (targetConfig.onRefreshFailure) {
+            targetConfig.onRefreshFailure();
+          }
+        }
+      } catch {
+        markRefreshFailed();
+        if (targetConfig.onRefreshFailure) {
+          targetConfig.onRefreshFailure();
+        }
       } finally {
         refreshPromise = null;
       }
     } else {
-      await refreshPromise;
+      const success = await refreshPromise;
+      if (!success && !isRefreshInCooldown()) {
+        // Cooldown may not have been set yet if the first caller hasn't finished
+        markRefreshFailed();
+      }
     }
   }
 }
@@ -92,30 +135,58 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
           });
         } catch (error: any) {
           if (error?.status === 401 || error?.response?.status === 401) {
+            // If we already know refresh is broken (e.g. invalid_grant), don't retry.
+            if (isRefreshInCooldown()) {
+              throw error;
+            }
+
             if (refreshPromise === null && targetConfig.refreshAuth) {
               refreshPromise = targetConfig.refreshAuth();
+              let success: boolean;
               try {
-                const success = await refreshPromise;
-                if (!success) {
-                  if (targetConfig.onRefreshFailure) {
-                    targetConfig.onRefreshFailure();
-                  }
-                  throw error;
-                }
-                const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
-                return await original({
-                  ...actualOptions,
-                  security,
-                  baseURL: baseUrl,
-                  auth: latestConfig.auth,
-                });
+                success = await refreshPromise;
               } catch {
+                // Refresh promise rejected — treat as definitive failure
+                markRefreshFailed();
+                if (targetConfig.onRefreshFailure) {
+                  targetConfig.onRefreshFailure();
+                }
                 throw error;
               } finally {
                 refreshPromise = null;
               }
+
+              if (!success) {
+                markRefreshFailed();
+                if (targetConfig.onRefreshFailure) {
+                  targetConfig.onRefreshFailure();
+                }
+                throw error;
+              }
+
+              resetRefreshCooldown();
+
+              // Refresh succeeded — retry the original request with updated auth.
+              // Errors from the retry propagate naturally (not swallowed).
+              const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
+              return await original({
+                ...actualOptions,
+                security,
+                baseURL: baseUrl,
+                auth: latestConfig.auth,
+              });
             } else if (refreshPromise !== null) {
-              await refreshPromise;
+              // Another request is already refreshing — await its result.
+              const success = await refreshPromise;
+              if (!success) {
+                if (!isRefreshInCooldown()) {
+                  markRefreshFailed();
+                }
+                if (targetConfig.onRefreshFailure) {
+                  targetConfig.onRefreshFailure();
+                }
+                throw error;
+              }
               const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
               return await original({
                 ...actualOptions,

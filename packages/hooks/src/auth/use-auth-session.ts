@@ -34,12 +34,16 @@ export function getLatestAuthSession(): AuthSession {
   );
 }
 
-// Check if token is expired or about to expire (with 10 minute buffer)
+// Check if token is expired or about to expire.
+// Uses a dynamic buffer that scales with remaining time (up to 60 s),
+// with a 30 s floor so short-lived tokens still have enough lead time
+// for a refresh round-trip.
 export function isTokenExpired(expiresAt?: number): boolean {
   if (!expiresAt) {
     return false;
   }
-  const buffer = Math.min(60 * 1000, Math.max(0, (expiresAt - Date.now()) / 2));
+  const remaining = expiresAt - Date.now();
+  const buffer = Math.min(60 * 1000, Math.max(30 * 1000, remaining / 2));
   return Date.now() >= expiresAt - buffer;
 }
 
@@ -68,10 +72,13 @@ export function validateStoredTokenAudience(
       checkExpiration: false, // Expiration checked separately
     });
 
+    const rawAud = result.payload?.aud;
+    const audience = rawAud
+      ? (Array.isArray(rawAud) ? rawAud : [rawAud])
+      : undefined;
+
     return {
-      audience: result.payload?.aud
-        ? (Array.isArray(result.payload.aud) ? result.payload.aud : [result.payload.aud])
-        : undefined,
+      audience,
       valid: result.valid,
       errors: result.errors,
     };

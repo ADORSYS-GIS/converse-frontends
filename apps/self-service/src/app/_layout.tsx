@@ -50,11 +50,15 @@ function AppBootstrap() {
   };
 
   const handleRefreshFailure = React.useCallback(() => {
-    console.warn('[Auth] Token refresh failed definitively. Logging out.');
+    console.warn('[Auth] Token refresh failed definitively. Clearing session.');
+    // Clear the session IMMEDIATELY so the auth guard redirects to login.
+    // Do not defer this behind an Alert callback — on web the Alert may
+    // never appear, leaving the user stuck with a dead session.
+    void clearPersistedAuthSession();
     Alert.alert(
       'Session Expired',
       'Your session has expired. Please log in again to continue.',
-      [{ text: 'OK', onPress: () => clearPersistedAuthSession() }]
+      [{ text: 'OK' }]
     );
   }, []);
 

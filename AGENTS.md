@@ -96,8 +96,6 @@ Each UI component in `@lightbridge/ui` must follow this folder structure:
 - **Containerization**: Multi-stage, non-root user, multi-platform (`amd64`/`arm64`).
 
 <!-- ai-governance:stanza -->
-## AI Governance
-
 <!-- BEGIN: AI Governance stanza (managed by ADORSYS-GIS/ai-governance) -->
 ## AI Governance
 

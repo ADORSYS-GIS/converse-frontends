@@ -2,7 +2,7 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
-import { Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 function getServiceStatusTone(status: ServiceStatus): 'success' | 'error' | 'muted' {
@@ -21,6 +21,12 @@ export type ServiceInfo = {
 };
 type HomeViewProps = {
   userName?: string | null;
+  accountBillingIdentity?: string | null;
+  accountCount: number;
+  projectCount: number;
+  activeProjectName?: string | null;
+  activeProjectPlan?: string | null;
+  activeApiKeyCount: number;
   usedRequests: number;
   startDate: string;
   services?: ServiceInfo[];
@@ -32,9 +38,14 @@ type HomeViewProps = {
   onLogout: () => void;
 };
 
-
 export function HomeView({
   userName,
+  accountBillingIdentity,
+  accountCount,
+  projectCount,
+  activeProjectName,
+  activeProjectPlan,
+  activeApiKeyCount,
   usedRequests,
   startDate,
   services: servicesProp,
@@ -49,6 +60,8 @@ export function HomeView({
   const colors = useThemeColors();
 
   const displayName = userName || t('home.defaultName');
+  const projectName = activeProjectName || t('home.noProject');
+  const projectPlan = activeProjectPlan || t('home.noPlan');
 
   const summaryLabel = t('home.usageCostSummary', {
     used: usedRequests.toFixed(2),
@@ -86,6 +99,30 @@ export function HomeView({
     },
   ];
 
+  const scopeMetrics = [
+    {
+      key: 'accounts',
+      label: t('home.scope.accounts'),
+      value: accountCount.toLocaleString(),
+      icon: <Ionicons name="business" size={designTokens.icon.action} color={colors.primary} />,
+      tone: 'brandSoft' as const,
+    },
+    {
+      key: 'projects',
+      label: t('home.scope.projects'),
+      value: projectCount.toLocaleString(),
+      icon: <Ionicons name="folder" size={designTokens.icon.action} color={colors.accent} />,
+      tone: 'accentSoft' as const,
+    },
+    {
+      key: 'api-keys',
+      label: t('home.scope.apiKeys'),
+      value: activeApiKeyCount.toLocaleString(),
+      icon: <Ionicons name="key" size={designTokens.icon.action} color={colors.success} />,
+      tone: 'successSoft' as const,
+    },
+  ];
+
   // Use provided services or fallback to defaults if none provided
   const services =
     servicesProp && servicesProp.length > 0
@@ -104,8 +141,13 @@ export function HomeView({
       <Stack gap="lg">
         <Stack direction="row" justify="between" align="center" width="full">
           <Stack gap="xs">
-            <Text intent="body">{t('home.welcomeBack')}</Text>
+            <Text intent="eyebrow">{t('home.controlPlane')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
+            <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
+              {accountBillingIdentity
+                ? t('home.accountContext', { account: accountBillingIdentity })
+                : t('home.accountPending')}
+            </Text>
           </Stack>
           <Div
             tone="brand"
@@ -121,6 +163,52 @@ export function HomeView({
           </Div>
         </Stack>
 
+        <Stack direction="row" wrap="wrap" gap="md" width="full">
+          {scopeMetrics.map((metric) => (
+            <Card key={metric.key} size="sm" style={{ flexBasis: '30%', flexGrow: 1 }}>
+              <Stack gap="sm">
+                <Div
+                  tone={metric.tone}
+                  rounded="full"
+                  size="iconMd"
+                  align="center"
+                  justify="center">
+                  {metric.icon}
+                </Div>
+                <Stack gap="xs">
+                  <Text intent="caption">{metric.label}</Text>
+                  <Text intent="value">{metric.value}</Text>
+                </Stack>
+              </Stack>
+            </Card>
+          ))}
+        </Stack>
+
+        <Card size="md">
+          <Stack gap="md">
+            <Stack direction="row" justify="between" align="center" width="full">
+              <Stack gap="xs" style={{ flex: 1 }}>
+                <Text intent="eyebrow">{t('home.activeProject.title')}</Text>
+                <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
+                  {projectName}
+                </Text>
+              </Stack>
+              <Div tone="muted" rounded="full" pad="sm">
+                <Text intent="caption">{projectPlan}</Text>
+              </Div>
+            </Stack>
+            <Text intent="body">{t('home.activeProject.description')}</Text>
+            <Stack direction="row" gap="sm" wrap="wrap">
+              <Button variant="primary" size="sm" onPress={onNewToken}>
+                {t('home.quickActions.newToken')}
+              </Button>
+              <Button variant="neutral" size="sm" onPress={onUsageLogs}>
+                {t('home.quickActions.usageLogs')}
+              </Button>
+            </Stack>
+          </Stack>
+        </Card>
+
         <Div tone="brand" rounded="xl" shadow="lg" pad="lg" width="full">
           <Stack gap="md">
             <Stack direction="row" justify="between" align="center" width="full">
@@ -132,8 +220,6 @@ export function HomeView({
               <Text intent="inverseValue">${usedRequests.toFixed(2)}</Text>
               <Text intent="inverseCaption">{summaryLabel}</Text>
             </Stack>
-
-              
           </Stack>
         </Div>
 

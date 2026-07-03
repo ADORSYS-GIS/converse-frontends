@@ -1,14 +1,57 @@
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'expo-router';
-import { useApiKeys } from '@lightbridge/hooks';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAccounts, useApiKeys, useProjects } from '@lightbridge/hooks';
+import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 
 const PAGE_SIZE = 10;
 
 export function ApiKeysScreen() {
+  const params = useLocalSearchParams<{ accountId?: string; projectId?: string }>();
   const [offset, setOffset] = useState(0);
-  const { data: allItems = [], isLoading } = useApiKeys();
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const router = useRouter();
+  const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
+  const accounts: ApiKeyBackendAccount[] = accountsData;
+
+  useEffect(() => {
+    if (params.accountId) {
+      setSelectedAccountId(params.accountId);
+    }
+  }, [params.accountId]);
+
+  useEffect(() => {
+    if (params.projectId) {
+      setSelectedProjectId(params.projectId);
+    }
+  }, [params.projectId]);
+
+  useEffect(() => {
+    if (!selectedAccountId && accounts[0]?.id) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, selectedAccountId]);
+
+  const accountId = selectedAccountId ?? accounts[0]?.id;
+  const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
+  const projects: ApiKeyBackendProject[] = projectsData;
+
+  useEffect(() => {
+    if (projects.length === 0) {
+      setSelectedProjectId(null);
+      return;
+    }
+
+    const hasSelectedProject = projects.some((project) => project.id === selectedProjectId);
+
+    if (!hasSelectedProject) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
+  const projectId = selectedProjectId ?? projects[0]?.id;
+  const { data: allItems = [], isLoading: isKeysLoading } = useApiKeys(projectId);
 
   const slicedItems = useMemo(() => {
     return allItems.slice(offset, offset + PAGE_SIZE);
@@ -30,13 +73,46 @@ export function ApiKeysScreen() {
     }
   };
 
+  const handleSelectAccount = (id: string) => {
+    setOffset(0);
+    setSelectedAccountId(id);
+    setSelectedProjectId(null);
+  };
+
+  const handleSelectProject = (id: string) => {
+    setOffset(0);
+    setSelectedProjectId(id);
+  };
+
+  const handleCreate = () => {
+    if (projectId) {
+      router.navigate(`/api-keys/new?projectId=${encodeURIComponent(projectId)}`);
+      return;
+    }
+
+    router.navigate('/api-keys/new');
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    const projectQuery = projectId ? `&projectId=${encodeURIComponent(projectId)}` : '';
+    router.push(
+      `/delete-api-key?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}${projectQuery}`
+    );
+  };
+
   return (
     <ApiKeysListView
+      accounts={accounts}
+      projects={projects}
+      selectedAccountId={accountId}
+      selectedProjectId={projectId}
       items={slicedItems}
-      isLoading={isLoading}
+      isLoading={isAccountsLoading || isProjectsLoading || isKeysLoading}
       onBack={() => router.back()}
-      onCreate={() => router.navigate('/api-keys/new')}
-      onDelete={(id, name) => router.push(`/delete-api-key?id=${id}&name=${name}`)}
+      onCreate={handleCreate}
+      onDelete={handleDelete}
+      onSelectAccount={handleSelectAccount}
+      onSelectProject={handleSelectProject}
       onNext={handleNext}
       onPrev={handlePrev}
       hasMore={hasMore}

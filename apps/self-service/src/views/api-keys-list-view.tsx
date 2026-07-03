@@ -3,15 +3,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
 import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
-import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
+import type {
+  ApiKeyBackendAccount,
+  ApiKeyBackendApiKey,
+  ApiKeyBackendProject,
+} from '@lightbridge/api-rest';
 import { getThemeColors } from '../theme/theme-colors';
 
 type ApiKeysListViewProps = {
+  accounts?: ApiKeyBackendAccount[];
+  projects?: ApiKeyBackendProject[];
+  selectedAccountId?: string;
+  selectedProjectId?: string;
   items?: ApiKeyBackendApiKey[];
   isLoading?: boolean;
   onBack: () => void;
   onCreate: () => void;
   onDelete: (id: string, name: string) => void;
+  onSelectAccount: (id: string) => void;
+  onSelectProject: (id: string) => void;
   onNext: () => void;
   onPrev: () => void;
   hasMore: boolean;
@@ -31,12 +41,26 @@ const formatDate = (value: string) => {
   });
 };
 
+const formatNullableDate = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  return formatDate(value);
+};
+
 export function ApiKeysListView({
+  accounts = [],
+  projects = [],
+  selectedAccountId,
+  selectedProjectId,
   items = [],
   isLoading = false,
   onBack,
   onCreate,
   onDelete,
+  onSelectAccount,
+  onSelectProject,
   onNext,
   onPrev,
   hasMore,
@@ -47,6 +71,7 @@ export function ApiKeysListView({
   const colors = useMemo(() => getThemeColors('light'), []);
 
   const displayItems = items;
+  const selectedProject = projects.find((project) => project.id === selectedProjectId);
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
@@ -94,7 +119,95 @@ export function ApiKeysListView({
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
-          <Text intent="body">{t('apiKeys.subtitle')}</Text>
+          <Stack gap="xs">
+            <Text intent="eyebrow">{t('apiKeys.scopeEyebrow')}</Text>
+            <Text intent="body">{t('apiKeys.subtitle')}</Text>
+          </Stack>
+
+          <Card size="sm">
+            <Stack gap="md">
+              <Stack gap="xs">
+                <Text intent="bodyStrong">{t('apiKeys.accountsLabel')}</Text>
+                <Stack direction="row" wrap="wrap" gap="sm">
+                  {accounts.length === 0 ? (
+                    <Text intent="caption">{t('apiKeys.noAccounts')}</Text>
+                  ) : (
+                    accounts.map((account) => {
+                      const isSelected = account.id === selectedAccountId;
+
+                      return (
+                        <Button
+                          key={account.id}
+                          variant={isSelected ? 'primary' : 'neutral'}
+                          size="sm"
+                          onPress={() => onSelectAccount(account.id)}
+                          accessibilityLabel={t('apiKeys.selectAccount', {
+                            account: account.billing_identity,
+                          })}>
+                          {account.billing_identity}
+                        </Button>
+                      );
+                    })
+                  )}
+                </Stack>
+              </Stack>
+
+              <Div tone="muted" height="hairline" width="full" />
+
+              <Stack gap="xs">
+                <Text intent="bodyStrong">{t('apiKeys.projectsLabel')}</Text>
+                <Stack direction="row" wrap="wrap" gap="sm">
+                  {projects.length === 0 ? (
+                    <Text intent="caption">{t('apiKeys.noProjects')}</Text>
+                  ) : (
+                    projects.map((project) => {
+                      const isSelected = project.id === selectedProjectId;
+
+                      return (
+                        <Button
+                          key={project.id}
+                          variant={isSelected ? 'primary' : 'neutral'}
+                          size="sm"
+                          onPress={() => onSelectProject(project.id)}
+                          accessibilityLabel={t('apiKeys.selectProject', {
+                            project: project.name,
+                          })}>
+                          {project.name}
+                        </Button>
+                      );
+                    })
+                  )}
+                </Stack>
+              </Stack>
+            </Stack>
+          </Card>
+
+          <Card size="sm">
+            <Stack direction="row" align="center" justify="between" width="full" gap="md">
+              <Stack gap="xs" style={{ flex: 1 }}>
+                <Text intent="eyebrow">{t('apiKeys.currentProject')}</Text>
+                <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
+                  {selectedProject?.name ?? t('apiKeys.noProjectSelected')}
+                </Text>
+                <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
+                  {selectedProject
+                    ? t('apiKeys.projectMetadata', {
+                        plan: selectedProject.billing_plan,
+                        models: selectedProject.allowed_models?.length ?? 0,
+                      })
+                    : t('apiKeys.projectRequired')}
+                </Text>
+              </Stack>
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={onCreate}
+                disabled={!selectedProjectId}
+                accessibilityLabel={t('apiKeys.new')}>
+                {t('apiKeys.new')}
+              </Button>
+            </Stack>
+          </Card>
 
           <Stack gap="md">
             {isLoading && (
@@ -121,27 +234,61 @@ export function ApiKeysListView({
 
                 return (
                   <Card key={item.id} size="md">
-                    <Stack direction="row" align="center" justify="between" width="full">
-                      <Stack
-                        gap="xs"
-                        style={{
-                          flex: 1,
-                          paddingRight: designTokens.spacing.inlineXs,
-                          overflow: 'hidden',
-                        }}>
-                        <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
-                          {item.name}
-                        </Text>
-                        <Text intent="caption" numberOfLines={1}>
-                          {createdLabel}
-                        </Text>
+                    <Stack gap="md">
+                      <Stack direction="row" align="center" justify="between" width="full" gap="md">
+                        <Stack
+                          gap="xs"
+                          style={{
+                            flex: 1,
+                            paddingRight: designTokens.spacing.inlineXs,
+                            overflow: 'hidden',
+                          }}>
+                          <Stack direction="row" align="center" gap="sm">
+                            <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
+                              {item.name}
+                            </Text>
+                            <Div
+                              tone={item.status === 'active' ? 'successSoft' : 'errorSoft'}
+                              rounded="full"
+                              pad="sm"
+                              accessibilityLabel={t(`apiKeys.status.${item.status}`)}>
+                              <Text intent={item.status === 'active' ? 'caption' : 'warning'}>
+                                {t(`apiKeys.status.${item.status}`)}
+                              </Text>
+                            </Div>
+                          </Stack>
+                          <Text intent="caption" numberOfLines={1}>
+                            {t('apiKeys.keyPrefix', { prefix: item.key_prefix })}
+                          </Text>
+                        </Stack>
+                        <Button
+                          variant="ghost"
+                          onPress={() => onDelete(item.id, item.name)}
+                          accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
+                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        </Button>
                       </Stack>
-                      <Button
-                        variant="ghost"
-                        onPress={() => onDelete(item.id, item.name)}
-                        style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                        <Ionicons name="trash-outline" size={18} color={colors.error} />
-                      </Button>
+
+                      <Div tone="muted" height="hairline" width="full" />
+
+                      <Stack direction="row" gap="md" wrap="wrap" width="full">
+                        <Text intent="caption">{createdLabel}</Text>
+                        <Text intent="caption">
+                          {item.last_used_at
+                            ? t('apiKeys.lastUsed', {
+                                date: formatNullableDate(item.last_used_at),
+                              })
+                            : t('apiKeys.neverUsed')}
+                        </Text>
+                        {item.expires_at ? (
+                          <Text intent="caption">
+                            {t('apiKeys.expiresOn', {
+                              date: formatNullableDate(item.expires_at),
+                            })}
+                          </Text>
+                        ) : null}
+                      </Stack>
                     </Stack>
                   </Card>
                 );

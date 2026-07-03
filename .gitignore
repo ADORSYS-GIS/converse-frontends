@@ -1,4 +1,5 @@
 node_modules/
+.idea/
 .openapi-ts-logs/
 packages/api-rest/openapi-ts-error-*.log
 .expo/

@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthSession, useSignOut, useQueryUsage } from '@lightbridge/hooks';
+import {
+  useApiKeys,
+  useAccounts,
+  useAuthSession,
+  useCurrentAccount,
+  useCurrentProject,
+  useProjects,
+  useQueryUsage,
+  useSignOut,
+} from '@lightbridge/hooks';
 import { HomeView } from '../views/home-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
@@ -61,6 +70,11 @@ async function checkServiceHealth(
 
 export function HomeScreen() {
   const { session } = useAuthSession();
+  const { data: accounts = [] } = useAccounts();
+  const { data: currentAccount } = useCurrentAccount();
+  const { data: projects = [] } = useProjects(currentAccount?.id);
+  const { data: currentProject } = useCurrentProject();
+  const { data: apiKeys = [] } = useApiKeys(currentProject?.id);
   const { signOut } = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isSigningOutRef = useRef(false);
@@ -106,7 +120,9 @@ export function HomeScreen() {
   const daysDifference = useMemo(() => {
     return Math.max(
       1,
-      Math.ceil((timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24))
+      Math.ceil(
+        (timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24)
+      )
     );
   }, [timeWindow]);
 
@@ -175,7 +191,7 @@ export function HomeScreen() {
 
   const { usedCost } = useMemo(() => {
     const points = usageResponse?.points ?? [];
-    const used = points.reduce((acc, point) => acc + ((point.usage_value ?? 0) / 1_000_000), 0);
+    const used = points.reduce((acc, point) => acc + (point.usage_value ?? 0) / 1_000_000, 0);
 
     return {
       usedCost: used,
@@ -192,8 +208,14 @@ export function HomeScreen() {
   }, [timeWindow.startTime]);
 
   return (
-        <HomeView
+    <HomeView
       userName={session.user?.name}
+      accountBillingIdentity={currentAccount?.billing_identity}
+      accountCount={accounts.length}
+      projectCount={projects.length}
+      activeProjectName={currentProject?.name}
+      activeProjectPlan={currentProject?.billing_plan}
+      activeApiKeyCount={apiKeys.length}
       usedRequests={usedCost}
       startDate={startDateString}
       services={services}

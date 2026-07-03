@@ -20,6 +20,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/react':
+        specifier: ~19.2.14
+        version: 19.2.14
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.7.0)
@@ -41,6 +44,9 @@ importers:
 
   apps/self-service:
     dependencies:
+      '@expo/vector-icons':
+        specifier: 15.1.1
+        version: 15.1.1(expo-font@55.0.7)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       '@lightbridge/api-native':
         specifier: workspace:*
         version: link:../../packages/api-native

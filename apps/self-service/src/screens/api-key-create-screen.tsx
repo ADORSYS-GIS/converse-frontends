@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { copyToClipboard } from '@lightbridge/api-native';
 import {
   useCreateApiKey,
@@ -10,16 +10,19 @@ import { ApiKeyCreateView } from '../views/api-key-create-view';
 
 export function ApiKeyCreateScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ projectId?: string }>();
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
   const { mutate: ensureAccount, isPending: isAccountEnsuring } = useEnsureDefaultAccount();
   const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
   const { mutate: createKey, isPending: isKeyCreating } = useCreateApiKey();
+  const projectId = typeof params.projectId === 'string' ? params.projectId : null;
 
   const handleBack = () => {
     // After key creation, the user intent is to go back to the API Keys list (not the previous route).
     // Use `replace` so the create screen is not kept in the back stack.
     if (generatedSecret) {
-      router.replace('/api-keys');
+      const projectQuery = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+      router.replace(`/api-keys${projectQuery}`);
       return;
     }
 
@@ -33,10 +36,10 @@ export function ApiKeyCreateScreen() {
 
   const handleCreate = async (name: string) => {
     try {
-      const account = await ensureAccount();
-      const project = await ensureProject(account.id);
+      const resolvedProjectId = projectId ?? (await ensureProject((await ensureAccount()).id)).id;
+
       await createKey(
-        { input: { name }, projectId: project.id },
+        { input: { name }, projectId: resolvedProjectId },
         {
           onSuccess: (data) => {
             if (data?.secret) {
@@ -50,7 +53,7 @@ export function ApiKeyCreateScreen() {
     }
   };
 
-  const isPending = isAccountEnsuring || isProjectEnsuring || isKeyCreating;
+  const isPending = (!projectId && (isAccountEnsuring || isProjectEnsuring)) || isKeyCreating;
 
   return (
     <ApiKeyCreateView

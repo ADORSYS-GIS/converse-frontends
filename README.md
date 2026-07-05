@@ -114,6 +114,17 @@ Recommended local validation before merge:
 - run `pnpm web` and verify login/navigation flows
 - verify backend connectivity and token-protected requests
 
+## AI Governance
+
+This repository follows the [ADORSYS-GIS AI Governance](https://adorsys-gis.github.io/ai-governance/) kit for issues, pull requests, and AI-assisted work.
+
+- Use the structured GitHub issue forms for epics, user stories, and development tickets.
+- Use the pull request template and include AI usage, source-of-truth, and verification evidence.
+- The `AI Governance` workflow enforces the required PR body sections.
+- OpenCode review is wired through the reusable governance workflow and runs only when `OPENCODE_GATEWAY_AUDIENCE` is configured.
+
+Repo-specific integration details are documented in [docs/ai-governance.md](docs/ai-governance.md).
+
 ## Production Container
 
 This repo includes a production-ready web image:

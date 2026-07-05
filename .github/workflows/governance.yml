@@ -21,6 +21,10 @@ jobs:
   governance:
     # ADORSYS-GIS/ai-governance @ v1.0.0
     uses: ADORSYS-GIS/ai-governance/.github/workflows/governance-check.yml@959d8565041ddef86d3a10001b64393a6d4a60a2
+    # Runs on GitHub-hosted ubuntu-latest by default. To run on your own runners,
+    # bump the pinned SHA to a release that supports the `runs-on` input and add:
+    #   with:
+    #     runs-on: <your-self-hosted-runner-label>
     permissions:
       pull-requests: write
       contents: read

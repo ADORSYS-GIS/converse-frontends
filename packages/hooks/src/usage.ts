@@ -40,14 +40,12 @@ export function useTokenUsage() {
 export function useQueryUsage(params?: Partial<UsageQueryParams>) {
   const { data: project } = useCurrentProject();
   const { isAuthenticated } = useAuthSession();
+  const scope = params?.scope ?? 'project';
+  const scopeId = params?.scopeId ?? project?.id;
 
   return useQuery({
-    queryKey: ['usage', project?.id, params],
+    queryKey: ['usage', scope, scopeId, params],
     queryFn: async () => {
-      // Use provided params or fall back to defaults
-      const scope = params?.scope ?? 'project';
-      const scopeId = params?.scopeId ?? project?.id;
-
       if (!scopeId) return null;
 
       const startTime =
@@ -87,7 +85,7 @@ export function useQueryUsage(params?: Partial<UsageQueryParams>) {
 
       return response.data;
     },
-    enabled: !!project?.id && isAuthenticated,
+    enabled: !!scopeId && isAuthenticated,
   });
 }
 

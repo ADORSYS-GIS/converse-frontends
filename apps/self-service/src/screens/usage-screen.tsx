@@ -1,8 +1,19 @@
-import React, { useMemo } from 'react';
-import { useApiKeys, useQueryUsage } from '@lightbridge/hooks';
-import type { UsageBackendUsageGroupBy, UsageBackendUsageSeriesPoint } from '@lightbridge/api-rest';
+import React, { useMemo, useState } from 'react';
+import {
+  useApiKeys,
+  useAuthSession,
+  useCurrentAccount,
+  useCurrentProject,
+  useQueryUsage,
+} from '@lightbridge/hooks';
+import type {
+  UsageBackendUsageGroupBy,
+  UsageBackendUsageScope,
+  UsageBackendUsageSeriesPoint,
+} from '@lightbridge/api-rest';
 import { UsageView } from '../views/usage-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
+import { resolveUsageScopeId } from './usage-scope';
 
 const modelGroupBy: UsageBackendUsageGroupBy[] = ['model'];
 const apiKeyGroupBy: UsageBackendUsageGroupBy[] = ['api_key_id'];
@@ -29,6 +40,27 @@ export function UsageScreen() {
   const config = useRuntimeConfig();
   const billingDay = config.usageBillingDay ?? DEFAULT_BILLING_DAY;
 
+  const [scope, setScope] = useState<UsageBackendUsageScope>('project');
+  const [scopeApiKeyId, setScopeApiKeyId] = useState<string | null>(null);
+  const { data: currentAccount } = useCurrentAccount();
+  const { data: currentProject } = useCurrentProject();
+  const { session } = useAuthSession();
+
+  const scopeId = useMemo(
+    () =>
+      resolveUsageScopeId(scope, {
+        accountId: currentAccount?.id,
+        projectId: currentProject?.id,
+        userId: session.user?.id,
+        apiKeyId: scopeApiKeyId,
+      }),
+    [scope, currentAccount, currentProject, session.user, scopeApiKeyId]
+  );
+
+  const handleScopeChange = (nextScope: UsageBackendUsageScope) => {
+    setScope(nextScope);
+  };
+
   // Time window: billing cycle start → now
   const timeWindow = useMemo(() => {
     const now = new Date();
@@ -37,20 +69,25 @@ export function UsageScreen() {
     return { startTime, endTime };
   }, [billingDay]);
 
+  const scopeParams = useMemo(() => ({ scope, scopeId }), [scope, scopeId]);
+
   // Trend: daily buckets for the trend chart
   const trendParams = useMemo(
     () => ({
       ...timeWindow,
+      ...scopeParams,
       bucket: '1 day' as const,
       limit: 1000,
     }),
-    [timeWindow]
+    [timeWindow, scopeParams]
   );
 
   const daysDifference = useMemo(() => {
     return Math.max(
       1,
-      Math.ceil((timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24))
+      Math.ceil(
+        (timeWindow.endTime.getTime() - timeWindow.startTime.getTime()) / (1000 * 60 * 60 * 24)
+      )
     );
   }, [timeWindow]);
 
@@ -58,30 +95,33 @@ export function UsageScreen() {
   const totalsParams = useMemo(
     () => ({
       ...timeWindow,
+      ...scopeParams,
       bucket: `${daysDifference} days` as const,
     }),
-    [timeWindow, daysDifference]
+    [timeWindow, scopeParams, daysDifference]
   );
 
   // Model breakdown: query the entire period as a single bucket to let the backend aggregate
   const modelParams = useMemo(
     () => ({
       ...timeWindow,
+      ...scopeParams,
       bucket: `${daysDifference} days` as const,
       groupBy: modelGroupBy,
       limit: 1000,
     }),
-    [timeWindow, daysDifference]
+    [timeWindow, scopeParams, daysDifference]
   );
 
   const apiKeyParams = useMemo(
     () => ({
       ...timeWindow,
+      ...scopeParams,
       bucket: `${daysDifference} days` as const,
       groupBy: apiKeyGroupBy,
       limit: 1000,
     }),
-    [timeWindow, daysDifference]
+    [timeWindow, scopeParams, daysDifference]
   );
 
   const { data: rawTrendData, isLoading: isTrendLoading } = useQueryUsage(trendParams);
@@ -174,8 +214,7 @@ export function UsageScreen() {
           (aggregated[key].prompt_tokens ?? 0) + (point.prompt_tokens ?? 0);
         aggregated[key].completion_tokens =
           (aggregated[key].completion_tokens ?? 0) + (point.completion_tokens ?? 0);
-        aggregated[key].usage_value =
-          (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
+        aggregated[key].usage_value = (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
       }
     }
 
@@ -199,8 +238,7 @@ export function UsageScreen() {
           (aggregated[key].prompt_tokens ?? 0) + (point.prompt_tokens ?? 0);
         aggregated[key].completion_tokens =
           (aggregated[key].completion_tokens ?? 0) + (point.completion_tokens ?? 0);
-        aggregated[key].usage_value =
-          (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
+        aggregated[key].usage_value = (aggregated[key].usage_value ?? 0) + (point.usage_value ?? 0);
       }
     }
 
@@ -209,6 +247,10 @@ export function UsageScreen() {
 
   return (
     <UsageView
+      scope={scope}
+      onScopeChange={handleScopeChange}
+      scopeApiKeyId={scopeApiKeyId}
+      onScopeApiKeyChange={setScopeApiKeyId}
       totals={totals}
       trendData={trendData}
       modelData={modelData}

@@ -26,6 +26,14 @@ export { Page, pageVariants } from './components/page';
 export type { PageProps } from './components/page';
 export { Scroll, scrollContentVariants, scrollVariants } from './components/scroll';
 export type { ScrollProps } from './components/scroll';
+export {
+  SegmentedControl,
+  segmentDividerVariants,
+  segmentLabelVariants,
+  segmentVariants,
+  segmentedControlVariants,
+} from './components/segmented-control';
+export type { SegmentedControlOption, SegmentedControlProps } from './components/segmented-control';
 export { Stack, stackVariants } from './components/stack';
 export type { StackProps } from './components/stack';
 export { Text, textVariants } from './components/text';

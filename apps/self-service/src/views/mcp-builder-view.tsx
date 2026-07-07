@@ -2,11 +2,21 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
-import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
-import { getThemeColors } from '../theme/theme-colors';
+import {
+  Button,
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Scroll,
+  SegmentedControl,
+  Stack,
+  Text,
+} from '@lightbridge/ui';
+import { useThemeColors } from '../hooks/use-theme-colors';
 
-type PlatformId = 'vscode' | 'cursor' | 'claude' | 'intellij';
-type ServerId = 'brave-search' | 'firecrawl' | 'browserless' | 'context7';
+export type PlatformId = 'vscode' | 'cursor' | 'claude' | 'intellij';
+export type ServerId = 'brave-search' | 'firecrawl' | 'browserless' | 'context7';
 
 type ServerDefinition = {
   id: ServerId;
@@ -131,14 +141,14 @@ const platformDefinitions: PlatformDefinition[] = [
   },
 ];
 
-const initialSelectedServers: Record<ServerId, boolean> = {
+export const initialSelectedServers: Record<ServerId, boolean> = {
   'brave-search': true,
   firecrawl: true,
   browserless: true,
   context7: true,
 };
 
-function buildConfig(
+export function buildConfig(
   platform: PlatformId,
   selectedServers: Record<ServerId, boolean>,
   secretKey: string = 'YOUR_API_KEY_HERE'
@@ -172,7 +182,7 @@ function buildConfig(
   return JSON.stringify({ [rootKey]: result }, null, 2);
 }
 
-function getJsonKeyColor(key: string, colors: ReturnType<typeof getThemeColors>) {
+function getJsonKeyColor(key: string, colors: ReturnType<typeof useThemeColors>) {
   if (key === 'servers' || key === 'mcpServers') {
     return colors.primary;
   }
@@ -188,7 +198,7 @@ function getJsonKeyColor(key: string, colors: ReturnType<typeof getThemeColors>)
   return colors.success;
 }
 
-function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof getThemeColors>) {
+function renderHighlightedJson(jsonText: string, colors: ReturnType<typeof useThemeColors>) {
   const lines = jsonText.split('\n');
 
   return lines.map((line, lineIndex) => {
@@ -257,7 +267,7 @@ export function McpBuilderView({
   generatedSecret?: string | null;
 }>) {
   const { t } = useTranslation();
-  const colors = useMemo(() => getThemeColors('light'), []);
+  const colors = useThemeColors();
   const [activePlatform, setActivePlatform] = useState<PlatformId>('vscode');
   const [selectedServers, setSelectedServers] =
     useState<Record<ServerId, boolean>>(initialSelectedServers);
@@ -270,6 +280,12 @@ export function McpBuilderView({
       platformDefinitions.find((platform) => platform.id === activePlatform) ??
       platformDefinitions[0],
     [activePlatform]
+  );
+
+  const platformOptions = useMemo(
+    () =>
+      platformDefinitions.map((platform) => ({ key: platform.id, label: t(platform.labelKey) })),
+    [t]
   );
 
   const generatedConfigText = useMemo(
@@ -482,55 +498,12 @@ export function McpBuilderView({
               {t('apiKeyBuilder.sections.generated')}
             </Text>
 
-            <Div
-              tone="muted"
-              rounded="xl"
-              pad="sm"
+            <SegmentedControl
               width="full"
-              style={{
-                borderRadius: 10,
-                borderWidth: 0,
-                padding: 4,
-                backgroundColor: colors.border,
-              }}>
-              <Stack direction="row" width="full" style={{ gap: 4 }}>
-                {platformDefinitions.map((platform) => {
-                  const active = platform.id === activePlatform;
-
-                  return (
-                    <Div
-                      key={platform.id}
-                      rounded="md"
-                      tone={active ? 'surface' : 'default'}
-                      align="center"
-                      justify="center"
-                      style={{
-                        flex: 1,
-                        minHeight: 40,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        borderWidth: active ? 1 : 0,
-                        borderColor: colors.border,
-                        backgroundColor: active ? colors.surface : 'transparent',
-                      }}
-                      accessibilityRole="button"
-                      onPress={() => setActivePlatform(platform.id)}>
-                      <Text
-                        intent={active ? 'link' : 'caption'}
-                        align="center"
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 12,
-                          fontWeight: active ? '700' : '600',
-                          color: active ? colors.primary : colors.soft,
-                        }}>
-                        {t(platform.labelKey)}
-                      </Text>
-                    </Div>
-                  );
-                })}
-              </Stack>
-            </Div>
+              options={platformOptions}
+              value={activePlatform}
+              onChange={(key) => setActivePlatform(key as PlatformId)}
+            />
 
             <Card
               size="sm"

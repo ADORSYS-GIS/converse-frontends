@@ -12,7 +12,8 @@
     "ios": "expo run:ios",
     "start": "expo start",
     "prebuild": "expo prebuild",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
@@ -57,8 +58,13 @@
     "@babel/core": "^7.29.0",
     "@babel/plugin-transform-react-jsx": "^7.28.6",
     "@babel/preset-react": "^7.28.5",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.10",
     "babel-preset-expo": "~55.0.21",
+    "jest": "^29.7.0",
+    "jest-expo": "^57.0.1",
+    "react-test-renderer": "^19.2.7",
     "tailwindcss": "^3.4.19"
   }
 }

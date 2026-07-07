@@ -10,7 +10,13 @@ import type { ApiKeyBackendApiKey, UsageBackendQueryUsageResponse } from '@light
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 interface UsageViewProps {
-  totals: { cost: number; requests: number; tokens: number; promptTokens: number; completionTokens: number };
+  totals: {
+    cost: number;
+    requests: number;
+    tokens: number;
+    promptTokens: number;
+    completionTokens: number;
+  };
   trendData?: UsageBackendQueryUsageResponse | null;
   modelData?: UsageBackendQueryUsageResponse | null;
   apiKeyData?: UsageBackendQueryUsageResponse | null;
@@ -27,6 +33,8 @@ const costFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 6,
 });
 
+export const formatCost = (cost: number) => costFormatter.format(cost);
+
 export function UsageView({
   totals,
   trendData,
@@ -39,8 +47,6 @@ export function UsageView({
 }: UsageViewProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
-
-  const formatCost = (cost: number) => costFormatter.format(cost);
 
   return (
     <Page pad="none">
@@ -77,7 +83,11 @@ export function UsageView({
                 value={totals.tokens.toLocaleString()}
                 tone="muted"
                 icon={
-                  <Ionicons name="layers" size={designTokens.icon.prominent} color={colors.primary} />
+                  <Ionicons
+                    name="layers"
+                    size={designTokens.icon.prominent}
+                    color={colors.primary}
+                  />
                 }
               />
             </Stack>
@@ -87,7 +97,11 @@ export function UsageView({
                 value={totals.promptTokens.toLocaleString()}
                 tone="muted"
                 icon={
-                  <Ionicons name="arrow-up" size={designTokens.icon.action} color={colors.success} />
+                  <Ionicons
+                    name="arrow-up"
+                    size={designTokens.icon.action}
+                    color={colors.success}
+                  />
                 }
               />
               <UsageKpiCard
@@ -95,7 +109,11 @@ export function UsageView({
                 value={totals.completionTokens.toLocaleString()}
                 tone="muted"
                 icon={
-                  <Ionicons name="arrow-down" size={designTokens.icon.action} color={colors.success} />
+                  <Ionicons
+                    name="arrow-down"
+                    size={designTokens.icon.action}
+                    color={colors.success}
+                  />
                 }
               />
             </Stack>

@@ -1,18 +1,16 @@
 import React from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 
 import { designTokens, NavContainer, NavItem, Stack } from '@lightbridge/ui';
 
-import { getThemeColors } from '../theme/theme-colors';
+import { useThemeColors } from '../hooks/use-theme-colors';
 import { tabRouteIcons } from './tab-routes';
 import { useIsDesktop } from './use-is-desktop';
 
 export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<BottomTabBarProps>) {
   const isDesktop = useIsDesktop();
-  const colorScheme = useColorScheme();
-  const colors = getThemeColors(colorScheme);
+  const colors = useThemeColors();
 
   const getLabel = (routeKey: string, routeName: string) => {
     const options = descriptors[routeKey]?.options;

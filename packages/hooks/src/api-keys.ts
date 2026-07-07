@@ -4,12 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ApiKeyBackendApiKey,
   ApiKeyBackendCreateApiKey,
+  ApiKeyBackendRotateApiKey,
   ApiKeyBackendUpdateApiKey,
 } from '@lightbridge/api-rest';
 import {
   apiKeyBackendCreateApiKey,
   apiKeyBackendDeleteApiKey,
   apiKeyBackendListApiKeys,
+  apiKeyBackendRevokeApiKey,
+  apiKeyBackendRotateApiKey,
   apiKeyBackendUpdateApiKey,
 } from '@lightbridge/api-rest';
 import { useCurrentProject } from './projects';
@@ -122,6 +125,58 @@ export function useUpdateApiKey() {
   return {
     isPending: mutation.isPending,
     mutate: mutation.mutateAsync,
+  };
+}
+
+export function useRevokeApiKey() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string; projectId: string }) => {
+      const response = await apiKeyBackendRevokeApiKey<true>({ path: { key_id: id } });
+      return response.data;
+    },
+    onSuccess: (_, { projectId }) => {
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
+      }
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useRotateApiKey() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      id,
+      input = {},
+    }: {
+      id: string;
+      projectId: string;
+      input?: ApiKeyBackendRotateApiKey;
+    }) => {
+      const response = await apiKeyBackendRotateApiKey<true>({
+        path: { key_id: id },
+        body: input,
+      });
+      return response.data;
+    },
+    onSuccess: (_, { projectId }) => {
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
+      }
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
   };
 }
 

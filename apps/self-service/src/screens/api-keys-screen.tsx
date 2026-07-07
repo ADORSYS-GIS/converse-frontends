@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAccounts, useApiKeys, useProjects } from '@lightbridge/hooks';
+import { useTranslation } from '@lightbridge/i18n';
+import { useAccounts, useApiKeys, useProjects, useRevokeApiKey } from '@lightbridge/hooks';
 import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 
 const PAGE_SIZE = 10;
 
 export function ApiKeysScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ accountId?: string; projectId?: string }>();
   const [offset, setOffset] = useState(0);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -14,6 +17,7 @@ export function ApiKeysScreen() {
   const router = useRouter();
   const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
   const accounts: ApiKeyBackendAccount[] = accountsData;
+  const revokeKey = useRevokeApiKey();
 
   useEffect(() => {
     if (params.accountId) {
@@ -100,6 +104,34 @@ export function ApiKeysScreen() {
     );
   };
 
+  const handleRotate = (id: string, name: string) => {
+    const projectQuery = projectId ? `&projectId=${encodeURIComponent(projectId)}` : '';
+    router.push(
+      `/rotate-api-key?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}${projectQuery}`
+    );
+  };
+
+  const handleRevoke = (id: string, name: string) => {
+    Alert.alert(
+      t('apiKeys.revokeConfirmTitle'),
+      t('apiKeys.revokeConfirmMessage', { name }),
+      [
+        { text: t('apiKeys.revokeCancel'), style: 'cancel' },
+        {
+          text: t('apiKeys.revoke'),
+          style: 'destructive',
+          onPress: () => {
+            if (!projectId) return;
+            void revokeKey.mutateAsync({ id, projectId }).catch((error) => {
+              console.error('Failed to revoke API key:', error);
+            });
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <ApiKeysListView
       accounts={accounts}
@@ -111,6 +143,8 @@ export function ApiKeysScreen() {
       onBack={() => router.back()}
       onCreate={handleCreate}
       onDelete={handleDelete}
+      onRevoke={handleRevoke}
+      onRotate={handleRotate}
       onSelectAccount={handleSelectAccount}
       onSelectProject={handleSelectProject}
       onNext={handleNext}

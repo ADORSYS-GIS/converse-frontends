@@ -15,3 +15,8 @@ overrides:
   "@expo/metro-runtime": "^55.0.11"
   react: 19.2.0
   react-native: 0.83.6
+  # Security: transitive-dependency CVE fixes (Trivy HIGH/CRITICAL)
+  shell-quote: "^1.8.4" # CVE-2026-9277 (CRITICAL): command injection
+  form-data: "^4.0.6" # CVE-2026-12143 (HIGH): field override via CRLF injection
+  "ws@7": "^7.5.11" # CVE-2026-48779 (HIGH): DoS via memory exhaustion
+  "ws@8": "^8.21.0" # CVE-2026-48779 (HIGH): DoS via memory exhaustion

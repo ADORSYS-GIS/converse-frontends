@@ -15,7 +15,8 @@
     "ios": "pnpm --filter self-service ios",
     "web": "pnpm --filter self-service web",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
-    "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json,css,md}\" --write"
+    "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json,css,md}\" --write",
+    "test": "pnpm -r --if-present run test"
   },
   "devDependencies": {
     "@types/react": "~19.2.14",

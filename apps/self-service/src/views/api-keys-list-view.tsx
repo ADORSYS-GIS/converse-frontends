@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
@@ -8,7 +8,7 @@ import type {
   ApiKeyBackendApiKey,
   ApiKeyBackendProject,
 } from '@lightbridge/api-rest';
-import { getThemeColors } from '../theme/theme-colors';
+import { useThemeColors } from '../hooks/use-theme-colors';
 
 type ApiKeysListViewProps = {
   accounts?: ApiKeyBackendAccount[];
@@ -29,7 +29,7 @@ type ApiKeysListViewProps = {
   page: number;
 };
 
-const formatDate = (value: string) => {
+export const formatDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
@@ -41,7 +41,7 @@ const formatDate = (value: string) => {
   });
 };
 
-const formatNullableDate = (value?: string | null) => {
+export const formatNullableDate = (value?: string | null) => {
   if (!value) {
     return null;
   }
@@ -68,7 +68,7 @@ export function ApiKeysListView({
   page,
 }: Readonly<ApiKeysListViewProps>) {
   const { t } = useTranslation();
-  const colors = useMemo(() => getThemeColors('light'), []);
+  const colors = useThemeColors();
 
   const displayItems = items;
   const selectedProject = projects.find((project) => project.id === selectedProjectId);

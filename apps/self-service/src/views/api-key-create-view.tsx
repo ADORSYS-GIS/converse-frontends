@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
@@ -12,7 +12,7 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
-import { getThemeColors } from '../theme/theme-colors';
+import { useThemeColors } from '../hooks/use-theme-colors';
 
 type ApiKeyCreateViewProps = {
   onBack: () => void;
@@ -30,7 +30,7 @@ export function ApiKeyCreateView({
   generatedSecret = null,
 }: Readonly<ApiKeyCreateViewProps>) {
   const { t } = useTranslation();
-  const colors = useMemo(() => getThemeColors('light'), []);
+  const colors = useThemeColors();
   const [name, setName] = useState('');
   const [copiedSecret, setCopiedSecret] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

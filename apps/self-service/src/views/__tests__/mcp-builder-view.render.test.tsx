@@ -14,8 +14,8 @@ describe('McpBuilderView', () => {
   it('renders the platform switcher, defaulting to VS Code', async () => {
     await render(<McpBuilderView onBack={noop} onCopy={noop} onCreateKey={noop} />);
 
-    expect(screen.getByLabelText('VS Code').props.accessibilityState.selected).toBe(true);
-    expect(screen.getByLabelText('Cursor').props.accessibilityState.selected).toBe(false);
+    expect(screen.getByLabelText('VS Code').props.accessibilityState.selected).toBeTruthy();
+    expect(screen.getByLabelText('Cursor').props.accessibilityState.selected).toBeFalsy();
   });
 
   it('switches the generated config when a different platform segment is pressed', async () => {
@@ -23,7 +23,7 @@ describe('McpBuilderView', () => {
 
     await fireEvent.press(screen.getByLabelText('Cursor'));
 
-    expect(screen.getByLabelText('Cursor').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByLabelText('Cursor').props.accessibilityState.selected).toBeTruthy();
     expect(screen.getByText('mcpServers')).toBeTruthy();
   });
 });

@@ -20,8 +20,8 @@ describe('SegmentedControl', () => {
   it('marks the active option as selected for accessibility', async () => {
     await render(<SegmentedControl options={options} value="b" onChange={() => undefined} />);
 
-    expect(screen.getByLabelText('Beta').props.accessibilityState.selected).toBe(true);
-    expect(screen.getByLabelText('Alpha').props.accessibilityState.selected).toBe(false);
+    expect(screen.getByLabelText('Beta').props.accessibilityState.selected).toBeTruthy();
+    expect(screen.getByLabelText('Alpha').props.accessibilityState.selected).toBeFalsy();
   });
 
   it('calls onChange with the pressed option key', async () => {

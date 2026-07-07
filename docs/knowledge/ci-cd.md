@@ -97,10 +97,8 @@ Rollback: re-deploy a previous image tag via Helm. See `runbooks.md` for the rol
 
 ## Secrets Management
 
-| Secret | Where Used | Purpose |
-|--------|-----------|---------|
-| `GHCR_TOKEN` | `docker-image.yml` | Authenticates Docker push to GHCR |
+`docker-image.yml` authenticates to GHCR using the built-in `secrets.GITHUB_TOKEN` (auto-issued and rotated per workflow run), not a custom PAT — the job's `permissions: { packages: write }` is sufficient on its own. This replaced an earlier `GHCR_TOKEN` custom PAT, which expired ~90 days after creation and caused every `docker-image` run to fail at the login step until fixed.
 
-The `GHCR_TOKEN` is a GitHub Personal Access Token (PAT) with `write:packages` scope, stored as a repository secret.
+For manual/local pushes outside CI (see the "Rebuild and Push Docker Image Manually" runbook), a personal PAT with `write:packages` scope is still required, since `GITHUB_TOKEN` only exists inside Actions runs.
 
 Runtime secrets (Keycloak credentials, backend URLs) are **not** stored in GitHub. They are injected at deploy time via Helm values or Kubernetes secrets. See `infrastructure.md` for runtime secret injection details.

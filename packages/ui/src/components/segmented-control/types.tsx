@@ -8,6 +8,7 @@ export type SegmentedControlOption = {
   label: string;
   icon?: ReactNode;
   accessibilityLabel?: string;
+  disabled?: boolean;
 };
 
 export type SegmentedControlProps = Omit<ViewProps, 'children'> &

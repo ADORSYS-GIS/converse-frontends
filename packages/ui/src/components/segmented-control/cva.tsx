@@ -23,9 +23,14 @@ export const segmentVariants = cva(
         true: 'bg-surface shadow-sm',
         false: 'bg-transparent',
       },
+      disabled: {
+        true: 'opacity-40',
+        false: '',
+      },
     },
     defaultVariants: {
       active: false,
+      disabled: false,
     },
   }
 );

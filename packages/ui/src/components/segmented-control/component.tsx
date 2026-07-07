@@ -43,9 +43,10 @@ export function SegmentedControl({
             ) : null}
             <PressableBase
               accessibilityRole="button"
-              accessibilityState={{ selected: active }}
+              accessibilityState={{ selected: active, disabled: option.disabled }}
               accessibilityLabel={option.accessibilityLabel ?? option.label}
-              className={cn(segmentVariants({ active }))}
+              disabled={option.disabled}
+              className={cn(segmentVariants({ active, disabled: option.disabled }))}
               onPress={() => onChange(option.key)}>
               {option.icon}
               <TextBase className={cn(segmentLabelVariants({ active }))} numberOfLines={1}>

@@ -2,7 +2,17 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
-import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import {
+  Button,
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Scroll,
+  SegmentedControl,
+  Stack,
+  Text,
+} from '@lightbridge/ui';
 import type {
   ApiKeyBackendAccount,
   ApiKeyBackendApiKey,
@@ -20,6 +30,8 @@ type ApiKeysListViewProps = {
   onBack: () => void;
   onCreate: () => void;
   onDelete: (id: string, name: string) => void;
+  onRevoke: (id: string, name: string) => void;
+  onRotate: (id: string, name: string) => void;
   onSelectAccount: (id: string) => void;
   onSelectProject: (id: string) => void;
   onNext: () => void;
@@ -59,6 +71,8 @@ export function ApiKeysListView({
   onBack,
   onCreate,
   onDelete,
+  onRevoke,
+  onRotate,
   onSelectAccount,
   onSelectProject,
   onNext,
@@ -231,6 +245,7 @@ export function ApiKeysListView({
                 const createdLabel = t('apiKeys.createdOn', {
                   date: formatDate(item.created_at),
                 });
+                const isActive = item.status === 'active';
 
                 return (
                   <Card key={item.id} size="md">
@@ -269,6 +284,34 @@ export function ApiKeysListView({
                           <Ionicons name="trash-outline" size={18} color={colors.error} />
                         </Button>
                       </Stack>
+
+                      <Div tone="muted" height="hairline" width="full" />
+
+                      <SegmentedControl
+                        width="full"
+                        value=""
+                        options={[
+                          {
+                            key: 'revoke',
+                            label: t('apiKeys.revoke'),
+                            accessibilityLabel: t('apiKeys.revokeNamed', { name: item.name }),
+                            disabled: !isActive,
+                          },
+                          {
+                            key: 'rotate',
+                            label: t('apiKeys.rotate'),
+                            accessibilityLabel: t('apiKeys.rotateNamed', { name: item.name }),
+                            disabled: !isActive,
+                          },
+                        ]}
+                        onChange={(key) => {
+                          if (key === 'revoke') {
+                            onRevoke(item.id, item.name);
+                          } else if (key === 'rotate') {
+                            onRotate(item.id, item.name);
+                          }
+                        }}
+                      />
 
                       <Div tone="muted" height="hairline" width="full" />
 

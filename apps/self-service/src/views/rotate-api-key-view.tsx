@@ -1,41 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
-import {
-  Button,
-  Card,
-  designTokens,
-  Div,
-  Heading,
-  Scroll,
-  Stack,
-  Text,
-  TextField,
-} from '@lightbridge/ui';
+import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
-type ApiKeyCreateViewProps = {
+type RotateApiKeyViewProps = {
+  keyName: string;
   onBack: () => void;
-  onCreate: (name: string) => void;
+  onConfirm: () => void;
   onCopy: (value: string) => void;
-  isCreating?: boolean;
+  isRotating?: boolean;
   generatedSecret?: string | null;
 };
 
-export function ApiKeyCreateView({
+export function RotateApiKeyView({
+  keyName,
   onBack,
-  onCreate,
+  onConfirm,
   onCopy,
-  isCreating = false,
+  isRotating = false,
   generatedSecret = null,
-}: Readonly<ApiKeyCreateViewProps>) {
+}: Readonly<RotateApiKeyViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const [name, setName] = useState('');
-
-  const trimmedName = name.trim();
-  const isSubmitDisabled = isCreating || !trimmedName;
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1, backgroundColor: colors.muted }}>
@@ -60,7 +48,7 @@ export function ApiKeyCreateView({
           </Button>
 
           <Heading tone="title" style={{ fontSize: designTokens.typography.compactTitle }}>
-            {t('apiKeys.new')}
+            {t('apiKeys.rotateTitle')}
           </Heading>
 
           <Div size="iconSm" />
@@ -85,7 +73,7 @@ export function ApiKeyCreateView({
                       color={colors.success}
                     />
                     <Stack gap="xs" style={{ flex: 1 }}>
-                      <Text intent="bodyStrong">{t('apiKeys.createdSuccessfully')}</Text>
+                      <Text intent="bodyStrong">{t('apiKeys.rotateSuccess')}</Text>
                       <Text intent="caption">{t('apiKeys.securityNote')}</Text>
                     </Stack>
                   </Stack>
@@ -100,33 +88,35 @@ export function ApiKeyCreateView({
             ) : (
               <Card size="md">
                 <Stack gap="md">
-                  <Stack gap="xs">
-                    <Text intent="bodyStrong">{t('apiKeys.keyLabel')}</Text>
-                    <TextField
-                      placeholder={t('apiKeys.placeholder')}
-                      value={name}
-                      onChangeText={setName}
-                      selectionColor={colors.primary}
-                      autoFocus
-                      editable={!isCreating}
-                      autoCorrect={false}
-                      returnKeyType="done"
-                      onSubmitEditing={() => {
-                        if (!isSubmitDisabled) {
-                          onCreate(trimmedName);
-                        }
-                      }}
+                  <Stack direction="row" gap="sm" align="start">
+                    <Ionicons
+                      name="refresh"
+                      size={designTokens.icon.prominent}
+                      color={colors.secondary}
                     />
+                    <Stack gap="xs" style={{ flex: 1 }}>
+                      <Text intent="bodyStrong">{keyName}</Text>
+                      <Text intent="body">{t('apiKeys.rotateDescription', { name: keyName })}</Text>
+                    </Stack>
                   </Stack>
-                  <Button
-                    variant="primary"
-                    onPress={() => onCreate(trimmedName)}
-                    disabled={isSubmitDisabled}
-                    width="full">
-                    <Text intent="inverseBodyStrong">
-                      {isCreating ? t('apiKeys.saving') : t('apiKeys.save')}
-                    </Text>
-                  </Button>
+                  <Stack direction="row" gap="sm">
+                    <Button
+                      variant="ghost"
+                      onPress={onBack}
+                      disabled={isRotating}
+                      style={{ flex: 1 }}>
+                      <Text intent="link">{t('apiKeys.rotateCancel')}</Text>
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onPress={onConfirm}
+                      disabled={isRotating}
+                      style={{ flex: 1 }}>
+                      <Text intent="inverseBodyStrong">
+                        {isRotating ? t('apiKeys.rotating') : t('apiKeys.rotateConfirm')}
+                      </Text>
+                    </Button>
+                  </Stack>
                 </Stack>
               </Card>
             )}

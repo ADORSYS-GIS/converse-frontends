@@ -1,6 +1,6 @@
-import type { StorybookConfig } from '@storybook/react-native-web-vite';
+import { defineMain } from '@storybook/react-native-web-vite/node';
 
-const config: StorybookConfig = {
+export default defineMain({
   stories: ['../src/**/*.stories.@(ts|tsx)'],
   addons: ['@storybook/addon-a11y'],
   typescript: {
@@ -12,18 +12,10 @@ const config: StorybookConfig = {
   framework: {
     name: '@storybook/react-native-web-vite',
     options: {
-      modulesToTranspile: [
-        'nativewind',
-        'react-native-css-interop',
-        '@expo/vector-icons',
-        'expo-image',
-        'expo-blur',
-        'expo-checkbox',
-        'expo-font',
-        'expo-asset',
-        'lottie-react-native',
-        '@lottiefiles/dotlottie-react',
-      ],
+      // The framework already auto-transpiles anything prefixed
+      // react-native/@react-native/expo/@expo — only list what falls
+      // outside those prefixes.
+      modulesToTranspile: ['nativewind', 'lottie-react-native', '@lottiefiles/dotlottie-react'],
       pluginReactOptions: {
         jsxImportSource: 'nativewind',
       },
@@ -56,6 +48,4 @@ const config: StorybookConfig = {
     };
     return viteConfig;
   },
-};
-
-export default config;
+});

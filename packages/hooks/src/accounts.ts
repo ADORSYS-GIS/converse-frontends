@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
-import { apiKeyBackendCreateAccount, apiKeyBackendListAccounts } from '@lightbridge/api-rest';
+import type { ApiKeyBackendAccount, ApiKeyBackendUpdateAccount } from '@lightbridge/api-rest';
+import {
+  apiKeyBackendCreateAccount,
+  apiKeyBackendDeleteAccount,
+  apiKeyBackendListAccounts,
+  apiKeyBackendUpdateAccount,
+} from '@lightbridge/api-rest';
 import { useAuthSession } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
@@ -35,6 +40,45 @@ export function useCurrentAccount(enabled = true) {
   }, [data]);
 
   return { ...query, data: current, enabled: enabled && isAuthenticated };
+}
+
+export function useUpdateAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: ApiKeyBackendUpdateAccount }) => {
+      const response = await apiKeyBackendUpdateAccount<true>({
+        path: { account_id: id },
+        body: input,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) =>
+      apiKeyBackendDeleteAccount({ path: { account_id: id } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
 }
 
 export function useEnsureDefaultAccount() {

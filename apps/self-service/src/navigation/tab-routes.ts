@@ -7,6 +7,7 @@ export const tabRoutes = [
   { name: 'api-keys', titleKey: 'nav.apiKeys' },
   { name: 'mcp', titleKey: 'nav.apiKeyEditor' },
   { name: 'usage', titleKey: 'nav.usage' },
+  { name: 'settings', titleKey: 'nav.settings' },
 ] as const;
 
 export const tabRouteIcons: Record<string, { active: IoniconName; inactive: IoniconName }> = {
@@ -15,4 +16,5 @@ export const tabRouteIcons: Record<string, { active: IoniconName; inactive: Ioni
   mcp: { active: 'options', inactive: 'options-outline' },
   usage: { active: 'bar-chart', inactive: 'bar-chart-outline' },
   graphs: { active: 'bar-chart', inactive: 'bar-chart-outline' },
+  settings: { active: 'settings', inactive: 'settings-outline' },
 };

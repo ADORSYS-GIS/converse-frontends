@@ -55,11 +55,9 @@ function AppBootstrap() {
     // Do not defer this behind an Alert callback — on web the Alert may
     // never appear, leaving the user stuck with a dead session.
     void clearPersistedAuthSession();
-    Alert.alert(
-      'Session Expired',
-      'Your session has expired. Please log in again to continue.',
-      [{ text: 'OK' }]
-    );
+    Alert.alert('Session Expired', 'Your session has expired. Please log in again to continue.', [
+      { text: 'OK' },
+    ]);
   }, []);
 
   useClientInit(
@@ -114,6 +112,11 @@ function AppBootstrap() {
       pathname?.startsWith('/api-keys/') ||
       pathname === '/delete-api-key' ||
       pathname?.startsWith('/delete-api-key');
+    const inSettingsStandaloneRoute =
+      pathname === '/settings-account' ||
+      pathname?.startsWith('/settings-account') ||
+      pathname === '/delete-account' ||
+      pathname?.startsWith('/delete-account');
     const inTabsGroup = segments.includes('(tabs)');
 
     if (!isAuthenticated && !inAuthGroup && !inHelpRoute) {
@@ -121,7 +124,13 @@ function AppBootstrap() {
       return;
     }
 
-    if (isAuthenticated && !inTabsGroup && !inHelpRoute && !inApiKeysRoute) {
+    if (
+      isAuthenticated &&
+      !inTabsGroup &&
+      !inHelpRoute &&
+      !inApiKeysRoute &&
+      !inSettingsStandaloneRoute
+    ) {
       router.replace('/home');
       return;
     }

@@ -1,7 +1,7 @@
 export { Form, FormSubmitContext } from './form';
 export type { FormProps, FormSubmitContextValue } from './form';
-export { FormField } from './form-field';
-export type { FormFieldProps } from './form-field';
+export { FormTextField } from './form-text-field';
+export type { FormTextFieldProps } from './form-text-field';
 export { FormTextArea } from './form-text-area';
 export type { FormTextAreaProps } from './form-text-area';
 export { FormCheckbox } from './form-checkbox';

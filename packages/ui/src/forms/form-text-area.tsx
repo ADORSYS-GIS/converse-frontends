@@ -1,7 +1,7 @@
 /**
- * Connected multiline text area — the react-hook-form-wired sibling of the connected
- * `FormField` (see ./form-field.tsx). Composes the presentational `FormField` shell
- * (aliased `FieldShell`) around a multiline `TextField`.
+ * Connected multiline text area — the react-hook-form-wired sibling of
+ * `FormTextField` (see ./form-text-field.tsx). Composes the presentational `FormField`
+ * shell (aliased `FieldShell`) around a multiline `TextField`.
  */
 import React from 'react';
 import { useController } from 'react-hook-form';

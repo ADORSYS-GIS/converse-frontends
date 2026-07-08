@@ -3,8 +3,8 @@ import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 
 import { Stack } from '../components/stack';
 import { Form } from './form';
-import { FormField } from './form-field';
 import { FormSubmit } from './form-submit';
+import { FormTextField } from './form-text-field';
 
 const meta: Meta<typeof FormSubmit> = {
   title: 'Forms/FormSubmit',
@@ -17,7 +17,7 @@ const meta: Meta<typeof FormSubmit> = {
       <div style={{ width: 420 }}>
         <Form defaultValues={{ keyName: '' }} onSubmit={() => undefined}>
           <Stack gap="md">
-            <FormField name="keyName" label="Key name" placeholder="my-production-key" />
+            <FormTextField name="keyName" label="Key name" placeholder="my-production-key" />
             <Story />
           </Stack>
         </Form>

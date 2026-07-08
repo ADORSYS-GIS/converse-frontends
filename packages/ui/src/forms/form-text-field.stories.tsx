@@ -2,11 +2,11 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 
 import { Form } from './form';
-import { FormField } from './form-field';
+import { FormTextField } from './form-text-field';
 
-const meta: Meta<typeof FormField> = {
-  title: 'Forms/FormField',
-  component: FormField,
+const meta: Meta<typeof FormTextField> = {
+  title: 'Forms/FormTextField',
+  component: FormTextField,
   args: {
     name: 'keyName',
     label: 'Key name',
@@ -24,7 +24,7 @@ const meta: Meta<typeof FormField> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof FormField>;
+type Story = StoryObj<typeof FormTextField>;
 
 export const Basic: Story = {};
 

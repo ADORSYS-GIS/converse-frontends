@@ -26,6 +26,8 @@ export { Page, pageVariants } from './components/page';
 export type { PageProps } from './components/page';
 export { Scroll, scrollContentVariants, scrollVariants } from './components/scroll';
 export type { ScrollProps } from './components/scroll';
+export { Select, selectVariants } from './components/select';
+export type { SelectOption, SelectProps } from './components/select';
 export { SectionCard, sectionCardVariants, sectionTitleVariants } from './components/section-card';
 export type { SectionCardProps } from './components/section-card';
 export {

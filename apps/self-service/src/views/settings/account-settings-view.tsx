@@ -3,11 +3,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   Button,
-  Card,
+  Chip,
   designTokens,
   Div,
+  Divider,
   Heading,
+  KeyValue,
+  PageHeader,
   Scroll,
+  SectionCard,
   Stack,
   Text,
   TextField,
@@ -68,18 +72,9 @@ export function AccountSettingsView({
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
       {showBackButton ? (
-        <Div
-          tone="surface"
-          width="full"
-          style={{
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            minHeight: designTokens.layout.topBarMinHeight,
-            paddingHorizontal: designTokens.spacing.topBarHorizontal,
-            paddingVertical: designTokens.spacing.topBarVertical,
-            backgroundColor: colors.surface,
-          }}>
-          <Stack direction="row" align="center" justify="between" width="full">
+        <PageHeader
+          title={t('settings.account.title')}
+          leading={
             <Button
               variant="ghost"
               size="iconSm"
@@ -87,24 +82,18 @@ export function AccountSettingsView({
               accessibilityLabel={t('apiKeys.back')}>
               <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
             </Button>
-            <Heading tone="title" style={{ fontSize: designTokens.typography.compactTitle }}>
-              {t('settings.account.title')}
-            </Heading>
-            <Div size="iconSm" />
-          </Stack>
-        </Div>
+          }
+        />
       ) : null}
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
           {!showBackButton ? <Heading tone="title">{t('settings.account.title')}</Heading> : null}
 
-          <Card size="md">
+          <SectionCard
+            title={t('settings.account.billingIdentitySection')}
+            description={t('settings.account.billingIdentityDescription')}>
             <Stack gap="md">
-              <Stack gap="xs">
-                <Text intent="bodyStrong">{t('settings.account.billingIdentitySection')}</Text>
-                <Text intent="caption">{t('settings.account.billingIdentityDescription')}</Text>
-              </Stack>
               <TextField
                 value={billingIdentityDraft}
                 onChangeText={setBillingIdentityDraft}
@@ -123,44 +112,24 @@ export function AccountSettingsView({
                   : t('settings.account.billingIdentitySave')}
               </Button>
             </Stack>
-          </Card>
+          </SectionCard>
 
-          <Card size="md">
+          <SectionCard
+            title={t('settings.account.ownersSection')}
+            description={t('settings.account.ownersDescription')}>
             <Stack gap="md">
-              <Stack gap="xs">
-                <Text intent="bodyStrong">{t('settings.account.ownersSection')}</Text>
-                <Text intent="caption">{t('settings.account.ownersDescription')}</Text>
-              </Stack>
-
               {owners.length === 0 ? (
                 <Text intent="caption">{t('settings.account.ownersEmpty')}</Text>
               ) : (
                 <Stack direction="row" wrap="wrap" gap="sm">
                   {owners.map((owner) => (
-                    <Div
+                    <Chip
                       key={owner}
-                      tone="muted"
-                      rounded="full"
-                      pad="sm"
-                      style={{
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                      }}>
-                      <Stack direction="row" align="center" gap="xs">
-                        <Text intent="caption">{owner}</Text>
-                        <Button
-                          variant="ghost"
-                          size="iconSm"
-                          onPress={() => onRemoveOwner(owner)}
-                          disabled={isSavingOwners}
-                          accessibilityLabel={t('settings.account.ownerRemove', { name: owner })}
-                          style={{ height: 20, width: 20, paddingHorizontal: 0 }}>
-                          <Ionicons name="close" size={14} color={colors.soft} />
-                        </Button>
-                      </Stack>
-                    </Div>
+                      onRemove={() => onRemoveOwner(owner)}
+                      removeAccessibilityLabel={t('settings.account.ownerRemove', { name: owner })}
+                      disabled={isSavingOwners}>
+                      {owner}
+                    </Chip>
                   ))}
                 </Stack>
               )}
@@ -186,39 +155,29 @@ export function AccountSettingsView({
                 </Button>
               </Stack>
             </Stack>
-          </Card>
+          </SectionCard>
 
-          <Card size="md">
+          <SectionCard
+            title={t('settings.account.authSection')}
+            description={t('settings.account.authDescription')}>
             <Stack gap="sm">
-              <Text intent="bodyStrong">{t('settings.account.authSection')}</Text>
-              <Text intent="caption">{t('settings.account.authDescription')}</Text>
-              <Div tone="muted" height="hairline" width="full" />
-              <Stack direction="row" justify="between" width="full">
-                <Text intent="caption">{t('settings.account.authUserLabel')}</Text>
-                <Text intent="bodyStrong">{authUserLabel}</Text>
-              </Stack>
-              <Stack direction="row" justify="between" width="full">
-                <Text intent="caption">{t('settings.account.authIssuerLabel')}</Text>
-                <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="middle">
-                  {authIssuer}
-                </Text>
-              </Stack>
+              <Divider tone="muted" />
+              <KeyValue label={t('settings.account.authUserLabel')} value={authUserLabel} />
+              <KeyValue label={t('settings.account.authIssuerLabel')} value={authIssuer} />
             </Stack>
-          </Card>
+          </SectionCard>
 
-          <Div tone="muted" rounded="xl" pad="md" width="full">
-            <Stack gap="xs">
-              <Text intent="bodyStrong">{t('settings.account.policiesSection')}</Text>
-              <Text intent="caption">{t('settings.account.policiesUnsupported')}</Text>
-            </Stack>
-          </Div>
+          <SectionCard
+            tone="muted"
+            title={t('settings.account.policiesSection')}
+            description={t('settings.account.policiesUnsupported')}
+          />
 
-          <Card size="md" style={{ borderWidth: 1, borderColor: colors.error }}>
-            <Stack gap="sm">
-              <Text intent="bodyStrong" style={{ color: colors.error }}>
-                {t('settings.account.dangerSection')}
-              </Text>
-              <Text intent="caption">{t('settings.account.dangerDescription')}</Text>
+          <SectionCard
+            tone="danger"
+            title={t('settings.account.dangerSection')}
+            description={t('settings.account.dangerDescription')}>
+            <Stack align="start">
               <Button
                 variant="neutral"
                 size="sm"
@@ -229,7 +188,7 @@ export function AccountSettingsView({
                 </Text>
               </Button>
             </Stack>
-          </Card>
+          </SectionCard>
         </Stack>
       </Scroll>
     </Div>

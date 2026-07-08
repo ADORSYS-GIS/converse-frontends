@@ -1,14 +1,15 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import BottomSheet, {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetView,
-} from '@gorhom/bottom-sheet';
+import { Sheet, type SheetHandle } from '@lightbridge/ui/sheet';
 import { useDeleteAccount } from '@lightbridge/hooks';
 import { DeleteAccountView } from '../views/delete-account-view';
 
+/**
+ * Per-flow smart wrapper for the delete-account bottom sheet: it owns the domain
+ * wiring (route params, the useDeleteAccount mutation, navigation) and composes
+ * the presentational Sheet + DeleteAccountView. The sheet mechanics live in
+ * @lightbridge/ui — this screen has no @gorhom/bottom-sheet import.
+ */
 export function DeleteAccountModal() {
   const params = useLocalSearchParams<{
     id?: string | string[];
@@ -18,7 +19,7 @@ export function DeleteAccountModal() {
   const id = typeof params.id === 'string' ? params.id : null;
   const name = typeof params.name === 'string' ? params.name : '';
   const removeAccount = useDeleteAccount();
-  const sheetRef = React.useRef<BottomSheet>(null);
+  const sheetRef = React.useRef<SheetHandle>(null);
 
   const handleConfirm = async () => {
     if (!id) {
@@ -29,57 +30,14 @@ export function DeleteAccountModal() {
     router.replace('/home');
   };
 
-  const handleSheetChange = React.useCallback(
-    (index: number) => {
-      // Dismissing the sheet (dragged/backdrop-tapped to closed) returns to the
-      // previous route so the modal route stays in sync with the sheet state.
-      if (index === -1) {
-        router.back();
-      }
-    },
-    [router]
-  );
-
-  const renderBackdrop = React.useCallback(
-    (backdropProps: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...backdropProps}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
-
   return (
-    <View style={styles.container}>
-      <BottomSheet
-        ref={sheetRef}
-        index={0}
-        enableDynamicSizing
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        onChange={handleSheetChange}
-      >
-        <BottomSheetView style={styles.content}>
-          <DeleteAccountView
-            name={name}
-            loading={removeAccount.isPending}
-            onCancel={() => sheetRef.current?.close()}
-            onConfirm={handleConfirm}
-          />
-        </BottomSheetView>
-      </BottomSheet>
-    </View>
+    <Sheet ref={sheetRef} onClose={() => router.back()}>
+      <DeleteAccountView
+        name={name}
+        loading={removeAccount.isPending}
+        onCancel={() => sheetRef.current?.close()}
+        onConfirm={handleConfirm}
+      />
+    </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 24,
-  },
-});

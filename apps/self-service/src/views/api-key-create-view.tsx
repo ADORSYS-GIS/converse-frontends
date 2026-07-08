@@ -3,10 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   Button,
+  Callout,
   Card,
   designTokens,
   Div,
-  Heading,
+  FormField,
+  PageHeader,
   Scroll,
   Stack,
   Text,
@@ -39,18 +41,9 @@ export function ApiKeyCreateView({
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1, backgroundColor: colors.muted }}>
-      <Div
-        tone="surface"
-        width="full"
-        style={{
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          minHeight: designTokens.layout.topBarMinHeight,
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
-          paddingVertical: designTokens.spacing.topBarVertical,
-          backgroundColor: colors.surface,
-        }}>
-        <Stack direction="row" align="center" justify="between" width="full">
+      <PageHeader
+        title={t('apiKeys.new')}
+        leading={
           <Button
             variant="ghost"
             size="iconSm"
@@ -58,14 +51,8 @@ export function ApiKeyCreateView({
             accessibilityLabel={t('apiKeys.back')}>
             <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
-
-          <Heading tone="title" style={{ fontSize: designTokens.typography.compactTitle }}>
-            {t('apiKeys.new')}
-          </Heading>
-
-          <Div size="iconSm" />
-        </Stack>
-      </Div>
+        }
+      />
 
       <Scroll tone="muted" pad="none" style={{ flex: 1 }}>
         <Div
@@ -77,19 +64,20 @@ export function ApiKeyCreateView({
           <Stack gap="lg">
             {generatedSecret ? (
               <Stack gap="lg">
-                <Div tone="successSoft" rounded="xl" pad="md" width="full">
-                  <Stack direction="row" gap="sm" align="start">
+                <Callout
+                  tone="success"
+                  icon={
                     <Ionicons
                       name="checkmark-circle"
                       size={designTokens.icon.prominent}
                       color={colors.success}
                     />
-                    <Stack gap="xs" style={{ flex: 1 }}>
-                      <Text intent="bodyStrong">{t('apiKeys.createdSuccessfully')}</Text>
-                      <Text intent="caption">{t('apiKeys.securityNote')}</Text>
-                    </Stack>
+                  }>
+                  <Stack gap="xs">
+                    <Text intent="bodyStrong">{t('apiKeys.createdSuccessfully')}</Text>
+                    <Text intent="caption">{t('apiKeys.securityNote')}</Text>
                   </Stack>
-                </Div>
+                </Callout>
 
                 <OneTimeSecretCard secret={generatedSecret} onCopy={onCopy} />
 
@@ -100,8 +88,7 @@ export function ApiKeyCreateView({
             ) : (
               <Card size="md">
                 <Stack gap="md">
-                  <Stack gap="xs">
-                    <Text intent="bodyStrong">{t('apiKeys.keyLabel')}</Text>
+                  <FormField label={t('apiKeys.keyLabel')}>
                     <TextField
                       placeholder={t('apiKeys.placeholder')}
                       value={name}
@@ -117,7 +104,7 @@ export function ApiKeyCreateView({
                         }
                       }}
                     />
-                  </Stack>
+                  </FormField>
                   <Button
                     variant="primary"
                     onPress={() => onCreate(trimmedName)}

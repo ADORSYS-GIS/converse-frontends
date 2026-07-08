@@ -3,11 +3,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
 import {
+  Badge,
   Button,
+  Callout,
   Card,
   designTokens,
   Div,
-  Heading,
+  Divider,
+  EmptyState,
+  ListRow,
+  PageHeader,
   Scroll,
   SegmentedControl,
   Stack,
@@ -89,18 +94,9 @@ export function ApiKeysListView({
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
-      <Div
-        tone="surface"
-        width="full"
-        style={{
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          minHeight: designTokens.layout.topBarMinHeight,
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
-          paddingVertical: designTokens.spacing.topBarVertical,
-          backgroundColor: colors.surface,
-        }}>
-        <Stack direction="row" align="center" justify="between" width="full">
+      <PageHeader
+        title={t('apiKeys.title')}
+        leading={
           <Button
             variant="ghost"
             size="iconSm"
@@ -108,17 +104,8 @@ export function ApiKeysListView({
             accessibilityLabel={t('apiKeys.back')}>
             <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
-
-          <Heading
-            tone="title"
-            style={{
-              fontSize: designTokens.typography.compactTitle,
-              color: colors.ink,
-              fontWeight: '700',
-            }}>
-            {t('apiKeys.title')}
-          </Heading>
-
+        }
+        trailing={
           <Button
             variant="primary"
             size="icon"
@@ -128,8 +115,8 @@ export function ApiKeysListView({
             style={{ width: 36, height: 36 }}>
             <Ionicons name="add" size={designTokens.icon.nav} color={colors.surface} />
           </Button>
-        </Stack>
-      </Div>
+        }
+      />
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
@@ -166,7 +153,7 @@ export function ApiKeysListView({
                 </Stack>
               </Stack>
 
-              <Div tone="muted" height="hairline" width="full" />
+              <Divider tone="muted" />
 
               <Stack gap="xs">
                 <Text intent="bodyStrong">{t('apiKeys.projectsLabel')}</Text>
@@ -197,46 +184,54 @@ export function ApiKeysListView({
           </Card>
 
           <Card size="sm">
-            <Stack direction="row" align="center" justify="between" width="full" gap="md">
-              <Stack gap="xs" style={{ flex: 1 }}>
-                <Text intent="eyebrow">{t('apiKeys.currentProject')}</Text>
-                <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
-                  {selectedProject?.name ?? t('apiKeys.noProjectSelected')}
-                </Text>
-                <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
-                  {selectedProject
-                    ? t('apiKeys.projectMetadata', {
-                        plan: selectedProject.billing_plan,
-                        models: selectedProject.allowed_models?.length ?? 0,
-                      })
-                    : t('apiKeys.projectRequired')}
-                </Text>
-              </Stack>
-              <Button
-                variant="primary"
-                size="sm"
-                onPress={onCreate}
-                disabled={!selectedProjectId}
-                accessibilityLabel={t('apiKeys.new')}>
-                {t('apiKeys.new')}
-              </Button>
-            </Stack>
+            <ListRow
+              title={selectedProject?.name ?? t('apiKeys.noProjectSelected')}
+              subtitle={
+                selectedProject
+                  ? t('apiKeys.projectMetadata', {
+                      plan: selectedProject.billing_plan,
+                      models: selectedProject.allowed_models?.length ?? 0,
+                    })
+                  : t('apiKeys.projectRequired')
+              }
+              trailing={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onPress={onCreate}
+                  disabled={!selectedProjectId}
+                  accessibilityLabel={t('apiKeys.new')}>
+                  {t('apiKeys.new')}
+                </Button>
+              }
+            />
           </Card>
 
           <Stack gap="md">
             {isLoading && (
               <Card size="md">
-                <Stack align="center" justify="center">
-                  <Text intent="caption">{t('apiKeys.loading')}</Text>
-                </Stack>
+                <EmptyState title={t('apiKeys.loading')} />
               </Card>
             )}
 
             {!isLoading && displayItems.length === 0 && (
               <Card size="md">
-                <Stack align="center" justify="center">
-                  <Text intent="caption">{t('apiKeys.emptyState')}</Text>
-                </Stack>
+                <EmptyState
+                  icon={
+                    <Ionicons name="key-outline" size={28} color={colors.subtle} />
+                  }
+                  title={t('apiKeys.emptyState')}
+                  action={
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={onCreate}
+                      disabled={!selectedProjectId}
+                      accessibilityLabel={t('apiKeys.new')}>
+                      {t('apiKeys.new')}
+                    </Button>
+                  }
+                />
               </Card>
             )}
 
@@ -250,42 +245,36 @@ export function ApiKeysListView({
                 return (
                   <Card key={item.id} size="md">
                     <Stack gap="md">
-                      <Stack direction="row" align="center" justify="between" width="full" gap="md">
-                        <Stack
-                          gap="xs"
-                          style={{
-                            flex: 1,
-                            paddingRight: designTokens.spacing.inlineXs,
-                            overflow: 'hidden',
-                          }}>
+                      <ListRow
+                        title={
                           <Stack direction="row" align="center" gap="sm">
-                            <Text intent="bodyStrong" numberOfLines={1} ellipsizeMode="tail">
+                            <Text
+                              intent="bodyStrong"
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                              style={{ flexShrink: 1 }}>
                               {item.name}
                             </Text>
-                            <Div
-                              tone={item.status === 'active' ? 'successSoft' : 'errorSoft'}
-                              rounded="full"
-                              pad="sm"
+                            <Badge
+                              tone={isActive ? 'success' : 'error'}
                               accessibilityLabel={t(`apiKeys.status.${item.status}`)}>
-                              <Text intent={item.status === 'active' ? 'caption' : 'warning'}>
-                                {t(`apiKeys.status.${item.status}`)}
-                              </Text>
-                            </Div>
+                              {t(`apiKeys.status.${item.status}`)}
+                            </Badge>
                           </Stack>
-                          <Text intent="caption" numberOfLines={1}>
-                            {t('apiKeys.keyPrefix', { prefix: item.key_prefix })}
-                          </Text>
-                        </Stack>
-                        <Button
-                          variant="ghost"
-                          onPress={() => onDelete(item.id, item.name)}
-                          accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
-                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                          <Ionicons name="trash-outline" size={18} color={colors.error} />
-                        </Button>
-                      </Stack>
+                        }
+                        subtitle={t('apiKeys.keyPrefix', { prefix: item.key_prefix })}
+                        trailing={
+                          <Button
+                            variant="ghost"
+                            onPress={() => onDelete(item.id, item.name)}
+                            accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
+                            style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                            <Ionicons name="trash-outline" size={18} color={colors.error} />
+                          </Button>
+                        }
+                      />
 
-                      <Div tone="muted" height="hairline" width="full" />
+                      <Divider tone="muted" />
 
                       <SegmentedControl
                         width="full"
@@ -313,7 +302,7 @@ export function ApiKeysListView({
                         }}
                       />
 
-                      <Div tone="muted" height="hairline" width="full" />
+                      <Divider tone="muted" />
 
                       <Stack direction="row" gap="md" wrap="wrap" width="full">
                         <Text intent="caption">{createdLabel}</Text>
@@ -338,16 +327,17 @@ export function ApiKeysListView({
               })}
           </Stack>
 
-          <Div tone="warningSoft" rounded="xl" pad="md" width="full">
-            <Stack direction="row" gap="sm" align="start">
+          <Callout
+            tone="warning"
+            icon={
               <Ionicons
                 name="shield-checkmark"
                 size={designTokens.icon.action}
                 color={colors.secondary}
               />
-              <Text intent="warning">{t('apiKeys.securityNote')}</Text>
-            </Stack>
-          </Div>
+            }>
+            {t('apiKeys.securityNote')}
+          </Callout>
         </Stack>
       </Scroll>
 

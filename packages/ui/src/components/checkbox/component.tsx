@@ -10,7 +10,13 @@ const CheckboxBase = ExpoCheckbox as React.ComponentType<
   ExpoCheckboxProps & { className?: string }
 >;
 
-export function Checkbox({ size, disabled, value, ...props }: CheckboxProps) {
+// expo-checkbox renders its own control (a native checkbox on the web fallback),
+// so NativeWind classes on the wrapper don't reach the checked fill/border — the
+// `color` prop is the real styling lever. Default it to the brand primary so the
+// checked state reads as intentional instead of the browser-default gray.
+const DEFAULT_CHECKBOX_COLOR = '#1d5bff';
+
+export function Checkbox({ size, disabled, value, color, ...props }: CheckboxProps) {
   const resolvedValue = Boolean(value);
   const resolvedDisabled = Boolean(disabled);
 
@@ -18,6 +24,7 @@ export function Checkbox({ size, disabled, value, ...props }: CheckboxProps) {
     <CheckboxBase
       value={resolvedValue}
       disabled={resolvedDisabled}
+      color={color ?? DEFAULT_CHECKBOX_COLOR}
       className={cn(
         checkboxVariants({
           size,

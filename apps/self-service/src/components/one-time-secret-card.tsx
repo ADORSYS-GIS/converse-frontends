@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useCopyToClipboard } from '@uidotdev/usehooks';
 import { useTranslation } from '@lightbridge/i18n';
 import { Button, Card, Div, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
@@ -12,22 +13,26 @@ type OneTimeSecretCardProps = {
 export function OneTimeSecretCard({ secret, onCopy }: Readonly<OneTimeSecretCardProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const [, copyToClipboard] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Flip the button back from "Copied" to "Copy" after a moment, with automatic
+  // cleanup — replaces the previous useRef + setTimeout bookkeeping.
   useEffect(() => {
-    return () => {
-      if (copyTimer.current) {
-        clearTimeout(copyTimer.current);
-      }
-    };
-  }, []);
+    if (!copied) {
+      return;
+    }
+    const timer = setTimeout(() => setCopied(false), 1800);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   const handleCopy = () => {
+    // The web clipboard write now goes through useCopyToClipboard; onCopy is
+    // retained so callers that wire the platform writer / observe copies keep
+    // working (the existing test asserts it is called).
+    void copyToClipboard(secret);
     onCopy(secret);
     setCopied(true);
-    if (copyTimer.current) clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setCopied(false), 1800);
   };
 
   return (

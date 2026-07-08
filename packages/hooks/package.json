@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./pagination": "./src/pagination.ts"
+    "./pagination": "./src/pagination.ts",
+    "./use-query-state": "./src/use-query-state.ts"
   },
   "dependencies": {
     "@lightbridge/api-native": "workspace:*",
@@ -23,7 +24,11 @@
     "idb-keyval": "^6.2.2"
   },
   "peerDependencies": {
+    "expo-router": ">=3",
     "react": ">=18",
     "react-native": ">=0.72"
+  },
+  "devDependencies": {
+    "expo-router": "~55.0.14"
   }
 }

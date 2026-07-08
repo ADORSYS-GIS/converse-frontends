@@ -13,6 +13,7 @@ import {
   EmptyState,
   ListRow,
   PageHeader,
+  Pagination,
   Scroll,
   SegmentedControl,
   Stack,
@@ -341,46 +342,18 @@ export function ApiKeysListView({
         </Stack>
       </Scroll>
 
-      <Div
-        tone="surface"
-        width="full"
-        style={{
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
-          paddingVertical: 12,
-          backgroundColor: colors.surface,
-        }}>
-        <Stack direction="row" align="center" justify="between" width="full">
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={onPrev}
-            disabled={!canPrev}
-            style={{ opacity: canPrev ? 1 : 0.5 }}>
-            <Stack direction="row" align="center" gap="xs">
-              <Ionicons name="chevron-back" size={16} color={colors.ink} />
-              <Text intent="bodyStrong">{t('common.previous', { defaultValue: 'Previous' })}</Text>
-            </Stack>
-          </Button>
-
-          <Text intent="caption" style={{ fontWeight: '600' }}>
-            {t('common.page', { defaultValue: 'Page' })} {page}
-          </Text>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={onNext}
-            disabled={!hasMore}
-            style={{ opacity: hasMore ? 1 : 0.5 }}>
-            <Stack direction="row" align="center" gap="xs">
-              <Text intent="bodyStrong">{t('common.next', { defaultValue: 'Next' })}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.ink} />
-            </Stack>
-          </Button>
-        </Stack>
-      </Div>
+      <Pagination
+        page={page}
+        canPrev={canPrev}
+        hasMore={hasMore}
+        onPrev={onPrev}
+        onNext={onNext}
+        pageLabel={t('common.page', { defaultValue: 'Page' })}
+        previousLabel={t('common.previous', { defaultValue: 'Previous' })}
+        nextLabel={t('common.next', { defaultValue: 'Next' })}
+        prevIcon={<Ionicons name="chevron-back" size={16} color={colors.ink} />}
+        nextIcon={<Ionicons name="chevron-forward" size={16} color={colors.ink} />}
+      />
     </Div>
   );
 }

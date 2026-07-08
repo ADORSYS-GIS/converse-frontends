@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
-import { useAccounts, useApiKeys, useProjects, useRevokeApiKey } from '@lightbridge/hooks';
+import {
+  useAccounts,
+  useApiKeys,
+  usePagination,
+  useProjects,
+  useRevokeApiKey,
+} from '@lightbridge/hooks';
 import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 
@@ -11,7 +17,7 @@ const PAGE_SIZE = 10;
 export function ApiKeysScreen() {
   const { t } = useTranslation();
   const params = useLocalSearchParams<{ accountId?: string; projectId?: string }>();
-  const [offset, setOffset] = useState(0);
+  const pagination = usePagination({ pageSize: PAGE_SIZE });
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const router = useRouter();
@@ -55,36 +61,23 @@ export function ApiKeysScreen() {
   }, [projects, selectedProjectId]);
 
   const projectId = selectedProjectId ?? projects[0]?.id;
-  const { data: allItems = [], isLoading: isKeysLoading } = useApiKeys(projectId);
+  const { data: items = [], isLoading: isKeysLoading } = useApiKeys(projectId, {
+    offset: pagination.offset,
+    limit: pagination.limit,
+  });
 
-  const slicedItems = useMemo(() => {
-    return allItems.slice(offset, offset + PAGE_SIZE);
-  }, [allItems, offset]);
-
-  const hasMore = allItems.length > offset + PAGE_SIZE;
-  const canPrev = offset > 0;
-  const page = Math.floor(offset / PAGE_SIZE) + 1;
-
-  const handleNext = () => {
-    if (hasMore) {
-      setOffset((prev) => prev + PAGE_SIZE);
-    }
-  };
-
-  const handlePrev = () => {
-    if (canPrev) {
-      setOffset((prev) => Math.max(0, prev - PAGE_SIZE));
-    }
-  };
+  // No total-count from the backend, so "is there a next page" is inferred from
+  // whether this page came back full (documented heuristic — see usePagination).
+  const hasMore = pagination.hasMore(items.length);
 
   const handleSelectAccount = (id: string) => {
-    setOffset(0);
+    pagination.reset();
     setSelectedAccountId(id);
     setSelectedProjectId(null);
   };
 
   const handleSelectProject = (id: string) => {
-    setOffset(0);
+    pagination.reset();
     setSelectedProjectId(id);
   };
 
@@ -138,7 +131,7 @@ export function ApiKeysScreen() {
       projects={projects}
       selectedAccountId={accountId}
       selectedProjectId={projectId}
-      items={slicedItems}
+      items={items}
       isLoading={isAccountsLoading || isProjectsLoading || isKeysLoading}
       onBack={() => router.back()}
       onCreate={handleCreate}
@@ -147,11 +140,11 @@ export function ApiKeysScreen() {
       onRotate={handleRotate}
       onSelectAccount={handleSelectAccount}
       onSelectProject={handleSelectProject}
-      onNext={handleNext}
-      onPrev={handlePrev}
+      onNext={pagination.next}
+      onPrev={pagination.prev}
       hasMore={hasMore}
-      canPrev={canPrev}
-      page={page}
+      canPrev={pagination.canPrev}
+      page={pagination.page}
     />
   );
 }

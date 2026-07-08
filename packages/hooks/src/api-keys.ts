@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
   ApiKeyBackendApiKey,
@@ -18,27 +18,44 @@ import {
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
 
+/**
+ * Base query key for a project's API keys — the invalidation prefix. The per-page
+ * `useQuery` key appends `{ offset, limit }` on top of this, so invalidating with the
+ * bare prefix clears every cached page at once.
+ */
 export function apiKeysQueryKey(projectId: string) {
   return ['projects', projectId, 'api-keys'] as const;
 }
 
-export function useApiKeys(projectIdOverride?: string) {
+export type UseApiKeysOptions = {
+  offset?: number;
+  limit?: number;
+};
+
+export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOptions = {}) {
   const { data: currentProject, isLoading: isProjectLoading } =
     useCurrentProject(!projectIdOverride);
   const projectId = projectIdOverride ?? currentProject?.id;
   const { isAuthenticated } = useAuthSession();
 
+  const offset = options.offset ?? 0;
+  const limit = options.limit ?? 10;
+
   const query = useQuery({
-    queryKey: projectId ? apiKeysQueryKey(projectId) : ['projects', 'unknown', 'api-keys'],
+    queryKey: projectId
+      ? [...apiKeysQueryKey(projectId), { offset, limit }]
+      : ['projects', 'unknown', 'api-keys'],
     queryFn: async () => {
       if (!projectId) throw new Error('Project ID is required');
       const response = await apiKeyBackendListApiKeys<true>({
         path: { project_id: projectId },
-        query: { limit: 10, offset: 0 },
+        query: { limit, offset },
       });
       return response.data;
     },
     enabled: !!projectId && isAuthenticated,
+    // Keep the current page visible while the next one loads (no empty flash on paging).
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 

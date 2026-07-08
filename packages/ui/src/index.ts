@@ -62,6 +62,10 @@ export { ListRow, listRowVariants } from './components/list-row';
 export type { ListRowProps } from './components/list-row';
 export { PageHeader, pageHeaderVariants } from './components/page-header';
 export type { PageHeaderProps } from './components/page-header';
+// NOTE: Sheet is intentionally NOT re-exported from this barrel. It pulls in
+// @gorhom/bottom-sheet → react-native-reanimated → worklets, which crash under
+// jest and bloat any importer. Import it from the dedicated subpath instead:
+//   import { Sheet } from '@lightbridge/ui/sheet'
 export { useIsDesktop } from './hooks/use-is-desktop';
 export { AppFont, useAppFonts } from './hooks/use-app-fonts';
 export { APP_FONT_SOURCES } from './hooks/app-font-sources';

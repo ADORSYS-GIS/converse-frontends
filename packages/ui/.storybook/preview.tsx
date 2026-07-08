@@ -3,15 +3,17 @@ import type { Preview } from '@storybook/react-native-web-vite';
 
 import '../global.css';
 
+// The app renders on the `muted` page background, not pure white, so surface-toned
+// components (white cards, nav bars) only have contrast against muted. Paint the
+// canvas with the muted token per theme so stories look the way they do in the app,
+// and flip both the background and the `.dark` class from the one theme toggle.
+const MUTED_BG = { light: '#f7f7f8', dark: '#111827' } as const;
+
 const preview: Preview = {
   parameters: {
-    backgrounds: {
-      default: 'surface-light',
-      values: [
-        { name: 'surface-light', value: '#ffffff' },
-        { name: 'surface-dark', value: '#1f2937' },
-      ],
-    },
+    // The decorator owns the background so it can track the theme toggle.
+    backgrounds: { disable: true },
+    controls: { expanded: false },
   },
   globalTypes: {
     theme: {
@@ -32,9 +34,16 @@ const preview: Preview = {
   },
   decorators: [
     (Story, context) => {
-      const theme = context.globals.theme ?? 'light';
+      const isDark = (context.globals.theme ?? 'light') === 'dark';
       return (
-        <div className={theme === 'dark' ? 'dark' : ''} style={{ padding: 16 }}>
+        <div
+          className={isDark ? 'dark' : ''}
+          style={{
+            background: isDark ? MUTED_BG.dark : MUTED_BG.light,
+            padding: 24,
+            minHeight: '100vh',
+            boxSizing: 'border-box',
+          }}>
           <Story />
         </div>
       );

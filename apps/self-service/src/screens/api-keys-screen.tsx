@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   useAccounts,
   useApiKeys,
   usePagination,
   useProjects,
+  useQueryState,
   useRevokeApiKey,
 } from '@lightbridge/hooks';
 import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
@@ -16,51 +17,28 @@ const PAGE_SIZE = 10;
 
 export function ApiKeysScreen() {
   const { t } = useTranslation();
-  const params = useLocalSearchParams<{ accountId?: string; projectId?: string }>();
   const pagination = usePagination({ pageSize: PAGE_SIZE });
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
+  // survives refresh and deep-links, read straight through useQueryState — no
+  // useLocalSearchParams + useState + useEffect sync dance.
+  const [accountParam, setAccountParam] = useQueryState('accountId');
+  const [projectParam, setProjectParam] = useQueryState('projectId');
   const router = useRouter();
   const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
   const accounts: ApiKeyBackendAccount[] = accountsData;
   const revokeKey = useRevokeApiKey();
 
-  useEffect(() => {
-    if (params.accountId) {
-      setSelectedAccountId(params.accountId);
-    }
-  }, [params.accountId]);
-
-  useEffect(() => {
-    if (params.projectId) {
-      setSelectedProjectId(params.projectId);
-    }
-  }, [params.projectId]);
-
-  useEffect(() => {
-    if (!selectedAccountId && accounts[0]?.id) {
-      setSelectedAccountId(accounts[0].id);
-    }
-  }, [accounts, selectedAccountId]);
-
-  const accountId = selectedAccountId ?? accounts[0]?.id;
+  // Effective account: the URL param when set, otherwise the first account.
+  const accountId = accountParam ?? accounts[0]?.id;
   const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
   const projects: ApiKeyBackendProject[] = projectsData;
 
-  useEffect(() => {
-    if (projects.length === 0) {
-      setSelectedProjectId(null);
-      return;
-    }
+  // Effective project: the URL param when it belongs to the current account's
+  // projects, otherwise the first project (so switching account falls back
+  // cleanly even while a stale ?projectId lingers in the URL).
+  const projectParamInList = projects.some((project) => project.id === projectParam);
+  const projectId = (projectParamInList ? projectParam : undefined) ?? projects[0]?.id;
 
-    const hasSelectedProject = projects.some((project) => project.id === selectedProjectId);
-
-    if (!hasSelectedProject) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [projects, selectedProjectId]);
-
-  const projectId = selectedProjectId ?? projects[0]?.id;
   const { data: items = [], isLoading: isKeysLoading } = useApiKeys(projectId, {
     offset: pagination.offset,
     limit: pagination.limit,
@@ -72,13 +50,13 @@ export function ApiKeysScreen() {
 
   const handleSelectAccount = (id: string) => {
     pagination.reset();
-    setSelectedAccountId(id);
-    setSelectedProjectId(null);
+    setAccountParam(id);
+    setProjectParam(null);
   };
 
   const handleSelectProject = (id: string) => {
     pagination.reset();
-    setSelectedProjectId(id);
+    setProjectParam(id);
   };
 
   const handleCreate = () => {

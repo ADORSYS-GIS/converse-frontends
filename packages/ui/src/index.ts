@@ -52,6 +52,8 @@ export { Divider, dividerVariants } from './components/divider';
 export type { DividerProps } from './components/divider';
 export { EmptyState, emptyStateVariants } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
+export { FormField, formFieldVariants } from './components/form-field';
+export type { FormFieldProps } from './components/form-field';
 export { KeyValue, keyValueVariants } from './components/key-value';
 export type { KeyValueProps } from './components/key-value';
 export { ListRow, listRowVariants } from './components/list-row';

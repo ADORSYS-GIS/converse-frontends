@@ -18,7 +18,7 @@ import {
   clearPersistedAuthSession,
   getLatestAuthSession,
 } from '@lightbridge/hooks';
-import { AppFont, useAppFonts } from '@lightbridge/ui';
+import { APP_FONT_SOURCES, useAppFonts } from '@lightbridge/ui';
 import { queryClient } from '../queries';
 import { useClientInit } from '@lightbridge/api-rest';
 import { isWebPlatform } from '@lightbridge/api-native';
@@ -157,13 +157,6 @@ function AppBootstrap() {
     </>
   );
 }
-
-const APP_FONT_SOURCES = {
-  [AppFont.BakbakOne]: require('../../assets/fonts/BakbakOne_400Regular.ttf'),
-  [AppFont.EricaOne]: require('../../assets/fonts/EricaOne_400Regular.ttf'),
-  [AppFont.MontserratRegular]: require('../../assets/fonts/Montserrat_400Regular.ttf'),
-  [AppFont.MontserratSemiBold]: require('../../assets/fonts/Montserrat_600SemiBold.ttf'),
-};
 
 export default function RootLayout() {
   const fontsLoaded = useAppFonts(APP_FONT_SOURCES);

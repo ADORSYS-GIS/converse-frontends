@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -174,12 +175,14 @@ export default function RootLayout() {
   }, [fontsLoaded, runtimeReady]);
 
   return (
-    <I18nProvider>
-      <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
-        <QueryClientProvider client={queryClient}>
-          {fontsLoaded ? <AppBootstrap /> : webFallback}
-        </QueryClientProvider>
-      </RuntimeConfigProvider>
-    </I18nProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <I18nProvider>
+        <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
+          <QueryClientProvider client={queryClient}>
+            {fontsLoaded ? <AppBootstrap /> : webFallback}
+          </QueryClientProvider>
+        </RuntimeConfigProvider>
+      </I18nProvider>
+    </GestureHandlerRootView>
   );
 }

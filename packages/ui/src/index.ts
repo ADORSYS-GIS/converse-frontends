@@ -26,6 +26,8 @@ export { Page, pageVariants } from './components/page';
 export type { PageProps } from './components/page';
 export { Scroll, scrollContentVariants, scrollVariants } from './components/scroll';
 export type { ScrollProps } from './components/scroll';
+export { Select, selectVariants } from './components/select';
+export type { SelectOption, SelectProps } from './components/select';
 export { SectionCard, sectionCardVariants, sectionTitleVariants } from './components/section-card';
 export type { SectionCardProps } from './components/section-card';
 export {
@@ -52,6 +54,8 @@ export { Divider, dividerVariants } from './components/divider';
 export type { DividerProps } from './components/divider';
 export { EmptyState, emptyStateVariants } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
+export { FormField, formFieldVariants } from './components/form-field';
+export type { FormFieldProps } from './components/form-field';
 export { KeyValue, keyValueVariants } from './components/key-value';
 export type { KeyValueProps } from './components/key-value';
 export { ListRow, listRowVariants } from './components/list-row';

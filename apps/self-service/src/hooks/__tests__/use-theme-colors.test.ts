@@ -16,8 +16,8 @@ describe('useThemeColors', () => {
 
     const { result } = await renderHook(() => useThemeColors());
 
-    expect(result.current.surface).toBe('rgb(31 41 55)');
-    expect(result.current.border).toBe('rgb(55 65 81)');
+    expect(result.current.surface).toBe('rgb(24 28 34)');
+    expect(result.current.border).toBe('rgb(42 47 55)');
   });
 
   it('resolves the light palette when the system scheme is light', async () => {
@@ -26,7 +26,7 @@ describe('useThemeColors', () => {
     const { result } = await renderHook(() => useThemeColors());
 
     expect(result.current.surface).toBe('rgb(255 255 255)');
-    expect(result.current.border).toBe('rgb(229 231 235)');
+    expect(result.current.border).toBe('rgb(230 232 236)');
   });
 
   it('falls back to the light palette when the system scheme is unavailable', async () => {

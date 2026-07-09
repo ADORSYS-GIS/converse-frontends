@@ -32,13 +32,23 @@ export function Pagination({
       className={cn(paginationVariants({ border }))}
       style={[
         {
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
           paddingVertical: 12,
         },
         style,
       ]}
       {...props}>
-      <Stack direction="row" align="center" justify="between" width="full">
+      {/* Bar spans full width; controls center to the content column so the
+          footer aligns with the page header and body on wide screens. */}
+      <Stack
+        direction="row"
+        align="center"
+        justify="between"
+        width="full"
+        style={{
+          maxWidth: designTokens.layout.maxContentWidth,
+          marginHorizontal: 'auto',
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
+        }}>
         <Button
           variant="ghost"
           size="sm"

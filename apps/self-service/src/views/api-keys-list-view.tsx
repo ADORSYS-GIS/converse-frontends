@@ -15,7 +15,6 @@ import {
   PageHeader,
   Pagination,
   Scroll,
-  SegmentedControl,
   Stack,
   Text,
 } from '@lightbridge/ui';
@@ -140,7 +139,7 @@ export function ApiKeysListView({
                       return (
                         <Button
                           key={account.id}
-                          variant={isSelected ? 'primary' : 'neutral'}
+                          variant={isSelected ? 'brandSoft' : 'neutral'}
                           size="sm"
                           onPress={() => onSelectAccount(account.id)}
                           accessibilityLabel={t('apiKeys.selectAccount', {
@@ -168,7 +167,7 @@ export function ApiKeysListView({
                       return (
                         <Button
                           key={project.id}
-                          variant={isSelected ? 'primary' : 'neutral'}
+                          variant={isSelected ? 'brandSoft' : 'neutral'}
                           size="sm"
                           onPress={() => onSelectProject(project.id)}
                           accessibilityLabel={t('apiKeys.selectProject', {
@@ -277,31 +276,30 @@ export function ApiKeysListView({
 
                       <Divider tone="muted" />
 
-                      <SegmentedControl
-                        width="full"
-                        value=""
-                        options={[
-                          {
-                            key: 'revoke',
-                            label: t('apiKeys.revoke'),
-                            accessibilityLabel: t('apiKeys.revokeNamed', { name: item.name }),
-                            disabled: !isActive,
-                          },
-                          {
-                            key: 'rotate',
-                            label: t('apiKeys.rotate'),
-                            accessibilityLabel: t('apiKeys.rotateNamed', { name: item.name }),
-                            disabled: !isActive,
-                          },
-                        ]}
-                        onChange={(key) => {
-                          if (key === 'revoke') {
-                            onRevoke(item.id, item.name);
-                          } else if (key === 'rotate') {
-                            onRotate(item.id, item.name);
-                          }
-                        }}
-                      />
+                      {/* Two discrete actions — a segmented control implies a
+                          persistent selection, which these aren't. Rotate is
+                          neutral; Revoke is destructive (error-tinted label). */}
+                      <Stack direction="row" gap="sm" width="full">
+                        <Button
+                          variant="neutral"
+                          size="sm"
+                          disabled={!isActive}
+                          onPress={() => onRotate(item.id, item.name)}
+                          accessibilityLabel={t('apiKeys.rotateNamed', { name: item.name })}
+                          style={{ flex: 1 }}>
+                          {t('apiKeys.rotate')}
+                        </Button>
+                        <Button
+                          variant="neutral"
+                          size="sm"
+                          disabled={!isActive}
+                          onPress={() => onRevoke(item.id, item.name)}
+                          accessibilityLabel={t('apiKeys.revokeNamed', { name: item.name })}
+                          textProps={{ style: { color: colors.error } }}
+                          style={{ flex: 1 }}>
+                          {t('apiKeys.revoke')}
+                        </Button>
+                      </Stack>
 
                       <Divider tone="muted" />
 

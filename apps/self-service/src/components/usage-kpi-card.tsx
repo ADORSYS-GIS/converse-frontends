@@ -14,23 +14,19 @@ export function UsageKpiCard({ label, value, icon, variant = 'default', tone = '
 
   if (isBrand) {
     return (
-      <Div 
-        tone="brand" 
-        rounded="xl" 
-        shadow="lg" 
-        pad="lg" 
-        width="full"
-      >
-        <Stack gap="md">
-          <Stack direction="row" justify="between" align="center" width="full">
-            <Text intent="inverseBodyStrong">{label}</Text>
-            {icon}
+      <Card size="md">
+        <Stack direction="row" justify="between" align="start" width="full">
+          <Stack gap="xs" style={{ flex: 1 }}>
+            <Text intent="eyebrow">{label}</Text>
+            <Text intent="display">{value}</Text>
           </Stack>
-          <Stack gap="xs">
-            <Text intent="inverseValue">{value}</Text>
-          </Stack>
+          {icon ? (
+            <Div tone={tone} rounded="full" size="iconMd" align="center" justify="center">
+              {icon}
+            </Div>
+          ) : null}
         </Stack>
-      </Div>
+      </Card>
     );
   }
 

@@ -209,19 +209,18 @@ export function HomeView({
           </Stack>
         </Card>
 
-        <Div tone="brand" rounded="xl" shadow="lg" pad="lg" width="full">
-          <Stack gap="md">
-            <Stack direction="row" justify="between" align="center" width="full">
-              <Text intent="inverseBodyStrong">{t('home.currentUsage')}</Text>
-              <Ionicons name="stats-chart" size={18} color={colors.surface} />
+        <Card size="md">
+          <Stack direction="row" justify="between" align="start" width="full">
+            <Stack gap="xs" style={{ flex: 1 }}>
+              <Text intent="eyebrow">{t('home.currentUsage')}</Text>
+              <Text intent="display">${usedRequests.toFixed(2)}</Text>
+              <Text intent="caption">{summaryLabel}</Text>
             </Stack>
-
-            <Stack gap="xs">
-              <Text intent="inverseValue">${usedRequests.toFixed(2)}</Text>
-              <Text intent="inverseCaption">{summaryLabel}</Text>
-            </Stack>
+            <Div tone="brandSoft" rounded="full" size="iconMd" align="center" justify="center">
+              <Ionicons name="stats-chart" size={designTokens.icon.action} color={colors.primary} />
+            </Div>
           </Stack>
-        </Div>
+        </Card>
 
         <Stack gap="md">
           <Text intent="eyebrow">{t('home.quickActions.title')}</Text>

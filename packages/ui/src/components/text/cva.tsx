@@ -9,6 +9,9 @@ export const textVariants = cva('text-ink', {
       bodyStrong: 'text-base font-semibold text-ink',
       key: 'text-sm text-subtle',
       value: 'text-2xl font-semibold text-ink',
+      // Hero metric — the big number on a calm surface card (replaces the old
+      // full-bleed inverseValue banners). Ink, not surface-white.
+      display: 'text-3xl font-bold tracking-tight text-ink',
       caption: 'text-sm text-subtle',
       link: 'text-sm font-semibold text-primary',
       warning: 'text-sm text-secondary',

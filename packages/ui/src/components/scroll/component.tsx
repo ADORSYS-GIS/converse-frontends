@@ -9,10 +9,10 @@ import type { ScrollProps } from './types';
 const ScrollBase = ScrollView as React.ComponentType<ScrollViewProps & { className?: string }>;
 const ViewBase = View as React.ComponentType<ViewProps & { className?: string }>;
 
-export function Scroll({ tone, pad, children, ...props }: ScrollProps) {
+export function Scroll({ tone, pad, container, children, ...props }: ScrollProps) {
   return (
     <ScrollBase className={cn(scrollVariants({ tone }))} {...props}>
-      <ViewBase className={cn(scrollContentVariants({ pad }))}>{children}</ViewBase>
+      <ViewBase className={cn(scrollContentVariants({ pad, container }))}>{children}</ViewBase>
     </ScrollBase>
   );
 }

@@ -7,7 +7,7 @@ import {
   Card,
   designTokens,
   Div,
-  Heading,
+  PageHeader,
   Scroll,
   SegmentedControl,
   Stack,
@@ -331,19 +331,13 @@ export function McpBuilderView({
   };
 
   return (
-    <Div tone="muted" width="full" style={{ flex: 1, backgroundColor: colors.muted }}>
-      <Div
-        tone="surface"
-        width="full"
-        style={{
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          minHeight: designTokens.layout.topBarMinHeight,
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
-          paddingVertical: designTokens.spacing.topBarVertical,
-          backgroundColor: colors.surface,
-        }}>
-        <Stack direction="row" align="center" justify="between" width="full">
+    <Div tone="muted" width="full" style={{ flex: 1 }}>
+      {/* Shared PageHeader — centers its content to the same column as the body,
+          so the title aligns with the page below on wide screens. */}
+      <PageHeader
+        border
+        title={t('apiKeyBuilder.title')}
+        leading={
           <Button
             variant="ghost"
             size="iconSm"
@@ -351,20 +345,8 @@ export function McpBuilderView({
             accessibilityLabel={t('apiKeyBuilder.back')}>
             <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
-
-          <Heading
-            tone="title"
-            style={{
-              fontSize: designTokens.typography.compactTitle,
-              color: colors.ink,
-              fontWeight: '700',
-            }}>
-            {t('apiKeyBuilder.title')}
-          </Heading>
-
-          <Div size="iconSm" />
-        </Stack>
-      </Div>
+        }
+      />
 
       <Scroll tone="muted" pad="none" style={{ flex: 1 }}>
         <Div

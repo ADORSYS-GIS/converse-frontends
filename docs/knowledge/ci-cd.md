@@ -31,6 +31,17 @@ Trigger: push to main / tagged branch / v* tag / workflow_dispatch
    Build & push multi-platform image (linux/amd64, linux/arm64)
 ```
 
+### 1b. Helm Chart Publish (`publish-charts-oci.yml`)
+
+On merge to `main` (paths `charts/**`), each application chart under `charts/` is
+packaged and pushed to GHCR as an OCI artifact at
+`oci://ghcr.io/adorsys-gis/converse-frontends/charts/<name>` (no gh-pages Helm
+repo). The chart version is derived at publish time — `MAJOR.MINOR` from
+`Chart.yaml` plus a patch equal to the commit count touching the chart dir — so it
+is monotonic and never committed back. Publishing is idempotent (skips a version
+already in the registry). Authenticates with the built-in `GITHUB_TOKEN` +
+`permissions: { packages: write }`, same as the image workflow.
+
 ### 2. Agentic Code Review Workflows
 
 Several workflows power an AI-assisted review system:
@@ -89,7 +100,11 @@ This caches Docker build layers between runs. The pnpm dependency install step i
 | Development / Preview | Push to any branch | `ghcr.io/...:<branch-name>` |
 | Production | Push `v*` tag to `main` | `ghcr.io/...:v<semver>` |
 
-Deployment to Kubernetes is **not automated** in the current GitHub Actions workflows — it is performed manually or via a separate GitOps process using the Helm chart in `charts/converse-frontend/`.
+Deployment to Kubernetes is driven by a separate GitOps process (ArgoCD in the
+`ai-helm` repo). Its `converse-ui` Application consumes the chart published to
+`oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend` and floats
+on a semver range, while `argocd-image-updater` tracks the container image tag.
+For local/manual work, install the chart from `charts/converse-frontend/`.
 
 Rollback: re-deploy a previous image tag via Helm. See `runbooks.md` for the rollback procedure.
 

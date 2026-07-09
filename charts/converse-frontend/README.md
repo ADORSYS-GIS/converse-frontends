@@ -2,6 +2,29 @@
 
 This chart deploys the Converse Frontend UI (static web app served by nginx).
 
+## Published location (OCI)
+
+On every merge to `main`, this chart is packaged and pushed to GHCR as an OCI
+artifact (there is no gh-pages Helm repo):
+
+```
+oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend
+```
+
+Versions are `MAJOR.MINOR` from `Chart.yaml` plus a patch derived from the commit
+count touching the chart directory (monotonic, clean `X.Y.Z`). Pull a specific
+version with `--version`, or omit it to get the latest:
+
+```bash
+helm show chart oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend
+helm upgrade --install -n ai converse-frontend \
+  oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend \
+  -f my-values.yaml
+```
+
+The examples below use the local path (`./charts/converse-frontend`) for
+development; substitute the OCI reference above to deploy a published version.
+
 ## Required runtime configuration
 
 The frontend reads a runtime configuration from `GET /config.json` (generated from a template at container startup).

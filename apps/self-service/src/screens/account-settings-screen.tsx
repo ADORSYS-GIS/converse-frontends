@@ -2,12 +2,15 @@ import React from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import { useAuthSession, useCurrentAccount, useUpdateAccount } from '@lightbridge/hooks';
+import { useSheet } from '@lightbridge/ui/sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
+import { DeleteAccountSheet } from './delete-account-sheet';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
 export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?: boolean }>) {
   const { t } = useTranslation();
   const router = useRouter();
+  const sheet = useSheet();
   const config = useRuntimeConfig();
   const { session } = useAuthSession();
   const { data: currentAccount } = useCurrentAccount();
@@ -38,11 +41,11 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
 
   const handleDeleteAccount = () => {
     if (!currentAccount?.id) return;
-    router.push(
-      `/delete-account?id=${encodeURIComponent(currentAccount.id)}&name=${encodeURIComponent(
-        currentAccount.billing_identity
-      )}`
-    );
+    const accountId = currentAccount.id;
+    const accountName = currentAccount.billing_identity;
+    sheet.present(({ dismiss }) => (
+      <DeleteAccountSheet id={accountId} name={accountName} onClose={dismiss} />
+    ));
   };
 
   return (

@@ -11,12 +11,16 @@ import {
   useRevokeApiKey,
 } from '@lightbridge/hooks';
 import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
+import { useSheet } from '@lightbridge/ui/sheet';
 import { ApiKeysListView } from '../views/api-keys-list-view';
+import { DeleteApiKeySheet } from './delete-api-key-sheet';
+import { RotateApiKeySheet } from './rotate-api-key-sheet';
 
 const PAGE_SIZE = 10;
 
 export function ApiKeysScreen() {
   const { t } = useTranslation();
+  const sheet = useSheet();
   const pagination = usePagination({ pageSize: PAGE_SIZE });
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links, read straight through useQueryState — no
@@ -69,17 +73,15 @@ export function ApiKeysScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    const projectQuery = projectId ? `&projectId=${encodeURIComponent(projectId)}` : '';
-    router.push(
-      `/delete-api-key?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}${projectQuery}`
-    );
+    sheet.present(({ dismiss }) => (
+      <DeleteApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
+    ));
   };
 
   const handleRotate = (id: string, name: string) => {
-    const projectQuery = projectId ? `&projectId=${encodeURIComponent(projectId)}` : '';
-    router.push(
-      `/rotate-api-key?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}${projectQuery}`
-    );
+    sheet.present(({ dismiss }) => (
+      <RotateApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
+    ));
   };
 
   const handleRevoke = (id: string, name: string) => {

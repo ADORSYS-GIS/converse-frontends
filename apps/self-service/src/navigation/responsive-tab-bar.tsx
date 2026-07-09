@@ -35,12 +35,14 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   if (isDesktop) {
     return (
       <NavContainer placement="sidebar">
-        <Stack gap="sm" align="center">
+        <Stack gap="xs" align="stretch">
           {state.routes.map((route, index) => {
             const label = getLabel(route.key, route.name);
             const isFocused = state.index === index;
             const iconName = getIconName(route.name, isFocused);
-            const iconColor = isFocused ? colors.surface : colors.subtle;
+            // Match the caption colours: filled pill → surface icon, otherwise
+            // the same `soft` tone as the label beneath it.
+            const iconColor = isFocused ? colors.surface : colors.soft;
 
             return (
               <NavItem
@@ -48,7 +50,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
                 placement="sidebar"
                 active={isFocused}
                 label={label}
-                showLabel={false}
+                showLabel
                 accessibilityLabel={label}
                 icon={
                   iconName ? (

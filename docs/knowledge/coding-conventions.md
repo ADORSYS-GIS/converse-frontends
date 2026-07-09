@@ -45,7 +45,7 @@ converse-frontends/
 │   ├── api-native/           # Native API utilities
 │   ├── hooks/                # Shared hooks (auth, usage, projects, accounts, API keys)
 │   ├── i18n/                 # Translation resources
-│   └── ui/                   # Shared design-system components
+│   └── ui/                   # Shared design-system components (see design-system-theming.md)
 ├── openapi/                  # OpenAPI specs — source of truth for backend
 ├── docs/knowledge/           # Agent-readable knowledge base
 └── charts/                   # Helm chart for Kubernetes deployment

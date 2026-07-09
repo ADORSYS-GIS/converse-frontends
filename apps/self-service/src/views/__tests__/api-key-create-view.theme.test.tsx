@@ -25,8 +25,8 @@ describe('ApiKeyCreateView theme', () => {
     const view = await render(<ApiKeyCreateView onBack={noop} onCreate={noop} onCopy={noop} />);
 
     const tree = JSON.stringify(view.toJSON());
-    expect(tree).toContain('rgb(96 165 250)'); // dark primary (inline via useThemeColors)
-    expect(tree).not.toContain('rgb(29 91 255)'); // light primary must not leak in
+    expect(tree).toContain('rgb(125 160 255)'); // dark primary (inline via useThemeColors)
+    expect(tree).not.toContain('rgb(62 99 221)'); // light primary must not leak in
   });
 
   it('renders with the light palette when the system scheme is light', async () => {
@@ -35,7 +35,7 @@ describe('ApiKeyCreateView theme', () => {
     const view = await render(<ApiKeyCreateView onBack={noop} onCreate={noop} onCopy={noop} />);
 
     const tree = JSON.stringify(view.toJSON());
-    expect(tree).toContain('rgb(29 91 255)'); // light primary (inline via useThemeColors)
-    expect(tree).not.toContain('rgb(96 165 250)'); // dark primary must not leak in
+    expect(tree).toContain('rgb(62 99 221)'); // light primary (inline via useThemeColors)
+    expect(tree).not.toContain('rgb(125 160 255)'); // dark primary must not leak in
   });
 });

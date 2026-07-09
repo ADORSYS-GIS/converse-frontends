@@ -20,12 +20,22 @@ No staging environment is defined in the codebase. Production is the only declar
 
 The frontend is deployed to Kubernetes via a **Helm chart** located at `charts/converse-frontend/`.
 
+On merge to `main`, the chart is published to GHCR as an OCI artifact at
+`oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend` (see the
+`publish-charts-oci.yml` workflow — there is no gh-pages Helm repo). GitOps
+consumers (e.g. ai-helm's `converse-ui` Application) float on a semver range and
+pull the newest published version.
+
 ```bash
-# Example: install/upgrade
-helm upgrade --install converse-frontend ./charts/converse-frontend \
+# Example: install/upgrade from the published OCI chart
+helm upgrade --install converse-frontend \
+  oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend \
   --set conversefrontend.controllers.main.containers.frontend.image.tag=<tag> \
   --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_BACKEND_URL=<url> \
   ...
+
+# During development, install from the local path instead:
+#   helm upgrade --install converse-frontend ./charts/converse-frontend ...
 ```
 
 The chart uses **app-template** style values (from the `conversefrontend` key). Key Helm values:

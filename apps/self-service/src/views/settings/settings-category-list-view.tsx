@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import { Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../../hooks/use-theme-colors';
+import { ThemeToggle } from '../../components/theme-toggle';
 import type { SettingsCategory, SettingsCategoryKey } from '../../navigation/settings-categories';
 
 type SettingsCategoryListViewProps = {
@@ -67,6 +68,7 @@ export function SettingsCategoryListView({
         <Stack gap="md">
           <Text intent="eyebrow">{t('settings.title')}</Text>
           {content}
+          <ThemeToggle />
         </Stack>
       </Div>
     );
@@ -86,6 +88,9 @@ export function SettingsCategoryListView({
         {/* Group the categories into a single card so the index reads as an
             intentional list rather than a lone row floating in the column. */}
         <Card size="sm">{content}</Card>
+        <Card size="sm">
+          <ThemeToggle />
+        </Card>
       </Stack>
     </Scroll>
   );

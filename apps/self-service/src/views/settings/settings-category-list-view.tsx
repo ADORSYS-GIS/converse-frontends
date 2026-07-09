@@ -1,7 +1,7 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
-import { designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import { Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import type { SettingsCategory, SettingsCategoryKey } from '../../navigation/settings-categories';
 
@@ -75,8 +75,17 @@ export function SettingsCategoryListView({
   return (
     <Scroll tone="muted" pad="md">
       <Stack gap="lg">
-        <Heading tone="title">{t('settings.title')}</Heading>
-        {content}
+        <Stack gap="xs">
+          <Heading tone="title">{t('settings.title')}</Heading>
+          <Text intent="body">
+            {t('settings.subtitle', {
+              defaultValue: 'Manage your account, billing, and preferences.',
+            })}
+          </Text>
+        </Stack>
+        {/* Group the categories into a single card so the index reads as an
+            intentional list rather than a lone row floating in the column. */}
+        <Card size="sm">{content}</Card>
       </Stack>
     </Scroll>
   );

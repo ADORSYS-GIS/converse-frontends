@@ -20,31 +20,36 @@ module.exports = {
   plugins: [
     ({ addBase }) =>
       addBase({
+        // Recalibrated palette: one calm-but-confident accent (#3E63DD, was the
+        // electric #1D5BFF) reserved for actions/links/active state — never used
+        // as full-bleed fills. Neutrals carry a deliberate cool-slate bias so
+        // they read as chosen, not defaulted. Semantic hues sit apart from the
+        // accent and are lightly desaturated.
         ':root': {
-          '--color-primary': '29 91 255',
-          '--color-secondary': '249 115 22',
-          '--color-accent': '124 58 237',
-          '--color-error': '239 68 68',
-          '--color-success': '16 185 129',
-          '--color-ink': '17 24 39',
-          '--color-soft': '107 114 128',
-          '--color-subtle': '156 163 175',
-          '--color-muted': '247 247 248',
-          '--color-surface': '255 255 255',
-          '--color-border': '229 231 235',
+          '--color-primary': '62 99 221', // #3E63DD
+          '--color-secondary': '219 122 52', // #DB7A34
+          '--color-accent': '107 79 214', // #6B4FD6
+          '--color-error': '221 75 75', // #DD4B4B
+          '--color-success': '47 158 107', // #2F9E6B
+          '--color-ink': '21 26 33', // #151A21
+          '--color-soft': '91 100 114', // #5B6472
+          '--color-subtle': '154 162 175', // #9AA2AF
+          '--color-muted': '245 246 248', // #F5F6F8
+          '--color-surface': '255 255 255', // #FFFFFF
+          '--color-border': '230 232 236', // #E6E8EC
         },
         '.dark': {
-          '--color-primary': '96 165 250',
-          '--color-secondary': '251 146 60',
-          '--color-accent': '167 139 250',
-          '--color-error': '248 113 113',
-          '--color-success': '52 211 153',
-          '--color-ink': '243 244 246',
-          '--color-soft': '209 213 219',
-          '--color-subtle': '156 163 175',
-          '--color-muted': '17 24 39',
-          '--color-surface': '31 41 55',
-          '--color-border': '55 65 81',
+          '--color-primary': '125 160 255', // #7DA0FF
+          '--color-secondary': '224 151 90', // #E0975A
+          '--color-accent': '164 139 240', // #A48BF0
+          '--color-error': '240 115 111', // #F0736F
+          '--color-success': '70 197 139', // #46C58B
+          '--color-ink': '232 234 237', // #E8EAED
+          '--color-soft': '162 171 184', // #A2ABB8
+          '--color-subtle': '107 114 128', // #6B7280
+          '--color-muted': '15 18 22', // #0F1216
+          '--color-surface': '24 28 34', // #181C22
+          '--color-border': '42 47 55', // #2A2F37
         },
       }),
   ],

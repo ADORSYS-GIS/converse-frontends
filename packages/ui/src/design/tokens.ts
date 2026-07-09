@@ -7,6 +7,9 @@ export const designTokens = {
     topBarMinHeight: 58,
     bottomNavClearance: 100,
     formFooterClearance: 140,
+    // Content sits in a centered column of this max width on wide screens, so
+    // nothing goes full-bleed on desktop; below it, content is edge-to-edge.
+    maxContentWidth: 1040,
   },
   icon: {
     nav: 22,

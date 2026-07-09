@@ -26,29 +26,38 @@ export function PageHeader({
       style={[
         {
           minHeight: designTokens.layout.topBarMinHeight,
-          paddingHorizontal: designTokens.spacing.topBarHorizontal,
           paddingVertical: designTokens.spacing.topBarVertical,
         },
         style,
       ]}
       {...props}>
-      <Stack direction="row" align="center" gap="sm" width="full">
-        {leading}
-        <Stack style={{ flex: 1 }}>
-          <Text
-            intent="bodyStrong"
-            numberOfLines={1}
-            style={{ fontSize: designTokens.typography.compactTitle }}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text intent="caption" numberOfLines={1}>
-              {subtitle}
+      {/* Bar spans full width; its content is centered to the same column as the
+          page body so the title aligns with the content below on wide screens. */}
+      <ViewBase
+        style={{
+          width: '100%',
+          maxWidth: designTokens.layout.maxContentWidth,
+          marginHorizontal: 'auto',
+          paddingHorizontal: designTokens.spacing.topBarHorizontal,
+        }}>
+        <Stack direction="row" align="center" gap="sm" width="full">
+          {leading}
+          <Stack style={{ flex: 1 }}>
+            <Text
+              intent="bodyStrong"
+              numberOfLines={1}
+              style={{ fontSize: designTokens.typography.compactTitle }}>
+              {title}
             </Text>
-          ) : null}
+            {subtitle ? (
+              <Text intent="caption" numberOfLines={1}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </Stack>
+          {trailing}
         </Stack>
-        {trailing}
-      </Stack>
+      </ViewBase>
     </ViewBase>
   );
 }

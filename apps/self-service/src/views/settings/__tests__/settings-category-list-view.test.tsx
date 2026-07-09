@@ -4,14 +4,19 @@ import { initI18n } from '@lightbridge/i18n';
 
 import { SettingsCategoryListView } from '../settings-category-list-view';
 import { settingsCategories } from '../../../navigation/settings-categories';
+import { ThemePreferenceProvider } from '../../../theme/theme-preference';
 
 beforeAll(() => {
   initI18n('en');
 });
 
+// The view now embeds <ThemeToggle/>, which reads the ThemePreference context.
+const renderView = (ui: React.ReactElement) =>
+  render(ui, { wrapper: ThemePreferenceProvider });
+
 describe('SettingsCategoryListView', () => {
   it('renders each category label', async () => {
-    await render(
+    await renderView(
       <SettingsCategoryListView categories={settingsCategories} onSelect={() => undefined} />
     );
 
@@ -20,7 +25,9 @@ describe('SettingsCategoryListView', () => {
 
   it('calls onSelect with the pressed category', async () => {
     const onSelect = jest.fn();
-    await render(<SettingsCategoryListView categories={settingsCategories} onSelect={onSelect} />);
+    await renderView(
+      <SettingsCategoryListView categories={settingsCategories} onSelect={onSelect} />
+    );
 
     await fireEvent.press(screen.getByText('Account'));
 
@@ -28,7 +35,7 @@ describe('SettingsCategoryListView', () => {
   });
 
   it('marks the active category as selected in rail variant', async () => {
-    await render(
+    await renderView(
       <SettingsCategoryListView
         categories={settingsCategories}
         activeKey="account"
@@ -41,7 +48,7 @@ describe('SettingsCategoryListView', () => {
   });
 
   it('does not mark any category as selected in list variant (no activeKey)', async () => {
-    await render(
+    await renderView(
       <SettingsCategoryListView categories={settingsCategories} onSelect={() => undefined} />
     );
 

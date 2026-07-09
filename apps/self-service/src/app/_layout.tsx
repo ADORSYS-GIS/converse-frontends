@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
-import { Alert, useColorScheme } from 'react-native';
+import { Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +25,7 @@ import { useClientInit } from '@lightbridge/api-rest';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
+import { ThemePreferenceProvider } from '../theme/theme-preference';
 
 WebBrowser.maybeCompleteAuthSession();
 enableScreens();
@@ -162,20 +163,7 @@ function AppBootstrap() {
 export default function RootLayout() {
   const fontsLoaded = useAppFonts(APP_FONT_SOURCES);
   const [runtimeReady, setRuntimeReady] = useState(false);
-  const colorScheme = useColorScheme();
   const webFallback = isWebPlatform() ? <AppSplashView /> : null;
-
-  // Keep the NativeWind class-based dark theme (className tokens → CSS variables)
-  // in lockstep with useColorScheme, which also drives useThemeColors' inline
-  // colors. Without this the two desync on web — the class is never applied, so
-  // className tokens stay light while inline colors follow the OS, producing the
-  // "half-dark" split (e.g. the MCP builder rendering as a dark island).
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-    document.documentElement.classList.toggle('dark', colorScheme === 'dark');
-  }, [colorScheme]);
 
   const handleRuntimeReady = React.useCallback(() => {
     setRuntimeReady(true);
@@ -189,13 +177,15 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <I18nProvider>
-        <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
-          <QueryClientProvider client={queryClient}>
-            {fontsLoaded ? <AppBootstrap /> : webFallback}
-          </QueryClientProvider>
-        </RuntimeConfigProvider>
-      </I18nProvider>
+      <ThemePreferenceProvider>
+        <I18nProvider>
+          <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
+            <QueryClientProvider client={queryClient}>
+              {fontsLoaded ? <AppBootstrap /> : webFallback}
+            </QueryClientProvider>
+          </RuntimeConfigProvider>
+        </I18nProvider>
+      </ThemePreferenceProvider>
     </GestureHandlerRootView>
   );
 }

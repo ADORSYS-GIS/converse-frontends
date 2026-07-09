@@ -1,2 +1,12 @@
 export { Sheet } from './component';
-export type { SheetHandle, SheetProps } from './types';
+export { SheetProvider } from './provider';
+export { useSheet } from './use-sheet';
+export type {
+  SheetApi,
+  SheetHandle,
+  SheetHelpers,
+  SheetOptions,
+  SheetProps,
+  SheetProviderProps,
+  SheetRender,
+} from './types';

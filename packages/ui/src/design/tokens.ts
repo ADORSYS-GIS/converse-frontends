@@ -3,7 +3,10 @@ export const designTokens = {
     desktop: 1024,
   },
   layout: {
-    navRailWidth: 72,
+    // Desktop side rail is a labelled icon rail (icon + caption stacked), so it
+    // needs a little more width than a bare icon strip. Keep in sync with the
+    // `sidebar` width in components/nav-container/cva.tsx.
+    navRailWidth: 88,
     topBarMinHeight: 58,
     bottomNavClearance: 100,
     formFooterClearance: 140,

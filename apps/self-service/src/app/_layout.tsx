@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -26,6 +26,7 @@ import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
 import { ThemePreferenceProvider } from '../theme/theme-preference';
+import { AppSheetProvider } from '../navigation/app-sheet-provider';
 
 WebBrowser.maybeCompleteAuthSession();
 enableScreens();
@@ -33,7 +34,7 @@ void SplashScreen.preventAutoHideAsync();
 
 function AppBootstrap() {
   const runtimeConfig = useRuntimeConfig();
-  const { isAuthenticated, session, isTokenExpired } = useAuthSession();
+  const { isAuthenticated, session } = useAuthSession();
   const { isHydrated } = useAuthHydration();
 
   const handleRefreshAuth = async () => {
@@ -92,69 +93,33 @@ function AppBootstrap() {
   useBackendSync();
   useLocaleSync();
 
-  const segments = useSegments();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-
-    const [first] = segments;
-    const inAuthGroup =
-      pathname === '/login' ||
-      pathname?.startsWith('/login/') ||
-      segments.includes('(auth)') ||
-      first === 'login';
-    const inHelpRoute =
-      pathname === '/help' || pathname?.startsWith('/help/') || segments.includes('help');
-    const inApiKeysRoute =
-      pathname === '/api-keys/new' ||
-      pathname?.startsWith('/api-keys/') ||
-      pathname === '/delete-api-key' ||
-      pathname?.startsWith('/delete-api-key');
-    const inSettingsStandaloneRoute =
-      pathname === '/settings-account' ||
-      pathname?.startsWith('/settings-account') ||
-      pathname === '/delete-account' ||
-      pathname?.startsWith('/delete-account');
-    const inTabsGroup = segments.includes('(tabs)');
-
-    if (!isAuthenticated && !inAuthGroup && !inHelpRoute) {
-      router.replace('/login');
-      return;
-    }
-
-    if (
-      isAuthenticated &&
-      !inTabsGroup &&
-      !inHelpRoute &&
-      !inApiKeysRoute &&
-      !inSettingsStandaloneRoute
-    ) {
-      router.replace('/home');
-      return;
-    }
-
-    // Only clear session if we are definitely NOT authenticated and NOT in auth group
-    // The actual token refresh failure is handled by useClientInit's onRefreshFailure
-    if (!isAuthenticated && !inAuthGroup && !inHelpRoute) {
-      router.replace('/login');
-    }
-  }, [
-    isAuthenticated,
-    isHydrated,
-    pathname,
-    router,
-    segments,
-    isTokenExpired,
-    session.tokens?.expiresAt,
-  ]);
+  // Declarative auth guard. `Stack.Protected` mounts a group of screens only
+  // while its `guard` is true; when a guard flips false under the user's feet
+  // (login, logout, token-refresh failure), expo-router falls back to the anchor
+  // route — `index` — which redirects to `/home` or `/login`. This replaces the
+  // former hand-matched pathname allow-list, so adding a screen no longer means
+  // editing a redirect effect. `help` stays outside both groups: it must be
+  // reachable pre-auth (from the login screen) and post-auth alike.
+  //
+  // Guards stay open (`!isHydrated || …`) until the persisted session has
+  // hydrated, so a cold start never flashes login before auth state is known.
+  const authed = !isHydrated || isAuthenticated;
+  const unauthed = !isHydrated || !isAuthenticated;
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="help" />
+        <Stack.Protected guard={unauthed}>
+          <Stack.Screen name="(auth)/login" />
+        </Stack.Protected>
+        <Stack.Protected guard={authed}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="api-keys/new" />
+          <Stack.Screen name="settings-account" />
+        </Stack.Protected>
+      </Stack>
       <StatusBar style="auto" />
     </>
   );
@@ -181,7 +146,13 @@ export default function RootLayout() {
         <I18nProvider>
           <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
             <QueryClientProvider client={queryClient}>
-              {fontsLoaded ? <AppBootstrap /> : webFallback}
+              {fontsLoaded ? (
+                <AppSheetProvider>
+                  <AppBootstrap />
+                </AppSheetProvider>
+              ) : (
+                webFallback
+              )}
             </QueryClientProvider>
           </RuntimeConfigProvider>
         </I18nProvider>

@@ -62,9 +62,14 @@ export function SettingsCategoryListView({
     return (
       <Div
         tone="surface"
-        width="full"
         pad="md"
-        style={{ borderRightWidth: 1, borderRightColor: colors.border, minWidth: 220 }}>
+        style={{
+          width: 300,
+          flexShrink: 0,
+          alignSelf: 'stretch',
+          borderRightWidth: 1,
+          borderRightColor: colors.border,
+        }}>
         <Stack gap="md">
           <Text intent="eyebrow">{t('settings.title')}</Text>
           {content}

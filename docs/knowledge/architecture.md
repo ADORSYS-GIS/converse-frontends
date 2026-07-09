@@ -32,7 +32,7 @@ The system is a **static frontend** (no server-side rendering, no backend logic)
            │ Bearer JWT                     │ Bearer JWT
            ▼                                ▼
   LightBridge AuthZ API          LightBridge Usage API
-  (api-key.backend.yaml)         (usage.backend.yaml)
+  (api-key.backend.json)         (usage.backend.yaml)
            │
            │ API Key issued to external clients
            ▼

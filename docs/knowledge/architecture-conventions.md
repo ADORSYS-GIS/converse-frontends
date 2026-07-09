@@ -22,7 +22,7 @@ converse-frontends/
 │   ├── i18n/         # Internationalisation resources
 │   └── ui/           # Shared design-system components
 ├── openapi/          # OpenAPI specs (source of truth for backend APIs)
-│   ├── api-key.backend.yaml
+│   ├── api-key.backend.json
 │   └── usage.backend.yaml
 └── docs/
     └── knowledge/    # Agent-readable knowledge base (this directory)

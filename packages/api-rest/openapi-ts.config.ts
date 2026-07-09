@@ -7,7 +7,7 @@ const currentDir = path.dirname(currentFile);
 
 export default defineConfig({
   input: [
-    path.resolve(currentDir, '../../openapi/api-key.backend.yaml'),
+    path.resolve(currentDir, '../../openapi/api-key.backend.json'),
     path.resolve(currentDir, '../../openapi/usage.backend.yaml'),
   ],
   output: {

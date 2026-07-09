@@ -1,6 +1,6 @@
 # API Reference — Converse-frontends
 
-> Source of truth: `openapi/api-key.backend.yaml` (v0.6.5), `openapi/usage.backend.yaml` (v0.6.6)
+> Source of truth: `openapi/api-key.backend.json` (v0.6.5), `openapi/usage.backend.yaml` (v0.6.6)
 > Full schema details: see `api-usage-backend.md` (usage API) and `auth-and-identity.md` (API key schemas)
 
 This document is a **complete endpoint index** for both LightBridge APIs consumed by the self-service frontend.
@@ -208,7 +208,7 @@ For the full request/response schema, worked examples, and enum definitions, see
 ## Error Codes
 
 ### AuthZ API (400 responses)
-The AuthZ API does not define a structured error response schema in `api-key.backend.yaml`. Non-2xx responses should be handled as generic HTTP errors.
+The AuthZ API does not define a structured error response schema in `api-key.backend.json`. Non-2xx responses should be handled as generic HTTP errors.
 
 ### Usage API (400 responses)
 

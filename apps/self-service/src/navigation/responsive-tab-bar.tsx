@@ -35,13 +35,11 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   if (isDesktop) {
     return (
       <NavContainer placement="sidebar">
-        <Stack gap="xs" align="stretch">
+        <Stack gap="sm" align="center">
           {state.routes.map((route, index) => {
             const label = getLabel(route.key, route.name);
             const isFocused = state.index === index;
             const iconName = getIconName(route.name, isFocused);
-            // Match the caption colours: filled pill → surface icon, otherwise
-            // the same `soft` tone as the label beneath it.
             const iconColor = isFocused ? colors.surface : colors.soft;
 
             return (
@@ -50,11 +48,11 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
                 placement="sidebar"
                 active={isFocused}
                 label={label}
-                showLabel
+                showLabel={false}
                 accessibilityLabel={label}
                 icon={
                   iconName ? (
-                    <Ionicons name={iconName} size={designTokens.icon.nav} color={iconColor} />
+                    <Ionicons name={iconName} size={designTokens.icon.rail} color={iconColor} />
                   ) : null
                 }
                 onPress={() => navigation.navigate(route.name)}

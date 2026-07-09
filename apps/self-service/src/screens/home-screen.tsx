@@ -75,11 +75,11 @@ export function HomeScreen() {
   const { data: projects = [] } = useProjects(currentAccount?.id);
   const { data: currentProject } = useCurrentProject();
   const { data: apiKeys = [] } = useApiKeys(currentProject?.id);
-  const { signOut } = useSignOut();
+  const config = useRuntimeConfig();
+  const { signOut } = useSignOut(config.keycloak);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isSigningOutRef = useRef(false);
   const isMountedRef = useRef(true);
-  const config = useRuntimeConfig();
 
   const [, setDayStamp] = useState(() => getUtcDayStamp(new Date()));
 

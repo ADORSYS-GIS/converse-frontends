@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import { CodeChallengeMethod } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 
 import type { AuthSession as StoredSession, AudienceConfig } from './auth-types';
 import { persistAuthSession } from './use-auth-session';
@@ -40,9 +41,7 @@ function extractAndValidateAudience(
     });
 
     const rawAud = result.payload?.aud;
-    const audience = rawAud
-      ? (Array.isArray(rawAud) ? rawAud : [rawAud])
-      : undefined;
+    const audience = rawAud ? (Array.isArray(rawAud) ? rawAud : [rawAud]) : undefined;
 
     return {
       audience,
@@ -93,7 +92,10 @@ export async function refreshAccessToken(
     const audienceResult = extractAndValidateAudience(tokenResult.access_token, config.audience);
 
     if (!audienceResult.valid) {
-      console.error('[Auth] JWT audience validation failed during token refresh:', audienceResult.errors);
+      console.error(
+        '[Auth] JWT audience validation failed during token refresh:',
+        audienceResult.errors
+      );
       // Block authentication - audience mismatch means token is not intended for this client
       throw createAudienceError(audienceResult.errors);
     }
@@ -149,6 +151,56 @@ export async function refreshAccessToken(
   }
 }
 
+/**
+ * Performs an RP-initiated logout against the Keycloak issuer.
+ *
+ * Opens the IdP `end_session_endpoint` (discovered from the issuer) with an
+ * `id_token_hint` and a `post_logout_redirect_uri`, so the Keycloak SSO
+ * session itself is terminated — not just the local token copy.
+ *
+ * NOTE(keycloak): the `post_logout_redirect_uri` must be registered on the
+ * client under "Valid post logout redirect URIs" (a wildcard like
+ * `self-service://*` / `https://app.example.com/*` covers it), otherwise
+ * Keycloak refuses the redirect. Callers should still clear the local session
+ * regardless of the outcome here.
+ */
+export async function endKeycloakSession(
+  config: Pick<KeycloakConfig, 'issuer' | 'clientId' | 'scheme' | 'redirectUri'> & {
+    postLogoutRedirectUri?: string;
+  },
+  idToken?: string
+): Promise<void> {
+  const discovery = await AuthSession.fetchDiscoveryAsync(config.issuer);
+
+  if (!discovery.endSessionEndpoint) {
+    console.warn('[Auth] Issuer exposes no end_session_endpoint; skipping IdP logout.');
+    return;
+  }
+
+  const postLogoutRedirectUri =
+    config.postLogoutRedirectUri ??
+    config.redirectUri ??
+    AuthSession.makeRedirectUri({
+      scheme: config.scheme,
+      path: 'login',
+    });
+
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    post_logout_redirect_uri: postLogoutRedirectUri,
+  });
+
+  // Keycloak requires either an id_token_hint or client_id to identify the
+  // session; we send both when the id token is available.
+  if (idToken) {
+    params.set('id_token_hint', idToken);
+  }
+
+  const logoutUrl = `${discovery.endSessionEndpoint}?${params.toString()}`;
+
+  await WebBrowser.openAuthSessionAsync(logoutUrl, postLogoutRedirectUri);
+}
+
 export function useKeycloakLogin(config: KeycloakConfig) {
   const discovery = AuthSession.useAutoDiscovery(config.issuer);
   const redirectUri = useMemo(
@@ -169,7 +221,10 @@ export function useKeycloakLogin(config: KeycloakConfig) {
     {
       clientId: config.clientId,
       redirectUri,
-      scopes: config.scopes ?? ['openid', 'profile', 'email'],
+      // `offline_access` asks Keycloak for an offline refresh token that
+      // outlives the SSO session, so the persisted session can be silently
+      // refreshed indefinitely and the user is not prompted to log in again.
+      scopes: config.scopes ?? ['openid', 'profile', 'email', 'offline_access'],
       responseType: AuthSession.ResponseType.Code,
       usePKCE: true,
       codeChallengeMethod: CodeChallengeMethod.S256,
@@ -209,7 +264,10 @@ export function useKeycloakLogin(config: KeycloakConfig) {
         const audienceResult = extractAndValidateAudience(tokenResult.accessToken, config.audience);
 
         if (!audienceResult.valid) {
-          console.error('[Auth] JWT audience validation failed during login:', audienceResult.errors);
+          console.error(
+            '[Auth] JWT audience validation failed during login:',
+            audienceResult.errors
+          );
           // Block authentication - audience mismatch means token is not intended for this client
           throw createAudienceError(audienceResult.errors);
         } else if (audienceResult.audience) {

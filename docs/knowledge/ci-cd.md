@@ -35,7 +35,7 @@ Trigger: push to main / tagged branch / v* tag / workflow_dispatch
 
 On merge to `main` (paths `charts/**`), each application chart under `charts/` is
 packaged and pushed to GHCR as an OCI artifact at
-`oci://ghcr.io/adorsys-gis/converse-frontends/charts/<name>` (no gh-pages Helm
+`oci://ghcr.io/adorsys-gis/charts/<name>` (no gh-pages Helm
 repo). The chart version is derived at publish time — `MAJOR.MINOR` from
 `Chart.yaml` plus a patch equal to the commit count touching the chart dir — so it
 is monotonic and never committed back. Publishing is idempotent (skips a version
@@ -102,7 +102,7 @@ This caches Docker build layers between runs. The pnpm dependency install step i
 
 Deployment to Kubernetes is driven by a separate GitOps process (ArgoCD in the
 `ai-helm` repo). Its `converse-ui` Application consumes the chart published to
-`oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend` and floats
+`oci://ghcr.io/adorsys-gis/charts/converse-frontend` and floats
 on a semver range, while `argocd-image-updater` tracks the container image tag.
 For local/manual work, install the chart from `charts/converse-frontend/`.
 

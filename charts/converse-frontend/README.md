@@ -8,7 +8,7 @@ On every merge to `main`, this chart is packaged and pushed to GHCR as an OCI
 artifact (there is no gh-pages Helm repo):
 
 ```
-oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend
+oci://ghcr.io/adorsys-gis/charts/converse-frontend
 ```
 
 Versions are `MAJOR.MINOR` from `Chart.yaml` plus a patch derived from the commit
@@ -16,9 +16,9 @@ count touching the chart directory (monotonic, clean `X.Y.Z`). Pull a specific
 version with `--version`, or omit it to get the latest:
 
 ```bash
-helm show chart oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend
+helm show chart oci://ghcr.io/adorsys-gis/charts/converse-frontend
 helm upgrade --install -n ai converse-frontend \
-  oci://ghcr.io/adorsys-gis/converse-frontends/charts/converse-frontend \
+  oci://ghcr.io/adorsys-gis/charts/converse-frontend \
   -f my-values.yaml
 ```
 

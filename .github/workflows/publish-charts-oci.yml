@@ -57,7 +57,21 @@ jobs:
           version: v3.15.4
 
       - name: Set up yq
-        uses: mikefarah/yq@v4
+        # Install the yq binary directly instead of mikefarah/yq@v4, which is a
+        # Docker-container action — the daemonless adorsys-gis-runner has no Docker
+        # socket, so the container action can't run.
+        run: |
+          set -euo pipefail
+          if command -v yq >/dev/null 2>&1; then
+            echo "yq already present: $(yq --version)"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+            -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/yq" --version
 
       - name: Add upstream chart repos (for `helm dependency build`)
         run: |

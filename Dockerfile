@@ -5,7 +5,11 @@
 #
 # Built and pushed with rootless Buildah on the adorsys-gis-runner (see
 # .github/workflows/docker-image.yml).
-FROM nginx:1.30.0-alpine3.23-slim
+#
+# Fully-qualified (docker.io/library/…) so rootless Buildah resolves it without
+# `unqualified-search-registries` configured on the runner (a bare `nginx:…`
+# short-name fails there with "did not resolve to an alias").
+FROM docker.io/library/nginx:1.30.0-alpine3.23-slim
 
 # Update Alpine packages to the latest security patches.
 RUN apk update && \

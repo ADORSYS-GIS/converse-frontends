@@ -3,12 +3,14 @@ name: publish-charts-oci
 # Publish this repo's Helm chart(s) to GHCR as OCI artifacts on merge to main.
 # Replaces the classic gh-pages / index.yaml Helm repo — charts now live at
 #
-#   oci://ghcr.io/adorsys-gis/converse-frontends/charts/<name>
+#   oci://ghcr.io/adorsys-gis/charts/<name>
 #
-# (i.e. under this repo's own GHCR namespace, prefixed with `charts/`, alongside
-# the container image at ghcr.io/adorsys-gis/converse-frontends). Consumers such
-# as ai-helm's `converse-ui` Application float on a semver range and pick up the
-# newest published version on the next reconcile.
+# i.e. the org-wide charts namespace (the same one ai-helm publishes to). Each
+# chart is a distinct GHCR package named `charts/<name>`, created and owned by
+# whichever repo first pushes it — `charts/converse-frontend` is unique to this
+# repo, so its `packages: write` GITHUB_TOKEN can create and own it. Consumers
+# such as ai-helm's `converse-ui` Application float on a semver range and pick up
+# the newest published version on the next reconcile.
 #
 # Versioning is monotonic + clean X.Y.Z, DERIVED AT PUBLISH TIME (never committed
 # back into Chart.yaml — so this workflow can't re-trigger itself):
@@ -37,8 +39,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  # Repo-scoped charts namespace (lowercased owner — GHCR paths are case-sensitive).
-  OCI_REPO: oci://ghcr.io/adorsys-gis/converse-frontends/charts
+  # Org-wide charts namespace (lowercased owner — GHCR paths are case-sensitive).
+  OCI_REPO: oci://ghcr.io/adorsys-gis/charts
 
 jobs:
   publish:

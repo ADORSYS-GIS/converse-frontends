@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
-export type SettingsCategoryKey = 'account';
+export type SettingsCategoryKey = 'account' | 'project';
 
 export type SettingsCategory = {
   key: SettingsCategoryKey;
@@ -11,7 +11,7 @@ export type SettingsCategory = {
   route: `/${string}`;
 };
 
-// Project and API-key categories land in follow-up tickets (#55 is delivered as
+// The API-key category lands in a follow-up ticket (#55 is delivered as
 // sequential PRs per its own risk note) — only list categories that actually
 // have a working detail screen, rather than stubbing dead-end rows.
 export const settingsCategories: SettingsCategory[] = [
@@ -20,5 +20,11 @@ export const settingsCategories: SettingsCategory[] = [
     titleKey: 'settings.categories.account',
     iconName: 'business-outline',
     route: '/settings-account',
+  },
+  {
+    key: 'project',
+    titleKey: 'settings.categories.project',
+    iconName: 'folder-outline',
+    route: '/settings-project',
   },
 ];

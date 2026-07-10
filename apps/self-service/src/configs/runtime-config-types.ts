@@ -10,10 +10,6 @@ export type KeycloakConfig = {
 
 export type AppRuntimeConfig = {
   backendUrl: string;
-  usageUrl?: string;
-  analyticsUrl?: string;
-  /** Day of month (1–31) when the usage billing cycle starts. Defaults to 6. */
-  usageBillingDay?: number;
   keycloak: KeycloakConfig;
 };
 
@@ -26,12 +22,6 @@ export function isAppRuntimeConfig(value: unknown): value is AppRuntimeConfig {
 
   return (
     typeof config.backendUrl === 'string' &&
-    (config.usageUrl === undefined || typeof config.usageUrl === 'string') &&
-    (config.usageBillingDay === undefined ||
-      (typeof config.usageBillingDay === 'number' &&
-        Number.isInteger(config.usageBillingDay) &&
-        config.usageBillingDay >= 1 &&
-        config.usageBillingDay <= 31)) &&
     typeof config.keycloak?.issuer === 'string' &&
     typeof config.keycloak?.clientId === 'string' &&
     typeof config.keycloak?.scheme === 'string'

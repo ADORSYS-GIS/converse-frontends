@@ -13,7 +13,6 @@ import {
   EmptyState,
   ListRow,
   PageHeader,
-  Pagination,
   Scroll,
   Stack,
   Text,
@@ -39,11 +38,6 @@ type ApiKeysListViewProps = {
   onRotate: (id: string, name: string) => void;
   onSelectAccount: (id: string) => void;
   onSelectProject: (id: string) => void;
-  onNext: () => void;
-  onPrev: () => void;
-  hasMore: boolean;
-  canPrev: boolean;
-  page: number;
 };
 
 export const formatDate = (value: string) => {
@@ -80,11 +74,6 @@ export function ApiKeysListView({
   onRotate,
   onSelectAccount,
   onSelectProject,
-  onNext,
-  onPrev,
-  hasMore,
-  canPrev,
-  page,
 }: Readonly<ApiKeysListViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -339,19 +328,6 @@ export function ApiKeysListView({
           </Callout>
         </Stack>
       </Scroll>
-
-      <Pagination
-        page={page}
-        canPrev={canPrev}
-        hasMore={hasMore}
-        onPrev={onPrev}
-        onNext={onNext}
-        pageLabel={t('common.page', { defaultValue: 'Page' })}
-        previousLabel={t('common.previous', { defaultValue: 'Previous' })}
-        nextLabel={t('common.next', { defaultValue: 'Next' })}
-        prevIcon={<Ionicons name="chevron-back" size={16} color={colors.ink} />}
-        nextIcon={<Ionicons name="chevron-forward" size={16} color={colors.ink} />}
-      />
     </Div>
   );
 }

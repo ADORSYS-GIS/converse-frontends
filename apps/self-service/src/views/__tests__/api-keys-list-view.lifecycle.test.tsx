@@ -31,11 +31,6 @@ function renderList(item: ApiKeyBackendApiKey, overrides: Partial<Record<string,
       onRotate={overrides.onRotate as (id: string, name: string) => void}
       onSelectAccount={noop}
       onSelectProject={noop}
-      onNext={noop}
-      onPrev={noop}
-      hasMore={false}
-      canPrev={false}
-      page={1}
     />
   );
 }

@@ -63,32 +63,18 @@ function AppBootstrap() {
     ]);
   }, []);
 
-  useClientInit(
-    {
-      baseURL: runtimeConfig.backendUrl,
-      auth: async (_a) => {
-        if (!isHydrated) {
-          return '';
-        }
-        return getLatestAuthSession().tokens?.accessToken ?? '';
-      },
-      refreshAuth: handleRefreshAuth,
-      getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
-      onRefreshFailure: handleRefreshFailure,
+  useClientInit({
+    baseURL: runtimeConfig.backendUrl,
+    auth: async (_a) => {
+      if (!isHydrated) {
+        return '';
+      }
+      return getLatestAuthSession().tokens?.accessToken ?? '';
     },
-    {
-      baseURL: runtimeConfig.usageUrl || runtimeConfig.backendUrl,
-      auth: async (_a) => {
-        if (!isHydrated) {
-          return '';
-        }
-        return getLatestAuthSession().tokens?.accessToken ?? '';
-      },
-      refreshAuth: handleRefreshAuth,
-      getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
-      onRefreshFailure: handleRefreshFailure,
-    }
-  );
+    refreshAuth: handleRefreshAuth,
+    getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
+    onRefreshFailure: handleRefreshFailure,
+  });
 
   useBackendSync();
   useLocaleSync();

@@ -18,7 +18,7 @@ export function useAccounts(enabled = true) {
     queryKey: accountsQueryKey,
     queryFn: async () => {
       const response = await apiKeyBackendListAccounts<true>({
-        query: { limit: 10, offset: 0 },
+        path: { limit: 10, offset: 0 },
       });
       return response.data;
     },
@@ -88,7 +88,7 @@ export function useEnsureDefaultAccount() {
   const mutation = useMutation({
     mutationFn: async () => {
       const accountsResponse = await apiKeyBackendListAccounts<true>({
-        query: { limit: 10, offset: 0 },
+        path: { limit: 10, offset: 0 },
       });
       const existing = accountsResponse.data;
 

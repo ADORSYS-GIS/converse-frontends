@@ -5,7 +5,6 @@ import { useTranslation } from '@lightbridge/i18n';
 import {
   useAccounts,
   useApiKeys,
-  usePagination,
   useProjects,
   useQueryState,
   useRevokeApiKey,
@@ -21,7 +20,6 @@ const PAGE_SIZE = 10;
 export function ApiKeysScreen() {
   const { t } = useTranslation();
   const sheet = useSheet();
-  const pagination = usePagination({ pageSize: PAGE_SIZE });
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links, read straight through useQueryState — no
   // useLocalSearchParams + useState + useEffect sync dance.
@@ -44,22 +42,16 @@ export function ApiKeysScreen() {
   const projectId = (projectParamInList ? projectParam : undefined) ?? projects[0]?.id;
 
   const { data: items = [], isLoading: isKeysLoading } = useApiKeys(projectId, {
-    offset: pagination.offset,
-    limit: pagination.limit,
+    offset: 0,
+    limit: PAGE_SIZE,
   });
 
-  // No total-count from the backend, so "is there a next page" is inferred from
-  // whether this page came back full (documented heuristic — see usePagination).
-  const hasMore = pagination.hasMore(items.length);
-
   const handleSelectAccount = (id: string) => {
-    pagination.reset();
     setAccountParam(id);
     setProjectParam(null);
   };
 
   const handleSelectProject = (id: string) => {
-    pagination.reset();
     setProjectParam(id);
   };
 
@@ -120,11 +112,6 @@ export function ApiKeysScreen() {
       onRotate={handleRotate}
       onSelectAccount={handleSelectAccount}
       onSelectProject={handleSelectProject}
-      onNext={pagination.next}
-      onPrev={pagination.prev}
-      hasMore={hasMore}
-      canPrev={pagination.canPrev}
-      page={pagination.page}
     />
   );
 }

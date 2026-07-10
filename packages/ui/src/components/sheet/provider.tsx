@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -8,6 +8,8 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 
+import { designTokens } from '../../design/tokens';
+import { useIsDesktop } from '../../hooks/use-is-desktop';
 import { SheetContext } from './use-sheet';
 import type { SheetApi, SheetOptions, SheetProviderProps, SheetRender } from './types';
 
@@ -31,6 +33,7 @@ export function SheetProvider({
   backgroundColor,
   handleIndicatorColor,
 }: SheetProviderProps) {
+  const isDesktop = useIsDesktop();
   const modalRef = React.useRef<BottomSheetModal>(null);
   const [entry, setEntry] = React.useState<SheetEntry | null>(null);
   // Held in a ref so the dismiss handler reads the latest onClose without
@@ -74,9 +77,18 @@ export function SheetProvider({
 
   const api = React.useMemo<SheetApi>(() => ({ present, dismiss }), [present, dismiss]);
 
+  // Gorhom's `backgroundStyle` type omits `left`/`right`/etc — but its actual
+  // merge order applies our style *after* its own absoluteFill, so `left`
+  // does take effect at runtime (verified by reading BottomSheetBackgroundContainer).
+  // The `any` cast only bypasses the (overly strict) type, not the real behavior.
   const backgroundStyle = React.useMemo(
-    () => [styles.background, backgroundColor ? { backgroundColor } : null],
-    [backgroundColor]
+    () =>
+      [
+        styles.background,
+        isDesktop ? styles.backgroundDesktopInset : null,
+        backgroundColor ? { backgroundColor } : null,
+      ] as any,
+    [backgroundColor, isDesktop]
   );
   const handleIndicatorStyle = handleIndicatorColor
     ? { backgroundColor: handleIndicatorColor }
@@ -95,8 +107,12 @@ export function SheetProvider({
           backgroundStyle={backgroundStyle}
           handleIndicatorStyle={handleIndicatorStyle}
           onDismiss={handleDismiss}>
-          <BottomSheetView style={[styles.content, entry?.options?.contentStyle]}>
-            {entry ? entry.render({ dismiss }) : null}
+          <BottomSheetView style={styles.content}>
+            <View style={isDesktop ? styles.contentDesktopInset : undefined}>
+              <View style={[styles.contentColumn, entry?.options?.contentStyle]}>
+                {entry ? entry.render({ dismiss }) : null}
+              </View>
+            </View>
           </BottomSheetView>
         </BottomSheetModal>
       </BottomSheetModalProvider>
@@ -105,11 +121,46 @@ export function SheetProvider({
 }
 
 const styles = StyleSheet.create({
+  // Gorhom positions the sheet's background as an absolute fill (left/right: 0)
+  // *after* this style is merged, so width/alignSelf alone can't center it —
+  // the auto-margin trick is what actually wins here.
+  //
+  // Page routes sit inside `(tabs)/_layout.tsx`'s `sceneStyle`, which adds
+  // `paddingLeft: navRailWidth` on desktop before centering their content —
+  // so their centered column lands `navRailWidth / 2` right of true viewport
+  // center. The sheet is portaled at the app root, outside that nav-rail
+  // split, so without the same offset it centers on the *full* viewport and
+  // ends up looking shifted left relative to the page behind it. Nudging the
+  // background's left anchor by `navRailWidth` reproduces the same "inset,
+  // then center" math (see backgroundDesktopInset below).
   background: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    width: '100%',
+    maxWidth: designTokens.layout.maxContentWidth,
+    marginHorizontal: 'auto',
   },
+  backgroundDesktopInset: {
+    left: designTokens.layout.navRailWidth,
+  },
+  // BottomSheetView itself is left as gorhom's plain absolute-fill container
+  // (only vertical padding here) — it's just a measuring box for dynamic
+  // sizing. The nav-rail inset + centered column live on plain nested Views
+  // we render inside it, since gorhom's own styles.container always wins the
+  // `left`/`right` merge for BottomSheetView and would silently undo any
+  // horizontal shift we set directly on it.
   content: {
     paddingBottom: 24,
+  },
+  contentDesktopInset: {
+    paddingLeft: designTokens.layout.navRailWidth,
+  },
+  // No horizontal padding here — sheet content views supply their own inset
+  // via `<Page>` (matching the `p-6` that page routes get from `<Scroll>`)
+  // so the two line up.
+  contentColumn: {
+    width: '100%',
+    maxWidth: designTokens.layout.maxContentWidth,
+    marginHorizontal: 'auto',
   },
 });

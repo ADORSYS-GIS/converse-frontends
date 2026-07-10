@@ -41,7 +41,10 @@ export const buttonTextVariants = cva('font-semibold', {
   variants: {
     variant: {
       primary: 'text-surface',
-      brandSoft: 'text-primary',
+      // The blue bg/text already signals "selected" (its only current use is
+      // the account/project pills) — semibold on top of that reads as
+      // over-emphasized, so it drops back to the same weight as unselected.
+      brandSoft: 'text-primary font-normal',
       ghost: 'text-primary',
       neutral: 'text-ink',
       icon: 'text-surface',

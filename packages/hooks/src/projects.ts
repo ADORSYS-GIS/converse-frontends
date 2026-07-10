@@ -1,8 +1,17 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@lightbridge/i18n';
-import type { ApiKeyBackendProject } from '@lightbridge/api-rest';
-import { apiKeyBackendCreateProject, apiKeyBackendListProjects } from '@lightbridge/api-rest';
+import type {
+  ApiKeyBackendCreateProject,
+  ApiKeyBackendProject,
+  ApiKeyBackendUpdateProject,
+} from '@lightbridge/api-rest';
+import {
+  apiKeyBackendCreateProject,
+  apiKeyBackendDeleteProject,
+  apiKeyBackendListProjects,
+  apiKeyBackendUpdateProject,
+} from '@lightbridge/api-rest';
 import { useCurrentAccount } from './accounts';
 import { useAuthSession } from './auth-session';
 
@@ -18,8 +27,7 @@ export function useProjects(accountId?: string) {
     queryFn: async () => {
       if (!accountId) throw new Error('Account ID is required');
       const response = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId },
-        query: { limit: 10, offset: 0 },
+        path: { account_id: accountId, limit: 10, offset: 0 },
       });
       return response.data;
     },
@@ -50,6 +58,80 @@ export function useCurrentProject(enabled = true) {
     enabled: enabled && !!accountId && isAuthenticated,
   };
 }
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      accountId,
+      input,
+    }: {
+      accountId: string;
+      input: ApiKeyBackendCreateProject;
+    }) => {
+      const response = await apiKeyBackendCreateProject<true>({
+        path: { account_id: accountId },
+        body: input,
+      });
+      return response.data;
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: string;
+      accountId: string;
+      input: ApiKeyBackendUpdateProject;
+    }) => {
+      const response = await apiKeyBackendUpdateProject<true>({
+        path: { project_id: id },
+        body: input,
+      });
+      return response.data;
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      apiKeyBackendDeleteProject({ path: { project_id: id } }),
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
 export function useEnsureDefaultProject() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -57,8 +139,7 @@ export function useEnsureDefaultProject() {
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
       const projectsResponse = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId },
-        query: { limit: 10, offset: 0 },
+        path: { account_id: accountId, limit: 10, offset: 0 },
       });
       const existing = projectsResponse.data;
 

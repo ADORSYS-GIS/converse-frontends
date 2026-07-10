@@ -11,7 +11,6 @@ export type ClientInitOptions = ClientOptions &
 
 let isInitialized = false;
 let latestApiOptions: ClientInitOptions;
-let latestUsageOptions: ClientInitOptions;
 let refreshPromise: Promise<boolean> | null = null;
 
 /** Timestamp until which refresh attempts should be skipped after a definitive failure. */
@@ -84,19 +83,8 @@ async function tryProactiveRefresh(targetConfig: ClientInitOptions): Promise<voi
   }
 }
 
-function isUsageRequest(url: string | undefined): boolean {
-  if (!url) return false;
-  return (
-    url.startsWith('/usage/v1') ||
-    url.startsWith('/v1/usage') ||
-    url.startsWith('/v1/otel') ||
-    url.startsWith('/health')
-  );
-}
-
-export function useClientInit(apiOptions: ClientInitOptions, usageOptions: ClientInitOptions) {
+export function useClientInit(apiOptions: ClientInitOptions) {
   latestApiOptions = apiOptions;
-  latestUsageOptions = usageOptions;
 
   if (!isInitialized) {
     const methods = [
@@ -117,8 +105,7 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
       (client as any)[method] = async (options: any) => {
         const actualOptions = options;
 
-        const isUsage = isUsageRequest(actualOptions.url);
-        const targetConfig = isUsage ? latestUsageOptions : latestApiOptions;
+        const targetConfig = latestApiOptions;
         const baseUrl = targetConfig.baseURL;
 
         const security = actualOptions.security ?? [{ type: 'http', scheme: 'bearer' }];
@@ -126,12 +113,11 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
         await tryProactiveRefresh(targetConfig);
 
         try {
-          const currentConfig = isUsage ? latestUsageOptions : latestApiOptions;
           return await original({
             ...actualOptions,
             security,
             baseURL: baseUrl,
-            auth: currentConfig.auth,
+            auth: latestApiOptions.auth,
           });
         } catch (error: any) {
           if (error?.status === 401 || error?.response?.status === 401) {
@@ -168,12 +154,11 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
 
               // Refresh succeeded — retry the original request with updated auth.
               // Errors from the retry propagate naturally (not swallowed).
-              const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
               return await original({
                 ...actualOptions,
                 security,
                 baseURL: baseUrl,
-                auth: latestConfig.auth,
+                auth: latestApiOptions.auth,
               });
             } else if (refreshPromise !== null) {
               // Another request is already refreshing — await its result.
@@ -187,12 +172,11 @@ export function useClientInit(apiOptions: ClientInitOptions, usageOptions: Clien
                 }
                 throw error;
               }
-              const latestConfig = isUsage ? latestUsageOptions : latestApiOptions;
               return await original({
                 ...actualOptions,
                 security,
                 baseURL: baseUrl,
-                auth: latestConfig.auth,
+                auth: latestApiOptions.auth,
               });
             }
           }

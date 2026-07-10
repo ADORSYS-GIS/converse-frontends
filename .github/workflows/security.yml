@@ -11,8 +11,11 @@ permissions:
 
 jobs:
   scan:
-    uses: ADORSYS-GIS/ai-ops/.github/workflows/security-gates.yml@v1.0.0
+    # v1.1.0 adds the `runs-on` input (ADORSYS-GIS/ai-ops#148) so the shared
+    # gitleaks + trivy gates run on our self-hosted pool like every other job.
+    uses: ADORSYS-GIS/ai-ops/.github/workflows/security-gates.yml@v1.1.0
     secrets: inherit
     with:
       trivy-scan-type: 'fs'
       trivy-target: '.'
+      runs-on: adorsys-gis-runner

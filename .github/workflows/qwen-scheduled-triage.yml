@@ -27,7 +27,7 @@ defaults:
 
 jobs:
   triage:
-    runs-on: 'ubuntu-latest'
+    runs-on: adorsys-gis-runner
     timeout-minutes: 7
     permissions:
       contents: 'read'
@@ -124,7 +124,7 @@ jobs:
           prompt: '/qwen-scheduled-triage'
 
   label:
-    runs-on: 'ubuntu-latest'
+    runs-on: adorsys-gis-runner
     needs:
       - 'triage'
     if: |-

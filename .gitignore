@@ -4,6 +4,9 @@ node_modules/
 packages/api-rest/openapi-ts-error-*.log
 .expo/
 dist/
+# Turborepo — local task logs + cache. MUST be ignored, otherwise turbo counts
+# its own run logs as task inputs and the cache never hits.
+.turbo/
 npm-debug.*
 *.jks
 *.p8

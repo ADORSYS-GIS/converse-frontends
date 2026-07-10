@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build:web": {
+      "dependsOn": ["^build:web"],
+      "outputs": ["dist/**"]
+    },
+    "build-storybook": {
+      "outputs": ["storybook-static/**"]
+    }
+  }
+}

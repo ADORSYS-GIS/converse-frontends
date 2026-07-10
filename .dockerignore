@@ -5,8 +5,8 @@
 .docker/keycloak-config
 node_modules
 **/node_modules
-dist
-**/dist
+# NOTE: apps/self-service/dist is intentionally NOT ignored — the web bundle is
+# built on the CI runner (turbo run build:web) and COPYed into the runtime image.
 .expo
 **/.expo
 .DS_Store

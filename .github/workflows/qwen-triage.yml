@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   triage:
-    runs-on: 'ubuntu-latest'
+    runs-on: adorsys-gis-runner
     timeout-minutes: 7
     outputs:
       available_labels: '${{ steps.get_labels.outputs.available_labels }}'
@@ -92,7 +92,7 @@ jobs:
           prompt: '/qwen-triage'
 
   label:
-    runs-on: 'ubuntu-latest'
+    runs-on: adorsys-gis-runner
     needs:
       - 'triage'
     if: |-

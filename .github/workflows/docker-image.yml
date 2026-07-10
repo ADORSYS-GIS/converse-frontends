@@ -15,7 +15,10 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    # Rootless Buildah on the self-hosted runner (daemonless — no Docker/dind).
+    # The web bundle is built here via Turbo (hitting the runner's Turbo cache),
+    # then baked into a thin nginx image. Single-arch: every cluster node is amd64.
+    runs-on: adorsys-gis-runner
     permissions:
       contents: read
       packages: write
@@ -23,15 +26,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build the static web export on the runner. Turbo pulls from / writes to
+      # the runner's integrated Turbo cache — no Docker/BuildKit layer cache.
+      - name: Build web export (Turbo)
+        run: pnpm turbo run build:web
 
       - name: Extract metadata
         id: meta
@@ -44,26 +54,42 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build local image for scanning
-        run: docker build -t scan-target .
+      - name: Log in to GHCR (Buildah)
+        # Direct `buildah login` writes the podman/buildah auth.json the build +
+        # push steps read. (redhat-actions/podman-login mirrors creds to
+        # ~/.docker/config.json, which ENOENTs on daemonless runners.)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | buildah login --username "${{ github.actor }}" --password-stdin "${{ env.REGISTRY }}"
+
+      - name: Build image (Buildah, amd64, no layer cache)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          LABELS: ${{ steps.meta.outputs.labels }}
+        run: |
+          set -euo pipefail
+          label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
+          tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # No --layers / --cache-from / --cache-to: the Docker build is deliberately
+          # uncached (caching lives in Turbo). Single amd64 platform.
+          buildah build --format docker --platform linux/amd64 \
+            -f Dockerfile "${label_args[@]}" "${tag_args[@]}" .
+          # Export the first tag as a tarball so Trivy can scan it daemonless.
+          primary="$(head -n1 <<<"$TAGS")"
+          buildah push "$primary" docker-archive:/tmp/image.tar
 
       - name: Run Trivy vulnerability scanner on image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'scan-target'
+          input: /tmp/image.tar
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
 
-      - name: Build and push multi-platform image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+      - name: Push image (all tags)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && buildah push "$t"; done <<<"$TAGS"

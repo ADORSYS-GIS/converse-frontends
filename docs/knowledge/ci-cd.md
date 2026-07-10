@@ -6,29 +6,33 @@
 
 ## Pipeline Overview
 
-CI/CD is implemented with **GitHub Actions**. There are two categories of workflows:
+CI/CD is implemented with **GitHub Actions**. All Linux jobs run on the
+self-hosted **`adorsys-gis-runner`** pool (not GitHub-hosted `ubuntu-latest`).
+That runner bakes rootless **Buildah/Podman** (no Docker daemon / dind) and is
+integrated with a **Turbo remote cache**, so builds run through `turbo` and reuse
+cached outputs across runs. There are two categories of workflows:
 
 ### 1. Docker Image Build & Push (`docker-image.yml`)
 
-This is the primary delivery pipeline.
+This is the primary delivery pipeline. The web bundle is built **on the runner**
+via Turbo, then baked into a thin nginx image with Buildah — the image has no
+build stage, no Node/pnpm, and no Docker/BuildKit layer cache (caching lives in
+Turbo). Single-arch **`linux/amd64`** (every cluster node is amd64).
 
 ```
 Trigger: push to main / tagged branch / v* tag / workflow_dispatch
        │
-       ▼
-   Checkout code
+       ▼  (on adorsys-gis-runner)
+   Checkout → pnpm install (runs codegen) → turbo run build:web   # → apps/self-service/dist, Turbo-cached
        │
        ▼
-   Set up Docker Buildx (multi-platform)
+   Extract metadata (tags, labels) · buildah login to ghcr.io
        │
        ▼
-   Log in to GHCR (ghcr.io)
+   buildah build (amd64, no layer cache)  →  export tar  →  Trivy scan (HIGH/CRITICAL gate)
        │
        ▼
-   Extract metadata (tags, labels)
-       │
-       ▼
-   Build & push multi-platform image (linux/amd64, linux/arm64)
+   buildah push (all tags)
 ```
 
 ### 1b. Helm Chart Publish (`publish-charts-oci.yml`)
@@ -69,14 +73,16 @@ No required status checks are enforced at the workflow level (branch protection 
 
 ## Caching Strategy
 
-The Docker build workflow uses **GitHub Actions cache** for Docker layer caching:
+Caching is handled by **Turborepo**, not by the Docker build. `turbo run build:web`
+(and `build-storybook`) hash their inputs and restore outputs from the
+`adorsys-gis-runner`'s integrated **Turbo remote cache** — an unchanged input tree
+replays instantly (`>>> FULL TURBO`) instead of re-running `expo export`.
 
-```yaml
-cache-from: type=gha
-cache-to: type=gha,mode=max
-```
-
-This caches Docker build layers between runs. The pnpm dependency install step in the Dockerfile uses a `--mount=type=cache` (BuildKit cache mount) targeting `/pnpm/store` to cache the package store across builds.
+The Docker build itself is deliberately **uncached**: the old GHA layer cache
+(`cache-from/to: type=gha`) and the Dockerfile's BuildKit `--mount=type=cache`
+pnpm-store mount were both removed. Buildah builds a thin runtime image with no
+`--layers`/`--cache-from`. (Note: `.turbo/` must stay in `.gitignore` — otherwise
+turbo counts its own run logs as task inputs and never hits the cache.)
 
 ---
 
@@ -88,7 +94,8 @@ This caches Docker build layers between runs. The pnpm dependency install step i
   - `v*` — for version tags (semver)
   - `sha-<short>` — for every build (commit SHA)
   - `latest` — only on pushes to the default branch (`main`)
-- Images are built as **multi-platform** manifests (`linux/amd64`, `linux/arm64`)
+- Images are built **single-arch** (`linux/amd64`) — every cluster node is amd64
+- Built with rootless **Buildah**; a **Trivy** scan (HIGH/CRITICAL, `ignore-unfixed`) gates the push
 - **No SBOM or signing** is configured in the current workflows
 
 ---

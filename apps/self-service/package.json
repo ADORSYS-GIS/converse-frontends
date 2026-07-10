@@ -13,6 +13,7 @@
     "start": "expo start",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
+    "build:web": "expo export --platform web --output-dir dist",
     "test": "jest"
   },
   "dependencies": {

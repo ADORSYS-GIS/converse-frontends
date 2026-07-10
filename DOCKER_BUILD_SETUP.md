@@ -1,6 +1,18 @@
 # Docker Build Configuration - Complete Setup
 
-This document explains the complete configuration for building the Expo app with pnpm in Docker.
+This document explains the complete configuration for building the Expo app with pnpm.
+
+> **Architecture update.** The web bundle is no longer built *inside* the Docker
+> image. CI (`docker-image.yml`, on `adorsys-gis-runner`) runs `pnpm install` +
+> `turbo run build:web` **on the runner** — producing `apps/self-service/dist`,
+> cached by the runner's Turbo cache — and then Buildah builds a **thin nginx
+> runtime image** that just `COPY`s that prebuilt `dist`. There is no multi-stage
+> build, no pnpm/BuildKit cache mount, and no Docker layer cache anymore.
+>
+> The Metro / Babel / `.npmrc` / i18n configuration below is **still relevant** —
+> it governs how `expo export` resolves the pnpm-symlinked monorepo, whether the
+> build runs on the runner or in a container. Only the "Dockerfile" and caching
+> parts have changed; see `docs/knowledge/ci-cd.md` for the current pipeline.
 
 ## Problem Summary
 
@@ -102,78 +114,37 @@ export { useTranslation } from 'react-i18next'; // Re-export for app usage
 
 **Monorepo best practice:** Workspace packages should re-export their dependencies so apps don't import transitive dependencies directly.
 
-### 5. `Dockerfile`
+### 5. `Dockerfile` (runtime-only, thin)
+
+The web bundle is built on the CI runner (`turbo run build:web`) **before** the
+image build; the Dockerfile is now a single runtime stage that just copies the
+prebuilt `apps/self-service/dist`. No build stage, no Node/pnpm, no cache mounts:
+
 ```dockerfile
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
-
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-
-RUN corepack enable
-
-WORKDIR /app
-
-# Copy dependency files
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
-COPY apps/self-service/package.json apps/self-service/
-COPY packages/*/package.json packages/
-
-# Copy OpenAPI specs for codegen
-COPY openapi ./openapi
-COPY packages/api-rest/openapi-ts.config.ts packages/api-rest/
-
-# Fetch and install dependencies
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm fetch
-
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --offline --frozen-lockfile
-
-# Copy source files
-COPY . .
-
-# Build the web export
-RUN pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
-
-# Runtime stage
-# Using Alpine 3.23 which has the latest security patches
 FROM nginx:1.30.0-alpine3.23-slim
 
-# Update Alpine packages to latest security patches
-RUN apk update && \
-    apk upgrade --no-cache && \
-    rm -rf /var/cache/apk/*
+RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
 
 WORKDIR /usr/share/nginx/html
-
 COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 .docker/nginx/entrypoint.sh /docker-entrypoint.d/40-runtime-config.sh
 
-COPY --from=build /app/apps/self-service/dist/ /usr/share/nginx/html/
-COPY --from=build /app/apps/self-service/example.config.json /usr/share/nginx/html/config.template.json
+# Prebuilt on the runner via turbo — NOT built here.
+COPY apps/self-service/dist/ /usr/share/nginx/html/
+COPY apps/self-service/example.config.json /usr/share/nginx/html/config.template.json
 
-# Set permissions for Kubernetes compatibility
-# Use group permissions so any UID in the root group (GID 0) can access files
-# This is the OpenShift/Kubernetes pattern for arbitrary UIDs
-RUN chgrp -R 0 /usr/share/nginx/html && \
-    chmod -R g=u /usr/share/nginx/html && \
-    chgrp -R 0 /var/cache/nginx && \
-    chmod -R g=u /var/cache/nginx && \
-    chgrp -R 0 /var/log/nginx && \
-    chmod -R g=u /var/log/nginx && \
-    chgrp -R 0 /etc/nginx/conf.d && \
-    chmod -R g=u /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && \
-    chgrp 0 /var/run/nginx.pid && \
-    chmod g=u /var/run/nginx.pid
+RUN chown -R 101:101 /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d && \
+    chmod -R 755 /usr/share/nginx/html /var/cache/nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && chown 101:101 /var/run/nginx.pid
 
-# Use a non-root user by default (can be overridden by K8s securityContext)
 USER 101
-
 EXPOSE 8080
-
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
 ```
+
+(The runtime `Dockerfile` in the repo is the source of truth — the above is
+abridged. Because `apps/self-service/dist` is `.gitignore`d, it is un-ignored in
+`.dockerignore` so Buildah can copy it from the build context.)
 
 **Key points:**
 - Uses pnpm with proper caching

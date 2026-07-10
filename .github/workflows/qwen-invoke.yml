@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   invoke:
-    runs-on: 'ubuntu-latest'
+    runs-on: adorsys-gis-runner
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -69,7 +69,7 @@ jobs:
               },
               "mcpServers": {
                 "github": {
-                  "command": "docker",
+                  "command": "podman",
                   "args": [
                     "run",
                     "-i",

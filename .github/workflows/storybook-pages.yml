@@ -20,7 +20,7 @@ concurrency:
 jobs:
   build:
     name: Build Storybook
-    runs-on: ubuntu-latest
+    runs-on: adorsys-gis-runner
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -37,8 +37,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Storybook
-        run: pnpm --filter @lightbridge/ui build-storybook
+      - name: Build Storybook (turbo)
+        run: pnpm turbo run build-storybook
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@v5
@@ -51,7 +51,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: adorsys-gis-runner
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

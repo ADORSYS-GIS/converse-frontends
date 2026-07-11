@@ -7,6 +7,13 @@ node_modules
 **/node_modules
 # NOTE: apps/self-service/dist is intentionally NOT ignored — the web bundle is
 # built on the CI runner (turbo run build:web) and COPYed into the runtime image.
+# Metro mirrors node_modules paths into dist/assets/__node_modules/... for any
+# asset (e.g. vector-icon fonts) that resolves from inside a package's own
+# node_modules (pnpm's virtual store nests a real `node_modules` dir there).
+# The blanket rules above would otherwise strip those shipped assets from the
+# build context, so un-ignore anything under dist/.
+!apps/self-service/dist/**/node_modules
+!apps/self-service/dist/**/node_modules/**
 .expo
 **/.expo
 .DS_Store

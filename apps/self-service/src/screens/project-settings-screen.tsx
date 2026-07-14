@@ -1,7 +1,11 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
 import {
+  getApiErrorMessage,
   useAccounts,
+  useDisableProject,
+  useEnableProject,
+  usePermissions,
   useProjects,
   useQueryState,
   useUpdateProject,
@@ -16,6 +20,7 @@ import { DeleteProjectSheet } from './delete-project-sheet';
 export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?: boolean }>) {
   const router = useRouter();
   const sheet = useSheet();
+  const { has } = usePermissions();
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links — same pattern as the API-keys screen.
   const [accountParam, setAccountParam] = useQueryState('accountId');
@@ -33,6 +38,8 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const project = projects.find((item) => item.id === projectId);
 
   const updateProject = useUpdateProject();
+  const disableProject = useDisableProject();
+  const enableProject = useEnableProject();
 
   const handleSelectAccount = (id: string) => {
     setAccountParam(id);
@@ -114,6 +121,22 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
     ));
   };
 
+  const handleSuspendProject = () => {
+    if (!project || !accountId) return;
+    void disableProject.mutateAsync({ id: project.id, accountId });
+  };
+
+  const handleEnableProject = () => {
+    if (!project || !accountId) return;
+    void enableProject.mutateAsync({ id: project.id, accountId });
+  };
+
+  const statusError = disableProject.error
+    ? getApiErrorMessage(disableProject.error)
+    : enableProject.error
+      ? getApiErrorMessage(enableProject.error)
+      : null;
+
   return (
     <ProjectSettingsView
       showBackButton={!embedded}
@@ -134,7 +157,15 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isSavingModels={updateProject.isPending}
       onSaveLimits={handleSaveLimits}
       isSavingLimits={updateProject.isPending}
+      canCreate={has('project:create')}
+      canUpdate={has('project:update')}
+      canDelete={has('project:delete')}
+      canDisable={has('project:disable')}
       onDeleteProject={handleDeleteProject}
+      onSuspendProject={handleSuspendProject}
+      onEnableProject={handleEnableProject}
+      isChangingStatus={disableProject.isPending || enableProject.isPending}
+      statusError={statusError}
     />
   );
 }

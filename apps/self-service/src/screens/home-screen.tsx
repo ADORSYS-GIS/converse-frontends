@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { useAuthSession, useCurrentAccount, useCurrentProject, useSignOut } from '@lightbridge/hooks';
+import {
+  useAuthSession,
+  useCurrentAccount,
+  useCurrentProject,
+  usePermissions,
+  useSignOut,
+} from '@lightbridge/hooks';
 import { HomeView } from '../views/home-view';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
@@ -9,6 +15,7 @@ const getUtcDayStamp = (value: Date) =>
 
 export function HomeScreen() {
   const { session } = useAuthSession();
+  const { has } = usePermissions();
   const { data: currentAccount } = useCurrentAccount();
   const { data: currentProject } = useCurrentProject();
   const config = useRuntimeConfig();
@@ -80,9 +87,12 @@ export function HomeScreen() {
       activeProjectName={currentProject?.name}
       activeProjectPlan={currentProject?.billing_plan}
       onNewToken={() => router.navigate('/api-keys/new')}
+      onManageKeys={() => router.navigate('/api-keys')}
+      onSettings={() => router.navigate('/settings')}
       onSupport={() => router.push('/help')}
       isSigningOut={isSigningOut}
       onLogout={onLogout}
+      canCreateKey={has('apikey:create')}
     />
   );
 }

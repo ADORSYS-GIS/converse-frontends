@@ -1,5 +1,4 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
 import {
@@ -11,6 +10,7 @@ import {
   Div,
   Divider,
   EmptyState,
+  Icon as Feather,
   ListRow,
   PageHeader,
   Scroll,
@@ -23,6 +23,15 @@ import type {
   ApiKeyBackendProject,
 } from '@lightbridge/api-rest';
 import { useThemeColors } from '../hooks/use-theme-colors';
+
+const i18nLocaleMap: Record<string, string> = {
+  en: 'en-US',
+  de: 'de-DE',
+  fr: 'fr-FR',
+  es: 'es-ES',
+};
+
+const getLocaleForDate = (lang: string): string => i18nLocaleMap[lang] ?? lang;
 
 type ApiKeysListViewProps = {
   accounts?: ApiKeyBackendAccount[];
@@ -38,26 +47,30 @@ type ApiKeysListViewProps = {
   onRotate: (id: string, name: string) => void;
   onSelectAccount: (id: string) => void;
   onSelectProject: (id: string) => void;
+  canCreate?: boolean;
+  canDelete?: boolean;
+  canRevoke?: boolean;
+  canRotate?: boolean;
 };
 
-export const formatDate = (value: string) => {
+export const formatDate = (value: string, locale?: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale ?? 'en-US', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',
   });
 };
 
-export const formatNullableDate = (value?: string | null) => {
+export const formatNullableDate = (value?: string | null, locale?: string) => {
   if (!value) {
     return null;
   }
 
-  return formatDate(value);
+  return formatDate(value, locale);
 };
 
 export function ApiKeysListView({
@@ -74,9 +87,14 @@ export function ApiKeysListView({
   onRotate,
   onSelectAccount,
   onSelectProject,
+  canCreate = true,
+  canDelete = true,
+  canRevoke = true,
+  canRotate = true,
 }: Readonly<ApiKeysListViewProps>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const colors = useThemeColors();
+  const dateLocale = getLocaleForDate(i18n.language);
 
   const displayItems = items;
   const selectedProject = projects.find((project) => project.id === selectedProjectId);
@@ -91,19 +109,21 @@ export function ApiKeysListView({
             size="iconSm"
             onPress={onBack}
             accessibilityLabel={t('apiKeys.back')}>
-            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
+            <Feather name="arrow-left" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
         }
         trailing={
-          <Button
-            variant="primary"
-            size="icon"
-            shape="circle"
-            onPress={onCreate}
-            accessibilityLabel={t('apiKeys.new')}
-            style={{ width: 36, height: 36 }}>
-            <Ionicons name="add" size={designTokens.icon.nav} color={colors.surface} />
-          </Button>
+          canCreate ? (
+            <Button
+              variant="primary"
+              size="icon"
+              shape="circle"
+              onPress={onCreate}
+              accessibilityLabel={t('apiKeys.new')}
+              style={{ width: 36, height: 36 }}>
+              <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+            </Button>
+          ) : undefined
         }
       />
 
@@ -128,7 +148,7 @@ export function ApiKeysListView({
                       return (
                         <Button
                           key={account.id}
-                          variant={isSelected ? 'brandSoft' : 'neutral'}
+                          variant={isSelected ? 'primary' : 'neutral'}
                           size="sm"
                           onPress={() => onSelectAccount(account.id)}
                           accessibilityLabel={t('apiKeys.selectAccount', {
@@ -156,7 +176,7 @@ export function ApiKeysListView({
                       return (
                         <Button
                           key={project.id}
-                          variant={isSelected ? 'brandSoft' : 'neutral'}
+                          variant={isSelected ? 'primary' : 'neutral'}
                           size="sm"
                           onPress={() => onSelectProject(project.id)}
                           accessibilityLabel={t('apiKeys.selectProject', {
@@ -184,14 +204,16 @@ export function ApiKeysListView({
                   : t('apiKeys.projectRequired')
               }
               trailing={
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onPress={onCreate}
-                  disabled={!selectedProjectId}
-                  accessibilityLabel={t('apiKeys.new')}>
-                  {t('apiKeys.new')}
-                </Button>
+                canCreate ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onPress={onCreate}
+                    disabled={!selectedProjectId}
+                    accessibilityLabel={t('apiKeys.new')}>
+                    {t('apiKeys.new')}
+                  </Button>
+                ) : undefined
               }
             />
           </Card>
@@ -207,18 +229,20 @@ export function ApiKeysListView({
               <Card size="md">
                 <EmptyState
                   icon={
-                    <Ionicons name="key-outline" size={28} color={colors.subtle} />
+                    <Feather name="key" size={28} color={colors.subtle} />
                   }
                   title={t('apiKeys.emptyState')}
                   action={
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onPress={onCreate}
-                      disabled={!selectedProjectId}
-                      accessibilityLabel={t('apiKeys.new')}>
-                      {t('apiKeys.new')}
-                    </Button>
+                    canCreate ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onPress={onCreate}
+                        disabled={!selectedProjectId}
+                        accessibilityLabel={t('apiKeys.new')}>
+                        {t('apiKeys.new')}
+                      </Button>
+                    ) : undefined
                   }
                 />
               </Card>
@@ -227,7 +251,7 @@ export function ApiKeysListView({
             {!isLoading &&
               displayItems.map((item) => {
                 const createdLabel = t('apiKeys.createdOn', {
-                  date: formatDate(item.created_at),
+                  date: formatDate(item.created_at, dateLocale),
                 });
                 const isActive = item.status === 'active';
 
@@ -253,58 +277,62 @@ export function ApiKeysListView({
                         }
                         subtitle={t('apiKeys.keyPrefix', { prefix: item.key_prefix })}
                         trailing={
-                          <Button
-                            variant="ghost"
-                            onPress={() => onDelete(item.id, item.name)}
-                            accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
-                            style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                            <Ionicons name="trash-outline" size={18} color={colors.error} />
-                          </Button>
+                          canDelete ? (
+                            <Button
+                              variant="ghost"
+                              onPress={() => onDelete(item.id, item.name)}
+                              accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
+                              style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                              <Feather name="trash-2" size={18} color={colors.error} />
+                            </Button>
+                          ) : undefined
                         }
                       />
-
-                      <Divider tone="muted" />
 
                       {/* Two discrete actions — a segmented control implies a
                           persistent selection, which these aren't. Rotate is
                           neutral; Revoke is destructive (error-tinted label). */}
-                      <Stack direction="row" gap="sm" width="full">
-                        <Button
-                          variant="neutral"
-                          size="sm"
-                          disabled={!isActive}
-                          onPress={() => onRotate(item.id, item.name)}
-                          accessibilityLabel={t('apiKeys.rotateNamed', { name: item.name })}
-                          style={{ flex: 1 }}>
-                          {t('apiKeys.rotate')}
-                        </Button>
-                        <Button
-                          variant="neutral"
-                          size="sm"
-                          disabled={!isActive}
-                          onPress={() => onRevoke(item.id, item.name)}
-                          accessibilityLabel={t('apiKeys.revokeNamed', { name: item.name })}
-                          textProps={{ style: { color: colors.error } }}
-                          style={{ flex: 1 }}>
-                          {t('apiKeys.revoke')}
-                        </Button>
-                      </Stack>
-
-                      <Divider tone="muted" />
+                      {canRotate || canRevoke ? (
+                        <Stack direction="row" gap="sm" width="full">
+                          {canRotate ? (
+                            <Button
+                              variant="neutral"
+                              size="sm"
+                              disabled={!isActive}
+                              onPress={() => onRotate(item.id, item.name)}
+                              accessibilityLabel={t('apiKeys.rotateNamed', { name: item.name })}
+                              style={{ flex: 1 }}>
+                              {t('apiKeys.rotate')}
+                            </Button>
+                          ) : null}
+                          {canRevoke ? (
+                            <Button
+                              variant="neutral"
+                              size="sm"
+                              disabled={!isActive}
+                              onPress={() => onRevoke(item.id, item.name)}
+                              accessibilityLabel={t('apiKeys.revokeNamed', { name: item.name })}
+                              textProps={{ style: { color: colors.error } }}
+                              style={{ flex: 1 }}>
+                              {t('apiKeys.revoke')}
+                            </Button>
+                          ) : null}
+                        </Stack>
+                      ) : null}
 
                       <Stack direction="row" gap="md" wrap="wrap" width="full">
                         <Text intent="caption">{createdLabel}</Text>
                         <Text intent="caption">
                           {item.last_used_at
                             ? t('apiKeys.lastUsed', {
-                                date: formatNullableDate(item.last_used_at),
+                                date: formatNullableDate(item.last_used_at, dateLocale),
                               })
                             : t('apiKeys.neverUsed')}
                         </Text>
                         {item.expires_at ? (
                           <Text intent="caption">
                             {t('apiKeys.expiresOn', {
-                              date: formatNullableDate(item.expires_at),
+                              date: formatNullableDate(item.expires_at, dateLocale),
                             })}
                           </Text>
                         ) : null}
@@ -318,8 +346,8 @@ export function ApiKeysListView({
           <Callout
             tone="warning"
             icon={
-              <Ionicons
-                name="shield-checkmark"
+              <Feather
+                name="shield"
                 size={designTokens.icon.action}
                 color={colors.secondary}
               />

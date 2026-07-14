@@ -40,6 +40,8 @@ const resources = {
           'Revoking "{{name}}" disables it immediately and cannot be undone from here. Requests using its current secret will start failing right away.',
         revokeCancel: 'Cancel',
         revoking: 'Revoking...',
+        revokeSuccess: 'Key Revoked',
+        revokeDone: 'Done',
         rotate: 'Rotate',
         rotateNamed: 'Rotate {{name}}',
         rotateTitle: 'Rotate API key',
@@ -85,6 +87,24 @@ const resources = {
       help: {
         title: 'Help',
         comingSoon: 'Coming Soon',
+        resourcesTitle: 'Resources',
+        resourcesDescription: 'Guides, references, and tools to help you integrate and troubleshoot.',
+        docs: 'API Documentation',
+        docsDescription: 'Full REST API reference with examples.',
+        keysGuide: 'API Key Management',
+        keysGuideDescription: 'Learn how to create, rotate, and revoke keys.',
+        contactSupport: 'Contact Support',
+        contactSupportDescription: 'Reach our team for account or billing issues.',
+        faqTitle: 'Frequently asked questions',
+        faqRotate: 'What happens when I rotate a key?',
+        faqRotateAnswer:
+          'Rotation issues a new secret and immediately invalidates the old one. Update any client using this key with the new secret right away.',
+        faqRevoke: 'What is the difference between revoke and delete?',
+        faqRevokeAnswer:
+          'Revoking marks a key as inactive — requests using its secret will fail, but the key record remains for audit. Deleting removes the key entirely.',
+        faqProject: 'How do projects scope API keys?',
+        faqProjectAnswer:
+          'Each API key belongs to a single project. The project determines which models the key can access and what rate limits apply.',
       },
       deleteKey: {
         title: 'Delete API key',
@@ -111,6 +131,8 @@ const resources = {
         },
         account: {
           title: 'Account settings',
+          statusActive: 'Active',
+          statusSuspended: 'Suspended',
           billingIdentitySection: 'Billing identity',
           billingIdentityDescription: 'The name or email associated with billing for this account.',
           billingIdentitySave: 'Save',
@@ -129,6 +151,13 @@ const resources = {
           policiesSection: 'Cross-project policy defaults',
           policiesUnsupported:
             'Cross-project policy defaults are not yet supported by the backend.',
+          suspendSection: 'Suspension',
+          suspendDescription:
+            'Suspending an account blocks every API key beneath it from validating, without deleting anything.',
+          suspendAccount: 'Suspend account',
+          suspending: 'Suspending...',
+          enableAccount: 'Reactivate account',
+          enabling: 'Reactivating...',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Deleting this account removes it and everything under it. This cannot be undone.',
@@ -136,6 +165,8 @@ const resources = {
         },
         project: {
           title: 'Project settings',
+          statusActive: 'Active',
+          statusSuspended: 'Suspended',
           scopeEyebrow: 'Account / project scope',
           subtitle: 'Manage project identity, plan, model access, and default limits.',
           accountsLabel: 'Accounts',
@@ -171,6 +202,13 @@ const resources = {
           limitsSaving: 'Saving...',
           createdOn: 'Created {{date}}',
           updatedOn: 'Updated {{date}}',
+          suspendSection: 'Suspension',
+          suspendDescription:
+            'Suspending a project blocks every API key in it from validating, without deleting anything.',
+          suspendProject: 'Suspend project',
+          suspending: 'Suspending...',
+          enableProject: 'Reactivate project',
+          enabling: 'Reactivating...',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Deleting this project removes its API keys and usage history. This cannot be undone.',
@@ -218,8 +256,17 @@ const resources = {
         noProject: 'No project selected',
         noPlan: 'No plan',
         quickActions: {
+          title: 'Quick actions',
           newToken: 'New Token',
+          manageKeys: 'Manage API Keys',
+          settings: 'Settings',
           support: 'Support',
+        },
+        gettingStarted: {
+          title: 'Getting started',
+          createKey: 'Create your first API key',
+          manageProject: 'Configure your project',
+          reviewSettings: 'Review account settings',
         },
         activeProject: {
           title: 'Active project',

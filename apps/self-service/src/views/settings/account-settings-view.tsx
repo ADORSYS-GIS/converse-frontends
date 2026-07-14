@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
+  Badge,
   Button,
   Chip,
   designTokens,
   Div,
   Divider,
   Heading,
+  Icon as Feather,
   KeyValue,
   PageHeader,
   Scroll,
@@ -30,7 +31,15 @@ type AccountSettingsViewProps = {
   isSavingOwners?: boolean;
   authIssuer: string;
   authUserLabel: string;
+  status?: 'active' | 'suspended';
+  canUpdate?: boolean;
+  canDelete?: boolean;
+  canDisable?: boolean;
   onDeleteAccount: () => void;
+  onSuspendAccount: () => void;
+  onEnableAccount: () => void;
+  isChangingStatus?: boolean;
+  statusError?: string | null;
 };
 
 export function AccountSettingsView({
@@ -45,7 +54,15 @@ export function AccountSettingsView({
   isSavingOwners = false,
   authIssuer,
   authUserLabel,
+  status = 'active',
+  canUpdate = true,
+  canDelete = true,
+  canDisable = true,
   onDeleteAccount,
+  onSuspendAccount,
+  onEnableAccount,
+  isChangingStatus = false,
+  statusError = null,
 }: Readonly<AccountSettingsViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -75,87 +92,113 @@ export function AccountSettingsView({
         <PageHeader
           title={t('settings.account.title')}
           leading={
-            <Button
-              variant="ghost"
-              size="iconSm"
-              onPress={onBack}
-              accessibilityLabel={t('apiKeys.back')}>
-              <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
-            </Button>
+            <Stack direction="row" align="center" gap="sm">
+              <Button
+                variant="ghost"
+                size="iconSm"
+                onPress={onBack}
+                accessibilityLabel={t('apiKeys.back')}>
+                <Feather name="arrow-left" size={designTokens.icon.nav} color={colors.ink} />
+              </Button>
+              <Text intent="caption">{t('nav.settings')}</Text>
+              <Feather name="chevron-right" size={14} color={colors.subtle} />
+            </Stack>
+          }
+          trailing={
+            <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
+              {status === 'suspended'
+                ? t('settings.account.statusSuspended')
+                : t('settings.account.statusActive')}
+            </Badge>
           }
         />
       ) : null}
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
-          {!showBackButton ? <Heading tone="title">{t('settings.account.title')}</Heading> : null}
-
-          <SectionCard
-            title={t('settings.account.billingIdentitySection')}
-            description={t('settings.account.billingIdentityDescription')}>
-            <Stack gap="md">
-              <TextField
-                value={billingIdentityDraft}
-                onChangeText={setBillingIdentityDraft}
-                editable={!isSavingBillingIdentity}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                onPress={() => onSaveBillingIdentity(trimmedDraft)}
-                disabled={!canSaveBillingIdentity}
-                style={{ alignSelf: 'flex-start' }}>
-                {isSavingBillingIdentity
-                  ? t('settings.account.billingIdentitySaving')
-                  : t('settings.account.billingIdentitySave')}
-              </Button>
+          {!showBackButton ? (
+            <Stack direction="row" align="center" gap="sm">
+              <Heading tone="title">{t('settings.account.title')}</Heading>
+              <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
+                {status === 'suspended'
+                  ? t('settings.account.statusSuspended')
+                  : t('settings.account.statusActive')}
+              </Badge>
             </Stack>
-          </SectionCard>
+          ) : null}
 
-          <SectionCard
-            title={t('settings.account.ownersSection')}
-            description={t('settings.account.ownersDescription')}>
-            <Stack gap="md">
-              {owners.length === 0 ? (
-                <Text intent="caption">{t('settings.account.ownersEmpty')}</Text>
-              ) : (
-                <Stack direction="row" wrap="wrap" gap="sm">
-                  {owners.map((owner) => (
-                    <Chip
-                      key={owner}
-                      onRemove={() => onRemoveOwner(owner)}
-                      removeAccessibilityLabel={t('settings.account.ownerRemove', { name: owner })}
-                      disabled={isSavingOwners}>
-                      {owner}
-                    </Chip>
-                  ))}
-                </Stack>
-              )}
-
-              <Stack direction="row" gap="sm" align="center">
-                <Div style={{ flex: 1 }}>
-                  <TextField
-                    value={newOwner}
-                    onChangeText={setNewOwner}
-                    placeholder={t('settings.account.ownerAddPlaceholder')}
-                    editable={!isSavingOwners}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onSubmitEditing={handleAddOwner}
-                  />
-                </Div>
+          {canUpdate ? (
+            <SectionCard
+              title={t('settings.account.billingIdentitySection')}
+              description={t('settings.account.billingIdentityDescription')}>
+              <Stack gap="md">
+                <TextField
+                  value={billingIdentityDraft}
+                  onChangeText={setBillingIdentityDraft}
+                  editable={!isSavingBillingIdentity}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
                 <Button
-                  variant="neutral"
+                  variant="primary"
                   size="sm"
-                  onPress={handleAddOwner}
-                  disabled={!trimmedNewOwner || isSavingOwners}>
-                  {t('settings.account.ownerAdd')}
+                  onPress={() => onSaveBillingIdentity(trimmedDraft)}
+                  disabled={!canSaveBillingIdentity}
+                  style={{ alignSelf: 'flex-start' }}>
+                  {isSavingBillingIdentity
+                    ? t('settings.account.billingIdentitySaving')
+                    : t('settings.account.billingIdentitySave')}
                 </Button>
               </Stack>
-            </Stack>
-          </SectionCard>
+            </SectionCard>
+          ) : null}
+
+          {canUpdate ? (
+            <SectionCard
+              title={t('settings.account.ownersSection')}
+              description={t('settings.account.ownersDescription')}>
+              <Stack gap="md">
+                {owners.length === 0 ? (
+                  <Text intent="caption">{t('settings.account.ownersEmpty')}</Text>
+                ) : (
+                  <Stack direction="row" wrap="wrap" gap="sm">
+                    {owners.map((owner) => (
+                      <Chip
+                        key={owner}
+                        onRemove={() => onRemoveOwner(owner)}
+                        removeAccessibilityLabel={t('settings.account.ownerRemove', {
+                          name: owner,
+                        })}
+                        disabled={isSavingOwners}>
+                        {owner}
+                      </Chip>
+                    ))}
+                  </Stack>
+                )}
+
+                <Stack direction="row" gap="sm" align="center">
+                  <Div style={{ flex: 1 }}>
+                    <TextField
+                      value={newOwner}
+                      onChangeText={setNewOwner}
+                      placeholder={t('settings.account.ownerAddPlaceholder')}
+                      editable={!isSavingOwners}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onSubmitEditing={handleAddOwner}
+                    />
+                  </Div>
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onPress={handleAddOwner}
+                    disabled={!trimmedNewOwner || isSavingOwners}>
+                    {t('settings.account.ownerAdd')}
+                  </Button>
+                </Stack>
+              </Stack>
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             title={t('settings.account.authSection')}
@@ -173,22 +216,53 @@ export function AccountSettingsView({
             description={t('settings.account.policiesUnsupported')}
           />
 
-          <SectionCard
-            tone="danger"
-            title={t('settings.account.dangerSection')}
-            description={t('settings.account.dangerDescription')}>
-            <Stack align="start">
-              <Button
-                variant="neutral"
-                size="sm"
-                onPress={onDeleteAccount}
-                style={{ alignSelf: 'flex-start', borderColor: colors.error, borderWidth: 1 }}>
-                <Text intent="body" style={{ color: colors.error }}>
-                  {t('settings.account.deleteAccount')}
-                </Text>
-              </Button>
-            </Stack>
-          </SectionCard>
+          {canDisable ? (
+            <SectionCard
+              tone={status === 'suspended' ? 'danger' : 'muted'}
+              title={t('settings.account.suspendSection')}
+              description={t('settings.account.suspendDescription')}>
+              <Stack gap="sm" align="start">
+                <Button
+                  variant="neutral"
+                  size="sm"
+                  disabled={isChangingStatus}
+                  onPress={status === 'suspended' ? onEnableAccount : onSuspendAccount}
+                  style={{ alignSelf: 'flex-start' }}>
+                  {status === 'suspended'
+                    ? isChangingStatus
+                      ? t('settings.account.enabling')
+                      : t('settings.account.enableAccount')
+                    : isChangingStatus
+                      ? t('settings.account.suspending')
+                      : t('settings.account.suspendAccount')}
+                </Button>
+                {statusError ? (
+                  <Text intent="caption" style={{ color: colors.error }}>
+                    {statusError}
+                  </Text>
+                ) : null}
+              </Stack>
+            </SectionCard>
+          ) : null}
+
+          {canDelete ? (
+            <SectionCard
+              tone="danger"
+              title={t('settings.account.dangerSection')}
+              description={t('settings.account.dangerDescription')}>
+              <Stack align="start">
+                <Button
+                  variant="neutral"
+                  size="sm"
+                  onPress={onDeleteAccount}
+                  style={{ alignSelf: 'flex-start', borderColor: colors.error, borderWidth: 1 }}>
+                  <Text intent="body" style={{ color: colors.error }}>
+                    {t('settings.account.deleteAccount')}
+                  </Text>
+                </Button>
+              </Stack>
+            </SectionCard>
+          ) : null}
         </Stack>
       </Scroll>
     </Div>

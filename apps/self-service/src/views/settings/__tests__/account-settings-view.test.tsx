@@ -22,6 +22,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof AccountSettin
       authIssuer="https://issuer.example.com/realms/lightbridge"
       authUserLabel="jane@example.com"
       onDeleteAccount={noop}
+      onSuspendAccount={noop}
+      onEnableAccount={noop}
       {...overrides}
     />
   );

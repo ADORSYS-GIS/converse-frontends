@@ -1,4 +1,5 @@
 export * from './accounts';
+export * from './api-error';
 export * from './api-keys';
 export * from './auth-session';
 export * from './keycloak-login';
@@ -18,8 +19,12 @@ export {
   isJwtExpired,
   getJwtSubject,
   getJwtIssuer,
+  getJwtRoles,
   isAudienceValid
 } from './auth/jwt-utils';
+
+export * from './rbac';
+export * from './use-permissions';
 
 // Export authentication error utilities
 export {

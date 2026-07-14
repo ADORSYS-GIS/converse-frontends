@@ -253,11 +253,37 @@ export function getJwtSubject(token: string): string | null {
 
 /**
  * Get the issuer from a JWT token
- * 
+ *
  * @param token - The JWT token string
  * @returns The issuer claim or null if not found
  */
 export function getJwtIssuer(token: string): string | null {
   const payload = decodeJwt(token);
   return payload?.iss ?? null;
+}
+
+/**
+ * Get the caller's RBAC roles from a JWT token.
+ *
+ * Mirrors `lightbridge-authz-core::authz::Rbac::roles_claim`: the claim value may be a JSON
+ * array of strings or a single space-delimited string. Defaults to the `roles` claim, matching
+ * the dev realm's `lightbridge-roles` protocol mapper (see `docs/rbac.md` on the backend).
+ *
+ * @param token - The JWT token string
+ * @param claimName - The claim to read (default: "roles")
+ * @returns The role strings, or an empty array if the claim is missing/malformed
+ */
+export function getJwtRoles(token: string, claimName = 'roles'): string[] {
+  const payload = decodeJwt(token);
+  const value = payload?.[claimName];
+
+  if (Array.isArray(value)) {
+    return value.filter((role): role is string => typeof role === 'string');
+  }
+
+  if (typeof value === 'string') {
+    return value.split(' ').filter(Boolean);
+  }
+
+  return [];
 }

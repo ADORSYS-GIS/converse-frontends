@@ -1,8 +1,17 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 
-import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import {
+  Button,
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Icon as Feather,
+  Scroll,
+  Stack,
+  Text,
+} from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 type HomeViewProps = {
@@ -11,9 +20,12 @@ type HomeViewProps = {
   activeProjectName?: string | null;
   activeProjectPlan?: string | null;
   onNewToken: () => void;
+  onManageKeys: () => void;
+  onSettings: () => void;
   onSupport: () => void;
   isSigningOut?: boolean;
   onLogout: () => void;
+  canCreateKey?: boolean;
 };
 
 export function HomeView({
@@ -22,9 +34,12 @@ export function HomeView({
   activeProjectName,
   activeProjectPlan,
   onNewToken,
+  onManageKeys,
+  onSettings,
   onSupport,
   isSigningOut,
   onLogout,
+  canCreateKey = true,
 }: Readonly<HomeViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -56,7 +71,7 @@ export function HomeView({
             accessibilityLabel={t('nav.logout')}
             disabled={Boolean(isSigningOut)}
             onPress={onLogout}>
-            <Ionicons name="log-out-outline" size={designTokens.icon.nav} color={colors.surface} />
+            <Feather name="log-out" size={designTokens.icon.nav} color={colors.surface} />
           </Div>
         </Stack>
 
@@ -73,10 +88,46 @@ export function HomeView({
                 <Text intent="caption">{projectPlan}</Text>
               </Div>
             </Stack>
+            {canCreateKey ? (
+              <Stack direction="row" gap="sm" wrap="wrap">
+                <Button variant="primary" size="sm" onPress={onNewToken}>
+                  {t('home.quickActions.newToken')}
+                </Button>
+              </Stack>
+            ) : null}
+          </Stack>
+        </Card>
+
+        <Card size="sm">
+          <Stack gap="md">
+            <Text intent="eyebrow">{t('home.quickActions.title')}</Text>
             <Stack direction="row" gap="sm" wrap="wrap">
-              <Button variant="primary" size="sm" onPress={onNewToken}>
-                {t('home.quickActions.newToken')}
+              <Button variant="neutral" size="sm" onPress={onManageKeys}>
+                {t('home.quickActions.manageKeys')}
               </Button>
+              <Button variant="neutral" size="sm" onPress={onSettings}>
+                {t('home.quickActions.settings')}
+              </Button>
+            </Stack>
+          </Stack>
+        </Card>
+
+        <Card size="sm">
+          <Stack gap="md">
+            <Text intent="eyebrow">{t('home.gettingStarted.title')}</Text>
+            <Stack gap="sm">
+              <Stack direction="row" align="center" gap="sm">
+                <Feather name="key" size={designTokens.icon.action} color={colors.primary} />
+                <Text intent="body">{t('home.gettingStarted.createKey')}</Text>
+              </Stack>
+              <Stack direction="row" align="center" gap="sm">
+                <Feather name="settings" size={designTokens.icon.action} color={colors.primary} />
+                <Text intent="body">{t('home.gettingStarted.manageProject')}</Text>
+              </Stack>
+              <Stack direction="row" align="center" gap="sm">
+                <Feather name="user" size={designTokens.icon.action} color={colors.primary} />
+                <Text intent="body">{t('home.gettingStarted.reviewSettings')}</Text>
+              </Stack>
             </Stack>
           </Stack>
         </Card>
@@ -84,12 +135,12 @@ export function HomeView({
         <Card size="sm" accessibilityRole="button" onPress={onSupport}>
           <Stack direction="row" align="center" gap="sm">
             <Div tone="successSoft" rounded="xl" size="iconMd" align="center" justify="center">
-              <Ionicons name="help-circle" size={designTokens.icon.action} color={colors.success} />
+              <Feather name="help-circle" size={designTokens.icon.action} color={colors.success} />
             </Div>
             <Text intent="bodyStrong" style={{ flex: 1 }}>
               {t('home.quickActions.support')}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.subtle} />
+            <Feather name="chevron-right" size={18} color={colors.subtle} />
           </Stack>
         </Card>
       </Stack>

@@ -1,18 +1,18 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   useAccounts,
   useApiKeys,
+  usePermissions,
   useProjects,
   useQueryState,
-  useRevokeApiKey,
 } from '@lightbridge/hooks';
 import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 import { DeleteApiKeySheet } from './delete-api-key-sheet';
+import { RevokeApiKeySheet } from './revoke-api-key-sheet';
 import { RotateApiKeySheet } from './rotate-api-key-sheet';
 
 const PAGE_SIZE = 10;
@@ -20,6 +20,7 @@ const PAGE_SIZE = 10;
 export function ApiKeysScreen() {
   const { t } = useTranslation();
   const sheet = useSheet();
+  const { has } = usePermissions();
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links, read straight through useQueryState — no
   // useLocalSearchParams + useState + useEffect sync dance.
@@ -28,7 +29,6 @@ export function ApiKeysScreen() {
   const router = useRouter();
   const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
   const accounts: ApiKeyBackendAccount[] = accountsData;
-  const revokeKey = useRevokeApiKey();
 
   // Effective account: the URL param when set, otherwise the first account.
   const accountId = accountParam ?? accounts[0]?.id;
@@ -65,35 +65,29 @@ export function ApiKeysScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    sheet.present(({ dismiss }) => (
-      <DeleteApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
-    ));
+    sheet.present(
+      ({ dismiss }) => (
+        <DeleteApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
+      ),
+      { accessibilityLabel: t('apiKeys.deleteNamed', { name }) }
+    );
   };
 
   const handleRotate = (id: string, name: string) => {
-    sheet.present(({ dismiss }) => (
-      <RotateApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
-    ));
+    sheet.present(
+      ({ dismiss }) => (
+        <RotateApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
+      ),
+      { accessibilityLabel: t('apiKeys.rotateNamed', { name }) }
+    );
   };
 
   const handleRevoke = (id: string, name: string) => {
-    Alert.alert(
-      t('apiKeys.revokeConfirmTitle'),
-      t('apiKeys.revokeConfirmMessage', { name }),
-      [
-        { text: t('apiKeys.revokeCancel'), style: 'cancel' },
-        {
-          text: t('apiKeys.revoke'),
-          style: 'destructive',
-          onPress: () => {
-            if (!projectId) return;
-            void revokeKey.mutateAsync({ id, projectId }).catch((error) => {
-              console.error('Failed to revoke API key:', error);
-            });
-          },
-        },
-      ],
-      { cancelable: true }
+    sheet.present(
+      ({ dismiss }) => (
+        <RevokeApiKeySheet id={id} name={name} projectId={projectId} onClose={dismiss} />
+      ),
+      { accessibilityLabel: t('apiKeys.revokeNamed', { name }) }
     );
   };
 
@@ -112,6 +106,10 @@ export function ApiKeysScreen() {
       onRotate={handleRotate}
       onSelectAccount={handleSelectAccount}
       onSelectProject={handleSelectProject}
+      canCreate={has('apikey:create')}
+      canDelete={has('apikey:delete')}
+      canRevoke={has('apikey:revoke')}
+      canRotate={has('apikey:rotate')}
     />
   );
 }

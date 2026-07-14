@@ -47,6 +47,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       onRemoveModel={noop}
       onSaveLimits={noop}
       onDeleteProject={noop}
+      onSuspendProject={noop}
+      onEnableProject={noop}
       {...overrides}
     />
   );

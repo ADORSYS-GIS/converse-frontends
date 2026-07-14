@@ -4,6 +4,8 @@ import type { ApiKeyBackendAccount, ApiKeyBackendUpdateAccount } from '@lightbri
 import {
   apiKeyBackendCreateAccount,
   apiKeyBackendDeleteAccount,
+  apiKeyBackendDisableAccount,
+  apiKeyBackendEnableAccount,
   apiKeyBackendListAccounts,
   apiKeyBackendUpdateAccount,
 } from '@lightbridge/api-rest';
@@ -60,6 +62,50 @@ export function useUpdateAccount() {
 
   return {
     isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useDisableAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const response = await apiKeyBackendDisableAccount<true>({
+        path: { account_id: id },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useEnableAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const response = await apiKeyBackendEnableAccount<true>({
+        path: { account_id: id },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
     mutateAsync: mutation.mutateAsync,
   };
 }

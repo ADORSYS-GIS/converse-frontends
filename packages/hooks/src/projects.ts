@@ -9,6 +9,8 @@ import type {
 import {
   apiKeyBackendCreateProject,
   apiKeyBackendDeleteProject,
+  apiKeyBackendDisableProject,
+  apiKeyBackendEnableProject,
   apiKeyBackendListProjects,
   apiKeyBackendUpdateProject,
 } from '@lightbridge/api-rest';
@@ -111,6 +113,50 @@ export function useUpdateProject() {
 
   return {
     isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useDisableProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string; accountId: string }) => {
+      const response = await apiKeyBackendDisableProject<true>({
+        path: { project_id: id },
+      });
+      return response.data;
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useEnableProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string; accountId: string }) => {
+      const response = await apiKeyBackendEnableProject<true>({
+        path: { project_id: id },
+      });
+      return response.data;
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
     mutateAsync: mutation.mutateAsync,
   };
 }

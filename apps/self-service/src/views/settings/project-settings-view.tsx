@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
+  Badge,
   Button,
   Card,
   Chip,
@@ -10,6 +10,7 @@ import {
   Divider,
   EmptyState,
   Heading,
+  Icon as Feather,
   PageHeader,
   Scroll,
   SectionCard,
@@ -49,7 +50,15 @@ type ProjectSettingsViewProps = {
   isSavingModels?: boolean;
   onSaveLimits: (limits: ApiKeyBackendDefaultLimits) => void;
   isSavingLimits?: boolean;
+  canCreate?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
+  canDisable?: boolean;
   onDeleteProject: () => void;
+  onSuspendProject: () => void;
+  onEnableProject: () => void;
+  isChangingStatus?: boolean;
+  statusError?: string | null;
 };
 
 /** Renders a nullable numeric limit as a text-field draft ('' = no limit). */
@@ -85,10 +94,19 @@ export function ProjectSettingsView({
   isSavingModels = false,
   onSaveLimits,
   isSavingLimits = false,
+  canCreate = true,
+  canUpdate = true,
+  canDelete = true,
+  canDisable = true,
   onDeleteProject,
+  onSuspendProject,
+  onEnableProject,
+  isChangingStatus = false,
+  statusError = null,
 }: Readonly<ProjectSettingsViewProps>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const colors = useThemeColors();
+  const dateLocale = i18n.language;
 
   const [nameDraft, setNameDraft] = useState(project?.name ?? '');
   const [planDraft, setPlanDraft] = useState(project?.billing_plan ?? '');
@@ -151,31 +169,57 @@ export function ProjectSettingsView({
         <PageHeader
           title={t('settings.project.title')}
           leading={
-            <Button
-              variant="ghost"
-              size="iconSm"
-              onPress={onBack}
-              accessibilityLabel={t('apiKeys.back')}>
-              <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
-            </Button>
+            <Stack direction="row" align="center" gap="sm">
+              <Button
+                variant="ghost"
+                size="iconSm"
+                onPress={onBack}
+                accessibilityLabel={t('apiKeys.back')}>
+                <Feather name="arrow-left" size={designTokens.icon.nav} color={colors.ink} />
+              </Button>
+              <Text intent="caption">{t('nav.settings')}</Text>
+              <Feather name="chevron-right" size={14} color={colors.subtle} />
+            </Stack>
           }
           trailing={
-            <Button
-              variant="primary"
-              size="icon"
-              shape="circle"
-              onPress={onCreateProject}
-              accessibilityLabel={t('settings.project.newProject')}
-              style={{ width: 36, height: 36 }}>
-              <Ionicons name="add" size={designTokens.icon.nav} color={colors.surface} />
-            </Button>
+            <Stack direction="row" align="center" gap="sm">
+              {project ? (
+                <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
+                  {project.status === 'suspended'
+                    ? t('settings.project.statusSuspended')
+                    : t('settings.project.statusActive')}
+                </Badge>
+              ) : null}
+              {canCreate ? (
+                <Button
+                  variant="primary"
+                  size="icon"
+                  shape="circle"
+                  onPress={onCreateProject}
+                  accessibilityLabel={t('settings.project.newProject')}
+                  style={{ width: 36, height: 36 }}>
+                  <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+                </Button>
+              ) : null}
+            </Stack>
           }
         />
       ) : null}
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
-          {!showBackButton ? <Heading tone="title">{t('settings.project.title')}</Heading> : null}
+          {!showBackButton ? (
+            <Stack direction="row" align="center" gap="sm">
+              <Heading tone="title">{t('settings.project.title')}</Heading>
+              {project ? (
+                <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
+                  {project.status === 'suspended'
+                    ? t('settings.project.statusSuspended')
+                    : t('settings.project.statusActive')}
+                </Badge>
+              ) : null}
+            </Stack>
+          ) : null}
 
           <Stack gap="xs">
             <Text intent="eyebrow">{t('settings.project.scopeEyebrow')}</Text>
@@ -193,7 +237,7 @@ export function ProjectSettingsView({
                     accounts.map((account) => (
                       <Button
                         key={account.id}
-                        variant={account.id === selectedAccountId ? 'brandSoft' : 'neutral'}
+                        variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
                         size="sm"
                         onPress={() => onSelectAccount(account.id)}
                         accessibilityLabel={t('settings.project.selectAccount', {
@@ -217,7 +261,7 @@ export function ProjectSettingsView({
                     projects.map((item) => (
                       <Button
                         key={item.id}
-                        variant={item.id === selectedProjectId ? 'brandSoft' : 'neutral'}
+                        variant={item.id === selectedProjectId ? 'primary' : 'neutral'}
                         size="sm"
                         onPress={() => onSelectProject(item.id)}
                         accessibilityLabel={t('settings.project.selectProject', {
@@ -227,13 +271,15 @@ export function ProjectSettingsView({
                       </Button>
                     ))
                   )}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={onCreateProject}
-                    accessibilityLabel={t('settings.project.newProject')}>
-                    {t('settings.project.newProject')}
-                  </Button>
+                  {canCreate ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={onCreateProject}
+                      accessibilityLabel={t('settings.project.newProject')}>
+                      {t('settings.project.newProject')}
+                    </Button>
+                  ) : null}
                 </Stack>
               </Stack>
             </Stack>
@@ -247,178 +293,227 @@ export function ProjectSettingsView({
 
           {!isLoading && project ? (
             <>
-              <SectionCard
-                title={t('settings.project.detailsSection')}
-                description={t('settings.project.detailsDescription')}>
-                <Stack gap="md">
-                  <Stack gap="xs">
-                    <Text intent="caption">{t('settings.project.nameLabel')}</Text>
-                    <TextField
-                      value={nameDraft}
-                      onChangeText={setNameDraft}
-                      placeholder={t('settings.project.namePlaceholder')}
-                      editable={!isSavingDetails}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </Stack>
-                  <Stack gap="xs">
-                    <Text intent="caption">{t('settings.project.planLabel')}</Text>
-                    <TextField
-                      value={planDraft}
-                      onChangeText={setPlanDraft}
-                      placeholder={t('settings.project.planPlaceholder')}
-                      editable={!isSavingDetails}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </Stack>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={() => onSaveDetails({ name: trimmedName, billingPlan: trimmedPlan })}
-                    disabled={!canSaveDetails}
-                    style={{ alignSelf: 'flex-start' }}>
-                    {isSavingDetails
-                      ? t('settings.project.detailsSaving')
-                      : t('settings.project.detailsSave')}
-                  </Button>
-                </Stack>
-              </SectionCard>
-
-              <SectionCard
-                title={t('settings.project.modelsSection')}
-                description={t('settings.project.modelsDescription')}>
-                <Stack gap="md">
-                  {models.length === 0 ? (
-                    <Text intent="caption">{t('settings.project.modelsEmpty')}</Text>
-                  ) : (
-                    <Stack direction="row" wrap="wrap" gap="sm">
-                      {models.map((model) => (
-                        <Chip
-                          key={model}
-                          onRemove={() => onRemoveModel(model)}
-                          removeAccessibilityLabel={t('settings.project.modelRemove', {
-                            name: model,
-                          })}
-                          disabled={isSavingModels}>
-                          {model}
-                        </Chip>
-                      ))}
-                    </Stack>
-                  )}
-
-                  <Stack direction="row" gap="sm" align="center">
-                    <Div style={{ flex: 1 }}>
+              {canUpdate ? (
+                <SectionCard
+                  title={t('settings.project.detailsSection')}
+                  description={t('settings.project.detailsDescription')}>
+                  <Stack gap="md">
+                    <Stack gap="xs">
+                      <Text intent="caption">{t('settings.project.nameLabel')}</Text>
                       <TextField
-                        value={newModel}
-                        onChangeText={setNewModel}
-                        placeholder={t('settings.project.modelAddPlaceholder')}
-                        editable={!isSavingModels}
+                        value={nameDraft}
+                        onChangeText={setNameDraft}
+                        placeholder={t('settings.project.namePlaceholder')}
+                        editable={!isSavingDetails}
                         autoCapitalize="none"
                         autoCorrect={false}
-                        onSubmitEditing={handleAddModel}
                       />
-                    </Div>
+                    </Stack>
+                    <Stack gap="xs">
+                      <Text intent="caption">{t('settings.project.planLabel')}</Text>
+                      <TextField
+                        value={planDraft}
+                        onChangeText={setPlanDraft}
+                        placeholder={t('settings.project.planPlaceholder')}
+                        editable={!isSavingDetails}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </Stack>
                     <Button
-                      variant="neutral"
+                      variant="primary"
                       size="sm"
-                      onPress={handleAddModel}
-                      disabled={!trimmedNewModel || isSavingModels}>
-                      {t('settings.project.modelAdd')}
+                      onPress={() =>
+                        onSaveDetails({ name: trimmedName, billingPlan: trimmedPlan })
+                      }
+                      disabled={!canSaveDetails}
+                      style={{ alignSelf: 'flex-start' }}>
+                      {isSavingDetails
+                        ? t('settings.project.detailsSaving')
+                        : t('settings.project.detailsSave')}
                     </Button>
                   </Stack>
-                </Stack>
-              </SectionCard>
+                </SectionCard>
+              ) : null}
 
-              <SectionCard
-                title={t('settings.project.limitsSection')}
-                description={t('settings.project.limitsDescription')}>
-                <Stack gap="md">
-                  <Stack gap="xs">
-                    <Text intent="caption">{t('settings.project.limitRps')}</Text>
-                    <TextField
-                      value={rpsDraft}
-                      onChangeText={setRpsDraft}
-                      editable={!isSavingLimits}
-                      keyboardType="number-pad"
-                      autoCorrect={false}
-                    />
+              {canUpdate ? (
+                <SectionCard
+                  title={t('settings.project.modelsSection')}
+                  description={t('settings.project.modelsDescription')}>
+                  <Stack gap="md">
+                    {models.length === 0 ? (
+                      <Text intent="caption">{t('settings.project.modelsEmpty')}</Text>
+                    ) : (
+                      <Stack direction="row" wrap="wrap" gap="sm">
+                        {models.map((model) => (
+                          <Chip
+                            key={model}
+                            onRemove={() => onRemoveModel(model)}
+                            removeAccessibilityLabel={t('settings.project.modelRemove', {
+                              name: model,
+                            })}
+                            disabled={isSavingModels}>
+                            {model}
+                          </Chip>
+                        ))}
+                      </Stack>
+                    )}
+
+                    <Stack direction="row" gap="sm" align="center">
+                      <Div style={{ flex: 1 }}>
+                        <TextField
+                          value={newModel}
+                          onChangeText={setNewModel}
+                          placeholder={t('settings.project.modelAddPlaceholder')}
+                          editable={!isSavingModels}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          onSubmitEditing={handleAddModel}
+                        />
+                      </Div>
+                      <Button
+                        variant="neutral"
+                        size="sm"
+                        onPress={handleAddModel}
+                        disabled={!trimmedNewModel || isSavingModels}>
+                        {t('settings.project.modelAdd')}
+                      </Button>
+                    </Stack>
                   </Stack>
-                  <Stack gap="xs">
-                    <Text intent="caption">{t('settings.project.limitRpd')}</Text>
-                    <TextField
-                      value={rpdDraft}
-                      onChangeText={setRpdDraft}
-                      editable={!isSavingLimits}
-                      keyboardType="number-pad"
-                      autoCorrect={false}
-                    />
+                </SectionCard>
+              ) : null}
+
+              {canUpdate ? (
+                <SectionCard
+                  title={t('settings.project.limitsSection')}
+                  description={t('settings.project.limitsDescription')}>
+                  <Stack gap="md">
+                    <Stack gap="xs">
+                      <Text intent="caption">{t('settings.project.limitRps')}</Text>
+                      <TextField
+                        value={rpsDraft}
+                        onChangeText={setRpsDraft}
+                        editable={!isSavingLimits}
+                        keyboardType="number-pad"
+                        autoCorrect={false}
+                      />
+                    </Stack>
+                    <Stack gap="xs">
+                      <Text intent="caption">{t('settings.project.limitRpd')}</Text>
+                      <TextField
+                        value={rpdDraft}
+                        onChangeText={setRpdDraft}
+                        editable={!isSavingLimits}
+                        keyboardType="number-pad"
+                        autoCorrect={false}
+                      />
+                    </Stack>
+                    <Stack gap="xs">
+                      <Text intent="caption">{t('settings.project.limitConcurrent')}</Text>
+                      <TextField
+                        value={concurrentDraft}
+                        onChangeText={setConcurrentDraft}
+                        editable={!isSavingLimits}
+                        keyboardType="number-pad"
+                        autoCorrect={false}
+                      />
+                    </Stack>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={handleSaveLimits}
+                      disabled={!canSaveLimits}
+                      style={{ alignSelf: 'flex-start' }}>
+                      {isSavingLimits
+                        ? t('settings.project.limitsSaving')
+                        : t('settings.project.limitsSave')}
+                    </Button>
                   </Stack>
-                  <Stack gap="xs">
-                    <Text intent="caption">{t('settings.project.limitConcurrent')}</Text>
-                    <TextField
-                      value={concurrentDraft}
-                      onChangeText={setConcurrentDraft}
-                      editable={!isSavingLimits}
-                      keyboardType="number-pad"
-                      autoCorrect={false}
-                    />
-                  </Stack>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={handleSaveLimits}
-                    disabled={!canSaveLimits}
-                    style={{ alignSelf: 'flex-start' }}>
-                    {isSavingLimits
-                      ? t('settings.project.limitsSaving')
-                      : t('settings.project.limitsSave')}
-                  </Button>
-                </Stack>
-              </SectionCard>
+                </SectionCard>
+              ) : null}
 
               <Stack direction="row" gap="md" wrap="wrap">
                 <Text intent="caption">
-                  {t('settings.project.createdOn', { date: formatDate(project.created_at) })}
+                  {t('settings.project.createdOn', {
+                    date: formatDate(project.created_at, dateLocale),
+                  })}
                 </Text>
                 <Text intent="caption">
-                  {t('settings.project.updatedOn', { date: formatDate(project.updated_at) })}
+                  {t('settings.project.updatedOn', {
+                    date: formatDate(project.updated_at, dateLocale),
+                  })}
                 </Text>
               </Stack>
 
-              <SectionCard
-                tone="danger"
-                title={t('settings.project.dangerSection')}
-                description={t('settings.project.dangerDescription')}>
-                <Stack align="start">
-                  <Button
-                    variant="neutral"
-                    size="sm"
-                    onPress={onDeleteProject}
-                    style={{ alignSelf: 'flex-start', borderColor: colors.error, borderWidth: 1 }}>
-                    <Text intent="body" style={{ color: colors.error }}>
-                      {t('settings.project.deleteProject')}
-                    </Text>
-                  </Button>
-                </Stack>
-              </SectionCard>
+              {canDisable ? (
+                <SectionCard
+                  tone={project.status === 'suspended' ? 'danger' : 'muted'}
+                  title={t('settings.project.suspendSection')}
+                  description={t('settings.project.suspendDescription')}>
+                  <Stack gap="sm" align="start">
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      disabled={isChangingStatus}
+                      onPress={project.status === 'suspended' ? onEnableProject : onSuspendProject}
+                      style={{ alignSelf: 'flex-start' }}>
+                      {project.status === 'suspended'
+                        ? isChangingStatus
+                          ? t('settings.project.enabling')
+                          : t('settings.project.enableProject')
+                        : isChangingStatus
+                          ? t('settings.project.suspending')
+                          : t('settings.project.suspendProject')}
+                    </Button>
+                    {statusError ? (
+                      <Text intent="caption" style={{ color: colors.error }}>
+                        {statusError}
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </SectionCard>
+              ) : null}
+
+              {canDelete ? (
+                <SectionCard
+                  tone="danger"
+                  title={t('settings.project.dangerSection')}
+                  description={t('settings.project.dangerDescription')}>
+                  <Stack align="start">
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      onPress={onDeleteProject}
+                      style={{
+                        alignSelf: 'flex-start',
+                        borderColor: colors.error,
+                        borderWidth: 1,
+                      }}>
+                      <Text intent="body" style={{ color: colors.error }}>
+                        {t('settings.project.deleteProject')}
+                      </Text>
+                    </Button>
+                  </Stack>
+                </SectionCard>
+              ) : null}
             </>
           ) : null}
 
           {!isLoading && !project ? (
             <Card size="md">
               <EmptyState
-                icon={<Ionicons name="folder-open-outline" size={28} color={colors.subtle} />}
+                icon={<Feather name="folder" size={28} color={colors.subtle} />}
                 title={t('settings.project.noProjects')}
                 action={
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={onCreateProject}
-                    accessibilityLabel={t('settings.project.newProject')}>
-                    {t('settings.project.newProject')}
-                  </Button>
+                  canCreate ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={onCreateProject}
+                      accessibilityLabel={t('settings.project.newProject')}>
+                      {t('settings.project.newProject')}
+                    </Button>
+                  ) : undefined
                 }
               />
             </Card>

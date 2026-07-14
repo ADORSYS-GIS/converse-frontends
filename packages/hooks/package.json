@@ -29,6 +29,10 @@
     "react-native": ">=0.72"
   },
   "devDependencies": {
-    "expo-router": "~55.0.14"
+    "expo-router": "~55.0.14",
+    "vitest": "^3.2.7"
+  },
+  "scripts": {
+    "test": "vitest run"
   }
 }

@@ -15,6 +15,7 @@ export const ALL_PERMISSIONS = [
   'account:update',
   'account:delete',
   'account:disable',
+  'account:member',
   'project:create',
   'project:read',
   'project:update',

@@ -14,6 +14,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof AccountSettin
   return render(
     <AccountSettingsView
       onBack={noop}
+      onSelectAccount={noop}
+      onCreateAccount={noop}
       billingIdentity="acme-inc"
       onSaveBillingIdentity={noop}
       owners={[]}
@@ -88,6 +90,37 @@ describe('AccountSettingsView', () => {
     await fireEvent.press(screen.getByText('Add'));
 
     expect(onAddOwner).toHaveBeenCalledWith('new@example.com');
+  });
+
+  it('renders the account list and calls onSelectAccount when one is pressed', async () => {
+    const onSelectAccount = jest.fn();
+    await renderView({
+      accounts: [
+        { id: 'acc-1', billing_identity: 'acme-inc', created_at: '', updated_at: '' },
+        { id: 'acc-2', billing_identity: 'globex', created_at: '', updated_at: '' },
+      ],
+      selectedAccountId: 'acc-1',
+      onSelectAccount,
+    });
+
+    await fireEvent.press(screen.getByText('globex'));
+
+    expect(onSelectAccount).toHaveBeenCalledWith('acc-2');
+  });
+
+  it('calls onCreateAccount from the header button when the user can create', async () => {
+    const onCreateAccount = jest.fn();
+    await renderView({ canCreate: true, onCreateAccount });
+
+    await fireEvent.press(screen.getByLabelText('New account'));
+
+    expect(onCreateAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the create button when the user lacks permission', async () => {
+    await renderView({ canCreate: false });
+
+    expect(screen.queryByLabelText('New account')).toBeNull();
   });
 
   it('calls onDeleteAccount when the danger-zone button is pressed', async () => {

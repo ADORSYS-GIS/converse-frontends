@@ -211,3 +211,27 @@ export function useEnsureDefaultAccount() {
     mutate: mutation.mutateAsync,
   };
 }
+
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ billingIdentity }: { billingIdentity: string }) => {
+      const response = await apiKeyBackendCreateAccount<true>({
+        body: {
+          billing_identity: billingIdentity,
+        },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}

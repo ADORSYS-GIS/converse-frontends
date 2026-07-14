@@ -3,6 +3,7 @@ import { useTranslation } from '@lightbridge/i18n';
 import {
   Badge,
   Button,
+  Card,
   Chip,
   designTokens,
   Div,
@@ -13,15 +14,23 @@ import {
   PageHeader,
   Scroll,
   SectionCard,
+  Skeleton,
   Stack,
   Text,
   TextField,
 } from '@lightbridge/ui';
+import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 type AccountSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
+  accounts?: ApiKeyBackendAccount[];
+  selectedAccountId?: string;
+  isLoading?: boolean;
+  onSelectAccount: (id: string) => void;
+  onCreateAccount: () => void;
+  canCreate?: boolean;
   billingIdentity: string;
   onSaveBillingIdentity: (value: string) => void;
   isSavingBillingIdentity?: boolean;
@@ -47,6 +56,12 @@ type AccountSettingsViewProps = {
 export function AccountSettingsView({
   showBackButton = true,
   onBack,
+  accounts = [],
+  selectedAccountId,
+  isLoading = false,
+  onSelectAccount,
+  onCreateAccount,
+  canCreate = true,
   billingIdentity,
   onSaveBillingIdentity,
   isSavingBillingIdentity = false,
@@ -108,19 +123,45 @@ export function AccountSettingsView({
               <Feather name="chevron-right" size={14} color={colors.subtle} />
             </Stack>
           }
+          trailing={
+            canCreate ? (
+              <Button
+                variant="primary"
+                size="icon"
+                shape="circle"
+                onPress={onCreateAccount}
+                accessibilityLabel={t('settings.account.newAccount')}
+                style={{ width: 36, height: 36 }}>
+                <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+              </Button>
+            ) : undefined
+          }
         />
       ) : null}
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
           {!showBackButton ? (
-            <Stack direction="row" align="center" gap="sm">
-              <Heading tone="title">{t('settings.account.title')}</Heading>
-              <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
-                {status === 'suspended'
-                  ? t('settings.account.statusSuspended')
-                  : t('settings.account.statusActive')}
-              </Badge>
+            <Stack direction="row" align="center" justify="between" width="full">
+              <Stack direction="row" align="center" gap="sm">
+                <Heading tone="title">{t('settings.account.title')}</Heading>
+                <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
+                  {status === 'suspended'
+                    ? t('settings.account.statusSuspended')
+                    : t('settings.account.statusActive')}
+                </Badge>
+              </Stack>
+              {canCreate ? (
+                <Button
+                  variant="primary"
+                  size="icon"
+                  shape="circle"
+                  onPress={onCreateAccount}
+                  accessibilityLabel={t('settings.account.newAccount')}
+                  style={{ width: 36, height: 36 }}>
+                  <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+                </Button>
+              ) : null}
             </Stack>
           ) : (
             <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
@@ -129,6 +170,35 @@ export function AccountSettingsView({
                 : t('settings.account.statusActive')}
             </Badge>
           )}
+
+          <Card size="sm">
+            <Stack gap="xs">
+              <Text intent="bodyStrong">{t('settings.account.accountsLabel')}</Text>
+              {isLoading && accounts.length === 0 ? (
+                <Stack direction="row" gap="sm">
+                  <Skeleton width={96} height={36} rounded="xl" />
+                  <Skeleton width={96} height={36} rounded="xl" />
+                </Stack>
+              ) : accounts.length === 0 ? (
+                <Text intent="caption">{t('settings.account.noAccounts')}</Text>
+              ) : (
+                <Stack direction="row" wrap="wrap" gap="sm">
+                  {accounts.map((account) => (
+                    <Button
+                      key={account.id}
+                      variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
+                      size="sm"
+                      onPress={() => onSelectAccount(account.id)}
+                      accessibilityLabel={t('settings.account.selectAccount', {
+                        account: account.billing_identity,
+                      })}>
+                      {account.billing_identity}
+                    </Button>
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+          </Card>
 
           {canUpdate ? (
             <SectionCard

@@ -9,7 +9,7 @@ export default function HelpRoute() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: '' }} />
+      <Stack.Screen options={{ headerShown: false, title: '' }} />
       <HelpScreen />
     </>
   );

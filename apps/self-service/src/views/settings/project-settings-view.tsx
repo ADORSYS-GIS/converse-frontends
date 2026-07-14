@@ -201,14 +201,27 @@ export function ProjectSettingsView({
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
           {!showBackButton ? (
-            <Stack direction="row" align="center" gap="sm">
-              <Heading tone="title">{t('settings.project.title')}</Heading>
-              {project ? (
-                <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
-                  {project.status === 'suspended'
-                    ? t('settings.project.statusSuspended')
-                    : t('settings.project.statusActive')}
-                </Badge>
+            <Stack direction="row" align="center" justify="between" width="full">
+              <Stack direction="row" align="center" gap="sm">
+                <Heading tone="title">{t('settings.project.title')}</Heading>
+                {project ? (
+                  <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
+                    {project.status === 'suspended'
+                      ? t('settings.project.statusSuspended')
+                      : t('settings.project.statusActive')}
+                  </Badge>
+                ) : null}
+              </Stack>
+              {canCreate ? (
+                <Button
+                  variant="primary"
+                  size="icon"
+                  shape="circle"
+                  onPress={onCreateProject}
+                  accessibilityLabel={t('settings.project.newProject')}
+                  style={{ width: 36, height: 36 }}>
+                  <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+                </Button>
               ) : null}
             </Stack>
           ) : project ? (

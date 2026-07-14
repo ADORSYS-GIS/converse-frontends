@@ -131,6 +131,10 @@ const resources = {
         },
         account: {
           title: 'Account settings',
+          accountsLabel: 'Accounts',
+          noAccounts: 'No accounts available.',
+          selectAccount: 'Select account {{account}}',
+          newAccount: 'New account',
           statusActive: 'Active',
           statusSuspended: 'Suspended',
           billingIdentitySection: 'Billing identity',
@@ -246,6 +250,15 @@ const resources = {
         cancel: 'Cancel',
         confirm: 'Delete',
         deleting: 'Deleting...',
+      },
+      createAccount: {
+        title: 'New account',
+        description: 'Accounts scope billing, project defaults, and user access.',
+        billingIdentityLabel: 'Billing identity',
+        billingIdentityPlaceholder: 'Billing name or email',
+        cancel: 'Cancel',
+        create: 'Create account',
+        creating: 'Creating...',
       },
       home: {
         welcomeBack: 'Welcome back,',

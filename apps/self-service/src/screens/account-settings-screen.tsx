@@ -3,17 +3,20 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   getApiErrorMessage,
+  useAccounts,
   useAddAccountMember,
   useAuthSession,
-  useCurrentAccount,
   useDisableAccount,
   useEnableAccount,
   usePermissions,
+  useQueryState,
   useRemoveAccountMember,
   useUpdateAccount,
 } from '@lightbridge/hooks';
+import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
+import { CreateAccountSheet } from './create-account-sheet';
 import { DeleteAccountSheet } from './delete-account-sheet';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
@@ -24,47 +27,66 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const config = useRuntimeConfig();
   const { session } = useAuthSession();
   const { has } = usePermissions();
-  const { data: currentAccount } = useCurrentAccount();
+  // Account selection lives in the URL (?accountId=…) so it survives refresh and
+  // deep-links — same pattern as the project settings screen.
+  const [accountParam, setAccountParam] = useQueryState('accountId');
+
+  const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts();
+  const accountParamInList = accounts.some((account) => account.id === accountParam);
+  const accountId = (accountParamInList ? accountParam : undefined) ?? accounts[0]?.id;
+  const selectedAccount: ApiKeyBackendAccount | undefined = accounts.find(
+    (account) => account.id === accountId
+  );
+
   const updateAccount = useUpdateAccount();
   const disableAccount = useDisableAccount();
   const enableAccount = useEnableAccount();
   const addMember = useAddAccountMember();
   const removeMember = useRemoveAccountMember();
 
-  const owners = currentAccount?.owners_admins ?? [];
+  const owners = selectedAccount?.owners_admins ?? [];
 
   const handleSaveBillingIdentity = (value: string) => {
-    if (!currentAccount?.id) return;
-    void updateAccount.mutateAsync({ id: currentAccount.id, input: { billing_identity: value } });
+    if (!selectedAccount?.id) return;
+    void updateAccount.mutateAsync({ id: selectedAccount.id, input: { billing_identity: value } });
   };
 
   const handleAddOwner = (value: string) => {
-    if (!currentAccount?.id || owners.includes(value)) return;
-    void addMember.mutateAsync({ id: currentAccount.id, subject: value });
+    if (!selectedAccount?.id || owners.includes(value)) return;
+    void addMember.mutateAsync({ id: selectedAccount.id, subject: value });
   };
 
   const handleRemoveOwner = (value: string) => {
-    if (!currentAccount?.id) return;
-    void removeMember.mutateAsync({ id: currentAccount.id, subject: value });
+    if (!selectedAccount?.id) return;
+    void removeMember.mutateAsync({ id: selectedAccount.id, subject: value });
+  };
+
+  const handleCreateAccount = () => {
+    sheet.present(({ dismiss }) => (
+      <CreateAccountSheet
+        onClose={dismiss}
+        onCreated={(newAccountId) => setAccountParam(newAccountId)}
+      />
+    ));
   };
 
   const handleDeleteAccount = () => {
-    if (!currentAccount?.id) return;
-    const accountId = currentAccount.id;
-    const accountName = currentAccount.billing_identity;
+    if (!selectedAccount?.id) return;
+    const accountId = selectedAccount.id;
+    const accountName = selectedAccount.billing_identity;
     sheet.present(({ dismiss }) => (
       <DeleteAccountSheet id={accountId} name={accountName} onClose={dismiss} />
     ));
   };
 
   const handleSuspendAccount = () => {
-    if (!currentAccount?.id) return;
-    void disableAccount.mutateAsync({ id: currentAccount.id });
+    if (!selectedAccount?.id) return;
+    void disableAccount.mutateAsync({ id: selectedAccount.id });
   };
 
   const handleEnableAccount = () => {
-    if (!currentAccount?.id) return;
-    void enableAccount.mutateAsync({ id: currentAccount.id });
+    if (!selectedAccount?.id) return;
+    void enableAccount.mutateAsync({ id: selectedAccount.id });
   };
 
   const statusError = disableAccount.error
@@ -83,7 +105,12 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
     <AccountSettingsView
       showBackButton={!embedded}
       onBack={() => router.back()}
-      billingIdentity={currentAccount?.billing_identity ?? ''}
+      accounts={accounts}
+      selectedAccountId={accountId}
+      isLoading={isAccountsLoading}
+      onSelectAccount={setAccountParam}
+      onCreateAccount={handleCreateAccount}
+      billingIdentity={selectedAccount?.billing_identity ?? ''}
       onSaveBillingIdentity={handleSaveBillingIdentity}
       isSavingBillingIdentity={updateAccount.isPending}
       owners={owners}
@@ -94,7 +121,8 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       authUserLabel={
         session.user?.email ?? session.user?.name ?? t('settings.account.authUserLabel')
       }
-      status={currentAccount?.status ?? 'active'}
+      status={selectedAccount?.status ?? 'active'}
+      canCreate={has('account:create')}
       canUpdate={has('account:update')}
       canManageMembers={has('account:member')}
       canDelete={has('account:delete')}

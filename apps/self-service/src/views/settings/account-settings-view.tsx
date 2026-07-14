@@ -33,6 +33,7 @@ type AccountSettingsViewProps = {
   authUserLabel: string;
   status?: 'active' | 'suspended';
   canUpdate?: boolean;
+  canManageMembers?: boolean;
   canDelete?: boolean;
   canDisable?: boolean;
   onDeleteAccount: () => void;
@@ -40,6 +41,7 @@ type AccountSettingsViewProps = {
   onEnableAccount: () => void;
   isChangingStatus?: boolean;
   statusError?: string | null;
+  memberError?: string | null;
 };
 
 export function AccountSettingsView({
@@ -56,6 +58,7 @@ export function AccountSettingsView({
   authUserLabel,
   status = 'active',
   canUpdate = true,
+  canManageMembers = true,
   canDelete = true,
   canDisable = true,
   onDeleteAccount,
@@ -63,6 +66,7 @@ export function AccountSettingsView({
   onEnableAccount,
   isChangingStatus = false,
   statusError = null,
+  memberError = null,
 }: Readonly<AccountSettingsViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -104,13 +108,6 @@ export function AccountSettingsView({
               <Feather name="chevron-right" size={14} color={colors.subtle} />
             </Stack>
           }
-          trailing={
-            <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
-              {status === 'suspended'
-                ? t('settings.account.statusSuspended')
-                : t('settings.account.statusActive')}
-            </Badge>
-          }
         />
       ) : null}
 
@@ -125,7 +122,13 @@ export function AccountSettingsView({
                   : t('settings.account.statusActive')}
               </Badge>
             </Stack>
-          ) : null}
+          ) : (
+            <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
+              {status === 'suspended'
+                ? t('settings.account.statusSuspended')
+                : t('settings.account.statusActive')}
+            </Badge>
+          )}
 
           {canUpdate ? (
             <SectionCard
@@ -153,7 +156,7 @@ export function AccountSettingsView({
             </SectionCard>
           ) : null}
 
-          {canUpdate ? (
+          {canManageMembers ? (
             <SectionCard
               title={t('settings.account.ownersSection')}
               description={t('settings.account.ownersDescription')}>
@@ -169,7 +172,8 @@ export function AccountSettingsView({
                         removeAccessibilityLabel={t('settings.account.ownerRemove', {
                           name: owner,
                         })}
-                        disabled={isSavingOwners}>
+                        disabled={isSavingOwners}
+                        mono={!owner.includes('@')}>
                         {owner}
                       </Chip>
                     ))}
@@ -196,6 +200,11 @@ export function AccountSettingsView({
                     {t('settings.account.ownerAdd')}
                   </Button>
                 </Stack>
+                {memberError ? (
+                  <Text intent="caption" style={{ color: colors.error }}>
+                    {memberError}
+                  </Text>
+                ) : null}
               </Stack>
             </SectionCard>
           ) : null}
@@ -223,7 +232,7 @@ export function AccountSettingsView({
               description={t('settings.account.suspendDescription')}>
               <Stack gap="sm" align="start">
                 <Button
-                  variant="neutral"
+                  variant={status === 'suspended' ? 'neutral' : 'danger'}
                   size="sm"
                   disabled={isChangingStatus}
                   onPress={status === 'suspended' ? onEnableAccount : onSuspendAccount}
@@ -252,13 +261,11 @@ export function AccountSettingsView({
               description={t('settings.account.dangerDescription')}>
               <Stack align="start">
                 <Button
-                  variant="neutral"
+                  variant="danger"
                   size="sm"
                   onPress={onDeleteAccount}
-                  style={{ alignSelf: 'flex-start', borderColor: colors.error, borderWidth: 1 }}>
-                  <Text intent="body" style={{ color: colors.error }}>
-                    {t('settings.account.deleteAccount')}
-                  </Text>
+                  style={{ alignSelf: 'flex-start' }}>
+                  {t('settings.account.deleteAccount')}
                 </Button>
               </Stack>
             </SectionCard>

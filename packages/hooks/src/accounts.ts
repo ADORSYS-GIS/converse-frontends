@@ -2,11 +2,13 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ApiKeyBackendAccount, ApiKeyBackendUpdateAccount } from '@lightbridge/api-rest';
 import {
+  apiKeyBackendAddAccountMember,
   apiKeyBackendCreateAccount,
   apiKeyBackendDeleteAccount,
   apiKeyBackendDisableAccount,
   apiKeyBackendEnableAccount,
   apiKeyBackendListAccounts,
+  apiKeyBackendRemoveAccountMember,
   apiKeyBackendUpdateAccount,
 } from '@lightbridge/api-rest';
 import { useAuthSession } from './auth-session';
@@ -95,6 +97,51 @@ export function useEnableAccount() {
     mutationFn: async ({ id }: { id: string }) => {
       const response = await apiKeyBackendEnableAccount<true>({
         path: { account_id: id },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useAddAccountMember() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id, subject }: { id: string; subject: string }) => {
+      const response = await apiKeyBackendAddAccountMember<true>({
+        path: { account_id: id },
+        body: { subject },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useRemoveAccountMember() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id, subject }: { id: string; subject: string }) => {
+      const response = await apiKeyBackendRemoveAccountMember<true>({
+        path: { account_id: id, member: subject },
       });
       return response.data;
     },

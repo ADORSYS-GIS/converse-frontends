@@ -48,6 +48,8 @@ export { TextField, textFieldVariants } from './components/text-field';
 export type { TextFieldProps } from './components/text-field';
 export { Badge, badgeTextVariants, badgeVariants } from './components/badge';
 export type { BadgeProps } from './components/badge';
+export { Skeleton, skeletonVariants } from './components/skeleton';
+export type { SkeletonProps } from './components/skeleton';
 export { Callout, calloutTextVariants, calloutVariants } from './components/callout';
 export type { CalloutProps } from './components/callout';
 export { Chip, chipTextVariants, chipVariants } from './components/chip';

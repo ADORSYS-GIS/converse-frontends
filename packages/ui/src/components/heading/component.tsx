@@ -10,7 +10,7 @@ import type { HeadingProps } from './types';
 const TextBase = RNText as React.ComponentType<RNTextProps & { className?: string }>;
 
 const fontByTone: Record<NonNullable<HeadingProps['tone']>, AppFont> = {
-  title: AppFont.BakbakOne,
+  title: AppFont.MontserratSemiBold,
   subtitle: AppFont.MontserratRegular,
 };
 

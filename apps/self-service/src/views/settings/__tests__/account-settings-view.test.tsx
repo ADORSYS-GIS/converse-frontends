@@ -36,7 +36,7 @@ describe('AccountSettingsView', () => {
     expect(screen.getByDisplayValue('acme-inc')).toBeTruthy();
     expect(screen.getByText('jane@example.com')).toBeTruthy();
     expect(screen.getByText('https://issuer.example.com/realms/lightbridge')).toBeTruthy();
-    expect(screen.getByText('No owners or admins added yet.')).toBeTruthy();
+    expect(screen.getByText('No members added yet.')).toBeTruthy();
     expect(
       screen.getByText('Cross-project policy defaults are not yet supported by the backend.')
     ).toBeTruthy();
@@ -82,7 +82,7 @@ describe('AccountSettingsView', () => {
     await renderView({ onAddOwner });
 
     await fireEvent.changeText(
-      screen.getByPlaceholderText('name@example.com'),
+      screen.getByPlaceholderText('Subject ID (e.g. 7fd91a54-0443-...)'),
       '  new@example.com  '
     );
     await fireEvent.press(screen.getByText('Add'));

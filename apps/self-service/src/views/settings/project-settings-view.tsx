@@ -14,6 +14,7 @@ import {
   PageHeader,
   Scroll,
   SectionCard,
+  Skeleton,
   Stack,
   Text,
   TextField,
@@ -182,26 +183,17 @@ export function ProjectSettingsView({
             </Stack>
           }
           trailing={
-            <Stack direction="row" align="center" gap="sm">
-              {project ? (
-                <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
-                  {project.status === 'suspended'
-                    ? t('settings.project.statusSuspended')
-                    : t('settings.project.statusActive')}
-                </Badge>
-              ) : null}
-              {canCreate ? (
-                <Button
-                  variant="primary"
-                  size="icon"
-                  shape="circle"
-                  onPress={onCreateProject}
-                  accessibilityLabel={t('settings.project.newProject')}
-                  style={{ width: 36, height: 36 }}>
-                  <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
-                </Button>
-              ) : null}
-            </Stack>
+            canCreate ? (
+              <Button
+                variant="primary"
+                size="icon"
+                shape="circle"
+                onPress={onCreateProject}
+                accessibilityLabel={t('settings.project.newProject')}
+                style={{ width: 36, height: 36 }}>
+                <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
+              </Button>
+            ) : undefined
           }
         />
       ) : null}
@@ -219,12 +211,13 @@ export function ProjectSettingsView({
                 </Badge>
               ) : null}
             </Stack>
+          ) : project ? (
+            <Badge tone={project.status === 'suspended' ? 'warning' : 'success'}>
+              {project.status === 'suspended'
+                ? t('settings.project.statusSuspended')
+                : t('settings.project.statusActive')}
+            </Badge>
           ) : null}
-
-          <Stack gap="xs">
-            <Text intent="eyebrow">{t('settings.project.scopeEyebrow')}</Text>
-            <Text intent="body">{t('settings.project.subtitle')}</Text>
-          </Stack>
 
           <Card size="sm">
             <Stack gap="md">
@@ -271,15 +264,6 @@ export function ProjectSettingsView({
                       </Button>
                     ))
                   )}
-                  {canCreate ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onPress={onCreateProject}
-                      accessibilityLabel={t('settings.project.newProject')}>
-                      {t('settings.project.newProject')}
-                    </Button>
-                  ) : null}
                 </Stack>
               </Stack>
             </Stack>
@@ -287,7 +271,13 @@ export function ProjectSettingsView({
 
           {isLoading ? (
             <Card size="md">
-              <EmptyState title={t('settings.project.loading')} />
+              <Stack gap="md">
+                <Skeleton width="40%" height={12} />
+                <Skeleton height={40} />
+                <Skeleton width="30%" height={12} />
+                <Skeleton height={40} />
+                <Skeleton width={96} height={36} rounded="xl" />
+              </Stack>
             </Card>
           ) : null}
 
@@ -452,7 +442,7 @@ export function ProjectSettingsView({
                   description={t('settings.project.suspendDescription')}>
                   <Stack gap="sm" align="start">
                     <Button
-                      variant="neutral"
+                      variant={project.status === 'suspended' ? 'neutral' : 'danger'}
                       size="sm"
                       disabled={isChangingStatus}
                       onPress={project.status === 'suspended' ? onEnableProject : onSuspendProject}
@@ -481,17 +471,11 @@ export function ProjectSettingsView({
                   description={t('settings.project.dangerDescription')}>
                   <Stack align="start">
                     <Button
-                      variant="neutral"
+                      variant="danger"
                       size="sm"
                       onPress={onDeleteProject}
-                      style={{
-                        alignSelf: 'flex-start',
-                        borderColor: colors.error,
-                        borderWidth: 1,
-                      }}>
-                      <Text intent="body" style={{ color: colors.error }}>
-                        {t('settings.project.deleteProject')}
-                      </Text>
+                      style={{ alignSelf: 'flex-start' }}>
+                      {t('settings.project.deleteProject')}
                     </Button>
                   </Stack>
                 </SectionCard>

@@ -6,9 +6,12 @@ import {
   Card,
   designTokens,
   Div,
+  Divider,
   Heading,
   Icon as Feather,
+  ListRow,
   Scroll,
+  Skeleton,
   Stack,
   Text,
 } from '@lightbridge/ui';
@@ -55,11 +58,13 @@ export function HomeView({
           <Stack gap="xs">
             <Text intent="eyebrow">{t('home.controlPlane')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
-            <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
-              {accountBillingIdentity
-                ? t('home.accountContext', { account: accountBillingIdentity })
-                : t('home.accountPending')}
-            </Text>
+            {accountBillingIdentity ? (
+              <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
+                {t('home.accountContext', { account: accountBillingIdentity })}
+              </Text>
+            ) : (
+              <Skeleton width={160} height={12} />
+            )}
           </Stack>
           <Div
             tone="brand"
@@ -99,16 +104,33 @@ export function HomeView({
         </Card>
 
         <Card size="sm">
-          <Stack gap="md">
+          <Stack gap="sm">
             <Text intent="eyebrow">{t('home.quickActions.title')}</Text>
-            <Stack direction="row" gap="sm" wrap="wrap">
-              <Button variant="neutral" size="sm" onPress={onManageKeys}>
-                {t('home.quickActions.manageKeys')}
-              </Button>
-              <Button variant="neutral" size="sm" onPress={onSettings}>
-                {t('home.quickActions.settings')}
-              </Button>
-            </Stack>
+            <ListRow
+              onPress={onManageKeys}
+              pad="sm"
+              rounded="md"
+              leading={
+                <Div tone="brandSoft" rounded="xl" size="iconMd" align="center" justify="center">
+                  <Feather name="key" size={designTokens.icon.action} color={colors.primary} />
+                </Div>
+              }
+              title={t('home.quickActions.manageKeys')}
+              trailing={<Feather name="chevron-right" size={18} color={colors.subtle} />}
+            />
+            <Divider tone="muted" />
+            <ListRow
+              onPress={onSettings}
+              pad="sm"
+              rounded="md"
+              leading={
+                <Div tone="accentSoft" rounded="xl" size="iconMd" align="center" justify="center">
+                  <Feather name="settings" size={designTokens.icon.action} color={colors.accent} />
+                </Div>
+              }
+              title={t('home.quickActions.settings')}
+              trailing={<Feather name="chevron-right" size={18} color={colors.subtle} />}
+            />
           </Stack>
         </Card>
 

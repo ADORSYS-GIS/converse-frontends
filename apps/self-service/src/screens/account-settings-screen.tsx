@@ -3,11 +3,13 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   getApiErrorMessage,
+  useAddAccountMember,
   useAuthSession,
   useCurrentAccount,
   useDisableAccount,
   useEnableAccount,
   usePermissions,
+  useRemoveAccountMember,
   useUpdateAccount,
 } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
@@ -26,6 +28,8 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const updateAccount = useUpdateAccount();
   const disableAccount = useDisableAccount();
   const enableAccount = useEnableAccount();
+  const addMember = useAddAccountMember();
+  const removeMember = useRemoveAccountMember();
 
   const owners = currentAccount?.owners_admins ?? [];
 
@@ -36,18 +40,12 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
 
   const handleAddOwner = (value: string) => {
     if (!currentAccount?.id || owners.includes(value)) return;
-    void updateAccount.mutateAsync({
-      id: currentAccount.id,
-      input: { owners_admins: [...owners, value] },
-    });
+    void addMember.mutateAsync({ id: currentAccount.id, subject: value });
   };
 
   const handleRemoveOwner = (value: string) => {
     if (!currentAccount?.id) return;
-    void updateAccount.mutateAsync({
-      id: currentAccount.id,
-      input: { owners_admins: owners.filter((owner) => owner !== value) },
-    });
+    void removeMember.mutateAsync({ id: currentAccount.id, subject: value });
   };
 
   const handleDeleteAccount = () => {
@@ -75,6 +73,12 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       ? getApiErrorMessage(enableAccount.error)
       : null;
 
+  const memberError = addMember.error
+    ? getApiErrorMessage(addMember.error)
+    : removeMember.error
+      ? getApiErrorMessage(removeMember.error)
+      : null;
+
   return (
     <AccountSettingsView
       showBackButton={!embedded}
@@ -85,13 +89,14 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       owners={owners}
       onAddOwner={handleAddOwner}
       onRemoveOwner={handleRemoveOwner}
-      isSavingOwners={updateAccount.isPending}
+      isSavingOwners={addMember.isPending || removeMember.isPending}
       authIssuer={config.keycloak.issuer}
       authUserLabel={
         session.user?.email ?? session.user?.name ?? t('settings.account.authUserLabel')
       }
       status={currentAccount?.status ?? 'active'}
       canUpdate={has('account:update')}
+      canManageMembers={has('account:member')}
       canDelete={has('account:delete')}
       canDisable={has('account:disable')}
       onDeleteAccount={handleDeleteAccount}
@@ -99,6 +104,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onEnableAccount={handleEnableAccount}
       isChangingStatus={disableAccount.isPending || enableAccount.isPending}
       statusError={statusError}
+      memberError={memberError}
     />
   );
 }

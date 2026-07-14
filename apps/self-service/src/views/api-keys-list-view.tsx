@@ -14,6 +14,7 @@ import {
   ListRow,
   PageHeader,
   Scroll,
+  Skeleton,
   Stack,
   Text,
 } from '@lightbridge/ui';
@@ -129,11 +130,6 @@ export function ApiKeysListView({
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
-          <Stack gap="xs">
-            <Text intent="eyebrow">{t('apiKeys.scopeEyebrow')}</Text>
-            <Text intent="body">{t('apiKeys.subtitle')}</Text>
-          </Stack>
-
           <Card size="sm">
             <Stack gap="md">
               <Stack gap="xs">
@@ -219,11 +215,22 @@ export function ApiKeysListView({
           </Card>
 
           <Stack gap="md">
-            {isLoading && (
-              <Card size="md">
-                <EmptyState title={t('apiKeys.loading')} />
-              </Card>
-            )}
+            {isLoading &&
+              [0, 1].map((key) => (
+                <Card key={key} size="md">
+                  <Stack gap="md">
+                    <Stack direction="row" align="center" gap="sm">
+                      <Skeleton width="45%" height={16} />
+                      <Skeleton width={56} height={20} rounded="full" />
+                    </Stack>
+                    <Skeleton width="65%" height={12} />
+                    <Stack direction="row" gap="sm" width="full">
+                      <Skeleton height={36} rounded="xl" style={{ flex: 1 }} />
+                      <Skeleton height={36} rounded="xl" style={{ flex: 1 }} />
+                    </Stack>
+                  </Stack>
+                </Card>
+              ))}
 
             {!isLoading && displayItems.length === 0 && (
               <Card size="md">
@@ -275,7 +282,14 @@ export function ApiKeysListView({
                             </Badge>
                           </Stack>
                         }
-                        subtitle={t('apiKeys.keyPrefix', { prefix: item.key_prefix })}
+                        subtitle={
+                          <Text intent="caption">
+                            {t('apiKeys.keyPrefixLabel')}{' '}
+                            <Text intent="caption" mono>
+                              {item.key_prefix}
+                            </Text>
+                          </Text>
+                        }
                         trailing={
                           canDelete ? (
                             <Button

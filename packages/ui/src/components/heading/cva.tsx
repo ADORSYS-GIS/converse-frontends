@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 export const headingVariants = cva('text-ink', {
   variants: {
     tone: {
-      title: 'text-2xl',
+      title: 'text-3xl tracking-tight',
       subtitle: 'text-base text-soft',
     },
     align: {

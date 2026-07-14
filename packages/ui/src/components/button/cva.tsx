@@ -8,6 +8,7 @@ export const buttonVariants = cva('flex-row items-center justify-center gap-2', 
       ghost: 'bg-transparent',
       neutral: 'bg-surface shadow-sm',
       icon: 'bg-ink',
+      danger: 'border border-error/30 bg-error/10',
     },
     shape: {
       none: '',
@@ -48,6 +49,7 @@ export const buttonTextVariants = cva('font-semibold', {
       ghost: 'text-primary',
       neutral: 'text-ink',
       icon: 'text-surface',
+      danger: 'text-error',
     },
     size: {
       sm: 'text-sm',

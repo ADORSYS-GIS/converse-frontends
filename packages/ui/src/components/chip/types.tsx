@@ -9,4 +9,6 @@ export type ChipProps = ViewProps &
     onRemove?: () => void;
     removeAccessibilityLabel?: string;
     disabled?: boolean;
+    /** Renders the label in the system monospace face — for technical values (IDs, etc). */
+    mono?: boolean;
   };

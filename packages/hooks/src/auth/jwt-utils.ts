@@ -270,10 +270,10 @@ export function getJwtIssuer(token: string): string | null {
  * the dev realm's `lightbridge-roles` protocol mapper (see `docs/rbac.md` on the backend).
  *
  * @param token - The JWT token string
- * @param claimName - The claim to read (default: "roles")
+ * @param claimName - The claim to read (default: "lightbridge_api_roles")
  * @returns The role strings, or an empty array if the claim is missing/malformed
  */
-export function getJwtRoles(token: string, claimName = 'roles'): string[] {
+export function getJwtRoles(token: string, claimName = 'lightbridge_api_roles'): string[] {
   const payload = decodeJwt(token);
   const value = payload?.[claimName];
 

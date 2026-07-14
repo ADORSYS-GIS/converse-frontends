@@ -13,6 +13,8 @@ export type SheetProps = {
   /** Fixed snap points; when omitted the sheet sizes to its content. */
   snapPoints?: (string | number)[];
   contentStyle?: StyleProp<ViewStyle>;
+  /** Screen-reader label announced when the sheet appears. */
+  accessibilityLabel?: string;
 };
 
 /** Helpers handed to sheet content so it can dismiss itself (e.g. Cancel). */
@@ -31,6 +33,8 @@ export type SheetOptions = {
   contentStyle?: StyleProp<ViewStyle>;
   /** Fired once the sheet has fully dismissed (drag, backdrop, or `dismiss()`). */
   onClose?: () => void;
+  /** Screen-reader label announced when the sheet appears. */
+  accessibilityLabel?: string;
 };
 
 /** Imperative API returned by {@link useSheet}. */

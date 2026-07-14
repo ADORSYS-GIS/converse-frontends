@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { copyToClipboard } from '@lightbridge/api-native';
+import { copyToClipboard, hapticWarning } from '@lightbridge/api-native';
 import { useCurrentProject, useRotateApiKey } from '@lightbridge/hooks';
 import { RotateApiKeyView } from '../views/rotate-api-key-view';
 
@@ -36,6 +36,7 @@ export function RotateApiKeySheet({
     }
 
     try {
+      await hapticWarning();
       const result = await rotateKey.mutateAsync({ id, projectId: effectiveProjectId });
       if (result?.secret) {
         setGeneratedSecret(result.secret);

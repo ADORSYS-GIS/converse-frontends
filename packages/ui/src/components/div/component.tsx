@@ -1,5 +1,5 @@
 import React from 'react';
-import type { PressableProps, ViewProps } from 'react-native';
+import type { PressableProps, StyleProp, ViewProps, ViewStyle } from 'react-native';
 import { Pressable, View } from 'react-native';
 
 import { cn } from '../../cn';
@@ -21,6 +21,7 @@ export function Div({
   self,
   align,
   justify,
+  style,
   ...props
 }: DivProps) {
   const className = cn(
@@ -43,8 +44,17 @@ export function Div({
     typeof (props as PressableProps).onPress === 'function' ||
     typeof (props as PressableProps).onLongPress === 'function'
   ) {
-    return <PressableBase className={className} {...(props as PressableProps)} />;
+    const { style: _style, ...restProps } = props as PressableProps;
+    return (
+      <PressableBase
+        className={className}
+        style={({ pressed }) =>
+          [style, pressed ? { opacity: 0.7 } : undefined] as StyleProp<ViewStyle>
+        }
+        {...restProps}
+      />
+    );
   }
 
-  return <ViewBase className={className} {...(props as ViewProps)} />;
+  return <ViewBase className={className} style={style as StyleProp<ViewStyle>} {...(props as ViewProps)} />;
 }

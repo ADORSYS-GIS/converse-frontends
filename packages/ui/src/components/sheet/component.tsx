@@ -19,7 +19,7 @@ import type { SheetHandle, SheetProps } from './types';
  * Requires a `GestureHandlerRootView` at the app root (react-native-gesture-handler).
  */
 export const Sheet = React.forwardRef<SheetHandle, SheetProps>(function Sheet(
-  { children, onClose, snapPoints, contentStyle },
+  { children, onClose, snapPoints, contentStyle, accessibilityLabel },
   ref
 ) {
   const isDesktop = useIsDesktop();
@@ -68,7 +68,10 @@ export const Sheet = React.forwardRef<SheetHandle, SheetProps>(function Sheet(
             : styles.background) as any
         }
         onChange={handleChange}>
-        <BottomSheetView style={styles.content}>
+        <BottomSheetView
+          style={styles.content}
+          accessibilityRole="alert"
+          accessibilityLabel={accessibilityLabel}>
           <View style={isDesktop ? styles.contentDesktopInset : undefined}>
             <View style={[styles.contentColumn, contentStyle]}>{children}</View>
           </View>

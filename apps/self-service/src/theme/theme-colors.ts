@@ -2,7 +2,7 @@ import type { ColorSchemeName } from 'react-native';
 
 // Inline-style counterpart of the CSS-variable palette in
 // packages/ui/tailwind-preset.js — MUST stay in sync with it. `useThemeColors`
-// reads these for `style={{ color: colors.x }}` / Ionicons tints, while
+// reads these for `style={{ color: colors.x }}` / Feather icon tints, while
 // className tokens (bg-surface, text-ink…) read the CSS variables. The two are
 // kept identical so a component never mixes a light inline color with a dark
 // className token (or vice versa).

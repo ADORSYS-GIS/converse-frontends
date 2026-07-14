@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
+import type { IconName } from '@lightbridge/ui';
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
+type FeatherIconName = IconName;
 
 export const tabRoutes = [
   { name: 'home', titleKey: 'nav.home' },
@@ -8,9 +8,11 @@ export const tabRoutes = [
   { name: 'settings', titleKey: 'nav.settings' },
 ] as const;
 
-export const tabRouteIcons: Record<string, { active: IoniconName; inactive: IoniconName }> = {
-  home: { active: 'home', inactive: 'home-outline' },
-  'api-keys': { active: 'key', inactive: 'key-outline' },
-  graphs: { active: 'bar-chart', inactive: 'bar-chart-outline' },
-  settings: { active: 'settings', inactive: 'settings-outline' },
+// Feather is single-weight (no filled/outline pairs), so active vs inactive
+// tabs are distinguished by tint color alone, not by swapping icons.
+export const tabRouteIcons: Record<string, FeatherIconName> = {
+  home: 'home',
+  'api-keys': 'key',
+  graphs: 'bar-chart-2',
+  settings: 'settings',
 };

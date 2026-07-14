@@ -1,4 +1,5 @@
 import React from 'react';
+import { hapticWarning } from '@lightbridge/api-native';
 import { useCurrentProject, useDeleteApiKey } from '@lightbridge/hooks';
 import { DeleteApiKeyView } from '../views/delete-api-key-view';
 
@@ -31,6 +32,7 @@ export function DeleteApiKeySheet({
       onClose();
       return;
     }
+    await hapticWarning();
     await removeKey.mutateAsync({ id, projectId: effectiveProjectId });
     onClose();
   };

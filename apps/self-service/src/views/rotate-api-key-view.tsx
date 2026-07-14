@@ -1,7 +1,16 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
-import { Button, Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import {
+  Button,
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Icon as Feather,
+  Scroll,
+  Stack,
+  Text,
+} from '@lightbridge/ui';
 import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
@@ -44,7 +53,7 @@ export function RotateApiKeyView({
             size="iconSm"
             onPress={onBack}
             accessibilityLabel={t('apiKeys.back')}>
-            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
+            <Feather name="arrow-left" size={designTokens.icon.nav} color={colors.ink} />
           </Button>
 
           <Heading tone="title" style={{ fontSize: designTokens.typography.compactTitle }}>
@@ -67,8 +76,8 @@ export function RotateApiKeyView({
               <Stack gap="lg">
                 <Div tone="successSoft" rounded="xl" pad="md" width="full">
                   <Stack direction="row" gap="sm" align="start">
-                    <Ionicons
-                      name="checkmark-circle"
+                    <Feather
+                      name="check-circle"
                       size={designTokens.icon.prominent}
                       color={colors.success}
                     />
@@ -82,15 +91,15 @@ export function RotateApiKeyView({
                 <OneTimeSecretCard secret={generatedSecret} onCopy={onCopy} />
 
                 <Button variant="ghost" onPress={onBack} width="full">
-                  <Text intent="link">{t('apiKeys.backToKeys')}</Text>
+                  {t('apiKeys.backToKeys')}
                 </Button>
               </Stack>
             ) : (
               <Card size="md">
                 <Stack gap="md">
                   <Stack direction="row" gap="sm" align="start">
-                    <Ionicons
-                      name="refresh"
+                    <Feather
+                      name="refresh-cw"
                       size={designTokens.icon.prominent}
                       color={colors.secondary}
                     />
@@ -105,16 +114,14 @@ export function RotateApiKeyView({
                       onPress={onBack}
                       disabled={isRotating}
                       style={{ flex: 1 }}>
-                      <Text intent="link">{t('apiKeys.rotateCancel')}</Text>
+                      {t('apiKeys.rotateCancel')}
                     </Button>
                     <Button
                       variant="primary"
                       onPress={onConfirm}
                       disabled={isRotating}
                       style={{ flex: 1 }}>
-                      <Text intent="inverseBodyStrong">
-                        {isRotating ? t('apiKeys.rotating') : t('apiKeys.rotateConfirm')}
-                      </Text>
+                      {isRotating ? t('apiKeys.rotating') : t('apiKeys.rotateConfirm')}
                     </Button>
                   </Stack>
                 </Stack>

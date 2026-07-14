@@ -4,6 +4,7 @@ import type { ViewProps } from 'react-native';
 
 import { cn } from '../../cn';
 import { designTokens } from '../../design/tokens';
+import { Heading } from '../heading';
 import { Stack } from '../stack';
 import { Text } from '../text';
 import { pageHeaderVariants } from './cva';
@@ -43,12 +44,12 @@ export function PageHeader({
         <Stack direction="row" align="center" gap="sm" width="full">
           {leading}
           <Stack style={{ flex: 1 }}>
-            <Text
-              intent="bodyStrong"
+            <Heading
+              tone="title"
               numberOfLines={1}
               style={{ fontSize: designTokens.typography.compactTitle }}>
               {title}
-            </Text>
+            </Heading>
             {subtitle ? (
               <Text intent="caption" numberOfLines={1}>
                 {subtitle}

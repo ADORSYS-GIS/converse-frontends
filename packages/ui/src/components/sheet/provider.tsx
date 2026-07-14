@@ -107,7 +107,10 @@ export function SheetProvider({
           backgroundStyle={backgroundStyle}
           handleIndicatorStyle={handleIndicatorStyle}
           onDismiss={handleDismiss}>
-          <BottomSheetView style={styles.content}>
+          <BottomSheetView
+            style={styles.content}
+            accessibilityRole="alert"
+            accessibilityLabel={entry?.options?.accessibilityLabel}>
             <View style={isDesktop ? styles.contentDesktopInset : undefined}>
               <View style={[styles.contentColumn, entry?.options?.contentStyle]}>
                 {entry ? entry.render({ dismiss }) : null}

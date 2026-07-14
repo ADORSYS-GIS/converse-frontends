@@ -1,7 +1,15 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
-import { Card, designTokens, Div, Heading, Scroll, Stack, Text } from '@lightbridge/ui';
+import {
+  Card,
+  designTokens,
+  Div,
+  Heading,
+  Icon as Feather,
+  Scroll,
+  Stack,
+  Text,
+} from '@lightbridge/ui';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { ThemeToggle } from '../../components/theme-toggle';
 import type { SettingsCategory, SettingsCategoryKey } from '../../navigation/settings-categories';
@@ -41,7 +49,7 @@ export function SettingsCategoryListView({
             style={{ borderWidth: active && isRail ? 1 : 0, borderColor: colors.primary }}>
             <Stack direction="row" align="center" justify="between" width="full" gap="sm">
               <Stack direction="row" align="center" gap="sm">
-                <Ionicons
+                <Feather
                   name={category.iconName}
                   size={designTokens.icon.action}
                   color={active && isRail ? colors.primary : colors.soft}
@@ -50,7 +58,7 @@ export function SettingsCategoryListView({
                   {t(category.titleKey)}
                 </Text>
               </Stack>
-              {isRail ? null : <Ionicons name="chevron-forward" size={18} color={colors.subtle} />}
+              {isRail ? null : <Feather name="chevron-right" size={18} color={colors.subtle} />}
             </Stack>
           </Div>
         );
@@ -62,7 +70,6 @@ export function SettingsCategoryListView({
     return (
       <Div
         tone="surface"
-        pad="md"
         style={{
           width: 300,
           flexShrink: 0,
@@ -70,11 +77,13 @@ export function SettingsCategoryListView({
           borderRightWidth: 1,
           borderRightColor: colors.border,
         }}>
-        <Stack gap="md">
-          <Text intent="eyebrow">{t('settings.title')}</Text>
-          {content}
-          <ThemeToggle />
-        </Stack>
+        <Scroll pad="md">
+          <Stack gap="md">
+            <Text intent="eyebrow">{t('settings.title')}</Text>
+            {content}
+            <ThemeToggle />
+          </Stack>
+        </Scroll>
       </Div>
     );
   }

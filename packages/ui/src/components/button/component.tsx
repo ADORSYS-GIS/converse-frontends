@@ -24,7 +24,7 @@ export function Button({
 }: ButtonProps) {
   const resolvedDisabled = Boolean(disabled);
 
-  const textStyle = [{ fontFamily: AppFont.BakbakOne }, textProps?.style];
+  const textStyle = [{ fontFamily: AppFont.MontserratSemiBold }, textProps?.style];
 
   return (
     <PressableBase

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useCopyToClipboard } from '@uidotdev/usehooks';
 import { useTranslation } from '@lightbridge/i18n';
-import { Button, Card, Div, Stack, Text } from '@lightbridge/ui';
+import { Button, Card, Div, Icon as Feather, Stack, Text } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 type OneTimeSecretCardProps = {
@@ -50,7 +49,7 @@ export function OneTimeSecretCard({ secret, onCopy }: Readonly<OneTimeSecretCard
         </Div>
         <Button variant="neutral" onPress={handleCopy} width="full">
           <Stack direction="row" align="center" gap="xs">
-            <Ionicons name={copied ? 'checkmark' : 'copy'} size={18} color={colors.primary} />
+            <Feather name={copied ? 'check' : 'copy'} size={18} color={colors.primary} />
             <Text intent="link">{copied ? t('apiKeys.copied') : t('apiKeys.copy')}</Text>
           </Stack>
         </Button>

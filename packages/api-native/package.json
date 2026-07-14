@@ -12,6 +12,7 @@
     "react-native": ">=0.72"
   },
   "dependencies": {
-    "expo-clipboard": "~8.0.8"
+    "expo-clipboard": "~8.0.8",
+    "expo-haptics": "^57.0.0"
   }
 }

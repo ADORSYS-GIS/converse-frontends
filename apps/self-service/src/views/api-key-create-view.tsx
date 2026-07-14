@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   Button,
@@ -8,6 +7,7 @@ import {
   designTokens,
   Div,
   FormField,
+  Icon as Feather,
   PageHeader,
   Scroll,
   Stack,
@@ -44,13 +44,17 @@ export function ApiKeyCreateView({
       <PageHeader
         title={t('apiKeys.new')}
         leading={
-          <Button
-            variant="ghost"
-            size="iconSm"
-            onPress={onBack}
-            accessibilityLabel={t('apiKeys.back')}>
-            <Ionicons name="arrow-back" size={designTokens.icon.nav} color={colors.ink} />
-          </Button>
+          <Stack direction="row" align="center" gap="sm">
+            <Button
+              variant="ghost"
+              size="iconSm"
+              onPress={onBack}
+              accessibilityLabel={t('apiKeys.back')}>
+              <Feather name="arrow-left" size={designTokens.icon.nav} color={colors.ink} />
+            </Button>
+            <Text intent="caption">{t('nav.apiKeys')}</Text>
+            <Feather name="chevron-right" size={14} color={colors.subtle} />
+          </Stack>
         }
       />
 
@@ -67,8 +71,8 @@ export function ApiKeyCreateView({
                 <Callout
                   tone="success"
                   icon={
-                    <Ionicons
-                      name="checkmark-circle"
+                    <Feather
+                      name="check-circle"
                       size={designTokens.icon.prominent}
                       color={colors.success}
                     />
@@ -82,7 +86,7 @@ export function ApiKeyCreateView({
                 <OneTimeSecretCard secret={generatedSecret} onCopy={onCopy} />
 
                 <Button variant="ghost" onPress={onBack} width="full">
-                  <Text intent="link">{t('apiKeys.backToKeys')}</Text>
+                  {t('apiKeys.backToKeys')}
                 </Button>
               </Stack>
             ) : (
@@ -110,9 +114,7 @@ export function ApiKeyCreateView({
                     onPress={() => onCreate(trimmedName)}
                     disabled={isSubmitDisabled}
                     width="full">
-                    <Text intent="inverseBodyStrong">
-                      {isCreating ? t('apiKeys.saving') : t('apiKeys.save')}
-                    </Text>
+                    {isCreating ? t('apiKeys.saving') : t('apiKeys.save')}
                   </Button>
                 </Stack>
               </Card>

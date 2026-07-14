@@ -1,8 +1,6 @@
 import React from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-
-import { designTokens, NavContainer, NavItem, Stack } from '@lightbridge/ui';
+import { designTokens, Icon as Feather, NavContainer, NavItem, Stack } from '@lightbridge/ui';
 
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { tabRouteIcons } from './tab-routes';
@@ -23,14 +21,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
     return routeName;
   };
 
-  const getIconName = (routeName: string, focused: boolean) => {
-    const icon = tabRouteIcons[routeName];
-    if (!icon) {
-      return null;
-    }
-
-    return focused ? icon.active : icon.inactive;
-  };
+  const getIconName = (routeName: string) => tabRouteIcons[routeName] ?? null;
 
   if (isDesktop) {
     return (
@@ -39,7 +30,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
           {state.routes.map((route, index) => {
             const label = getLabel(route.key, route.name);
             const isFocused = state.index === index;
-            const iconName = getIconName(route.name, isFocused);
+            const iconName = getIconName(route.name);
             const iconColor = isFocused ? colors.surface : colors.soft;
 
             return (
@@ -52,7 +43,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
                 accessibilityLabel={label}
                 icon={
                   iconName ? (
-                    <Ionicons name={iconName} size={designTokens.icon.rail} color={iconColor} />
+                    <Feather name={iconName} size={designTokens.icon.rail} color={iconColor} />
                   ) : null
                 }
                 onPress={() => navigation.navigate(route.name)}
@@ -69,7 +60,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
       {state.routes.map((route, index) => {
         const label = getLabel(route.key, route.name);
         const isFocused = state.index === index;
-        const iconName = getIconName(route.name, isFocused);
+        const iconName = getIconName(route.name);
         const iconColor = isFocused ? colors.primary : colors.subtle;
 
         return (
@@ -78,11 +69,11 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
             placement="bottom"
             active={isFocused}
             label={label}
-            showLabel={false}
+            showLabel={true}
             accessibilityLabel={label}
             icon={
               iconName ? (
-                <Ionicons name={iconName} size={designTokens.icon.nav} color={iconColor} />
+                <Feather name={iconName} size={designTokens.icon.nav} color={iconColor} />
               ) : null
             }
             onPress={() => navigation.navigate(route.name)}

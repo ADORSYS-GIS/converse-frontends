@@ -152,6 +152,37 @@ export function useRevokeApiKey() {
       const response = await apiKeyBackendRevokeApiKey<true>({ path: { key_id: id } });
       return response.data;
     },
+    onMutate: async ({ id, projectId }) => {
+      // Cancel any in-flight refetches so they don't overwrite our optimistic update.
+      await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });
+
+      // Snapshot all cached pages for rollback.
+      const previousPages = queryClient.getQueriesData<ApiKeyBackendApiKey[]>({
+        queryKey: [...apiKeysQueryKey(projectId)],
+      });
+
+      // Optimistically mark the key as revoked in every cached page.
+      queryClient.setQueriesData<ApiKeyBackendApiKey[]>(
+        { queryKey: [...apiKeysQueryKey(projectId)] },
+        (old) => {
+        if (!old) return old;
+        return old.map((key) =>
+          key.id === id
+            ? { ...key, status: 'revoked' as const, revoked_at: new Date().toISOString() }
+            : key
+        );
+      });
+
+      return { previousPages };
+    },
+    onError: (_err, { projectId }, context) => {
+      // Roll back to the snapshot on failure.
+      if (context?.previousPages) {
+        for (const [queryKey, data] of context.previousPages) {
+          queryClient.setQueryData(queryKey, data);
+        }
+      }
+    },
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -202,6 +233,33 @@ export function useDeleteApiKey() {
   const mutation = useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) =>
       apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
+    onMutate: async ({ id, projectId }) => {
+      // Cancel any in-flight refetches so they don't overwrite our optimistic update.
+      await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });
+
+      // Snapshot all cached pages for rollback.
+      const previousPages = queryClient.getQueriesData<ApiKeyBackendApiKey[]>({
+        queryKey: [...apiKeysQueryKey(projectId)],
+      });
+
+      // Optimistically remove the key from every cached page.
+      queryClient.setQueriesData<ApiKeyBackendApiKey[]>(
+        { queryKey: [...apiKeysQueryKey(projectId)] },
+        (old) => {
+        if (!old) return old;
+        return old.filter((key) => key.id !== id);
+      });
+
+      return { previousPages };
+    },
+    onError: (_err, { projectId }, context) => {
+      // Roll back to the snapshot on failure.
+      if (context?.previousPages) {
+        for (const [queryKey, data] of context.previousPages) {
+          queryClient.setQueryData(queryKey, data);
+        }
+      }
+    },
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });

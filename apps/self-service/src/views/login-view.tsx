@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from '@lightbridge/i18n';
-import { Ionicons } from '@expo/vector-icons';
 
-import { Button, Div, Heading, Lottie, Page, Stack, Text } from '@lightbridge/ui';
+import { Button, Div, Heading, Icon as Feather, Lottie, Page, Stack, Text } from '@lightbridge/ui';
+import { useThemeColors } from '../hooks/use-theme-colors';
 
 const fingerprintSource = require('@lightbridge/ui/src/assets/lotties/auth/fingerprint-success.json');
 
@@ -18,6 +18,7 @@ export function LoginView({
   error?: string | null;
 }>) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
 
   return (
     <Page tone="muted" pad="md">
@@ -27,7 +28,7 @@ export function LoginView({
           size="iconSm"
           onPress={onHelpPress}
           accessibilityLabel={t('login.help')}>
-          <Ionicons name="help" size={18} color="#ffffff" />
+          <Feather name="help-circle" size={18} color={colors.surface} />
         </Button>
       </Div>
 
@@ -74,7 +75,7 @@ export function LoginView({
                 width="full"
                 disabled={loading}
                 onPress={onSsoPress}>
-                <Ionicons name="lock-closed" size={18} color="#ffffff" />{' '}
+                <Feather name="lock" size={18} color={colors.surface} />{' '}
                 {loading ? t('login.ssoLoading') : t('login.sso')}
               </Button>
 

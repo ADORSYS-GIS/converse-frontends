@@ -8,6 +8,6 @@ import type { TextFieldProps } from './types';
 
 const InputBase = TextInput as React.ComponentType<TextInputProps & { className?: string }>;
 
-export function TextField({ size, ...props }: TextFieldProps) {
-  return <InputBase className={cn(textFieldVariants({ size }))} {...props} />;
+export function TextField({ size, error, ...props }: TextFieldProps) {
+  return <InputBase className={cn(textFieldVariants({ size, error }))} {...props} />;
 }

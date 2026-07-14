@@ -14,6 +14,8 @@ export { Div, divVariants } from './components/div';
 export type { DivProps } from './components/div';
 export { Heading, headingVariants } from './components/heading';
 export type { HeadingProps } from './components/heading';
+export { Icon } from './components/icon';
+export type { IconName } from './components/icon';
 export { Image, imageVariants } from './components/image';
 export type { ImageProps } from './components/image';
 export { Lottie, lottieVariants } from './components/lottie';

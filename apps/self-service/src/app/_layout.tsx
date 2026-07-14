@@ -14,6 +14,7 @@ import {
   useAuthHydration,
   useAuthSession,
   useBackendSync,
+  useBootstrapWorkspace,
   useLocaleSync,
   refreshAccessToken,
   clearPersistedAuthSession,
@@ -77,6 +78,7 @@ function AppBootstrap() {
   });
 
   useBackendSync();
+  useBootstrapWorkspace();
   useLocaleSync();
 
   // Declarative auth guard. `Stack.Protected` mounts a group of screens only

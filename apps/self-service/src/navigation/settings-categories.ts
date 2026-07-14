@@ -1,13 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
+import type { IconName } from '@lightbridge/ui';
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
+type FeatherIconName = IconName;
 
 export type SettingsCategoryKey = 'account' | 'project';
 
 export type SettingsCategory = {
   key: SettingsCategoryKey;
   titleKey: string;
-  iconName: IoniconName;
+  iconName: FeatherIconName;
   route: `/${string}`;
 };
 
@@ -18,13 +18,13 @@ export const settingsCategories: SettingsCategory[] = [
   {
     key: 'account',
     titleKey: 'settings.categories.account',
-    iconName: 'business-outline',
+    iconName: 'briefcase',
     route: '/settings-account',
   },
   {
     key: 'project',
     titleKey: 'settings.categories.project',
-    iconName: 'folder-outline',
+    iconName: 'folder',
     route: '/settings-project',
   },
 ];

@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { Linking, Platform } from 'react-native';
 
 export async function openExternalUrl(url: string) {
@@ -29,4 +30,22 @@ export async function readFromClipboard() {
 
 export function isWebPlatform() {
   return Platform.OS === 'web';
+}
+
+/**
+ * Triggers a warning haptic feedback — used before destructive/irreversible
+ * actions like delete, revoke, or rotate. No-ops on web.
+ */
+export async function hapticWarning() {
+  if (Platform.OS === 'web') return;
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+}
+
+/**
+ * Triggers a success haptic feedback — used after a successful mutation.
+ * No-ops on web.
+ */
+export async function hapticSuccess() {
+  if (Platform.OS === 'web') return;
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }

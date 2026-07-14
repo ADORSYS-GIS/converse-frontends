@@ -112,7 +112,9 @@ export function ProjectSettingsView({
   const [nameDraft, setNameDraft] = useState(project?.name ?? '');
   const [planDraft, setPlanDraft] = useState(project?.billing_plan ?? '');
   const [newModel, setNewModel] = useState('');
-  const [rpsDraft, setRpsDraft] = useState(limitToDraft(project?.default_limits?.requests_per_second));
+  const [rpsDraft, setRpsDraft] = useState(
+    limitToDraft(project?.default_limits?.requests_per_second)
+  );
   const [rpdDraft, setRpdDraft] = useState(limitToDraft(project?.default_limits?.requests_per_day));
   const [concurrentDraft, setConcurrentDraft] = useState(
     limitToDraft(project?.default_limits?.concurrent_requests)
@@ -326,9 +328,7 @@ export function ProjectSettingsView({
                     <Button
                       variant="primary"
                       size="sm"
-                      onPress={() =>
-                        onSaveDetails({ name: trimmedName, billingPlan: trimmedPlan })
-                      }
+                      onPress={() => onSaveDetails({ name: trimmedName, billingPlan: trimmedPlan })}
                       disabled={!canSaveDetails}
                       style={{ alignSelf: 'flex-start' }}>
                       {isSavingDetails
@@ -396,6 +396,7 @@ export function ProjectSettingsView({
                       <TextField
                         value={rpsDraft}
                         onChangeText={setRpsDraft}
+                        placeholder={t('settings.project.limitRpsPlaceholder')}
                         editable={!isSavingLimits}
                         keyboardType="number-pad"
                         autoCorrect={false}
@@ -406,6 +407,7 @@ export function ProjectSettingsView({
                       <TextField
                         value={rpdDraft}
                         onChangeText={setRpdDraft}
+                        placeholder={t('settings.project.limitRpdPlaceholder')}
                         editable={!isSavingLimits}
                         keyboardType="number-pad"
                         autoCorrect={false}
@@ -416,6 +418,7 @@ export function ProjectSettingsView({
                       <TextField
                         value={concurrentDraft}
                         onChangeText={setConcurrentDraft}
+                        placeholder={t('settings.project.limitConcurrentPlaceholder')}
                         editable={!isSavingLimits}
                         keyboardType="number-pad"
                         autoCorrect={false}

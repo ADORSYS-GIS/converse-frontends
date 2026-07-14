@@ -25,7 +25,7 @@ export function DeleteApiKeyView({
         <Stack gap="sm">
           <Text intent="value">{t('deleteKey.title')}</Text>
           <Text intent="body">{t('deleteKey.description', { name })}</Text>
-          <Text intent="caption">
+          <Text intent="caption" selectable>
             {t('deleteKey.confirmInstruction', { target: confirmationTarget })}
           </Text>
           <TextField
@@ -35,6 +35,10 @@ export function DeleteApiKeyView({
             autoCapitalize="none"
             autoCorrect={false}
             editable={!loading}
+            returnKeyType="done"
+            onSubmitEditing={() => {
+              if (!loading && canDelete) onConfirm();
+            }}
           />
           <Stack direction="row" gap="sm">
             <Button variant="ghost" onPress={onCancel}>

@@ -42,6 +42,7 @@ export function CreateProjectView({
             autoCapitalize="none"
             autoCorrect={false}
             editable={!loading}
+            onSubmitEditing={handleConfirm}
           />
           <Text intent="caption">{t('createProject.planLabel')}</Text>
           <TextField

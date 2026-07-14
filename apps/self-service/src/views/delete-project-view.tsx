@@ -25,7 +25,7 @@ export function DeleteProjectView({
         <Stack gap="sm">
           <Text intent="value">{t('deleteProject.title')}</Text>
           <Text intent="body">{t('deleteProject.description', { name })}</Text>
-          <Text intent="caption">
+          <Text intent="caption" selectable>
             {t('deleteProject.confirmInstruction', { target: confirmationTarget })}
           </Text>
           <TextField
@@ -35,6 +35,10 @@ export function DeleteProjectView({
             autoCapitalize="none"
             autoCorrect={false}
             editable={!loading}
+            returnKeyType="done"
+            onSubmitEditing={() => {
+              if (!loading && canDelete) onConfirm();
+            }}
           />
           <Stack direction="row" gap="sm">
             <Button variant="ghost" onPress={onCancel}>

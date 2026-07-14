@@ -25,7 +25,7 @@ export function DeleteAccountView({
         <Stack gap="sm">
           <Text intent="value">{t('deleteAccount.title')}</Text>
           <Text intent="body">{t('deleteAccount.description', { name })}</Text>
-          <Text intent="caption">
+          <Text intent="caption" selectable>
             {t('deleteAccount.confirmInstruction', { target: confirmationTarget })}
           </Text>
           <TextField
@@ -35,6 +35,10 @@ export function DeleteAccountView({
             autoCapitalize="none"
             autoCorrect={false}
             editable={!loading}
+            returnKeyType="done"
+            onSubmitEditing={() => {
+              if (!loading && canDelete) onConfirm();
+            }}
           />
           <Stack direction="row" gap="sm">
             <Button variant="ghost" onPress={onCancel}>

@@ -8,5 +8,9 @@
     "scheme": "${EXPO_PUBLIC_KEYCLOAK_SCHEME}",
     "expectedAudience": "${EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE}",
     "audienceRequired": "${EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED}"
+  },
+  "usage": {
+    "grafanaUrl": "${EXPO_PUBLIC_GRAFANA_URL}",
+    "dashboardPath": "${EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH}"
   }
 }

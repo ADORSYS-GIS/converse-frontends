@@ -1,10 +1,33 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
-import type { AppRuntimeConfig } from './runtime-config-types';
+import type { AppRuntimeConfig, UsageDashboardConfig } from './runtime-config-types';
 import { isAppRuntimeConfig } from './runtime-config-types';
 
 const RuntimeConfigContext = createContext<AppRuntimeConfig | null>(null);
+
+// Default to the `my-usage` dashboard (uid + slug) the observability stack ships;
+// overridable so a different dashboard/uid can be pointed at without a rebuild.
+const DEFAULT_USAGE_DASHBOARD_PATH = '/d/my-usage/ai-gateway-e28094-my-usage';
+
+/**
+ * Builds the optional usage-dashboard config. Returns `undefined` (Usage tab
+ * hidden) unless a Grafana base URL is provided. Trailing slashes on the base
+ * URL are trimmed so the iframe URL joins cleanly.
+ */
+function buildUsageConfig(
+  grafanaUrl: string | undefined,
+  dashboardPath: string | undefined
+): UsageDashboardConfig | undefined {
+  const trimmed = grafanaUrl?.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return undefined;
+  }
+  return {
+    grafanaUrl: trimmed,
+    dashboardPath: dashboardPath?.trim() || DEFAULT_USAGE_DASHBOARD_PATH,
+  };
+}
 
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -41,6 +64,10 @@ function getEnvConfig(): AppRuntimeConfig {
       scheme,
       audience: audienceConfig,
     },
+    usage: buildUsageConfig(
+      process.env.EXPO_PUBLIC_GRAFANA_URL,
+      process.env.EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH
+    ),
   };
 }
 
@@ -79,6 +106,9 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
   if (audienceConfig) {
     json.keycloak.audience = audienceConfig;
   }
+
+  const rawUsage = (json as any).usage || {};
+  json.usage = buildUsageConfig(rawUsage.grafanaUrl, rawUsage.dashboardPath);
 
   return json;
 }

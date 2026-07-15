@@ -120,8 +120,22 @@ const resources = {
         login: 'Login',
         home: 'Home',
         apiKeys: 'API Keys',
+        usage: 'Usage',
         settings: 'Settings',
         logout: 'Log out',
+      },
+      usage: {
+        title: 'Usage',
+        openExternal: 'Open in Grafana',
+        native: {
+          title: 'View your usage',
+          description:
+            'Your usage dashboard opens in the browser, signed in with the same account.',
+        },
+        unavailable: {
+          title: 'Usage analytics unavailable',
+          description: 'Usage analytics have not been configured for this environment yet.',
+        },
       },
       settings: {
         title: 'Settings',

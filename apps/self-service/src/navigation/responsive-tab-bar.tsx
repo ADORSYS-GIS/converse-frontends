@@ -2,6 +2,7 @@ import React from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { designTokens, Icon as Feather, NavContainer, NavItem, Stack } from '@lightbridge/ui';
 
+import { useRuntimeConfig } from '../configs/runtime-config';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { tabRouteIcons } from './tab-routes';
 import { useIsDesktop } from './use-is-desktop';
@@ -9,6 +10,13 @@ import { useIsDesktop } from './use-is-desktop';
 export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<BottomTabBarProps>) {
   const isDesktop = useIsDesktop();
   const colors = useThemeColors();
+  const { usage } = useRuntimeConfig();
+
+  // The Usage tab ships dark: it only appears once an operator points the app at
+  // a Grafana instance (EXPO_PUBLIC_GRAFANA_URL / config.json `usage`). Skipping
+  // the render — rather than filtering `state.routes` — keeps each route's
+  // original index aligned with `state.index` for focus highlighting.
+  const isHiddenRoute = (routeName: string) => routeName === 'usage' && !usage;
 
   const getLabel = (routeKey: string, routeName: string) => {
     const options = descriptors[routeKey]?.options;
@@ -28,6 +36,9 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
       <NavContainer placement="sidebar">
         <Stack gap="sm" align="center">
           {state.routes.map((route, index) => {
+            if (isHiddenRoute(route.name)) {
+              return null;
+            }
             const label = getLabel(route.key, route.name);
             const isFocused = state.index === index;
             const iconName = getIconName(route.name);
@@ -58,6 +69,9 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   return (
     <NavContainer placement="bottom">
       {state.routes.map((route, index) => {
+        if (isHiddenRoute(route.name)) {
+          return null;
+        }
         const label = getLabel(route.key, route.name);
         const isFocused = state.index === index;
         const iconName = getIconName(route.name);

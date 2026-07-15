@@ -5,6 +5,7 @@ type FeatherIconName = IconName;
 export const tabRoutes = [
   { name: 'home', titleKey: 'nav.home' },
   { name: 'api-keys', titleKey: 'nav.apiKeys' },
+  { name: 'usage', titleKey: 'nav.usage' },
   { name: 'settings', titleKey: 'nav.settings' },
 ] as const;
 
@@ -13,6 +14,6 @@ export const tabRoutes = [
 export const tabRouteIcons: Record<string, FeatherIconName> = {
   home: 'home',
   'api-keys': 'key',
-  graphs: 'bar-chart-2',
+  usage: 'bar-chart-2',
   settings: 'settings',
 };

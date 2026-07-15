@@ -84,6 +84,18 @@
                               "type": "string",
                               "default": "https",
                               "minLength": 1
+                            },
+                            "EXPO_PUBLIC_GRAFANA_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [
+                                { "const": "" },
+                                { "type": "string", "format": "uri" }
+                              ]
+                            },
+                            "EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH": {
+                              "type": "string",
+                              "default": ""
                             }
                           },
                           "required": [

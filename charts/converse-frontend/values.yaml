@@ -30,7 +30,7 @@ conversefrontend:
             EXPO_PUBLIC_USAGE_URL: ""
             EXPO_PUBLIC_GATEWAY_URL: ""
             EXPO_PUBLIC_ANALYTICS_URL: ""
- 
+
             EXPO_PUBLIC_KEYCLOAK_ISSUER: ""
             EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: ""
             EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
@@ -39,6 +39,10 @@ conversefrontend:
             EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED: "false"
             # Comma-separated list of expected audience values (e.g., "converse-frontend" or "converse-frontend,api-key")
             EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE: ""
+
+            # Grafana usage dashboard embed (Usage tab). Optional — leave unset to hide the tab.
+            EXPO_PUBLIC_GRAFANA_URL: ""
+            EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH: ""
 
           resources:
             requests:

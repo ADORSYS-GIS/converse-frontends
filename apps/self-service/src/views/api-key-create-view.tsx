@@ -17,11 +17,19 @@ import {
 import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
+/**
+ * Plan every new key defaults to. Callers who cannot choose a plan (no `account:member`
+ * permission) always mint keys on this plan — the backend rejects anything else for them.
+ */
+const DEFAULT_API_KEY_BILLING_PLAN = 'free';
+
 type ApiKeyCreateViewProps = {
   onBack: () => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string, billingPlan: string) => void;
   onCopy: (value: string) => void;
   isCreating?: boolean;
+  /** When true, the user may pick a billing plan; otherwise keys are pinned to `free`. */
+  canChoosePlan?: boolean;
   generatedSecret?: string | null;
 };
 
@@ -30,14 +38,24 @@ export function ApiKeyCreateView({
   onCreate,
   onCopy,
   isCreating = false,
+  canChoosePlan = false,
   generatedSecret = null,
 }: Readonly<ApiKeyCreateViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const [name, setName] = useState('');
+  const [billingPlan, setBillingPlan] = useState('');
 
   const trimmedName = name.trim();
+  const resolvedPlan = canChoosePlan
+    ? billingPlan.trim() || DEFAULT_API_KEY_BILLING_PLAN
+    : DEFAULT_API_KEY_BILLING_PLAN;
   const isSubmitDisabled = isCreating || !trimmedName;
+
+  const submit = () => {
+    if (isSubmitDisabled) return;
+    onCreate(trimmedName, resolvedPlan);
+  };
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1, backgroundColor: colors.muted }}>
@@ -101,17 +119,32 @@ export function ApiKeyCreateView({
                       autoFocus
                       editable={!isCreating}
                       autoCorrect={false}
-                      returnKeyType="done"
-                      onSubmitEditing={() => {
-                        if (!isSubmitDisabled) {
-                          onCreate(trimmedName);
-                        }
-                      }}
+                      returnKeyType={canChoosePlan ? 'next' : 'done'}
+                      onSubmitEditing={canChoosePlan ? undefined : submit}
                     />
                   </FormField>
+                  {canChoosePlan ? (
+                    <FormField label={t('apiKeys.planLabel')}>
+                      <TextField
+                        placeholder={t('apiKeys.planPlaceholder')}
+                        value={billingPlan}
+                        onChangeText={setBillingPlan}
+                        selectionColor={colors.primary}
+                        editable={!isCreating}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        returnKeyType="done"
+                        onSubmitEditing={submit}
+                      />
+                    </FormField>
+                  ) : (
+                    <Text intent="caption" style={{ color: colors.subtle }}>
+                      {t('apiKeys.planLockedNote')}
+                    </Text>
+                  )}
                   <Button
                     variant="primary"
-                    onPress={() => onCreate(trimmedName)}
+                    onPress={submit}
                     disabled={isSubmitDisabled}
                     width="full">
                     {isCreating ? t('apiKeys.saving') : t('apiKeys.save')}

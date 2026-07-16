@@ -14,6 +14,7 @@ const baseItem: ApiKeyBackendApiKey = {
   key_prefix: 'TEST-FIXTURE-PREFIX',
   created_at: '2026-01-01T00:00:00Z',
   status: 'active',
+  billing_plan: 'free',
 };
 
 beforeAll(() => {

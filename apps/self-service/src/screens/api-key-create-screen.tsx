@@ -5,6 +5,7 @@ import {
   useCreateApiKey,
   useEnsureDefaultAccount,
   useEnsureDefaultProject,
+  usePermissions,
 } from '@lightbridge/hooks';
 import { ApiKeyCreateView } from '../views/api-key-create-view';
 
@@ -15,6 +16,9 @@ export function ApiKeyCreateScreen() {
   const { mutate: ensureAccount, isPending: isAccountEnsuring } = useEnsureDefaultAccount();
   const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
   const { mutate: createKey, isPending: isKeyCreating } = useCreateApiKey();
+  const { has } = usePermissions();
+  // Only account members may mint keys on a non-free plan; everyone else is pinned to `free`.
+  const canChoosePlan = has('account:member');
   const projectId = typeof params.projectId === 'string' ? params.projectId : null;
 
   const handleBack = () => {
@@ -34,12 +38,12 @@ export function ApiKeyCreateScreen() {
     router.navigate('/api-keys');
   };
 
-  const handleCreate = async (name: string) => {
+  const handleCreate = async (name: string, billingPlan: string) => {
     try {
       const resolvedProjectId = projectId ?? (await ensureProject((await ensureAccount()).id)).id;
 
       await createKey(
-        { input: { name }, projectId: resolvedProjectId },
+        { input: { name, billing_plan: billingPlan }, projectId: resolvedProjectId },
         {
           onSuccess: (data) => {
             if (data?.secret) {
@@ -61,6 +65,7 @@ export function ApiKeyCreateScreen() {
       onCopy={copyToClipboard}
       onCreate={handleCreate}
       isCreating={isPending}
+      canChoosePlan={canChoosePlan}
       generatedSecret={generatedSecret}
     />
   );

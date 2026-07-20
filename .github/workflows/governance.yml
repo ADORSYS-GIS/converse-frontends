@@ -22,7 +22,7 @@ jobs:
   governance:
     # ADORSYS-GIS/ai-governance governance-check.yml — pinned past v1.0.0 to the
     # commit that added the `runs-on` input (PR #17, 2026-07-06).
-    uses: ADORSYS-GIS/ai-governance/.github/workflows/governance-check.yml@52043b9d900013dd89b281bcd3d94ad559c3193d
+    uses: ADORSYS-GIS/ai-governance/.github/workflows/governance-check.yml@4fad43310d18dd3eb47df614979966e244eca1b5
     with:
       runs-on: adorsys-gis-runner
     permissions:

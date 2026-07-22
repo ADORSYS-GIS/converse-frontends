@@ -2,23 +2,74 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@lightbridge/i18n';
 import type {
-  ApiKeyBackendCreateProject,
-  ApiKeyBackendProject,
-  ApiKeyBackendUpdateProject,
-} from '@lightbridge/api-rest';
-import {
-  apiKeyBackendCreateProject,
-  apiKeyBackendDeleteProject,
-  apiKeyBackendDisableProject,
-  apiKeyBackendEnableProject,
-  apiKeyBackendListProjects,
-  apiKeyBackendUpdateProject,
-} from '@lightbridge/api-rest';
+  JsonValue,
+  Project as GeneratedProject,
+  UpdateProjectInput,
+} from '@lightbridge/authz-rpc';
+import { createId, getAuthzRpcClient, tagValue, untagValue } from '@lightbridge/authz-rpc';
+import type { Project } from './authz-types';
 import { useCurrentAccount } from './accounts';
 import { useAuthSession } from './auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
+}
+
+/** Caller-facing subset of `CreateProjectInput` — the server-managed `id`/`defaultLimits`/`status` are filled in here. */
+export type CreateProjectFields = {
+  name: string;
+  billingPlan: string;
+  allowedModels?: JsonValue;
+};
+
+function buildCreateProjectInput(accountId: string, fields: CreateProjectFields) {
+  return {
+    id: createId(),
+    accountId,
+    name: fields.name,
+    allowedModels: fields.allowedModels,
+    defaultLimits: {},
+    billingPlan: fields.billingPlan,
+    status: 'active',
+  };
+}
+
+/**
+ * The generated client passes `allowedModels`/`defaultLimits` through untouched — it doesn't know
+ * about cratestack's externally-tagged `Value` wire shape for `Json` columns. Tag on the way out,
+ * untag on the way back in, so everything above this module deals in plain JS values.
+ */
+function tagProjectJsonFields<T extends { allowedModels?: JsonValue; defaultLimits?: JsonValue }>(
+  input: T
+): T {
+  return {
+    ...input,
+    allowedModels: input.allowedModels === undefined ? undefined : tagValue(input.allowedModels),
+    defaultLimits: input.defaultLimits === undefined ? undefined : tagValue(input.defaultLimits),
+  } as unknown as T;
+}
+
+function untagProject(project: GeneratedProject): Project {
+  return {
+    ...project,
+    allowedModels:
+      project.allowedModels === undefined || project.allowedModels === null
+        ? project.allowedModels
+        : untagValue(project.allowedModels),
+    defaultLimits:
+      project.defaultLimits === undefined || project.defaultLimits === null
+        ? project.defaultLimits
+        : untagValue(project.defaultLimits),
+  };
+}
+
+async function listProjectsForAccount(accountId: string): Promise<Project[]> {
+  const page = await getAuthzRpcClient().projects.list({
+    limit: 10,
+    offset: 0,
+    filters: [{ key: 'accountId', value: accountId }],
+  });
+  return page.items.map(untagProject);
 }
 
 export function useProjects(accountId?: string) {
@@ -28,16 +79,13 @@ export function useProjects(accountId?: string) {
     queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],
     queryFn: async () => {
       if (!accountId) throw new Error('Account ID is required');
-      const response = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 10, offset: 0 },
-      });
-      return response.data;
+      return listProjectsForAccount(accountId);
     },
     enabled: !!accountId && isAuthenticated,
     staleTime: 5 * 60_000,
   });
 
-  const items = useMemo<ApiKeyBackendProject[]>(() => query.data ?? [], [query.data]);
+  const items = useMemo<Project[]>(() => query.data ?? [], [query.data]);
 
   return { ...query, data: items };
 }
@@ -49,7 +97,7 @@ export function useCurrentProject(enabled = true) {
 
   const { data: projects, ...query } = useProjects(accountId);
 
-  const current = useMemo<ApiKeyBackendProject | undefined>(() => {
+  const current = useMemo<Project | undefined>(() => {
     return projects && projects.length > 0 ? projects[0] : undefined;
   }, [projects]);
 
@@ -60,22 +108,16 @@ export function useCurrentProject(enabled = true) {
     enabled: enabled && !!accountId && isAuthenticated,
   };
 }
+
 export function useCreateProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({
-      accountId,
-      input,
-    }: {
-      accountId: string;
-      input: ApiKeyBackendCreateProject;
-    }) => {
-      const response = await apiKeyBackendCreateProject<true>({
-        path: { account_id: accountId },
-        body: input,
-      });
-      return response.data;
+    mutationFn: async ({ accountId, input }: { accountId: string; input: CreateProjectFields }) => {
+      const created = await getAuthzRpcClient().projects.create(
+        tagProjectJsonFields(buildCreateProjectInput(accountId, input))
+      );
+      return untagProject(created);
     },
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
@@ -98,13 +140,10 @@ export function useUpdateProject() {
     }: {
       id: string;
       accountId: string;
-      input: ApiKeyBackendUpdateProject;
+      input: UpdateProjectInput;
     }) => {
-      const response = await apiKeyBackendUpdateProject<true>({
-        path: { project_id: id },
-        body: input,
-      });
-      return response.data;
+      const updated = await getAuthzRpcClient().projects.update(id, tagProjectJsonFields(input));
+      return untagProject(updated);
     },
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
@@ -121,12 +160,10 @@ export function useDisableProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) => {
-      const response = await apiKeyBackendDisableProject<true>({
-        path: { project_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.disableProject({ args: { projectId: id } })
+      ),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -143,12 +180,8 @@ export function useEnableProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) => {
-      const response = await apiKeyBackendEnableProject<true>({
-        path: { project_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      untagProject(await getAuthzRpcClient().procedures.enableProject({ args: { projectId: id } })),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -166,7 +199,7 @@ export function useDeleteProject() {
 
   const mutation = useMutation({
     mutationFn: async ({ id }: { id: string; accountId: string }) =>
-      apiKeyBackendDeleteProject({ path: { project_id: id } }),
+      getAuthzRpcClient().projects.delete(id),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -184,25 +217,23 @@ export function useEnsureDefaultProject() {
 
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const projectsResponse = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 10, offset: 0 },
-      });
-      const existing = projectsResponse.data;
+      const existing = await listProjectsForAccount(accountId);
 
-      if (existing && existing.length > 0) {
+      if (existing.length > 0) {
         return existing[0];
       }
 
-      const createResponse = await apiKeyBackendCreateProject<true>({
-        path: { account_id: accountId },
-        body: {
-          name: t('project.defaultName'),
-          billing_plan: 'free',
-        },
-      });
+      const created = await getAuthzRpcClient().projects.create(
+        tagProjectJsonFields(
+          buildCreateProjectInput(accountId, {
+            name: t('project.defaultName'),
+            billingPlan: 'free',
+          })
+        )
+      );
 
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
-      return createResponse.data;
+      return untagProject(created);
     },
   });
 

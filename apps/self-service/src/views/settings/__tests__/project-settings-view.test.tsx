@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
-import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
+import type { Account, Project } from '@lightbridge/hooks';
 
 import { parseLimitDraft, ProjectSettingsView } from '../project-settings-view';
 
@@ -11,23 +11,24 @@ beforeAll(() => {
   initI18n('en');
 });
 
-const account: ApiKeyBackendAccount = {
+const account: Account = {
   id: 'acc-1',
-  billing_identity: 'acme-inc',
-  owners_admins: [],
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  billingIdentity: 'acme-inc',
+  status: 'active',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
 };
 
-const project: ApiKeyBackendProject = {
+const project: Project = {
   id: 'proj-1',
-  account_id: 'acc-1',
+  accountId: 'acc-1',
   name: 'production',
-  billing_plan: 'free',
-  allowed_models: ['gpt-4o'],
-  default_limits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-02T00:00:00Z',
+  billingPlan: 'free',
+  allowedModels: ['gpt-4o'],
+  defaultLimits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
+  status: 'active',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-02T00:00:00Z',
 };
 
 function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettingsView>> = {}) {
@@ -129,7 +130,7 @@ describe('ProjectSettingsView', () => {
   });
 
   it('shows the all-models-allowed note when the allowlist is empty', async () => {
-    await renderView({ project: { ...project, allowed_models: [] } });
+    await renderView({ project: { ...project, allowedModels: [] } });
 
     expect(screen.getByText('All models are allowed.')).toBeTruthy();
   });
@@ -171,8 +172,9 @@ describe('ProjectSettingsView', () => {
     const onCreateProject = jest.fn();
     await renderView({ projects: [], project: undefined, onCreateProject });
 
-    expect(screen.getAllByText('No projects in this account yet. Create one to get started.'))
-      .toBeTruthy();
+    expect(
+      screen.getAllByText('No projects in this account yet. Create one to get started.')
+    ).toBeTruthy();
 
     await fireEvent.press(
       screen.getAllByLabelText('New project')[screen.getAllByLabelText('New project').length - 1]

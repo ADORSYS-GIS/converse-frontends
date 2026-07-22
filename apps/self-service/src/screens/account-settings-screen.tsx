@@ -13,7 +13,7 @@ import {
   useRemoveAccountMember,
   useUpdateAccount,
 } from '@lightbridge/hooks';
-import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
+import type { Account } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
 import { CreateAccountSheet } from './create-account-sheet';
@@ -34,9 +34,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts();
   const accountParamInList = accounts.some((account) => account.id === accountParam);
   const accountId = (accountParamInList ? accountParam : undefined) ?? accounts[0]?.id;
-  const selectedAccount: ApiKeyBackendAccount | undefined = accounts.find(
-    (account) => account.id === accountId
-  );
+  const selectedAccount: Account | undefined = accounts.find((account) => account.id === accountId);
 
   const updateAccount = useUpdateAccount();
   const disableAccount = useDisableAccount();
@@ -44,11 +42,14 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const addMember = useAddAccountMember();
   const removeMember = useRemoveAccountMember();
 
-  const owners = selectedAccount?.owners_admins ?? [];
+  // The Account model no longer carries a member/owners list on the wire —
+  // membership is managed purely through add/removeAccountMember mutations,
+  // so there is nothing to seed the chip list with until a listing RPC exists.
+  const owners: string[] = [];
 
   const handleSaveBillingIdentity = (value: string) => {
     if (!selectedAccount?.id) return;
-    void updateAccount.mutateAsync({ id: selectedAccount.id, input: { billing_identity: value } });
+    void updateAccount.mutateAsync({ id: selectedAccount.id, input: { billingIdentity: value } });
   };
 
   const handleAddOwner = (value: string) => {
@@ -73,7 +74,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const handleDeleteAccount = () => {
     if (!selectedAccount?.id) return;
     const accountId = selectedAccount.id;
-    const accountName = selectedAccount.billing_identity;
+    const accountName = selectedAccount.billingIdentity;
     sheet.present(({ dismiss }) => (
       <DeleteAccountSheet id={accountId} name={accountName} onClose={dismiss} />
     ));
@@ -110,7 +111,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isLoading={isAccountsLoading}
       onSelectAccount={setAccountParam}
       onCreateAccount={handleCreateAccount}
-      billingIdentity={selectedAccount?.billing_identity ?? ''}
+      billingIdentity={selectedAccount?.billingIdentity ?? ''}
       onSaveBillingIdentity={handleSaveBillingIdentity}
       isSavingBillingIdentity={updateAccount.isPending}
       owners={owners}
@@ -121,7 +122,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       authUserLabel={
         session.user?.email ?? session.user?.name ?? t('settings.account.authUserLabel')
       }
-      status={selectedAccount?.status ?? 'active'}
+      status={(selectedAccount?.status as 'active' | 'suspended' | undefined) ?? 'active'}
       canCreate={has('account:create')}
       canUpdate={has('account:update')}
       canManageMembers={has('account:member')}

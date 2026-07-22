@@ -1,8 +1,8 @@
 import { createCollection, localOnlyCollectionOptions } from '@tanstack/react-db';
 
-import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
+import type { ApiKey } from '@lightbridge/authz-rpc';
 
-export type StoredApiKey = ApiKeyBackendApiKey;
+export type StoredApiKey = ApiKey;
 
 export const apiKeysCollection = createCollection(
   localOnlyCollectionOptions<StoredApiKey>({

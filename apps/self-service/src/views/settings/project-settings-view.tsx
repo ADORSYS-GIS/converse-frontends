@@ -19,11 +19,7 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
-import type {
-  ApiKeyBackendAccount,
-  ApiKeyBackendDefaultLimits,
-  ApiKeyBackendProject,
-} from '@lightbridge/api-rest';
+import type { Account, Project } from '@lightbridge/hooks';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
 
@@ -32,14 +28,35 @@ export type ProjectDetailsInput = {
   billingPlan: string;
 };
 
+/**
+ * `Project.defaultLimits` is an opaque `JsonValue` blob on the wire (not a
+ * cratestack model, so its keys were never part of the camelCase migration) —
+ * this is the shape the UI reads/writes inside that blob.
+ */
+export type ProjectDefaultLimits = {
+  requests_per_second?: number | null;
+  requests_per_day?: number | null;
+  concurrent_requests?: number | null;
+};
+
+/** Narrows the opaque `defaultLimits` JsonValue down to the shape this view understands. */
+const asDefaultLimits = (value: Project['defaultLimits'] | undefined): ProjectDefaultLimits =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as ProjectDefaultLimits)
+    : {};
+
+/** Narrows the opaque `allowedModels` JsonValue down to a plain model-id list. */
+const asAllowedModels = (value: Project['allowedModels']): string[] =>
+  Array.isArray(value) ? (value as string[]) : [];
+
 type ProjectSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
-  accounts?: ApiKeyBackendAccount[];
-  projects?: ApiKeyBackendProject[];
+  accounts?: Account[];
+  projects?: Project[];
   selectedAccountId?: string;
   selectedProjectId?: string;
-  project?: ApiKeyBackendProject;
+  project?: Project;
   isLoading?: boolean;
   onSelectAccount: (id: string) => void;
   onSelectProject: (id: string) => void;
@@ -49,7 +66,7 @@ type ProjectSettingsViewProps = {
   onAddModel: (model: string) => void;
   onRemoveModel: (model: string) => void;
   isSavingModels?: boolean;
-  onSaveLimits: (limits: ApiKeyBackendDefaultLimits) => void;
+  onSaveLimits: (limits: ProjectDefaultLimits) => void;
   isSavingLimits?: boolean;
   canCreate?: boolean;
   canUpdate?: boolean;
@@ -109,34 +126,35 @@ export function ProjectSettingsView({
   const colors = useThemeColors();
   const dateLocale = i18n.language;
 
+  const projectLimits = asDefaultLimits(project?.defaultLimits);
+
   const [nameDraft, setNameDraft] = useState(project?.name ?? '');
-  const [planDraft, setPlanDraft] = useState(project?.billing_plan ?? '');
+  const [planDraft, setPlanDraft] = useState(project?.billingPlan ?? '');
   const [newModel, setNewModel] = useState('');
-  const [rpsDraft, setRpsDraft] = useState(
-    limitToDraft(project?.default_limits?.requests_per_second)
-  );
-  const [rpdDraft, setRpdDraft] = useState(limitToDraft(project?.default_limits?.requests_per_day));
+  const [rpsDraft, setRpsDraft] = useState(limitToDraft(projectLimits.requests_per_second));
+  const [rpdDraft, setRpdDraft] = useState(limitToDraft(projectLimits.requests_per_day));
   const [concurrentDraft, setConcurrentDraft] = useState(
-    limitToDraft(project?.default_limits?.concurrent_requests)
+    limitToDraft(projectLimits.concurrent_requests)
   );
 
   useEffect(() => {
+    const limits = asDefaultLimits(project?.defaultLimits);
     setNameDraft(project?.name ?? '');
-    setPlanDraft(project?.billing_plan ?? '');
+    setPlanDraft(project?.billingPlan ?? '');
     setNewModel('');
-    setRpsDraft(limitToDraft(project?.default_limits?.requests_per_second));
-    setRpdDraft(limitToDraft(project?.default_limits?.requests_per_day));
-    setConcurrentDraft(limitToDraft(project?.default_limits?.concurrent_requests));
+    setRpsDraft(limitToDraft(limits.requests_per_second));
+    setRpdDraft(limitToDraft(limits.requests_per_day));
+    setConcurrentDraft(limitToDraft(limits.concurrent_requests));
   }, [project]);
 
   const trimmedName = nameDraft.trim();
   const trimmedPlan = planDraft.trim();
   const hasDetailsChanged =
-    !!project && (trimmedName !== project.name || trimmedPlan !== project.billing_plan);
+    !!project && (trimmedName !== project.name || trimmedPlan !== project.billingPlan);
   const canSaveDetails =
     hasDetailsChanged && trimmedName.length > 0 && trimmedPlan.length > 0 && !isSavingDetails;
 
-  const models = project?.allowed_models ?? [];
+  const models = asAllowedModels(project?.allowedModels);
   const trimmedNewModel = newModel.trim();
 
   const handleAddModel = () => {
@@ -152,9 +170,9 @@ export function ProjectSettingsView({
     parsedRps !== undefined && parsedRpd !== undefined && parsedConcurrent !== undefined;
   const hasLimitsChanged =
     !!project &&
-    (parsedRps !== (project.default_limits?.requests_per_second ?? null) ||
-      parsedRpd !== (project.default_limits?.requests_per_day ?? null) ||
-      parsedConcurrent !== (project.default_limits?.concurrent_requests ?? null));
+    (parsedRps !== (projectLimits.requests_per_second ?? null) ||
+      parsedRpd !== (projectLimits.requests_per_day ?? null) ||
+      parsedConcurrent !== (projectLimits.concurrent_requests ?? null));
   const canSaveLimits = limitsValid && hasLimitsChanged && !isSavingLimits;
 
   const handleSaveLimits = () => {
@@ -249,9 +267,9 @@ export function ProjectSettingsView({
                         size="sm"
                         onPress={() => onSelectAccount(account.id)}
                         accessibilityLabel={t('settings.project.selectAccount', {
-                          account: account.billing_identity,
+                          account: account.billingIdentity,
                         })}>
-                        {account.billing_identity}
+                        {account.billingIdentity}
                       </Button>
                     ))
                   )}
@@ -441,12 +459,12 @@ export function ProjectSettingsView({
               <Stack direction="row" gap="md" wrap="wrap">
                 <Text intent="caption">
                   {t('settings.project.createdOn', {
-                    date: formatDate(project.created_at, dateLocale),
+                    date: formatDate(project.createdAt, dateLocale),
                   })}
                 </Text>
                 <Text intent="caption">
                   {t('settings.project.updatedOn', {
-                    date: formatDate(project.updated_at, dateLocale),
+                    date: formatDate(project.updatedAt, dateLocale),
                   })}
                 </Text>
               </Stack>

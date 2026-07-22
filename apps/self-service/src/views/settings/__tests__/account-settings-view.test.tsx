@@ -96,8 +96,14 @@ describe('AccountSettingsView', () => {
     const onSelectAccount = jest.fn();
     await renderView({
       accounts: [
-        { id: 'acc-1', billing_identity: 'acme-inc', created_at: '', updated_at: '' },
-        { id: 'acc-2', billing_identity: 'globex', created_at: '', updated_at: '' },
+        {
+          id: 'acc-1',
+          billingIdentity: 'acme-inc',
+          status: 'active',
+          createdAt: '',
+          updatedAt: '',
+        },
+        { id: 'acc-2', billingIdentity: 'globex', status: 'active', createdAt: '', updatedAt: '' },
       ],
       selectedAccountId: 'acc-1',
       onSelectAccount,

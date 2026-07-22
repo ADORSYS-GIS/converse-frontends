@@ -1,0 +1,24 @@
+{
+  "name": "@lightbridge/authz-rpc",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "codegen:cratestack": "cratestack generate-typescript --schema schema/authz.cstack --out generated --package-name @lightbridge/authz-rpc --full-selection",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
+    "cborg": "^4.2.9"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
+  }
+}

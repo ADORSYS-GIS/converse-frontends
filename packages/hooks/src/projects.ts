@@ -64,12 +64,12 @@ function untagProject(project: GeneratedProject): Project {
 }
 
 async function listProjectsForAccount(accountId: string): Promise<Project[]> {
-  const projects = await getAuthzRpcClient().projects.list({
+  const page = await getAuthzRpcClient().projects.list({
     limit: 10,
     offset: 0,
     filters: [{ key: 'accountId', value: accountId }],
   });
-  return projects.map(untagProject);
+  return page.items.map(untagProject);
 }
 
 export function useProjects(accountId?: string) {

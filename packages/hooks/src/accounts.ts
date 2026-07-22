@@ -13,8 +13,8 @@ export function useAccounts(enabled = true) {
   const query = useQuery({
     queryKey: accountsQueryKey,
     queryFn: async () => {
-      const accounts = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
-      return accounts.map((account) => asFull<Account>(account));
+      const page = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
+      return page.items.map((account) => asFull<Account>(account));
     },
     enabled: enabled && isAuthenticated,
     staleTime: 5 * 60_000,
@@ -159,8 +159,8 @@ export function useEnsureDefaultAccount() {
     mutationFn: async () => {
       const existing = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
 
-      if (existing.length > 0) {
-        return asFull<Account>(existing[0]);
+      if (existing.items.length > 0) {
+        return asFull<Account>(existing.items[0]);
       }
 
       if (!session.user) {

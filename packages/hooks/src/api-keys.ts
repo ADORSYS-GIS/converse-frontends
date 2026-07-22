@@ -36,12 +36,12 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
       : ['projects', 'unknown', 'api-keys'],
     queryFn: async () => {
       if (!projectId) throw new Error('Project ID is required');
-      const items = await getAuthzRpcClient().apiKeys.list({
+      const page = await getAuthzRpcClient().apiKeys.list({
         limit,
         offset,
         filters: [{ key: 'projectId', value: projectId }],
       });
-      return items.map((item) => asFull<ApiKey>(item));
+      return page.items.map((item) => asFull<ApiKey>(item));
     },
     enabled: !!projectId && isAuthenticated,
     // Keep the current page visible while the next one loads (no empty flash on paging).

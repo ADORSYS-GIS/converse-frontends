@@ -53,7 +53,7 @@ export function useAccountListQuery(
   client: LightbridgeAuthzRpcClient,
   input: Record<string, unknown> = {},
   options: CratestackRpcCallOptions & {
-    queryOptions?: Omit<UseQueryOptions<Account[]>, "queryKey" | "queryFn">;
+    queryOptions?: Omit<UseQueryOptions<Page<Account>>, "queryKey" | "queryFn">;
   } = {},
 ) {
   return useQuery({
@@ -103,7 +103,7 @@ export function useProjectListQuery(
   client: LightbridgeAuthzRpcClient,
   input: Record<string, unknown> = {},
   options: CratestackRpcCallOptions & {
-    queryOptions?: Omit<UseQueryOptions<Project[]>, "queryKey" | "queryFn">;
+    queryOptions?: Omit<UseQueryOptions<Page<Project>>, "queryKey" | "queryFn">;
   } = {},
 ) {
   return useQuery({
@@ -164,7 +164,7 @@ export function useApiKeyListQuery(
   client: LightbridgeAuthzRpcClient,
   input: Record<string, unknown> = {},
   options: CratestackRpcCallOptions & {
-    queryOptions?: Omit<UseQueryOptions<ApiKey[]>, "queryKey" | "queryFn">;
+    queryOptions?: Omit<UseQueryOptions<Page<ApiKey>>, "queryKey" | "queryFn">;
   } = {},
 ) {
   return useQuery({
@@ -214,7 +214,7 @@ export function useAccountMembershipListQuery(
   client: LightbridgeAuthzRpcClient,
   input: Record<string, unknown> = {},
   options: CratestackRpcCallOptions & {
-    queryOptions?: Omit<UseQueryOptions<AccountMembership[]>, "queryKey" | "queryFn">;
+    queryOptions?: Omit<UseQueryOptions<Page<AccountMembership>>, "queryKey" | "queryFn">;
   } = {},
 ) {
   return useQuery({

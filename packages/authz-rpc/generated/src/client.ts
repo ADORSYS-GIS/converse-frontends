@@ -58,8 +58,8 @@ export class LightbridgeAuthzRpcClient {
 export class AccountApi {
   constructor(private readonly runtime: CratestackRpcRuntime) {}
 
-  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Account[]> {
-    return this.runtime.call<Record<string, unknown>, Account[]>(
+  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Page<Account>> {
+    return this.runtime.call<Record<string, unknown>, Page<Account>>(
       "model.Account.list",
       input,
       options,
@@ -98,8 +98,8 @@ export class AccountApi {
 export class ProjectApi {
   constructor(private readonly runtime: CratestackRpcRuntime) {}
 
-  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Project[]> {
-    return this.runtime.call<Record<string, unknown>, Project[]>(
+  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Page<Project>> {
+    return this.runtime.call<Record<string, unknown>, Page<Project>>(
       "model.Project.list",
       input,
       options,
@@ -146,8 +146,8 @@ export class ProjectApi {
 export class ApiKeyApi {
   constructor(private readonly runtime: CratestackRpcRuntime) {}
 
-  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<ApiKey[]> {
-    return this.runtime.call<Record<string, unknown>, ApiKey[]>(
+  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Page<ApiKey>> {
+    return this.runtime.call<Record<string, unknown>, Page<ApiKey>>(
       "model.ApiKey.list",
       input,
       options,
@@ -186,8 +186,8 @@ export class ApiKeyApi {
 export class AccountMembershipApi {
   constructor(private readonly runtime: CratestackRpcRuntime) {}
 
-  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<AccountMembership[]> {
-    return this.runtime.call<Record<string, unknown>, AccountMembership[]>(
+  list(input: Record<string, unknown> = {}, options: CratestackRpcCallOptions = {}): Promise<Page<AccountMembership>> {
+    return this.runtime.call<Record<string, unknown>, Page<AccountMembership>>(
       "model.AccountMembership.list",
       input,
       options,

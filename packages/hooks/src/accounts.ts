@@ -1,16 +1,16 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ApiKeyBackendAccount, ApiKeyBackendUpdateAccount } from '@lightbridge/api-rest';
+import type { Account, UpdateAccountInput } from '@lightbridge/authz-rpc';
 import {
-  apiKeyBackendAddAccountMember,
-  apiKeyBackendCreateAccount,
-  apiKeyBackendDeleteAccount,
-  apiKeyBackendDisableAccount,
-  apiKeyBackendEnableAccount,
-  apiKeyBackendListAccounts,
-  apiKeyBackendRemoveAccountMember,
-  apiKeyBackendUpdateAccount,
-} from '@lightbridge/api-rest';
+  addAccountMember,
+  createAccount,
+  deleteAccount,
+  disableAccount,
+  enableAccount,
+  listAccounts,
+  removeAccountMember,
+  updateAccount,
+} from '@lightbridge/authz-rpc';
 import { useAuthSession } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
@@ -20,17 +20,12 @@ export function useAccounts(enabled = true) {
 
   const query = useQuery({
     queryKey: accountsQueryKey,
-    queryFn: async () => {
-      const response = await apiKeyBackendListAccounts<true>({
-        path: { limit: 10, offset: 0 },
-      });
-      return response.data;
-    },
+    queryFn: async () => listAccounts({ limit: 10, offset: 0 }),
     enabled: enabled && isAuthenticated,
     staleTime: 5 * 60_000,
   });
 
-  const items = useMemo<ApiKeyBackendAccount[]>(() => query.data ?? [], [query.data]);
+  const items = useMemo<Account[]>(() => query.data ?? [], [query.data]);
 
   return { ...query, data: items };
 }
@@ -39,7 +34,7 @@ export function useCurrentAccount(enabled = true) {
   const { isAuthenticated } = useAuthSession();
   const { data, ...query } = useAccounts(enabled);
 
-  const current = useMemo<ApiKeyBackendAccount | undefined>(() => {
+  const current = useMemo<Account | undefined>(() => {
     return data && data.length > 0 ? data[0] : undefined;
   }, [data]);
 
@@ -50,13 +45,8 @@ export function useUpdateAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: ApiKeyBackendUpdateAccount }) => {
-      const response = await apiKeyBackendUpdateAccount<true>({
-        path: { account_id: id },
-        body: input,
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id, input }: { id: string; input: UpdateAccountInput }) =>
+      updateAccount(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -72,12 +62,7 @@ export function useDisableAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const response = await apiKeyBackendDisableAccount<true>({
-        path: { account_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string }) => disableAccount({ accountId: id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -94,12 +79,7 @@ export function useEnableAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const response = await apiKeyBackendEnableAccount<true>({
-        path: { account_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string }) => enableAccount({ accountId: id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -116,13 +96,8 @@ export function useAddAccountMember() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }) => {
-      const response = await apiKeyBackendAddAccountMember<true>({
-        path: { account_id: id },
-        body: { subject },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id, subject }: { id: string; subject: string }) =>
+      addAccountMember({ accountId: id, subject }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -139,12 +114,8 @@ export function useRemoveAccountMember() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }) => {
-      const response = await apiKeyBackendRemoveAccountMember<true>({
-        path: { account_id: id, member: subject },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id, subject }: { id: string; subject: string }) =>
+      removeAccountMember({ accountId: id, subject }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -161,8 +132,7 @@ export function useDeleteAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) =>
-      apiKeyBackendDeleteAccount({ path: { account_id: id } }),
+    mutationFn: async ({ id }: { id: string }) => deleteAccount(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -180,12 +150,9 @@ export function useEnsureDefaultAccount() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const accountsResponse = await apiKeyBackendListAccounts<true>({
-        path: { limit: 10, offset: 0 },
-      });
-      const existing = accountsResponse.data;
+      const existing = await listAccounts({ limit: 10, offset: 0 });
 
-      if (existing && existing.length > 0) {
+      if (existing.length > 0) {
         return existing[0];
       }
 
@@ -195,14 +162,10 @@ export function useEnsureDefaultAccount() {
 
       const billingIdentity = session.user.email ?? session.user.name ?? session.user.id;
 
-      const createResponse = await apiKeyBackendCreateAccount<true>({
-        body: {
-          billing_identity: billingIdentity,
-        },
-      });
+      const created = await createAccount({ billingIdentity });
 
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
-      return createResponse.data;
+      return created;
     },
   });
 
@@ -216,14 +179,8 @@ export function useCreateAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ billingIdentity }: { billingIdentity: string }) => {
-      const response = await apiKeyBackendCreateAccount<true>({
-        body: {
-          billing_identity: billingIdentity,
-        },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ billingIdentity }: { billingIdentity: string }) =>
+      createAccount({ billingIdentity }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },

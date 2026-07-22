@@ -1,24 +1,44 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@lightbridge/i18n';
-import type {
-  ApiKeyBackendCreateProject,
-  ApiKeyBackendProject,
-  ApiKeyBackendUpdateProject,
-} from '@lightbridge/api-rest';
+import type { JsonValue, Project, UpdateProjectInput } from '@lightbridge/authz-rpc';
 import {
-  apiKeyBackendCreateProject,
-  apiKeyBackendDeleteProject,
-  apiKeyBackendDisableProject,
-  apiKeyBackendEnableProject,
-  apiKeyBackendListProjects,
-  apiKeyBackendUpdateProject,
-} from '@lightbridge/api-rest';
+  createId,
+  createProject,
+  deleteProject,
+  disableProject,
+  enableProject,
+  listProjects,
+  updateProject,
+} from '@lightbridge/authz-rpc';
 import { useCurrentAccount } from './accounts';
 import { useAuthSession } from './auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
+}
+
+/** Caller-facing subset of `CreateProjectInput` — the server-managed `id`/`defaultLimits`/`status` are filled in here. */
+export type CreateProjectFields = {
+  name: string;
+  billingPlan: string;
+  allowedModels?: JsonValue;
+};
+
+function buildCreateProjectInput(accountId: string, fields: CreateProjectFields) {
+  return {
+    id: createId(),
+    accountId,
+    name: fields.name,
+    allowedModels: fields.allowedModels,
+    defaultLimits: {},
+    billingPlan: fields.billingPlan,
+    status: 'active',
+  };
+}
+
+async function listProjectsForAccount(accountId: string): Promise<Project[]> {
+  return listProjects({ limit: 10, offset: 0, filters: [{ key: 'accountId', value: accountId }] });
 }
 
 export function useProjects(accountId?: string) {
@@ -28,16 +48,13 @@ export function useProjects(accountId?: string) {
     queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],
     queryFn: async () => {
       if (!accountId) throw new Error('Account ID is required');
-      const response = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 10, offset: 0 },
-      });
-      return response.data;
+      return listProjectsForAccount(accountId);
     },
     enabled: !!accountId && isAuthenticated,
     staleTime: 5 * 60_000,
   });
 
-  const items = useMemo<ApiKeyBackendProject[]>(() => query.data ?? [], [query.data]);
+  const items = useMemo<Project[]>(() => query.data ?? [], [query.data]);
 
   return { ...query, data: items };
 }
@@ -49,7 +66,7 @@ export function useCurrentProject(enabled = true) {
 
   const { data: projects, ...query } = useProjects(accountId);
 
-  const current = useMemo<ApiKeyBackendProject | undefined>(() => {
+  const current = useMemo<Project | undefined>(() => {
     return projects && projects.length > 0 ? projects[0] : undefined;
   }, [projects]);
 
@@ -60,23 +77,13 @@ export function useCurrentProject(enabled = true) {
     enabled: enabled && !!accountId && isAuthenticated,
   };
 }
+
 export function useCreateProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({
-      accountId,
-      input,
-    }: {
-      accountId: string;
-      input: ApiKeyBackendCreateProject;
-    }) => {
-      const response = await apiKeyBackendCreateProject<true>({
-        path: { account_id: accountId },
-        body: input,
-      });
-      return response.data;
-    },
+    mutationFn: async ({ accountId, input }: { accountId: string; input: CreateProjectFields }) =>
+      createProject(buildCreateProjectInput(accountId, input)),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -98,14 +105,8 @@ export function useUpdateProject() {
     }: {
       id: string;
       accountId: string;
-      input: ApiKeyBackendUpdateProject;
-    }) => {
-      const response = await apiKeyBackendUpdateProject<true>({
-        path: { project_id: id },
-        body: input,
-      });
-      return response.data;
-    },
+      input: UpdateProjectInput;
+    }) => updateProject(id, input),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -121,12 +122,8 @@ export function useDisableProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) => {
-      const response = await apiKeyBackendDisableProject<true>({
-        path: { project_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      disableProject({ projectId: id }),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -143,12 +140,8 @@ export function useEnableProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) => {
-      const response = await apiKeyBackendEnableProject<true>({
-        path: { project_id: id },
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      enableProject({ projectId: id }),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -165,8 +158,7 @@ export function useDeleteProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) =>
-      apiKeyBackendDeleteProject({ path: { project_id: id } }),
+    mutationFn: async ({ id }: { id: string; accountId: string }) => deleteProject(id),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -184,25 +176,18 @@ export function useEnsureDefaultProject() {
 
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const projectsResponse = await apiKeyBackendListProjects<true>({
-        path: { account_id: accountId, limit: 10, offset: 0 },
-      });
-      const existing = projectsResponse.data;
+      const existing = await listProjectsForAccount(accountId);
 
-      if (existing && existing.length > 0) {
+      if (existing.length > 0) {
         return existing[0];
       }
 
-      const createResponse = await apiKeyBackendCreateProject<true>({
-        path: { account_id: accountId },
-        body: {
-          name: t('project.defaultName'),
-          billing_plan: 'free',
-        },
-      });
+      const created = await createProject(
+        buildCreateProjectInput(accountId, { name: t('project.defaultName'), billingPlan: 'free' })
+      );
 
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
-      return createResponse.data;
+      return created;
     },
   });
 

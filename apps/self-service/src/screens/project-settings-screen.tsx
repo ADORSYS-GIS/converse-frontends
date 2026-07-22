@@ -10,10 +10,13 @@ import {
   useQueryState,
   useUpdateProject,
 } from '@lightbridge/hooks';
-import type { ApiKeyBackendAccount, ApiKeyBackendDefaultLimits, ApiKeyBackendProject } from '@lightbridge/api-rest';
+import type { Account, Project } from '@lightbridge/authz-rpc';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ProjectSettingsView } from '../views/settings/project-settings-view';
-import type { ProjectDetailsInput } from '../views/settings/project-settings-view';
+import type {
+  ProjectDefaultLimits,
+  ProjectDetailsInput,
+} from '../views/settings/project-settings-view';
 import { CreateProjectSheet } from './create-project-sheet';
 import { DeleteProjectSheet } from './delete-project-sheet';
 
@@ -27,11 +30,11 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const [projectParam, setProjectParam] = useQueryState('projectId');
 
   const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
-  const accounts: ApiKeyBackendAccount[] = accountsData;
+  const accounts: Account[] = accountsData;
   const accountId = accountParam ?? accounts[0]?.id;
 
   const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
-  const projects: ApiKeyBackendProject[] = projectsData;
+  const projects: Project[] = projectsData;
 
   const projectParamInList = projects.some((project) => project.id === projectParam);
   const projectId = (projectParamInList ? projectParam : undefined) ?? projects[0]?.id;
@@ -52,7 +55,7 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       .mutateAsync({
         id: project.id,
         accountId,
-        input: { name, billing_plan: billingPlan },
+        input: { name, billingPlan },
       })
       .catch((error) => {
         console.error('Failed to update project details:', error);
@@ -65,31 +68,34 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       .mutateAsync({
         id: project.id,
         accountId,
-        input: { allowed_models: models },
+        input: { allowedModels: models },
       })
       .catch((error) => {
         console.error('Failed to update allowed models:', error);
       });
   };
 
+  const projectModels = (): string[] =>
+    Array.isArray(project?.allowedModels) ? (project.allowedModels as string[]) : [];
+
   const handleAddModel = (model: string) => {
-    const models = project?.allowed_models ?? [];
+    const models = projectModels();
     if (models.includes(model)) return;
     saveModels([...models, model]);
   };
 
   const handleRemoveModel = (model: string) => {
-    const models = project?.allowed_models ?? [];
+    const models = projectModels();
     saveModels(models.filter((item) => item !== model));
   };
 
-  const handleSaveLimits = (limits: ApiKeyBackendDefaultLimits) => {
+  const handleSaveLimits = (limits: ProjectDefaultLimits) => {
     if (!project || !accountId) return;
     void updateProject
       .mutateAsync({
         id: project.id,
         accountId,
-        input: { default_limits: limits },
+        input: { defaultLimits: limits },
       })
       .catch((error) => {
         console.error('Failed to update default limits:', error);

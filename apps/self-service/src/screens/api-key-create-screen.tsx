@@ -43,7 +43,7 @@ export function ApiKeyCreateScreen() {
       const resolvedProjectId = projectId ?? (await ensureProject((await ensureAccount()).id)).id;
 
       await createKey(
-        { input: { name, billing_plan: billingPlan }, projectId: resolvedProjectId },
+        { input: { name, billingPlan }, projectId: resolvedProjectId },
         {
           onSuccess: (data) => {
             if (data?.secret) {

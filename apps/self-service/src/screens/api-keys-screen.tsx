@@ -8,7 +8,7 @@ import {
   useProjects,
   useQueryState,
 } from '@lightbridge/hooks';
-import type { ApiKeyBackendAccount, ApiKeyBackendProject } from '@lightbridge/api-rest';
+import type { Account, Project } from '@lightbridge/authz-rpc';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 import { DeleteApiKeySheet } from './delete-api-key-sheet';
@@ -28,12 +28,12 @@ export function ApiKeysScreen() {
   const [projectParam, setProjectParam] = useQueryState('projectId');
   const router = useRouter();
   const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
-  const accounts: ApiKeyBackendAccount[] = accountsData;
+  const accounts: Account[] = accountsData;
 
   // Effective account: the URL param when set, otherwise the first account.
   const accountId = accountParam ?? accounts[0]?.id;
   const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
-  const projects: ApiKeyBackendProject[] = projectsData;
+  const projects: Project[] = projectsData;
 
   // Effective project: the URL param when it belongs to the current account's
   // projects, otherwise the first project (so switching account falls back

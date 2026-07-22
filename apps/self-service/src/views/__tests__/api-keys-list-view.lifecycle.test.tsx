@@ -1,27 +1,28 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
-import type { ApiKeyBackendApiKey } from '@lightbridge/api-rest';
+import type { ApiKey } from '@lightbridge/authz-rpc';
 
 import { ApiKeysListView } from '../api-keys-list-view';
 
 const noop = () => undefined;
 
-const baseItem: ApiKeyBackendApiKey = {
+const baseItem: ApiKey = {
   id: 'key-1',
-  project_id: 'project-1',
+  projectId: 'project-1',
   name: 'Production',
-  key_prefix: 'TEST-FIXTURE-PREFIX',
-  created_at: '2026-01-01T00:00:00Z',
+  keyPrefix: 'TEST-FIXTURE-PREFIX',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
   status: 'active',
-  billing_plan: 'free',
+  billingPlan: 'free',
 };
 
 beforeAll(() => {
   initI18n('en');
 });
 
-function renderList(item: ApiKeyBackendApiKey, overrides: Partial<Record<string, unknown>> = {}) {
+function renderList(item: ApiKey, overrides: Partial<Record<string, unknown>> = {}) {
   return render(
     <ApiKeysListView
       items={[item]}
@@ -56,7 +57,7 @@ describe('ApiKeysListView lifecycle actions', () => {
   });
 
   it('disables Revoke and Rotate for an already-revoked key', async () => {
-    const revokedItem: ApiKeyBackendApiKey = { ...baseItem, status: 'revoked' };
+    const revokedItem: ApiKey = { ...baseItem, status: 'revoked' };
     await renderList(revokedItem, { onRevoke: noop, onRotate: noop });
 
     expect(screen.getByLabelText('Revoke Production').props.accessibilityState.disabled).toBe(true);

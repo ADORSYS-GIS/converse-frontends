@@ -19,13 +19,13 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
-import type { ApiKeyBackendAccount } from '@lightbridge/api-rest';
+import type { Account } from '@lightbridge/authz-rpc';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 type AccountSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
-  accounts?: ApiKeyBackendAccount[];
+  accounts?: Account[];
   selectedAccountId?: string;
   isLoading?: boolean;
   onSelectAccount: (id: string) => void;
@@ -190,9 +190,9 @@ export function AccountSettingsView({
                       size="sm"
                       onPress={() => onSelectAccount(account.id)}
                       accessibilityLabel={t('settings.account.selectAccount', {
-                        account: account.billing_identity,
+                        account: account.billingIdentity,
                       })}>
-                      {account.billing_identity}
+                      {account.billingIdentity}
                     </Button>
                   ))}
                 </Stack>

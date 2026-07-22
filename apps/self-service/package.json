@@ -20,7 +20,7 @@
     "@expo/vector-icons": "15.1.1",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@lightbridge/api-native": "workspace:*",
-    "@lightbridge/api-rest": "workspace:*",
+    "@lightbridge/authz-rpc": "workspace:*",
     "@lightbridge/hooks": "workspace:*",
     "@lightbridge/i18n": "workspace:*",
     "@lightbridge/ui": "workspace:*",

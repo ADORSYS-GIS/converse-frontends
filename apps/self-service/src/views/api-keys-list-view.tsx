@@ -18,11 +18,7 @@ import {
   Stack,
   Text,
 } from '@lightbridge/ui';
-import type {
-  ApiKeyBackendAccount,
-  ApiKeyBackendApiKey,
-  ApiKeyBackendProject,
-} from '@lightbridge/api-rest';
+import type { Account, ApiKey, Project } from '@lightbridge/authz-rpc';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 const i18nLocaleMap: Record<string, string> = {
@@ -35,11 +31,11 @@ const i18nLocaleMap: Record<string, string> = {
 const getLocaleForDate = (lang: string): string => i18nLocaleMap[lang] ?? lang;
 
 type ApiKeysListViewProps = {
-  accounts?: ApiKeyBackendAccount[];
-  projects?: ApiKeyBackendProject[];
+  accounts?: Account[];
+  projects?: Project[];
   selectedAccountId?: string;
   selectedProjectId?: string;
-  items?: ApiKeyBackendApiKey[];
+  items?: ApiKey[];
   isLoading?: boolean;
   onBack: () => void;
   onCreate: () => void;
@@ -148,9 +144,9 @@ export function ApiKeysListView({
                           size="sm"
                           onPress={() => onSelectAccount(account.id)}
                           accessibilityLabel={t('apiKeys.selectAccount', {
-                            account: account.billing_identity,
+                            account: account.billingIdentity,
                           })}>
-                          {account.billing_identity}
+                          {account.billingIdentity}
                         </Button>
                       );
                     })
@@ -194,8 +190,10 @@ export function ApiKeysListView({
               subtitle={
                 selectedProject
                   ? t('apiKeys.projectMetadata', {
-                      plan: selectedProject.billing_plan,
-                      models: selectedProject.allowed_models?.length ?? 0,
+                      plan: selectedProject.billingPlan,
+                      models: Array.isArray(selectedProject.allowedModels)
+                        ? selectedProject.allowedModels.length
+                        : 0,
                     })
                   : t('apiKeys.projectRequired')
               }
@@ -235,9 +233,7 @@ export function ApiKeysListView({
             {!isLoading && displayItems.length === 0 && (
               <Card size="md">
                 <EmptyState
-                  icon={
-                    <Feather name="key" size={28} color={colors.subtle} />
-                  }
+                  icon={<Feather name="key" size={28} color={colors.subtle} />}
                   title={t('apiKeys.emptyState')}
                   action={
                     canCreate ? (
@@ -258,7 +254,7 @@ export function ApiKeysListView({
             {!isLoading &&
               displayItems.map((item) => {
                 const createdLabel = t('apiKeys.createdOn', {
-                  date: formatDate(item.created_at, dateLocale),
+                  date: formatDate(item.createdAt, dateLocale),
                 });
                 const isActive = item.status === 'active';
 
@@ -286,7 +282,7 @@ export function ApiKeysListView({
                           <Text intent="caption">
                             {t('apiKeys.keyPrefixLabel')}{' '}
                             <Text intent="caption" mono>
-                              {item.key_prefix}
+                              {item.keyPrefix}
                             </Text>
                           </Text>
                         }
@@ -337,16 +333,16 @@ export function ApiKeysListView({
                       <Stack direction="row" gap="md" wrap="wrap" width="full">
                         <Text intent="caption">{createdLabel}</Text>
                         <Text intent="caption">
-                          {item.last_used_at
+                          {item.lastUsedAt
                             ? t('apiKeys.lastUsed', {
-                                date: formatNullableDate(item.last_used_at, dateLocale),
+                                date: formatNullableDate(item.lastUsedAt, dateLocale),
                               })
                             : t('apiKeys.neverUsed')}
                         </Text>
-                        {item.expires_at ? (
+                        {item.expiresAt ? (
                           <Text intent="caption">
                             {t('apiKeys.expiresOn', {
-                              date: formatNullableDate(item.expires_at, dateLocale),
+                              date: formatNullableDate(item.expiresAt, dateLocale),
                             })}
                           </Text>
                         ) : null}
@@ -360,11 +356,7 @@ export function ApiKeysListView({
           <Callout
             tone="warning"
             icon={
-              <Feather
-                name="shield"
-                size={designTokens.icon.action}
-                color={colors.secondary}
-              />
+              <Feather name="shield" size={designTokens.icon.action} color={colors.secondary} />
             }>
             {t('apiKeys.securityNote')}
           </Callout>

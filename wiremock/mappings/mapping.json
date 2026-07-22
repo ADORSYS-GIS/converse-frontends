@@ -2,18 +2,18 @@
   "mappings": [
     {
       "request": {
-        "method": "GET",
-        "url": "/api/v1/accounts"
+        "method": "POST",
+        "url": "/rpc/model.Account.list"
       },
       "response": {
         "status": 200,
         "jsonBody": [
           {
             "id": "acc_01",
-            "billing_identity": "corp-identity-001",
-            "owners_admins": ["user_admin_1"],
-            "created_at": "2024-01-01T12:00:00Z",
-            "updated_at": "2024-01-01T12:00:00Z"
+            "billingIdentity": "corp-identity-001",
+            "status": "active",
+            "createdAt": "2024-01-01T12:00:00Z",
+            "updatedAt": "2024-01-01T12:00:00Z"
           }
         ],
         "headers": {
@@ -24,33 +24,16 @@
     {
       "request": {
         "method": "POST",
-        "url": "/api/v1/accounts"
-      },
-      "response": {
-        "status": 201,
-        "jsonBody": {
-          "id": "acc_new",
-          "billing_identity": "new-identity",
-          "created_at": "2024-02-26T12:00:00Z",
-          "updated_at": "2024-02-26T12:00:00Z"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "GET",
-        "urlPathPattern": "/api/v1/accounts/[^/]+"
+        "url": "/rpc/model.Account.get"
       },
       "response": {
         "status": 200,
         "jsonBody": {
           "id": "acc_01",
-          "billing_identity": "corp-identity-001",
-          "created_at": "2024-01-01T12:00:00Z",
-          "updated_at": "2024-01-01T12:00:00Z"
+          "billingIdentity": "corp-identity-001",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-01-01T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -59,15 +42,17 @@
     },
     {
       "request": {
-        "method": "PATCH",
-        "urlPathPattern": "/api/v1/accounts/[^/]+"
+        "method": "POST",
+        "url": "/rpc/model.Account.update"
       },
       "response": {
         "status": 200,
         "jsonBody": {
           "id": "acc_01",
-          "billing_identity": "updated-identity",
-          "updated_at": "2024-02-26T12:00:00Z"
+          "billingIdentity": "updated-identity",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -76,28 +61,41 @@
     },
     {
       "request": {
-        "method": "DELETE",
-        "urlPathPattern": "/api/v1/accounts/[^/]+"
+        "method": "POST",
+        "url": "/rpc/model.Account.delete"
       },
       "response": {
-        "status": 204
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_01",
+          "billingIdentity": "corp-identity-001",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-01-01T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
       }
     },
     {
       "request": {
-        "method": "GET",
-        "urlPathPattern": "/api/v1/accounts/[^/]+/projects"
+        "method": "POST",
+        "url": "/rpc/model.Project.list"
       },
       "response": {
         "status": 200,
         "jsonBody": [
           {
             "id": "proj_01",
-            "account_id": "acc_01",
+            "accountId": "acc_01",
             "name": "Default Project",
-            "billing_plan": "pro",
-            "created_at": "2024-01-01T12:00:00Z",
-            "updated_at": "2024-01-01T12:00:00Z"
+            "allowedModels": { "Map": {} },
+            "defaultLimits": { "Map": {} },
+            "billingPlan": "pro",
+            "status": "active",
+            "createdAt": "2024-01-01T12:00:00Z",
+            "updatedAt": "2024-01-01T12:00:00Z"
           }
         ],
         "headers": {
@@ -108,14 +106,43 @@
     {
       "request": {
         "method": "POST",
-        "urlPathPattern": "/api/v1/accounts/[^/]+/projects"
+        "url": "/rpc/model.Project.get"
       },
       "response": {
-        "status": 201,
+        "status": 200,
+        "jsonBody": {
+          "id": "proj_01",
+          "accountId": "acc_01",
+          "name": "Default Project",
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "pro",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-01-01T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/model.Project.create"
+      },
+      "response": {
+        "status": 200,
         "jsonBody": {
           "id": "proj_new",
+          "accountId": "acc_01",
           "name": "New Project",
-          "billing_plan": "free"
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "free",
+          "status": "active",
+          "createdAt": "2024-02-26T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -124,15 +151,44 @@
     },
     {
       "request": {
-        "method": "GET",
-        "urlPathPattern": "/api/v1/projects/[^/]+"
+        "method": "POST",
+        "url": "/rpc/model.Project.update"
       },
       "response": {
         "status": 200,
         "jsonBody": {
           "id": "proj_01",
+          "accountId": "acc_01",
+          "name": "Updated Project Name",
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "pro",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/model.Project.delete"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "proj_01",
+          "accountId": "acc_01",
           "name": "Default Project",
-          "billing_plan": "pro"
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "pro",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-01-01T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -141,44 +197,21 @@
     },
     {
       "request": {
-        "method": "PATCH",
-        "urlPathPattern": "/api/v1/projects/[^/]+"
-      },
-      "response": {
-        "status": 200,
-        "jsonBody": {
-          "id": "proj_01",
-          "name": "Updated Project Name"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "DELETE",
-        "urlPathPattern": "/api/v1/projects/[^/]+"
-      },
-      "response": {
-        "status": 204
-      }
-    },
-    {
-      "request": {
-        "method": "GET",
-        "urlPathPattern": "/api/v1/projects/[^/]+/api-keys"
+        "method": "POST",
+        "url": "/rpc/model.ApiKey.list"
       },
       "response": {
         "status": 200,
         "jsonBody": [
           {
             "id": "key_01",
-            "project_id": "proj_01",
+            "projectId": "proj_01",
             "name": "Admin Key",
-            "key_prefix": "lb_live_",
+            "keyPrefix": "lb_live_",
             "status": "active",
-            "created_at": "2024-01-01T12:00:00Z"
+            "billingPlan": "pro",
+            "createdAt": "2024-01-01T12:00:00Z",
+            "updatedAt": "2024-01-01T12:00:00Z"
           }
         ],
         "headers": {
@@ -189,19 +222,227 @@
     {
       "request": {
         "method": "POST",
-        "urlPathPattern": "/api/v1/projects/[^/]+/api-keys"
+        "url": "/rpc/model.ApiKey.get"
       },
       "response": {
-        "status": 201,
+        "status": 200,
         "jsonBody": {
-          "api_key": {
-            "id": "key_new",
-            "project_id": "proj_01",
-            "name": "My Key",
-            "key_prefix": "lb_live_",
-            "status": "active",
-            "created_at": "2024-02-26T12:00:00Z"
-          },
+          "id": "key_01",
+          "projectId": "proj_01",
+          "name": "Admin Key",
+          "keyPrefix": "lb_live_",
+          "status": "active",
+          "billingPlan": "pro",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-01-01T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/model.ApiKey.update"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "key_01",
+          "projectId": "proj_01",
+          "name": "Updated Key Name",
+          "keyPrefix": "lb_live_",
+          "status": "active",
+          "billingPlan": "pro",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/model.ApiKey.delete"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "key_01",
+          "projectId": "proj_01",
+          "name": "Admin Key",
+          "keyPrefix": "lb_live_",
+          "status": "active",
+          "billingPlan": "pro",
+          "deletedAt": "2024-02-26T12:00:00Z",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.createAccount"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_0199999999999999999",
+          "billingIdentity": "user@example.com",
+          "status": "active",
+          "createdAt": "2024-02-26T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.disableAccount"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_01",
+          "billingIdentity": "corp-identity-001",
+          "status": "suspended",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.enableAccount"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_01",
+          "billingIdentity": "corp-identity-001",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.addAccountMember"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_01",
+          "billingIdentity": "corp-identity-001",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.removeAccountMember"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "acc_01",
+          "billingIdentity": "corp-identity-001",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.disableProject"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "proj_01",
+          "accountId": "acc_01",
+          "name": "Default Project",
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "pro",
+          "status": "suspended",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.enableProject"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "proj_01",
+          "accountId": "acc_01",
+          "name": "Default Project",
+          "allowedModels": { "Map": {} },
+          "defaultLimits": { "Map": {} },
+          "billingPlan": "pro",
+          "status": "active",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.createApiKey"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "key_new",
+          "projectId": "proj_01",
+          "name": "My Key",
+          "keyPrefix": "lb_live_",
+          "status": "active",
+          "billingPlan": "pro",
+          "createdAt": "2024-02-26T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z",
           "secret": "lb_live_secret_string_123"
         },
         "headers": {
@@ -211,57 +452,21 @@
     },
     {
       "request": {
-        "method": "GET",
-        "urlPathPattern": "/api/v1/api-keys/[^/]+"
+        "method": "POST",
+        "url": "/rpc/procedure.revokeApiKey"
       },
       "response": {
         "status": 200,
         "jsonBody": {
           "id": "key_01",
+          "projectId": "proj_01",
           "name": "Admin Key",
-          "status": "active"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "PATCH",
-        "urlPathPattern": "/api/v1/api-keys/[^/]+"
-      },
-      "response": {
-        "status": 200,
-        "jsonBody": {
-          "id": "key_01",
-          "name": "Updated Key Name"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "DELETE",
-        "urlPathPattern": "/api/v1/api-keys/[^/]+"
-      },
-      "response": {
-        "status": 204
-      }
-    },
-    {
-      "request": {
-        "method": "POST",
-        "urlPathPattern": "/api/v1/api-keys/[^/]+/revoke"
-      },
-      "response": {
-        "status": 200,
-        "jsonBody": {
-          "id": "key_01",
+          "keyPrefix": "lb_live_",
           "status": "revoked",
-          "revoked_at": "2024-02-26T12:00:00Z"
+          "billingPlan": "pro",
+          "revokedAt": "2024-02-26T12:00:00Z",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -271,55 +476,20 @@
     {
       "request": {
         "method": "POST",
-        "urlPathPattern": "/api/v1/api-keys/[^/]+/rotate"
+        "url": "/rpc/procedure.rotateApiKey"
       },
       "response": {
-        "status": 201,
+        "status": 200,
         "jsonBody": {
-          "api_key": {
-            "id": "key_rotated",
-            "status": "active"
-          },
+          "id": "key_rotated",
+          "projectId": "proj_01",
+          "name": "Admin Key",
+          "keyPrefix": "lb_live_",
+          "status": "active",
+          "billingPlan": "pro",
+          "createdAt": "2024-01-01T12:00:00Z",
+          "updatedAt": "2024-02-26T12:00:00Z",
           "secret": "lb_live_new_rotated_secret"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "POST",
-        "url": "/api/v1/accounts"
-      },
-      "response": {
-        "status": 201,
-        "jsonBody": {
-          "id": "acc_0199999999999999999",
-          "billing_identity": "user@example.com",
-          "owners_admins": ["user@example.com"],
-          "created_at": "2024-02-26T12:00:00Z",
-          "updated_at": "2024-02-26T12:00:00Z"
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-    {
-      "request": {
-        "method": "POST",
-        "urlPathPattern": "/api/v1/accounts/[^/]+/projects"
-      },
-      "response": {
-        "status": 201,
-        "jsonBody": {
-          "id": "proj_0199999999999999999",
-          "account_id": "acc_0199999999999999999",
-          "name": "Default Project",
-          "billing_plan": "free",
-          "created_at": "2024-02-26T12:00:00Z",
-          "updated_at": "2024-02-26T12:00:00Z"
         },
         "headers": {
           "Content-Type": "application/json"

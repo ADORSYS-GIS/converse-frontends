@@ -1,20 +1,15 @@
 import { useMemo } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type {
-  ApiKeyBackendApiKey,
-  ApiKeyBackendCreateApiKey,
-  ApiKeyBackendRotateApiKey,
-  ApiKeyBackendUpdateApiKey,
-} from '@lightbridge/api-rest';
+import type { ApiKey, CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
 import {
-  apiKeyBackendCreateApiKey,
-  apiKeyBackendDeleteApiKey,
-  apiKeyBackendListApiKeys,
-  apiKeyBackendRevokeApiKey,
-  apiKeyBackendRotateApiKey,
-  apiKeyBackendUpdateApiKey,
-} from '@lightbridge/api-rest';
+  createApiKey,
+  deleteApiKey,
+  listApiKeys,
+  revokeApiKey,
+  rotateApiKey,
+  updateApiKey,
+} from '@lightbridge/authz-rpc';
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
 
@@ -47,10 +42,7 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
       : ['projects', 'unknown', 'api-keys'],
     queryFn: async () => {
       if (!projectId) throw new Error('Project ID is required');
-      const response = await apiKeyBackendListApiKeys<true>({
-        path: { project_id: projectId, limit, offset },
-      });
-      return response.data;
+      return listApiKeys({ limit, offset, filters: [{ key: 'projectId', value: projectId }] });
     },
     enabled: !!projectId && isAuthenticated,
     // Keep the current page visible while the next one loads (no empty flash on paging).
@@ -58,7 +50,7 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
     staleTime: 30_000,
   });
 
-  const items = useMemo<ApiKeyBackendApiKey[]>(() => query.data ?? [], [query.data]);
+  const items = useMemo<ApiKey[]>(() => query.data ?? [], [query.data]);
 
   return {
     ...query,
@@ -72,7 +64,7 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
 export function useApiKey(id?: string | null) {
   const { data, ...query } = useApiKeys();
 
-  const item = useMemo<ApiKeyBackendApiKey | undefined>(() => {
+  const item = useMemo<ApiKey | undefined>(() => {
     if (!id) {
       return undefined;
     }
@@ -90,15 +82,11 @@ export function useCreateApiKey() {
       input,
       projectId,
     }: {
-      input: ApiKeyBackendCreateApiKey;
+      input: Omit<CreateApiKeyInput, 'projectId'>;
       projectId: string;
     }) => {
       if (!projectId) throw new Error('Project ID is required');
-      const response = await apiKeyBackendCreateApiKey<true>({
-        path: { project_id: projectId },
-        body: input,
-      });
-      return response.data;
+      return createApiKey({ ...input, projectId });
     },
     onSuccess: (_, { projectId }) => {
       if (projectId) {
@@ -123,14 +111,8 @@ export function useUpdateApiKey() {
     }: {
       id: string;
       projectId: string;
-      input: ApiKeyBackendUpdateApiKey;
-    }) =>
-      apiKeyBackendUpdateApiKey<true>({
-        body: input,
-        path: {
-          key_id: id,
-        },
-      }),
+      input: UpdateApiKeyInput;
+    }) => updateApiKey(id, input),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -148,27 +130,22 @@ export function useRevokeApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; projectId: string }) => {
-      const response = await apiKeyBackendRevokeApiKey<true>({ path: { key_id: id } });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; projectId: string }) => revokeApiKey({ keyId: id }),
     onMutate: async ({ id, projectId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update.
       await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });
 
       // Snapshot all cached pages for rollback.
-      const previousPages = queryClient.getQueriesData<ApiKeyBackendApiKey[]>({
+      const previousPages = queryClient.getQueriesData<ApiKey[]>({
         queryKey: [...apiKeysQueryKey(projectId)],
       });
 
       // Optimistically mark the key as revoked in every cached page.
-      queryClient.setQueriesData<ApiKeyBackendApiKey[]>(
-        { queryKey: [...apiKeysQueryKey(projectId)] },
-        (old) => {
+      queryClient.setQueriesData<ApiKey[]>({ queryKey: [...apiKeysQueryKey(projectId)] }, (old) => {
         if (!old) return old;
         return old.map((key) =>
           key.id === id
-            ? { ...key, status: 'revoked' as const, revoked_at: new Date().toISOString() }
+            ? { ...key, status: 'revoked' as const, revokedAt: new Date().toISOString() }
             : key
         );
       });
@@ -200,20 +177,7 @@ export function useRotateApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({
-      id,
-      input = {},
-    }: {
-      id: string;
-      projectId: string;
-      input?: ApiKeyBackendRotateApiKey;
-    }) => {
-      const response = await apiKeyBackendRotateApiKey<true>({
-        path: { key_id: id },
-        body: input,
-      });
-      return response.data;
-    },
+    mutationFn: async ({ id }: { id: string; projectId: string }) => rotateApiKey({ keyId: id }),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -231,21 +195,18 @@ export function useDeleteApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) =>
-      apiKeyBackendDeleteApiKey({ path: { key_id: id } }),
+    mutationFn: async ({ id }: { id: string; projectId: string }) => deleteApiKey(id),
     onMutate: async ({ id, projectId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update.
       await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });
 
       // Snapshot all cached pages for rollback.
-      const previousPages = queryClient.getQueriesData<ApiKeyBackendApiKey[]>({
+      const previousPages = queryClient.getQueriesData<ApiKey[]>({
         queryKey: [...apiKeysQueryKey(projectId)],
       });
 
       // Optimistically remove the key from every cached page.
-      queryClient.setQueriesData<ApiKeyBackendApiKey[]>(
-        { queryKey: [...apiKeysQueryKey(projectId)] },
-        (old) => {
+      queryClient.setQueriesData<ApiKey[]>({ queryKey: [...apiKeysQueryKey(projectId)] }, (old) => {
         if (!old) return old;
         return old.filter((key) => key.id !== id);
       });

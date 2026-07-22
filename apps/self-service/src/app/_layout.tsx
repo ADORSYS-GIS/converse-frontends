@@ -22,7 +22,7 @@ import {
 } from '@lightbridge/hooks';
 import { APP_FONT_SOURCES, useAppFonts } from '@lightbridge/ui';
 import { queryClient } from '../queries';
-import { useClientInit } from '@lightbridge/api-rest';
+import { useAuthzRpcClient } from '@lightbridge/authz-rpc';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
@@ -64,9 +64,9 @@ function AppBootstrap() {
     ]);
   }, []);
 
-  useClientInit({
+  useAuthzRpcClient({
     baseURL: runtimeConfig.backendUrl,
-    auth: async (_a) => {
+    auth: async () => {
       if (!isHydrated) {
         return '';
       }

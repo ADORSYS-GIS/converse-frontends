@@ -48,8 +48,10 @@ REST-shaped path. There is no per-resource URL structure to document; instead, e
 takes a JSON (or CBOR, in prod) request body. `get`/`update`/`delete`/`create`/`procedure.*` return
 the raw result object directly — no envelope. **`list` is the one exception**: every model
 declares `@@paged` in the schema, so `model.<X>.list` returns a `Page<X>` envelope
-(`{ items: X[], pageInfo?: { limit, offset, hasNext, nextOffset, total } }`), not a bare array —
-callers must read `.items`. The generated client (`packages/authz-rpc/generated/src/client.ts`)
+(`{ items: X[], totalCount: number | null, pageInfo: { limit: number | null, offset: number | null,
+hasNextPage: boolean, hasPreviousPage: boolean } }` — this mirrors `cratestack-core::page::{Page,
+PageInfo}` field-for-field, not an independently-designed client type), not a bare array — callers
+must read `.items`. The generated client (`packages/authz-rpc/generated/src/client.ts`)
 exposes this as a client-object API — `client.accounts`/`client.projects`/`client.apiKeys` (each
 with `list`/`get`/`update`/`delete`, plus `create` only where reachable — see below) and
 `client.procedures` (one method per procedure, e.g. `client.procedures.createApiKey({ args })`) —

@@ -20,10 +20,10 @@ LightBridge is a **separate service layer** built on top of the Converse AI gate
 
 LightBridge is implemented as a **Rust service backed by a PostgreSQL database**. It exposes two distinct APIs:
 
-| API                   | OpenAPI Spec                   | Purpose                                  |
-|-----------------------|--------------------------------|------------------------------------------|
-| LightBridge AuthZ API | `openapi/api-key.backend.json` | Account, project, and API key management |
-| LightBridge Usage API | `openapi/usage.backend.yaml`   | Time-series usage queries                |
+| API                   | Contract                                                                                                                        | Purpose                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| LightBridge AuthZ API | Schema-first RPC (`cratestack-pg`), no OpenAPI — `POST /rpc/{op_id}`; schema copied to `packages/authz-rpc/schema/authz.cstack` | Account, project, and API key management |
+| LightBridge Usage API | `openapi/usage.backend.yaml`                                                                                                    | Time-series usage queries                |
 
 ---
 
@@ -102,7 +102,7 @@ What this frontend does NOT do:
 ## Key Distinction
 
 | Bearer Token                                           | API Key                                                                  |
-|--------------------------------------------------------|--------------------------------------------------------------------------|
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
 | Issued by Keycloak to the logged-in user               | Issued by LightBridge backend to an account/project                      |
 | Used by this frontend to authenticate with LightBridge | Used by external AI clients to authenticate with the Converse AI gateway |
 | Short-lived JWT; refreshed via OAuth2 token endpoint   | Long-lived; can be rotated or revoked via the frontend                   |

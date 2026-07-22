@@ -16,17 +16,27 @@ converse-frontends/
 ├── apps/             # Deployable applications
 │   └── self-service/ # The LightBridge self-service web/mobile app
 ├── packages/         # Shared libraries consumed by apps
-│   ├── api-rest/     # Generated API client (do not hand-edit)
+│   ├── authz-rpc/    # Generated cratestack RPC client for accounts/projects/api-keys
+│   │                 # (do not hand-edit packages/authz-rpc/generated/ — codegen output)
+│   ├── api-rest/     # Generated REST client for the Usage API only (do not hand-edit)
 │   ├── api-native/   # Native API client utilities
 │   ├── hooks/        # Shared React hooks (auth, usage, projects, etc.)
 │   ├── i18n/         # Internationalisation resources
 │   └── ui/           # Shared design-system components
-├── openapi/          # OpenAPI specs (source of truth for backend APIs)
-│   ├── api-key.backend.json
+├── openapi/          # OpenAPI spec for the Usage API only
 │   └── usage.backend.yaml
 └── docs/
     └── knowledge/    # Agent-readable knowledge base (this directory)
 ```
+
+The AuthZ API (accounts/projects/api-keys) has no OpenAPI spec — it's schema-first cratestack RPC.
+Its source of truth is `packages/authz-rpc/schema/authz.cstack` (copied from the backend repo),
+turned into the generated client under `packages/authz-rpc/generated/` by the official
+`cratestack generate-typescript` CLI (`cratestack-cli`, a Rust binary — not an npm dependency).
+`generated/` is gitignored, same as every other package's codegen output (e.g. `api-rest`'s
+`src/client/`) — it's a build artifact, not source. Regenerate it locally with
+`pnpm --filter @lightbridge/authz-rpc codegen:cratestack`; CI (`test.yml`, `docker-image.yml`)
+installs a cached `cratestack-cli` and runs the same command before tests/build.
 
 **Rule:** Never place application-specific business logic in `packages/`. Packages export reusable, app-agnostic code only.
 
@@ -36,23 +46,34 @@ converse-frontends/
 
 Within `apps/self-service/src/`, follow this strict layering:
 
-| Layer | Directory | Responsibility |
-|-------|-----------|---------------|
-| **Routes** | `src/app/` | Expo Router file-based routes. Thin — only renders the corresponding Screen. |
-| **Screens** | `src/screens/` | Assembles Views. May select which View to show but contains no business logic. |
-| **Views** | `src/views/` | Presentational components. Calls hooks for data; renders UI. Contains layout logic. |
-| **Hooks** | `packages/hooks/` | All data fetching, state management, and business logic. No JSX. |
-| **API Client** | `packages/api-rest/` | Auto-generated from OpenAPI specs. Never edit by hand. |
+| Layer          | Directory                                                                        | Responsibility                                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Routes**     | `src/app/`                                                                       | Expo Router file-based routes. Thin — only renders the corresponding Screen.                                                      |
+| **Screens**    | `src/screens/`                                                                   | Assembles Views. May select which View to show but contains no business logic.                                                    |
+| **Views**      | `src/views/`                                                                     | Presentational components. Calls hooks for data; renders UI. Contains layout logic.                                               |
+| **Hooks**      | `packages/hooks/`                                                                | All data fetching, state management, and business logic. No JSX.                                                                  |
+| **API Client** | `packages/authz-rpc/` (accounts/projects/api-keys), `packages/api-rest/` (usage) | Auto-generated. Never edit by hand — `packages/authz-rpc/generated/` and `packages/api-rest/src/client/` are both codegen output. |
 
 **Dependency direction:** Routes → Screens → Views → Hooks → API Client
 
-**Example chain for the Usage feature:**
+**Example chain for the Usage feature (REST):**
+
 ```
 app/(tabs)/usage.tsx          → renders <UsageScreen />
 screens/usage-screen.tsx      → renders <UsageView />
 views/usage-view.tsx          → calls hooks, renders UI
-packages/hooks/src/usage.ts   → calls usageBackendQueryUsage()
-packages/api-rest/            → generated HTTP client
+packages/hooks/src/usage.ts   → calls queryUsage()
+packages/api-rest/            → generated HTTP client (OpenAPI)
+```
+
+**Example chain for the API Keys feature (cratestack RPC):**
+
+```
+app/api-keys/new.tsx                → renders <ApiKeyCreateScreen />
+screens/api-key-create-screen.tsx   → renders views, assembles state
+views/api-key-create-view.tsx       → calls hooks, renders UI
+packages/hooks/src/api-keys.ts      → calls client.procedures.createApiKey({ args })
+packages/authz-rpc/                 → generated RPC client (POST /rpc/procedure.createApiKey)
 ```
 
 ---
@@ -88,14 +109,14 @@ const { t } = useTranslation();
 
 ## Naming Conventions
 
-| Subject | Convention | Example |
-|---------|-----------|---------|
-| Files (modules, components) | `kebab-case` | `usage-view.tsx`, `auth-storage.ts` |
-| Variables / functions | `camelCase` | `useQueryUsage`, `loadStoredSession` |
-| Types / Interfaces / Classes | `PascalCase` | `AuthSession`, `UsageQueryParams` |
-| True constants | `SCREAMING_SNAKE_CASE` | `STORAGE_KEY`, `WEB_DB_NAME` |
-| Interface names | No `I` prefix | `UserService`, **not** `IUserService` |
-| Boolean variables | `is`, `has`, `should`, `can` prefix | `isAuthenticated`, `isLoading` |
+| Subject                      | Convention                          | Example                               |
+| ---------------------------- | ----------------------------------- | ------------------------------------- |
+| Files (modules, components)  | `kebab-case`                        | `usage-view.tsx`, `auth-storage.ts`   |
+| Variables / functions        | `camelCase`                         | `useQueryUsage`, `loadStoredSession`  |
+| Types / Interfaces / Classes | `PascalCase`                        | `AuthSession`, `UsageQueryParams`     |
+| True constants               | `SCREAMING_SNAKE_CASE`              | `STORAGE_KEY`, `WEB_DB_NAME`          |
+| Interface names              | No `I` prefix                       | `UserService`, **not** `IUserService` |
+| Boolean variables            | `is`, `has`, `should`, `can` prefix | `isAuthenticated`, `isLoading`        |
 
 **Do not use `_` to denote private members.** Use native JS private fields (`#`) in classes.
 
@@ -160,6 +181,7 @@ export function UsageView() {
 ```
 
 The data-fetching hook (`useQueryUsage` in `packages/hooks/src/usage.ts`) **is** fully implemented and functional, but the view has not yet been wired to display the data. The hook:
+
 - Defaults to `scope = "project"`, last 30 days, `bucket = "1 day"`
 - Only fires when a current project is selected and the user is authenticated
 - Stores results reactively in `usageCollection` (TanStack DB live store)

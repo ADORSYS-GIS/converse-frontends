@@ -17,7 +17,8 @@
               "updatedAt": "2024-01-01T12:00:00Z"
             }
           ],
-          "pageInfo": { "limit": 10, "offset": 0, "hasNext": false, "nextOffset": null, "total": 1 }
+          "totalCount": 1,
+          "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
           "Content-Type": "application/json"
@@ -102,7 +103,8 @@
               "updatedAt": "2024-01-01T12:00:00Z"
             }
           ],
-          "pageInfo": { "limit": 10, "offset": 0, "hasNext": false, "nextOffset": null, "total": 1 }
+          "totalCount": 1,
+          "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
           "Content-Type": "application/json"
@@ -221,7 +223,8 @@
               "updatedAt": "2024-01-01T12:00:00Z"
             }
           ],
-          "pageInfo": { "limit": 10, "offset": 0, "hasNext": false, "nextOffset": null, "total": 1 }
+          "totalCount": 1,
+          "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
           "Content-Type": "application/json"

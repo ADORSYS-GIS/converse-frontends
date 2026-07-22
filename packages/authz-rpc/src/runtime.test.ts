@@ -4,6 +4,8 @@ import { LightbridgeAuthzRpcClient } from '../generated/src/client';
 import { CborCodec, JsonCodec } from './codec';
 import { AuthzRpcRuntime } from './runtime';
 
+// Mirrors cratestack-core::page::{Page, PageInfo} exactly (fixed in cratestack/cratestack#124 —
+// the pre-0.4.11 generator had this wrong: hasNext/total/nextOffset don't exist on the wire).
 const accountPage = {
   items: [
     {
@@ -14,11 +16,12 @@ const accountPage = {
       updatedAt: '2024-01-01T12:00:00Z',
     },
   ],
-  pageInfo: { limit: 10, offset: 0, hasNext: false, nextOffset: null, total: 1 },
+  totalCount: 1,
+  pageInfo: { limit: 10, offset: 0, hasNextPage: false, hasPreviousPage: false },
 };
 
 describe('AuthzRpcRuntime + generated client', () => {
-  it('unwraps the @@paged Page<Account> envelope through client.accounts.list()', async () => {
+  it('returns the corrected Page<Account> envelope through client.accounts.list()', async () => {
     const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
       expect((init.headers as Headers).get('content-type')).toBe('application/json');
       return new Response(JSON.stringify(accountPage), {
@@ -27,18 +30,20 @@ describe('AuthzRpcRuntime + generated client', () => {
       });
     });
 
-    const runtime = new AuthzRpcRuntime('https://api.example.com', {
+    const authz = new AuthzRpcRuntime('https://api.example.com', {
       auth: async () => 'test-token',
       codec: JsonCodec,
       fetch: fetchFn as unknown as typeof fetch,
     });
-    const client = new LightbridgeAuthzRpcClient(runtime);
+    const client = new LightbridgeAuthzRpcClient(authz.runtime);
 
     const page = await client.accounts.list({ limit: 10, offset: 0 });
 
     expect(page.items).toHaveLength(1);
     expect(page.items[0].billingIdentity).toBe('corp-identity-001');
-    expect(page.pageInfo?.total).toBe(1);
+    expect(page.totalCount).toBe(1);
+    expect(page.pageInfo.hasNextPage).toBe(false);
+    expect(page.pageInfo.hasPreviousPage).toBe(false);
     expect(fetchFn).toHaveBeenCalledWith(
       'https://api.example.com/api/rpc/model.Account.list',
       expect.anything()
@@ -58,12 +63,12 @@ describe('AuthzRpcRuntime + generated client', () => {
       });
     });
 
-    const runtime = new AuthzRpcRuntime('https://api.example.com', {
+    const authz = new AuthzRpcRuntime('https://api.example.com', {
       auth: async () => 'test-token',
       codec: CborCodec,
       fetch: fetchFn as unknown as typeof fetch,
     });
-    const client = new LightbridgeAuthzRpcClient(runtime);
+    const client = new LightbridgeAuthzRpcClient(authz.runtime);
 
     const page = await client.accounts.list({ limit: 10, offset: 0 });
     expect(page.items[0].id).toBe('acc_01');
@@ -94,13 +99,13 @@ describe('AuthzRpcRuntime + generated client', () => {
       return true;
     });
 
-    const runtime = new AuthzRpcRuntime('https://api.example.com', {
+    const authz = new AuthzRpcRuntime('https://api.example.com', {
       auth: async () => token,
       refreshAuth,
       codec: JsonCodec,
       fetch: fetchFn as unknown as typeof fetch,
     });
-    const client = new LightbridgeAuthzRpcClient(runtime);
+    const client = new LightbridgeAuthzRpcClient(authz.runtime);
 
     const page = await client.accounts.list({});
 

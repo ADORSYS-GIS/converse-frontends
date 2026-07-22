@@ -17,7 +17,7 @@ export function useAuthzRpcClient(config: AuthzRpcClientConfig): LightbridgeAuth
   const { baseURL, ...runtimeOptions } = config;
   if (!runtime || !client) {
     runtime = new AuthzRpcRuntime(baseURL, runtimeOptions);
-    client = new LightbridgeAuthzRpcClient(runtime);
+    client = new LightbridgeAuthzRpcClient(runtime.runtime);
   } else {
     runtime.configure(runtimeOptions);
   }

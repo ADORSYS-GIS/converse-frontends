@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
-import type { Account, Project } from '@lightbridge/authz-rpc';
+import type { Account, Project } from '@lightbridge/hooks';
 
 import { parseLimitDraft, ProjectSettingsView } from '../project-settings-view';
 

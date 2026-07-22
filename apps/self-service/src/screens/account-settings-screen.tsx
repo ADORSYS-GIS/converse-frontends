@@ -13,7 +13,7 @@ import {
   useRemoveAccountMember,
   useUpdateAccount,
 } from '@lightbridge/hooks';
-import type { Account } from '@lightbridge/authz-rpc';
+import type { Account } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
 import { CreateAccountSheet } from './create-account-sheet';

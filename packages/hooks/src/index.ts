@@ -1,6 +1,7 @@
 export * from './accounts';
 export * from './api-error';
 export * from './api-keys';
+export * from './authz-types';
 export * from './auth-session';
 export * from './keycloak-login';
 export * from './locale-sync';
@@ -20,7 +21,7 @@ export {
   getJwtSubject,
   getJwtIssuer,
   getJwtRoles,
-  isAudienceValid
+  isAudienceValid,
 } from './auth/jwt-utils';
 
 export * from './rbac';
@@ -31,6 +32,6 @@ export {
   AuthenticationError,
   createAudienceError,
   isAuthenticationError,
-  getAuthErrorMessage
+  getAuthErrorMessage,
 } from './auth/auth-errors';
 export type { AuthErrorCode } from './auth/auth-errors';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
-import type { ApiKey } from '@lightbridge/authz-rpc';
+import type { ApiKey } from '@lightbridge/hooks';
 
 import { ApiKeysListView } from '../api-keys-list-view';
 

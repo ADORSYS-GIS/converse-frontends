@@ -8,7 +8,7 @@ import {
   useProjects,
   useQueryState,
 } from '@lightbridge/hooks';
-import type { Account, Project } from '@lightbridge/authz-rpc';
+import type { Account, Project } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 import { DeleteApiKeySheet } from './delete-api-key-sheet';

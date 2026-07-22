@@ -31,7 +31,6 @@ android
 
 
 packages/**/client
-packages/authz-rpc/generated
 
 .qwen/
 gha-creds-*.json

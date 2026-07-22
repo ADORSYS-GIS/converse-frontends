@@ -1,8 +1,7 @@
 export { createId } from '@paralleldrive/cuid2';
 export * from './value';
 export * from './codec';
-export * from './transport';
+export * from './runtime';
 export * from './client';
-export * from '../generated/models';
-export * from '../generated/inputs';
-export * from '../generated/sdk';
+export * from '../generated/src/models';
+export { LightbridgeAuthzRpcClient } from '../generated/src/client';

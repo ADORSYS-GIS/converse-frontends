@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "codegen": "node ./codegen/generate.mjs",
+    "codegen:cratestack": "cratestack generate-typescript --schema schema/authz.cstack --out generated --package-name @lightbridge/authz-rpc",
     "test": "vitest run"
   },
   "dependencies": {

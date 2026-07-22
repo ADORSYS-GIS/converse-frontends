@@ -1,15 +1,9 @@
 import { useMemo } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ApiKey, CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
-import {
-  createApiKey,
-  deleteApiKey,
-  listApiKeys,
-  revokeApiKey,
-  rotateApiKey,
-  updateApiKey,
-} from '@lightbridge/authz-rpc';
+import type { CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
+import { getAuthzRpcClient } from '@lightbridge/authz-rpc';
+import { asFull, type ApiKey } from './authz-types';
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
 
@@ -42,7 +36,12 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
       : ['projects', 'unknown', 'api-keys'],
     queryFn: async () => {
       if (!projectId) throw new Error('Project ID is required');
-      return listApiKeys({ limit, offset, filters: [{ key: 'projectId', value: projectId }] });
+      const items = await getAuthzRpcClient().apiKeys.list({
+        limit,
+        offset,
+        filters: [{ key: 'projectId', value: projectId }],
+      });
+      return items.map((item) => asFull<ApiKey>(item));
     },
     enabled: !!projectId && isAuthenticated,
     // Keep the current page visible while the next one loads (no empty flash on paging).
@@ -86,7 +85,7 @@ export function useCreateApiKey() {
       projectId: string;
     }) => {
       if (!projectId) throw new Error('Project ID is required');
-      return createApiKey({ ...input, projectId });
+      return getAuthzRpcClient().procedures.createApiKey({ args: { ...input, projectId } });
     },
     onSuccess: (_, { projectId }) => {
       if (projectId) {
@@ -112,7 +111,7 @@ export function useUpdateApiKey() {
       id: string;
       projectId: string;
       input: UpdateApiKeyInput;
-    }) => updateApiKey(id, input),
+    }) => asFull<ApiKey>(await getAuthzRpcClient().apiKeys.update(id, input)),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -130,7 +129,8 @@ export function useRevokeApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; projectId: string }) => revokeApiKey({ keyId: id }),
+    mutationFn: async ({ id }: { id: string; projectId: string }) =>
+      asFull<ApiKey>(await getAuthzRpcClient().procedures.revokeApiKey({ args: { keyId: id } })),
     onMutate: async ({ id, projectId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update.
       await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -177,7 +177,8 @@ export function useRotateApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; projectId: string }) => rotateApiKey({ keyId: id }),
+    mutationFn: async ({ id }: { id: string; projectId: string }) =>
+      getAuthzRpcClient().procedures.rotateApiKey({ args: { keyId: id } }),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -195,7 +196,8 @@ export function useDeleteApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; projectId: string }) => deleteApiKey(id),
+    mutationFn: async ({ id }: { id: string; projectId: string }) =>
+      getAuthzRpcClient().apiKeys.delete(id),
     onMutate: async ({ id, projectId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update.
       await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });

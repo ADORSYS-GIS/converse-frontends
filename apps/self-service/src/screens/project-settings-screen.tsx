@@ -10,7 +10,7 @@ import {
   useQueryState,
   useUpdateProject,
 } from '@lightbridge/hooks';
-import type { Account, Project } from '@lightbridge/authz-rpc';
+import type { Account, Project } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ProjectSettingsView } from '../views/settings/project-settings-view';
 import type {

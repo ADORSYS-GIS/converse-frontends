@@ -19,7 +19,7 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
-import type { Account, Project } from '@lightbridge/authz-rpc';
+import type { Account, Project } from '@lightbridge/hooks';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
 

@@ -18,7 +18,7 @@ import {
   Stack,
   Text,
 } from '@lightbridge/ui';
-import type { Account, ApiKey, Project } from '@lightbridge/authz-rpc';
+import type { Account, ApiKey, Project } from '@lightbridge/hooks';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 const i18nLocaleMap: Record<string, string> = {

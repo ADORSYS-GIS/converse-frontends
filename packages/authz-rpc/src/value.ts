@@ -13,13 +13,9 @@
  * tagged representation.
  */
 
-export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+import type { JsonValue } from '../generated/src/runtime';
+
+export type { JsonValue };
 
 type TaggedValue =
   | 'Null'

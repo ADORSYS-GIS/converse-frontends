@@ -1,16 +1,13 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@lightbridge/i18n';
-import type { JsonValue, Project, UpdateProjectInput } from '@lightbridge/authz-rpc';
-import {
-  createId,
-  createProject,
-  deleteProject,
-  disableProject,
-  enableProject,
-  listProjects,
-  updateProject,
+import type {
+  JsonValue,
+  Project as GeneratedProject,
+  UpdateProjectInput,
 } from '@lightbridge/authz-rpc';
+import { createId, getAuthzRpcClient, tagValue, untagValue } from '@lightbridge/authz-rpc';
+import { asFull, type Project } from './authz-types';
 import { useCurrentAccount } from './accounts';
 import { useAuthSession } from './auth-session';
 
@@ -37,8 +34,42 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
   };
 }
 
+/**
+ * The generated client passes `allowedModels`/`defaultLimits` through untouched — it doesn't know
+ * about cratestack's externally-tagged `Value` wire shape for `Json` columns. Tag on the way out,
+ * untag on the way back in, so everything above this module deals in plain JS values.
+ */
+function tagProjectJsonFields<T extends { allowedModels?: JsonValue; defaultLimits?: JsonValue }>(
+  input: T
+): T {
+  return {
+    ...input,
+    allowedModels: input.allowedModels === undefined ? undefined : tagValue(input.allowedModels),
+    defaultLimits: input.defaultLimits === undefined ? undefined : tagValue(input.defaultLimits),
+  } as unknown as T;
+}
+
+function untagProject(project: GeneratedProject): Project {
+  return asFull<Project>({
+    ...project,
+    allowedModels:
+      project.allowedModels === undefined || project.allowedModels === null
+        ? project.allowedModels
+        : untagValue(project.allowedModels),
+    defaultLimits:
+      project.defaultLimits === undefined || project.defaultLimits === null
+        ? project.defaultLimits
+        : untagValue(project.defaultLimits),
+  });
+}
+
 async function listProjectsForAccount(accountId: string): Promise<Project[]> {
-  return listProjects({ limit: 10, offset: 0, filters: [{ key: 'accountId', value: accountId }] });
+  const projects = await getAuthzRpcClient().projects.list({
+    limit: 10,
+    offset: 0,
+    filters: [{ key: 'accountId', value: accountId }],
+  });
+  return projects.map(untagProject);
 }
 
 export function useProjects(accountId?: string) {
@@ -82,8 +113,12 @@ export function useCreateProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ accountId, input }: { accountId: string; input: CreateProjectFields }) =>
-      createProject(buildCreateProjectInput(accountId, input)),
+    mutationFn: async ({ accountId, input }: { accountId: string; input: CreateProjectFields }) => {
+      const created = await getAuthzRpcClient().projects.create(
+        tagProjectJsonFields(buildCreateProjectInput(accountId, input))
+      );
+      return untagProject(created);
+    },
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -106,7 +141,10 @@ export function useUpdateProject() {
       id: string;
       accountId: string;
       input: UpdateProjectInput;
-    }) => updateProject(id, input),
+    }) => {
+      const updated = await getAuthzRpcClient().projects.update(id, tagProjectJsonFields(input));
+      return untagProject(updated);
+    },
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -123,7 +161,9 @@ export function useDisableProject() {
 
   const mutation = useMutation({
     mutationFn: async ({ id }: { id: string; accountId: string }) =>
-      disableProject({ projectId: id }),
+      untagProject(
+        await getAuthzRpcClient().procedures.disableProject({ args: { projectId: id } })
+      ),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -141,7 +181,7 @@ export function useEnableProject() {
 
   const mutation = useMutation({
     mutationFn: async ({ id }: { id: string; accountId: string }) =>
-      enableProject({ projectId: id }),
+      untagProject(await getAuthzRpcClient().procedures.enableProject({ args: { projectId: id } })),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -158,7 +198,8 @@ export function useDeleteProject() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; accountId: string }) => deleteProject(id),
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      getAuthzRpcClient().projects.delete(id),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },
@@ -182,12 +223,17 @@ export function useEnsureDefaultProject() {
         return existing[0];
       }
 
-      const created = await createProject(
-        buildCreateProjectInput(accountId, { name: t('project.defaultName'), billingPlan: 'free' })
+      const created = await getAuthzRpcClient().projects.create(
+        tagProjectJsonFields(
+          buildCreateProjectInput(accountId, {
+            name: t('project.defaultName'),
+            billingPlan: 'free',
+          })
+        )
       );
 
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
-      return created;
+      return untagProject(created);
     },
   });
 

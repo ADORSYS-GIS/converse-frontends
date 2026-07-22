@@ -1,11 +1,13 @@
 # Authentication and Identity
 
 > Sources:
+>
 > - `packages/hooks/src/auth/auth-storage.ts`
 > - `packages/hooks/src/auth/auth-types.ts`
 > - `packages/hooks/src/auth/use-keycloak-login.ts`
 > - `packages/hooks/src/auth/use-auth-session.ts`
-> - `openapi/api-key.backend.json` (security scheme)
+> - `packages/authz-rpc/src/transport.ts` (bearer header + refresh wiring)
+> - `packages/authz-rpc/schema/authz.cstack` (API-key schema)
 
 ---
 
@@ -14,12 +16,12 @@
 These are two completely separate credential types with different purposes and lifetimes:
 
 | Credential       | Type                     | Issued By           | Used By             | Purpose                                                  |
-|------------------|--------------------------|---------------------|---------------------|----------------------------------------------------------|
+| ---------------- | ------------------------ | ------------------- | ------------------- | -------------------------------------------------------- |
 | **Bearer Token** | Short-lived JWT          | Keycloak            | This frontend       | Authenticate the logged-in user with LightBridge backend |
 | **API Key**      | Long-lived secret string | LightBridge backend | External AI clients | Authenticate with the Converse AI gateway                |
 
-> The frontend **never** uses API keys to make requests. API keys are managed *through* the frontend but consumed
-*outside* it.
+> The frontend **never** uses API keys to make requests. API keys are managed _through_ the frontend but consumed
+> _outside_ it.
 > The Converse AI gateway is **never** called by this frontend. External AI clients call it directly using their API
 > key.
 
@@ -80,7 +82,7 @@ AuthSession stored (see Token Storage below)
 Defined in `packages/hooks/src/auth/auth-types.ts`:
 
 | Field          | Type     | Required | Description                                                 |
-|----------------|----------|----------|-------------------------------------------------------------|
+| -------------- | -------- | -------- | ----------------------------------------------------------- |
 | `accessToken`  | `string` | **Yes**  | Bearer token sent in `Authorization` header to LightBridge  |
 | `refreshToken` | `string` | No       | Used to obtain new access tokens without re-login           |
 | `idToken`      | `string` | No       | OIDC identity token (Keycloak-issued, contains user claims) |
@@ -95,7 +97,7 @@ Defined in `packages/hooks/src/auth/auth-types.ts`:
 Populated from Keycloak's `/userinfo` endpoint:
 
 | Field   | Type     | Required | Description                                                 |
-|---------|----------|----------|-------------------------------------------------------------|
+| ------- | -------- | -------- | ----------------------------------------------------------- |
 | `id`    | `string` | **Yes**  | Keycloak subject (`sub` claim)                              |
 | `name`  | `string` | No       | Display name (`name` or `preferred_username` from userinfo) |
 | `email` | `string` | No       | Email address                                               |
@@ -108,9 +110,9 @@ The full session stored in persistent storage:
 
 ```typescript
 type AuthSession = {
-    id: 'current';         // always the literal string 'current'
-    user: AuthUser | null; // null if userinfo fetch failed
-    tokens: AuthTokens | null;
+  id: 'current'; // always the literal string 'current'
+  user: AuthUser | null; // null if userinfo fetch failed
+  tokens: AuthTokens | null;
 };
 ```
 
@@ -140,7 +142,7 @@ Platform-specific storage is implemented in `packages/hooks/src/auth/auth-storag
 ### Storage API
 
 | Function                     | Platform | Effect                        |
-|------------------------------|----------|-------------------------------|
+| ---------------------------- | -------- | ----------------------------- |
 | `loadStoredSession()`        | Both     | Returns `AuthSession \| null` |
 | `saveStoredSession(session)` | Both     | Persists the session          |
 | `clearStoredSession()`       | Both     | Deletes the persisted session |
@@ -155,17 +157,19 @@ Once authenticated, all frontend requests to the LightBridge AuthZ and Usage API
 Authorization: Bearer <accessToken>
 ```
 
-The `api-key.backend.json` security scheme confirms this:
+The AuthZ API's `cratestack::AuthProvider` implementation (`CratestackAuthProvider`, backend-side)
+extracts and validates this same bearer/JWKS token exactly as before the RPC migration — it just
+sits in front of the RPC dispatcher instead of REST handlers now. On the frontend, the header is
+attached by `packages/authz-rpc/src/transport.ts`'s `rpcCall()`, which mirrors the previous REST
+client's proactive-refresh / 401-retry-once behavior:
 
-```yaml
-securitySchemes:
-  bearer_auth:
-    type: http
-    scheme: bearer
-    bearerFormat: JWT
-security:
-  - bearer_auth: [ ]
+```typescript
+// packages/authz-rpc/src/transport.ts (abridged)
+headers.authorization = `Bearer ${token}`;
 ```
+
+The Usage API is unaffected — it still authenticates the same way over plain REST, via
+`@lightbridge/api-rest`'s generated OpenAPI security scheme.
 
 ---
 
@@ -173,29 +177,48 @@ security:
 
 API keys are issued by the LightBridge backend and are separate from authentication tokens.
 
-From `openapi/api-key.backend.json`:
+From `packages/authz-rpc/schema/authz.cstack` (model `ApiKey`, generated type in
+`packages/authz-rpc/generated/models.ts`) — note these are the wire field names as of the
+cratestack RPC migration, **camelCase**, not the pre-migration REST API's snake_case:
 
-| Field          | Type                           | Nullable | Description                                          |
-|----------------|--------------------------------|----------|------------------------------------------------------|
-| `id`           | `string`                       | No       | Unique key identifier                                |
-| `project_id`   | `string`                       | No       | Project the key belongs to                           |
-| `name`         | `string`                       | No       | Human-readable label                                 |
-| `key_prefix`   | `string`                       | No       | Visible prefix of the secret (e.g. `"lb_abc123..."`) |
-| `status`       | `ApiKeyStatus`                 | No       | `"active"` or `"revoked"`                            |
-| `created_at`   | `string` (date-time)           | No       | Creation timestamp                                   |
-| `expires_at`   | `string` (date-time) \| `null` | **Yes**  | Optional expiry                                      |
-| `last_used_at` | `string` (date-time) \| `null` | **Yes**  | Last usage timestamp                                 |
-| `last_ip`      | `string \| null`               | **Yes**  | IP of last caller                                    |
-| `revoked_at`   | `string` (date-time) \| `null` | **Yes**  | Revocation timestamp                                 |
+| Field         | Type                  | Nullable | Description                                           |
+| ------------- | --------------------- | -------- | ----------------------------------------------------- |
+| `id`          | `string`              | No       | Unique key identifier                                 |
+| `projectId`   | `string`              | No       | Project the key belongs to                            |
+| `name`        | `string`              | No       | Human-readable label                                  |
+| `keyPrefix`   | `string`              | No       | Visible prefix of the secret (e.g. `"lb_abc123..."`)  |
+| `status`      | `string`              | No       | `"active"` or `"revoked"`                             |
+| `billingPlan` | `string`              | No       | Billing plan the key was created under                |
+| `createdAt`   | `string` (date-time)  | No       | Creation timestamp                                    |
+| `updatedAt`   | `string` (date-time)  | No       | Last update timestamp                                 |
+| `expiresAt`   | `string \| undefined` | **Yes**  | Optional expiry                                       |
+| `lastUsedAt`  | `string \| undefined` | **Yes**  | Last usage timestamp                                  |
+| `lastIp`      | `string \| undefined` | **Yes**  | IP of last caller                                     |
+| `revokedAt`   | `string \| undefined` | **Yes**  | Revocation timestamp                                  |
+| `deletedAt`   | `string \| undefined` | **Yes**  | Soft-delete timestamp (`@@soft_delete` in the schema) |
 
-The secret is only returned **once**, at creation or rotation, in an `ApiKeySecret` object:
+Note: the schema also declares a `keyHash` column, but it's marked `@server_only` — it's never
+emitted on the wire and does not appear in the generated `ApiKey` TypeScript type at all.
+
+The secret is only returned **once**, at creation (`procedure.createApiKey`) or rotation
+(`procedure.rotateApiKey`), as an `ApiKeySecret` object. Unlike the pre-migration REST response,
+this is **flat** — the `ApiKey` fields and `secret` sit side by side, not nested under an `api_key`
+key (the schema's own comment explains why: `cratestack-pg` 0.4.9 can't reference a model type by
+name inside a `type` block, so `ApiKeySecret` inlines every `ApiKey` field as a scalar instead of
+nesting the model):
 
 ```json
 {
-  "api_key": {
-    /* ApiKey object */
-  },
-  "secret": "lb_full_secret_string_shown_once"
+  "id": "key_ghi789",
+  "projectId": "proj_def456",
+  "name": "My App Key",
+  "keyPrefix": "lb_ghi789...",
+  "status": "active",
+  "billingPlan": "standard",
+  "createdAt": "2025-03-30T10:00:00Z",
+  "updatedAt": "2025-03-30T10:00:00Z",
+  "secret": "lb_ghi789fullsecretstringshownonce",
+  "oauth2Url": null
 }
 ```
 

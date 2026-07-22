@@ -33,9 +33,10 @@ The AuthZ API (accounts/projects/api-keys) has no OpenAPI spec — it's schema-f
 Its source of truth is `packages/authz-rpc/schema/authz.cstack` (copied from the backend repo),
 turned into the generated client under `packages/authz-rpc/generated/` by the official
 `cratestack generate-typescript` CLI (`cratestack-cli`, a Rust binary — not an npm dependency).
-Regeneration is a manual local step (`pnpm --filter @lightbridge/authz-rpc codegen:cratestack`,
-committed to git afterward) — deliberately **not** wired into `codegen:all`/`postinstall`, since
-the CI runner has no Rust toolchain to run the CLI with.
+`generated/` is gitignored, same as every other package's codegen output (e.g. `api-rest`'s
+`src/client/`) — it's a build artifact, not source. Regenerate it locally with
+`pnpm --filter @lightbridge/authz-rpc codegen:cratestack`; CI (`test.yml`, `docker-image.yml`)
+installs a cached `cratestack-cli` and runs the same command before tests/build.
 
 **Rule:** Never place application-specific business logic in `packages/`. Packages export reusable, app-agnostic code only.
 

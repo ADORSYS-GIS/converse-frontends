@@ -102,11 +102,13 @@ LightBridge Backend
 ### API key management flow
 
 1. Authenticated user navigates to API Keys tab
-2. `useQuery` hook calls `listApiKeys()` (`packages/authz-rpc`), which dispatches
-   `POST /rpc/model.ApiKey.list` with `{ limit, offset, filters: [{ key: "projectId", value }] }`
-3. User creates key → `createApiKey()` dispatches `POST /rpc/procedure.createApiKey` with
-   `{ args: { projectId, name, expiresAt?, billingPlan } }` — the server generates the id, hashes
-   the secret, and validates the billing plan; the client never constructs these itself
+2. `useQuery` hook calls `client.apiKeys.list(...)` (`packages/authz-rpc`, generated client
+   instance), which dispatches `POST /rpc/model.ApiKey.list` with
+   `{ limit, offset, filters: [{ key: "projectId", value }] }`
+3. User creates key → `client.procedures.createApiKey({ args })` dispatches
+   `POST /rpc/procedure.createApiKey` with `{ args: { projectId, name, expiresAt?, billingPlan } }`
+   — the server generates the id, hashes the secret, and validates the billing plan; the client
+   never constructs these itself
 4. Response is a flat `ApiKeySecret` — the one-time `secret` field sits alongside the key's own
    fields, shown to the user immediately
 5. User copies secret for use in their external AI client

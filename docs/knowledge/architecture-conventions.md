@@ -31,9 +31,11 @@ converse-frontends/
 
 The AuthZ API (accounts/projects/api-keys) has no OpenAPI spec — it's schema-first cratestack RPC.
 Its source of truth is `packages/authz-rpc/schema/authz.cstack` (copied from the backend repo),
-and `packages/authz-rpc/codegen/generate.mjs` turns it into the generated client under
-`packages/authz-rpc/generated/` (gitignored, regenerated via `pnpm --filter @lightbridge/authz-rpc
-codegen`, wired into the workspace `codegen:all`/`postinstall`).
+turned into the generated client under `packages/authz-rpc/generated/` by the official
+`cratestack generate-typescript` CLI (`cratestack-cli`, a Rust binary — not an npm dependency).
+Regeneration is a manual local step (`pnpm --filter @lightbridge/authz-rpc codegen:cratestack`,
+committed to git afterward) — deliberately **not** wired into `codegen:all`/`postinstall`, since
+the CI runner has no Rust toolchain to run the CLI with.
 
 **Rule:** Never place application-specific business logic in `packages/`. Packages export reusable, app-agnostic code only.
 
@@ -69,7 +71,7 @@ packages/api-rest/            → generated HTTP client (OpenAPI)
 app/api-keys/new.tsx                → renders <ApiKeyCreateScreen />
 screens/api-key-create-screen.tsx   → renders views, assembles state
 views/api-key-create-view.tsx       → calls hooks, renders UI
-packages/hooks/src/api-keys.ts      → calls createApiKey()
+packages/hooks/src/api-keys.ts      → calls client.procedures.createApiKey({ args })
 packages/authz-rpc/                 → generated RPC client (POST /rpc/procedure.createApiKey)
 ```
 

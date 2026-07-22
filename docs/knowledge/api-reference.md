@@ -46,7 +46,11 @@ Every call is `POST /rpc/{op_id}` — the op-id (a dotted string like `model.Acc
 `procedure.createApiKey`) is the dispatch key, carried in the URL path, not the HTTP verb or a
 REST-shaped path. There is no per-resource URL structure to document; instead, each op-id below
 takes a JSON (or CBOR, in prod) request body and returns the raw result object/array directly —
-no envelope wrapper. See `packages/authz-rpc/generated/sdk.ts` for the exact generated call sites.
+no envelope wrapper. The generated client (`packages/authz-rpc/generated/src/client.ts`) exposes
+this as a client-object API — `client.accounts`/`client.projects`/`client.apiKeys` (each with
+`list`/`get`/`update`/`delete`, plus `create` only where reachable — see below) and
+`client.procedures` (one method per procedure, e.g. `client.procedures.createApiKey({ args })`) —
+rather than free-standing functions.
 
 **Reachability is schema-driven, not uniform.** A model only gets a generic `create`/`update`/
 `delete`/`list`/`get` op-id if the schema declares a matching `@@allow("<verb>", ...)` for it — a

@@ -7,7 +7,7 @@ import type {
   UpdateProjectInput,
 } from '@lightbridge/authz-rpc';
 import { createId, getAuthzRpcClient, tagValue, untagValue } from '@lightbridge/authz-rpc';
-import { asFull, type Project } from './authz-types';
+import type { Project } from './authz-types';
 import { useCurrentAccount } from './accounts';
 import { useAuthSession } from './auth-session';
 
@@ -50,7 +50,7 @@ function tagProjectJsonFields<T extends { allowedModels?: JsonValue; defaultLimi
 }
 
 function untagProject(project: GeneratedProject): Project {
-  return asFull<Project>({
+  return {
     ...project,
     allowedModels:
       project.allowedModels === undefined || project.allowedModels === null
@@ -60,7 +60,7 @@ function untagProject(project: GeneratedProject): Project {
       project.defaultLimits === undefined || project.defaultLimits === null
         ? project.defaultLimits
         : untagValue(project.defaultLimits),
-  });
+  };
 }
 
 async function listProjectsForAccount(accountId: string): Promise<Project[]> {

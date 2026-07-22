@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UpdateAccountInput } from '@lightbridge/authz-rpc';
 import { getAuthzRpcClient } from '@lightbridge/authz-rpc';
-import { type Account, asFull } from './authz-types';
+import type { Account } from './authz-types';
 import { useAuthSession } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
@@ -12,9 +12,9 @@ export function useAccounts(enabled = true) {
 
   const query = useQuery({
     queryKey: accountsQueryKey,
-    queryFn: async () => {
+    queryFn: async (): Promise<Account[]> => {
       const page = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
-      return page.items.map((account) => asFull<Account>(account));
+      return page.items;
     },
     enabled: enabled && isAuthenticated,
     staleTime: 5 * 60_000,
@@ -40,8 +40,13 @@ export function useUpdateAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: UpdateAccountInput }) =>
-      asFull<Account>(await getAuthzRpcClient().accounts.update(id, input)),
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: UpdateAccountInput;
+    }): Promise<Account> => getAuthzRpcClient().accounts.update(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -57,10 +62,8 @@ export function useDisableAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) =>
-      asFull<Account>(
-        await getAuthzRpcClient().procedures.disableAccount({ args: { accountId: id } })
-      ),
+    mutationFn: async ({ id }: { id: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.disableAccount({ args: { accountId: id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -77,10 +80,8 @@ export function useEnableAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) =>
-      asFull<Account>(
-        await getAuthzRpcClient().procedures.enableAccount({ args: { accountId: id } })
-      ),
+    mutationFn: async ({ id }: { id: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.enableAccount({ args: { accountId: id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -97,10 +98,8 @@ export function useAddAccountMember() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }) =>
-      asFull<Account>(
-        await getAuthzRpcClient().procedures.addAccountMember({ args: { accountId: id, subject } })
-      ),
+    mutationFn: async ({ id, subject }: { id: string; subject: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.addAccountMember({ args: { accountId: id, subject } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -117,12 +116,10 @@ export function useRemoveAccountMember() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }) =>
-      asFull<Account>(
-        await getAuthzRpcClient().procedures.removeAccountMember({
-          args: { accountId: id, subject },
-        })
-      ),
+    mutationFn: async ({ id, subject }: { id: string; subject: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.removeAccountMember({
+        args: { accountId: id, subject },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },
@@ -156,11 +153,11 @@ export function useEnsureDefaultAccount() {
   const { session } = useAuthSession();
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<Account> => {
       const existing = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
 
       if (existing.items.length > 0) {
-        return asFull<Account>(existing.items[0]);
+        return existing.items[0];
       }
 
       if (!session.user) {
@@ -174,7 +171,7 @@ export function useEnsureDefaultAccount() {
       });
 
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
-      return asFull<Account>(created);
+      return created;
     },
   });
 
@@ -188,10 +185,8 @@ export function useCreateAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ billingIdentity }: { billingIdentity: string }) =>
-      asFull<Account>(
-        await getAuthzRpcClient().procedures.createAccount({ args: { billingIdentity } })
-      ),
+    mutationFn: async ({ billingIdentity }: { billingIdentity: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.createAccount({ args: { billingIdentity } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },

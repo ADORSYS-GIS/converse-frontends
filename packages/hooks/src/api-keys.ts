@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import type { CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
 import { getAuthzRpcClient } from '@lightbridge/authz-rpc';
-import { asFull, type ApiKey } from './authz-types';
+import type { ApiKey } from './authz-types';
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
 
@@ -34,14 +34,14 @@ export function useApiKeys(projectIdOverride?: string, options: UseApiKeysOption
     queryKey: projectId
       ? [...apiKeysQueryKey(projectId), { offset, limit }]
       : ['projects', 'unknown', 'api-keys'],
-    queryFn: async () => {
+    queryFn: async (): Promise<ApiKey[]> => {
       if (!projectId) throw new Error('Project ID is required');
       const page = await getAuthzRpcClient().apiKeys.list({
         limit,
         offset,
         filters: [{ key: 'projectId', value: projectId }],
       });
-      return page.items.map((item) => asFull<ApiKey>(item));
+      return page.items;
     },
     enabled: !!projectId && isAuthenticated,
     // Keep the current page visible while the next one loads (no empty flash on paging).
@@ -111,7 +111,7 @@ export function useUpdateApiKey() {
       id: string;
       projectId: string;
       input: UpdateApiKeyInput;
-    }) => asFull<ApiKey>(await getAuthzRpcClient().apiKeys.update(id, input)),
+    }): Promise<ApiKey> => getAuthzRpcClient().apiKeys.update(id, input),
     onSuccess: (_, { projectId }) => {
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: apiKeysQueryKey(projectId) });
@@ -129,8 +129,8 @@ export function useRevokeApiKey() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string; projectId: string }) =>
-      asFull<ApiKey>(await getAuthzRpcClient().procedures.revokeApiKey({ args: { keyId: id } })),
+    mutationFn: async ({ id }: { id: string; projectId: string }): Promise<ApiKey> =>
+      getAuthzRpcClient().procedures.revokeApiKey({ args: { keyId: id } }),
     onMutate: async ({ id, projectId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update.
       await queryClient.cancelQueries({ queryKey: apiKeysQueryKey(projectId) });

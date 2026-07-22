@@ -2,9 +2,9 @@ name: test
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ['**']
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
 
 permissions:
   contents: read
@@ -33,19 +33,35 @@ jobs:
         id: cratestack-cache
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/cratestack
-          key: cratestack-cli-0.4.11-${{ runner.os }}
+          path: ~/.local/bin/cratestack
+          key: cratestack-cli-0.4.13-${{ runner.os }}-${{ runner.arch }}
 
-      - name: Install Rust toolchain
-        if: steps.cratestack-cache.outputs.cache-hit != 'true'
-        uses: dtolnay/rust-toolchain@stable
-
+      # 0.4.13 ships prebuilt binaries on GH Releases — no Rust toolchain needed.
       - name: Install cratestack-cli
         if: steps.cratestack-cache.outputs.cache-hit != 'true'
-        run: cargo install cratestack-cli --version 0.4.11 --locked
+        env:
+          CRATESTACK_VERSION: '0.4.13'
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64) target="x86_64-unknown-linux-gnu" ;;
+            aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
+            *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
+          esac
+          asset="cratestack-cli-${target}-v${CRATESTACK_VERSION}.tar.gz"
+          base_url="https://github.com/cratestack/cratestack/releases/download/v${CRATESTACK_VERSION}"
+          curl -fsSL -o "$asset" "${base_url}/${asset}"
+          curl -fsSL -o "${asset}.sha256" "${base_url}/${asset}.sha256"
+          sha256sum -c "${asset}.sha256"
+          tar xzf "$asset"
+          mkdir -p ~/.local/bin
+          install -m 755 cratestack ~/.local/bin/cratestack
 
-      # generated/ is gitignored (Rust-toolchain codegen, not something CI's
-      # Node/pnpm install can produce) — regenerate it before tests import it.
+      - name: Add ~/.local/bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # generated/ is gitignored (codegen output, not something CI's Node/pnpm
+      # install can produce) — regenerate it before tests import it.
       - name: Generate authz-rpc bindings
         run: pnpm --filter @lightbridge/authz-rpc run codegen:cratestack
 

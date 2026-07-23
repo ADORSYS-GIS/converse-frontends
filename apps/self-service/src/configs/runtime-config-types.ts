@@ -23,6 +23,9 @@ export type UsageDashboardConfig = {
 
 export type AppRuntimeConfig = {
   backendUrl: string;
+  /** RPC basePath the authz-rpc client prepends, e.g. /api/v2. Defaults to the
+   *  cratestack-generated client's own default ('/api') when unset. */
+  apiBasePath?: string;
   keycloak: KeycloakConfig;
   usage?: UsageDashboardConfig;
 };

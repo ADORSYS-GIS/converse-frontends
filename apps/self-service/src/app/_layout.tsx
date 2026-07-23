@@ -66,6 +66,7 @@ function AppBootstrap() {
 
   useAuthzRpcClient({
     baseURL: runtimeConfig.backendUrl,
+    basePath: runtimeConfig.apiBasePath,
     auth: async () => {
       if (!isHydrated) {
         return '';

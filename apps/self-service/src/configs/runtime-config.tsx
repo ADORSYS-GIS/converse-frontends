@@ -31,6 +31,7 @@ function buildUsageConfig(
 
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+  const apiBasePath = process.env.EXPO_PUBLIC_API_BASE_PATH;
   const issuer = process.env.EXPO_PUBLIC_KEYCLOAK_ISSUER;
   const clientId = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID;
   const scheme = process.env.EXPO_PUBLIC_KEYCLOAK_SCHEME;
@@ -58,6 +59,7 @@ function getEnvConfig(): AppRuntimeConfig {
 
   return {
     backendUrl,
+    apiBasePath: apiBasePath || undefined,
     keycloak: {
       issuer,
       clientId,
@@ -109,6 +111,11 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
 
   const rawUsage = (json as any).usage || {};
   json.usage = buildUsageConfig(rawUsage.grafanaUrl, rawUsage.dashboardPath);
+
+  // envsubst leaves an empty string (not an absent field) when EXPO_PUBLIC_API_BASE_PATH is
+  // unset on a given deployment — normalize to undefined so the authz-rpc client falls back to
+  // its own default basePath ('/api') instead of an empty-string prefix.
+  json.apiBasePath = (json as any).apiBasePath || undefined;
 
   return json;
 }

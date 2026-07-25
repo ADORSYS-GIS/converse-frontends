@@ -51,6 +51,10 @@ type AccountSettingsViewProps = {
   isChangingStatus?: boolean;
   statusError?: string | null;
   memberError?: string | null;
+  isDefault?: boolean;
+  onSetDefaultAccount: () => void;
+  isSettingDefault?: boolean;
+  setDefaultError?: string | null;
 };
 
 export function AccountSettingsView({
@@ -82,6 +86,10 @@ export function AccountSettingsView({
   isChangingStatus = false,
   statusError = null,
   memberError = null,
+  isDefault = false,
+  onSetDefaultAccount,
+  isSettingDefault = false,
+  setDefaultError = null,
 }: Readonly<AccountSettingsViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -188,6 +196,17 @@ export function AccountSettingsView({
                       key={account.id}
                       variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
                       size="sm"
+                      leadingIcon={
+                        account.isDefault ? (
+                          <Feather
+                            name="star"
+                            size={12}
+                            color={
+                              account.id === selectedAccountId ? colors.surface : colors.subtle
+                            }
+                          />
+                        ) : undefined
+                      }
                       onPress={() => onSelectAccount(account.id)}
                       accessibilityLabel={t('settings.account.selectAccount', {
                         account: account.billingIdentity,
@@ -324,15 +343,55 @@ export function AccountSettingsView({
             </SectionCard>
           ) : null}
 
+          {canUpdate ? (
+            <SectionCard
+              tone="muted"
+              title={t('settings.account.defaultSection')}
+              description={
+                isDefault
+                  ? t('settings.account.defaultDescriptionCurrent')
+                  : t('settings.account.defaultDescription')
+              }>
+              <Stack gap="sm" align="start">
+                {isDefault ? (
+                  <Badge tone="info" icon={<Feather name="star" size={12} color={colors.accent} />}>
+                    {t('settings.account.defaultBadge')}
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    disabled={isSettingDefault}
+                    onPress={onSetDefaultAccount}
+                    style={{ alignSelf: 'flex-start' }}>
+                    {isSettingDefault
+                      ? t('settings.account.settingDefault')
+                      : t('settings.account.setDefault')}
+                  </Button>
+                )}
+                {setDefaultError ? (
+                  <Text intent="caption" style={{ color: colors.error }}>
+                    {setDefaultError}
+                  </Text>
+                ) : null}
+              </Stack>
+            </SectionCard>
+          ) : null}
+
           {canDelete ? (
             <SectionCard
               tone="danger"
               title={t('settings.account.dangerSection')}
-              description={t('settings.account.dangerDescription')}>
+              description={
+                isDefault
+                  ? t('settings.account.dangerDescriptionDefault')
+                  : t('settings.account.dangerDescription')
+              }>
               <Stack align="start">
                 <Button
                   variant="danger"
                   size="sm"
+                  disabled={isDefault}
                   onPress={onDeleteAccount}
                   style={{ alignSelf: 'flex-start' }}>
                   {t('settings.account.deleteAccount')}

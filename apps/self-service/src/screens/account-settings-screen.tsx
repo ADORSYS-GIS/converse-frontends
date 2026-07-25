@@ -11,6 +11,7 @@ import {
   usePermissions,
   useQueryState,
   useRemoveAccountMember,
+  useSetDefaultAccount,
   useUpdateAccount,
 } from '@lightbridge/hooks';
 import type { Account } from '@lightbridge/hooks';
@@ -41,6 +42,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const enableAccount = useEnableAccount();
   const addMember = useAddAccountMember();
   const removeMember = useRemoveAccountMember();
+  const setDefaultAccount = useSetDefaultAccount();
 
   // The Account model no longer carries a member/owners list on the wire —
   // membership is managed purely through add/removeAccountMember mutations,
@@ -90,11 +92,20 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
     void enableAccount.mutateAsync({ id: selectedAccount.id });
   };
 
+  const handleSetDefaultAccount = () => {
+    if (!selectedAccount?.id) return;
+    void setDefaultAccount.mutateAsync({ id: selectedAccount.id });
+  };
+
   const statusError = disableAccount.error
     ? getApiErrorMessage(disableAccount.error)
     : enableAccount.error
       ? getApiErrorMessage(enableAccount.error)
       : null;
+
+  const setDefaultError = setDefaultAccount.error
+    ? getApiErrorMessage(setDefaultAccount.error)
+    : null;
 
   const memberError = addMember.error
     ? getApiErrorMessage(addMember.error)
@@ -134,6 +145,10 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isChangingStatus={disableAccount.isPending || enableAccount.isPending}
       statusError={statusError}
       memberError={memberError}
+      isDefault={selectedAccount?.isDefault ?? false}
+      onSetDefaultAccount={handleSetDefaultAccount}
+      isSettingDefault={setDefaultAccount.isPending}
+      setDefaultError={setDefaultError}
     />
   );
 }

@@ -181,9 +181,19 @@ const resources = {
           suspending: 'Suspending...',
           enableAccount: 'Reactivate account',
           enabling: 'Reactivating...',
+          defaultSection: 'Default account',
+          defaultDescription:
+            'Your default account cannot be permanently deleted. Promote this account to free up your current default for deletion.',
+          defaultDescriptionCurrent:
+            'This is your default account. It cannot be permanently deleted until another account is promoted.',
+          defaultBadge: 'Default',
+          setDefault: 'Set as default',
+          settingDefault: 'Setting as default...',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Deleting this account removes it and everything under it. This cannot be undone.',
+          dangerDescriptionDefault:
+            'This is your default account and cannot be permanently deleted. Set another account as default first.',
           deleteAccount: 'Delete account',
         },
         project: {
@@ -235,9 +245,19 @@ const resources = {
           suspending: 'Suspending...',
           enableProject: 'Reactivate project',
           enabling: 'Reactivating...',
+          defaultSection: 'Default project',
+          defaultDescription:
+            'Your account’s default project cannot be permanently deleted. Promote this project to free up the current default for deletion.',
+          defaultDescriptionCurrent:
+            'This is your account’s default project. It cannot be permanently deleted until another project is promoted.',
+          defaultBadge: 'Default',
+          setDefault: 'Set as default',
+          settingDefault: 'Setting as default...',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Deleting this project removes its API keys and usage history. This cannot be undone.',
+          dangerDescriptionDefault:
+            'This is your account’s default project and cannot be permanently deleted. Set another project as default first.',
           deleteProject: 'Delete project',
         },
       },

@@ -26,6 +26,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof AccountSettin
       onDeleteAccount={noop}
       onSuspendAccount={noop}
       onEnableAccount={noop}
+      onSetDefaultAccount={noop}
       {...overrides}
     />
   );
@@ -100,10 +101,18 @@ describe('AccountSettingsView', () => {
           id: 'acc-1',
           billingIdentity: 'acme-inc',
           status: 'active',
+          isDefault: true,
           createdAt: '',
           updatedAt: '',
         },
-        { id: 'acc-2', billingIdentity: 'globex', status: 'active', createdAt: '', updatedAt: '' },
+        {
+          id: 'acc-2',
+          billingIdentity: 'globex',
+          status: 'active',
+          isDefault: false,
+          createdAt: '',
+          updatedAt: '',
+        },
       ],
       selectedAccountId: 'acc-1',
       onSelectAccount,
@@ -136,5 +145,27 @@ describe('AccountSettingsView', () => {
     await fireEvent.press(screen.getByText('Delete account'));
 
     expect(onDeleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a Set as default action and an enabled Delete button for a non-default account', async () => {
+    const onSetDefaultAccount = jest.fn();
+    await renderView({ isDefault: false, onSetDefaultAccount });
+
+    await fireEvent.press(screen.getByText('Set as default'));
+    expect(onSetDefaultAccount).toHaveBeenCalledTimes(1);
+
+    expect(
+      screen.getByRole('button', { name: 'Delete account' }).props.accessibilityState.disabled
+    ).toBe(false);
+  });
+
+  it('replaces the Set as default action with a badge and disables Delete for the default account', async () => {
+    await renderView({ isDefault: true });
+
+    expect(screen.getByText('Default')).toBeTruthy();
+    expect(screen.queryByText('Set as default')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Delete account' }).props.accessibilityState.disabled
+    ).toBe(true);
   });
 });

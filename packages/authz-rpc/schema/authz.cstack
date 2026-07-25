@@ -44,6 +44,7 @@ model Account {
   // generated create/update inputs so a raw RPC caller cannot supply a born-suspended
   // status, matching `ApiKey.status` below.
   status String @readonly
+  isDefault Boolean @readonly
   projects Project[] @relation(fields:[id],references:[accountId])
   memberships AccountMembership[] @relation(fields:[id],references:[accountId])
 
@@ -57,6 +58,16 @@ model Account {
   // `createAccount` procedure, which inserts the account and the creator's membership in
   // one transaction, and `model.Account.create` is also denied unconditionally at the
   // RBAC layer (crates/lightbridge-authz-rest/src/rpc_authorize.rs).
+  //
+  // isDefault is set once, server-side, inside `createAccount` -- true only if the creating
+  // subject had zero prior account memberships at that moment (their genuine first/bootstrap
+  // account). `deleteAccountPermanently` (hand-written SQL) refuses to delete a default
+  // account -- disableAccount (suspend) still works on it. `@readonly` keeps it out of the
+  // generated create/update inputs, same as `status` above; it is reassignable, but only through
+  // the dedicated `setDefaultAccount` procedure below (hand-written SQL, same pattern as
+  // disableAccount/enableAccount), which atomically unsets the subject's current default account
+  // before setting the new one -- a raw `model.Account.update` caller can never flip it directly,
+  // and can't race the unset/set pair against itself the way a generic field update would allow.
   //
   // NOTE: no `@@allow("delete", ...)` either, as of the membership-roles change. Account
   // deletion is now owner-only, and cratestack's relation-quantifier policy predicates can't
@@ -87,6 +98,20 @@ model Project {
   // by disable/enable procedures + DB `DEFAULT 'active'`, `@readonly` so it is absent from
   // the generic `model.Project.create`/`update` inputs.
   status String @readonly
+  // Set once, server-side, by a `BEFORE INSERT` trigger (`migrations/20260725000001_default_
+  // account_project.sql`) -- true only for an account's first-ever project. `@readonly` keeps it
+  // out of the generic create/update inputs; unlike Account/ApiKey, Project creation was never
+  // moved to a hand-written procedure (see `@@allow("create", ...)` below), so cratestack's
+  // generic `model.Project.create` verb has no hook for this per-request "is this the account's
+  // first project" computation -- the DB trigger is the only mechanism available. A partial
+  // unique index backstops the race where two concurrent first-project creates for the same
+  // brand-new account would otherwise both see zero existing rows. Gates `@@allow("delete", ...)`
+  // below -- a default project can still be suspended (disableProject) but never hard-deleted.
+  // Reassignable within the account via the dedicated `setDefaultProject` procedure below
+  // (hand-written SQL, same shape as `setDefaultAccount`), which atomically unsets the account's
+  // current default project before setting the new one -- the partial unique index above still
+  // backstops the invariant even if two reassignments race.
+  isDefault Boolean @readonly
   account Account @relation(fields:[accountId],references:[id])
   apiKeys ApiKey[] @relation(fields:[id],references:[projectId])
 
@@ -95,7 +120,7 @@ model Project {
   @@allow("create", account.memberships.some.subject == auth().id)
   @@allow("read", account.memberships.some.subject == auth().id)
   @@allow("update", account.memberships.some.subject == auth().id)
-  @@allow("delete", account.memberships.some.subject == auth().id)
+  @@allow("delete", isDefault != true && account.memberships.some.subject == auth().id)
 }
 
 // Field-level immutability closes the gap the coarse RBAC gate cannot express on
@@ -336,4 +361,30 @@ mutation procedure disableProject(args: ProjectStatusInput): Project
   @allow(auth() != null)
 
 mutation procedure enableProject(args: ProjectStatusInput): Project
+  @allow(auth() != null)
+
+// Reassign the default account/project (escape hatch for the "default can never be hard-deleted"
+// policy above -- without this, the first account/project a subject ever creates is permanently
+// undeletable). Any member of the account may promote a different row to default -- same coarse
+// membership check as everywhere else on this surface, no extra owner/admin gate (deletion itself
+// carries none either, for Project; Account deletion is owner-only but reassigning default status
+// is a strictly less destructive operation than that). Hand-written sqlx in `StoreRepo::
+// set_default_account` / `set_default_project`: each atomically unsets the current default before
+// setting the new one inside a single transaction, so the "at most one default" invariant never
+// observes two rows true (or zero) at once, and rejects (NotFound) a target that doesn't belong to
+// the caller's account. The `@allow(auth() != null)` gate only asserts an authenticated caller; the
+// coarse `account:update` / `project:update` capability is enforced by the RBAC layer, and the real
+// membership check lives in the hand-written SQL, same pattern as disableAccount/disableProject.
+type SetDefaultAccountInput {
+  accountId String
+}
+
+mutation procedure setDefaultAccount(args: SetDefaultAccountInput): Account
+  @allow(auth() != null)
+
+type SetDefaultProjectInput {
+  projectId String
+}
+
+mutation procedure setDefaultProject(args: SetDefaultProjectInput): Project
   @allow(auth() != null)

@@ -77,6 +77,9 @@ type ProjectSettingsViewProps = {
   onEnableProject: () => void;
   isChangingStatus?: boolean;
   statusError?: string | null;
+  onSetDefaultProject: () => void;
+  isSettingDefault?: boolean;
+  setDefaultError?: string | null;
 };
 
 /** Renders a nullable numeric limit as a text-field draft ('' = no limit). */
@@ -121,6 +124,9 @@ export function ProjectSettingsView({
   onEnableProject,
   isChangingStatus = false,
   statusError = null,
+  onSetDefaultProject,
+  isSettingDefault = false,
+  setDefaultError = null,
 }: Readonly<ProjectSettingsViewProps>) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
@@ -289,6 +295,15 @@ export function ProjectSettingsView({
                         key={item.id}
                         variant={item.id === selectedProjectId ? 'primary' : 'neutral'}
                         size="sm"
+                        leadingIcon={
+                          item.isDefault ? (
+                            <Feather
+                              name="star"
+                              size={12}
+                              color={item.id === selectedProjectId ? colors.surface : colors.subtle}
+                            />
+                          ) : undefined
+                        }
                         onPress={() => onSelectProject(item.id)}
                         accessibilityLabel={t('settings.project.selectProject', {
                           project: item.name,
@@ -498,15 +513,57 @@ export function ProjectSettingsView({
                 </SectionCard>
               ) : null}
 
+              {canUpdate ? (
+                <SectionCard
+                  tone="muted"
+                  title={t('settings.project.defaultSection')}
+                  description={
+                    project.isDefault
+                      ? t('settings.project.defaultDescriptionCurrent')
+                      : t('settings.project.defaultDescription')
+                  }>
+                  <Stack gap="sm" align="start">
+                    {project.isDefault ? (
+                      <Badge
+                        tone="info"
+                        icon={<Feather name="star" size={12} color={colors.accent} />}>
+                        {t('settings.project.defaultBadge')}
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="neutral"
+                        size="sm"
+                        disabled={isSettingDefault}
+                        onPress={onSetDefaultProject}
+                        style={{ alignSelf: 'flex-start' }}>
+                        {isSettingDefault
+                          ? t('settings.project.settingDefault')
+                          : t('settings.project.setDefault')}
+                      </Button>
+                    )}
+                    {setDefaultError ? (
+                      <Text intent="caption" style={{ color: colors.error }}>
+                        {setDefaultError}
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </SectionCard>
+              ) : null}
+
               {canDelete ? (
                 <SectionCard
                   tone="danger"
                   title={t('settings.project.dangerSection')}
-                  description={t('settings.project.dangerDescription')}>
+                  description={
+                    project.isDefault
+                      ? t('settings.project.dangerDescriptionDefault')
+                      : t('settings.project.dangerDescription')
+                  }>
                   <Stack align="start">
                     <Button
                       variant="danger"
                       size="sm"
+                      disabled={project.isDefault}
                       onPress={onDeleteProject}
                       style={{ alignSelf: 'flex-start' }}>
                       {t('settings.project.deleteProject')}

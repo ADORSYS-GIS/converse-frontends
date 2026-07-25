@@ -15,6 +15,7 @@ const account: Account = {
   id: 'acc-1',
   billingIdentity: 'acme-inc',
   status: 'active',
+  isDefault: true,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -27,6 +28,7 @@ const project: Project = {
   allowedModels: ['gpt-4o'],
   defaultLimits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
   status: 'active',
+  isDefault: false,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-02T00:00:00Z',
 };
@@ -50,6 +52,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       onDeleteProject={noop}
       onSuspendProject={noop}
       onEnableProject={noop}
+      onSetDefaultProject={noop}
       {...overrides}
     />
   );
@@ -166,6 +169,28 @@ describe('ProjectSettingsView', () => {
     await fireEvent.press(screen.getByText('Delete project'));
 
     expect(onDeleteProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a Set as default action and an enabled Delete button for a non-default project', async () => {
+    const onSetDefaultProject = jest.fn();
+    await renderView({ onSetDefaultProject });
+
+    await fireEvent.press(screen.getByText('Set as default'));
+    expect(onSetDefaultProject).toHaveBeenCalledTimes(1);
+
+    expect(
+      screen.getByRole('button', { name: 'Delete project' }).props.accessibilityState.disabled
+    ).toBe(false);
+  });
+
+  it('replaces the Set as default action with a badge and disables Delete for the default project', async () => {
+    await renderView({ project: { ...project, isDefault: true } });
+
+    expect(screen.getByText('Default')).toBeTruthy();
+    expect(screen.queryByText('Set as default')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Delete project' }).props.accessibilityState.disabled
+    ).toBe(true);
   });
 
   it('renders the empty state with a create action when there is no project', async () => {

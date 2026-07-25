@@ -8,6 +8,7 @@ import {
   usePermissions,
   useProjects,
   useQueryState,
+  useSetDefaultProject,
   useUpdateProject,
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
@@ -43,6 +44,7 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const updateProject = useUpdateProject();
   const disableProject = useDisableProject();
   const enableProject = useEnableProject();
+  const setDefaultProject = useSetDefaultProject();
 
   const handleSelectAccount = (id: string) => {
     setAccountParam(id);
@@ -137,11 +139,20 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
     void enableProject.mutateAsync({ id: project.id, accountId });
   };
 
+  const handleSetDefaultProject = () => {
+    if (!project || !accountId) return;
+    void setDefaultProject.mutateAsync({ id: project.id, accountId });
+  };
+
   const statusError = disableProject.error
     ? getApiErrorMessage(disableProject.error)
     : enableProject.error
       ? getApiErrorMessage(enableProject.error)
       : null;
+
+  const setDefaultError = setDefaultProject.error
+    ? getApiErrorMessage(setDefaultProject.error)
+    : null;
 
   return (
     <ProjectSettingsView
@@ -172,6 +183,9 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onEnableProject={handleEnableProject}
       isChangingStatus={disableProject.isPending || enableProject.isPending}
       statusError={statusError}
+      onSetDefaultProject={handleSetDefaultProject}
+      isSettingDefault={setDefaultProject.isPending}
+      setDefaultError={setDefaultError}
     />
   );
 }

@@ -31,6 +31,11 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
     defaultLimits: {},
     billingPlan: fields.billingPlan,
     status: 'active',
+    // `isDefault` is `@readonly` server-side (set by the `projects_set_is_default` trigger — true
+    // only for an account's first-ever project) but, unlike the Rust codegen, the TS generator
+    // doesn't drop `@readonly` fields from `CreateProjectInput`, so it must still be supplied here.
+    // Any caller-supplied value is ignored server-side, same as `status` above.
+    isDefault: false,
   };
 }
 
@@ -182,6 +187,26 @@ export function useEnableProject() {
   const mutation = useMutation({
     mutationFn: async ({ id }: { id: string; accountId: string }) =>
       untagProject(await getAuthzRpcClient().procedures.enableProject({ args: { projectId: id } })),
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useSetDefaultProject() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string; accountId: string }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.setDefaultProject({ args: { projectId: id } })
+      ),
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
     },

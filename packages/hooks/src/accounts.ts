@@ -94,6 +94,24 @@ export function useEnableAccount() {
   };
 }
 
+export function useSetDefaultAccount() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ id }: { id: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.setDefaultAccount({ args: { accountId: id } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
 export function useAddAccountMember() {
   const queryClient = useQueryClient();
 

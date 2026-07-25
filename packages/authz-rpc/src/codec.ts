@@ -20,10 +20,36 @@ export const JsonCodec: Codec = {
   },
 };
 
+/**
+ * Drops `undefined`-valued object properties (recursively) so `cborEncode` sees exactly what
+ * `JSON.stringify` would have kept. `JSON.stringify` silently omits `undefined`-valued keys;
+ * `cborEncode` has no such behavior and instead encodes them as CBOR's `undefined` simple value
+ * (RFC 8949 -- distinct from `null`), which the backend's generated `Option<T>` fields cannot
+ * deserialize (`invalid_argument` / "invalid request payload"). This only ever reproduced on the
+ * CBOR path (`defaultCodec()`'s production default) -- JSON traffic in dev/CI never hit it.
+ * `undefined` array *elements* are left as-is (cborg encodes them the same way and there's no
+ * JSON.stringify precedent to match -- `JSON.stringify` turns those into `null`, not a hole).
+ */
+function stripUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripUndefined);
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (entry !== undefined) {
+        result[key] = stripUndefined(entry);
+      }
+    }
+    return result;
+  }
+  return value;
+}
+
 export const CborCodec: Codec = {
   contentType: 'application/cbor',
   encode(value: unknown): Uint8Array {
-    return cborEncode(value);
+    return cborEncode(stripUndefined(value));
   },
   decode(bytes: Uint8Array): unknown {
     if (bytes.length === 0) {

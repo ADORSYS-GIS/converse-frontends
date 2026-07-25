@@ -34,3 +34,37 @@ describe('CborCodec / JsonCodec', () => {
     expect(decoded.Map).toEqual({ a: { String: 'x' } });
   });
 });
+
+describe('CborCodec undefined-value handling', () => {
+  // Regression coverage for the prod-only project-creation bug: `cborEncode` (unlike
+  // `JSON.stringify`) does not drop `undefined`-valued object properties -- it encodes them as
+  // CBOR's `undefined` simple value, which the backend rejects as an invalid payload. See
+  // `stripUndefined` in `codec.ts`.
+
+  it('omits an undefined-valued top-level property, matching JSON.stringify', () => {
+    const payload = { name: 'demo', allowedModels: undefined, billingPlan: 'free' };
+    const decoded = CborCodec.decode(CborCodec.encode(payload)) as Record<string, unknown>;
+    expect('allowedModels' in decoded).toBe(false);
+    expect(decoded).toEqual(JSON.parse(JSON.stringify(payload)));
+  });
+
+  it('omits an undefined-valued nested property', () => {
+    const payload = { project: { name: 'demo', allowedModels: undefined } };
+    const decoded = CborCodec.decode(CborCodec.encode(payload)) as {
+      project: Record<string, unknown>;
+    };
+    expect('allowedModels' in decoded.project).toBe(false);
+  });
+
+  it('still round-trips a present value at the same key', () => {
+    const payload = { name: 'demo', allowedModels: tagValue(['gpt-4']) };
+    const decoded = CborCodec.decode(CborCodec.encode(payload)) as typeof payload;
+    expect(untagValue(decoded.allowedModels)).toEqual(['gpt-4']);
+  });
+
+  it('still round-trips null, distinct from undefined, at the same key', () => {
+    const payload = { name: 'demo', allowedModels: null };
+    const decoded = CborCodec.decode(CborCodec.encode(payload)) as Record<string, unknown>;
+    expect(decoded.allowedModels).toBeNull();
+  });
+});

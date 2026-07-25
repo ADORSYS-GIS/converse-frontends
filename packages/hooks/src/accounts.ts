@@ -136,7 +136,13 @@ export function useDeleteAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => getAuthzRpcClient().accounts.delete(id),
+    // model.Account.delete is now unconditionally RBAC-denied server-side — account
+    // deletion is owner-only and goes exclusively through this procedure, which the
+    // generic policy predicate can't express (see the schema's own Account/AccountMembership
+    // doc comments for why: a compound "member row matching my subject AND role=owner"
+    // check isn't expressible as a single @@allow relation-quantifier).
+    mutationFn: async ({ id }: { id: string }): Promise<Account> =>
+      getAuthzRpcClient().procedures.deleteAccountPermanently({ args: { accountId: id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },

@@ -249,6 +249,8 @@ const resources = {
         description: 'Projects group API keys, model access, and usage under one boundary.',
         nameLabel: 'Project name',
         namePlaceholder: 'Production',
+        billingIdentityLabel: 'Billing identity',
+        billingIdentityPlaceholder: 'Who is paying — name, email, or client reference',
         planLabel: 'Billing plan',
         planPlaceholder: 'free',
         cancel: 'Cancel',

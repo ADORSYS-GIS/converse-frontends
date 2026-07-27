@@ -12,11 +12,20 @@ describe('expandGrant', () => {
 
   it('resource wildcard expands to that resource\'s actions', () => {
     const project = expandGrant('project:*');
-    expect(project).toHaveLength(5);
+    expect(project).toHaveLength(6);
     expect(project).toContain('project:create');
     expect(project).toContain('project:delete');
     expect(project).toContain('project:disable');
+    // Roster management is a project capability since lightbridge-authz ADR-0006 — it used to be
+    // `account:member`, so `project:*` did not confer it before.
+    expect(project).toContain('project:member');
     expect(project).not.toContain('account:create');
+  });
+
+  it('no longer expands account:* to a membership capability', () => {
+    const account = expandGrant('account:*');
+    expect(account).not.toContain('account:member');
+    expect(account).not.toContain('project:member');
   });
 
   it('exact grant expands to a single permission', () => {
@@ -52,6 +61,11 @@ describe('permissionsForRoles (default mapping)', () => {
     expect(editor.has('project:create')).toBe(true);
     expect(editor.has('project:disable')).toBe(true);
     expect(editor.has('apikey:rotate')).toBe(true);
+    // Deliberate widening from the ADR-0006 rename: the editor's `project:*` grant now also
+    // confers roster management. Asserted explicitly so the change cannot happen silently again —
+    // if editors should not manage rosters, the default mapping has to list grants individually
+    // instead of using the wildcard, on this side AND in the backend's default_role_permissions.
+    expect(editor.has('project:member')).toBe(true);
   });
 
   it('unions grants across multiple roles and ignores unknown roles', () => {

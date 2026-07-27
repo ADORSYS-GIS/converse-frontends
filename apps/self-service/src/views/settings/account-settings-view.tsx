@@ -175,10 +175,6 @@ export function AccountSettingsView({
             </SectionCard>
           ) : null}
 
-              </Stack>
-            </SectionCard>
-          ) : null}
-
           <SectionCard
             title={t('settings.account.authSection')}
             description={t('settings.account.authDescription')}>

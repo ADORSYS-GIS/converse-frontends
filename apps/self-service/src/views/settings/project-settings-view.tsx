@@ -273,9 +273,9 @@ export function ProjectSettingsView({
                         size="sm"
                         onPress={() => onSelectAccount(account.id)}
                         accessibilityLabel={t('settings.project.selectAccount', {
-                          account: account.billingIdentity,
+                          account: account.id,
                         })}>
-                        {account.billingIdentity}
+                        {account.id}
                       </Button>
                     ))
                   )}

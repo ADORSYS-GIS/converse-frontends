@@ -17,8 +17,10 @@ export function ApiKeyCreateScreen() {
   const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
   const { mutate: createKey, isPending: isKeyCreating } = useCreateApiKey();
   const { has } = usePermissions();
-  // Only account members may mint keys on a non-free plan; everyone else is pinned to `free`.
-  const canChoosePlan = has('account:member');
+  // Only project leads may mint keys on a non-free plan; everyone else is pinned to `free`.
+  // Note this is the coarse capability only — the server additionally requires the caller to own
+  // the project's account or hold `role: 'lead'` on it, so a `403` is still possible here.
+  const canChoosePlan = has('project:member');
   const projectId = typeof params.projectId === 'string' ? params.projectId : null;
 
   const handleBack = () => {

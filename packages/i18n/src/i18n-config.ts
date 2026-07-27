@@ -152,21 +152,14 @@ const resources = {
           accountsLabel: 'Accounts',
           noAccounts: 'No accounts available.',
           selectAccount: 'Select account {{account}}',
-          newAccount: 'New account',
           statusActive: 'Active',
           statusSuspended: 'Suspended',
-          billingIdentitySection: 'Billing identity',
-          billingIdentityDescription: 'The name or email associated with billing for this account.',
-          billingIdentitySave: 'Save',
-          billingIdentitySaving: 'Saving...',
-          billingIdentitySaved: 'Saved',
-          ownersSection: 'Members',
-          ownersDescription:
-            "People who can manage this account, identified by their identity provider's subject ID (not their email).",
-          ownersEmpty: 'No members added yet.',
-          ownerAddPlaceholder: 'Subject ID (e.g. 7fd91a54-0443-...)',
-          ownerAdd: 'Add',
-          ownerRemove: 'Remove {{name}}',
+          defaultQuotaSection: 'Usage tier',
+          defaultQuotaDescription:
+            'How much you may spend working on your own. Projects you share with others carry their own limits instead.',
+          defaultQuotaSave: 'Save',
+          defaultQuotaSaving: 'Saving...',
+          defaultQuotaSaved: 'Saved',
           authSection: 'Authentication',
           authDescription: "Your account signs in through your organization's SSO provider.",
           authIssuerLabel: 'Identity provider',
@@ -181,19 +174,9 @@ const resources = {
           suspending: 'Suspending...',
           enableAccount: 'Reactivate account',
           enabling: 'Reactivating...',
-          defaultSection: 'Default account',
-          defaultDescription:
-            'Your default account cannot be permanently deleted. Promote this account to free up your current default for deletion.',
-          defaultDescriptionCurrent:
-            'This is your default account. It cannot be permanently deleted until another account is promoted.',
-          defaultBadge: 'Default',
-          setDefault: 'Set as default',
-          settingDefault: 'Setting as default...',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Deleting this account removes it and everything under it. This cannot be undone.',
-          dangerDescriptionDefault:
-            'This is your default account and cannot be permanently deleted. Set another account as default first.',
           deleteAccount: 'Delete account',
         },
         project: {
@@ -291,15 +274,6 @@ const resources = {
         cancel: 'Cancel',
         confirm: 'Delete',
         deleting: 'Deleting...',
-      },
-      createAccount: {
-        title: 'New account',
-        description: 'Accounts scope billing, project defaults, and user access.',
-        billingIdentityLabel: 'Billing identity',
-        billingIdentityPlaceholder: 'Billing name or email',
-        cancel: 'Cancel',
-        create: 'Create account',
-        creating: 'Creating...',
       },
       home: {
         welcomeBack: 'Welcome back,',

@@ -94,61 +94,11 @@ export function useEnableAccount() {
   };
 }
 
-export function useSetDefaultAccount() {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }): Promise<Account> =>
-      getAuthzRpcClient().procedures.setDefaultAccount({ args: { accountId: id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
-    },
-  });
-
-  return {
-    isPending: mutation.isPending,
-    error: mutation.error,
-    mutateAsync: mutation.mutateAsync,
-  };
-}
-
-export function useAddAccountMember() {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }): Promise<Account> =>
-      getAuthzRpcClient().procedures.addAccountMember({ args: { accountId: id, subject } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
-    },
-  });
-
-  return {
-    isPending: mutation.isPending,
-    error: mutation.error,
-    mutateAsync: mutation.mutateAsync,
-  };
-}
-
-export function useRemoveAccountMember() {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: async ({ id, subject }: { id: string; subject: string }): Promise<Account> =>
-      getAuthzRpcClient().procedures.removeAccountMember({
-        args: { accountId: id, subject },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountsQueryKey });
-    },
-  });
-
-  return {
-    isPending: mutation.isPending,
-    error: mutation.error,
-    mutateAsync: mutation.mutateAsync,
-  };
-}
+// useSetDefaultAccount, useAddAccountMember and useRemoveAccountMember were removed with
+// lightbridge-authz ADR-0006. There is no account-level membership any more (one account is one
+// person, keyed by the caller's JWT subject), so there is no roster to manage and no second account
+// to default away from. The equivalents now live at the project level — see the roster procedures
+// in packages/hooks/src/projects.ts.
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient();
@@ -188,10 +138,11 @@ export function useEnsureDefaultAccount() {
         throw new Error('User session is required to create a default account');
       }
 
-      const billingIdentity = session.user.email ?? session.user.name ?? session.user.id;
-
+      // No arguments carry identity any more: the server keys the account on the caller's JWT
+      // subject (ADR-0006), so this is a pure "materialise my account" call. `billingIdentity`
+      // moved to the project — see buildCreateProjectInput in ./projects.
       const created = await getAuthzRpcClient().procedures.createAccount({
-        args: { billingIdentity },
+        args: {},
       });
 
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
@@ -209,8 +160,10 @@ export function useCreateAccount() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ billingIdentity }: { billingIdentity: string }): Promise<Account> =>
-      getAuthzRpcClient().procedures.createAccount({ args: { billingIdentity } }),
+    // Takes no arguments: one account per person, keyed server-side on the JWT subject. A second
+    // call for the same subject is a Conflict, not a second account.
+    mutationFn: async (): Promise<Account> =>
+      getAuthzRpcClient().procedures.createAccount({ args: {} }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsQueryKey });
     },

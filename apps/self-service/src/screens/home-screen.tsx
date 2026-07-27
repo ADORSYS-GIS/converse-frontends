@@ -83,7 +83,7 @@ export function HomeScreen() {
   return (
     <HomeView
       userName={session.user?.name}
-      accountBillingIdentity={currentAccount?.billingIdentity}
+      accountLabel={currentAccount?.id}
       activeProjectName={currentProject?.name}
       activeProjectPlan={currentProject?.billingPlan}
       onNewToken={() => router.navigate('/api-keys/new')}

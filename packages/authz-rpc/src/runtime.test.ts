@@ -10,7 +10,7 @@ const accountPage = {
   items: [
     {
       id: 'acc_01',
-      billingIdentity: 'corp-identity-001',
+      defaultQuota: 't-m',
       status: 'active',
       createdAt: '2024-01-01T12:00:00Z',
       updatedAt: '2024-01-01T12:00:00Z',
@@ -40,7 +40,7 @@ describe('AuthzRpcRuntime + generated client', () => {
     const page = await client.accounts.list({ limit: 10, offset: 0 });
 
     expect(page.items).toHaveLength(1);
-    expect(page.items[0].billingIdentity).toBe('corp-identity-001');
+    expect(page.items[0].defaultQuota).toBe('t-m');
     expect(page.totalCount).toBe(1);
     expect(page.pageInfo.hasNextPage).toBe(false);
     expect(page.pageInfo.hasPreviousPage).toBe(false);

@@ -13,9 +13,8 @@ beforeAll(() => {
 
 const account: Account = {
   id: 'acc-1',
-  billingIdentity: 'acme-inc',
+  defaultQuota: 't-m',
   status: 'active',
-  isDefault: true,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -25,6 +24,8 @@ const project: Project = {
   accountId: 'acc-1',
   name: 'production',
   billingPlan: 'free',
+  billingIdentity: 'acme-inc',
+  projectQuota: undefined,
   allowedModels: ['gpt-4o'],
   defaultLimits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
   status: 'active',

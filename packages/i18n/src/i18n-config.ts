@@ -228,6 +228,22 @@ const resources = {
           suspending: 'Suspending...',
           enableProject: 'Reactivate project',
           enabling: 'Reactivating...',
+          membersSection: 'Members',
+          membersDescription:
+            'People who share this project. Leads can manage the roster and set each member\u2019s spending ceiling.',
+          membersDefaultProject:
+            'This is your personal project \u2014 it has no members by design. Create a separate project to work with others.',
+          membersEmpty: 'No members yet. Add someone by their account ID.',
+          memberRoleLead: 'Lead',
+          memberRoleMember: 'Member',
+          memberPromote: 'Make lead',
+          memberDemote: 'Make member',
+          memberQuotaPlaceholder: 'Usage tier (e.g. t-m)',
+          memberQuotaSave: 'Save tier',
+          memberRemove: 'Remove {{name}}',
+          memberRemoveLabel: 'Remove',
+          memberAddPlaceholder: 'Account ID',
+          memberAdd: 'Add member',
           defaultSection: 'Default project',
           defaultDescription:
             'Your account’s default project cannot be permanently deleted. Promote this project to free up the current default for deletion.',

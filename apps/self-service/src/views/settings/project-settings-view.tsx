@@ -19,7 +19,7 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
-import type { Account, Project } from '@lightbridge/hooks';
+import type { Account, Project, ProjectMember } from '@lightbridge/hooks';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
 
@@ -80,6 +80,21 @@ type ProjectSettingsViewProps = {
   onSetDefaultProject: () => void;
   isSettingDefault?: boolean;
   setDefaultError?: string | null;
+  /** Roster rows for the selected project. Always empty for a default project — see below. */
+  members?: ProjectMember[];
+  isLoadingMembers?: boolean;
+  onAddMember: (accountId: string, role: 'lead' | 'member') => void;
+  onRemoveMember: (accountId: string) => void;
+  onSetMemberRole: (accountId: string, role: 'lead' | 'member') => void;
+  onSetMemberQuotaTier: (accountId: string, quotaTier: string) => void;
+  isSavingMembers?: boolean;
+  /**
+   * Coarse `project:member` capability only. The server additionally requires the caller to own
+   * the project's account or hold `role: 'lead'`, so a caller who passes this can still get a
+   * 403 — which is what `memberError` surfaces.
+   */
+  canManageMembers?: boolean;
+  memberError?: string | null;
 };
 
 /** Renders a nullable numeric limit as a text-field draft ('' = no limit). */
@@ -127,6 +142,15 @@ export function ProjectSettingsView({
   onSetDefaultProject,
   isSettingDefault = false,
   setDefaultError = null,
+  members = [],
+  isLoadingMembers = false,
+  onAddMember,
+  onRemoveMember,
+  onSetMemberRole,
+  onSetMemberQuotaTier,
+  isSavingMembers = false,
+  canManageMembers = true,
+  memberError = null,
 }: Readonly<ProjectSettingsViewProps>) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
@@ -137,6 +161,8 @@ export function ProjectSettingsView({
   const [nameDraft, setNameDraft] = useState(project?.name ?? '');
   const [planDraft, setPlanDraft] = useState(project?.billingPlan ?? '');
   const [newModel, setNewModel] = useState('');
+  const [newMemberId, setNewMemberId] = useState('');
+  const [quotaDrafts, setQuotaDrafts] = useState<Record<string, string>>({});
   const [rpsDraft, setRpsDraft] = useState(limitToDraft(projectLimits.requests_per_second));
   const [rpdDraft, setRpdDraft] = useState(limitToDraft(projectLimits.requests_per_day));
   const [concurrentDraft, setConcurrentDraft] = useState(
@@ -167,6 +193,15 @@ export function ProjectSettingsView({
     if (!trimmedNewModel || models.includes(trimmedNewModel)) return;
     onAddModel(trimmedNewModel);
     setNewModel('');
+  };
+
+  const trimmedNewMemberId = newMemberId.trim();
+
+  const handleAddMember = () => {
+    if (!trimmedNewMemberId) return;
+    // New members join as plain members; promotion is a separate, deliberate action.
+    onAddMember(trimmedNewMemberId, 'member');
+    setNewMemberId('');
   };
 
   const parsedRps = parseLimitDraft(rpsDraft);
@@ -510,6 +545,128 @@ export function ProjectSettingsView({
                       </Text>
                     ) : null}
                   </Stack>
+                </SectionCard>
+              ) : null}
+
+              {canManageMembers ? (
+                <SectionCard
+                  title={t('settings.project.membersSection')}
+                  description={t('settings.project.membersDescription')}>
+                  {project?.isDefault ? (
+                    <Text intent="caption">{t('settings.project.membersDefaultProject')}</Text>
+                  ) : (
+                    <Stack gap="md">
+                      {isLoadingMembers ? (
+                        <Skeleton width={220} height={20} rounded="md" />
+                      ) : members.length === 0 ? (
+                        <Text intent="caption">{t('settings.project.membersEmpty')}</Text>
+                      ) : (
+                        <Stack gap="sm">
+                          {members.map((member) => {
+                            const isLead = member.role === 'lead';
+                            const quotaDraft =
+                              quotaDrafts[member.accountId] ?? member.quotaTier ?? '';
+                            return (
+                              <Stack key={member.accountId} gap="xs">
+                                <Stack direction="row" align="center" justify="between" gap="sm">
+                                  <Text intent="bodyStrong" style={{ flex: 1 }}>
+                                    {member.accountId}
+                                  </Text>
+                                  <Badge tone={isLead ? 'info' : 'neutral'}>
+                                    {isLead
+                                      ? t('settings.project.memberRoleLead')
+                                      : t('settings.project.memberRoleMember')}
+                                  </Badge>
+                                </Stack>
+                                <Stack direction="row" gap="sm" align="center" wrap="wrap">
+                                  <Button
+                                    variant="neutral"
+                                    size="sm"
+                                    disabled={isSavingMembers}
+                                    onPress={() =>
+                                      onSetMemberRole(
+                                        member.accountId,
+                                        isLead ? 'member' : 'lead'
+                                      )
+                                    }>
+                                    {isLead
+                                      ? t('settings.project.memberDemote')
+                                      : t('settings.project.memberPromote')}
+                                  </Button>
+                                  <Div style={{ flex: 1, minWidth: 140 }}>
+                                    <TextField
+                                      value={quotaDraft}
+                                      onChangeText={(value) =>
+                                        setQuotaDrafts((prev) => ({
+                                          ...prev,
+                                          [member.accountId]: value,
+                                        }))
+                                      }
+                                      placeholder={t('settings.project.memberQuotaPlaceholder')}
+                                      editable={!isSavingMembers}
+                                      autoCapitalize="none"
+                                      autoCorrect={false}
+                                      onSubmitEditing={() =>
+                                        onSetMemberQuotaTier(member.accountId, quotaDraft.trim())
+                                      }
+                                    />
+                                  </Div>
+                                  <Button
+                                    variant="neutral"
+                                    size="sm"
+                                    disabled={
+                                      isSavingMembers ||
+                                      quotaDraft.trim() === (member.quotaTier ?? '')
+                                    }
+                                    onPress={() =>
+                                      onSetMemberQuotaTier(member.accountId, quotaDraft.trim())
+                                    }>
+                                    {t('settings.project.memberQuotaSave')}
+                                  </Button>
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    disabled={isSavingMembers}
+                                    onPress={() => onRemoveMember(member.accountId)}
+                                    accessibilityLabel={t('settings.project.memberRemove', {
+                                      name: member.accountId,
+                                    })}>
+                                    {t('settings.project.memberRemoveLabel')}
+                                  </Button>
+                                </Stack>
+                              </Stack>
+                            );
+                          })}
+                        </Stack>
+                      )}
+
+                      <Stack direction="row" gap="sm" align="center">
+                        <Div style={{ flex: 1 }}>
+                          <TextField
+                            value={newMemberId}
+                            onChangeText={setNewMemberId}
+                            placeholder={t('settings.project.memberAddPlaceholder')}
+                            editable={!isSavingMembers}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            onSubmitEditing={handleAddMember}
+                          />
+                        </Div>
+                        <Button
+                          variant="neutral"
+                          size="sm"
+                          onPress={handleAddMember}
+                          disabled={!trimmedNewMemberId || isSavingMembers}>
+                          {t('settings.project.memberAdd')}
+                        </Button>
+                      </Stack>
+                      {memberError ? (
+                        <Text intent="caption" style={{ color: colors.error }}>
+                          {memberError}
+                        </Text>
+                      ) : null}
+                    </Stack>
+                  )}
                 </SectionCard>
               ) : null}
 

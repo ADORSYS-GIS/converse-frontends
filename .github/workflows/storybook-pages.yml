@@ -41,7 +41,7 @@ jobs:
         run: pnpm turbo run build-storybook
 
       - name: Set up GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Storybook artifact
         uses: actions/upload-pages-artifact@v5

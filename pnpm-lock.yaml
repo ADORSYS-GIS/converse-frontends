@@ -51,6 +51,9 @@ importers:
 
   apps/self-service:
     dependencies:
+      '@cratestack/api':
+        specifier: ^0.4.16
+        version: 0.4.16
       '@expo/vector-icons':
         specifier: 15.1.1
         version: 15.1.1(expo-font@55.0.7)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
@@ -239,6 +242,9 @@ importers:
 
   packages/authz-rpc:
     dependencies:
+      '@cratestack/api':
+        specifier: ^0.4.16
+        version: 0.4.16
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
@@ -969,6 +975,10 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
+
+  '@cratestack/api@0.4.16':
+    resolution: {integrity: sha512-ujFVaqTPFh02M5lqxfX5xHBMoS/lFyJpIfsJlBu2p/+P8PnFDROFHIn4sL7F0E8e1A8xROTLJzfognekW6j/OQ==}
+    engines: {node: '>=18'}
 
   '@egjs/hammerjs@2.0.17':
     resolution: {integrity: sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==}
@@ -7799,6 +7809,8 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@0.2.3': {}
+
+  '@cratestack/api@0.4.16': {}
 
   '@egjs/hammerjs@2.0.17':
     dependencies:

@@ -13,7 +13,10 @@ import {
   type CratestackRpcClientOptions,
   type CratestackRpcCodec,
 } from '../generated/src/runtime';
+import type { RpcLink } from '../generated/src/links';
 import { type Codec, defaultCodec } from './codec';
+
+export type { RpcLink } from '../generated/src/links';
 
 /**
  * Adapts our `Codec` (`encode(): Uint8Array`) to the generated `CratestackRpcCodec`
@@ -41,6 +44,13 @@ export type AuthzRpcRuntimeOptions = {
    *  `fetch`. Mainly for tests — the generated runtime's own `fetch` option is always set to
    *  `authenticatedFetch` by this class, so this is the real injection point instead. */
   fetch?: typeof fetch;
+  /** Passed straight through to the generated `CratestackRpcRuntime`'s composable interceptor
+   *  chain (cratestack issue #182). Construction-only, like `basePath`/`codec` above — changing
+   *  it on a later `configure()` call has no effect, since `configure()` only swaps the mutable
+   *  auth closures, not the underlying runtime. Omitted by default everywhere in this app today;
+   *  see `@cratestack/api`'s `createBatchLink()` for the automatic-batching link this exists to
+   *  support. */
+  links?: RpcLink[];
 };
 
 const REFRESH_COOLDOWN_MS = 60 * 1000;
@@ -64,6 +74,7 @@ export class AuthzRpcRuntime {
     this.runtime = new CratestackRpcRuntime(origin, {
       basePath: options.basePath,
       codec: toCratestackCodec(options.codec ?? defaultCodec()),
+      links: options.links,
       headers: async () => {
         const token = await this.authOptions.auth();
         const headers: Record<string, string> = {};

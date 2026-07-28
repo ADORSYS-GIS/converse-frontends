@@ -46,18 +46,15 @@ is monotonic and never committed back. Publishing is idempotent (skips a version
 already in the registry). Authenticates with the built-in `GITHUB_TOKEN` +
 `permissions: { packages: write }`, same as the image workflow.
 
-### 2. Agentic Code Review Workflows
-
-Several workflows power an AI-assisted review system:
+### 2. Agentic Code Review
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `qwen-review.yml` | `@qwen-code review` comment on PR | Triggers an on-demand agentic code review |
-| `qwen-dispatch.yml` | Dispatched by `qwen-review` | Runs the actual review agent |
-| `qwen-invoke.yml` | Called by dispatch | Invokes the underlying AI model |
-| `qwen-triage.yml` | Issue / PR events | Triages new issues/PRs with AI |
-| `qwen-scheduled-triage.yml` | Scheduled (cron) | Periodic triage of open items |
 | `opencode.yml` | Various | OpenCode AI agent workflow |
+
+The Qwen-based review/triage subsystem (`qwen-review.yml`, `qwen-dispatch.yml`,
+`qwen-invoke.yml`, `qwen-triage.yml`, `qwen-scheduled-triage.yml`) was removed —
+it had become noise rather than signal.
 
 ---
 

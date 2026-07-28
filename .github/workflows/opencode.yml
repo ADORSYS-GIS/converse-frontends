@@ -34,7 +34,7 @@ jobs:
     # never red-fails an unprepared repo); set OPENCODE_GATEWAY_AUDIENCE to enable.
     if: ${{ vars.OPENCODE_GATEWAY_AUDIENCE != '' }}
     # ADORSYS-GIS/ai-governance @ dc83d40d3dd36e53105a7b8c0f4af8946d9d4a58
-    uses: ADORSYS-GIS/ai-governance/.github/workflows/opencode-review.yml@dc83d40d3dd36e53105a7b8c0f4af8946d9d4a58
+    uses: ADORSYS-GIS/ai-governance/.github/workflows/opencode-review.yml@9a08ab57e0f651c7f7fbd42fe2768d1e113c55e5
     permissions:
       id-token: write # mint the GHA OIDC token (gateway auth)
       contents: write # checkout + the action's git ops

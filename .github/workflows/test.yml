@@ -31,7 +31,7 @@ jobs:
 
       - name: Cache cratestack-cli
         id: cratestack-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/bin/cratestack
           key: cratestack-cli-0.4.13-${{ runner.os }}-${{ runner.arch }}

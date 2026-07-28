@@ -1,0 +1,89 @@
+name: Quality
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['main']
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday 2 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  quality:
+    name: Code Quality Scan
+    runs-on: adorsys-gis-runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3a9b7a1ccad09a3a8e33c0d1a059f9510a9a5f59  # v4.1.0
+        with:
+          fetch-depth: 0  # Required for reviewdog diffs on PRs
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create reports directory
+        run: mkdir -p .ci/quality/reports
+
+      - name: Run quality checks
+        env:
+          CI: 'true'
+        run: .ci/quality/run.sh
+
+      - name: Merge SARIF reports
+        if: always()
+        run: .ci/quality/merge-sarif.sh
+
+      - name: Apply quality gate
+        if: always()
+        run: .ci/quality/gate.sh
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && github.event_name != 'pull_request' && vars.ENABLE_CODE_SCANNING == 'true'
+        uses: github/codeql-action/upload-sarif@461ef6c76dbb2f00f3024de635e4ee55e083440ba  # v3.24.0
+        with:
+          sarif_file: .ci/quality/reports/quality.sarif
+          category: quality-pipeline
+          wait-for-processing: false
+
+      - name: Upload reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: .ci/quality/reports/
+          retention-days: 30
+
+      - name: Comment PR with reviewdog
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if command -v reviewdog &> /dev/null; then
+            reviewdog -f sarif \
+              -name quality-pipeline \
+              -reporter github-pr-check \
+              -filter-mode added \
+              -fail-on-error < .ci/quality/reports/quality.sarif || true
+          else
+            echo "reviewdog not found in PATH; skipping PR check"
+            exit 0
+          fi

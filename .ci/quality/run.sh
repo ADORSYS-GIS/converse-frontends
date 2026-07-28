@@ -122,7 +122,10 @@ if [ ! -f Dockerfile ]; then
   echo "  ⊘ Dockerfile not found; skipping"
   echo "hadolint=skipped" >> "$STATUS_FILE"
 elif command -v hadolint &> /dev/null; then
-  hadolint --format sarif --no-fail -o "$REPORTS_DIR/hadolint.sarif" Dockerfile
+  # hadolint writes its report to stdout — there is no -o/--output flag
+  # (that name is taken by --file-path-in-report, which just rewrites the
+  # path shown inside the report, not where it's written).
+  hadolint --format sarif --no-fail Dockerfile > "$REPORTS_DIR/hadolint.sarif"
   hadolint_exit=$?
   # --no-fail means findings never cause a nonzero exit; any nonzero here is
   # a genuine execution error (e.g. Dockerfile failed to parse).

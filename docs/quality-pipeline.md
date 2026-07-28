@@ -192,9 +192,11 @@ node .ci/quality/scripts/prettier-to-sarif.js prettier-raw.log > prettier.sarif
 # findings (exit 1) from a genuine rule/config error (any other exit code).
 semgrep --config .ci/rules/semgrep --sarif --output semgrep.sarif --error .
 
-# Hadolint — emits SARIF natively, no converter. --no-fail means findings
-# never cause a nonzero exit, so any nonzero exit here is a real error.
-hadolint --format sarif --no-fail -o hadolint.sarif Dockerfile
+# Hadolint — emits SARIF natively to stdout (no -o/--output flag exists;
+# that name is --file-path-in-report, which rewrites the path shown inside
+# the report, not where it's written). --no-fail means findings never cause
+# a nonzero exit, so any nonzero exit here is a real error.
+hadolint --format sarif --no-fail Dockerfile > hadolint.sarif
 
 # Actionlint — -format takes a Go template, not a format name.
 # `actionlint -format json` is invalid and fails before linting anything.

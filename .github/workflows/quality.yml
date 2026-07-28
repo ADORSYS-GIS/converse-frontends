@@ -102,4 +102,4 @@ jobs:
             -name quality-pipeline \
             -reporter "$reporter" \
             -filter-mode added \
-            -fail-on-error < .ci/quality/reports/quality.sarif
+            -fail-level=error < .ci/quality/reports/quality.sarif

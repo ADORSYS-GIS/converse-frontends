@@ -1,197 +1,195 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # Quality pipeline runner
-# Orchestrates all SAST, linting, and maintainability checks
-# Produces individual SARIF reports under .ci/quality/reports/
+# Orchestrates all SAST, linting, and maintainability checks.
+# Produces individual SARIF reports under .ci/quality/reports/, plus a
+# scanner-status.txt manifest recording ok/skipped/error per tool — gate.sh
+# uses that manifest to fail on genuine scanner execution/config errors only.
+# Real findings (however many) are NOT a run.sh/gate.sh failure: severity-based
+# PR gating on added lines is reviewdog's job (.github/workflows/quality.yml).
 
 REPORTS_DIR=".ci/quality/reports"
 RULES_DIR=".ci/rules"
+STATUS_FILE="$REPORTS_DIR/scanner-status.txt"
 
-# Ensure reports directory exists
 mkdir -p "$REPORTS_DIR"
+: > "$STATUS_FILE"
 
 echo "=== Quality Pipeline ==="
 echo "Running SAST, linting, and code quality checks..."
 echo ""
 
-EXIT_CODE=0
-
-# =============================================================================
-# 1. ESLint with SARIF output
-# =============================================================================
-echo "[1/7] ESLint (Linting & SAST patterns)"
-if command -v eslint &> /dev/null; then
-  eslint_exit=0
-  pnpm exec eslint \
-    "**/*.{js,jsx,ts,tsx}" \
-    --format json \
-    --ignore-path .gitignore \
-    > "$REPORTS_DIR/eslint-raw.json" || eslint_exit=$?
-
-  # Convert ESLint JSON to SARIF
-  node .ci/quality/scripts/eslint-to-sarif.js \
-    "$REPORTS_DIR/eslint-raw.json" \
-    > "$REPORTS_DIR/eslint.sarif" || EXIT_CODE=$?
-
-  if [ $eslint_exit -gt 0 ]; then
-    echo "  ⚠ ESLint found issues (see report)"
+# record_status <tool> <exit_code> <ok_max_exit>
+# Exit codes above <ok_max_exit> (findings-only codes) are treated as a
+# scanner execution/config error. 128+ always means the process was killed
+# by a signal (OOM/segfault/abort) and is always an error.
+record_status() {
+  local tool="$1" exit_code="$2" ok_max="$3"
+  if [ "$exit_code" -ge 128 ]; then
+    echo "$tool=error" >> "$STATUS_FILE"
+    echo "  ✗ $tool CRASHED (killed by signal, exit $exit_code)"
+  elif [ "$exit_code" -le "$ok_max" ]; then
+    echo "$tool=ok" >> "$STATUS_FILE"
   else
-    echo "  ✓ ESLint passed"
+    echo "$tool=error" >> "$STATUS_FILE"
+    echo "  ✗ $tool exited $exit_code — execution/configuration error, not real findings"
   fi
-else
-  echo "  ⊘ ESLint not found; skipping"
-fi
+}
+
+# =============================================================================
+# 1. ESLint (Linting & SAST patterns)
+# =============================================================================
+echo "[1/7] ESLint"
+pnpm exec eslint "**/*.{js,jsx,ts,tsx}" --format json \
+  > "$REPORTS_DIR/eslint-raw.json" 2>"$REPORTS_DIR/eslint-raw.stderr"
+eslint_exit=$?
+node .ci/quality/scripts/eslint-to-sarif.js "$REPORTS_DIR/eslint-raw.json" \
+  > "$REPORTS_DIR/eslint.sarif"
+# ESLint: 0 = clean, 1 = lint findings, 2 = fatal/config error.
+record_status eslint "$eslint_exit" 1
 echo ""
 
 # =============================================================================
-# 2. TypeScript Compiler (Type Checking)
+# 2. TypeScript (Type checking)
 # =============================================================================
-echo "[2/7] TypeScript (Type checking)"
+echo "[2/7] TypeScript"
+: > "$REPORTS_DIR/typescript-raw.log"
 tsc_exit=0
-pnpm exec tsc --noEmit > "$REPORTS_DIR/typescript-raw.log" 2>&1 || tsc_exit=$?
-
-# Convert TypeScript output to SARIF
-node .ci/quality/scripts/typescript-to-sarif.js \
-  "$REPORTS_DIR/typescript-raw.log" \
-  > "$REPORTS_DIR/typescript.sarif" || EXIT_CODE=$?
-
-if [ $tsc_exit -eq 0 ]; then
-  echo "  ✓ TypeScript passed"
+# This monorepo has no root tsconfig.json — only individual workspaces do.
+# Type-check each one explicitly rather than invoking bare `tsc` at the root
+# (which has no config to find and just prints the CLI help text).
+TSCONFIGS=()
+while IFS= read -r cfg; do
+  TSCONFIGS+=("$cfg")
+done < <(find apps packages -maxdepth 2 -name tsconfig.json \
+  -not -path '*/node_modules/*' -not -path '*/generated/*' 2>/dev/null | sort)
+if [ "${#TSCONFIGS[@]}" -eq 0 ]; then
+  echo "  ⊘ No tsconfig.json found under apps/ or packages/; skipping"
+  echo "typescript=skipped" >> "$STATUS_FILE"
 else
-  echo "  ⚠ TypeScript found issues (see report)"
+  for cfg in "${TSCONFIGS[@]}"; do
+    echo "--- $cfg ---" >> "$REPORTS_DIR/typescript-raw.log"
+    pnpm exec tsc --noEmit -p "$cfg" >> "$REPORTS_DIR/typescript-raw.log" 2>&1
+    cfg_exit=$?
+    [ "$cfg_exit" -gt "$tsc_exit" ] && tsc_exit=$cfg_exit
+  done
+  node .ci/quality/scripts/typescript-to-sarif.js "$REPORTS_DIR/typescript-raw.log" \
+    > "$REPORTS_DIR/typescript.sarif"
+  # tsc: 0 = clean, nonzero = type errors reported (or a real config error,
+  # which the "no tsconfig" case above already prevents at the invocation level).
+  record_status typescript "$tsc_exit" 2
 fi
 echo ""
 
 # =============================================================================
-# 3. Prettier (Format Check)
+# 3. Prettier (Format check)
 # =============================================================================
-echo "[3/7] Prettier (Format check)"
-prettier_exit=0
-pnpm exec prettier \
-  "**/*.{js,jsx,ts,tsx,json,css,md}" \
-  --check \
-  --ignore-path .gitignore \
-  > "$REPORTS_DIR/prettier-raw.log" 2>&1 || prettier_exit=$?
-
-# Convert Prettier output to SARIF
-node .ci/quality/scripts/prettier-to-sarif.js \
-  "$REPORTS_DIR/prettier-raw.log" \
-  > "$REPORTS_DIR/prettier.sarif" || EXIT_CODE=$?
-
-if [ $prettier_exit -eq 0 ]; then
-  echo "  ✓ Prettier passed"
-else
-  echo "  ⚠ Prettier found format issues (see report)"
-fi
+echo "[3/7] Prettier"
+pnpm exec prettier "**/*.{js,jsx,ts,tsx,json,css,md}" --check --ignore-path .gitignore \
+  > "$REPORTS_DIR/prettier-raw.log" 2>&1
+prettier_exit=$?
+node .ci/quality/scripts/prettier-to-sarif.js "$REPORTS_DIR/prettier-raw.log" \
+  > "$REPORTS_DIR/prettier.sarif"
+# Prettier: 0 = formatted, 1 = format findings, 2 = actual error (e.g. parse failure).
+record_status prettier "$prettier_exit" 1
 echo ""
 
 # =============================================================================
-# 4. Semgrep (SAST - Local Rules)
+# 4. Semgrep (SAST — local rules only, native SARIF output)
 # =============================================================================
-echo "[4/7] Semgrep (SAST - Local rules)"
+echo "[4/7] Semgrep"
 if command -v semgrep &> /dev/null; then
-  semgrep_exit=0
-  semgrep \
-    --config "$RULES_DIR/semgrep" \
-    --sarif \
-    --output "$REPORTS_DIR/semgrep.sarif" \
-    . || semgrep_exit=$?
-
-  if [ $semgrep_exit -eq 0 ]; then
-    echo "  ✓ Semgrep passed (no rule violations)"
-  else
-    echo "  ⚠ Semgrep found findings (see report)"
-  fi
+  semgrep --config "$RULES_DIR/semgrep" \
+    --sarif --output "$REPORTS_DIR/semgrep.sarif" \
+    --error --metrics=off \
+    . > "$REPORTS_DIR/semgrep-console.log" 2>&1
+  semgrep_exit=$?
+  # --error: 0 = clean, 1 = real findings. Anything else (rule/config errors,
+  # e.g. invalid YAML or an unparseable pattern) is a genuine scanner error.
+  record_status semgrep "$semgrep_exit" 1
 else
-  echo "  ⊘ Semgrep not found; skipping"
+  echo "  ⊘ semgrep not found; skipping"
+  echo "semgrep=skipped" >> "$STATUS_FILE"
 fi
 echo ""
 
 # =============================================================================
-# 5. Hadolint (Dockerfile Linting)
+# 5. Hadolint (Dockerfile linting, native SARIF output)
 # =============================================================================
-echo "[5/7] Hadolint (Dockerfile linting)"
-if [ -f Dockerfile ] && command -v hadolint &> /dev/null; then
-  hadolint_exit=0
-  hadolint \
-    --format json \
-    Dockerfile \
-    > "$REPORTS_DIR/hadolint-raw.json" 2>&1 || hadolint_exit=$?
-
-  # Convert Hadolint JSON to SARIF
-  node .ci/quality/scripts/hadolint-to-sarif.js \
-    "$REPORTS_DIR/hadolint-raw.json" \
-    > "$REPORTS_DIR/hadolint.sarif" || EXIT_CODE=$?
-
-  if [ $hadolint_exit -eq 0 ]; then
-    echo "  ✓ Hadolint passed"
-  else
-    echo "  ⚠ Hadolint found issues (see report)"
-  fi
+echo "[5/7] Hadolint"
+if [ ! -f Dockerfile ]; then
+  echo "  ⊘ Dockerfile not found; skipping"
+  echo "hadolint=skipped" >> "$STATUS_FILE"
+elif command -v hadolint &> /dev/null; then
+  # hadolint writes its report to stdout — there is no -o/--output flag
+  # (that name is taken by --file-path-in-report, which just rewrites the
+  # path shown inside the report, not where it's written).
+  hadolint --format sarif --no-fail Dockerfile > "$REPORTS_DIR/hadolint.sarif"
+  hadolint_exit=$?
+  # --no-fail means findings never cause a nonzero exit; any nonzero here is
+  # a genuine execution error (e.g. Dockerfile failed to parse).
+  record_status hadolint "$hadolint_exit" 0
 else
-  if [ ! -f Dockerfile ]; then
-    echo "  ⊘ Dockerfile not found; skipping"
-  else
-    echo "  ⊘ Hadolint not found; skipping"
-  fi
+  echo "  ⊘ hadolint not found; skipping"
+  echo "hadolint=skipped" >> "$STATUS_FILE"
 fi
 echo ""
 
 # =============================================================================
-# 6. Actionlint (GitHub Actions Workflow Validation)
+# 6. Actionlint (GitHub Actions workflow validation)
 # =============================================================================
-echo "[6/7] Actionlint (GitHub Actions workflows)"
+echo "[6/7] Actionlint"
 if command -v actionlint &> /dev/null; then
-  actionlint_exit=0
-  actionlint \
-    -format json \
-    .github/workflows/*.yml \
-    > "$REPORTS_DIR/actionlint-raw.json" 2>&1 || actionlint_exit=$?
-
-  # Convert actionlint JSON to SARIF
-  node .ci/quality/scripts/actionlint-to-sarif.js \
-    "$REPORTS_DIR/actionlint-raw.json" \
-    > "$REPORTS_DIR/actionlint.sarif" || EXIT_CODE=$?
-
-  if [ $actionlint_exit -eq 0 ]; then
-    echo "  ✓ Actionlint passed"
-  else
-    echo "  ⚠ Actionlint found issues (see report)"
-  fi
+  # -format takes a Go template, not a format name — '{{json .}}' is the
+  # documented way to get JSON output (`actionlint -format json` is invalid
+  # and fails before linting anything).
+  actionlint -format '{{json .}}' .github/workflows/*.yml \
+    > "$REPORTS_DIR/actionlint-raw.json" 2>"$REPORTS_DIR/actionlint-raw.stderr"
+  actionlint_exit=$?
+  node .ci/quality/scripts/actionlint-to-sarif.js "$REPORTS_DIR/actionlint-raw.json" \
+    > "$REPORTS_DIR/actionlint.sarif"
+  # actionlint: 0 = clean, 1 = findings.
+  record_status actionlint "$actionlint_exit" 1
 else
-  echo "  ⊘ Actionlint not found; skipping"
+  echo "  ⊘ actionlint not found; skipping"
+  echo "actionlint=skipped" >> "$STATUS_FILE"
 fi
 echo ""
 
 # =============================================================================
-# 7. jscpd (Code Duplication Detection)
+# 7. jscpd (Code duplication, native SARIF output)
 # =============================================================================
-echo "[7/7] jscpd (Code duplication)"
+echo "[7/7] jscpd"
 if command -v jscpd &> /dev/null; then
-  jscpd_exit=0
-  jscpd \
-    --reporters json \
-    --output "$REPORTS_DIR/jscpd-raw.json" \
-    . || jscpd_exit=$?
-
-  # Convert jscpd output to SARIF
-  node .ci/quality/scripts/jscpd-to-sarif.js \
-    "$REPORTS_DIR/jscpd-raw.json" \
-    > "$REPORTS_DIR/jscpd.sarif" || EXIT_CODE=$?
-
-  if [ $jscpd_exit -eq 0 ]; then
-    echo "  ✓ jscpd passed (no significant duplication)"
-  else
-    echo "  ⚠ jscpd found duplication (see report)"
+  # Scoped to apps/+packages/ (not repo root) and with explicit --ignore
+  # globs: scanning "." unfiltered previously walked node_modules, .git,
+  # dist, .turbo, etc. and OOM-crashed the Node process.
+  jscpd --reporters sarif \
+    --output "$REPORTS_DIR/jscpd" \
+    --ignore "**/node_modules/**,**/.git/**,**/dist/**,**/.turbo/**,**/build-storybook/**,**/storybook-static/**,**/generated/**,**/.expo/**,**/web-build/**,**/coverage/**" \
+    apps packages > "$REPORTS_DIR/jscpd-console.log" 2>&1
+  jscpd_exit=$?
+  if [ -f "$REPORTS_DIR/jscpd/jscpd-sarif.json" ]; then
+    mv "$REPORTS_DIR/jscpd/jscpd-sarif.json" "$REPORTS_DIR/jscpd.sarif"
   fi
+  # jscpd has no --threshold/--exitCode set here, so it only exits nonzero on
+  # a genuine crash — never for duplication found.
+  record_status jscpd "$jscpd_exit" 0
 else
   echo "  ⊘ jscpd not found; skipping"
+  echo "jscpd=skipped" >> "$STATUS_FILE"
 fi
 echo ""
 
 echo "=== Summary ==="
 echo "All enabled scanners completed. Reports available in: $REPORTS_DIR"
+cat "$STATUS_FILE"
 echo ""
 
-exit $EXIT_CODE
+# run.sh itself only fails on a genuine scanner error — gate.sh re-checks
+# this same manifest and is the authoritative pass/fail decision for CI.
+if grep -q '=error$' "$STATUS_FILE"; then
+  exit 1
+fi
+exit 0

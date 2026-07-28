@@ -66,6 +66,11 @@ jobs:
 
       - name: Upload reports as artifacts
         if: always()
+        # Best-effort: this is GitHub's own Actions artifact storage, a
+        # separate mechanism from any org-level object storage used for
+        # build/test caching. An org-level storage quota issue here is an
+        # infra concern, not a scanner failure — don't fail the job over it.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: quality-reports
@@ -75,15 +80,26 @@ jobs:
       - name: Comment PR with reviewdog
         if: always() && github.event_name == 'pull_request'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          # reviewdog's GitHub reporters read this specific variable name —
+          # NOT GITHUB_TOKEN, which it does not look at.
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+          IS_FORK_PR: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          if command -v reviewdog &> /dev/null; then
-            reviewdog -f sarif \
-              -name quality-pipeline \
-              -reporter github-pr-check \
-              -filter-mode added \
-              -fail-on-error < .ci/quality/reports/quality.sarif || true
-          else
+          if ! command -v reviewdog &> /dev/null; then
             echo "reviewdog not found in PATH; skipping PR check"
             exit 0
           fi
+          # Fork PRs get a read-only GITHUB_TOKEN with no Checks/PR write
+          # access, so github-pr-check would fail on a permissions error.
+          # Degrade to plain workflow annotations, which only need read access.
+          if [ "$IS_FORK_PR" = "true" ]; then
+            reporter="github-actions"
+            echo "Fork PR detected — falling back to the $reporter reporter"
+          else
+            reporter="github-pr-check"
+          fi
+          reviewdog -f sarif \
+            -name quality-pipeline \
+            -reporter "$reporter" \
+            -filter-mode added \
+            -fail-level=error < .ci/quality/reports/quality.sarif

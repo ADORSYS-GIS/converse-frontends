@@ -34,44 +34,53 @@ The quality pipeline is an offline-capable, self-hosted code quality scanning sy
        │  - Tolerates missing tools gracefully        │
        └────────────┬─────────────────────────────────┘
                     │
-       ┌────────────┴───────────────────────────────────────────────┐
-       │                                                             │
-       ▼           ▼           ▼          ▼         ▼        ▼
-    ESLint    TypeScript   Prettier   Semgrep  Hadolint Actionlint jscpd
-    ──────────────────────────────────────────────────────────────────
-    .json   .log/.json     stdout      .sarif    .json     .json     .json
-       │           │          │         │         │         │         │
-       └───────────┴──────────┴─────────┴─────────┴─────────┴─────────┘
-                              │
-       ┌──────────────────────▼──────────────────────┐
-       │  Converters (Node.js scripts)               │
-       │  - eslint-to-sarif.js                       │
-       │  - typescript-to-sarif.js                   │
-       │  - prettier-to-sarif.js                     │
-       │  - hadolint-to-sarif.js                     │
-       │  - actionlint-to-sarif.js                   │
-       │  - jscpd-to-sarif.js                        │
-       └──────────────────────┬──────────────────────┘
-                              │
+       ┌────────────┴──────────────────────────────────────────────────────┐
+       │                                                                    │
+       ▼          ▼           ▼           ▼            ▼          ▼        ▼
+    ESLint   TypeScript   Prettier    Semgrep      Hadolint   Actionlint  jscpd
+    ────────────────────────────────────────────────────────────────────────
+    .json    .log         stdout    .sarif       .sarif      .json      .sarif
+             (per-tsconfig)         (native)     (native)               (native)
+       │          │           │         │            │           │        │
+       └──────────┴───────────┴─────────┼────────────┴───────────┘        │
+                              │         │                                 │
+       ┌──────────────────────▼──────────────────────┐                    │
+       │  Converters (Node.js, non-native tools only) │                    │
+       │  - eslint-to-sarif.js                        │                    │
+       │  - typescript-to-sarif.js                     │                    │
+       │  - prettier-to-sarif.js                       │                    │
+       │  - actionlint-to-sarif.js                     │                    │
+       └──────────────────────┬──────────────────────┘                    │
+                              │                                            │
+                              └────────────────┬───────────────────────────┘
+                                               │
        ┌──────────────────────▼──────────────────────┐
        │  .ci/quality/merge-sarif.sh                 │
        │  → Combines all SARIF into quality.sarif    │
        └──────────────────────┬──────────────────────┘
                               │
-       ┌──────────────────────▼──────────────────────┐
-       │  .ci/quality/gate.sh                        │
-       │  - Evaluates pass/fail criteria             │
-       │  - Counts critical/high/medium/low          │
-       │  - Returns exit code for CI                 │
-       └──────────────────────┬──────────────────────┘
+       ┌──────────────────────▼──────────────────────────────────┐
+       │  .ci/quality/gate.sh                                    │
+       │  - FAILS only on scanner execution/config errors        │
+       │    (reads scanner-status.txt written by run.sh)         │
+       │  - Prints repo-wide severity counts (informational      │
+       │    only — never gates on them; that would fail every    │
+       │    PR on the pre-existing backlog)                      │
+       └──────────────────────┬──────────────────────────────────┘
                               │
        ┌──────────────────────┴───────────────────────┐
        │                                              │
        ▼                                              ▼
    GitHub Code Scanning          GitHub PR Checks (reviewdog)
-   (optional, main branch)        (filter-mode: added)
+   (optional, main branch)       -filter-mode=added -fail-on-error
+                                 → the ONLY thing that fails a PR on
+                                   findings, and only new ones
        └──────────────────────────────────────────────┘
 ```
+
+Semgrep, Hadolint, and jscpd all emit SARIF **natively** — no converter
+needed for them. ESLint, TypeScript, and Prettier have no built-in SARIF
+output, so small Node.js scripts convert their native formats.
 
 ## Enabled Scanners & Replacements
 
@@ -165,31 +174,39 @@ cat .ci/quality/reports/quality.sarif | jq '.runs[].results | length'
 
 ```bash
 # ESLint
-pnpm exec eslint "**/*.{js,jsx,ts,tsx}" --format json | \
-  node .ci/quality/scripts/eslint-to-sarif.js
+pnpm exec eslint "**/*.{js,jsx,ts,tsx}" --format json > eslint-raw.json
+node .ci/quality/scripts/eslint-to-sarif.js eslint-raw.json > eslint.sarif
 
-# TypeScript
-pnpm exec tsc --noEmit 2>&1 | \
-  node .ci/quality/scripts/typescript-to-sarif.js /dev/stdin
+# TypeScript — no root tsconfig.json exists, so each workspace's tsconfig
+# must be checked explicitly. Bare `tsc --noEmit` at the repo root has no
+# config to find and just prints the CLI help text (exit 1, zero real checks).
+pnpm exec tsc --noEmit -p apps/self-service/tsconfig.json > tsc-raw.log 2>&1
+pnpm exec tsc --noEmit -p packages/ui/tsconfig.json >> tsc-raw.log 2>&1
+node .ci/quality/scripts/typescript-to-sarif.js tsc-raw.log > typescript.sarif
 
 # Prettier (format check)
-pnpm exec prettier "**/*" --check 2>&1 | \
-  node .ci/quality/scripts/prettier-to-sarif.js /dev/stdin
+pnpm exec prettier "**/*.{js,jsx,ts,tsx,json,css,md}" --check > prettier-raw.log 2>&1
+node .ci/quality/scripts/prettier-to-sarif.js prettier-raw.log > prettier.sarif
 
-# Semgrep
-semgrep --config .ci/rules/semgrep --sarif .
+# Semgrep — emits SARIF natively, no converter. --error distinguishes real
+# findings (exit 1) from a genuine rule/config error (any other exit code).
+semgrep --config .ci/rules/semgrep --sarif --output semgrep.sarif --error .
 
-# Hadolint
-hadolint --format json Dockerfile | \
-  node .ci/quality/scripts/hadolint-to-sarif.js /dev/stdin
+# Hadolint — emits SARIF natively, no converter. --no-fail means findings
+# never cause a nonzero exit, so any nonzero exit here is a real error.
+hadolint --format sarif --no-fail -o hadolint.sarif Dockerfile
 
-# Actionlint
-actionlint -format json .github/workflows/*.yml | \
-  node .ci/quality/scripts/actionlint-to-sarif.js /dev/stdin
+# Actionlint — -format takes a Go template, not a format name.
+# `actionlint -format json` is invalid and fails before linting anything.
+actionlint -format '{{json .}}' .github/workflows/*.yml > actionlint-raw.json
+node .ci/quality/scripts/actionlint-to-sarif.js actionlint-raw.json > actionlint.sarif
 
-# jscpd
-jscpd --reporters json . | \
-  node .ci/quality/scripts/jscpd-to-sarif.js /dev/stdin
+# jscpd — emits SARIF natively (jscpd-sarif.json under --output), no
+# converter. Scanning "." unfiltered walks node_modules/.git/dist/etc. and
+# can OOM-crash the process — scope to apps/packages with explicit --ignore.
+jscpd --reporters sarif --output ./jscpd-report \
+  --ignore "**/node_modules/**,**/.git/**,**/dist/**,**/.turbo/**,**/generated/**" \
+  apps packages
 ```
 
 ## Pull Request Workflow
@@ -199,11 +216,15 @@ When a PR is opened:
 1. **Workflow triggers** on `pull_request` with `fetch-depth: 0`
 2. **All scanners run** independently
 3. **SARIF files merge** into `quality.sarif`
-4. **Gate evaluates** critical/high findings
+4. **`gate.sh` checks scanner health** — fails only if a tool crashed or
+   mis-configured; does NOT fail on the repo-wide finding count (that would
+   fail every PR on the existing backlog)
 5. **reviewdog posts** GitHub PR check with:
-   - `reporter=github-pr-check` (GitHub Check API)
+   - `reporter=github-pr-check` (GitHub Check API) — or `github-actions`
+     (workflow annotations) on fork PRs, where the token can't write checks
    - `filter-mode=added` (only new/modified lines)
-   - `fail-on-error=true` (fails on error level only)
+   - `fail-on-error=true` — this is what actually fails the PR check, and
+     only for new `error`-level findings in the diff
 6. **PR author** reviews check and either:
    - Fixes findings (preferred)
    - Suppresses with documented reason (if acceptable)
@@ -213,7 +234,7 @@ When a PR is opened:
 
 ```
 Quality Pipeline · 3 annotations
-  ✗ ESLint · security/no-hardcoded-secrets
+  ✗ Semgrep · typescript.security.no-hardcoded-secrets
     line 42: Hardcoded API key. Use environment variables.
     
   ⚠ Prettier · format/indent
@@ -237,21 +258,35 @@ Add new rules to `.ci/rules/semgrep/`:
 ```
 
 Each rule includes:
-- `id`: Unique identifier (e.g., `typescript.security/no-hardcoded-secrets`)
-- `pattern`: YAML/regex pattern to match
+- `id`: Unique identifier — Semgrep only allows `[a-zA-Z0-9._-]`, so use dots
+  as separators (e.g., `typescript.security.no-hardcoded-secrets`), never `/`
+- `pattern`: Semgrep pattern syntax to match — must be valid, parseable code
+  for the target language (a JSX attribute like `foo={{ bar: baz }}` needs
+  to be wrapped in an element pattern, e.g. `<$TAG ... foo={$BAR} ... />`,
+  not written as a bare standalone fragment)
 - `message`: Human-readable explanation
-- `severity`: `ERROR`, `WARNING`, or `NOTE`
+- `severity`: `ERROR`, `WARNING`, or `INFO` (not `NOTE` — that value doesn't
+  exist and fails rule validation; `INFO` maps to SARIF's `note` level)
 - `languages`: Target languages (e.g., `typescript`, `javascript`)
 
 **Example rule:**
 ```yaml
 rules:
-  - id: typescript.security/dangerous-regexp
+  - id: typescript.security.dangerous-regexp
     patterns:
       - pattern: new RegExp($EXPR)  # Without Regex.escape or validation
     message: Regular expression from untrusted input is a ReDoS risk.
     severity: WARNING
     languages: [typescript, javascript]
+```
+
+Validate a rule file before committing — an invalid rule silently makes
+Semgrep report **zero findings** for the whole config, not just that rule:
+
+```bash
+semgrep --config .ci/rules/semgrep --sarif --output /tmp/test.sarif --error .
+jq '.runs[0].invocations[0].toolExecutionNotifications' /tmp/test.sarif
+# [] means every rule loaded cleanly
 ```
 
 ### Tool Versions
@@ -333,19 +368,25 @@ On expiration date, re-evaluate and either:
 
 ## Quality Gate Thresholds
 
-**Fails CI (exit 1):**
-- Scanner execution errors (missing tool, config error)
-- Critical/error-level findings (security-critical)
-- Confirmed secret leaks (from Gitleaks, if present)
+Two independent mechanisms, deliberately not merged into one:
 
-**Warns (yellow, doesn't fail):**
-- High-level findings (architectural issues)
-- Medium/low findings (notes and suggestions)
+**`gate.sh` fails CI (exit 1) only for:**
+- A scanner execution/configuration error — a tool crashing (OOM, signal
+  kill), a missing required tool, an invalid rule file, or a missing/invalid
+  merged SARIF. Tracked per-tool in `scanner-status.txt`, written by `run.sh`.
+- It never fails based on the number of findings in the merged SARIF — that
+  SARIF is repo-wide, and gating on it would fail every PR on the backlog.
+
+**reviewdog fails the PR check only for:**
+- A newly-introduced `error`-level finding on an added/changed line
+  (`-filter-mode=added -fail-on-error`, pull_request event only)
+- Warnings and notes are posted as annotations without failing
 
 **PR Behavior:**
-- Only **new/modified** findings are reported to PR comments
-- Baseline findings are NOT re-reported
-- Historical findings remain in artifacts for reference
+- Only **new/modified** findings can fail the check — via reviewdog, not `gate.sh`
+- Baseline findings are NOT re-reported and never fail a PR on their own
+- Historical findings remain in the merged SARIF artifact and in `gate.sh`'s
+  informational summary for reference
 
 ## GitHub Code Scanning Integration (Optional)
 
@@ -400,9 +441,12 @@ Solution:
 
 Ensure:
 - Workflow has `pull-requests: write` permission
-- `GITHUB_TOKEN` is available
+- `REVIEWDOG_GITHUB_API_TOKEN` is set — reviewdog's GitHub reporters read
+  this specific variable name, **not** `GITHUB_TOKEN`
 - SARIF file is valid: `jq empty .ci/quality/reports/quality.sarif`
 - Run `reviewdog -v` to verify installation
+- On a fork PR, expect the `github-actions` reporter (workflow annotations)
+  instead of `github-pr-check` — a fork's token can't write PR checks
 
 ### SARIF validation fails
 

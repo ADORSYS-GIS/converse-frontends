@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * Convert Prettier format check output to SARIF format
+ * Convert Prettier `--check` output to SARIF format
  * Usage: node prettier-to-sarif.js <prettier-output.log>
  */
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const inputFile = process.argv[2];
 
@@ -24,35 +23,35 @@ try {
 
 const sarrifResults = [];
 
-// Prettier output contains file paths that don't match the format check
-// Extract files from stderr/stdout lines like: "path/to/file.ts"
+// Real `prettier --check` output looks like:
+//   Checking formatting...
+//   [warn] path/to/file.ts
+//   [warn] Code style issues found in the above file(s). Run Prettier with --write to fix.
 const lines = logContent.split('\n');
 lines.forEach((line) => {
-  const trimmed = line.trim();
-  if (trimmed && !trimmed.startsWith('[') && trimmed.endsWith('.ts') || trimmed.endsWith('.tsx') || trimmed.endsWith('.js') || trimmed.endsWith('.jsx') || trimmed.endsWith('.json') || trimmed.endsWith('.css') || trimmed.endsWith('.md')) {
-    // This is a file path
-    if (fs.existsSync(trimmed)) {
-      sarrifResults.push({
-        ruleId: 'prettier/format',
-        level: 'note',
-        message: {
-          text: 'File does not match Prettier formatting.',
-        },
-        locations: [
-          {
-            physicalLocation: {
-              artifactLocation: {
-                uri: path.relative(process.cwd(), trimmed).replace(/\\/g, '/'),
-              },
-              region: {
-                startLine: 1,
-                startColumn: 1,
-              },
+  const trimmed = line.trim().replace(/^\[(warn|error)\]\s*/, '');
+  const isSourceFile = /\.(ts|tsx|js|jsx|json|css|md)$/.test(trimmed);
+  if (isSourceFile && fs.existsSync(trimmed)) {
+    sarrifResults.push({
+      ruleId: 'prettier/format',
+      level: 'note',
+      message: {
+        text: 'File does not match Prettier formatting.',
+      },
+      locations: [
+        {
+          physicalLocation: {
+            artifactLocation: {
+              uri: path.relative(process.cwd(), trimmed).replace(/\\/g, '/'),
+            },
+            region: {
+              startLine: 1,
+              startColumn: 1,
             },
           },
-        ],
-      });
-    }
+        },
+      ],
+    });
   }
 });
 

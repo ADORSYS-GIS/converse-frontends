@@ -22,9 +22,10 @@ try {
   results = [];
 }
 
-// actionlint returns an array of issue objects
+// actionlint (invoked with -format '{{json .}}') returns an array of issue
+// objects: { message, filepath, line, column, end_column, kind, snippet }
 const sarrifResults = results.map((issue) => ({
-  ruleId: issue.rule || 'actionlint/unknown',
+  ruleId: issue.kind || 'actionlint/unknown',
   level: 'warning', // actionlint doesn't distinguish severity; treat as warning
   message: {
     text: issue.message,
@@ -39,7 +40,7 @@ const sarrifResults = results.map((issue) => ({
           startLine: issue.line || 1,
           startColumn: issue.column || 1,
           endLine: issue.line || 1,
-          endColumn: (issue.column || 1) + 1,
+          endColumn: issue.end_column || (issue.column || 1) + 1,
         },
       },
     },

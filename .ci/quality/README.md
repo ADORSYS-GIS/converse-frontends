@@ -66,35 +66,49 @@ cat .ci/quality/reports/quality.sarif
 # ESLint
 pnpm exec eslint "**/*.{js,jsx,ts,tsx}" --format json
 
-# TypeScript
-pnpm exec tsc --noEmit
+# TypeScript — this monorepo has no root tsconfig.json, only per-workspace
+# ones. Run each explicitly; bare `tsc --noEmit` at the root just prints
+# the CLI help text and exits 1 (looks like "found issues" but checked nothing).
+pnpm exec tsc --noEmit -p apps/self-service/tsconfig.json
+pnpm exec tsc --noEmit -p packages/ui/tsconfig.json
 
 # Prettier
 pnpm exec prettier "**/*.{js,jsx,ts,tsx,json,css,md}" --check
 
-# Semgrep
-semgrep --config .ci/rules/semgrep --sarif .
+# Semgrep — emits SARIF natively, no converter needed. --error makes it
+# exit 1 on real findings (vs 0 on clean) so a genuine rule/config error
+# (any other exit code) is distinguishable from findings.
+semgrep --config .ci/rules/semgrep --sarif --output semgrep.sarif --error .
 
-# Hadolint
-hadolint --format json Dockerfile
+# Hadolint — emits SARIF natively to stdout (no -o/--output flag exists;
+# that name is --file-path-in-report, which rewrites the path shown inside
+# the report, not where it's written). --no-fail means findings never cause
+# a nonzero exit; a nonzero exit here is a real error.
+hadolint --format sarif --no-fail Dockerfile > hadolint.sarif
 
-# Actionlint
-actionlint -format json .github/workflows/*.yml
+# Actionlint — -format takes a Go template, not a format name.
+# `actionlint -format json` is invalid syntax and fails before linting anything.
+actionlint -format '{{json .}}' .github/workflows/*.yml
 
-# jscpd
-jscpd --reporters json .
+# jscpd — emits SARIF natively (jscpd-sarif.json in --output dir), no
+# converter needed. Explicit --ignore + scoping to apps/packages is required:
+# scanning "." unfiltered walks node_modules/.git/dist/etc. and OOM-crashes.
+jscpd --reporters sarif --output ./jscpd-report \
+  --ignore "**/node_modules/**,**/.git/**,**/dist/**,**/.turbo/**,**/generated/**" \
+  apps packages
 ```
 
 ## SARIF Converters
 
-The pipeline includes Node.js scripts that convert tool-specific output formats to SARIF 2.1.0:
+Semgrep, Hadolint, and jscpd all emit SARIF natively — `run.sh` uses their
+output directly, no conversion step. The remaining tools' native output
+formats get converted to SARIF 2.1.0 by small Node.js scripts in
+`.ci/quality/scripts/`:
 
 - `eslint-to-sarif.js`: ESLint JSON → SARIF
 - `typescript-to-sarif.js`: TypeScript compiler log → SARIF
 - `prettier-to-sarif.js`: Prettier check output → SARIF
-- `hadolint-to-sarif.js`: Hadolint JSON → SARIF
-- `actionlint-to-sarif.js`: actionlint JSON → SARIF
-- `jscpd-to-sarif.js`: jscpd JSON → SARIF
+- `actionlint-to-sarif.js`: actionlint JSON (via `-format '{{json .}}'`) → SARIF
 - `merge-sarif.js`: Merge multiple SARIF files
 
 Each converter is invoked from `run.sh` and handles parsing, normalization, and SARIF schema compliance.
@@ -136,18 +150,25 @@ Add findings to `.ci/baselines/.semgrep.json` (managed manually or via `semgrep 
 
 ## Quality Gate Thresholds
 
-**Fail (CI red):**
-- Scanner execution errors or missing tool
-- Critical/error-level findings (security-critical issues, confirmed secrets)
+`gate.sh` and reviewdog own two different, deliberately separate jobs:
 
-**Warn (CI yellow, doesn't fail):**
-- High-severity findings
-- Medium/low findings are informational
+**`gate.sh` fails (CI red) only on genuine scanner execution/configuration
+errors** — a tool crashing, a rule file failing to parse, a missing/invalid
+merged SARIF. It reads `.ci/quality/reports/scanner-status.txt` (written by
+`run.sh`, one `tool=ok|skipped|error` line per scanner) and fails if any
+tool is marked `error`. It does **not** fail based on the number or severity
+of findings in the merged SARIF — that SARIF is repo-wide, and gating on it
+would fail every PR on the pre-existing backlog.
+
+**reviewdog fails the PR check only for newly-introduced `error`-level
+findings**, scoped to the diff (`-filter-mode added -fail-on-error`, PR
+event only). It is diff-aware; `gate.sh` is not — that's why the two are
+split. Warnings/notes are reported as annotations without failing.
 
 **PR Behavior:**
-- Only NEW findings are reported to the PR (not baseline findings)
-- Reviewdog filters to added/modified lines (use `-filter-mode added`)
-- Historical findings remain in merged SARIF artifact for reference
+- Only NEW findings (added/modified lines) can fail the check, via reviewdog
+- Historical/backlog findings remain visible in the merged SARIF artifact
+  and in `gate.sh`'s informational summary, but never fail CI on their own
 
 ## GitHub Code Scanning (Optional)
 
@@ -231,14 +252,17 @@ jq . .ci/quality/reports/eslint.sarif
 
 Ensure:
 - Workflow has `pull-requests: write` permission
-- `GITHUB_TOKEN` is set
+- `REVIEWDOG_GITHUB_API_TOKEN` is set — reviewdog's GitHub reporters read
+  this specific variable name, **not** `GITHUB_TOKEN`
 - reviewdog is installed on the runner
 - SARIF file exists and is valid
+- For fork PRs, the workflow falls back to the `github-actions` reporter
+  (workflow annotations) since a fork's `GITHUB_TOKEN` can't write PR checks
 
 Test locally:
 
 ```bash
-reviewdog -f sarif -reporter github-pr-check < .ci/quality/reports/quality.sarif
+REVIEWDOG_GITHUB_API_TOKEN=$GITHUB_TOKEN reviewdog -f sarif -reporter github-pr-check < .ci/quality/reports/quality.sarif
 ```
 
 ## See Also

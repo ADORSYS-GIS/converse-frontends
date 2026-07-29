@@ -43,13 +43,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.local/bin/cratestack
-          key: cratestack-cli-0.4.13-${{ runner.os }}-${{ runner.arch }}
+          key: cratestack-cli-0.4.16-${{ runner.os }}-${{ runner.arch }}
 
-      # 0.4.13 ships prebuilt binaries on GH Releases — no Rust toolchain needed.
+      # 0.4.16 ships prebuilt binaries on GH Releases — no Rust toolchain needed.
       - name: Install cratestack-cli
         if: steps.cratestack-cache.outputs.cache-hit != 'true'
         env:
-          CRATESTACK_VERSION: '0.4.13'
+          CRATESTACK_VERSION: '0.4.16'
         run: |
           set -euo pipefail
           case "$(uname -m)" in

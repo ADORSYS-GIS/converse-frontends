@@ -1,0 +1,105 @@
+name: Quality
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['main']
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday 2 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  quality:
+    name: Code Quality Scan
+    runs-on: adorsys-gis-runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0  # Required for reviewdog diffs on PRs
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create reports directory
+        run: mkdir -p .ci/quality/reports
+
+      - name: Run quality checks
+        env:
+          CI: 'true'
+        run: .ci/quality/run.sh
+
+      - name: Merge SARIF reports
+        if: always()
+        run: .ci/quality/merge-sarif.sh
+
+      - name: Apply quality gate
+        if: always()
+        run: .ci/quality/gate.sh
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && github.event_name != 'pull_request' && vars.ENABLE_CODE_SCANNING == 'true'
+        uses: github/codeql-action/upload-sarif@4187e74d05793876e9989daffde9c3e66b4acd07  # v3.37.3
+        with:
+          sarif_file: .ci/quality/reports/quality.sarif
+          category: quality-pipeline
+          wait-for-processing: false
+
+      - name: Upload reports as artifacts
+        if: always()
+        # Best-effort: this is GitHub's own Actions artifact storage, a
+        # separate mechanism from any org-level object storage used for
+        # build/test caching. An org-level storage quota issue here is an
+        # infra concern, not a scanner failure — don't fail the job over it.
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: quality-reports
+          path: .ci/quality/reports/
+          retention-days: 30
+
+      - name: Comment PR with reviewdog
+        if: always() && github.event_name == 'pull_request'
+        env:
+          # reviewdog's GitHub reporters read this specific variable name —
+          # NOT GITHUB_TOKEN, which it does not look at.
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+          IS_FORK_PR: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if ! command -v reviewdog &> /dev/null; then
+            echo "reviewdog not found in PATH; skipping PR check"
+            exit 0
+          fi
+          # Fork PRs get a read-only GITHUB_TOKEN with no Checks/PR write
+          # access, so github-pr-check would fail on a permissions error.
+          # Degrade to plain workflow annotations, which only need read access.
+          if [ "$IS_FORK_PR" = "true" ]; then
+            reporter="github-actions"
+            echo "Fork PR detected — falling back to the $reporter reporter"
+          else
+            reporter="github-pr-check"
+          fi
+          reviewdog -f sarif \
+            -name quality-pipeline \
+            -reporter "$reporter" \
+            -filter-mode added \
+            -fail-level=error < .ci/quality/reports/quality.sarif

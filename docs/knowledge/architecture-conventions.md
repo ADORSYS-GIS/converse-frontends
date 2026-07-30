@@ -36,7 +36,19 @@ turned into the generated client under `packages/authz-rpc/generated/` by the of
 `generated/` is gitignored, same as every other package's codegen output (e.g. `api-rest`'s
 `src/client/`) — it's a build artifact, not source. Regenerate it locally with
 `pnpm --filter @lightbridge/authz-rpc codegen:cratestack`; CI (`test.yml`, `docker-image.yml`)
-installs a cached `cratestack-cli` and runs the same command before tests/build.
+installs a cached `cratestack-cli` (pinned to `0.4.16`) and runs the same command before
+tests/build.
+
+Since `cratestack-cli` 0.4.14 (issue #182), the generated runtime accepts a composable
+`links?: RpcLink[]` interceptor chain, threaded through as `AuthzRpcRuntimeOptions.links`
+(`packages/authz-rpc/src/runtime.ts`). `@cratestack/api`'s `createBatchLink()` plugs into it —
+an automatic scheduler that collapses concurrent unary calls into one `POST /rpc/batch` request —
+and is exercised in `packages/authz-rpc/src/runtime.test.ts`, but **is not wired into the app
+root** (`apps/self-service/src/app/_layout.tsx`'s `useAuthzRpcClient(config)` call omits `links`).
+Activating it end-to-end is tracked separately
+([converse-frontends#120](https://github.com/ADORSYS-GIS/converse-frontends/issues/120)); the
+backend RBAC gate for `POST /rpc/batch` was fixed to authorize per-frame in
+[lightbridge-authz#157](https://github.com/ADORSYS-GIS/lightbridge-authz/issues/157).
 
 **Rule:** Never place application-specific business logic in `packages/`. Packages export reusable, app-agnostic code only.
 

@@ -1,0 +1,64 @@
+rules:
+  - id: typescript.security.no-hardcoded-secrets
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $KEY = "sk_..."
+          - pattern: |
+              const $KEY = "api_..."
+          - pattern: |
+              const $KEY = "token_..."
+    message: Hardcoded API key or secret detected. Use environment variables or secure vaults.
+    severity: ERROR
+    languages:
+      - typescript
+      - javascript
+    metadata:
+      category: security
+      cwe: CWE-798
+
+  - id: typescript.security.no-eval
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: Function(...)
+    message: eval() and Function() are unsafe and should never be used. Use safer alternatives.
+    severity: ERROR
+    languages:
+      - typescript
+      - javascript
+    metadata:
+      category: security
+      cwe: CWE-95
+
+  - id: typescript.security.dangerous-innerhtml
+    patterns:
+      - pattern-either:
+          - pattern: $DOM.innerHTML = $VALUE
+          - pattern: <$TAG ... dangerouslySetInnerHTML={$PROPS} ... />
+    message: |
+      Setting innerHTML with untrusted content is a security risk.
+      Ensure the content is sanitized and from a trusted source.
+    severity: WARNING
+    languages:
+      - typescript
+      - javascript
+    metadata:
+      category: security
+      cwe: CWE-79
+
+  - id: typescript.security.no-console-log
+    patterns:
+      - pattern-either:
+          - pattern: console.log(...)
+          - pattern: console.warn(...)
+          - pattern: console.error(...)
+    message: |
+      Avoid console logging in production code. Use structured logging instead.
+      Remove or restrict to development-only code.
+    severity: INFO
+    languages:
+      - typescript
+      - javascript
+    metadata:
+      category: maintainability

@@ -1,0 +1,87 @@
+# Quality Pipeline Tool Versions & Checksums
+# This manifest defines the required tools and their versions for offline scanning.
+# Update this when upgrading tools; re-provision the runner accordingly.
+
+# Node.js / pnpm tools (from workspace package.json)
+# These are fetched and cached by GitHub Actions setup-node + pnpm actions
+eslint: 9.39.4
+typescript: 5.9.3
+prettier: 3.8.3
+
+# System binaries (pre-provisioned on adorsys-gis-runner)
+# These must be installed and available in PATH on the runner.
+# Use Ansible playbook or provisioning script to install these.
+
+semgrep:
+  version: 1.45.0
+  url: https://github.com/semgrep/semgrep/releases/download/v1.45.0/semgrep-v1.45.0-linux
+  # checksum: sha256:ABCDEF... (if available; otherwise verify during provisioning)
+  install: "curl -fsSL <url> -o /usr/local/bin/semgrep && chmod +x /usr/local/bin/semgrep"
+  verify: "semgrep --version"
+
+hadolint:
+  version: 2.12.0
+  url: https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+  install: "curl -fsSL <url> -o /usr/local/bin/hadolint && chmod +x /usr/local/bin/hadolint"
+  verify: "hadolint --version"
+
+actionlint:
+  version: 1.7.1
+  url: https://github.com/rhysd/actionlint/releases/download/v1.7.1/actionlint-1.7.1-linux-amd64
+  install: |
+    curl -fsSL <url>.tar.gz -o /tmp/actionlint.tar.gz
+    tar xzf /tmp/actionlint.tar.gz -C /usr/local/bin/
+    chmod +x /usr/local/bin/actionlint
+  verify: "actionlint -version"
+
+jscpd:
+  version: 4.0.5
+  url: https://www.npmjs.com/package/jscpd
+  install: "npm install -g jscpd@4.0.5"  # or: pnpm add -g jscpd@4.0.5
+  verify: "jscpd --version"
+
+reviewdog:
+  version: 0.20.0
+  url: https://github.com/reviewdog/reviewdog/releases/download/v0.20.0/reviewdog_linux_amd64
+  install: |
+    curl -fsSL <url> -o /tmp/reviewdog && chmod +x /tmp/reviewdog
+    mv /tmp/reviewdog /usr/local/bin/reviewdog
+  verify: "reviewdog -version"
+
+jq:
+  version: 1.7.1
+  url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+  install: |
+    curl -fsSL <url> -o /usr/local/bin/jq && chmod +x /usr/local/bin/jq
+  verify: "jq --version"
+
+# Offline Databases & Rule Packs
+# These must be pre-cached on the runner; they are NOT downloaded at runtime.
+
+semgrep-rules:
+  source: .ci/rules/semgrep/
+  description: Local Semgrep rules (repository-owned, version-controlled)
+
+# Notes for Runner Provisioning
+#
+# 1. Pre-provision all system binaries listed above on adorsys-gis-runner
+# 2. Verify each tool with the "verify" command before considering provisioning complete
+# 3. Use an Ansible playbook or Docker image to make provisioning repeatable
+# 4. Do NOT install tools at runtime with curl, npm install, etc. (violates offline requirement)
+# 5. If Semgrep needs additional rule packs, commit them to .ci/rules/ before CI runs
+# 6. Keep this manifest up-to-date when upgrading tools
+#
+# Example Ansible task to provision a tool:
+#
+# - name: Install semgrep
+#   get_url:
+#     url: "https://github.com/semgrep/semgrep/releases/download/v1.45.0/semgrep-v1.45.0-linux"
+#     dest: /usr/local/bin/semgrep
+#     mode: '0755'
+#     checksum: "sha256:..."
+#   notify: Verify semgrep installation
+#
+# - name: Verify semgrep installation
+#   command: semgrep --version
+#   register: semgrep_version
+#   failed_when: semgrep_version.rc != 0

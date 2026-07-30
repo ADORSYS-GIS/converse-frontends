@@ -21,6 +21,7 @@ import {
   getLatestAuthSession,
 } from '@lightbridge/hooks';
 import { APP_FONT_SOURCES, useAppFonts } from '@lightbridge/ui';
+import { createBatchLink } from '@cratestack/api';
 import { queryClient } from '../queries';
 import { useAuthzRpcClient } from '@lightbridge/authz-rpc';
 import { isWebPlatform } from '@lightbridge/api-native';
@@ -32,6 +33,12 @@ import { AppSheetProvider } from '../navigation/app-sheet-provider';
 WebBrowser.maybeCompleteAuthSession();
 enableScreens();
 void SplashScreen.preventAutoHideAsync();
+
+// Module-scope, not per-render: `links` is a construction-only option on `AuthzRpcRuntime` (see
+// its doc comment) — `useAuthzRpcClient` only re-applies it on the very first call anyway, but a
+// single shared scheduler instance also avoids ever having two independent batch queues alive at
+// once, which a fresh `createBatchLink()` per render would risk.
+const authzBatchLink = createBatchLink();
 
 function AppBootstrap() {
   const runtimeConfig = useRuntimeConfig();
@@ -67,6 +74,7 @@ function AppBootstrap() {
   useAuthzRpcClient({
     baseURL: runtimeConfig.backendUrl,
     basePath: runtimeConfig.apiBasePath,
+    links: [authzBatchLink],
     auth: async () => {
       if (!isHydrated) {
         return '';

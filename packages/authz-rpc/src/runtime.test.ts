@@ -176,7 +176,7 @@ describe('AuthzRpcRuntime with createBatchLink()', () => {
     ]);
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(accounts.items[0].billingIdentity).toBe('corp-identity-001');
+    expect(accounts.items[0].defaultQuota).toBe('t-m');
     expect(projects.items[0].name).toBe('Test Project');
   });
 
@@ -243,6 +243,6 @@ describe('AuthzRpcRuntime with createBatchLink()', () => {
     const page = await client.accounts.list({ limit: 10, offset: 0 });
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(page.items[0].billingIdentity).toBe('corp-identity-001');
+    expect(page.items[0].defaultQuota).toBe('t-m');
   });
 });

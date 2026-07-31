@@ -6,7 +6,7 @@ allowBuilds:
   unrs-resolver: false
 
 overrides:
-  axios: "^1.15.2"
+  axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0
   "@xmldom/xmldom": "^0.9.10"
   minimatch: "^10.2.3"
   node-forge: "^1.4.0"
@@ -22,3 +22,5 @@ overrides:
   "ws@7": "^7.5.11" # CVE-2026-48779 (HIGH): DoS via memory exhaustion
   "ws@8": "^8.21.0" # CVE-2026-48779 (HIGH): DoS via memory exhaustion
   postcss: "^8.5.18" # CVE-2026-45623 / GHSA-r28c-9q8g-f849 (HIGH): path traversal via sourceMappingURL auto-loading
+  brace-expansion: "^5.0.8" # CVE-2026-13149 / CVE-2026-14257 (HIGH): DoS via crafted brace patterns
+  "js-yaml@3": "^3.15.0" # CVE-2026-59869 (HIGH): DoS via crafted YAML (js-yaml@4.x line unaffected, left as-is)

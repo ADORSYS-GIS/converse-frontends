@@ -20,4 +20,8 @@ import type {
 export type Account = Omit<GeneratedAccount, 'projects'>;
 export type Project = Omit<GeneratedProject, 'account' | 'apiKeys' | 'members'>;
 export type ApiKey = Omit<GeneratedApiKey, 'project'>;
-export type ProjectMember = Omit<GeneratedProjectMember, 'project' | 'account'>;
+// Only `project` to omit: `ProjectMember` no longer declares an `account` relation. It was
+// removed because `Account` and `Project` are already directly connected, so a second link between
+// them multiplied the relation paths cratestack's codegen enumerates — server-side that cost rustc
+// >51 GB. `accountId` is a plain scalar and stays.
+export type ProjectMember = Omit<GeneratedProjectMember, 'project'>;

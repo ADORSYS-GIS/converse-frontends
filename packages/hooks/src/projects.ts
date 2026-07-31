@@ -252,14 +252,16 @@ export function useProjectMembers(projectId: string | undefined, enabled = true)
 
   const query = useQuery({
     queryKey: projectMembersQueryKey(projectId ?? ''),
-    queryFn: async () => {
-      const page = await getAuthzRpcClient().projectMembers.list({
-        limit: 50,
-        offset: 0,
-        filters: [{ key: 'projectId', value: projectId as string }],
-      });
-      return page.items;
-    },
+    // `procedures.listProjectRoster`, NOT `projectMembers.list`. The generic model verb cannot
+    // work: `model.ProjectMember.*` is fail-closed server-side (403 unconditionally), and the
+    // model's `id` is synthetic — `project_members` is keyed `(project_id, account_id)` with no
+    // `id` column — so a generated `SELECT id, ...` would reference a column that does not exist.
+    // The procedure is the roster's only read path, and it returns the rows directly rather than
+    // a `Page`.
+    queryFn: async () =>
+      getAuthzRpcClient().procedures.listProjectRoster({
+        args: { projectId: projectId as string },
+      }),
     enabled: enabled && isAuthenticated && Boolean(projectId),
     staleTime: 5 * 60_000,
   });

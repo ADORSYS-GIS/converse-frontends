@@ -216,8 +216,8 @@ describe('ProjectSettingsView', () => {
   it('renders the roster with each member\'s role and quota tier', async () => {
     await renderView({
       members: [
-        { projectId: 'proj-1', accountId: 'sub-lead', role: 'lead', quotaTier: 't-m', createdAt: '' },
-        { projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+        { id: 'proj-1:sub-lead', projectId: 'proj-1', accountId: 'sub-lead', role: 'lead', quotaTier: 't-m', createdAt: '' },
+        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
       ],
     });
 
@@ -253,7 +253,7 @@ describe('ProjectSettingsView', () => {
     const onSetMemberRole = jest.fn();
     await renderView({
       members: [
-        { projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
       ],
       onSetMemberRole,
     });

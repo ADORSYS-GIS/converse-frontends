@@ -30,6 +30,7 @@ export type ApiKey = Omit<GeneratedApiKey, 'project'>;
  * of what that actually returns is both available and strictly more accurate than restating the
  * shape by hand — it cannot drift from the wire contract.
  */
-export type ProjectMember = Awaited<
-  ReturnType<LightbridgeAuthzRpcClient['procedures']['listProjectRoster']>
->[number];
+export type ProjectMember = Omit<
+  Awaited<ReturnType<LightbridgeAuthzRpcClient['procedures']['listProjectRoster']>>[number],
+  'project'
+>;

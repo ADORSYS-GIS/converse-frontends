@@ -23,10 +23,18 @@ export function CreateProjectSheet({
 }: Readonly<CreateProjectSheetProps>) {
   const createProject = useCreateProject();
 
-  const handleConfirm = async ({ name, billingPlan }: { name: string; billingPlan: string }) => {
+  const handleConfirm = async ({
+    name,
+    billingPlan,
+    billingIdentity,
+  }: {
+    name: string;
+    billingPlan: string;
+    billingIdentity: string;
+  }) => {
     const project = await createProject.mutateAsync({
       accountId,
-      input: { name, billingPlan },
+      input: { name, billingPlan, billingIdentity },
     });
     onCreated?.(project.id);
     onClose();

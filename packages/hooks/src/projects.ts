@@ -19,7 +19,15 @@ export function projectsQueryKey(accountId: string) {
 export type CreateProjectFields = {
   name: string;
   billingPlan: string;
+  /**
+   * Who is paying for this project. Moved here from the account by lightbridge-authz ADR-0006 —
+   * one account can now bill projects to different parties. Server-side it is `@unique`, so it
+   * must be distinguishable per project, not merely per person.
+   */
+  billingIdentity: string;
   allowedModels?: JsonValue;
+  /** Pooled spending ceiling for everyone on the project, drawn from the governance tier catalogue. */
+  projectQuota?: string;
 };
 
 function buildCreateProjectInput(accountId: string, fields: CreateProjectFields) {
@@ -30,6 +38,8 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
     allowedModels: fields.allowedModels,
     defaultLimits: {},
     billingPlan: fields.billingPlan,
+    billingIdentity: fields.billingIdentity,
+    projectQuota: fields.projectQuota,
     status: 'active',
     // `isDefault` is `@readonly` server-side (set by the `projects_set_is_default` trigger — true
     // only for an account's first-ever project) but, unlike the Rust codegen, the TS generator
@@ -219,6 +229,158 @@ export function useSetDefaultProject() {
   };
 }
 
+/**
+ * Project roster (lightbridge-authz ADR-0006). A project groups people working toward a shared
+ * goal; each `ProjectMember` row is `{project, account, role: lead|member, quotaTier}`.
+ *
+ * Two things to know before using these:
+ *
+ * 1. An account's DEFAULT project has no roster by construction — nothing ever inserts a member row
+ *    for it ("you, working alone"). Rendering a roster UI for a default project will correctly show
+ *    nothing, so gate on `project.isDefault` rather than treating empty as an error.
+ * 2. All four mutations are lead-gated server-side: the caller must own the project's account or
+ *    hold `role: 'lead'`. A member who is not a lead gets a `403`; a non-member gets a `404`. The
+ *    coarse `project:member` permission is necessary but not sufficient — do not use `has()` alone
+ *    to decide whether to show these controls as enabled.
+ */
+export function projectMembersQueryKey(projectId: string) {
+  return ['projects', projectId, 'members'] as const;
+}
+
+export function useProjectMembers(projectId: string | undefined, enabled = true) {
+  const { isAuthenticated } = useAuthSession();
+
+  const query = useQuery({
+    queryKey: projectMembersQueryKey(projectId ?? ''),
+    // `procedures.listProjectRoster`, NOT `projectMembers.list`. The generic model verb cannot
+    // work: `model.ProjectMember.*` is fail-closed server-side (403 unconditionally), and the
+    // model's `id` is synthetic — `project_members` is keyed `(project_id, account_id)` with no
+    // `id` column — so a generated `SELECT id, ...` would reference a column that does not exist.
+    // The procedure is the roster's only read path, and it returns the rows directly rather than
+    // a `Page`.
+    queryFn: async () =>
+      getAuthzRpcClient().procedures.listProjectRoster({
+        args: { projectId: projectId as string },
+      }),
+    enabled: enabled && isAuthenticated && Boolean(projectId),
+    staleTime: 5 * 60_000,
+  });
+
+  return { ...query, data: query.data ?? [] };
+}
+
+export function useAddProjectMember() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      accountId,
+      role,
+    }: {
+      projectId: string;
+      accountId: string;
+      role?: 'lead' | 'member';
+    }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.addProjectMember({
+          args: { projectId, accountId, role },
+        })
+      ),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useRemoveProjectMember() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ projectId, accountId }: { projectId: string; accountId: string }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.removeProjectMember({
+          args: { projectId, accountId },
+        })
+      ),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useSetProjectMemberRole() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      accountId,
+      role,
+    }: {
+      projectId: string;
+      accountId: string;
+      role: 'lead' | 'member';
+    }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.setProjectMemberRole({
+          args: { projectId, accountId, role },
+        })
+      ),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+export function useSetProjectMemberQuotaTier() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      accountId,
+      quotaTier,
+    }: {
+      projectId: string;
+      accountId: string;
+      quotaTier?: string;
+    }) =>
+      untagProject(
+        await getAuthzRpcClient().procedures.setProjectMemberQuotaTier({
+          args: { projectId, accountId, quotaTier },
+        })
+      ),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
 export function useDeleteProject() {
   const queryClient = useQueryClient();
 
@@ -239,6 +401,7 @@ export function useDeleteProject() {
 export function useEnsureDefaultProject() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { session } = useAuthSession();
 
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
@@ -248,11 +411,22 @@ export function useEnsureDefaultProject() {
         return existing[0];
       }
 
+      // The billing identity the account used to carry now belongs to the project (ADR-0006), and
+      // it is `@unique` server-side. For the auto-provisioned default project the person is the
+      // payer, so their own identifier is the right value — the same expression that used to be
+      // passed to createAccount. Suffixed with the account id so a second person bootstrapping
+      // with the same email-less fallback cannot collide.
+      const payer = session.user?.email ?? session.user?.name ?? session.user?.id;
+      if (!payer) {
+        throw new Error('User session is required to create a default project');
+      }
+
       const created = await getAuthzRpcClient().projects.create(
         tagProjectJsonFields(
           buildCreateProjectInput(accountId, {
             name: t('project.defaultName'),
             billingPlan: 'free',
+            billingIdentity: payer,
           })
         )
       );

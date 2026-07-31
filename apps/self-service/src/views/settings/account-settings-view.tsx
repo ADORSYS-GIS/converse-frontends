@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Card,
-  Chip,
   designTokens,
   Div,
   Divider,
@@ -29,20 +28,13 @@ type AccountSettingsViewProps = {
   selectedAccountId?: string;
   isLoading?: boolean;
   onSelectAccount: (id: string) => void;
-  onCreateAccount: () => void;
-  canCreate?: boolean;
-  billingIdentity: string;
-  onSaveBillingIdentity: (value: string) => void;
-  isSavingBillingIdentity?: boolean;
-  owners: string[];
-  onAddOwner: (value: string) => void;
-  onRemoveOwner: (value: string) => void;
-  isSavingOwners?: boolean;
+  defaultQuota: string;
+  onSaveDefaultQuota: (value: string) => void;
+  isSavingDefaultQuota?: boolean;
   authIssuer: string;
   authUserLabel: string;
   status?: 'active' | 'suspended';
   canUpdate?: boolean;
-  canManageMembers?: boolean;
   canDelete?: boolean;
   canDisable?: boolean;
   onDeleteAccount: () => void;
@@ -50,11 +42,6 @@ type AccountSettingsViewProps = {
   onEnableAccount: () => void;
   isChangingStatus?: boolean;
   statusError?: string | null;
-  memberError?: string | null;
-  isDefault?: boolean;
-  onSetDefaultAccount: () => void;
-  isSettingDefault?: boolean;
-  setDefaultError?: string | null;
 };
 
 export function AccountSettingsView({
@@ -64,20 +51,13 @@ export function AccountSettingsView({
   selectedAccountId,
   isLoading = false,
   onSelectAccount,
-  onCreateAccount,
-  canCreate = true,
-  billingIdentity,
-  onSaveBillingIdentity,
-  isSavingBillingIdentity = false,
-  owners,
-  onAddOwner,
-  onRemoveOwner,
-  isSavingOwners = false,
+  defaultQuota,
+  onSaveDefaultQuota,
+  isSavingDefaultQuota = false,
   authIssuer,
   authUserLabel,
   status = 'active',
   canUpdate = true,
-  canManageMembers = true,
   canDelete = true,
   canDisable = true,
   onDeleteAccount,
@@ -85,33 +65,18 @@ export function AccountSettingsView({
   onEnableAccount,
   isChangingStatus = false,
   statusError = null,
-  memberError = null,
-  isDefault = false,
-  onSetDefaultAccount,
-  isSettingDefault = false,
-  setDefaultError = null,
 }: Readonly<AccountSettingsViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const [billingIdentityDraft, setBillingIdentityDraft] = useState(billingIdentity);
-  const [newOwner, setNewOwner] = useState('');
+  const [defaultQuotaDraft, setDefaultQuotaDraft] = useState(defaultQuota);
 
   useEffect(() => {
-    setBillingIdentityDraft(billingIdentity);
-  }, [billingIdentity]);
+    setDefaultQuotaDraft(defaultQuota);
+  }, [defaultQuota]);
 
-  const trimmedDraft = billingIdentityDraft.trim();
-  const hasBillingIdentityChanged = trimmedDraft !== billingIdentity.trim();
-  const canSaveBillingIdentity =
-    hasBillingIdentityChanged && trimmedDraft.length > 0 && !isSavingBillingIdentity;
-
-  const trimmedNewOwner = newOwner.trim();
-
-  const handleAddOwner = () => {
-    if (!trimmedNewOwner) return;
-    onAddOwner(trimmedNewOwner);
-    setNewOwner('');
-  };
+  const trimmedDraft = defaultQuotaDraft.trim();
+  const hasDefaultQuotaChanged = trimmedDraft !== defaultQuota.trim();
+  const canSaveDefaultQuota = hasDefaultQuotaChanged && !isSavingDefaultQuota;
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
@@ -131,19 +96,6 @@ export function AccountSettingsView({
               <Feather name="chevron-right" size={14} color={colors.subtle} />
             </Stack>
           }
-          trailing={
-            canCreate ? (
-              <Button
-                variant="primary"
-                size="icon"
-                shape="circle"
-                onPress={onCreateAccount}
-                accessibilityLabel={t('settings.account.newAccount')}
-                style={{ width: 36, height: 36 }}>
-                <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
-              </Button>
-            ) : undefined
-          }
         />
       ) : null}
 
@@ -159,17 +111,6 @@ export function AccountSettingsView({
                     : t('settings.account.statusActive')}
                 </Badge>
               </Stack>
-              {canCreate ? (
-                <Button
-                  variant="primary"
-                  size="icon"
-                  shape="circle"
-                  onPress={onCreateAccount}
-                  accessibilityLabel={t('settings.account.newAccount')}
-                  style={{ width: 36, height: 36 }}>
-                  <Feather name="plus" size={designTokens.icon.nav} color={colors.surface} />
-                </Button>
-              ) : null}
             </Stack>
           ) : (
             <Badge tone={status === 'suspended' ? 'warning' : 'success'}>
@@ -196,22 +137,11 @@ export function AccountSettingsView({
                       key={account.id}
                       variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
                       size="sm"
-                      leadingIcon={
-                        account.isDefault ? (
-                          <Feather
-                            name="star"
-                            size={12}
-                            color={
-                              account.id === selectedAccountId ? colors.surface : colors.subtle
-                            }
-                          />
-                        ) : undefined
-                      }
                       onPress={() => onSelectAccount(account.id)}
                       accessibilityLabel={t('settings.account.selectAccount', {
-                        account: account.billingIdentity,
+                        account: account.id,
                       })}>
-                      {account.billingIdentity}
+                      {account.id}
                     </Button>
                   ))}
                 </Stack>
@@ -221,79 +151,26 @@ export function AccountSettingsView({
 
           {canUpdate ? (
             <SectionCard
-              title={t('settings.account.billingIdentitySection')}
-              description={t('settings.account.billingIdentityDescription')}>
+              title={t('settings.account.defaultQuotaSection')}
+              description={t('settings.account.defaultQuotaDescription')}>
               <Stack gap="md">
                 <TextField
-                  value={billingIdentityDraft}
-                  onChangeText={setBillingIdentityDraft}
-                  editable={!isSavingBillingIdentity}
+                  value={defaultQuotaDraft}
+                  onChangeText={setDefaultQuotaDraft}
+                  editable={!isSavingDefaultQuota}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
                 <Button
                   variant="primary"
                   size="sm"
-                  onPress={() => onSaveBillingIdentity(trimmedDraft)}
-                  disabled={!canSaveBillingIdentity}
+                  onPress={() => onSaveDefaultQuota(trimmedDraft)}
+                  disabled={!canSaveDefaultQuota}
                   style={{ alignSelf: 'flex-start' }}>
-                  {isSavingBillingIdentity
-                    ? t('settings.account.billingIdentitySaving')
-                    : t('settings.account.billingIdentitySave')}
+                  {isSavingDefaultQuota
+                    ? t('settings.account.defaultQuotaSaving')
+                    : t('settings.account.defaultQuotaSave')}
                 </Button>
-              </Stack>
-            </SectionCard>
-          ) : null}
-
-          {canManageMembers ? (
-            <SectionCard
-              title={t('settings.account.ownersSection')}
-              description={t('settings.account.ownersDescription')}>
-              <Stack gap="md">
-                {owners.length === 0 ? (
-                  <Text intent="caption">{t('settings.account.ownersEmpty')}</Text>
-                ) : (
-                  <Stack direction="row" wrap="wrap" gap="sm">
-                    {owners.map((owner) => (
-                      <Chip
-                        key={owner}
-                        onRemove={() => onRemoveOwner(owner)}
-                        removeAccessibilityLabel={t('settings.account.ownerRemove', {
-                          name: owner,
-                        })}
-                        disabled={isSavingOwners}
-                        mono={!owner.includes('@')}>
-                        {owner}
-                      </Chip>
-                    ))}
-                  </Stack>
-                )}
-
-                <Stack direction="row" gap="sm" align="center">
-                  <Div style={{ flex: 1 }}>
-                    <TextField
-                      value={newOwner}
-                      onChangeText={setNewOwner}
-                      placeholder={t('settings.account.ownerAddPlaceholder')}
-                      editable={!isSavingOwners}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      onSubmitEditing={handleAddOwner}
-                    />
-                  </Div>
-                  <Button
-                    variant="neutral"
-                    size="sm"
-                    onPress={handleAddOwner}
-                    disabled={!trimmedNewOwner || isSavingOwners}>
-                    {t('settings.account.ownerAdd')}
-                  </Button>
-                </Stack>
-                {memberError ? (
-                  <Text intent="caption" style={{ color: colors.error }}>
-                    {memberError}
-                  </Text>
-                ) : null}
               </Stack>
             </SectionCard>
           ) : null}
@@ -343,55 +220,15 @@ export function AccountSettingsView({
             </SectionCard>
           ) : null}
 
-          {canUpdate ? (
-            <SectionCard
-              tone="muted"
-              title={t('settings.account.defaultSection')}
-              description={
-                isDefault
-                  ? t('settings.account.defaultDescriptionCurrent')
-                  : t('settings.account.defaultDescription')
-              }>
-              <Stack gap="sm" align="start">
-                {isDefault ? (
-                  <Badge tone="info" icon={<Feather name="star" size={12} color={colors.accent} />}>
-                    {t('settings.account.defaultBadge')}
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="neutral"
-                    size="sm"
-                    disabled={isSettingDefault}
-                    onPress={onSetDefaultAccount}
-                    style={{ alignSelf: 'flex-start' }}>
-                    {isSettingDefault
-                      ? t('settings.account.settingDefault')
-                      : t('settings.account.setDefault')}
-                  </Button>
-                )}
-                {setDefaultError ? (
-                  <Text intent="caption" style={{ color: colors.error }}>
-                    {setDefaultError}
-                  </Text>
-                ) : null}
-              </Stack>
-            </SectionCard>
-          ) : null}
-
           {canDelete ? (
             <SectionCard
               tone="danger"
               title={t('settings.account.dangerSection')}
-              description={
-                isDefault
-                  ? t('settings.account.dangerDescriptionDefault')
-                  : t('settings.account.dangerDescription')
-              }>
+              description={t('settings.account.dangerDescription')}>
               <Stack align="start">
                 <Button
                   variant="danger"
                   size="sm"
-                  disabled={isDefault}
                   onPress={onDeleteAccount}
                   style={{ alignSelf: 'flex-start' }}>
                   {t('settings.account.deleteAccount')}

@@ -18,7 +18,7 @@ import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 /**
- * Plan every new key defaults to. Callers who cannot choose a plan (no `account:member`
+ * Plan every new key defaults to. Callers who cannot choose a plan (no `project:member`
  * permission) always mint keys on this plan — the backend rejects anything else for them.
  */
 const DEFAULT_API_KEY_BILLING_PLAN = 'free';

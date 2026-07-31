@@ -11,7 +11,7 @@ beforeAll(() => {
 });
 
 describe('CreateProjectView', () => {
-  it('keeps Create disabled until a project name is entered', async () => {
+  it('keeps Create disabled until both a name and a billing identity are entered', async () => {
     const onConfirm = jest.fn();
     await render(<CreateProjectView onConfirm={onConfirm} onCancel={noop} />);
 
@@ -20,6 +20,14 @@ describe('CreateProjectView', () => {
     ).toBe(true);
 
     await fireEvent.changeText(screen.getByPlaceholderText('Production'), '  staging  ');
+
+    // Name alone is no longer enough: billing identity moved from the account to the project
+    // (lightbridge-authz ADR-0006) and is required + unique server-side.
+    expect(
+      screen.getByRole('button', { name: 'Create project' }).props.accessibilityState.disabled
+    ).toBe(true);
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Who is paying — name, email, or client reference'), 'acme-inc');
 
     expect(
       screen.getByRole('button', { name: 'Create project' }).props.accessibilityState.disabled
@@ -31,9 +39,14 @@ describe('CreateProjectView', () => {
     await render(<CreateProjectView onConfirm={onConfirm} onCancel={noop} />);
 
     await fireEvent.changeText(screen.getByPlaceholderText('Production'), '  staging  ');
+    await fireEvent.changeText(screen.getByPlaceholderText('Who is paying — name, email, or client reference'), '  acme-inc  ');
     await fireEvent.press(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(onConfirm).toHaveBeenCalledWith({ name: 'staging', billingPlan: 'free' });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: 'staging',
+      billingPlan: 'free',
+      billingIdentity: 'acme-inc',
+    });
   });
 
   it('passes a custom billing plan through', async () => {
@@ -41,10 +54,15 @@ describe('CreateProjectView', () => {
     await render(<CreateProjectView onConfirm={onConfirm} onCancel={noop} />);
 
     await fireEvent.changeText(screen.getByPlaceholderText('Production'), 'staging');
+    await fireEvent.changeText(screen.getByPlaceholderText('Who is paying — name, email, or client reference'), 'acme-inc');
     await fireEvent.changeText(screen.getByPlaceholderText('free'), 'enterprise');
     await fireEvent.press(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(onConfirm).toHaveBeenCalledWith({ name: 'staging', billingPlan: 'enterprise' });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: 'staging',
+      billingPlan: 'enterprise',
+      billingIdentity: 'acme-inc',
+    });
   });
 
   it('calls onCancel when Cancel is pressed', async () => {

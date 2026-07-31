@@ -19,7 +19,7 @@ import { useThemeColors } from '../hooks/use-theme-colors';
 
 type HomeViewProps = {
   userName?: string | null;
-  accountBillingIdentity?: string | null;
+  accountLabel?: string | null;
   activeProjectName?: string | null;
   activeProjectPlan?: string | null;
   onNewToken: () => void;
@@ -33,7 +33,7 @@ type HomeViewProps = {
 
 export function HomeView({
   userName,
-  accountBillingIdentity,
+  accountLabel,
   activeProjectName,
   activeProjectPlan,
   onNewToken,
@@ -58,9 +58,9 @@ export function HomeView({
           <Stack gap="xs">
             <Text intent="eyebrow">{t('home.controlPlane')}</Text>
             <Heading tone="title">{t('home.greeting', { name: displayName })}</Heading>
-            {accountBillingIdentity ? (
+            {accountLabel ? (
               <Text intent="caption" numberOfLines={1} ellipsizeMode="tail">
-                {t('home.accountContext', { account: accountBillingIdentity })}
+                {t('home.accountContext', { account: accountLabel })}
               </Text>
             ) : (
               <Skeleton width={160} height={12} />

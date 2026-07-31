@@ -10,87 +10,74 @@ beforeAll(() => {
   initI18n('en');
 });
 
+/*
+ * This suite shrank with lightbridge-authz ADR-0006. The account surface lost its members roster
+ * (membership is per project now), its "set as default" action (one account per person leaves
+ * nothing to default away from), its billing identity (moved to the project) and its create-account
+ * form (the account is auto-provisioned on first sign-in). The tests covering those went with them
+ * — their replacements live with the project settings surface.
+ */
 function renderView(overrides: Partial<React.ComponentProps<typeof AccountSettingsView>> = {}) {
   return render(
     <AccountSettingsView
       onBack={noop}
       onSelectAccount={noop}
-      onCreateAccount={noop}
-      billingIdentity="acme-inc"
-      onSaveBillingIdentity={noop}
-      owners={[]}
-      onAddOwner={noop}
-      onRemoveOwner={noop}
+      defaultQuota="t-m"
+      onSaveDefaultQuota={noop}
       authIssuer="https://issuer.example.com/realms/lightbridge"
       authUserLabel="jane@example.com"
       onDeleteAccount={noop}
       onSuspendAccount={noop}
       onEnableAccount={noop}
-      onSetDefaultAccount={noop}
       {...overrides}
     />
   );
 }
 
 describe('AccountSettingsView', () => {
-  it('renders the current billing identity, auth context, and empty owners state', async () => {
+  it('renders the current usage tier and auth context', async () => {
     await renderView();
 
-    expect(screen.getByDisplayValue('acme-inc')).toBeTruthy();
+    expect(screen.getByDisplayValue('t-m')).toBeTruthy();
     expect(screen.getByText('jane@example.com')).toBeTruthy();
     expect(screen.getByText('https://issuer.example.com/realms/lightbridge')).toBeTruthy();
-    expect(screen.getByText('No members added yet.')).toBeTruthy();
     expect(
       screen.getByText('Cross-project policy defaults are not yet supported by the backend.')
     ).toBeTruthy();
   });
 
-  it('disables Save until the billing identity is actually changed', async () => {
+  it('disables Save until the usage tier is actually changed', async () => {
     await renderView();
 
     expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
       true
     );
 
-    await fireEvent.changeText(screen.getByDisplayValue('acme-inc'), 'acme-inc-2');
+    await fireEvent.changeText(screen.getByDisplayValue('t-m'), 't-xs');
 
     expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
       false
     );
   });
 
-  it('calls onSaveBillingIdentity with the trimmed new value', async () => {
-    const onSaveBillingIdentity = jest.fn();
-    await renderView({ onSaveBillingIdentity });
+  it('calls onSaveDefaultQuota with the trimmed new value', async () => {
+    const onSaveDefaultQuota = jest.fn();
+    await renderView({ onSaveDefaultQuota });
 
-    await fireEvent.changeText(screen.getByDisplayValue('acme-inc'), '  acme-inc-2  ');
-    await fireEvent.press(screen.getByText('Save'));
+    await fireEvent.changeText(screen.getByDisplayValue('t-m'), '  t-xs  ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSaveBillingIdentity).toHaveBeenCalledWith('acme-inc-2');
+    expect(onSaveDefaultQuota).toHaveBeenCalledWith('t-xs');
   });
 
-  it('renders existing owners and calls onRemoveOwner', async () => {
-    const onRemoveOwner = jest.fn();
-    await renderView({ owners: ['owner@example.com'], onRemoveOwner });
+  it('allows clearing the usage tier back to empty', async () => {
+    const onSaveDefaultQuota = jest.fn();
+    await renderView({ onSaveDefaultQuota });
 
-    expect(screen.getByText('owner@example.com')).toBeTruthy();
+    await fireEvent.changeText(screen.getByDisplayValue('t-m'), '');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
 
-    await fireEvent.press(screen.getByLabelText('Remove owner@example.com'));
-
-    expect(onRemoveOwner).toHaveBeenCalledWith('owner@example.com');
-  });
-
-  it('calls onAddOwner with the trimmed new owner and clears the input', async () => {
-    const onAddOwner = jest.fn();
-    await renderView({ onAddOwner });
-
-    await fireEvent.changeText(
-      screen.getByPlaceholderText('Subject ID (e.g. 7fd91a54-0443-...)'),
-      '  new@example.com  '
-    );
-    await fireEvent.press(screen.getByText('Add'));
-
-    expect(onAddOwner).toHaveBeenCalledWith('new@example.com');
+    expect(onSaveDefaultQuota).toHaveBeenCalledWith('');
   });
 
   it('renders the account list and calls onSelectAccount when one is pressed', async () => {
@@ -99,17 +86,15 @@ describe('AccountSettingsView', () => {
       accounts: [
         {
           id: 'acc-1',
-          billingIdentity: 'acme-inc',
+          defaultQuota: 't-m',
           status: 'active',
-          isDefault: true,
           createdAt: '',
           updatedAt: '',
         },
         {
           id: 'acc-2',
-          billingIdentity: 'globex',
+          defaultQuota: undefined,
           status: 'active',
-          isDefault: false,
           createdAt: '',
           updatedAt: '',
         },
@@ -118,54 +103,31 @@ describe('AccountSettingsView', () => {
       onSelectAccount,
     });
 
-    await fireEvent.press(screen.getByText('globex'));
+    await fireEvent.press(screen.getByText('acc-2'));
 
     expect(onSelectAccount).toHaveBeenCalledWith('acc-2');
-  });
-
-  it('calls onCreateAccount from the header button when the user can create', async () => {
-    const onCreateAccount = jest.fn();
-    await renderView({ canCreate: true, onCreateAccount });
-
-    await fireEvent.press(screen.getByLabelText('New account'));
-
-    expect(onCreateAccount).toHaveBeenCalledTimes(1);
-  });
-
-  it('hides the create button when the user lacks permission', async () => {
-    await renderView({ canCreate: false });
-
-    expect(screen.queryByLabelText('New account')).toBeNull();
   });
 
   it('calls onDeleteAccount when the danger-zone button is pressed', async () => {
     const onDeleteAccount = jest.fn();
     await renderView({ onDeleteAccount });
 
-    await fireEvent.press(screen.getByText('Delete account'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
 
     expect(onDeleteAccount).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a Set as default action and an enabled Delete button for a non-default account', async () => {
-    const onSetDefaultAccount = jest.fn();
-    await renderView({ isDefault: false, onSetDefaultAccount });
-
-    await fireEvent.press(screen.getByText('Set as default'));
-    expect(onSetDefaultAccount).toHaveBeenCalledTimes(1);
+  it('leaves Delete enabled — no account is undeletable any more', async () => {
+    await renderView();
 
     expect(
       screen.getByRole('button', { name: 'Delete account' }).props.accessibilityState.disabled
-    ).toBe(false);
+    ).toBeFalsy();
   });
 
-  it('replaces the Set as default action with a badge and disables Delete for the default account', async () => {
-    await renderView({ isDefault: true });
+  it('hides the danger zone when the user lacks delete permission', async () => {
+    await renderView({ canDelete: false });
 
-    expect(screen.getByText('Default')).toBeTruthy();
-    expect(screen.queryByText('Set as default')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Delete account' }).props.accessibilityState.disabled
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Delete account' })).toBeNull();
   });
 });

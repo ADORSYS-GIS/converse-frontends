@@ -4,23 +4,34 @@ import { useTranslation } from '@lightbridge/i18n';
 import {
   getApiErrorMessage,
   useAccounts,
-  useAddAccountMember,
   useAuthSession,
   useDisableAccount,
   useEnableAccount,
   usePermissions,
   useQueryState,
-  useRemoveAccountMember,
-  useSetDefaultAccount,
   useUpdateAccount,
 } from '@lightbridge/hooks';
 import type { Account } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
-import { CreateAccountSheet } from './create-account-sheet';
 import { DeleteAccountSheet } from './delete-account-sheet';
 import { useRuntimeConfig } from '../configs/runtime-config';
 
+/**
+ * Account settings after lightbridge-authz ADR-0006.
+ *
+ * The account surface is deliberately much smaller than it was. One account is one person, keyed
+ * server-side on the caller's JWT subject, which removes three things this screen used to own:
+ *
+ * - the members roster (there is no account-level membership at all — rosters are per project now,
+ *   see the project settings screen),
+ * - "set as default" (with a single account there is nothing to default away from),
+ * - the billing identity (moved to the project, so one person can bill projects to different
+ *   parties).
+ *
+ * What remains is the account's own governance tier, its lifecycle, and deletion. The account
+ * selector is kept because the list endpoint is still a list, but in practice it holds one entry.
+ */
 export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?: boolean }>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -28,8 +39,6 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const config = useRuntimeConfig();
   const { session } = useAuthSession();
   const { has } = usePermissions();
-  // Account selection lives in the URL (?accountId=…) so it survives refresh and
-  // deep-links — same pattern as the project settings screen.
   const [accountParam, setAccountParam] = useQueryState('accountId');
 
   const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts();
@@ -40,45 +49,24 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const updateAccount = useUpdateAccount();
   const disableAccount = useDisableAccount();
   const enableAccount = useEnableAccount();
-  const addMember = useAddAccountMember();
-  const removeMember = useRemoveAccountMember();
-  const setDefaultAccount = useSetDefaultAccount();
 
-  // The Account model no longer carries a member/owners list on the wire —
-  // membership is managed purely through add/removeAccountMember mutations,
-  // so there is nothing to seed the chip list with until a listing RPC exists.
-  const owners: string[] = [];
-
-  const handleSaveBillingIdentity = (value: string) => {
+  const handleSaveDefaultQuota = (value: string) => {
     if (!selectedAccount?.id) return;
-    void updateAccount.mutateAsync({ id: selectedAccount.id, input: { billingIdentity: value } });
-  };
-
-  const handleAddOwner = (value: string) => {
-    if (!selectedAccount?.id || owners.includes(value)) return;
-    void addMember.mutateAsync({ id: selectedAccount.id, subject: value });
-  };
-
-  const handleRemoveOwner = (value: string) => {
-    if (!selectedAccount?.id) return;
-    void removeMember.mutateAsync({ id: selectedAccount.id, subject: value });
-  };
-
-  const handleCreateAccount = () => {
-    sheet.present(({ dismiss }) => (
-      <CreateAccountSheet
-        onClose={dismiss}
-        onCreated={(newAccountId) => setAccountParam(newAccountId)}
-      />
-    ));
+    void updateAccount.mutateAsync({
+      id: selectedAccount.id,
+      input: { defaultQuota: value === '' ? undefined : value },
+    });
   };
 
   const handleDeleteAccount = () => {
     if (!selectedAccount?.id) return;
-    const accountId = selectedAccount.id;
-    const accountName = selectedAccount.billingIdentity;
+    const id = selectedAccount.id;
     sheet.present(({ dismiss }) => (
-      <DeleteAccountSheet id={accountId} name={accountName} onClose={dismiss} />
+      <DeleteAccountSheet
+        id={id}
+        name={session.user?.email ?? session.user?.name ?? id}
+        onClose={dismiss}
+      />
     ));
   };
 
@@ -92,25 +80,10 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
     void enableAccount.mutateAsync({ id: selectedAccount.id });
   };
 
-  const handleSetDefaultAccount = () => {
-    if (!selectedAccount?.id) return;
-    void setDefaultAccount.mutateAsync({ id: selectedAccount.id });
-  };
-
   const statusError = disableAccount.error
     ? getApiErrorMessage(disableAccount.error)
     : enableAccount.error
       ? getApiErrorMessage(enableAccount.error)
-      : null;
-
-  const setDefaultError = setDefaultAccount.error
-    ? getApiErrorMessage(setDefaultAccount.error)
-    : null;
-
-  const memberError = addMember.error
-    ? getApiErrorMessage(addMember.error)
-    : removeMember.error
-      ? getApiErrorMessage(removeMember.error)
       : null;
 
   return (
@@ -121,22 +94,15 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       selectedAccountId={accountId}
       isLoading={isAccountsLoading}
       onSelectAccount={setAccountParam}
-      onCreateAccount={handleCreateAccount}
-      billingIdentity={selectedAccount?.billingIdentity ?? ''}
-      onSaveBillingIdentity={handleSaveBillingIdentity}
-      isSavingBillingIdentity={updateAccount.isPending}
-      owners={owners}
-      onAddOwner={handleAddOwner}
-      onRemoveOwner={handleRemoveOwner}
-      isSavingOwners={addMember.isPending || removeMember.isPending}
+      defaultQuota={selectedAccount?.defaultQuota ?? ''}
+      onSaveDefaultQuota={handleSaveDefaultQuota}
+      isSavingDefaultQuota={updateAccount.isPending}
       authIssuer={config.keycloak.issuer}
       authUserLabel={
         session.user?.email ?? session.user?.name ?? t('settings.account.authUserLabel')
       }
       status={(selectedAccount?.status as 'active' | 'suspended' | undefined) ?? 'active'}
-      canCreate={has('account:create')}
       canUpdate={has('account:update')}
-      canManageMembers={has('account:member')}
       canDelete={has('account:delete')}
       canDisable={has('account:disable')}
       onDeleteAccount={handleDeleteAccount}
@@ -144,11 +110,6 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onEnableAccount={handleEnableAccount}
       isChangingStatus={disableAccount.isPending || enableAccount.isPending}
       statusError={statusError}
-      memberError={memberError}
-      isDefault={selectedAccount?.isDefault ?? false}
-      onSetDefaultAccount={handleSetDefaultAccount}
-      isSettingDefault={setDefaultAccount.isPending}
-      setDefaultError={setDefaultError}
     />
   );
 }

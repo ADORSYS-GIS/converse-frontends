@@ -13,9 +13,8 @@ beforeAll(() => {
 
 const account: Account = {
   id: 'acc-1',
-  billingIdentity: 'acme-inc',
+  defaultQuota: 't-m',
   status: 'active',
-  isDefault: true,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -25,6 +24,8 @@ const project: Project = {
   accountId: 'acc-1',
   name: 'production',
   billingPlan: 'free',
+  billingIdentity: 'acme-inc',
+  projectQuota: undefined,
   allowedModels: ['gpt-4o'],
   defaultLimits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
   status: 'active',
@@ -37,6 +38,10 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
   return render(
     <ProjectSettingsView
       onBack={noop}
+      onAddMember={noop}
+      onRemoveMember={noop}
+      onSetMemberRole={noop}
+      onSetMemberQuotaTier={noop}
       accounts={[account]}
       projects={[project]}
       selectedAccountId="acc-1"
@@ -206,5 +211,71 @@ describe('ProjectSettingsView', () => {
     );
 
     expect(onCreateProject).toHaveBeenCalled();
+  });
+
+  it('renders the roster with each member\'s role and quota tier', async () => {
+    await renderView({
+      members: [
+        { id: 'proj-1:sub-lead', projectId: 'proj-1', accountId: 'sub-lead', role: 'lead', quotaTier: 't-m', createdAt: '' },
+        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+      ],
+    });
+
+    expect(screen.getByText('sub-lead')).toBeTruthy();
+    expect(screen.getByText('sub-plain')).toBeTruthy();
+    expect(screen.getByText('Lead')).toBeTruthy();
+    expect(screen.getByDisplayValue('t-m')).toBeTruthy();
+  });
+
+  it('explains that a default project has no roster instead of showing an empty one', async () => {
+    await renderView({ project: { ...project, isDefault: true }, members: [] });
+
+    expect(
+      screen.getByText(
+        'This is your personal project — it has no members by design. Create a separate project to work with others.'
+      )
+    ).toBeTruthy();
+    // No add control at all — the roster is structurally absent, not merely empty.
+    expect(screen.queryByPlaceholderText('Account ID')).toBeNull();
+  });
+
+  it('adds a member as a plain member, leaving promotion a separate action', async () => {
+    const onAddMember = jest.fn();
+    await renderView({ onAddMember });
+
+    await fireEvent.changeText(screen.getByPlaceholderText('Account ID'), '  sub-new  ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Add member' }));
+
+    expect(onAddMember).toHaveBeenCalledWith('sub-new', 'member');
+  });
+
+  it('toggles a member between lead and member', async () => {
+    const onSetMemberRole = jest.fn();
+    await renderView({
+      members: [
+        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+      ],
+      onSetMemberRole,
+    });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Make lead' }));
+
+    expect(onSetMemberRole).toHaveBeenCalledWith('sub-plain', 'lead');
+  });
+
+  it('surfaces a server-side lead-gating rejection', async () => {
+    // project:member is necessary but not sufficient — the server also requires ownership or
+    // role=lead, so the UI must show the 403 rather than silently doing nothing.
+    await renderView({ memberError: 'Forbidden: only a project lead may change the roster' });
+
+    expect(
+      screen.getByText('Forbidden: only a project lead may change the roster')
+    ).toBeTruthy();
+  });
+
+  it('hides the members section entirely without the project:member capability', async () => {
+    await renderView({ canManageMembers: false });
+
+    expect(screen.queryByPlaceholderText('Account ID')).toBeNull();
   });
 });

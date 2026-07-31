@@ -6,9 +6,14 @@ import {
   useDisableProject,
   useEnableProject,
   usePermissions,
+  useAddProjectMember,
+  useProjectMembers,
   useProjects,
   useQueryState,
+  useRemoveProjectMember,
   useSetDefaultProject,
+  useSetProjectMemberQuotaTier,
+  useSetProjectMemberRole,
   useUpdateProject,
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
@@ -45,6 +50,45 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const disableProject = useDisableProject();
   const enableProject = useEnableProject();
   const setDefaultProject = useSetDefaultProject();
+
+  // A default project has no roster by construction, so don't even ask the server for one.
+  const { data: members, isLoading: isLoadingMembers } = useProjectMembers(
+    project?.isDefault ? undefined : projectId
+  );
+  const addMember = useAddProjectMember();
+  const removeMember = useRemoveProjectMember();
+  const setMemberRole = useSetProjectMemberRole();
+  const setMemberQuotaTier = useSetProjectMemberQuotaTier();
+
+  const handleAddMember = (accountId: string, role: 'lead' | 'member') => {
+    if (!projectId) return;
+    void addMember.mutateAsync({ projectId, accountId, role }).catch(() => undefined);
+  };
+
+  const handleRemoveMember = (accountId: string) => {
+    if (!projectId) return;
+    void removeMember.mutateAsync({ projectId, accountId }).catch(() => undefined);
+  };
+
+  const handleSetMemberRole = (accountId: string, role: 'lead' | 'member') => {
+    if (!projectId) return;
+    void setMemberRole.mutateAsync({ projectId, accountId, role }).catch(() => undefined);
+  };
+
+  const handleSetMemberQuotaTier = (accountId: string, quotaTier: string) => {
+    if (!projectId) return;
+    void setMemberQuotaTier
+      .mutateAsync({ projectId, accountId, quotaTier: quotaTier === '' ? undefined : quotaTier })
+      .catch(() => undefined);
+  };
+
+  // The coarse permission is not the whole story: the server also demands account ownership or
+  // role='lead', so a permitted-looking caller still gets a 403. Surface it rather than swallow it.
+  const memberError =
+    [addMember.error, removeMember.error, setMemberRole.error, setMemberQuotaTier.error]
+      .filter(Boolean)
+      .map((error) => getApiErrorMessage(error))
+      .at(0) ?? null;
 
   const handleSelectAccount = (id: string) => {
     setAccountParam(id);
@@ -183,6 +227,20 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onEnableProject={handleEnableProject}
       isChangingStatus={disableProject.isPending || enableProject.isPending}
       statusError={statusError}
+      members={members}
+      isLoadingMembers={isLoadingMembers}
+      onAddMember={handleAddMember}
+      onRemoveMember={handleRemoveMember}
+      onSetMemberRole={handleSetMemberRole}
+      onSetMemberQuotaTier={handleSetMemberQuotaTier}
+      isSavingMembers={
+        addMember.isPending ||
+        removeMember.isPending ||
+        setMemberRole.isPending ||
+        setMemberQuotaTier.isPending
+      }
+      canManageMembers={has('project:member')}
+      memberError={memberError}
       onSetDefaultProject={handleSetDefaultProject}
       isSettingDefault={setDefaultProject.isPending}
       setDefaultError={setDefaultError}

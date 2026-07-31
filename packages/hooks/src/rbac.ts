@@ -15,12 +15,12 @@ export const ALL_PERMISSIONS = [
   'account:update',
   'account:delete',
   'account:disable',
-  'account:member',
   'project:create',
   'project:read',
   'project:update',
   'project:delete',
   'project:disable',
+  'project:member',
   'apikey:create',
   'apikey:read',
   'apikey:update',
@@ -35,6 +35,15 @@ export type Permission = (typeof ALL_PERMISSIONS)[number];
 /**
  * Built-in role -> grant mapping, ported from `default_role_permissions()`. Used when the
  * backend has no `oauth2.rbac.role_permissions` override configured (the common case).
+ */
+/*
+ * NOTE ON `lightbridge-editor`: its `project:*` grant now expands to include the new
+ * `project:member`, so editors can manage project rosters and set members' quota tiers. That is a
+ * real widening of what an editor may do, and it is intentional — it mirrors the backend, whose
+ * `Permission` enum places `ProjectMember` in the project group so `project:*` expands identically.
+ * The two must agree: this array's ORDER and CONTENTS mirror the backend's `Permission::ALL`.
+ * If editors should not manage rosters, both sides have to list grants individually instead of
+ * using the wildcard.
  */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   'lightbridge-admin': ['*'],

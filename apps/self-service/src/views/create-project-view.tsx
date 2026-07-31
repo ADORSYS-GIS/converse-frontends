@@ -8,23 +8,29 @@ export function CreateProjectView({
   onCancel,
   loading,
 }: Readonly<{
-  onConfirm: (input: { name: string; billingPlan: string }) => void;
+  onConfirm: (input: { name: string; billingPlan: string; billingIdentity: string }) => void;
   onCancel: () => void;
   loading?: boolean;
 }>) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [billingPlan, setBillingPlan] = React.useState('');
+  const [billingIdentity, setBillingIdentity] = React.useState('');
 
   const trimmedName = name.trim();
   const trimmedPlan = billingPlan.trim();
-  const canCreate = trimmedName.length > 0 && !loading;
+  const trimmedIdentity = billingIdentity.trim();
+  // Billing identity is required and `@unique` server-side (lightbridge-authz ADR-0006 moved it
+  // from the account to the project so one person can bill projects to different parties), so it
+  // gates creation the same way the name does — a duplicate is rejected as a Conflict.
+  const canCreate = trimmedName.length > 0 && trimmedIdentity.length > 0 && !loading;
 
   const handleConfirm = () => {
     if (!canCreate) return;
     onConfirm({
       name: trimmedName,
       billingPlan: trimmedPlan || t('createProject.planPlaceholder'),
+      billingIdentity: trimmedIdentity,
     });
   };
 
@@ -39,6 +45,16 @@ export function CreateProjectView({
             value={name}
             onChangeText={setName}
             placeholder={t('createProject.namePlaceholder')}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+            onSubmitEditing={handleConfirm}
+          />
+          <Text intent="caption">{t('createProject.billingIdentityLabel')}</Text>
+          <TextField
+            value={billingIdentity}
+            onChangeText={setBillingIdentity}
+            placeholder={t('createProject.billingIdentityPlaceholder')}
             autoCapitalize="none"
             autoCorrect={false}
             editable={!loading}

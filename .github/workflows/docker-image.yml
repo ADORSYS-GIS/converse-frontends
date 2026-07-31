@@ -18,7 +18,7 @@ jobs:
     # Rootless Buildah on the self-hosted runner (daemonless — no Docker/dind).
     # The web bundle is built here via Turbo (hitting the runner's Turbo cache),
     # then baked into a thin nginx image. Single-arch: every cluster node is amd64.
-    runs-on: adorsys-gis-runner
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write

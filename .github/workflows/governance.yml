@@ -24,7 +24,7 @@ jobs:
     # commit that added the `runs-on` input (PR #17, 2026-07-06).
     uses: ADORSYS-GIS/ai-governance/.github/workflows/governance-check.yml@9a08ab57e0f651c7f7fbd42fe2768d1e113c55e5
     with:
-      runs-on: adorsys-gis-runner
+      runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read

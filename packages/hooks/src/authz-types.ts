@@ -1,8 +1,8 @@
 import type {
   Account as GeneratedAccount,
   ApiKey as GeneratedApiKey,
+  LightbridgeAuthzRpcClient,
   Project as GeneratedProject,
-  ProjectMember as GeneratedProjectMember,
 } from '@lightbridge/authz-rpc';
 
 /**
@@ -20,8 +20,16 @@ import type {
 export type Account = Omit<GeneratedAccount, 'projects'>;
 export type Project = Omit<GeneratedProject, 'account' | 'apiKeys' | 'members'>;
 export type ApiKey = Omit<GeneratedApiKey, 'project'>;
-// Only `project` to omit: `ProjectMember` no longer declares an `account` relation. It was
-// removed because `Account` and `Project` are already directly connected, so a second link between
-// them multiplied the relation paths cratestack's codegen enumerates — server-side that cost rustc
-// >51 GB. `accountId` is a plain scalar and stays.
-export type ProjectMember = Omit<GeneratedProjectMember, 'project'>;
+/**
+ * Derived from the procedure's own return type rather than imported as a named model.
+ *
+ * `ProjectMember` is not exported from the generated models barrel: it is policy-traversal-only
+ * server-side, its generic `model.ProjectMember.*` verbs are fail-closed, and its `id` is
+ * synthetic (`project_members` is keyed `(project_id, account_id)` with no `id` column). So the
+ * only way to obtain a roster row is `procedures.listProjectRoster`, and taking the element type
+ * of what that actually returns is both available and strictly more accurate than restating the
+ * shape by hand — it cannot drift from the wire contract.
+ */
+export type ProjectMember = Awaited<
+  ReturnType<LightbridgeAuthzRpcClient['procedures']['listProjectRoster']>
+>[number];

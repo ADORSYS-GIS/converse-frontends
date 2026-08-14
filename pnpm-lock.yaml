@@ -56,8 +56,8 @@ importers:
   apps/self-service:
     dependencies:
       '@cratestack/api':
-        specifier: ^0.4.16
-        version: 0.4.16
+        specifier: ^0.7.16
+        version: 0.7.16(@tanstack/query-core@5.100.9)(axios@1.19.0)(zod@4.4.3)
       '@expo/vector-icons':
         specifier: 15.1.1
         version: 15.1.1(expo-font@55.0.7)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
@@ -247,14 +247,17 @@ importers:
   packages/authz-rpc:
     dependencies:
       '@cratestack/api':
-        specifier: ^0.4.16
-        version: 0.4.16
+        specifier: ^0.7.16
+        version: 0.7.16(@tanstack/query-core@5.100.9)(axios@1.19.0)(zod@4.4.3)
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
       cborg:
         specifier: ^4.2.9
         version: 4.5.8
+      decimal.js:
+        specifier: ^10.6.0
+        version: 10.6.0
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -980,9 +983,70 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@cratestack/api@0.4.16':
-    resolution: {integrity: sha512-ujFVaqTPFh02M5lqxfX5xHBMoS/lFyJpIfsJlBu2p/+P8PnFDROFHIn4sL7F0E8e1A8xROTLJzfognekW6j/OQ==}
+  '@cratestack/adapter-rtk@0.7.16':
+    resolution: {integrity: sha512-Q6eHL2EyEW3Ylk7EMA3nQcGFXOR8TDEge7dYevXnzZM6j5sIpxBesrdOnI8iZ/zxeUsQ7qWxMGiyKTjAUBv5BA==}
     engines: {node: '>=18'}
+    peerDependencies:
+      '@reduxjs/toolkit': ^2.0.0
+    peerDependenciesMeta:
+      '@reduxjs/toolkit':
+        optional: true
+
+  '@cratestack/adapter-tanstack-query@0.7.16':
+    resolution: {integrity: sha512-QrVAKhEBQ04DxcZS0pMdCJaoyEB53epxcOiutWV4GTrSkTASvB+KXKw46V8o5+PTnzNMOrslcS+kGfzK0qI2Fw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@tanstack/query-core': ^5.0.0
+    peerDependenciesMeta:
+      '@tanstack/query-core':
+        optional: true
+
+  '@cratestack/api@0.7.16':
+    resolution: {integrity: sha512-aRwALXS5AfBb6shgSOkiUmLWMqJsrCbv5MXt5ZO3yuu0qcWlLa+Ourfx3jKgQGFmP6+ZZvZ7t0eSIHz5mkh7Og==}
+    engines: {node: '>=18'}
+
+  '@cratestack/link-batch@0.7.16':
+    resolution: {integrity: sha512-tE6xmlIFx+st6SUq5KBz7ATSL+DQkAM0Ti39BVl5v/ZsVf22AvFhyAoIcZ781ZxcY1XmoVZs9FO6o9znjLLDWQ==}
+    engines: {node: '>=18'}
+
+  '@cratestack/link-logger@0.7.16':
+    resolution: {integrity: sha512-0ATNwaj8O5v/LzEE1fCpSwa+0FRte2T18z/0qxWSxBSVZmtRYRp3Oihqx4s9vNFBDi8vOpIZ+LFjfox3C5PyOA==}
+    engines: {node: '>=18'}
+
+  '@cratestack/runtime-axios@0.7.16':
+    resolution: {integrity: sha512-JQeI2trfeaCVTeGegCyoXyiMhe461xy+Hu7CqFi+/OiA5iod30BGx1xEpNOBe7E9B1pD1OGZsSpyrFG7sQdYcw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      axios: ^1.18.0
+    peerDependenciesMeta:
+      axios:
+        optional: true
+
+  '@cratestack/runtime-fetch@0.7.16':
+    resolution: {integrity: sha512-WYYqfa83+PnhMTHI5A4a+HGwqhm7FqsDAni/TTsJp7RBazF1nicZRCuOTrXBg1p4qxLOjUk4YwHEIAhnb/NFZA==}
+    engines: {node: '>=18'}
+
+  '@cratestack/ts-types@0.7.16':
+    resolution: {integrity: sha512-NNicc+o+f+RivNHIHoJte6eI0QE9x5I5tIsYzJcQCCcFwc0fibLFNC6T+aYG3Y3/optv21ziMPtRvINymQgqGw==}
+    engines: {node: '>=18'}
+
+  '@cratestack/validator-yup@0.7.16':
+    resolution: {integrity: sha512-9LbOvMHibyayjr7xb7BGJUV8BOtlzMZ4Bv4ENZtj0CTobqNCX3oqRDlc6SxthR9cM9Iomr34UsuRJZaDeffeSg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      yup: ^1.4.0
+    peerDependenciesMeta:
+      yup:
+        optional: true
+
+  '@cratestack/validator-zod@0.7.16':
+    resolution: {integrity: sha512-qFHKRF5PPa0Y1scBQmfKcvTxHZqUCJFN0tkq6n6/pjgPsLgo7Mi97z16QO/aLWFCBgh8O8vYpuE6n2ovjUTqEw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.23.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@egjs/hammerjs@2.0.17':
     resolution: {integrity: sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==}
@@ -2963,6 +3027,7 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -7811,7 +7876,59 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@cratestack/api@0.4.16': {}
+  '@cratestack/adapter-rtk@0.7.16':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+
+  '@cratestack/adapter-tanstack-query@0.7.16(@tanstack/query-core@5.100.9)':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+    optionalDependencies:
+      '@tanstack/query-core': 5.100.9
+
+  '@cratestack/api@0.7.16(@tanstack/query-core@5.100.9)(axios@1.19.0)(zod@4.4.3)':
+    dependencies:
+      '@cratestack/adapter-rtk': 0.7.16
+      '@cratestack/adapter-tanstack-query': 0.7.16(@tanstack/query-core@5.100.9)
+      '@cratestack/link-batch': 0.7.16
+      '@cratestack/link-logger': 0.7.16
+      '@cratestack/runtime-axios': 0.7.16(axios@1.19.0)
+      '@cratestack/runtime-fetch': 0.7.16
+      '@cratestack/ts-types': 0.7.16
+      '@cratestack/validator-yup': 0.7.16
+      '@cratestack/validator-zod': 0.7.16(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@reduxjs/toolkit'
+      - '@tanstack/query-core'
+      - axios
+      - yup
+      - zod
+
+  '@cratestack/link-batch@0.7.16':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+
+  '@cratestack/link-logger@0.7.16':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+
+  '@cratestack/runtime-axios@0.7.16(axios@1.19.0)':
+    optionalDependencies:
+      axios: 1.19.0
+
+  '@cratestack/runtime-fetch@0.7.16': {}
+
+  '@cratestack/ts-types@0.7.16': {}
+
+  '@cratestack/validator-yup@0.7.16':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+
+  '@cratestack/validator-zod@0.7.16(zod@4.4.3)':
+    dependencies:
+      '@cratestack/ts-types': 0.7.16
+    optionalDependencies:
+      zod: 4.4.3
 
   '@egjs/hammerjs@2.0.17':
     dependencies:

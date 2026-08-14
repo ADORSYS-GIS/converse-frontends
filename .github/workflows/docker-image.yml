@@ -43,16 +43,22 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.local/bin/cratestack
-          key: cratestack-cli-0.4.16-${{ runner.os }}-${{ runner.arch }}
+          key: cratestack-cli-0.7.16-${{ runner.os }}-${{ runner.arch }}
 
-      # 0.4.16 ships prebuilt binaries on GH Releases — no Rust toolchain needed.
-      # Keep this in lockstep with lightbridge-authz's cratestack pins: the generator and the
-      # server it generates against must agree, and 0.4.16 stamps a schema fingerprint into the
-      # client (x-cratestack-schema-sha) that a mismatched pair would make meaningless.
+      # 0.4.16+ ships prebuilt binaries on GH Releases — no Rust toolchain needed.
+      # This MUST match lightbridge-authz's `cratestack`/`cratestack-pg` pin
+      # (root Cargo.toml [workspace.dependencies]) exactly — nothing here enforces that
+      # automatically, it is a manual convention. A drift between this pin and the deployed
+      # backend's is exactly how lightbridge-authz#282 happened: cratestack 0.7.11 changed
+      # `Value`'s wire format from externally-tagged to untagged, this generator stayed on 0.4.16
+      # and kept hand-tagging `Json` fields to match the old shape, and the untagged-`Value`
+      # backend decoded the stale tagged payload without error (`deserialize_any` treats any JSON
+      # object as `Value::Map`), storing `{"List": [...]}` literally and silently defeating the
+      # `allowedModels` governance allowlist. See lightbridge-authz#282 / converse-frontends#149.
       - name: Install cratestack-cli
         if: steps.cratestack-cache.outputs.cache-hit != 'true'
         env:
-          CRATESTACK_VERSION: '0.4.16'
+          CRATESTACK_VERSION: '0.7.16'
         run: |
           set -euo pipefail
           case "$(uname -m)" in

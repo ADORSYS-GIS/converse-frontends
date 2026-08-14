@@ -12,9 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cratestack/api": "^0.4.16",
+    "@cratestack/api": "^0.7.16",
     "@paralleldrive/cuid2": "^2.2.2",
-    "cborg": "^4.2.9"
+    "cborg": "^4.2.9",
+    "decimal.js": "^10.6.0"
   },
   "peerDependencies": {
     "react": ">=18"

@@ -17,7 +17,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@cratestack/api": "^0.4.16",
+    "@cratestack/api": "^0.7.16",
     "@expo/vector-icons": "15.1.1",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@lightbridge/api-native": "workspace:*",

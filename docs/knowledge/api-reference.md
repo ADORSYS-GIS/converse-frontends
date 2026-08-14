@@ -136,10 +136,12 @@ listing op-id). See the account-settings members UI for the resulting known gap.
 | `allowedModels` | `JsonValue \| undefined` | **Yes**  | Allowlist of model names (absent = all models allowed)                                                                    |
 | `defaultLimits` | `JsonValue`              | No       | Default rate limits for this project (opaque JSON blob, e.g. `{ requestsPerSecond, requestsPerDay, concurrentRequests }`) |
 
-`allowedModels`/`defaultLimits` are cratestack `Json` columns: on the wire they're externally
-tagged (`{}` → `{"Map": {}}`, `["x"]` → `{"List": [{"String": "x"}]}`), but
-`packages/authz-rpc`'s `tagValue`/`untagValue` (`src/value.ts`) convert transparently at the SDK
-boundary — hooks/views never see the tagged form, just plain JS values typed `JsonValue`.
+`allowedModels`/`defaultLimits` are cratestack `Json` columns: on the wire (cratestack-cli
+0.7.16, matching the deployed backend) they're plain, untagged values — `{}` stays `{}`,
+`["x"]` stays `["x"]`. There is no client-side tagging/untagging step; the generated client's
+`JsonValue` type is exactly what goes over the wire in both directions. (Earlier revisions of
+this client hand-tagged these fields to match an externally-tagged `Value` wire format from
+cratestack-cli 0.4.16 — removed as part of the 0.7.16 upgrade; see lightbridge-authz#282.)
 
 ```json
 {

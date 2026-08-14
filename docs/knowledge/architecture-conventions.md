@@ -36,8 +36,9 @@ turned into the generated client under `packages/authz-rpc/generated/` by the of
 `generated/` is gitignored, same as every other package's codegen output (e.g. `api-rest`'s
 `src/client/`) — it's a build artifact, not source. Regenerate it locally with
 `pnpm --filter @lightbridge/authz-rpc codegen:cratestack`; CI (`test.yml`, `docker-image.yml`)
-installs a cached `cratestack-cli` (pinned to `0.4.16`) and runs the same command before
-tests/build.
+installs a cached `cratestack-cli` (pinned to `0.7.16`, matching lightbridge-authz's deployed
+`cratestack`/`cratestack-pg` version — see `.github/workflows/test.yml` for why this must stay
+in lockstep) and runs the same command before tests/build.
 
 Since `cratestack-cli` 0.4.14 (issue #182), the generated runtime accepts a composable
 `links?: RpcLink[]` interceptor chain, threaded through as `AuthzRpcRuntimeOptions.links`

@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always() && github.event_name != 'pull_request' && vars.ENABLE_CODE_SCANNING == 'true'
-        uses: github/codeql-action/upload-sarif@4187e74d05793876e9989daffde9c3e66b4acd07  # v3.37.3
+        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38  # v4.37.4
         with:
           sarif_file: .ci/quality/reports/quality.sarif
           category: quality-pipeline

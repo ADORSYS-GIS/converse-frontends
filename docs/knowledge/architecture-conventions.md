@@ -18,7 +18,8 @@ converse-frontends/
 ├── packages/         # Shared libraries consumed by apps
 │   ├── authz-rpc/    # Generated cratestack RPC client for accounts/projects/api-keys
 │   │                 # (do not hand-edit packages/authz-rpc/generated/ — codegen output)
-│   ├── api-rest/     # Generated REST client for the Usage API only (do not hand-edit)
+│   ├── api-rest/     # Generated REST client for the Usage API only (do not hand-edit).
+│   │                 # Currently unused — nothing imports it; see architecture.md.
 │   ├── api-native/   # Native API client utilities
 │   ├── hooks/        # Shared React hooks (auth, usage, projects, etc.)
 │   ├── i18n/         # Internationalisation resources
@@ -62,12 +63,14 @@ Since `cratestack-cli` 0.4.14 (issue #182), the generated runtime accepts a comp
 `links?: RpcLink[]` interceptor chain, threaded through as `AuthzRpcRuntimeOptions.links`
 (`packages/authz-rpc/src/runtime.ts`). `@cratestack/api`'s `createBatchLink()` plugs into it —
 an automatic scheduler that collapses concurrent unary calls into one `POST /rpc/batch` request —
-and is exercised in `packages/authz-rpc/src/runtime.test.ts`, but **is not wired into the app
-root** (`apps/self-service/src/app/_layout.tsx`'s `useAuthzRpcClient(config)` call omits `links`).
-Activating it end-to-end is tracked separately
-([converse-frontends#120](https://github.com/ADORSYS-GIS/converse-frontends/issues/120)); the
-backend RBAC gate for `POST /rpc/batch` was fixed to authorize per-frame in
-[lightbridge-authz#157](https://github.com/ADORSYS-GIS/lightbridge-authz/issues/157).
+and is exercised in `packages/authz-rpc/src/runtime.test.ts`. **Corrected from an earlier version
+of this doc, which said this was not wired into the app root:** it now is —
+`apps/self-service/src/app/_layout.tsx` constructs `authzBatchLink = createBatchLink()` at module
+scope (not per-render — the file's own comment explains this avoids constructing a fresh batcher on
+every render) and passes `links: [authzBatchLink]` into `useAuthzRpcClient(...)`. The tracking
+issues ([converse-frontends#120](https://github.com/ADORSYS-GIS/converse-frontends/issues/120),
+[lightbridge-authz#157](https://github.com/ADORSYS-GIS/lightbridge-authz/issues/157)) describe the
+work that made this possible; the code now reflects it landed.
 
 **Rule:** Never place application-specific business logic in `packages/`. Packages export reusable, app-agnostic code only.
 
@@ -75,37 +78,198 @@ backend RBAC gate for `POST /rpc/batch` was fixed to authorize per-frame in
 
 ## Application Layering
 
-Within `apps/self-service/src/`, follow this strict layering:
+Within `apps/self-service/src/`, follow this strict layering. **Corrected from an earlier version
+of this table:** views do not call hooks for data. Screens do. This was verified by reading every
+current `views/*.tsx` file's imports — see the note under the table.
 
 | Layer          | Directory                                                                        | Responsibility                                                                                                                    |
 | -------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Routes**     | `src/app/`                                                                       | Expo Router file-based routes. Thin — only renders the corresponding Screen.                                                      |
-| **Screens**    | `src/screens/`                                                                   | Assembles Views. May select which View to show but contains no business logic.                                                    |
-| **Views**      | `src/views/`                                                                     | Presentational components. Calls hooks for data; renders UI. Contains layout logic.                                               |
+| **Screens**    | `src/screens/`                                                                   | Owns data fetching (calls `packages/hooks`) and, where relevant, imperative sheet presentation (`useSheet`). Passes data and callbacks down to Views as props. Sheet-content components (`*-sheet.tsx`) live here too — they're screen-owned, not view-owned. |
+| **Views**      | `src/views/`                                                                     | Pure presentational components. Render UI from props only. May import **types** from `@lightbridge/hooks` (or its dependency-free subpaths, e.g. `@lightbridge/hooks/budget-tiers`) but never call a data-fetching hook. Must not import `@lightbridge/ui/sheet`. |
 | **Hooks**      | `packages/hooks/`                                                                | All data fetching, state management, and business logic. No JSX.                                                                  |
-| **API Client** | `packages/authz-rpc/` (accounts/projects/api-keys), `packages/api-rest/` (usage) | Auto-generated. Never edit by hand — `packages/authz-rpc/generated/` and `packages/api-rest/src/client/` are both codegen output. |
+| **API Client** | `packages/authz-rpc/` (accounts/projects/api-keys), `packages/api-rest/` (usage — currently unused, see `architecture.md`) | Auto-generated. Never edit by hand — `packages/authz-rpc/generated/` and `packages/api-rest/src/client/` are both codegen output. |
 
-**Dependency direction:** Routes → Screens → Views → Hooks → API Client
+**Dependency direction:** Routes → Screens → { Views (props only), Hooks (data), Sheet system (screens only) } → API Client
 
-**Example chain for the Usage feature (REST):**
+```mermaid
+flowchart TD
+    routes["app/ (routes)"]
+    screens["screens/\nowns hooks + useSheet"]
+    views["views/\npresentational only"]
+    ui["packages/ui"]
+    hooks["packages/hooks"]
+    apiclient["authz-rpc / api-rest"]
+
+    routes -->|renders one| screens
+    screens -->|"props + callbacks"| views
+    views --> ui
+    screens -->|"data fetching"| hooks
+    hooks --> apiclient
+    screens -.->|"types only, never a hook call"| views
+```
+
+Every `views/*.tsx` file was grepped for `@lightbridge/hooks` imports (2026-08-15): all matches are
+either `import type { ... }` or the pure, non-fetching `@lightbridge/hooks/budget-tiers` subpath
+(e.g. `formatMicroUsd` — see `apps/self-service/src/views/settings/budget-refill-view.tsx`, which
+has a comment explaining it imports that subpath specifically to avoid pulling in the full
+`@lightbridge/hooks` barrel and its `@lightbridge/authz-rpc`/`cborg` transitive chain, which Jest's
+resolver can't follow). Zero views call an actual data-fetching hook (`useQuery`, `useApiKeys`,
+etc.) — every one of those calls lives in a screen. `apps/self-service/src/screens/api-key-create-screen.tsx`
+is representative: it calls `useCreateApiKey`/`useEnsureDefaultAccount`/`useEnsureDefaultProject`/
+`usePermissions` directly and passes the results as props to the purely presentational
+`views/api-key-create-view.tsx`, which imports nothing from `@lightbridge/hooks` at all.
+
+**Example chain for the Usage feature (Grafana embed, not REST):**
 
 ```
 app/(tabs)/usage.tsx          → renders <UsageScreen />
-screens/usage-screen.tsx      → renders <UsageView />
-views/usage-view.tsx          → calls hooks, renders UI
-packages/hooks/src/usage.ts   → calls queryUsage()
-packages/api-rest/            → generated HTTP client (OpenAPI)
+screens/usage-screen.tsx      → reads useRuntimeConfig().usage, builds the dashboard URL
+views/usage-view.tsx          → presentational: receives embedUrl + onOpenExternal as props
+views/usage-dashboard-embed.web.tsx → renders an <iframe src={embedUrl}>
 ```
+
+This replaces the previous REST-based example (`packages/hooks/src/usage.ts` calling
+`queryUsage()`) — that file no longer exists in the tree. See `architecture.md`'s Usage flow for
+the full picture, including why `packages/api-rest` is currently unused.
 
 **Example chain for the API Keys feature (cratestack RPC):**
 
 ```
 app/api-keys/new.tsx                → renders <ApiKeyCreateScreen />
-screens/api-key-create-screen.tsx   → renders views, assembles state
-views/api-key-create-view.tsx       → calls hooks, renders UI
+screens/api-key-create-screen.tsx   → calls useCreateApiKey(), passes result to the view
+views/api-key-create-view.tsx       → presentational only; renders UI from props
 packages/hooks/src/api-keys.ts      → calls client.procedures.createApiKey({ args })
 packages/authz-rpc/                 → generated RPC client (POST /rpc/procedure.createApiKey)
 ```
+
+---
+
+## Two Load-Bearing Package Contracts
+
+These two rules aren't spelled out anywhere else in the docs, but breaking either one has already
+caused a real regression (see the second contract). Both exist for the same underlying reason:
+`views/` and `packages/ui` must be renderable in isolation, synchronously, with no provider tree —
+that's what makes them unit-testable standalone and reusable without dragging in the rest of the
+app.
+
+### `packages/ui` has zero i18n coupling and no data fetching
+
+Verified 2026-08-15 by reading `packages/ui/package.json` (no `i18next`/`react-i18next`, no
+`@tanstack/*`, no `axios` in `dependencies` or `devDependencies`) and by grepping
+`packages/ui/src` for `i18n`/`useTranslation`/`fetch(`/`axios`/`useQuery`: the only hits are code
+comments *about* the rule, not violations of it, e.g.:
+
+- `packages/ui/src/components/picker/component.tsx:22` — "Fetches no data and owns no i18n: every
+  string is a prop."
+- `packages/ui/src/components/confirm-dialog/component.tsx:41` — a fallback string "stays app-owned
+  since it's tied to i18n'd fallback copy."
+
+**Rule:** every user-visible string in `packages/ui` is a prop. The package never imports
+`react-i18next` and never calls `fetch`/`axios`/`useQuery` itself. This is what lets design-system
+work (adding a component, restyling a token) and feature work (wiring a screen to a real endpoint)
+proceed in parallel without both branches touching `packages/i18n`'s shared translation file.
+
+### `views/` must not import the sheet system; only `screens/` may
+
+`@lightbridge/ui/sheet` (the only way to reach `SheetProvider`/`useSheet`/`Sheet`) is a separate
+export subpath, deliberately **not** re-exported from `packages/ui`'s main barrel — see the
+`NOTE` comment at `packages/ui/src/index.ts:85`. Importing it pulls in `@gorhom/bottom-sheet` →
+`react-native-reanimated` → `react-native-worklets`: real native modules that need a running app
+runtime (`GestureHandlerRootView`, `SheetProvider`) to initialize. `views/` are unit-tested by
+rendering the component standalone with no such ancestor — a view that calls `useSheet()` crashes
+Jest with a `WorkletsError` (worklets never initialized) rather than a clean assertion failure.
+
+Verified 2026-08-15: grepping every file under `apps/self-service/src/screens` and
+`apps/self-service/src/views` for `useSheet`/`@lightbridge/ui/sheet` finds ten screen-layer hits
+(`delete-api-key-sheet.tsx`, `create-project-sheet.tsx`, `rotate-api-key-sheet.tsx`,
+`revoke-api-key-sheet.tsx`, `delete-account-sheet.tsx`, `delete-project-sheet.tsx`,
+`account-settings-screen.tsx`, `project-settings-screen.tsx`, `api-keys-screen.tsx`,
+`api-key-settings-screen.tsx`) and **zero** in `views/`.
+
+The entity-picker feature (see `architecture.md`) is the clearest worked example of the boundary in
+practice:
+
+- `apps/self-service/src/components/entity-picker-field.tsx` — used directly by three `views/`
+  modules — has "no Sheet/reanimated dependency on purpose" (its own doc comment) and takes a plain
+  `onOpenPicker: () => void` prop.
+- `apps/self-service/src/hooks/use-picker-sheet.tsx` — the thing that actually calls `useSheet()` —
+  is deliberately **screen-only**, per its own doc comment: "`EntityPickerField` (the view-facing
+  half of this feature) only ever receives a plain `onOpenPicker: () => void` callback; it has no
+  idea a sheet exists."
+
+**Rule:** if a component needs to open a sheet, the `useSheet()`/`sheet.present(...)` call goes in
+`screens/` (either the screen itself or a co-located hook like `use-picker-sheet.tsx`). The
+`views/` component underneath takes a plain callback prop and stays ignorant that a sheet exists.
+
+---
+
+## The Imperative Sheet System
+
+`SheetProvider` (`packages/ui/src/components/sheet/provider.tsx`) is mounted once at the app root —
+`AppSheetProvider` (`apps/self-service/src/navigation/app-sheet-provider.tsx`), inside
+`GestureHandlerRootView` in `apps/self-service/src/app/_layout.tsx` — and hosts a single reusable
+`@gorhom/bottom-sheet` `BottomSheetModal`. Any screen can then call `useSheet().present(render, options)`
+to show arbitrary content as a bottom sheet **without adding a route** — no new file under `app/`,
+no URL change. `present()` replaces whatever sheet is currently open; only one shows at a time.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> EntrySet: present(render, options)\n(screen calls useSheet().present)
+    EntrySet --> Open: content commits,\nmodalRef.present() fires
+    Open --> Open: present() again\n(replaces content)
+    Open --> Closed: dismiss() / drag down / backdrop tap\n(onClose fires, entry cleared)
+```
+
+The two-step `Closed → EntrySet → Open` transition (`packages/ui/src/components/sheet/provider.tsx`)
+is deliberate: `present()` sets React state synchronously, and only a `useEffect` that runs *after*
+that content commits calls `modalRef.current.present()` — so the sheet's first animated frame
+already has its body measured for dynamic sizing, instead of animating open on an empty sheet.
+
+### Sequence: a screen-owned mutation sheet (Delete API key)
+
+This is representative of every create/delete/rotate/revoke sheet in the app — only the mutation
+hook and the presentational view change.
+
+```mermaid
+sequenceDiagram
+    participant View as views/api-keys-list-view
+    participant Screen as screens/api-keys-screen
+    participant Sheet as SheetProvider
+    participant Content as screens/delete-api-key-sheet
+    participant Hook as useDeleteApiKey
+
+    View->>Screen: onDelete id, name
+    Screen->>Sheet: sheet.present renders DeleteApiKeySheet
+    Sheet-->>Content: mount, renders DeleteApiKeyView
+    Content->>Hook: mutateAsync id, projectId
+    Hook-->>Content: mutation settles
+    Content->>Sheet: onClose / dismiss
+    Sheet-->>View: sheet closes, list re-renders
+```
+
+### Sheet inventory
+
+Every current use of `useSheet().present(...)` in the app, and the screen that owns it (verified by
+grepping `apps/self-service/src/screens` for `sheet.present(` / `openPicker(`):
+
+| Action                    | Owning screen                                    | Sheet content component                         |
+| ------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| Create project             | `screens/project-settings-screen.tsx`              | `screens/create-project-sheet.tsx`                  |
+| Delete project             | `screens/project-settings-screen.tsx`              | `screens/delete-project-sheet.tsx`                  |
+| Delete account             | `screens/account-settings-screen.tsx`              | `screens/delete-account-sheet.tsx`                  |
+| Delete API key             | `screens/api-keys-screen.tsx`                      | `screens/delete-api-key-sheet.tsx`                  |
+| Rotate API key             | `screens/api-keys-screen.tsx`                      | `screens/rotate-api-key-sheet.tsx`                  |
+| Revoke API key             | `screens/api-keys-screen.tsx`                      | `screens/revoke-api-key-sheet.tsx`                  |
+| API key detail actions     | `screens/api-key-settings-screen.tsx`              | (inline `sheet.present(({dismiss}) => ...)`, no separate file) |
+| Account/project entity picker | `screens/api-keys-screen.tsx`, `screens/account-settings-screen.tsx`, `screens/project-settings-screen.tsx` (via `usePickerSheet()`) | `PickerList` (`packages/ui/src/components/picker`) |
+
+Notably, **creating an API key is not a sheet** — it navigates to a dedicated route
+(`app/api-keys/new.tsx` → `ApiKeyCreateScreen`) instead, because the create form is a focused,
+full-page flow (name entry → one-time secret display) rather than a quick in-context action. Every
+other lifecycle action (delete/rotate/revoke, project/account creation and deletion, entity
+selection) uses a sheet.
 
 ---
 
@@ -143,7 +307,7 @@ const { t } = useTranslation();
 | Subject                      | Convention                          | Example                               |
 | ---------------------------- | ----------------------------------- | ------------------------------------- |
 | Files (modules, components)  | `kebab-case`                        | `usage-view.tsx`, `auth-storage.ts`   |
-| Variables / functions        | `camelCase`                         | `useQueryUsage`, `loadStoredSession`  |
+| Variables / functions        | `camelCase`                         | `useApiKeys`, `loadStoredSession`     |
 | Types / Interfaces / Classes | `PascalCase`                        | `AuthSession`, `UsageQueryParams`     |
 | True constants               | `SCREAMING_SNAKE_CASE`              | `STORAGE_KEY`, `WEB_DB_NAME`          |
 | Interface names              | No `I` prefix                       | `UserService`, **not** `IUserService` |
@@ -191,33 +355,16 @@ Use **named exports** over default exports everywhere possible.
 
 **File:** `apps/self-service/src/app/(tabs)/usage.tsx`
 
-**Current state (as of codebase inspection):**
+**Current state, verified 2026-08-15 — rewritten since an earlier version of this doc, which
+described a "coming soon" placeholder and a `useQueryUsage` hook that no longer exist:**
 
-The route delegates to `UsageScreen` → `UsageView`. The current `UsageView` renders a **"coming soon" placeholder** only:
-
-```tsx
-// views/usage-view.tsx
-export function UsageView() {
-  const { t } = useTranslation();
-  return (
-    <ScreenShell title={t('usage.title')}>
-      <Stack gap="sm" align="center" justify="center" flex="grow">
-        <Text intent="eyebrow" align="center">
-          {t('usage.comingSoon')}
-        </Text>
-      </Stack>
-    </ScreenShell>
-  );
-}
-```
-
-The data-fetching hook (`useQueryUsage` in `packages/hooks/src/usage.ts`) **is** fully implemented and functional, but the view has not yet been wired to display the data. The hook:
-
-- Defaults to `scope = "project"`, last 30 days, `bucket = "1 day"`
-- Only fires when a current project is selected and the user is authenticated
-- Stores results reactively in `usageCollection` (TanStack DB live store)
-
-**Agent TODO:** When implementing the usage UI, import `useQueryUsage` or `useTokenUsage` from `packages/hooks` in the view, not the screen or route.
+The route delegates to `UsageScreen` → `UsageView` → `UsageDashboardEmbed`, and the feature is
+fully implemented — it embeds an external Grafana dashboard rather than fetching usage data through
+`packages/hooks`. See `architecture.md`'s "Usage flow" for the full walkthrough
+(`useRuntimeConfig().usage` → `buildUsageDashboardUrl()` → `<iframe>` on web / "open in Grafana" on
+native). There is no `packages/hooks/src/usage.ts` and no `useQueryUsage`/`useTokenUsage` in the
+current tree — do not reintroduce those names without first checking whether this feature has since
+moved back to an in-app query pipeline.
 
 ---
 
@@ -232,7 +379,17 @@ The data-fetching hook (`useQueryUsage` in `packages/hooks/src/usage.ts`) **is**
 
 ## Testing
 
-- Test framework: **Playwright** (E2E).
+**Corrected from an earlier version of this doc, which named Playwright:** there is no Playwright
+dependency or config anywhere in this repo (verified 2026-08-15 by grepping every `package.json`
+and searching for `playwright.config.*`). The actual, verified stack is:
+
+- `apps/self-service`: **Jest** + `jest-expo` + `@testing-library/react-native` (`pnpm --filter self-service test`). Screens and views are rendered standalone, per the layering rules above.
+- `packages/hooks`, `packages/authz-rpc`: **Vitest** (`test` script is `vitest run` in both).
+- `packages/ui`: no unit-test script; Storybook (`@storybook/react-native-web-vite`, `addon-a11y`) covers visual/interaction review instead.
+- No end-to-end test framework is present in this repo at all — there is no `e2e/` directory and no `*.spec.ts` Playwright/Cypress suite.
+
+Rules that still hold regardless of runner:
+
 - Unit tests: fast, isolated, no I/O, no network.
 - Integration tests: use real component interactions via dedicated test infrastructure.
 - 80%+ line coverage target on business logic; 100% on critical paths (auth, payment, validation).

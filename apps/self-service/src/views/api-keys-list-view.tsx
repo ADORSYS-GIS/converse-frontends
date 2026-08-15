@@ -6,6 +6,7 @@ import {
   Button,
   Callout,
   Card,
+  DataCard,
   designTokens,
   Div,
   Divider,
@@ -259,96 +260,96 @@ export function ApiKeysListView({
                 const isActive = item.status === 'active';
 
                 return (
-                  <Card key={item.id} size="md">
-                    <Stack gap="md">
-                      <ListRow
-                        title={
-                          <Stack direction="row" align="center" gap="sm">
-                            <Text
-                              intent="bodyStrong"
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                              style={{ flexShrink: 1 }}>
-                              {item.name}
-                            </Text>
-                            <Badge
-                              tone={isActive ? 'success' : 'error'}
-                              accessibilityLabel={t(`apiKeys.status.${item.status}`)}>
-                              {t(`apiKeys.status.${item.status}`)}
-                            </Badge>
+                  <DataCard
+                    key={item.id}
+                    title={
+                      <Stack direction="row" align="center" gap="sm">
+                        <Text
+                          intent="bodyStrong"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{ flexShrink: 1 }}>
+                          {item.name}
+                        </Text>
+                        <Badge
+                          tone={isActive ? 'success' : 'error'}
+                          accessibilityLabel={t(`apiKeys.status.${item.status}`)}>
+                          {t(`apiKeys.status.${item.status}`)}
+                        </Badge>
+                      </Stack>
+                    }
+                    subtitle={
+                      <Text intent="caption">
+                        {t('apiKeys.keyPrefixLabel')}{' '}
+                        <Text intent="caption" mono>
+                          {item.keyPrefix}
+                        </Text>
+                      </Text>
+                    }
+                    trailing={
+                      canDelete ? (
+                        <Button
+                          variant="ghost"
+                          onPress={() => onDelete(item.id, item.name)}
+                          accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
+                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                          <Feather name="trash-2" size={18} color={colors.error} />
+                        </Button>
+                      ) : undefined
+                    }
+                    footer={
+                      <Stack gap="md">
+                        {/* Two discrete actions — a segmented control implies a
+                            persistent selection, which these aren't. Rotate is
+                            neutral; Revoke is destructive (error-tinted label). */}
+                        {canRotate || canRevoke ? (
+                          <Stack direction="row" gap="sm" width="full">
+                            {canRotate ? (
+                              <Button
+                                variant="neutral"
+                                size="sm"
+                                disabled={!isActive}
+                                onPress={() => onRotate(item.id, item.name)}
+                                accessibilityLabel={t('apiKeys.rotateNamed', { name: item.name })}
+                                style={{ flex: 1 }}>
+                                {t('apiKeys.rotate')}
+                              </Button>
+                            ) : null}
+                            {canRevoke ? (
+                              <Button
+                                variant="neutral"
+                                size="sm"
+                                disabled={!isActive}
+                                onPress={() => onRevoke(item.id, item.name)}
+                                accessibilityLabel={t('apiKeys.revokeNamed', { name: item.name })}
+                                textProps={{ style: { color: colors.error } }}
+                                style={{ flex: 1 }}>
+                                {t('apiKeys.revoke')}
+                              </Button>
+                            ) : null}
                           </Stack>
-                        }
-                        subtitle={
-                          <Text intent="caption">
-                            {t('apiKeys.keyPrefixLabel')}{' '}
-                            <Text intent="caption" mono>
-                              {item.keyPrefix}
-                            </Text>
-                          </Text>
-                        }
-                        trailing={
-                          canDelete ? (
-                            <Button
-                              variant="ghost"
-                              onPress={() => onDelete(item.id, item.name)}
-                              accessibilityLabel={t('apiKeys.deleteNamed', { name: item.name })}
-                              style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                              <Feather name="trash-2" size={18} color={colors.error} />
-                            </Button>
-                          ) : undefined
-                        }
-                      />
+                        ) : null}
 
-                      {/* Two discrete actions — a segmented control implies a
-                          persistent selection, which these aren't. Rotate is
-                          neutral; Revoke is destructive (error-tinted label). */}
-                      {canRotate || canRevoke ? (
-                        <Stack direction="row" gap="sm" width="full">
-                          {canRotate ? (
-                            <Button
-                              variant="neutral"
-                              size="sm"
-                              disabled={!isActive}
-                              onPress={() => onRotate(item.id, item.name)}
-                              accessibilityLabel={t('apiKeys.rotateNamed', { name: item.name })}
-                              style={{ flex: 1 }}>
-                              {t('apiKeys.rotate')}
-                            </Button>
-                          ) : null}
-                          {canRevoke ? (
-                            <Button
-                              variant="neutral"
-                              size="sm"
-                              disabled={!isActive}
-                              onPress={() => onRevoke(item.id, item.name)}
-                              accessibilityLabel={t('apiKeys.revokeNamed', { name: item.name })}
-                              textProps={{ style: { color: colors.error } }}
-                              style={{ flex: 1 }}>
-                              {t('apiKeys.revoke')}
-                            </Button>
+                        <Stack direction="row" gap="md" wrap="wrap" width="full">
+                          <Text intent="caption">{createdLabel}</Text>
+                          <Text intent="caption">
+                            {item.lastUsedAt
+                              ? t('apiKeys.lastUsed', {
+                                  date: formatNullableDate(item.lastUsedAt, dateLocale),
+                                })
+                              : t('apiKeys.neverUsed')}
+                          </Text>
+                          {item.expiresAt ? (
+                            <Text intent="caption">
+                              {t('apiKeys.expiresOn', {
+                                date: formatNullableDate(item.expiresAt, dateLocale),
+                              })}
+                            </Text>
                           ) : null}
                         </Stack>
-                      ) : null}
-
-                      <Stack direction="row" gap="md" wrap="wrap" width="full">
-                        <Text intent="caption">{createdLabel}</Text>
-                        <Text intent="caption">
-                          {item.lastUsedAt
-                            ? t('apiKeys.lastUsed', {
-                                date: formatNullableDate(item.lastUsedAt, dateLocale),
-                              })
-                            : t('apiKeys.neverUsed')}
-                        </Text>
-                        {item.expiresAt ? (
-                          <Text intent="caption">
-                            {t('apiKeys.expiresOn', {
-                              date: formatNullableDate(item.expiresAt, dateLocale),
-                            })}
-                          </Text>
-                        ) : null}
                       </Stack>
-                    </Stack>
-                  </Card>
+                    }
+                  />
                 );
               })}
           </Stack>

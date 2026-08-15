@@ -27,4 +27,43 @@ describe('OneTimeSecretCard', () => {
     expect(onCopy).toHaveBeenCalledWith('TEST-FIXTURE-SECRET-VALUE');
     expect(screen.getByText('Copied!')).toBeTruthy();
   });
+
+  it('renders no oauth2Url section when the prop is absent (baseline unchanged)', async () => {
+    await render(
+      <OneTimeSecretCard secret="TEST-FIXTURE-SECRET-VALUE" onCopy={jest.fn()} />
+    );
+
+    expect(screen.queryByText('OAuth2 token endpoint:')).toBeNull();
+  });
+
+  it('renders no oauth2Url section when the prop is an empty string', async () => {
+    await render(
+      <OneTimeSecretCard secret="TEST-FIXTURE-SECRET-VALUE" onCopy={jest.fn()} oauth2Url="" />
+    );
+    expect(screen.queryByText('OAuth2 token endpoint:')).toBeNull();
+  });
+
+  it('renders no oauth2Url section when the prop is a malformed URL', async () => {
+    await render(
+      <OneTimeSecretCard
+        secret="TEST-FIXTURE-SECRET-VALUE"
+        onCopy={jest.fn()}
+        oauth2Url="not-a-url"
+      />
+    );
+    expect(screen.queryByText('OAuth2 token endpoint:')).toBeNull();
+  });
+
+  it('renders the oauth2Url, labeled and selectable, when the backend returns one', async () => {
+    await render(
+      <OneTimeSecretCard
+        secret="TEST-FIXTURE-SECRET-VALUE"
+        onCopy={jest.fn()}
+        oauth2Url="https://auth.example.com/oauth2/token"
+      />
+    );
+
+    expect(screen.getByText('OAuth2 token endpoint:')).toBeTruthy();
+    expect(screen.getByText('https://auth.example.com/oauth2/token')).toBeTruthy();
+  });
 });

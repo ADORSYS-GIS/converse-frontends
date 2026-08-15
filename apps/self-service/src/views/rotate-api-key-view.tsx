@@ -21,6 +21,8 @@ type RotateApiKeyViewProps = {
   onCopy: (value: string) => void;
   isRotating?: boolean;
   generatedSecret?: string | null;
+  /** `ApiKeySecret.oauth2Url` from the rotate response, if the backend returned one. */
+  generatedOauth2Url?: string | null;
 };
 
 export function RotateApiKeyView({
@@ -30,6 +32,7 @@ export function RotateApiKeyView({
   onCopy,
   isRotating = false,
   generatedSecret = null,
+  generatedOauth2Url = null,
 }: Readonly<RotateApiKeyViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -88,7 +91,11 @@ export function RotateApiKeyView({
                   </Stack>
                 </Div>
 
-                <OneTimeSecretCard secret={generatedSecret} onCopy={onCopy} />
+                <OneTimeSecretCard
+                  secret={generatedSecret}
+                  onCopy={onCopy}
+                  oauth2Url={generatedOauth2Url}
+                />
 
                 <Button variant="ghost" onPress={onBack} width="full">
                   {t('apiKeys.backToKeys')}

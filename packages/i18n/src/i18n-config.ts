@@ -96,6 +96,9 @@ const resources = {
         planLabel: 'Billing plan',
         planPlaceholder: 'free',
         planLockedNote: 'New keys are created on the free plan.',
+        createForbidden:
+          "Creating API keys here requires being this project's lead or its owning account.",
+        createErrorGeneric: "Couldn't create the API key. Please try again.",
         save: 'Save key',
         saving: 'Saving...',
         createTitle: 'Create or Update',

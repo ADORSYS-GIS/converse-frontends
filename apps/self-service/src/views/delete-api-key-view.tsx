@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 
-import { Button, Card, Page, Stack, Text, TextField } from '@lightbridge/ui';
+import { ConfirmDialog, Page, Text, TextField } from '@lightbridge/ui';
 
 export function DeleteApiKeyView({
   name,
@@ -21,35 +21,32 @@ export function DeleteApiKeyView({
 
   return (
     <Page>
-      <Card>
-        <Stack gap="sm">
-          <Text intent="value">{t('deleteKey.title')}</Text>
-          <Text intent="body">{t('deleteKey.description', { name })}</Text>
-          <Text intent="caption" selectable>
-            {t('deleteKey.confirmInstruction', { target: confirmationTarget })}
-          </Text>
-          <TextField
-            value={confirmation}
-            onChangeText={setConfirmation}
-            placeholder={confirmationTarget}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-            returnKeyType="done"
-            onSubmitEditing={() => {
-              if (!loading && canDelete) onConfirm();
-            }}
-          />
-          <Stack direction="row" gap="sm">
-            <Button variant="ghost" onPress={onCancel}>
-              {t('deleteKey.cancel')}
-            </Button>
-            <Button onPress={onConfirm} disabled={loading || !canDelete}>
-              {loading ? t('deleteKey.deleting') : t('deleteKey.confirm')}
-            </Button>
-          </Stack>
-        </Stack>
-      </Card>
+      <ConfirmDialog
+        tone="danger"
+        title={t('deleteKey.title')}
+        message={t('deleteKey.description', { name })}
+        confirmLabel={loading ? t('deleteKey.deleting') : t('deleteKey.confirm')}
+        cancelLabel={t('deleteKey.cancel')}
+        loading={loading}
+        confirmDisabled={!canDelete}
+        onConfirm={onConfirm}
+        onCancel={onCancel}>
+        <Text intent="caption" selectable>
+          {t('deleteKey.confirmInstruction', { target: confirmationTarget })}
+        </Text>
+        <TextField
+          value={confirmation}
+          onChangeText={setConfirmation}
+          placeholder={confirmationTarget}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            if (!loading && canDelete) onConfirm();
+          }}
+        />
+      </ConfirmDialog>
     </Page>
   );
 }

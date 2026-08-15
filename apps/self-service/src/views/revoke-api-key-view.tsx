@@ -1,16 +1,7 @@
 import React from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 
-import {
-  Button,
-  Card,
-  designTokens,
-  Div,
-  Icon as Feather,
-  Page,
-  Stack,
-  Text,
-} from '@lightbridge/ui';
+import { ConfirmDialog, designTokens, Div, Icon as Feather, Page } from '@lightbridge/ui';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 type RevokeApiKeyViewProps = {
@@ -31,42 +22,20 @@ export function RevokeApiKeyView({
 
   return (
     <Page>
-      <Card>
-        <Stack gap="md">
-          <Stack direction="row" gap="sm" align="start">
-            <Div tone="errorSoft" rounded="xl" size="iconMd" align="center" justify="center">
-              <Feather
-                name="slash"
-                size={designTokens.icon.action}
-                color={colors.error}
-              />
-            </Div>
-            <Stack gap="xs" style={{ flex: 1 }}>
-              <Text intent="bodyStrong">{t('apiKeys.revokeConfirmTitle')}</Text>
-              <Text intent="body">
-                {t('apiKeys.revokeConfirmMessage', { name })}
-              </Text>
-            </Stack>
-          </Stack>
-
-          <Stack direction="row" gap="sm">
-            <Button
-              variant="ghost"
-              onPress={onCancel}
-              disabled={loading}
-              style={{ flex: 1 }}>
-              {t('apiKeys.revokeCancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onPress={onConfirm}
-              disabled={loading}
-              style={{ flex: 1 }}>
-              {loading ? t('apiKeys.revoking') : t('apiKeys.revoke')}
-            </Button>
-          </Stack>
-        </Stack>
-      </Card>
+      <ConfirmDialog
+        title={t('apiKeys.revokeConfirmTitle')}
+        message={t('apiKeys.revokeConfirmMessage', { name })}
+        icon={
+          <Div tone="errorSoft" rounded="xl" size="iconMd" align="center" justify="center">
+            <Feather name="slash" size={designTokens.icon.action} color={colors.error} />
+          </Div>
+        }
+        confirmLabel={loading ? t('apiKeys.revoking') : t('apiKeys.revoke')}
+        cancelLabel={t('apiKeys.revokeCancel')}
+        loading={loading}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
     </Page>
   );
 }

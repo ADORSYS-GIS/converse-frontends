@@ -263,6 +263,9 @@ importers:
         specifier: 19.2.0
         version: 19.2.0
     devDependencies:
+      '@cratestack/cli':
+        specifier: 0.7.16
+        version: 0.7.16
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@25.6.2)(jiti@2.7.0)(jsdom@20.0.3)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
@@ -1005,6 +1008,13 @@ packages:
   '@cratestack/api@0.7.16':
     resolution: {integrity: sha512-aRwALXS5AfBb6shgSOkiUmLWMqJsrCbv5MXt5ZO3yuu0qcWlLa+Ourfx3jKgQGFmP6+ZZvZ7t0eSIHz5mkh7Og==}
     engines: {node: '>=18'}
+
+  '@cratestack/cli@0.7.16':
+    resolution: {integrity: sha512-zvK4vfgtO77QLMPTlg3UNptEoik+0VRCB1T38Vwp3vdAc6s/QEFdeughC9Hfl3I9xVj7Ht2cqQNOjfuYUQ6Q6Q==}
+    engines: {node: '>=18'}
+    cpu: [x64, arm64]
+    os: [darwin, linux, win32]
+    hasBin: true
 
   '@cratestack/link-batch@0.7.16':
     resolution: {integrity: sha512-tE6xmlIFx+st6SUq5KBz7ATSL+DQkAM0Ti39BVl5v/ZsVf22AvFhyAoIcZ781ZxcY1XmoVZs9FO6o9znjLLDWQ==}
@@ -7899,6 +7909,8 @@ snapshots:
       - axios
       - yup
       - zod
+
+  '@cratestack/cli@0.7.16': {}
 
   '@cratestack/link-batch@0.7.16':
     dependencies:

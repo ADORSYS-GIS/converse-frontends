@@ -32,13 +32,21 @@ converse-frontends/
 The AuthZ API (accounts/projects/api-keys) has no OpenAPI spec — it's schema-first cratestack RPC.
 Its source of truth is `packages/authz-rpc/schema/authz.cstack` (copied from the backend repo),
 turned into the generated client under `packages/authz-rpc/generated/` by the official
-`cratestack generate-typescript` CLI (`cratestack-cli`, a Rust binary — not an npm dependency).
+`cratestack generate-typescript` CLI, which ships as the `@cratestack/cli` npm package (a thin
+wrapper whose postinstall downloads the matching Rust binary from GitHub Releases).
 `generated/` is gitignored, same as every other package's codegen output (e.g. `api-rest`'s
-`src/client/`) — it's a build artifact, not source. Regenerate it locally with
-`pnpm --filter @lightbridge/authz-rpc codegen:cratestack`; CI (`test.yml`, `docker-image.yml`)
-installs a cached `cratestack-cli` (pinned to `0.7.16`, matching lightbridge-authz's deployed
-`cratestack`/`cratestack-pg` version — see `.github/workflows/test.yml` for why this must stay
-in lockstep) and runs the same command before tests/build.
+`src/client/`) — it's a build artifact, not source.
+
+`@cratestack/cli` is a `devDependency` of `packages/authz-rpc`, and that package's codegen
+script is named plain `codegen`, so the repo-root `postinstall` → `codegen:all` chain picks it
+up: a bare `pnpm install` regenerates it, locally and in CI alike, with no separately installed
+tooling. (Its postinstall is allowlisted under `allowBuilds` in `pnpm-workspace.yaml`; pnpm
+does not run dependency build scripts otherwise.) Regenerate it by hand with
+`pnpm --filter @lightbridge/authz-rpc run codegen`.
+
+The CLI is pinned to an **exact** version (`0.7.16`) that must stay in lockstep with
+lightbridge-authz's deployed `cratestack`/`cratestack-pg` version — see
+`packages/authz-rpc/README.md` for the incident that makes this non-negotiable.
 
 Since `cratestack-cli` 0.4.14 (issue #182), the generated runtime accepts a composable
 `links?: RpcLink[]` interceptor chain, threaded through as `AuthzRpcRuntimeOptions.links`

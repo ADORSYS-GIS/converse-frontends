@@ -4,6 +4,10 @@ packages:
 allowBuilds:
   esbuild: true
   unrs-resolver: false
+  # Its postinstall fetches the pinned cratestack-cli binary from GitHub Releases.
+  # Without this, the binary never lands and the root postinstall's `codegen:all`
+  # fails on @lightbridge/authz-rpc. See packages/authz-rpc/README.md.
+  "@cratestack/cli": true
 
 overrides:
   axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0

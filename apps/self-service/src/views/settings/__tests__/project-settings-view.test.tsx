@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
 import type { Account, Project } from '@lightbridge/hooks';
 
@@ -143,6 +143,21 @@ describe('ProjectSettingsView', () => {
     expect(screen.getByText('All models are allowed.')).toBeTruthy();
   });
 
+  it('shows the allowlist-enforcement notice for a project with a non-empty allowlist', async () => {
+    await renderView();
+
+    await waitFor(() => expect(screen.getByText(/this allowlist is now enforced/)).toBeTruthy());
+  });
+
+  it('never shows the allowlist-enforcement notice for a project with an empty allowlist', async () => {
+    await renderView({ project: { ...project, allowedModels: [] } });
+
+    // Give any pending storage-read effects a turn — the notice must stay
+    // absent either way, since an empty allowlist means nothing changed.
+    await waitFor(() => expect(screen.getByText('All models are allowed.')).toBeTruthy());
+    expect(screen.queryByText(/this allowlist is now enforced/)).toBeNull();
+  });
+
   it('calls onSaveLimits with parsed limits, mapping empty drafts to null', async () => {
     const onSaveLimits = jest.fn();
     await renderView({ onSaveLimits });
@@ -213,11 +228,25 @@ describe('ProjectSettingsView', () => {
     expect(onCreateProject).toHaveBeenCalled();
   });
 
-  it('renders the roster with each member\'s role and quota tier', async () => {
+  it("renders the roster with each member's role and quota tier", async () => {
     await renderView({
       members: [
-        { id: 'proj-1:sub-lead', projectId: 'proj-1', accountId: 'sub-lead', role: 'lead', quotaTier: 't-m', createdAt: '' },
-        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+        {
+          id: 'proj-1:sub-lead',
+          projectId: 'proj-1',
+          accountId: 'sub-lead',
+          role: 'lead',
+          quotaTier: 't-m',
+          createdAt: '',
+        },
+        {
+          id: 'proj-1:sub-plain',
+          projectId: 'proj-1',
+          accountId: 'sub-plain',
+          role: 'member',
+          quotaTier: null,
+          createdAt: '',
+        },
       ],
     });
 
@@ -253,7 +282,14 @@ describe('ProjectSettingsView', () => {
     const onSetMemberRole = jest.fn();
     await renderView({
       members: [
-        { id: 'proj-1:sub-plain', projectId: 'proj-1', accountId: 'sub-plain', role: 'member', quotaTier: null, createdAt: '' },
+        {
+          id: 'proj-1:sub-plain',
+          projectId: 'proj-1',
+          accountId: 'sub-plain',
+          role: 'member',
+          quotaTier: null,
+          createdAt: '',
+        },
       ],
       onSetMemberRole,
     });
@@ -268,9 +304,7 @@ describe('ProjectSettingsView', () => {
     // role=lead, so the UI must show the 403 rather than silently doing nothing.
     await renderView({ memberError: 'Forbidden: only a project lead may change the roster' });
 
-    expect(
-      screen.getByText('Forbidden: only a project lead may change the roster')
-    ).toBeTruthy();
+    expect(screen.getByText('Forbidden: only a project lead may change the roster')).toBeTruthy();
   });
 
   it('hides the members section entirely without the project:member capability', async () => {

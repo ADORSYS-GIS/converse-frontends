@@ -20,6 +20,7 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account, Project, ProjectMember } from '@lightbridge/hooks';
+import { AllowlistEnforcementNotice } from '../../components/allowlist-enforcement-notice';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
 
@@ -408,6 +409,10 @@ export function ProjectSettingsView({
               ) : null}
 
               {canUpdate ? (
+                <AllowlistEnforcementNotice projectId={project.id} models={models} />
+              ) : null}
+
+              {canUpdate ? (
                 <SectionCard
                   title={t('settings.project.modelsSection')}
                   description={t('settings.project.modelsDescription')}>
@@ -584,10 +589,7 @@ export function ProjectSettingsView({
                                     size="sm"
                                     disabled={isSavingMembers}
                                     onPress={() =>
-                                      onSetMemberRole(
-                                        member.accountId,
-                                        isLead ? 'member' : 'lead'
-                                      )
+                                      onSetMemberRole(member.accountId, isLead ? 'member' : 'lead')
                                     }>
                                     {isLead
                                       ? t('settings.project.memberDemote')

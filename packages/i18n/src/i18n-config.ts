@@ -205,6 +205,9 @@ const resources = {
           modelsDescription:
             'Models that API keys in this project may call. Leave empty to allow all models.',
           modelsEmpty: 'All models are allowed.',
+          allowlistEnforcedNotice:
+            'Heads up: this allowlist is now enforced. Calls to models not on this list will be rejected. Currently allowed: {{models}}.',
+          allowlistEnforcedDismiss: 'Got it',
           modelAddPlaceholder: 'gpt-4o, claude-sonnet-5, ...',
           modelAdd: 'Add',
           modelRemove: 'Remove {{name}}',

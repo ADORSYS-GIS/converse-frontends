@@ -8,12 +8,14 @@ import type { SettingsCategoryKey } from '../navigation/settings-categories';
 import { useIsDesktop } from '../navigation/use-is-desktop';
 import { AccountSettingsScreen } from './account-settings-screen';
 import { ProjectSettingsScreen } from './project-settings-screen';
+import { ApiKeySettingsScreen } from './api-key-settings-screen';
 import { BudgetRefillScreen } from './budget-refill-screen';
 import { BudgetReviewScreen } from './budget-review-screen';
 
 const categoryScreens: Record<SettingsCategoryKey, React.ComponentType<{ embedded?: boolean }>> = {
   account: AccountSettingsScreen,
   project: ProjectSettingsScreen,
+  apikey: ApiKeySettingsScreen,
   budget: BudgetRefillScreen,
   'budget-review': BudgetReviewScreen,
 };

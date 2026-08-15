@@ -15,7 +15,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     return {
       filePath: path.resolve(
         __dirname,
-        '../../node_modules/.pnpm/idb-keyval@6.2.2/node_modules/idb-keyval/dist/index.js'
+        '../../node_modules/.pnpm/idb-keyval@6.3.0/node_modules/idb-keyval/dist/index.js'
       ),
       type: 'sourceFile',
     };

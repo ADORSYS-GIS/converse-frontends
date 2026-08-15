@@ -16,13 +16,13 @@
     "@lightbridge/i18n": "workspace:*",
     "@react-native-community/netinfo": "^11.5.1",
     "@tanstack/react-db": "^0.1.69",
-    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/react-query": "^5.101.4",
     "expo-auth-session": "~55.0.15",
     "expo-crypto": "~55.0.14",
     "expo-localization": "~55.0.13",
     "expo-secure-store": "~55.0.13",
     "expo-web-browser": "~55.0.15",
-    "idb-keyval": "^6.2.2"
+    "idb-keyval": "^6.3.0"
   },
   "peerDependencies": {
     "expo-router": ">=3",

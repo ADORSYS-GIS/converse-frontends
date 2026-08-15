@@ -18,8 +18,12 @@ import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
 /**
- * Plan every new key defaults to. Callers who cannot choose a plan (no `project:member`
- * permission) always mint keys on this plan — the backend rejects anything else for them.
+ * Plan every new key defaults to when the caller cannot pick one (no `project:member`
+ * permission). This is cosmetic, not a working fallback: `createApiKey` is lead/owner-gated for
+ * the entire mutation (see the procedure's doc comment in `packages/authz-rpc/schema/authz.cstack`),
+ * so a caller who isn't this project's lead or its owning account cannot mint a key here AT ALL,
+ * on `free` or any other plan — pinning the field to `free` just avoids offering a picker that
+ * would always be rejected anyway. `createError` is what actually surfaces that rejection.
  */
 const DEFAULT_API_KEY_BILLING_PLAN = 'free';
 
@@ -33,6 +37,12 @@ type ApiKeyCreateViewProps = {
   generatedSecret?: string | null;
   /** `ApiKeySecret.oauth2Url` from the create response, if the backend returned one. */
   generatedOauth2Url?: string | null;
+  /**
+   * Resolved copy for the last failed `createApiKey` attempt, if any — `null` once a new attempt
+   * starts or after a success. See `resolveCreateApiKeyErrorMessage` in
+   * `../screens/api-key-create-screen.tsx` for how this is derived from the thrown error.
+   */
+  createError?: string | null;
 };
 
 export function ApiKeyCreateView({
@@ -43,6 +53,7 @@ export function ApiKeyCreateView({
   canChoosePlan = false,
   generatedSecret = null,
   generatedOauth2Url = null,
+  createError = null,
 }: Readonly<ApiKeyCreateViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -149,6 +160,19 @@ export function ApiKeyCreateView({
                       {t('apiKeys.planLockedNote')}
                     </Text>
                   )}
+                  {createError ? (
+                    <Callout
+                      tone="error"
+                      icon={
+                        <Feather
+                          name="alert-circle"
+                          size={designTokens.icon.action}
+                          color={colors.error}
+                        />
+                      }>
+                      {createError}
+                    </Callout>
+                  ) : null}
                   <Button
                     variant="primary"
                     onPress={submit}

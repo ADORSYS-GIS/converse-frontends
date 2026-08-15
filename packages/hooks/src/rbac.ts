@@ -28,6 +28,16 @@ export const ALL_PERMISSIONS = [
   'apikey:revoke',
   'apikey:rotate',
   'apikey:validate',
+  'budget:read',
+  'budget:self-refill',
+  'budget:review',
+  'budget:grant',
+  'budget:revoke',
+  'budget:audit-read',
+  'budget:policy-read',
+  'budget:policy-write',
+  'budget:policy-simulate',
+  'budget:policy-activate',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -44,6 +54,12 @@ export type Permission = (typeof ALL_PERMISSIONS)[number];
  * The two must agree: this array's ORDER and CONTENTS mirror the backend's `Permission::ALL`.
  * If editors should not manage rosters, both sides have to list grants individually instead of
  * using the wildcard.
+ *
+ * NOTE ON `budget:*`: `lightbridge-admin`'s bare `'*'` grant now also expands to the ten
+ * `budget:*` permissions added alongside `ALL_PERMISSIONS` above, including `budget:policy-activate`.
+ * That is unreviewed here on purpose — which role(s) should carry `budget:self-refill` and the
+ * other budget permissions is still open in ADORSYS-GIS/lightbridge-authz#294, so `editor`/`viewer`
+ * deliberately do NOT get any `budget:*` grant yet. Revisit this mapping once #294 resolves.
  */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   'lightbridge-admin': ['*'],

@@ -17,9 +17,7 @@ import {
   currentBudgetPeriod,
   formatBudgetTierAmount,
   formatMicroUsd,
-  getApiErrorStatus,
   isBudgetTier,
-  isPermissionDeniedError,
   pendingAugmentationRequestsListQueryKey,
   pendingAugmentationRequestsQueryKey,
 } from './budget';
@@ -106,24 +104,11 @@ describe('createBudgetIdempotencyKey', () => {
   });
 });
 
-describe('getApiErrorStatus / isPermissionDeniedError', () => {
-  it('extracts a numeric status from an axios-shaped error', () => {
-    const error = { response: { status: 403, data: 'Forbidden' } };
-    expect(getApiErrorStatus(error)).toBe(403);
-    expect(isPermissionDeniedError(error)).toBe(true);
-  });
-
-  it('treats a non-403 status as not permission-denied', () => {
-    const error = { response: { status: 500 } };
-    expect(getApiErrorStatus(error)).toBe(500);
-    expect(isPermissionDeniedError(error)).toBe(false);
-  });
-
-  it('returns undefined for an error with no response status', () => {
-    expect(getApiErrorStatus(new Error('network down'))).toBeUndefined();
-    expect(isPermissionDeniedError(new Error('network down'))).toBe(false);
-  });
-});
+// `getApiErrorStatus`/`isPermissionDeniedError` used to live here, tested against an
+// axios-shaped error (`{ response: { status } }`) this app's RPC transport never actually
+// produces -- see git history. They now live in `./api-error.ts` alongside `getApiErrorMessage`
+// (a generic API-error helper, not budget-specific) and are tested in `./api-error.test.ts`
+// against a real `CratestackRpcError`, the shape the generated RPC client actually throws.
 
 describe('pendingAugmentationRequestsListQueryKey', () => {
   it('appends the resolved budgetAccountId on top of the bare prefix', () => {

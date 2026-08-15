@@ -1,5 +1,5 @@
 /**
- * Pure, dependency-free budget helpers (tier ladder, dollar formatting, error-status extraction).
+ * Pure, dependency-free budget helpers (tier ladder, dollar formatting, period formatting).
  * Deliberately split out of `./budget.ts`: that file also defines the mutation/query hooks, which
  * import `@lightbridge/authz-rpc` at the top level -- and that package's `codec.ts` imports
  * `cborg`, whose package.json `exports` map Jest's resolver cannot follow (fails with "Cannot
@@ -94,24 +94,4 @@ export function currentBudgetPeriod(date: Date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
-}
-
-/**
- * Extracts the HTTP status code from an error thrown by the generated API client, when present.
- * Mirrors `getApiErrorMessage` in `./api-error.ts` but for the status code rather than the
- * message -- needed here specifically to distinguish a `403` (permission denied, not retryable)
- * from any other failure (network/5xx, retryable via the same idempotency key).
- */
-export function getApiErrorStatus(error: unknown): number | undefined {
-  if (error && typeof error === 'object') {
-    const status = (error as { response?: { status?: unknown } }).response?.status;
-    if (typeof status === 'number') {
-      return status;
-    }
-  }
-  return undefined;
-}
-
-export function isPermissionDeniedError(error: unknown): boolean {
-  return getApiErrorStatus(error) === 403;
 }

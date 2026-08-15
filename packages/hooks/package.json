@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./pagination": "./src/pagination.ts",
     "./use-query-state": "./src/use-query-state.ts",
-    "./budget-tiers": "./src/budget-tiers.ts"
+    "./budget-tiers": "./src/budget-tiers.ts",
+    "./api-error": "./src/api-error.ts"
   },
   "dependencies": {
     "@lightbridge/api-native": "workspace:*",

@@ -10,6 +10,11 @@ const resources = {
           loading: 'Loading your workspace...',
         },
       },
+      pagination: {
+        page: 'Page',
+        previous: 'Previous',
+        next: 'Next',
+      },
       project: {
         defaultName: 'Default Project',
       },

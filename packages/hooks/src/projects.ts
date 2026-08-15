@@ -64,23 +64,56 @@ function toProject(project: GeneratedProject): Project {
   return project;
 }
 
-async function listProjectsForAccount(accountId: string): Promise<Project[]> {
+export type UseProjectsOptions = {
+  offset?: number;
+  limit?: number;
+};
+
+/** Applies the default page (offset 0, limit 10 — matches the backend list default). */
+export function resolveProjectsOptions(
+  options: UseProjectsOptions = {}
+): Required<UseProjectsOptions> {
+  return { offset: options.offset ?? 0, limit: options.limit ?? 10 };
+}
+
+/**
+ * Per-page query key — the bare `projectsQueryKey(accountId)` prefix with `{ offset, limit }`
+ * appended on top (same pattern as `apiKeysQueryKey` in api-keys.ts). Invalidating with the
+ * bare prefix still clears every cached page. Falls back to a stable placeholder key when
+ * there is no account yet, matching the query's own `enabled: !!accountId` gate.
+ */
+export function projectsListQueryKey(
+  accountId: string | undefined,
+  options: UseProjectsOptions = {}
+) {
+  return accountId
+    ? ([...projectsQueryKey(accountId), resolveProjectsOptions(options)] as const)
+    : (['projects', 'unknown'] as const);
+}
+
+async function listProjectsForAccount(
+  accountId: string,
+  options: UseProjectsOptions = {}
+): Promise<Project[]> {
+  const { offset, limit } = resolveProjectsOptions(options);
   const page = await getAuthzRpcClient().projects.list({
-    limit: 10,
-    offset: 0,
+    limit,
+    offset,
     filters: [{ key: 'accountId', value: accountId }],
   });
   return page.items.map(toProject);
 }
 
-export function useProjects(accountId?: string) {
+export function useProjects(accountId?: string, options: UseProjectsOptions = {}) {
   const { isAuthenticated } = useAuthSession();
 
+  const { offset, limit } = resolveProjectsOptions(options);
+
   const query = useQuery({
-    queryKey: accountId ? projectsQueryKey(accountId) : ['projects', 'unknown'],
+    queryKey: projectsListQueryKey(accountId, options),
     queryFn: async () => {
       if (!accountId) throw new Error('Account ID is required');
-      return listProjectsForAccount(accountId);
+      return listProjectsForAccount(accountId, { offset, limit });
     },
     enabled: !!accountId && isAuthenticated,
     staleTime: 5 * 60_000,
@@ -389,6 +422,10 @@ export function useEnsureDefaultProject() {
 
   const mutation = useMutation({
     mutationFn: async (accountId: string) => {
+      // Deliberately called with the default { offset: 0, limit: 10 }, not threaded through
+      // UseProjectsOptions: this is an internal "does this account already have a project"
+      // existence check (mirrors useEnsureDefaultAccount), not the user-facing project list.
+      // It only ever reads `existing[0]`, so a variable offset/limit is meaningless here.
       const existing = await listProjectsForAccount(accountId);
 
       if (existing.length > 0) {

@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   useAccounts,
   useApiKeys,
+  usePagination,
   usePermissions,
   useProjects,
   useQueryState,
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
+import { Pagination } from '@lightbridge/ui';
 import { useSheet } from '@lightbridge/ui/sheet';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 import { DeleteApiKeySheet } from './delete-api-key-sheet';
@@ -41,10 +43,25 @@ export function ApiKeysScreen() {
   const projectParamInList = projects.some((project) => project.id === projectParam);
   const projectId = (projectParamInList ? projectParam : undefined) ?? projects[0]?.id;
 
+  // Server-driven offset pagination — real Next/Prev over the backend list, not an
+  // in-memory re-slice of a fixed first page.
+  const pagination = usePagination({ pageSize: PAGE_SIZE });
+
+  // Land back on page 1 whenever the selected account or project changes, or the
+  // user could land on a stale page N of a different project's list.
+  useEffect(() => {
+    pagination.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, projectId]);
+
   const { data: items = [], isLoading: isKeysLoading } = useApiKeys(projectId, {
-    offset: 0,
-    limit: PAGE_SIZE,
+    offset: pagination.offset,
+    limit: pagination.limit,
   });
+
+  // The backend returns a bare array with no total-count, so `hasMore` is the
+  // documented length-vs-limit heuristic from usePagination, not an exact count.
+  const hasMoreItems = pagination.hasMore(items.length);
 
   const handleSelectAccount = (id: string) => {
     setAccountParam(id);
@@ -92,24 +109,39 @@ export function ApiKeysScreen() {
   };
 
   return (
-    <ApiKeysListView
-      accounts={accounts}
-      projects={projects}
-      selectedAccountId={accountId}
-      selectedProjectId={projectId}
-      items={items}
-      isLoading={isAccountsLoading || isProjectsLoading || isKeysLoading}
-      onBack={() => router.back()}
-      onCreate={handleCreate}
-      onDelete={handleDelete}
-      onRevoke={handleRevoke}
-      onRotate={handleRotate}
-      onSelectAccount={handleSelectAccount}
-      onSelectProject={handleSelectProject}
-      canCreate={has('apikey:create')}
-      canDelete={has('apikey:delete')}
-      canRevoke={has('apikey:revoke')}
-      canRotate={has('apikey:rotate')}
-    />
+    <>
+      <ApiKeysListView
+        accounts={accounts}
+        projects={projects}
+        selectedAccountId={accountId}
+        selectedProjectId={projectId}
+        items={items}
+        isLoading={isAccountsLoading || isProjectsLoading || isKeysLoading}
+        onBack={() => router.back()}
+        onCreate={handleCreate}
+        onDelete={handleDelete}
+        onRevoke={handleRevoke}
+        onRotate={handleRotate}
+        onSelectAccount={handleSelectAccount}
+        onSelectProject={handleSelectProject}
+        canCreate={has('apikey:create')}
+        canDelete={has('apikey:delete')}
+        canRevoke={has('apikey:revoke')}
+        canRotate={has('apikey:rotate')}
+      />
+      {projectId ? (
+        <Pagination
+          border
+          page={pagination.page}
+          canPrev={pagination.canPrev}
+          hasMore={hasMoreItems}
+          onPrev={pagination.prev}
+          onNext={pagination.next}
+          pageLabel={t('pagination.page')}
+          previousLabel={t('pagination.previous')}
+          nextLabel={t('pagination.next')}
+        />
+      ) : null}
+    </>
   );
 }

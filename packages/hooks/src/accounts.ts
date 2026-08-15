@@ -7,13 +7,36 @@ import { useAuthSession } from './auth-session';
 
 export const accountsQueryKey = ['accounts'] as const;
 
-export function useAccounts(enabled = true) {
+export type UseAccountsOptions = {
+  offset?: number;
+  limit?: number;
+};
+
+/** Applies the default page (offset 0, limit 10 — matches the backend list default). */
+export function resolveAccountsOptions(
+  options: UseAccountsOptions = {}
+): Required<UseAccountsOptions> {
+  return { offset: options.offset ?? 0, limit: options.limit ?? 10 };
+}
+
+/**
+ * Per-page query key — the bare `accountsQueryKey` prefix with `{ offset, limit }` appended
+ * on top (same pattern as `apiKeysQueryKey` in api-keys.ts). Invalidating with the bare
+ * prefix still clears every cached page.
+ */
+export function accountsListQueryKey(options: UseAccountsOptions = {}) {
+  return [...accountsQueryKey, resolveAccountsOptions(options)] as const;
+}
+
+export function useAccounts(enabled = true, options: UseAccountsOptions = {}) {
   const { isAuthenticated } = useAuthSession();
 
+  const { offset, limit } = resolveAccountsOptions(options);
+
   const query = useQuery({
-    queryKey: accountsQueryKey,
+    queryKey: accountsListQueryKey(options),
     queryFn: async (): Promise<Account[]> => {
-      const page = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
+      const page = await getAuthzRpcClient().accounts.list({ limit, offset });
       return page.items;
     },
     enabled: enabled && isAuthenticated,
@@ -127,6 +150,11 @@ export function useEnsureDefaultAccount() {
   const { session } = useAuthSession();
 
   const mutation = useMutation({
+    // Deliberately NOT threaded through UseAccountsOptions/pagination: this is an internal
+    // "does the caller already have an account" existence check (one account per JWT subject
+    // per ADR-0006, so `limit: 10` is already far more than the model allows), not a
+    // user-facing list. It only ever reads `existing.items[0]`, so a variable offset/limit
+    // would be meaningless here — leave it hardcoded.
     mutationFn: async (): Promise<Account> => {
       const existing = await getAuthzRpcClient().accounts.list({ limit: 10, offset: 0 });
 

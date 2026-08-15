@@ -53,4 +53,12 @@ export type PickerListProps = {
    */
   resultCountLabel?: string;
   optionAccessibilityLabel?: (option: PickerOption) => string;
+  /**
+   * Already-formatted notice shown near the search field when `options` is known to be an
+   * incomplete slice of a larger set (e.g. a fetch-everything loop hit its page ceiling). This
+   * component does no counting of its own — the caller decides when the set is incomplete (it
+   * already holds the server's total count) and passes the copy verbatim. Omit when the set is
+   * complete.
+   */
+  truncationNotice?: string;
 };

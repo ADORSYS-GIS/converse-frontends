@@ -12,7 +12,11 @@ import {
 import type { Account, Project } from '@lightbridge/hooks';
 import { Pagination } from '@lightbridge/ui';
 import { useSheet } from '@lightbridge/ui/sheet';
-import { toAccountPickerOptions, toProjectPickerOptions } from '../components/entity-picker-field';
+import {
+  pickerTruncationNotice,
+  toAccountPickerOptions,
+  toProjectPickerOptions,
+} from '../components/entity-picker-field';
 import { usePickerSheet } from '../hooks/use-picker-sheet';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { ApiKeysListView } from '../views/api-keys-list-view';
@@ -38,12 +42,20 @@ export function ApiKeysScreen() {
   // which needs the complete set to search/select over. See useAllAccounts/useAllProjects in
   // @lightbridge/hooks for why the plain `useAccounts`/`useProjects` (capped at one page) are the
   // wrong fit here.
-  const { data: accountsData = [], isLoading: isAccountsLoading } = useAllAccounts();
+  const {
+    data: accountsData = [],
+    isLoading: isAccountsLoading,
+    totalCount: accountsTotalCount,
+  } = useAllAccounts();
   const accounts: Account[] = accountsData;
 
   // Effective account: the URL param when set, otherwise the first account.
   const accountId = accountParam ?? accounts[0]?.id;
-  const { data: projectsData = [], isLoading: isProjectsLoading } = useAllProjects(accountId);
+  const {
+    data: projectsData = [],
+    isLoading: isProjectsLoading,
+    totalCount: projectsTotalCount,
+  } = useAllProjects(accountId);
   const projects: Project[] = projectsData;
 
   // Effective project: the URL param when it belongs to the current account's
@@ -94,6 +106,11 @@ export function ApiKeysScreen() {
       title: t('picker.selectAccount'),
       resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
       optionAccessibilityLabel: (option) => t('apiKeys.selectAccount', { account: option.label }),
+      truncationNotice: pickerTruncationNotice(
+        accountOptions.length,
+        accountsTotalCount,
+        t('settings.picker.truncationNotice')
+      ),
     });
   };
 
@@ -107,6 +124,11 @@ export function ApiKeysScreen() {
       title: t('picker.selectProject'),
       resultCountLabel: t('picker.projectCount', { count: projectOptions.length }),
       optionAccessibilityLabel: (option) => t('apiKeys.selectProject', { project: option.label }),
+      truncationNotice: pickerTruncationNotice(
+        projectOptions.length,
+        projectsTotalCount,
+        t('settings.picker.truncationNotice')
+      ),
     });
   };
 

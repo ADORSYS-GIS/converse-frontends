@@ -19,7 +19,11 @@ import {
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
-import { toAccountPickerOptions, toProjectPickerOptions } from '../components/entity-picker-field';
+import {
+  pickerTruncationNotice,
+  toAccountPickerOptions,
+  toProjectPickerOptions,
+} from '../components/entity-picker-field';
 import { usePickerSheet } from '../hooks/use-picker-sheet';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { ProjectSettingsView } from '../views/settings/project-settings-view';
@@ -45,11 +49,19 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   // Full lists (every page) — see the identical comment in api-keys-screen.tsx. The old
   // `useAccounts()`/`useProjects(accountId)` calls here (capped at `limit: 10`) were the actual
   // truncation bug: an account's 11th project was unreachable and nothing on screen said so.
-  const { data: accountsData = [], isLoading: isAccountsLoading } = useAllAccounts();
+  const {
+    data: accountsData = [],
+    isLoading: isAccountsLoading,
+    totalCount: accountsTotalCount,
+  } = useAllAccounts();
   const accounts: Account[] = accountsData;
   const accountId = accountParam ?? accounts[0]?.id;
 
-  const { data: projectsData = [], isLoading: isProjectsLoading } = useAllProjects(accountId);
+  const {
+    data: projectsData = [],
+    isLoading: isProjectsLoading,
+    totalCount: projectsTotalCount,
+  } = useAllProjects(accountId);
   const projects: Project[] = projectsData;
 
   const projectParamInList = projects.some((project) => project.id === projectParam);
@@ -119,6 +131,11 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
       optionAccessibilityLabel: (option) =>
         t('settings.project.selectAccount', { account: option.label }),
+      truncationNotice: pickerTruncationNotice(
+        accountOptions.length,
+        accountsTotalCount,
+        t('settings.picker.truncationNotice')
+      ),
     });
   };
 
@@ -133,6 +150,11 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       resultCountLabel: t('picker.projectCount', { count: projectOptions.length }),
       optionAccessibilityLabel: (option) =>
         t('settings.project.selectProject', { project: option.label }),
+      truncationNotice: pickerTruncationNotice(
+        projectOptions.length,
+        projectsTotalCount,
+        t('settings.picker.truncationNotice')
+      ),
     });
   };
 

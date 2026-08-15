@@ -91,6 +91,7 @@ export function PickerList({
   title,
   resultCountLabel,
   optionAccessibilityLabel,
+  truncationNotice,
 }: Readonly<PickerListProps>) {
   const [query, setQuery] = useState('');
 
@@ -115,6 +116,7 @@ export function PickerList({
         autoCorrect={false}
         accessibilityLabel={searchPlaceholder}
       />
+      {truncationNotice ? <Text intent="warning">{truncationNotice}</Text> : null}
       {resultCountLabel ? <Text intent="caption">{resultCountLabel}</Text> : null}
       <Scroll style={{ maxHeight: 360 }}>
         <Stack gap="xs" width="full">

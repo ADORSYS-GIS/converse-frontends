@@ -13,7 +13,7 @@ import {
 } from '@lightbridge/hooks';
 import type { Account } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
-import { toAccountPickerOptions } from '../components/entity-picker-field';
+import { pickerTruncationNotice, toAccountPickerOptions } from '../components/entity-picker-field';
 import { usePickerSheet } from '../hooks/use-picker-sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
 import { DeleteAccountSheet } from './delete-account-sheet';
@@ -47,7 +47,11 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   // Full list (every page) — see the identical comment in api-keys-screen.tsx. In practice this
   // is 0 or 1 rows under ADR-0006 (one account is one person), but routed through the same
   // fetch-all hook as the project picker for consistency, not because accounts can grow.
-  const { data: accounts = [], isLoading: isAccountsLoading } = useAllAccounts();
+  const {
+    data: accounts = [],
+    isLoading: isAccountsLoading,
+    totalCount: accountsTotalCount,
+  } = useAllAccounts();
   const accountParamInList = accounts.some((account) => account.id === accountParam);
   const accountId = (accountParamInList ? accountParam : undefined) ?? accounts[0]?.id;
   const selectedAccount: Account | undefined = accounts.find((account) => account.id === accountId);
@@ -65,6 +69,11 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
       optionAccessibilityLabel: (option) =>
         t('settings.account.selectAccount', { account: option.label }),
+      truncationNotice: pickerTruncationNotice(
+        accountOptions.length,
+        accountsTotalCount,
+        t('settings.picker.truncationNotice')
+      ),
     });
   };
 

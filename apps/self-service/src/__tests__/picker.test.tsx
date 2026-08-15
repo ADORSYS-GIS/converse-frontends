@@ -201,4 +201,35 @@ describe('PickerList', () => {
 
     expect(screen.getByText('Project 15')).toBeTruthy();
   });
+
+  // Guards the residual gap from the fetch-all loop's own safety ceiling (MAX_*_PAGES in
+  // packages/hooks/src/{accounts,projects}.ts): if that's ever hit, `options` is a real but
+  // incomplete slice of the server's total. This is the caller's (app-layer) signal that
+  // happened — PickerList itself does no counting, it just renders whatever string it's handed.
+  it('shows the truncation notice when the caller says the loaded set is incomplete', async () => {
+    await render(
+      <PickerList
+        options={manyOptions}
+        onSelect={() => undefined}
+        searchPlaceholder="Search projects"
+        noResultsLabel="No matches"
+        truncationNotice="Not everything could be loaded."
+      />
+    );
+
+    expect(screen.getByText('Not everything could be loaded.')).toBeTruthy();
+  });
+
+  it('shows no truncation notice when the caller omits it (the loaded set is complete)', async () => {
+    await render(
+      <PickerList
+        options={manyOptions}
+        onSelect={() => undefined}
+        searchPlaceholder="Search projects"
+        noResultsLabel="No matches"
+      />
+    );
+
+    expect(screen.queryByText('Not everything could be loaded.')).toBeNull();
+  });
 });

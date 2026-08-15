@@ -13,6 +13,13 @@ export type PickerSheetParams = {
   /** Already-formatted, i18n-pluralized count caption (e.g. "12 projects"). */
   resultCountLabel?: string;
   optionAccessibilityLabel?: (option: PickerOption) => string;
+  /**
+   * Already-formatted notice shown when `options` is a known-incomplete slice of a larger set
+   * (the fetch-everything loop in useAllAccounts/useAllProjects hit its page ceiling). The caller
+   * decides this — it already has `totalCount` vs `options.length` — and passes copy verbatim.
+   * Omit when the set is complete.
+   */
+  truncationNotice?: string;
 };
 
 /**
@@ -47,6 +54,7 @@ export function usePickerSheet() {
             title={params.title}
             resultCountLabel={params.resultCountLabel}
             optionAccessibilityLabel={params.optionAccessibilityLabel}
+            truncationNotice={params.truncationNotice}
           />
         ),
         { accessibilityLabel: params.title }

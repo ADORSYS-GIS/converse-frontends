@@ -37,6 +37,23 @@ export function toProjectPickerOptions(
   }));
 }
 
+/**
+ * Decides whether the sheet's truncation notice should be shown, given what actually loaded vs
+ * what the server says exists in total. `useAllAccounts`/`useAllProjects` page until
+ * `pageInfo.hasNextPage` is false, but bail out at their own `MAX_*_PAGES` safety ceiling — this
+ * is how the picker finds out that happened instead of silently presenting a partial list as
+ * complete. Returns the caller's own already-translated `notice` verbatim, or `undefined` when
+ * `loadedCount` already accounts for everything (the normal case — no notice, no count is shown
+ * here either, that's `resultCountLabel`'s job).
+ */
+export function pickerTruncationNotice(
+  loadedCount: number,
+  totalCount: number,
+  notice: string
+): string | undefined {
+  return loadedCount < totalCount ? notice : undefined;
+}
+
 export type EntityPickerFieldProps = {
   /** Field heading, e.g. "Account" / "Project" (rendered above the control). */
   label: string;

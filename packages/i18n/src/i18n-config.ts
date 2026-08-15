@@ -172,6 +172,15 @@ const resources = {
           budget: 'Budget',
           budgetReview: 'Budget Review',
         },
+        // Shown inside the account/project picker sheet (EntityPickerField, wired through
+        // usePickerSheet) only when the fetch-everything loop in useAllAccounts/useAllProjects
+        // hit its page ceiling and the list it loaded is provably shorter than the server's own
+        // totalCount. Deliberately not "showing X of Y" — search only covers what actually
+        // loaded, so the copy says that plainly rather than implying the search is complete.
+        picker: {
+          truncationNotice:
+            "Not everything could be loaded, so search only covers what's shown here. Contact support if you can't find what you're looking for.",
+        },
         account: {
           title: 'Account settings',
           accountsLabel: 'Accounts',

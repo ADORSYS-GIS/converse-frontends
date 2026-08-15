@@ -3,6 +3,7 @@ export * from './api-error';
 export * from './api-keys';
 export * from './authz-types';
 export * from './auth-session';
+export * from './budget';
 export * from './keycloak-login';
 export * from './locale-sync';
 export * from './pagination';

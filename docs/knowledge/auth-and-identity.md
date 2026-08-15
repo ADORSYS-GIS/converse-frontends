@@ -75,6 +75,20 @@ AuthSession stored (see Token Storage below)
 - Persists the refreshed session to storage.
 - Returns `null` on any failure (caller is responsible for handling expired sessions).
 
+### Non-Dependency: `lightbridge-authz` Token-Exchange (ADR-0011)
+
+> **This app never calls `lightbridge-authz`'s `/oauth2/token` endpoint** — it authenticates
+> directly against Keycloak (flow above). It therefore has **zero exposure** to the v3.0.0
+> token-exchange work: client registry requirements, per-client `aud`, the derived `id_token`,
+> `issued_token_type`, and `jti` format are all out of this app's dependency surface.
+>
+> `packages/hooks/src/auth/jwt-utils.ts` declares `jti?: string` on `JwtPayload`, but nothing in
+> this repo reads it, so a `jti`-format change on the issuing side is a non-event here.
+>
+> Source of truth: [lightbridge-authz ADR-0011](https://github.com/ADORSYS-GIS/lightbridge-authz/blob/main/docs/adr/0011-authz-issues-a-full-oidc-token-object.md),
+> [lightbridge-authz#286](https://github.com/ADORSYS-GIS/lightbridge-authz/pull/286),
+> [lightbridge-authz#288](https://github.com/ADORSYS-GIS/lightbridge-authz/pull/288).
+
 ---
 
 ## Token Types: `AuthTokens`

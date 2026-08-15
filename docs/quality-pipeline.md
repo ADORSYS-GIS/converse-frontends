@@ -2,22 +2,36 @@
 
 ## Overview
 
-The quality pipeline is an offline-capable, self-hosted code quality scanning system that replaces SonarQube CE's practical responsibilities without introducing a SaaS platform.
+The quality pipeline is an offline-capable code quality scanning system that replaces SonarQube CE's practical responsibilities without introducing a SaaS platform. It was originally designed to run entirely on self-hosted infrastructure (`adorsys-gis-runner`), with every scanner pre-provisioned on that runner's image; [#134](https://github.com/ADORSYS-GIS/converse-frontends/pull/134) (2026-07-31) moved `quality.yml` to GitHub-hosted `ubuntu-latest` along with every other workflow, and the pre-provisioning assumption did not move with it — see the **Known Gap** below before trusting the "pull request checks via reviewdog" claim.
 
-**Key features:**
-- ✅ Runs entirely on self-hosted infrastructure (adorsys-gis-runner)
+**Key features (as designed):**
 - ✅ No external scanning platforms or cloud services
 - ✅ Pull request checks via GitHub Check API + reviewdog
 - ✅ Preserved reports as CI artifacts
 - ✅ Gradual adoption: only reports new findings on PRs
 - ✅ Comprehensive SAST, linting, and maintainability checks
 
+> **Known Gap — verified 2026-08-15, not yet fixed.** On the current `ubuntu-latest`
+> runner, `quality.yml` never installs Semgrep, Hadolint, Actionlint, jscpd, or reviewdog —
+> only ESLint, TypeScript, and Prettier actually run (they ship via `pnpm`/`node`, already
+> installed for the rest of the job). Confirmed from a live `pull_request` run
+> ([run 31891626188](https://github.com/ADORSYS-GIS/converse-frontends/actions/runs/31891626188),
+> PR #167): `⊘ semgrep not found; skipping`, `⊘ hadolint not found; skipping`,
+> `⊘ actionlint not found; skipping`, `⊘ jscpd not found; skipping`, and
+> `reviewdog not found in PATH; skipping PR check` — on the PR-triggered run itself, not
+> only the fork-PR degraded path the workflow anticipates. `run.sh` treats "tool not found"
+> as `skipped`, not `error`, so `gate.sh` doesn't fail on this either. Net effect: **no
+> scanner's findings can fail a PR check today** — not because `gate.sh` is lenient by
+> design (it always was, see below) but because the one enforcement path that was supposed
+> to catch new findings (reviewdog) is absent from the runner. This is documented in more
+> detail, with real current numbers, in `docs/knowledge/ci-cd.md`'s Known Gaps section.
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
 │  GitHub Actions: quality.yml                │
-│  (runs on adorsys-gis-runner)               │
+│  (runs on GitHub-hosted ubuntu-latest)      │
 └─────────────────────────────────────────────┘
                     │
        ┌────────────┼────────────┐
@@ -216,17 +230,22 @@ jscpd --reporters sarif --output ./jscpd-report \
 When a PR is opened:
 
 1. **Workflow triggers** on `pull_request` with `fetch-depth: 0`
-2. **All scanners run** independently
+2. **Scanners run** independently — today this means ESLint, TypeScript, and Prettier
+   only; Semgrep/Hadolint/Actionlint/jscpd are skipped, absent from the runner (Known Gap)
 3. **SARIF files merge** into `quality.sarif`
 4. **`gate.sh` checks scanner health** — fails only if a tool crashed or
    mis-configured; does NOT fail on the repo-wide finding count (that would
    fail every PR on the existing backlog)
-5. **reviewdog posts** GitHub PR check with:
+5. **reviewdog attempts to post** a GitHub PR check with:
    - `reporter=github-pr-check` (GitHub Check API) — or `github-actions`
      (workflow annotations) on fork PRs, where the token can't write checks
    - `filter-mode=added` (only new/modified lines)
-   - `fail-on-error=true` — this is what actually fails the PR check, and
-     only for new `error`-level findings in the diff
+   - `fail-on-error=true` — designed to be what actually fails the PR check, for
+     new `error`-level findings in the diff
+   - **As of the current runner (Known Gap above), this step is a no-op**: reviewdog
+     isn't installed, so it prints `reviewdog not found in PATH; skipping PR check` and
+     exits `0` on every run, PR-triggered or not. Nothing currently fails a PR check on
+     scanner findings.
 6. **PR author** reviews check and either:
    - Fixes findings (preferred)
    - Suppresses with documented reason (if acceptable)
@@ -301,7 +320,9 @@ eslint: 9.39.4
 typescript: 5.9.3
 prettier: 3.8.3
 
-# System tools (pre-provisioned on runner)
+# System tools (NOT currently installed in CI — see the Known Gap above.
+# These versions are what the pipeline was designed against; jq is the only
+# one still present on the ubuntu-latest image out of the box.)
 semgrep: 1.45.0
 hadolint: 2.12.0
 actionlint: 1.7.1
@@ -310,7 +331,10 @@ jq: 1.7
 reviewdog: 0.20.0
 ```
 
-Then re-provision the self-hosted runner or update your local toolchain.
+Update your local toolchain to these versions. Re-provisioning a CI runner no longer
+applies — `quality.yml` runs on GitHub-hosted `ubuntu-latest`, which is rebuilt from
+GitHub's own image on every job; installing these five tools there would require adding
+explicit install steps to `quality.yml`, which does not currently exist.
 
 ## Suppressing Findings
 
@@ -434,14 +458,22 @@ Check:
 
 ### Tools report "not found"
 
-Solution:
-- Install locally: `pnpm install` (ESLint, TypeScript, Prettier)
-- Install system tools: `brew install semgrep hadolint actionlint` (macOS)
+Locally:
+- Install: `pnpm install` (ESLint, TypeScript, Prettier)
+- Install system tools: `brew install semgrep hadolint actionlint` (macOS), `npm install -g jscpd reviewdog`
 - Ensure tools are in `$PATH`
+
+In CI: this is currently expected, not a misconfiguration to chase — see the Known Gap at
+the top of this document. `quality.yml` runs on `ubuntu-latest` and never installs Semgrep,
+Hadolint, Actionlint, jscpd, or reviewdog. Fixing it means adding install steps to
+`quality.yml` (or moving the job back to a runner that provisions them), not debugging the
+existing script.
 
 ### reviewdog not posting checks
 
-Ensure:
+On the current runner, reviewdog isn't installed at all (see Known Gap) — the step prints
+`reviewdog not found in PATH; skipping PR check` and exits `0` unconditionally. If/when
+reviewdog is installed in CI again, the remaining checks are:
 - Workflow has `pull-requests: write` permission
 - `REVIEWDOG_GITHUB_API_TOKEN` is set — reviewdog's GitHub reporters read
   this specific variable name, **not** `GITHUB_TOKEN`

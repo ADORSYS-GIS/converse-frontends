@@ -15,6 +15,23 @@ const resources = {
         previous: 'Previous',
         next: 'Next',
       },
+      // Shared strings for the account/project picker (`EntityPickerField` in
+      // apps/self-service/src/components/entity-picker-field.tsx, wrapping `@lightbridge/ui`'s
+      // `Picker`/`PickerList`). Generic on purpose — the entity-specific label, empty-state, and
+      // per-option accessibility copy stay on each screen's own namespace (apiKeys.*,
+      // settings.account.*, settings.project.*) since those already existed and read naturally
+      // in context ("No accounts available.", not "No items available.").
+      picker: {
+        searchAccounts: 'Search accounts',
+        searchProjects: 'Search projects',
+        noResults: 'No matches',
+        selectAccount: 'Select account',
+        selectProject: 'Select project',
+        accountCount_one: '{{count}} account',
+        accountCount_other: '{{count}} accounts',
+        projectCount_one: '{{count}} project',
+        projectCount_other: '{{count}} projects',
+      },
       project: {
         defaultName: 'Default Project',
       },
@@ -154,6 +171,15 @@ const resources = {
           apiKeys: 'API Keys',
           budget: 'Budget',
           budgetReview: 'Budget Review',
+        },
+        // Shown inside the account/project picker sheet (EntityPickerField, wired through
+        // usePickerSheet) only when the fetch-everything loop in useAllAccounts/useAllProjects
+        // hit its page ceiling and the list it loaded is provably shorter than the server's own
+        // totalCount. Deliberately not "showing X of Y" — search only covers what actually
+        // loaded, so the copy says that plainly rather than implying the search is complete.
+        picker: {
+          truncationNotice:
+            "Not everything could be loaded, so search only covers what's shown here. Contact support if you can't find what you're looking for.",
         },
         account: {
           title: 'Account settings',

@@ -64,6 +64,8 @@ export { KeyValue, keyValueVariants } from './components/key-value';
 export type { KeyValueProps } from './components/key-value';
 export { ListRow, listRowVariants } from './components/list-row';
 export type { ListRowProps } from './components/list-row';
+export { Picker, PickerList } from './components/picker';
+export type { PickerListProps, PickerOption, PickerProps } from './components/picker';
 export { PageHeader, pageHeaderVariants } from './components/page-header';
 export type { PageHeaderProps } from './components/page-header';
 export { Pagination, paginationVariants } from './components/pagination';

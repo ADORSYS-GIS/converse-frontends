@@ -44,6 +44,16 @@ tooling. (Its postinstall is allowlisted under `allowBuilds` in `pnpm-workspace.
 does not run dependency build scripts otherwise.) Regenerate it by hand with
 `pnpm --filter @lightbridge/authz-rpc run codegen`.
 
+`codegen` (both this package's and `api-rest`'s) is also a Turbo task (`turbo.json`), and
+`build:web`/`build-storybook` declare it as a `dependsOn`. `pnpm build`/`pnpm build-storybook`
+therefore regenerate both clients from cache whenever their real inputs — schema/OpenAPI spec,
+or the generator's own pinned version via the lockfile — are unchanged, and only pay the
+generation cost again when one of those actually changes. `packages/api-rest/turbo.json`
+overrides that package's `codegen` inputs to add `openapi/usage.backend.yaml`, which lives
+outside the package directory and so isn't covered by Turbo's default per-package file hashing.
+This is a cache for repeated `turbo run` invocations on top of the `postinstall` path above, not
+a replacement for it — `pnpm install` still always regenerates unconditionally.
+
 The CLI is pinned to an **exact** version (`0.7.16`) that must stay in lockstep with
 lightbridge-authz's deployed `cratestack`/`cratestack-pg` version — see
 `packages/authz-rpc/README.md` for the incident that makes this non-negotiable.

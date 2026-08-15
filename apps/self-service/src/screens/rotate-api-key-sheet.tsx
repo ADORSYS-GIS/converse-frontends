@@ -27,6 +27,7 @@ export function RotateApiKeySheet({
   const { data: currentProject } = useCurrentProject();
   const effectiveProjectId = projectId ?? currentProject?.id;
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [generatedOauth2Url, setGeneratedOauth2Url] = useState<string | null>(null);
   const rotateKey = useRotateApiKey();
 
   const handleConfirm = async () => {
@@ -40,6 +41,7 @@ export function RotateApiKeySheet({
       const result = await rotateKey.mutateAsync({ id, projectId: effectiveProjectId });
       if (result?.secret) {
         setGeneratedSecret(result.secret);
+        setGeneratedOauth2Url(result.oauth2Url ?? null);
       }
     } catch (error) {
       console.error('Failed to rotate API key:', error);
@@ -54,6 +56,7 @@ export function RotateApiKeySheet({
       onCopy={copyToClipboard}
       isRotating={rotateKey.isPending}
       generatedSecret={generatedSecret}
+      generatedOauth2Url={generatedOauth2Url}
     />
   );
 }

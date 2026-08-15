@@ -31,6 +31,8 @@ type ApiKeyCreateViewProps = {
   /** When true, the user may pick a billing plan; otherwise keys are pinned to `free`. */
   canChoosePlan?: boolean;
   generatedSecret?: string | null;
+  /** `ApiKeySecret.oauth2Url` from the create response, if the backend returned one. */
+  generatedOauth2Url?: string | null;
 };
 
 export function ApiKeyCreateView({
@@ -40,6 +42,7 @@ export function ApiKeyCreateView({
   isCreating = false,
   canChoosePlan = false,
   generatedSecret = null,
+  generatedOauth2Url = null,
 }: Readonly<ApiKeyCreateViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -101,7 +104,11 @@ export function ApiKeyCreateView({
                   </Stack>
                 </Callout>
 
-                <OneTimeSecretCard secret={generatedSecret} onCopy={onCopy} />
+                <OneTimeSecretCard
+                  secret={generatedSecret}
+                  onCopy={onCopy}
+                  oauth2Url={generatedOauth2Url}
+                />
 
                 <Button variant="ghost" onPress={onBack} width="full">
                   {t('apiKeys.backToKeys')}

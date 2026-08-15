@@ -13,6 +13,7 @@ export function ApiKeyCreateScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ projectId?: string }>();
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [generatedOauth2Url, setGeneratedOauth2Url] = useState<string | null>(null);
   const { mutate: ensureAccount, isPending: isAccountEnsuring } = useEnsureDefaultAccount();
   const { mutate: ensureProject, isPending: isProjectEnsuring } = useEnsureDefaultProject();
   const { mutate: createKey, isPending: isKeyCreating } = useCreateApiKey();
@@ -50,6 +51,7 @@ export function ApiKeyCreateScreen() {
           onSuccess: (data) => {
             if (data?.secret) {
               setGeneratedSecret(data.secret);
+              setGeneratedOauth2Url(data.oauth2Url ?? null);
             }
           },
         }
@@ -69,6 +71,7 @@ export function ApiKeyCreateScreen() {
       isCreating={isPending}
       canChoosePlan={canChoosePlan}
       generatedSecret={generatedSecret}
+      generatedOauth2Url={generatedOauth2Url}
     />
   );
 }

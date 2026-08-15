@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useCopyToClipboard } from '@uidotdev/usehooks';
 import { useTranslation } from '@lightbridge/i18n';
 import { Button, Card, Div, Icon as Feather, Stack, Text } from '@lightbridge/ui';
@@ -7,13 +7,48 @@ import { useThemeColors } from '../hooks/use-theme-colors';
 type OneTimeSecretCardProps = {
   secret: string;
   onCopy: (value: string) => void;
+  /**
+   * OAuth2 token endpoint the backend returns alongside the secret (see
+   * `ApiKeySecret.oauth2Url` in `packages/authz-rpc/schema/authz.cstack`), so an
+   * external API-key consumer can find `/oauth2/token` at the moment they have
+   * their new key in hand. Optional and additive — omit it (or pass an empty/
+   * malformed value) and the card renders exactly as it did before this field
+   * existed; only a non-empty, well-formed http(s) URL is ever shown.
+   */
+  oauth2Url?: string | null;
 };
 
-export function OneTimeSecretCard({ secret, onCopy }: Readonly<OneTimeSecretCardProps>) {
+/**
+ * Returns `url` trimmed when it is a well-formed absolute http(s) URL,
+ * otherwise `null`. Anything else (missing, empty, unparsable, non-http(s)
+ * scheme) degrades to "not shown" rather than risking a broken link.
+ */
+function normalizeOauth2Url(url: string | null | undefined): string | null {
+  const trimmed = url?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+export function OneTimeSecretCard({
+  secret,
+  onCopy,
+  oauth2Url,
+}: Readonly<OneTimeSecretCardProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const [, copyToClipboard] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
+  const resolvedOauth2Url = useMemo(() => normalizeOauth2Url(oauth2Url), [oauth2Url]);
 
   // Flip the button back from "Copied" to "Copy" after a moment, with automatic
   // cleanup — replaces the previous useRef + setTimeout bookkeeping.
@@ -47,6 +82,20 @@ export function OneTimeSecretCard({ secret, onCopy }: Readonly<OneTimeSecretCard
             {secret}
           </Text>
         </Div>
+        {resolvedOauth2Url ? (
+          <Stack gap="xs">
+            <Text intent="caption">{t('apiKeys.oauth2UrlLabel')}</Text>
+            <Div
+              tone="muted"
+              pad="md"
+              rounded="xl"
+              style={{ borderWidth: 1, borderColor: colors.border }}>
+              <Text intent="body" selectable>
+                {resolvedOauth2Url}
+              </Text>
+            </Div>
+          </Stack>
+        ) : null}
         <Button variant="neutral" onPress={handleCopy} width="full">
           <Stack direction="row" align="center" gap="xs">
             <Feather name={copied ? 'check' : 'copy'} size={18} color={colors.primary} />

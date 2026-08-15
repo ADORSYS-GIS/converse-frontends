@@ -88,6 +88,7 @@ const resources = {
         createdOn: 'Created on {{date}}',
         createdSuccessfully: 'Key Created Successfully',
         yourNewKey: 'Your new API key:',
+        oauth2UrlLabel: 'OAuth2 token endpoint:',
         backToKeys: 'Back to API Keys',
         securityNote:
           'Keep your API keys secure. Never share them in publicly accessible areas such as GitHub or client-side code.',

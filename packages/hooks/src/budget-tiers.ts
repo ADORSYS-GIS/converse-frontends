@@ -13,11 +13,20 @@
 
 /**
  * The self-service refill ladder (lightbridge-authz ADR-0008, "refills are discrete budget
- * tiers"). Each entry's wire value is the opaque tier string the backend expects (e.g. `"b-30"`)
- * -- there is no free-text amount anywhere in this domain, by design (ADR-0008's whole point).
+ * tiers"). Each entry's wire value is the opaque tier string the backend expects/returns (e.g.
+ * `"b-30"`) -- there is no free-text amount anywhere in this domain, by design (ADR-0008's whole
+ * point).
+ *
+ * IMPORTANT: this ladder is the SERVER's decision space, not a client selector. Confirmed by
+ * `authz.cstack`'s own comment directly above `RequestBudgetRefillInput`: a caller asks for more
+ * budget for `budgetAccountId`/`period`, and `RefillService::request_refill` DECIDES which tier
+ * to grant (or queue for review) -- there is deliberately no tier/amount argument anywhere on
+ * that input type. `AugmentationRequest.requestedTier` lives on the RESPONSE precisely because
+ * it is what the service assigned, not what the caller picked. This module's job is therefore
+ * purely a display lookup -- turning the tier the server already chose (e.g. `"b-250"`) into a
+ * dollar label (`"$250"`) for the result screen -- never a picker for the user to choose from.
  * The dollar amount below has no server-side representation at all; it is a UI-only convenience
- * table so the tier picker can show "$30" instead of "b-30". Keep it in sync with ADR-0008 by
- * hand -- there is nothing on the wire to derive it from.
+ * table. Keep it in sync with ADR-0008 by hand -- there is nothing on the wire to derive it from.
  */
 export const BUDGET_TIERS = ['b-15', 'b-30', 'b-60', 'b-120', 'b-250', 'b-500', 'b-1000'] as const;
 

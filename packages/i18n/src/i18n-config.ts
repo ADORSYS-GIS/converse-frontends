@@ -273,14 +273,19 @@ const resources = {
         // tier" anywhere in this block -- `project.quotaTier` (roster, per-member request-rate
         // ceiling) and this "budget tier" (per-account monthly spend ceiling) are unrelated
         // fields that would both read as "tier" in support tickets if the copy collided.
+        // No tier/amount picker: `RequestBudgetRefillInput` has no field for the caller to
+        // specify one -- the server decides the tier server-side (see the comment on
+        // `packages/hooks/src/budget-tiers.ts` and budget-refill-screen.tsx). This screen only
+        // ever reveals the server-assigned tier AFTER a decision, via `requestedTierLabel`.
         budget: {
           title: 'Budget refill',
           subtitle: "Request an increase to your account's monthly spending ceiling.",
-          tierSection: 'Choose a budget tier',
-          tierSectionDescription:
-            "Refills are fixed amounts, not a custom figure — pick the tier closest to what you need. This resets this month's spending ceiling to the selected amount; it doesn't add on top of what you already have.",
-          selectTier: 'Request the {{amount}} budget tier',
-          submitting: 'Submitting…',
+          requestSection: 'Request a refill',
+          requestSectionDescription:
+            "The amount is determined automatically by your account's budget policy — you'll see what was requested once a decision comes back.",
+          periodLabel: 'For {{period}}',
+          submit: 'Request a refill',
+          submitting: 'Requesting…',
           permissionDenied: "You don't have permission to request a budget refill.",
           // Non-negotiable per the ticket: never implies the new amount is usable right now, and
           // names the concrete mechanism (a silent, refresh-token-based token refresh — see
@@ -289,6 +294,7 @@ const resources = {
           // leaving "next refresh" abstract. No re-login is required for this to take effect.
           tokenRefreshNotice:
             "Granted. This takes effect the next time your access token silently refreshes in the background — not immediately, and you won't need to log in again.",
+          requestedTierLabel: 'Requested tier: {{amount}}',
           approvedAmountLabel: 'Approved amount: {{amount}}',
           pendingReview:
             "This request is under review by an admin. There's no estimated time for a decision.",

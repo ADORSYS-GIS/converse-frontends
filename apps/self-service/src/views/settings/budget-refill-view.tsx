@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import {
-  Badge,
   Button,
   Callout,
   Card,
@@ -19,8 +18,7 @@ import type { AugmentationRequest } from '@lightbridge/hooks';
 // Pure helpers only, from the dependency-free `./budget-tiers` subpath -- NOT the `@lightbridge/hooks`
 // barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `cborg`, which Jest's resolver
 // can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level comment.
-import type { BudgetTier } from '@lightbridge/hooks/budget-tiers';
-import { BUDGET_TIERS, formatBudgetTierAmount, formatMicroUsd } from '@lightbridge/hooks/budget-tiers';
+import { formatBudgetTierAmount, formatMicroUsd, isBudgetTier } from '@lightbridge/hooks/budget-tiers';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 /**
@@ -38,14 +36,28 @@ const DENIED_REASON_CODE_I18N_KEYS: Record<string, string> = {
   policy_denied: 'settings.budget.deniedReasonCodes.policy_denied',
 };
 
+/**
+ * Renders `AugmentationRequest.requestedTier` (the tier the SERVER assigned -- see the module
+ * comment on `packages/hooks/src/budget-tiers.ts`) as a dollar label. Falls back to computing the
+ * amount directly from `requestedAmountMicros` if the tier string isn't one of the ladder values
+ * this UI's lookup table knows about, so an unrecognized/future tier still renders a real number
+ * instead of a raw machine string.
+ */
+function requestedTierLabel(result: AugmentationRequest): string {
+  return isBudgetTier(result.requestedTier)
+    ? formatBudgetTierAmount(result.requestedTier)
+    : formatMicroUsd(result.requestedAmountMicros);
+}
+
 export type BudgetRefillViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
   /** `usePermissions().has('budget:self-refill')` -- defensive re-check, not just the hidden nav entry. */
   canRefill?: boolean;
-  selectedTier?: BudgetTier;
+  /** The calendar month (`'YYYY-MM'`) this request is for -- client-computed, current month. */
+  period: string;
   isSubmitting?: boolean;
-  onSelectTier: (tier: BudgetTier) => void;
+  onSubmit: () => void;
   /** The last successful decision, if any (auto_approved/approved/partially_approved/pending_review/denied). */
   result?: AugmentationRequest | null;
   /** HTTP status of the last thrown error, when the mutation itself failed (network/5xx/403). */
@@ -59,9 +71,9 @@ export function BudgetRefillView({
   showBackButton = true,
   onBack,
   canRefill = true,
-  selectedTier,
+  period,
   isSubmitting = false,
-  onSelectTier,
+  onSubmit,
   result = null,
   errorStatus,
   canRetry = false,
@@ -112,6 +124,15 @@ export function BudgetRefillView({
       return null;
     }
 
+    // The tier is revealed from the RESPONSE, never chosen by the caller -- `request_refill`
+    // decides it server-side (see budget-tiers.ts's module comment). Shown for every outcome, not
+    // just a grant, since it's the answer to "what did I actually request" regardless of decision.
+    const requestedLine = (
+      <Text intent="caption">
+        {t('settings.budget.requestedTierLabel', { amount: requestedTierLabel(result) })}
+      </Text>
+    );
+
     if (
       result.status === 'auto_approved' ||
       result.status === 'approved' ||
@@ -119,6 +140,7 @@ export function BudgetRefillView({
     ) {
       return (
         <Stack gap="sm">
+          {requestedLine}
           <Callout
             tone="success"
             icon={<Feather name="check-circle" size={designTokens.icon.action} color={colors.success} />}>
@@ -137,11 +159,14 @@ export function BudgetRefillView({
 
     if (result.status === 'pending_review') {
       return (
-        <Callout
-          tone="warning"
-          icon={<Feather name="clock" size={designTokens.icon.action} color={colors.secondary} />}>
-          {t('settings.budget.pendingReview')}
-        </Callout>
+        <Stack gap="sm">
+          {requestedLine}
+          <Callout
+            tone="warning"
+            icon={<Feather name="clock" size={designTokens.icon.action} color={colors.secondary} />}>
+            {t('settings.budget.pendingReview')}
+          </Callout>
+        </Stack>
       );
     }
 
@@ -154,11 +179,14 @@ export function BudgetRefillView({
           : t('settings.budget.deniedGenericReason');
 
       return (
-        <Callout
-          tone="error"
-          icon={<Feather name="x-circle" size={designTokens.icon.action} color={colors.error} />}>
-          {deniedCopy}
-        </Callout>
+        <Stack gap="sm">
+          {requestedLine}
+          <Callout
+            tone="error"
+            icon={<Feather name="x-circle" size={designTokens.icon.action} color={colors.error} />}>
+            {deniedCopy}
+          </Callout>
+        </Stack>
       );
     }
 
@@ -202,34 +230,19 @@ export function BudgetRefillView({
           ) : (
             <>
               <SectionCard
-                title={t('settings.budget.tierSection')}
-                description={t('settings.budget.tierSectionDescription')}>
-                <Stack direction="row" wrap="wrap" gap="sm" accessibilityRole="radiogroup">
-                  {BUDGET_TIERS.map((tier) => {
-                    const isSelected = tier === selectedTier;
-                    return (
-                      <Button
-                        key={tier}
-                        variant={isSelected ? 'primary' : 'neutral'}
-                        size="md"
-                        disabled={isSubmitting}
-                        onPress={() => onSelectTier(tier)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: isSelected, disabled: isSubmitting }}
-                        accessibilityLabel={t('settings.budget.selectTier', {
-                          amount: formatBudgetTierAmount(tier),
-                        })}
-                        style={{ minWidth: 88 }}>
-                        {formatBudgetTierAmount(tier)}
-                      </Button>
-                    );
-                  })}
+                title={t('settings.budget.requestSection')}
+                description={t('settings.budget.requestSectionDescription')}>
+                <Stack gap="md" align="start">
+                  <Text intent="caption">{t('settings.budget.periodLabel', { period })}</Text>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={isSubmitting}
+                    onPress={onSubmit}
+                    style={{ alignSelf: 'flex-start' }}>
+                    {isSubmitting ? t('settings.budget.submitting') : t('settings.budget.submit')}
+                  </Button>
                 </Stack>
-                {isSubmitting ? (
-                  <Stack direction="row" gap="sm" align="center" top="md">
-                    <Badge tone="neutral">{t('settings.budget.submitting')}</Badge>
-                  </Stack>
-                ) : null}
               </SectionCard>
 
               {renderResult() ? <Card size="sm">{renderResult()}</Card> : null}

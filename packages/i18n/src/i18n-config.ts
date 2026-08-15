@@ -151,6 +151,8 @@ const resources = {
           account: 'Account',
           project: 'Project',
           apiKeys: 'API Keys',
+          budget: 'Budget',
+          budgetReview: 'Budget Review',
         },
         account: {
           title: 'Account settings',
@@ -266,6 +268,61 @@ const resources = {
           dangerDescriptionDefault:
             'This is your account’s default project and cannot be permanently deleted. Set another project as default first.',
           deleteProject: 'Delete project',
+        },
+        // Self-service budget refill (#148). "Budget tier" is deliberately never called "quota
+        // tier" anywhere in this block -- `project.quotaTier` (roster, per-member request-rate
+        // ceiling) and this "budget tier" (per-account monthly spend ceiling) are unrelated
+        // fields that would both read as "tier" in support tickets if the copy collided.
+        budget: {
+          title: 'Budget refill',
+          subtitle: "Request an increase to your account's monthly spending ceiling.",
+          tierSection: 'Choose a budget tier',
+          tierSectionDescription:
+            "Refills are fixed amounts, not a custom figure — pick the tier closest to what you need. This resets this month's spending ceiling to the selected amount; it doesn't add on top of what you already have.",
+          selectTier: 'Request the {{amount}} budget tier',
+          submitting: 'Submitting…',
+          permissionDenied: "You don't have permission to request a budget refill.",
+          // Non-negotiable per the ticket: never implies the new amount is usable right now, and
+          // names the concrete mechanism (a silent, refresh-token-based token refresh — see
+          // packages/authz-rpc/src/runtime.ts's proactive-refresh/401-retry logic and
+          // packages/hooks/src/auth/use-auth-session.ts's `refreshAuth` wiring) rather than
+          // leaving "next refresh" abstract. No re-login is required for this to take effect.
+          tokenRefreshNotice:
+            "Granted. This takes effect the next time your access token silently refreshes in the background — not immediately, and you won't need to log in again.",
+          approvedAmountLabel: 'Approved amount: {{amount}}',
+          pendingReview:
+            "This request is under review by an admin. There's no estimated time for a decision.",
+          deniedGenericReason: 'This request was denied. Contact support if you have questions.',
+          // Best-effort copy for `policyReasonCodes` when a request is denied automatically (no
+          // `rejectionReason`). Not a verified exhaustive list of the backend's reason-code enum
+          // — see the code comment on DENIED_REASON_CODE_I18N_KEYS in budget-refill-view.tsx.
+          deniedReasonCodes: {
+            self_service_disabled: 'Self-service refills are currently disabled for your account.',
+            account_suspended: "Your account is suspended, so refill requests can't be processed.",
+            policy_denied: "This request doesn't meet the current budget policy.",
+          },
+          retry: 'Retry',
+          retryHint:
+            "Something went wrong sending this request. Retrying reuses the same request so it won't be processed twice.",
+        },
+        budgetReview: {
+          title: 'Budget review queue',
+          subtitle: 'Pending self-service budget refill requests awaiting an admin decision.',
+          permissionDenied: "You don't have permission to review budget requests.",
+          empty: 'No pending requests. New requests that need review will show up here.',
+          statusPending: 'Pending review',
+          requestedLabel: 'Requested {{amount}}',
+          requestedFor: 'Account {{accountId}}',
+          periodLabel: 'Period {{period}}',
+          createdOn: 'Submitted {{date}}',
+          approve: 'Approve',
+          approving: 'Approving…',
+          approveNamed: 'Approve request {{id}}',
+          reject: 'Reject',
+          rejecting: 'Rejecting…',
+          rejectNamed: 'Reject request {{id}}',
+          reasonPlaceholder: 'Reason for the requester (required)',
+          reasonRequired: 'A reason is required before you can reject.',
         },
       },
       createProject: {

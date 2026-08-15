@@ -77,10 +77,14 @@ These variables are **not** baked into the image at build time. They are injecte
 | Field | Value |
 |-------|-------|
 | Service type | `ClusterIP` |
-| Container port | `80` (HTTP, nginx) |
-| Service port | `80` |
+| Container port | `8080` (HTTP, nginx — named port `http`) |
+| Service port | `80` → `targetPort: http` (i.e. routes to container port `8080`) |
 
-The container does not expose HTTPS directly. TLS termination is expected at the ingress/load-balancer level (not defined in this chart).
+nginx listens on `8080`, not `80` (non-privileged port, see `KUBERNETES_DEPLOYMENT.md`) —
+`charts/converse-frontend/values.yaml`'s `conversefrontend.controllers.main.containers.frontend.ports`
+declares `containerPort: 8080`, and the Service's `port: 80` maps to it by name (`targetPort: http`),
+not by number. The container does not expose HTTPS directly. TLS termination is expected at the
+ingress/load-balancer level (not defined in this chart).
 
 ### Local Docker Compose
 
@@ -93,10 +97,10 @@ The container does not expose HTTPS directly. TLS termination is expected at the
 
 ## Runtime: Nginx Web Server
 
-- **Base image:** `nginx:1.27-alpine-slim`
-- **Config:** `.docker/nginx/default.conf` mounted to `/etc/nginx/conf.d/default.conf`
+- **Base image:** `docker.io/library/nginx:1.30.0-alpine3.23-slim` (fully qualified — see `Dockerfile`)
+- **Config:** `.docker/nginx/default.conf` mounted to `/etc/nginx/conf.d/default.conf`, `listen 8080`
 - **Static files:** Served from `/usr/share/nginx/html/` (Expo web export)
-- **Health check:** `wget -q -O /dev/null http://127.0.0.1/` — interval 30s, timeout 3s, start period 10s, 3 retries
+- **Health check:** `wget -q -O /dev/null http://127.0.0.1:8080/` — interval 30s, timeout 3s, start period 10s, 3 retries
 
 ---
 
@@ -111,7 +115,7 @@ The container does not expose HTTPS directly. TLS termination is expected at the
 
 ## Probes (Kubernetes)
 
-All three probe types are configured with HTTP GET on port `80` at path `/`:
+All three probe types are configured with HTTP GET on the `http` port (container port `8080`) at path `/`:
 
 | Probe | Enabled | Type | Path |
 |-------|---------|------|------|

@@ -15,6 +15,23 @@ const resources = {
         previous: 'Previous',
         next: 'Next',
       },
+      // Shared strings for the account/project picker (`EntityPickerField` in
+      // apps/self-service/src/components/entity-picker-field.tsx, wrapping `@lightbridge/ui`'s
+      // `Picker`/`PickerList`). Generic on purpose — the entity-specific label, empty-state, and
+      // per-option accessibility copy stay on each screen's own namespace (apiKeys.*,
+      // settings.account.*, settings.project.*) since those already existed and read naturally
+      // in context ("No accounts available.", not "No items available.").
+      picker: {
+        searchAccounts: 'Search accounts',
+        searchProjects: 'Search projects',
+        noResults: 'No matches',
+        selectAccount: 'Select account',
+        selectProject: 'Select project',
+        accountCount_one: '{{count}} account',
+        accountCount_other: '{{count}} accounts',
+        projectCount_one: '{{count}} project',
+        projectCount_other: '{{count}} projects',
+      },
       project: {
         defaultName: 'Default Project',
       },

@@ -21,6 +21,11 @@ import {
 } from '@lightbridge/ui';
 import type { Account, Project, ProjectMember } from '@lightbridge/hooks';
 import { AllowlistEnforcementNotice } from '../../components/allowlist-enforcement-notice';
+import {
+  EntityPickerField,
+  toAccountPickerOptions,
+  toProjectPickerOptions,
+} from '../../components/entity-picker-field';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
 
@@ -61,6 +66,9 @@ type ProjectSettingsViewProps = {
   isLoading?: boolean;
   onSelectAccount: (id: string) => void;
   onSelectProject: (id: string) => void;
+  /** Opens the searchable account/project picker sheet — owned by the screen (`usePickerSheet`). */
+  onOpenAccountPicker: () => void;
+  onOpenProjectPicker: () => void;
   onCreateProject: () => void;
   onSaveDetails: (input: ProjectDetailsInput) => void;
   isSavingDetails?: boolean;
@@ -123,6 +131,8 @@ export function ProjectSettingsView({
   isLoading = false,
   onSelectAccount,
   onSelectProject,
+  onOpenAccountPicker,
+  onOpenProjectPicker,
   onCreateProject,
   onSaveDetails,
   isSavingDetails = false,
@@ -156,6 +166,9 @@ export function ProjectSettingsView({
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
   const dateLocale = i18n.language;
+
+  const accountOptions = toAccountPickerOptions(accounts);
+  const projectOptions = toProjectPickerOptions(projects, selectedProjectId, colors);
 
   const projectLimits = asDefaultLimits(project?.defaultLimits);
 
@@ -296,60 +309,37 @@ export function ProjectSettingsView({
 
           <Card size="sm">
             <Stack gap="md">
-              <Stack gap="xs">
-                <Text intent="bodyStrong">{t('settings.project.accountsLabel')}</Text>
-                <Stack direction="row" wrap="wrap" gap="sm">
-                  {accounts.length === 0 ? (
-                    <Text intent="caption">{t('settings.project.noAccounts')}</Text>
-                  ) : (
-                    accounts.map((account) => (
-                      <Button
-                        key={account.id}
-                        variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
-                        size="sm"
-                        onPress={() => onSelectAccount(account.id)}
-                        accessibilityLabel={t('settings.project.selectAccount', {
-                          account: account.id,
-                        })}>
-                        {account.id}
-                      </Button>
-                    ))
-                  )}
-                </Stack>
-              </Stack>
+              <EntityPickerField
+                label={t('settings.project.accountsLabel')}
+                options={accountOptions}
+                selectedId={selectedAccountId}
+                onSelect={onSelectAccount}
+                onOpenPicker={onOpenAccountPicker}
+                emptyLabel={t('settings.project.noAccounts')}
+                placeholderLabel={t('picker.selectAccount')}
+                triggerAccessibilityLabel={t('picker.selectAccount')}
+                optionAccessibilityLabel={(option) =>
+                  t('settings.project.selectAccount', { account: option.label })
+                }
+                isLoading={isLoading}
+              />
 
               <Divider tone="muted" />
 
-              <Stack gap="xs">
-                <Text intent="bodyStrong">{t('settings.project.projectsLabel')}</Text>
-                <Stack direction="row" wrap="wrap" gap="sm">
-                  {projects.length === 0 ? (
-                    <Text intent="caption">{t('settings.project.noProjects')}</Text>
-                  ) : (
-                    projects.map((item) => (
-                      <Button
-                        key={item.id}
-                        variant={item.id === selectedProjectId ? 'primary' : 'neutral'}
-                        size="sm"
-                        leadingIcon={
-                          item.isDefault ? (
-                            <Feather
-                              name="star"
-                              size={12}
-                              color={item.id === selectedProjectId ? colors.surface : colors.subtle}
-                            />
-                          ) : undefined
-                        }
-                        onPress={() => onSelectProject(item.id)}
-                        accessibilityLabel={t('settings.project.selectProject', {
-                          project: item.name,
-                        })}>
-                        {item.name}
-                      </Button>
-                    ))
-                  )}
-                </Stack>
-              </Stack>
+              <EntityPickerField
+                label={t('settings.project.projectsLabel')}
+                options={projectOptions}
+                selectedId={selectedProjectId}
+                onSelect={onSelectProject}
+                onOpenPicker={onOpenProjectPicker}
+                emptyLabel={t('settings.project.noProjects')}
+                placeholderLabel={t('picker.selectProject')}
+                triggerAccessibilityLabel={t('picker.selectProject')}
+                optionAccessibilityLabel={(option) =>
+                  t('settings.project.selectProject', { project: option.label })
+                }
+                isLoading={isLoading}
+              />
             </Stack>
           </Card>
 

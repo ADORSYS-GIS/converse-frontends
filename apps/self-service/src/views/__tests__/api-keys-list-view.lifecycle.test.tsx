@@ -33,6 +33,8 @@ function renderList(item: ApiKey, overrides: Partial<Record<string, unknown>> = 
       onRotate={overrides.onRotate as (id: string, name: string) => void}
       onSelectAccount={noop}
       onSelectProject={noop}
+      onOpenAccountPicker={noop}
+      onOpenProjectPicker={noop}
     />
   );
 }

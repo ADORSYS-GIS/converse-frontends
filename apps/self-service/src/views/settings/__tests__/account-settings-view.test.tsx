@@ -22,6 +22,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof AccountSettin
     <AccountSettingsView
       onBack={noop}
       onSelectAccount={noop}
+      onOpenAccountPicker={noop}
       defaultQuota="t-m"
       onSaveDefaultQuota={noop}
       authIssuer="https://issuer.example.com/realms/lightbridge"

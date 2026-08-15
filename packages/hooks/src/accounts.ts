@@ -48,6 +48,73 @@ export function useAccounts(enabled = true, options: UseAccountsOptions = {}) {
   return { ...query, data: items };
 }
 
+/** Rows per request while paging through the complete account list — see {@link fetchAllAccounts}. */
+const ALL_ACCOUNTS_PAGE_SIZE = 50;
+/**
+ * Safety ceiling on {@link fetchAllAccounts}'s "keep paging" loop: large enough that no real
+ * account list should ever hit it (ADR-0006: one account is one person — ergo the account list
+ * response the caller sees is realistically always 0 or 1 rows), small enough that a server bug
+ * returning `hasNextPage: true` forever cannot turn this into an unbounded fetch loop.
+ */
+const MAX_ACCOUNTS_PAGES = 20;
+
+/**
+ * Pages through `accounts.list` until the server reports no more (`pageInfo.hasNextPage: false`),
+ * accumulating every item. Backs `useAllAccounts` below — the account picker needs the *complete*
+ * list to search over, not a first page capped at `resolveAccountsOptions`'s default `limit: 10`
+ * (the truncation this whole hook exists to avoid; see `useAllProjects` in ./projects for the
+ * same pattern applied to the list that actually grows past one page in practice).
+ */
+export async function fetchAllAccounts(): Promise<{ items: Account[]; totalCount: number }> {
+  let items: Account[] = [];
+  let offset = 0;
+  let totalCount = 0;
+
+  for (let pageIndex = 0; pageIndex < MAX_ACCOUNTS_PAGES; pageIndex += 1) {
+    const page = await getAuthzRpcClient().accounts.list({
+      limit: ALL_ACCOUNTS_PAGE_SIZE,
+      offset,
+    });
+    items = items.concat(page.items);
+    totalCount = page.totalCount ?? items.length;
+
+    if (!page.pageInfo.hasNextPage) {
+      return { items, totalCount };
+    }
+    offset += ALL_ACCOUNTS_PAGE_SIZE;
+  }
+
+  return { items, totalCount };
+}
+
+/** Query key for the complete-list fetch — nested under `accountsQueryKey` so invalidating that
+ *  bare prefix (every mutation below already does) clears this cache too. */
+export function allAccountsQueryKey() {
+  return [...accountsQueryKey, 'all'] as const;
+}
+
+/**
+ * The complete account list — every page, not just the first. Feeds the account picker
+ * (`EntityPickerField` in apps/self-service), which needs to search/select over every account the
+ * caller has, not just the first `limit: 10` of them. Prefer `useAccounts` for anything that
+ * intentionally wants one page (e.g. an existence check).
+ */
+export function useAllAccounts(enabled = true) {
+  const { isAuthenticated } = useAuthSession();
+
+  const query = useQuery({
+    queryKey: allAccountsQueryKey(),
+    queryFn: fetchAllAccounts,
+    enabled: enabled && isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+
+  const items = useMemo<Account[]>(() => query.data?.items ?? [], [query.data]);
+  const totalCount = query.data?.totalCount ?? items.length;
+
+  return { ...query, data: items, totalCount };
+}
+
 export function useCurrentAccount(enabled = true) {
   const { isAuthenticated } = useAuthSession();
   const { data, ...query } = useAccounts(enabled);

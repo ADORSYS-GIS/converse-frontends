@@ -2,16 +2,19 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
-  useAccounts,
+  useAllAccounts,
+  useAllProjects,
   useApiKeys,
   usePagination,
   usePermissions,
-  useProjects,
   useQueryState,
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
 import { Pagination } from '@lightbridge/ui';
 import { useSheet } from '@lightbridge/ui/sheet';
+import { toAccountPickerOptions, toProjectPickerOptions } from '../components/entity-picker-field';
+import { usePickerSheet } from '../hooks/use-picker-sheet';
+import { useThemeColors } from '../hooks/use-theme-colors';
 import { ApiKeysListView } from '../views/api-keys-list-view';
 import { DeleteApiKeySheet } from './delete-api-key-sheet';
 import { RevokeApiKeySheet } from './revoke-api-key-sheet';
@@ -22,6 +25,8 @@ const PAGE_SIZE = 10;
 export function ApiKeysScreen() {
   const { t } = useTranslation();
   const sheet = useSheet();
+  const openPicker = usePickerSheet();
+  const colors = useThemeColors();
   const { has } = usePermissions();
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links, read straight through useQueryState — no
@@ -29,12 +34,16 @@ export function ApiKeysScreen() {
   const [accountParam, setAccountParam] = useQueryState('accountId');
   const [projectParam, setProjectParam] = useQueryState('projectId');
   const router = useRouter();
-  const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
+  // Full lists (every page, not the first `limit: 10`) — these feed the account/project picker,
+  // which needs the complete set to search/select over. See useAllAccounts/useAllProjects in
+  // @lightbridge/hooks for why the plain `useAccounts`/`useProjects` (capped at one page) are the
+  // wrong fit here.
+  const { data: accountsData = [], isLoading: isAccountsLoading } = useAllAccounts();
   const accounts: Account[] = accountsData;
 
   // Effective account: the URL param when set, otherwise the first account.
   const accountId = accountParam ?? accounts[0]?.id;
-  const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
+  const { data: projectsData = [], isLoading: isProjectsLoading } = useAllProjects(accountId);
   const projects: Project[] = projectsData;
 
   // Effective project: the URL param when it belongs to the current account's
@@ -70,6 +79,35 @@ export function ApiKeysScreen() {
 
   const handleSelectProject = (id: string) => {
     setProjectParam(id);
+  };
+
+  const accountOptions = toAccountPickerOptions(accounts);
+  const projectOptions = toProjectPickerOptions(projects, projectId, colors);
+
+  const handleOpenAccountPicker = () => {
+    openPicker({
+      options: accountOptions,
+      selectedId: accountId,
+      onSelect: handleSelectAccount,
+      searchPlaceholder: t('picker.searchAccounts'),
+      noResultsLabel: t('picker.noResults'),
+      title: t('picker.selectAccount'),
+      resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
+      optionAccessibilityLabel: (option) => t('apiKeys.selectAccount', { account: option.label }),
+    });
+  };
+
+  const handleOpenProjectPicker = () => {
+    openPicker({
+      options: projectOptions,
+      selectedId: projectId,
+      onSelect: handleSelectProject,
+      searchPlaceholder: t('picker.searchProjects'),
+      noResultsLabel: t('picker.noResults'),
+      title: t('picker.selectProject'),
+      resultCountLabel: t('picker.projectCount', { count: projectOptions.length }),
+      optionAccessibilityLabel: (option) => t('apiKeys.selectProject', { project: option.label }),
+    });
   };
 
   const handleCreate = () => {
@@ -124,6 +162,8 @@ export function ApiKeysScreen() {
         onRotate={handleRotate}
         onSelectAccount={handleSelectAccount}
         onSelectProject={handleSelectProject}
+        onOpenAccountPicker={handleOpenAccountPicker}
+        onOpenProjectPicker={handleOpenProjectPicker}
         canCreate={has('apikey:create')}
         canDelete={has('apikey:delete')}
         canRevoke={has('apikey:revoke')}

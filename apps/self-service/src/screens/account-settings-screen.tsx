@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   getApiErrorMessage,
-  useAccounts,
+  useAllAccounts,
   useAuthSession,
   useDisableAccount,
   useEnableAccount,
@@ -13,6 +13,8 @@ import {
 } from '@lightbridge/hooks';
 import type { Account } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
+import { toAccountPickerOptions } from '../components/entity-picker-field';
+import { usePickerSheet } from '../hooks/use-picker-sheet';
 import { AccountSettingsView } from '../views/settings/account-settings-view';
 import { DeleteAccountSheet } from './delete-account-sheet';
 import { useRuntimeConfig } from '../configs/runtime-config';
@@ -36,15 +38,35 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const { t } = useTranslation();
   const router = useRouter();
   const sheet = useSheet();
+  const openPicker = usePickerSheet();
   const config = useRuntimeConfig();
   const { session } = useAuthSession();
   const { has } = usePermissions();
   const [accountParam, setAccountParam] = useQueryState('accountId');
 
-  const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts();
+  // Full list (every page) — see the identical comment in api-keys-screen.tsx. In practice this
+  // is 0 or 1 rows under ADR-0006 (one account is one person), but routed through the same
+  // fetch-all hook as the project picker for consistency, not because accounts can grow.
+  const { data: accounts = [], isLoading: isAccountsLoading } = useAllAccounts();
   const accountParamInList = accounts.some((account) => account.id === accountParam);
   const accountId = (accountParamInList ? accountParam : undefined) ?? accounts[0]?.id;
   const selectedAccount: Account | undefined = accounts.find((account) => account.id === accountId);
+
+  const accountOptions = toAccountPickerOptions(accounts);
+
+  const handleOpenAccountPicker = () => {
+    openPicker({
+      options: accountOptions,
+      selectedId: accountId,
+      onSelect: setAccountParam,
+      searchPlaceholder: t('picker.searchAccounts'),
+      noResultsLabel: t('picker.noResults'),
+      title: t('picker.selectAccount'),
+      resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
+      optionAccessibilityLabel: (option) =>
+        t('settings.account.selectAccount', { account: option.label }),
+    });
+  };
 
   const updateAccount = useUpdateAccount();
   const disableAccount = useDisableAccount();
@@ -94,6 +116,7 @@ export function AccountSettingsScreen({ embedded = false }: Readonly<{ embedded?
       selectedAccountId={accountId}
       isLoading={isAccountsLoading}
       onSelectAccount={setAccountParam}
+      onOpenAccountPicker={handleOpenAccountPicker}
       defaultQuota={selectedAccount?.defaultQuota ?? ''}
       onSaveDefaultQuota={handleSaveDefaultQuota}
       isSavingDefaultQuota={updateAccount.isPending}

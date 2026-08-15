@@ -1,14 +1,15 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
+import { useTranslation } from '@lightbridge/i18n';
 import {
   getApiErrorMessage,
-  useAccounts,
+  useAllAccounts,
+  useAllProjects,
   useDisableProject,
   useEnableProject,
   usePermissions,
   useAddProjectMember,
   useProjectMembers,
-  useProjects,
   useQueryState,
   useRemoveProjectMember,
   useSetDefaultProject,
@@ -18,6 +19,9 @@ import {
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
 import { useSheet } from '@lightbridge/ui/sheet';
+import { toAccountPickerOptions, toProjectPickerOptions } from '../components/entity-picker-field';
+import { usePickerSheet } from '../hooks/use-picker-sheet';
+import { useThemeColors } from '../hooks/use-theme-colors';
 import { ProjectSettingsView } from '../views/settings/project-settings-view';
 import type {
   ProjectDefaultLimits,
@@ -28,18 +32,24 @@ import { DeleteProjectSheet } from './delete-project-sheet';
 
 export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?: boolean }>) {
   const router = useRouter();
+  const { t } = useTranslation();
   const sheet = useSheet();
+  const openPicker = usePickerSheet();
+  const colors = useThemeColors();
   const { has } = usePermissions();
   // Account/project selection lives in the URL (?accountId=…&projectId=…) so it
   // survives refresh and deep-links — same pattern as the API-keys screen.
   const [accountParam, setAccountParam] = useQueryState('accountId');
   const [projectParam, setProjectParam] = useQueryState('projectId');
 
-  const { data: accountsData = [], isLoading: isAccountsLoading } = useAccounts();
+  // Full lists (every page) — see the identical comment in api-keys-screen.tsx. The old
+  // `useAccounts()`/`useProjects(accountId)` calls here (capped at `limit: 10`) were the actual
+  // truncation bug: an account's 11th project was unreachable and nothing on screen said so.
+  const { data: accountsData = [], isLoading: isAccountsLoading } = useAllAccounts();
   const accounts: Account[] = accountsData;
   const accountId = accountParam ?? accounts[0]?.id;
 
-  const { data: projectsData = [], isLoading: isProjectsLoading } = useProjects(accountId);
+  const { data: projectsData = [], isLoading: isProjectsLoading } = useAllProjects(accountId);
   const projects: Project[] = projectsData;
 
   const projectParamInList = projects.some((project) => project.id === projectParam);
@@ -93,6 +103,37 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const handleSelectAccount = (id: string) => {
     setAccountParam(id);
     setProjectParam(null);
+  };
+
+  const accountOptions = toAccountPickerOptions(accounts);
+  const projectOptions = toProjectPickerOptions(projects, projectId, colors);
+
+  const handleOpenAccountPicker = () => {
+    openPicker({
+      options: accountOptions,
+      selectedId: accountId,
+      onSelect: handleSelectAccount,
+      searchPlaceholder: t('picker.searchAccounts'),
+      noResultsLabel: t('picker.noResults'),
+      title: t('picker.selectAccount'),
+      resultCountLabel: t('picker.accountCount', { count: accountOptions.length }),
+      optionAccessibilityLabel: (option) =>
+        t('settings.project.selectAccount', { account: option.label }),
+    });
+  };
+
+  const handleOpenProjectPicker = () => {
+    openPicker({
+      options: projectOptions,
+      selectedId: projectId,
+      onSelect: setProjectParam,
+      searchPlaceholder: t('picker.searchProjects'),
+      noResultsLabel: t('picker.noResults'),
+      title: t('picker.selectProject'),
+      resultCountLabel: t('picker.projectCount', { count: projectOptions.length }),
+      optionAccessibilityLabel: (option) =>
+        t('settings.project.selectProject', { project: option.label }),
+    });
   };
 
   const handleSaveDetails = ({ name, billingPlan }: ProjectDetailsInput) => {
@@ -210,6 +251,8 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isLoading={isAccountsLoading || isProjectsLoading}
       onSelectAccount={handleSelectAccount}
       onSelectProject={setProjectParam}
+      onOpenAccountPicker={handleOpenAccountPicker}
+      onOpenProjectPicker={handleOpenProjectPicker}
       onCreateProject={handleCreateProject}
       onSaveDetails={handleSaveDetails}
       isSavingDetails={updateProject.isPending}

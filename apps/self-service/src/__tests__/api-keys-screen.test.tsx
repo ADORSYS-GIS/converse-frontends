@@ -49,8 +49,12 @@ jest.mock('@lightbridge/hooks', () => {
   return {
     __esModule: true,
     usePagination: actual.usePagination,
-    useAccounts: () => ({ data: mockAccounts, isLoading: false }),
-    useProjects: (accountId?: string) => ({
+    // The screen now fetches the *complete* account/project list (every page, not the first
+    // `limit: 10`) — see useAllAccounts/useAllProjects in packages/hooks/src/{accounts,projects}.ts.
+    // This test's fixtures are small so "complete" and "first page" look identical here; what
+    // matters for this suite is that the screen calls the hook the picker actually feeds from.
+    useAllAccounts: () => ({ data: mockAccounts, isLoading: false }),
+    useAllProjects: (accountId?: string) => ({
       data: accountId ? (mockProjectsByAccount[accountId] ?? []) : [],
       isLoading: false,
     }),

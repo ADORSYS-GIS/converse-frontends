@@ -124,6 +124,82 @@ export function useProjects(accountId?: string, options: UseProjectsOptions = {}
   return { ...query, data: items };
 }
 
+/** Rows per request while paging through an account's complete project list — see
+ *  {@link fetchAllProjectsForAccount}. */
+const ALL_PROJECTS_PAGE_SIZE = 50;
+/**
+ * Safety ceiling on {@link fetchAllProjectsForAccount}'s "keep paging" loop: large enough that no
+ * real project list should ever hit it, small enough that a server bug returning
+ * `hasNextPage: true` forever cannot turn this into an unbounded fetch loop.
+ */
+const MAX_PROJECTS_PAGES = 20;
+
+/**
+ * Pages through `projects.list` (scoped to one account) until the server reports no more
+ * (`pageInfo.hasNextPage: false`), accumulating every item. This is the actual fix for the
+ * project-picker truncation bug: the old call sites read `useProjects(accountId)` with no
+ * options, which defaults to `resolveProjectsOptions`'s `limit: 10` — an account's 11th project
+ * was unreachable and nothing on screen said so. `useAllProjects` below feeds the picker from
+ * this instead, so it always has the complete list to select/search over.
+ */
+export async function fetchAllProjectsForAccount(
+  accountId: string
+): Promise<{ items: Project[]; totalCount: number }> {
+  let items: Project[] = [];
+  let offset = 0;
+  let totalCount = 0;
+
+  for (let pageIndex = 0; pageIndex < MAX_PROJECTS_PAGES; pageIndex += 1) {
+    const page = await getAuthzRpcClient().projects.list({
+      limit: ALL_PROJECTS_PAGE_SIZE,
+      offset,
+      filters: [{ key: 'accountId', value: accountId }],
+    });
+    items = items.concat(page.items.map(toProject));
+    totalCount = page.totalCount ?? items.length;
+
+    if (!page.pageInfo.hasNextPage) {
+      return { items, totalCount };
+    }
+    offset += ALL_PROJECTS_PAGE_SIZE;
+  }
+
+  return { items, totalCount };
+}
+
+/** Query key for the complete-list fetch — nested under `projectsQueryKey(accountId)` so
+ *  invalidating that bare prefix (every mutation below already does) clears this cache too. */
+export function allProjectsQueryKey(accountId: string | undefined) {
+  return accountId
+    ? ([...projectsQueryKey(accountId), 'all'] as const)
+    : (['projects', 'unknown', 'all'] as const);
+}
+
+/**
+ * The complete project list for one account — every page, not just the first. Feeds the project
+ * picker (`EntityPickerField` in apps/self-service), which needs to search/select over every
+ * project the account has. Prefer `useProjects` for anything that intentionally wants one page
+ * (e.g. an existence check).
+ */
+export function useAllProjects(accountId?: string) {
+  const { isAuthenticated } = useAuthSession();
+
+  const query = useQuery({
+    queryKey: allProjectsQueryKey(accountId),
+    queryFn: async () => {
+      if (!accountId) throw new Error('Account ID is required');
+      return fetchAllProjectsForAccount(accountId);
+    },
+    enabled: !!accountId && isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+
+  const items = useMemo<Project[]>(() => query.data?.items ?? [], [query.data]);
+  const totalCount = query.data?.totalCount ?? items.length;
+
+  return { ...query, data: items, totalCount };
+}
+
 export function useCurrentProject(enabled = true) {
   const { isAuthenticated } = useAuthSession();
   const { data: currentAccount, isLoading: isAccountLoading } = useCurrentAccount(enabled);

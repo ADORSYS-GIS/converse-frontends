@@ -49,6 +49,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       project={project}
       onSelectAccount={noop}
       onSelectProject={noop}
+      onOpenAccountPicker={noop}
+      onOpenProjectPicker={noop}
       onCreateProject={noop}
       onSaveDetails={noop}
       onAddModel={noop}

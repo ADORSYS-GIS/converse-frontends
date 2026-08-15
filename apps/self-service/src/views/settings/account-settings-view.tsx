@@ -13,12 +13,12 @@ import {
   PageHeader,
   Scroll,
   SectionCard,
-  Skeleton,
   Stack,
   Text,
   TextField,
 } from '@lightbridge/ui';
 import type { Account } from '@lightbridge/hooks';
+import { EntityPickerField, toAccountPickerOptions } from '../../components/entity-picker-field';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 type AccountSettingsViewProps = {
@@ -28,6 +28,8 @@ type AccountSettingsViewProps = {
   selectedAccountId?: string;
   isLoading?: boolean;
   onSelectAccount: (id: string) => void;
+  /** Opens the searchable account picker sheet — owned by the screen (see `usePickerSheet`). */
+  onOpenAccountPicker: () => void;
   defaultQuota: string;
   onSaveDefaultQuota: (value: string) => void;
   isSavingDefaultQuota?: boolean;
@@ -51,6 +53,7 @@ export function AccountSettingsView({
   selectedAccountId,
   isLoading = false,
   onSelectAccount,
+  onOpenAccountPicker,
   defaultQuota,
   onSaveDefaultQuota,
   isSavingDefaultQuota = false,
@@ -77,6 +80,8 @@ export function AccountSettingsView({
   const trimmedDraft = defaultQuotaDraft.trim();
   const hasDefaultQuotaChanged = trimmedDraft !== defaultQuota.trim();
   const canSaveDefaultQuota = hasDefaultQuotaChanged && !isSavingDefaultQuota;
+
+  const accountOptions = toAccountPickerOptions(accounts);
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
@@ -121,32 +126,20 @@ export function AccountSettingsView({
           )}
 
           <Card size="sm">
-            <Stack gap="xs">
-              <Text intent="bodyStrong">{t('settings.account.accountsLabel')}</Text>
-              {isLoading && accounts.length === 0 ? (
-                <Stack direction="row" gap="sm">
-                  <Skeleton width={96} height={36} rounded="xl" />
-                  <Skeleton width={96} height={36} rounded="xl" />
-                </Stack>
-              ) : accounts.length === 0 ? (
-                <Text intent="caption">{t('settings.account.noAccounts')}</Text>
-              ) : (
-                <Stack direction="row" wrap="wrap" gap="sm">
-                  {accounts.map((account) => (
-                    <Button
-                      key={account.id}
-                      variant={account.id === selectedAccountId ? 'primary' : 'neutral'}
-                      size="sm"
-                      onPress={() => onSelectAccount(account.id)}
-                      accessibilityLabel={t('settings.account.selectAccount', {
-                        account: account.id,
-                      })}>
-                      {account.id}
-                    </Button>
-                  ))}
-                </Stack>
-              )}
-            </Stack>
+            <EntityPickerField
+              label={t('settings.account.accountsLabel')}
+              options={accountOptions}
+              selectedId={selectedAccountId}
+              onSelect={onSelectAccount}
+              onOpenPicker={onOpenAccountPicker}
+              emptyLabel={t('settings.account.noAccounts')}
+              placeholderLabel={t('picker.selectAccount')}
+              triggerAccessibilityLabel={t('picker.selectAccount')}
+              optionAccessibilityLabel={(option) =>
+                t('settings.account.selectAccount', { account: option.label })
+              }
+              isLoading={isLoading}
+            />
           </Card>
 
           {canUpdate ? (

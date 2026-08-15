@@ -9,7 +9,7 @@
 | Element | Convention | Example |
 |---------|-----------|---------|
 | Variables | `camelCase` | `isLoading`, `scopeId` |
-| Functions | `camelCase` | `loadStoredSession`, `useQueryUsage` |
+| Functions | `camelCase` | `loadStoredSession`, `buildUsageDashboardUrl` |
 | React hooks | `camelCase` prefixed with `use` | `useAuthSession`, `useKeycloakLogin` |
 | Classes / Types / Interfaces | `PascalCase` | `AuthSession`, `UsageQueryParams` |
 | Enums | `PascalCase` | `ApiKeyStatus` |
@@ -20,7 +20,8 @@
 | Files — classes/components | `kebab-case.tsx` (React Native convention) | `usage-view.tsx` |
 | Interfaces | No `I` prefix | `UserService` not `IUserService` |
 | Type parameters | Single uppercase or descriptive | `T`, `TResult`, `TInput` |
-| API endpoints | Defined by OpenAPI spec (snake_case path segments) | `/api/v1/api-keys/{key_id}` |
+| API endpoints (AuthZ RPC — accounts/projects/API keys, live) | `POST {basePath}/rpc/{op_id}`, not REST. **Corrected from an earlier version of this row**, which showed a REST-style `/api/v1/api-keys/{key_id}` path — that shape predates the cratestack RPC migration (ADR-0003 in `lightbridge-authz`) and no longer exists in this frontend | `POST /api/rpc/model.Account.list` |
+| API endpoints (usage REST, currently unused — see `architecture.md`) | Defined by `openapi/usage.backend.yaml` (snake_case path segments) | `/usage/v1/usage/query` |
 
 ---
 
@@ -32,21 +33,30 @@ converse-frontends/
 │   └── self-service/
 │       └── src/
 │           ├── app/          # Expo Router routes (thin, render screens only)
-│           ├── screens/      # Assemble views; no business logic
-│           ├── views/        # Presentational; calls hooks, renders UI
+│           ├── screens/      # Own data fetching (packages/hooks) + sheet presentation (useSheet);
+│           │                 # assemble views
+│           ├── views/        # Presentational only — render from props; no hook calls, no sheet
+│           │                 # imports (see architecture-conventions.md's "Application Layering"
+│           │                 # and "Two Load-Bearing Package Contracts" for the corrected rule
+│           │                 # and the code-level evidence)
 │           ├── configs/      # App-level configuration
-│           ├── hooks/        # App-specific hooks (wrap package hooks)
+│           ├── hooks/        # App-specific hooks (e.g. use-picker-sheet wraps packages/ui's
+│           │                 # useSheet; use-theme-colors is local theming logic)
 │           ├── navigation/   # Navigation config
-│           ├── queries/      # Query key factories
+│           ├── queries/      # Shared TanStack QueryClient instance (apps/self-service/src/queries/query-client.ts)
 │           ├── theme/        # App theme overrides
 │           └── types/        # App-specific shared types
 ├── packages/
-│   ├── api-rest/             # Auto-generated REST client (do NOT hand-edit)
+│   ├── authz-rpc/            # Generated cratestack RPC client for accounts/projects/api-keys
+│   │                         # (do NOT hand-edit packages/authz-rpc/generated/)
+│   ├── api-rest/             # Auto-generated REST client (do NOT hand-edit). Currently unused —
+│   │                         # nothing in the workspace imports it; see architecture.md
 │   ├── api-native/           # Native API utilities
-│   ├── hooks/                # Shared hooks (auth, usage, projects, accounts, API keys)
+│   ├── hooks/                # Shared hooks (auth, projects, accounts, API keys, budget) —
+│   │                         # consumed by screens/, not views/
 │   ├── i18n/                 # Translation resources
 │   └── ui/                   # Shared design-system components (see design-system-theming.md)
-├── openapi/                  # OpenAPI specs — source of truth for backend
+├── openapi/                  # OpenAPI spec for the usage REST API only (currently unused)
 ├── docs/knowledge/           # Agent-readable knowledge base
 └── charts/                   # Helm chart for Kubernetes deployment
 ```
@@ -101,10 +111,14 @@ Imports must be ordered as follows, **separated by blank lines**:
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { usageBackendQueryUsage } from '@lightbridge/api-rest';
+import { useApiKeys } from '@lightbridge/hooks';
 
 import { useAuthSession } from './auth-session';
 ```
+
+Corrected from an earlier version of this example, which imported from `@lightbridge/api-rest` —
+that package is currently unused by the app (see architecture.md); `@lightbridge/hooks` is a live
+internal-package-alias example instead.
 
 Use **named exports** over default exports. Default exports are allowed only for Expo Router route files (framework requirement).
 

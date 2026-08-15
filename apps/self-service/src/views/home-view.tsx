@@ -138,32 +138,34 @@ export function HomeView({
           <Stack gap="md">
             <Text intent="eyebrow">{t('home.gettingStarted.title')}</Text>
             <Stack gap="sm">
-              <Stack direction="row" align="center" gap="sm">
-                <Feather name="key" size={designTokens.icon.action} color={colors.primary} />
-                <Text intent="body">{t('home.gettingStarted.createKey')}</Text>
-              </Stack>
-              <Stack direction="row" align="center" gap="sm">
-                <Feather name="settings" size={designTokens.icon.action} color={colors.primary} />
-                <Text intent="body">{t('home.gettingStarted.manageProject')}</Text>
-              </Stack>
-              <Stack direction="row" align="center" gap="sm">
-                <Feather name="user" size={designTokens.icon.action} color={colors.primary} />
-                <Text intent="body">{t('home.gettingStarted.reviewSettings')}</Text>
-              </Stack>
+              <ListRow
+                leading={<Feather name="key" size={designTokens.icon.action} color={colors.primary} />}
+                title={<Text intent="body">{t('home.gettingStarted.createKey')}</Text>}
+              />
+              <ListRow
+                leading={
+                  <Feather name="settings" size={designTokens.icon.action} color={colors.primary} />
+                }
+                title={<Text intent="body">{t('home.gettingStarted.manageProject')}</Text>}
+              />
+              <ListRow
+                leading={<Feather name="user" size={designTokens.icon.action} color={colors.primary} />}
+                title={<Text intent="body">{t('home.gettingStarted.reviewSettings')}</Text>}
+              />
             </Stack>
           </Stack>
         </Card>
 
         <Card size="sm" accessibilityRole="button" onPress={onSupport}>
-          <Stack direction="row" align="center" gap="sm">
-            <Div tone="successSoft" rounded="xl" size="iconMd" align="center" justify="center">
-              <Feather name="help-circle" size={designTokens.icon.action} color={colors.success} />
-            </Div>
-            <Text intent="bodyStrong" style={{ flex: 1 }}>
-              {t('home.quickActions.support')}
-            </Text>
-            <Feather name="chevron-right" size={18} color={colors.subtle} />
-          </Stack>
+          <ListRow
+            leading={
+              <Div tone="successSoft" rounded="xl" size="iconMd" align="center" justify="center">
+                <Feather name="help-circle" size={designTokens.icon.action} color={colors.success} />
+              </Div>
+            }
+            title={t('home.quickActions.support')}
+            trailing={<Feather name="chevron-right" size={18} color={colors.subtle} />}
+          />
         </Card>
       </Stack>
     </Scroll>

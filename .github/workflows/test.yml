@@ -36,3 +36,105 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  # tsc is not run by Metro/Expo's bundler (see the `build-web` job below) and
+  # nothing else on the pull_request path turns a type error into a failed
+  # check — quality.yml's tsc step never fails the PR (see docs/knowledge/ci-cd.md,
+  # "Known Gaps" #2). This job is the actual enforcement point. A separate job
+  # (rather than an extra step on `test`) costs one more `pnpm install`, but buys
+  # a distinctly-named, independently-attributable check in the PR list — a type
+  # error and a failing Jest test must not look like the same red X.
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Discover every workspace's tsconfig.json rather than hardcoding
+      # `apps/self-service` + `packages/ui` (the two that exist today) — this
+      # mirrors the discovery already used by .ci/quality/run.sh, so a workspace
+      # that gains a tsconfig.json later is picked up automatically instead of
+      # becoming a second stale hardcoded list.
+      #
+      # `-maxdepth 2` is deliberate, not arbitrary: pnpm-workspace.yaml declares
+      # the workspaces as `apps/*` and `packages/*`, so a workspace root is
+      # always exactly one level down and its tsconfig.json exactly two. A
+      # tsconfig nested deeper than that belongs to something that is not a
+      # workspace root, and `tsc -p` on it would not be this gate's job. If the
+      # workspace globs in pnpm-workspace.yaml ever gain a level, this depth
+      # must change with them.
+      #
+      # Exit codes are captured directly (never through a pipe into another
+      # command) so a `tsc` failure can't be swallowed.
+      #
+      # `shell: bash` is explicit, not incidental: GitHub Actions' implicit
+      # default for a `run:` step with no `shell:` is `bash -e {0}`, and `-e`
+      # is NOT cleared by this script's own `set -uo pipefail`. Under `-e`,
+      # `pnpm exec tsc ...; cfg_exit=$?; [ "$cfg_exit" -ne 0 ] && ...` would
+      # abort the step at the first failing workspace instead of checking the
+      # rest — the accumulation loop would silently never run past the first
+      # failure. `cmd || tsc_status=1` sidesteps this because a command on the
+      # left of `||` is exempt from `-e` by POSIX shell semantics, regardless
+      # of which shell (implicit or pinned) is running it.
+      - name: Typecheck all workspaces
+        shell: bash
+        run: |
+          set -uo pipefail
+          mapfile -t tsconfigs < <(find apps packages -maxdepth 2 -name tsconfig.json \
+            -not -path '*/node_modules/*' -not -path '*/generated/*' | sort)
+          if [ "${#tsconfigs[@]}" -eq 0 ]; then
+            echo "::error::No tsconfig.json found under apps/ or packages/ — the typecheck gate would be a no-op"
+            exit 1
+          fi
+          tsc_status=0
+          for cfg in "${tsconfigs[@]}"; do
+            echo "::group::tsc --noEmit -p $cfg"
+            pnpm exec tsc --noEmit -p "$cfg" || tsc_status=1
+            echo "::endgroup::"
+          done
+          exit "$tsc_status"
+
+  # Metro/Expo's bundler does not typecheck, so `pnpm build` can succeed on code
+  # `tsc` rejects — that's the `typecheck` job's job, not this one's. This job
+  # exists because, before it, `docker-image.yml` (push-to-main/tag only) was
+  # the *only* place `turbo run build:web` ran in CI: a broken Expo web export
+  # could merge and sit on main across any number of unrelated PRs until the
+  # next push to main caught it post-merge (see docs/knowledge/ci-cd.md, Known
+  # Gap #1 — this happened for two weeks before it was caught). `pnpm build` is
+  # the root task name (`turbo run build:web`); `pnpm build:web` doesn't exist
+  # at the root. Turbo's `build:web` task already declares `codegen` as a
+  # `dependsOn` (turbo.json), so no separate codegen step is added here.
+  build-web:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web export (Turbo)
+        run: pnpm build

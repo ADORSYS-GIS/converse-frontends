@@ -35,7 +35,9 @@ corepack enable
 pnpm install
 ```
 
-> `postinstall` automatically runs `pnpm codegen:all`, which regenerates the `@lightbridge/api-rest` client from the OpenAPI specs in `openapi/`. This must succeed before you can start the app.
+> `postinstall` automatically runs `pnpm codegen:all`, which regenerates both generated clients: `@lightbridge/api-rest` from the OpenAPI specs in `openapi/`, and `@lightbridge/authz-rpc` from `packages/authz-rpc/schema/authz.cstack`. Both are gitignored build artifacts, and this must succeed before you can start the app.
+>
+> The AuthZ generator (`@cratestack/cli`) is an ordinary `devDependency`, so no manually installed tooling is required — but its postinstall downloads a binary from GitHub Releases, so the first install needs network access to `github.com`.
 
 ### 3. Configure Environment Variables
 
@@ -136,14 +138,17 @@ Both commands run ESLint + Prettier across all `*.{js,jsx,ts,tsx,json,css,md}` f
 The `packages/api-rest` client is **auto-generated** from OpenAPI specs. Never hand-edit files in `packages/api-rest/src/`.
 
 ```bash
-# Regenerate the API client
+# Regenerate the REST client only (packages/api-rest, from openapi/)
 pnpm codegen
 
-# Regenerate all packages that support codegen
+# Regenerate every package that has a `codegen` script — api-rest *and*
+# authz-rpc. This is what `postinstall` runs.
 pnpm codegen:all
 ```
 
-This is triggered automatically on `pnpm install` (via `postinstall`).
+`pnpm codegen:all` is triggered automatically on `pnpm install` (via `postinstall`). Note that
+`pnpm codegen` is the narrower of the two: it covers `api-rest` only, and is what the
+`apps/self-service` `pre*` scripts re-run before each dev-server start.
 
 ---
 

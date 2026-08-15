@@ -26,53 +26,13 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
+      # Also regenerates the gitignored packages/authz-rpc/generated/ via the root
+      # postinstall (`codegen:all`) — @cratestack/cli is a devDependency of that
+      # package, so no separately installed tooling is needed. The CLI version is
+      # an exact pin held in lockstep with the backend; see
+      # packages/authz-rpc/README.md for why that matters.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Cache cratestack-cli
-        id: cratestack-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.local/bin/cratestack
-          key: cratestack-cli-0.7.16-${{ runner.os }}-${{ runner.arch }}
-
-      # 0.4.16+ ships prebuilt binaries on GH Releases — no Rust toolchain needed.
-      # This MUST match lightbridge-authz's `cratestack`/`cratestack-pg` pin
-      # (root Cargo.toml [workspace.dependencies]) exactly — nothing here enforces that
-      # automatically, it is a manual convention. A drift between this pin and the deployed
-      # backend's is exactly how lightbridge-authz#282 happened: cratestack 0.7.11 changed
-      # `Value`'s wire format from externally-tagged to untagged, this generator stayed on 0.4.16
-      # and kept hand-tagging `Json` fields to match the old shape, and the untagged-`Value`
-      # backend decoded the stale tagged payload without error (`deserialize_any` treats any JSON
-      # object as `Value::Map`), storing `{"List": [...]}` literally and silently defeating the
-      # `allowedModels` governance allowlist. See lightbridge-authz#282 / converse-frontends#149.
-      - name: Install cratestack-cli
-        if: steps.cratestack-cache.outputs.cache-hit != 'true'
-        env:
-          CRATESTACK_VERSION: '0.7.16'
-        run: |
-          set -euo pipefail
-          case "$(uname -m)" in
-            x86_64) target="x86_64-unknown-linux-gnu" ;;
-            aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
-            *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
-          esac
-          asset="cratestack-cli-${target}-v${CRATESTACK_VERSION}.tar.gz"
-          base_url="https://github.com/cratestack/cratestack/releases/download/v${CRATESTACK_VERSION}"
-          curl -fsSL -o "$asset" "${base_url}/${asset}"
-          curl -fsSL -o "${asset}.sha256" "${base_url}/${asset}.sha256"
-          sha256sum -c "${asset}.sha256"
-          tar xzf "$asset"
-          mkdir -p ~/.local/bin
-          install -m 755 cratestack ~/.local/bin/cratestack
-
-      - name: Add ~/.local/bin to PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # generated/ is gitignored (codegen output, not something CI's Node/pnpm
-      # install can produce) — regenerate it before tests import it.
-      - name: Generate authz-rpc bindings
-        run: pnpm --filter @lightbridge/authz-rpc run codegen:cratestack
 
       - name: Run tests
         run: pnpm test

@@ -269,6 +269,57 @@ const resources = {
             'This is your account’s default project and cannot be permanently deleted. Set another project as default first.',
           deleteProject: 'Delete project',
         },
+        // API key settings (#55's remaining scope). Per ADR 0001's "Settings" section this
+        // covers name, expiration, last-used metadata, revoke/delete, and (future) rotation.
+        // `UpdateApiKeyInput` on the wire is `{ name, expiresAt }` only (see the `@readonly`
+        // fields documented on `model ApiKey` in packages/authz-rpc/schema/authz.cstack) — every
+        // other field below (status, key prefix, last used, last IP, billing plan, revoked/created
+        // dates) is rendered read-only because the backend has no mutation for it, not because of
+        // a UI choice. Rotation reuses the existing API Keys list screen instead of a duplicate
+        // control here, matching the ADR's "reserve room, don't duplicate" framing.
+        apiKey: {
+          title: 'API key settings',
+          subtitle: 'Manage the name, expiration, and lifecycle of a single API key.',
+          accountsLabel: 'Accounts',
+          projectsLabel: 'Projects',
+          noAccounts: 'No accounts available.',
+          noProjects: 'No projects in this account yet.',
+          selectAccount: 'Select account {{account}}',
+          selectProject: 'Select project {{project}}',
+          keysLabel: 'API keys',
+          noKeys: 'No API keys in this project yet.',
+          selectKey: 'Select key {{name}}',
+          noKeySelected: 'Select an API key above to view its settings.',
+          detailsSection: 'Key details',
+          detailsDescription: 'The name and expiration date for this key.',
+          nameLabel: 'Key name',
+          namePlaceholder: 'production-server',
+          expirationLabel: 'Expiration date',
+          expirationPlaceholder: 'YYYY-MM-DD',
+          expirationHint: 'Leave empty for no expiration.',
+          expirationInvalid: 'Enter a date as YYYY-MM-DD, or leave empty for no expiration.',
+          detailsSave: 'Save',
+          detailsSaving: 'Saving...',
+          metadataSection: 'Lifecycle metadata',
+          metadataDescription: "Reported by the server — this key's own settings can't change it.",
+          statusLabel: 'Status',
+          keyPrefixLabel: 'Key prefix',
+          billingPlanLabel: 'Billing plan',
+          lastUsedLabel: 'Last used',
+          lastIpLabel: 'Last used from',
+          noLastIp: 'No requests recorded yet',
+          createdLabel: 'Created',
+          revokedLabel: 'Revoked',
+          rotationSection: 'Rotation',
+          rotationDescription:
+            'Rotating a key issues a new secret and immediately invalidates the current one.',
+          rotationNote: 'Rotate this key from the API Keys list, alongside its other actions.',
+          goToApiKeys: 'Go to API Keys',
+          dangerSection: 'Danger zone',
+          dangerDescription:
+            'Revoke disables the key immediately but keeps its record for auditing. Delete removes the key and its history permanently — this cannot be undone.',
+          revokedNotice: 'This key has already been revoked.',
+        },
         // Self-service budget refill (#148). "Budget tier" is deliberately never called "quota
         // tier" anywhere in this block -- `project.quotaTier` (roster, per-member request-rate
         // ceiling) and this "budget tier" (per-account monthly spend ceiling) are unrelated

@@ -11,12 +11,16 @@ export type SettingsCategory = {
   iconName: FeatherIconName;
   route: `/${string}`;
   /**
-   * When set, the category is only shown to a caller who holds this permission (#148) --
-   * `budget:self-refill`/`budget:review` are unresolved-by-role as of ADORSYS-GIS/
-   * lightbridge-authz#294, so both budget rows must stay hidden by default rather than shown to
-   * everyone. `account`/`project`/`apikey` have no gate: every authenticated caller can reach
-   * them (the detail screen itself hides individual actions per `apikey:*` grants, same as the
-   * account/project screens do for their own danger-zone actions).
+   * When set, the category is only shown to a caller who holds this permission (#148). Which
+   * role(s) should carry `budget:self-refill`/`budget:review` was unresolved-by-role as of
+   * ADORSYS-GIS/lightbridge-authz#294; that resolved via lightbridge-authz#325, which granted
+   * `budget:self-refill` to `lightbridge-editor` (not `lightbridge-viewer`) in prod's
+   * `oauth2.rbac.role_permissions`, mirrored into `DEFAULT_ROLE_PERMISSIONS`
+   * (`packages/hooks/src/rbac.ts`). `budget:review` is still admin-only, so the "Budget review"
+   * row stays hidden for editor/viewer. `account`/`project`/`apikey` have no gate: every
+   * authenticated caller can reach them (the detail screen itself hides individual actions per
+   * `apikey:*` grants, same as the account/project screens do for their own danger-zone
+   * actions).
    */
   requiredPermission?: Permission;
 };

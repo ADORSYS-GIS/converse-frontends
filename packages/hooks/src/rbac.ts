@@ -29,6 +29,7 @@ export const ALL_PERMISSIONS = [
   'apikey:rotate',
   'apikey:validate',
   'budget:read',
+  'budget:read-own',
   'budget:self-refill',
   'budget:review',
   'budget:grant',
@@ -38,6 +39,8 @@ export const ALL_PERMISSIONS = [
   'budget:policy-write',
   'budget:policy-simulate',
   'budget:policy-activate',
+  'session:revoke-own',
+  'session:revoke',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -55,16 +58,35 @@ export type Permission = (typeof ALL_PERMISSIONS)[number];
  * If editors should not manage rosters, both sides have to list grants individually instead of
  * using the wildcard.
  *
- * NOTE ON `budget:*`: `lightbridge-admin`'s bare `'*'` grant now also expands to the ten
- * `budget:*` permissions added alongside `ALL_PERMISSIONS` above, including `budget:policy-activate`.
- * That is unreviewed here on purpose — which role(s) should carry `budget:self-refill` and the
- * other budget permissions is still open in ADORSYS-GIS/lightbridge-authz#294, so `editor`/`viewer`
- * deliberately do NOT get any `budget:*` grant yet. Revisit this mapping once #294 resolves.
+ * NOTE ON `budget:*`/`session:*`: `lightbridge-admin`'s bare `'*'` grant now also expands to the
+ * eleven `budget:*` permissions (including `budget:read-own`) and the two `session:*` permissions
+ * added alongside `ALL_PERMISSIONS` above. Which role(s) should carry `budget:self-refill` and the
+ * other self-service grants was open in ADORSYS-GIS/lightbridge-authz#294; that resolved via
+ * lightbridge-authz#325, which granted `budget:self-refill`/`budget:read-own`/`session:revoke-own`
+ * to `editor`, and `budget:read-own`/`session:revoke-own` (but not self-refill) to `viewer` — mirrored
+ * here from prod's `oauth2.rbac.role_permissions` in ai-helm-values'
+ * `environments/prod/values/lightbridge-app.yaml`. Both roles still get no other `budget:*` grant
+ * (review/grant/revoke/audit/policy-* stay admin-only).
  */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   'lightbridge-admin': ['*'],
-  'lightbridge-editor': ['account:read', 'project:*', 'apikey:*'],
-  'lightbridge-viewer': ['account:read', 'project:read', 'apikey:read'],
+  'lightbridge-editor': [
+    'account:create',
+    'account:read',
+    'project:*',
+    'apikey:*',
+    'budget:self-refill',
+    'budget:read-own',
+    'session:revoke-own',
+  ],
+  'lightbridge-viewer': [
+    'account:create',
+    'account:read',
+    'project:read',
+    'apikey:read',
+    'budget:read-own',
+    'session:revoke-own',
+  ],
 };
 
 function resourceOf(permission: Permission): string {

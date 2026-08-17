@@ -40,21 +40,22 @@ app's own code comments.
 `packages/hooks/src/rbac.ts` opens with this doc comment, worth quoting verbatim because it is the
 authoritative statement of what this layer is for:
 
-> Client-side mirror of `lightbridge-authz-core::authz`... This is a *UI convenience*, not a
+> Client-side mirror of `lightbridge-authz-core::authz`... This is a _UI convenience_, not a
 > security boundary — the backend is the source of truth and still enforces every permission
 > server-side. Getting this out of sync only shows/hides the wrong control; it can never grant
 > access the server wouldn't otherwise allow.
 
 ### `ALL_PERMISSIONS`
 
-A flat, ordered array of 28 permission strings, grouped by resource:
+A flat, ordered array of 31 permission strings, grouped by resource:
 
-| Resource | Count | Permissions |
-| -------- | ----- | ----------- |
-| `account` | 5 | `create`, `read`, `update`, `delete`, `disable` |
-| `project` | 6 | `create`, `read`, `update`, `delete`, `disable`, `member` |
-| `apikey`  | 7 | `create`, `read`, `update`, `delete`, `revoke`, `rotate`, `validate` |
-| `budget`  | 10 | `read`, `self-refill`, `review`, `grant`, `revoke`, `audit-read`, `policy-read`, `policy-write`, `policy-simulate`, `policy-activate` |
+| Resource  | Count | Permissions                                                                                                                                       |
+| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `account` | 5     | `create`, `read`, `update`, `delete`, `disable`                                                                                                   |
+| `project` | 6     | `create`, `read`, `update`, `delete`, `disable`, `member`                                                                                         |
+| `apikey`  | 7     | `create`, `read`, `update`, `delete`, `revoke`, `rotate`, `validate`                                                                              |
+| `budget`  | 11    | `read`, `read-own`, `self-refill`, `review`, `grant`, `revoke`, `audit-read`, `policy-read`, `policy-write`, `policy-simulate`, `policy-activate` |
+| `session` | 2     | `revoke-own`, `revoke`                                                                                                                            |
 
 The `Permission` TypeScript type is `(typeof ALL_PERMISSIONS)[number]` — derived from the array, not
 declared independently, so the two can't drift apart inside this file. The **order** matters too:
@@ -69,10 +70,30 @@ The built-in role → grant mapping, used whenever the backend has no
 ```typescript
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   'lightbridge-admin': ['*'],
-  'lightbridge-editor': ['account:read', 'project:*', 'apikey:*'],
-  'lightbridge-viewer': ['account:read', 'project:read', 'apikey:read'],
+  'lightbridge-editor': [
+    'account:create',
+    'account:read',
+    'project:*',
+    'apikey:*',
+    'budget:self-refill',
+    'budget:read-own',
+    'session:revoke-own',
+  ],
+  'lightbridge-viewer': [
+    'account:create',
+    'account:read',
+    'project:read',
+    'apikey:read',
+    'budget:read-own',
+    'session:revoke-own',
+  ],
 };
 ```
+
+`editor`/`viewer` both gained `account:create`, `budget:read-own`, and `session:revoke-own` in
+lightbridge-authz#325 (mirroring prod's `oauth2.rbac.role_permissions` in ai-helm-values'
+`environments/prod/values/lightbridge-app.yaml`); `editor` alone also gained `budget:self-refill`.
+See the "gotcha" section below for how this mapping stayed stale against prod for two releases.
 
 ### Wildcard expansion (`expandGrant`)
 
@@ -215,13 +236,18 @@ specific project, and a non-lead editor's roster mutation will be rejected serve
 that array is automatically included in every existing `'*'` grant, whether or not anyone reviewed
 that specific role for that specific new capability.
 
-This already happened once, and `rbac.ts`'s own comment records it happening:
-
-> NOTE ON `budget:*`: `lightbridge-admin`'s bare `'*'` grant now also expands to the ten `budget:*`
-> permissions added alongside `ALL_PERMISSIONS` above, including `budget:policy-activate`. That is
-> unreviewed here on purpose — which role(s) should carry `budget:self-refill` and the other budget
-> permissions is still open in ADORSYS-GIS/lightbridge-authz#294, so `editor`/`viewer` deliberately
-> do NOT get any `budget:*` grant yet.
+This already happened once. When the ten (now eleven, plus two `session:*`) budget/session
+permissions were first added to `ALL_PERMISSIONS`, `lightbridge-admin`'s bare `'*'` grant picked
+them all up automatically, while `editor`/`viewer` got none of them — deliberately, per `rbac.ts`'s
+comment at the time, because which role(s) should carry `budget:self-refill` and friends was still
+open in ADORSYS-GIS/lightbridge-authz#294. That went stale: prod's `oauth2.rbac.role_permissions`
+resolved #294 via lightbridge-authz#325, granting `budget:self-refill`/`budget:read-own`/
+`session:revoke-own` to `lightbridge-editor` and `budget:read-own`/`session:revoke-own` to
+`lightbridge-viewer` — but `DEFAULT_ROLE_PERMISSIONS` here was never updated to match, for two
+releases, silently hiding the "Budget" settings nav row (gated on `budget:self-refill`, see
+`apps/self-service/src/navigation/settings-categories.ts`) from every production editor until this
+was caught and fixed. The `'*'`-widens-silently behavior itself is unchanged and remains worth
+watching on the next new permission.
 
 `budget:policy-activate` gates `activateBudgetPolicy` — a platform-wide operation that overwrites
 which budget policy revision is live for every tenant at once (see the procedure comment in
@@ -229,7 +255,7 @@ which budget policy revision is live for every tenant at once (see the procedure
 grepping the app and `packages/hooks`/`packages/authz-rpc` for `policy-activate`/`policyActivate` —
 the only hits are the schema comments and `rbac.ts` itself); the product deliberately does not
 expose it here. Any `lightbridge-admin`-permissioned caller of this frontend's RPC client can still
-invoke it directly, though, since the *server-side* RBAC gate — not this app's UI — is what actually
+invoke it directly, though, since the _server-side_ RBAC gate — not this app's UI — is what actually
 grants or denies the call.
 
 **Lesson for future permission additions:** extending `ALL_PERMISSIONS` for an unrelated feature is

@@ -4,23 +4,101 @@ import { describe, expect, it, vi } from 'vitest';
 // Native's entry point transitively (Flow syntax Vitest's Rollup/esbuild pipeline can't parse).
 // Mock both so this file only exercises the pure helpers under test — same pattern as
 // projects.test.ts.
+//
+// `getAuthzRpcClient` and `getBudgetRpcClient` are mocked as two DISTINCT spies (not the same
+// stub reused for both) specifically so the routing tests below can assert which one a given
+// budget procedure actually called -- a shared/identical mock would make a routing regression
+// (e.g. reverting a call site back to `getAuthzRpcClient`) invisible to these tests.
 vi.mock('./auth-session', () => ({ useAuthSession: () => ({ isAuthenticated: true }) }));
+const mockAuthzProcedures = { requestBudgetRefill: vi.fn() };
+const mockBudgetProcedures = {
+  requestBudgetRefill: vi.fn(),
+  listPendingAugmentationRequests: vi.fn(),
+  approveAugmentationRequest: vi.fn(),
+  rejectAugmentationRequest: vi.fn(),
+};
+const getAuthzRpcClient = vi.fn(() => ({ procedures: mockAuthzProcedures }));
+const getBudgetRpcClient = vi.fn(() => ({ procedures: mockBudgetProcedures }));
 vi.mock('@lightbridge/authz-rpc', () => ({
-  getAuthzRpcClient: () => ({}),
+  getAuthzRpcClient: () => getAuthzRpcClient(),
+  getBudgetRpcClient: () => getBudgetRpcClient(),
   createId: () => 'test-id',
 }));
 
 import {
   BUDGET_TIER_AMOUNT_USD,
   BUDGET_TIERS,
+  approveAugmentationRequest,
   createBudgetIdempotencyKey,
   currentBudgetPeriod,
   formatBudgetTierAmount,
   formatMicroUsd,
   isBudgetTier,
+  listPendingAugmentationRequests,
   pendingAugmentationRequestsListQueryKey,
   pendingAugmentationRequestsQueryKey,
+  rejectAugmentationRequest,
+  requestBudgetRefill,
 } from './budget';
+
+// Regression coverage for converse-frontends#175: every budget:*-gated RPC procedure moved off
+// `authz-api` onto `authz-budget` (lightbridge-authz#351, hard cutover) -- a call site still
+// pointed at `getAuthzRpcClient()` would 404 in production. These tests fail if any of the four
+// wired procedures regress back to the CRUD client, and prove the CRUD client is never touched by
+// budget calls at all.
+describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcClient', () => {
+  it('requestBudgetRefill calls the budget client only', async () => {
+    mockBudgetProcedures.requestBudgetRefill.mockResolvedValueOnce({ id: 'aug_1' });
+
+    await requestBudgetRefill({
+      accountId: 'acc_1',
+      idempotencyKey: 'idem_1',
+    });
+
+    expect(getBudgetRpcClient).toHaveBeenCalled();
+    expect(mockBudgetProcedures.requestBudgetRefill).toHaveBeenCalledWith({
+      args: expect.objectContaining({ accountId: 'acc_1', budgetAccountId: 'acc_1' }),
+    });
+    expect(getAuthzRpcClient).not.toHaveBeenCalled();
+    expect(mockAuthzProcedures.requestBudgetRefill).not.toHaveBeenCalled();
+  });
+
+  it('listPendingAugmentationRequests calls the budget client only', async () => {
+    mockBudgetProcedures.listPendingAugmentationRequests.mockResolvedValueOnce([]);
+
+    await listPendingAugmentationRequests('acc_1');
+
+    expect(getBudgetRpcClient).toHaveBeenCalled();
+    expect(mockBudgetProcedures.listPendingAugmentationRequests).toHaveBeenCalledWith({
+      args: { budgetAccountId: 'acc_1' },
+    });
+    expect(getAuthzRpcClient).not.toHaveBeenCalled();
+  });
+
+  it('approveAugmentationRequest calls the budget client only', async () => {
+    mockBudgetProcedures.approveAugmentationRequest.mockResolvedValueOnce({ id: 'aug_1' });
+
+    await approveAugmentationRequest({ requestId: 'aug_1' });
+
+    expect(getBudgetRpcClient).toHaveBeenCalled();
+    expect(mockBudgetProcedures.approveAugmentationRequest).toHaveBeenCalledWith({
+      args: { requestId: 'aug_1' },
+    });
+    expect(getAuthzRpcClient).not.toHaveBeenCalled();
+  });
+
+  it('rejectAugmentationRequest calls the budget client only', async () => {
+    mockBudgetProcedures.rejectAugmentationRequest.mockResolvedValueOnce({ id: 'aug_1' });
+
+    await rejectAugmentationRequest({ requestId: 'aug_1', reason: 'duplicate' });
+
+    expect(getBudgetRpcClient).toHaveBeenCalled();
+    expect(mockBudgetProcedures.rejectAugmentationRequest).toHaveBeenCalledWith({
+      args: { requestId: 'aug_1', reason: 'duplicate' },
+    });
+    expect(getAuthzRpcClient).not.toHaveBeenCalled();
+  });
+});
 
 describe('BUDGET_TIERS', () => {
   it('is the ADR-0008 discrete ladder, in ascending order', () => {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import { createId, getAuthzRpcClient } from '@lightbridge/authz-rpc';
+import { createId, getBudgetRpcClient } from '@lightbridge/authz-rpc';
 import { useAuthSession } from './auth-session';
 import { currentBudgetPeriod } from './budget-tiers';
 
@@ -50,24 +50,35 @@ export type RequestBudgetRefillArgs = {
   idempotencyKey: string;
 };
 
+/**
+ * Extracted from `useRequestBudgetRefill`'s `mutationFn` so it is callable directly in a test
+ * without rendering the hook (this package has no React-hook-testing harness set up — see
+ * `budget.test.ts`'s routing tests). Every one of the four functions below is `getBudgetRpcClient`-
+ * routed, never `getAuthzRpcClient` -- these 4 op-ids, and the other 10 budget:*-gated procedures
+ * alongside them, moved off `authz-api` onto `authz-budget` as a hard cutover
+ * (lightbridge-authz#351); calling them through the CRUD client 404s.
+ */
+export async function requestBudgetRefill({
+  accountId,
+  budgetAccountId,
+  projectId,
+  period,
+  idempotencyKey,
+}: RequestBudgetRefillArgs): Promise<AugmentationRequest> {
+  return getBudgetRpcClient().procedures.requestBudgetRefill({
+    args: {
+      accountId,
+      budgetAccountId: budgetAccountId ?? accountId,
+      projectId,
+      period: period ?? currentBudgetPeriod(),
+      idempotencyKey,
+    },
+  });
+}
+
 export function useRequestBudgetRefill() {
   const mutation = useMutation({
-    mutationFn: async ({
-      accountId,
-      budgetAccountId,
-      projectId,
-      period,
-      idempotencyKey,
-    }: RequestBudgetRefillArgs): Promise<AugmentationRequest> =>
-      getAuthzRpcClient().procedures.requestBudgetRefill({
-        args: {
-          accountId,
-          budgetAccountId: budgetAccountId ?? accountId,
-          projectId,
-          period: period ?? currentBudgetPeriod(),
-          idempotencyKey,
-        },
-      }),
+    mutationFn: requestBudgetRefill,
   });
 
   return {
@@ -87,6 +98,14 @@ export function pendingAugmentationRequestsListQueryKey(budgetAccountId?: string
   return [...pendingAugmentationRequestsQueryKey, budgetAccountId ?? 'all'] as const;
 }
 
+export async function listPendingAugmentationRequests(
+  budgetAccountId?: string
+): Promise<AugmentationRequest[]> {
+  return getBudgetRpcClient().procedures.listPendingAugmentationRequests({
+    args: { budgetAccountId },
+  });
+}
+
 /**
  * The admin review queue's read path. `budgetAccountId` omitted (the default) lists the whole
  * cross-account queue -- this ticket's review screen is a global admin view, not scoped to one
@@ -97,10 +116,7 @@ export function usePendingAugmentationRequests(budgetAccountId?: string, enabled
 
   const query = useQuery({
     queryKey: pendingAugmentationRequestsListQueryKey(budgetAccountId),
-    queryFn: async (): Promise<AugmentationRequest[]> =>
-      getAuthzRpcClient().procedures.listPendingAugmentationRequests({
-        args: { budgetAccountId },
-      }),
+    queryFn: () => listPendingAugmentationRequests(budgetAccountId),
     enabled: enabled && isAuthenticated,
     staleTime: 30_000,
   });
@@ -108,12 +124,19 @@ export function usePendingAugmentationRequests(budgetAccountId?: string, enabled
   return { ...query, data: query.data ?? [] };
 }
 
+export async function approveAugmentationRequest({
+  requestId,
+}: {
+  requestId: string;
+}): Promise<AugmentationRequest> {
+  return getBudgetRpcClient().procedures.approveAugmentationRequest({ args: { requestId } });
+}
+
 export function useApproveAugmentationRequest() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ requestId }: { requestId: string }): Promise<AugmentationRequest> =>
-      getAuthzRpcClient().procedures.approveAugmentationRequest({ args: { requestId } }),
+    mutationFn: approveAugmentationRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingAugmentationRequestsQueryKey });
     },
@@ -126,18 +149,21 @@ export function useApproveAugmentationRequest() {
   };
 }
 
+export async function rejectAugmentationRequest({
+  requestId,
+  reason,
+}: {
+  requestId: string;
+  reason: string;
+}): Promise<AugmentationRequest> {
+  return getBudgetRpcClient().procedures.rejectAugmentationRequest({ args: { requestId, reason } });
+}
+
 export function useRejectAugmentationRequest() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({
-      requestId,
-      reason,
-    }: {
-      requestId: string;
-      reason: string;
-    }): Promise<AugmentationRequest> =>
-      getAuthzRpcClient().procedures.rejectAugmentationRequest({ args: { requestId, reason } }),
+    mutationFn: rejectAugmentationRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingAugmentationRequestsQueryKey });
     },

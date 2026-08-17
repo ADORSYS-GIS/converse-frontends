@@ -47,6 +47,14 @@
                               "minLength": 1,
                               "format": "uri"
                             },
+                            "EXPO_PUBLIC_BUDGET_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [
+                                { "const": "" },
+                                { "type": "string", "format": "uri" }
+                              ]
+                            },
                             "EXPO_PUBLIC_USAGE_URL": {
                               "type": "string",
                               "default": "",

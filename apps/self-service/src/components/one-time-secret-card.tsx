@@ -22,9 +22,24 @@ type OneTimeSecretCardProps = {
  * Returns `url` trimmed when it is a well-formed absolute http(s) URL,
  * otherwise `null`. Anything else (missing, empty, unparsable, non-http(s)
  * scheme) degrades to "not shown" rather than risking a broken link.
+ *
+ * `url`'s declared type (`string | null | undefined`) is the *TypeScript* contract, not a
+ * guarantee about what actually arrives on the wire: this value crosses an `unknown`-typed RPC
+ * boundary (`packages/authz-rpc/generated/src/client.ts`'s `createApiKey` does
+ * `.then((value) => reviveDecimalFields(value, 'ApiKeySecret') as ApiKeySecret)` — an unchecked
+ * cast, not a runtime validation) before it ever reaches this function. `url?.trim()` alone only
+ * guards `null`/`undefined`; a present-but-non-string value (e.g. an object, from a future schema
+ * change or a client/server version mismatch on this field) still has `.trim` called on it and
+ * throws `TypeError: url.trim is not a function` — which crashes this component's `useMemo`
+ * and, with no error boundary above it in this app, blanks the entire screen. The explicit
+ * `typeof` check makes the wire's honesty, not the type annotation, the thing this function
+ * actually trusts.
  */
 function normalizeOauth2Url(url: string | null | undefined): string | null {
-  const trimmed = url?.trim();
+  if (typeof url !== 'string') {
+    return null;
+  }
+  const trimmed = url.trim();
   if (!trimmed) {
     return null;
   }
@@ -39,11 +54,7 @@ function normalizeOauth2Url(url: string | null | undefined): string | null {
   }
 }
 
-export function OneTimeSecretCard({
-  secret,
-  onCopy,
-  oauth2Url,
-}: Readonly<OneTimeSecretCardProps>) {
+export function OneTimeSecretCard({ secret, onCopy, oauth2Url }: Readonly<OneTimeSecretCardProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const [, copyToClipboard] = useCopyToClipboard();

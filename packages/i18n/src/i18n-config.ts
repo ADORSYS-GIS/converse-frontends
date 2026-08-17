@@ -15,6 +15,20 @@ const resources = {
         previous: 'Previous',
         next: 'Next',
       },
+      // Copy for the render-time error boundaries (see
+      // apps/self-service/src/components/error-boundary.tsx and its two
+      // wrappers). Deliberately calm and specific rather than alarming --
+      // never a raw stack trace, that's console/telemetry-only.
+      errorBoundary: {
+        title: 'Something went wrong',
+        description:
+          "We hit an unexpected error and couldn't finish loading this. Your data is safe.",
+        retry: 'Try again',
+        screenTitle: 'This screen ran into a problem',
+        screenDescription:
+          'We hit an unexpected error loading this screen. You can try again or head back to the start.',
+        goHome: 'Back to start',
+      },
       // Shared strings for the account/project picker (`EntityPickerField` in
       // apps/self-service/src/components/entity-picker-field.tsx, wrapping `@lightbridge/ui`'s
       // `Picker`/`PickerList`). Generic on purpose — the entity-specific label, empty-state, and

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from '@lightbridge/i18n';
 import { copyToClipboard } from '@lightbridge/api-native';
 import {
+  useBillingPlans,
   useCreateApiKey,
   useEnsureDefaultAccount,
   useEnsureDefaultProject,
@@ -91,6 +92,14 @@ export function ApiKeyCreateScreen() {
   // the project's account or hold `role: 'lead'` on it, so a `403` is still possible here.
   const canChoosePlan = has('project:member');
   const projectId = typeof params.projectId === 'string' ? params.projectId : null;
+  // Only fetched when a plan choice is actually offered -- a caller pinned to `free` has no use
+  // for the catalogue, so there's no reason to spend the request (`listBillingPlans` also
+  // requires `apikey:create`, which this caller may not hold outside `project:member`).
+  const {
+    data: plans,
+    isLoading: isPlansLoading,
+    isError: isPlansError,
+  } = useBillingPlans(canChoosePlan);
 
   const handleBack = () => {
     // After key creation, the user intent is to go back to the API Keys list (not the previous route).
@@ -146,6 +155,9 @@ export function ApiKeyCreateScreen() {
       onCreate={handleCreate}
       isCreating={isPending}
       canChoosePlan={canChoosePlan}
+      plans={plans}
+      isPlansLoading={isPlansLoading}
+      isPlansError={isPlansError}
       generatedSecret={generatedSecret}
       generatedOauth2Url={generatedOauth2Url}
       createError={createError}

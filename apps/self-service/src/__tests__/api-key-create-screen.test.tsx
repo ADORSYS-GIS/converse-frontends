@@ -25,6 +25,7 @@ jest.mock('@lightbridge/api-native', () => ({
 
 jest.mock('@lightbridge/hooks', () => ({
   __esModule: true,
+  useBillingPlans: () => ({ data: [], isLoading: false, isError: false }),
   useCreateApiKey: () => ({ mutate: mockCreateKey, isPending: false }),
   useEnsureDefaultAccount: () => ({ mutate: jest.fn(), isPending: false }),
   useEnsureDefaultProject: () => ({ mutate: jest.fn(), isPending: false }),

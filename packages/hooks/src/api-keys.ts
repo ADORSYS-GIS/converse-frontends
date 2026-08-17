@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
+import type { BillingPlanInfo, CreateApiKeyInput, UpdateApiKeyInput } from '@lightbridge/authz-rpc';
 import { getAuthzRpcClient } from '@lightbridge/authz-rpc';
 import type { ApiKey } from './authz-types';
 import { useCurrentProject } from './projects';
 import { useAuthSession } from './auth-session';
+
+/** Query key for the operator-configured billing-plan catalogue (`procedure.listBillingPlans`).
+ * Not project- or account-scoped -- the catalogue is server config, the same for every caller who
+ * can reach it. */
+export const BILLING_PLANS_QUERY_KEY = ['billing-plans'] as const;
 
 /**
  * Base query key for a project's API keys — the invalidation prefix. The per-page
@@ -71,6 +76,34 @@ export function useApiKey(id?: string | null) {
   }, [data, id]);
 
   return { ...query, data: item };
+}
+
+/**
+ * The operator-configured billing-plan catalogue `createApiKey`'s `billingPlan` is validated
+ * against server-side (`procedure.listBillingPlans` -- see `AuthzStoreImpl::billing_plans` in the
+ * backend). This is config, not per-project data, so it needs no `projectId`, but it still
+ * requires a caller (`listBillingPlans` is gated at the same `apikey:create` permission as
+ * `createApiKey` itself) -- a caller lacking that permission gets a `403`, surfaced as
+ * `query.error` like any other failed query, which callers should render as "plan selection
+ * unavailable" rather than treating it as "no plans configured" (an empty, successful `[]` is the
+ * latter).
+ *
+ * `enabled` lets a caller skip the fetch entirely when it has no use for the result yet -- e.g.
+ * `ApiKeyCreateScreen` only needs the catalogue once it knows the caller may pick a plan at all
+ * (`canChoosePlan`), so it passes that straight through rather than always fetching and throwing
+ * the response away.
+ */
+export function useBillingPlans(enabled = true) {
+  const { isAuthenticated } = useAuthSession();
+
+  return useQuery<BillingPlanInfo[]>({
+    queryKey: BILLING_PLANS_QUERY_KEY,
+    queryFn: () => getAuthzRpcClient().procedures.listBillingPlans({ args: {} }),
+    enabled: isAuthenticated && enabled,
+    // The catalogue is operator config, reloaded only on a redeploy -- stale for a full session is
+    // fine, and avoids a refetch on every create-key screen visit.
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useCreateApiKey() {

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
+import type { BillingPlanInfo } from '@lightbridge/authz-rpc';
 import {
   Button,
   Callout,
@@ -10,6 +11,7 @@ import {
   Icon as Feather,
   PageHeader,
   Scroll,
+  SegmentedControl,
   Stack,
   Text,
   TextField,
@@ -37,6 +39,16 @@ type ApiKeyCreateViewProps = {
   isCreating?: boolean;
   /** When true, the user may pick a billing plan; otherwise keys are pinned to `free`. */
   canChoosePlan?: boolean;
+  /**
+   * The operator-configured billing-plan catalogue (`procedure.listBillingPlans`), fetched by
+   * the screen (`useBillingPlans`, `@lightbridge/hooks`) rather than here -- this view stays a
+   * plain presentational component driven entirely by props/callbacks, matching every other
+   * `*CreateView`/`*SettingsView` in this app; only the screen layer touches react-query. Ignored
+   * entirely while `canChoosePlan` is false.
+   */
+  plans?: BillingPlanInfo[];
+  isPlansLoading?: boolean;
+  isPlansError?: boolean;
   generatedSecret?: string | null;
   /** `ApiKeySecret.oauth2Url` from the create response, if the backend returned one. */
   generatedOauth2Url?: string | null;
@@ -54,6 +66,9 @@ export function ApiKeyCreateView({
   onCopy,
   isCreating = false,
   canChoosePlan = false,
+  plans = [],
+  isPlansLoading = false,
+  isPlansError = false,
   generatedSecret = null,
   generatedOauth2Url = null,
   createError = null,
@@ -67,11 +82,28 @@ export function ApiKeyCreateView({
   // anything, so this only stays `undefined` while actively editing an invalid custom date.
   const [expiresAt, setExpiresAt] = useState<string | null | undefined>(undefined);
 
+  useEffect(() => {
+    // Seed a real selection once the catalogue loads, so Save doesn't sit blocked on "pick a
+    // plan" for the common case -- the operator's first-listed plan, same convention
+    // `ExpirySelector` uses for its own default preset. Only fires while nothing is selected yet:
+    // a plan the user already picked is never overwritten out from under them by a refetch.
+    if (canChoosePlan && !billingPlan && plans.length > 0) {
+      setBillingPlan(plans[0]!.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canChoosePlan, plans]);
+
   const trimmedName = name.trim();
-  const resolvedPlan = canChoosePlan
-    ? billingPlan.trim() || DEFAULT_API_KEY_BILLING_PLAN
-    : DEFAULT_API_KEY_BILLING_PLAN;
-  const isSubmitDisabled = isCreating || !trimmedName || expiresAt === undefined;
+  const resolvedPlan = canChoosePlan ? billingPlan : DEFAULT_API_KEY_BILLING_PLAN;
+  const isSubmitDisabled =
+    isCreating ||
+    !trimmedName ||
+    expiresAt === undefined ||
+    // A plan choice is offered but nothing is selected yet -- either the catalogue is still
+    // loading, failed to load, or (correctly) came back empty. `resolvedPlan` would otherwise be
+    // `''`, which the server rejects anyway, but blocking Save here surfaces the real state
+    // (loading/error/empty, rendered below) instead of a generic server error after the fact.
+    (canChoosePlan && !billingPlan);
 
   const submit = () => {
     if (isSubmitDisabled || expiresAt === undefined) return;
@@ -150,17 +182,31 @@ export function ApiKeyCreateView({
                   </FormField>
                   {canChoosePlan ? (
                     <FormField label={t('apiKeys.planLabel')}>
-                      <TextField
-                        placeholder={t('apiKeys.planPlaceholder')}
-                        value={billingPlan}
-                        onChangeText={setBillingPlan}
-                        selectionColor={colors.primary}
-                        editable={!isCreating}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        returnKeyType="done"
-                        onSubmitEditing={submit}
-                      />
+                      {isPlansLoading ? (
+                        <Text intent="caption" style={{ color: colors.subtle }}>
+                          {t('apiKeys.planLoading')}
+                        </Text>
+                      ) : isPlansError ? (
+                        <Text intent="caption" style={{ color: colors.error }}>
+                          {t('apiKeys.planLoadError')}
+                        </Text>
+                      ) : plans.length === 0 ? (
+                        <Text intent="caption" style={{ color: colors.subtle }}>
+                          {t('apiKeys.planEmpty')}
+                        </Text>
+                      ) : (
+                        <SegmentedControl
+                          width="full"
+                          value={billingPlan}
+                          onChange={setBillingPlan}
+                          options={plans.map((plan) => ({
+                            key: plan.id,
+                            label: plan.name,
+                            disabled: isCreating,
+                          }))}
+                          accessibilityLabel={t('apiKeys.planLabel')}
+                        />
+                      )}
                     </FormField>
                   ) : (
                     <Text intent="caption" style={{ color: colors.subtle }}>

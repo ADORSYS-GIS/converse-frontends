@@ -136,7 +136,9 @@ const resources = {
         keyLabel: 'Key name',
         placeholder: 'Production',
         planLabel: 'Billing plan',
-        planPlaceholder: 'free',
+        planLoading: 'Loading plans...',
+        planLoadError: "Couldn't load billing plans. Please try again.",
+        planEmpty: 'No billing plans are configured.',
         planLockedNote: 'New keys are created on the free plan.',
         createForbidden:
           "Creating API keys here requires being this project's lead or its owning account.",

@@ -29,6 +29,7 @@ import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-conf
 import { AppSplashView } from '../views/app-splash-view';
 import { ThemePreferenceProvider } from '../theme/theme-preference';
 import { AppSheetProvider } from '../navigation/app-sheet-provider';
+import { AppErrorBoundary } from '../components/app-error-boundary';
 
 WebBrowser.maybeCompleteAuthSession();
 enableScreens();
@@ -170,9 +171,11 @@ export default function RootLayout() {
           <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
             <QueryClientProvider client={queryClient}>
               {fontsLoaded ? (
-                <AppSheetProvider>
-                  <AppBootstrap />
-                </AppSheetProvider>
+                <AppErrorBoundary>
+                  <AppSheetProvider>
+                    <AppBootstrap />
+                  </AppSheetProvider>
+                </AppErrorBoundary>
               ) : (
                 webFallback
               )}

@@ -4,8 +4,9 @@ import { Redirect } from 'expo-router';
 import { useAuthSession, useAuthHydration } from '@lightbridge/hooks';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { AppSplashView } from '../views/app-splash-view';
+import { RouteErrorBoundary } from '../components/route-error-boundary';
 
-export default function IndexRoute() {
+function IndexScreen() {
   const { isAuthenticated } = useAuthSession();
   const { isHydrated } = useAuthHydration();
 
@@ -15,4 +16,12 @@ export default function IndexRoute() {
   }
 
   return <Redirect href={isAuthenticated ? '/home' : '/login'} />;
+}
+
+export default function IndexRoute() {
+  return (
+    <RouteErrorBoundary>
+      <IndexScreen />
+    </RouteErrorBoundary>
+  );
 }

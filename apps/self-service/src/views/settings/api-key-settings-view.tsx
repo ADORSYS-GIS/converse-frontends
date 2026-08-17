@@ -21,35 +21,15 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account, ApiKey, Project } from '@lightbridge/hooks';
+import { ExpirySelector } from '../../components/expiry-selector';
 import { useThemeColors } from '../../hooks/use-theme-colors';
+import { expiresAtToDateOnly, getDerivedStatus } from '../../lib/api-key-expiry';
 import { formatDate, formatNullableDate } from '../api-keys-list-view';
 
 export type ApiKeyDetailsInput = {
   name: string;
   /** ISO datetime string, or `null` to clear the expiration. */
   expiresAt: string | null;
-};
-
-/** Renders a nullable ISO expiration as a `YYYY-MM-DD` draft ('' = no expiration). */
-const expiresAtToDraft = (value?: string | null) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().slice(0, 10);
-};
-
-/**
- * Parses a `YYYY-MM-DD` expiration draft back to an ISO datetime (midnight UTC): '' means "no
- * expiration" (null), a valid date string becomes an ISO datetime, anything else is `undefined`
- * (invalid, blocks Save the same way `parseLimitDraft` does in project-settings-view).
- */
-export const parseExpirationDraft = (draft: string): string | null | undefined => {
-  const trimmed = draft.trim();
-  if (trimmed === '') return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return undefined;
-  const date = new Date(`${trimmed}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString();
 };
 
 type ApiKeySettingsViewProps = {
@@ -105,33 +85,42 @@ export function ApiKeySettingsView({
   const dateLocale = i18n.language;
 
   const [nameDraft, setNameDraft] = useState(apiKey?.name ?? '');
-  const [expirationDraft, setExpirationDraft] = useState(expiresAtToDraft(apiKey?.expiresAt));
+  const [expiresAtDraft, setExpiresAtDraft] = useState<string | null | undefined>(
+    apiKey?.expiresAt ?? null
+  );
 
   useEffect(() => {
     setNameDraft(apiKey?.name ?? '');
-    setExpirationDraft(expiresAtToDraft(apiKey?.expiresAt));
+    // `expiresAtDraft` is deliberately NOT reset here. `ExpirySelector` below is remounted via
+    // `key={apiKey.id}` whenever the selected key changes, and its own mount effect reports the
+    // freshly-seeded resolved value through `onChange` (= `setExpiresAtDraft`) -- React fires a
+    // child's mount effect before this parent effect in the same commit, so resetting it here
+    // too would win the race and clobber that resolved value back to the raw, unnormalized
+    // `apiKey.expiresAt` (observed as a real bug: `2026-12-31T00:00:00Z` overwriting the
+    // correctly-resolved `2026-12-31T00:00:00.000Z` on every render).
   }, [apiKey]);
 
   const trimmedName = nameDraft.trim();
-  const parsedExpiration = parseExpirationDraft(expirationDraft);
-  const expirationValid = parsedExpiration !== undefined;
-  // Compare drafts at the same `YYYY-MM-DD` granularity the TextField edits, not the raw ISO
-  // strings — `apiKey.expiresAt` may carry a different (but equal) timestamp representation than
-  // `parseExpirationDraft` produces (e.g. no milliseconds vs `.000`), which would otherwise read
-  // as "changed" on first render even though the user touched nothing.
+  const expirationValid = expiresAtDraft !== undefined;
+  // Compare at the same `YYYY-MM-DD` (calendar-day) granularity `ExpirySelector`'s "Custom"
+  // picker edits, not the raw ISO strings: a preset-derived `apiKey.expiresAt` carries a
+  // non-midnight time-of-day, and re-seeding "Custom" from it always resolves back to that same
+  // calendar day at UTC midnight (see `ExpirySelector`'s `initialPresetFor`) -- comparing full
+  // ISO strings would misreport "changed" on first render even though the user touched nothing.
   const hasDetailsChanged =
     !!apiKey &&
     (trimmedName !== apiKey.name ||
-      expirationDraft.trim() !== expiresAtToDraft(apiKey.expiresAt));
+      expiresAtToDateOnly(expiresAtDraft) !== expiresAtToDateOnly(apiKey.expiresAt));
   const canSaveDetails =
     hasDetailsChanged && trimmedName.length > 0 && expirationValid && !isSavingDetails;
 
   const handleSaveDetails = () => {
-    if (!expirationValid || parsedExpiration === undefined) return;
-    onSaveDetails({ name: trimmedName, expiresAt: parsedExpiration });
+    if (expiresAtDraft === undefined) return;
+    onSaveDetails({ name: trimmedName, expiresAt: expiresAtDraft });
   };
 
   const isActive = apiKey?.status === 'active';
+  const derivedStatus = apiKey ? getDerivedStatus(apiKey) : 'active';
 
   return (
     <Div tone="muted" width="full" style={{ flex: 1 }}>
@@ -251,9 +240,9 @@ export function ApiKeySettingsView({
               <Stack direction="row" align="center" gap="sm">
                 <Heading tone="title">{apiKey.name}</Heading>
                 <Badge
-                  tone={isActive ? 'success' : 'error'}
-                  accessibilityLabel={t(`apiKeys.status.${apiKey.status}`)}>
-                  {t(`apiKeys.status.${apiKey.status}`)}
+                  tone={derivedStatus === 'active' ? 'success' : 'error'}
+                  accessibilityLabel={t(`apiKeys.status.${derivedStatus}`)}>
+                  {t(`apiKeys.status.${derivedStatus}`)}
                 </Badge>
               </Stack>
 
@@ -273,22 +262,13 @@ export function ApiKeySettingsView({
                         autoCorrect={false}
                       />
                     </Stack>
-                    <Stack gap="xs">
-                      <Text intent="caption">{t('settings.apiKey.expirationLabel')}</Text>
-                      <TextField
-                        value={expirationDraft}
-                        onChangeText={setExpirationDraft}
-                        placeholder={t('settings.apiKey.expirationPlaceholder')}
-                        editable={!isSavingDetails}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <Text intent="caption" style={{ color: colors.subtle }}>
-                        {expirationValid
-                          ? t('settings.apiKey.expirationHint')
-                          : t('settings.apiKey.expirationInvalid')}
-                      </Text>
-                    </Stack>
+                    <ExpirySelector
+                      key={apiKey.id}
+                      label={t('apiKeys.expiry.label')}
+                      initialValue={apiKey.expiresAt ?? null}
+                      onChange={setExpiresAtDraft}
+                      disabled={isSavingDetails}
+                    />
                     <Button
                       variant="primary"
                       size="sm"
@@ -310,12 +290,9 @@ export function ApiKeySettingsView({
                   <Divider tone="muted" />
                   <KeyValue
                     label={t('settings.apiKey.statusLabel')}
-                    value={t(`apiKeys.status.${apiKey.status}`)}
+                    value={t(`apiKeys.status.${derivedStatus}`)}
                   />
-                  <KeyValue
-                    label={t('settings.apiKey.keyPrefixLabel')}
-                    value={apiKey.keyPrefix}
-                  />
+                  <KeyValue label={t('settings.apiKey.keyPrefixLabel')} value={apiKey.keyPrefix} />
                   <KeyValue
                     label={t('settings.apiKey.billingPlanLabel')}
                     value={apiKey.billingPlan}
@@ -369,6 +346,8 @@ export function ApiKeySettingsView({
                   <Stack gap="sm" align="start">
                     {!isActive ? (
                       <Callout tone="warning">{t('settings.apiKey.revokedNotice')}</Callout>
+                    ) : derivedStatus === 'expired' ? (
+                      <Callout tone="error">{t('settings.apiKey.expiredNotice')}</Callout>
                     ) : null}
                     <Stack direction="row" gap="sm" wrap="wrap">
                       {canRevoke ? (

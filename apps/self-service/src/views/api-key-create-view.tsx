@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
 } from '@lightbridge/ui';
+import { ExpirySelector } from '../components/expiry-selector';
 import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
 
@@ -29,7 +30,9 @@ const DEFAULT_API_KEY_BILLING_PLAN = 'free';
 
 type ApiKeyCreateViewProps = {
   onBack: () => void;
-  onCreate: (name: string, billingPlan: string) => void;
+  /** `expiresAt` is always resolved before Save can be pressed: an ISO datetime, or `null` for
+   * "no expiry" -- never `undefined` (see `isSubmitDisabled` below). */
+  onCreate: (name: string, billingPlan: string, expiresAt: string | null) => void;
   onCopy: (value: string) => void;
   isCreating?: boolean;
   /** When true, the user may pick a billing plan; otherwise keys are pinned to `free`. */
@@ -59,16 +62,20 @@ export function ApiKeyCreateView({
   const colors = useThemeColors();
   const [name, setName] = useState('');
   const [billingPlan, setBillingPlan] = useState('');
+  // `undefined` means "Custom" is selected with no valid date yet -- ExpirySelector's mount
+  // effect replaces this with a real value (the 30-day preset by default) before the user does
+  // anything, so this only stays `undefined` while actively editing an invalid custom date.
+  const [expiresAt, setExpiresAt] = useState<string | null | undefined>(undefined);
 
   const trimmedName = name.trim();
   const resolvedPlan = canChoosePlan
     ? billingPlan.trim() || DEFAULT_API_KEY_BILLING_PLAN
     : DEFAULT_API_KEY_BILLING_PLAN;
-  const isSubmitDisabled = isCreating || !trimmedName;
+  const isSubmitDisabled = isCreating || !trimmedName || expiresAt === undefined;
 
   const submit = () => {
-    if (isSubmitDisabled) return;
-    onCreate(trimmedName, resolvedPlan);
+    if (isSubmitDisabled || expiresAt === undefined) return;
+    onCreate(trimmedName, resolvedPlan, expiresAt);
   };
 
   return (
@@ -160,6 +167,11 @@ export function ApiKeyCreateView({
                       {t('apiKeys.planLockedNote')}
                     </Text>
                   )}
+                  <ExpirySelector
+                    label={t('apiKeys.expiry.label')}
+                    onChange={setExpiresAt}
+                    disabled={isCreating}
+                  />
                   {createError ? (
                     <Callout
                       tone="error"

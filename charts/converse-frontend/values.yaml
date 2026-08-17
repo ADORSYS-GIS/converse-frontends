@@ -27,6 +27,11 @@ conversefrontend:
 
           env:
             EXPO_PUBLIC_BACKEND_URL: ""
+            # authz-budget: the microservice the 14 budget:*-gated RPC procedures moved onto
+            # (hard cutover, lightbridge-authz PR #351 — authz-api no longer serves them). Leave
+            # unset to fall back to EXPO_PUBLIC_BACKEND_URL (budget calls will 404 until this is
+            # set to a real authz-budget ingress — none is enabled in any environment yet).
+            EXPO_PUBLIC_BUDGET_URL: ""
             EXPO_PUBLIC_USAGE_URL: ""
             EXPO_PUBLIC_GATEWAY_URL: ""
             EXPO_PUBLIC_ANALYTICS_URL: ""

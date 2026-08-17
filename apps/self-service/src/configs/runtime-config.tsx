@@ -11,6 +11,21 @@ const RuntimeConfigContext = createContext<AppRuntimeConfig | null>(null);
 const DEFAULT_USAGE_DASHBOARD_PATH = '/d/my-usage/ai-gateway-e28094-my-usage';
 
 /**
+ * Resolves `budgetBaseUrl`: an explicit non-empty value wins, otherwise falls back to
+ * `backendUrl`. `authz-budget`'s ingress is not enabled anywhere yet, so most deployments won't
+ * set `EXPO_PUBLIC_BUDGET_URL` / `config.json`'s `budgetBaseUrl` for a while -- falling back keeps
+ * the app functional (budget calls will 404 against `authz-api`, same as before this field
+ * existed) instead of throwing on a missing required value.
+ */
+function resolveBudgetBaseUrl(raw: unknown, backendUrl: unknown): string {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  if (trimmed) {
+    return trimmed;
+  }
+  return typeof backendUrl === 'string' ? backendUrl : '';
+}
+
+/**
  * Builds the optional usage-dashboard config. Returns `undefined` (Usage tab
  * hidden) unless a Grafana base URL is provided. Trailing slashes on the base
  * URL are trimmed so the iframe URL joins cleanly.
@@ -60,6 +75,7 @@ function getEnvConfig(): AppRuntimeConfig {
   return {
     backendUrl,
     apiBasePath: apiBasePath || undefined,
+    budgetBaseUrl: resolveBudgetBaseUrl(process.env.EXPO_PUBLIC_BUDGET_URL, backendUrl),
     keycloak: {
       issuer,
       clientId,
@@ -86,6 +102,10 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
   }
 
   const json = await response.json();
+
+  // Resolve before validating so `isAppRuntimeConfig`'s `budgetBaseUrl` string check sees the
+  // fallback-applied value, not a possibly-absent/empty raw field straight off the wire.
+  json.budgetBaseUrl = resolveBudgetBaseUrl((json as any).budgetBaseUrl, (json as any).backendUrl);
 
   if (!isAppRuntimeConfig(json)) {
     throw new Error('Invalid config.json payload.');

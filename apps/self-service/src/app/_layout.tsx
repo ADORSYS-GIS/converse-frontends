@@ -23,7 +23,7 @@ import {
 import { APP_FONT_SOURCES, useAppFonts } from '@lightbridge/ui';
 import { createBatchLink } from '@cratestack/api';
 import { queryClient } from '../queries';
-import { useAuthzRpcClient } from '@lightbridge/authz-rpc';
+import { useAuthzRpcClient, useBudgetRpcClient } from '@lightbridge/authz-rpc';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
@@ -39,6 +39,15 @@ void SplashScreen.preventAutoHideAsync();
 // single shared scheduler instance also avoids ever having two independent batch queues alive at
 // once, which a fresh `createBatchLink()` per render would risk.
 const authzBatchLink = createBatchLink();
+
+// A separate scheduler for the budget client, same reasoning as `authzBatchLink` above -- the two
+// clients hit different origins, so their batch queues must never be merged into one.
+const budgetBatchLink = createBatchLink();
+
+// `authz-budget` mounts its RPC surface under a FIXED `/budget` prefix, unlike `authz-api`'s
+// configurable `apiBasePath` -- see `AppRuntimeConfig.budgetBaseUrl`'s doc comment and
+// `docs/architecture/budget.md` in `lightbridge-authz`.
+const BUDGET_RPC_BASE_PATH = '/budget';
 
 function AppBootstrap() {
   const runtimeConfig = useRuntimeConfig();
@@ -71,10 +80,10 @@ function AppBootstrap() {
     ]);
   }, []);
 
-  useAuthzRpcClient({
-    baseURL: runtimeConfig.backendUrl,
-    basePath: runtimeConfig.apiBasePath,
-    links: [authzBatchLink],
+  // Shared between both RPC clients: `authz-budget` requires the exact same caller identity
+  // (Keycloak access token) as `authz-api` — the split only changed which host/path prefix serves
+  // a budget op-id, never what a caller needs to authenticate (`docs/architecture/budget.md`).
+  const sharedAuthOptions = {
     auth: async () => {
       if (!isHydrated) {
         return '';
@@ -84,6 +93,23 @@ function AppBootstrap() {
     refreshAuth: handleRefreshAuth,
     getExpiresAt: () => getLatestAuthSession().tokens?.expiresAt,
     onRefreshFailure: handleRefreshFailure,
+  };
+
+  useAuthzRpcClient({
+    baseURL: runtimeConfig.backendUrl,
+    basePath: runtimeConfig.apiBasePath,
+    links: [authzBatchLink],
+    ...sharedAuthOptions,
+  });
+
+  // The 14 budget:*-gated procedures (policy lifecycle, self-service refill + admin review,
+  // balance/ledger reads, direct grant/revoke) live only here post-split — see
+  // `getBudgetRpcClient`'s doc comment in `@lightbridge/authz-rpc` for the authoritative list.
+  useBudgetRpcClient({
+    baseURL: runtimeConfig.budgetBaseUrl,
+    basePath: BUDGET_RPC_BASE_PATH,
+    links: [budgetBatchLink],
+    ...sharedAuthOptions,
   });
 
   useBackendSync();

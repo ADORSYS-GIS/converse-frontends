@@ -26,6 +26,21 @@ export type AppRuntimeConfig = {
   /** RPC basePath the authz-rpc client prepends, e.g. /api/v2. Defaults to the
    *  cratestack-generated client's own default ('/api') when unset. */
   apiBasePath?: string;
+  /**
+   * Base URL for the `authz-budget` microservice, which the 14 `budget:*`-gated RPC procedures
+   * moved onto (lightbridge-authz PR #351, hard cutover -- `authz-api` no longer serves them at
+   * all, see `docs/architecture/budget.md` in that repo). Always resolved by `loadRuntimeConfig`
+   * (falls back to `backendUrl` when unset), so this is never `undefined` at the point a client
+   * reads it. The path prefix is NOT configurable here: `authz-budget` mounts its RPC surface
+   * under a fixed `/budget` prefix, unlike `apiBasePath` above, so the budget client hardcodes
+   * `basePath: '/budget'` in code instead of reading a config field for it.
+   *
+   * `authz-budget`'s ingress is not enabled in any shared environment yet (as of this field's
+   * introduction). Until an operator sets `EXPO_PUBLIC_BUDGET_URL` / `config.json`'s
+   * `budgetBaseUrl`, this falls back to `backendUrl`, which will 404 on every budget op-id --
+   * expected until the service is reachable, not a bug in this fallback.
+   */
+  budgetBaseUrl: string;
   keycloak: KeycloakConfig;
   usage?: UsageDashboardConfig;
 };
@@ -39,6 +54,7 @@ export function isAppRuntimeConfig(value: unknown): value is AppRuntimeConfig {
 
   return (
     typeof config.backendUrl === 'string' &&
+    typeof config.budgetBaseUrl === 'string' &&
     typeof config.keycloak?.issuer === 'string' &&
     typeof config.keycloak?.clientId === 'string' &&
     typeof config.keycloak?.scheme === 'string'

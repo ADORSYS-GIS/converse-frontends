@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
 import type { Account, ApiKey, Project } from '@lightbridge/hooks';
 
-import { ApiKeySettingsView, parseExpirationDraft } from '../api-key-settings-view';
+import { ApiKeySettingsView } from '../api-key-settings-view';
 
 const noop = () => undefined;
 
@@ -81,23 +81,6 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ApiKeySetting
   );
 }
 
-describe('parseExpirationDraft', () => {
-  it('maps an empty draft to null (no expiration)', () => {
-    expect(parseExpirationDraft('')).toBeNull();
-    expect(parseExpirationDraft('   ')).toBeNull();
-  });
-
-  it('parses a valid YYYY-MM-DD date to an ISO datetime', () => {
-    expect(parseExpirationDraft('2026-12-31')).toBe('2026-12-31T00:00:00.000Z');
-  });
-
-  it('rejects malformed input as undefined (invalid)', () => {
-    expect(parseExpirationDraft('12/31/2026')).toBeUndefined();
-    expect(parseExpirationDraft('not-a-date')).toBeUndefined();
-    expect(parseExpirationDraft('2026-13-40')).toBeUndefined();
-  });
-});
-
 describe('ApiKeySettingsView', () => {
   it('renders the account/project/key selectors and the selected key details', async () => {
     await renderView();
@@ -105,7 +88,11 @@ describe('ApiKeySettingsView', () => {
     expect(screen.getByText('acc-1')).toBeTruthy();
     expect(screen.getByText('production')).toBeTruthy();
     expect(screen.getByDisplayValue('ci-runner')).toBeTruthy();
-    expect(screen.getByDisplayValue('2026-12-31')).toBeTruthy();
+    // The expiry picker seeds "Custom" pre-filled with the key's existing expiration.
+    expect(screen.getByRole('button', { name: 'Custom' }).props.accessibilityState.selected).toBe(
+      true
+    );
+    expect(screen.getByLabelText('Expiration date').props.value).toBe('2026-12-31');
   });
 
   it('calls onSelectKey when a key chip is pressed', async () => {
@@ -134,7 +121,7 @@ describe('ApiKeySettingsView', () => {
     );
   });
 
-  it('calls onSaveDetails with the trimmed name and parsed expiration', async () => {
+  it('calls onSaveDetails with the trimmed name and the unchanged expiration', async () => {
     const onSaveDetails = jest.fn();
     await renderView({ onSaveDetails });
 
@@ -151,16 +138,18 @@ describe('ApiKeySettingsView', () => {
     const onSaveDetails = jest.fn();
     await renderView({ onSaveDetails });
 
-    await fireEvent.changeText(screen.getByDisplayValue('2026-12-31'), '');
+    await fireEvent.press(screen.getByText('No expiry'));
     await fireEvent.press(screen.getByText('Save'));
 
     expect(onSaveDetails).toHaveBeenCalledWith({ name: 'ci-runner', expiresAt: null });
   });
 
-  it('disables Save when the expiration draft is not a valid date', async () => {
+  it('disables Save when the custom expiration draft is not a valid date', async () => {
     await renderView();
 
-    await fireEvent.changeText(screen.getByDisplayValue('2026-12-31'), 'not-a-date');
+    await fireEvent(screen.getByLabelText('Expiration date'), 'change', {
+      target: { value: 'not-a-date' },
+    });
 
     expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
       true
@@ -185,15 +174,33 @@ describe('ApiKeySettingsView', () => {
     await renderView({ apiKey: revokedKey, apiKeys: [revokedKey] });
 
     expect(screen.getByText('This key has already been revoked.')).toBeTruthy();
-    expect(
-      screen.getByLabelText('Revoke old-key').props.accessibilityState.disabled
-    ).toBe(true);
+    expect(screen.getByLabelText('Revoke old-key').props.accessibilityState.disabled).toBe(true);
   });
 
   it('renders a Revoked badge and a revoked-on row for a revoked key', async () => {
     await renderView({ apiKey: revokedKey, apiKeys: [revokedKey] });
 
     expect(screen.getAllByText('Revoked').length).toBeGreaterThan(0);
+  });
+
+  it('shows an Expired badge and the expired notice for an active-but-past-expiry key, while keeping Revoke enabled', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2027-01-01T00:00:00.000Z'));
+    const expiredKey: ApiKey = { ...activeKey, expiresAt: '2026-12-31T00:00:00Z' };
+    await renderView({ apiKey: expiredKey, apiKeys: [expiredKey] });
+
+    // Appears twice by design: the header status pill, and the metadata section's "Status" row
+    // (which now shows the same derived status rather than the raw, possibly-stale backend
+    // value, so the two never contradict each other on the same screen).
+    expect(screen.getAllByText('Expired').length).toBe(2);
+    expect(screen.queryByText('Active')).toBeNull();
+    expect(
+      screen.getByText(
+        'This key expired and can no longer authenticate requests. Extend or clear its expiration above to restore it.'
+      )
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Revoke ci-runner').props.accessibilityState.disabled).toBe(false);
+
+    jest.useRealTimers();
   });
 
   it('calls onRevoke and onDelete from the danger zone', async () => {

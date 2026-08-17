@@ -81,8 +81,12 @@ const resources = {
         rotate: 'Rotate',
         rotateNamed: 'Rotate {{name}}',
         rotateTitle: 'Rotate API key',
+        // "Its expiration date stays the same" is load-bearing, not filler: `rotateApiKey`
+        // preserves the key's existing `expiresAt` (`RotateApiKeyInput` has no field for the
+        // caller to change it -- see `resolve_rotated_expires_at` server-side). Rotation neither
+        // resets nor extends expiry, so this must say "stays the same", not "renews" or "resets".
         rotateDescription:
-          'Rotating "{{name}}" issues a new secret and immediately invalidates the current one. Update any client using this key with the new secret.',
+          'Rotating "{{name}}" issues a new secret and immediately invalidates the current one. Its expiration date stays the same -- update any client using this key with the new secret.',
         rotateConfirm: 'Rotate key',
         rotateCancel: 'Cancel',
         rotating: 'Rotating...',
@@ -104,6 +108,30 @@ const resources = {
         status: {
           active: 'Active',
           revoked: 'Revoked',
+          // Not a backend status value -- `apiKeys.status` also keys the derived-status badge
+          // (see `getDerivedStatus` in `apps/self-service/src/lib/api-key-expiry.ts`), which
+          // reads a key that is `status: 'active'` in the database but past its `expiresAt` as
+          // "expired" rather than misreporting it as active.
+          expired: 'Expired',
+        },
+        // Preset + custom expiration picker, shared by the create and settings/edit screens via
+        // `ExpirySelector` (`apps/self-service/src/components/expiry-selector.tsx`), and the
+        // expiring-soon/expired labels in the list/settings views (`api-key-expiry.ts`'s
+        // `getExpiryUrgency`).
+        expiry: {
+          label: 'Expiration',
+          thirtyDays: '30 days',
+          sixtyDays: '60 days',
+          ninetyDays: '90 days',
+          custom: 'Custom',
+          noExpiry: 'No expiry',
+          customDateLabel: 'Expiration date',
+          customDateInvalid: 'Enter a valid date.',
+          noExpiryLabel: 'No expiry',
+          expiresInDays_one: 'Expires in {{count}} day',
+          expiresInDays_other: 'Expires in {{count}} days',
+          expiresToday: 'Expires today',
+          expiredOn: 'Expired {{date}}',
         },
         keyLabel: 'Key name',
         placeholder: 'Production',
@@ -338,10 +366,6 @@ const resources = {
           detailsDescription: 'The name and expiration date for this key.',
           nameLabel: 'Key name',
           namePlaceholder: 'production-server',
-          expirationLabel: 'Expiration date',
-          expirationPlaceholder: 'YYYY-MM-DD',
-          expirationHint: 'Leave empty for no expiration.',
-          expirationInvalid: 'Enter a date as YYYY-MM-DD, or leave empty for no expiration.',
           detailsSave: 'Save',
           detailsSaving: 'Saving...',
           metadataSection: 'Lifecycle metadata',
@@ -356,13 +380,18 @@ const resources = {
           revokedLabel: 'Revoked',
           rotationSection: 'Rotation',
           rotationDescription:
-            'Rotating a key issues a new secret and immediately invalidates the current one.',
+            'Rotating a key issues a new secret and immediately invalidates the current one. Its expiration date stays the same.',
           rotationNote: 'Rotate this key from the API Keys list, alongside its other actions.',
           goToApiKeys: 'Go to API Keys',
           dangerSection: 'Danger zone',
           dangerDescription:
             'Revoke disables the key immediately but keeps its record for auditing. Delete removes the key and its history permanently — this cannot be undone.',
           revokedNotice: 'This key has already been revoked.',
+          // Shown alongside `revokedNotice` when the key is `status: 'active'` in the database
+          // but past its `expiresAt` -- distinct wording because unlike a revoke, this state is
+          // fixable from this same screen (extend or clear the expiration above).
+          expiredNotice:
+            'This key expired and can no longer authenticate requests. Extend or clear its expiration above to restore it.',
         },
         // Self-service budget refill (#148). "Budget tier" is deliberately never called "quota
         // tier" anywhere in this block -- `project.quotaTier` (roster, per-member request-rate

@@ -30,6 +30,8 @@ export { Scroll, scrollContentVariants, scrollVariants } from './components/scro
 export type { ScrollProps } from './components/scroll';
 export { Select, selectVariants } from './components/select';
 export type { SelectOption, SelectProps } from './components/select';
+export { DateField } from './components/date-field';
+export type { DateFieldProps } from './components/date-field';
 export { SectionCard, sectionCardVariants, sectionTitleVariants } from './components/section-card';
 export type { SectionCardProps } from './components/section-card';
 export {

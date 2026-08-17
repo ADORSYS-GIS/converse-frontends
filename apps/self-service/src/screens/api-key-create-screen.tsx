@@ -109,15 +109,19 @@ export function ApiKeyCreateScreen() {
     router.navigate('/api-keys');
   };
 
-  const handleCreate = async (name: string, billingPlan: string) => {
+  const handleCreate = async (name: string, billingPlan: string, expiresAt: string | null) => {
     // Clear any stale failure from a previous attempt as soon as a new one starts, so a retry
     // never shows an old error next to a fresh, still-in-flight submission.
     setCreateError(null);
     try {
       const resolvedProjectId = projectId ?? (await ensureProject((await ensureAccount()).id)).id;
 
+      // `expiresAt` is passed explicitly as `null` for "no expiry", never omitted -- an omitted
+      // (`undefined`) field and an explicit `null` encode differently over this app's CBOR wire
+      // codec, and the codec has drifted on exactly that distinction before (see the
+      // createProject prod incident this pattern guards against).
       await createKey(
-        { input: { name, billingPlan }, projectId: resolvedProjectId },
+        { input: { name, billingPlan, expiresAt }, projectId: resolvedProjectId },
         {
           onSuccess: (data) => {
             if (data?.secret) {

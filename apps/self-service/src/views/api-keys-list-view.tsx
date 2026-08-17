@@ -26,6 +26,8 @@ import {
   toProjectPickerOptions,
 } from '../components/entity-picker-field';
 import { useThemeColors } from '../hooks/use-theme-colors';
+import type { DerivedKeyStatus } from '../lib/api-key-expiry';
+import { daysUntilExpiry, getDerivedStatus, getExpiryUrgency } from '../lib/api-key-expiry';
 
 const i18nLocaleMap: Record<string, string> = {
   en: 'en-US',
@@ -78,6 +80,58 @@ export const formatNullableDate = (value?: string | null, locale?: string) => {
 
   return formatDate(value, locale);
 };
+
+/** `Badge` tone for the header status pill. `revoked` and `expired` read equally severe (both
+ * mean the key can't authenticate right now) -- only the label differs. */
+const STATUS_BADGE_TONE: Record<DerivedKeyStatus, 'success' | 'error'> = {
+  active: 'success',
+  revoked: 'error',
+  expired: 'error',
+};
+
+/** The footer caption for a key's expiration -- always renders something (including "No
+ * expiry" as an explicit state, never an empty gap), and escalates to a warning-toned `Badge`
+ * once the key is within the "expiring soon" window so it doesn't read as identical to the
+ * plain `createdOn`/`lastUsed` captions beside it. Expired keys are already unmistakable via
+ * the header status badge (see `STATUS_BADGE_TONE`); this still shows the exact date so "when"
+ * is legible, not just "that it happened". */
+function ExpiryCaption({
+  expiresAt,
+  dateLocale,
+}: Readonly<{ expiresAt?: string | null; dateLocale: string }>) {
+  const { t } = useTranslation();
+  const colors = useThemeColors();
+  const urgency = getExpiryUrgency(expiresAt);
+
+  if (urgency === 'none') {
+    return <Text intent="caption">{t('apiKeys.expiry.noExpiryLabel')}</Text>;
+  }
+
+  if (urgency === 'expired') {
+    return (
+      <Text intent="caption" style={{ color: colors.error }}>
+        {t('apiKeys.expiry.expiredOn', { date: formatNullableDate(expiresAt, dateLocale) })}
+      </Text>
+    );
+  }
+
+  if (urgency === 'soon') {
+    const days = daysUntilExpiry(expiresAt) ?? 0;
+    return (
+      <Badge tone="warning">
+        {days <= 0
+          ? t('apiKeys.expiry.expiresToday')
+          : t('apiKeys.expiry.expiresInDays', { count: days })}
+      </Badge>
+    );
+  }
+
+  return (
+    <Text intent="caption">
+      {t('apiKeys.expiresOn', { date: formatNullableDate(expiresAt, dateLocale) })}
+    </Text>
+  );
+}
 
 export function ApiKeysListView({
   accounts = [],
@@ -248,7 +302,12 @@ export function ApiKeysListView({
                 const createdLabel = t('apiKeys.createdOn', {
                   date: formatDate(item.createdAt, dateLocale),
                 });
+                // `isActive` gates the Rotate/Revoke buttons and stays tied to the real backend
+                // `status` -- an expired-but-not-revoked key can still be rotated or explicitly
+                // revoked. `derivedStatus` only drives the badge label/tone below, so an expired
+                // key reads as "Expired" instead of misreporting as "Active".
                 const isActive = item.status === 'active';
+                const derivedStatus = getDerivedStatus(item);
 
                 return (
                   <DataCard
@@ -263,9 +322,9 @@ export function ApiKeysListView({
                           {item.name}
                         </Text>
                         <Badge
-                          tone={isActive ? 'success' : 'error'}
-                          accessibilityLabel={t(`apiKeys.status.${item.status}`)}>
-                          {t(`apiKeys.status.${item.status}`)}
+                          tone={STATUS_BADGE_TONE[derivedStatus]}
+                          accessibilityLabel={t(`apiKeys.status.${derivedStatus}`)}>
+                          {t(`apiKeys.status.${derivedStatus}`)}
                         </Badge>
                       </Stack>
                     }
@@ -321,7 +380,7 @@ export function ApiKeysListView({
                           </Stack>
                         ) : null}
 
-                        <Stack direction="row" gap="md" wrap="wrap" width="full">
+                        <Stack direction="row" gap="md" wrap="wrap" width="full" align="center">
                           <Text intent="caption">{createdLabel}</Text>
                           <Text intent="caption">
                             {item.lastUsedAt
@@ -330,13 +389,7 @@ export function ApiKeysListView({
                                 })
                               : t('apiKeys.neverUsed')}
                           </Text>
-                          {item.expiresAt ? (
-                            <Text intent="caption">
-                              {t('apiKeys.expiresOn', {
-                                date: formatNullableDate(item.expiresAt, dateLocale),
-                              })}
-                            </Text>
-                          ) : null}
+                          <ExpiryCaption expiresAt={item.expiresAt} dateLocale={dateLocale} />
                         </Stack>
                       </Stack>
                     }

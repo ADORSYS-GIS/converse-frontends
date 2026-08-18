@@ -92,18 +92,30 @@ export function useRequestBudgetRefill() {
 }
 
 /** Bare prefix -- invalidating with this alone clears every `budgetAccountId` scoping. */
-export const pendingAugmentationRequestsQueryKey = ['budget', 'pending-augmentation-requests'] as const;
+export const pendingAugmentationRequestsQueryKey = [
+  'budget',
+  'pending-augmentation-requests',
+] as const;
 
 export function pendingAugmentationRequestsListQueryKey(budgetAccountId?: string) {
   return [...pendingAugmentationRequestsQueryKey, budgetAccountId ?? 'all'] as const;
 }
 
+/**
+ * `listPendingAugmentationRequests` now returns a paginated `{ entries, nextCursor }` shape
+ * (lightbridge-authz#376, #296) instead of a flat array. This helper still returns a flat
+ * `AugmentationRequest[]` -- callers here (the admin review screen) don't page through the queue
+ * yet, so unwrapping `.entries` and dropping `nextCursor` keeps the existing call sites/tests
+ * unchanged rather than threading pagination through a UI that doesn't use it. Revisit if/when
+ * the review screen needs to page past the first `limit` results.
+ */
 export async function listPendingAugmentationRequests(
   budgetAccountId?: string
 ): Promise<AugmentationRequest[]> {
-  return getBudgetRpcClient().procedures.listPendingAugmentationRequests({
+  const page = await getBudgetRpcClient().procedures.listPendingAugmentationRequests({
     args: { budgetAccountId },
   });
+  return page.entries;
 }
 
 /**

@@ -64,7 +64,10 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
   });
 
   it('listPendingAugmentationRequests calls the budget client only', async () => {
-    mockBudgetProcedures.listPendingAugmentationRequests.mockResolvedValueOnce([]);
+    mockBudgetProcedures.listPendingAugmentationRequests.mockResolvedValueOnce({
+      entries: [],
+      nextCursor: null,
+    });
 
     await listPendingAugmentationRequests('acc_1');
 
@@ -73,6 +76,18 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
       args: { budgetAccountId: 'acc_1' },
     });
     expect(getAuthzRpcClient).not.toHaveBeenCalled();
+  });
+
+  it('listPendingAugmentationRequests unwraps the paginated `entries` field', async () => {
+    const entry = { id: 'aug_1' };
+    mockBudgetProcedures.listPendingAugmentationRequests.mockResolvedValueOnce({
+      entries: [entry],
+      nextCursor: '2026-08-18T00:00:00.000Z',
+    });
+
+    const result = await listPendingAugmentationRequests('acc_1');
+
+    expect(result).toEqual([entry]);
   });
 
   it('approveAugmentationRequest calls the budget client only', async () => {

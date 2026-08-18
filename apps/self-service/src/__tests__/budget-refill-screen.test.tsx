@@ -11,6 +11,11 @@ import { initI18n } from '@lightbridge/i18n';
 // `@lightbridge/hooks/api-error` subpath, same pattern as the `./budget-tiers` subpath already
 // used by budget-refill-view.tsx) so the screen's actual wiring is exercised, not bypassed.
 const mockUseRequestBudgetRefill = jest.fn();
+// The read-only ladder-visibility companion (`getMyBudgetRefillLadder`) added alongside this
+// screen's ladder panel -- mocked to a harmless "nothing loaded yet" default so the existing
+// error/retry-focused tests below don't need to know it exists. `ladder-panel.test.tsx` covers
+// the panel's own loading/error/loaded rendering in isolation.
+const mockUseMyBudgetRefillLadder = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
@@ -26,6 +31,7 @@ jest.mock('@lightbridge/hooks', () => {
     useCurrentAccount: () => ({ data: { id: 'acc-1' } }),
     usePermissions: () => ({ has: () => true }),
     useRequestBudgetRefill: () => mockUseRequestBudgetRefill(),
+    useMyBudgetRefillLadder: () => mockUseMyBudgetRefillLadder(),
   };
 });
 
@@ -37,6 +43,8 @@ beforeAll(() => {
 
 beforeEach(() => {
   mockUseRequestBudgetRefill.mockReset();
+  mockUseMyBudgetRefillLadder.mockReset();
+  mockUseMyBudgetRefillLadder.mockReturnValue({ data: null, isLoading: false, isError: false });
 });
 
 describe('BudgetRefillScreen -- reacts to a real CratestackRpcError, not just an Axios-shaped one', () => {

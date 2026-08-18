@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AugmentationRequest } from '@lightbridge/authz-rpc';
+import type { AugmentationRequest, MyBudgetRefillLadder } from '@lightbridge/authz-rpc';
 import { createId, getBudgetRpcClient } from '@lightbridge/authz-rpc';
 import { useAuthSession } from './auth-session';
 import { currentBudgetPeriod } from './budget-tiers';
 
-export type { AugmentationRequest } from '@lightbridge/authz-rpc';
+export type {
+  AugmentationRequest,
+  BudgetLadderRung,
+  MyBudgetRefillLadder,
+} from '@lightbridge/authz-rpc';
 
 // Pure formatting/tier constants live in ./budget-tiers.ts (its own dependency-free package
 // subpath) specifically so a presentational view can import them without pulling in
@@ -20,6 +24,45 @@ export * from './budget-tiers';
  */
 export function createBudgetIdempotencyKey(): string {
   return createId();
+}
+
+/** Query key for the caller's own ladder-position preview, scoped by `period` -- a different
+ * calendar month is a different snapshot, never the same cache entry. */
+export function myBudgetRefillLadderQueryKey(period: string) {
+  return ['budget', 'my-refill-ladder', period] as const;
+}
+
+/**
+ * Extracted from `useMyBudgetRefillLadder`'s `queryFn` for the same reason `requestBudgetRefill`
+ * is extracted from `useRequestBudgetRefill`'s `mutationFn` above -- callable directly in a test
+ * without rendering the hook. Routed through `getBudgetRpcClient`, never `getAuthzRpcClient` --
+ * see that comment for why.
+ */
+export async function getMyBudgetRefillLadder(period: string): Promise<MyBudgetRefillLadder> {
+  return getBudgetRpcClient().procedures.getMyBudgetRefillLadder({ args: { period } });
+}
+
+/**
+ * The read-only companion to `useRequestBudgetRefill`: where the caller currently sits on the
+ * ADR-0008 ladder for `period`, and what the next refill would grant if approved --
+ * `procedure.getMyBudgetRefillLadder`, gated at the same `budget:self-refill` permission as
+ * `requestBudgetRefill` itself. This is visibility, not a picker -- see the NOTE on
+ * `RequestBudgetRefillArgs` below for why there is still no caller-chosen tier anywhere on this
+ * wire. `enabled` mirrors `useBillingPlans`'s pattern: callers that don't have permission to
+ * refill at all can skip the fetch entirely rather than always paying for a 403.
+ */
+export function useMyBudgetRefillLadder(period: string, enabled = true) {
+  const { isAuthenticated } = useAuthSession();
+
+  return useQuery<MyBudgetRefillLadder>({
+    queryKey: myBudgetRefillLadderQueryKey(period),
+    queryFn: () => getMyBudgetRefillLadder(period),
+    enabled: isAuthenticated && enabled,
+    // Changes at most once per submitted refill (this account's own action) -- short enough to
+    // reflect a refill made in another tab/device within a session, long enough not to refetch on
+    // every focus of a screen that's otherwise idle.
+    staleTime: 30_000,
+  });
 }
 
 /**
@@ -77,8 +120,19 @@ export async function requestBudgetRefill({
 }
 
 export function useRequestBudgetRefill() {
+  const queryClient = useQueryClient();
+
   const mutation = useMutation({
     mutationFn: requestBudgetRefill,
+    // A submitted refill can move the caller up a rung (or exhaust the unaided allowance) --
+    // either way the ladder preview for THIS period is now stale the moment a decision comes
+    // back, auto-approved or not (even a `pending_review` outcome consumed one of the two unaided
+    // slots `refill_status` doesn't currently surface, so refetching is still the honest move).
+    // Keyed off the response's own `period`, not the caller's local variable, since the request
+    // always resolves to a concrete period server-side even when the caller omitted one.
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: myBudgetRefillLadderQueryKey(data.period) });
+    },
   });
 
   return {

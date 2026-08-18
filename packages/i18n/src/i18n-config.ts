@@ -395,17 +395,37 @@ const resources = {
           expiredNotice:
             'This key expired and can no longer authenticate requests. Extend or clear its expiration above to restore it.',
         },
-        // Self-service budget refill (#148). "Budget tier" is deliberately never called "quota
-        // tier" anywhere in this block -- `project.quotaTier` (roster, per-member request-rate
-        // ceiling) and this "budget tier" (per-account monthly spend ceiling) are unrelated
-        // fields that would both read as "tier" in support tickets if the copy collided.
-        // No tier/amount picker: `RequestBudgetRefillInput` has no field for the caller to
+        // Self-service budget refill (#148, ladder visibility follow-up). "Budget tier" is
+        // deliberately never called "quota tier" anywhere in this block -- `project.quotaTier`
+        // (roster, per-member request-rate ceiling) and this "budget tier" (per-account monthly
+        // spend ceiling) are unrelated fields that would both read as "tier" in support tickets
+        // if the copy collided.
+        // Still no tier/amount PICKER: `RequestBudgetRefillInput` has no field for the caller to
         // specify one -- the server decides the tier server-side (see the comment on
-        // `packages/hooks/src/budget-tiers.ts` and budget-refill-screen.tsx). This screen only
-        // ever reveals the server-assigned tier AFTER a decision, via `requestedTierLabel`.
+        // `packages/hooks/src/budget-tiers.ts` and budget-refill-screen.tsx). What changed is
+        // visibility, not choice: `getMyBudgetRefillLadder` (lightbridge-authz PR adding it) lets
+        // this screen show where the caller sits on the ladder and what the next refill would
+        // grant BEFORE they submit -- `ladder*` keys below -- while `requestedTierLabel` still
+        // reveals the server-assigned outcome AFTER a decision, unchanged.
         budget: {
           title: 'Budget refill',
           subtitle: "Request an increase to your account's monthly spending ceiling.",
+          // The ladder-visibility panel: "you are here, this is next" -- never phrased as a
+          // choice. See budget-refill-view.tsx's ladder rendering block.
+          ladderTitle: 'Your budget tier',
+          ladderCurrentLabel: 'Current tier: {{amount}}',
+          ladderNextLabel: 'A refill would grant: {{amount}}',
+          ladderAtTopTier:
+            "You're already at the highest tier — there's nothing further to request.",
+          ladderLoading: 'Loading your budget tier…',
+          ladderLoadError: "Couldn't load your budget tier.",
+          // Non-negotiable per the maintainer: this must be visible whether or not the caller has
+          // ever submitted a refill, not only after one. Plain and factual, no jargon -- someone
+          // who refills, sees no change, and concludes the product is broken is worse than someone
+          // who was told up front. See docs/budget-refill-ui-contract.md's Phase 6a/6b note in
+          // lightbridge-authz for the underlying gap this describes.
+          enforcementGapNotice:
+            "Refill requests are recorded here, but they don't change your enforced usage limit yet — that connection to the request gateway hasn't been built.",
           requestSection: 'Request a refill',
           requestSectionDescription:
             "The amount is determined automatically by your account's budget policy — you'll see what was requested once a decision comes back.",

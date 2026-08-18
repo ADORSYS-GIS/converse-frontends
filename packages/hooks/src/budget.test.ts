@@ -10,9 +10,10 @@ import { describe, expect, it, vi } from 'vitest';
 // budget procedure actually called -- a shared/identical mock would make a routing regression
 // (e.g. reverting a call site back to `getAuthzRpcClient`) invisible to these tests.
 vi.mock('./auth-session', () => ({ useAuthSession: () => ({ isAuthenticated: true }) }));
-const mockAuthzProcedures = { requestBudgetRefill: vi.fn() };
+const mockAuthzProcedures = { requestBudgetRefill: vi.fn(), getMyBudgetRefillLadder: vi.fn() };
 const mockBudgetProcedures = {
   requestBudgetRefill: vi.fn(),
+  getMyBudgetRefillLadder: vi.fn(),
   listPendingAugmentationRequests: vi.fn(),
   approveAugmentationRequest: vi.fn(),
   rejectAugmentationRequest: vi.fn(),
@@ -33,8 +34,10 @@ import {
   currentBudgetPeriod,
   formatBudgetTierAmount,
   formatMicroUsd,
+  getMyBudgetRefillLadder,
   isBudgetTier,
   listPendingAugmentationRequests,
+  myBudgetRefillLadderQueryKey,
   pendingAugmentationRequestsListQueryKey,
   pendingAugmentationRequestsQueryKey,
   rejectAugmentationRequest,
@@ -61,6 +64,27 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     });
     expect(getAuthzRpcClient).not.toHaveBeenCalled();
     expect(mockAuthzProcedures.requestBudgetRefill).not.toHaveBeenCalled();
+  });
+
+  it('getMyBudgetRefillLadder calls the budget client only, with just the period', async () => {
+    mockBudgetProcedures.getMyBudgetRefillLadder.mockResolvedValueOnce({
+      budgetAccountId: 'acc_1',
+      period: '2026-08',
+      currentTier: 'b-15',
+      currentTierAmountMicros: '15000000',
+      nextTier: 'b-30',
+      nextTierAmountMicros: '30000000',
+      ladder: [],
+    });
+
+    await getMyBudgetRefillLadder('2026-08');
+
+    expect(getBudgetRpcClient).toHaveBeenCalled();
+    expect(mockBudgetProcedures.getMyBudgetRefillLadder).toHaveBeenCalledWith({
+      args: { period: '2026-08' },
+    });
+    expect(getAuthzRpcClient).not.toHaveBeenCalled();
+    expect(mockAuthzProcedures.getMyBudgetRefillLadder).not.toHaveBeenCalled();
   });
 
   it('listPendingAugmentationRequests calls the budget client only', async () => {
@@ -216,5 +240,23 @@ describe('pendingAugmentationRequestsListQueryKey', () => {
       ...pendingAugmentationRequestsQueryKey,
       'all',
     ]);
+  });
+});
+
+describe('myBudgetRefillLadderQueryKey', () => {
+  it('is scoped by period -- two different months must never collide in the cache', () => {
+    expect(myBudgetRefillLadderQueryKey('2026-08')).toEqual([
+      'budget',
+      'my-refill-ladder',
+      '2026-08',
+    ]);
+    expect(myBudgetRefillLadderQueryKey('2026-09')).toEqual([
+      'budget',
+      'my-refill-ladder',
+      '2026-09',
+    ]);
+    expect(myBudgetRefillLadderQueryKey('2026-08')).not.toEqual(
+      myBudgetRefillLadderQueryKey('2026-09')
+    );
   });
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import {
+  Badge,
   Button,
   Callout,
   Card,
@@ -14,11 +15,23 @@ import {
   Stack,
   Text,
 } from '@lightbridge/ui';
-import type { AugmentationRequest } from '@lightbridge/hooks';
+// Type-only -- erased at compile time, so this does NOT pull `@lightbridge/authz-rpc` (and
+// transitively `cborg`) into this file's runtime import graph. `AugmentationRequest` already
+// proved that out for this exact file; `MyBudgetRefillLadder`/`BudgetLadderRung` follow the same
+// rule.
+import type {
+  AugmentationRequest,
+  BudgetLadderRung,
+  MyBudgetRefillLadder,
+} from '@lightbridge/hooks';
 // Pure helpers only, from the dependency-free `./budget-tiers` subpath -- NOT the `@lightbridge/hooks`
 // barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `cborg`, which Jest's resolver
 // can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level comment.
-import { formatBudgetTierAmount, formatMicroUsd, isBudgetTier } from '@lightbridge/hooks/budget-tiers';
+import {
+  formatBudgetTierAmount,
+  formatMicroUsd,
+  isBudgetTier,
+} from '@lightbridge/hooks/budget-tiers';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 /**
@@ -49,6 +62,105 @@ function requestedTierLabel(result: AugmentationRequest): string {
     : formatMicroUsd(result.requestedAmountMicros);
 }
 
+/**
+ * One rung of `MyBudgetRefillLadder.ladder` as a `Badge` -- deliberately NOT a `SegmentedControl`
+ * or anything with an `onPress`: this is a read-only status strip, not a selector, and it must not
+ * read as clickable when it isn't. `Badge` has no press affordance at all (see
+ * `packages/ui/src/components/badge/types.tsx`), which is exactly the point.
+ *
+ * `tone` communicates position, not choice: `brand` for the rung the caller is actually on,
+ * `info` for the one a refill would grant next, `neutral` for every other rung.
+ */
+function LadderRungBadge({
+  rung,
+  ladder,
+}: {
+  rung: BudgetLadderRung;
+  ladder: MyBudgetRefillLadder;
+}) {
+  const tone =
+    rung.tier === ladder.currentTier ? 'brand' : rung.tier === ladder.nextTier ? 'info' : 'neutral';
+  return (
+    <Badge key={rung.tier} tone={tone}>
+      {formatMicroUsd(rung.amountMicros)}
+    </Badge>
+  );
+}
+
+/**
+ * The ladder-visibility panel: "you are here, this is next" -- never a picker. Renders inline
+ * status text for loading/error, matching the billing-plan selector's own loading/error/empty
+ * pattern in `api-key-create-view.tsx` (a caption line, not a placard -- this isn't an empty
+ * state, the screen has plenty else to show). Returns `null` once loaded with no ladder data at
+ * all (shouldn't happen in practice -- `getMyBudgetRefillLadder` always returns a ladder -- but a
+ * silently-null render is safer than throwing on a shape this view doesn't otherwise depend on).
+ */
+function LadderPanel({
+  ladder,
+  isLoading,
+  isError,
+  colors,
+  t,
+}: {
+  ladder: MyBudgetRefillLadder | null;
+  isLoading: boolean;
+  isError: boolean;
+  colors: ReturnType<typeof useThemeColors>;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  if (isLoading) {
+    return (
+      <Text intent="caption" style={{ color: colors.subtle }}>
+        {t('settings.budget.ladderLoading')}
+      </Text>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Text intent="caption" style={{ color: colors.error }}>
+        {t('settings.budget.ladderLoadError')}
+      </Text>
+    );
+  }
+
+  if (!ladder) {
+    return null;
+  }
+
+  const nextTierLine =
+    ladder.nextTier && ladder.nextTierAmountMicros
+      ? t('settings.budget.ladderNextLabel', {
+          amount: formatMicroUsd(ladder.nextTierAmountMicros),
+        })
+      : t('settings.budget.ladderAtTopTier');
+
+  return (
+    <Stack gap="md">
+      <Stack gap="xs">
+        <Text intent="bodyStrong">
+          {t('settings.budget.ladderCurrentLabel', {
+            amount: formatMicroUsd(ladder.currentTierAmountMicros),
+          })}
+        </Text>
+        <Text intent="caption" style={{ color: colors.subtle }}>
+          {nextTierLine}
+        </Text>
+      </Stack>
+      <Stack direction="row" gap="xs" wrap="wrap">
+        {ladder.ladder.map((rung) => (
+          <LadderRungBadge key={rung.tier} rung={rung} ladder={ladder} />
+        ))}
+      </Stack>
+      <Callout
+        tone="info"
+        icon={<Feather name="info" size={designTokens.icon.action} color={colors.accent} />}>
+        {t('settings.budget.enforcementGapNotice')}
+      </Callout>
+    </Stack>
+  );
+}
+
 export type BudgetRefillViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
@@ -65,6 +177,10 @@ export type BudgetRefillViewProps = {
   /** True once a thrown (non-403) failure can be retried by re-sending the same idempotency key. */
   canRetry?: boolean;
   onRetry?: () => void;
+  /** `getMyBudgetRefillLadder`'s result -- where the caller sits on the ADR-0008 ladder right now. */
+  ladder?: MyBudgetRefillLadder | null;
+  isLadderLoading?: boolean;
+  isLadderError?: boolean;
 };
 
 export function BudgetRefillView({
@@ -78,6 +194,9 @@ export function BudgetRefillView({
   errorStatus,
   canRetry = false,
   onRetry,
+  ladder = null,
+  isLadderLoading = false,
+  isLadderError = false,
 }: Readonly<BudgetRefillViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -143,7 +262,9 @@ export function BudgetRefillView({
           {requestedLine}
           <Callout
             tone="success"
-            icon={<Feather name="check-circle" size={designTokens.icon.action} color={colors.success} />}>
+            icon={
+              <Feather name="check-circle" size={designTokens.icon.action} color={colors.success} />
+            }>
             {t('settings.budget.tokenRefreshNotice')}
           </Callout>
           {result.approvedAmountMicros ? (
@@ -163,7 +284,9 @@ export function BudgetRefillView({
           {requestedLine}
           <Callout
             tone="warning"
-            icon={<Feather name="clock" size={designTokens.icon.action} color={colors.secondary} />}>
+            icon={
+              <Feather name="clock" size={designTokens.icon.action} color={colors.secondary} />
+            }>
             {t('settings.budget.pendingReview')}
           </Callout>
         </Stack>
@@ -171,7 +294,9 @@ export function BudgetRefillView({
     }
 
     if (result.status === 'denied') {
-      const reasonCode = result.policyReasonCodes.find((code) => code in DENIED_REASON_CODE_I18N_KEYS);
+      const reasonCode = result.policyReasonCodes.find(
+        (code) => code in DENIED_REASON_CODE_I18N_KEYS
+      );
       const deniedCopy = result.rejectionReason
         ? result.rejectionReason
         : reasonCode
@@ -229,6 +354,16 @@ export function BudgetRefillView({
             </Card>
           ) : (
             <>
+              <SectionCard title={t('settings.budget.ladderTitle')}>
+                <LadderPanel
+                  ladder={ladder}
+                  isLoading={isLadderLoading}
+                  isError={isLadderError}
+                  colors={colors}
+                  t={t}
+                />
+              </SectionCard>
+
               <SectionCard
                 title={t('settings.budget.requestSection')}
                 description={t('settings.budget.requestSectionDescription')}>

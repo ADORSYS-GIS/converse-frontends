@@ -350,6 +350,27 @@ type ListBillingPlansInput {
 procedure listBillingPlans(args: ListBillingPlansInput): BillingPlanInfo[]
   @allow(auth() != null)
 
+// TEMPORARY LOCAL STUB pending schema resync: mirrors the exact schema block landing in a
+// companion, in-flight `lightbridge-authz` PR (crates/lightbridge-authz-api/schema/authz.cstack),
+// added here only so this repo's own `cratestack generate-typescript` codegen has something real
+// to build the `useModelCatalog` hook and the project-settings checkbox UI against ahead of that
+// PR merging and deploying. Read-only catalogue of models a project's `allowedModels` allowlist
+// may reference -- exists so the frontend can build a real multi-select instead of hardcoding a
+// model list client-side (see https://github.com/ADORSYS-GIS/lightbridge-authz/issues/282, where a
+// hardcoded/mismatched allowlist representation went silently inert for months). Remove this block
+// once the backend PR merges and this repo's schema-resync process picks up the real, synced
+// version.
+type ModelCatalogEntry {
+  id String
+  name String
+}
+
+type ListModelCatalogInput {
+}
+
+procedure listModelCatalog(args: ListModelCatalogInput): ModelCatalogEntry[]
+  @allow(auth() != null)
+
 type RevokeApiKeyInput {
   keyId String
 }

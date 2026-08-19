@@ -17,9 +17,17 @@ overrides:
   picomatch: "^4.0.4"
   tar: "^7.5.11"
   undici: "^7.24.0"
-  "@expo/metro-runtime": "^55.0.11"
-  react: 19.2.0
-  react-native: 0.83.6
+  "@expo/metro-runtime": "^57.0.0"
+  "@expo/dom-webview": "^57.0.1"
+  "@react-native/jest-preset": "0.86.2"
+  "react-native-worklets": "0.10.1"
+  "react-native-reanimated": "4.5.1"
+  "react-native-safe-area-context": "~5.7.0"
+  "react-native-screens": "~4.26.0"
+  "react-native-gesture-handler": "~2.32.0"
+  "react-dom": "19.2.3"
+  react: 19.2.3
+  react-native: 0.86.2
   # Security: transitive-dependency CVE fixes (Trivy HIGH/CRITICAL)
   shell-quote: "^1.8.4" # CVE-2026-9277 (CRITICAL): command injection
   form-data: "^4.0.6" # CVE-2026-12143 (HIGH): field override via CRLF injection

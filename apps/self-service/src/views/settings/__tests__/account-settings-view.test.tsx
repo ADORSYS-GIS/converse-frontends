@@ -131,4 +131,25 @@ describe('AccountSettingsView', () => {
 
     expect(screen.queryByRole('button', { name: 'Delete account' })).toBeNull();
   });
+
+  /**
+   * Regression test for a production incident: `AccountSettingsView` crashed with `TypeError:
+   * f.trim is not a function` (`f` is the minified `defaultQuota` prop). `defaultQuota`'s
+   * declared type is `string`, but it crosses the generated RPC client's unchecked `as Account`
+   * cast on its way here (`selectedAccount?.defaultQuota` in `account-settings-screen.tsx`), so a
+   * server bug or a client/server schema version skew can hand this component a value that isn't
+   * actually a string despite what TypeScript believes -- exactly what happened in production.
+   * `as unknown as string` below simulates that: a real, present, non-string value reaching a
+   * prop TypeScript insists is always a string, the same way the real bug reached it.
+   */
+  it('does not crash when defaultQuota arrives as a non-string value', async () => {
+    await renderView({ defaultQuota: 42 as unknown as string });
+
+    // Falls back to an empty draft rather than throwing -- the section renders (proving no
+    // crash), the field is empty, and Save starts disabled (nothing has changed from '' yet).
+    expect(screen.getByDisplayValue('')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
+      true
+    );
+  });
 });

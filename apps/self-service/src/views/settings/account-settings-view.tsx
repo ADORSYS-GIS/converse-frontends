@@ -18,6 +18,7 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account } from '@lightbridge/hooks';
+import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
 import { EntityPickerField, toAccountPickerOptions } from '../../components/entity-picker-field';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
@@ -71,14 +72,25 @@ export function AccountSettingsView({
 }: Readonly<AccountSettingsViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const [defaultQuotaDraft, setDefaultQuotaDraft] = useState(defaultQuota);
+  // `defaultQuota`'s declared type (`string`) is the *TypeScript* contract, not a guarantee about
+  // what actually arrives here: this value crosses the generated RPC client's unchecked `as
+  // Account` cast (`packages/authz-rpc/generated/src/client.ts`) on its way from
+  // `selectedAccount?.defaultQuota` in `account-settings-screen.tsx`. A present-but-non-string
+  // value (e.g. from a server bug or a client/server schema version skew) would otherwise reach
+  // `.trim()` below and throw `TypeError: ....trim is not a function` -- the exact production
+  // incident this normalization exists to prevent (see `@lightbridge/hooks`' `asTrimmedString`
+  // doc comment for the sibling incident this pattern was first fixed for, in
+  // `OneTimeSecretCard`). Normalizing once, at the prop boundary, means every downstream use of
+  // `defaultQuota` in this component is already a safe, trimmed string.
+  const safeDefaultQuota = asTrimmedString(defaultQuota);
+  const [defaultQuotaDraft, setDefaultQuotaDraft] = useState(safeDefaultQuota);
 
   useEffect(() => {
-    setDefaultQuotaDraft(defaultQuota);
-  }, [defaultQuota]);
+    setDefaultQuotaDraft(safeDefaultQuota);
+  }, [safeDefaultQuota]);
 
-  const trimmedDraft = defaultQuotaDraft.trim();
-  const hasDefaultQuotaChanged = trimmedDraft !== defaultQuota.trim();
+  const trimmedDraft = asTrimmedString(defaultQuotaDraft);
+  const hasDefaultQuotaChanged = trimmedDraft !== safeDefaultQuota;
   const canSaveDefaultQuota = hasDefaultQuotaChanged && !isSavingDefaultQuota;
 
   const accountOptions = toAccountPickerOptions(accounts);

@@ -20,6 +20,7 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account, Project, ProjectMember } from '@lightbridge/hooks';
+import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
 import { AllowlistEnforcementNotice } from '../../components/allowlist-enforcement-notice';
 import {
   EntityPickerField,
@@ -172,8 +173,17 @@ export function ProjectSettingsView({
 
   const projectLimits = asDefaultLimits(project?.defaultLimits);
 
-  const [nameDraft, setNameDraft] = useState(project?.name ?? '');
-  const [planDraft, setPlanDraft] = useState(project?.billingPlan ?? '');
+  // `project?.name ?? ''`/`project?.billingPlan ?? ''` only guard `null`/`undefined` -- a
+  // present-but-non-string value from the generated RPC client's unchecked `as Project` cast
+  // (`packages/authz-rpc/generated/src/client.ts`) would sail straight through either and crash
+  // the `.trim()` calls below (`TypeError: ....trim is not a function`), the same production
+  // incident `@lightbridge/hooks`' `asTrimmedString` was written to prevent -- see its doc
+  // comment. Both `name` and `billingPlan` are declared non-nullable in the schema, but the RPC
+  // boundary provides no runtime guarantee of that either, so they get the same treatment as
+  // `quotaDraft`/`safeDefaultQuota` below rather than being assumed safe because they're
+  // "required".
+  const [nameDraft, setNameDraft] = useState(asTrimmedString(project?.name));
+  const [planDraft, setPlanDraft] = useState(asTrimmedString(project?.billingPlan));
   const [newModel, setNewModel] = useState('');
   const [newMemberId, setNewMemberId] = useState('');
   const [quotaDrafts, setQuotaDrafts] = useState<Record<string, string>>({});
@@ -185,8 +195,8 @@ export function ProjectSettingsView({
 
   useEffect(() => {
     const limits = asDefaultLimits(project?.defaultLimits);
-    setNameDraft(project?.name ?? '');
-    setPlanDraft(project?.billingPlan ?? '');
+    setNameDraft(asTrimmedString(project?.name));
+    setPlanDraft(asTrimmedString(project?.billingPlan));
     setNewModel('');
     setRpsDraft(limitToDraft(limits.requests_per_second));
     setRpdDraft(limitToDraft(limits.requests_per_day));
@@ -559,8 +569,12 @@ export function ProjectSettingsView({
                         <Stack gap="sm">
                           {members.map((member) => {
                             const isLead = member.role === 'lead';
+                            // `member.quotaTier ?? ''` alone only guards `null`/`undefined` -- see
+                            // the `nameDraft`/`planDraft` comment above and `asTrimmedString`'s
+                            // doc comment for why a present-but-non-string RPC value needs the
+                            // same guard before it reaches `quotaDraft.trim()` below.
                             const quotaDraft =
-                              quotaDrafts[member.accountId] ?? member.quotaTier ?? '';
+                              quotaDrafts[member.accountId] ?? asTrimmedString(member.quotaTier);
                             return (
                               <Stack key={member.accountId} gap="xs">
                                 <Stack direction="row" align="center" justify="between" gap="sm">

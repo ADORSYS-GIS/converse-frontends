@@ -314,4 +314,43 @@ describe('ProjectSettingsView', () => {
 
     expect(screen.queryByPlaceholderText('Account ID')).toBeNull();
   });
+
+  /**
+   * Regression coverage for the same class of bug as `AccountSettingsView`'s
+   * `TypeError: f.trim is not a function` production incident (`f` was `defaultQuota`, itself an
+   * RPC-sourced optional string reaching `.trim()` unguarded). `project.name`/`project.billingPlan`
+   * are declared non-nullable strings, but they cross the same unchecked `as Project` cast the
+   * generated RPC client applies to every response, so nothing actually guarantees they arrive as
+   * strings at runtime either -- `as unknown as string` below simulates a value that violates that
+   * assumption despite what TypeScript believes.
+   */
+  it('does not crash when project name/billingPlan arrive as non-string values', async () => {
+    await renderView({
+      project: {
+        ...project,
+        name: 42 as unknown as string,
+        billingPlan: false as unknown as string,
+      },
+    });
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+  });
+
+  /** Same shape, for a roster member's `quotaTier` (`ProjectMember.quotaTier: string | null`). */
+  it('does not crash when a member quotaTier arrives as a non-string value', async () => {
+    await renderView({
+      members: [
+        {
+          id: 'proj-1:sub-lead',
+          projectId: 'proj-1',
+          accountId: 'sub-lead',
+          role: 'lead',
+          quotaTier: 7 as unknown as string,
+          createdAt: '',
+        },
+      ],
+    });
+
+    expect(screen.getByText('sub-lead')).toBeTruthy();
+  });
 });

@@ -243,4 +243,15 @@ describe('ApiKeySettingsView', () => {
 
     expect(screen.getByText('Select an API key above to view its settings.')).toBeTruthy();
   });
+
+  /**
+   * Same class of bug as `AccountSettingsView`'s `TypeError: f.trim is not a function`
+   * production incident (`f` was `defaultQuota`, an RPC-sourced optional string reaching
+   * `.trim()` unguarded via `?? ''`). `apiKey.name` gets the identical treatment here.
+   */
+  it('does not crash when the api key name arrives as a non-string value', async () => {
+    await renderView({ apiKey: { ...activeKey, name: 99 as unknown as string } });
+
+    expect(screen.getByDisplayValue('')).toBeTruthy();
+  });
 });

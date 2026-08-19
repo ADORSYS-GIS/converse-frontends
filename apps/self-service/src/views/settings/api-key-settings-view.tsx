@@ -21,6 +21,7 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account, ApiKey, Project } from '@lightbridge/hooks';
+import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
 import { ExpirySelector } from '../../components/expiry-selector';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { expiresAtToDateOnly, getDerivedStatus } from '../../lib/api-key-expiry';
@@ -84,13 +85,18 @@ export function ApiKeySettingsView({
   const colors = useThemeColors();
   const dateLocale = i18n.language;
 
-  const [nameDraft, setNameDraft] = useState(apiKey?.name ?? '');
+  // `apiKey?.name ?? ''` alone only guards `null`/`undefined` -- a present-but-non-string value
+  // from the generated RPC client's unchecked `as ApiKey` cast would sail straight through and
+  // crash `nameDraft.trim()` below (`TypeError: ....trim is not a function`), the same production
+  // incident `@lightbridge/hooks`' `asTrimmedString` was written to prevent -- see its doc
+  // comment and `AccountSettingsView`'s identical guard on `defaultQuota`.
+  const [nameDraft, setNameDraft] = useState(asTrimmedString(apiKey?.name));
   const [expiresAtDraft, setExpiresAtDraft] = useState<string | null | undefined>(
     apiKey?.expiresAt ?? null
   );
 
   useEffect(() => {
-    setNameDraft(apiKey?.name ?? '');
+    setNameDraft(asTrimmedString(apiKey?.name));
     // `expiresAtDraft` is deliberately NOT reset here. `ExpirySelector` below is remounted via
     // `key={apiKey.id}` whenever the selected key changes, and its own mount effect reports the
     // freshly-seeded resolved value through `onChange` (= `setExpiresAtDraft`) -- React fires a

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
 
 // This is the exact regression the fix targets: `getApiErrorStatus`/`getApiErrorMessage` used to
@@ -128,5 +128,150 @@ describe('BudgetRefillScreen -- reacts to a real CratestackRpcError, not just an
 
     expect(screen.queryByText("You don't have permission to request a budget refill.")).toBeNull();
     expect(screen.getByRole('button', { name: 'Requesting…' })).toBeTruthy();
+  });
+});
+
+// ADR-0015 (lightbridge-authz#386): `requestBudgetRefill` gains an optional caller-chosen
+// `requestedAmountMicros`, checked against the policy's `allowedAmountsMicros`. This screen owns
+// the selection state and must source every option from that live field -- never a hardcoded
+// mirror (the exact drift class that left `allowed_models` silently inert for months on the
+// backend side, lightbridge-authz#282/#283).
+describe('BudgetRefillScreen amount selection (ADR-0015) -- reads allowedAmountsMicros, never a constant', () => {
+  it('defaults to the first allowed amount once the ladder loads, and sends it on submit', async () => {
+    const mutateAsync = jest.fn().mockResolvedValue({});
+    mockUseRequestBudgetRefill.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      data: null,
+      error: null,
+    });
+    mockUseMyBudgetRefillLadder.mockReturnValue({
+      data: {
+        budgetAccountId: 'acc-1',
+        period: '2026-08',
+        currentTier: 'b-15',
+        currentTierAmountMicros: '15000000',
+        nextTier: 'b-30',
+        nextTierAmountMicros: '30000000',
+        ladder: [],
+        allowedAmountsMicros: ['6000000', '15000000', '30000000'],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    await render(<BudgetRefillScreen />);
+
+    // The default selection (the first offered amount, $6.00) is named directly in the submit
+    // button's copy -- proves the picker actually drove a real selection, not just rendered.
+    const submitButton = screen.getByRole('button', { name: 'Request $6.00' });
+    await fireEvent.press(submitButton);
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ accountId: 'acc-1', requestedAmountMicros: '6000000' })
+    );
+  });
+
+  it('sends the amount the caller actually picked, not the default, once they change the selection', async () => {
+    const mutateAsync = jest.fn().mockResolvedValue({});
+    mockUseRequestBudgetRefill.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      data: null,
+      error: null,
+    });
+    mockUseMyBudgetRefillLadder.mockReturnValue({
+      data: {
+        budgetAccountId: 'acc-1',
+        period: '2026-08',
+        currentTier: 'b-15',
+        currentTierAmountMicros: '15000000',
+        nextTier: 'b-30',
+        nextTierAmountMicros: '30000000',
+        ladder: [],
+        allowedAmountsMicros: ['6000000', '15000000', '30000000'],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    await render(<BudgetRefillScreen />);
+
+    await fireEvent.press(screen.getByText('$30.00'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Request $30.00' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ requestedAmountMicros: '30000000' })
+    );
+  });
+
+  it('never offers an amount the policy did not return -- proves the picker is not a hardcoded list', async () => {
+    mockUseRequestBudgetRefill.mockReturnValue({
+      mutateAsync: jest.fn(),
+      isPending: false,
+      data: null,
+      error: null,
+    });
+    mockUseMyBudgetRefillLadder.mockReturnValue({
+      data: {
+        budgetAccountId: 'acc-1',
+        period: '2026-08',
+        currentTier: 'b-15',
+        currentTierAmountMicros: '15000000',
+        nextTier: 'b-30',
+        nextTierAmountMicros: '30000000',
+        ladder: [],
+        allowedAmountsMicros: ['6000000'],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    await render(<BudgetRefillScreen />);
+
+    expect(screen.getByText('$6.00')).toBeTruthy();
+    // $1000.00 is a real ADR-0008 ladder rung and the OLD static `BUDGET_TIER_AMOUNT_USD` top
+    // value -- if the picker ever regressed to reading that constant instead of
+    // `allowedAmountsMicros`, this is exactly the string that would leak back in.
+    expect(screen.queryByText('$1000.00')).toBeNull();
+  });
+
+  it('disables submit and never calls the mutation when the active policy offers no amounts', async () => {
+    const mutateAsync = jest.fn();
+    mockUseRequestBudgetRefill.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      data: null,
+      error: null,
+    });
+    mockUseMyBudgetRefillLadder.mockReturnValue({
+      data: {
+        budgetAccountId: 'acc-1',
+        period: '2026-08',
+        currentTier: 'b-15',
+        currentTierAmountMicros: '15000000',
+        nextTier: 'b-30',
+        nextTierAmountMicros: '30000000',
+        ladder: [],
+        allowedAmountsMicros: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    await render(<BudgetRefillScreen />);
+
+    expect(
+      screen.getByText(
+        "Your account's budget policy doesn't currently offer any refill amounts. Contact an admin."
+      )
+    ).toBeTruthy();
+
+    const submitButton = screen.getByRole('button', { name: 'Request a refill' });
+    expect(submitButton.props.accessibilityState.disabled).toBe(true);
+
+    await fireEvent.press(submitButton);
+
+    expect(mutateAsync).not.toHaveBeenCalled();
   });
 });

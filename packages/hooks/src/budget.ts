@@ -66,16 +66,14 @@ export function useMyBudgetRefillLadder(period: string, enabled = true) {
 }
 
 /**
- * NOTE ON THE MISSING `tier` ARGUMENT: `RequestBudgetRefillInput` (packages/authz-rpc/schema/
- * authz.cstack) has no field of any kind for the caller to specify which tier/amount they are
- * requesting -- confirmed by reading the schema directly (`budgetAccountId`, `accountId`,
- * `projectId?`, `period`, `idempotencyKey?` only). `AugmentationRequest.requestedTier` exists on
- * the RETURN type, but nothing on the INPUT lets a caller drive it. This mutation intentionally
- * does NOT accept a `tier` parameter as a result -- there is nowhere on the wire to put it, and
- * inventing an undeclared field to smuggle one across would be presenting an unverified
- * assumption as a real integration. See this ticket's implementation report for the full
- * write-up; the caller-selected tier is UI-only until `RequestBudgetRefillInput` gains a field
- * for it upstream.
+ * NOTE ON `requestedAmountMicros` (ADR-0015): lightbridge-authz#386 reversed the "caller chooses
+ * nothing" model this type was originally built under -- `RequestBudgetRefillInput` now carries
+ * an optional `requestedAmountMicros`, the caller-chosen amount, checked server-side against the
+ * active policy's offered set (`MyBudgetRefillLadder.allowedAmountsMicros`) before evaluation.
+ * Omitting it preserves the pre-ADR-0015 behavior (`RefillService::request_refill` resolving
+ * `current_tier.next()` itself) -- this hook always sends it once a caller has picked an amount
+ * from `useMyBudgetRefillLadder`'s `allowedAmountsMicros`; see `budget-refill-screen.tsx` for the
+ * selection UI.
  */
 export type RequestBudgetRefillArgs = {
   accountId: string;
@@ -91,6 +89,12 @@ export type RequestBudgetRefillArgs = {
   /** Defaults to the current calendar month. */
   period?: string;
   idempotencyKey: string;
+  /**
+   * The amount the caller picked from `MyBudgetRefillLadder.allowedAmountsMicros` (ADR-0015).
+   * Omitted only when no ladder data was available to pick from -- see `budget-refill-screen.tsx`.
+   * A raw micro-USD decimal string, never a formatted display value.
+   */
+  requestedAmountMicros?: string;
 };
 
 /**
@@ -107,6 +111,7 @@ export async function requestBudgetRefill({
   projectId,
   period,
   idempotencyKey,
+  requestedAmountMicros,
 }: RequestBudgetRefillArgs): Promise<AugmentationRequest> {
   return getBudgetRpcClient().procedures.requestBudgetRefill({
     args: {
@@ -115,6 +120,7 @@ export async function requestBudgetRefill({
       projectId,
       period: period ?? currentBudgetPeriod(),
       idempotencyKey,
+      requestedAmountMicros,
     },
   });
 }

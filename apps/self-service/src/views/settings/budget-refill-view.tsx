@@ -7,11 +7,13 @@ import {
   Card,
   designTokens,
   Div,
+  FormField,
   Heading,
   Icon as Feather,
   PageHeader,
   Scroll,
   SectionCard,
+  SegmentedControl,
   Stack,
   Text,
 } from '@lightbridge/ui';
@@ -161,6 +163,74 @@ function LadderPanel({
   );
 }
 
+/**
+ * The ADR-0015 amount picker: choosable amounts sourced ONLY from `ladder.allowedAmountsMicros`
+ * (the active policy's live, admin-configured offered set) -- never a hardcoded list. Real
+ * loading/error/empty states, matching the billing-plan selector's own pattern in
+ * `api-key-create-view.tsx` (a caption line, not a placard). Unlike `LadderPanel`'s `Badge` rungs
+ * above, `SegmentedControl` IS appropriate here: this is a real selector, the same control already
+ * used for the API-key expiry presets and the billing-plan selector.
+ */
+function AmountPicker({
+  ladder,
+  isLoading,
+  isError,
+  value,
+  onChange,
+  disabled,
+  colors,
+  t,
+}: {
+  ladder: MyBudgetRefillLadder | null;
+  isLoading: boolean;
+  isError: boolean;
+  value?: string;
+  onChange?: (amountMicros: string) => void;
+  disabled: boolean;
+  colors: ReturnType<typeof useThemeColors>;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  if (isLoading) {
+    return (
+      <Text intent="caption" style={{ color: colors.subtle }}>
+        {t('settings.budget.amountLoading')}
+      </Text>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Text intent="caption" style={{ color: colors.error }}>
+        {t('settings.budget.amountLoadError')}
+      </Text>
+    );
+  }
+
+  const amounts = ladder?.allowedAmountsMicros ?? [];
+
+  if (amounts.length === 0) {
+    return (
+      <Text intent="caption" style={{ color: colors.subtle }}>
+        {t('settings.budget.amountEmpty')}
+      </Text>
+    );
+  }
+
+  return (
+    <SegmentedControl
+      width="full"
+      value={value ?? ''}
+      onChange={onChange ?? (() => undefined)}
+      options={amounts.map((amountMicros) => ({
+        key: amountMicros,
+        label: formatMicroUsd(amountMicros),
+        disabled,
+      }))}
+      accessibilityLabel={t('settings.budget.amountLabel')}
+    />
+  );
+}
+
 export type BudgetRefillViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
@@ -177,10 +247,17 @@ export type BudgetRefillViewProps = {
   /** True once a thrown (non-403) failure can be retried by re-sending the same idempotency key. */
   canRetry?: boolean;
   onRetry?: () => void;
-  /** `getMyBudgetRefillLadder`'s result -- where the caller sits on the ADR-0008 ladder right now. */
+  /** `getMyBudgetRefillLadder`'s result -- where the caller sits on the ADR-0008 ladder right now,
+   * and (ADR-0015) `allowedAmountsMicros`, the live set the amount picker below reads from. */
   ladder?: MyBudgetRefillLadder | null;
   isLadderLoading?: boolean;
   isLadderError?: boolean;
+  /** The amount currently picked from `ladder.allowedAmountsMicros`, a raw micro-USD decimal
+   * string -- `undefined` while nothing has been picked yet (loading/error/empty, or before the
+   * screen's default-selection effect has run). Controlled: this view never picks a default
+   * itself, matching `ExpirySelector`'s split of "screen owns state, view is presentational". */
+  selectedAmountMicros?: string;
+  onSelectAmount?: (amountMicros: string) => void;
 };
 
 export function BudgetRefillView({
@@ -197,12 +274,24 @@ export function BudgetRefillView({
   ladder = null,
   isLadderLoading = false,
   isLadderError = false,
+  selectedAmountMicros,
+  onSelectAmount,
 }: Readonly<BudgetRefillViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
   const isPermissionError = errorStatus === 403;
   const isOtherError = errorStatus !== undefined && !isPermissionError;
+  // Submitting without a chosen amount would silently fall back to the pre-ADR-0015 server-side
+  // tier derivation (`requestedAmountMicros` is optional on the wire) -- since this screen is now
+  // a picker, that fallback would contradict what the UI just showed the caller, so submit stays
+  // disabled until a real amount is selected, not merely until the ladder query settles.
+  const isSubmitDisabled = isSubmitting || !selectedAmountMicros;
+  const submitLabel = isSubmitting
+    ? t('settings.budget.submitting')
+    : selectedAmountMicros
+      ? t('settings.budget.submitWithAmount', { amount: formatMicroUsd(selectedAmountMicros) })
+      : t('settings.budget.submit');
 
   const renderResult = () => {
     if (isPermissionError) {
@@ -367,15 +456,27 @@ export function BudgetRefillView({
               <SectionCard
                 title={t('settings.budget.requestSection')}
                 description={t('settings.budget.requestSectionDescription')}>
-                <Stack gap="md" align="start">
+                <Stack gap="md" align="start" width="full">
                   <Text intent="caption">{t('settings.budget.periodLabel', { period })}</Text>
+                  <FormField label={t('settings.budget.amountLabel')}>
+                    <AmountPicker
+                      ladder={ladder}
+                      isLoading={isLadderLoading}
+                      isError={isLadderError}
+                      value={selectedAmountMicros}
+                      onChange={onSelectAmount}
+                      disabled={isSubmitting}
+                      colors={colors}
+                      t={t}
+                    />
+                  </FormField>
                   <Button
                     variant="primary"
                     size="sm"
-                    disabled={isSubmitting}
+                    disabled={isSubmitDisabled}
                     onPress={onSubmit}
                     style={{ alignSelf: 'flex-start' }}>
-                    {isSubmitting ? t('settings.budget.submitting') : t('settings.budget.submit')}
+                    {submitLabel}
                   </Button>
                 </Stack>
               </SectionCard>

@@ -395,18 +395,21 @@ const resources = {
           expiredNotice:
             'This key expired and can no longer authenticate requests. Extend or clear its expiration above to restore it.',
         },
-        // Self-service budget refill (#148, ladder visibility follow-up). "Budget tier" is
-        // deliberately never called "quota tier" anywhere in this block -- `project.quotaTier`
-        // (roster, per-member request-rate ceiling) and this "budget tier" (per-account monthly
-        // spend ceiling) are unrelated fields that would both read as "tier" in support tickets
-        // if the copy collided.
-        // Still no tier/amount PICKER: `RequestBudgetRefillInput` has no field for the caller to
-        // specify one -- the server decides the tier server-side (see the comment on
-        // `packages/hooks/src/budget-tiers.ts` and budget-refill-screen.tsx). What changed is
-        // visibility, not choice: `getMyBudgetRefillLadder` (lightbridge-authz PR adding it) lets
-        // this screen show where the caller sits on the ladder and what the next refill would
-        // grant BEFORE they submit -- `ladder*` keys below -- while `requestedTierLabel` still
-        // reveals the server-assigned outcome AFTER a decision, unchanged.
+        // Self-service budget refill (#148, ladder visibility follow-up, ADR-0015 amount
+        // picker). "Budget tier" is deliberately never called "quota tier" anywhere in this
+        // block -- `project.quotaTier` (roster, per-member request-rate ceiling) and this
+        // "budget tier" (per-account monthly spend ceiling) are unrelated fields that would both
+        // read as "tier" in support tickets if the copy collided.
+        // ADR-0015 (lightbridge-authz#386) reversed the "caller chooses nothing" model this block
+        // was originally written under: `amount*` keys below back a real `SegmentedControl`
+        // picker sourced from `getMyBudgetRefillLadder`'s `allowedAmountsMicros`, the live,
+        // admin-configured set the active policy currently offers. `ladder*` keys remain -- the
+        // pre-ADR-0015 ladder-visibility panel ("you are here, this is next") is still shown
+        // alongside the picker, unchanged. `submitWithAmount` names the chosen amount in the
+        // button but is deliberately NOT a promise: policy still decides auto-approve vs. admin
+        // review vs. denial, so the copy states what is being requested, never what will be
+        // granted -- `requestedTierLabel` still reveals the server-assigned outcome AFTER a
+        // decision, unchanged.
         budget: {
           title: 'Budget refill',
           subtitle: "Request an increase to your account's monthly spending ceiling.",
@@ -428,9 +431,17 @@ const resources = {
             "Refill requests are recorded here, but they don't change your enforced usage limit yet — that connection to the request gateway hasn't been built.",
           requestSection: 'Request a refill',
           requestSectionDescription:
-            "The amount is determined automatically by your account's budget policy — you'll see what was requested once a decision comes back.",
+            "Choose an amount to request. Your account's budget policy still decides whether it's granted automatically or sent for admin review.",
           periodLabel: 'For {{period}}',
+          amountLabel: 'Amount',
+          amountLoading: 'Loading refill amounts…',
+          amountLoadError: "Couldn't load refill amounts.",
+          amountEmpty:
+            "Your account's budget policy doesn't currently offer any refill amounts. Contact an admin.",
           submit: 'Request a refill',
+          // Names the amount that will be REQUESTED, never implies it's guaranteed -- see the
+          // module comment above and budget-refill-view.tsx's `submitLabel`.
+          submitWithAmount: 'Request {{amount}}',
           submitting: 'Requesting…',
           permissionDenied: "You don't have permission to request a budget refill.",
           // Non-negotiable per the ticket: never implies the new amount is usable right now, and

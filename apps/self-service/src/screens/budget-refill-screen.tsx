@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   createBudgetIdempotencyKey,
@@ -12,22 +12,22 @@ import {
 import { BudgetRefillView } from '../views/settings/budget-refill-view';
 
 /**
- * Self-service budget refill (lightbridge-authz ADR-0007/0008, #191; ladder-visibility follow-up).
- * Budget is account-scoped, not project-scoped, so unlike the project-settings/api-keys screens
- * this deliberately has no account/project selector -- it always acts on the caller's own account
- * (`useCurrentAccount`, one account per person per ADR-0006).
+ * Self-service budget refill (lightbridge-authz ADR-0007/0008, #191; ladder-visibility follow-up,
+ * ADR-0015 amount picker). Budget is account-scoped, not project-scoped, so unlike the
+ * project-settings/api-keys screens this deliberately has no account/project selector -- it
+ * always acts on the caller's own account (`useCurrentAccount`, one account per person per
+ * ADR-0006).
  *
- * There is still no tier/amount PICKER here, and deliberately so: `RequestBudgetRefillInput`
- * (packages/authz-rpc/schema/authz.cstack) has no field for the caller to specify one --
- * `RefillService::request_refill` decides the tier server-side (auto grant or `pending_review`)
- * per that schema's own doc comment. `AugmentationRequest.requestedTier` on the RESPONSE is what
- * the server assigned, revealed after the fact, not selected beforehand. Ticket #148's original
- * "tier picker" framing was corrected against this: https://github.com/ADORSYS-GIS/converse-frontends/issues/148#issuecomment-5301445859
- *
- * What DID change: visibility. `useMyBudgetRefillLadder` reads `getMyBudgetRefillLadder` (the
- * read-only companion #148's own comment thread asked lightbridge-authz to add) so this screen can
- * show "you are here, this is next" before the caller ever submits -- still never a choice, just a
- * preview of the same server-side decision `request_refill` makes.
+ * ADR-0015 (lightbridge-authz#386) reversed the "caller chooses nothing" model #148/#185 were
+ * built under -- this screen is NOW a picker. `useMyBudgetRefillLadder`'s `allowedAmountsMicros`
+ * is the live, admin-configured set of amounts the active policy currently offers -- read from
+ * that response on every render, never a hardcoded list here; a hardcoded mirror is exactly the
+ * drift class that left `packages/hooks/src/budget-tiers.ts`'s static ladder inert as a display
+ * table and `allowed_models` silently inert for months on the backend side (lightbridge-authz
+ * #282/#283). The selected value is sent as `requestBudgetRefill`'s `requestedAmountMicros`;
+ * policy alone still decides auto-approve vs. `pending_review` vs. denial -- picking an amount
+ * only states what is being REQUESTED, never what will be granted (see
+ * `budget-refill-view.tsx`'s submit-button copy for how that's kept truthful).
  */
 export function BudgetRefillScreen({ embedded = false }: Readonly<{ embedded?: boolean }>) {
   const router = useRouter();
@@ -42,12 +42,31 @@ export function BudgetRefillScreen({ embedded = false }: Readonly<{ embedded?: b
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
 
   const ladderQuery = useMyBudgetRefillLadder(period, canRefill);
+  const allowedAmounts = ladderQuery.data?.allowedAmountsMicros ?? [];
+
+  // The amount the caller has picked, sourced only from the live `allowedAmountsMicros` set --
+  // `undefined` means "nothing picked yet". Seeded to the first offered amount once the ladder
+  // loads (mirrors `ApiKeyCreateView`'s billing-plan default-selection effect), and only while
+  // nothing has been picked yet so a background refetch never overwrites a caller's own choice.
+  const [selectedAmountMicros, setSelectedAmountMicros] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (selectedAmountMicros === undefined && allowedAmounts.length > 0) {
+      setSelectedAmountMicros(allowedAmounts[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedAmounts]);
 
   const submit = (key: string) => {
-    if (!account?.id) return;
+    if (!account?.id || !selectedAmountMicros) return;
     setIdempotencyKey(key);
     void requestRefill
-      .mutateAsync({ accountId: account.id, period, idempotencyKey: key })
+      .mutateAsync({
+        accountId: account.id,
+        period,
+        idempotencyKey: key,
+        requestedAmountMicros: selectedAmountMicros,
+      })
       .catch(() => undefined);
   };
 
@@ -59,7 +78,8 @@ export function BudgetRefillScreen({ embedded = false }: Readonly<{ embedded?: b
 
   const handleRetry = () => {
     if (!idempotencyKey) return;
-    // Retries the exact same failed attempt -- reuses the SAME idempotency key so the backend's
+    // Retries the exact same failed attempt -- reuses the SAME idempotency key (and the SAME
+    // amount already selected when the original attempt was submitted) so the backend's
     // `RefillService::find_existing` recognizes it rather than evaluating a second time.
     submit(idempotencyKey);
   };
@@ -86,6 +106,8 @@ export function BudgetRefillScreen({ embedded = false }: Readonly<{ embedded?: b
       ladder={ladderQuery.data ?? null}
       isLadderLoading={ladderQuery.isLoading}
       isLadderError={ladderQuery.isError}
+      selectedAmountMicros={selectedAmountMicros}
+      onSelectAmount={setSelectedAmountMicros}
     />
   );
 }

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@lightbridge/i18n';
 import type {
   JsonValue,
+  ModelCatalogEntry,
   Project as GeneratedProject,
   UpdateProjectInput,
 } from '@lightbridge/authz-rpc';
@@ -13,6 +14,32 @@ import { useAuthSession } from './auth-session';
 
 export function projectsQueryKey(accountId: string) {
   return ['accounts', accountId, 'projects'] as const;
+}
+
+/** Query key for the operator-configured model catalogue (`procedure.listModelCatalog`). Not
+ * project- or account-scoped -- same rationale as `BILLING_PLANS_QUERY_KEY` in api-keys.ts: it's
+ * server config, identical for every caller who can reach it. */
+export const MODEL_CATALOG_QUERY_KEY = ['model-catalog'] as const;
+
+/**
+ * The operator-configured model catalogue a project's `allowedModels` allowlist may reference,
+ * read-only. Mirrors `useBillingPlans` in api-keys.ts exactly -- same `staleTime` reasoning (this
+ * is server config, reloaded only on a redeploy), same `enabled` gate so a caller with no use for
+ * the catalogue yet (e.g. the allowlist section isn't rendered at all) never fetches it.
+ *
+ * Exists so the project-settings checkbox UI can build a real multi-select instead of hardcoding
+ * a model list client-side -- see https://github.com/ADORSYS-GIS/lightbridge-authz/issues/282,
+ * where a hardcoded/mismatched `allowedModels` representation went silently inert for months.
+ */
+export function useModelCatalog(enabled = true) {
+  const { isAuthenticated } = useAuthSession();
+
+  return useQuery<ModelCatalogEntry[]>({
+    queryKey: MODEL_CATALOG_QUERY_KEY,
+    queryFn: () => getAuthzRpcClient().procedures.listModelCatalog({ args: {} }),
+    enabled: isAuthenticated && enabled,
+    staleTime: 5 * 60_000,
+  });
 }
 
 /** Caller-facing subset of `CreateProjectInput` — the server-managed `id`/`defaultLimits`/`status` are filled in here. */

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
+import type { ModelCatalogEntry } from '@lightbridge/authz-rpc';
 import {
   Badge,
   Button,
   Card,
-  Chip,
+  Checkbox,
   designTokens,
   Div,
   Divider,
@@ -56,6 +57,28 @@ const asDefaultLimits = (value: Project['defaultLimits'] | undefined): ProjectDe
 const asAllowedModels = (value: Project['allowedModels']): string[] =>
   Array.isArray(value) ? (value as string[]) : [];
 
+/** One row in the rendered checkbox list -- either a real catalogue entry, or a stored model id
+ * that is no longer in the catalogue (`isUnknown: true`, see `buildModelRows` below). */
+type ModelRow = { id: string; name: string; isUnknown: boolean };
+
+/**
+ * Merges the operator catalogue with the project's currently-stored `allowedModels` so a stale
+ * entry -- a model id the project still allowlists but that the catalogue no longer advertises --
+ * still renders as a checked, removable row instead of silently vanishing from the list (and, if
+ * left unchecked next save, silently dropping out of the payload). Catalogue order is preserved;
+ * unknown ids are appended after it in their stored order.
+ */
+const buildModelRows = (catalog: ModelCatalogEntry[], models: string[]): ModelRow[] => {
+  const catalogIds = new Set(catalog.map((entry) => entry.id));
+  const orphanRows: ModelRow[] = models
+    .filter((id) => !catalogIds.has(id))
+    .map((id) => ({ id, name: id, isUnknown: true }));
+  return [
+    ...catalog.map((entry) => ({ id: entry.id, name: entry.name, isUnknown: false })),
+    ...orphanRows,
+  ];
+};
+
 type ProjectSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
@@ -73,8 +96,18 @@ type ProjectSettingsViewProps = {
   onCreateProject: () => void;
   onSaveDetails: (input: ProjectDetailsInput) => void;
   isSavingDetails?: boolean;
-  onAddModel: (model: string) => void;
-  onRemoveModel: (model: string) => void;
+  /**
+   * The operator-configured model catalogue (`procedure.listModelCatalog`), fetched by the screen
+   * (`useModelCatalog`, `@lightbridge/hooks`) rather than here -- same convention as `plans` in
+   * `ApiKeyCreateView`: this view stays a plain presentational component driven entirely by
+   * props/callbacks.
+   */
+  modelCatalog?: ModelCatalogEntry[];
+  isModelCatalogLoading?: boolean;
+  isModelCatalogError?: boolean;
+  /** Toggles a single model on/off the project's `allowedModels` allowlist. Unchecking the last
+   * remaining model sends the empty-array "all models allowed" representation. */
+  onToggleModel: (model: string, checked: boolean) => void;
   isSavingModels?: boolean;
   onSaveLimits: (limits: ProjectDefaultLimits) => void;
   isSavingLimits?: boolean;
@@ -137,8 +170,10 @@ export function ProjectSettingsView({
   onCreateProject,
   onSaveDetails,
   isSavingDetails = false,
-  onAddModel,
-  onRemoveModel,
+  modelCatalog = [],
+  isModelCatalogLoading = false,
+  isModelCatalogError = false,
+  onToggleModel,
   isSavingModels = false,
   onSaveLimits,
   isSavingLimits = false,
@@ -184,7 +219,6 @@ export function ProjectSettingsView({
   // "required".
   const [nameDraft, setNameDraft] = useState(asTrimmedString(project?.name));
   const [planDraft, setPlanDraft] = useState(asTrimmedString(project?.billingPlan));
-  const [newModel, setNewModel] = useState('');
   const [newMemberId, setNewMemberId] = useState('');
   const [quotaDrafts, setQuotaDrafts] = useState<Record<string, string>>({});
   const [rpsDraft, setRpsDraft] = useState(limitToDraft(projectLimits.requests_per_second));
@@ -197,7 +231,6 @@ export function ProjectSettingsView({
     const limits = asDefaultLimits(project?.defaultLimits);
     setNameDraft(asTrimmedString(project?.name));
     setPlanDraft(asTrimmedString(project?.billingPlan));
-    setNewModel('');
     setRpsDraft(limitToDraft(limits.requests_per_second));
     setRpdDraft(limitToDraft(limits.requests_per_day));
     setConcurrentDraft(limitToDraft(limits.concurrent_requests));
@@ -211,13 +244,8 @@ export function ProjectSettingsView({
     hasDetailsChanged && trimmedName.length > 0 && trimmedPlan.length > 0 && !isSavingDetails;
 
   const models = asAllowedModels(project?.allowedModels);
-  const trimmedNewModel = newModel.trim();
-
-  const handleAddModel = () => {
-    if (!trimmedNewModel || models.includes(trimmedNewModel)) return;
-    onAddModel(trimmedNewModel);
-    setNewModel('');
-  };
+  const isAllModelsAllowed = models.length === 0;
+  const modelRows = buildModelRows(modelCatalog, models);
 
   const trimmedNewMemberId = newMemberId.trim();
 
@@ -417,44 +445,44 @@ export function ProjectSettingsView({
                   title={t('settings.project.modelsSection')}
                   description={t('settings.project.modelsDescription')}>
                   <Stack gap="md">
-                    {models.length === 0 ? (
-                      <Text intent="caption">{t('settings.project.modelsEmpty')}</Text>
+                    <Text intent="caption" style={{ color: colors.subtle }}>
+                      {isAllModelsAllowed
+                        ? t('settings.project.modelsEmpty')
+                        : t('settings.project.modelsRestrictedSummary', { count: models.length })}
+                    </Text>
+
+                    {isModelCatalogLoading ? (
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t('settings.project.modelsCatalogLoading')}
+                      </Text>
+                    ) : isModelCatalogError ? (
+                      <Text intent="caption" style={{ color: colors.error }}>
+                        {t('settings.project.modelsCatalogError')}
+                      </Text>
+                    ) : modelRows.length === 0 ? (
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t('settings.project.modelsCatalogEmpty')}
+                      </Text>
                     ) : (
-                      <Stack direction="row" wrap="wrap" gap="sm">
-                        {models.map((model) => (
-                          <Chip
-                            key={model}
-                            onRemove={() => onRemoveModel(model)}
-                            removeAccessibilityLabel={t('settings.project.modelRemove', {
-                              name: model,
-                            })}
-                            disabled={isSavingModels}>
-                            {model}
-                          </Chip>
+                      <Stack gap="sm">
+                        {modelRows.map((row) => (
+                          <Stack key={row.id} direction="row" align="center" gap="sm" wrap="wrap">
+                            <Checkbox
+                              value={models.includes(row.id)}
+                              onValueChange={(checked) => onToggleModel(row.id, checked)}
+                              disabled={isSavingModels}
+                              accessibilityLabel={row.name}
+                            />
+                            <Text style={{ flex: 1 }}>{row.name}</Text>
+                            {row.isUnknown ? (
+                              <Badge tone="warning">
+                                {t('settings.project.modelUnknownBadge')}
+                              </Badge>
+                            ) : null}
+                          </Stack>
                         ))}
                       </Stack>
                     )}
-
-                    <Stack direction="row" gap="sm" align="center">
-                      <Div style={{ flex: 1 }}>
-                        <TextField
-                          value={newModel}
-                          onChangeText={setNewModel}
-                          placeholder={t('settings.project.modelAddPlaceholder')}
-                          editable={!isSavingModels}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          onSubmitEditing={handleAddModel}
-                        />
-                      </Div>
-                      <Button
-                        variant="neutral"
-                        size="sm"
-                        onPress={handleAddModel}
-                        disabled={!trimmedNewModel || isSavingModels}>
-                        {t('settings.project.modelAdd')}
-                      </Button>
-                    </Stack>
                   </Stack>
                 </SectionCard>
               ) : null}

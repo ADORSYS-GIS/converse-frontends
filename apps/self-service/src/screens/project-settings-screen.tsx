@@ -7,6 +7,7 @@ import {
   useAllProjects,
   useDisableProject,
   useEnableProject,
+  useModelCatalog,
   usePermissions,
   useAddProjectMember,
   useProjectMembers,
@@ -72,6 +73,15 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const disableProject = useDisableProject();
   const enableProject = useEnableProject();
   const setDefaultProject = useSetDefaultProject();
+
+  // Only fetched once the caller can actually edit the allowlist -- a read-only viewer has no use
+  // for the catalogue (mirrors `useBillingPlans(canChoosePlan)` in api-key-create-screen.tsx).
+  const canUpdate = has('project:update');
+  const {
+    data: modelCatalog = [],
+    isLoading: isModelCatalogLoading,
+    isError: isModelCatalogError,
+  } = useModelCatalog(canUpdate);
 
   // A default project has no roster by construction, so don't even ask the server for one.
   const { data: members, isLoading: isLoadingMembers } = useProjectMembers(
@@ -187,15 +197,19 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const projectModels = (): string[] =>
     Array.isArray(project?.allowedModels) ? (project.allowedModels as string[]) : [];
 
-  const handleAddModel = (model: string) => {
+  // Single toggle handler for the checkbox list -- replaces the old free-text add/remove pair.
+  // `checked: false` on the last remaining model naturally lands on `[]`, which is exactly the
+  // "all models allowed" wire representation `saveModels` already sent for that case before this
+  // change (see `handleRemoveModel`'s old behavior) -- this preserves that semantics rather than
+  // reinventing it.
+  const handleToggleModel = (model: string, checked: boolean) => {
     const models = projectModels();
-    if (models.includes(model)) return;
-    saveModels([...models, model]);
-  };
-
-  const handleRemoveModel = (model: string) => {
-    const models = projectModels();
-    saveModels(models.filter((item) => item !== model));
+    if (checked) {
+      if (models.includes(model)) return;
+      saveModels([...models, model]);
+    } else {
+      saveModels(models.filter((item) => item !== model));
+    }
   };
 
   const handleSaveLimits = (limits: ProjectDefaultLimits) => {
@@ -278,13 +292,15 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onCreateProject={handleCreateProject}
       onSaveDetails={handleSaveDetails}
       isSavingDetails={updateProject.isPending}
-      onAddModel={handleAddModel}
-      onRemoveModel={handleRemoveModel}
+      modelCatalog={modelCatalog}
+      isModelCatalogLoading={isModelCatalogLoading}
+      isModelCatalogError={isModelCatalogError}
+      onToggleModel={handleToggleModel}
       isSavingModels={updateProject.isPending}
       onSaveLimits={handleSaveLimits}
       isSavingLimits={updateProject.isPending}
       canCreate={has('project:create')}
-      canUpdate={has('project:update')}
+      canUpdate={canUpdate}
       canDelete={has('project:delete')}
       canDisable={has('project:disable')}
       onDeleteProject={handleDeleteProject}

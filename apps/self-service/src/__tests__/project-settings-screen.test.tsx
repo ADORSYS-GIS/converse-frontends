@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 // Regression coverage for the same bug as budget-refill-screen.test.tsx: `getApiErrorMessage`
 // used to read the Axios `error.response.data` shape and otherwise fall back to a technical
@@ -17,6 +17,12 @@ let mockDisableProjectError: unknown = null;
 let mockEnableProjectError: unknown = null;
 let mockSetDefaultProjectError: unknown = null;
 let mockAddMemberError: unknown = null;
+// Captures every `updateProject.mutateAsync` call so the model-toggle plumbing tests below can
+// assert exactly what `saveModels` sent to the RPC layer, without stubbing that logic away.
+const mockUpdateProjectMutateAsync = jest.fn();
+// Mutated per-test to control what `projectModels()` (screen.tsx) sees as the project's current
+// `allowedModels` -- the input the toggle-off/toggle-on tests need to exercise the real branch.
+let mockProjectAllowedModels: string[] | undefined;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
@@ -44,12 +50,25 @@ jest.mock('@lightbridge/hooks', () => {
     ...apiError,
     useAllAccounts: () => ({ data: [{ id: 'acc-1' }], isLoading: false, totalCount: 1 }),
     useAllProjects: () => ({
-      data: [{ id: 'proj-1', name: 'Project One', isDefault: false, isActive: true }],
+      data: [
+        {
+          id: 'proj-1',
+          name: 'Project One',
+          isDefault: false,
+          isActive: true,
+          allowedModels: mockProjectAllowedModels,
+        },
+      ],
       isLoading: false,
       totalCount: 1,
     }),
     useProjectMembers: () => ({ data: [], isLoading: false }),
-    useUpdateProject: () => ({ mutateAsync: jest.fn(), isPending: false, error: null }),
+    useModelCatalog: () => ({ data: [], isLoading: false, isError: false }),
+    useUpdateProject: () => ({
+      mutateAsync: mockUpdateProjectMutateAsync,
+      isPending: false,
+      error: null,
+    }),
     useDisableProject: () => ({
       mutateAsync: jest.fn(),
       isPending: false,
@@ -79,17 +98,28 @@ jest.mock('@lightbridge/hooks', () => {
 });
 
 jest.mock('../views/settings/project-settings-view', () => {
-  const { Text } = require('react-native');
+  const { Pressable, Text } = require('react-native');
   return {
     ProjectSettingsView: (props: {
       statusError?: string | null;
       memberError?: string | null;
       setDefaultError?: string | null;
+      onToggleModel: (model: string, checked: boolean) => void;
     }) => (
       <>
         <Text testID="status-error">{props.statusError ?? ''}</Text>
         <Text testID="member-error">{props.memberError ?? ''}</Text>
         <Text testID="set-default-error">{props.setDefaultError ?? ''}</Text>
+        {/* Stand-ins for pressing a model checkbox -- exercises the real `handleToggleModel` /
+         * `saveModels` plumbing in project-settings-screen.tsx, not a re-implementation of it. */}
+        <Pressable
+          testID="toggle-gpt-4o-off"
+          onPress={() => props.onToggleModel('gpt-4o', false)}
+        />
+        <Pressable
+          testID="toggle-claude-on"
+          onPress={() => props.onToggleModel('claude-sonnet-5', true)}
+        />
       </>
     ),
   };
@@ -102,6 +132,8 @@ beforeEach(() => {
   mockEnableProjectError = null;
   mockSetDefaultProjectError = null;
   mockAddMemberError = null;
+  mockProjectAllowedModels = undefined;
+  mockUpdateProjectMutateAsync.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcError, not an Axios shape', () => {
@@ -168,5 +200,39 @@ describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcE
     expect(screen.getByTestId('status-error').props.children).toBe('');
     expect(screen.getByTestId('member-error').props.children).toBe('');
     expect(screen.getByTestId('set-default-error').props.children).toBe('');
+  });
+});
+
+// This is the actual empty-selection semantics guarantee the checkbox rewrite must preserve:
+// `Project.allowedModels` NULL/`[]` means "all models allowed" server-side, not "no models
+// allowed" -- see the module doc comment on `handleToggleModel` in project-settings-screen.tsx.
+// These exercise the real screen-level plumbing (`handleToggleModel` -> `saveModels` ->
+// `updateProject.mutateAsync`), not a re-implementation of it, via the `onToggleModel` stand-ins
+// wired into the mocked view above.
+describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allowedModels payload', () => {
+  it('unchecking the only currently-allowed model sends [] (all models allowed), not omitted or dropped', async () => {
+    mockProjectAllowedModels = ['gpt-4o'];
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('toggle-gpt-4o-off'));
+
+    expect(mockUpdateProjectMutateAsync).toHaveBeenCalledWith({
+      id: 'proj-1',
+      accountId: 'acc-1',
+      input: { allowedModels: [] },
+    });
+  });
+
+  it('checking an additional model sends exactly the resulting subset, not the whole catalogue', async () => {
+    mockProjectAllowedModels = ['gpt-4o'];
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('toggle-claude-on'));
+
+    expect(mockUpdateProjectMutateAsync).toHaveBeenCalledWith({
+      id: 'proj-1',
+      accountId: 'acc-1',
+      input: { allowedModels: ['gpt-4o', 'claude-sonnet-5'] },
+    });
   });
 });

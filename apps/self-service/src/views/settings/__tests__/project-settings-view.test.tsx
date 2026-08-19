@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { initI18n } from '@lightbridge/i18n';
+import type { ModelCatalogEntry } from '@lightbridge/authz-rpc';
 import type { Account, Project } from '@lightbridge/hooks';
 
 import { parseLimitDraft, ProjectSettingsView } from '../project-settings-view';
@@ -34,6 +35,13 @@ const project: Project = {
   updatedAt: '2026-01-02T00:00:00Z',
 };
 
+// `gpt-4o` is already allowed on `project` above; `claude-sonnet-5` is a real catalogue entry the
+// project has not (yet) restricted to.
+const modelCatalog: ModelCatalogEntry[] = [
+  { id: 'gpt-4o', name: 'gpt-4o' },
+  { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+];
+
 function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettingsView>> = {}) {
   return render(
     <ProjectSettingsView
@@ -53,8 +61,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       onOpenProjectPicker={noop}
       onCreateProject={noop}
       onSaveDetails={noop}
-      onAddModel={noop}
-      onRemoveModel={noop}
+      modelCatalog={modelCatalog}
+      onToggleModel={noop}
       onSaveLimits={noop}
       onDeleteProject={noop}
       onSuspendProject={noop}
@@ -117,32 +125,89 @@ describe('ProjectSettingsView', () => {
     expect(onSaveDetails).toHaveBeenCalledWith({ name: 'production-2', billingPlan: 'free' });
   });
 
-  it('calls onAddModel with the trimmed model id', async () => {
-    const onAddModel = jest.fn();
-    await renderView({ onAddModel });
+  it('renders every catalogue model as a checkbox, checked exactly for the allowed subset', async () => {
+    await renderView();
 
-    await fireEvent.changeText(
-      screen.getByPlaceholderText('gpt-4o, claude-sonnet-5, ...'),
-      '  claude-sonnet-5  '
-    );
-    await fireEvent.press(screen.getByText('Add'));
-
-    expect(onAddModel).toHaveBeenCalledWith('claude-sonnet-5');
+    // `gpt-4o` is in `project.allowedModels` -- checked. `claude-sonnet-5` is catalogue-only --
+    // unchecked. This is the real assertion that would fail if the checked/unchecked mapping were
+    // backwards.
+    expect(screen.getByLabelText('gpt-4o').props.accessibilityState.checked).toBe(true);
+    expect(screen.getByLabelText('claude-sonnet-5').props.accessibilityState.checked).toBe(false);
   });
 
-  it('calls onRemoveModel when a model chip is removed', async () => {
-    const onRemoveModel = jest.fn();
-    await renderView({ onRemoveModel });
+  it('calls onToggleModel(id, true) when checking an unchecked catalogue model', async () => {
+    const onToggleModel = jest.fn();
+    await renderView({ onToggleModel });
 
-    await fireEvent.press(screen.getByLabelText('Remove gpt-4o'));
+    await fireEvent.press(screen.getByLabelText('claude-sonnet-5'));
 
-    expect(onRemoveModel).toHaveBeenCalledWith('gpt-4o');
+    expect(onToggleModel).toHaveBeenCalledWith('claude-sonnet-5', true);
+  });
+
+  it('calls onToggleModel(id, false) when unchecking an already-allowed model', async () => {
+    const onToggleModel = jest.fn();
+    await renderView({ onToggleModel });
+
+    await fireEvent.press(screen.getByLabelText('gpt-4o'));
+
+    expect(onToggleModel).toHaveBeenCalledWith('gpt-4o', false);
   });
 
   it('shows the all-models-allowed note when the allowlist is empty', async () => {
     await renderView({ project: { ...project, allowedModels: [] } });
 
     expect(screen.getByText('All models are allowed.')).toBeTruthy();
+    // Would fail if the "restricted count" summary rendered instead of the "all models" copy for
+    // an empty selection -- i.e. if the empty-selection semantics were backwards.
+    expect(screen.queryByText('1 model is allowed.')).toBeNull();
+  });
+
+  it('shows a restricted-count summary once at least one model is checked', async () => {
+    await renderView();
+
+    expect(screen.getByText('1 model is allowed.')).toBeTruthy();
+  });
+
+  it('renders a stored model no longer in the catalogue as a checked, labelled row that still round-trips', async () => {
+    const onToggleModel = jest.fn();
+    await renderView({
+      onToggleModel,
+      project: { ...project, allowedModels: ['gpt-4o', 'retired-model'] },
+    });
+
+    const staleCheckbox = screen.getByLabelText('retired-model');
+    expect(staleCheckbox.props.accessibilityState.checked).toBe(true);
+    expect(screen.getByText('No longer in catalogue')).toBeTruthy();
+
+    await fireEvent.press(staleCheckbox);
+    expect(onToggleModel).toHaveBeenCalledWith('retired-model', false);
+  });
+
+  it('renders the loading state before the catalogue resolves, with no checkboxes yet', async () => {
+    await renderView({ isModelCatalogLoading: true, modelCatalog: [] });
+
+    expect(screen.getByText('Loading the model catalogue...')).toBeTruthy();
+    expect(screen.queryByLabelText('gpt-4o')).toBeNull();
+    expect(screen.queryByLabelText('claude-sonnet-5')).toBeNull();
+  });
+
+  it('shows the catalogue-error copy and renders no checkboxes when the catalogue fails to load', async () => {
+    await renderView({ isModelCatalogError: true, modelCatalog: [] });
+
+    expect(
+      screen.getByText(
+        'The model catalogue is unavailable right now. Try again later to change which models are allowed.'
+      )
+    ).toBeTruthy();
+    // No interactive controls at all while the catalogue is down -- nothing can be toggled, so no
+    // save can accidentally fire against an incomplete/broken catalogue state.
+    expect(screen.queryByLabelText('gpt-4o')).toBeNull();
+  });
+
+  it('shows the catalogue-empty copy when the operator has configured no models at all', async () => {
+    await renderView({ modelCatalog: [], project: { ...project, allowedModels: [] } });
+
+    expect(screen.getByText('No models are configured in the catalogue yet.')).toBeTruthy();
   });
 
   it('shows the allowlist-enforcement notice for a project with a non-empty allowlist', async () => {

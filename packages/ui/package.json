@@ -56,7 +56,7 @@
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
     "postcss": "^8.5.0",
-    "react-dom": "19.2.0",
+    "react-dom": "19.2.3",
     "react-hook-form": "^7.85.0",
     "react-native-web": "^0.21.2",
     "storybook": "^10.5.8",

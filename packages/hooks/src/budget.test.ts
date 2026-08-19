@@ -66,6 +66,37 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     expect(mockAuthzProcedures.requestBudgetRefill).not.toHaveBeenCalled();
   });
 
+  // ADR-0015 (lightbridge-authz#386): `requestedAmountMicros` is the caller-chosen amount --
+  // proves it reaches the wire verbatim, not silently dropped by this function's own arg
+  // destructuring/repacking.
+  it('requestBudgetRefill forwards requestedAmountMicros verbatim when supplied', async () => {
+    mockBudgetProcedures.requestBudgetRefill.mockResolvedValueOnce({ id: 'aug_1' });
+
+    await requestBudgetRefill({
+      accountId: 'acc_1',
+      idempotencyKey: 'idem_1',
+      requestedAmountMicros: '30000000',
+    });
+
+    expect(mockBudgetProcedures.requestBudgetRefill).toHaveBeenCalledWith({
+      args: expect.objectContaining({ requestedAmountMicros: '30000000' }),
+    });
+  });
+
+  // Omitting it must stay a real omission (pre-ADR-0015 server-side derivation), not silently
+  // coerced to `undefined`-as-a-string or some other sentinel.
+  it('requestBudgetRefill omits requestedAmountMicros when the caller has none to send', async () => {
+    mockBudgetProcedures.requestBudgetRefill.mockResolvedValueOnce({ id: 'aug_1' });
+
+    await requestBudgetRefill({
+      accountId: 'acc_1',
+      idempotencyKey: 'idem_1',
+    });
+
+    const call = mockBudgetProcedures.requestBudgetRefill.mock.calls[0]![0];
+    expect(call.args.requestedAmountMicros).toBeUndefined();
+  });
+
   it('getMyBudgetRefillLadder calls the budget client only, with just the period', async () => {
     mockBudgetProcedures.getMyBudgetRefillLadder.mockResolvedValueOnce({
       budgetAccountId: 'acc_1',

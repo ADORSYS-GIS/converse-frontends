@@ -89,12 +89,21 @@ const STATUS_BADGE_TONE: Record<DerivedKeyStatus, 'success' | 'error'> = {
   expired: 'error',
 };
 
-/** The footer caption for a key's expiration -- always renders something (including "No
- * expiry" as an explicit state, never an empty gap), and escalates to a warning-toned `Badge`
- * once the key is within the "expiring soon" window so it doesn't read as identical to the
- * plain `createdOn`/`lastUsed` captions beside it. Expired keys are already unmistakable via
- * the header status badge (see `STATUS_BADGE_TONE`); this still shows the exact date so "when"
- * is legible, not just "that it happened". */
+/**
+ * The footer caption for a key's expiration, escalating to a warning-toned `Badge` once the key
+ * is within the "expiring soon" window so it doesn't read as identical to the plain
+ * `createdOn`/`lastUsed` captions beside it. Expired keys are already unmistakable via the header
+ * status badge (see `STATUS_BADGE_TONE`); this still shows the exact date so "when" is legible,
+ * not just "that it happened".
+ *
+ * Renders nothing for `urgency === 'none'` (no `expiresAt` on record). Every key this app creates
+ * or edits now requires a real expiration (standing requirement: "all api-keys created from our
+ * system MUST have an expiry date... the UI shall not have a 'no expiry' label"), so this state
+ * should only ever be reached for a key that predates that cutover -- there is deliberately no
+ * "No expiry"/"Never expires" branch to reintroduce here; omitting the caption is the honest
+ * rendering of "this field genuinely has no value on record", not a claim that the key is
+ * permanently non-expiring.
+ */
 function ExpiryCaption({
   expiresAt,
   dateLocale,
@@ -104,7 +113,7 @@ function ExpiryCaption({
   const urgency = getExpiryUrgency(expiresAt);
 
   if (urgency === 'none') {
-    return <Text intent="caption">{t('apiKeys.expiry.noExpiryLabel')}</Text>;
+    return null;
   }
 
   if (urgency === 'expired') {

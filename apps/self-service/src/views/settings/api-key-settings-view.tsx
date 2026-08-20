@@ -21,16 +21,17 @@ import {
   TextField,
 } from '@lightbridge/ui';
 import type { Account, ApiKey, Project } from '@lightbridge/hooks';
-import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
+import { asTrimmedString, asTrimmedStringOrNull } from '@lightbridge/hooks/wire-safety';
 import { ExpirySelector } from '../../components/expiry-selector';
 import { useThemeColors } from '../../hooks/use-theme-colors';
-import { expiresAtToDateOnly, getDerivedStatus } from '../../lib/api-key-expiry';
+import { expiresAtToDateOnly, getDerivedStatus, validateExpiresAt } from '../../lib/api-key-expiry';
 import { formatDate, formatNullableDate } from '../api-keys-list-view';
 
 export type ApiKeyDetailsInput = {
   name: string;
-  /** ISO datetime string, or `null` to clear the expiration. */
-  expiresAt: string | null;
+  /** A resolved, in-range ISO datetime -- every key this app writes back now carries a real
+   * expiration, so there is no `null` "clear the expiration" case any more. */
+  expiresAt: string;
 };
 
 type ApiKeySettingsViewProps = {
@@ -91,8 +92,13 @@ export function ApiKeySettingsView({
   // incident `@lightbridge/hooks`' `asTrimmedString` was written to prevent -- see its doc
   // comment and `AccountSettingsView`'s identical guard on `defaultQuota`.
   const [nameDraft, setNameDraft] = useState(asTrimmedString(apiKey?.name));
-  const [expiresAtDraft, setExpiresAtDraft] = useState<string | null | undefined>(
-    apiKey?.expiresAt ?? null
+  // Placeholder only -- `ExpirySelector` below (keyed on `apiKey.id`) reports its own seeded
+  // resolution through `onChange` (= `setExpiresAtDraft`) before the user can interact, same
+  // ordering guarantee the effect below relies on. `asTrimmedStringOrNull` guards this wire-sourced
+  // field the same way `asTrimmedString` guards `apiKey?.name` just above -- a present-but-wrong-
+  // typed `expiresAt` from the RPC boundary must not sail through as a truthy non-string value.
+  const [expiresAtDraft, setExpiresAtDraft] = useState<string | undefined>(
+    asTrimmedStringOrNull(apiKey?.expiresAt) ?? undefined
   );
 
   useEffect(() => {
@@ -113,15 +119,22 @@ export function ApiKeySettingsView({
   // non-midnight time-of-day, and re-seeding "Custom" from it always resolves back to that same
   // calendar day at UTC midnight (see `ExpirySelector`'s `initialPresetFor`) -- comparing full
   // ISO strings would misreport "changed" on first render even though the user touched nothing.
-  const hasDetailsChanged =
-    !!apiKey &&
-    (trimmedName !== apiKey.name ||
-      expiresAtToDateOnly(expiresAtDraft) !== expiresAtToDateOnly(apiKey.expiresAt));
+  const expiryChanged =
+    expiresAtToDateOnly(expiresAtDraft) !== expiresAtToDateOnly(apiKey?.expiresAt);
+  const hasDetailsChanged = !!apiKey && (trimmedName !== apiKey.name || expiryChanged);
   const canSaveDetails =
     hasDetailsChanged && trimmedName.length > 0 && expirationValid && !isSavingDetails;
 
   const handleSaveDetails = () => {
     if (expiresAtDraft === undefined) return;
+    // Only re-validate the range when the user actually changed the expiry. `ExpirySelector`
+    // already keeps `expiresAtDraft` within range for any value the user actively picked (see
+    // its `resolve` doc comment), so this is defense-in-depth against a value arriving some
+    // other way -- not the primary gate. Deliberately does NOT gate on an *unchanged* expiry: a
+    // legacy key persisted before every key required an expiration (or one that has since
+    // expired) can carry a value outside today's allowed range, and a pure name edit on that key
+    // must still be saveable without being forced to first fix an expiry nobody asked to touch.
+    if (expiryChanged && !validateExpiresAt(expiresAtDraft).ok) return;
     onSaveDetails({ name: trimmedName, expiresAt: expiresAtDraft });
   };
 
@@ -271,7 +284,7 @@ export function ApiKeySettingsView({
                     <ExpirySelector
                       key={apiKey.id}
                       label={t('apiKeys.expiry.label')}
-                      initialValue={apiKey.expiresAt ?? null}
+                      initialValue={asTrimmedStringOrNull(apiKey.expiresAt)}
                       onChange={setExpiresAtDraft}
                       disabled={isSavingDetails}
                     />

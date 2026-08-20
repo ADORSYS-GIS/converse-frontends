@@ -24,15 +24,26 @@ export const EXPIRY_PRESET_DAYS = {
 } as const;
 
 export type ExpiryDurationPreset = keyof typeof EXPIRY_PRESET_DAYS;
-export type ExpiryPresetKey = ExpiryDurationPreset | 'noExpiry' | 'custom';
+export type ExpiryPresetKey = ExpiryDurationPreset | 'custom';
 
 export const EXPIRY_PRESET_ORDER: ExpiryPresetKey[] = [
   'thirtyDays',
   'sixtyDays',
   'ninetyDays',
   'custom',
-  'noExpiry',
 ];
+
+/**
+ * Ergonomic mirror of the backend's expiry cap -- every API key must have an expiration, and a
+ * custom one may not be set more than this many days out (standing product requirement, 2026-08-20:
+ * "all api-keys created from our system MUST have an expiry date... custom should be about around
+ * max 90 days"). The backend (`lightbridge-authz`, see its companion change) is the actual
+ * enforcement point and is planned to make this operator-configurable; this constant exists purely
+ * so the picker doesn't offer, and submit doesn't send, a date the server would reject anyway. Do
+ * not duplicate this number elsewhere -- every bound (`maxAllowedExpiresAt`, the "90 days" preset,
+ * the date-picker `max`, and pre-submit validation) reads it from here.
+ */
+export const EXPIRY_MAX_DAYS = 90;
 
 /**
  * How many days out counts as "expiring soon" in the list/detail views. Set to half of the
@@ -76,6 +87,61 @@ export function expiresAtToDateOnly(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
+}
+
+/** `now + EXPIRY_MAX_DAYS`, as a `Date`. The ceiling a custom expiry may not cross -- feeds both
+ * the date picker's `max` bound (`maxAllowedDateOnly`) and `validateExpiresAt`. */
+export function maxAllowedExpiresAt(now: Date = new Date()): Date {
+  return new Date(now.getTime() + EXPIRY_MAX_DAYS * MS_PER_DAY);
+}
+
+/** `YYYY-MM-DD` for `now + EXPIRY_MAX_DAYS` -- the `ExpirySelector` custom date field's `max`
+ * bound, so the native picker cannot present a day beyond the cap in the first place. */
+export function maxAllowedDateOnly(now: Date = new Date()): string {
+  return expiresAtToDateOnly(maxAllowedExpiresAt(now).toISOString());
+}
+
+/** `YYYY-MM-DD` for `now + 1 day` -- the `ExpirySelector` custom date field's `min` bound. Set to
+ * tomorrow, not today: the custom picker only ever collects a calendar day, which
+ * `dateOnlyToExpiresAt` anchors at UTC midnight, so picking "today" resolves to a timestamp that
+ * is already in the past (or, at best, exactly now) for any caller interacting after midnight
+ * UTC -- which `validateExpiresAt` below rejects. Tomorrow is the earliest calendar day whose
+ * anchored instant is guaranteed to be strictly in the future. */
+export function minAllowedDateOnly(now: Date = new Date()): string {
+  return expiresAtToDateOnly(new Date(now.getTime() + MS_PER_DAY).toISOString());
+}
+
+export type ExpiresAtValidationResult =
+  { ok: true } | { ok: false; reason: 'missing' | 'invalid' | 'pastOrPresent' | 'exceedsMax' };
+
+/**
+ * The single gate every `expiresAt` this app submits must pass, whether it came from a preset, a
+ * custom date, or (the reason this exists as its own function, not folded into the picker) some
+ * other path a future change might introduce. Every API key must have an expiration -- `null`/
+ * `undefined` are `'missing'`, never a silent success -- strictly in the future (`'pastOrPresent'`
+ * rejects a value equal to or before `now`), and no more than `EXPIRY_MAX_DAYS` out
+ * (`'exceedsMax'`). This is the client-side mirror of the backend's own validation, not a
+ * replacement for it -- the backend enforces the real gate independently and can reject a value
+ * this function accepted (e.g. clock skew, an operator-lowered cap); callers must still handle a
+ * backend rejection as a normal error response, not assume this function is the last word.
+ */
+export function validateExpiresAt(
+  expiresAt: string | null | undefined,
+  now: Date = new Date()
+): ExpiresAtValidationResult {
+  if (expiresAt === null || expiresAt === undefined) return { ok: false, reason: 'missing' };
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) return { ok: false, reason: 'invalid' };
+  if (date.getTime() <= now.getTime()) return { ok: false, reason: 'pastOrPresent' };
+  if (date.getTime() > maxAllowedExpiresAt(now).getTime())
+    return { ok: false, reason: 'exceedsMax' };
+  return { ok: true };
+}
+
+/** Boolean shorthand over {@link validateExpiresAt} for call sites that only need a yes/no (the
+ * `ExpirySelector` custom-date resolver) rather than the specific rejection reason. */
+export function isExpiresAtWithinAllowedRange(expiresAt: string, now: Date = new Date()): boolean {
+  return validateExpiresAt(expiresAt, now).ok;
 }
 
 export function isExpired(expiresAt?: string | null, now: Date = new Date()): boolean {

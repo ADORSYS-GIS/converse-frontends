@@ -234,6 +234,34 @@ describe('formatMicroUsd', () => {
   it('returns the raw input unchanged for an unparseable shape rather than throwing', () => {
     expect(formatMicroUsd('not-a-number')).toBe('not-a-number');
   });
+
+  // A present-but-non-string value crossing the generated RPC client's unchecked `as T` cast
+  // (see wire-safety.ts's module doc comment) previously reached `micros.trim()` directly and
+  // threw `TypeError: micros.trim is not a function` -- the exact production-incident shape
+  // this repo has already hit twice (`AccountSettingsView.defaultQuota`,
+  // `OneTimeSecretCard.oauth2Url`). These assert `formatMicroUsd` degrades instead of crashing
+  // for every non-string shape `AugmentationRequest.requestedAmountMicros`/
+  // `approvedAmountMicros` could plausibly arrive as if a future backend response ever sent the
+  // wire's declared `String` as a bare `Int` instead.
+  it('returns "" for a number instead of throwing', () => {
+    expect(formatMicroUsd(30_000_000)).toBe('');
+  });
+
+  it('returns "" for null instead of throwing', () => {
+    expect(formatMicroUsd(null)).toBe('');
+  });
+
+  it('returns "" for undefined instead of throwing', () => {
+    expect(formatMicroUsd(undefined)).toBe('');
+  });
+
+  it('returns "" for a plain object instead of throwing', () => {
+    expect(formatMicroUsd({})).toBe('');
+  });
+
+  it('returns "" for an array instead of throwing', () => {
+    expect(formatMicroUsd([])).toBe('');
+  });
 });
 
 describe('currentBudgetPeriod', () => {

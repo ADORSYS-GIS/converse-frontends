@@ -9,7 +9,12 @@
  * this module directly (`@lightbridge/hooks/budget-tiers`) without ever pulling in
  * `@lightbridge/authz-rpc`, keeping it testable the same way `project-settings-view.test.tsx`
  * tests `ProjectSettingsView` -- no `jest.mock('@lightbridge/hooks', ...)` required.
+ *
+ * Imports `./wire-safety` for `formatMicroUsd`'s input guard below -- safe to do because that
+ * module is itself pure and dependency-free (see its own doc comment), so this file's "no
+ * `@lightbridge/authz-rpc`" guarantee still holds.
  */
+import { asTrimmedString } from './wire-safety';
 
 /**
  * The self-service refill ladder (lightbridge-authz ADR-0008, "refills are discrete budget
@@ -60,15 +65,27 @@ export function formatBudgetTierAmount(tier: BudgetTier): string {
  * `number`, lossy above 2^53 (see `authz.cstack`'s own comment on `AugmentationRequest`). This
  * function is display-only; its result must never be sent back to an RPC call -- if a raw
  * micro-USD string needs to travel back to the wire, pass the original string through unchanged.
+ *
+ * `micros` is typed `unknown`, not `string`, on purpose: every call site feeds this straight from
+ * an RPC-decoded field (`AugmentationRequest.requestedAmountMicros`/`approvedAmountMicros`,
+ * `BudgetLadderRung.amountMicros`, `MyBudgetRefillLadder.*AmountMicros`) that crosses the
+ * generated client's unchecked `as T` cast -- see `wire-safety.ts`'s module doc comment for the
+ * mechanism this repo has already hit twice in production. An unguarded `micros.trim()` on a
+ * present-but-non-string value (e.g. a number, if a future backend response ever sent the field
+ * as `Int` instead of `String`) would throw the exact `TypeError: ....trim is not a function`
+ * shape those incidents share; routing through `asTrimmedString` here means every call site gets
+ * that protection for free instead of needing to wrap the argument itself.
  */
-export function formatMicroUsd(micros: string): string {
-  const trimmed = micros.trim();
+export function formatMicroUsd(micros: unknown): string {
+  const trimmed = asTrimmedString(micros);
   const negative = trimmed.startsWith('-');
   const digits = negative ? trimmed.slice(1) : trimmed;
 
   if (!/^\d+$/.test(digits)) {
-    // Unexpected shape -- fail visibly rather than guess.
-    return micros;
+    // Unexpected shape -- fail visibly with the original string rather than guess; a value that
+    // was never a string in the first place has no string form worth echoing back, so it
+    // collapses to '' rather than rendering e.g. a stringified object.
+    return typeof micros === 'string' ? micros : '';
   }
 
   const value = BigInt(digits);

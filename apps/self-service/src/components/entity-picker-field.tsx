@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon as Feather, Picker, Stack, Text } from '@lightbridge/ui';
 import type { PickerOption } from '@lightbridge/ui';
 import type { Account, Project } from '@lightbridge/hooks';
+import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
 import type { useThemeColors } from '../hooks/use-theme-colors';
 
 /** Maps the account list to `PickerOption`s. An account has no display name beyond its id — same
@@ -18,6 +19,15 @@ export function toAccountPickerOptions(accounts: Account[]): PickerOption[] {
  * already holds `useThemeColors()`'s result for its own rendering) and a screen (see
  * `usePickerSheet` in ../hooks/use-picker-sheet, which needs the identical mapping to build the
  * sheet's option list).
+ *
+ * `label: asTrimmedString(project.name)`, not `project.name` directly -- the exact same
+ * `Project.name` field is already guarded this way in `project-settings-view.tsx`'s `nameDraft`
+ * (see that file's comment on why "declared non-nullable in the schema" is not a runtime
+ * guarantee at the generated RPC client's unchecked `as Project` cast), but this mapper builds a
+ * second, independent read of it for `PickerList`/`Picker`'s option list -- and `PickerList`
+ * calls `option.label.toLowerCase()` on it un-guarded (`packages/ui/src/components/picker/
+ * component.tsx`), the identical `TypeError: ....trim is not a function`-shaped crash this
+ * repo's already hit twice in production, just with `.toLowerCase()` instead of `.trim()`.
  */
 export function toProjectPickerOptions(
   projects: Project[],
@@ -26,7 +36,7 @@ export function toProjectPickerOptions(
 ): PickerOption[] {
   return projects.map((project) => ({
     id: project.id,
-    label: project.name,
+    label: asTrimmedString(project.name),
     icon: project.isDefault ? (
       <Feather
         name="star"

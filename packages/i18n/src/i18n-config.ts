@@ -124,10 +124,12 @@ const resources = {
           sixtyDays: '60 days',
           ninetyDays: '90 days',
           custom: 'Custom',
-          noExpiry: 'No expiry',
           customDateLabel: 'Expiration date',
           customDateInvalid: 'Enter a valid date.',
-          noExpiryLabel: 'No expiry',
+          // Covers both bounds (past/today, and beyond the cap) with one message -- see
+          // `EXPIRY_MAX_DAYS` in `apps/self-service/src/lib/api-key-expiry.ts`, the single
+          // constant `{{maxDays}}` is interpolated from.
+          customDateOutOfRange: 'Choose a date between tomorrow and {{maxDays}} days from now.',
           expiresInDays_one: 'Expires in {{count}} day',
           expiresInDays_other: 'Expires in {{count}} days',
           expiresToday: 'Expires today',

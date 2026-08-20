@@ -58,6 +58,15 @@ const revokedKey: ApiKey = {
   revokedAt: '2026-02-01T00:00:00Z',
 };
 
+// Stands in for a key created before every key was required to carry an expiration -- the
+// backend can still hand back `expiresAt: null` for these until they're rotated/edited forward.
+const legacyNoExpiryKey: ApiKey = {
+  ...activeKey,
+  id: 'key-3',
+  name: 'legacy-key',
+  expiresAt: null,
+};
+
 function renderView(overrides: Partial<React.ComponentProps<typeof ApiKeySettingsView>> = {}) {
   return render(
     <ApiKeySettingsView
@@ -134,14 +143,39 @@ describe('ApiKeySettingsView', () => {
     });
   });
 
-  it('allows clearing the expiration to "no expiration"', async () => {
+  it('has no reachable "No expiry" option', async () => {
+    await renderView();
+
+    expect(screen.queryByText('No expiry')).toBeNull();
+  });
+
+  it('does not crash for a legacy key with a null expiresAt, and seeds a real 30-day expiration instead of "No expiry"', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
+    await renderView({ apiKey: legacyNoExpiryKey, apiKeys: [legacyNoExpiryKey] });
+
+    expect(screen.getByDisplayValue('legacy-key')).toBeTruthy();
+    expect(screen.queryByText('No expiry')).toBeNull();
+    expect(screen.getByRole('button', { name: '30 days' }).props.accessibilityState.selected).toBe(
+      true
+    );
+    jest.useRealTimers();
+  });
+
+  it('allows saving a new in-range custom expiration', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
     const onSaveDetails = jest.fn();
     await renderView({ onSaveDetails });
 
-    await fireEvent.press(screen.getByText('No expiry'));
+    await fireEvent(screen.getByLabelText('Expiration date'), 'change', {
+      target: { value: '2026-07-01' },
+    });
     await fireEvent.press(screen.getByText('Save'));
 
-    expect(onSaveDetails).toHaveBeenCalledWith({ name: 'ci-runner', expiresAt: null });
+    expect(onSaveDetails).toHaveBeenCalledWith({
+      name: 'ci-runner',
+      expiresAt: '2026-07-01T00:00:00.000Z',
+    });
+    jest.useRealTimers();
   });
 
   it('disables Save when the custom expiration draft is not a valid date', async () => {
@@ -154,6 +188,43 @@ describe('ApiKeySettingsView', () => {
     expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
       true
     );
+  });
+
+  it('disables Save when the edited custom expiration exceeds the 90-day cap', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
+    const onSaveDetails = jest.fn();
+    await renderView({ onSaveDetails });
+
+    // 91 days out from the frozen "now" -- one day past the cap.
+    await fireEvent(screen.getByLabelText('Expiration date'), 'change', {
+      target: { value: '2026-08-31' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Save' }).props.accessibilityState.disabled).toBe(
+      true
+    );
+    await fireEvent.press(screen.getByText('Save'));
+    expect(onSaveDetails).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('still allows saving a name-only change on a key whose existing expiration is now beyond the 90-day cap', async () => {
+    // `activeKey.expiresAt` is `2026-12-31T00:00:00Z`, well over 90 days out from this frozen
+    // "now" -- a stand-in for a key whose expiration was set (validly, at the time) before the
+    // 90-day cap existed. Editing only the name must not be blocked by a client-side re-check of
+    // an expiration nobody is trying to change -- see `handleSaveDetails`'s `expiryChanged` guard.
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
+    const onSaveDetails = jest.fn();
+    await renderView({ onSaveDetails });
+
+    await fireEvent.changeText(screen.getByDisplayValue('ci-runner'), 'ci-runner-renamed');
+    await fireEvent.press(screen.getByText('Save'));
+
+    expect(onSaveDetails).toHaveBeenCalledWith({
+      name: 'ci-runner-renamed',
+      expiresAt: '2026-12-31T00:00:00.000Z',
+    });
+    jest.useRealTimers();
   });
 
   it('renders last-used metadata as read-only KeyValue rows', async () => {

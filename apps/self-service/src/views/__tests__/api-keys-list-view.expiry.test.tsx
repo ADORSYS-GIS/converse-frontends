@@ -48,10 +48,16 @@ async function renderList(item: ApiKey) {
 }
 
 describe('ApiKeysListView expiry legibility', () => {
-  it('shows "No expiry" as an explicit state, not a blank gap', async () => {
+  it('renders no expiry caption, and does not crash or show "No expiry", for a legacy null-expiry key', async () => {
     await renderList({ ...baseItem, expiresAt: null });
 
-    expect(screen.getByText('No expiry')).toBeTruthy();
+    // Every key this app creates or edits now requires a real expiration, so this state is only
+    // reachable for a key that predates that cutover -- there is no "No expiry"/"Never expires"
+    // label to reintroduce here, and the row must still render the rest of the key honestly.
+    expect(screen.queryByText('No expiry')).toBeNull();
+    expect(screen.queryByText(/Never expires/i)).toBeNull();
+    expect(screen.getByText('Production')).toBeTruthy();
+    expect(screen.getByText('Active')).toBeTruthy();
   });
 
   it('shows a plain "Expires on" caption for a far-out expiration', async () => {

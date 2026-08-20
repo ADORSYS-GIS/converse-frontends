@@ -1,13 +1,20 @@
 import {
   EXPIRING_SOON_WINDOW_DAYS,
+  EXPIRY_MAX_DAYS,
   EXPIRY_PRESET_DAYS,
+  EXPIRY_PRESET_ORDER,
   dateOnlyToExpiresAt,
   daysUntilExpiry,
   expiresAtToDateOnly,
   getDerivedStatus,
   getExpiryUrgency,
   isExpired,
+  isExpiresAtWithinAllowedRange,
+  maxAllowedDateOnly,
+  maxAllowedExpiresAt,
+  minAllowedDateOnly,
   presetToExpiresAt,
+  validateExpiresAt,
 } from '../api-key-expiry';
 
 describe('presetToExpiresAt', () => {
@@ -17,6 +24,87 @@ describe('presetToExpiresAt', () => {
     expect(presetToExpiresAt(EXPIRY_PRESET_DAYS.thirtyDays, now)).toBe('2026-07-01T09:30:00.000Z');
     expect(presetToExpiresAt(EXPIRY_PRESET_DAYS.sixtyDays, now)).toBe('2026-07-31T09:30:00.000Z');
     expect(presetToExpiresAt(EXPIRY_PRESET_DAYS.ninetyDays, now)).toBe('2026-08-30T09:30:00.000Z');
+  });
+});
+
+describe('EXPIRY_PRESET_ORDER', () => {
+  it('offers no "no expiry" option -- every listed preset resolves to a real expiration', () => {
+    expect(EXPIRY_PRESET_ORDER).toEqual(['thirtyDays', 'sixtyDays', 'ninetyDays', 'custom']);
+    expect(EXPIRY_PRESET_ORDER).not.toContain('noExpiry');
+  });
+
+  it('keeps every duration preset within the 90-day cap', () => {
+    for (const days of Object.values(EXPIRY_PRESET_DAYS)) {
+      expect(days).toBeLessThanOrEqual(EXPIRY_MAX_DAYS);
+    }
+  });
+});
+
+describe('maxAllowedExpiresAt / maxAllowedDateOnly / minAllowedDateOnly', () => {
+  const now = new Date('2026-06-01T00:00:00.000Z');
+
+  it('maxAllowedExpiresAt is exactly EXPIRY_MAX_DAYS out from now', () => {
+    expect(maxAllowedExpiresAt(now).toISOString()).toBe('2026-08-30T00:00:00.000Z');
+  });
+
+  it('maxAllowedDateOnly is the calendar day of that same instant', () => {
+    expect(maxAllowedDateOnly(now)).toBe('2026-08-30');
+  });
+
+  it('minAllowedDateOnly is tomorrow, not today', () => {
+    expect(minAllowedDateOnly(now)).toBe('2026-06-02');
+  });
+});
+
+describe('validateExpiresAt', () => {
+  const now = new Date('2026-06-01T00:00:00.000Z');
+
+  it('rejects null/undefined as "missing" -- every key must have an expiration', () => {
+    expect(validateExpiresAt(null, now)).toEqual({ ok: false, reason: 'missing' });
+    expect(validateExpiresAt(undefined, now)).toEqual({ ok: false, reason: 'missing' });
+  });
+
+  it('rejects an unparseable value as "invalid"', () => {
+    expect(validateExpiresAt('not-a-date', now)).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  it('rejects a value at or before "now" as "pastOrPresent"', () => {
+    expect(validateExpiresAt('2026-06-01T00:00:00.000Z', now)).toEqual({
+      ok: false,
+      reason: 'pastOrPresent',
+    });
+    expect(validateExpiresAt('2026-05-01T00:00:00.000Z', now)).toEqual({
+      ok: false,
+      reason: 'pastOrPresent',
+    });
+  });
+
+  it('rejects a value beyond EXPIRY_MAX_DAYS as "exceedsMax"', () => {
+    // Break the code first: with the `>` in `validateExpiresAt` changed to `>=`, this assertion
+    // would fail because the exact 90-day boundary (the next test) would also be rejected --
+    // proving the boundary is inclusive, not just present.
+    expect(validateExpiresAt('2026-08-31T00:00:00.000Z', now)).toEqual({
+      ok: false,
+      reason: 'exceedsMax',
+    });
+  });
+
+  it('accepts a value exactly at the 90-day boundary', () => {
+    expect(validateExpiresAt('2026-08-30T00:00:00.000Z', now)).toEqual({ ok: true });
+  });
+
+  it('accepts a value comfortably inside the allowed range', () => {
+    expect(validateExpiresAt('2026-07-01T00:00:00.000Z', now)).toEqual({ ok: true });
+  });
+});
+
+describe('isExpiresAtWithinAllowedRange', () => {
+  const now = new Date('2026-06-01T00:00:00.000Z');
+
+  it('is a boolean shorthand over validateExpiresAt', () => {
+    expect(isExpiresAtWithinAllowedRange('2026-07-01T00:00:00.000Z', now)).toBe(true);
+    expect(isExpiresAtWithinAllowedRange('2026-08-31T00:00:00.000Z', now)).toBe(false);
+    expect(isExpiresAtWithinAllowedRange('2026-05-01T00:00:00.000Z', now)).toBe(false);
   });
 });
 

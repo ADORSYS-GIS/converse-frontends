@@ -19,6 +19,7 @@ import {
 import { ExpirySelector } from '../components/expiry-selector';
 import { OneTimeSecretCard } from '../components/one-time-secret-card';
 import { useThemeColors } from '../hooks/use-theme-colors';
+import { validateExpiresAt } from '../lib/api-key-expiry';
 
 /**
  * Plan every new key defaults to when the caller cannot pick one (no `project:member`
@@ -32,9 +33,11 @@ const DEFAULT_API_KEY_BILLING_PLAN = 'free';
 
 type ApiKeyCreateViewProps = {
   onBack: () => void;
-  /** `expiresAt` is always resolved before Save can be pressed: an ISO datetime, or `null` for
-   * "no expiry" -- never `undefined` (see `isSubmitDisabled` below). */
-  onCreate: (name: string, billingPlan: string, expiresAt: string | null) => void;
+  /** `expiresAt` is always a resolved, in-range ISO datetime before Save can be pressed -- every
+   * key this app creates now carries a real expiration (standing requirement: "all api-keys
+   * created from our system MUST have an expiry date"). Never `null`/`undefined` (see
+   * `isSubmitDisabled` below, which blocks Save until a valid value exists). */
+  onCreate: (name: string, billingPlan: string, expiresAt: string) => void;
   onCopy: (value: string) => void;
   isCreating?: boolean;
   /** When true, the user may pick a billing plan; otherwise keys are pinned to `free`. */
@@ -77,10 +80,10 @@ export function ApiKeyCreateView({
   const colors = useThemeColors();
   const [name, setName] = useState('');
   const [billingPlan, setBillingPlan] = useState('');
-  // `undefined` means "Custom" is selected with no valid date yet -- ExpirySelector's mount
-  // effect replaces this with a real value (the 30-day preset by default) before the user does
-  // anything, so this only stays `undefined` while actively editing an invalid custom date.
-  const [expiresAt, setExpiresAt] = useState<string | null | undefined>(undefined);
+  // `undefined` means "Custom" is selected with no valid (or in-range) date yet -- ExpirySelector's
+  // mount effect replaces this with a real value (the 30-day preset by default) before the user
+  // does anything, so this only stays `undefined` while actively editing an invalid custom date.
+  const [expiresAt, setExpiresAt] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // Seed a real selection once the catalogue loads, so Save doesn't sit blocked on "pick a
@@ -107,6 +110,13 @@ export function ApiKeyCreateView({
 
   const submit = () => {
     if (isSubmitDisabled || expiresAt === undefined) return;
+    // Defense-in-depth, not the primary gate: `ExpirySelector` already refuses to resolve an
+    // out-of-range or past/present custom date to anything but `undefined` (see its `resolve`
+    // doc comment), so this should be unreachable in practice. It stays here so a value that
+    // ever arrives some other way -- a future refactor, a differently-sourced `expiresAt` -- is
+    // still rejected client-side rather than sent straight to a backend that is the real gate
+    // (see `validateExpiresAt`'s doc comment).
+    if (!validateExpiresAt(expiresAt).ok) return;
     onCreate(trimmedName, resolvedPlan, expiresAt);
   };
 

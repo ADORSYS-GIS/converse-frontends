@@ -101,11 +101,7 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     mockBudgetProcedures.getMyBudgetRefillLadder.mockResolvedValueOnce({
       budgetAccountId: 'acc_1',
       period: '2026-08',
-      currentTier: 'b-15',
-      currentTierAmountMicros: '15000000',
-      nextTier: 'b-30',
-      nextTierAmountMicros: '30000000',
-      ladder: [],
+      allowedAmountsMicros: ['15000000', '30000000'],
     });
 
     await getMyBudgetRefillLadder('2026-08');

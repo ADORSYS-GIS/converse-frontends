@@ -12,8 +12,9 @@ import {
 import { BudgetRefillView } from '../views/settings/budget-refill-view';
 
 /**
- * Self-service budget refill (lightbridge-authz ADR-0007/0008, #191; ladder-visibility follow-up,
- * ADR-0015 amount picker). Budget is account-scoped, not project-scoped, so unlike the
+ * Self-service budget refill (lightbridge-authz ADR-0007/0008, #191; ADR-0015 amount picker,
+ * which replaced the original ladder-visibility panel entirely -- see
+ * `budget-refill-view.tsx`'s module history). Budget is account-scoped, not project-scoped, so unlike the
  * project-settings/api-keys screens this deliberately has no account/project selector -- it
  * always acts on the caller's own account (`useCurrentAccount`, one account per person per
  * ADR-0006).

@@ -124,10 +124,12 @@ const resources = {
           sixtyDays: '60 days',
           ninetyDays: '90 days',
           custom: 'Custom',
-          noExpiry: 'No expiry',
           customDateLabel: 'Expiration date',
           customDateInvalid: 'Enter a valid date.',
-          noExpiryLabel: 'No expiry',
+          // Covers both bounds (past/today, and beyond the cap) with one message -- see
+          // `EXPIRY_MAX_DAYS` in `apps/self-service/src/lib/api-key-expiry.ts`, the single
+          // constant `{{maxDays}}` is interpolated from.
+          customDateOutOfRange: 'Choose a date between tomorrow and {{maxDays}} days from now.',
           expiresInDays_one: 'Expires in {{count}} day',
           expiresInDays_other: 'Expires in {{count}} days',
           expiresToday: 'Expires today',
@@ -399,33 +401,25 @@ const resources = {
           expiredNotice:
             'This key expired and can no longer authenticate requests. Extend or clear its expiration above to restore it.',
         },
-        // Self-service budget refill (#148, ladder visibility follow-up, ADR-0015 amount
-        // picker). "Budget tier" is deliberately never called "quota tier" anywhere in this
-        // block -- `project.quotaTier` (roster, per-member request-rate ceiling) and this
-        // "budget tier" (per-account monthly spend ceiling) are unrelated fields that would both
-        // read as "tier" in support tickets if the copy collided.
+        // Self-service budget refill (#148, ADR-0015 amount picker). "Budget tier" is
+        // deliberately never called "quota tier" anywhere in this block -- `project.quotaTier`
+        // (roster, per-member request-rate ceiling) and this "budget tier" (per-account monthly
+        // spend ceiling) are unrelated fields that would both read as "tier" in support tickets
+        // if the copy collided.
         // ADR-0015 (lightbridge-authz#386) reversed the "caller chooses nothing" model this block
         // was originally written under: `amount*` keys below back a real `SegmentedControl`
         // picker sourced from `getMyBudgetRefillLadder`'s `allowedAmountsMicros`, the live,
-        // admin-configured set the active policy currently offers. `ladder*` keys remain -- the
-        // pre-ADR-0015 ladder-visibility panel ("you are here, this is next") is still shown
-        // alongside the picker, unchanged. `submitWithAmount` names the chosen amount in the
-        // button but is deliberately NOT a promise: policy still decides auto-approve vs. admin
-        // review vs. denial, so the copy states what is being requested, never what will be
-        // granted -- `requestedTierLabel` still reveals the server-assigned outcome AFTER a
-        // decision, unchanged.
+        // admin-configured set the active policy currently offers. The pre-ADR-0015
+        // ladder-visibility panel ("you are here, this is next") and its `ladder*` keys were
+        // removed -- under a flat, admin-configured amount set there is no ladder *position* left
+        // to display (see the frontend PR that deleted `LadderVisibilityPanel`). `submitWithAmount`
+        // names the chosen amount in the button but is deliberately NOT a promise: policy still
+        // decides auto-approve vs. admin review vs. denial, so the copy states what is being
+        // requested, never what will be granted -- `requestedTierLabel` still reveals the
+        // server-assigned outcome AFTER a decision, unchanged.
         budget: {
           title: 'Budget refill',
           subtitle: "Request an increase to your account's monthly spending ceiling.",
-          // The ladder-visibility panel: "you are here, this is next" -- never phrased as a
-          // choice. See budget-refill-view.tsx's ladder rendering block.
-          ladderTitle: 'Your budget tier',
-          ladderCurrentLabel: 'Current tier: {{amount}}',
-          ladderNextLabel: 'A refill would grant: {{amount}}',
-          ladderAtTopTier:
-            "You're already at the highest tier — there's nothing further to request.",
-          ladderLoading: 'Loading your budget tier…',
-          ladderLoadError: "Couldn't load your budget tier.",
           // Non-negotiable per the maintainer: this must be visible whether or not the caller has
           // ever submitted a refill, not only after one. Plain and factual, no jargon -- someone
           // who refills, sees no change, and concludes the product is broken is worse than someone

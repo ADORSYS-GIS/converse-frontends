@@ -4,11 +4,12 @@ import { createId, getBudgetRpcClient } from '@lightbridge/authz-rpc';
 import { useAuthSession } from './auth-session';
 import { currentBudgetPeriod } from './budget-tiers';
 
-export type {
-  AugmentationRequest,
-  BudgetLadderRung,
-  MyBudgetRefillLadder,
-} from '@lightbridge/authz-rpc';
+// `BudgetLadderRung` (the pre-ADR-0015 ladder-position type) is deliberately NOT re-exported here
+// -- its only consumer, `LadderVisibilityPanel` in budget-refill-view.tsx, was removed: under a
+// flat, admin-configured amount set there is no ladder *position* left to display. The field still
+// exists on the wire (`MyBudgetRefillLadder.ladder`) until the backend removal lands (see
+// budget-tiers.ts's module comment), but nothing in this repo should read it in the meantime.
+export type { AugmentationRequest, MyBudgetRefillLadder } from '@lightbridge/authz-rpc';
 
 // Pure formatting/tier constants live in ./budget-tiers.ts (its own dependency-free package
 // subpath) specifically so a presentational view can import them without pulling in

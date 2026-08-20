@@ -16,27 +16,20 @@ function renderView(overrides: Partial<React.ComponentProps<typeof BudgetRefillV
   return render(<BudgetRefillView onBack={noop} onSubmit={noop} period={PERIOD} {...overrides} />);
 }
 
-// `allowedAmountsMicros` defaults to `[]` (ADR-0015's picker is empty by default) so the
-// pre-existing ladder-visibility tests below -- which assert specific `$N.NN` badge strings --
-// never collide with the amount picker also rendering a `$N.NN` option label for the same value.
-// Tests that exercise the picker itself pass their own `allowedAmountsMicros` explicitly.
+// `allowedAmountsMicros` defaults to `[]` (ADR-0015's picker is empty by default). Tests that
+// exercise the picker itself pass their own `allowedAmountsMicros` explicitly.
+//
+// `currentTier`/`currentTierAmountMicros`/`ladder` below are dummy values present ONLY because
+// `MyBudgetRefillLadder` (the generated wire type) still requires them until the backend removal
+// lands -- see the module comment on `packages/hooks/src/budget-tiers.ts`. `BudgetRefillView`
+// itself reads none of them; no assertion in this file may depend on these values.
 function baseLadder(overrides: Partial<MyBudgetRefillLadder> = {}): MyBudgetRefillLadder {
   return {
     budgetAccountId: 'acc-1',
     period: PERIOD,
     currentTier: 'b-15',
     currentTierAmountMicros: '15000000',
-    nextTier: 'b-30',
-    nextTierAmountMicros: '30000000',
-    ladder: [
-      { tier: 'b-15', amountMicros: '15000000' },
-      { tier: 'b-30', amountMicros: '30000000' },
-      { tier: 'b-60', amountMicros: '60000000' },
-      { tier: 'b-120', amountMicros: '120000000' },
-      { tier: 'b-250', amountMicros: '250000000' },
-      { tier: 'b-500', amountMicros: '500000000' },
-      { tier: 'b-1000', amountMicros: '1000000000' },
-    ],
+    ladder: [],
     allowedAmountsMicros: [],
     ...overrides,
   };
@@ -98,11 +91,8 @@ describe('BudgetRefillView -- submit control before any amount is picked', () =>
 
 describe('BudgetRefillView amount picker (ADR-0015) -- a real selector, sourced only from allowedAmountsMicros', () => {
   it('renders every allowed amount as a selectable option, formatted as dollars', async () => {
-    // `ladder: []` (the seven-rung visibility panel, unrelated to this picker) isolates these
-    // assertions from `baseLadder`'s own rung Badges, which otherwise render the SAME dollar
-    // strings for the default $15/$30/$60/... rungs and would make `getByText` ambiguous.
     await renderView({
-      ladder: baseLadder({ ladder: [], allowedAmountsMicros: ['6000000', '15000000', '30000000'] }),
+      ladder: baseLadder({ allowedAmountsMicros: ['6000000', '15000000', '30000000'] }),
     });
 
     expect(screen.getByText('$6.00')).toBeTruthy();
@@ -114,10 +104,8 @@ describe('BudgetRefillView amount picker (ADR-0015) -- a real selector, sourced 
     // A regression guard for the exact drift class called out in the ticket: a hardcoded mirror
     // of the ladder (e.g. `BUDGET_TIER_AMOUNT_USD`'s $1000 top rung) must never leak into the
     // picker just because it's a familiar budget-tier amount -- only the amounts the ACTIVE
-    // policy actually offers may appear as options. `ladder: []` removes the visibility panel's
-    // OWN top-rung Badge so this assertion is purely about the picker, not a false pass from the
-    // unrelated ladder panel happening to also render "$1000.00".
-    await renderView({ ladder: baseLadder({ ladder: [], allowedAmountsMicros: ['6000000'] }) });
+    // policy actually offers may appear as options.
+    await renderView({ ladder: baseLadder({ allowedAmountsMicros: ['6000000'] }) });
 
     expect(screen.getByText('$6.00')).toBeTruthy();
     expect(screen.queryByText('$1000.00')).toBeNull();
@@ -125,7 +113,7 @@ describe('BudgetRefillView amount picker (ADR-0015) -- a real selector, sourced 
 
   it('marks the selected amount as the active option', async () => {
     await renderView({
-      ladder: baseLadder({ ladder: [], allowedAmountsMicros: ['6000000', '15000000'] }),
+      ladder: baseLadder({ allowedAmountsMicros: ['6000000', '15000000'] }),
       selectedAmountMicros: '15000000',
     });
 
@@ -136,7 +124,7 @@ describe('BudgetRefillView amount picker (ADR-0015) -- a real selector, sourced 
   it('calls onSelectAmount with the pressed amount, unformatted', async () => {
     const onSelectAmount = jest.fn();
     await renderView({
-      ladder: baseLadder({ ladder: [], allowedAmountsMicros: ['6000000', '15000000'] }),
+      ladder: baseLadder({ allowedAmountsMicros: ['6000000', '15000000'] }),
       onSelectAmount,
     });
 
@@ -197,40 +185,14 @@ describe('BudgetRefillView submit button copy -- names the amount, never promise
   });
 });
 
-describe('BudgetRefillView ladder panel -- visibility only, never a picker', () => {
-  it('shows a loading line and no ladder data while the ladder query is in flight', async () => {
-    await renderView({ isLadderLoading: true });
-
-    expect(screen.getByText('Loading your budget tier…')).toBeTruthy();
-    expect(screen.queryByText(/Current tier:/)).toBeNull();
-  });
-
-  it('shows an error line when the ladder query fails, distinct from the loading line', async () => {
-    await renderView({ isLadderError: true });
-
-    expect(screen.getByText("Couldn't load your budget tier.")).toBeTruthy();
-    expect(screen.queryByText('Loading your budget tier…')).toBeNull();
-  });
-
-  it('renders nothing for the panel when idle with no ladder data (no crash on a null ladder)', async () => {
+// The pre-ADR-0015 ladder-visibility panel ("you are here, this is next") was removed entirely --
+// under a flat, admin-configured amount set there is no ladder *position* left to display. This
+// notice is unrelated to that panel (it carries no ladder data of its own) and must render
+// regardless of whether the caller has picked an amount or ever submitted a refill.
+describe('BudgetRefillView enforcement-gap notice -- always visible, independent of the ladder query', () => {
+  it('shows the notice even before any refill data has loaded', async () => {
     await renderView();
 
-    expect(screen.queryByText(/Current tier:/)).toBeNull();
-    expect(screen.queryByText("Couldn't load your budget tier.")).toBeNull();
-  });
-
-  it('shows current + next tier amounts, the full seven-rung ladder, and the enforcement-gap notice once loaded', async () => {
-    await renderView({ ladder: baseLadder() });
-
-    expect(screen.getByText('Current tier: $15.00')).toBeTruthy();
-    expect(screen.getByText('A refill would grant: $30.00')).toBeTruthy();
-    // Every rung renders as a dollar-labeled status badge -- $15.00 doubles as the current-tier
-    // amount above AND a ladder rung, so this only asserts the ones that appear nowhere else.
-    // `formatMicroUsd` never inserts a thousands separator (see its own doc comment -- pure
-    // BigInt arithmetic, no `toLocaleString`), so the top rung reads "$1000.00", not "$1,000.00".
-    for (const amount of ['$60.00', '$120.00', '$250.00', '$500.00', '$1000.00']) {
-      expect(screen.getByText(amount)).toBeTruthy();
-    }
     expect(
       screen.getByText(
         "Refill requests are recorded here, but they don't change your enforced usage limit yet — that connection to the request gateway hasn't been built."
@@ -238,41 +200,20 @@ describe('BudgetRefillView ladder panel -- visibility only, never a picker', () 
     ).toBeTruthy();
   });
 
-  it('says there is nothing further to request when already at the top rung, instead of a next-tier amount', async () => {
-    await renderView({
-      ladder: baseLadder({
-        currentTier: 'b-1000',
-        currentTierAmountMicros: '1000000000',
-        nextTier: null,
-        nextTierAmountMicros: null,
-      }),
-    });
+  it('keeps showing the notice while the amount picker is loading', async () => {
+    await renderView({ isLadderLoading: true });
 
-    expect(screen.getByText('Current tier: $1000.00')).toBeTruthy();
     expect(
-      screen.getByText("You're already at the highest tier — there's nothing further to request.")
+      screen.getByText(/Refill requests are recorded here, but they don't change/)
     ).toBeTruthy();
-    expect(screen.queryByText(/^A refill would grant:/)).toBeNull();
   });
 
-  it('renders the ladder as read-only status badges, not selectable controls -- pressing one does not call onSubmit', async () => {
-    const onSubmit = jest.fn();
-    // showBackButton: false isolates this assertion from the unrelated PageHeader back button --
-    // this test is about the ladder rungs adding no pressables of their own, not about the
-    // screen's total button count. `allowedAmountsMicros: []` (baseLadder's own default) keeps
-    // the amount picker from adding pressables of its own either, so the only button left is the
-    // real submit action.
-    await renderView({ ladder: baseLadder(), onSubmit, showBackButton: false });
+  it('keeps showing the notice while the amount picker is errored', async () => {
+    await renderView({ isLadderError: true });
 
-    // A Badge has no press affordance at all (no onPress prop exists on it) -- firing a press
-    // event at its rendered text must be a no-op, not accidentally bubble to the submit handler.
-    await fireEvent.press(screen.getByText('$60.00'));
-
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
-    // Exactly one button on the whole screen (the real submit action) even with all seven rungs
-    // rendered and the amount picker empty -- proves no per-rung pressable was introduced.
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(
+      screen.getByText(/Refill requests are recorded here, but they don't change/)
+    ).toBeTruthy();
   });
 });
 

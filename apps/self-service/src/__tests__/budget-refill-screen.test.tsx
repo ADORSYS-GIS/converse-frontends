@@ -11,10 +11,10 @@ import { initI18n } from '@lightbridge/i18n';
 // `@lightbridge/hooks/api-error` subpath, same pattern as the `./budget-tiers` subpath already
 // used by budget-refill-view.tsx) so the screen's actual wiring is exercised, not bypassed.
 const mockUseRequestBudgetRefill = jest.fn();
-// The read-only ladder-visibility companion (`getMyBudgetRefillLadder`) added alongside this
-// screen's ladder panel -- mocked to a harmless "nothing loaded yet" default so the existing
-// error/retry-focused tests below don't need to know it exists. `ladder-panel.test.tsx` covers
-// the panel's own loading/error/loaded rendering in isolation.
+// `getMyBudgetRefillLadder` backs the ADR-0015 amount picker's `allowedAmountsMicros` -- mocked to
+// a harmless "nothing loaded yet" default so the existing error/retry-focused tests below don't
+// need to know it exists. `budget-refill-view.test.tsx` covers the picker's own
+// loading/error/loaded rendering in isolation.
 const mockUseMyBudgetRefillLadder = jest.fn();
 
 jest.mock('expo-router', () => ({
@@ -149,11 +149,6 @@ describe('BudgetRefillScreen amount selection (ADR-0015) -- reads allowedAmounts
       data: {
         budgetAccountId: 'acc-1',
         period: '2026-08',
-        currentTier: 'b-15',
-        currentTierAmountMicros: '15000000',
-        nextTier: 'b-30',
-        nextTierAmountMicros: '30000000',
-        ladder: [],
         allowedAmountsMicros: ['6000000', '15000000', '30000000'],
       },
       isLoading: false,
@@ -184,11 +179,6 @@ describe('BudgetRefillScreen amount selection (ADR-0015) -- reads allowedAmounts
       data: {
         budgetAccountId: 'acc-1',
         period: '2026-08',
-        currentTier: 'b-15',
-        currentTierAmountMicros: '15000000',
-        nextTier: 'b-30',
-        nextTierAmountMicros: '30000000',
-        ladder: [],
         allowedAmountsMicros: ['6000000', '15000000', '30000000'],
       },
       isLoading: false,
@@ -216,11 +206,6 @@ describe('BudgetRefillScreen amount selection (ADR-0015) -- reads allowedAmounts
       data: {
         budgetAccountId: 'acc-1',
         period: '2026-08',
-        currentTier: 'b-15',
-        currentTierAmountMicros: '15000000',
-        nextTier: 'b-30',
-        nextTierAmountMicros: '30000000',
-        ladder: [],
         allowedAmountsMicros: ['6000000'],
       },
       isLoading: false,
@@ -248,11 +233,6 @@ describe('BudgetRefillScreen amount selection (ADR-0015) -- reads allowedAmounts
       data: {
         budgetAccountId: 'acc-1',
         period: '2026-08',
-        currentTier: 'b-15',
-        currentTierAmountMicros: '15000000',
-        nextTier: 'b-30',
-        nextTierAmountMicros: '30000000',
-        ladder: [],
         allowedAmountsMicros: [],
       },
       isLoading: false,

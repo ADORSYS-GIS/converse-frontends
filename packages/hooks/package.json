@@ -16,23 +16,23 @@
     "@lightbridge/api-native": "workspace:*",
     "@lightbridge/authz-rpc": "workspace:*",
     "@lightbridge/i18n": "workspace:*",
-    "@react-native-community/netinfo": "^11.5.1",
+    "@react-native-community/netinfo": "^12.0.1",
     "@tanstack/react-db": "^0.1.69",
     "@tanstack/react-query": "^5.101.4",
-    "expo-auth-session": "~55.0.15",
-    "expo-crypto": "~55.0.14",
-    "expo-localization": "~55.0.13",
-    "expo-secure-store": "~55.0.13",
-    "expo-web-browser": "~55.0.15",
+    "expo-auth-session": "~57.0.6",
+    "expo-crypto": "~57.0.1",
+    "expo-localization": "~57.0.1",
+    "expo-secure-store": "~57.0.1",
+    "expo-web-browser": "~57.0.2",
     "idb-keyval": "^6.3.0"
   },
   "peerDependencies": {
-    "expo-router": ">=3",
-    "react": ">=18",
-    "react-native": ">=0.72"
+    "expo-router": ">=7",
+    "react": ">=19.2.3",
+    "react-native": ">=0.86.2"
   },
   "devDependencies": {
-    "expo-router": "~55.0.14",
+    "expo-router": "~57.0.12",
     "vitest": "^3.2.7"
   },
   "scripts": {

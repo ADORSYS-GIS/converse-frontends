@@ -8,8 +8,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "i18next": "^25.8.0",
-    "react-i18next": "^16.5.4"
+    "i18next": "^26.3.6",
+    "react-i18next": "^17.0.11"
   },
   "peerDependencies": {
     "react": ">=18"

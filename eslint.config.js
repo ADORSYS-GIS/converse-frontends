@@ -4,7 +4,7 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'apps/*/dist/*'],
+    ignores: ['dist/*', 'apps/*/dist/*', 'storybook-static/*', 'packages/*/storybook-static/*'],
   },
   {
     rules: {

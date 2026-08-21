@@ -113,6 +113,10 @@ export function SheetProvider({
             accessibilityLabel={entry?.options?.accessibilityLabel}>
             <View style={isDesktop ? styles.contentDesktopInset : undefined}>
               <View style={[styles.contentColumn, entry?.options?.contentStyle]}>
+                {/* `dismiss` only reads `modalRef.current` when invoked (on user
+                    dismiss), never during render — the react-hooks/refs rule is
+                    conservative here, so it's disabled for this line. */}
+                {/* eslint-disable-next-line react-hooks/refs */}
                 {entry ? entry.render({ dismiss }) : null}
               </View>
             </View>

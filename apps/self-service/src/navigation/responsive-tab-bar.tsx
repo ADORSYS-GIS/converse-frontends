@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/tabs';
 import { designTokens, Icon as Feather, NavContainer, NavItem, Stack } from '@lightbridge/ui';
 
 import { useRuntimeConfig } from '../configs/runtime-config';

@@ -109,6 +109,11 @@ type ProjectSettingsViewProps = {
    * remaining model sends the empty-array "all models allowed" representation. */
   onToggleModel: (model: string, checked: boolean) => void;
   isSavingModels?: boolean;
+  /** Set when `setProjectAllowedModels` rejects -- a 403 from `project:update`, or (#415) a
+   * catalogue-validation rejection naming a model id the operator's catalogue does not recognize.
+   * Must render, never be swallowed -- see lightbridge-authz#282/#283 for what silently discarding
+   * this class of error already cost. */
+  modelsError?: string | null;
   onSaveLimits: (limits: ProjectDefaultLimits) => void;
   isSavingLimits?: boolean;
   canCreate?: boolean;
@@ -175,6 +180,7 @@ export function ProjectSettingsView({
   isModelCatalogError = false,
   onToggleModel,
   isSavingModels = false,
+  modelsError = null,
   onSaveLimits,
   isSavingLimits = false,
   canCreate = true,
@@ -483,6 +489,12 @@ export function ProjectSettingsView({
                         ))}
                       </Stack>
                     )}
+
+                    {modelsError ? (
+                      <Text intent="caption" style={{ color: colors.error }}>
+                        {modelsError}
+                      </Text>
+                    ) : null}
                   </Stack>
                 </SectionCard>
               ) : null}

@@ -14,6 +14,7 @@ import {
   useQueryState,
   useRemoveProjectMember,
   useSetDefaultProject,
+  useSetProjectAllowedModels,
   useSetProjectMemberQuotaTier,
   useSetProjectMemberRole,
   useUpdateProject,
@@ -70,6 +71,7 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   const project = projects.find((item) => item.id === projectId);
 
   const updateProject = useUpdateProject();
+  const setAllowedModels = useSetProjectAllowedModels();
   const disableProject = useDisableProject();
   const enableProject = useEnableProject();
   const setDefaultProject = useSetDefaultProject();
@@ -113,6 +115,10 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       .mutateAsync({ projectId, accountId, quotaTier: quotaTier === '' ? undefined : quotaTier })
       .catch(() => undefined);
   };
+
+  // Covers both the `project:update` 403 and #415's new catalogue-validation rejection -- see
+  // `saveModels`'s comment above for why this must never be a silent console.error swallow.
+  const modelsError = setAllowedModels.error ? getApiErrorMessage(setAllowedModels.error) : null;
 
   // The coarse permission is not the whole story: the server also demands account ownership or
   // role='lead', so a permitted-looking caller still gets a 403. Surface it rather than swallow it.
@@ -181,17 +187,22 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       });
   };
 
+  // `Project.allowedModels` is `@readonly` on the generic model verbs (lightbridge-authz#415/#417)
+  // -- `setProjectAllowedModels` is the only write path left, and unlike the other saves on this
+  // screen, a rejection here (403 from the `project:update` gate, or a catalogue-validation
+  // rejection naming an unknown model id) is a real, reachable outcome the caller must see, not a
+  // console.error swallow. `[]` is sent (never `undefined`/`null`) for "no models checked" so the
+  // "all models allowed" wire representation stays an explicit, deliberate empty array rather than
+  // an accidental no-op update.
   const saveModels = (models: string[]) => {
     if (!project || !accountId) return;
-    void updateProject
+    void setAllowedModels
       .mutateAsync({
-        id: project.id,
+        projectId: project.id,
         accountId,
-        input: { allowedModels: models },
+        allowedModels: models,
       })
-      .catch((error) => {
-        console.error('Failed to update allowed models:', error);
-      });
+      .catch(() => undefined);
   };
 
   const projectModels = (): string[] =>
@@ -296,7 +307,8 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isModelCatalogLoading={isModelCatalogLoading}
       isModelCatalogError={isModelCatalogError}
       onToggleModel={handleToggleModel}
-      isSavingModels={updateProject.isPending}
+      isSavingModels={setAllowedModels.isPending}
+      modelsError={modelsError}
       onSaveLimits={handleSaveLimits}
       isSavingLimits={updateProject.isPending}
       canCreate={has('project:create')}

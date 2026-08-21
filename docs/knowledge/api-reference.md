@@ -136,41 +136,44 @@ describing a pre-ADR-0006 model.
 
 ### Projects
 
-| Op-id                                                  | Description                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `model.Project.list`                                   | List projects (scope to an account via `filters: [{ key: "accountId", value }]`)                                                                                                                                                                                                                                                                                                                 |
-| `model.Project.get`                                    | Get project by ID                                                                                                                                                                                                                                                                                                                                                                                |
-| `model.Project.create`                                 | Create a project — reachable directly (unlike Account/ApiKey). The **caller generates the id** (`cuid2`, client-side) and must supply `defaultLimits` (required, even if just `{}`). `CreateProjectInput` also requires `isDefault`/`status` at the type level even though both are `@readonly` and any caller-supplied value is discarded server-side — see the `@readonly` note under API Keys |
-| `model.Project.update`                                 | Update project fields                                                                                                                                                                                                                                                                                                                                                                            |
-| `model.Project.delete`                                 | Delete project                                                                                                                                                                                                                                                                                                                                                                                   |
-| `procedure.disableProject` / `procedure.enableProject` | Suspend/restore a project (`{ args: { projectId } }`)                                                                                                                                                                                                                                                                                                                                            |
+| Op-id                                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model.Project.list`                                   | List projects (scope to an account via `filters: [{ key: "accountId", value }]`)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `model.Project.get`                                    | Get project by ID                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `model.Project.create`                                 | Create a project — reachable directly (unlike Account/ApiKey). The **caller generates the id** (`cuid2`, client-side) and must supply `defaultLimits` (required, even if just `{}`). `CreateProjectInput` also requires `isDefault`/`status` at the type level even though both are `@readonly` and any caller-supplied value is discarded server-side — see the `@readonly` note under API Keys. `allowedModels`/`projectQuota` are ALSO present (optional) at the type level but silently discarded server-side too — see the row below |
+| `model.Project.update`                                 | Update project fields. `allowedModels` and `projectQuota` are present (optional) on `UpdateProjectInput` at the type level but `@readonly` server-side as of lightbridge-authz#379/#415 — a caller sending either compiles and transmits but the server silently drops it. `setProjectAllowedModels`/`setProjectQuota` (below) are the only write paths for these two fields                                                                                                                                                              |
+| `model.Project.delete`                                 | Delete project                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `procedure.disableProject` / `procedure.enableProject` | Suspend/restore a project (`{ args: { projectId } }`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `procedure.setProjectAllowedModels`                    | The only write path for `Project.allowedModels` (lightbridge-authz#415/#417, ADR-0018 Decision 5) — `{ args: { projectId, allowedModels } }`. Also the write-time validation point: rejects any entry not present in `procedure.listModelCatalog`'s operator-configured catalogue (empty/unconfigured catalogue accepts anything, unchanged behavior). Gated at `project:update`, same as `model.Project.update`                                                                                                                          |
+| `procedure.setProjectQuota`                            | The only write path for `Project.projectQuota` (lightbridge-authz#379/#397) — `{ args: { projectId, projectQuota } }`. Not yet wired to any hook/screen in this frontend as of this writing                                                                                                                                                                                                                                                                                                                                               |
 
 #### `Project` Response Schema
 
 Two fields this doc previously omitted, both real and both `@readonly`/`@unique` in the schema
 (`authz.cstack:76-134`):
 
-| Field             | Type                     | Nullable | Description                                                                                                                                   |
-| ----------------- | ------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`              | `string`                 | No       | Project identifier                                                                                                                            |
-| `accountId`       | `string`                 | No       | Parent account ID                                                                                                                             |
-| `name`            | `string`                 | No       | Project name                                                                                                                                  |
-| `billingPlan`     | `string`                 | No       | Billing plan identifier                                                                                                                       |
-| `billingIdentity` | `string`                 | No       | Who pays for this project. `@unique` — moved here from `Account` by ADR-0006 so one account can bill several projects to different parties    |
-| `projectQuota`    | `string \| undefined`    | **Yes**  | Pooled usage ceiling shared by everyone on the project, drawn from the same governance-tier catalog as `Account.defaultQuota`                 |
-| `isDefault`       | `boolean`                | No       | `true` only for an account's first-ever project (set by a DB trigger, `@readonly`). A default project can be suspended but never hard-deleted |
-| `status`          | `string`                 | No       | `"active"` or `"suspended"`                                                                                                                   |
-| `createdAt`       | `string` (date-time)     | No       | Creation timestamp                                                                                                                            |
-| `updatedAt`       | `string` (date-time)     | No       | Last update timestamp                                                                                                                         |
-| `allowedModels`   | `JsonValue \| undefined` | **Yes**  | Allowlist of model names (absent = all models allowed)                                                                                        |
-| `defaultLimits`   | `JsonValue`              | No       | Default rate limits for this project (opaque JSON blob, e.g. `{ requestsPerSecond, requestsPerDay, concurrentRequests }`)                     |
+| Field             | Type                     | Nullable | Description                                                                                                                                                                          |
+| ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`              | `string`                 | No       | Project identifier                                                                                                                                                                   |
+| `accountId`       | `string`                 | No       | Parent account ID                                                                                                                                                                    |
+| `name`            | `string`                 | No       | Project name                                                                                                                                                                         |
+| `billingPlan`     | `string`                 | No       | Billing plan identifier                                                                                                                                                              |
+| `billingIdentity` | `string`                 | No       | Who pays for this project. `@unique` — moved here from `Account` by ADR-0006 so one account can bill several projects to different parties                                           |
+| `projectQuota`    | `string \| undefined`    | **Yes**  | Pooled usage ceiling shared by everyone on the project, drawn from the same governance-tier catalog as `Account.defaultQuota`                                                        |
+| `isDefault`       | `boolean`                | No       | `true` only for an account's first-ever project (set by a DB trigger, `@readonly`). A default project can be suspended but never hard-deleted                                        |
+| `status`          | `string`                 | No       | `"active"` or `"suspended"`                                                                                                                                                          |
+| `createdAt`       | `string` (date-time)     | No       | Creation timestamp                                                                                                                                                                   |
+| `updatedAt`       | `string` (date-time)     | No       | Last update timestamp                                                                                                                                                                |
+| `allowedModels`   | `JsonValue \| undefined` | **Yes**  | Allowlist of model names (absent = all models allowed). `@readonly` as of lightbridge-authz#415/#417 — write only via `procedure.setProjectAllowedModels`, see the op-id table above |
+| `defaultLimits`   | `JsonValue`              | No       | Default rate limits for this project (opaque JSON blob, e.g. `{ requestsPerSecond, requestsPerDay, concurrentRequests }`)                                                            |
 
 `allowedModels`/`defaultLimits` are cratestack `Json` columns: on the wire (cratestack-cli
-0.7.16, matching the deployed backend) they're plain, untagged values — `{}` stays `{}`,
-`["x"]` stays `["x"]`. There is no client-side tagging/untagging step; the generated client's
-`JsonValue` type is exactly what goes over the wire in both directions. (Earlier revisions of
-this client hand-tagged these fields to match an externally-tagged `Value` wire format from
-cratestack-cli 0.4.16 — removed as part of the 0.7.16 upgrade; see lightbridge-authz#282.)
+0.8.4, this repo's current pin, lockstepped with the deployed backend's `cratestack-pg` pin) they're
+plain, untagged values — `{}` stays `{}`, `["x"]` stays `["x"]`. There is no client-side
+tagging/untagging step; the generated client's `JsonValue` type is exactly what goes over the wire
+in both directions. (Earlier revisions of this client hand-tagged these fields to match an
+externally-tagged `Value` wire format from cratestack-cli 0.4.16 — removed as part of the 0.7.11+
+upgrade; see lightbridge-authz#282.)
 
 ```json
 {
@@ -305,23 +308,31 @@ place in this table at all, on any operation.
 schema's own comments):** `@server_only` (`keyHash`) really is dropped from the generated TS
 shape entirely, on every operation. `@readonly` (`projectId`, `keyPrefix`, `status`, `lastUsedAt`,
 `lastIp`, `revokedAt`, `deletedAt`, `billingPlan` on `ApiKey`; `status` on `Account`; `isDefault`/
-`status` on `Project`) behaves differently: cratestack-cli 0.7.16's TypeScript generator still
-emits every `@readonly` field on `Update<X>Input` (as optional) and — for `Project`, the one model
-with a generic `create` — as **required** on `CreateProjectInput` too
-(`packages/authz-rpc/generated/src/models.ts`,
-`UpdateApiKeyInput`/`UpdateAccountInput`/`UpdateProjectInput`/`CreateProjectInput`). This
-contradicts the schema's own comment on `ApiKey` ("`@readonly` drops a field from BOTH the
-generated `CreateApiKeyInput` and `UpdateApiKeyInput`") and an equivalent assumption this doc
-previously carried — the schema comment describes cratestack's _Rust_-side codegen behavior
-accurately but not its current TypeScript output. The enforcement that actually exists is
-server-side and silent, not a TypeScript compile error: `packages/hooks/src/projects.ts` (lines
-44-47) documents this directly — `buildCreateProjectInput` must still supply
-`isDefault: false`/`status: 'active'` to satisfy `CreateProjectInput`'s required fields, with the
-comment "Any caller-supplied value is ignored server-side, same as `status` above." Treat every
-`@readonly` field the same way for UI purposes: **never surface it as an editable control**, even
-though nothing in the generated types would stop you from wiring one up — the value would compile,
-transmit, and then be silently discarded server-side, not rejected. See `rpc-and-codegen.md` for
-the full convention writeup.
+`status`/`allowedModels`/`projectQuota` on `Project`) behaves differently: cratestack-cli's
+TypeScript generator still emits every `@readonly` field on `Update<X>Input`, and on
+`CreateProjectInput` (the one model with a generic `create`) too — both always as **optional**.
+This differs from what an earlier revision of this doc reported under cratestack-cli 0.7.16
+specifically (`@readonly` fields were **required**, not optional, on `CreateProjectInput` there) —
+re-verified directly against `packages/authz-rpc/generated/src/models.ts` after regenerating
+against cratestack-cli 0.8.4 (this repo's current pin, lockstepped with `lightbridge-authz`'s own
+`cratestack-pg` pin — see `rpc-and-codegen.md`'s "version pin is a lockstep contract" section): the
+generator's `@readonly`-on-`Create*Input` behavior itself changed somewhere between those two
+versions, independent of any schema edit. Either way, the field is never actually dropped from
+either generated input type on any cratestack-cli version this repo has used. This contradicts the
+schema's own comment on `ApiKey` ("`@readonly` drops a field from BOTH the generated
+`CreateApiKeyInput` and `UpdateApiKeyInput`") — the schema comment describes cratestack's
+_Rust_-side codegen behavior accurately but not its TypeScript output on either version. The
+enforcement that actually exists is server-side and silent, not a TypeScript compile error:
+`packages/hooks/src/projects.ts`'s `buildCreateProjectInput` documents this directly —
+`isDefault: false`/`status: 'active'` must still be supplied to satisfy `CreateProjectInput`, with
+the comment "Any caller-supplied value is ignored server-side, same as `status` above." Treat
+every `@readonly` field the same way for UI purposes: **never surface it as an editable control**,
+even though nothing in the generated types would stop you from wiring one up — the value would
+compile, transmit, and then be silently discarded server-side, not rejected.
+`procedure.setProjectAllowedModels`/`procedure.setProjectQuota` are exactly this pattern's answer
+for the two `Project` fields that need to stay editable post-creation — a dedicated procedure, not
+the generic verb, see the Project op-id table above. See `rpc-and-codegen.md` for the full
+convention writeup.
 
 ---
 

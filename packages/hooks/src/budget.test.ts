@@ -56,6 +56,7 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     await requestBudgetRefill({
       accountId: 'acc_1',
       idempotencyKey: 'idem_1',
+      requestedAmountMicros: '30000000',
     });
 
     expect(getBudgetRpcClient).toHaveBeenCalled();
@@ -66,10 +67,13 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     expect(mockAuthzProcedures.requestBudgetRefill).not.toHaveBeenCalled();
   });
 
-  // ADR-0015 (lightbridge-authz#386): `requestedAmountMicros` is the caller-chosen amount --
-  // proves it reaches the wire verbatim, not silently dropped by this function's own arg
-  // destructuring/repacking.
-  it('requestBudgetRefill forwards requestedAmountMicros verbatim when supplied', async () => {
+  // ADR-0015 (lightbridge-authz#386, made mandatory on the wire by #387): `requestedAmountMicros`
+  // is the caller-chosen amount -- proves it reaches the wire verbatim, not silently dropped by
+  // this function's own arg destructuring/repacking. The old "omitted" scenario this block used to
+  // also cover is gone: #387 removed the pre-ADR-0015 server-side derivation it exercised, and
+  // `RequestBudgetRefillArgs.requestedAmountMicros` is required now for exactly that reason (see
+  // `budget.ts`'s NOTE on this field) -- there is no longer a real omission to test.
+  it('requestBudgetRefill forwards requestedAmountMicros verbatim', async () => {
     mockBudgetProcedures.requestBudgetRefill.mockResolvedValueOnce({ id: 'aug_1' });
 
     await requestBudgetRefill({
@@ -81,20 +85,6 @@ describe('budget procedures route through getBudgetRpcClient, never getAuthzRpcC
     expect(mockBudgetProcedures.requestBudgetRefill).toHaveBeenCalledWith({
       args: expect.objectContaining({ requestedAmountMicros: '30000000' }),
     });
-  });
-
-  // Omitting it must stay a real omission (pre-ADR-0015 server-side derivation), not silently
-  // coerced to `undefined`-as-a-string or some other sentinel.
-  it('requestBudgetRefill omits requestedAmountMicros when the caller has none to send', async () => {
-    mockBudgetProcedures.requestBudgetRefill.mockResolvedValueOnce({ id: 'aug_1' });
-
-    await requestBudgetRefill({
-      accountId: 'acc_1',
-      idempotencyKey: 'idem_1',
-    });
-
-    const call = mockBudgetProcedures.requestBudgetRefill.mock.calls[0]![0];
-    expect(call.args.requestedAmountMicros).toBeUndefined();
   });
 
   it('getMyBudgetRefillLadder calls the budget client only, with just the period', async () => {

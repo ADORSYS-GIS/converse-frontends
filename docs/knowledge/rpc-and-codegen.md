@@ -36,7 +36,7 @@ flowchart TD
     subgraph gen["Generated, gitignored: authz-rpc/generated"]
         genfiles["client.ts, runtime.ts, models.ts,<br/>queries.ts, links.ts, react-query.ts unused"]
     end
-    cli["cratestack generate-typescript CLI<br/>cratestack/cli pinned exact 0.7.16"]
+    cli["cratestack generate-typescript CLI<br/>cratestack/cli pinned exact 0.8.4"]
 
     schema -->|pnpm install triggers postinstall, or turbo run codegen cached| cli
     cli -->|writes| genfiles
@@ -262,7 +262,7 @@ or not the schema uses it.
 
 ### `Json` fields are untagged on the wire
 
-As of backend v3.0.0 / cratestack-cli 0.7.11+ (this repo pinned at exactly `0.7.16`), `Json`
+As of backend v3.0.0 / cratestack-cli 0.7.11+ (this repo pinned at exactly `0.8.4`), `Json`
 columns (`Project.allowedModels`, `Project.defaultLimits`) are plain, untagged values on the wire —
 `{}` stays `{}`, `["x"]` stays `["x"]`. An older tagging layer (`tagProjectJsonFields`, matching an
 externally-tagged `Value` format from cratestack-cli 0.4.16) was deleted as part of the 0.7.16
@@ -289,12 +289,21 @@ discussion in §2:
   entirely, on every operation — confirmed absent from `ApiKey`/`UpdateApiKeyInput` in
   `generated/src/models.ts`.
 - `@readonly` is **not** dropped from `Update<X>Input` (present as optional) or, for `Project` (the
-  one model with a generic `create`), from `CreateProjectInput` (present as **required**). This
-  contradicts the schema's own comment.
-- The actual enforcement is server-side and silent: `packages/hooks/src/projects.ts:44-47`
-  documents this directly — `buildCreateProjectInput` must still supply `isDefault: false`/
-  `status: 'active'` to satisfy `CreateProjectInput`'s required fields, with the comment _"Any
-  caller-supplied value is ignored server-side, same as `status` above."_
+  one model with a generic `create`), from `CreateProjectInput` -- present there too, though as of
+  cratestack-cli **0.8.4** (this repo's current pin) always **optional**, not required. An earlier
+  revision of this doc reported it as required under 0.7.16 specifically -- re-verified after the
+  0.7.16 → 0.8.4 lockstep bump (`fix/417-set-project-allowed-models`, companion to
+  lightbridge-authz#415/#417): the generator's own behavior here changed between those two
+  versions, independent of any schema edit. Either way, the field is never actually dropped from
+  either generated input type on any version this repo has used. This contradicts the schema's own
+  comment.
+- The actual enforcement is server-side and silent: `packages/hooks/src/projects.ts`'s
+  `buildCreateProjectInput` documents this directly — it must still supply `isDefault: false`/
+  `status: 'active'` to satisfy `CreateProjectInput`, with the comment _"Any caller-supplied value
+  is ignored server-side, same as `status` above."_ `allowedModels`/`projectQuota` joined
+  `isDefault`/`status` in this same `@readonly` bucket via lightbridge-authz#415/#379 --
+  `procedure.setProjectAllowedModels`/`procedure.setProjectQuota` are the dedicated-procedure
+  answer for those two, matching `updateAccountDefaultQuota`'s precedent above.
 
 **What this means for UI, precisely:** a field marked `@readonly` in the schema cannot safely be
 made editable, no matter what a design doc or ticket says — but that guardrail today is a UI/hook
@@ -322,10 +331,10 @@ however it's composed, is an exact-match `key=value` comparison.
 **Concretely, this determines how a searchable picker must work:**
 `packages/ui/src/components/picker/component.tsx`'s `PickerList` filters entirely client-side —
 `options.filter((option) => option.label.toLowerCase().includes(needle) || ...)` — over whatever
-`options` array its caller passes in. Its own doc comment states the constraint plainly: *"Filters
+`options` array its caller passes in. Its own doc comment states the constraint plainly: _"Filters
 over exactly the `options` it's given — it is the caller's responsibility to pass the *complete*
 set (not one page of it), otherwise search would silently hide items that were never fetched. This
-component performs no fetching itself, so it cannot detect that on its own."* There is no code path
+component performs no fetching itself, so it cannot detect that on its own."_ There is no code path
 anywhere in this package that sends a partial/typed search string to the RPC surface — a searchable
 picker over a large collection is, today, structurally a "load everything, then filter in memory"
 problem, not a "query the server as you type" one.

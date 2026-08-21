@@ -52,7 +52,6 @@ export type CreateProjectFields = {
    * must be distinguishable per project, not merely per person.
    */
   billingIdentity: string;
-  allowedModels?: JsonValue;
   /** Pooled spending ceiling for everyone on the project, drawn from the governance tier catalogue. */
   projectQuota?: string;
 };
@@ -62,7 +61,6 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
     id: createId(),
     accountId,
     name: fields.name,
-    allowedModels: fields.allowedModels,
     defaultLimits: {},
     billingPlan: fields.billingPlan,
     billingIdentity: fields.billingIdentity,
@@ -289,6 +287,53 @@ export function useUpdateProject() {
 
   return {
     isPending: mutation.isPending,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
+
+/**
+ * Sets `Project.allowedModels` (lightbridge-authz#415/#417, ADR-0018 Decision 5). `allowedModels`
+ * is `@readonly` on `model.Project` as of that change -- neither the generic `model.Project.create`
+ * nor `model.Project.update` verb can write it any more, silently: the field is still present
+ * (optional) on both generated `Create`/`UpdateProjectInput` types, so a caller sending it through
+ * `useUpdateProject` would still typecheck and transmit, but the server drops it without error
+ * (same class of silent-no-op the `@readonly` convention already produces elsewhere -- see
+ * `buildCreateProjectInput`'s `isDefault`/`status` comment above). This hand-written procedure is
+ * now the only write path, so every allowlist edit MUST go through it, never through
+ * `useUpdateProject`.
+ *
+ * Unlike `useUpdateProject`/`useDisableProject`, a rejection here is a real, reachable outcome the
+ * caller must render: the server validates every entry against the operator-configured model
+ * catalogue (`procedure.listModelCatalog`) and returns a validation error naming the offending
+ * id(s), on top of the usual `project:update` permission gate. Exposes `error` for exactly that
+ * reason -- swallowing it would recreate the silent-allowlist-inert bug this procedure exists to
+ * prevent (lightbridge-authz#282/#283).
+ */
+export function useSetProjectAllowedModels() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      allowedModels,
+    }: {
+      projectId: string;
+      accountId: string;
+      allowedModels: JsonValue | null;
+    }) => {
+      const updated = await getAuthzRpcClient().procedures.setProjectAllowedModels({
+        args: { projectId, allowedModels },
+      });
+      return toProject(updated);
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
     mutateAsync: mutation.mutateAsync,
   };
 }

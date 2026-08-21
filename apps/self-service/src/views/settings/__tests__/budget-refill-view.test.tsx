@@ -19,17 +19,14 @@ function renderView(overrides: Partial<React.ComponentProps<typeof BudgetRefillV
 // `allowedAmountsMicros` defaults to `[]` (ADR-0015's picker is empty by default). Tests that
 // exercise the picker itself pass their own `allowedAmountsMicros` explicitly.
 //
-// `currentTier`/`currentTierAmountMicros`/`ladder` below are dummy values present ONLY because
-// `MyBudgetRefillLadder` (the generated wire type) still requires them until the backend removal
-// lands -- see the module comment on `packages/hooks/src/budget-tiers.ts`. `BudgetRefillView`
-// itself reads none of them; no assertion in this file may depend on these values.
+// `currentTier`/`currentTierAmountMicros`/`nextTier`/`nextTierAmountMicros`/`ladder` used to be
+// required here as dummy values purely because the generated `MyBudgetRefillLadder` wire type
+// still carried them -- lightbridge-authz#387 has now removed all five from that type, so there is
+// nothing left to fake. `BudgetRefillView` itself never read any of them.
 function baseLadder(overrides: Partial<MyBudgetRefillLadder> = {}): MyBudgetRefillLadder {
   return {
     budgetAccountId: 'acc-1',
     period: PERIOD,
-    currentTier: 'b-15',
-    currentTierAmountMicros: '15000000',
-    ladder: [],
     allowedAmountsMicros: [],
     ...overrides,
   };

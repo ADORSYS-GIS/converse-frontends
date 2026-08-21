@@ -6,9 +6,11 @@ import { currentBudgetPeriod } from './budget-tiers';
 
 // `BudgetLadderRung` (the pre-ADR-0015 ladder-position type) is deliberately NOT re-exported here
 // -- its only consumer, `LadderVisibilityPanel` in budget-refill-view.tsx, was removed: under a
-// flat, admin-configured amount set there is no ladder *position* left to display. The field still
-// exists on the wire (`MyBudgetRefillLadder.ladder`) until the backend removal lands (see
-// budget-tiers.ts's module comment), but nothing in this repo should read it in the meantime.
+// flat, admin-configured amount set there is no ladder *position* left to display.
+// lightbridge-authz#387 has now removed `currentTier`/`currentTierAmountMicros`/`nextTier`/
+// `nextTierAmountMicros`/`ladder` from `MyBudgetRefillLadder` on the wire entirely (they were kept
+// byte-for-byte additive alongside `allowedAmountsMicros` only until this frontend switched over
+// and deployed -- see that PR's description). Nothing in this repo reads them any more either.
 export type { AugmentationRequest, MyBudgetRefillLadder } from '@lightbridge/authz-rpc';
 
 // Pure formatting/tier constants live in ./budget-tiers.ts (its own dependency-free package
@@ -68,13 +70,15 @@ export function useMyBudgetRefillLadder(period: string, enabled = true) {
 
 /**
  * NOTE ON `requestedAmountMicros` (ADR-0015): lightbridge-authz#386 reversed the "caller chooses
- * nothing" model this type was originally built under -- `RequestBudgetRefillInput` now carries
- * an optional `requestedAmountMicros`, the caller-chosen amount, checked server-side against the
- * active policy's offered set (`MyBudgetRefillLadder.allowedAmountsMicros`) before evaluation.
- * Omitting it preserves the pre-ADR-0015 behavior (`RefillService::request_refill` resolving
- * `current_tier.next()` itself) -- this hook always sends it once a caller has picked an amount
- * from `useMyBudgetRefillLadder`'s `allowedAmountsMicros`; see `budget-refill-screen.tsx` for the
- * selection UI.
+ * nothing" model this type was originally built under -- the caller-chosen amount, checked
+ * server-side against the active policy's offered set (`MyBudgetRefillLadder.allowedAmountsMicros`)
+ * before evaluation. It started as optional on the wire (`RequestBudgetRefillInput`) while the
+ * pre-ADR-0015 server-side `current_tier.next()` derivation still existed as a fallback;
+ * lightbridge-authz#387 removed that fallback and made the field REQUIRED on the wire, once this
+ * frontend was confirmed to always send it. Required here too as of that change, not merely by
+ * convention -- there is no longer a server-side path that runs without it. Always sourced from
+ * `useMyBudgetRefillLadder`'s `allowedAmountsMicros`; see `budget-refill-screen.tsx` for the
+ * selection UI, which already never calls this hook before a caller has picked one.
  */
 export type RequestBudgetRefillArgs = {
   accountId: string;
@@ -92,10 +96,10 @@ export type RequestBudgetRefillArgs = {
   idempotencyKey: string;
   /**
    * The amount the caller picked from `MyBudgetRefillLadder.allowedAmountsMicros` (ADR-0015).
-   * Omitted only when no ladder data was available to pick from -- see `budget-refill-screen.tsx`.
-   * A raw micro-USD decimal string, never a formatted display value.
+   * Required as of lightbridge-authz#387 -- see the NOTE above this type. A raw micro-USD decimal
+   * string, never a formatted display value.
    */
-  requestedAmountMicros?: string;
+  requestedAmountMicros: string;
 };
 
 /**

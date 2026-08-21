@@ -17,9 +17,15 @@ let mockDisableProjectError: unknown = null;
 let mockEnableProjectError: unknown = null;
 let mockSetDefaultProjectError: unknown = null;
 let mockAddMemberError: unknown = null;
-// Captures every `updateProject.mutateAsync` call so the model-toggle plumbing tests below can
-// assert exactly what `saveModels` sent to the RPC layer, without stubbing that logic away.
+// lightbridge-authz#415/#417: `allowedModels` is now `@readonly` on the generic model verbs --
+// `setProjectAllowedModels` is the only write path. Set per-test to exercise `modelsError`.
+let mockSetAllowedModelsError: unknown = null;
+// Captures every `setAllowedModels.mutateAsync` call so the model-toggle plumbing tests below can
+// assert exactly what `saveModels` sent to the RPC layer, without stubbing that logic away. Also
+// keeps a (now-unused-by-`saveModels`) spy on `updateProject.mutateAsync` so a regression that
+// silently reintroduces the old, now-inert write path is caught rather than passing by accident.
 const mockUpdateProjectMutateAsync = jest.fn();
+const mockSetAllowedModelsMutateAsync = jest.fn();
 // Mutated per-test to control what `projectModels()` (screen.tsx) sees as the project's current
 // `allowedModels` -- the input the toggle-off/toggle-on tests need to exercise the real branch.
 let mockProjectAllowedModels: string[] | undefined;
@@ -69,6 +75,11 @@ jest.mock('@lightbridge/hooks', () => {
       isPending: false,
       error: null,
     }),
+    useSetProjectAllowedModels: () => ({
+      mutateAsync: mockSetAllowedModelsMutateAsync,
+      isPending: false,
+      error: mockSetAllowedModelsError,
+    }),
     useDisableProject: () => ({
       mutateAsync: jest.fn(),
       isPending: false,
@@ -104,12 +115,14 @@ jest.mock('../views/settings/project-settings-view', () => {
       statusError?: string | null;
       memberError?: string | null;
       setDefaultError?: string | null;
+      modelsError?: string | null;
       onToggleModel: (model: string, checked: boolean) => void;
     }) => (
       <>
         <Text testID="status-error">{props.statusError ?? ''}</Text>
         <Text testID="member-error">{props.memberError ?? ''}</Text>
         <Text testID="set-default-error">{props.setDefaultError ?? ''}</Text>
+        <Text testID="models-error">{props.modelsError ?? ''}</Text>
         {/* Stand-ins for pressing a model checkbox -- exercises the real `handleToggleModel` /
          * `saveModels` plumbing in project-settings-screen.tsx, not a re-implementation of it. */}
         <Pressable
@@ -132,8 +145,10 @@ beforeEach(() => {
   mockEnableProjectError = null;
   mockSetDefaultProjectError = null;
   mockAddMemberError = null;
+  mockSetAllowedModelsError = null;
   mockProjectAllowedModels = undefined;
   mockUpdateProjectMutateAsync.mockReset().mockResolvedValue(undefined);
+  mockSetAllowedModelsMutateAsync.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcError, not an Axios shape', () => {
@@ -200,6 +215,7 @@ describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcE
     expect(screen.getByTestId('status-error').props.children).toBe('');
     expect(screen.getByTestId('member-error').props.children).toBe('');
     expect(screen.getByTestId('set-default-error').props.children).toBe('');
+    expect(screen.getByTestId('models-error').props.children).toBe('');
   });
 });
 
@@ -207,8 +223,17 @@ describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcE
 // `Project.allowedModels` NULL/`[]` means "all models allowed" server-side, not "no models
 // allowed" -- see the module doc comment on `handleToggleModel` in project-settings-screen.tsx.
 // These exercise the real screen-level plumbing (`handleToggleModel` -> `saveModels` ->
-// `updateProject.mutateAsync`), not a re-implementation of it, via the `onToggleModel` stand-ins
-// wired into the mocked view above.
+// `setAllowedModels.mutateAsync`), not a re-implementation of it, via the `onToggleModel`
+// stand-ins wired into the mocked view above.
+//
+// lightbridge-authz#415/#417: `allowedModels` moved from `model.Project.update` to the dedicated
+// `setProjectAllowedModels` procedure (`@readonly` on the generic verb now). Every test in this
+// block asserts the NEW call shape (`projectId`/`allowedModels`, not `id`/`input.allowedModels`)
+// and that `updateProject.mutateAsync` -- the old, now write-inert path -- is never touched by a
+// model-toggle at all. Proved to fail for the right reason first: before this file's mocks were
+// updated to know about `useSetProjectAllowedModels`, every test in this suite failed with
+// `TypeError: (0 , _hooks.useSetProjectAllowedModels) is not a function`, because the screen calls
+// the hook unconditionally on every render -- not merely a stale assertion on an unreached branch.
 describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allowedModels payload', () => {
   it('unchecking the only currently-allowed model sends [] (all models allowed), not omitted or dropped', async () => {
     mockProjectAllowedModels = ['gpt-4o'];
@@ -216,11 +241,12 @@ describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allow
     await render(<ProjectSettingsScreen />);
     await fireEvent.press(screen.getByTestId('toggle-gpt-4o-off'));
 
-    expect(mockUpdateProjectMutateAsync).toHaveBeenCalledWith({
-      id: 'proj-1',
+    expect(mockSetAllowedModelsMutateAsync).toHaveBeenCalledWith({
+      projectId: 'proj-1',
       accountId: 'acc-1',
-      input: { allowedModels: [] },
+      allowedModels: [],
     });
+    expect(mockUpdateProjectMutateAsync).not.toHaveBeenCalled();
   });
 
   it('checking an additional model sends exactly the resulting subset, not the whole catalogue', async () => {
@@ -229,10 +255,33 @@ describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allow
     await render(<ProjectSettingsScreen />);
     await fireEvent.press(screen.getByTestId('toggle-claude-on'));
 
-    expect(mockUpdateProjectMutateAsync).toHaveBeenCalledWith({
-      id: 'proj-1',
+    expect(mockSetAllowedModelsMutateAsync).toHaveBeenCalledWith({
+      projectId: 'proj-1',
       accountId: 'acc-1',
-      input: { allowedModels: ['gpt-4o', 'claude-sonnet-5'] },
+      allowedModels: ['gpt-4o', 'claude-sonnet-5'],
     });
+    expect(mockUpdateProjectMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a real setProjectAllowedModels rejection (403, or #415 catalogue validation) as modelsError, not a silent no-op', async () => {
+    mockProjectAllowedModels = ['gpt-4o'];
+    mockSetAllowedModelsError = {
+      name: 'CratestackRpcError',
+      status: 422,
+      code: 'validation_error',
+      body: {
+        code: 'validation_error',
+        message: 'allowedModels contains an id not in the model catalogue: claude-sonnet-5',
+      },
+      message:
+        'RPC call failed with code validation_error (status 422): allowedModels contains an id not in the model catalogue: claude-sonnet-5',
+    };
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('toggle-claude-on'));
+
+    expect(screen.getByTestId('models-error').props.children).toBe(
+      'allowedModels contains an id not in the model catalogue: claude-sonnet-5'
+    );
   });
 });

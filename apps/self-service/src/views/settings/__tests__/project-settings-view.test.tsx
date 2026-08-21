@@ -210,6 +210,21 @@ describe('ProjectSettingsView', () => {
     expect(screen.getByText('No models are configured in the catalogue yet.')).toBeTruthy();
   });
 
+  // lightbridge-authz#415/#417: `setProjectAllowedModels` can now reject a save (403 from
+  // `project:update`, or a catalogue-validation rejection naming an unknown model id) -- the view
+  // must render that, not swallow it. This is the presentational half of the guarantee; the
+  // screen-level test (`__tests__/project-settings-screen.test.tsx`) proves the real hook's
+  // `error` actually reaches this prop.
+  it('renders modelsError text when the allowlist save is rejected', async () => {
+    await renderView({
+      modelsError: 'allowedModels contains an id not in the model catalogue: retired-model',
+    });
+
+    expect(
+      screen.getByText('allowedModels contains an id not in the model catalogue: retired-model')
+    ).toBeTruthy();
+  });
+
   it('shows the allowlist-enforcement notice for a project with a non-empty allowlist', async () => {
     await renderView();
 

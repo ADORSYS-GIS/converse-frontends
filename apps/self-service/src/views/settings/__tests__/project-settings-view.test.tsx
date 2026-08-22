@@ -245,32 +245,59 @@ describe('ProjectSettingsView', () => {
   // today (`allowlist`, `deny_all`) still render distinctly rather than looking like a plain empty
   // allowlist -- see the "identical UI state, opposite meaning" trap this exists to avoid.
   describe('model access policy display', () => {
-    it('shows "All models allowed" for the default allow_all policy', async () => {
+    // `project`'s base fixture already has a non-empty `allowedModels` (`['gpt-4o']`) -- this is
+    // deliberately the INTERIM case (ai-helm-values#295): the gateway restricts to a non-empty
+    // list regardless of `modelPolicy` today, so `allow_all` + non-empty must show the interim
+    // callout, not silently imply the checked list has no effect.
+    it('shows "All models allowed" for the default allow_all policy, plus the interim restricted-today callout when the list is non-empty', async () => {
       await renderView({ project: { ...project, modelPolicy: 'allow_all' } });
 
       expect(screen.getByText('Model access policy')).toBeTruthy();
       expect(screen.getByText('All models allowed')).toBeTruthy();
       expect(screen.queryByText(/blocks every model/)).toBeNull();
+      expect(
+        screen.getByText(
+          'This project’s stored policy is "All models allowed," but a temporary safeguard currently restricts it to the 1 model checked below.'
+        )
+      ).toBeTruthy();
+      // The restricted-count summary must also read as restricted, matching what the gateway
+      // actually does today -- never "all models allowed" alongside a non-empty checked list.
+      expect(screen.getByText('1 model is allowed.')).toBeTruthy();
     });
 
-    it('labels a non-empty allowlist policy correctly and shows the restricted-count summary', async () => {
+    // The genuinely-permissive case: allow_all with nothing checked. No interim callout here --
+    // the gateway's stopgap only kicks in for a non-empty list, so this state is unaffected.
+    it('shows the plain all-models copy for allow_all with an empty list, and no interim callout', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'allow_all', allowedModels: [] } });
+
+      expect(screen.getByText('All models are allowed, including any added later.')).toBeTruthy();
+      expect(screen.queryByText(/temporary safeguard/)).toBeNull();
+    });
+
+    it('labels a non-empty allowlist policy correctly and shows the restricted-count summary, with no interim callout (already accurate)', async () => {
       await renderView({ project: { ...project, modelPolicy: 'allowlist' } });
 
       expect(screen.getByText('Restricted to an allowlist')).toBeTruthy();
       expect(screen.getByText('1 model is allowed.')).toBeTruthy();
+      // `allowlist`'s own badge/summary already say "restricted" -- the interim callout exists
+      // only to correct `allow_all`'s otherwise-misleading "All models allowed" badge, so it must
+      // not also fire here.
+      expect(screen.queryByText(/temporary safeguard/)).toBeNull();
     });
 
     // The trap: an empty `allowedModels` means "everything" under allow_all but "nothing" under
     // allowlist -- identical checkbox state, opposite real-world meaning. This must never render
-    // the same "All models are allowed" copy in both cases.
-    it('shows a distinct "nothing allowed" summary for an empty allowlist, not the all-models copy', async () => {
+    // the same "All models are allowed" copy in both cases. Also: this exact combination is one
+    // the app can no longer create itself (lightbridge-authz#431 refuses it server-side), so the
+    // copy must say that plainly rather than implying a caller could still reach it today.
+    it('shows a distinct "nothing allowed, legacy-only" summary for an empty allowlist, not the all-models copy', async () => {
       await renderView({
         project: { ...project, modelPolicy: 'allowlist', allowedModels: [] },
       });
 
       expect(
         screen.getByText(
-          'The allowlist is empty — no models are currently allowed for this project.'
+          'The allowlist is empty, so no models are currently allowed for this project. New saves can no longer create this combination — if you see this, it predates that safeguard.'
         )
       ).toBeTruthy();
       expect(screen.queryByText('All models are allowed, including any added later.')).toBeNull();

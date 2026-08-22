@@ -295,20 +295,39 @@ const resources = {
             'The model catalogue is unavailable right now. Try again later to change which models are allowed.',
           modelsCatalogEmpty: 'No models are configured in the catalogue yet.',
           modelUnknownBadge: 'No longer in catalogue',
-          // ADR-0018's `Project.modelPolicy` -- read-only here (no `setProjectModelPolicy` write
-          // path exists yet, see that field's schema comment). Shown so the checkbox list below is
-          // never read out of context: an empty `allowedModels` means "everything" under
-          // `allow_all` but "nothing" under `allowlist` -- identical UI state, opposite meaning,
-          // decided entirely by this field. `deny_all` additionally means the checkboxes below
-          // have no effect at all, so that state gets its own callout, not a silent empty list.
+          // ADR-0018's `Project.modelPolicy` -- read-only here (no editor built yet, see that
+          // field's schema comment and `ModelPolicy`'s doc comment in project-settings-view.tsx
+          // for the now-landed `setProjectModelPolicy` contract this UI still needs to wire up).
+          // Shown so the checkbox list below is never read out of context: an empty
+          // `allowedModels` means "everything" under `allow_all` but "nothing" under `allowlist`
+          // -- identical UI state, opposite meaning, decided entirely by this field. `deny_all`
+          // additionally means the checkboxes below have no effect at all, so that state gets its
+          // own callout, not a silent empty list.
           modelPolicyLabel: 'Model access policy',
           modelPolicyAllowAll: 'All models allowed',
           modelPolicyAllowlist: 'Restricted to an allowlist',
           modelPolicyDenyAll: 'All models blocked',
+          // `allowlist` + an empty `allowedModels` is a state this app can no longer produce
+          // itself -- lightbridge-authz#431's `setProjectModelPolicy` refuses it with a 400 (and
+          // no write path to `allowlist` existed before that procedure at all) -- but a
+          // pre-existing row could still carry it, so it must still render, honestly labelled as
+          // the legacy state it is rather than something a caller could arrive at today.
           modelsSummaryAllowlistEmpty:
-            'The allowlist is empty — no models are currently allowed for this project.',
+            'The allowlist is empty, so no models are currently allowed for this project. New saves can no longer create this combination — if you see this, it predates that safeguard.',
           modelsDenyAllNotice:
             'This project blocks every model regardless of the selections below. Change the access policy to let any of them take effect.',
+          // INTERIM -- ai-helm-values#295 (commit 614cb5da) restored a gateway-side
+          // `allowedModels` membership check as a stopgap for a real bypass (a key scoped to two
+          // models was served a third, because #418 shipped `modelPolicy` `@readonly` with no way
+          // to reach `allowlist`, so `allowedModels` was inert). The gateway now restricts to a
+          // non-empty `allowedModels` regardless of `modelPolicy`, including under `allow_all` --
+          // this notice says so plainly rather than letting the "All models allowed" badge above
+          // imply the checked list has no effect. Remove once `setProjectModelPolicy` is wired up
+          // here and a non-empty list under `allow_all` is no longer reachable.
+          modelsAllowAllInterimRestrictedNotice_one:
+            'This project’s stored policy is "All models allowed," but a temporary safeguard currently restricts it to the 1 model checked below.',
+          modelsAllowAllInterimRestrictedNotice_other:
+            'This project’s stored policy is "All models allowed," but a temporary safeguard currently restricts it to the {{count}} models checked below.',
           // Surfaced whenever `allowedModels` carries an id the catalogue no longer recognizes
           // (see `buildModelRows`'s `isUnknown` rows) -- the server rejects the whole save while
           // any such id is present, so this is shown proactively, not only after a failed save.

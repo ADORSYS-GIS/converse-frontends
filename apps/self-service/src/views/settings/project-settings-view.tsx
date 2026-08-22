@@ -86,6 +86,19 @@ const buildModelRows = (catalog: ModelCatalogEntry[], models: string[]): ModelRo
  * narrow it itself. Mirrors the backend's own fail-closed parse
  * (`lightbridge_authz_core::dto::ModelPolicy::from(String)`): an unrecognized value must render as
  * the strictest state, `deny_all`, never silently as the permissive `allow_all` default.
+ *
+ * No editor exists for this field yet -- follow-up work, not this PR (the lockout fix below is
+ * the urgent piece). `lightbridge-authz` PR #431 has since landed `procedure.setProjectModelPolicy`
+ * -- three decisions from its contract that shape the eventual toggle, noted here so whoever
+ * builds it doesn't have to re-derive them:
+ *   1. `allowlist` + an empty `allowedModels` is REFUSED (400), not merely warned -- `deny_all`
+ *      already expresses "block everything", so the toggle UI must never let a caller reach that
+ *      combination (e.g. disable switching to `allowlist` while the list is empty, or force a
+ *      selection first).
+ *   2. `allowedModels` is PRESERVED across policy changes in both directions -- toggling
+ *      restriction off and back on restores the prior selection rather than clearing it.
+ *   3. An unrecognized policy value is refused server-side too, never coerced -- consistent with
+ *      this file's own fail-closed `normalizeModelPolicy` below.
  */
 type ModelPolicy = 'allow_all' | 'allowlist' | 'deny_all';
 
@@ -287,27 +300,38 @@ export function ProjectSettingsView({
   const modelPolicy = normalizeModelPolicy(project?.modelPolicy);
   const modelRows = buildModelRows(modelCatalog, models);
   const staleModelIds = modelRows.filter((row) => row.isUnknown).map((row) => row.id);
-  // `deny_all` ignores `allowedModels` entirely (both the schema's own comment and
-  // `lightbridge_authz_core::dto::ModelPolicy`'s doc comment are explicit about this) -- the
-  // per-model summary line would be actively misleading next to the deny_all callout below, so it
-  // is skipped in favor of that callout alone.
+
+  // INTERIM, not the steady-state design -- ai-helm-values PR #295 (commit 614cb5da) merged a
+  // gateway stopgap after the repo owner measured a real bypass: a key scoped to
+  // `[adorsys-frontend-pro, qwen3-5-2b-local]` still got a 200 for `minimax-m2p5`, because #418
+  // defaulted every project to `allow_all` and shipped `modelPolicy` `@readonly` with no write
+  // path -- `allowlist` was unreachable, so `allowedModels` was inert for every caller while this
+  // screen still said "N models are allowed." The gateway's `lightbridge-model-allowed` predicate
+  // is now a conjunction -- the `modelPolicy` gate AND a restored `allowedModels` membership test
+  // -- so a NON-EMPTY `allowedModels` restricts regardless of `modelPolicy` today, including under
+  // `allow_all`. `listRestrictsToday` names that combined, *effective* behavior so the copy below
+  // never claims a checked list is ignored when the gateway is in fact enforcing it.
   //
-  // For every other case this deliberately preserves the pre-ADR-0018 reading of a *non-empty*
-  // `allowedModels` (still "N models are allowed", regardless of `allow_all` vs `allowlist`) --
-  // the one place the backend's own docs (`AGENTS.md`'s `projects` table entry,
-  // `ModelPolicy`'s Rust doc comment) are unambiguous is the *empty*-list case: "all models
-  // allowed" under `allow_all`, but "nothing" under `allowlist`. That collapse -- identical UI
-  // state (nothing checked), opposite real-world meaning -- is exactly the ambiguity ADR-0018
-  // introduced the enum to kill, so it is the one case handled specially here rather than
-  // guessing at enforcement semantics the docs don't spell out for the non-empty case.
+  // REMOVE TRIGGER: once `lightbridge-authz`#431's `setProjectModelPolicy` write path is wired up
+  // here (this PR's own follow-up -- see the `ModelPolicy` type's doc comment above for that
+  // procedure's contract) and a project can actually reach `allowlist`, a non-empty list under a
+  // stored `allow_all` should no longer be a state this app can produce. At that point this can
+  // collapse back to a plain switch on `modelPolicy` alone, and the interim callout below can go.
+  const listRestrictsToday = modelPolicy !== 'deny_all' && models.length > 0;
+
+  // `deny_all` ignores `allowedModels` entirely regardless of content (both the schema's own
+  // comment and `ModelPolicy`'s Rust doc comment are explicit about this, and the stopgap above
+  // does not change it -- `deny_all` already fails the policy half of the conjunction on its own)
+  // -- the per-model summary line would be actively misleading next to the deny_all callout below,
+  // so it is skipped in favor of that callout alone.
   const modelsSummaryKey =
     modelPolicy === 'deny_all'
       ? null
-      : modelPolicy === 'allowlist' && models.length === 0
-        ? 'settings.project.modelsSummaryAllowlistEmpty'
-        : models.length === 0
-          ? 'settings.project.modelsEmpty'
-          : 'settings.project.modelsRestrictedSummary';
+      : listRestrictsToday
+        ? 'settings.project.modelsRestrictedSummary'
+        : modelPolicy === 'allowlist'
+          ? 'settings.project.modelsSummaryAllowlistEmpty'
+          : 'settings.project.modelsEmpty';
 
   const trimmedNewMemberId = newMemberId.trim();
 
@@ -518,6 +542,18 @@ export function ProjectSettingsView({
 
                     {modelPolicy === 'deny_all' ? (
                       <Callout tone="error">{t('settings.project.modelsDenyAllNotice')}</Callout>
+                    ) : null}
+
+                    {/* INTERIM -- see `listRestrictsToday`'s doc comment above for the full
+                     * mechanism and removal trigger. Only `allow_all` needs this extra callout:
+                     * `allowlist`'s own badge/summary already read as "restricted" on their own,
+                     * so there is no gap between what they say and what the gateway does today. */}
+                    {modelPolicy === 'allow_all' && listRestrictsToday ? (
+                      <Callout tone="warning">
+                        {t('settings.project.modelsAllowAllInterimRestrictedNotice', {
+                          count: models.length,
+                        })}
+                      </Callout>
                     ) : null}
 
                     {modelsSummaryKey ? (

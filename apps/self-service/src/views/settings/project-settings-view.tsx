@@ -4,6 +4,7 @@ import type { ModelCatalogEntry } from '@lightbridge/authz-rpc';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Checkbox,
   designTokens,
@@ -79,6 +80,43 @@ const buildModelRows = (catalog: ModelCatalogEntry[], models: string[]): ModelRo
   ];
 };
 
+/**
+ * ADR-0018's three-value access-control policy on `Project.modelPolicy`. Plain `String` on the
+ * wire (this schema has no enum construct -- see the field's own schema comment), so the UI must
+ * narrow it itself. Mirrors the backend's own fail-closed parse
+ * (`lightbridge_authz_core::dto::ModelPolicy::from(String)`): an unrecognized value must render as
+ * the strictest state, `deny_all`, never silently as the permissive `allow_all` default.
+ *
+ * No editor exists for this field yet -- follow-up work, not this PR (the lockout fix below is
+ * the urgent piece). `lightbridge-authz` PR #431 has since landed `procedure.setProjectModelPolicy`
+ * -- three decisions from its contract that shape the eventual toggle, noted here so whoever
+ * builds it doesn't have to re-derive them:
+ *   1. `allowlist` + an empty `allowedModels` is REFUSED (400), not merely warned -- `deny_all`
+ *      already expresses "block everything", so the toggle UI must never let a caller reach that
+ *      combination (e.g. disable switching to `allowlist` while the list is empty, or force a
+ *      selection first).
+ *   2. `allowedModels` is PRESERVED across policy changes in both directions -- toggling
+ *      restriction off and back on restores the prior selection rather than clearing it.
+ *   3. An unrecognized policy value is refused server-side too, never coerced -- consistent with
+ *      this file's own fail-closed `normalizeModelPolicy` below.
+ */
+type ModelPolicy = 'allow_all' | 'allowlist' | 'deny_all';
+
+const normalizeModelPolicy = (value: string | undefined): ModelPolicy =>
+  value === 'allow_all' || value === 'allowlist' ? value : 'deny_all';
+
+const MODEL_POLICY_BADGE_TONE: Record<ModelPolicy, 'success' | 'info' | 'error'> = {
+  allow_all: 'success',
+  allowlist: 'info',
+  deny_all: 'error',
+};
+
+const MODEL_POLICY_LABEL_KEY: Record<ModelPolicy, string> = {
+  allow_all: 'settings.project.modelPolicyAllowAll',
+  allowlist: 'settings.project.modelPolicyAllowlist',
+  deny_all: 'settings.project.modelPolicyDenyAll',
+};
+
 type ProjectSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
@@ -108,6 +146,14 @@ type ProjectSettingsViewProps = {
   /** Toggles a single model on/off the project's `allowedModels` allowlist. Unchecking the last
    * remaining model sends the empty-array "all models allowed" representation. */
   onToggleModel: (model: string, checked: boolean) => void;
+  /**
+   * Saves the project's current `allowedModels` with every catalogue-unknown id stripped, and no
+   * other change -- the explicit path forward for a project whose stored allowlist carries a
+   * stale/renamed id (`saveModels` in the screen strips these on every save regardless, but a
+   * caller who wants *only* the cleanup, not a side effect of some other toggle, gets this
+   * instead). See the stale-notice callout below for when this is offered.
+   */
+  onRemoveStaleModels: () => void;
   isSavingModels?: boolean;
   /** Set when `setProjectAllowedModels` rejects -- a 403 from `project:update`, or (#415) a
    * catalogue-validation rejection naming a model id the operator's catalogue does not recognize.
@@ -179,6 +225,7 @@ export function ProjectSettingsView({
   isModelCatalogLoading = false,
   isModelCatalogError = false,
   onToggleModel,
+  onRemoveStaleModels,
   isSavingModels = false,
   modelsError = null,
   onSaveLimits,
@@ -250,8 +297,41 @@ export function ProjectSettingsView({
     hasDetailsChanged && trimmedName.length > 0 && trimmedPlan.length > 0 && !isSavingDetails;
 
   const models = asAllowedModels(project?.allowedModels);
-  const isAllModelsAllowed = models.length === 0;
+  const modelPolicy = normalizeModelPolicy(project?.modelPolicy);
   const modelRows = buildModelRows(modelCatalog, models);
+  const staleModelIds = modelRows.filter((row) => row.isUnknown).map((row) => row.id);
+
+  // INTERIM, not the steady-state design -- ai-helm-values PR #295 (commit 614cb5da) merged a
+  // gateway stopgap after the repo owner measured a real bypass: a key scoped to
+  // `[adorsys-frontend-pro, qwen3-5-2b-local]` still got a 200 for `minimax-m2p5`, because #418
+  // defaulted every project to `allow_all` and shipped `modelPolicy` `@readonly` with no write
+  // path -- `allowlist` was unreachable, so `allowedModels` was inert for every caller while this
+  // screen still said "N models are allowed." The gateway's `lightbridge-model-allowed` predicate
+  // is now a conjunction -- the `modelPolicy` gate AND a restored `allowedModels` membership test
+  // -- so a NON-EMPTY `allowedModels` restricts regardless of `modelPolicy` today, including under
+  // `allow_all`. `listRestrictsToday` names that combined, *effective* behavior so the copy below
+  // never claims a checked list is ignored when the gateway is in fact enforcing it.
+  //
+  // REMOVE TRIGGER: once `lightbridge-authz`#431's `setProjectModelPolicy` write path is wired up
+  // here (this PR's own follow-up -- see the `ModelPolicy` type's doc comment above for that
+  // procedure's contract) and a project can actually reach `allowlist`, a non-empty list under a
+  // stored `allow_all` should no longer be a state this app can produce. At that point this can
+  // collapse back to a plain switch on `modelPolicy` alone, and the interim callout below can go.
+  const listRestrictsToday = modelPolicy !== 'deny_all' && models.length > 0;
+
+  // `deny_all` ignores `allowedModels` entirely regardless of content (both the schema's own
+  // comment and `ModelPolicy`'s Rust doc comment are explicit about this, and the stopgap above
+  // does not change it -- `deny_all` already fails the policy half of the conjunction on its own)
+  // -- the per-model summary line would be actively misleading next to the deny_all callout below,
+  // so it is skipped in favor of that callout alone.
+  const modelsSummaryKey =
+    modelPolicy === 'deny_all'
+      ? null
+      : listRestrictsToday
+        ? 'settings.project.modelsRestrictedSummary'
+        : modelPolicy === 'allowlist'
+          ? 'settings.project.modelsSummaryAllowlistEmpty'
+          : 'settings.project.modelsEmpty';
 
   const trimmedNewMemberId = newMemberId.trim();
 
@@ -451,11 +531,36 @@ export function ProjectSettingsView({
                   title={t('settings.project.modelsSection')}
                   description={t('settings.project.modelsDescription')}>
                   <Stack gap="md">
-                    <Text intent="caption" style={{ color: colors.subtle }}>
-                      {isAllModelsAllowed
-                        ? t('settings.project.modelsEmpty')
-                        : t('settings.project.modelsRestrictedSummary', { count: models.length })}
-                    </Text>
+                    <Stack direction="row" align="center" gap="sm" wrap="wrap">
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t('settings.project.modelPolicyLabel')}
+                      </Text>
+                      <Badge tone={MODEL_POLICY_BADGE_TONE[modelPolicy]}>
+                        {t(MODEL_POLICY_LABEL_KEY[modelPolicy])}
+                      </Badge>
+                    </Stack>
+
+                    {modelPolicy === 'deny_all' ? (
+                      <Callout tone="error">{t('settings.project.modelsDenyAllNotice')}</Callout>
+                    ) : null}
+
+                    {/* INTERIM -- see `listRestrictsToday`'s doc comment above for the full
+                     * mechanism and removal trigger. Only `allow_all` needs this extra callout:
+                     * `allowlist`'s own badge/summary already read as "restricted" on their own,
+                     * so there is no gap between what they say and what the gateway does today. */}
+                    {modelPolicy === 'allow_all' && listRestrictsToday ? (
+                      <Callout tone="warning">
+                        {t('settings.project.modelsAllowAllInterimRestrictedNotice', {
+                          count: models.length,
+                        })}
+                      </Callout>
+                    ) : null}
+
+                    {modelsSummaryKey ? (
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t(modelsSummaryKey, { count: models.length })}
+                      </Text>
+                    ) : null}
 
                     {isModelCatalogLoading ? (
                       <Text intent="caption" style={{ color: colors.subtle }}>
@@ -470,24 +575,47 @@ export function ProjectSettingsView({
                         {t('settings.project.modelsCatalogEmpty')}
                       </Text>
                     ) : (
-                      <Stack gap="sm">
-                        {modelRows.map((row) => (
-                          <Stack key={row.id} direction="row" align="center" gap="sm" wrap="wrap">
-                            <Checkbox
-                              value={models.includes(row.id)}
-                              onValueChange={(checked) => onToggleModel(row.id, checked)}
+                      <>
+                        <Stack gap="sm">
+                          {modelRows.map((row) => (
+                            <Stack key={row.id} direction="row" align="center" gap="sm" wrap="wrap">
+                              <Checkbox
+                                value={models.includes(row.id)}
+                                onValueChange={(checked) => onToggleModel(row.id, checked)}
+                                disabled={isSavingModels}
+                                accessibilityLabel={row.name}
+                              />
+                              <Text style={{ flex: 1 }}>{row.name}</Text>
+                              {row.isUnknown ? (
+                                <Badge tone="warning">
+                                  {t('settings.project.modelUnknownBadge')}
+                                </Badge>
+                              ) : null}
+                            </Stack>
+                          ))}
+                        </Stack>
+
+                        {staleModelIds.length > 0 ? (
+                          <Stack gap="sm">
+                            <Callout tone="warning">
+                              {t('settings.project.modelsStaleNotice', {
+                                count: staleModelIds.length,
+                                models: staleModelIds.join(', '),
+                              })}
+                            </Callout>
+                            <Button
+                              variant="neutral"
+                              size="sm"
+                              onPress={onRemoveStaleModels}
                               disabled={isSavingModels}
-                              accessibilityLabel={row.name}
-                            />
-                            <Text style={{ flex: 1 }}>{row.name}</Text>
-                            {row.isUnknown ? (
-                              <Badge tone="warning">
-                                {t('settings.project.modelUnknownBadge')}
-                              </Badge>
-                            ) : null}
+                              style={{ alignSelf: 'flex-start' }}>
+                              {isSavingModels
+                                ? t('settings.project.modelsRemoveStaleActionSaving')
+                                : t('settings.project.modelsRemoveStaleAction')}
+                            </Button>
                           </Stack>
-                        ))}
-                      </Stack>
+                        ) : null}
+                      </>
                     )}
 
                     {modelsError ? (

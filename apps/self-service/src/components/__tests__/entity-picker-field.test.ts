@@ -13,6 +13,7 @@ const project: Project = {
   billingIdentity: 'acme-inc',
   projectQuota: undefined,
   allowedModels: [],
+  modelPolicy: 'allow_all',
   defaultLimits: { requests_per_second: null, requests_per_day: null, concurrent_requests: null },
   status: 'active',
   isDefault: false,

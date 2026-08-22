@@ -71,6 +71,12 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
     // doesn't drop `@readonly` fields from `CreateProjectInput`, so it must still be supplied here.
     // Any caller-supplied value is ignored server-side, same as `status` above.
     isDefault: false,
+    // Same story as `isDefault`/`status`: `modelPolicy` is `@readonly` (ADR-0018, ships as of the
+    // lightbridge-authz#418 schema sync) but still a required, non-`@readonly`-dropped field on
+    // the generated `CreateProjectInput`. The server ignores whatever is sent here and every new
+    // project's `model_policy` column DEFAULTs to `'allow_all'` at the DB level regardless — this
+    // value exists only to satisfy the generated type, matching what the server will actually do.
+    modelPolicy: 'allow_all',
   };
 }
 

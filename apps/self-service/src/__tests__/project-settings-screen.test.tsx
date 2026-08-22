@@ -29,6 +29,11 @@ const mockSetAllowedModelsMutateAsync = jest.fn();
 // Mutated per-test to control what `projectModels()` (screen.tsx) sees as the project's current
 // `allowedModels` -- the input the toggle-off/toggle-on tests need to exercise the real branch.
 let mockProjectAllowedModels: string[] | undefined;
+// Mutated per-test to control what `useModelCatalog` reports -- the stale-entry lockout tests
+// below need a real, non-empty catalogue to prove which ids `saveModels` strips as "no longer
+// recognized". Defaults to empty, matching every pre-existing test in this file that never
+// exercised the catalogue-aware filtering path.
+let mockModelCatalog: { id: string; name: string }[] = [];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
@@ -69,7 +74,7 @@ jest.mock('@lightbridge/hooks', () => {
       totalCount: 1,
     }),
     useProjectMembers: () => ({ data: [], isLoading: false }),
-    useModelCatalog: () => ({ data: [], isLoading: false, isError: false }),
+    useModelCatalog: () => ({ data: mockModelCatalog, isLoading: false, isError: false }),
     useUpdateProject: () => ({
       mutateAsync: mockUpdateProjectMutateAsync,
       isPending: false,
@@ -117,14 +122,16 @@ jest.mock('../views/settings/project-settings-view', () => {
       setDefaultError?: string | null;
       modelsError?: string | null;
       onToggleModel: (model: string, checked: boolean) => void;
+      onRemoveStaleModels: () => void;
     }) => (
       <>
         <Text testID="status-error">{props.statusError ?? ''}</Text>
         <Text testID="member-error">{props.memberError ?? ''}</Text>
         <Text testID="set-default-error">{props.setDefaultError ?? ''}</Text>
         <Text testID="models-error">{props.modelsError ?? ''}</Text>
-        {/* Stand-ins for pressing a model checkbox -- exercises the real `handleToggleModel` /
-         * `saveModels` plumbing in project-settings-screen.tsx, not a re-implementation of it. */}
+        {/* Stand-ins for pressing a model checkbox / the "remove stale entries" action -- exercise
+         * the real `handleToggleModel`/`handleRemoveStaleModels`/`saveModels` plumbing in
+         * project-settings-screen.tsx, not a re-implementation of it. */}
         <Pressable
           testID="toggle-gpt-4o-off"
           onPress={() => props.onToggleModel('gpt-4o', false)}
@@ -133,6 +140,7 @@ jest.mock('../views/settings/project-settings-view', () => {
           testID="toggle-claude-on"
           onPress={() => props.onToggleModel('claude-sonnet-5', true)}
         />
+        <Pressable testID="remove-stale-models" onPress={() => props.onRemoveStaleModels()} />
       </>
     ),
   };
@@ -147,6 +155,7 @@ beforeEach(() => {
   mockAddMemberError = null;
   mockSetAllowedModelsError = null;
   mockProjectAllowedModels = undefined;
+  mockModelCatalog = [];
   mockUpdateProjectMutateAsync.mockReset().mockResolvedValue(undefined);
   mockSetAllowedModelsMutateAsync.mockReset().mockResolvedValue(undefined);
 });
@@ -237,6 +246,10 @@ describe('ProjectSettingsScreen -- derives error copy from a real CratestackRpcE
 describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allowedModels payload', () => {
   it('unchecking the only currently-allowed model sends [] (all models allowed), not omitted or dropped', async () => {
     mockProjectAllowedModels = ['gpt-4o'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
 
     await render(<ProjectSettingsScreen />);
     await fireEvent.press(screen.getByTestId('toggle-gpt-4o-off'));
@@ -251,6 +264,10 @@ describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allow
 
   it('checking an additional model sends exactly the resulting subset, not the whole catalogue', async () => {
     mockProjectAllowedModels = ['gpt-4o'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
 
     await render(<ProjectSettingsScreen />);
     await fireEvent.press(screen.getByTestId('toggle-claude-on'));
@@ -263,8 +280,87 @@ describe('ProjectSettingsScreen -- model-toggle plumbing sends the correct allow
     expect(mockUpdateProjectMutateAsync).not.toHaveBeenCalled();
   });
 
+  // Reported bug: a project whose `allowedModels` already carries ids that predate #415/#417's
+  // catalogue validation (e.g. `qwen3p7-plus`, `qwen3-5-9b-local`) cannot save *any* change --
+  // every toggle re-sends the full current list, the server rejects the whole write while any
+  // unknown id is present, and unchecking one stale id at a time still leaves the other(s) in the
+  // payload. `saveModels` must strip every id the catalogue doesn't recognize before it ever
+  // reaches the RPC layer, on every save, not only on an explicit cleanup action -- proven here by
+  // toggling on an unrelated, valid model and asserting the stale ids never reach the wire.
+  it('strips stale catalogue ids from the payload on an ordinary toggle, unblocking the save the server would otherwise reject', async () => {
+    mockProjectAllowedModels = ['gpt-4o', 'qwen3p7-plus', 'qwen3-5-9b-local'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('toggle-claude-on'));
+
+    expect(mockSetAllowedModelsMutateAsync).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      accountId: 'acc-1',
+      allowedModels: ['gpt-4o', 'claude-sonnet-5'],
+    });
+  });
+
+  // The explicit "Remove stale entries" action (`onRemoveStaleModels`, wired to the view's
+  // "Remove stale entries now" button) -- sends the current list with only the stale ids dropped,
+  // no other change, for a caller who wants just the cleanup.
+  it('removing stale entries explicitly sends the current list with only the unrecognized ids dropped', async () => {
+    mockProjectAllowedModels = ['gpt-4o', 'qwen3p7-plus', 'qwen3-5-9b-local'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('remove-stale-models'));
+
+    expect(mockSetAllowedModelsMutateAsync).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      accountId: 'acc-1',
+      allowedModels: ['gpt-4o'],
+    });
+  });
+
+  // The `.catch(() => undefined)` this call site used to end in swallowed the rejection outright
+  // -- contradicting `saveModels`'s own doc comment that a rejection "is a real, reachable outcome
+  // the caller must see, not a console.error swallow". `modelsError` (asserted elsewhere in this
+  // file) already derives from `setAllowedModels.error`, which react-query sets independently of
+  // what the caller does with the returned promise -- but the swallow still meant a real
+  // production rejection left no trace anywhere a developer could find it. This proves the
+  // rejection is now logged, matching every other mutation handler on this screen
+  // (`handleSaveDetails`/`handleSaveLimits`) instead of vanishing silently.
+  it('logs a real setProjectAllowedModels rejection instead of swallowing it silently', async () => {
+    mockProjectAllowedModels = ['gpt-4o'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
+    const rejection = new Error('RPC call failed with code validation_error (status 422)');
+    mockSetAllowedModelsMutateAsync.mockReset().mockRejectedValue(rejection);
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await render(<ProjectSettingsScreen />);
+    await fireEvent.press(screen.getByTestId('toggle-claude-on'));
+    // Let the rejected mutateAsync promise's `.catch` handler run.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to update project allowed models:',
+      rejection
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
   it('surfaces a real setProjectAllowedModels rejection (403, or #415 catalogue validation) as modelsError, not a silent no-op', async () => {
     mockProjectAllowedModels = ['gpt-4o'];
+    mockModelCatalog = [
+      { id: 'gpt-4o', name: 'gpt-4o' },
+      { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+    ];
     mockSetAllowedModelsError = {
       name: 'CratestackRpcError',
       status: 422,

@@ -194,15 +194,29 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   // console.error swallow. `[]` is sent (never `undefined`/`null`) for "no models checked" so the
   // "all models allowed" wire representation stays an explicit, deliberate empty array rather than
   // an accidental no-op update.
+  //
+  // A stale/renamed id from before #415's catalogue validation existed is stripped here,
+  // unconditionally, before every save -- not just on the explicit "Remove stale entries" action.
+  // Without this, a project already carrying such an id was a hard lockout: the server rejects the
+  // *entire* write while any unknown id is present, and every single-checkbox toggle re-sends the
+  // full current list, so no toggle could ever produce a payload the server would accept unless it
+  // happened to drop every stale id at once. Safe to filter unconditionally: the checkbox list (and
+  // therefore every call into this function) only renders once `modelCatalog` has loaded
+  // successfully -- see `isModelCatalogLoading`/`isModelCatalogError` in
+  // `project-settings-view.tsx` -- so `modelCatalog` is never empty-because-not-yet-loaded here.
   const saveModels = (models: string[]) => {
     if (!project || !accountId) return;
+    const catalogIds = new Set(modelCatalog.map((entry) => entry.id));
+    const filtered = models.filter((id) => catalogIds.has(id));
     void setAllowedModels
       .mutateAsync({
         projectId: project.id,
         accountId,
-        allowedModels: models,
+        allowedModels: filtered,
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        console.error('Failed to update project allowed models:', error);
+      });
   };
 
   const projectModels = (): string[] =>
@@ -221,6 +235,13 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
     } else {
       saveModels(models.filter((item) => item !== model));
     }
+  };
+
+  // The explicit "Remove stale entries" action in the view -- sends the current list unchanged
+  // except for whatever `saveModels` itself strips. Exists for a caller who wants only the
+  // cleanup, not as a side effect of toggling some unrelated model.
+  const handleRemoveStaleModels = () => {
+    saveModels(projectModels());
   };
 
   const handleSaveLimits = (limits: ProjectDefaultLimits) => {
@@ -307,6 +328,7 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       isModelCatalogLoading={isModelCatalogLoading}
       isModelCatalogError={isModelCatalogError}
       onToggleModel={handleToggleModel}
+      onRemoveStaleModels={handleRemoveStaleModels}
       isSavingModels={setAllowedModels.isPending}
       modelsError={modelsError}
       onSaveLimits={handleSaveLimits}

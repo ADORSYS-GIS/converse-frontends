@@ -27,6 +27,7 @@ const project: Project = {
   billingIdentity: 'acme-inc',
   projectQuota: undefined,
   allowedModels: [],
+  modelPolicy: 'allow_all',
   defaultLimits: {},
   status: 'active',
   isDefault: false,

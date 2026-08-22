@@ -287,7 +287,7 @@ const resources = {
           modelsSection: 'Allowed models',
           modelsDescription:
             'Models that API keys in this project may call. Leave empty to allow all models.',
-          modelsEmpty: 'All models are allowed.',
+          modelsEmpty: 'All models are allowed, including any added later.',
           modelsRestrictedSummary_one: '1 model is allowed.',
           modelsRestrictedSummary_other: '{{count}} models are allowed.',
           modelsCatalogLoading: 'Loading the model catalogue...',
@@ -295,6 +295,29 @@ const resources = {
             'The model catalogue is unavailable right now. Try again later to change which models are allowed.',
           modelsCatalogEmpty: 'No models are configured in the catalogue yet.',
           modelUnknownBadge: 'No longer in catalogue',
+          // ADR-0018's `Project.modelPolicy` -- read-only here (no `setProjectModelPolicy` write
+          // path exists yet, see that field's schema comment). Shown so the checkbox list below is
+          // never read out of context: an empty `allowedModels` means "everything" under
+          // `allow_all` but "nothing" under `allowlist` -- identical UI state, opposite meaning,
+          // decided entirely by this field. `deny_all` additionally means the checkboxes below
+          // have no effect at all, so that state gets its own callout, not a silent empty list.
+          modelPolicyLabel: 'Model access policy',
+          modelPolicyAllowAll: 'All models allowed',
+          modelPolicyAllowlist: 'Restricted to an allowlist',
+          modelPolicyDenyAll: 'All models blocked',
+          modelsSummaryAllowlistEmpty:
+            'The allowlist is empty — no models are currently allowed for this project.',
+          modelsDenyAllNotice:
+            'This project blocks every model regardless of the selections below. Change the access policy to let any of them take effect.',
+          // Surfaced whenever `allowedModels` carries an id the catalogue no longer recognizes
+          // (see `buildModelRows`'s `isUnknown` rows) -- the server rejects the whole save while
+          // any such id is present, so this is shown proactively, not only after a failed save.
+          modelsStaleNotice_one:
+            'Saving will also remove 1 model no longer in the catalogue: {{models}}.',
+          modelsStaleNotice_other:
+            'Saving will also remove {{count}} models no longer in the catalogue: {{models}}.',
+          modelsRemoveStaleAction: 'Remove stale entries now',
+          modelsRemoveStaleActionSaving: 'Removing...',
           allowlistEnforcedNotice:
             'Heads up: this allowlist is now enforced. Calls to models not on this list will be rejected. Currently allowed: {{models}}.',
           allowlistEnforcedDismiss: 'Got it',

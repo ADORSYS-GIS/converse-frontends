@@ -4,6 +4,7 @@ import type { ModelCatalogEntry } from '@lightbridge/authz-rpc';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Checkbox,
   designTokens,
@@ -79,6 +80,30 @@ const buildModelRows = (catalog: ModelCatalogEntry[], models: string[]): ModelRo
   ];
 };
 
+/**
+ * ADR-0018's three-value access-control policy on `Project.modelPolicy`. Plain `String` on the
+ * wire (this schema has no enum construct -- see the field's own schema comment), so the UI must
+ * narrow it itself. Mirrors the backend's own fail-closed parse
+ * (`lightbridge_authz_core::dto::ModelPolicy::from(String)`): an unrecognized value must render as
+ * the strictest state, `deny_all`, never silently as the permissive `allow_all` default.
+ */
+type ModelPolicy = 'allow_all' | 'allowlist' | 'deny_all';
+
+const normalizeModelPolicy = (value: string | undefined): ModelPolicy =>
+  value === 'allow_all' || value === 'allowlist' ? value : 'deny_all';
+
+const MODEL_POLICY_BADGE_TONE: Record<ModelPolicy, 'success' | 'info' | 'error'> = {
+  allow_all: 'success',
+  allowlist: 'info',
+  deny_all: 'error',
+};
+
+const MODEL_POLICY_LABEL_KEY: Record<ModelPolicy, string> = {
+  allow_all: 'settings.project.modelPolicyAllowAll',
+  allowlist: 'settings.project.modelPolicyAllowlist',
+  deny_all: 'settings.project.modelPolicyDenyAll',
+};
+
 type ProjectSettingsViewProps = {
   showBackButton?: boolean;
   onBack: () => void;
@@ -108,6 +133,14 @@ type ProjectSettingsViewProps = {
   /** Toggles a single model on/off the project's `allowedModels` allowlist. Unchecking the last
    * remaining model sends the empty-array "all models allowed" representation. */
   onToggleModel: (model: string, checked: boolean) => void;
+  /**
+   * Saves the project's current `allowedModels` with every catalogue-unknown id stripped, and no
+   * other change -- the explicit path forward for a project whose stored allowlist carries a
+   * stale/renamed id (`saveModels` in the screen strips these on every save regardless, but a
+   * caller who wants *only* the cleanup, not a side effect of some other toggle, gets this
+   * instead). See the stale-notice callout below for when this is offered.
+   */
+  onRemoveStaleModels: () => void;
   isSavingModels?: boolean;
   /** Set when `setProjectAllowedModels` rejects -- a 403 from `project:update`, or (#415) a
    * catalogue-validation rejection naming a model id the operator's catalogue does not recognize.
@@ -179,6 +212,7 @@ export function ProjectSettingsView({
   isModelCatalogLoading = false,
   isModelCatalogError = false,
   onToggleModel,
+  onRemoveStaleModels,
   isSavingModels = false,
   modelsError = null,
   onSaveLimits,
@@ -250,8 +284,30 @@ export function ProjectSettingsView({
     hasDetailsChanged && trimmedName.length > 0 && trimmedPlan.length > 0 && !isSavingDetails;
 
   const models = asAllowedModels(project?.allowedModels);
-  const isAllModelsAllowed = models.length === 0;
+  const modelPolicy = normalizeModelPolicy(project?.modelPolicy);
   const modelRows = buildModelRows(modelCatalog, models);
+  const staleModelIds = modelRows.filter((row) => row.isUnknown).map((row) => row.id);
+  // `deny_all` ignores `allowedModels` entirely (both the schema's own comment and
+  // `lightbridge_authz_core::dto::ModelPolicy`'s doc comment are explicit about this) -- the
+  // per-model summary line would be actively misleading next to the deny_all callout below, so it
+  // is skipped in favor of that callout alone.
+  //
+  // For every other case this deliberately preserves the pre-ADR-0018 reading of a *non-empty*
+  // `allowedModels` (still "N models are allowed", regardless of `allow_all` vs `allowlist`) --
+  // the one place the backend's own docs (`AGENTS.md`'s `projects` table entry,
+  // `ModelPolicy`'s Rust doc comment) are unambiguous is the *empty*-list case: "all models
+  // allowed" under `allow_all`, but "nothing" under `allowlist`. That collapse -- identical UI
+  // state (nothing checked), opposite real-world meaning -- is exactly the ambiguity ADR-0018
+  // introduced the enum to kill, so it is the one case handled specially here rather than
+  // guessing at enforcement semantics the docs don't spell out for the non-empty case.
+  const modelsSummaryKey =
+    modelPolicy === 'deny_all'
+      ? null
+      : modelPolicy === 'allowlist' && models.length === 0
+        ? 'settings.project.modelsSummaryAllowlistEmpty'
+        : models.length === 0
+          ? 'settings.project.modelsEmpty'
+          : 'settings.project.modelsRestrictedSummary';
 
   const trimmedNewMemberId = newMemberId.trim();
 
@@ -451,11 +507,24 @@ export function ProjectSettingsView({
                   title={t('settings.project.modelsSection')}
                   description={t('settings.project.modelsDescription')}>
                   <Stack gap="md">
-                    <Text intent="caption" style={{ color: colors.subtle }}>
-                      {isAllModelsAllowed
-                        ? t('settings.project.modelsEmpty')
-                        : t('settings.project.modelsRestrictedSummary', { count: models.length })}
-                    </Text>
+                    <Stack direction="row" align="center" gap="sm" wrap="wrap">
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t('settings.project.modelPolicyLabel')}
+                      </Text>
+                      <Badge tone={MODEL_POLICY_BADGE_TONE[modelPolicy]}>
+                        {t(MODEL_POLICY_LABEL_KEY[modelPolicy])}
+                      </Badge>
+                    </Stack>
+
+                    {modelPolicy === 'deny_all' ? (
+                      <Callout tone="error">{t('settings.project.modelsDenyAllNotice')}</Callout>
+                    ) : null}
+
+                    {modelsSummaryKey ? (
+                      <Text intent="caption" style={{ color: colors.subtle }}>
+                        {t(modelsSummaryKey, { count: models.length })}
+                      </Text>
+                    ) : null}
 
                     {isModelCatalogLoading ? (
                       <Text intent="caption" style={{ color: colors.subtle }}>
@@ -470,24 +539,47 @@ export function ProjectSettingsView({
                         {t('settings.project.modelsCatalogEmpty')}
                       </Text>
                     ) : (
-                      <Stack gap="sm">
-                        {modelRows.map((row) => (
-                          <Stack key={row.id} direction="row" align="center" gap="sm" wrap="wrap">
-                            <Checkbox
-                              value={models.includes(row.id)}
-                              onValueChange={(checked) => onToggleModel(row.id, checked)}
+                      <>
+                        <Stack gap="sm">
+                          {modelRows.map((row) => (
+                            <Stack key={row.id} direction="row" align="center" gap="sm" wrap="wrap">
+                              <Checkbox
+                                value={models.includes(row.id)}
+                                onValueChange={(checked) => onToggleModel(row.id, checked)}
+                                disabled={isSavingModels}
+                                accessibilityLabel={row.name}
+                              />
+                              <Text style={{ flex: 1 }}>{row.name}</Text>
+                              {row.isUnknown ? (
+                                <Badge tone="warning">
+                                  {t('settings.project.modelUnknownBadge')}
+                                </Badge>
+                              ) : null}
+                            </Stack>
+                          ))}
+                        </Stack>
+
+                        {staleModelIds.length > 0 ? (
+                          <Stack gap="sm">
+                            <Callout tone="warning">
+                              {t('settings.project.modelsStaleNotice', {
+                                count: staleModelIds.length,
+                                models: staleModelIds.join(', '),
+                              })}
+                            </Callout>
+                            <Button
+                              variant="neutral"
+                              size="sm"
+                              onPress={onRemoveStaleModels}
                               disabled={isSavingModels}
-                              accessibilityLabel={row.name}
-                            />
-                            <Text style={{ flex: 1 }}>{row.name}</Text>
-                            {row.isUnknown ? (
-                              <Badge tone="warning">
-                                {t('settings.project.modelUnknownBadge')}
-                              </Badge>
-                            ) : null}
+                              style={{ alignSelf: 'flex-start' }}>
+                              {isSavingModels
+                                ? t('settings.project.modelsRemoveStaleActionSaving')
+                                : t('settings.project.modelsRemoveStaleAction')}
+                            </Button>
                           </Stack>
-                        ))}
-                      </Stack>
+                        ) : null}
+                      </>
                     )}
 
                     {modelsError ? (

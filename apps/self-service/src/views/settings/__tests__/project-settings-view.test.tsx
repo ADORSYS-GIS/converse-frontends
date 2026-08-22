@@ -28,6 +28,7 @@ const project: Project = {
   billingIdentity: 'acme-inc',
   projectQuota: undefined,
   allowedModels: ['gpt-4o'],
+  modelPolicy: 'allow_all',
   defaultLimits: { requests_per_second: 5, requests_per_day: null, concurrent_requests: null },
   status: 'active',
   isDefault: false,
@@ -63,6 +64,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       onSaveDetails={noop}
       modelCatalog={modelCatalog}
       onToggleModel={noop}
+      onRemoveStaleModels={noop}
       onSaveLimits={noop}
       onDeleteProject={noop}
       onSuspendProject={noop}
@@ -156,7 +158,7 @@ describe('ProjectSettingsView', () => {
   it('shows the all-models-allowed note when the allowlist is empty', async () => {
     await renderView({ project: { ...project, allowedModels: [] } });
 
-    expect(screen.getByText('All models are allowed.')).toBeTruthy();
+    expect(screen.getByText('All models are allowed, including any added later.')).toBeTruthy();
     // Would fail if the "restricted count" summary rendered instead of the "all models" copy for
     // an empty selection -- i.e. if the empty-selection semantics were backwards.
     expect(screen.queryByText('1 model is allowed.')).toBeNull();
@@ -181,6 +183,34 @@ describe('ProjectSettingsView', () => {
 
     await fireEvent.press(staleCheckbox);
     expect(onToggleModel).toHaveBeenCalledWith('retired-model', false);
+  });
+
+  // Reported lockout: a project whose stored `allowedModels` carries ids the catalogue no longer
+  // recognizes cannot save *any* change, because the server rejects the whole write while any
+  // unknown id is present and every toggle re-sends the full list. The view's job is to make this
+  // legible and give an explicit way out -- proven here as a real, named notice plus a working
+  // button, not merely "some text appeared somewhere."
+  it('shows a specific stale-entry notice naming every unrecognized id, with a working removal action', async () => {
+    const onRemoveStaleModels = jest.fn();
+    await renderView({
+      onRemoveStaleModels,
+      project: { ...project, allowedModels: ['gpt-4o', 'qwen3p7-plus', 'qwen3-5-9b-local'] },
+    });
+
+    expect(
+      screen.getByText(
+        'Saving will also remove 2 models no longer in the catalogue: qwen3p7-plus, qwen3-5-9b-local.'
+      )
+    ).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Remove stale entries now'));
+    expect(onRemoveStaleModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no stale-entry notice when every stored model is still in the catalogue', async () => {
+    await renderView();
+
+    expect(screen.queryByText('Remove stale entries now')).toBeNull();
   });
 
   it('renders the loading state before the catalogue resolves, with no checkboxes yet', async () => {
@@ -210,6 +240,65 @@ describe('ProjectSettingsView', () => {
     expect(screen.getByText('No models are configured in the catalogue yet.')).toBeTruthy();
   });
 
+  // ADR-0018's `Project.modelPolicy` -- read-only display only (no write path exists yet). These
+  // prove the badge reflects the field, and that the two states with no reachable write path
+  // today (`allowlist`, `deny_all`) still render distinctly rather than looking like a plain empty
+  // allowlist -- see the "identical UI state, opposite meaning" trap this exists to avoid.
+  describe('model access policy display', () => {
+    it('shows "All models allowed" for the default allow_all policy', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'allow_all' } });
+
+      expect(screen.getByText('Model access policy')).toBeTruthy();
+      expect(screen.getByText('All models allowed')).toBeTruthy();
+      expect(screen.queryByText(/blocks every model/)).toBeNull();
+    });
+
+    it('labels a non-empty allowlist policy correctly and shows the restricted-count summary', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'allowlist' } });
+
+      expect(screen.getByText('Restricted to an allowlist')).toBeTruthy();
+      expect(screen.getByText('1 model is allowed.')).toBeTruthy();
+    });
+
+    // The trap: an empty `allowedModels` means "everything" under allow_all but "nothing" under
+    // allowlist -- identical checkbox state, opposite real-world meaning. This must never render
+    // the same "All models are allowed" copy in both cases.
+    it('shows a distinct "nothing allowed" summary for an empty allowlist, not the all-models copy', async () => {
+      await renderView({
+        project: { ...project, modelPolicy: 'allowlist', allowedModels: [] },
+      });
+
+      expect(
+        screen.getByText(
+          'The allowlist is empty — no models are currently allowed for this project.'
+        )
+      ).toBeTruthy();
+      expect(screen.queryByText('All models are allowed, including any added later.')).toBeNull();
+    });
+
+    it('shows a standalone warning banner for deny_all instead of an unlabeled empty list', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'deny_all' } });
+
+      expect(screen.getByText('All models blocked')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'This project blocks every model regardless of the selections below. Change the access policy to let any of them take effect.'
+        )
+      ).toBeTruthy();
+      // The checkbox list itself is still rendered (editing allowedModels is independent of the
+      // policy write path) -- deny_all must not hide it, only explain that it has no effect.
+      expect(screen.getByLabelText('gpt-4o')).toBeTruthy();
+    });
+
+    it('treats an unrecognized modelPolicy value as deny_all (fail-closed), matching the backend parse', async () => {
+      await renderView({
+        project: { ...project, modelPolicy: 'some-future-value' as unknown as string },
+      });
+
+      expect(screen.getByText('All models blocked')).toBeTruthy();
+    });
+  });
+
   // lightbridge-authz#415/#417: `setProjectAllowedModels` can now reject a save (403 from
   // `project:update`, or a catalogue-validation rejection naming an unknown model id) -- the view
   // must render that, not swallow it. This is the presentational half of the guarantee; the
@@ -236,7 +325,9 @@ describe('ProjectSettingsView', () => {
 
     // Give any pending storage-read effects a turn — the notice must stay
     // absent either way, since an empty allowlist means nothing changed.
-    await waitFor(() => expect(screen.getByText('All models are allowed.')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('All models are allowed, including any added later.')).toBeTruthy()
+    );
     expect(screen.queryByText(/this allowlist is now enforced/)).toBeNull();
   });
 

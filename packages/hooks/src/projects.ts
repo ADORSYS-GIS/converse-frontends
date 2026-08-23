@@ -52,8 +52,6 @@ export type CreateProjectFields = {
    * must be distinguishable per project, not merely per person.
    */
   billingIdentity: string;
-  /** Pooled spending ceiling for everyone on the project, drawn from the governance tier catalogue. */
-  projectQuota?: string;
 };
 
 function buildCreateProjectInput(accountId: string, fields: CreateProjectFields) {
@@ -64,7 +62,17 @@ function buildCreateProjectInput(accountId: string, fields: CreateProjectFields)
     defaultLimits: {},
     billingPlan: fields.billingPlan,
     billingIdentity: fields.billingIdentity,
-    projectQuota: fields.projectQuota,
+    // `projectQuota` is deliberately absent here, not merely unset: `Project.projectQuota` is
+    // `@readonly` server-side (lightbridge-authz#379, completing #177/#375), same pattern as
+    // `isDefault`/`modelPolicy` below. The TS generator does not drop `@readonly` fields from
+    // `CreateProjectInput` (it stays `projectQuota?: string | null`), so a caller CAN still send
+    // it and it silently no-ops -- there is no compile error to catch a stale call site. This
+    // hook used to send `fields.projectQuota` through here, but no UI call site (the create-
+    // project sheet/view) ever collected or passed one, so it was always `undefined` in practice
+    // -- dead, misleading code, not a live bug. Removed rather than wired up; a brand-new project
+    // starts with `projectQuota = NULL` and `setProjectQuota` (unwired on the frontend today) is
+    // the only real write path, post-creation only. Mirrors `useSetProjectAllowedModels`'s doc
+    // comment below for the identical `@readonly`-but-not-dropped shape.
     status: 'active',
     // `isDefault` is `@readonly` server-side (set by the `projects_set_is_default` trigger — true
     // only for an account's first-ever project) but, unlike the Rust codegen, the TS generator

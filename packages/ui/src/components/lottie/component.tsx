@@ -31,42 +31,58 @@ export function Lottie({
   autoPlay = true,
   ...props
 }: LottieProps) {
-  const [resolvedSource, setResolvedSource] = useState<LottieViewProps['source'] | undefined>(
-    isModuleSource(source) ? undefined : (source as any)
+  // `Asset.fromModule` is a synchronous, id-keyed lookup into expo-asset's own module registry
+  // (get-or-create, memoized there -- safe to call during render, including twice under
+  // StrictMode), so the case that's actually synchronous -- a module source whose asset is
+  // already local (`localUri`/`uri` already cached from a prior download) -- is resolved during
+  // render instead of via a post-commit effect. That was the only synchronous `setState` call
+  // this component made in an effect body; the non-module branch below never needed state at
+  // all (it was just echoing the prop), so it's now a plain derived value too.
+  const moduleAsset = useMemo(
+    () => (isModuleSource(source) ? Asset.fromModule(source) : undefined),
+    [source]
+  );
+  const cachedModuleUri = moduleAsset ? (moduleAsset.localUri ?? moduleAsset.uri) : undefined;
+
+  // Only the genuine download -- fetching an asset not yet cached locally -- stays in an effect:
+  // fetching from an external system is exactly what effects are for. Deliberately NOT reset when
+  // `source` changes to a different, not-yet-cached module: this preserves the pre-existing
+  // behavior of keeping the previously-resolved animation on screen during the download instead
+  // of flashing to nothing.
+  const [downloadedSource, setDownloadedSource] = useState<LottieViewProps['source'] | undefined>(
+    undefined
   );
 
   useEffect(() => {
-    let isMounted = true;
-
-    if (isModuleSource(source)) {
-      const asset = Asset.fromModule(source);
-      const uri = asset.localUri ?? asset.uri;
-
-      if (uri) {
-        setResolvedSource({ uri });
-      } else {
-        asset
-          .downloadAsync()
-          .then(() => {
-            const nextUri = asset.localUri ?? asset.uri;
-            if (isMounted && nextUri) {
-              setResolvedSource({ uri: nextUri });
-            }
-          })
-          .catch(() => {
-            if (isMounted) {
-              setResolvedSource(undefined);
-            }
-          });
-      }
-    } else {
-      setResolvedSource(source);
+    if (!moduleAsset || cachedModuleUri) {
+      return;
     }
+
+    let isMounted = true;
+    moduleAsset
+      .downloadAsync()
+      .then(() => {
+        const nextUri = moduleAsset.localUri ?? moduleAsset.uri;
+        if (isMounted && nextUri) {
+          setDownloadedSource({ uri: nextUri });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setDownloadedSource(undefined);
+        }
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [source]);
+  }, [moduleAsset, cachedModuleUri]);
+
+  const resolvedSource: LottieViewProps['source'] | undefined = isModuleSource(source)
+    ? cachedModuleUri
+      ? { uri: cachedModuleUri }
+      : downloadedSource
+    : (source as any);
 
   const containerClassName = useMemo(() => cn(lottieVariants({ size, tone })), [size, tone]);
 

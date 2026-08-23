@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import type { BillingPlanInfo } from '@lightbridge/authz-rpc';
 import {
@@ -85,16 +85,17 @@ export function ApiKeyCreateView({
   // does anything, so this only stays `undefined` while actively editing an invalid custom date.
   const [expiresAt, setExpiresAt] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    // Seed a real selection once the catalogue loads, so Save doesn't sit blocked on "pick a
-    // plan" for the common case -- the operator's first-listed plan, same convention
-    // `ExpirySelector` uses for its own default preset. Only fires while nothing is selected yet:
-    // a plan the user already picked is never overwritten out from under them by a refetch.
-    if (canChoosePlan && !billingPlan && plans.length > 0) {
-      setBillingPlan(plans[0]!.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canChoosePlan, plans]);
+  // Seed a real selection once the catalogue loads, so Save doesn't sit blocked on "pick a
+  // plan" for the common case -- the operator's first-listed plan, same convention
+  // `ExpirySelector` uses for its own default preset. Only fires while nothing is selected yet:
+  // a plan the user already picked is never overwritten out from under them by a refetch.
+  // Computed during render rather than in an effect: the guard becomes false in the very render
+  // the state update it triggers lands in, so this converges within one pass with no extra
+  // commit -- see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  if (canChoosePlan && !billingPlan && plans.length > 0) {
+    setBillingPlan(plans[0]!.id);
+  }
 
   const trimmedName = name.trim();
   const resolvedPlan = canChoosePlan ? billingPlan : DEFAULT_API_KEY_BILLING_PLAN;

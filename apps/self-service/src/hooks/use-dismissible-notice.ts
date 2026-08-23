@@ -68,25 +68,44 @@ export function useDismissibleNotice(id: string): {
   dismiss: () => void;
 } {
   const key = `${KEY_PREFIX}${id}`;
-  const [isDismissed, setIsDismissed] = useState<boolean>(() =>
+
+  // Web: `readDismissedSync` is genuinely synchronous (`localStorage`), so both the initial value
+  // and re-syncing when `key` changes (the caller passed a different notice `id`) happen during
+  // render rather than in a post-commit effect -- the same "adjust state when a prop changes"
+  // shape as `project-settings-view.tsx`'s `resetKey`
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // `Platform.OS` never changes for a running app instance, so branching on it here alongside a
+  // Hook call carries no conditional-hook-order risk. `isReady` is always `true` on web -- there's
+  // nothing to wait for.
+  const [webIsDismissed, setWebIsDismissed] = useState<boolean>(() =>
     Platform.OS === 'web' ? readDismissedSync(key) : false
   );
-  const [isReady, setIsReady] = useState<boolean>(Platform.OS === 'web');
+  const [syncedKey, setSyncedKey] = useState(Platform.OS === 'web' ? key : undefined);
+  if (Platform.OS === 'web' && key !== syncedKey) {
+    setSyncedKey(key);
+    setWebIsDismissed(readDismissedSync(key));
+  }
+
+  // Native: `SecureStore` is genuinely async, so this does stay in an effect -- fetching from an
+  // external system is what effects are for. But rather than a `setIsReady(false)` "reset the
+  // loading flag" call before kicking off the read (itself a direct, unconditional setState in
+  // the effect body, and just as flagged as the web branch this hook used to have), readiness is
+  // *derived*: `nativeResolved` records which `key` the last completed read was for, and
+  // `isReady`/`isDismissed` below are simply "does that match the current key" -- no separate
+  // loading flag to remember to flip back off.
+  const [nativeResolved, setNativeResolved] = useState<
+    { key: string; dismissed: boolean } | undefined
+  >(undefined);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (Platform.OS === 'web') {
-      setIsDismissed(readDismissedSync(key));
-      setIsReady(true);
       return;
     }
 
-    setIsReady(false);
+    let cancelled = false;
     void readDismissed(key).then((value) => {
       if (!cancelled) {
-        setIsDismissed(value);
-        setIsReady(true);
+        setNativeResolved({ key, dismissed: value });
       }
     });
 
@@ -95,8 +114,18 @@ export function useDismissibleNotice(id: string): {
     };
   }, [key]);
 
+  const isReady = Platform.OS === 'web' || nativeResolved?.key === key;
+  const isDismissed =
+    Platform.OS === 'web'
+      ? webIsDismissed
+      : nativeResolved?.key === key && nativeResolved.dismissed;
+
   const dismiss = () => {
-    setIsDismissed(true);
+    if (Platform.OS === 'web') {
+      setWebIsDismissed(true);
+    } else {
+      setNativeResolved({ key, dismissed: true });
+    }
     writeDismissed(key);
   };
 

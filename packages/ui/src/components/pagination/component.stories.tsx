@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 
 import { Text } from '../text';
 import { Pagination } from './component';
+import type { PaginationProps } from './types';
 
 const meta: Meta<typeof Pagination> = {
   title: 'UI/Pagination',
@@ -47,20 +48,26 @@ export const WithIcons: Story = {
   },
 };
 
+// A named function component, not an inline arrow assigned to `render`, so `useState` below is
+// recognized as a Hook call inside a component (`react-hooks/rules-of-hooks` requires the
+// enclosing function name to start with an uppercase letter or `use`; a `render:` story property
+// doesn't qualify even though Storybook treats it as one).
+function InteractivePagination(args: PaginationProps) {
+  const [page, setPage] = useState(1);
+  const totalPages = 4;
+  return (
+    <Pagination
+      {...args}
+      page={page}
+      canPrev={page > 1}
+      hasMore={page < totalPages}
+      onPrev={() => setPage((p) => Math.max(1, p - 1))}
+      onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+    />
+  );
+}
+
 /** Live state so Prev/Next actually move between pages. */
 export const Interactive: Story = {
-  render: (args) => {
-    const [page, setPage] = useState(1);
-    const totalPages = 4;
-    return (
-      <Pagination
-        {...args}
-        page={page}
-        canPrev={page > 1}
-        hasMore={page < totalPages}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-      />
-    );
-  },
+  render: (args) => <InteractivePagination {...args} />,
 };

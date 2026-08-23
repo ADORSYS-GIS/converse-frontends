@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   createBudgetIdempotencyKey,
@@ -47,16 +47,16 @@ export function BudgetRefillScreen({ embedded = false }: Readonly<{ embedded?: b
 
   // The amount the caller has picked, sourced only from the live `allowedAmountsMicros` set --
   // `undefined` means "nothing picked yet". Seeded to the first offered amount once the ladder
-  // loads (mirrors `ApiKeyCreateView`'s billing-plan default-selection effect), and only while
-  // nothing has been picked yet so a background refetch never overwrites a caller's own choice.
+  // loads (mirrors `ApiKeyCreateView`'s billing-plan default-selection), and only while nothing
+  // has been picked yet so a background refetch never overwrites a caller's own choice. Computed
+  // during render, not in an effect: the guard (`selectedAmountMicros === undefined`) is only
+  // true until the very state update it triggers lands, so this converges in the same render pass
+  // with no extra commit and no flash of "nothing selected" once the ladder has actually loaded --
+  // see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
   const [selectedAmountMicros, setSelectedAmountMicros] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (selectedAmountMicros === undefined && allowedAmounts.length > 0) {
-      setSelectedAmountMicros(allowedAmounts[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedAmounts]);
+  if (selectedAmountMicros === undefined && allowedAmounts.length > 0) {
+    setSelectedAmountMicros(allowedAmounts[0]);
+  }
 
   const submit = (key: string) => {
     if (!account?.id || !selectedAmountMicros) return;

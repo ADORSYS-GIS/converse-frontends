@@ -111,7 +111,7 @@ one of these four groups. It replaces the current flat `home / api-keys / usage 
 
 ### 5. Visual direction — reference lock
 
-Primary reference: **Axiom** (axiom.co, dark observability console). Preserve:
+Primary reference: **Axiom** ([axiom.co](https://axiom.co), dark observability console). Preserve:
 
 - Near-black canvas with tonal surface layers: `#000` floor → `#111` header/nav → `#191919`
   floating panels.
@@ -119,12 +119,30 @@ Primary reference: **Axiom** (axiom.co, dark observability console). Preserve:
 - A single accent, `#DA5C2C`, used for **CTA and active states only — never decoration**.
 - 2px radius, near-zero shadow, generous card padding.
 
-Borrow **only** from **Midday** (midday.ai, "achromatic ledger"): the table treatment — hairline
+Borrow **only** from **Midday** ([midday.ai](https://midday.ai), "achromatic ledger"): the table treatment — hairline
 borders, 0px radius, no shadow, elevation via typographic hierarchy — applied to dense money/data
 tables only, not the rest of the shell.
 
-Rejected: **Hex**'s serif display + violet accents (softens a console into marketing); any second
-vibrant colour; rainbow chart series.
+Rejected: **Hex**'s ([hex.tech](https://hex.tech)) serif display + violet accents (softens a
+console into marketing); any second vibrant colour; rainbow chart series.
+
+Refero references used:
+
+- Style: [Axiom Refero preview](https://images.refero.design/styles/axiom.co/6e9baa82-2f2f-4e77-8b0d-566325635dbe/preview_0.jpg),
+  with [source site](https://axiom.co), for the near-black tonal layering, sparing single-orange
+  accent, monospace-leaning technical type, and minimal-rounding panels this decision locks to.
+- Style: [Midday Refero preview](https://images.refero.design/styles/midday.ai/7eb5e800-dff7-473b-84c2-71a98ebac23c/preview_0.jpg),
+  with [source site](https://midday.ai), for the ledger-like table treatment: squared-off panels
+  outlined by hairline borders instead of shadows, hierarchy carried by typography and spacing.
+  **Note the deliberate mismatch:** Midday's own canvas is bright white and light-first. Only its
+  *table structure* is borrowed here, never its tone — which is exactly why this decision scopes
+  the borrow to dense money/data tables rather than the shell.
+- Style: [Hex Refero preview](https://images.refero.design/styles/hex.tech/6c402a97-7748-469e-a90a-fe68810d7ba1/preview_0.jpg),
+  with [source site](https://hex.tech), recorded as the **rejected** direction: the oversized
+  editorial serif headline and Minsk-violet accents that read as marketing rather than console.
+
+The style links point to Refero-hosted previews because Refero style search exposes preview images
+and source URLs, not a human-facing style detail page — the same convention ADR 0001 uses.
 
 This supersedes the recalibrated-but-still-light-first palette from ADR 0007
 (`#3E63DD` accent, cool-slate neutrals) as the direction for this revamp; ADR 0007's structural
@@ -140,6 +158,11 @@ orange means "this needs you." This follows Axiom's own rule that the accent is 
 and deliberately differs from peers (fal.ai renders series in green/teal/purple/yellow/pink; OpenAI
 in greens/purples/oranges). Ridgeline plots benefit especially, since they read on shape rather than
 hue.
+
+Sourcing note: the fal.ai and OpenAI series-colour observations were made by looking at those
+products' own usage surfaces directly. Refero has no captured screen for either
+(searched 2026-08-23), so unlike Decision 5 there is no Refero link to re-open — treat them as a
+point-in-time observation that may drift as those products change.
 
 ### 7. Dashboards move off Grafana into the app
 
@@ -159,6 +182,18 @@ ceiling (`"$0.60 of $120.00"`) and places **"Increase limit" directly beside it*
 dashboard here should likewise be where a refill is *requested*, not merely where consumption is
 displayed — `useRequestBudgetRefill`/`requestBudgetRefill` already exists
 (`budget-refill-screen.tsx`) and should be surfaced from the dashboard, not only from Settings.
+
+The OpenAI screen itself is a direct observation with no Refero capture behind it (see Decision 6's
+sourcing note). Refero references used for the same pattern, which *are* re-openable:
+
+- Screen: [Cohere spending limit](https://refero.design/pages/0316cb1c-3c50-4af2-8ca1-fd84b004d901) —
+  a monthly cap shown with usage progress against it and the edit/remove controls placed on the
+  same panel, which is the "number beside its ceiling beside its control" structure this decision
+  adopts.
+- Flow: [Cohere setting a monthly spending limit](https://refero.design/flows/3896) — the same
+  pattern as a journey rather than a single screen, useful for where the refill request is entered
+  from. ADR 0001 already draws on Cohere for API-key building blocks, so this is a consistent
+  reference rather than a new one.
 
 ### 8. Config-driven logo
 

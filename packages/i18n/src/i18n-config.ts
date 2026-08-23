@@ -286,7 +286,7 @@ const resources = {
           detailsSaving: 'Saving...',
           modelsSection: 'Allowed models',
           modelsDescription:
-            'Models that API keys in this project may call. Leave empty to allow all models.',
+            'Which models API keys in this project may call. The restriction below decides whether the selection is enforced.',
           modelsEmpty: 'All models are allowed, including any added later.',
           modelsRestrictedSummary_one: '1 model is allowed.',
           modelsRestrictedSummary_other: '{{count}} models are allowed.',
@@ -295,17 +295,27 @@ const resources = {
             'The model catalogue is unavailable right now. Try again later to change which models are allowed.',
           modelsCatalogEmpty: 'No models are configured in the catalogue yet.',
           modelUnknownBadge: 'No longer in catalogue',
-          // ADR-0018's `Project.modelPolicy` -- read-only here (no editor built yet, see that
-          // field's schema comment and `ModelPolicy`'s doc comment in project-settings-view.tsx
-          // for the now-landed `setProjectModelPolicy` contract this UI still needs to wire up).
-          // Shown so the checkbox list below is never read out of context: an empty
-          // `allowedModels` means "everything" under `allow_all` but "nothing" under `allowlist`
-          // -- identical UI state, opposite meaning, decided entirely by this field. `deny_all`
-          // additionally means the checkboxes below have no effect at all, so that state gets its
-          // own callout, not a silent empty list.
-          modelPolicyLabel: 'Model access policy',
-          modelPolicyAllowAll: 'All models allowed',
-          modelPolicyAllowlist: 'Restricted to an allowlist',
+          // ADR-0018's `Project.modelPolicy`, now writable through
+          // `procedure.setProjectModelPolicy` (lightbridge-authz#431). The two segments below ARE
+          // the policy: `allow_all` (the repo owner's "disable all, so that all models present and
+          // future would be enabled") and `allowlist`. They exist as a named pair, not a bare
+          // on/off switch, because the checkbox list beneath means opposite things under each --
+          // an empty `allowedModels` is "everything" under `allow_all` and "nothing" under
+          // `allowlist`, identical UI state, opposite meaning -- and a switch labelled only
+          // "Restrict models" cannot say which way it points.
+          modelRestrictionLabel: 'Model restriction',
+          modelRestrictionOff: 'All models',
+          modelRestrictionOn: 'Only selected',
+          // The empty-`allowlist` refusal, stated where the user meets it. `setProjectModelPolicy`
+          // REFUSES `allowlist` with a 400 while `allowedModels` is empty -- it does not warn --
+          // so the "Only selected" segment is disabled rather than pressable-and-bounced, and this
+          // line says what to do about it. `deny_all` deliberately has no segment: the owner did
+          // not ask for one, and a project already on it keeps its own badge/callout below.
+          modelRestrictionNeedsSelection:
+            'Check at least one model below before you can restrict this project — restricting with nothing selected would block every model.',
+          // Retained for `deny_all` only -- the one policy value the segmented control has no
+          // segment for. `allow_all`/`allowlist` are stated by the control itself now, so their
+          // old read-only badges were removed rather than repeating it a second time.
           modelPolicyDenyAll: 'All models blocked',
           // `allowlist` + an empty `allowedModels` is a state this app can no longer produce
           // itself -- lightbridge-authz#431's `setProjectModelPolicy` refuses it with a 400 (and
@@ -315,7 +325,7 @@ const resources = {
           modelsSummaryAllowlistEmpty:
             'The allowlist is empty, so no models are currently allowed for this project. New saves can no longer create this combination — if you see this, it predates that safeguard.',
           modelsDenyAllNotice:
-            'This project blocks every model regardless of the selections below. Change the access policy to let any of them take effect.',
+            'This project blocks every model regardless of the selections below. Choose a restriction above to let any of them take effect.',
           // INTERIM -- ai-helm-values#295 (commit 614cb5da) restored a gateway-side
           // `allowedModels` membership check as a stopgap for a real bypass (a key scoped to two
           // models was served a third, because #418 shipped `modelPolicy` `@readonly` with no way

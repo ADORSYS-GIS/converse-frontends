@@ -17,6 +17,7 @@ import {
   useSetProjectAllowedModels,
   useSetProjectMemberQuotaTier,
   useSetProjectMemberRole,
+  useSetProjectModelPolicy,
   useUpdateProject,
 } from '@lightbridge/hooks';
 import type { Account, Project } from '@lightbridge/hooks';
@@ -72,6 +73,7 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
 
   const updateProject = useUpdateProject();
   const setAllowedModels = useSetProjectAllowedModels();
+  const setModelPolicy = useSetProjectModelPolicy();
   const disableProject = useDisableProject();
   const enableProject = useEnableProject();
   const setDefaultProject = useSetDefaultProject();
@@ -119,6 +121,11 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   // Covers both the `project:update` 403 and #415's new catalogue-validation rejection -- see
   // `saveModels`'s comment above for why this must never be a silent console.error swallow.
   const modelsError = setAllowedModels.error ? getApiErrorMessage(setAllowedModels.error) : null;
+
+  // Kept separate from `modelsError` on purpose: these are two different procedures with two
+  // different failure modes (a catalogue-validation rejection vs. the `allowlist`-while-empty
+  // refusal), and the view renders each next to the control that caused it.
+  const modelPolicyError = setModelPolicy.error ? getApiErrorMessage(setModelPolicy.error) : null;
 
   // The coarse permission is not the whole story: the server also demands account ownership or
   // role='lead', so a permitted-looking caller still gets a 403. Surface it rather than swallow it.
@@ -204,15 +211,18 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
   // therefore every call into this function) only renders once `modelCatalog` has loaded
   // successfully -- see `isModelCatalogLoading`/`isModelCatalogError` in
   // `project-settings-view.tsx` -- so `modelCatalog` is never empty-because-not-yet-loaded here.
+  const catalogueFiltered = (models: string[]): string[] => {
+    const catalogIds = new Set(modelCatalog.map((entry) => entry.id));
+    return models.filter((id) => catalogIds.has(id));
+  };
+
   const saveModels = (models: string[]) => {
     if (!project || !accountId) return;
-    const catalogIds = new Set(modelCatalog.map((entry) => entry.id));
-    const filtered = models.filter((id) => catalogIds.has(id));
     void setAllowedModels
       .mutateAsync({
         projectId: project.id,
         accountId,
-        allowedModels: filtered,
+        allowedModels: catalogueFiltered(models),
       })
       .catch((error) => {
         console.error('Failed to update project allowed models:', error);
@@ -235,6 +245,48 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
     } else {
       saveModels(models.filter((item) => item !== model));
     }
+  };
+
+  /**
+   * The restriction on/off write (lightbridge-authz#431's `setProjectModelPolicy`). Two things here
+   * are load-bearing and easy to get wrong:
+   *
+   * ORDER. Turning restriction ON writes `allowedModels` FIRST, awaits it, and only then writes
+   * `modelPolicy`. The procedure refuses `allowlist` with a 400 while the project's CURRENT
+   * server-side `allowedModels` is empty -- and "current" means what the server holds, not what
+   * this render happens to show. Writing the list first makes the precondition true as a
+   * consequence of this flow rather than an assumption about it: it holds even when the user
+   * checked a model and hit the segment before that first save landed, and it holds when a stale id
+   * would otherwise have been the project's only stored entry. The write is idempotent when the
+   * list is already correct, so the extra call costs a round trip and buys the guarantee.
+   *
+   * REFUSAL. An empty (post-catalogue-filter) selection is not submitted at all. The view already
+   * disables its "on" segment for this, but the guard lives here too rather than only there: this
+   * is the layer that knows the catalogue-filtered list, and "the UI won't let you" is not the same
+   * as "the request cannot be made."
+   *
+   * Turning restriction OFF writes only the policy. `allowedModels` is preserved server-side across
+   * the change, so re-enabling later restores the same selection -- touching the list here could
+   * only lose it.
+   */
+  const handleSetModelRestriction = (restricted: boolean) => {
+    if (!project || !accountId) return;
+    const selection = catalogueFiltered(projectModels());
+    if (restricted && selection.length === 0) return;
+
+    const { id: projectId } = project;
+    void (async () => {
+      if (restricted) {
+        await setAllowedModels.mutateAsync({ projectId, accountId, allowedModels: selection });
+      }
+      await setModelPolicy.mutateAsync({
+        projectId,
+        accountId,
+        modelPolicy: restricted ? 'allowlist' : 'allow_all',
+      });
+    })().catch((error) => {
+      console.error('Failed to update project model policy:', error);
+    });
   };
 
   // The explicit "Remove stale entries" action in the view -- sends the current list unchanged
@@ -331,6 +383,9 @@ export function ProjectSettingsScreen({ embedded = false }: Readonly<{ embedded?
       onRemoveStaleModels={handleRemoveStaleModels}
       isSavingModels={setAllowedModels.isPending}
       modelsError={modelsError}
+      onSetModelRestriction={handleSetModelRestriction}
+      isSavingModelPolicy={setModelPolicy.isPending || setAllowedModels.isPending}
+      modelPolicyError={modelPolicyError}
       onSaveLimits={handleSaveLimits}
       isSavingLimits={updateProject.isPending}
       canCreate={has('project:create')}

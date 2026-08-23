@@ -16,12 +16,13 @@ import {
   PageHeader,
   Scroll,
   SectionCard,
+  SegmentedControl,
   Skeleton,
   Stack,
   Text,
   TextField,
 } from '@lightbridge/ui';
-import type { Account, Project, ProjectMember } from '@lightbridge/hooks';
+import type { Account, ModelPolicy, Project, ProjectMember } from '@lightbridge/hooks';
 import { asTrimmedString } from '@lightbridge/hooks/wire-safety';
 import { AllowlistEnforcementNotice } from '../../components/allowlist-enforcement-notice';
 import {
@@ -81,41 +82,29 @@ const buildModelRows = (catalog: ModelCatalogEntry[], models: string[]): ModelRo
 };
 
 /**
- * ADR-0018's three-value access-control policy on `Project.modelPolicy`. Plain `String` on the
- * wire (this schema has no enum construct -- see the field's own schema comment), so the UI must
- * narrow it itself. Mirrors the backend's own fail-closed parse
- * (`lightbridge_authz_core::dto::ModelPolicy::from(String)`): an unrecognized value must render as
- * the strictest state, `deny_all`, never silently as the permissive `allow_all` default.
+ * READ-path narrowing for ADR-0018's `Project.modelPolicy`. Plain `String` on the wire (this schema
+ * has no enum construct -- see the field's own schema comment), so the UI must narrow it itself.
+ * Mirrors the backend's own fail-closed READ parse
+ * (`lightbridge_authz_core::dto::ModelPolicy::from(String)`): an unrecognized value renders as the
+ * strictest state, `deny_all`, never silently as the permissive `allow_all` default.
  *
- * No editor exists for this field yet -- follow-up work, not this PR (the lockout fix below is
- * the urgent piece). `lightbridge-authz` PR #431 has since landed `procedure.setProjectModelPolicy`
- * -- three decisions from its contract that shape the eventual toggle, noted here so whoever
- * builds it doesn't have to re-derive them:
- *   1. `allowlist` + an empty `allowedModels` is REFUSED (400), not merely warned -- `deny_all`
- *      already expresses "block everything", so the toggle UI must never let a caller reach that
- *      combination (e.g. disable switching to `allowlist` while the list is empty, or force a
- *      selection first).
- *   2. `allowedModels` is PRESERVED across policy changes in both directions -- toggling
- *      restriction off and back on restores the prior selection rather than clearing it.
- *   3. An unrecognized policy value is refused server-side too, never coerced -- consistent with
- *      this file's own fail-closed `normalizeModelPolicy` below.
+ * Note the deliberate asymmetry with the WRITE path: `useSetProjectModelPolicy` sends only values
+ * from the `ModelPolicy` union, and `setProjectModelPolicy` REFUSES anything else with a 400 rather
+ * than coercing it (lightbridge-authz#431). Coercing on read is right because a stored row has
+ * nobody to hand an error to; coercing on write would be guessing at the caller's intent.
  */
-type ModelPolicy = 'allow_all' | 'allowlist' | 'deny_all';
-
 const normalizeModelPolicy = (value: string | undefined): ModelPolicy =>
   value === 'allow_all' || value === 'allowlist' ? value : 'deny_all';
 
-const MODEL_POLICY_BADGE_TONE: Record<ModelPolicy, 'success' | 'info' | 'error'> = {
-  allow_all: 'success',
-  allowlist: 'info',
-  deny_all: 'error',
-};
-
-const MODEL_POLICY_LABEL_KEY: Record<ModelPolicy, string> = {
-  allow_all: 'settings.project.modelPolicyAllowAll',
-  allowlist: 'settings.project.modelPolicyAllowlist',
-  deny_all: 'settings.project.modelPolicyDenyAll',
-};
+/**
+ * The two segments of the restriction control -- `deny_all` deliberately has none. The repo owner
+ * asked for an on/off restriction ("Also have the possibility to disable all, so that all models
+ * (present and future) would be enabled"), not a third "block everything" action, so `deny_all`
+ * stays reachable-in-data but unofferable here: a project already on it selects NEITHER segment and
+ * keeps its own badge + callout below, rather than being silently rendered as one of these two.
+ */
+const RESTRICTION_OFF = 'all' as const;
+const RESTRICTION_ON = 'selected' as const;
 
 type ProjectSettingsViewProps = {
   showBackButton?: boolean;
@@ -160,6 +149,19 @@ type ProjectSettingsViewProps = {
    * Must render, never be swallowed -- see lightbridge-authz#282/#283 for what silently discarding
    * this class of error already cost. */
   modelsError?: string | null;
+  /**
+   * Turns model restriction on (`allowlist`) or off (`allow_all`) -- lightbridge-authz#431's
+   * `setProjectModelPolicy`. The caller owns the ordering constraint that procedure imposes:
+   * `allowlist` is REFUSED with a 400 while the project's server-side `allowedModels` is empty, so
+   * the list must be written first. This view's contribution is making that refusal unreachable --
+   * the "on" segment is disabled while nothing is checked (see `canRestrict` below) rather than
+   * pressable-and-bounced.
+   */
+  onSetModelRestriction: (restricted: boolean) => void;
+  isSavingModelPolicy?: boolean;
+  /** Set when `setProjectModelPolicy` rejects. Rendered next to the control it belongs to, not at
+   * the bottom of the checkbox list -- these are different writes with different failure modes. */
+  modelPolicyError?: string | null;
   onSaveLimits: (limits: ProjectDefaultLimits) => void;
   isSavingLimits?: boolean;
   canCreate?: boolean;
@@ -228,6 +230,9 @@ export function ProjectSettingsView({
   onRemoveStaleModels,
   isSavingModels = false,
   modelsError = null,
+  onSetModelRestriction,
+  isSavingModelPolicy = false,
+  modelPolicyError = null,
   onSaveLimits,
   isSavingLimits = false,
   canCreate = true,
@@ -312,12 +317,33 @@ export function ProjectSettingsView({
   // `allow_all`. `listRestrictsToday` names that combined, *effective* behavior so the copy below
   // never claims a checked list is ignored when the gateway is in fact enforcing it.
   //
-  // REMOVE TRIGGER: once `lightbridge-authz`#431's `setProjectModelPolicy` write path is wired up
-  // here (this PR's own follow-up -- see the `ModelPolicy` type's doc comment above for that
-  // procedure's contract) and a project can actually reach `allowlist`, a non-empty list under a
-  // stored `allow_all` should no longer be a state this app can produce. At that point this can
-  // collapse back to a plain switch on `modelPolicy` alone, and the interim callout below can go.
+  // REMOVE TRIGGER, restated now that the write path exists: wiring up #431's
+  // `setProjectModelPolicy` (the restriction control below) was NOT the trigger, and this is the
+  // easy mistake to make here. `allowlist` being reachable does not make the gateway stopgap stop
+  // enforcing -- ai-helm-values#295 is still deployed, so a non-empty `allowedModels` STILL
+  // restricts under a stored `allow_all`, and that state is still one this app produces (a project
+  // with a selection saved while the restriction is off). Removing this callout before the stopgap
+  // comes down would put the UI back to claiming a checked list is ignored while the gateway is in
+  // fact enforcing it -- the exact lie #195 existed to end.
+  //
+  // The actual trigger is two-part, and both parts belong to whoever removes the stopgap:
+  //   1. every project an operator wants restricted has been switched onto `allowlist` (which the
+  //      control below now makes possible), and
+  //   2. ai-helm-values#295's `lightbridge-model-allowed` conjunction is reverted so `allowedModels`
+  //      is enforced only under `allowlist` again.
+  // At that point this whole `listRestrictsToday` derivation collapses back to
+  // `modelPolicy === 'allowlist'`, the interim callout goes, and
+  // `modelsSummaryAllowlistEmpty`'s "legacy-only" framing can be re-examined. Do it in the SAME
+  // change that removes the stopgap, not before it.
   const listRestrictsToday = modelPolicy !== 'deny_all' && models.length > 0;
+
+  // The one hard constraint this section is built around: `setProjectModelPolicy` REFUSES
+  // `allowlist` with a 400 while the project's `allowedModels` is empty (lightbridge-authz#431) --
+  // it does not warn, it refuses. So "restriction on" is not offered at all until something is
+  // checked, rather than offered, submitted, and bounced. Note this reads the STORED list, which is
+  // also what the server checks; a `deny_all` project with a stored selection can therefore still
+  // move straight to `allowlist`.
+  const canRestrict = models.length > 0;
 
   // `deny_all` ignores `allowedModels` entirely regardless of content (both the schema's own
   // comment and `ModelPolicy`'s Rust doc comment are explicit about this, and the stopgap above
@@ -531,23 +557,67 @@ export function ProjectSettingsView({
                   title={t('settings.project.modelsSection')}
                   description={t('settings.project.modelsDescription')}>
                   <Stack gap="md">
-                    <Stack direction="row" align="center" gap="sm" wrap="wrap">
+                    {/* The restriction control sits directly above the list it governs, with one
+                     * caption line between them, so "on/off" and "which ones" read as one
+                     * statement rather than two unrelated settings. Two named segments instead of
+                     * a bare switch: the list below means opposite things under each policy, and a
+                     * switch can only be labelled from one side. */}
+                    <Stack gap="xs">
                       <Text intent="caption" style={{ color: colors.subtle }}>
-                        {t('settings.project.modelPolicyLabel')}
+                        {t('settings.project.modelRestrictionLabel')}
                       </Text>
-                      <Badge tone={MODEL_POLICY_BADGE_TONE[modelPolicy]}>
-                        {t(MODEL_POLICY_LABEL_KEY[modelPolicy])}
-                      </Badge>
+                      <SegmentedControl
+                        width="full"
+                        value={
+                          modelPolicy === 'allowlist'
+                            ? RESTRICTION_ON
+                            : modelPolicy === 'allow_all'
+                              ? RESTRICTION_OFF
+                              : // `deny_all`: neither segment. See RESTRICTION_OFF's doc comment.
+                                ''
+                        }
+                        onChange={(key) => onSetModelRestriction(key === RESTRICTION_ON)}
+                        accessibilityLabel={t('settings.project.modelRestrictionLabel')}
+                        options={[
+                          {
+                            key: RESTRICTION_OFF,
+                            label: t('settings.project.modelRestrictionOff'),
+                            disabled: isSavingModelPolicy,
+                          },
+                          {
+                            key: RESTRICTION_ON,
+                            label: t('settings.project.modelRestrictionOn'),
+                            disabled: isSavingModelPolicy || !canRestrict,
+                          },
+                        ]}
+                      />
+                      {canRestrict ? null : (
+                        <Text intent="caption" style={{ color: colors.subtle }}>
+                          {t('settings.project.modelRestrictionNeedsSelection')}
+                        </Text>
+                      )}
+                      {modelPolicyError ? (
+                        <Text intent="caption" style={{ color: colors.error }}>
+                          {modelPolicyError}
+                        </Text>
+                      ) : null}
                     </Stack>
 
+                    {/* `deny_all` has no segment of its own, so its badge and callout are the only
+                     * things naming the state -- keep both. */}
                     {modelPolicy === 'deny_all' ? (
-                      <Callout tone="error">{t('settings.project.modelsDenyAllNotice')}</Callout>
+                      <Stack gap="sm">
+                        <Badge tone="error">{t('settings.project.modelPolicyDenyAll')}</Badge>
+                        <Callout tone="error">{t('settings.project.modelsDenyAllNotice')}</Callout>
+                      </Stack>
                     ) : null}
 
                     {/* INTERIM -- see `listRestrictsToday`'s doc comment above for the full
-                     * mechanism and removal trigger. Only `allow_all` needs this extra callout:
-                     * `allowlist`'s own badge/summary already read as "restricted" on their own,
-                     * so there is no gap between what they say and what the gateway does today. */}
+                     * mechanism and the (unchanged, and NOT-yet-met) removal trigger. Only
+                     * `allow_all` needs this extra callout: under `allowlist` the "Only selected"
+                     * segment and the count summary already read as restricted, so nothing the UI
+                     * says there contradicts what the gateway does. Under `allow_all` with a
+                     * non-empty list they would, which is what this corrects. */}
                     {modelPolicy === 'allow_all' && listRestrictsToday ? (
                       <Callout tone="warning">
                         {t('settings.project.modelsAllowAllInterimRestrictedNotice', {

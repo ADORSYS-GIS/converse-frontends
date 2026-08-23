@@ -344,6 +344,67 @@ export function useSetProjectAllowedModels() {
   };
 }
 
+/**
+ * ADR-0018's three-value access-control policy on `Project.modelPolicy`. Plain `String` on the
+ * wire (the cratestack schema has no enum construct), so every consumer must narrow it itself --
+ * this union is the one place that narrowing is spelled out, shared by the write hook below and by
+ * the settings UI's fail-closed read-path normalizer.
+ */
+export type ModelPolicy = 'allow_all' | 'allowlist' | 'deny_all';
+
+/**
+ * Sets `Project.modelPolicy` (lightbridge-authz#431, ADR-0018 Decision 5's own follow-up). This is
+ * the ONLY write path to that column -- `modelPolicy` is `@readonly` on `model.Project`, exactly
+ * like `allowedModels` above, so sending it through `useUpdateProject` would typecheck, transmit,
+ * and then be silently dropped by the server.
+ *
+ * Three contract facts a caller must honour, all from #431 (that PR's schema doc comment records
+ * the reasoning; these are the consequences):
+ *
+ * 1. `modelPolicy` must be exactly `'allow_all' | 'allowlist' | 'deny_all'`. An unrecognized value
+ *    is refused with a `BadRequest` naming it, never coerced -- deliberately the opposite of the
+ *    READ path's fail-closed coercion to `deny_all` (a read has no caller to error back to; a
+ *    write does).
+ * 2. Switching to `'allowlist'` is REFUSED with a `BadRequest` while the project's CURRENT
+ *    server-side `allowedModels` is `null`/`[]` -- not warned about, refused. A caller driving a
+ *    "turn restriction on" flow MUST call `useSetProjectAllowedModels` with a non-empty list and
+ *    await it BEFORE calling this. See `handleSetModelRestriction` in
+ *    `apps/self-service/src/screens/project-settings-screen.tsx` for that sequence.
+ * 3. This procedure never touches `allowedModels`, so the list is PRESERVED across a policy change
+ *    in both directions. Turning the restriction off does not clear the selection, and turning it
+ *    back on restores it -- render it that way rather than blanking the picker.
+ *
+ * Exposes `error` for the same reason `useSetProjectAllowedModels` does: (1) and (2) are real,
+ * reachable rejections a caller must render, never swallow.
+ */
+export function useSetProjectModelPolicy() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      modelPolicy,
+    }: {
+      projectId: string;
+      accountId: string;
+      modelPolicy: ModelPolicy;
+    }) => {
+      const updated = await getAuthzRpcClient().procedures.setProjectModelPolicy({
+        args: { projectId, modelPolicy },
+      });
+      return toProject(updated);
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey(accountId) });
+    },
+  });
+
+  return {
+    isPending: mutation.isPending,
+    error: mutation.error,
+    mutateAsync: mutation.mutateAsync,
+  };
+}
 export function useDisableProject() {
   const queryClient = useQueryClient();
 

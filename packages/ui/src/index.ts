@@ -91,3 +91,49 @@ export type { ToolbarProps } from './components/toolbar';
 export { useIsDesktop } from './hooks/use-is-desktop';
 export { AppFont, useAppFonts } from './hooks/use-app-fonts';
 export { APP_FONT_SOURCES } from './hooks/app-font-sources';
+
+// Chart primitives (ADR-0008 Decisions 6 & 9) -- monochrome-ramp + signal-orange
+// colour system, react-native-svg + d3-scale/d3-shape rendering.
+export {
+  CHART_ACCENT,
+  CHART_GRID,
+  CHART_SURFACE,
+  CHART_TEXT_MUTED,
+  CHART_TEXT_PRIMARY,
+  DASH_PATTERNS,
+  DEFAULT_CHART_MARGIN,
+  GREY_RAMP,
+  computeHistogramBins,
+  computeSharedBins,
+  innerHeight,
+  innerWidth,
+  makeBandScale,
+  makeLinearScale,
+  makeTimeScale,
+  seriesColor,
+  seriesDash,
+  widenDegenerateDomain,
+} from './components/chart-core';
+export type {
+  ChartMargin,
+  ChartSeriesMeta,
+  HistogramBin,
+  SeriesColorOptions,
+  SharedBins,
+} from './components/chart-core';
+export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
+export type { ChartAxisBottomProps, ChartAxisLeftProps, ChartTick } from './components/chart-axis';
+export { ChartLegend } from './components/chart-legend';
+export type { ChartLegendItem, ChartLegendProps } from './components/chart-legend';
+export { ChartTooltip } from './components/chart-tooltip';
+export type { ChartTooltipProps, ChartTooltipRow } from './components/chart-tooltip';
+export { TimeSeriesChart } from './components/time-series-chart';
+export type {
+  TimeSeriesChartProps,
+  TimeSeriesPoint,
+  TimeSeriesSeries,
+} from './components/time-series-chart';
+export { HistogramChart } from './components/histogram-chart';
+export type { HistogramChartProps } from './components/histogram-chart';
+export { RidgelineChart } from './components/ridgeline-chart';
+export type { RidgelineChartProps, RidgelineSeries } from './components/ridgeline-chart';

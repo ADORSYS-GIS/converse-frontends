@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   Badge,
@@ -85,9 +85,17 @@ export function AccountSettingsView({
   const safeDefaultQuota = asTrimmedString(defaultQuota);
   const [defaultQuotaDraft, setDefaultQuotaDraft] = useState(safeDefaultQuota);
 
-  useEffect(() => {
+  // Reset the draft when the selected account changes, computed during render instead of in an
+  // effect -- see `project-settings-view.tsx`'s `resetKey` for the general shape and why
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // Keyed on `selectedAccountId`, not `safeDefaultQuota` itself: two different accounts that
+  // happen to share the same quota value would otherwise fail to reset the draft on switch, since
+  // a `useEffect(() => {...}, [safeDefaultQuota])` only re-fires when the *value* changes.
+  const [resetKey, setResetKey] = useState(selectedAccountId);
+  if (selectedAccountId !== resetKey) {
+    setResetKey(selectedAccountId);
     setDefaultQuotaDraft(safeDefaultQuota);
-  }, [safeDefaultQuota]);
+  }
 
   const trimmedDraft = asTrimmedString(defaultQuotaDraft);
   const hasDefaultQuotaChanged = trimmedDraft !== safeDefaultQuota;

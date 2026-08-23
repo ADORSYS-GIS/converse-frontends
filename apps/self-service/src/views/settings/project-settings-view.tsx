@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import type { ModelCatalogEntry } from '@lightbridge/authz-rpc';
 import {
@@ -285,14 +285,25 @@ export function ProjectSettingsView({
     limitToDraft(projectLimits.concurrent_requests)
   );
 
-  useEffect(() => {
-    const limits = asDefaultLimits(project?.defaultLimits);
+  // The drafts above must reset to the new project's values when the *selected project changes*
+  // (switching projects, or the initial fetch resolving from `undefined` to a loaded `Project`),
+  // but must NOT reset on an unrelated re-render that hands back a *different `project` object
+  // describing the same project* -- `project` is `projects.find(...)` in the screen, so a
+  // background refetch of the `projects` list produces a brand-new object reference every time,
+  // even when nothing in it changed. A `useEffect(() => {...}, [project])` compares that object
+  // reference, so it fired -- and clobbered any in-progress edit -- on every such refetch, not
+  // just on an actual project switch. Comparing `project?.id` during render instead of an effect
+  // is the sanctioned fix for "adjusting state when a prop changes" that also needs to run before
+  // paint (no stale-values flash): https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes.
+  const [resetKey, setResetKey] = useState(project?.id);
+  if (project?.id !== resetKey) {
+    setResetKey(project?.id);
     setNameDraft(asTrimmedString(project?.name));
     setPlanDraft(asTrimmedString(project?.billingPlan));
-    setRpsDraft(limitToDraft(limits.requests_per_second));
-    setRpdDraft(limitToDraft(limits.requests_per_day));
-    setConcurrentDraft(limitToDraft(limits.concurrent_requests));
-  }, [project]);
+    setRpsDraft(limitToDraft(projectLimits.requests_per_second));
+    setRpdDraft(limitToDraft(projectLimits.requests_per_day));
+    setConcurrentDraft(limitToDraft(projectLimits.concurrent_requests));
+  }
 
   const trimmedName = nameDraft.trim();
   const trimmedPlan = planDraft.trim();

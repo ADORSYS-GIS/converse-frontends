@@ -11,11 +11,17 @@ const meta: Meta<typeof Checkbox> = {
 export default meta;
 type Story = StoryObj<typeof Checkbox>;
 
+// A named function component, not an inline arrow assigned to `render`, so `useState` below is
+// recognized as a Hook call inside a component (`react-hooks/rules-of-hooks` requires the
+// enclosing function name to start with an uppercase letter or `use`; a `render:` story property
+// doesn't qualify even though Storybook treats it as one).
+function InteractiveCheckbox() {
+  const [checked, setChecked] = useState(false);
+  return <Checkbox value={checked} onValueChange={setChecked} />;
+}
+
 export const Interactive: Story = {
-  render: () => {
-    const [checked, setChecked] = useState(false);
-    return <Checkbox value={checked} onValueChange={setChecked} />;
-  },
+  render: () => <InteractiveCheckbox />,
 };
 
 export const Checked: Story = { args: { value: true } };

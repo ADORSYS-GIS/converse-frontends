@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@lightbridge/i18n';
 import {
   Badge,
@@ -101,16 +101,24 @@ export function ApiKeySettingsView({
     asTrimmedStringOrNull(apiKey?.expiresAt) ?? undefined
   );
 
-  useEffect(() => {
+  // Reset `nameDraft` when the selected key changes, computed during render instead of in an
+  // effect -- see `project-settings-view.tsx`'s `resetKey` for the general shape and why
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // Keyed on `apiKey?.id`, not the `apiKey` object itself, so a background refetch that hands
+  // back a new-but-equal `ApiKey` object never clobbers an in-progress name edit.
+  //
+  // `expiresAtDraft` is deliberately NOT reset here, same as before this was moved out of an
+  // effect. `ExpirySelector` below is remounted via `key={apiKey.id}` whenever the selected key
+  // changes, and its own mount effect reports the freshly-seeded resolved value through
+  // `onChange` (= `setExpiresAtDraft`). Resetting a render-phase update runs strictly before any
+  // post-commit effect (including that child's mount effect), so leaving `expiresAtDraft` alone
+  // here avoids the exact clobbering race the original effect-based comment warned about: this
+  // block no longer touches `expiresAtDraft` at all, so there is nothing left to race.
+  const [resetKey, setResetKey] = useState(apiKey?.id);
+  if (apiKey?.id !== resetKey) {
+    setResetKey(apiKey?.id);
     setNameDraft(asTrimmedString(apiKey?.name));
-    // `expiresAtDraft` is deliberately NOT reset here. `ExpirySelector` below is remounted via
-    // `key={apiKey.id}` whenever the selected key changes, and its own mount effect reports the
-    // freshly-seeded resolved value through `onChange` (= `setExpiresAtDraft`) -- React fires a
-    // child's mount effect before this parent effect in the same commit, so resetting it here
-    // too would win the race and clobber that resolved value back to the raw, unnormalized
-    // `apiKey.expiresAt` (observed as a real bug: `2026-12-31T00:00:00Z` overwriting the
-    // correctly-resolved `2026-12-31T00:00:00.000Z` on every render).
-  }, [apiKey]);
+  }
 
   const trimmedName = nameDraft.trim();
   const expirationValid = expiresAtDraft !== undefined;

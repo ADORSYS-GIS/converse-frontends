@@ -36,6 +36,16 @@ const project: Project = {
   updatedAt: '2026-01-02T00:00:00Z',
 };
 
+// A distinct second project, used to exercise switching the selected project.
+const otherProject: Project = {
+  ...project,
+  id: 'proj-2',
+  name: 'staging',
+  billingPlan: 'pro',
+  allowedModels: [],
+  defaultLimits: { requests_per_second: 9, requests_per_day: null, concurrent_requests: null },
+};
+
 // `gpt-4o` is already allowed on `project` above; `claude-sonnet-5` is a real catalogue entry the
 // project has not (yet) restricted to.
 const modelCatalog: ModelCatalogEntry[] = [
@@ -43,8 +53,8 @@ const modelCatalog: ModelCatalogEntry[] = [
   { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
 ];
 
-function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettingsView>> = {}) {
-  return render(
+function viewElement(overrides: Partial<React.ComponentProps<typeof ProjectSettingsView>> = {}) {
+  return (
     <ProjectSettingsView
       onBack={noop}
       onAddMember={noop}
@@ -74,6 +84,10 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       {...overrides}
     />
   );
+}
+
+function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettingsView>> = {}) {
+  return render(viewElement(overrides));
 }
 
 describe('parseLimitDraft', () => {
@@ -126,6 +140,44 @@ describe('ProjectSettingsView', () => {
     await fireEvent.press(screen.getByText('Save'));
 
     expect(onSaveDetails).toHaveBeenCalledWith({ name: 'production-2', billingPlan: 'free' });
+  });
+
+  it('resets the drafts to the newly-selected project when the project prop switches to a different project', async () => {
+    const { rerender } = await renderView();
+
+    await fireEvent.changeText(screen.getByDisplayValue('production'), 'production-in-progress');
+
+    await rerender(
+      viewElement({
+        projects: [project, otherProject],
+        selectedProjectId: 'proj-2',
+        project: otherProject,
+      })
+    );
+
+    expect(screen.getByDisplayValue('staging')).toBeTruthy();
+    expect(screen.getByDisplayValue('pro')).toBeTruthy();
+    expect(screen.getByDisplayValue('9')).toBeTruthy();
+    expect(screen.queryByDisplayValue('production-in-progress')).toBeNull();
+  });
+
+  it('does not clobber an in-progress edit when `project` re-renders as a new object describing the same project (e.g. a background refetch)', async () => {
+    // This is the regression this test guards: `project` is `projects.find(...)` in the owning
+    // screen, so a background refetch of the `projects` list hands back a brand-new object
+    // reference for the *same* project on every poll. A naive `useEffect(() => {...}, [project])`
+    // compares that reference and would re-fire on every such refetch, silently overwriting
+    // whatever the user was mid-typing with the freshly-fetched (but functionally unchanged)
+    // value.
+    const { rerender } = await renderView();
+
+    await fireEvent.changeText(screen.getByDisplayValue('production'), 'production-in-progress');
+
+    const refetchedProject: Project = { ...project };
+    expect(refetchedProject).not.toBe(project);
+
+    await rerender(viewElement({ projects: [refetchedProject], project: refetchedProject }));
+
+    expect(screen.getByDisplayValue('production-in-progress')).toBeTruthy();
   });
 
   it('renders every catalogue model as a checkbox, checked exactly for the allowed subset', async () => {

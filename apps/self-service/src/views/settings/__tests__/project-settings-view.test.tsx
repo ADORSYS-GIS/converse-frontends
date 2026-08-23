@@ -65,6 +65,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ProjectSettin
       modelCatalog={modelCatalog}
       onToggleModel={noop}
       onRemoveStaleModels={noop}
+      onSetModelRestriction={noop}
       onSaveLimits={noop}
       onDeleteProject={noop}
       onSuspendProject={noop}
@@ -249,11 +250,16 @@ describe('ProjectSettingsView', () => {
     // deliberately the INTERIM case (ai-helm-values#295): the gateway restricts to a non-empty
     // list regardless of `modelPolicy` today, so `allow_all` + non-empty must show the interim
     // callout, not silently imply the checked list has no effect.
-    it('shows "All models allowed" for the default allow_all policy, plus the interim restricted-today callout when the list is non-empty', async () => {
+    it('shows the restriction as off for the default allow_all policy, plus the interim restricted-today callout when the list is non-empty', async () => {
       await renderView({ project: { ...project, modelPolicy: 'allow_all' } });
 
-      expect(screen.getByText('Model access policy')).toBeTruthy();
-      expect(screen.getByText('All models allowed')).toBeTruthy();
+      expect(screen.getByText('Model restriction')).toBeTruthy();
+      // The segmented control is now the single statement of allow_all/allowlist -- the old
+      // read-only badge said the same thing a second time, so it survives only for `deny_all`,
+      // the one state the control deliberately has no segment for.
+      expect(
+        screen.getByRole('button', { name: 'All models' }).props.accessibilityState.selected
+      ).toBe(true);
       expect(screen.queryByText(/blocks every model/)).toBeNull();
       expect(
         screen.getByText(
@@ -274,10 +280,12 @@ describe('ProjectSettingsView', () => {
       expect(screen.queryByText(/temporary safeguard/)).toBeNull();
     });
 
-    it('labels a non-empty allowlist policy correctly and shows the restricted-count summary, with no interim callout (already accurate)', async () => {
+    it('shows the restriction as on for a non-empty allowlist and the restricted-count summary, with no interim callout (already accurate)', async () => {
       await renderView({ project: { ...project, modelPolicy: 'allowlist' } });
 
-      expect(screen.getByText('Restricted to an allowlist')).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.selected
+      ).toBe(true);
       expect(screen.getByText('1 model is allowed.')).toBeTruthy();
       // `allowlist`'s own badge/summary already say "restricted" -- the interim callout exists
       // only to correct `allow_all`'s otherwise-misleading "All models allowed" badge, so it must
@@ -309,7 +317,7 @@ describe('ProjectSettingsView', () => {
       expect(screen.getByText('All models blocked')).toBeTruthy();
       expect(
         screen.getByText(
-          'This project blocks every model regardless of the selections below. Change the access policy to let any of them take effect.'
+          'This project blocks every model regardless of the selections below. Choose a restriction above to let any of them take effect.'
         )
       ).toBeTruthy();
       // The checkbox list itself is still rendered (editing allowedModels is independent of the
@@ -323,6 +331,147 @@ describe('ProjectSettingsView', () => {
       });
 
       expect(screen.getByText('All models blocked')).toBeTruthy();
+    });
+  });
+
+  // The on/off restriction control the repo owner asked for ("Also have the possibility to disable
+  // all, so that all models (present and future) would be enabled"), wired to
+  // `lightbridge-authz`#431's `setProjectModelPolicy`. Two segments, not a bare switch, because the
+  // two states have opposite meanings that a single "on/off" affordance cannot name -- and because
+  // `SegmentedControl` already supports the per-option `disabled` this section's central constraint
+  // needs (see the empty-selection tests below).
+  describe('model restriction control', () => {
+    it('shows the restriction as off, with the checkbox list still selectable, under allow_all', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'allow_all' } });
+
+      expect(
+        screen.getByRole('button', { name: 'All models' }).props.accessibilityState.selected
+      ).toBe(true);
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.selected
+      ).toBe(false);
+    });
+
+    it('shows the restriction as on under allowlist', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'allowlist' } });
+
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.selected
+      ).toBe(true);
+      expect(
+        screen.getByRole('button', { name: 'All models' }).props.accessibilityState.selected
+      ).toBe(false);
+    });
+
+    it('turning the restriction off asks for allow_all', async () => {
+      const onSetModelRestriction = jest.fn();
+      await renderView({
+        project: { ...project, modelPolicy: 'allowlist' },
+        onSetModelRestriction,
+      });
+
+      await fireEvent.press(screen.getByRole('button', { name: 'All models' }));
+
+      expect(onSetModelRestriction).toHaveBeenCalledWith(false);
+    });
+
+    it('turning the restriction on asks for allowlist when at least one model is checked', async () => {
+      const onSetModelRestriction = jest.fn();
+      await renderView({
+        project: { ...project, modelPolicy: 'allow_all', allowedModels: ['gpt-4o'] },
+        onSetModelRestriction,
+      });
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Only selected' }));
+
+      expect(onSetModelRestriction).toHaveBeenCalledWith(true);
+    });
+
+    // THE central constraint of this section: `setProjectModelPolicy` REFUSES `allowlist` while
+    // the project's `allowedModels` is empty (400, lightbridge-authz#431) -- it does not warn, it
+    // refuses. So the combination must be unreachable in the UI, never submitted and bounced. The
+    // segment is disabled and says why, rather than being pressable and failing.
+    it('makes the restriction un-turn-on-able while nothing is checked, and says why', async () => {
+      const onSetModelRestriction = jest.fn();
+      await renderView({
+        project: { ...project, modelPolicy: 'allow_all', allowedModels: [] },
+        onSetModelRestriction,
+      });
+
+      const restrictOption = screen.getByRole('button', { name: 'Only selected' });
+      expect(restrictOption.props.accessibilityState.disabled).toBe(true);
+
+      await fireEvent.press(restrictOption);
+      expect(onSetModelRestriction).not.toHaveBeenCalled();
+
+      expect(
+        screen.getByText(
+          'Check at least one model below before you can restrict this project — restricting with nothing selected would block every model.'
+        )
+      ).toBeTruthy();
+    });
+
+    it('drops the needs-a-selection hint as soon as something is checked', async () => {
+      await renderView({ project: { ...project, allowedModels: ['gpt-4o'] } });
+
+      expect(screen.queryByText(/Check at least one model below/)).toBeNull();
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.disabled
+      ).toBe(false);
+    });
+
+    // `allowedModels` is preserved server-side across a policy change in both directions
+    // (lightbridge-authz#431), so the checkbox list must keep rendering the prior selection while
+    // the restriction is off -- never blank out as though the list were lost.
+    it('keeps the prior selection visibly checked while the restriction is off', async () => {
+      await renderView({
+        project: { ...project, modelPolicy: 'allow_all', allowedModels: ['gpt-4o'] },
+      });
+
+      expect(screen.getByLabelText('gpt-4o').props.accessibilityState.checked).toBe(true);
+      expect(screen.getByLabelText('claude-sonnet-5').props.accessibilityState.checked).toBe(false);
+    });
+
+    // `deny_all` gets no control of its own (the owner did not ask for one), but a project already
+    // on it must not read as an ordinary unrestricted or empty-allowlist state: neither segment is
+    // selected, and #195's badge + callout still carry the meaning.
+    it('selects neither segment for deny_all, leaving its badge and callout to explain the state', async () => {
+      await renderView({ project: { ...project, modelPolicy: 'deny_all' } });
+
+      expect(
+        screen.getByRole('button', { name: 'All models' }).props.accessibilityState.selected
+      ).toBe(false);
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.selected
+      ).toBe(false);
+      expect(screen.getByText('All models blocked')).toBeTruthy();
+      expect(
+        screen.getByText(/blocks every model regardless of the selections below/)
+      ).toBeTruthy();
+    });
+
+    it('disables both segments while a policy write is in flight', async () => {
+      await renderView({ isSavingModelPolicy: true });
+
+      expect(
+        screen.getByRole('button', { name: 'All models' }).props.accessibilityState.disabled
+      ).toBe(true);
+      expect(
+        screen.getByRole('button', { name: 'Only selected' }).props.accessibilityState.disabled
+      ).toBe(true);
+    });
+
+    it('renders a rejected policy write as readable error text next to the control', async () => {
+      await renderView({
+        modelPolicyError:
+          'cannot switch to allowlist while allowedModels is empty: set allowedModels first',
+      });
+
+      expect(
+        screen.getByText(
+          'cannot switch to allowlist while allowedModels is empty: set allowedModels first'
+        )
+      ).toBeTruthy();
     });
   });
 

@@ -14,5 +14,6 @@
   "usage": {
     "grafanaUrl": "${EXPO_PUBLIC_GRAFANA_URL}",
     "dashboardPath": "${EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH}"
-  }
+  },
+  "logoUrl": "${EXPO_PUBLIC_LOGO_URL}"
 }

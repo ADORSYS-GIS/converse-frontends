@@ -88,6 +88,7 @@ export type { ToolbarProps } from './components/toolbar';
 // @gorhom/bottom-sheet → react-native-reanimated → worklets, which crash under
 // jest and bloat any importer. Import it from the dedicated subpath instead:
 //   import { Sheet } from '@lightbridge/ui/sheet'
-export { useIsDesktop } from './hooks/use-is-desktop';
+export { hasPersistentLeftPanel, useShellTier } from './hooks/use-shell-tier';
+export type { ShellTier } from './hooks/use-shell-tier';
 export { AppFont, useAppFonts } from './hooks/use-app-fonts';
 export { APP_FONT_SOURCES } from './hooks/app-font-sources';

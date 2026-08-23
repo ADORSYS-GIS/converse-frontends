@@ -1,22 +1,34 @@
 import React from 'react';
 import type { BottomTabBarProps } from 'expo-router/tabs';
 import { designTokens, Icon as Feather, NavContainer, NavItem, Stack } from '@lightbridge/ui';
+import { usePermissions } from '@lightbridge/hooks';
 
-import { useRuntimeConfig } from '../configs/runtime-config';
 import { useThemeColors } from '../hooks/use-theme-colors';
-import { tabRouteIcons } from './tab-routes';
-import { useIsDesktop } from './use-is-desktop';
+import { tabRouteIcons, tabRoutes } from './tab-routes';
+import { useShellTier } from './use-shell-tier';
 
+/**
+ * The ADR 0008 nav spine's left column: a persistent floating panel from the `compact` tier up
+ * through `full` (Decision 3's responsive table), collapsing to bottom navigation only at the
+ * `guardRail` tier (`<600`, unsupported). Renders the `tabRoutes` spine
+ * (`Overview · Api-Keys · Manage · Admin`) — `Admin` only for a caller holding `budget:review`
+ * (the existing admin-only permission from `packages/hooks/src/rbac.ts` — see `tab-routes.ts`'s
+ * doc comment for why that's an equivalent, reusable stand-in for "holds the `lightbridge-admin`
+ * role" without a second gating mechanism).
+ */
 export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<BottomTabBarProps>) {
-  const isDesktop = useIsDesktop();
+  const tier = useShellTier();
   const colors = useThemeColors();
-  const { usage } = useRuntimeConfig();
+  const { has } = usePermissions();
 
-  // The Usage tab ships dark: it only appears once an operator points the app at
-  // a Grafana instance (EXPO_PUBLIC_GRAFANA_URL / config.json `usage`). Skipping
-  // the render — rather than filtering `state.routes` — keeps each route's
-  // original index aligned with `state.index` for focus highlighting.
-  const isHiddenRoute = (routeName: string) => routeName === 'usage' && !usage;
+  // A gated route (today, only `admin`) is skipped — rather than filtered out of
+  // `state.routes` — so every other route's original index stays aligned with
+  // `state.index` for focus highlighting (same reasoning the old Grafana-gated
+  // Usage tab used before ADR 0008 moved usage off the nav spine entirely).
+  const isHiddenRoute = (routeName: string) => {
+    const route = tabRoutes.find((candidate) => candidate.name === routeName);
+    return Boolean(route?.requiredPermission && !has(route.requiredPermission));
+  };
 
   const getLabel = (routeKey: string, routeName: string) => {
     const options = descriptors[routeKey]?.options;
@@ -31,9 +43,9 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
 
   const getIconName = (routeName: string) => tabRouteIcons[routeName] ?? null;
 
-  if (isDesktop) {
+  if (tier !== 'guardRail') {
     return (
-      <NavContainer placement="sidebar">
+      <NavContainer placement="sidebar" testID="shell-left-panel-floating">
         <Stack gap="sm" align="center">
           {state.routes.map((route, index) => {
             if (isHiddenRoute(route.name)) {
@@ -67,7 +79,7 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: Readonly<Bo
   }
 
   return (
-    <NavContainer placement="bottom">
+    <NavContainer placement="bottom" testID="shell-bottom-nav">
       {state.routes.map((route, index) => {
         if (isHiddenRoute(route.name)) {
           return null;

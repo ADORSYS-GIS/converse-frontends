@@ -15,9 +15,11 @@ export function UsageScreen() {
   const scheme = useEffectiveColorScheme();
   const { usage } = useRuntimeConfig();
 
-  // Defensive: the tab is hidden when usage is unconfigured (see
-  // responsive-tab-bar), but a deep-link could still land here — show a plain
-  // unavailable state rather than a broken embed.
+  // Defensive: since ADR 0008's nav-spine restructure, this route is no longer a top-level tab
+  // (the spine is a strict Overview/Api-Keys/Manage/Admin four) — it's reached from Overview's
+  // "Usage" quick action, itself hidden when usage is unconfigured (see home-view.tsx). A
+  // deep-link could still land here directly, though — show a plain unavailable state rather
+  // than a broken embed.
   if (!usage) {
     return (
       <Div tone="muted" width="full" style={{ flex: 1 }}>

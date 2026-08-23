@@ -1,10 +1,18 @@
 export const designTokens = {
+  // Three-tier breakpoint ladder (ADR 0008 Decision 2). `≥full` is the complete
+  // shell; `compact..full` keeps a persistent left panel but collapses the
+  // right column into a bottom sheet; below `compact` is the unsupported
+  // guard rail (not a design target — it only has to avoid looking actively
+  // broken, since a forced-landscape phone already lands in `compact`, never
+  // here, per the ADR's own worked example). See `hooks/use-shell-tier.ts`.
   breakpoint: {
-    desktop: 1024,
+    full: 1024,
+    compact: 600,
   },
   layout: {
-    // Desktop side rail is a compact icon rail. Keep in sync with the `sidebar`
-    // width in components/nav-container/cva.tsx.
+    // Left nav panel width — a compact icon rail, persistent from `compact` up
+    // through `full`. Keep in sync with the `sidebar` width in
+    // components/nav-container/cva.tsx.
     navRailWidth: 68,
     topBarMinHeight: 58,
     bottomNavClearance: 100,

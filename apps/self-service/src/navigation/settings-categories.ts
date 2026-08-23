@@ -3,7 +3,7 @@ import type { Permission } from '@lightbridge/hooks';
 
 type FeatherIconName = IconName;
 
-export type SettingsCategoryKey = 'account' | 'project' | 'apikey' | 'budget' | 'budget-review';
+export type SettingsCategoryKey = 'account' | 'project' | 'apikey' | 'budget';
 
 export type SettingsCategory = {
   key: SettingsCategoryKey;
@@ -12,15 +12,20 @@ export type SettingsCategory = {
   route: `/${string}`;
   /**
    * When set, the category is only shown to a caller who holds this permission (#148). Which
-   * role(s) should carry `budget:self-refill`/`budget:review` was unresolved-by-role as of
+   * role(s) should carry `budget:self-refill` was unresolved-by-role as of
    * ADORSYS-GIS/lightbridge-authz#294; that resolved via lightbridge-authz#325, which granted
    * `budget:self-refill` to `lightbridge-editor` (not `lightbridge-viewer`) in prod's
    * `oauth2.rbac.role_permissions`, mirrored into `DEFAULT_ROLE_PERMISSIONS`
-   * (`packages/hooks/src/rbac.ts`). `budget:review` is still admin-only, so the "Budget review"
-   * row stays hidden for editor/viewer. `account`/`project`/`apikey` have no gate: every
+   * (`packages/hooks/src/rbac.ts`). `account`/`project`/`apikey` have no gate: every
    * authenticated caller can reach them (the detail screen itself hides individual actions per
    * `apikey:*` grants, same as the account/project screens do for their own danger-zone
    * actions).
+   *
+   * `budget-review` (admin-only, `budget:review`) used to live here but moved to the new
+   * ADR 0008 `Admin` nav-spine group (`apps/self-service/src/screens/admin-screen.tsx`) — this
+   * screen ("Manage") is deliberately non-admin-exclusive now, matching the ADR's IA split
+   * ("Manage" = project/API-key/account configuration, "Admin" = anything gated on
+   * `lightbridge-admin`).
    */
   requiredPermission?: Permission;
 };
@@ -53,12 +58,5 @@ export const settingsCategories: SettingsCategory[] = [
     iconName: 'dollar-sign',
     route: '/settings-budget',
     requiredPermission: 'budget:self-refill',
-  },
-  {
-    key: 'budget-review',
-    titleKey: 'settings.categories.budgetReview',
-    iconName: 'inbox',
-    route: '/settings-budget-review',
-    requiredPermission: 'budget:review',
   },
 ];

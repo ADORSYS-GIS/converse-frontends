@@ -16,7 +16,8 @@ describe('useThemeColors', () => {
 
     const { result } = await renderHook(() => useThemeColors());
 
-    expect(result.current.surface).toBe('rgb(24 28 34)');
+    // ADR 0008 Decision 5 recalibration: dark `surface` (floating panels) is now `#191919`.
+    expect(result.current.surface).toBe('rgb(25 25 25)');
     expect(result.current.border).toBe('rgb(42 47 55)');
   });
 

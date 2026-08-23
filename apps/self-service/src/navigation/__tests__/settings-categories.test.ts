@@ -16,8 +16,19 @@ describe('settingsCategories — apikey entry (#55)', () => {
     expect(apiKeyCategory?.requiredPermission).toBeUndefined();
   });
 
-  it('is ordered after project and before the budget rows, matching the sequential-delivery order', () => {
+  it('is ordered after project and before the budget row, matching the sequential-delivery order', () => {
     const keys = settingsCategories.map((category) => category.key);
-    expect(keys).toEqual(['account', 'project', 'apikey', 'budget', 'budget-review']);
+    expect(keys).toEqual(['account', 'project', 'apikey', 'budget']);
+  });
+
+  // ADR 0008: "Manage" (this list) is the non-admin-exclusive nav group now — the admin-only
+  // `budget-review` category moved out to the new `Admin` nav-spine group, so this list must
+  // never regain an entry gated on `budget:review` (that would put admin-only content back in
+  // a group every non-admin caller can otherwise reach).
+  it('carries no entry gated on budget:review (admin-only) — that moved to the Admin nav group', () => {
+    const reviewCategory = settingsCategories.find(
+      (category) => category.requiredPermission === 'budget:review'
+    );
+    expect(reviewCategory).toBeUndefined();
   });
 });

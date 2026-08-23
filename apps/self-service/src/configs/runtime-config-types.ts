@@ -43,6 +43,12 @@ export type AppRuntimeConfig = {
   budgetBaseUrl: string;
   keycloak: KeycloakConfig;
   usage?: UsageDashboardConfig;
+  /**
+   * ADR 0008 Decision 8: "a logo URL belongs in admin config and is rendered in the header."
+   * Optional, same "ships dark until configured" posture as `usage` above — when unset,
+   * `ConsoleHeader` (`navigation/console-header.tsx`) renders nothing rather than a placeholder.
+   */
+  logoUrl?: string;
 };
 
 export function isAppRuntimeConfig(value: unknown): value is AppRuntimeConfig {

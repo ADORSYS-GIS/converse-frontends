@@ -25,7 +25,8 @@ describe('ApiKeyCreateView theme', () => {
     const view = await render(<ApiKeyCreateView onBack={noop} onCreate={noop} onCopy={noop} />);
 
     const tree = JSON.stringify(view.toJSON());
-    expect(tree).toContain('rgb(125 160 255)'); // dark primary (inline via useThemeColors)
+    // ADR 0008 Decision 5: dark `primary` (the single CTA/active accent) is now `#DA5C2C`.
+    expect(tree).toContain('rgb(218 92 44)'); // dark primary (inline via useThemeColors)
     expect(tree).not.toContain('rgb(62 99 221)'); // light primary must not leak in
   });
 
@@ -36,6 +37,6 @@ describe('ApiKeyCreateView theme', () => {
 
     const tree = JSON.stringify(view.toJSON());
     expect(tree).toContain('rgb(62 99 221)'); // light primary (inline via useThemeColors)
-    expect(tree).not.toContain('rgb(125 160 255)'); // dark primary must not leak in
+    expect(tree).not.toContain('rgb(218 92 44)'); // dark primary must not leak in
   });
 });

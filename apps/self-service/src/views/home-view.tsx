@@ -29,6 +29,13 @@ type HomeViewProps = {
   isSigningOut?: boolean;
   onLogout: () => void;
   canCreateKey?: boolean;
+  /**
+   * Present only when a Grafana usage dashboard is configured (`config.usage`) — ADR 0008 folds
+   * the old top-level Usage tab into Overview's quick actions instead of a nav-spine item (the
+   * spine is a strict four: Overview/Api-Keys/Manage/Admin), so this is now the one place the
+   * (still Grafana-link-out, not in-app) usage surface is reachable from chrome.
+   */
+  onUsage?: () => void;
 };
 
 export function HomeView({
@@ -43,6 +50,7 @@ export function HomeView({
   isSigningOut,
   onLogout,
   canCreateKey = true,
+  onUsage,
 }: Readonly<HomeViewProps>) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -131,6 +139,27 @@ export function HomeView({
               title={t('home.quickActions.settings')}
               trailing={<Feather name="chevron-right" size={18} color={colors.subtle} />}
             />
+            {onUsage ? (
+              <>
+                <Divider tone="muted" />
+                <ListRow
+                  onPress={onUsage}
+                  pad="sm"
+                  rounded="md"
+                  leading={
+                    <Div tone="muted" rounded="xl" size="iconMd" align="center" justify="center">
+                      <Feather
+                        name="bar-chart-2"
+                        size={designTokens.icon.action}
+                        color={colors.soft}
+                      />
+                    </Div>
+                  }
+                  title={t('home.quickActions.usage')}
+                  trailing={<Feather name="chevron-right" size={18} color={colors.subtle} />}
+                />
+              </>
+            ) : null}
           </Stack>
         </Card>
 
@@ -139,7 +168,9 @@ export function HomeView({
             <Text intent="eyebrow">{t('home.gettingStarted.title')}</Text>
             <Stack gap="sm">
               <ListRow
-                leading={<Feather name="key" size={designTokens.icon.action} color={colors.primary} />}
+                leading={
+                  <Feather name="key" size={designTokens.icon.action} color={colors.primary} />
+                }
                 title={<Text intent="body">{t('home.gettingStarted.createKey')}</Text>}
               />
               <ListRow
@@ -149,7 +180,9 @@ export function HomeView({
                 title={<Text intent="body">{t('home.gettingStarted.manageProject')}</Text>}
               />
               <ListRow
-                leading={<Feather name="user" size={designTokens.icon.action} color={colors.primary} />}
+                leading={
+                  <Feather name="user" size={designTokens.icon.action} color={colors.primary} />
+                }
                 title={<Text intent="body">{t('home.gettingStarted.reviewSettings')}</Text>}
               />
             </Stack>
@@ -160,7 +193,11 @@ export function HomeView({
           <ListRow
             leading={
               <Div tone="successSoft" rounded="xl" size="iconMd" align="center" justify="center">
-                <Feather name="help-circle" size={designTokens.icon.action} color={colors.success} />
+                <Feather
+                  name="help-circle"
+                  size={designTokens.icon.action}
+                  color={colors.success}
+                />
               </Div>
             }
             title={t('home.quickActions.support')}

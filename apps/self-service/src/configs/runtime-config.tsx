@@ -44,6 +44,16 @@ function buildUsageConfig(
   };
 }
 
+/**
+ * Resolves the optional config-driven logo URL (ADR 0008 Decision 8). Returns `undefined`
+ * (header renders nothing) unless a non-empty value is provided, same "unset, not disabled"
+ * posture as `buildUsageConfig` above.
+ */
+function resolveLogoUrl(raw: unknown): string | undefined {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  return trimmed || undefined;
+}
+
 function getEnvConfig(): AppRuntimeConfig {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
   const apiBasePath = process.env.EXPO_PUBLIC_API_BASE_PATH;
@@ -64,13 +74,16 @@ function getEnvConfig(): AppRuntimeConfig {
   const isValidationEnabled = audienceRequired !== 'false';
 
   // Build audience config if expected audience is set and validation is enabled
-  const audienceConfig = (expectedAudience && isValidationEnabled) ? {
-    expectedAudience: expectedAudience.includes(',')
-      ? expectedAudience.split(',').map((a: string) => a.trim())
-      : expectedAudience,
-    allowMissingAudience: false, // If validation is enabled, audience is required
-    enabled: true,
-  } : undefined;
+  const audienceConfig =
+    expectedAudience && isValidationEnabled
+      ? {
+          expectedAudience: expectedAudience.includes(',')
+            ? expectedAudience.split(',').map((a: string) => a.trim())
+            : expectedAudience,
+          allowMissingAudience: false, // If validation is enabled, audience is required
+          enabled: true,
+        }
+      : undefined;
 
   return {
     backendUrl,
@@ -86,6 +99,7 @@ function getEnvConfig(): AppRuntimeConfig {
       process.env.EXPO_PUBLIC_GRAFANA_URL,
       process.env.EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH
     ),
+    logoUrl: resolveLogoUrl(process.env.EXPO_PUBLIC_LOGO_URL),
   };
 }
 
@@ -117,13 +131,16 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
 
   const isValidationEnabled = audienceRequired !== 'false';
 
-  const audienceConfig = (expectedAudience && isValidationEnabled) ? {
-    expectedAudience: expectedAudience.includes(',')
-      ? expectedAudience.split(',').map((a: string) => a.trim())
-      : expectedAudience,
-    allowMissingAudience: false,
-    enabled: true,
-  } : undefined;
+  const audienceConfig =
+    expectedAudience && isValidationEnabled
+      ? {
+          expectedAudience: expectedAudience.includes(',')
+            ? expectedAudience.split(',').map((a: string) => a.trim())
+            : expectedAudience,
+          allowMissingAudience: false,
+          enabled: true,
+        }
+      : undefined;
 
   if (audienceConfig) {
     json.keycloak.audience = audienceConfig;
@@ -131,6 +148,8 @@ async function fetchWebConfig(): Promise<AppRuntimeConfig> {
 
   const rawUsage = (json as any).usage || {};
   json.usage = buildUsageConfig(rawUsage.grafanaUrl, rawUsage.dashboardPath);
+
+  json.logoUrl = resolveLogoUrl((json as any).logoUrl);
 
   // envsubst leaves an empty string (not an absent field) when EXPO_PUBLIC_API_BASE_PATH is
   // unset on a given deployment — normalize to undefined so the authz-rpc client falls back to

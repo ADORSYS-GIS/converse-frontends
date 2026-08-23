@@ -9,7 +9,7 @@ import {
 } from '@gorhom/bottom-sheet';
 
 import { designTokens } from '../../design/tokens';
-import { useIsDesktop } from '../../hooks/use-is-desktop';
+import { hasPersistentLeftPanel, useShellTier } from '../../hooks/use-shell-tier';
 import { SheetContext } from './use-sheet';
 import type { SheetApi, SheetOptions, SheetProviderProps, SheetRender } from './types';
 
@@ -33,7 +33,8 @@ export function SheetProvider({
   backgroundColor,
   handleIndicatorColor,
 }: SheetProviderProps) {
-  const isDesktop = useIsDesktop();
+  const tier = useShellTier();
+  const isPersistentLeftPanel = hasPersistentLeftPanel(tier);
   const modalRef = React.useRef<BottomSheetModal>(null);
   const [entry, setEntry] = React.useState<SheetEntry | null>(null);
   // Held in a ref so the dismiss handler reads the latest onClose without
@@ -85,10 +86,10 @@ export function SheetProvider({
     () =>
       [
         styles.background,
-        isDesktop ? styles.backgroundDesktopInset : null,
+        isPersistentLeftPanel ? styles.backgroundDesktopInset : null,
         backgroundColor ? { backgroundColor } : null,
       ] as any,
-    [backgroundColor, isDesktop]
+    [backgroundColor, isPersistentLeftPanel]
   );
   const handleIndicatorStyle = handleIndicatorColor
     ? { backgroundColor: handleIndicatorColor }
@@ -111,7 +112,7 @@ export function SheetProvider({
             style={styles.content}
             accessibilityRole="alert"
             accessibilityLabel={entry?.options?.accessibilityLabel}>
-            <View style={isDesktop ? styles.contentDesktopInset : undefined}>
+            <View style={isPersistentLeftPanel ? styles.contentDesktopInset : undefined}>
               <View style={[styles.contentColumn, entry?.options?.contentStyle]}>
                 {/* `dismiss` only reads `modalRef.current` when invoked (on user
                     dismiss), never during render — the react-hooks/refs rule is

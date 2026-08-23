@@ -191,12 +191,17 @@ const resources = {
         confirm: 'Delete',
         deleting: 'Deleting...',
       },
+      // ADR 0008 Decision 4's nav spine: `Overview · Api-Keys · Manage · Admin`. `home`/`settings`
+      // keep their original keys (route identity, and `nav.settings` is still read as a
+      // breadcrumb by several settings sub-views) — only their display text changed to match the
+      // new IA. `usage` is gone: it's no longer a nav-spine item (see `home.quickActions.usage`
+      // for its new Overview-quick-action copy).
       nav: {
         login: 'Login',
-        home: 'Home',
+        home: 'Overview',
         apiKeys: 'API Keys',
-        usage: 'Usage',
-        settings: 'Settings',
+        settings: 'Manage',
+        admin: 'Admin',
         logout: 'Log out',
       },
       usage: {
@@ -213,13 +218,17 @@ const resources = {
         },
       },
       settings: {
-        title: 'Settings',
+        // ADR 0008 renamed this nav-spine group "Manage" — the key stays `settings.title` since
+        // it's read from several other places (see nav.settings), only the text changed.
+        title: 'Manage',
         categories: {
           account: 'Account',
           project: 'Project',
           apiKeys: 'API Keys',
           budget: 'Budget',
-          budgetReview: 'Budget Review',
+          // `budgetReview` (admin-only) moved to the new Admin nav-spine group — see
+          // `settings.budgetReview.*` below for that screen's own copy namespace, unaffected by
+          // this removal.
         },
         // Shown inside the account/project picker sheet (EntityPickerField, wired through
         // usePickerSheet) only when the fetch-everything loop in useAllAccounts/useAllProjects
@@ -584,7 +593,10 @@ const resources = {
           title: 'Quick actions',
           newToken: 'New Token',
           manageKeys: 'Manage API Keys',
-          settings: 'Settings',
+          settings: 'Manage',
+          // Shown only when a Grafana usage dashboard is configured — see home-view.tsx's
+          // `onUsage` prop.
+          usage: 'Usage',
           support: 'Support',
         },
         gettingStarted: {

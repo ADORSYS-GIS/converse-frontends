@@ -93,6 +93,7 @@ export function HomeScreen() {
       isSigningOut={isSigningOut}
       onLogout={onLogout}
       canCreateKey={has('apikey:create')}
+      onUsage={config.usage ? () => router.navigate('/usage') : undefined}
     />
   );
 }

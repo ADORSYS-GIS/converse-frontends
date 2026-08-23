@@ -1,7 +1,7 @@
 global:
   labels:
     app: converse-frontend
-    team: ""
+    team: ''
 
 conversefrontend:
   controllers:
@@ -19,35 +19,39 @@ conversefrontend:
             tag: sha-9d48
             pullPolicy: IfNotPresent
 
-         
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
 
           env:
-            EXPO_PUBLIC_BACKEND_URL: ""
+            EXPO_PUBLIC_BACKEND_URL: ''
             # authz-budget: the microservice the 14 budget:*-gated RPC procedures moved onto
             # (hard cutover, lightbridge-authz PR #351 — authz-api no longer serves them). Leave
             # unset to fall back to EXPO_PUBLIC_BACKEND_URL (budget calls will 404 until this is
             # set to a real authz-budget ingress — none is enabled in any environment yet).
-            EXPO_PUBLIC_BUDGET_URL: ""
-            EXPO_PUBLIC_USAGE_URL: ""
-            EXPO_PUBLIC_GATEWAY_URL: ""
-            EXPO_PUBLIC_ANALYTICS_URL: ""
+            EXPO_PUBLIC_BUDGET_URL: ''
+            EXPO_PUBLIC_USAGE_URL: ''
+            EXPO_PUBLIC_GATEWAY_URL: ''
+            EXPO_PUBLIC_ANALYTICS_URL: ''
 
-            EXPO_PUBLIC_KEYCLOAK_ISSUER: ""
-            EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: ""
-            EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
+            EXPO_PUBLIC_KEYCLOAK_ISSUER: ''
+            EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: ''
+            EXPO_PUBLIC_KEYCLOAK_SCHEME: 'https'
             # JWT Audience validation - ensures tokens are intended for this API
             # Set to "true" to enable audience validation
-            EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED: "false"
+            EXPO_PUBLIC_KEYCLOAK_AUDIENCE_REQUIRED: 'false'
             # Comma-separated list of expected audience values (e.g., "converse-frontend" or "converse-frontend,api-key")
-            EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE: ""
+            EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE: ''
 
-            # Grafana usage dashboard embed (Usage tab). Optional — leave unset to hide the tab.
-            EXPO_PUBLIC_GRAFANA_URL: ""
-            EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH: ""
+            # Grafana usage dashboard embed. Optional — leave unset to hide Overview's "Usage"
+            # quick action (ADR 0008 folded this out of the top-level nav spine).
+            EXPO_PUBLIC_GRAFANA_URL: ''
+            EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH: ''
+
+            # ADR 0008 Decision 8: config-driven logo, rendered in the shell's header. Optional —
+            # leave unset to render no header/logo.
+            EXPO_PUBLIC_LOGO_URL: ''
 
           resources:
             requests:

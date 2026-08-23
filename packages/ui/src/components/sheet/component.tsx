@@ -7,7 +7,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 
 import { designTokens } from '../../design/tokens';
-import { useIsDesktop } from '../../hooks/use-is-desktop';
+import { hasPersistentLeftPanel, useShellTier } from '../../hooks/use-shell-tier';
 import type { SheetHandle, SheetProps } from './types';
 
 /**
@@ -22,7 +22,8 @@ export const Sheet = React.forwardRef<SheetHandle, SheetProps>(function Sheet(
   { children, onClose, snapPoints, contentStyle, accessibilityLabel },
   ref
 ) {
-  const isDesktop = useIsDesktop();
+  const tier = useShellTier();
+  const isPersistentLeftPanel = hasPersistentLeftPanel(tier);
   const innerRef = React.useRef<BottomSheet>(null);
 
   React.useImperativeHandle(ref, () => ({
@@ -63,7 +64,7 @@ export const Sheet = React.forwardRef<SheetHandle, SheetProps>(function Sheet(
         // applies our style after its own absoluteFill, so `left` does take
         // effect at runtime — see provider.tsx for the full explanation.
         backgroundStyle={
-          (isDesktop
+          (isPersistentLeftPanel
             ? [styles.background, styles.backgroundDesktopInset]
             : styles.background) as any
         }
@@ -72,7 +73,7 @@ export const Sheet = React.forwardRef<SheetHandle, SheetProps>(function Sheet(
           style={styles.content}
           accessibilityRole="alert"
           accessibilityLabel={accessibilityLabel}>
-          <View style={isDesktop ? styles.contentDesktopInset : undefined}>
+          <View style={isPersistentLeftPanel ? styles.contentDesktopInset : undefined}>
             <View style={[styles.contentColumn, contentStyle]}>{children}</View>
           </View>
         </BottomSheetView>

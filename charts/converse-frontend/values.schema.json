@@ -50,34 +50,22 @@
                             "EXPO_PUBLIC_BUDGET_URL": {
                               "type": "string",
                               "default": "",
-                              "anyOf": [
-                                { "const": "" },
-                                { "type": "string", "format": "uri" }
-                              ]
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             },
                             "EXPO_PUBLIC_USAGE_URL": {
                               "type": "string",
                               "default": "",
-                              "anyOf": [
-                                { "const": "" },
-                                { "type": "string", "format": "uri" }
-                              ]
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             },
                             "EXPO_PUBLIC_GATEWAY_URL": {
                               "type": "string",
                               "default": "",
-                              "anyOf": [
-                                { "const": "" },
-                                { "type": "string", "format": "uri" }
-                              ]
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             },
                             "EXPO_PUBLIC_ANALYTICS_URL": {
                               "type": "string",
                               "default": "",
-                              "anyOf": [
-                                { "const": "" },
-                                { "type": "string", "format": "uri" }
-                              ]
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             },
                             "EXPO_PUBLIC_KEYCLOAK_ISSUER": {
                               "type": "string",
@@ -96,14 +84,16 @@
                             "EXPO_PUBLIC_GRAFANA_URL": {
                               "type": "string",
                               "default": "",
-                              "anyOf": [
-                                { "const": "" },
-                                { "type": "string", "format": "uri" }
-                              ]
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             },
                             "EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH": {
                               "type": "string",
                               "default": ""
+                            },
+                            "EXPO_PUBLIC_LOGO_URL": {
+                              "type": "string",
+                              "default": "",
+                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
                             }
                           },
                           "required": [

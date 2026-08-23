@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted
+Accepted — **partially superseded by [ADR 0008](0008-console-shell-inversion-and-visual-direction.md)**.
+
+ADR 0008 replaces this ADR's *palette* (the `#3E63DD` accent, light-first canvas, cool-slate
+neutrals) and its card-based content treatment with an Axiom-derived dark palette and a
+floor-not-card content surface. This ADR's *theming mechanism* — the CVA + CSS-variable
+system — is retained and re-points at the new token values. Read ADR 0008 before taking any
+colour or layout-shell decision from the sections below.
 
 ## Context
 

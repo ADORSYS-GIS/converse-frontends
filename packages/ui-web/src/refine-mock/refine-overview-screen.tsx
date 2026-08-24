@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { useCustom } from '@refinedev/core';
 
-import type { ConsoleShellTier } from '../components/console-shell';
 import type { NavSpineItem } from '../components/nav-spine';
 import { OverviewPage } from '../pages/overview';
 import type { OverviewPageProps, OverviewSelectField } from '../pages/overview/types';
@@ -38,11 +37,7 @@ function useSelectField(initial: string, options: OverviewSelectField['options']
   return { label, value, options, onChange: setValue };
 }
 
-export interface RefineOverviewScreenProps {
-  tier?: ConsoleShellTier;
-}
-
-export function RefineOverviewScreen({ tier = 'full' }: RefineOverviewScreenProps) {
+export function RefineOverviewScreen() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
   const rangeField = useSelectField('last-30', RANGE_OPTIONS, 'Range');
@@ -63,7 +58,6 @@ export function RefineOverviewScreen({ tier = 'full' }: RefineOverviewScreenProp
     OverviewPageProps,
     'rangeField' | 'bucketField' | 'groupByField' | 'accountFilterField' | 'projectFilterField' | 'modelFilterField'
   > = {
-    tier,
     orgName: 'adorsys-gis',
     userEmail: 'sam@adorsys.com',
     userInitials: 'SL',

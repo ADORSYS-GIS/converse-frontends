@@ -1,0 +1,11 @@
+# Next.js build output (apps/console). All generated, all gitignored — and `next-env.d.ts` and the
+# compiled service worker are written by the toolchain in a format Prettier disagrees with, so a
+# `pnpm lint` run that happens after a build would fail on files nobody authored.
+#
+# Deliberately scoped to Next's own output only: this file is new, and widening it further would
+# silently change what `pnpm format` reformats across the whole repo.
+**/.next/
+apps/console/next-env.d.ts
+apps/console/public/sw.js
+apps/console/public/sw.js.map
+apps/console/public/swe-worker-*.js

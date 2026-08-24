@@ -101,6 +101,27 @@ labels 9px. Meters: 4px `raised` track, `soft` fill, `primary` only past the war
 - Charts and tables render on the floor: components must not wrap themselves in a panel —
   panelling is the consumer's decision (`RailPanel`, `StatCard` are the only self-panelled ones).
 
+## Page views — full screens in Storybook
+
+Every console screen exists as a **pure page view** in `packages/ui-web/src/pages/<kebab-name>/`
+(`overview`, `api-keys`, `manage`, `admin-budget-review`, `auth`), composed from the component
+inventory:
+
+- A page view is presentational only: **all data arrives via typed props; no fetching, no
+  refine hooks, no routing** — `apps/console` wires data in later. Callbacks (`onSelectSeries`,
+  `onRequestRefill`, …) are props.
+- Each page ships realistic **mock fixtures** in `fixtures.ts` beside the view (currency values
+  like `$142.55 of $500.00`, plausible model/project names, enough rows to show density), and a
+  `component.stories.tsx` rendering the full page at shell width — these page stories are the
+  acceptance surface for "is this feature correctly implemented on this page" **without starting
+  the app**.
+- Page stories must cover the states that matter per the spec: default (populated), empty,
+  loading (skeletons), error, and role variants where relevant (Admin nav visible/hidden),
+  plus the compact tier where the layout changes (right rail as bottom sheet).
+- Match the corresponding SVG mockup in `docs/design/console-redesign/` — the story should be
+  visually comparable 1:1.
+- Barrel region for these: `// ── pages`.
+
 ## Never do
 
 Card-wrapped centre content · borders or shadows on panels · a second accent colour · orange as

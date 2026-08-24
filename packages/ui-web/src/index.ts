@@ -1,9 +1,11 @@
 // ── foundations
 export { cn } from './cn';
+export { useResizeObserver } from './lib/use-resize-observer';
+export type { ResizeObserverSize } from './lib/use-resize-observer';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
-export type { ConsoleShellProps, ConsoleShellTier } from './components/console-shell';
+export type { ConsoleShellProps } from './components/console-shell';
 export { ConsoleHeader } from './components/console-header';
 export type { ConsoleHeaderProps } from './components/console-header';
 export { RailPanel } from './components/rail-panel';

@@ -24,3 +24,27 @@ export const navSpineItemVariants = cva(
 );
 
 export type NavSpineItemVariantProps = VariantProps<typeof navSpineItemVariants>;
+
+// `bottom-bar` layout (console-ui skill "Shape and layout" — mobile-first <600 nav dock): a
+// horizontal strip, icon above a 10px label, active = `primary` text + a 2px `--signal` top bar
+// (the rail's left bar rotated to the top edge, matching how the sheet direction rotates too).
+export const navBottomBarItemVariants = cva(
+  [
+    'relative flex h-full flex-1 flex-col items-center justify-center gap-1 font-mono text-[10px]',
+    'transition-colors duration-150 ease-out',
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
+  ],
+  {
+    variants: {
+      active: {
+        true: 'text-primary',
+        false: 'text-subtle hover:text-soft',
+      },
+    },
+    defaultVariants: {
+      active: false,
+    },
+  },
+);
+
+export type NavBottomBarItemVariantProps = VariantProps<typeof navBottomBarItemVariants>;

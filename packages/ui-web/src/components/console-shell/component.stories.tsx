@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { BottomSheet } from '../bottom-sheet';
 import { ConsoleHeader } from '../console-header';
-import { NavSpine, type NavSpineItem } from '../nav-spine';
+import type { NavSpineItem } from '../nav-spine';
 import { RailPanel } from '../rail-panel';
 import { ConsoleShell } from './component';
 
@@ -24,7 +23,7 @@ const adminItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin', icon: <Glyph
 
 const identity = (
   <div className="flex items-center gap-3">
-    <span className="font-mono text-[11px] text-subtle">sam@adorsys.com</span>
+    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
     <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
       SL
     </span>
@@ -34,7 +33,7 @@ const identity = (
 const orgSwitcher = <span className="font-mono text-xs text-soft">adorsys-gis</span>;
 
 const statCard = (label: string, value: string) => (
-  <div className="w-[209px] rounded-[2px] bg-surface p-4">
+  <div className="w-full shrink-0 rounded-[2px] bg-surface p-4 md:w-[209px]">
     <div className="mb-4 font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
       {label}
     </div>
@@ -76,92 +75,29 @@ const rightRailContent = (
   </RailPanel>
 );
 
-function FullShell({ showAdmin }: { showAdmin: boolean }) {
+function Shell({ showAdmin }: { showAdmin: boolean }) {
   return (
     <ConsoleShell
-      tier="full"
       header={<ConsoleHeader orgSwitcher={orgSwitcher} identity={identity} />}
-      leftRail={
-        <>
-          <RailPanel>
-            <NavSpine items={navItems} adminItems={adminItems} showAdmin={showAdmin} />
-          </RailPanel>
-          {scopePanel}
-        </>
-      }
+      nav={{ items: navItems, adminItems, showAdmin }}
+      leftSecondary={scopePanel}
+      leftSecondaryLabel="Scope"
       rightRail={rightRailContent}
+      rightRailTitle="VIEW & FILTERS"
+      rightRailPeek={<span className="font-mono text-[10px] text-subtle">Last 30 days · Daily</span>}
     >
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         <div>
           <h1 className="font-mono text-[22px] text-ink">Overview</h1>
-          <p className="font-sans text-[11px] text-subtle">
-            adorsys-gis · last 30 days · UTC
-          </p>
+          <p className="font-sans text-[11px] text-subtle">adorsys-gis · last 30 days · UTC</p>
         </div>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 gap-3 md:flex">
           {statCard('SPEND THIS MONTH', '$142.55')}
           {statCard('ACTIVE PROJECTS', '6')}
           {statCard('ACTIVE API KEYS', '23')}
         </div>
       </div>
     </ConsoleShell>
-  );
-}
-
-function CompactShellWithBottomSheet() {
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <ConsoleShell
-        tier="compact"
-        header={<ConsoleHeader orgSwitcher={orgSwitcher} identity={identity} />}
-        leftRail={
-          <RailPanel>
-            <NavSpine items={navItems} adminItems={adminItems} showAdmin />
-          </RailPanel>
-        }
-        rightRail={rightRailContent}
-      >
-        <div className="space-y-6 pb-40">
-          <div>
-            <h1 className="font-mono text-lg text-ink">Overview</h1>
-            <p className="font-sans text-[10px] text-subtle">
-              adorsys-gis · last 30 days · UTC
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {statCard('SPEND THIS MONTH', '$142.55')}
-            {statCard('ACTIVE API KEYS', '23')}
-          </div>
-        </div>
-      </ConsoleShell>
-      <BottomSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title="VIEW & FILTERS"
-        peek={
-          <div className="font-mono text-[10px] text-subtle">
-            Last 30 days · Daily · Project × Model
-          </div>
-        }
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="mb-1 font-mono text-[9px] text-subtle">Range</div>
-            <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-[11px] text-soft">
-              Last 30 days
-            </div>
-          </div>
-          <div>
-            <div className="mb-1 font-mono text-[9px] text-subtle">Bucket</div>
-            <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-[11px] text-soft">
-              Daily
-            </div>
-          </div>
-        </div>
-      </BottomSheet>
-    </div>
   );
 }
 
@@ -174,31 +110,30 @@ const meta: Meta<typeof ConsoleShell> = {
 export default meta;
 type Story = StoryObj<typeof ConsoleShell>;
 
-// Composed acceptance story: full shell at 1440, member view (no Admin group).
-// Visually comparable to docs/design/console-redesign/overview.svg.
+// Full shell at `lg` (1440, the default viewport — see .storybook/preview.tsx), member view (no
+// Admin group) — visually comparable to overview.svg. Both rails are sticky (`top-[56px]`,
+// independently scrollable); the centre is the only stretching zone (`flex-1 min-w-0`).
 export const FullShellMember: Story = {
-  render: () => (
-    <div className="w-[1440px]">
-      <FullShell showAdmin={false} />
-    </div>
-  ),
+  render: () => <Shell showAdmin={false} />,
 };
 
 // Same composition with the Admin group visible (lightbridge-admin grant).
 export const FullShellAdmin: Story = {
-  render: () => (
-    <div className="w-[1440px]">
-      <FullShell showAdmin />
-    </div>
-  ),
+  render: () => <Shell showAdmin />,
 };
 
-// Composed acceptance story: compact tier with the right rail docked as a BottomSheet.
-// Visually comparable to docs/design/console-redesign/shell-compact.svg.
-export const CompactWithBottomSheet: Story = {
-  render: () => (
-    <div className="w-[900px]">
-      <CompactShellWithBottomSheet />
-    </div>
-  ),
+// `md` tier (600–1024): the left rail persists inline; the right rail docks as a BottomSheet —
+// visually comparable to shell-compact.svg. A real viewport resize (not a wrapper `<div>`) is
+// what actually exercises the `md:` Tailwind classes, since the shell is CSS-tiered.
+export const MdTierBottomSheet: Story = {
+  globals: { viewport: { value: 'md900' } },
+  render: () => <Shell showAdmin={false} />,
+};
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
+// nav spine docked as a fixed bottom navigation bar, right rail reachable via its BottomSheet
+// peek row, left-rail SCOPE panel reachable via the header's drawer trigger.
+export const MobileBottomNav: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: () => <Shell showAdmin={false} />,
 };

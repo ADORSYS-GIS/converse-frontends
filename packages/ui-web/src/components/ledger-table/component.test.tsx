@@ -120,6 +120,14 @@ describe('LedgerTable', () => {
     expect(screen.queryByText(/TOTAL/)).not.toBeInTheDocument();
   });
 
+  it('wraps the table in its own horizontal scroll container (console-ui skill: no page overflow)', () => {
+    render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
+
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('min-w-max');
+    expect(table.parentElement).toHaveClass('overflow-x-auto', 'w-full');
+  });
+
   it('renders skeleton rows instead of data when loading', () => {
     const { container } = render(
       <LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} loading loadingRowCount={3} />,

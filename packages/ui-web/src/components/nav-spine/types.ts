@@ -22,7 +22,15 @@ export interface NavSpineProps {
   adminItems?: NavSpineItem[];
   /** Gates the Admin group — pass the `lightbridge-admin` grant check result. */
   showAdmin?: boolean;
-  /** Text for the right-aligned marker preceding the Admin group. Defaults to `ROLE`. */
+  /** Text for the right-aligned marker preceding the Admin group at `rail` layout. Defaults to `ROLE`. */
   roleLabel?: string;
+  /**
+   * `rail` (default) is the vertical left-rail stack: icon + label side by side, active = 2px
+   * `--signal` left bar. `bottom-bar` is the mobile-first (<600) fixed bottom navigation dock
+   * (console-ui skill "Shape and layout"): a horizontal row, icon above label, active = `primary`
+   * text + a 2px `--signal` top bar. Same `NavSpineItem[]` data either way — `ConsoleShell` is
+   * the only consumer that renders both layouts (CSS-hidden per tier) from one `nav` prop.
+   */
+  layout?: 'rail' | 'bottom-bar';
   className?: string;
 }

@@ -103,3 +103,36 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
+
+// ── pages
+export { ApiKeysPage } from './pages/api-keys';
+export type {
+  ApiKeyRow,
+  ApiKeyStatus,
+  ApiKeysHygiene,
+  ApiKeysPagination,
+  ApiKeysPageProps,
+  ApiKeysRevokeTarget,
+  ApiKeysSecretReveal,
+} from './pages/api-keys';
+
+export { ManagePage } from './pages/manage';
+export type {
+  ManageFilters,
+  ManageOption,
+  ManagePagination,
+  ManagePageProps,
+  ManageTotals,
+  ProjectRow,
+  ProjectStatus,
+} from './pages/manage';
+
+export { AdminBudgetReviewPage } from './pages/admin-budget-review';
+export type {
+  AdminBudgetReviewPageProps,
+  AdminReviewPagination,
+  AdminReviewTab,
+  DecisionOutcome,
+  DecisionRow,
+  RefillRequestRow,
+} from './pages/admin-budget-review';

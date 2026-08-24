@@ -8,6 +8,9 @@ allowBuilds:
   # Without this, the binary never lands and the root postinstall's `codegen:all`
   # fails on @lightbridge/authz-rpc. See packages/authz-rpc/README.md.
   "@cratestack/cli": true
+  # Pulled in by @serwist/turbopack, which uses SWC to compile apps/console's service worker.
+  # Its postinstall only resolves the prebuilt native binding for this platform.
+  '@swc/core': true
 
 minimumReleaseAgeExclude:
   - '@cratestack/adapter-rtk@0.8.10'
@@ -16,11 +19,16 @@ minimumReleaseAgeExclude:
   - '@cratestack/cli@0.8.10'
   - '@cratestack/link-batch@0.8.10'
   - '@cratestack/link-logger@0.8.10'
+  - '@cratestack/refine@0.8.10'
   - '@cratestack/runtime-axios@0.8.10'
   - '@cratestack/runtime-fetch@0.8.10'
   - '@cratestack/ts-types@0.8.10'
   - '@cratestack/validator-yup@0.8.10'
   - '@cratestack/validator-zod@0.8.10'
+  - '@tanstack/query-core@5.102.3'
+  - '@tanstack/query-persist-client-core@5.102.3'
+  - '@tanstack/react-query-persist-client@5.102.3'
+  - '@tanstack/react-query@5.102.3'
 
 overrides:
   axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0

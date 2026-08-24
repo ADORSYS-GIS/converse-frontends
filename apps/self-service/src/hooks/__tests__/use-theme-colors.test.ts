@@ -18,7 +18,8 @@ describe('useThemeColors', () => {
 
     // ADR 0008 Decision 5 recalibration: dark `surface` (floating panels) is now `#191919`.
     expect(result.current.surface).toBe('rgb(25 25 25)');
-    expect(result.current.border).toBe('rgb(42 47 55)');
+    // console-redesign spec §2.1 refinement: dark `border` (`--line`) is now `#3a3a3a`.
+    expect(result.current.border).toBe('rgb(58 58 58)');
   });
 
   it('resolves the light palette when the system scheme is light', async () => {

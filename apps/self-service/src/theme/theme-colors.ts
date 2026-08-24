@@ -22,21 +22,27 @@ const lightColors = {
   surface: 'rgb(255 255 255)', // #FFFFFF
   border: 'rgb(230 232 236)', // #E6E8EC
   chrome: 'rgb(245 246 248)', // #F5F6F8 — no ADR-0008 light direction; reuses `muted`
+  raised: 'rgb(236 238 241)', // #ECEEF1 — no ADR-0008 light direction; one step up from `surface`
 };
 
+// Refined to the console-redesign spec (docs/design/console-redesign/README.md §2.1):
+// ink/soft/subtle/border move from ADR 0008's original cool-slate values to the exact
+// Axiom-cross-checked figures the Next.js console spec locks; `raised` is the spec's new
+// fourth tonal step (active row, hairlines, skeletons).
 const darkColors = {
   primary: 'rgb(218 92 44)', // #DA5C2C — the ADR's single accent (CTA/active only)
   secondary: 'rgb(224 151 90)', // #E0975A
   accent: 'rgb(164 139 240)', // #A48BF0
   error: 'rgb(240 115 111)', // #F0736F
   success: 'rgb(70 197 139)', // #46C58B
-  ink: 'rgb(232 234 237)', // #E8EAED
-  soft: 'rgb(162 171 184)', // #A2ABB8
-  subtle: 'rgb(107 114 128)', // #6B7280
+  ink: 'rgb(238 238 238)', // #eeeeee — --strong
+  soft: 'rgb(180 180 180)', // #b4b4b4 — --body
+  subtle: 'rgb(96 96 96)', // #606060 — --muted (spec name; app token stays `subtle`)
   muted: 'rgb(0 0 0)', // #000000 — floor
   surface: 'rgb(25 25 25)', // #191919 — floating panels
-  border: 'rgb(42 47 55)', // #2A2F37
+  border: 'rgb(58 58 58)', // #3a3a3a — --line
   chrome: 'rgb(17 17 17)', // #111111 — header/nav
+  raised: 'rgb(32 32 32)', // #202020 — fourth tonal step: active row, hairlines, skeletons
 };
 
 export function getThemeColors(scheme: ColorSchemeName) {

@@ -7,7 +7,7 @@ import '../global.css';
 // components (white cards, nav bars) only have contrast against muted. Paint the
 // canvas with the muted token per theme so stories look the way they do in the app,
 // and flip both the background and the `.dark` class from the one theme toggle.
-const MUTED_BG = { light: '#f7f7f8', dark: '#111827' } as const;
+const MUTED_BG = { light: '#f7f7f8', dark: '#000000' } as const;
 
 const preview: Preview = {
   parameters: {

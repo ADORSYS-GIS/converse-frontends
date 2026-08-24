@@ -1,27 +1,32 @@
-import React, { type KeyboardEvent } from 'react';
+import React from 'react';
 import { Drawer } from 'vaul';
 
 import { cn } from '../../cn';
 import type { BottomSheetProps } from './types';
 
-// Peek snap height: handle row + one line of peek content (matches the old docked bar's
-// footprint). Vaul accepts a pixel-string snap point alongside the `1` (fully open) point.
-const PEEK_SNAP_POINT = '96px';
-const SNAP_POINTS: Array<string | number> = [PEEK_SNAP_POINT, 1];
-
 // Contract: docs/design/console-redesign/README.md §4 `BottomSheet` / ADR 0009 Decision 6 —
 // vaul is the console's only drawer primitive; no hand-rolled sheets. Two usages:
-//  - With `peek`: the compact-tier (600–1024) dock for right-rail content (shell-compact.svg).
-//    Stays mounted via vaul's `snapPoints` (a peek height and the full height) instead of
-//    unmounting on collapse — non-modal (`modal={false}`, `dismissible={false}`), so the
-//    centre content underneath stays interactive while collapsed and there is no overlay.
-//    `Drawer.Handle` is aria-hidden (pointer/touch drag only per vaul), so the title doubles
-//    as an explicit `aria-expanded` toggle button for keyboard/click users.
+//
+//  - With `peek`: the mobile-first dock for right-rail content (shell-compact.svg / console-ui
+//    skill "Shape and layout"). Two distinct render trees, not one persistent vaul `Root`:
+//      - **Collapsed** (`open` false): a plain fixed `<div>` — deliberately NOT a Dialog.
+//        `vaul`'s `modal={false}` does not fully disable Radix Dialog's default modality: vaul
+//        never forwards `modal` to the underlying `DialogPrimitive.Root` it wraps, so Radix's
+//        `hideOthers` still runs and marks every sibling `aria-hidden` regardless (confirmed by
+//        reading `vaul`'s `Root` implementation — it only uses its own `modal` value to correct
+//        `document.body.style.pointerEvents` after the fact, never to change Radix's modality).
+//        The result in a real page: the centre stays clickable (vaul's own correction), but
+//        becomes invisible to assistive tech (Radix's correction never happens) — a real defect
+//        for a rail that must stay both interactive AND accessible while merely docked.
+//        Rendering the collapsed state outside vaul entirely sidesteps the bug at the source: a
+//        plain WAI-ARIA disclosure button (`aria-expanded`) toggling a `peek` summary, no Dialog
+//        role anywhere, so nothing hides the rest of the page.
+//      - **Expanded** (`open` true): a real vaul modal drawer. Once the sheet fully covers the
+//        centre, focus-trapping the rest of the page from assistive tech is correct, expected
+//        bottom-sheet behaviour — so this state is allowed to be modal.
 //  - Without `peek`: a standard transient vaul modal drawer — mounts on `open` behind a
 //    `muted/80` overlay, unmounts on close. Dialog semantics (focus trap, Escape-to-close,
-//    aria-modal) come from vaul's underlying Radix Dialog primitive; no hand-rolled a11y
-//    plumbing beyond the peek mode's Escape-to-collapse (below), which vaul has no concept of
-//    since that mode's Root never unmounts.
+//    aria-modal) come from vaul's underlying Radix Dialog primitive.
 export function BottomSheet({
   open,
   onOpenChange,
@@ -47,6 +52,14 @@ export function BottomSheet({
     </div>
   ) : null;
 
+  // Static, non-draggable counterpart of `Drawer.Handle` for the collapsed (non-Dialog) peek
+  // state — same look, but there is no `DrawerContext` outside a `Drawer.Root` to drive a drag.
+  const staticHandle = isBottom ? (
+    <div className="flex justify-center pt-2">
+      <div aria-hidden="true" className="h-[3px] w-8 rounded-[2px] bg-raised" />
+    </div>
+  ) : null;
+
   const titleLabel = title ? (
     <Drawer.Title className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
       {title}
@@ -61,7 +74,7 @@ export function BottomSheet({
     </Drawer.Description>
   );
 
-  const closeButton = open ? (
+  const closeButton = (
     <button
       type="button"
       aria-label="Close"
@@ -70,35 +83,41 @@ export function BottomSheet({
     >
       ×
     </button>
-  ) : null;
+  );
 
   if (peek) {
-    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'Escape' && open) {
-        event.preventDefault();
-        onOpenChange(false);
-      }
-    };
+    if (!open) {
+      return (
+        <div className={contentClassName}>
+          <div className="flex shrink-0 flex-col gap-1">
+            {staticHandle}
+            <div className="flex items-center justify-between px-4 py-2">
+              <button
+                type="button"
+                aria-expanded={false}
+                onClick={() => onOpenChange(true)}
+                className="text-left font-mono text-[10px] uppercase tracking-[.09em] text-subtle hover:text-ink"
+              >
+                {title}
+              </button>
+            </div>
+          </div>
+          <div className="px-4 pb-3">{peek}</div>
+        </div>
+      );
+    }
 
     return (
-      <Drawer.Root
-        open
-        direction={direction}
-        modal={false}
-        dismissible={false}
-        snapPoints={SNAP_POINTS}
-        activeSnapPoint={open ? 1 : PEEK_SNAP_POINT}
-        setActiveSnapPoint={(snap) => onOpenChange(snap === 1)}
-      >
+      <Drawer.Root open onOpenChange={onOpenChange} direction={direction}>
         <Drawer.Portal>
-          <Drawer.Content onKeyDown={handleKeyDown} className={contentClassName}>
+          <Drawer.Content className={contentClassName}>
             <div className="flex shrink-0 flex-col gap-1">
               {handle}
               <div className="flex items-center justify-between px-4 py-2">
                 <button
                   type="button"
                   aria-expanded={open}
-                  onClick={() => onOpenChange(!open)}
+                  onClick={() => onOpenChange(false)}
                   className="text-left hover:text-ink"
                 >
                   {titleLabel}
@@ -107,11 +126,7 @@ export function BottomSheet({
               </div>
               {description}
             </div>
-            {open ? (
-              <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
-            ) : (
-              <div className="px-4 pb-3">{peek}</div>
-            )}
+            <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>

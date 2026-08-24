@@ -7,7 +7,6 @@ import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatMoney } from '../../lib/money';
-import { NavSpine } from '../../components/nav-spine';
 import { RailPanel } from '../../components/rail-panel';
 import { ReviewDetailPanel } from '../../components/review-detail-panel';
 import { SubNav } from '../../components/sub-nav';
@@ -23,7 +22,6 @@ function signedMoney(amount: number): string {
 // selectable) and a RECENT DECISIONS ledger below it; right rail = ReviewDetailPanel retargeted
 // to the selected request, with Approve/Decline wired to onDecide via reviewDetail.
 export function AdminBudgetReviewPage({
-  tier,
   header,
   nav,
   subNav,
@@ -89,18 +87,20 @@ export function AdminBudgetReviewPage({
 
   return (
     <ConsoleShell
-      tier={tier}
       header={header}
+      nav={nav}
       className={className}
-      leftRail={
-        <>
-          <RailPanel>
-            <NavSpine {...nav} />
-          </RailPanel>
-          <RailPanel label="ADMIN">
-            <SubNav {...subNav} />
-          </RailPanel>
-        </>
+      leftSecondary={
+        <RailPanel label="ADMIN">
+          <SubNav {...subNav} />
+        </RailPanel>
+      }
+      leftSecondaryLabel="Admin"
+      rightRailTitle="REVIEW"
+      rightRailPeek={
+        <span className="font-mono text-[10px] text-subtle">
+          {reviewDetail ? reviewDetail.subject : 'No request selected yet.'}
+        </span>
       }
       rightRail={
         <RailPanel>

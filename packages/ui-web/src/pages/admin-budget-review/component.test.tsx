@@ -8,7 +8,6 @@ import type { AdminBudgetReviewPageProps } from './types';
 
 function baseProps(overrides: Partial<AdminBudgetReviewPageProps> = {}): AdminBudgetReviewPageProps {
   return {
-    tier: 'full',
     header: <div>Header</div>,
     nav: { items: adminNavItems },
     subNav: { items: adminSubNavItems },

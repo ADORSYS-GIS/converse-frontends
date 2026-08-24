@@ -27,15 +27,24 @@ describe('BottomSheet — peek mode (docked, vaul snapPoints)', () => {
     expect(screen.queryByText('Peek summary')).not.toBeInTheDocument();
   });
 
-  it('is non-modal while docked: no backdrop overlay, centre content stays interactive', () => {
+  it('is not a Dialog while docked: no dialog role, no overlay, sibling content stays reachable', () => {
     render(
-      <BottomSheet open={false} onOpenChange={vi.fn()} title="VIEW & FILTERS" peek={<span>Peek summary</span>}>
-        <div>Expanded content</div>
-      </BottomSheet>,
+      <div>
+        <button type="button">Sibling control</button>
+        <BottomSheet open={false} onOpenChange={vi.fn()} title="VIEW & FILTERS" peek={<span>Peek summary</span>}>
+          <div>Expanded content</div>
+        </BottomSheet>
+      </div>,
     );
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // vaul's `modal={false}` never fully disables Radix Dialog's default modality (it doesn't
+    // forward `modal` to the underlying `DialogPrimitive.Root`), which used to leave the rest
+    // of the page `aria-hidden` even while merely docked. The collapsed state is rendered
+    // outside vaul entirely so this can never happen: no dialog role, no overlay, and sibling
+    // content stays in the accessibility tree.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.querySelector('[data-vaul-overlay]')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sibling control' })).toBeInTheDocument();
   });
 
   it('toggles via onOpenChange when the title control is activated', () => {

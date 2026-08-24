@@ -16,7 +16,7 @@ import type { AdminReviewTab, RefillRequestRow } from './types';
 
 const identity = (
   <div className="flex items-center gap-3">
-    <span className="font-mono text-[11px] text-subtle">sam@adorsys.com</span>
+    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
     <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
       SL
     </span>
@@ -71,7 +71,6 @@ function StatefulAdminBudgetReviewPage({
 
   return (
     <AdminBudgetReviewPage
-      tier="full"
       header={header}
       nav={nav}
       subNav={{ items: adminSubNavItems }}
@@ -160,4 +159,21 @@ export const ErrorState: Story = {
       <StatefulAdminBudgetReviewPage pending={[]} error="Failed to load the review queue." />
     </div>
   ),
+};
+
+// `md` tier (600–1024) — ADMIN sub-nav stays inline, the ReviewDetailPanel docks as a
+// BottomSheet. A real viewport resize is what exercises the `md:` classes now the shell is
+// CSS-tiered, not a wrapper `<div>`.
+export const MdTier: Story = {
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulAdminBudgetReviewPage initialSelectedId="gateway-prod" />,
+};
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
+// Pending/Decided tabs stay reachable above a horizontally-scrollable queue, nav docked as a
+// fixed bottom navigation bar, REVIEW reachable via the right rail's BottomSheet peek row,
+// ADMIN sub-nav reachable via the header's drawer trigger.
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: () => <StatefulAdminBudgetReviewPage initialSelectedId="gateway-prod" />,
 };

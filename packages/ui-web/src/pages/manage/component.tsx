@@ -10,7 +10,6 @@ import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatMoney } from '../../lib/money';
-import { NavSpine } from '../../components/nav-spine';
 import { RailPanel } from '../../components/rail-panel';
 import { ReportExportPanel } from '../../components/report-export-panel';
 import { SegmentedControl } from '../../components/segmented-control';
@@ -38,7 +37,6 @@ function selectClassName() {
 // + LAST EXPORTS (carried inside reportExport.lastExports) + FILTERS + SELECTION for the
 // row the consumer has targeted via onSelectRow / selectedProject.
 export function ManagePage({
-  tier,
   header,
   nav,
   subNav,
@@ -85,20 +83,25 @@ export function ManagePage({
 
   const isEmpty = !loading && !error && projects.length === 0;
 
+  const filterAccountLabel =
+    filters.accountOptions.find((option) => option.value === filters.accountValue)?.label ?? filters.accountValue;
+
   return (
     <ConsoleShell
-      tier={tier}
       header={header}
+      nav={nav}
       className={className}
-      leftRail={
-        <>
-          <RailPanel>
-            <NavSpine {...nav} />
-          </RailPanel>
-          <RailPanel label="MANAGE">
-            <SubNav {...subNav} />
-          </RailPanel>
-        </>
+      leftSecondary={
+        <RailPanel label="MANAGE">
+          <SubNav {...subNav} />
+        </RailPanel>
+      }
+      leftSecondaryLabel="Manage"
+      rightRailTitle="REPORT & FILTERS"
+      rightRailPeek={
+        <span className="font-mono text-[10px] text-subtle">
+          {reportExport.period} · {filterAccountLabel}
+        </span>
       }
       rightRail={
         <div className="flex flex-col gap-3">
@@ -175,15 +178,20 @@ export function ManagePage({
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <Field
             label="Search"
-            containerClassName="w-[300px]"
+            containerClassName="w-full md:w-[300px]"
             placeholder="Find a project…"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
           />
-          <Button type="button" variant="primary" onClick={onNewProject} className="self-end">
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onNewProject}
+            className="w-full md:w-auto md:self-end"
+          >
             + New project
           </Button>
         </div>

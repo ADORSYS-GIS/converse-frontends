@@ -21,18 +21,20 @@ const baseItems: NavSpineItem[] = [
 
 const adminItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin', icon: <Glyph /> }];
 
+// `rail` (default) layout decorator — frames the story the way the left rail actually hosts it.
+function railDecorator(Story: () => React.ReactElement) {
+  return (
+    <div className="w-52">
+      <RailPanel>
+        <Story />
+      </RailPanel>
+    </div>
+  );
+}
+
 const meta: Meta<typeof NavSpine> = {
   title: 'Shell/NavSpine',
   component: NavSpine,
-  decorators: [
-    (Story) => (
-      <div className="w-52">
-        <RailPanel>
-          <Story />
-        </RailPanel>
-      </div>
-    ),
-  ],
 };
 
 export default meta;
@@ -40,10 +42,12 @@ type Story = StoryObj<typeof NavSpine>;
 
 export const MemberWithoutAdmin: Story = {
   args: { items: baseItems, showAdmin: false, adminItems },
+  decorators: [railDecorator],
 };
 
 export const AdminWithGroup: Story = {
   args: { items: baseItems, showAdmin: true, adminItems },
+  decorators: [railDecorator],
 };
 
 export const AsLinks: Story = {
@@ -52,4 +56,19 @@ export const AsLinks: Story = {
     showAdmin: true,
     adminItems: adminItems.map((item) => ({ ...item, href: `/${item.key}` })),
   },
+  decorators: [railDecorator],
+};
+
+// Mobile-first (<600) bottom navigation dock — console-ui skill "Shape and layout". Rendered by
+// `ConsoleShell` inside a fixed h-14 `chrome` bar; this story reproduces just that frame (not
+// the rail decorator above — the bottom bar never sits inside a `RailPanel`).
+export const BottomBar: Story = {
+  args: { items: baseItems, showAdmin: true, adminItems, layout: 'bottom-bar' },
+  decorators: [
+    (Story) => (
+      <div className="flex h-14 w-[390px] bg-chrome">
+        <Story />
+      </div>
+    ),
+  ],
 };

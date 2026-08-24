@@ -9,7 +9,6 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
-import type { ConsoleShellTier } from '../components/console-shell';
 import type { LastExportEntry, ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { fieldControlVariants, fieldLabelClassName } from '../components/field/cva';
 import {
@@ -46,13 +45,9 @@ function buildFilters({
   return filters;
 }
 
-export interface RefineManageScreenProps {
-  tier?: ConsoleShellTier;
-}
-
 /** Live-wired `ManagePage`: `useTable` drives the ledger, pagination and server-side filters;
  * row selection retargets the right-rail SELECTION panel exactly like the fixture-driven story. */
-export function RefineManageScreen({ tier = 'full' }: RefineManageScreenProps) {
+export function RefineManageScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
@@ -113,7 +108,6 @@ export function RefineManageScreen({ tier = 'full' }: RefineManageScreenProps) {
 
   return (
     <ManagePage
-      tier={tier}
       header={refineMockHeader}
       nav={nav}
       subNav={{ items: manageSubNavItems }}

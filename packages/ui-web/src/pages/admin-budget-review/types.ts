@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import type { ConsoleShellTier } from '../../components/console-shell';
 import type { NavSpineProps } from '../../components/nav-spine';
 import type { ReviewDetailPanelProps } from '../../components/review-detail-panel';
 import type { SubNavProps } from '../../components/sub-nav';
@@ -40,7 +39,6 @@ export type AdminReviewPagination = {
 };
 
 export interface AdminBudgetReviewPageProps {
-  tier: ConsoleShellTier;
   header: ReactNode;
   nav: NavSpineProps;
   subNav: SubNavProps;

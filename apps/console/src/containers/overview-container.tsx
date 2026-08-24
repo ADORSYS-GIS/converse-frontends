@@ -12,7 +12,6 @@ import { useMemo, useState } from 'react';
 import { adminNavItems, navItems } from '../client/console-chrome';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useShellTier } from '../client/use-shell-tier';
 
 /**
  * `/` — the Overview dashboard.
@@ -41,7 +40,6 @@ function selectField(
 }
 
 export function OverviewContainer() {
-  const tier = useShellTier();
   const session = useConsoleSession();
   const scope = useConsoleScope();
 
@@ -99,7 +97,6 @@ export function OverviewContainer() {
 
   return (
     <OverviewPage
-      tier={tier}
       orgName={scope.value.accountId || '—'}
       userEmail={session.user?.email ?? session.user?.preferredUsername ?? ''}
       userInitials={(session.user?.name ?? session.user?.email ?? '··').slice(0, 2).toUpperCase()}

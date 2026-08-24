@@ -35,106 +35,115 @@ export function LedgerTable<T>({
   const gridTemplateColumns = buildGridTemplate(columns, hasActions);
   const selected = new Set(selectedRowKeys ?? []);
 
+  // Contract: console-ui skill "No overflow, ever" — a ledger's fixed-width columns can exceed
+  // the centre column's width at the base/md tiers; the container scrolls horizontally, the
+  // page never does. `min-w-max` lets the grid keep its natural (unshrunk) column widths inside
+  // the scrollable box instead of the grid tracks being squeezed to fit.
   return (
-    <div role="table" className={cn('w-full border-t border-raised font-mono text-xs', className)}>
+    <div className="w-full overflow-x-auto">
       <div
-        role="row"
-        style={{ gridTemplateColumns }}
-        className="grid items-center gap-4 border-b border-raised py-2"
+        role="table"
+        className={cn('min-w-max border-t border-raised font-mono text-xs', className)}
       >
-        {columns.map((column) => (
-          <div
-            key={column.key}
-            role="columnheader"
-            className={cn(
-              'text-[10px] uppercase tracking-[.09em] text-subtle',
-              column.align === 'right' && 'text-right',
-            )}
-          >
-            {column.header}
-          </div>
-        ))}
-        {hasActions ? (
-          <div role="columnheader" className="sr-only">
-            Actions
-          </div>
-        ) : null}
-      </div>
-
-      <div role="rowgroup">
-        {loading
-          ? Array.from({ length: loadingRowCount }, (_, index) => (
-              <SkeletonRow
-                key={index}
-                gridTemplateColumns={gridTemplateColumns}
-                columnCount={columns.length + (hasActions ? 1 : 0)}
-                density={density}
-              />
-            ))
-          : data.map((row) => {
-              const key = rowKey(row);
-              const isSelected = selected.has(key);
-
-              return (
-                <div
-                  key={key}
-                  role="row"
-                  aria-selected={onSelectRow ? isSelected : undefined}
-                  tabIndex={onSelectRow ? 0 : undefined}
-                  onClick={onSelectRow ? () => onSelectRow(row) : undefined}
-                  onKeyDown={
-                    onSelectRow
-                      ? (event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            onSelectRow(row);
-                          }
-                        }
-                      : undefined
-                  }
-                  style={{ gridTemplateColumns }}
-                  className={ledgerRowVariants({ density, selectable: Boolean(onSelectRow) })}
-                >
-                  {columns.map((column) => (
-                    <div
-                      key={column.key}
-                      role="cell"
-                      className={cn('text-soft', column.align === 'right' && 'text-right')}
-                    >
-                      {column.accessor(row)}
-                    </div>
-                  ))}
-                  {hasActions ? (
-                    <div
-                      role="cell"
-                      className="flex justify-end opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
-                    >
-                      {renderRowActions?.(row)}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-      </div>
-
-      {totals ? (
         <div
           role="row"
           style={{ gridTemplateColumns }}
-          className="grid items-center gap-4 border-b border-border py-2"
+          className="grid items-center gap-4 border-b border-raised py-2"
         >
           {columns.map((column) => (
             <div
               key={column.key}
-              role="cell"
-              className={cn('text-soft', column.align === 'right' && 'text-right')}
+              role="columnheader"
+              className={cn(
+                'text-[10px] uppercase tracking-[.09em] text-subtle',
+                column.align === 'right' && 'text-right',
+              )}
             >
-              {totals[column.key]}
+              {column.header}
             </div>
           ))}
-          {hasActions ? <div role="cell" /> : null}
+          {hasActions ? (
+            <div role="columnheader" className="sr-only">
+              Actions
+            </div>
+          ) : null}
         </div>
-      ) : null}
+
+        <div role="rowgroup">
+          {loading
+            ? Array.from({ length: loadingRowCount }, (_, index) => (
+                <SkeletonRow
+                  key={index}
+                  gridTemplateColumns={gridTemplateColumns}
+                  columnCount={columns.length + (hasActions ? 1 : 0)}
+                  density={density}
+                />
+              ))
+            : data.map((row) => {
+                const key = rowKey(row);
+                const isSelected = selected.has(key);
+
+                return (
+                  <div
+                    key={key}
+                    role="row"
+                    aria-selected={onSelectRow ? isSelected : undefined}
+                    tabIndex={onSelectRow ? 0 : undefined}
+                    onClick={onSelectRow ? () => onSelectRow(row) : undefined}
+                    onKeyDown={
+                      onSelectRow
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              onSelectRow(row);
+                            }
+                          }
+                        : undefined
+                    }
+                    style={{ gridTemplateColumns }}
+                    className={ledgerRowVariants({ density, selectable: Boolean(onSelectRow) })}
+                  >
+                    {columns.map((column) => (
+                      <div
+                        key={column.key}
+                        role="cell"
+                        className={cn('text-soft', column.align === 'right' && 'text-right')}
+                      >
+                        {column.accessor(row)}
+                      </div>
+                    ))}
+                    {hasActions ? (
+                      <div
+                        role="cell"
+                        className="flex justify-end opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        {renderRowActions?.(row)}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+        </div>
+
+        {totals ? (
+          <div
+            role="row"
+            style={{ gridTemplateColumns }}
+            className="grid items-center gap-4 border-b border-border py-2"
+          >
+            {columns.map((column) => (
+              <div
+                key={column.key}
+                role="cell"
+                className={cn('text-soft', column.align === 'right' && 'text-right')}
+              >
+                {totals[column.key]}
+              </div>
+            ))}
+            {hasActions ? <div role="cell" /> : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

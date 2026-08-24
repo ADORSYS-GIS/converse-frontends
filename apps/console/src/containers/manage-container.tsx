@@ -15,7 +15,6 @@ import { useMemo, useState } from 'react';
 import { ConsoleHeaderBar, adminNavItems, navItems } from '../client/console-chrome';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useShellTier } from '../client/use-shell-tier';
 import { manageTotals, toProjectRows } from './project-rows';
 
 /**
@@ -51,7 +50,6 @@ const REPORT_EXPORT_PENDING =
   'Report export needs the consumption report route (ADR 0009 Decision 8), which is not wired yet.';
 
 export function ManageContainer() {
-  const tier = useShellTier();
   const session = useConsoleSession();
   const scope = useConsoleScope();
 
@@ -108,7 +106,6 @@ export function ManageContainer() {
 
   return (
     <ManagePage
-      tier={tier}
       header={<ConsoleHeaderBar />}
       nav={{
         items: navItems('manage'),

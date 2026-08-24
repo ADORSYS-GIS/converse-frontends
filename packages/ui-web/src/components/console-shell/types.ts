@@ -1,22 +1,44 @@
 import type { ReactNode } from 'react';
 
-/**
- * Responsive tier, computed by the consumer (docs/design/console-redesign/README.md §7):
- * - `full` — ≥1024, all three zones render, right rail is persistent.
- * - `compact` — 600–1024, right rail is NOT rendered inline; the consumer docks the same
- *   content in a `BottomSheet` rendered alongside `ConsoleShell`.
- * - `guard` — ≤600, only header + centre render. Not a design target (ADR 0008 Decision 2).
- */
-export type ConsoleShellTier = 'full' | 'compact' | 'guard';
+import type { NavSpineProps } from '../nav-spine';
 
 export interface ConsoleShellProps {
-  tier: ConsoleShellTier;
+  /** Fully composed `ConsoleHeader` (or equivalent) — sticky at the very top of the shell. */
   header: ReactNode;
-  /** Left rail stack (nav spine, then a scope/sub-nav panel). Not rendered at `guard`. */
-  leftRail?: ReactNode;
-  /** Right rail content. Rendered inline only at `full`; ignored at `compact`/`guard`. */
+  /**
+   * Structured nav data, not a pre-rendered rail. `ConsoleShell` owns two renderings of the
+   * same `NavSpineProps` — a vertical `NavSpine` in the left rail at `md`/`lg`, and a
+   * `layout="bottom-bar"` `NavSpine` docked as a fixed bottom navigation bar below `md`
+   * (console-ui skill "Shape and layout" — mobile-first ladder). Both are always in the DOM;
+   * only one is visible at a time via CSS (`md:hidden` / `hidden md:flex`), so the tier switch
+   * needs no JS viewport detection.
+   */
+  nav: NavSpineProps;
+  /**
+   * Secondary left-rail content stacked below the nav panel — a `SCOPE` echo or a section
+   * `SubNav` (docs/design/console-redesign/README.md §3's "left rail is a stack of panels").
+   * Rendered inline at `md`/`lg`. Below `md` it is not in the rail at all (there is no rail);
+   * instead it is reachable from a small trigger row under the header that opens it in a vaul
+   * drawer — provide `leftSecondaryLabel` alongside this to label both the trigger and the
+   * drawer title.
+   */
+  leftSecondary?: ReactNode;
+  /** Trigger label and drawer title for `leftSecondary` below `md`. Required whenever
+   * `leftSecondary` is set — omitting it while `leftSecondary` is present leaves the mobile
+   * trigger unlabelled. */
+  leftSecondaryLabel?: string;
+  /**
+   * Right rail content — parameters and the action that consumes them (README §3/§10.3).
+   * Persistent and inline at `lg` (never an overlay, per ADR 0008 Decision 3). Below `lg` it
+   * docks as a vaul `BottomSheet` with a peek snap point, per the mobile-first ladder.
+   */
   rightRail?: ReactNode;
-  /** Centre floor content — no card, no max-width. */
+  /** `BottomSheet` header label for `rightRail` below `lg`. */
+  rightRailTitle?: string;
+  /** One-line summary shown at the `BottomSheet`'s collapsed peek snap point below `lg`. */
+  rightRailPeek?: ReactNode;
+  /** Centre floor content — no card, no max-width. The document's own scroller; both rails are
+   * sticky and scroll independently of it at `md`/`lg`. */
   children: ReactNode;
   className?: string;
 }

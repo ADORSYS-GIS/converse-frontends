@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { useCustomMutation, useInvalidate, useList, useOne, useTable } from '@refinedev/core';
 
-import type { ConsoleShellTier } from '../components/console-shell';
 import type { ReviewDecision } from '../components/review-detail-panel';
 import {
   adminAdminNavItems,
@@ -22,11 +21,7 @@ import { refineMockHeader } from './shared-chrome';
 
 const nav = { items: adminNavItems, adminItems: adminAdminNavItems, showAdmin: true };
 
-export interface RefineAdminBudgetReviewScreenProps {
-  tier?: ConsoleShellTier;
-}
-
-export function RefineAdminBudgetReviewScreen({ tier = 'full' }: RefineAdminBudgetReviewScreenProps) {
+export function RefineAdminBudgetReviewScreen() {
   const [tab, setTab] = useState<AdminReviewTab>('pending');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -69,7 +64,6 @@ export function RefineAdminBudgetReviewScreen({ tier = 'full' }: RefineAdminBudg
 
   return (
     <AdminBudgetReviewPage
-      tier={tier}
       header={refineMockHeader}
       nav={nav}
       subNav={{ items: adminSubNavItems }}

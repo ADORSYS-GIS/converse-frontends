@@ -28,7 +28,6 @@ function selectField(label: string, value: string, options: OverviewSelectField[
 
 function makeProps(overrides: Partial<OverviewPageProps> = {}): OverviewPageProps {
   return {
-    tier: 'full',
     orgName: 'adorsys-gis',
     userEmail: 'sam@adorsys.com',
     userInitials: 'SL',
@@ -69,7 +68,10 @@ describe('OverviewPage', () => {
   it('shows the Admin nav group for an admin', () => {
     render(<OverviewPage {...makeProps({ showAdmin: true })} />);
 
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    // ConsoleShell renders `nav` twice — a rail NavSpine and a bottom-bar NavSpine, CSS-hidden
+    // per tier — so "Admin" legitimately appears in both.
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
+    // ROLE only has a home in the `rail` layout (no room for it in a 56px horizontal strip).
     expect(screen.getByText('ROLE')).toBeInTheDocument();
   });
 
@@ -148,7 +150,9 @@ describe('OverviewPage', () => {
 
     expect(screen.getAllByText('Querying usage…').length).toBeGreaterThan(0);
     // The real spend chart never mounts while loading, so its own internal legend (distinct
-    // from the always-present right-rail SERIES panel) does not render a second copy.
+    // from the always-present right-rail SERIES panel) does not render a second copy. The
+    // right rail's BottomSheet copy only mounts once expanded (collapsed shows the peek row),
+    // so the inline rail is the only copy present here.
     expect(screen.getAllByRole('button', { name: 'claude-sonnet' })).toHaveLength(1);
   });
 

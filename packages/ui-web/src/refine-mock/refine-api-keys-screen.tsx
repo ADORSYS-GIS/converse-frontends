@@ -7,7 +7,6 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useCreate, useDelete, useTable, useUpdate } from '@refinedev/core';
 
-import type { ConsoleShellTier } from '../components/console-shell';
 import {
   apiKeysAdminNavItems,
   apiKeysHygiene,
@@ -38,11 +37,7 @@ function summarize(rows: ApiKeyRow[]): string {
   return `${active} active · ${revoked} revoked${expiring > 0 ? ` · ${expiring} expiring soon` : ''}`;
 }
 
-export interface RefineApiKeysScreenProps {
-  tier?: ConsoleShellTier;
-}
-
-export function RefineApiKeysScreen({ tier = 'full' }: RefineApiKeysScreenProps) {
+export function RefineApiKeysScreen() {
   const [search, setSearch] = useState('');
   const [statusFilterValue, setStatusFilterValue] = useState('all');
   const [scopeValue, setScopeValue] = useState<ScopeSelectValue>({ accountId: 'adorsys-gis', projectId: 'gateway-prod' });
@@ -77,7 +72,6 @@ export function RefineApiKeysScreen({ tier = 'full' }: RefineApiKeysScreenProps)
 
   return (
     <ApiKeysPage
-      tier={tier}
       header={refineMockHeader}
       nav={nav}
       scope={apiKeysScope}

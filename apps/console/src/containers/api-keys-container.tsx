@@ -15,7 +15,6 @@ import { ConsoleHeaderBar, adminNavItems, navItems } from '../client/console-chr
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useShellTier } from '../client/use-shell-tier';
 import { apiKeysHygiene, apiKeysStatusSummary, toApiKeyRows } from './api-key-rows';
 
 /**
@@ -39,7 +38,6 @@ const STATUS_FILTER_OPTIONS: SegmentedOption<string>[] = [
 const DEFAULT_KEY_LIFETIME_DAYS = 90;
 
 export function ApiKeysContainer() {
-  const tier = useShellTier();
   const session = useConsoleSession();
   const scope = useConsoleScope();
   const client = useConsoleAuthzClient();
@@ -101,7 +99,6 @@ export function ApiKeysContainer() {
 
   return (
     <ApiKeysPage
-      tier={tier}
       header={<ConsoleHeaderBar />}
       nav={{
         items: navItems('api-keys'),

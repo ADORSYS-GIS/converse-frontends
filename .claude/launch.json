@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/self-service", "web"],
       "port": 8081
+    },
+    {
+      "name": "ui-web-storybook",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "packages/ui-web", "storybook"],
+      "port": 6007
     }
   ]
 }

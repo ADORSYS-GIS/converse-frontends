@@ -5,7 +5,9 @@ import { ConsoleHeader } from './component';
 
 const identity = (
   <div className="flex items-center gap-3">
-    <span className="font-mono text-[11px] text-subtle">sam@adorsys.com</span>
+    {/* Mobile-first: the email is the first thing to go below `md` (console-ui skill "no
+        overflow, ever") — the avatar alone stays legible identity at any header width. */}
+    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
     <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
       SL
     </span>

@@ -1,4 +1,3 @@
-import type { ConsoleShellTier } from '../../components/console-shell';
 import type { LatencyRidgelineSeries } from '../../components/latency-ridgeline';
 import type { NavSpineItem } from '../../components/nav-spine';
 import type { SpendSeriesSeries } from '../../components/spend-series-chart';
@@ -61,8 +60,6 @@ export interface OverviewRefillRequestStatus {
 }
 
 export interface OverviewPageProps {
-  tier: ConsoleShellTier;
-
   // ── header / shell chrome (ConsoleHeader slots)
   logoSrc?: string;
   logoAlt?: string;
@@ -96,6 +93,9 @@ export interface OverviewPageProps {
 
   // ── SPEND dashboard
   spendSeries: SpendSeriesSeries[];
+  /** Fallback width used only before the chart's own container has been measured (mobile-first
+   * + flex-shell pass — console-ui skill "no overflow, ever": charts measure their container via
+   * `useResizeObserver` rather than being forced to a fixed pixel width). */
   spendChartWidth: number;
   spendChartHeight: number;
   spendStatus?: OverviewDashboardStatus;
@@ -113,6 +113,7 @@ export interface OverviewPageProps {
 
   // ── LATENCY dashboard
   latencySeries: LatencyRidgelineSeries[];
+  /** Fallback width before measurement — see `spendChartWidth`. */
   latencyChartWidth: number;
   latencyChartHeight: number;
   latencyStatus?: OverviewDashboardStatus;

@@ -15,7 +15,6 @@ import type { ManagePageProps, ProjectRow } from './types';
 
 function baseProps(overrides: Partial<ManagePageProps> = {}): ManagePageProps {
   return {
-    tier: 'full',
     header: <div>Header</div>,
     nav: { items: manageNavItems },
     subNav: { items: manageSubNavItems },

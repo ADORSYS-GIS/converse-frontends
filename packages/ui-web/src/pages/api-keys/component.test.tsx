@@ -7,7 +7,6 @@ import { apiKeysFixture, apiKeysHygiene, apiKeysNavItems, apiKeysScopeAccounts, 
 import type { ApiKeysPageProps } from './types';
 
 const baseProps: ApiKeysPageProps = {
-  tier: 'full',
   header: <div>Header</div>,
   nav: { items: apiKeysNavItems },
   scope: { accountLabel: 'adorsys-gis', projectLabel: 'gateway-prod' },

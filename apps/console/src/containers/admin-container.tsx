@@ -7,7 +7,6 @@ import { useMemo, useState } from 'react';
 
 import { ConsoleHeaderBar, adminNavItems, navItems } from '../client/console-chrome';
 import { useConsoleBudgetClient } from '../client/rpc-clients';
-import { useShellTier } from '../client/use-shell-tier';
 import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './refill-rows';
 
 /**
@@ -27,7 +26,6 @@ import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './
 const PAGE_SIZE = 50;
 
 export function AdminContainer() {
-  const tier = useShellTier();
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
 
@@ -90,7 +88,6 @@ export function AdminContainer() {
 
   return (
     <AdminBudgetReviewPage
-      tier={tier}
       header={<ConsoleHeaderBar />}
       nav={{
         items: navItems('admin'),

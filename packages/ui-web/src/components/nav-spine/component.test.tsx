@@ -72,4 +72,29 @@ describe('NavSpine', () => {
 
     expect(screen.getByText('STAFF')).toBeInTheDocument();
   });
+
+  describe('bottom-bar layout', () => {
+    it('renders every item as a horizontal strip, without a ROLE marker', () => {
+      render(<NavSpine items={items} adminItems={adminItems} showAdmin layout="bottom-bar" />);
+
+      expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
+      expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
+    });
+
+    it('hides the Admin item when showAdmin is false', () => {
+      render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} layout="bottom-bar" />);
+
+      expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+    });
+
+    it('marks the active item with aria-current and the primary text colour', () => {
+      render(<NavSpine items={items} layout="bottom-bar" />);
+
+      const active = screen.getByRole('button', { name: 'Overview' });
+      expect(active).toHaveAttribute('aria-current', 'page');
+      expect(active).toHaveClass('text-primary');
+    });
+  });
 });

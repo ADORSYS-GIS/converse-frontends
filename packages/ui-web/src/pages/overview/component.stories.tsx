@@ -56,7 +56,6 @@ function baseProps(overrides: Partial<OverviewPageProps> = {}): Omit<
   | 'accountFilterField'
   | 'projectFilterField'
   | 'modelFilterField'
-  | 'tier'
 > {
   return {
     orgName: 'adorsys-gis',
@@ -88,10 +87,7 @@ function baseProps(overrides: Partial<OverviewPageProps> = {}): Omit<
   };
 }
 
-function Demo({ overrides = {}, tier = 'full' as OverviewPageProps['tier'] }: {
-  overrides?: Partial<OverviewPageProps>;
-  tier?: OverviewPageProps['tier'];
-}) {
+function Demo({ overrides = {} }: { overrides?: Partial<OverviewPageProps> }) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
   const rangeField = useSelectField('last-30', RANGE_OPTIONS, 'Range');
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
@@ -102,7 +98,6 @@ function Demo({ overrides = {}, tier = 'full' as OverviewPageProps['tier'] }: {
 
   return (
     <OverviewPage
-      tier={tier}
       {...baseProps({
         selectedSeriesKey,
         onSelectSeries: setSelectedSeriesKey,
@@ -130,7 +125,9 @@ const meta: Meta<typeof OverviewPage> = {
 export default meta;
 type Story = StoryObj<typeof OverviewPage>;
 
-// Visually comparable 1:1 to docs/design/console-redesign/overview.svg.
+// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Visually comparable
+// 1:1 to docs/design/console-redesign/overview.svg — forced to the mockup's exact 1440 content
+// width; the real iframe is also ≥1024 (the `lg:` media query itself only cares about that).
 export const Populated: Story = {
   render: () => (
     <div className="w-[1440px]">
@@ -207,11 +204,20 @@ export const AdminNav: Story = {
   ),
 };
 
-// Compact tier (600–1024): right rail docks as a BottomSheet, matching shell-compact.svg.
-export const CompactTier: Story = {
-  render: () => (
-    <div className="w-[900px]">
-      <Demo tier="compact" />
-    </div>
-  ),
+// `md` tier (600–1024): left rail persists inline, right rail docks as a BottomSheet — visually
+// comparable to shell-compact.svg. A real viewport resize (not a wrapper `<div>`) is what
+// exercises the `md:` classes now that the shell is CSS-tiered.
+export const MdTier: Story = {
+  globals: { viewport: { value: 'md900' } },
+  render: () => <Demo />,
+};
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
+// stacked stat cards, nav docked as a fixed bottom navigation bar, VIEW & FILTERS reachable via
+// the right rail's BottomSheet peek row, SCOPE reachable via the header's drawer trigger, and
+// the ledger-free layout here needs no horizontal-scroll proof (see the ApiKeys/Manage/Admin
+// mobile stories for that).
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: () => <Demo />,
 };

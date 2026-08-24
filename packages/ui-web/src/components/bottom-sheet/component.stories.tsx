@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Button } from '../button';
 import { BottomSheet } from './component';
 
 const filterFields = (
@@ -21,13 +22,16 @@ const filterFields = (
   </div>
 );
 
-function ControlledSheet(props: { defaultOpen: boolean }) {
+// Compact-tier dock: peek mode keeps the sheet mounted (vaul snapPoints, non-modal) and
+// toggles between a one-line peek summary and the full content — the right rail at 600–1024
+// (shell-compact.svg).
+function DockedSheet(props: { defaultOpen: boolean }) {
   const [open, setOpen] = useState(props.defaultOpen);
 
   return (
     <div className="relative h-[420px] w-[900px] bg-muted">
       <p className="p-4 font-mono text-xs text-subtle">
-        Compact-tier centre content sits above the docked sheet.
+        Compact-tier centre content stays interactive underneath the docked sheet.
       </p>
       <BottomSheet
         open={open}
@@ -46,6 +50,29 @@ function ControlledSheet(props: { defaultOpen: boolean }) {
   );
 }
 
+// Transient modal drawer: mounts on `open` behind a `muted/80` backdrop and unmounts on
+// close — the plain vaul idiom for one-off overlays (e.g. nav overflow) that have no docked
+// peek state.
+function ModalDrawer(props: { direction?: 'bottom' | 'right' }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative flex h-[420px] w-[900px] items-start bg-muted p-4">
+      <Button type="button" onClick={() => setOpen(true)}>
+        Open drawer
+      </Button>
+      <BottomSheet
+        open={open}
+        onOpenChange={setOpen}
+        title={props.direction === 'right' ? 'NAV OVERFLOW' : 'DRAWER'}
+        direction={props.direction}
+      >
+        {filterFields}
+      </BottomSheet>
+    </div>
+  );
+}
+
 const meta: Meta<typeof BottomSheet> = {
   title: 'Shell/BottomSheet',
   component: BottomSheet,
@@ -55,6 +82,14 @@ const meta: Meta<typeof BottomSheet> = {
 export default meta;
 type Story = StoryObj<typeof BottomSheet>;
 
-export const Collapsed: Story = { render: () => <ControlledSheet defaultOpen={false} /> };
+// Standard vaul modal drawer, closed by default — click "Open drawer" to mount it.
+export const Default: Story = { render: () => <ModalDrawer /> };
 
-export const Expanded: Story = { render: () => <ControlledSheet defaultOpen={true} /> };
+// Peek/snap behaviour: collapsed at the low snap point, showing the peek summary row.
+export const PeekCollapsed: Story = { render: () => <DockedSheet defaultOpen={false} /> };
+
+// Peek/snap behaviour: expanded to the full snap point, showing the full content.
+export const PeekExpanded: Story = { render: () => <DockedSheet defaultOpen={true} /> };
+
+// direction="right" — the same primitive serving a side drawer (e.g. mobile nav overflow).
+export const RightSide: Story = { render: () => <ModalDrawer direction="right" /> };

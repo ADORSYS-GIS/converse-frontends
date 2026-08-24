@@ -36,6 +36,22 @@ export { BudgetHero } from './components/budget-hero';
 export type { BudgetHeroProps } from './components/budget-hero';
 
 // ── charts
+export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
+export type { ChartAxisBottomProps, ChartAxisLeftProps, ChartTick } from './components/chart-axis';
+export { ChartTooltip } from './components/chart-tooltip';
+export type { ChartTooltipProps, ChartTooltipRow } from './components/chart-tooltip';
+export { ChartLegend } from './components/chart-legend';
+export type { ChartLegendItem, ChartLegendProps } from './components/chart-legend';
+export { SpendSeriesChart } from './components/spend-series-chart';
+export type {
+  SpendSeriesChartProps,
+  SpendSeriesPoint,
+  SpendSeriesSeries,
+} from './components/spend-series-chart';
+export { HistogramChart } from './components/histogram-chart';
+export type { HistogramChartProps } from './components/histogram-chart';
+export { LatencyRidgeline } from './components/latency-ridgeline';
+export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components/latency-ridgeline';
 
 // ── forms & actions
 export { Button } from './components/button';

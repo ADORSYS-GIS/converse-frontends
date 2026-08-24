@@ -11,7 +11,17 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    // `@lightbridge/ui`'s package.json exports a `"./src/*": "./src/*"` wildcard
+    // (ADR 0009 Decision 5's deep-import contract for chart-core), which Vite/
+    // vitest resolve at runtime by extension-probing `.ts` files, but `tsc`'s own
+    // exports-map matcher requires the wildcard target to exist verbatim (no
+    // extension) and fails type-checking otherwise. This `paths` override only
+    // affects `tsc`'s module resolution for type-checking -- it points at the
+    // same on-disk files the package's own exports map already serves at runtime.
+    "paths": {
+      "@lightbridge/ui/src/*": ["../ui/src/*"]
+    }
   },
   "include": ["src", ".storybook"]
 }

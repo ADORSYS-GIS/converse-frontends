@@ -206,13 +206,30 @@ over. For the console:
 - All drawers and bottom sheets are built on **vaul** — the console's only drawer primitive; no
   hand-rolled sheet implementations.
 
-### 7. Report export: month consumption, server-rendered
+### 7. Client-first and offline-first
+
+Owner directive (2026-08-25): **whatever can be managed on the client is managed on the
+client.** Consequences:
+
+- The cratestack RPC client (CBOR codec, batching, logging links) runs **in the browser**,
+  calling same-origin `/api/*`. The Next.js proxy layer stays dumb: it forwards opaque request
+  bytes, attaches the Bearer token from the cookie session, and owns refresh — it never decodes
+  payloads. Server components are reserved for the auth/proxy seam, not for data fetching.
+- **Offline-first**: the console is a PWA (service-worker precached app shell) and refine's
+  TanStack Query cache persists to IndexedDB, so previously-loaded screens render offline from
+  cache with an inline "offline · showing cached data" status line. Mutations require
+  connectivity at this stage (no offline mutation queue — build it when a real need appears,
+  not speculatively).
+- Auth remains the one thing the client cannot manage: tokens never leave the httpOnly cookie
+  session (Decision 2).
+
+### 8. Report export: month consumption, server-rendered
 
 A route handler (`/api/reports/consumption?month=…`) queries the usage backend server-side and
 streams a **CSV** download (grouped by project × model, with totals). The UI offers it from
 `Manage`. CSV is the committed format; PDF is out of scope until someone asks for it.
 
-### 8. What stays
+### 9. What stays
 
 API-key management (ADR 0001/0003 flows), project/account/budget management, the ADR 0008 layout,
 nav spine, palette, chart colour rule, config-driven logo, and the governance workflow (PR

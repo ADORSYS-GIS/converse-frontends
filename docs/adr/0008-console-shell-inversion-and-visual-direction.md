@@ -2,7 +2,24 @@
 
 ## Status
 
-Accepted
+Accepted — **Decision 9 superseded by
+[ADR 0009](0009-nextjs-console-replacement.md)**, which moves the console to Next.js: the chart
+substrate becomes DOM `<svg>` ports of the same d3 `chart-core` primitives (`react-native-svg`
+was only ever an Expo constraint). Everything else in this ADR — shell inversion, breakpoints,
+nav spine, palette, chart-colour rule — carries over to the Next.js console unchanged.
+
+Boundary clarifications adopted with the Next.js design spec
+([docs/design/console-redesign](../design/console-redesign/README.md), §10):
+
+- **A scalar gets a panel, a distribution gets the floor** — stat cards render on `#191919`;
+  charts, meters, and tables sit uncontained on `#000` (resolves the D3-vs-D5 boundary).
+- **The right panel owns the action that consumes its own parameters** (e.g. `New key`,
+  `Generate report`, review decisions); actions operating on a centre row stay in the row — an
+  extension of D3's "params/filters/knobs".
+- ADR 0007's `maxContentWidth` token is retired for console routes (the centre is bounded by the
+  rails); it survives only as the Auth page's column cap.
+- Auth (login / signed-out) renders **outside the shell** — on the floor, no rails, no nav-spine
+  group.
 
 ## Context
 

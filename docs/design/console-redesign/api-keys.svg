@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-label="Lightbridge console — Api-Keys screen mockup, dark theme">
+<title>Lightbridge console — Api-Keys</title>
+<style>
+  .m   { font-family: ui-monospace, "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; }
+  .s   { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  .lab { font-size: 10px; letter-spacing: .09em; fill: #606060; }
+  .lab2{ font-size: 11px; letter-spacing: .09em; fill: #606060; }
+  .hi  { fill: #eeeeee; }
+  .bo  { fill: #b4b4b4; }
+  .mu  { fill: #606060; }
+  .ac  { fill: #DA5C2C; }
+  .rule{ stroke: #202020; stroke-width: 1; }
+  .ctl { fill: #111111; stroke: #3a3a3a; stroke-width: 1; }
+</style>
+
+<rect width="1440" height="900" fill="#000000"/>
+
+<!-- header -->
+<rect x="0" y="0" width="1440" height="56" fill="#111111"/>
+<rect x="20" y="18" width="20" height="20" rx="2" fill="#202020"/>
+<path d="M25 33 L30 23 L35 33 Z" fill="#606060"/>
+<text class="m hi" x="50" y="32" font-size="12" letter-spacing=".14em">LIGHTBRIDGE</text>
+<line x1="168" y1="16" x2="168" y2="40" stroke="#3a3a3a"/>
+<text class="m bo" x="184" y="32" font-size="12">adorsys-gis</text>
+<path d="M262 26 l4 4 l4 -4" fill="none" stroke="#606060"/>
+<text class="m mu" x="1362" y="32" font-size="11" text-anchor="end">sam@adorsys.com</text>
+<circle cx="1398" cy="28" r="13" fill="#202020"/>
+<text class="m bo" x="1398" y="32" font-size="10" text-anchor="middle">SL</text>
+
+<!-- left rail -->
+<rect x="16" y="72" width="208" height="172" rx="2" fill="#191919"/>
+<rect x="38" y="96" width="10" height="10" rx="1" fill="none" stroke="#606060"/>
+<text class="m bo" x="58" y="105" font-size="12">Overview</text>
+<rect x="22" y="122" width="196" height="34" rx="2" fill="#202020"/>
+<rect x="22" y="122" width="2" height="34" fill="#DA5C2C"/>
+<path d="M38 138 h10 M38 141 h10 M38 144 h6" stroke="#eeeeee"/>
+<text class="m hi" x="58" y="143" font-size="12">Api-Keys</text>
+<rect x="38" y="172" width="10" height="10" rx="1" fill="none" stroke="#606060"/>
+<text class="m bo" x="58" y="181" font-size="12">Manage</text>
+<line x1="22" y1="192" x2="218" y2="192" class="rule"/>
+<circle cx="43" cy="215" r="5" fill="none" stroke="#606060"/>
+<text class="m bo" x="58" y="219" font-size="12">Admin</text>
+<text class="m mu" x="218" y="219" font-size="9" text-anchor="end" letter-spacing=".08em">ROLE</text>
+
+<rect x="16" y="256" width="208" height="104" rx="2" fill="#191919"/>
+<text class="m lab" x="30" y="278">SCOPE</text>
+<text class="m mu" x="30" y="300" font-size="10">Account</text>
+<text class="m hi" x="30" y="316" font-size="12">adorsys-gis</text>
+<text class="m mu" x="30" y="336" font-size="10">Project</text>
+<text class="m hi" x="30" y="352" font-size="12">gateway-prod</text>
+
+<!-- centre -->
+<text class="m hi" x="248" y="102" font-size="22">Api-Keys</text>
+<text class="s mu" x="248" y="122" font-size="11">adorsys-gis / gateway-prod</text>
+
+<!-- one-time secret strip (create + rotate share this contract) -->
+<rect x="248" y="144" width="872" height="104" rx="2" fill="#191919"/>
+<text class="m hi" x="268" y="172" font-size="13">New key created — shown once</text>
+<text class="s mu" x="268" y="192" font-size="10">Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.</text>
+<rect x="268" y="204" width="700" height="32" rx="2" class="ctl"/>
+<text class="m bo" x="280" y="224" font-size="12">sk-lb-Xq7T4mA9vR2nK8sE1wYb6tZ0pL5cJ3dF</text>
+<rect x="980" y="204" width="120" height="32" rx="2" fill="#DA5C2C"/>
+<text class="m hi" x="1040" y="224" font-size="11" text-anchor="middle">Copy</text>
+<text class="m mu" x="1100" y="172" font-size="14" text-anchor="end">×</text>
+
+<!-- inline status line, not a centred placard -->
+<text class="m bo" x="248" y="284" font-size="11">23 active</text>
+<text class="m mu" x="326" y="284" font-size="11">· 4 revoked ·</text>
+<text class="m ac" x="428" y="284" font-size="11">1 expires in 6 days</text>
+
+<!-- ledger table: hairline rules, 0 radius, no fill, on the floor -->
+<line x1="248" y1="302" x2="1120" y2="302" class="rule"/>
+<text class="m lab" x="248" y="322">NAME</text>
+<text class="m lab" x="452" y="322">PREFIX</text>
+<text class="m lab" x="600" y="322">STATUS</text>
+<text class="m lab" x="740" y="322" text-anchor="end">CREATED</text>
+<text class="m lab" x="860" y="322" text-anchor="end">LAST USED</text>
+<text class="m lab" x="968" y="322" text-anchor="end">EXPIRES</text>
+<line x1="248" y1="334" x2="1120" y2="334" class="rule"/>
+
+<!-- row 1 (hover: lifecycle group revealed) -->
+<rect x="248" y="334" width="872" height="44" fill="#111111"/>
+<text class="m hi" x="248" y="361" font-size="12">ci-deploy</text>
+<text class="m bo" x="452" y="361" font-size="12">lb_live_a91f…</text>
+<text class="m bo" x="600" y="361" font-size="11">active</text>
+<text class="m bo" x="740" y="361" font-size="11" text-anchor="end">2026-01-04</text>
+<text class="m bo" x="860" y="361" font-size="11" text-anchor="end">2 min ago</text>
+<text class="m bo" x="968" y="361" font-size="11" text-anchor="end">2026-09-04</text>
+<text class="m bo" x="986" y="361" font-size="11">Rotate</text>
+<path d="M1029 368 l7 -14" stroke="#3a3a3a"/>
+<text class="m hi" x="1040" y="361" font-size="11">Revoke</text>
+<path d="M1083 368 l7 -14" stroke="#3a3a3a"/>
+<text class="m mu" x="1094" y="361" font-size="11">Del</text>
+<line x1="248" y1="378" x2="1120" y2="378" class="rule"/>
+
+<text class="m hi" x="248" y="405" font-size="12">gateway-edge</text>
+<text class="m bo" x="452" y="405" font-size="12">lb_live_77c2…</text>
+<text class="m bo" x="600" y="405" font-size="11">active</text>
+<text class="m bo" x="740" y="405" font-size="11" text-anchor="end">2025-11-19</text>
+<text class="m bo" x="860" y="405" font-size="11" text-anchor="end">41 min ago</text>
+<text class="m mu" x="968" y="405" font-size="11" text-anchor="end">no expiry</text>
+<line x1="248" y1="422" x2="1120" y2="422" class="rule"/>
+
+<text class="m hi" x="248" y="449" font-size="12">batch-eval</text>
+<text class="m bo" x="452" y="449" font-size="12">lb_live_0d5e…</text>
+<text class="m ac" x="600" y="449" font-size="11">expiring</text>
+<text class="m bo" x="740" y="449" font-size="11" text-anchor="end">2025-08-02</text>
+<text class="m bo" x="860" y="449" font-size="11" text-anchor="end">6 h ago</text>
+<text class="m ac" x="968" y="449" font-size="11" text-anchor="end">2026-03-02</text>
+<line x1="248" y1="466" x2="1120" y2="466" class="rule"/>
+
+<text class="m bo" x="248" y="493" font-size="12">legacy-import</text>
+<text class="m mu" x="452" y="493" font-size="12">lb_live_3b8a…</text>
+<text class="m mu" x="600" y="493" font-size="11">revoked</text>
+<text class="m mu" x="740" y="493" font-size="11" text-anchor="end">2025-05-30</text>
+<text class="m mu" x="860" y="493" font-size="11" text-anchor="end">2025-12-11</text>
+<text class="m mu" x="968" y="493" font-size="11" text-anchor="end">—</text>
+<line x1="248" y1="510" x2="1120" y2="510" class="rule"/>
+
+<text class="m hi" x="248" y="537" font-size="12">analytics-ro</text>
+<text class="m bo" x="452" y="537" font-size="12">lb_live_c4f1…</text>
+<text class="m bo" x="600" y="537" font-size="11">active</text>
+<text class="m bo" x="740" y="537" font-size="11" text-anchor="end">2026-02-02</text>
+<text class="m bo" x="860" y="537" font-size="11" text-anchor="end">3 d ago</text>
+<text class="m bo" x="968" y="537" font-size="11" text-anchor="end">2026-08-02</text>
+<line x1="248" y1="554" x2="1120" y2="554" class="rule"/>
+
+<text class="m hi" x="248" y="581" font-size="12">sandbox</text>
+<text class="m bo" x="452" y="581" font-size="12">lb_live_9e7d…</text>
+<text class="m bo" x="600" y="581" font-size="11">active</text>
+<text class="m bo" x="740" y="581" font-size="11" text-anchor="end">2026-02-14</text>
+<text class="m mu" x="860" y="581" font-size="11" text-anchor="end">never used</text>
+<text class="m bo" x="968" y="581" font-size="11" text-anchor="end">2026-05-14</text>
+<line x1="248" y1="598" x2="1120" y2="598" class="rule"/>
+
+<text class="m hi" x="248" y="625" font-size="12">eval-harness</text>
+<text class="m bo" x="452" y="625" font-size="12">lb_live_5a2c…</text>
+<text class="m bo" x="600" y="625" font-size="11">active</text>
+<text class="m bo" x="740" y="625" font-size="11" text-anchor="end">2026-02-18</text>
+<text class="m bo" x="860" y="625" font-size="11" text-anchor="end">12 h ago</text>
+<text class="m bo" x="968" y="625" font-size="11" text-anchor="end">2026-08-18</text>
+<line x1="248" y1="642" x2="1120" y2="642" class="rule"/>
+
+<text class="m hi" x="248" y="669" font-size="12">webhook-relay</text>
+<text class="m bo" x="452" y="669" font-size="12">lb_live_e610…</text>
+<text class="m bo" x="600" y="669" font-size="11">active</text>
+<text class="m bo" x="740" y="669" font-size="11" text-anchor="end">2025-09-08</text>
+<text class="m bo" x="860" y="669" font-size="11" text-anchor="end">4 min ago</text>
+<text class="m mu" x="968" y="669" font-size="11" text-anchor="end">no expiry</text>
+<line x1="248" y1="686" x2="1120" y2="686" class="rule"/>
+
+<text class="m hi" x="248" y="713" font-size="12">staging-sync</text>
+<text class="m bo" x="452" y="713" font-size="12">lb_live_2f9b…</text>
+<text class="m bo" x="600" y="713" font-size="11">active</text>
+<text class="m bo" x="740" y="713" font-size="11" text-anchor="end">2025-12-22</text>
+<text class="m bo" x="860" y="713" font-size="11" text-anchor="end">1 d ago</text>
+<text class="m bo" x="968" y="713" font-size="11" text-anchor="end">2026-06-22</text>
+<line x1="248" y1="730" x2="1120" y2="730" class="rule"/>
+
+<text class="m bo" x="248" y="757" font-size="12">old-ci</text>
+<text class="m mu" x="452" y="757" font-size="12">lb_live_8c34…</text>
+<text class="m mu" x="600" y="757" font-size="11">revoked</text>
+<text class="m mu" x="740" y="757" font-size="11" text-anchor="end">2025-03-14</text>
+<text class="m mu" x="860" y="757" font-size="11" text-anchor="end">2025-10-02</text>
+<text class="m mu" x="968" y="757" font-size="11" text-anchor="end">—</text>
+<line x1="248" y1="774" x2="1120" y2="774" class="rule"/>
+
+<text class="m hi" x="248" y="801" font-size="12">partner-readonly</text>
+<text class="m bo" x="452" y="801" font-size="12">lb_live_b7e5…</text>
+<text class="m bo" x="600" y="801" font-size="11">active</text>
+<text class="m bo" x="740" y="801" font-size="11" text-anchor="end">2026-01-27</text>
+<text class="m bo" x="860" y="801" font-size="11" text-anchor="end">9 d ago</text>
+<text class="m bo" x="968" y="801" font-size="11" text-anchor="end">2027-01-27</text>
+<line x1="248" y1="818" x2="1120" y2="818" class="rule"/>
+
+<text class="m mu" x="248" y="842" font-size="10">11 of 27 keys</text>
+<text class="m mu" x="1042" y="842" font-size="10">‹ prev</text>
+<text class="m bo" x="1094" y="842" font-size="10">next ›</text>
+
+<!-- right rail -->
+<rect x="1144" y="72" width="280" height="812" rx="2" fill="#191919"/>
+<rect x="1160" y="88" width="248" height="34" rx="2" fill="#DA5C2C"/>
+<text class="m hi" x="1284" y="110" font-size="12" text-anchor="middle">+  New key</text>
+<line x1="1160" y1="146" x2="1408" y2="146" class="rule"/>
+<text class="m lab" x="1160" y="172">SCOPE</text>
+<text class="m mu" x="1160" y="194" font-size="10">Account</text>
+<rect x="1160" y="202" width="248" height="30" rx="2" class="ctl"/>
+<text class="m bo" x="1172" y="221" font-size="11">adorsys-gis</text>
+<path d="M1388 215 l4 4 l4 -4" fill="none" stroke="#606060"/>
+<text class="m mu" x="1160" y="254" font-size="10">Project</text>
+<rect x="1160" y="262" width="248" height="30" rx="2" class="ctl"/>
+<text class="m bo" x="1172" y="281" font-size="11">gateway-prod</text>
+<path d="M1388 275 l4 4 l4 -4" fill="none" stroke="#606060"/>
+<line x1="1160" y1="314" x2="1408" y2="314" class="rule"/>
+<text class="m lab" x="1160" y="340">FILTERS</text>
+<text class="m mu" x="1160" y="362" font-size="10">Status</text>
+<rect x="1160" y="370" width="248" height="30" rx="2" fill="#111111" stroke="#3a3a3a"/>
+<rect x="1243" y="370" width="82" height="30" fill="#202020"/>
+<rect x="1243" y="398" width="82" height="2" fill="#DA5C2C"/>
+<line x1="1243" y1="370" x2="1243" y2="400" stroke="#3a3a3a"/>
+<line x1="1325" y1="370" x2="1325" y2="400" stroke="#3a3a3a"/>
+<text class="m mu" x="1201" y="389" font-size="11" text-anchor="middle">All</text>
+<text class="m hi" x="1284" y="389" font-size="11" text-anchor="middle">Active</text>
+<text class="m mu" x="1366" y="389" font-size="11" text-anchor="middle">Revoked</text>
+<text class="m mu" x="1160" y="422" font-size="10">Search</text>
+<rect x="1160" y="430" width="248" height="30" rx="2" class="ctl"/>
+<text class="m mu" x="1172" y="449" font-size="11">name or prefix…</text>
+<line x1="1160" y1="482" x2="1408" y2="482" class="rule"/>
+<text class="m lab" x="1160" y="508">KEY HYGIENE</text>
+<text class="m ac" x="1160" y="530" font-size="11">1 key expires in 6 days</text>
+<text class="m bo" x="1160" y="550" font-size="11">1 key never used since creation</text>
+<text class="m mu" x="1160" y="570" font-size="11">4 revoked keys retained for audit</text>
+<line x1="1160" y1="598" x2="1408" y2="598" class="rule"/>
+<text class="m lab" x="1160" y="624">LIFECYCLE</text>
+<text class="s mu" x="1160" y="648" font-size="10">Revoke disables a key and keeps its</text>
+<text class="s mu" x="1160" y="664" font-size="10">history. Delete removes the record</text>
+<text class="s mu" x="1160" y="680" font-size="10">and its audit trail — admin only,</text>
+<text class="s mu" x="1160" y="696" font-size="10">behind typed confirmation.</text>
+</svg>

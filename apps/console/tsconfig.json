@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // Mandated by `next build` — Next uses the React automatic runtime.
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "incremental": true,
+    "forceConsistentCasingInFileNames": true,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"],
+      // Same `tsc`-only shim `packages/ui-web/tsconfig.json` carries: `@lightbridge/ui`'s
+      // `"./src/*": "./src/*"` exports wildcard resolves at runtime by extension probing, but
+      // `tsc`'s exports matcher wants the target to exist verbatim.
+      "@lightbridge/ui/src/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "src",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  // `src/sw.ts` is a service worker: it needs `lib: webworker`, whose `self` typing is
+  // irreconcilable with the `DOM` lib this app needs everywhere else. `@serwist/next` compiles it
+  // with its own worker-targeted pass; `tsc` deliberately does not look at it.
+  "exclude": ["node_modules", ".next", "src/sw.ts"]
+}

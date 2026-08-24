@@ -14,6 +14,10 @@ module.exports = defineConfig([
     ignores: [
       'dist/*',
       'apps/*/dist/*',
+      // Next.js build output. `apps/console/.next/types/**` is generated route-type scaffolding
+      // that trips a dozen `@typescript-eslint` rules it was never written to satisfy — same
+      // reasoning as the `dist`/`storybook-static` entries around it.
+      '**/.next/**',
       'storybook-static/*',
       'packages/*/storybook-static/*',
       '.claude/worktrees/**',

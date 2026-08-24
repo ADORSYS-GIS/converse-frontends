@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Placeholder mark: the ADR 0008 floor (#000) with the signal accent (#DA5C2C) bridge glyph.
+       Replaced by the config-driven logo (ADR 0008 Decision 8) when one is supplied. -->
+  <rect width="512" height="512" fill="#000000"/>
+  <path d="M112 336 L256 144 L400 336" fill="none" stroke="#DA5C2C" stroke-width="28" stroke-linecap="square"/>
+  <path d="M112 336 L400 336" fill="none" stroke="#b4b4b4" stroke-width="16" stroke-linecap="square"/>
+</svg>

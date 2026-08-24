@@ -136,3 +136,18 @@ export type {
   DecisionRow,
   RefillRequestRow,
 } from './pages/admin-budget-review';
+
+export { OverviewPage } from './pages/overview';
+export type {
+  OverviewBudgetSummary,
+  OverviewDashboardStatus,
+  OverviewNeedsAttentionProject,
+  OverviewPageProps,
+  OverviewRefillRequestStatus,
+  OverviewSelectField,
+  OverviewSelectOption,
+  OverviewStatCardData,
+  OverviewStatCardIcon,
+} from './pages/overview';
+export { AuthPage } from './pages/auth';
+export type { AuthPageProps, AuthPageStatus } from './pages/auth';

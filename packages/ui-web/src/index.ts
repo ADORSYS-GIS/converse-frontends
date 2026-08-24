@@ -16,6 +16,24 @@ export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
 
 // ── data display
+export { formatMoney, formatMoneyOf } from './lib/money';
+export { StatCard } from './components/stat-card';
+export type { StatCardDelta, StatCardProps } from './components/stat-card';
+export { Sparkline } from './components/sparkline';
+export type { SparklineProps } from './components/sparkline';
+export { LedgerTable } from './components/ledger-table';
+export { ledgerRowVariants } from './components/ledger-table';
+export type { LedgerColumn, LedgerTableProps } from './components/ledger-table';
+export { StatusText } from './components/status-text';
+export { statusTextVariants } from './components/status-text';
+export type { StatusTextVariantProps, StatusTextProps } from './components/status-text';
+export { RowActionGroup } from './components/row-action-group';
+export { rowActionVariants } from './components/row-action-group';
+export type { RowAction, RowActionGroupProps } from './components/row-action-group';
+export { Meter } from './components/meter';
+export type { MeterProps } from './components/meter';
+export { BudgetHero } from './components/budget-hero';
+export type { BudgetHeroProps } from './components/budget-hero';
 
 // ── charts
 
@@ -60,3 +78,12 @@ export type {
 } from './components/review-detail-panel';
 
 // ── states
+export { InlineStatus } from './components/inline-status';
+export type { InlineStatusProps } from './components/inline-status';
+export { SkeletonRow } from './components/skeleton-row';
+export { skeletonRowVariants } from './components/skeleton-row';
+export type { SkeletonRowProps } from './components/skeleton-row';
+export { SkeletonMetric } from './components/skeleton-metric';
+export type { SkeletonMetricProps } from './components/skeleton-metric';
+export { ErrorLine } from './components/error-line';
+export type { ErrorLineProps } from './components/error-line';

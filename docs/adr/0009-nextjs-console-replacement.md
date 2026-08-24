@@ -181,17 +181,38 @@ route handlers; the `EXPO_PUBLIC_*` surface disappears at cutover.
   0008 rejects.
 - `ui-web` gets its own **Storybook on `@storybook/react-vite`** with `addon-a11y` — none of the
   RNW transpile shims. Stories are the acceptance surface for the component PRs
-  (`storybook-pages.yml`'s path filter widens to cover it).
+  (`storybook-pages.yml`'s path filter widens to cover it). Beyond fixture-driven page stories,
+  Storybook also hosts **refine-driven mock screens**: the page views rendered through
+  `@refinedev/core` with a mocked data provider (simulated latency/errors), so the refine wiring's
+  real look and behaviour — lists, selection, forms — is verifiable before `apps/console` exists.
 - `packages/ui` continues to serve `apps/self-service` untouched until cutover, then is deleted
   with it.
 
-### 6. Report export: month consumption, server-rendered
+### 6. Mobile-first responsive console (supersedes ADR 0008 Decisions 1–2 for this app)
+
+Owner directive (2026-08-25): the Next.js console is **mobile-first**. ADR 0008's "no mobile
+target, landscape forced, ≤600 guard rail" stance was bound to the Expo app and does not carry
+over. For the console:
+
+- Styles are authored mobile-first (base = phone, scaling up at the existing `600` / `1024`
+  breakpoints, expressed as Tailwind screens `md:` / `lg:` in `packages/ui-web`).
+- **`<600` is a designed target**: single-column content with 16px gutters; the nav spine docks
+  as bottom navigation (ADR 0008's own ≤600 pattern, now styled to standard); the right rail's
+  content and the nav overflow present as **drawers**; stat cards stack; ledgers scroll
+  horizontally inside their own container; charts render full-width.
+- `600–1024` keeps the persistent left rail with the right rail docked as a bottom drawer;
+  `≥1024` is the full three-panel shell. The visual language (floor/panels/accent rules) is
+  tier-invariant.
+- All drawers and bottom sheets are built on **vaul** — the console's only drawer primitive; no
+  hand-rolled sheet implementations.
+
+### 7. Report export: month consumption, server-rendered
 
 A route handler (`/api/reports/consumption?month=…`) queries the usage backend server-side and
 streams a **CSV** download (grouped by project × model, with totals). The UI offers it from
 `Manage`. CSV is the committed format; PDF is out of scope until someone asks for it.
 
-### 7. What stays
+### 8. What stays
 
 API-key management (ADR 0001/0003 flows), project/account/budget management, the ADR 0008 layout,
 nav spine, palette, chart colour rule, config-driven logo, and the governance workflow (PR

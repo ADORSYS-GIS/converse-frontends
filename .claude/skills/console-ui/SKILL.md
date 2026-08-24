@@ -71,6 +71,17 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
     **stack** of panels: nav spine, then scope/sub-nav); centre x248 w872 on the floor; right
     rail x1144 w280, **persistent, never an overlay** — its content retargets on selection.
   - The visual language (floor/panels/tokens/accent rules) is identical at every tier.
+- **Flex shell, centre-only stretch, sticky rails** (owner directive 2026-08-25):
+  - The shell below the header is a flex row. Rails are fixed-width and `flex-none`
+    (`w-[208px]` / `w-[280px]`); the centre is the ONLY stretching zone: `flex-1 min-w-0`
+    (`min-w-0` is mandatory — without it wide children blow the layout open).
+  - **No overflow, ever**: the page never scrolls horizontally at any tier. Anything intrinsically
+    wide (ledger tables, charts) scrolls inside its own `overflow-x-auto` container; charts
+    measure their container rather than forcing a width.
+  - **Both rails are sticky and independently scrollable**: `sticky top-[56px]
+    max-h-[calc(100dvh-56px)] overflow-y-auto` — the centre column is the document's scroller;
+    rails hold position while the centre scrolls and scroll their own panel stacks when their
+    content exceeds the viewport.
 - **All drawers and bottom sheets are vaul** (`vaul`'s `Drawer`) — the console's only drawer
   primitive. Never hand-roll a sheet; style vaul's parts with the semantic tokens (`surface`
   content, `muted/80` overlay, radius 2, no shadow).

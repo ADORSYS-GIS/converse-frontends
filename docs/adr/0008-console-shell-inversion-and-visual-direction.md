@@ -2,8 +2,11 @@
 
 ## Status
 
-Accepted — **Decision 9 superseded by
-[ADR 0009](0009-nextjs-console-replacement.md)**, which moves the console to Next.js: the chart
+Accepted — **Decisions 1–2 and 9 superseded by
+[ADR 0009](0009-nextjs-console-replacement.md)** for the Next.js console. Decisions 1–2 (no
+mobile target, landscape forced, ≤600 as an unstyled guard rail) were bound to the Expo app; the
+Next.js console is **mobile-first** (ADR 0009 Decision 6) with `<600` a designed target — the
+breakpoint values themselves survive. Decision 9's substrate change: the chart
 substrate becomes DOM `<svg>` ports of the same d3 `chart-core` primitives (`react-native-svg`
 was only ever an Expo constraint). Everything else in this ADR — shell inversion, breakpoints,
 nav spine, palette, chart-colour rule — carries over to the Next.js console unchanged.

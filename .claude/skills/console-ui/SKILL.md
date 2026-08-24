@@ -59,10 +59,21 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
   hairlines (`raised`), and the chart baseline get strokes.
 - Spacing scale: `4 · 8 · 12 · 16 · 20 · 24 · 32 · 40`. Rail panels pad 16, centre panels 20,
   32 only for >600px prose panels.
-- Shell at 1440: header h56 `chrome`; left rail x16 w208 (a **stack** of panels: nav spine, then
-  scope/sub-nav); centre x248 w872 on the floor; right rail x1144 w280, **persistent, never an
-  overlay** — its content retargets on selection. Compact tier (600–1024): right rail docks as a
-  bottom sheet. `≤600` is a guard rail, not a target.
+- **Mobile-first** (ADR 0009 Decision 6): author base styles for phones and scale up with the
+  `md:` (600) / `lg:` (1024) screens defined in ui-web's tailwind config. Never desktop-first
+  overrides.
+  - Base (<600, a designed target): single column, 16px gutters, header stays; nav spine docks
+    as **bottom navigation**; right-rail content and nav overflow open as **vaul drawers**;
+    stat cards stack; ledgers scroll horizontally inside their own `overflow-x-auto` container
+    (the page never scrolls sideways); charts full-width.
+  - `md` (600–1024): persistent left rail returns; right rail docks as a vaul bottom drawer.
+  - `lg` (≥1024) full shell at 1440 reference: header h56 `chrome`; left rail x16 w208 (a
+    **stack** of panels: nav spine, then scope/sub-nav); centre x248 w872 on the floor; right
+    rail x1144 w280, **persistent, never an overlay** — its content retargets on selection.
+  - The visual language (floor/panels/tokens/accent rules) is identical at every tier.
+- **All drawers and bottom sheets are vaul** (`vaul`'s `Drawer`) — the console's only drawer
+  primitive. Never hand-roll a sheet; style vaul's parts with the semantic tokens (`surface`
+  content, `muted/80` overlay, radius 2, no shadow).
 - The right rail owns the action that consumes its own parameters (`New key`,
   `Generate report`, review decisions). Row-scoped actions stay in the row.
 - Admin nav group: preceded by a `raised` rule + `ROLE` marker; hidden entirely for non-admins.
@@ -120,7 +131,21 @@ inventory:
   plus the compact tier where the layout changes (right rail as bottom sheet).
 - Match the corresponding SVG mockup in `docs/design/console-redesign/` — the story should be
   visually comparable 1:1.
+- Every page ships a **mobile story** (~390px viewport via Storybook viewport parameters)
+  proving the mobile-first base layout: bottom nav, vaul drawers, stacked cards, scrollable
+  ledger.
 - Barrel region for these: `// ── pages`.
+
+## Refine-driven mock screens
+
+Beside the fixture-driven page stories, `src/refine-mock/` hosts a Storybook-only harness:
+`@refinedev/core`'s `<Refine>` with a **mock data provider** over the page fixtures (simulated
+latency, optional error mode), plus thin container components that drive the pure page views
+from refine hooks (`useTable`/`useList`/`useForm`/`useOne`) exactly the way `apps/console` will.
+Stories under the `Refine` title group (`Refine/Manage`, `Refine/ApiKeys`, …) demonstrate live
+list→selection→edit/decide flows. Rules: the page views stay pure (containers adapt hook state
+to props); the mock provider is never exported from the package barrel; deps on `@refinedev/*`
+are devDependencies only.
 
 ## Never do
 

@@ -9,7 +9,6 @@ import { fieldLabelClassName } from '../../components/field/cva';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
-import { NavSpine } from '../../components/nav-spine';
 import { RailPanel } from '../../components/rail-panel';
 import { RowActionGroup } from '../../components/row-action-group';
 import { ScopeSelect } from '../../components/scope-select';
@@ -27,7 +26,6 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
 // left-rail SCOPE echo; centre = title, optional SecretReveal strip, InlineStatus, key ledger;
 // right rail = New key CTA + SCOPE (interactive) + FILTERS + KEY HYGIENE + LIFECYCLE help.
 export function ApiKeysPage({
-  tier,
   header,
   nav,
   scope,
@@ -75,29 +73,34 @@ export function ApiKeysPage({
 
   const isEmpty = !loading && !error && keys.length === 0;
 
+  const statusFilterLabel =
+    statusFilterOptions.find((option) => option.value === statusFilterValue)?.label ?? statusFilterValue;
+
   return (
     <ConsoleShell
-      tier={tier}
       header={header}
+      nav={nav}
       className={className}
-      leftRail={
-        <>
-          <RailPanel>
-            <NavSpine {...nav} />
-          </RailPanel>
-          <RailPanel label="SCOPE">
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className="font-mono text-[10px] text-subtle">Account</div>
-                <div className="font-mono text-xs text-ink">{scope.accountLabel}</div>
-              </div>
-              <div>
-                <div className="font-mono text-[10px] text-subtle">Project</div>
-                <div className="font-mono text-xs text-ink">{scope.projectLabel}</div>
-              </div>
+      leftSecondary={
+        <RailPanel label="SCOPE">
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="font-mono text-[10px] text-subtle">Account</div>
+              <div className="font-mono text-xs text-ink">{scope.accountLabel}</div>
             </div>
-          </RailPanel>
-        </>
+            <div>
+              <div className="font-mono text-[10px] text-subtle">Project</div>
+              <div className="font-mono text-xs text-ink">{scope.projectLabel}</div>
+            </div>
+          </div>
+        </RailPanel>
+      }
+      leftSecondaryLabel="Scope"
+      rightRailTitle="NEW KEY & FILTERS"
+      rightRailPeek={
+        <span className="font-mono text-[10px] text-subtle">
+          {scope.accountLabel} / {scope.projectLabel} · {statusFilterLabel}
+        </span>
       }
       rightRail={
         <div className="flex flex-col gap-3">

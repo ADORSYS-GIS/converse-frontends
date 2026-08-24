@@ -70,3 +70,16 @@ export const WithConfiguredLogo: Story = {
     </div>
   ),
 };
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): Auth already
+// renders as a single centred column capped at 360px with 24px (`px-6`) edge gutters and no
+// fixed-pixel siblings, so the mobile-first ladder needs no component changes here — this story
+// exists to prove that, at the smallest designed viewport, nothing clips or scrolls sideways.
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: (args) => (
+    <div className="min-h-screen w-full bg-muted">
+      <AuthPage {...args} />
+    </div>
+  ),
+};

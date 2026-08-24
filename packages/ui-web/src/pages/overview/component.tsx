@@ -1,9 +1,8 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useId, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 import { SPEC_GRID } from '../../chart-tokens';
 import { cn } from '../../cn';
-import { BottomSheet } from '../../components/bottom-sheet';
 import { Button } from '../../components/button';
 import { ChartLegend } from '../../components/chart-legend';
 import type { ChartLegendItem } from '../../components/chart-legend';
@@ -14,13 +13,13 @@ import { fieldControlVariants, fieldLabelClassName } from '../../components/fiel
 import { InlineStatus } from '../../components/inline-status';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { Meter } from '../../components/meter';
-import { NavSpine } from '../../components/nav-spine';
 import { RailPanel } from '../../components/rail-panel';
 import { SkeletonMetric } from '../../components/skeleton-metric';
 import { Sparkline } from '../../components/sparkline';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { BudgetHero } from '../../components/budget-hero';
 import { StatCard } from '../../components/stat-card';
+import { useResizeObserver } from '../../lib/use-resize-observer';
 import { formatMoneyOf } from '../../lib/money';
 import type {
   OverviewPageProps,
@@ -173,7 +172,6 @@ function LatencyChartSkeleton({ width, height }: { width: number; height: number
 // views" section -- a pure presentational full screen. All data arrives via typed props, every
 // interaction is a callback prop; no fetching, no routing (apps/console wires data in later).
 export function OverviewPage({
-  tier,
   logoSrc,
   logoAlt,
   wordmark,
@@ -226,8 +224,17 @@ export function OverviewPage({
   exportCaption,
   className,
 }: OverviewPageProps) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const isFull = tier === 'full';
+  // Contract: console-ui skill "No overflow, ever" — charts measure their container rather
+  // than forcing a width. `measuredSpendWidth`/`measuredLatencyWidth` fall back to the caller's
+  // static prop only until the first `ResizeObserver` report lands; the container div also
+  // carries `overflow-x-auto` as a second, independent line of defence, so a chart never blows
+  // the page open even during that brief unmeasured window (or on the rare host where
+  // `ResizeObserver` is unavailable/delayed) — the SVG itself never learns to shrink on its
+  // own, only the surrounding container's own scroll makes that safe.
+  const spendContainer = useResizeObserver<HTMLDivElement>();
+  const latencyContainer = useResizeObserver<HTMLDivElement>();
+  const measuredSpendWidth = spendContainer.size.width || spendChartWidth;
+  const measuredLatencyWidth = latencyContainer.size.width || latencyChartWidth;
 
   const seriesLegendItems: ChartLegendItem[] = useMemo(
     () =>
@@ -248,7 +255,7 @@ export function OverviewPage({
       orgSwitcher={<span className="font-mono text-xs text-soft">{orgName}</span>}
       identity={
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] text-subtle">{userEmail}</span>
+          <span className="hidden font-mono text-[11px] text-subtle md:inline">{userEmail}</span>
           <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
             {userInitials}
           </span>
@@ -257,24 +264,19 @@ export function OverviewPage({
     />
   );
 
-  const leftRail = (
-    <>
-      <RailPanel>
-        <NavSpine items={navItems} adminItems={adminNavItems} showAdmin={showAdmin} />
-      </RailPanel>
-      <RailPanel label="SCOPE">
-        <div className="space-y-3">
-          <div>
-            <div className="font-mono text-[10px] text-subtle">Account</div>
-            <div className="font-mono text-xs text-ink">{scopeAccountLabel}</div>
-          </div>
-          <div>
-            <div className="font-mono text-[10px] text-subtle">Project</div>
-            <div className="font-mono text-xs text-ink">{scopeProjectLabel}</div>
-          </div>
+  const leftSecondary = (
+    <RailPanel label="SCOPE">
+      <div className="space-y-3">
+        <div>
+          <div className="font-mono text-[10px] text-subtle">Account</div>
+          <div className="font-mono text-xs text-ink">{scopeAccountLabel}</div>
         </div>
-      </RailPanel>
-    </>
+        <div>
+          <div className="font-mono text-[10px] text-subtle">Project</div>
+          <div className="font-mono text-xs text-ink">{scopeProjectLabel}</div>
+        </div>
+      </div>
+    </RailPanel>
   );
 
   const rightRailBody = (
@@ -320,166 +322,156 @@ export function OverviewPage({
     groupByField.options.find((o) => o.value === groupByField.value)?.label ?? groupByField.value;
 
   return (
-    <div className="relative">
-      <ConsoleShell
-        tier={tier}
-        header={header}
-        leftRail={leftRail}
-        rightRail={<RailPanel>{rightRailBody}</RailPanel>}
-        className={className}
-      >
-        <div className={cn('flex flex-col gap-8', !isFull && 'pb-44')}>
-          <div>
-            <h1 className="font-mono text-[22px] leading-[1.25] text-ink">{pageTitle}</h1>
-            <p className="mt-1 font-sans text-[11px] text-subtle">{scopeSubline}</p>
-          </div>
+    <ConsoleShell
+      header={header}
+      nav={{ items: navItems, adminItems: adminNavItems, showAdmin }}
+      leftSecondary={leftSecondary}
+      leftSecondaryLabel="Scope"
+      rightRail={<RailPanel>{rightRailBody}</RailPanel>}
+      rightRailTitle="VIEW & FILTERS"
+      rightRailPeek={
+        <span className="font-mono text-[10px] text-subtle">
+          {rangeOptionLabel} · {bucketOptionLabel} · {groupByOptionLabel}
+        </span>
+      }
+      className={className}
+    >
+      <div className="flex flex-col gap-8">
+        <div>
+          <h1 className="font-mono text-[22px] leading-[1.25] text-ink">{pageTitle}</h1>
+          <p className="mt-1 font-sans text-[11px] text-subtle">{scopeSubline}</p>
+        </div>
 
-          {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
+        {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
 
-          <div className={isFull ? 'flex gap-3' : 'grid grid-cols-2 gap-3'}>
-            {statCardsLoading
-              ? Array.from({ length: statCards.length || 4 }, (_, index) => <StatCardSkeleton key={index} />)
-              : statCards.map((card) => (
-                  <StatCard
-                    key={card.key}
-                    icon={card.icon ? STAT_ICONS[card.icon] : undefined}
-                    label={card.label}
-                    metric={card.metric}
-                    delta={card.delta}
-                    sparkline={<Sparkline data={card.sparklineData} />}
-                    className={isFull ? 'w-[209px] shrink-0' : 'w-full'}
-                  />
-                ))}
-          </div>
-
-          <div>
-            <div className={DASHBOARD_LABEL}>SPEND — BY PROJECT AND MODEL</div>
-            <div className="mt-4">
-              {spendStatus === 'error' ? (
-                <ErrorLine
-                  message={spendErrorMessage ?? 'Failed to load spend data.'}
-                  onRetry={onRetrySpend}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:flex">
+          {statCardsLoading
+            ? Array.from({ length: statCards.length || 4 }, (_, index) => <StatCardSkeleton key={index} />)
+            : statCards.map((card) => (
+                <StatCard
+                  key={card.key}
+                  icon={card.icon ? STAT_ICONS[card.icon] : undefined}
+                  label={card.label}
+                  metric={card.metric}
+                  delta={card.delta}
+                  sparkline={<Sparkline data={card.sparklineData} />}
+                  className="w-full lg:w-[209px] lg:shrink-0"
                 />
-              ) : spendStatus === 'loading' ? (
+              ))}
+        </div>
+
+        <div>
+          <div className={DASHBOARD_LABEL}>SPEND — BY PROJECT AND MODEL</div>
+          <div ref={spendContainer.ref} className="mt-4 w-full overflow-x-auto">
+            {spendStatus === 'error' ? (
+              <ErrorLine
+                message={spendErrorMessage ?? 'Failed to load spend data.'}
+                onRetry={onRetrySpend}
+              />
+            ) : spendStatus === 'loading' ? (
+              <div className="flex flex-col gap-2">
+                <SpendChartSkeleton width={measuredSpendWidth} height={spendChartHeight} />
+                <p className="font-mono text-[10px] text-subtle">Querying usage…</p>
+              </div>
+            ) : (
+              <SpendSeriesChart
+                series={spendSeries}
+                width={measuredSpendWidth}
+                height={spendChartHeight}
+                formatXTick={formatSpendXTick}
+                formatYTick={formatSpendYTick}
+                formatTooltipValue={formatSpendTooltipValue}
+                formatLegendValue={formatSpendLegendValue}
+                onSelectSeries={onSelectSeries}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
+          <div className="w-full lg:w-[528px] lg:shrink-0">
+            <div className={DASHBOARD_LABEL}>LATENCY DISTRIBUTION — p95 BY MODEL</div>
+            <div ref={latencyContainer.ref} className="mt-4 w-full overflow-x-auto">
+              {latencyStatus === 'error' ? (
+                <ErrorLine
+                  message={latencyErrorMessage ?? 'Failed to load latency data.'}
+                  onRetry={onRetryLatency}
+                />
+              ) : latencyStatus === 'loading' ? (
                 <div className="flex flex-col gap-2">
-                  <SpendChartSkeleton width={spendChartWidth} height={spendChartHeight} />
+                  <LatencyChartSkeleton width={measuredLatencyWidth} height={latencyChartHeight} />
                   <p className="font-mono text-[10px] text-subtle">Querying usage…</p>
                 </div>
               ) : (
-                <SpendSeriesChart
-                  series={spendSeries}
-                  width={spendChartWidth}
-                  height={spendChartHeight}
-                  formatXTick={formatSpendXTick}
-                  formatYTick={formatSpendYTick}
-                  formatTooltipValue={formatSpendTooltipValue}
-                  formatLegendValue={formatSpendLegendValue}
-                  onSelectSeries={onSelectSeries}
+                <LatencyRidgeline
+                  series={latencySeries}
+                  width={measuredLatencyWidth}
+                  height={latencyChartHeight}
+                  formatXTick={formatLatencyXTick}
+                  onSelectSeries={onSelectLatencySeries}
                 />
               )}
             </div>
           </div>
 
-          <div className={isFull ? 'flex gap-6' : 'flex flex-col gap-8'}>
-            <div className={isFull ? 'w-[528px] shrink-0' : 'w-full'}>
-              <div className={DASHBOARD_LABEL}>LATENCY DISTRIBUTION — p95 BY MODEL</div>
-              <div className="mt-4">
-                {latencyStatus === 'error' ? (
-                  <ErrorLine
-                    message={latencyErrorMessage ?? 'Failed to load latency data.'}
-                    onRetry={onRetryLatency}
-                  />
-                ) : latencyStatus === 'loading' ? (
-                  <div className="flex flex-col gap-2">
-                    <LatencyChartSkeleton width={latencyChartWidth} height={latencyChartHeight} />
-                    <p className="font-mono text-[10px] text-subtle">Querying usage…</p>
+          <div className="w-full lg:w-[320px] lg:shrink-0">
+            <div className={DASHBOARD_LABEL}>BUDGET — CONSUMPTION VS CEILING</div>
+            <div className="mt-4">
+              <BudgetHero
+                value={budget.value}
+                ceiling={budget.ceiling}
+                threshold={budget.threshold}
+                caption={budget.caption}
+              />
+
+              {needsAttentionProject ? (
+                <>
+                  <div aria-hidden="true" className="my-5 border-t border-border" />
+                  <div className={SECTION_LABEL}>NEEDS ATTENTION</div>
+                  <div className="mt-3 flex items-baseline justify-between gap-3">
+                    <span className="font-mono text-xs text-ink">{needsAttentionProject.name}</span>
+                    <span className="font-mono text-[11px] text-soft">
+                      {formatMoneyOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
+                    </span>
                   </div>
-                ) : (
-                  <LatencyRidgeline
-                    series={latencySeries}
-                    width={latencyChartWidth}
-                    height={latencyChartHeight}
-                    formatXTick={formatLatencyXTick}
-                    onSelectSeries={onSelectLatencySeries}
-                  />
-                )}
-              </div>
-            </div>
+                  <div className="mt-2">
+                    <Meter
+                      value={needsAttentionProject.value}
+                      ceiling={needsAttentionProject.ceiling}
+                      threshold={needsAttentionProject.threshold}
+                      showCaption={false}
+                      label={`${needsAttentionProject.name} consumption`}
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button type="button" variant="primary" size="sm" onClick={onRequestRefill}>
+                      {needsAttentionProject.refillActionLabel ?? 'Request refill'}
+                    </Button>
+                    <span className="font-sans text-[10px] text-subtle">{needsAttentionProject.caption}</span>
+                  </div>
+                </>
+              ) : null}
 
-            <div className={isFull ? 'w-[320px] shrink-0' : 'w-full'}>
-              <div className={DASHBOARD_LABEL}>BUDGET — CONSUMPTION VS CEILING</div>
-              <div className="mt-4">
-                <BudgetHero
-                  value={budget.value}
-                  ceiling={budget.ceiling}
-                  threshold={budget.threshold}
-                  caption={budget.caption}
-                />
-
-                {needsAttentionProject ? (
-                  <>
-                    <div aria-hidden="true" className="my-5 border-t border-border" />
-                    <div className={SECTION_LABEL}>NEEDS ATTENTION</div>
-                    <div className="mt-3 flex items-baseline justify-between gap-3">
-                      <span className="font-mono text-xs text-ink">{needsAttentionProject.name}</span>
-                      <span className="font-mono text-[11px] text-soft">
-                        {formatMoneyOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
-                      </span>
-                    </div>
-                    <div className="mt-2">
-                      <Meter
-                        value={needsAttentionProject.value}
-                        ceiling={needsAttentionProject.ceiling}
-                        threshold={needsAttentionProject.threshold}
-                        showCaption={false}
-                        label={`${needsAttentionProject.name} consumption`}
-                      />
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <Button type="button" variant="primary" size="sm" onClick={onRequestRefill}>
-                        {needsAttentionProject.refillActionLabel ?? 'Request refill'}
-                      </Button>
-                      <span className="font-sans text-[10px] text-subtle">{needsAttentionProject.caption}</span>
-                    </div>
-                  </>
-                ) : null}
-
-                {refillRequestStatus ? (
-                  <>
-                    <div aria-hidden="true" className="my-5 border-t border-border" />
-                    <div className={SECTION_LABEL}>REFILL REQUESTS</div>
-                    <p className="mt-3 font-mono text-[11px] text-soft">
-                      {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onReviewInAdmin}
-                      className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline"
-                    >
-                      Review in Admin →
-                    </button>
-                  </>
-                ) : null}
-              </div>
+              {refillRequestStatus ? (
+                <>
+                  <div aria-hidden="true" className="my-5 border-t border-border" />
+                  <div className={SECTION_LABEL}>REFILL REQUESTS</div>
+                  <p className="mt-3 font-mono text-[11px] text-soft">
+                    {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onReviewInAdmin}
+                    className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline"
+                  >
+                    Review in Admin →
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
-      </ConsoleShell>
-
-      {!isFull ? (
-        <BottomSheet
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-          title="VIEW & FILTERS"
-          peek={
-            <span className="font-mono text-[10px] text-subtle">
-              {rangeOptionLabel} · {bucketOptionLabel} · {groupByOptionLabel}
-            </span>
-          }
-        >
-          {rightRailBody}
-        </BottomSheet>
-      ) : null}
-    </div>
+      </div>
+    </ConsoleShell>
   );
 }

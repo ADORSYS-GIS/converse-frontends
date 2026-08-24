@@ -20,7 +20,7 @@ import type { ProjectRow } from './types';
 
 const identity = (
   <div className="flex items-center gap-3">
-    <span className="font-mono text-[11px] text-subtle">sam@adorsys.com</span>
+    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
     <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
       SL
     </span>
@@ -67,7 +67,6 @@ function StatefulManagePage({
 
   return (
     <ManagePage
-      tier="full"
       header={header}
       nav={nav}
       subNav={{ items: manageSubNavItems }}
@@ -172,4 +171,21 @@ export const ErrorState: Story = {
       <StatefulManagePage projects={[]} error="Failed to load projects for this account." />
     </div>
   ),
+};
+
+// `md` tier (600–1024) — MANAGE sub-nav stays inline, REPORT/FILTERS/SELECTION dock as a
+// BottomSheet. A real viewport resize is what exercises the `md:` classes now the shell is
+// CSS-tiered, not a wrapper `<div>`.
+export const MdTier: Story = {
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulManagePage />,
+};
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
+// search/`+ New project` stack, nav docked as a fixed bottom navigation bar, the projects
+// ledger scrolls horizontally inside its own container, REPORT & FILTERS reachable via the
+// right rail's BottomSheet peek row, MANAGE sub-nav reachable via the header's drawer trigger.
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: () => <StatefulManagePage />,
 };

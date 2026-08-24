@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { BottomSheet } from '../../components/bottom-sheet';
 import { ConsoleHeader } from '../../components/console-header';
-import { Field } from '../../components/field';
-import { fieldControlVariants, fieldLabelClassName } from '../../components/field/cva';
-import { SegmentedControl } from '../../components/segmented-control';
 import { ApiKeysPage } from './component';
 import {
   apiKeysAdminNavItems,
@@ -24,7 +20,7 @@ import type { ApiKeyRow, ApiKeysRevokeTarget, ApiKeysSecretReveal } from './type
 
 const identity = (
   <div className="flex items-center gap-3">
-    <span className="font-mono text-[11px] text-subtle">sam@adorsys.com</span>
+    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
     <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
       SL
     </span>
@@ -34,65 +30,26 @@ const orgSwitcher = <span className="font-mono text-xs text-soft">adorsys-gis</s
 const header = <ConsoleHeader orgSwitcher={orgSwitcher} identity={identity} />;
 const nav = { items: apiKeysNavItems, adminItems: apiKeysAdminNavItems, showAdmin: false };
 
-function ScopeSelectStub() {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label className={fieldLabelClassName}>Account</label>
-        <select
-          value={apiKeysScopeSelectValue.accountId}
-          onChange={() => {}}
-          className={fieldControlVariants({ error: false, multiline: false })}
-        >
-          {apiKeysScopeAccounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className={fieldLabelClassName}>Project</label>
-        <select
-          value={apiKeysScopeSelectValue.projectId ?? ''}
-          onChange={() => {}}
-          className={fieldControlVariants({ error: false, multiline: false })}
-        >
-          {apiKeysScopeProjects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
-}
-
 function StatefulApiKeysPage({
   secretReveal = null,
   revokeInitial = null,
   keys = apiKeysFixture,
   loading = false,
   error,
-  compact = false,
 }: {
   secretReveal?: ApiKeysSecretReveal | null;
   revokeInitial?: ApiKeysRevokeTarget | null;
   keys?: ApiKeyRow[];
   loading?: boolean;
   error?: string;
-  compact?: boolean;
 }) {
   const [secret, setSecret] = useState(secretReveal);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
   const [statusFilterValue, setStatusFilterValue] = useState('all');
   const [search, setSearch] = useState('');
-  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const page = (
+  return (
     <ApiKeysPage
-      tier={compact ? 'compact' : 'full'}
       header={header}
       nav={nav}
       scope={apiKeysScope}
@@ -125,36 +82,6 @@ function StatefulApiKeysPage({
       hygiene={apiKeysHygiene}
     />
   );
-
-  if (!compact) return page;
-
-  return (
-    <div className="relative">
-      {page}
-      <BottomSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title="SCOPE & FILTERS"
-        peek={<div className="font-mono text-[10px] text-subtle">{apiKeysScope.projectLabel} · All statuses</div>}
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <ScopeSelectStub />
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <span className={fieldLabelClassName}>Status</span>
-              <SegmentedControl
-                aria-label="Status filter"
-                options={apiKeysStatusFilterOptions}
-                value={statusFilterValue}
-                onChange={setStatusFilterValue}
-              />
-            </div>
-            <Field label="Search" placeholder="name or prefix…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-        </div>
-      </BottomSheet>
-    </div>
-  );
 }
 
 const meta: Meta<typeof ApiKeysPage> = {
@@ -165,8 +92,9 @@ const meta: Meta<typeof ApiKeysPage> = {
 export default meta;
 type Story = StoryObj<typeof ApiKeysPage>;
 
-// Full page, populated 1:1 against docs/design/console-redesign/api-keys.svg — 11-row ledger,
-// secret strip after create/rotate, inline hygiene status.
+// `lg` (≥1024, the default story viewport). Full page, populated 1:1 against
+// docs/design/console-redesign/api-keys.svg — 11-row ledger, secret strip after create/rotate,
+// inline hygiene status.
 export const Populated: Story = {
   render: () => (
     <div className="w-[1440px]">
@@ -218,11 +146,19 @@ export const ErrorState: Story = {
   ),
 };
 
-// Compact tier (600–1024) — SCOPE/FILTERS dock as a BottomSheet; shell-compact.svg treatment.
-export const Compact: Story = {
-  render: () => (
-    <div className="w-[900px]">
-      <StatefulApiKeysPage compact />
-    </div>
-  ),
+// `md` tier (600–1024) — SCOPE/FILTERS/hygiene dock as a BottomSheet; shell-compact.svg
+// treatment. A real viewport resize is what exercises the `md:` classes now the shell is
+// CSS-tiered, not a wrapper `<div>`.
+export const MdTier: Story = {
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />,
+};
+
+// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
+// nav docked as a fixed bottom navigation bar, the key ledger scrolls horizontally inside its
+// own container (the page never scrolls sideways), NEW KEY & FILTERS reachable via the right
+// rail's BottomSheet peek row, SCOPE reachable via the header's drawer trigger.
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+  render: () => <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />,
 };

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import type { ConsoleShellTier } from '../../components/console-shell';
 import type { NavSpineProps } from '../../components/nav-spine';
 import type { ReportExportPanelProps } from '../../components/report-export-panel';
 import type { SegmentedOption } from '../../components/segmented-control';
@@ -53,7 +52,6 @@ export type ManageTotals = {
 };
 
 export interface ManagePageProps {
-  tier: ConsoleShellTier;
   header: ReactNode;
   nav: NavSpineProps;
   subNav: SubNavProps;

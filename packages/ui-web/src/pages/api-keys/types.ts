@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import type { ConsoleShellTier } from '../../components/console-shell';
 import type { NavSpineProps } from '../../components/nav-spine';
 import type { ScopeSelectProps } from '../../components/scope-select';
 import type { SegmentedOption } from '../../components/segmented-control';
@@ -49,7 +48,6 @@ export type ApiKeysPagination = {
 };
 
 export interface ApiKeysPageProps {
-  tier: ConsoleShellTier;
   /** Fully composed `ConsoleHeader` — the page owns the shell composition, not the header identity. */
   header: ReactNode;
   nav: NavSpineProps;

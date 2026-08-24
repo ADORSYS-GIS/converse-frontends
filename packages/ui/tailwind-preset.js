@@ -19,6 +19,12 @@ module.exports = {
         // specifies no light-mode direction, so light `chrome` reuses the existing light `muted`
         // neutral rather than inventing an unspecified value.
         chrome: 'rgb(var(--color-chrome) / <alpha-value>)',
+        // Fourth tonal step above `surface` (console redesign spec §2.1 `--raised`): active nav
+        // row, active segmented cell, table hairlines, skeleton blocks. Same "no ADR-0008 light
+        // direction" situation as `chrome` — light `raised` is a one-step-up neutral chosen to
+        // read as "raised" against light `surface`/`muted`, not a literal spec value (the spec is
+        // dark-only).
+        raised: 'rgb(var(--color-raised) / <alpha-value>)',
       },
     },
   },
@@ -43,6 +49,7 @@ module.exports = {
           '--color-surface': '255 255 255', // #FFFFFF
           '--color-border': '230 232 236', // #E6E8EC
           '--color-chrome': '245 246 248', // #F5F6F8 — no ADR-0008 light direction; reuses `muted`
+          '--color-raised': '236 238 241', // #ECEEF1 — no ADR-0008 light direction; one step up from `surface`
         },
         // ADR 0008 Decision 5 (visual direction, Axiom reference lock): near-black canvas with
         // tonal surface layers — floor (`muted`) → header/nav (`chrome`) → floating panels
@@ -58,13 +65,17 @@ module.exports = {
           '--color-accent': '164 139 240', // #A48BF0
           '--color-error': '240 115 111', // #F0736F
           '--color-success': '70 197 139', // #46C58B
-          '--color-ink': '232 234 237', // #E8EAED
-          '--color-soft': '162 171 184', // #A2ABB8
-          '--color-subtle': '107 114 128', // #6B7280
+          // Refined to the console-redesign spec (docs/design/console-redesign/README.md §2.1):
+          // ink/soft/subtle/border move from ADR 0008's original cool-slate values to the
+          // exact Axiom-cross-checked figures the Next.js console spec locks.
+          '--color-ink': '238 238 238', // #eeeeee — --strong
+          '--color-soft': '180 180 180', // #b4b4b4 — --body
+          '--color-subtle': '96 96 96', // #606060 — --muted (spec name; tailwind token stays `subtle`)
           '--color-muted': '0 0 0', // #000000 — floor
           '--color-surface': '25 25 25', // #191919 — floating panels
-          '--color-border': '42 47 55', // #2A2F37
+          '--color-border': '58 58 58', // #3a3a3a — --line
           '--color-chrome': '17 17 17', // #111111 — header/nav
+          '--color-raised': '32 32 32', // #202020 — fourth tonal step: active row, hairlines, skeletons
         },
       }),
   ],

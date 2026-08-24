@@ -8,13 +8,15 @@
  * you," never decoration.
  *
  * These are plain constants, not theme tokens. ADR-0008's Axiom-derived dark
- * palette (`#000` floor / `#111` header / `#191919` panels / `#DA5C2C` accent) is
- * not yet wired into `packages/ui/src/design/tokens.ts` or the
- * `ThemePreferenceProvider` — that re-pointing is ADR-0008 Follow-up 9, a
- * separate ticket. Charts render uncontained on the `#000` floor per Decision 3,
- * so this module hardcodes the values it needs against that specific surface
- * rather than reading a not-yet-existent chart theme. Re-point these at real
- * tokens when Follow-up 9 lands.
+ * palette (`#000` floor / `#111` header / `#191919` panels / `#DA5C2C` accent) IS
+ * applied to the theme system — it is wired into `packages/ui/tailwind-preset.js`'s
+ * `.dark` block (and mirrored in `apps/self-service/src/theme/theme-colors.ts`),
+ * consumed by `ThemePreferenceProvider` via the `dark` class. Charts render
+ * uncontained on the `#000` floor per Decision 3, so this module still hardcodes
+ * the values it needs against that specific surface rather than reading Tailwind
+ * classes — chart math (`chart-core`) is DOM-free and has no className to hang
+ * a token lookup off of — but the underlying palette these constants shadow is
+ * the same one the rest of the app reads from the CSS variables.
  *
  * `GREY_RAMP` and the accent's contrast against `#000` are validated with the
  * `dataviz` skill's `validate_palette.js` (`--ordinal --mode dark --surface

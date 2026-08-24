@@ -1,0 +1,17 @@
+/* IBM Plex Mono — structural type: nav, labels, headings, table cells, all numerics, buttons. */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+/* Inter 400 only — sentence prose, never structural (docs/design/console-redesign/README.md §2.2). */
+@import '@fontsource/inter/400.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-muted text-soft font-mono;
+  }
+}

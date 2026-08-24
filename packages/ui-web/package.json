@@ -33,8 +33,10 @@
   },
   "devDependencies": {
     "@lightbridge/ui": "workspace:*",
+    "@refinedev/core": "^5.0.12",
     "@storybook/addon-a11y": "^10.5.10",
     "@storybook/react-vite": "^10.5.10",
+    "@tanstack/react-query": "^5.101.4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/d3-array": "^3.2.2",

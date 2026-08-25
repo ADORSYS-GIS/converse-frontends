@@ -49,7 +49,20 @@
       "protocol": "openid-connect",
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:8081/*"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "converse-frontend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "converse-frontend",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     }
   ]
 }

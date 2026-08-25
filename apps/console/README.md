@@ -58,8 +58,11 @@ keycloak-26` is all the auth setup local dev needs. Verified against a real Keyc
 unauthenticated `/` redirects through `/auth/login` to the realm's authorize endpoint with PKCE
 S256, and Keycloak accepts the client + redirect URI and renders its login page.
 
-The dev realm's client also has no audience mapper, so `.env` ships `EXPECTED_AUDIENCES=` empty and
-`AUDIENCE_REQUIRED=false`. Any real deployment sets both — see `.env.example`.
+The dev realm's client also carries an `oidc-audience-mapper` (`converse-frontend-audience` in
+`.docker/keycloak-config/realm.theme.vymalo-wh-01.json`) that mints `aud: converse-frontend` on
+every access token, so `.env` ships `EXPECTED_AUDIENCES=converse-frontend` and
+`AUDIENCE_REQUIRED=true` — the same audience check a real deployment exercises, not a skipped one.
+See `.env.example`.
 
 The alternative dev realm the Expo app's `.env` points at
 (`http://localhost:9100/realms/dev`, client `test-client`, audiences

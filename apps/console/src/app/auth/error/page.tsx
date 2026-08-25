@@ -21,11 +21,30 @@ const REASONS: Record<string, string> = {
 
 const FALLBACK = 'Sign-in did not complete. Try again.';
 
+/**
+ * The provider's `error_description`, relayed by `/auth/callback` as `detail`. It is untrusted URL
+ * content, so it renders only through this allow-list: a bounded length and a plain-prose charset —
+ * enough for real IdP sentences ("Offline tokens not allowed for the user or client") while leaving
+ * nothing for a crafted link to smuggle in. Anything that doesn't survive intact is dropped whole.
+ */
+function sanitizeDetail(detail: string | undefined): string | undefined {
+  if (!detail) return undefined;
+  const trimmed = detail.slice(0, 140).trim();
+  return /^[A-Za-z0-9 .,:;_'()/-]+$/.test(trimmed) ? trimmed : undefined;
+}
+
 export default async function AuthErrorRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string }>;
+  searchParams: Promise<{ reason?: string; detail?: string }>;
 }) {
-  const { reason } = await searchParams;
-  return <AuthView status="error" errorMessage={(reason && REASONS[reason]) || FALLBACK} />;
+  const { reason, detail } = await searchParams;
+  const sentence = (reason && REASONS[reason]) || FALLBACK;
+  const providerDetail = sanitizeDetail(detail);
+  return (
+    <AuthView
+      status="error"
+      errorMessage={providerDetail ? `${sentence} (provider: ${providerDetail})` : sentence}
+    />
+  );
 }

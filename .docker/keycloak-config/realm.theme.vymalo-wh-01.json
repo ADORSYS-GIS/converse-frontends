@@ -25,6 +25,10 @@
           "type": "password",
           "value": "test@admin"
         }
+      ],
+      "realmRoles": [
+        "default-roles-lightbridge-dev",
+        "offline_access"
       ]
     }
   ],

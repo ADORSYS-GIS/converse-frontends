@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  *
  * The `reason` in the URL is a fixed vocabulary set by `/auth/callback`, and it is mapped through
  * this table rather than printed: a raw OIDC error code is both meaningless to the reader (the
- * `AuthPage` contract forbids it) and a reflected-content risk if it were echoed verbatim. Anything
+ * `AuthScreen` contract forbids it) and a reflected-content risk if it were echoed verbatim. Anything
  * unrecognised falls back to the generic sentence.
  */
 const REASONS: Record<string, string> = {

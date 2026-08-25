@@ -54,7 +54,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className="dark" suppressHydrationWarning>
       {/* `@serwist/next` injects the service-worker registration itself, and only in a production
           build (`disable` in next.config.mjs) — no registration component belongs here. */}
-      <body className="bg-muted font-mono text-soft">
+      {/* No `bg-muted font-mono text-soft` here any more: the package stylesheet's own base layer
+          already sets exactly that on `body`, and `globals.css` now imports it (console-ui skill
+          "One style pipeline"). Repeating it in the app was the second declaration of the same
+          rule. */}
+      <body>
         <Providers session={sessionResponse}>{children}</Providers>
       </body>
     </html>

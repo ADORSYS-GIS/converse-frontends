@@ -14,21 +14,58 @@ ADR's own follow-up list).
 src/
   app/                      App Router
     layout.tsx              server component — reads the session cookie, seeds the client shell
-    page.tsx                / -> OverviewPage
-    api-keys/  manage/      screens over ui-web page views
-    admin/                  server-gated on the `lightbridge-admin` role (404 otherwise)
+    globals.css             one line: @import '@lightbridge/ui-web/styles.css'
+    (console)/              the shelled route group — see "The shell is mounted once" below
+      layout.tsx            'use client' — ConsoleShell + header + nav + account menu, ONCE
+      page.tsx  api-keys/  manage/  admin/     the centre column per route
+      @rail/                parallel-route slot: the right rail, per route
+      @scope/               parallel-route slot: the left rail's secondary section, per route
     auth/login|callback|logout        route handlers — the whole OIDC lifecycle
-    auth/signed-out|error             AuthPage views
+    auth/signed-out|error             AuthScreen views — OUTSIDE the group, so no shell
     api/rpc|budget/rpc|usage          the byte-forwarding proxies
     api/session                       sanitized identity for the client shell (no tokens)
     .well-known/oauth-protected-resource   RFC 9728 metadata for MCP-style clients
   middleware.ts             app-route guard: no session cookie -> /auth/login?returnTo=…
   server/                   server-only: config loading, OIDC, session crypto, refresh policy, proxy
-  client/                   'use client': refine root, cratestack clients, shell chrome
-  containers/               thin adapters from refine hook state to pure page-view props
+  client/                   'use client': refine root, cratestack clients, shell chrome, view state
+  containers/               per-route `use-*-screen` adapters (refine hooks -> section props) and
+                            the thin centre/rail components that compose ui-web sections from them
   sw.ts                     service worker (built by @serwist/next in production only)
 config.yaml                 the primary server config document — see Configuration below
 ```
+
+## The shell is mounted once
+
+`packages/ui-web` exports **sections**, never full pages (console-ui skill § _Composition_). A
+route composes sections; it never renders the shell. The shell lives in exactly one place —
+`app/(console)/layout.tsx` — and every route in the group supplies three zones:
+
+| Zone                         | Comes from                    |
+| ---------------------------- | ----------------------------- |
+| centre column                | `children` (`<route>/page.tsx`) |
+| right rail                   | the `@rail` parallel-route slot |
+| left rail's secondary section| the `@scope` parallel-route slot |
+
+Both slots carry a `default.tsx`, so a route with nothing to put in a rail renders without it
+rather than 404-ing the segment.
+
+The property this buys: **navigating does not remount the header or the nav**. That is a
+regression-tested claim, in two halves —
+`src/app/console-shell-mount.test.ts` asserts the route tree's shape (the shell is imported in
+exactly one file; no `page.tsx` mounts any part of it; every centre route has a matching segment in
+both slots; every `/admin` segment carries the server-side role gate), and
+`packages/ui-web/src/pages-stories/shell-persistence.stories.tsx` asserts the runtime half by
+object identity: stash the nav DOM node, navigate, and it is still the same node.
+
+Because the centre and the rail are now separate route segments, any state they share has to live
+**above both** — which means in the layout. `client/console-scope-context.tsx` (the account/project
+scope) and `client/view-state.tsx` (each route's filter/selection/dialog state) are mounted there
+for exactly that reason; `client/view-state.tsx`'s header explains why per-route providers are not
+reachable from a layout that must also wrap a sibling slot.
+
+Data still flows the same way it always did: a per-route `use-*-screen` hook adapts refine/TanStack
+hook state into section props. Centre and rail both call it, issue the same query key, and are
+served from one request by the query cache.
 
 ## Configuration
 
@@ -185,14 +222,16 @@ extensionless specifiers or Turbopack grows a real `extensionAlias`.
   service-worker-bundling work runs.
 - **The refine/query-client provider tree is already lazy**: `src/client/providers.tsx` mounts
   `ConsoleProviders` via `next/dynamic({ ssr: false })`, not a static import.
-- **`ConsoleHeader`/`InlineStatus`/each page's own component (`ManagePage`, `ApiKeysPage`,
-  `AdminBudgetReviewPage`, `AuthPage`) are imported from their own `@lightbridge/ui-web/src/*`
-  subpath**, not the package barrel (`@lightbridge/ui-web`'s `src/index.ts`) — see
-  `src/client/console-chrome.tsx`'s doc comment. Next's dev webpack build doesn't tree-shake unused
-  re-exports, so importing anything from the barrel pulled the `d3-scale`/`d3-shape`/`d3-array`-backed
-  chart components (only `OverviewPage` actually renders them) into every route's dev bundle —
-  confirmed by grepping the compiled `.next/dev/server/app/manage/page.js` for `SpendSeriesChart`
-  before/after this change (present, then gone; `/`'s bundle still legitimately contains it).
+- **Every `ui-web` value import goes through its own `@lightbridge/ui-web/src/*` subpath**, not the
+  package barrel (`@lightbridge/ui-web`'s `src/index.ts`) — the shell chrome, every section, every
+  primitive. See `src/client/console-chrome.tsx`'s doc comment. Next's dev webpack build doesn't
+  tree-shake unused re-exports, so importing anything from the barrel pulled the
+  `d3-scale`/`d3-shape`/`d3-array`-backed chart components (only the Overview route renders them)
+  into every route's dev bundle — confirmed by grepping the compiled
+  `.next/dev/server/app/manage/page.js` for `SpendSeriesChart` before/after that change (present,
+  then gone; `/`'s bundle still legitimately contains it). This matters more now, not less: the
+  shell's layout chunk is loaded by every route, so a barrel import there would be the worst place
+  of all for it. Type-only imports stay on the barrel — they erase at compile time.
   `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for this;
   `tsconfig.json` needed the same `tsc`-only `paths` shim `@lightbridge/ui/src/*` already used for
   the same reason.

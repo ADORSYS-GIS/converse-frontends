@@ -79,17 +79,23 @@ hand-written focus trap or roving tabindex.
 | `skeleton-row`    | class swap | daisy `skeleton` + `h-*`/`w-*` | 2     | daisy's `skeleton` supplies the `raised` block. **Its default animation must be suppressed** — ADR 0008 bans shimmer. Override via `@utility skeleton { animation: none; }` (daisy's documented "change a component in CSS" mechanism) so it is fixed once, centrally, not per usage. |
 | `skeleton-metric` | class swap | same                           | 2     | Same, matching the metric's final geometry.                                                                                                                                                                                                                                           |
 
-## Page views
+## Screen sections
 
-All five page views in `packages/ui-web/src/pages/` (`overview`, `api-keys`, `manage`,
-`admin-budget-review`, `auth`) stay **pure presentational components with typed props** — no
-library changes their contract. What changes:
+The screen sections in `packages/ui-web/src/sections/` — the zone-level compositions a route
+assembles (stat rows, dashboards, ledgers, rail sections) — stay **pure presentational components
+with typed props**; no library changes their contract.
 
-| Phase | Work on every page                                                                                               |
-| ----- | ---------------------------------------------------------------------------------------------------------------- |
-| 1     | Renders unchanged under `data-theme="black"`; no hex literals remain.                                            |
-| 2     | Composes the rebuilt form/dialog/menu components; prop APIs preserved where possible so page tests do not churn. |
-| 3     | `⌘K` palette reachable from every page; charts use the rebuilt tooltip.                                          |
+> Superseded naming: this section used to say "page views", naming five `*Page` monoliths under
+> `src/pages/`. Those are gone (owner correction, console-ui skill § _Composition_): the library
+> exports sections, the shell is mounted once in `apps/console`'s persistent layout, and full-page
+> compositions live only in Storybook (`src/pages-stories/`) and in the console's own routes. The
+> phase table below applies per section, and per page story, rather than per page component.
+
+| Phase | Work on every section                                                                                                |
+| ----- | -------------------------------------------------------------------------------------------------------------------- |
+| 1     | Renders unchanged under `data-theme="black"`; no hex literals remain.                                                 |
+| 2     | Composes the rebuilt form/dialog/menu components; prop APIs preserved where possible so section tests do not churn.   |
+| 3     | `⌘K` palette reachable from every screen; charts use the rebuilt tooltip.                                             |
 | 4     | **A light story variant per page**, plus the existing mobile story, both `addon-a11y`-clean.                     |
 
 The `refine-mock/` harness is unaffected — it drives page views through refine hooks and does not

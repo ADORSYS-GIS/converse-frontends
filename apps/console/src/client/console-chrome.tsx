@@ -14,19 +14,20 @@ import { useOnlineStatus } from './use-online-status';
  * The chrome every console screen shares: the nav spine's items, the header identity slot, and the
  * offline status line.
  *
- * Nothing here re-implements a `ui-web` primitive — it composes `ConsoleHeader`, `NavSpineItem`
- * and `InlineStatus` and supplies the app-specific data (routes, identity, connectivity).
+ * All of it is mounted **once**, by `app/(console)/layout.tsx` — never by a route (console-ui
+ * skill "Composition"). Nothing here re-implements a `ui-web` primitive: it composes
+ * `ConsoleHeader`, `NavSpineItem` and `InlineStatus` and supplies the app-specific data (routes,
+ * identity, connectivity).
  *
- * `ConsoleHeader`/`InlineStatus` are imported from their own `@lightbridge/ui-web/src/components/*`
- * subpaths rather than the package's barrel (`@lightbridge/ui-web`'s `src/index.ts`) on purpose: this
- * file is imported by every screen (`ConsoleHeaderBar` below), so a barrel import here would pull
- * `index.ts`'s entire re-export graph — including the `d3-scale`/`d3-shape`/`d3-array`-backed chart
- * components only `OverviewPage` actually renders — into every route's dev bundle. Next's dev
- * webpack build doesn't tree-shake unused re-exports (that's a production-only optimization), so this
- * was a real, measured cost: `/manage`'s compiled `page.js` contained `SpendSeriesChart` before this
- * change. `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for
- * exactly this. Type-only imports (`NavSpineItem`) stay on the barrel — they erase at compile time,
- * so which module they're re-exported from is free.
+ * `ConsoleHeader`/`InlineStatus`/`AccountMenu` are imported from their own
+ * `@lightbridge/ui-web/src/components/*` subpaths rather than the package's barrel on purpose:
+ * a barrel import here would pull `index.ts`'s entire re-export graph — including the
+ * `d3-scale`/`d3-shape`/`d3-array`-backed chart components only the Overview route renders — into
+ * the shared layout chunk every route loads. Next's dev webpack build doesn't tree-shake unused
+ * re-exports (that's a production-only optimization), so this is a real, measured cost.
+ * `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for
+ * exactly this. Type-only imports (`NavSpineItem`) stay on the barrel — they erase at compile
+ * time, so which module they're re-exported from is free.
  */
 
 export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'admin';
@@ -37,6 +38,17 @@ const NAV_HREFS: Record<ConsoleRoute, string> = {
   manage: '/manage',
   admin: '/admin',
 };
+
+/**
+ * Nav active state comes from the pathname, not from a per-route prop — the shell no longer
+ * re-mounts per route, so nothing is left to hand it a route name at mount time.
+ */
+export function routeFromPathname(pathname: string): ConsoleRoute {
+  if (pathname.startsWith('/api-keys')) return 'api-keys';
+  if (pathname.startsWith('/manage')) return 'manage';
+  if (pathname.startsWith('/admin')) return 'admin';
+  return 'overview';
+}
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
 function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'admin' }) {
@@ -101,8 +113,8 @@ function initialsFor(name: string | undefined, email: string | undefined): strin
 /**
  * Identity + connectivity, in the header's right-hand slot.
  *
- * Offline is reported as an inline mono status line, per the console-ui skill: no toast, no banner,
- * no modal. The cache is still serving the screen, so the message says exactly that.
+ * Offline is reported as an inline mono status line, per the console-ui skill: no toast, no
+ * banner, no modal. The cache is still serving the screen, so the message says exactly that.
  */
 export function ConsoleIdentity() {
   const session = useConsoleSession();

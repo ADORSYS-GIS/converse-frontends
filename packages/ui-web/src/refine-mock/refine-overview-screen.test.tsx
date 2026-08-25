@@ -6,7 +6,7 @@ import { RefineOverviewScreen } from './refine-overview-screen';
 import { RefineMockRoot } from './refine-decorator';
 
 describe('RefineOverviewScreen', () => {
-  it('adapts useCustom loading/data state into OverviewPage props: skeleton metrics while loading, then the live stat cards', async () => {
+  it('adapts useCustom loading/data state into the Overview sections’ props: skeleton metrics while loading, then the live stat cards', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineOverviewScreen />
@@ -21,7 +21,7 @@ describe('RefineOverviewScreen', () => {
     expect(screen.getByText('SPEND THIS MONTH')).toBeInTheDocument();
   });
 
-  it('adapts a custom-endpoint failure into OverviewPage error props (ErrorLine per dashboard)', async () => {
+  it('adapts a custom-endpoint failure into the Overview sections’ error props (ErrorLine per dashboard)', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { overview: 'Failed to load overview data.' } }}>
         <RefineOverviewScreen />

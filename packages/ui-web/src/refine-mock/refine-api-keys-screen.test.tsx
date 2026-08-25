@@ -6,7 +6,7 @@ import { RefineApiKeysScreen } from './refine-api-keys-screen';
 import { RefineMockRoot } from './refine-decorator';
 
 describe('RefineApiKeysScreen', () => {
-  it('adapts useTable loading/data state into ApiKeysPage props: skeleton while loading, then the live ledger', async () => {
+  it('adapts useTable loading/data state into the Api-Keys sections’ props: skeleton while loading, then the live ledger', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineApiKeysScreen />
@@ -41,7 +41,7 @@ describe('RefineApiKeysScreen', () => {
     await waitFor(() => expect(within(screen.getAllByRole('row')[1]).getByText('revoked')).toBeInTheDocument());
   });
 
-  it('adapts a getList failure into ApiKeysPage error props (ErrorLine + Retry)', async () => {
+  it('adapts a getList failure into the Api-Keys sections’ error props (ErrorLine + Retry)', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { 'api-keys': 'Failed to load keys for this project.' } }}>
         <RefineApiKeysScreen />

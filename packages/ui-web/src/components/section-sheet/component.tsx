@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 
 import { cn } from '../../cn';
 import { BottomSheet } from '../bottom-sheet';
-import { useIsBelowLg } from '../../lib/use-is-below-lg';
+import { useIsBelowLg } from '../../lib/use-is-below-breakpoint';
 import type { SectionSheetProps } from './types';
 
 // Contract: console-ui skill "Shape and layout" (owner revision 2026-08-25) — below `lg`, the

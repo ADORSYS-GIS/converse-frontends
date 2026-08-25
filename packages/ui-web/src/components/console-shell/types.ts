@@ -35,7 +35,8 @@ export interface ConsoleShellProps {
    * below 600 either): `ConsoleShell` does not own right-rail sheet state below `lg`. Each page
    * decomposes its own right-rail sections into individually-triggered `SectionSheet`s, placed
    * in context next to the on-page element they parameterise (a filter icon in a table toolbar,
-   * a view/range icon beside a chart header, …) — see the page views under `src/pages/`.
+   * a view/range icon beside a chart header, …) — see the sections under `src/sections/` and the
+   * full-screen compositions under `src/pages-stories/`.
    */
   rightRail?: ReactNode;
   /** Centre floor content — no card, no max-width. The document's own scroller; both rails are

@@ -123,8 +123,8 @@ export const FullShellAdmin: Story = {
 // `md` tier (600–1024): the left rail persists inline; the right rail has NO shell-owned
 // fallback at all (owner revision 2026-08-25 — no persistent footer/peek bar at this tier). This
 // bare `ConsoleShell` story has no page-level content to place contextual triggers in, so its
-// right rail is simply not reachable here below `lg` — see each page view's own md-tier story
-// (`OverviewPage`, `ApiKeysPage`, …) for the real contextual-trigger + `SectionSheet` pattern.
+// right rail is simply not reachable here below `lg` — see each page story's own md-tier variant
+// (`Pages/Overview`, `Pages/ApiKeys`, …) for the real contextual-trigger + `SectionSheet` pattern.
 export const MdTierNoRightRailFallback: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <Shell showAdmin={false} />,

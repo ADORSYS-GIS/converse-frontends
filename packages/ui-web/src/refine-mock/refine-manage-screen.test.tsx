@@ -7,7 +7,7 @@ import { RefineManageScreen } from './refine-manage-screen';
 import { RefineMockRoot } from './refine-decorator';
 
 describe('RefineManageScreen', () => {
-  // `useIsBelowLg` (used by `ManagePage` to gate the selection-driven, compact-tier SELECTION
+  // `useIsBelowLg` (used by the Manage screen to gate the selection-driven, compact-tier SELECTION
   // sheet — see that hook's own docstring) defaults to "assume below lg" when `matchMedia` is
   // unavailable, which jsdom doesn't implement here. Simulate `lg` so row selection only
   // retargets the persistent inline rail, not also a second copy inside an auto-opened sheet.
@@ -24,7 +24,7 @@ describe('RefineManageScreen', () => {
     delete window.matchMedia;
   });
 
-  it('adapts useTable loading/data state into ManagePage props: skeleton while loading, then the live ledger', async () => {
+  it('adapts useTable loading/data state into the Manage sections’ props: skeleton while loading, then the live ledger', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineManageScreen />
@@ -58,7 +58,7 @@ describe('RefineManageScreen', () => {
     expect(within(selectionPanel).getByText('adorsys-gis')).toBeInTheDocument();
   });
 
-  it('adapts a getList failure into ManagePage error props (ErrorLine + Retry)', async () => {
+  it('adapts a getList failure into the Manage sections’ error props (ErrorLine + Retry)', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } }}>
         <RefineManageScreen />

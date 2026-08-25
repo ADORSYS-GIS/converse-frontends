@@ -258,6 +258,22 @@ list→selection→edit/decide flows. Rules: the sections stay pure (containers 
 to props); the mock provider is never exported from the package barrel; deps on `@refinedev/*`
 are devDependencies only.
 
+## State — URL-first via nuqs (ADR 0011)
+
+- In `apps/console`, **view state lives in the URL** through nuqs (`useQueryState`/
+  `useQueryStates`, typed parsers, defaults kept out of the URL): scope, filters,
+  range/bucket/group-by, selections, active tabs, open section sheets. The URL is the state bus
+  between the centre and the rail slots — no view-state providers/contexts.
+- **`useState` in view code is a defect unless it is one of the sanctioned exceptions**:
+  hover/tooltip tracking, focus management, pre-submit form drafts that must not enter URL or
+  history (typed-confirm text, decision notes), animation/measurement state. Every surviving
+  local-state site carries a one-line justification comment.
+- `packages/ui-web` never imports nuqs — components stay controlled (props + callbacks) so the
+  app owns their state; uncontrolled conveniences must always offer the controlled form.
+- One URL writer: refine's `syncWithLocation` stays off; selection/filter params feed refine
+  hooks, not the other way round. Use `history: 'replace'` for knob twiddling; throttle
+  high-frequency params.
+
 ## Never do
 
 Card-wrapped centre content · borders or shadows on panels · a second accent colour · orange as

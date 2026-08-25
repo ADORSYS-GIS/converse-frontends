@@ -166,6 +166,23 @@ route handlers; the `EXPO_PUBLIC_*` surface disappears at cutover.
 
 ### 5. UI: a new DOM package `packages/ui-web`, tokens stay single-source
 
+> **Amended by [ADR 0010](0010-ui-primitive-stack-and-theming.md) (owner directive, 2026-08-25).**
+> Two clauses below are superseded:
+>
+> - _"Plain React DOM + Tailwind + CVA … the same idiom as `packages/ui`"_ — `packages/ui-web`
+>   adopts a primitive stack (**daisyUI 5** for classes and themes, **Base UI** for behaviour,
+>   **cmdk** for the command palette, **Floating UI** for point-anchored chart tooltips) and moves
+>   to **Tailwind v4**; CVA survives only where a genuine multi-axis variant set does.
+> - _"It consumes `@lightbridge/ui`'s `tailwind-preset.js` as-is … `apps/console` runs dark-only at
+>   launch"_ — `ui-web` **stops consuming the preset**; its palette source of truth becomes
+>   `packages/ui-web/src/theme.css` (daisy `black` + `wireframe`, customized). The preset remains
+>   single-source for `packages/ui` / `apps/self-service` on Tailwind v3. The console gains a
+>   **first-class light theme** with a user toggle; dark (`black`) stays the default.
+>
+> Unchanged by ADR 0010: charts port rather than get replaced, `chart-core`'s math is consumed
+> verbatim, no chart framework, Storybook-on-`react-vite` is the acceptance surface, and
+> `packages/ui` serves `apps/self-service` untouched until cutover.
+
 - **`packages/ui-web`** (`@lightbridge/ui-web`) hosts the console's DOM components: the ADR 0008
   shell primitives (floating left nav panel, content floor, right context panel / bottom-sheet
   fallback), stat cards with sparklines, ledger tables, forms, and the chart set. Plain React DOM +

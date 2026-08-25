@@ -1,0 +1,116 @@
+# Primitive migration map — `packages/ui-web`
+
+Practical companion to [ADR 0010](../../adr/0010-ui-primitive-stack-and-theming.md). For every
+component that exists in `packages/ui-web/src` today, this says **what it becomes** under the new
+primitive stack, and which phase does it.
+
+Implementation agents should be pointed at **rows of this table**, not at the ADR.
+
+Legend for the _Outcome_ column:
+
+- **keep** — no library swap. Tokens/classes may change in phase 1; the component stays ours.
+- **class swap** — same React structure, hand-written Tailwind replaced by a daisyUI component
+  class (+ utilities for what daisy does not cover).
+- **rebuild** — the behaviour moves to a Base UI primitive; our hand-written a11y code is deleted.
+- **new** — does not exist yet.
+
+Order of reach, from [ADR 0010](../../adr/0010-ui-primitive-stack-and-theming.md) Decision 4:
+daisy class → Base UI behaviour → CVA only if a real multi-axis variant set survives → never a
+hand-written focus trap or roving tabindex.
+
+---
+
+## Shell
+
+| Component        | Outcome              | Becomes                         | Phase | Notes                                                                                                                                                                                                      |
+| ---------------- | -------------------- | ------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `console-shell`  | keep                 | —                               | 1     | Flex shell, sticky rails, `min-w-0` centre are ours. daisy `drawer` is **not** used — it is a CSS grid sidebar, incompatible with the flush full-height rail contract.                                     |
+| `console-header` | keep + **new** child | theme toggle added              | 1     | h56 `neutral` (chrome) bar stays. Gains the `data-theme` toggle (ADR 0010 D5) and the `⌘K` palette trigger (phase 3).                                                                                      |
+| `rail-panel`     | keep                 | —                               | 1     | daisy has no "flush full-height rail section" primitive. `raised` hairline rules + `label` headings stay hand-written.                                                                                     |
+| `nav-spine`      | class swap           | `menu` `menu-sm` + `menu-title` | 2     | daisy `menu` gives vertical list + `menu-active`/`menu-disabled`; the ADR 0008 active-row treatment (`raised` fill, no pill) is a utility override. Admin group's `ROLE` marker + `raised` rule stay ours. |
+| `sub-nav`        | **rebuild**          | Base UI **Tabs** + daisy `tabs` | 2     | Keyboard tab navigation comes from Base UI; `tabs-border` style, `tab-active`. Counts stay in the label text (never a badge).                                                                              |
+| `bottom-sheet`   | keep                 | `vaul` (unchanged)              | —     | ADR 0010 D2: `vaul` is the only drawer primitive. Base UI Drawer is a **phase 5** evaluation, not authorized.                                                                                              |
+
+## Forms and actions
+
+| Component              | Outcome                                     | Becomes                                                                                        | Phase | Notes                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button`               | class swap                                  | daisy `btn` (+ `btn-primary`, `btn-ghost`)                                                     | 2     | **`cva.ts` deleted.** `size` maps to `btn-sm`/`btn-md`; heights 30/34 stay as utilities. `btn-primary` reserved for the one signal action per view. Text on the fill becomes `primary-content`, not `ink` (ADR 0010 D3b a11y finding).                                                                                                                                             |
+| `field`                | **rebuild**                                 | Base UI **Field** / **Fieldset** + daisy `input`, `textarea`, `fieldset`, `label`, `validator` | 2     | Base UI Field owns label association, description, and validation state; `validator`/`validator-hint` carry the error colour. `fieldControlVariants` reduces to a class string; `fieldLabelClassName` (10px mono uppercase tracked) stays as our `label` override.                                                                                                                 |
+| `scope-select`         | **rebuild**                                 | Base UI **Select** ×2                                                                          | 2     | Kills the native `<select> + appearance-none` pair — the option list becomes themeable and gets keyboard/typeahead for free. Cascade reset (account change clears project) is our logic and stays.                                                                                                                                                                                 |
+| `segmented-control`    | **rebuild**                                 | Base UI **Toggle Group**                                                                       | 2     | **Delete** the hand-written roving `tabIndex` and the `ArrowRight/Left/Up/Down/Home/End` switch, and the manual `radiogroup`/`radio` roles. Active-cell `raised` fill + 2px `primary` underline stay as `data-pressed:` variants.                                                                                                                                                  |
+| `typed-confirm-dialog` | **rebuild**                                 | Base UI **Alert Dialog**                                                                       | 2     | **Delete** the `querySelectorAll` focus trap, the `Escape` keydown listener, the manual `aria-modal`/`aria-labelledby`/`aria-describedby` wiring and the manual initial focus. Gains scroll lock, background inert, and focus restore. The typed-name gate (`typed === objectName`) is product logic and stays. daisy `modal-box` is **not** used — Base UI portals its own popup. |
+| `row-action-group`     | class swap → **rebuild** where it overflows | daisy `join` inline; Base UI **Menu** for overflow                                             | 2     | Row-scoped actions stay in the row (ADR 0008 boundary clarification). `join`/`join-item` groups the inline ghost buttons; a Base UI Menu appears only when a row has more actions than fit.                                                                                                                                                                                        |
+| `secret-reveal`        | keep + class swap                           | daisy `input input-ghost` + `btn btn-ghost` + `kbd`                                            | 2     | One-time secret strip. Copy affordance keeps its own `navigator.clipboard` logic; the "copied" acknowledgement stays a mono status line, never a toast.                                                                                                                                                                                                                            |
+| `report-export-panel`  | class swap + **rebuild** (toggles)          | Base UI **Switch** + daisy `toggle`; `select`/`input` for params                               | 2     | Right-rail content, not self-panelled. Format choice is a Base UI Radio group or Toggle Group; include-toggles become Switch + `toggle`.                                                                                                                                                                                                                                           |
+| `review-detail-panel`  | class swap                                  | daisy `btn`, `table table-xs`, `fieldset`                                                      | 2     | Right-rail content. Decision buttons: approve = `btn-primary` (the panel's one signal action), reject = `btn btn-ghost`. History rows use the `table` class at `table-xs`.                                                                                                                                                                                                         |
+| —                      | **new**                                     | `command-palette` — **cmdk**                                                                   | 3     | `⌘K`/`Ctrl-K`. Page jumps, account/project scope switch, rail-owned actions. `surface` panel, radius 2, mono, no shadow; `kbd` classes for shortcut hints. Brings `@radix-ui/react-dialog` transitively — that stays transitive.                                                                                                                                                   |
+
+## Data display
+
+| Component                     | Outcome    | Becomes                                                   | Phase | Notes                                                                                                                                                                                                                                                   |
+| ----------------------------- | ---------- | --------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ledger-table`                | class swap | daisy `table` (+ `table-xs`/`table-sm`, `table-pin-rows`) | 2     | Generic typed table stays generic — daisy is CSS only, so columns/sorting/selection are untouched. Wrapper keeps `overflow-x-auto` (daisy's own table rule says the same). Hairlines resolve to `base-300`/`raised`. Zebra striping is **not** used.    |
+| `stat-card`                   | keep       | —                                                         | 1     | daisy `stats`/`stat` imposes its own padding, dividers and horizontal grouping; our `#191919` panel with a 22–26px mono metric is tighter and already matches the mockups. Not worth the fight — but reconsider if a future card grows a `stat-figure`. |
+| `budget-hero`                 | keep       | —                                                         | 1     | Composition of `Meter` + numerals; nothing daisy adds.                                                                                                                                                                                                  |
+| `meter`                       | keep       | —                                                         | 1     | daisy `progress` is a rounded 8px bar; ours is a 4px square `raised` track with a `soft` fill going `primary` past the warning threshold. Contract-locked (ADR 0008 chart rules), keep custom.                                                          |
+| `sparkline`                   | keep       | —                                                         | 1     | 81×26 unlabelled `<svg>`. No library.                                                                                                                                                                                                                   |
+| `status-text`                 | keep       | —                                                         | 1     | **Do not** adopt daisy `status` or `badge`. Status is text, never a pill (ADR 0008). Only the colour tokens change.                                                                                                                                     |
+| `row` deltas (in `stat-card`) | keep       | —                                                         | 1     | Direction is glyph + wording in greys; never green/red. Unchanged by daisy's `success`/`error` colours, which we do not use for deltas.                                                                                                                 |
+
+## Charts
+
+| Component            | Outcome               | Becomes                                                              | Phase | Notes                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------- | --------------------- | -------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chart-tooltip`      | **rebuild**           | **Floating UI** — `useFloating` + `useClientPoint` + virtual element | 3     | **Delete** `left = x - width/2` clamping, `estimatedHeight = 16 + (title?16:0) + rows.length*18`, and the `containerWidth` prop. Virtual element's `contextElement` is the chart `<svg>`; `flip`/`shift` middleware handles viewport edges; floating element keeps `pointer-events: none`. Snap-to-datum passes explicit `x`/`y` to `useClientPoint`. |
+| `chart-axis`         | keep                  | —                                                                    | 1/4   | DOM `<svg>` ticks. Colours move off hex literals to theme variables; light ramp per ADR 0010 D5.                                                                                                                                                                                                                                                      |
+| `chart-legend`       | keep                  | —                                                                    | 1/4   | Same.                                                                                                                                                                                                                                                                                                                                                 |
+| `spend-series-chart` | keep + tooltip rewire | —                                                                    | 3     | d3 math from `chart-core` verbatim (ADR 0009 D5). Consumes the rebuilt tooltip.                                                                                                                                                                                                                                                                       |
+| `histogram-chart`    | keep + tooltip rewire | —                                                                    | 3     | Same.                                                                                                                                                                                                                                                                                                                                                 |
+| `latency-ridgeline`  | keep + tooltip rewire | —                                                                    | 3     | Same; shared-bin behaviour unchanged.                                                                                                                                                                                                                                                                                                                 |
+| `chart-tokens.ts`    | **rewrite**           | theme-variable reads                                                 | 1     | The sanctioned hex exception (ADR 0010 D3c): `SPEC_GREY_RAMP`, `SPEC_GRID`, `SPEC_BASELINE`, `SPEC_TEXT_*`, `SPEC_SURFACE`, `SPEC_FLOOR` become theme-resolved. `specSeriesColor`'s rank/accent **behaviour** is unchanged — only which grey a rank resolves to.                                                                                      |
+
+## States
+
+| Component         | Outcome    | Becomes                        | Phase | Notes                                                                                                                                                                                                                                                                                 |
+| ----------------- | ---------- | ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inline-status`   | keep       | —                              | 1     | Empty state is an inline mono status line above still-rendered structure. daisy `alert` is explicitly **not** adopted — it is a bordered, iconed, rounded box.                                                                                                                        |
+| `error-line`      | keep       | —                              | 1     | `primary` mono line + inline `Retry` ghost.                                                                                                                                                                                                                                           |
+| `skeleton-row`    | class swap | daisy `skeleton` + `h-*`/`w-*` | 2     | daisy's `skeleton` supplies the `raised` block. **Its default animation must be suppressed** — ADR 0008 bans shimmer. Override via `@utility skeleton { animation: none; }` (daisy's documented "change a component in CSS" mechanism) so it is fixed once, centrally, not per usage. |
+| `skeleton-metric` | class swap | same                           | 2     | Same, matching the metric's final geometry.                                                                                                                                                                                                                                           |
+
+## Page views
+
+All five page views in `packages/ui-web/src/pages/` (`overview`, `api-keys`, `manage`,
+`admin-budget-review`, `auth`) stay **pure presentational components with typed props** — no
+library changes their contract. What changes:
+
+| Phase | Work on every page                                                                                               |
+| ----- | ---------------------------------------------------------------------------------------------------------------- |
+| 1     | Renders unchanged under `data-theme="black"`; no hex literals remain.                                            |
+| 2     | Composes the rebuilt form/dialog/menu components; prop APIs preserved where possible so page tests do not churn. |
+| 3     | `⌘K` palette reachable from every page; charts use the rebuilt tooltip.                                          |
+| 4     | **A light story variant per page**, plus the existing mobile story, both `addon-a11y`-clean.                     |
+
+The `refine-mock/` harness is unaffected — it drives page views through refine hooks and does not
+touch styling.
+
+---
+
+## What is explicitly _not_ adopted from daisyUI
+
+Recorded so it is not re-litigated per PR. Each of these is a daisy component that looks like a
+match but violates a locked ADR 0008 rule:
+
+| daisy component                     | Why not                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `badge`                             | Counts go in tab labels; status is text. No pills.                                      |
+| `alert`                             | Bordered, iconed, rounded box — empty/error states are inline mono lines.               |
+| `card`                              | Centre content is never carded. Panels are `RailPanel`/`StatCard` only.                 |
+| `drawer`                            | CSS-grid sidebar; incompatible with flush full-height sticky rails. Drawers are `vaul`. |
+| `progress` / `radial-progress`      | Rounded, animated; `Meter` is a 4px square track.                                       |
+| `tooltip` (`data-tip`)              | CSS-only, element-anchored; chart tooltips need a virtual point anchor.                 |
+| `stats` / `stat`                    | Imposes its own padding and dividers; our stat card is tighter and mockup-locked.       |
+| `modal`                             | Base UI Alert Dialog owns dialog behaviour; daisy's `modal-box` would double up.        |
+| `glass`, `--depth: 1`, `--noise: 1` | No shadows, no gradients, no grain. Both themes pin `0`.                                |
+| `table-zebra`                       | Row separation is a `raised` hairline, not alternating fills.                           |

@@ -40,11 +40,11 @@ config.yaml                 the primary server config document — see Configura
 route composes sections; it never renders the shell. The shell lives in exactly one place —
 `app/(console)/layout.tsx` — and every route in the group supplies three zones:
 
-| Zone                         | Comes from                    |
-| ---------------------------- | ----------------------------- |
-| centre column                | `children` (`<route>/page.tsx`) |
-| right rail                   | the `@rail` parallel-route slot |
-| left rail's secondary section| the `@scope` parallel-route slot |
+| Zone                          | Comes from                       |
+| ----------------------------- | -------------------------------- |
+| centre column                 | `children` (`<route>/page.tsx`)  |
+| right rail                    | the `@rail` parallel-route slot  |
+| left rail's secondary section | the `@scope` parallel-route slot |
 
 Both slots carry a `default.tsx`, so a route with nothing to put in a rail renders without it
 rather than 404-ing the segment.
@@ -71,31 +71,16 @@ served from one request by the query cache.
 
 Server configuration is **YAML-first**, matching `lightbridge-authz`'s `config/default.yaml`
 shape: `config.yaml` (checked in, at the app root) is the primary config document — session,
-Keycloak/OIDC (issuer, client, scopes, audiences), backends, and public origin all live there.
-Inside it, a value may reference a `{env:SOME_ENV}` placeholder that resolves to the matching
-environment variable at load time (`src/server/config-loader.ts`; loaded and validated once per
-process by `src/server/env.ts`'s `serverEnv()`).
+Keycloak/OIDC, backends, and public origin all live there; `.env`/`.env.local` supply only the
+environment variables it references (`SESSION_SECRET`, optionally `KEYCLOAK_CLIENT_SECRET`, plus
+the `CONSOLE_CONFIG` path override — see `.env.example`).
 
-Only genuine secrets are placeholders — `session.secret` always is, `keycloak.clientSecret`
-optionally is (only a confidential client needs one). Everything else that has a safe local-dev
-value (issuer URL, backend URLs, audiences, ...) is a plain literal directly in `config.yaml`; a
-real deployment that needs different literals ships its own `config.yaml` and points the
-`CONSOLE_CONFIG` env var at it, rather than overriding individual fields through the environment.
+**Full reference** — the key-by-key schema (types/required/defaults), the exact `{env:VAR}`
+interpolation rules and how they diverge from `lightbridge-authz`'s `${VAR}` syntax, `CONSOLE_CONFIG`,
+the `config.wiremock.yaml` variant, and a worked example:
+[`docs/knowledge/console-configuration.md`](../../docs/knowledge/console-configuration.md).
 
-`.env`/`.env.local` therefore now supply **only** the environment variables `config.yaml`
-references — `SESSION_SECRET` (required) and `KEYCLOAK_CLIENT_SECRET` (optional). `.env.example`
-documents both, plus `CONSOLE_CONFIG` itself.
-
-**Divergence from `lightbridge-authz`'s syntax** (documented in full in
-`config-loader.ts`'s header comment): authz supports `$VAR`, `${VAR}`, `${VAR-default}`, and
-`${VAR:-default}`, and a bare unset `$VAR`/`${VAR}` silently resolves to an empty string. This
-loader supports only `{env:VAR}` — no inline default operator — and when a placeholder is the
-_entire_ value of a YAML scalar, an unset/empty variable resolves to `undefined` rather than `""`,
-so a required field (`session.secret`, `keycloak.issuer`, `keycloak.clientId`, `backendUrl`) fails
-fast at startup naming both the config key and the missing variable, instead of starting
-successfully on a blank value and breaking downstream. A placeholder embedded inside a larger
-string still falls back to `''` when unset — there's no sensible way to represent "half of a
-string is undefined".
+Quickstart:
 
 ```bash
 # 1. Keycloak (realm `lightbridge-dev`, client `self-service`, imported from
@@ -144,11 +129,9 @@ screen calls, with a handful of accounts/projects/keys/refill requests — enoug
 docker compose up -d wiremock                # from the repo root — http://localhost:18888
 ```
 
-Then point the console at it instead of the real stack. `backendUrl`/`apiBasePath`/`budgetUrl` are
-plain literals in `config.yaml` now, not env-driven, so — per the "Configuration" section above —
-this is exactly the case that gets its own config document rather than an env override:
-`config.wiremock.yaml` (repo-committed, at the app root next to `config.yaml`) is `config.yaml` with
-those three swapped to point at wiremock. Point `CONSOLE_CONFIG` at it:
+Then point the console at it instead of the real stack via `CONSOLE_CONFIG=./config.wiremock.yaml`
+— see [`docs/knowledge/console-configuration.md`](../../docs/knowledge/console-configuration.md)
+for what that file changes and why:
 
 ```bash
 CONSOLE_CONFIG=./config.wiremock.yaml pnpm --filter console dev

@@ -44,8 +44,12 @@ export const config = {
      *                          `public/`); a service-worker fetch carries no session and must
      *                          never be answered with a login redirect
      *   _next/*            — build output
-     *   manifest.json, icons/*, favicon.ico, robots.txt — public static assets
+     *   manifest.json, icons/*, favicon.ico            — public static assets
+     *   robots.txt, sitemap.xml — Next.js metadata routes (app/robots.ts, app/sitemap.ts);
+     *                              the console is internal-only and disallows every crawler, but
+     *                              the documents that say so must themselves be servable to an
+     *                              unauthenticated crawler, not gated behind a login redirect
      */
-    '/((?!api/|auth/|\\.well-known/|_next/|sw\\.js|swe-worker-|manifest\\.json|icons/|favicon\\.ico|robots\\.txt).*)',
+    '/((?!api/|auth/|\\.well-known/|_next/|sw\\.js|swe-worker-|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

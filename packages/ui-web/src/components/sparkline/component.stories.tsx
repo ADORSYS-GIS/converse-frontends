@@ -21,7 +21,22 @@ export const Flat: Story = { args: { data: flat } };
 
 export const RowOfFour: Story = {
   render: () => (
-    <div className="flex items-center gap-8 rounded-[2px] bg-surface p-4">
+    <div className="bg-surface flex items-center gap-8 rounded-[2px] p-4">
+      <Sparkline data={trendingUp} />
+      <Sparkline data={flat} />
+      <Sparkline data={trendingUp} />
+      <Sparkline data={trendingDown} />
+    </div>
+  ),
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `RowOfFour` -- the `--line` polyline
+// and `--body` terminal dot must both still read against the light `--panel` fill.
+export const RowOfFourLight: Story = {
+  name: 'Row Of Four — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => (
+    <div className="bg-surface flex items-center gap-8 rounded-[2px] p-4">
       <Sparkline data={trendingUp} />
       <Sparkline data={flat} />
       <Sparkline data={trendingUp} />

@@ -25,17 +25,22 @@ import {
   manageStatusOptions,
 } from '../sections/manage-filters-rail/fixtures';
 import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
-import {
-  manageProjectsFixture,
-  manageTotals,
-} from '../sections/manage-projects-ledger/fixtures';
+import { manageProjectsFixture, manageTotals } from '../sections/manage-projects-ledger/fixtures';
 import type { ProjectRow } from '../sections/manage-projects-ledger';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
 import { manageLastExports } from '../sections/manage-report-rail/fixtures';
-import { MANAGE_SELECTION_RAIL_LABEL, ManageSelectionRail } from '../sections/manage-selection-rail';
+import {
+  MANAGE_SELECTION_RAIL_LABEL,
+  ManageSelectionRail,
+} from '../sections/manage-selection-rail';
 import { scopeAccounts, scopeProjects, scopeSelectValue } from '../sections/scope-rail/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
-import { manageSubNavItems, storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+import {
+  manageSubNavItems,
+  storyAdminNavItems,
+  storyHeader,
+  storyNavItems,
+} from './shell-fixtures';
 
 interface ManageScreenProps {
   projects?: ProjectRow[];
@@ -199,6 +204,13 @@ type Story = StoryObj<typeof ManageScreen>;
 // Full page, populated 1:1 against manage-projects.svg.
 export const Populated: Story = { render: () => <ManageScreen /> };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`.
+export const PopulatedLight: Story = {
+  name: 'Populated — wireframe (light)',
+  render: () => <ManageScreen />,
+  globals: { theme: 'wireframe' },
+};
+
 // A row selected — the right-rail SELECTION section retargets to it.
 export const RowSelected: Story = {
   render: () => <ManageScreen initialSelection={manageProjectsFixture[0]} />,
@@ -257,5 +269,12 @@ export const MdTierSelectionSheetOpen: Story = {
 // navigation bar, the projects ledger scrolls horizontally inside its own container.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
+  render: () => <ManageScreen />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile Base Tier — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
   render: () => <ManageScreen />,
 };

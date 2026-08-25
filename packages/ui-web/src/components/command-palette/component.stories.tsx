@@ -23,8 +23,16 @@ function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
       heading: 'Actions',
       items: [
         { key: 'new-key', label: 'New key', onSelect: () => onSelect('new-key') },
-        { key: 'generate-report', label: 'Generate report', onSelect: () => onSelect('generate-report') },
-        { key: 'request-refill', label: 'Request refill', onSelect: () => onSelect('request-refill') },
+        {
+          key: 'generate-report',
+          label: 'Generate report',
+          onSelect: () => onSelect('generate-report'),
+        },
+        {
+          key: 'request-refill',
+          label: 'Request refill',
+          onSelect: () => onSelect('request-refill'),
+        },
         { key: 'sign-out', label: 'Sign out', onSelect: () => onSelect('sign-out') },
       ],
     },
@@ -53,7 +61,7 @@ function KeyboardOnlyNavigationHarness() {
   return (
     <>
       <ControlledPalette initialOpen onSelect={setSelected} />
-      <p style={{ color: '#eee', fontFamily: 'monospace', fontSize: 11, marginTop: 12 }}>
+      <p className="text-ink font-mono text-[11px]" style={{ marginTop: 12 }}>
         selected: {selected ?? '—'}
       </p>
     </>
@@ -65,7 +73,7 @@ const meta: Meta<typeof CommandPalette> = {
   component: CommandPalette,
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', minHeight: 240, padding: 24 }}>
+      <div className="bg-muted" style={{ minHeight: 240, padding: 24 }}>
         <Story />
       </div>
     ),
@@ -80,6 +88,13 @@ export const Closed: Story = {
 };
 
 export const Open: Story = {
+  render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Open`.
+export const OpenLight: Story = {
+  name: 'Open — wireframe (light)',
+  globals: { theme: 'wireframe' },
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
 };
 
@@ -106,7 +121,7 @@ export const NoResults: Story = {
     const canvas = within(canvasElement);
     await userEvent.type(
       canvas.getByPlaceholderText('Jump to a page or run an action…'),
-      'nonexistent-command',
+      'nonexistent-command'
     );
 
     await waitFor(() => expect(canvas.getByText('No matches.')).toBeInTheDocument());
@@ -125,7 +140,9 @@ export const KeyboardOnlyNavigation: Story = {
 
     await waitFor(() => expect(canvas.getByText('selected: api-keys')).toBeInTheDocument());
     // Selecting an item closes the palette (onOpenChange(false) before onSelect).
-    expect(canvas.queryByPlaceholderText('Jump to a page or run an action…')).not.toBeInTheDocument();
+    expect(
+      canvas.queryByPlaceholderText('Jump to a page or run an action…')
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -138,7 +155,9 @@ export const EscapeCloses: Story = {
     await userEvent.keyboard('{Escape}');
 
     await waitFor(() =>
-      expect(canvas.queryByPlaceholderText('Jump to a page or run an action…')).not.toBeInTheDocument(),
+      expect(
+        canvas.queryByPlaceholderText('Jump to a page or run an action…')
+      ).not.toBeInTheDocument()
     );
   },
 };

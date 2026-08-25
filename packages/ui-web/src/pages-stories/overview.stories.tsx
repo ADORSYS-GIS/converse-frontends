@@ -27,10 +27,7 @@ import {
   formatOverviewLatencyXTick,
   overviewLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
-import {
-  OVERVIEW_EXPORT_RAIL_LABEL,
-  OverviewExportRail,
-} from '../sections/overview-export-rail';
+import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
 import { overviewExportCaption } from '../sections/overview-export-rail/fixtures';
 import {
   OVERVIEW_FILTERS_RAIL_LABEL,
@@ -43,10 +40,7 @@ import {
 } from '../sections/overview-filters-rail/fixtures';
 import { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from '../sections/overview-series-rail';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import {
-  overviewEmptyStatCards,
-  overviewStatCards,
-} from '../sections/overview-stat-row/fixtures';
+import { overviewEmptyStatCards, overviewStatCards } from '../sections/overview-stat-row/fixtures';
 import { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from '../sections/overview-view-rail';
 import {
   BUCKET_OPTIONS,
@@ -263,6 +257,14 @@ type Story = StoryObj<typeof OverviewScreen>;
 // follows the iframe's real width rather than a fixed 1440 wrapper.
 export const Populated: Story = { render: () => <OverviewScreen /> };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures — the
+// page-level acceptance surface for the light theme at the `lg` reference tier.
+export const PopulatedLight: Story = {
+  name: 'Populated — wireframe (light)',
+  render: () => <OverviewScreen />,
+  globals: { theme: 'wireframe' },
+};
+
 // README §6: axes/structure stay rendered, an InlineStatus banner carries the "nothing yet" copy.
 export const Empty: Story = {
   render: () => (
@@ -330,5 +332,12 @@ export const MdTierFiltersSheetOpen: Story = {
 // the header's drawer trigger.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
+  render: () => <OverviewScreen />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile Base Tier — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
   render: () => <OverviewScreen />,
 };

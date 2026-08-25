@@ -31,6 +31,19 @@ export const Breached: Story = {
   },
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Breached` -- confirms the meter fill
+// and the primary CTA both resolve to the light `--signal`.
+export const BreachedLight: Story = {
+  name: 'Breached — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: {
+    value: 455.2,
+    ceiling: 500,
+    caption: '91% of ceiling · 6 days left',
+    action: <Button size="sm">Request refill</Button>,
+  },
+};
+
 export const NoActionOrCaption: Story = {
   args: {
     value: 60,

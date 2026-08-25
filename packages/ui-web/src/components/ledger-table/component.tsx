@@ -40,25 +40,27 @@ export function LedgerTable<T>({
   // page never does. `min-w-max` lets the grid keep its natural (unshrunk) column widths inside
   // the scrollable box instead of the grid tracks being squeezed to fit.
   return (
-    <div className="w-full overflow-x-auto">
+    // `tabIndex={0}` alone (no `role="region"`) satisfies axe's `scrollable-region-focusable`
+    // (a scrollable area must be reachable by keyboard) without adding a landmark: a page with
+    // two or more `LedgerTable`s (e.g. Admin's pending queue + recent decisions) would otherwise
+    // trip `landmark-unique`, since every instance shares the same generic label -- found during
+    // the ADR 0010 phase 4 sweep.
+    <div className="w-full overflow-x-auto" tabIndex={0}>
       <div
         role="table"
-        className={cn('min-w-max border-t border-raised font-mono text-xs', className)}
-      >
+        className={cn('border-raised min-w-max border-t font-mono text-xs', className)}>
         <div
           role="row"
           style={{ gridTemplateColumns }}
-          className="grid items-center gap-4 border-b border-raised py-2"
-        >
+          className="border-raised grid items-center gap-4 border-b py-2">
           {columns.map((column) => (
             <div
               key={column.key}
               role="columnheader"
               className={cn(
-                'text-[10px] uppercase tracking-[.09em] text-subtle',
-                column.align === 'right' && 'text-right',
-              )}
-            >
+                'text-subtle text-[10px] tracking-[.09em] uppercase',
+                column.align === 'right' && 'text-right'
+              )}>
               {column.header}
             </div>
           ))}
@@ -101,22 +103,19 @@ export function LedgerTable<T>({
                         : undefined
                     }
                     style={{ gridTemplateColumns }}
-                    className={ledgerRowVariants({ density, selectable: Boolean(onSelectRow) })}
-                  >
+                    className={ledgerRowVariants({ density, selectable: Boolean(onSelectRow) })}>
                     {columns.map((column) => (
                       <div
                         key={column.key}
                         role="cell"
-                        className={cn('text-soft', column.align === 'right' && 'text-right')}
-                      >
+                        className={cn('text-soft', column.align === 'right' && 'text-right')}>
                         {column.accessor(row)}
                       </div>
                     ))}
                     {hasActions ? (
                       <div
                         role="cell"
-                        className="flex justify-end opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
-                      >
+                        className="flex justify-end opacity-0 transition-opacity duration-150 ease-out group-focus-within:opacity-100 group-hover:opacity-100">
                         {renderRowActions?.(row)}
                       </div>
                     ) : null}
@@ -129,14 +128,12 @@ export function LedgerTable<T>({
           <div
             role="row"
             style={{ gridTemplateColumns }}
-            className="grid items-center gap-4 border-b border-border py-2"
-          >
+            className="border-border grid items-center gap-4 border-b py-2">
             {columns.map((column) => (
               <div
                 key={column.key}
                 role="cell"
-                className={cn('text-soft', column.align === 'right' && 'text-right')}
-              >
+                className={cn('text-soft', column.align === 'right' && 'text-right')}>
                 {totals[column.key]}
               </div>
             ))}

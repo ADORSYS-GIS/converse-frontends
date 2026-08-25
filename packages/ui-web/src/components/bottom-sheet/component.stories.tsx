@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent, within } from 'storybook/test';
 
 import { Button } from '../button';
 import { BottomSheet } from './component';
@@ -13,8 +14,8 @@ const filterFields = (
       ['Model', 'All models'],
     ].map(([label, value]) => (
       <div key={label}>
-        <div className="mb-1 font-mono text-[9px] text-subtle">{label}</div>
-        <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-[11px] text-soft">
+        <div className="text-subtle mb-1 font-mono text-[9px]">{label}</div>
+        <div className="border-border bg-chrome text-soft flex h-[30px] items-center rounded-[2px] border px-3 font-mono text-[11px]">
           {value}
         </div>
       </div>
@@ -30,7 +31,7 @@ function ModalDrawer(props: { direction?: 'bottom' | 'right' }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative flex h-[420px] w-[900px] items-start bg-muted p-4">
+    <div className="bg-muted relative flex h-[420px] w-[900px] items-start p-4">
       <Button type="button" onClick={() => setOpen(true)}>
         Open drawer
       </Button>
@@ -38,8 +39,7 @@ function ModalDrawer(props: { direction?: 'bottom' | 'right' }) {
         open={open}
         onOpenChange={setOpen}
         title={props.direction === 'right' ? 'NAV OVERFLOW' : 'VIEW & FILTERS'}
-        direction={props.direction}
-      >
+        direction={props.direction}>
         {filterFields}
       </BottomSheet>
     </div>
@@ -60,3 +60,16 @@ export const Default: Story = { render: () => <ModalDrawer /> };
 
 // direction="right" — the same primitive serving a side drawer (e.g. mobile nav overflow).
 export const RightSide: Story = { render: () => <ModalDrawer direction="right" /> };
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Default`, opened via a `play`
+// function -- confirms vaul's portalled overlay (`bg-muted/80`) and panel (`bg-surface`, white)
+// both track `data-theme` even though the drawer renders outside the decorator's own subtree.
+export const DefaultLightOpen: Story = {
+  name: 'Default — wireframe (light), open',
+  globals: { theme: 'wireframe' },
+  render: () => <ModalDrawer />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open drawer' }));
+  },
+};

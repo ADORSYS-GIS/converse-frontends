@@ -24,6 +24,14 @@ type Story = StoryObj<typeof TypedConfirmDialog>;
 
 export const Default: Story = {};
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Default` -- confirms the Base UI
+// `AlertDialog` overlay (`bg-muted/80`) and panel (`bg-surface`, white) both re-resolve, since the
+// dialog portals to `document.body`, outside the canvas root the preview decorator wraps.
+export const DefaultLight: Story = {
+  name: 'Default — wireframe (light)',
+  globals: { theme: 'wireframe' },
+};
+
 // Base UI portals `AlertDialog.Popup` to `document.body`, outside the Storybook canvas root --
 // queries target the owner document's body rather than `within(canvasElement)`.
 export const MidTyping: Story = {

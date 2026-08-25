@@ -9,7 +9,7 @@ const meta: Meta<typeof HistogramChart> = {
   args: { width: 528, height: 240 },
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 580 }}>
+      <div className="bg-muted" style={{ padding: 24, width: 580 }}>
         <Story />
       </div>
     ),
@@ -80,6 +80,19 @@ export const Breached: Story = {
   },
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Breached` -- confirms the accent bars
+// resolve to the light `--signal` (`#B4441C`), not the dark hex.
+export const BreachedLight: Story = {
+  name: 'Breached — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: {
+    values: normalLatencySamples(400, 850, 120, 11),
+    formatXTick: (v) => `${Math.round(v)}ms`,
+    formatTooltipValue: (bin) => `${bin.count} requests`,
+    breached: true,
+  },
+};
+
 /**
  * Documents the geometry a loading skeleton for this chart must match --
  * `raised` bars over the exact plot area this chart itself computes, no
@@ -110,7 +123,7 @@ export const LoadingSkeletonGeometryNote: Story = {
               width={barWidth}
               height={h}
               rx={2}
-              fill="#202020"
+              fill="var(--color-raised)"
             />
           );
         })}

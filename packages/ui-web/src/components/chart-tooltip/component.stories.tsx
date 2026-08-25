@@ -36,7 +36,14 @@ function ChartTooltipHarness({
       <svg ref={svgRef} width={320} height={200}>
         <circle cx={x} cy={y} r={4} fill={SPEC_GREY_RAMP[0]} />
       </svg>
-      <ChartTooltip visible={visible} anchorElement={anchorElement} x={x} y={y} title={title} rows={rows} />
+      <ChartTooltip
+        visible={visible}
+        anchorElement={anchorElement}
+        x={x}
+        y={y}
+        title={title}
+        rows={rows}
+      />
     </div>
   );
 }
@@ -46,7 +53,7 @@ const meta: Meta<typeof ChartTooltipHarness> = {
   component: ChartTooltipHarness,
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24 }}>
+      <div className="bg-muted" style={{ padding: 24 }}>
         <Story />
       </div>
     ),
@@ -66,6 +73,23 @@ export const SingleRow: Story = {
 };
 
 export const MultiSeries: Story = {
+  args: {
+    x: 160,
+    y: 120,
+    title: 'Aug 21',
+    rows: [
+      { key: 'project-a', label: 'project-a', value: '$212.40', color: SPEC_GREY_RAMP[0] },
+      { key: 'project-b', label: 'project-b (over budget)', value: '$612.90', color: SPEC_ACCENT },
+      { key: 'project-c', label: 'project-c', value: '$88.00', color: SPEC_GREY_RAMP[2] },
+    ],
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `MultiSeries` -- the tooltip card is
+// `--panel` (white) not `--floor`, and the accent row must still read as `--signal`.
+export const MultiSeriesLight: Story = {
+  name: 'Multi Series — wireframe (light)',
+  globals: { theme: 'wireframe' },
   args: {
     x: 160,
     y: 120,

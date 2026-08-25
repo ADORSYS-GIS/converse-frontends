@@ -29,10 +29,36 @@ export const CompactTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => (
     <div className="flex items-center justify-between gap-2 p-4">
-      <span className="font-mono text-[11px] uppercase tracking-[.09em] text-subtle">
+      <span className="text-subtle font-mono text-[11px] tracking-[.09em] uppercase">
         SPEND — BY PROJECT AND MODEL
       </span>
       <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        {filters}
+      </SectionSheetTrigger>
+    </div>
+  ),
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `AllGlyphs` -- the icon glyphs use
+// `currentColor` off `text-subtle`, so this confirms none of the five is a hardcoded dark stroke.
+export const AllGlyphsLight: Story = {
+  name: 'All Glyphs — wireframe (light)',
+  globals: { viewport: { value: 'md900' }, theme: 'wireframe' },
+  render: () => (
+    <div className="flex items-center gap-2 p-4">
+      <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
+        {filters}
+      </SectionSheetTrigger>
+      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        {filters}
+      </SectionSheetTrigger>
+      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
+        {filters}
+      </SectionSheetTrigger>
+      <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="SCOPE">
+        {filters}
+      </SectionSheetTrigger>
+      <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="MONTHLY REPORT">
         {filters}
       </SectionSheetTrigger>
     </div>

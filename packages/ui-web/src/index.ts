@@ -2,6 +2,7 @@
 export { cn } from './cn';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
+export { useIsBelowLg } from './lib/use-is-below-lg';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
@@ -18,6 +19,8 @@ export { SubNav } from './components/sub-nav';
 export type { SubNavItem, SubNavProps } from './components/sub-nav';
 export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
+export { SectionSheet } from './components/section-sheet';
+export type { SectionSheetProps } from './components/section-sheet';
 
 // ── data display
 export { formatMoney, formatMoneyOf } from './lib/money';

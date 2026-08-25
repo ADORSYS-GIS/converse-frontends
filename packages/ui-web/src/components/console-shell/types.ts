@@ -29,14 +29,15 @@ export interface ConsoleShellProps {
   leftSecondaryLabel?: string;
   /**
    * Right rail content — parameters and the action that consumes them (README §3/§10.3).
-   * Persistent and inline at `lg` (never an overlay, per ADR 0008 Decision 3). Below `lg` it
-   * docks as a vaul `BottomSheet` with a peek snap point, per the mobile-first ladder.
+   * Persistent and inline at `lg` (never an overlay, per ADR 0008 Decision 3). Below `lg` there
+   * is no shell-owned fallback for this prop at all (owner revision 2026-08-25, console-ui
+   * skill "Shape and layout" — no persistent footer/peek bar at 600–1024, and no docked panel
+   * below 600 either): `ConsoleShell` does not own right-rail sheet state below `lg`. Each page
+   * decomposes its own right-rail sections into individually-triggered `SectionSheet`s, placed
+   * in context next to the on-page element they parameterise (a filter icon in a table toolbar,
+   * a view/range icon beside a chart header, …) — see the page views under `src/pages/`.
    */
   rightRail?: ReactNode;
-  /** `BottomSheet` header label for `rightRail` below `lg`. */
-  rightRailTitle?: string;
-  /** One-line summary shown at the `BottomSheet`'s collapsed peek snap point below `lg`. */
-  rightRailPeek?: ReactNode;
   /** Centre floor content — no card, no max-width. The document's own scroller; both rails are
    * sticky and scroll independently of it at `md`/`lg`. */
   children: ReactNode;

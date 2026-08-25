@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleHeader } from '../../components/console-header';
 import { ApiKeysPage } from './component';
@@ -146,18 +147,36 @@ export const ErrorState: Story = {
   ),
 };
 
-// `md` tier (600–1024) — SCOPE/FILTERS/hygiene dock as a BottomSheet; shell-compact.svg
-// treatment. A real viewport resize is what exercises the `md:` classes now the shell is
+// `md` tier (600–1024) — no persistent right-rail footer/peek bar (owner revision 2026-08-25,
+// console-ui skill "Shape and layout"). New key is a visible primary in the title row; SCOPE is
+// reachable via the trigger beside the title subtitle; FILTERS via the trigger in the table
+// toolbar row. A real viewport resize is what exercises the `md:` classes now the shell is
 // CSS-tiered, not a wrapper `<div>`.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />,
 };
 
+// Same `md` tier, with the FILTERS trigger activated — the contextual trigger → `SectionSheet`
+// flow: click the filter icon in the table toolbar, and only FILTERS (not the whole rail) opens.
+export const MdTierFiltersSheetOpen: Story = {
+  name: 'md tier — FILTERS sheet open',
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
+
+    // The sheet's `Drawer.Portal` renders to `document.body`, outside `canvasElement`.
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
+  },
+};
+
 // Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
 // nav docked as a fixed bottom navigation bar, the key ledger scrolls horizontally inside its
-// own container (the page never scrolls sideways), NEW KEY & FILTERS reachable via the right
-// rail's BottomSheet peek row, SCOPE reachable via the header's drawer trigger.
+// own container (the page never scrolls sideways), New key/Scope/Filters reachable via the same
+// contextual triggers as `md` (no separate mobile-only affordance).
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />,

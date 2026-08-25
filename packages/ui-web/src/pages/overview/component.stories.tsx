@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { NavSpineItem } from '../../components/nav-spine';
 import { OverviewPage } from './component';
@@ -214,19 +214,39 @@ export const AdminNav: Story = {
   ),
 };
 
-// `md` tier (600–1024): left rail persists inline, right rail docks as a BottomSheet — visually
-// comparable to shell-compact.svg. A real viewport resize (not a wrapper `<div>`) is what
-// exercises the `md:` classes now that the shell is CSS-tiered.
+// `md` tier (600–1024): left rail persists inline; the right rail has NO persistent footer/peek
+// bar at all (owner revision 2026-08-25 — console-ui skill "Shape and layout"). Its three
+// sections are reached via contextual triggers instead: VIEW and FILTERS sit beside the SPEND
+// header, EXPORT beside the BUDGET header — visible here as three 30×30 ghost icon buttons, no
+// docked chrome at the bottom of the viewport. A real viewport resize (not a wrapper `<div>`) is
+// what exercises the `md:`/`lg:` classes now that the shell is CSS-tiered.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <Demo />,
 };
 
+// Same `md` tier, with the FILTERS trigger activated — demonstrates the contextual trigger →
+// `SectionSheet` flow end to end: click the filter icon beside the SPEND header, and only the
+// FILTERS section (not the whole rail) opens as a transient bottom sheet.
+export const MdTierFiltersSheetOpen: Story = {
+  name: 'md tier — FILTERS sheet open',
+  globals: { viewport: { value: 'md900' } },
+  render: () => <Demo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
+
+    // The sheet's `Drawer.Portal` renders to `document.body`, outside `canvasElement`.
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
+  },
+};
+
 // Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
-// stacked stat cards, nav docked as a fixed bottom navigation bar, VIEW & FILTERS reachable via
-// the right rail's BottomSheet peek row, SCOPE reachable via the header's drawer trigger, and
-// the ledger-free layout here needs no horizontal-scroll proof (see the ApiKeys/Manage/Admin
-// mobile stories for that).
+// stacked stat cards, nav docked as a fixed bottom navigation bar, VIEW/FILTERS/EXPORT reachable
+// via the same contextual triggers as `md` (no separate mobile-only affordance), SCOPE reachable
+// via the header's drawer trigger. The ledger-free layout here needs no horizontal-scroll proof
+// (see the ApiKeys/Manage/Admin mobile stories for that).
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <Demo />,

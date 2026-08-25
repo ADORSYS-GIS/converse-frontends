@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { cn } from '../../cn';
 import { ConsoleShell } from '../../components/console-shell';
@@ -9,6 +9,7 @@ import type { LedgerColumn } from '../../components/ledger-table';
 import { formatMoney } from '../../lib/money';
 import { RailPanel } from '../../components/rail-panel';
 import { ReviewDetailPanel } from '../../components/review-detail-panel';
+import { SectionSheet } from '../../components/section-sheet';
 import { SubNav } from '../../components/sub-nav';
 import type { AdminBudgetReviewPageProps, DecisionRow, RefillRequestRow } from './types';
 
@@ -85,6 +86,33 @@ export function AdminBudgetReviewPage({
 
   const isPendingEmpty = !loading && !error && pending.length === 0;
 
+  // Selection-driven compact-tier sheet — console-ui skill "Shape and layout" (owner revision
+  // 2026-08-25): review detail has no trigger of its own, it opens once a request is selected.
+  // Adjusted during render rather than in a `useEffect` — the React docs' own recommended
+  // pattern for "reset/adjust state when a prop changes" (a conditional `setState` call gated on
+  // a ref-tracked previous value, not inside an effect body; React discards the stale render and
+  // re-renders immediately, so this never paints an intermediate frame). No tier check needed
+  // here either way: `SectionSheet` itself is gated by `useIsBelowLg` (see its own docstring for
+  // why simply relying on CSS is not enough), so this can set `open` unconditionally on every
+  // selection and trust the sheet to no-op at `lg`.
+  //
+  // `prevSelectedRequestId` deliberately starts at `null`, never at the mount-time
+  // `selectedRequestId` — a page can mount with a request already selected (this component's own
+  // `Populated`/`MdTier` stories do exactly that), and that initial selection should open the
+  // sheet below `lg` too, not only a *later* change.
+  const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
+  const [prevSelectedRequestId, setPrevSelectedRequestId] = useState<string | null>(null);
+  if ((selectedRequestId ?? null) !== prevSelectedRequestId) {
+    setPrevSelectedRequestId(selectedRequestId ?? null);
+    if (reviewDetail) setReviewSheetOpen(true);
+  }
+
+  const reviewContent = reviewDetail ? (
+    <ReviewDetailPanel {...reviewDetail} />
+  ) : (
+    <p className="font-sans text-[11px] text-subtle">Select a request to review it.</p>
+  );
+
   return (
     <ConsoleShell
       header={header}
@@ -96,20 +124,10 @@ export function AdminBudgetReviewPage({
         </RailPanel>
       }
       leftSecondaryLabel="Admin"
-      rightRailTitle="REVIEW"
-      rightRailPeek={
-        <span className="font-mono text-[10px] text-subtle">
-          {reviewDetail ? reviewDetail.subject : 'No request selected yet.'}
-        </span>
-      }
       rightRail={
-        <RailPanel>
-          {reviewDetail ? (
-            <ReviewDetailPanel {...reviewDetail} />
-          ) : (
-            <p className="font-sans text-[11px] text-subtle">Select a request to review it.</p>
-          )}
-        </RailPanel>
+        // Only rendered inline at `lg` — below that, review detail opens itself as a
+        // `SectionSheet` once a request is selected (see the effects above).
+        <RailPanel>{reviewContent}</RailPanel>
       }
     >
       <div className="flex flex-col gap-6">
@@ -204,6 +222,10 @@ export function AdminBudgetReviewPage({
           </div>
         ) : null}
       </div>
+
+      <SectionSheet open={reviewSheetOpen} onOpenChange={setReviewSheetOpen} label="REVIEW">
+        {reviewContent}
+      </SectionSheet>
     </ConsoleShell>
   );
 }

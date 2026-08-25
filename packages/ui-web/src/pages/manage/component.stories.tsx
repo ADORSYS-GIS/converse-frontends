@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleHeader } from '../../components/console-header';
 import { fieldControlVariants, fieldLabelClassName } from '../../components/field/cva';
@@ -173,18 +174,49 @@ export const ErrorState: Story = {
   ),
 };
 
-// `md` tier (600–1024) — MANAGE sub-nav stays inline, REPORT/FILTERS/SELECTION dock as a
-// BottomSheet. A real viewport resize is what exercises the `md:` classes now the shell is
-// CSS-tiered, not a wrapper `<div>`.
+// `md` tier (600–1024) — MANAGE sub-nav stays inline; the right rail has no persistent
+// footer/peek bar (owner revision 2026-08-25, console-ui skill "Shape and layout"). FILTERS is
+// reachable via the trigger beside the search field; MONTHLY REPORT via the trigger by the
+// table's totals/footer zone; SELECTION opens itself once a row is selected. A real viewport
+// resize is what exercises the `md:` classes now the shell is CSS-tiered, not a wrapper `<div>`.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <StatefulManagePage />,
 };
 
+// Same `md` tier, with the FILTERS trigger activated — the contextual trigger → `SectionSheet`
+// flow: click the filter icon beside the search field, and only FILTERS opens.
+export const MdTierFiltersSheetOpen: Story = {
+  name: 'md tier — FILTERS sheet open',
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulManagePage />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
+
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
+  },
+};
+
+// Same `md` tier, with a row already selected — SELECTION opens itself (no trigger needed): a
+// real browser's `matchMedia` correctly reports "below lg" at this viewport, so `useIsBelowLg`
+// lets the selection-driven open through (see that hook's own docstring for why it is gated at
+// all, rather than firing unconditionally on every selection).
+export const MdTierSelectionSheetOpen: Story = {
+  name: 'md tier — SELECTION sheet open on row select',
+  globals: { viewport: { value: 'md900' } },
+  render: () => <StatefulManagePage initialSelection={manageProjectsFixture[0]} />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'SELECTION' })).toBeInTheDocument());
+  },
+};
+
 // Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
 // search/`+ New project` stack, nav docked as a fixed bottom navigation bar, the projects
-// ledger scrolls horizontally inside its own container, REPORT & FILTERS reachable via the
-// right rail's BottomSheet peek row, MANAGE sub-nav reachable via the header's drawer trigger.
+// ledger scrolls horizontally inside its own container, FILTERS/MONTHLY REPORT reachable via the
+// same contextual triggers as `md`, MANAGE sub-nav reachable via the header's drawer trigger.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <StatefulManagePage />,

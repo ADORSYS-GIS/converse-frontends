@@ -158,9 +158,9 @@ describe('OverviewPage', () => {
 
     expect(screen.getAllByText('Querying usage…').length).toBeGreaterThan(0);
     // The real spend chart never mounts while loading, so its own internal legend (distinct
-    // from the always-present right-rail SERIES panel) does not render a second copy. The
-    // right rail's BottomSheet copy only mounts once expanded (collapsed shows the peek row),
-    // so the inline rail is the only copy present here.
+    // from the always-present right-rail SERIES panel) does not render a second copy. SERIES
+    // has no compact-tier `SectionSheet` of its own (the chart supports direct series selection
+    // on click), so the inline rail copy is the only one that can ever exist.
     expect(screen.getAllByRole('button', { name: 'claude-sonnet' })).toHaveLength(1);
   });
 
@@ -196,5 +196,49 @@ describe('OverviewPage', () => {
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sign out' }));
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  // Compact-tier contextual sheet triggers (console-ui skill "Shape and layout", 2026-08-25
+  // revision) — no persistent right-rail footer/peek bar; VIEW/FILTERS/EXPORT are each reached
+  // via a trigger placed in context, opening only that one rail section as a SectionSheet.
+  describe('compact-tier contextual sheet triggers', () => {
+    it('opens the VIEW sheet from the trigger beside the SPEND header, with the same range field content as the rail', () => {
+      render(<OverviewPage {...makeProps()} />);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open view options' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'VIEW' });
+      expect(within(dialog).getByLabelText('Range')).toBeInTheDocument();
+    });
+
+    it('opens the FILTERS sheet from the trigger beside the SPEND header', () => {
+      render(<OverviewPage {...makeProps()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open filters' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'FILTERS' });
+      expect(within(dialog).getByLabelText('Account')).toBeInTheDocument();
+    });
+
+    it('opens the EXPORT sheet from the trigger beside the BUDGET header', () => {
+      render(<OverviewPage {...makeProps({ exportLabel: 'Export current view · CSV' })} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open export' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'EXPORT' });
+      expect(within(dialog).getByRole('button', { name: 'Export current view · CSV' })).toBeInTheDocument();
+    });
+
+    it('dismisses a sheet via its close control', () => {
+      render(<OverviewPage {...makeProps()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open filters' }));
+      expect(screen.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });

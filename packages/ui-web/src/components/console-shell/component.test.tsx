@@ -63,43 +63,26 @@ describe('ConsoleShell', () => {
     expect(screen.getAllByText('Scope panel')).toHaveLength(2);
   });
 
-  it('renders the right rail inline, and its BottomSheet shows the peek row while collapsed', () => {
+  it('renders the right rail inline at lg, and nothing else — no shell-owned sheet, no peek row (owner revision 2026-08-25: pages own compact-tier right-rail access via SectionSheet)', () => {
     render(
-      <ConsoleShell
-        header={<div>Header</div>}
-        nav={{ items: navItems }}
-        rightRail={<div>Right rail</div>}
-        rightRailTitle="View"
-        rightRailPeek={<span>peek summary</span>}
-      >
+      <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }} rightRail={<div>Right rail</div>}>
         <div>Centre</div>
       </ConsoleShell>,
     );
 
-    // The inline (lg) copy is always mounted. The BottomSheet's own Drawer.Content is always
-    // mounted too (peek mode never unmounts, README §7 / skill: the right rail is never an
-    // overlay that disappears) — but while collapsed it shows the one-line peek, not a second
-    // full copy of the rail content.
-    expect(screen.getByText('Right rail')).toBeInTheDocument();
-    expect(screen.getByText('peek summary')).toBeInTheDocument();
+    expect(screen.getAllByText('Right rail')).toHaveLength(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('mounts a second copy of the right rail inside the BottomSheet once it is expanded', () => {
+  it('renders the inline right rail as lg:flex, hidden below lg', () => {
     render(
-      <ConsoleShell
-        header={<div>Header</div>}
-        nav={{ items: navItems }}
-        rightRail={<div>Right rail</div>}
-        rightRailTitle="View"
-        rightRailPeek={<span>peek summary</span>}
-      >
+      <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }} rightRail={<div>Right rail</div>}>
         <div>Centre</div>
       </ConsoleShell>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    expect(screen.getAllByText('Right rail')).toHaveLength(2);
+    const rightRail = screen.getByText('Right rail').closest('div.lg\\:w-\\[280px\\]');
+    expect(rightRail).toHaveClass('hidden', 'lg:flex');
   });
 
   it('applies the sticky flex-none rail classes and flex-1 min-w-0 centre (flex-shell contract)', () => {
@@ -110,7 +93,6 @@ describe('ConsoleShell', () => {
         leftSecondary={<div>Scope panel</div>}
         leftSecondaryLabel="Scope"
         rightRail={<div>Right rail</div>}
-        rightRailPeek={<span>peek summary</span>}
       >
         <div>Centre</div>
       </ConsoleShell>,
@@ -145,7 +127,6 @@ describe('ConsoleShell', () => {
         leftSecondary={<div>Scope panel</div>}
         leftSecondaryLabel="Scope"
         rightRail={<div>Right rail</div>}
-        rightRailPeek={<span>peek summary</span>}
       >
         <div>Centre</div>
       </ConsoleShell>,

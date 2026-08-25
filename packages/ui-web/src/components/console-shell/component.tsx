@@ -30,22 +30,23 @@ const RAIL_STICKY = 'md:sticky md:top-[56px] md:max-h-[calc(100dvh-56px)] md:ove
 //  - **Sticky, independently-scrollable rails**: `sticky top-[56px] max-h-[calc(100dvh-56px)]
 //    overflow-y-auto` at `md`/`lg` — the centre column is the document's own scroller.
 //  - **CSS-driven tiers, not a JS `tier` prop**: `nav` is rendered twice from one
-//    `NavSpineProps` (rail vs `bottom-bar`) and the right rail is rendered both inline and as a
-//    `BottomSheet`; Tailwind's `md:`/`lg:` classes decide which is visible, so there is no
-//    viewport-width detection to get out of sync with a real resize.
+//    `NavSpineProps` (rail vs `bottom-bar`); Tailwind's `md:`/`lg:` classes decide which is
+//    visible, so there is no viewport-width detection to get out of sync with a real resize.
+//  - **The shell does not own right-rail sheet state below `lg`** (owner revision 2026-08-25 —
+//    no persistent footer/peek bar at 600–1024, superseding the earlier peek-mode `BottomSheet`
+//    reading of ADR 0008/README §3): `rightRail` renders only inline, `lg:flex`. Below `lg` its
+//    content is reached through page-placed contextual triggers, each opening one rail section
+//    as its own `SectionSheet` — that state and composition belongs to the page, not the shell.
 export function ConsoleShell({
   header,
   nav,
   leftSecondary,
   leftSecondaryLabel,
   rightRail,
-  rightRailTitle,
-  rightRailPeek,
   children,
   className,
 }: ConsoleShellProps) {
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
-  const [rightSheetOpen, setRightSheetOpen] = useState(false);
 
   return (
     <div className={cn('flex min-h-dvh flex-col bg-muted', className)}>
@@ -84,17 +85,11 @@ export function ConsoleShell({
 
         {/* The centre is the only padded, only stretching zone — it sits directly on the floor
             between two edge-to-edge rails, so it (not the row) owns the gutter. Bottom clearance
-            stacks for the fixed bottom nav (56px, below `md`) under the right rail's
-            `BottomSheet` peek row (~96px, below `lg`) — both are position: fixed, so the centre
-            needs real padding or their last rows would sit underneath them. */}
-        <main
-          className={cn(
-            'min-w-0 flex-1 px-4 py-6 md:px-6',
-            rightRail ? 'pb-40 md:pb-28 lg:pb-6' : 'pb-20 md:pb-6',
-          )}
-        >
-          {children}
-        </main>
+            only needs to clear the fixed bottom nav (56px, below `md`) — the right rail no
+            longer contributes any fixed chrome below `lg` (owner revision 2026-08-25: no
+            persistent footer/peek bar), so a page's own `SectionSheet` triggers render inline,
+            in flow, needing no extra reserved space here. */}
+        <main className="min-w-0 flex-1 px-4 py-6 pb-20 md:px-6 md:pb-6">{children}</main>
 
         {rightRail ? (
           <div
@@ -111,20 +106,6 @@ export function ConsoleShell({
       <div className="fixed inset-x-0 bottom-0 z-40 h-14 bg-chrome md:hidden">
         <NavSpine {...nav} layout="bottom-bar" />
       </div>
-
-      {rightRail ? (
-        <div className="lg:hidden">
-          <BottomSheet
-            open={rightSheetOpen}
-            onOpenChange={setRightSheetOpen}
-            title={rightRailTitle}
-            peek={rightRailPeek}
-            className="bottom-14 md:bottom-0"
-          >
-            {rightRail}
-          </BottomSheet>
-        </div>
-      ) : null}
 
       {leftSecondary ? (
         <div className="md:hidden">

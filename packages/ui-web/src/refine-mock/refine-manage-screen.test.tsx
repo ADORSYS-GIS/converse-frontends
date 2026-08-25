@@ -1,12 +1,29 @@
 import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RefineManageScreen } from './refine-manage-screen';
 import { RefineMockRoot } from './refine-decorator';
 
 describe('RefineManageScreen', () => {
+  // `useIsBelowLg` (used by `ManagePage` to gate the selection-driven, compact-tier SELECTION
+  // sheet — see that hook's own docstring) defaults to "assume below lg" when `matchMedia` is
+  // unavailable, which jsdom doesn't implement here. Simulate `lg` so row selection only
+  // retargets the persistent inline rail, not also a second copy inside an auto-opened sheet.
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    // @ts-expect-error - restore jsdom's own "matchMedia does not exist" baseline.
+    delete window.matchMedia;
+  });
+
   it('adapts useTable loading/data state into ManagePage props: skeleton while loading, then the live ledger', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>

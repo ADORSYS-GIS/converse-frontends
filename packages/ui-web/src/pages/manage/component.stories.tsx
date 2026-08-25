@@ -134,7 +134,7 @@ type Story = StoryObj<typeof ManagePage>;
 // Full page, populated 1:1 against docs/design/console-redesign/manage-projects.svg.
 export const Populated: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulManagePage />
     </div>
   ),
@@ -143,7 +143,7 @@ export const Populated: Story = {
 // A row selected — the right-rail SELECTION panel retargets to it.
 export const RowSelected: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulManagePage initialSelection={manageProjectsFixture[0]} />
     </div>
   ),
@@ -151,7 +151,7 @@ export const RowSelected: Story = {
 
 export const Empty: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulManagePage projects={[]} />
     </div>
   ),
@@ -159,7 +159,7 @@ export const Empty: Story = {
 
 export const Loading: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulManagePage projects={[]} loading />
     </div>
   ),
@@ -167,7 +167,7 @@ export const Loading: Story = {
 
 export const ErrorState: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulManagePage projects={[]} error="Failed to load projects for this account." />
     </div>
   ),

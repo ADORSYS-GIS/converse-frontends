@@ -21,7 +21,7 @@ type Story = StoryObj<typeof RefineOverviewScreen>;
 export const Populated: Story = {
   decorators: [withRefineMock({ latencyMs: [300, 600] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineOverviewScreen />
     </div>
   ),
@@ -40,7 +40,7 @@ export const Populated: Story = {
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { overview: 'Failed to load overview data.' } })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineOverviewScreen />
     </div>
   ),

@@ -19,7 +19,7 @@ type Story = StoryObj<typeof RefineApiKeysScreen>;
 export const Populated: Story = {
   decorators: [withRefineMock({ latencyMs: [300, 600] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineApiKeysScreen />
     </div>
   ),
@@ -35,7 +35,7 @@ export const Populated: Story = {
 export const RevokeFlow: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineApiKeysScreen />
     </div>
   ),
@@ -66,7 +66,7 @@ export const RevokeFlow: Story = {
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { 'api-keys': 'Failed to load keys for this project.' } })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineApiKeysScreen />
     </div>
   ),

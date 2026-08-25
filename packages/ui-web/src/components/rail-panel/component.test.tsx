@@ -23,13 +23,13 @@ describe('RailPanel', () => {
     expect(screen.queryByText('SCOPE')).not.toBeInTheDocument();
   });
 
-  it('applies the panel surface treatment', () => {
+  it('applies only the 16px section inset — no background/radius of its own (owner revision, console-ui skill "Rails are flush…")', () => {
     render(<RailPanel>Panel content</RailPanel>);
 
     const panel = screen.getByText('Panel content');
-    expect(panel).toHaveClass('bg-surface');
-    expect(panel).toHaveClass('rounded-[2px]');
     expect(panel).toHaveClass('p-4');
+    expect(panel).not.toHaveClass('bg-surface');
+    expect(panel).not.toHaveClass('rounded-[2px]');
   });
 
   it('merges a consumer className', () => {

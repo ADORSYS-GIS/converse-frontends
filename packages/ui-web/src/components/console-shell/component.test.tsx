@@ -136,4 +136,37 @@ describe('ConsoleShell', () => {
 
     expect(screen.getByText('Centre').closest('div.bg-muted')).toBeInTheDocument();
   });
+
+  it('renders each rail as one flush surface column — no outer gutter on the row, hairlines instead of gaps between sections (console-ui skill "Rails are flush, aligned, full-height columns")', () => {
+    render(
+      <ConsoleShell
+        header={<div>Header</div>}
+        nav={{ items: navItems }}
+        leftSecondary={<div>Scope panel</div>}
+        leftSecondaryLabel="Scope"
+        rightRail={<div>Right rail</div>}
+        rightRailPeek={<span>peek summary</span>}
+      >
+        <div>Centre</div>
+      </ConsoleShell>,
+    );
+
+    const leftRail = screen.getByText('Scope panel').closest('div.md\\:w-\\[208px\\]');
+    expect(leftRail).toHaveClass('bg-surface', 'divide-y', 'divide-raised');
+    expect(leftRail).not.toHaveClass('gap-2');
+
+    const rightRailEls = screen.getAllByText('Right rail');
+    const inlineRightRail = rightRailEls[0].closest('div.lg\\:w-\\[280px\\]');
+    expect(inlineRightRail).toHaveClass('bg-surface', 'divide-y', 'divide-raised');
+
+    // The row holding header/rails/centre carries no outer gutter of its own — only the centre
+    // (`main`) is padded, so the rails sit edge-to-edge against the viewport sides.
+    const row = screen.getByText('Centre').closest('main')?.parentElement;
+    expect(row).not.toHaveClass('gap-6');
+    expect(row).not.toHaveClass('px-4');
+    expect(row).not.toHaveClass('py-6');
+
+    const centre = screen.getByText('Centre').closest('main');
+    expect(centre).toHaveClass('px-4', 'py-6', 'md:px-6');
+  });
 });

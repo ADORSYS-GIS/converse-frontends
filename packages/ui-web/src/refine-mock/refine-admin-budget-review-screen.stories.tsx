@@ -24,7 +24,7 @@ type Story = StoryObj<typeof RefineAdminBudgetReviewScreen>;
 export const Populated: Story = {
   decorators: [withRefineMock({ latencyMs: [300, 600] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineAdminBudgetReviewScreen />
     </div>
   ),
@@ -40,7 +40,7 @@ export const Populated: Story = {
 export const ApproveFlow: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineAdminBudgetReviewScreen />
     </div>
   ),
@@ -70,7 +70,7 @@ export const ApproveFlow: Story = {
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { 'refill-requests': 'Failed to load the review queue.' } })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineAdminBudgetReviewScreen />
     </div>
   ),

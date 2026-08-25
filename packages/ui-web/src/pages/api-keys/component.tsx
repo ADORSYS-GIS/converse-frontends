@@ -103,7 +103,12 @@ export function ApiKeysPage({
         </span>
       }
       rightRail={
-        <div className="flex flex-col gap-3">
+        // A Fragment, not a wrapping `<div>`: the rail column in `ConsoleShell` applies
+        // `bg-surface divide-y divide-raised` to its direct children, so each `RailPanel`
+        // section here must render as a direct DOM child of that column for the hairline
+        // separators to land between sections instead of around one wrapping box (console-ui
+        // skill "Rails are flush, aligned, full-height columns", owner revision 2026-08-25).
+        <>
           <RailPanel>
             <Button type="button" variant="primary" className="w-full" onClick={onCreateKey}>
               + New key
@@ -158,7 +163,7 @@ export function ApiKeysPage({
               trail — admin only, behind typed confirmation.
             </p>
           </RailPanel>
-        </div>
+        </>
       }
     >
       <div className="flex flex-col gap-6">

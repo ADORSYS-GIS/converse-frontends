@@ -97,7 +97,7 @@ type Story = StoryObj<typeof ApiKeysPage>;
 // inline hygiene status.
 export const Populated: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage secretReveal={apiKeysNewSecret} />
     </div>
   ),
@@ -106,7 +106,7 @@ export const Populated: Story = {
 // Same data without the SecretReveal strip — the steady-state view once a secret is dismissed.
 export const WithoutSecretStrip: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage secretReveal={null} />
     </div>
   ),
@@ -115,7 +115,7 @@ export const WithoutSecretStrip: Story = {
 // Revoke gating flow mid-state: TypedConfirmDialog open, typed value not yet matching the key name.
 export const RevokeDialogOpen: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage revokeInitial={{ row: apiKeysFixture[0] }} />
     </div>
   ),
@@ -124,7 +124,7 @@ export const RevokeDialogOpen: Story = {
 // §6 — empty ledger still renders its header row; InlineStatus carries the empty-state message.
 export const Empty: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage keys={[]} />
     </div>
   ),
@@ -132,7 +132,7 @@ export const Empty: Story = {
 
 export const Loading: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage keys={[]} loading />
     </div>
   ),
@@ -140,7 +140,7 @@ export const Loading: Story = {
 
 export const ErrorState: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulApiKeysPage keys={[]} error="Failed to load keys for this project." />
     </div>
   ),

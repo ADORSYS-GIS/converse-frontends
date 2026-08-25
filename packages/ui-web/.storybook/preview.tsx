@@ -36,8 +36,14 @@ const preview: Preview = {
         document.documentElement.classList.add('dark');
       }, []);
 
+      // No padding here (owner finding, 2026-08-25): full-page stories (`layout: 'fullscreen'`)
+      // must render edge-to-edge — rails are flush against the iframe sides (console-ui skill
+      // "Rails are flush, aligned, full-height columns"), and a global inset here fought that on
+      // every page/shell story. Storybook's own default `layout: 'padded'` already gives
+      // isolated component stories breathing room; a component story that genuinely needs more
+      // gets its own local decorator, never a global one.
       return (
-        <div className="dark bg-muted min-h-screen p-6">
+        <div className="dark bg-muted min-h-screen">
           <Story />
         </div>
       );

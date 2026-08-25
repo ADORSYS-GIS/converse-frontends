@@ -4,15 +4,11 @@
 
 import React from 'react';
 
+import { AccountMenu } from '../components/account-menu';
 import { ConsoleHeader } from '../components/console-header';
 
 const identity = (
-  <div className="flex items-center gap-3">
-    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
-    <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
-      SL
-    </span>
-  </div>
+  <AccountMenu name="Sam Lambou" email="sam@adorsys.com" initials="SL" onSignOut={() => {}} />
 );
 
 const orgSwitcher = <span className="font-mono text-xs text-soft">adorsys-gis</span>;

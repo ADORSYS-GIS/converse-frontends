@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 
 import { adminNavItems, navItems } from '../client/console-chrome';
 import { useConsoleSession } from '../client/session-context';
+import { signOut } from '../client/sign-out';
 import { useConsoleScope } from '../client/use-console-scope';
 
 /**
@@ -98,8 +99,10 @@ export function OverviewContainer() {
   return (
     <OverviewPage
       orgName={scope.value.accountId || '—'}
+      userName={session.user?.name}
       userEmail={session.user?.email ?? session.user?.preferredUsername ?? ''}
       userInitials={(session.user?.name ?? session.user?.email ?? '··').slice(0, 2).toUpperCase()}
+      onSignOut={signOut}
       navItems={navItems('overview')}
       adminNavItems={adminNavItems('overview')}
       showAdmin={session.isAdmin}

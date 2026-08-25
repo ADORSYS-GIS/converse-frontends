@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { SPEC_GRID } from '../../chart-tokens';
 import { cn } from '../../cn';
+import { AccountMenu } from '../../components/account-menu';
 import { Button } from '../../components/button';
 import { ChartLegend } from '../../components/chart-legend';
 import type { ChartLegendItem } from '../../components/chart-legend';
@@ -21,11 +22,7 @@ import { BudgetHero } from '../../components/budget-hero';
 import { StatCard } from '../../components/stat-card';
 import { useResizeObserver } from '../../lib/use-resize-observer';
 import { formatMoneyOf } from '../../lib/money';
-import type {
-  OverviewPageProps,
-  OverviewSelectField,
-  OverviewStatCardIcon,
-} from './types';
+import type { OverviewPageProps, OverviewSelectField, OverviewStatCardIcon } from './types';
 
 const SECTION_LABEL = 'font-mono text-[10px] uppercase tracking-[.09em] text-subtle';
 const DASHBOARD_LABEL = 'font-mono text-[11px] uppercase tracking-[.09em] text-subtle';
@@ -72,9 +69,8 @@ function RailSelect({ label, value, options, onChange }: OverviewSelectField) {
           onChange={(event) => onChange(event.target.value)}
           className={cn(
             fieldControlVariants({ error: false, multiline: false }),
-            'appearance-none pr-7',
-          )}
-        >
+            'appearance-none pr-7'
+          )}>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -86,8 +82,7 @@ function RailSelect({ label, value, options, onChange }: OverviewSelectField) {
           viewBox="0 0 8 8"
           className="pointer-events-none absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 stroke-subtle"
           fill="none"
-          strokeWidth="1.4"
-        >
+          strokeWidth="1.4">
           <path d="M1 3l3 3 3-3" />
         </svg>
       </div>
@@ -176,8 +171,10 @@ export function OverviewPage({
   logoAlt,
   wordmark,
   orgName,
+  userName,
   userEmail,
   userInitials,
+  onSignOut,
   navItems,
   adminNavItems,
   showAdmin,
@@ -244,7 +241,7 @@ export function OverviewPage({
         value: formatSpendLegendValue?.(series),
         breached: series.breached,
       })),
-    [spendSeries, formatSpendLegendValue],
+    [spendSeries, formatSpendLegendValue]
   );
 
   const header = (
@@ -254,12 +251,12 @@ export function OverviewPage({
       wordmark={wordmark}
       orgSwitcher={<span className="font-mono text-xs text-soft">{orgName}</span>}
       identity={
-        <div className="flex items-center gap-3">
-          <span className="hidden font-mono text-[11px] text-subtle md:inline">{userEmail}</span>
-          <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
-            {userInitials}
-          </span>
-        </div>
+        <AccountMenu
+          name={userName}
+          email={userEmail}
+          initials={userInitials}
+          onSignOut={onSignOut}
+        />
       }
     />
   );
@@ -305,7 +302,11 @@ export function OverviewPage({
 
       <RailPanel label="SERIES">
         <section className="flex flex-col gap-3" aria-label="Series">
-          <ChartLegend items={seriesLegendItems} selectedKey={selectedSeriesKey} onSelectKey={onSelectSeries} />
+          <ChartLegend
+            items={seriesLegendItems}
+            selectedKey={selectedSeriesKey}
+            onSelectKey={onSelectSeries}
+          />
         </section>
       </RailPanel>
 
@@ -314,14 +315,18 @@ export function OverviewPage({
           <Button type="button" variant="secondary" className="w-full" onClick={onExportView}>
             {exportLabel ?? 'Export current view · CSV'}
           </Button>
-          {exportCaption ? <p className="font-sans text-[10px] text-subtle">{exportCaption}</p> : null}
+          {exportCaption ? (
+            <p className="font-sans text-[10px] text-subtle">{exportCaption}</p>
+          ) : null}
         </section>
       </RailPanel>
     </>
   );
 
-  const rangeOptionLabel = rangeField.options.find((o) => o.value === rangeField.value)?.label ?? rangeField.value;
-  const bucketOptionLabel = bucketField.options.find((o) => o.value === bucketField.value)?.label ?? bucketField.value;
+  const rangeOptionLabel =
+    rangeField.options.find((o) => o.value === rangeField.value)?.label ?? rangeField.value;
+  const bucketOptionLabel =
+    bucketField.options.find((o) => o.value === bucketField.value)?.label ?? bucketField.value;
   const groupByOptionLabel =
     groupByField.options.find((o) => o.value === groupByField.value)?.label ?? groupByField.value;
 
@@ -338,8 +343,7 @@ export function OverviewPage({
           {rangeOptionLabel} · {bucketOptionLabel} · {groupByOptionLabel}
         </span>
       }
-      className={className}
-    >
+      className={className}>
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="font-mono text-[22px] leading-[1.25] text-ink">{pageTitle}</h1>
@@ -354,7 +358,9 @@ export function OverviewPage({
             the page to overflow (console-ui skill "No overflow, ever" / "Fluid always"). */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:flex">
           {statCardsLoading
-            ? Array.from({ length: statCards.length || 4 }, (_, index) => <StatCardSkeleton key={index} />)
+            ? Array.from({ length: statCards.length || 4 }, (_, index) => (
+                <StatCardSkeleton key={index} />
+              ))
             : statCards.map((card) => (
                 <StatCard
                   key={card.key}
@@ -459,7 +465,9 @@ export function OverviewPage({
                     <Button type="button" variant="primary" size="sm" onClick={onRequestRefill}>
                       {needsAttentionProject.refillActionLabel ?? 'Request refill'}
                     </Button>
-                    <span className="font-sans text-[10px] text-subtle">{needsAttentionProject.caption}</span>
+                    <span className="font-sans text-[10px] text-subtle">
+                      {needsAttentionProject.caption}
+                    </span>
                   </div>
                 </>
               ) : null}
@@ -469,13 +477,13 @@ export function OverviewPage({
                   <div aria-hidden="true" className="my-5 border-t border-border" />
                   <div className={SECTION_LABEL}>REFILL REQUESTS</div>
                   <p className="mt-3 font-mono text-[11px] text-soft">
-                    {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
+                    {refillRequestStatus.pendingCount} pending ·{' '}
+                    {refillRequestStatus.submittedLabel}
                   </p>
                   <button
                     type="button"
                     onClick={onReviewInAdmin}
-                    className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline"
-                  >
+                    className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline">
                     Review in Admin →
                   </button>
                 </>

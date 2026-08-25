@@ -1,17 +1,15 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 
+import { AccountMenu } from '../account-menu';
 import { ConsoleHeader } from './component';
 
+// Mobile-first: the email is the first thing to go below `md` (console-ui skill "no overflow,
+// ever") — the avatar alone stays a legible trigger at any header width; `AccountMenu` handles
+// that itself.
 const identity = (
-  <div className="flex items-center gap-3">
-    {/* Mobile-first: the email is the first thing to go below `md` (console-ui skill "no
-        overflow, ever") — the avatar alone stays legible identity at any header width. */}
-    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
-    <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
-      SL
-    </span>
-  </div>
+  <AccountMenu name="Sam Lambou" email="sam@adorsys.com" initials="SL" onSignOut={fn()} />
 );
 
 const orgSwitcher = (
@@ -39,7 +37,7 @@ export const ConfiguredLogo: Story = {
     logoSrc:
       'data:image/svg+xml;utf8,' +
       encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" rx="2" fill="#DA5C2C"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" rx="2" fill="#DA5C2C"/></svg>'
       ),
     logoAlt: 'Acme Corp',
     orgSwitcher,

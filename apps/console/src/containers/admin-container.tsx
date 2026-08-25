@@ -1,7 +1,8 @@
 'use client';
 
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import { AdminBudgetReviewPage, type AdminReviewTab } from '@lightbridge/ui-web';
+import type { AdminReviewTab } from '@lightbridge/ui-web';
+import { AdminBudgetReviewPage } from '@lightbridge/ui-web/src/pages/admin-budget-review';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 

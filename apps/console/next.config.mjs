@@ -31,6 +31,16 @@ const securityHeaders = [
  * 2. `@serwist/next`, the stable Serwist integration, is a webpack plugin.
  *
  * Revisit when cratestack emits extensionless specifiers or Turbopack grows `extensionAlias`.
+ *
+ * Re-checked against Next 16.3.2's Turbopack (`next dev --turbopack`, `fix/console-dev-wiremock-
+ * and-speed`): serwist's `disable` flag does make it a no-op there too (Turbopack never calls the
+ * `webpack()` config function at all, so the plugin's own bundling work never runs — reason 2 is
+ * moot under Turbopack regardless). Reason 1 is still live, though: neither `turbopack
+ * .resolveExtensions` nor `turbopack.resolveAlias` (`{'*.js': ['*.ts', '*.js']}`) makes Turbopack
+ * resolve `./runtime.js` to `runtime.ts` — both were tried and both still fail with the same
+ * "Can't resolve './runtime.js'" the original comment describes, now for every generated sibling
+ * import (`client.ts`, `runtime.ts`, `queries.ts`, `models.ts`, `stream-terminal.ts`). Dev therefore
+ * stays on webpack.
  */
 const withSerwist = withSerwistInit({
   swSrc: 'src/sw.ts',

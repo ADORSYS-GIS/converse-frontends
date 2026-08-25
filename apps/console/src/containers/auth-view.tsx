@@ -1,6 +1,7 @@
 'use client';
 
-import { AuthPage, type AuthPageStatus } from '@lightbridge/ui-web';
+import type { AuthPageStatus } from '@lightbridge/ui-web';
+import { AuthPage } from '@lightbridge/ui-web/src/pages/auth';
 import { useState } from 'react';
 
 /**

@@ -15,9 +15,23 @@
               "status": "active",
               "createdAt": "2024-01-01T12:00:00Z",
               "updatedAt": "2024-01-01T12:00:00Z"
+            },
+            {
+              "id": "acc_02",
+              "billingIdentity": "acme-widgets-002",
+              "status": "active",
+              "createdAt": "2024-01-15T09:30:00Z",
+              "updatedAt": "2024-01-15T09:30:00Z"
+            },
+            {
+              "id": "acc_03",
+              "billingIdentity": "globex-holdings-003",
+              "status": "suspended",
+              "createdAt": "2024-02-01T14:00:00Z",
+              "updatedAt": "2024-02-20T08:15:00Z"
             }
           ],
-          "totalCount": 1,
+          "totalCount": 3,
           "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
@@ -101,9 +115,31 @@
               "status": "active",
               "createdAt": "2024-01-01T12:00:00Z",
               "updatedAt": "2024-01-01T12:00:00Z"
+            },
+            {
+              "id": "proj_02",
+              "accountId": "acc_01",
+              "name": "Staging",
+              "allowedModels": {},
+              "defaultLimits": {},
+              "billingPlan": "free",
+              "status": "active",
+              "createdAt": "2024-01-10T10:00:00Z",
+              "updatedAt": "2024-01-10T10:00:00Z"
+            },
+            {
+              "id": "proj_03",
+              "accountId": "acc_02",
+              "name": "Widgets Prod",
+              "allowedModels": {},
+              "defaultLimits": {},
+              "billingPlan": "pro",
+              "status": "archived",
+              "createdAt": "2024-01-20T11:00:00Z",
+              "updatedAt": "2024-02-05T16:45:00Z"
             }
           ],
-          "totalCount": 1,
+          "totalCount": 3,
           "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
@@ -221,9 +257,30 @@
               "billingPlan": "pro",
               "createdAt": "2024-01-01T12:00:00Z",
               "updatedAt": "2024-01-01T12:00:00Z"
+            },
+            {
+              "id": "key_02",
+              "projectId": "proj_01",
+              "name": "CI Key",
+              "keyPrefix": "lb_live_",
+              "status": "active",
+              "billingPlan": "pro",
+              "createdAt": "2024-01-12T08:00:00Z",
+              "updatedAt": "2024-01-12T08:00:00Z"
+            },
+            {
+              "id": "key_03",
+              "projectId": "proj_02",
+              "name": "Staging Key",
+              "keyPrefix": "lb_live_",
+              "status": "revoked",
+              "billingPlan": "free",
+              "revokedAt": "2024-02-01T09:00:00Z",
+              "createdAt": "2024-01-15T13:00:00Z",
+              "updatedAt": "2024-02-01T09:00:00Z"
             }
           ],
-          "totalCount": 1,
+          "totalCount": 3,
           "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {

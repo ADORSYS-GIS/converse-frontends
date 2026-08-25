@@ -92,6 +92,62 @@ The alternative dev realm the Expo app's `.env` points at
 `lightbridge-api-key,converse-frontend,lightbridge-token-issuer`) works too: point
 `keycloak.issuer`/`keycloak.clientId` in `config.yaml` at it and restore the audience values.
 
+### Dev without a backend: wiremock
+
+`config.yaml`'s default `backendUrl: 'http://localhost:13000'` assumes a real `lightbridge-authz`
+checkout running alongside this repo. Without one, every data call fails at the proxy layer with
+`502 {"error":"upstream_unreachable"}` (`src/server/proxy.ts`'s `forward()` catch — the `fetch()` to
+`backendUrl` itself throws, ECONNREFUSED).
+
+The repo's own `compose.yml` ships a `wiremock` service (port 18888) stubbing the ops every console
+screen calls, with a handful of accounts/projects/keys/refill requests — enough to click through
+`/`, `/manage`, `/api-keys` and `/admin` end to end:
+
+```bash
+docker compose up -d wiremock                # from the repo root — http://localhost:18888
+```
+
+Then point the console at it instead of the real stack. `backendUrl`/`apiBasePath`/`budgetUrl` are
+plain literals in `config.yaml` now, not env-driven, so — per the "Configuration" section above —
+this is exactly the case that gets its own config document rather than an env override:
+`config.wiremock.yaml` (repo-committed, at the app root next to `config.yaml`) is `config.yaml` with
+those three swapped to point at wiremock. Point `CONSOLE_CONFIG` at it:
+
+```bash
+CONSOLE_CONFIG=./config.wiremock.yaml pnpm --filter console dev
+# or export it once: CONSOLE_CONFIG=./config.wiremock.yaml — see .env/.env.example
+```
+
+Two things had to change to make this work, both dev-only (production still speaks CBOR through a
+batch link — see `src/client/rpc-clients.ts`'s doc comment):
+
+- **Codec**: the console client now builds with `defaultCodec()` (`@lightbridge/authz-rpc`) instead
+  of a hardcoded `CborCodec` — JSON in `next dev`, CBOR in a production build, the same split every
+  other app in this repo already uses. WireMock stubs plain JSON; hand-authoring CBOR fixtures (as
+  base64 `__files`) was the fallback considered and rejected as more moving parts for no benefit.
+- **Batching**: the batch link (`createBatchLink()`, which collapses every call into one `POST
+/rpc/batch`) is dev-disabled, so each op hits `POST /rpc/{op_id}` directly. Stubbing the batch
+  envelope's `[{id, op, input}] -> [...]` frame shape in WireMock was the alternative — rejected for
+  the same reason: `wiremock/mappings/` already had plain per-op stubs (from an earlier PR, for
+  `apps/self-service`), so keeping calls unbatched reuses them instead of adding a second stubbing
+  strategy for the same ops.
+
+What's stubbed: `accounts`/`projects`/`apiKeys` list/get + the mutation procedures
+(`wiremock/mappings/mapping.json`), and the `/admin` refill queue's three budget procedures —
+`listPendingAugmentationRequests`, `approveAugmentationRequest`, `rejectAugmentationRequest`
+(`wiremock/mappings/console-budget.json`, mounted under the fixed `/budget` prefix). Not stubbed:
+`/api/usage/*` — the Overview's usage/budget dashboards have no query client wired up yet (see
+"Known gaps" below), so there is nothing to stub against. An op with no mapping answers WireMock's
+default 404 HTML page rather than a crafted JSON error — acceptable for a dev stub, not something a
+real client should parse.
+
+Verified directly against WireMock (`curl -X POST http://localhost:18888/rpc/model.Account.list
+-d '{}'`, etc. — every mapping above returns its fixture) and against the proxy unauthenticated
+(`curl http://localhost:3000/api/rpc/model.Account.list` answers `401
+{"error":"unauthenticated"}`, proving the proxy's session gate runs before it ever reaches
+`BACKEND_URL`). Seeing the stubbed data rendered in an actual screen needs a real, logged-in
+browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login flow.
+
 ## Scripts
 
 | Script                            | What it does                                                     |
@@ -111,6 +167,35 @@ Two independent reasons, both in `next.config.mjs`'s header comment:
    equivalent of webpack's `resolve.extensionAlias` and fails to resolve them; the files are
    generated, so the imports cannot be fixed at the source.
 2. `@serwist/next`, the stable Serwist integration, is a webpack plugin.
+
+Re-checked against Next 16.3.2 (`fix/console-dev-wiremock-and-speed`): reason 2 is moot under
+Turbopack regardless of the `disable` flag — Turbopack never calls a `next.config.mjs` `webpack()`
+function at all, so `@serwist/next`'s bundling work simply never runs there. Reason 1 is still real,
+though: neither `turbopack.resolveExtensions` nor `turbopack.resolveAlias`
+(`{'*.js': ['*.ts', '*.js']}`) makes Turbopack resolve `./runtime.js` to `runtime.ts` — both were
+tried under `next dev --turbopack` and both still fail with "Can't resolve './runtime.js'" (and the
+same for every other generated sibling import). Dev stays on webpack until cratestack emits
+extensionless specifiers or Turbopack grows a real `extensionAlias`.
+
+### Other dev-speed notes
+
+- **Serwist is already fully dev-disabled** (`disable: process.env.NODE_ENV !== 'production'` in
+  `next.config.mjs`) — confirmed by reading `@serwist/next`'s own webpack plugin: with `disable`
+  true it returns the untouched webpack config immediately, before any of its precache-manifest or
+  service-worker-bundling work runs.
+- **The refine/query-client provider tree is already lazy**: `src/client/providers.tsx` mounts
+  `ConsoleProviders` via `next/dynamic({ ssr: false })`, not a static import.
+- **`ConsoleHeader`/`InlineStatus`/each page's own component (`ManagePage`, `ApiKeysPage`,
+  `AdminBudgetReviewPage`, `AuthPage`) are imported from their own `@lightbridge/ui-web/src/*`
+  subpath**, not the package barrel (`@lightbridge/ui-web`'s `src/index.ts`) — see
+  `src/client/console-chrome.tsx`'s doc comment. Next's dev webpack build doesn't tree-shake unused
+  re-exports, so importing anything from the barrel pulled the `d3-scale`/`d3-shape`/`d3-array`-backed
+  chart components (only `OverviewPage` actually renders them) into every route's dev bundle —
+  confirmed by grepping the compiled `.next/dev/server/app/manage/page.js` for `SpendSeriesChart`
+  before/after this change (present, then gone; `/`'s bundle still legitimately contains it).
+  `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for this;
+  `tsconfig.json` needed the same `tsc`-only `paths` shim `@lightbridge/ui/src/*` already used for
+  the same reason.
 
 ## Auth model (ADR 0009 Decision 2)
 

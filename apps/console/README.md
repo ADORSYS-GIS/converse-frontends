@@ -172,30 +172,107 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 
 | Script                            | What it does                                                     |
 | --------------------------------- | ---------------------------------------------------------------- |
-| `pnpm --filter console dev`       | `next dev --webpack` on :3000                                    |
+| `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
 | `pnpm --filter console build:web` | `next build --webpack` — the task `turbo run build:web` picks up |
 | `pnpm --filter console start`     | serve the production build                                       |
 | `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |
 | `pnpm --filter console typecheck` | `tsc --noEmit`                                                   |
 
-### Why `--webpack` and not Turbopack
+### Turbopack in dev, webpack for the build
 
-Two independent reasons, both in `next.config.mjs`'s header comment:
+Two different bundlers on purpose, one reason each.
 
-1. `packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` as ESM TypeScript
-   using NodeNext `.js` import specifiers (`./runtime.js` for `runtime.ts`). Turbopack has no
-   equivalent of webpack's `resolve.extensionAlias` and fails to resolve them; the files are
-   generated, so the imports cannot be fixed at the source.
-2. `@serwist/next`, the stable Serwist integration, is a webpack plugin.
+**The production build stays on webpack** because `@serwist/next` — the stable Serwist integration,
+and the only thing that compiles `src/sw.ts` into `public/sw.js` — is a webpack plugin. Turbopack
+never calls a `next.config.mjs` `webpack()` function at all, so under Turbopack the service worker
+would simply never be built. In development that costs nothing: ADR 0009 Decision 7 disables the
+service worker there anyway (`disable: process.env.NODE_ENV !== 'production'`), so `withSerwist` is
+already a no-op under `next dev`.
 
-Re-checked against Next 16.3.2 (`fix/console-dev-wiremock-and-speed`): reason 2 is moot under
-Turbopack regardless of the `disable` flag — Turbopack never calls a `next.config.mjs` `webpack()`
-function at all, so `@serwist/next`'s bundling work simply never runs there. Reason 1 is still real,
-though: neither `turbopack.resolveExtensions` nor `turbopack.resolveAlias`
-(`{'*.js': ['*.ts', '*.js']}`) makes Turbopack resolve `./runtime.js` to `runtime.ts` — both were
-tried under `next dev --turbopack` and both still fail with "Can't resolve './runtime.js'" (and the
-same for every other generated sibling import). Dev stays on webpack until cratestack emits
-extensionless specifiers or Turbopack grows a real `extensionAlias`.
+**Dev moved to Turbopack** once the one thing pinning it to webpack was fixed at the source.
+`packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` as ESM TypeScript
+using NodeNext `.js` import specifiers (`./runtime.js` for `runtime.ts`). `tsc`, vitest, Metro and
+webpack all resolve that — webpack did so through `experimental.extensionAlias`, which used to live
+in `next.config.mjs`. Turbopack has no equivalent: neither `turbopack.resolveExtensions` nor
+`turbopack.resolveAlias` (`{'*.js': ['*.ts', '*.js']}`) maps the specifier onto the `.ts` source,
+re-verified against Next 16.3.2. The fix now lives in the generator's own output —
+`packages/authz-rpc/scripts/normalize-generated-specifiers.mjs` runs as the second half of that
+package's `codegen` script and strips the extension from its 23 relative specifiers, which every
+consumer resolves (the generated tree compiles under `moduleResolution: "Bundler"`, where the
+extension is optional). `experimental.extensionAlias` is gone; nothing else in the repo emits
+NodeNext-style relative specifiers. That script is a stopgap for a cratestack emit option — see its
+header.
+
+Measured on the branch that made the switch — medians of 3 cold runs each, interleaved, same
+machine (macOS/M-series). A "cold run" deletes `.next` first; "edit → built" times a real source
+change from `writeFile` until the rebuilt module is on disk and servable.
+
+| Metric                                   |  webpack | Turbopack | delta |
+| ---------------------------------------- | -------: | --------: | ----: |
+| cold boot → Ready                        |   563 ms |    513 ms |   -9% |
+| first compile `/auth/login`              |  2186 ms |    696 ms |  -68% |
+| first compile `/`                        |  6366 ms |   1856 ms |  -71% |
+| first compile `/manage`                  |  1998 ms |    438 ms |  -78% |
+| all three first compiles                 | 10600 ms |   3000 ms |  -72% |
+| edit an `apps/console` container → built |   200 ms |     71 ms |  -65% |
+| edit a `packages/ui-web` section → built |   199 ms |     73 ms |  -63% |
+| warm restart → Ready                     |   614 ms |    562 ms |   -8% |
+| first `/manage` after a warm restart     |  5223 ms |   2503 ms |  -52% |
+| full `/manage` load (HTML + every asset) |   250 ms |     58 ms |  -77% |
+| dev JS+CSS served per `/manage` load     | 13.6 MiB |  9.09 MiB |  -33% |
+| `.next/` on disk after the run           |  121 MiB |    55 MiB |  -55% |
+
+Two numbers moved the wrong way and are reported as-is: warm TTFB for `/` goes 22 ms → 30 ms (an
+already-compiled route re-rendering; +8 ms), and a `/manage` page load fetches 32 asset requests
+instead of 5, because Turbopack emits many small chunks rather than one large `main-app.js`. Neither
+is felt against a 4.5-second saving on the first compile.
+
+**Where the time actually went**, from a webpack build instrumented with a `succeedModule` timer
+(the profiling harness is not committed): on a cold `/`, the `next-flight-client-module-loader +
+next-swc-loader` pair accounted for **17.5 s of the 18.9 s** of server-compilation loader time
+summed across workers, and 9.6 s of 14.0 s on the client — i.e. SWC transpiling ~1480 server and
+~1190 client modules. The module graph is dominated by `next` (416), `lodash-es` (154, pulled in by
+`@refinedev/core`), `@base-ui/react` (133) and the `d3-*` family (~170); by transpile time it is
+`@base-ui/react` (4.1 s), `next` (3.4 s) and `d3-array`/`d3-shape` (3.2 s). That is real work on a
+real dependency graph, not a misconfiguration — which is why the win came from changing what does
+the transpiling rather than from trimming imports.
+
+Ruled out along the way, each measured rather than assumed:
+
+- **The generated cratestack client is not a factor.** 12 files, 2744 lines, 128 KB, and it does not
+  reach the top 14 packages by module count in any compilation. The console already imports it
+  granularly — `@lightbridge/authz-rpc/refine` is a single re-export of `generated/src/refine.ts`,
+  deliberately off the package barrel.
+- **Serwist is already fully dev-disabled** (below), and under Turbopack it cannot run at all.
+- **`theme.css`'s `@source '.'` does not over-scan.** It resolves to `packages/ui-web/src` (the file
+  lives in `src/`), not the package root — 364 files. The whole CSS loader chain cost 810 ms + 486 ms
+  on a cold client compile, ~9% of that compilation's loader time.
+- **The `@fontsource` imports are 44 modules total** (30 + 14), under 1 s of transpile time.
+- **The persistent client-component layout is not the problem it looks like.** Editing a route's own
+  container rebuilds in 71 ms; the shell-mounted-once split already keeps route changes off the
+  shell.
+
+#### The `browserslist` block is load-bearing, and it is dev-only
+
+`package.json` carries a `browserslist` with separate `production` and `development` lists. The
+`production` list is a verbatim copy of Next 16's own default target
+(`next/dist/shared/lib/modern-browserslist-target.js`: `chrome 111`, `edge 111`, `firefox 111`,
+`safari 16.4`), so the production build compiles to exactly what it compiled to before this file
+existed. The `development` list differs in one entry — `firefox 121` instead of `firefox 111` — and
+that single bump is what keeps the theme correct under Turbopack.
+
+Why: Turbopack re-emits every stylesheet through Lightning CSS, targeted from browserslist. Firefox
+111 predates native `:has()`, so Lightning CSS downlevels daisyUI's theme selectors, folding
+`:root:has(input.theme-controller[value=black]:checked), [data-theme=black]` into
+`:is(:root:has(…), [data-theme=black])`. `:is()` takes the specificity of its _most_ specific
+argument, so the stock daisy `black` block jumps to (0,4,1) while our customized block — which
+carries a `:where(:root)` branch and is therefore split rather than merged — stays at (0,1,0) on its
+`[data-theme]` selector and loses the cascade. The visible symptom is the entire accent system
+reverting to daisy's stock achromatic grey: `--color-primary` resolves to `lab(24.6% 0 0)` instead
+of `#da5c2c`. Firefox 121 has `:has()`, Lightning CSS leaves the selector lists alone, and both
+themes resolve correctly again (verified in a browser against `--color-primary`, `--color-ink`,
+`--color-muted`, `--chart-rank-1` and `--radius-field`, in `black` and `wireframe`). The webpack
+pipeline never had the problem — it does not run Lightning CSS over the Tailwind output at all.
 
 ### Other dev-speed notes
 

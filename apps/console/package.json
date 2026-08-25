@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --turbopack",
     "build:web": "next build --webpack",
     "start": "next start",
     "test": "vitest run",
@@ -41,5 +41,19 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "vitest": "^3.2.7"
+  },
+  "browserslist": {
+    "production": [
+      "chrome 111",
+      "edge 111",
+      "firefox 111",
+      "safari 16.4"
+    ],
+    "development": [
+      "chrome 111",
+      "edge 111",
+      "firefox 121",
+      "safari 16.4"
+    ]
   }
 }

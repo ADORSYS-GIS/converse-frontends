@@ -39,6 +39,19 @@
 /*
  * daisyUI 5: `black` (dark, default) and `wireframe` (light) as customized bases (ADR 0010
  * Decision 3). `logs: false` — the build-time theme-list banner is noise in CI output.
+ *
+ * CASCADE CAVEAT, and it bites for real: naming a theme here emits daisy's STOCK block for it, and
+ * the `@plugin 'daisyui/theme'` block below then overrides it purely by source order — both land on
+ * an equal-specificity `[data-theme="…"]` selector. (Dropping the name from this list does not
+ * help: daisy then emits every one of its ~35 built-in themes instead.) Any CSS pipeline that
+ * rewrites those selectors can therefore invert the override. One does: Turbopack re-emits
+ * stylesheets through Lightning CSS, which — when the browserslist target predates native `:has()`
+ * — folds daisy's `:root:has(input.theme-controller[…]), [data-theme="black"]` list into
+ * `:is(…)`, raising the stock block to the specificity of its `:has()` branch and beating the
+ * override, so the whole accent system silently reverts to daisy's stock grey. `apps/console`'s
+ * `package.json` pins a development browserslist with `firefox 121` for exactly this reason; see
+ * that app's README ("The `browserslist` block is load-bearing"). Keep this in mind before adding a
+ * pipeline that touches selectors.
  */
 @plugin 'daisyui' {
   themes:

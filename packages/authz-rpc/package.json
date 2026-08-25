@@ -9,7 +9,7 @@
     "./refine": "./src/refine.ts"
   },
   "scripts": {
-    "codegen": "cratestack generate-typescript --schema schema/authz.cstack --out generated --package-name @lightbridge/authz-rpc --full-selection --refine",
+    "codegen": "cratestack generate-typescript --schema schema/authz.cstack --out generated --package-name @lightbridge/authz-rpc --full-selection --refine && node scripts/normalize-generated-specifiers.mjs",
     "test": "vitest run"
   },
   "dependencies": {

@@ -95,4 +95,67 @@ describe('LatencyRidgeline', () => {
     const button = screen.getByRole('button', { name: 'model-a' });
     expect(button).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('shows the row tooltip continuously on hover and hides it on pointerleave, without selecting the row', () => {
+    let selected: string | null = null;
+    render(
+      <LatencyRidgeline
+        series={THREE_SERIES}
+        width={500}
+        height={320}
+        onSelectSeries={(key) => {
+          selected = key;
+        }}
+      />,
+    );
+
+    const row = screen.getByRole('button', { name: 'model-a' });
+    fireEvent.pointerEnter(row, { pointerType: 'mouse' });
+    expect(row).toHaveAttribute('aria-pressed', 'false');
+    expect(selected).toBeNull();
+
+    fireEvent.pointerLeave(row, { pointerType: 'mouse' });
+    expect(row).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('a touch tap on a row both shows the tooltip and keeps the existing select semantics', () => {
+    let selected: string | null = null;
+    render(
+      <LatencyRidgeline
+        series={THREE_SERIES}
+        width={500}
+        height={320}
+        onSelectSeries={(key) => {
+          selected = key;
+        }}
+      />,
+    );
+
+    const row = screen.getByRole('button', { name: 'model-a' });
+    fireEvent.pointerEnter(row, { pointerType: 'touch' });
+    fireEvent.pointerLeave(row, { pointerType: 'touch' });
+    fireEvent.click(row);
+
+    expect(selected).toBe('a');
+    expect(row).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('hovering a row that is not selected does not change which row is accented', () => {
+    const { container } = render(
+      <LatencyRidgeline
+        series={[THREE_SERIES[0], { ...THREE_SERIES[1], breached: true }, THREE_SERIES[2]]}
+        width={500}
+        height={320}
+      />,
+    );
+
+    fireEvent.pointerEnter(screen.getByRole('button', { name: 'model-a' }), {
+      pointerType: 'mouse',
+    });
+
+    const accentStrokes = Array.from(container.querySelectorAll('path[stroke]')).filter(
+      (el) => el.getAttribute('stroke') === SPEC_ACCENT,
+    );
+    expect(accentStrokes).toHaveLength(1);
+  });
 });

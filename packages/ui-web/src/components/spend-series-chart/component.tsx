@@ -15,6 +15,7 @@ import { SPEC_FLOOR, SPEC_TEXT_MUTED, seriesDash, specSeriesColor } from '../../
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { useHoverActive } from '../../lib/use-hover-active';
 import { collectTimestamps, collectYDomain } from './domain';
 import type { SpendSeriesChartProps } from './types';
 
@@ -53,7 +54,10 @@ export function SpendSeriesChart({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: SpendSeriesChartProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // Which timestamp index the tooltip is anchored to -- hover/focus-driven (`useHoverActive`),
+  // independent of `selectedKey` (legend-click-driven). See that hook's own docstring for why
+  // hover, not just click, now drives this.
+  const { active: activeIndex, getHoverProps } = useHoverActive<number>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -249,7 +253,7 @@ export function SpendSeriesChart({
             key={d.toISOString()}
             type="button"
             aria-label={formatTooltipTitle(d)}
-            onClick={() => setActiveIndex(activeIndex === index ? null : index)}
+            {...getHoverProps(index)}
             className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: MARGIN.left + rawX - hitWidth / 2,

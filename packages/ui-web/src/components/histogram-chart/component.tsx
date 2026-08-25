@@ -13,6 +13,7 @@ import type { ChartTick } from '../chart-axis';
 import { SPEC_TEXT_MUTED, specSeriesColor } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { useHoverActive } from '../../lib/use-hover-active';
 import { collectXTicks, computeXDomain, computeYDomain, layoutBars } from './layout';
 import type { HistogramChartProps } from './types';
 
@@ -52,7 +53,8 @@ export function HistogramChart({
   breached = false,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: HistogramChartProps) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // Which bin index the tooltip is anchored to -- hover/focus-driven, see `useHoverActive`.
+  const { active: activeIndex, getHoverProps } = useHoverActive<number>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -157,7 +159,7 @@ export function HistogramChart({
             key={`${bar.bin.x0}-${bar.bin.x1}-${index}`}
             type="button"
             aria-label={`${formatXTick(bar.bin.x0)}–${formatXTick(bar.bin.x1)}`}
-            onClick={() => setActiveIndex(activeIndex === index ? null : index)}
+            {...getHoverProps(index)}
             className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: hitLeft,

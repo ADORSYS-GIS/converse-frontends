@@ -22,6 +22,7 @@ import {
 } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { useHoverActive } from '../../lib/use-hover-active';
 import { buildRidgelineRows } from './layout';
 import type { RidgelineRowLayout } from './layout';
 import type { LatencyRidgelineProps } from './types';
@@ -64,7 +65,10 @@ export function LatencyRidgeline({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: LatencyRidgelineProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  // Which row the tooltip is anchored to -- hover/focus-driven, deliberately independent of
+  // `selectedKey` (click-driven, see `handleSelect`). See `useHoverActive`'s own docstring for
+  // why hover, not just click, now drives this.
+  const { active: activeKey, getHoverProps } = useHoverActive<string>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -104,7 +108,6 @@ export function LatencyRidgeline({
     const next = selectedKey === key ? null : key;
     setSelectedKey(next);
     onSelectSeries?.(next);
-    setActiveKey((current) => (current === key ? null : key));
   }
 
   const xTicks: ChartTick[] = useMemo(() => {
@@ -207,6 +210,7 @@ export function LatencyRidgeline({
           aria-pressed={row.key === selectedKey}
           aria-label={row.breached ? `${row.label}, over ceiling` : row.label}
           onClick={() => handleSelect(row.key)}
+          {...getHoverProps(row.key)}
           className="absolute cursor-pointer bg-transparent p-0"
           style={{
             left: 0,

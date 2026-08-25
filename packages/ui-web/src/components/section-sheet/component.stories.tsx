@@ -59,15 +59,17 @@ type Story = StoryObj<typeof SectionSheet>;
 
 export const TriggerInContext: Story = { render: () => <TriggerAndSheet /> };
 
-export const Open: Story = {
-  render: () => {
-    const [open, setOpen] = useState(true);
-    return (
-      <div className="relative h-[420px] w-[900px] bg-muted">
-        <SectionSheet open={open} onOpenChange={setOpen} label="FILTERS">
-          {filterFields}
-        </SectionSheet>
-      </div>
-    );
-  },
-};
+// A component, not an inline `render` body: hooks may only be called from a component or another
+// hook, and a story's `render` is neither (`react-hooks/rules-of-hooks`).
+function OpenSheet() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="relative h-[420px] w-[900px] bg-muted">
+      <SectionSheet open={open} onOpenChange={setOpen} label="FILTERS">
+        {filterFields}
+      </SectionSheet>
+    </div>
+  );
+}
+
+export const Open: Story = { render: () => <OpenSheet /> };

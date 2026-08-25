@@ -1,30 +1,41 @@
-// Refine-driven container for `ManagePage` — console-ui skill "Refine-driven mock screens":
-// `useTable` over the `projects` resource, adapted into `ManagePageProps` exactly the way
-// `apps/console` will once it swaps this mock data provider for `@cratestack/refine`'s generated
-// one (docs/adr/0009-nextjs-console-replacement.md Decision 4). `ManagePage` itself stays pure —
+// Refine-driven container for the MANAGE screen — console-ui skill "Refine-driven mock screens":
+// `useTable` over the `projects` resource, adapted into the Manage sections' props exactly the
+// way `apps/console` does once it swaps this mock data provider for `@cratestack/refine`'s
+// generated one (docs/adr/0009-nextjs-console-replacement.md Decision 4). The sections stay pure —
 // this container only translates hook state (`isLoading` → skeleton props, `isError` → error
-// props, `result.data` → rows) into its props.
+// props, `result.data` → rows) into their props.
 
 import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
-import type { LastExportEntry, ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { fieldControlVariants, fieldLabelClassName } from '../components/field/cva';
+import { RailPanel } from '../components/rail-panel';
+import type {
+  LastExportEntry,
+  ReportExportFormat,
+  ReportIncludeToggle,
+} from '../components/report-export-panel';
+import { SectionSheetTrigger } from '../components/section-sheet-trigger';
+import { SelectionSheet } from '../components/selection-sheet';
+import { SubNav } from '../components/sub-nav';
+import { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from '../sections/manage-filters-rail';
 import {
   manageAccountOptions,
-  manageAdminNavItems,
   manageBudgetStateOptions,
-  manageLastExports,
-  manageNavItems,
   manageStatusOptions,
-  manageSubNavItems,
-} from '../pages/manage/fixtures';
-import { ManagePage } from '../pages/manage';
-import type { ProjectRow } from '../pages/manage/types';
-import { refineMockHeader } from './shared-chrome';
-
-const nav = { items: manageNavItems, adminItems: manageAdminNavItems, showAdmin: false };
+} from '../sections/manage-filters-rail/fixtures';
+import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
+import type { ProjectRow } from '../sections/manage-projects-ledger';
+import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
+import { manageLastExports } from '../sections/manage-report-rail/fixtures';
+import {
+  MANAGE_SELECTION_RAIL_LABEL,
+  ManageSelectionRail,
+} from '../sections/manage-selection-rail';
+import { ScreenHeading } from '../sections/screen-heading';
+import { manageSubNavItems } from '../pages-stories/shell-fixtures';
+import { RefineMockShell } from './shared-chrome';
 
 function buildFilters({
   search,
@@ -39,14 +50,16 @@ function buildFilters({
 }): CrudFilter[] {
   const filters: CrudFilter[] = [];
   if (search.trim()) filters.push({ field: 'name', operator: 'contains', value: search.trim() });
-  if (accountValue !== 'all') filters.push({ field: 'account', operator: 'eq', value: accountValue });
+  if (accountValue !== 'all')
+    filters.push({ field: 'account', operator: 'eq', value: accountValue });
   if (statusValue !== 'all') filters.push({ field: 'status', operator: 'eq', value: statusValue });
-  if (budgetStateValue === 'near-ceiling') filters.push({ field: 'status', operator: 'eq', value: 'near ceiling' });
+  if (budgetStateValue === 'near-ceiling')
+    filters.push({ field: 'status', operator: 'eq', value: 'near ceiling' });
   return filters;
 }
 
-/** Live-wired `ManagePage`: `useTable` drives the ledger, pagination and server-side filters;
- * row selection retargets the right-rail SELECTION panel exactly like the fixture-driven story. */
+/** Live-wired Manage screen: `useTable` drives the ledger, pagination and server-side filters;
+ * row selection retargets the right-rail SELECTION section exactly like the fixture-driven story. */
 export function RefineManageScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
@@ -66,7 +79,7 @@ export function RefineManageScreen() {
 
   const filters = useMemo(
     () => buildFilters({ search, accountValue, statusValue, budgetStateValue }),
-    [search, accountValue, statusValue, budgetStateValue],
+    [search, accountValue, statusValue, budgetStateValue]
   );
 
   const table = useTable<ProjectRow>({
@@ -85,88 +98,140 @@ export function RefineManageScreen() {
   const loading = table.tableQuery.isLoading;
   const error = table.tableQuery.isError ? table.tableQuery.error?.message : undefined;
 
-  const totals = rows.length > 0
-    ? {
-        shownLabel: `TOTAL · ${rows.length} SHOWN`,
-        spendMtd: rows.reduce((sum, row) => sum + (row.spendMtd ?? 0), 0),
-        ceiling: rows.reduce((sum, row) => sum + (row.ceiling ?? 0), 0),
-        usedPercent:
-          rows.length === 0
-            ? 0
-            : rows.reduce((sum, row) => sum + (row.usedPercent ?? 0), 0) / rows.length,
-      }
-    : undefined;
+  const totals =
+    rows.length > 0
+      ? {
+          shownLabel: `TOTAL · ${rows.length} SHOWN`,
+          spendMtd: rows.reduce((sum, row) => sum + (row.spendMtd ?? 0), 0),
+          ceiling: rows.reduce((sum, row) => sum + (row.ceiling ?? 0), 0),
+          usedPercent:
+            rows.reduce((sum, row) => sum + (row.usedPercent ?? 0), 0) / rows.length,
+        }
+      : undefined;
 
   const scopeSlot = (
     <div className="flex flex-col gap-1.5">
       <span className={fieldLabelClassName}>Scope</span>
-      <select value="account:adorsys-gis" onChange={() => {}} className={fieldControlVariants({ error: false, multiline: false })}>
+      <select
+        value="account:adorsys-gis"
+        onChange={() => {}}
+        className={fieldControlVariants({ error: false, multiline: false })}>
         <option value="account:adorsys-gis">Account · adorsys-gis</option>
       </select>
     </div>
   );
 
-  return (
-    <ManagePage
-      header={refineMockHeader}
-      nav={nav}
-      subNav={{ items: manageSubNavItems }}
-      projects={rows}
-      loading={loading}
-      error={error}
-      onRetry={() => table.tableQuery.refetch()}
-      totals={totals}
-      search={search}
-      onSearchChange={setSearch}
-      onNewProject={() => {}}
-      selectedRowKeys={selected ? [selected.id] : []}
-      onSelectRow={setSelected}
-      selectedProject={selected}
-      pagination={{
-        shown: rows.length,
-        total: table.result.total ?? rows.length,
-        hasPrev: table.currentPage > 1,
-        hasNext: table.currentPage < table.pageCount,
-        onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
-        onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
-      }}
-      reportExport={{
-        period,
-        onPeriodChange: setPeriod,
-        scopeSlot,
-        groupByOptions: [
-          { value: 'project-model', label: 'Project × Model' },
-          { value: 'project', label: 'Project' },
-          { value: 'model', label: 'Model' },
-        ],
-        groupBy,
-        onGroupByChange: setGroupBy,
-        includeToggles,
-        onToggleInclude: (id, checked) =>
-          setIncludeToggles((prev) => prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle))),
-        format,
-        onFormatChange: setFormat,
-        generating,
-        lastExports,
-        onGenerate: (params) => {
-          setGenerating(true);
-          setTimeout(() => {
-            setGenerating(false);
-            setLastExports((prev) => [{ filename: `${params.period} · ${params.format.toUpperCase()}`, date: 'just now' }, ...prev]);
-          }, 400);
-        },
-      }}
-      filters={{
-        accountValue,
-        accountOptions: manageAccountOptions,
-        onAccountChange: setAccountValue,
-        statusOptions: manageStatusOptions,
-        statusValue,
-        onStatusChange: setStatusValue,
-        budgetStateValue,
-        budgetStateOptions: manageBudgetStateOptions,
-        onBudgetStateChange: setBudgetStateValue,
+  const filtersRail = (
+    <ManageFiltersRail
+      accountValue={accountValue}
+      accountOptions={manageAccountOptions}
+      onAccountChange={setAccountValue}
+      statusOptions={manageStatusOptions}
+      statusValue={statusValue}
+      onStatusChange={setStatusValue}
+      budgetStateValue={budgetStateValue}
+      budgetStateOptions={manageBudgetStateOptions}
+      onBudgetStateChange={setBudgetStateValue}
+    />
+  );
+
+  const reportRail = (
+    <ManageReportRail
+      period={period}
+      onPeriodChange={setPeriod}
+      scopeSlot={scopeSlot}
+      groupByOptions={[
+        { value: 'project-model', label: 'Project × Model' },
+        { value: 'project', label: 'Project' },
+        { value: 'model', label: 'Model' },
+      ]}
+      groupBy={groupBy}
+      onGroupByChange={setGroupBy}
+      includeToggles={includeToggles}
+      onToggleInclude={(id, checked) =>
+        setIncludeToggles((prev) =>
+          prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle))
+        )
+      }
+      format={format}
+      onFormatChange={setFormat}
+      generating={generating}
+      lastExports={lastExports}
+      onGenerate={(params) => {
+        setGenerating(true);
+        setTimeout(() => {
+          setGenerating(false);
+          setLastExports((prev) => [
+            { filename: `${params.period} · ${params.format.toUpperCase()}`, date: 'just now' },
+            ...prev,
+          ]);
+        }, 400);
       }}
     />
+  );
+
+  const selectionRail = <ManageSelectionRail project={selected} />;
+
+  return (
+    <RefineMockShell
+      active="manage"
+      leftSecondary={
+        <RailPanel label="MANAGE">
+          <SubNav items={manageSubNavItems} />
+        </RailPanel>
+      }
+      leftSecondaryLabel="Manage"
+      rail={
+        <>
+          <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</RailPanel>
+          <RailPanel label={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
+          <RailPanel label={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</RailPanel>
+        </>
+      }>
+      <div className="flex flex-col gap-6">
+        <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+
+        <ManageProjectsLedger
+          projects={rows}
+          loading={loading}
+          error={error}
+          onRetry={() => table.tableQuery.refetch()}
+          totals={totals}
+          search={search}
+          onSearchChange={setSearch}
+          onNewProject={() => {}}
+          selectedRowKeys={selected ? [selected.id] : []}
+          onSelectRow={setSelected}
+          pagination={{
+            shown: rows.length,
+            total: table.result.total ?? rows.length,
+            hasPrev: table.currentPage > 1,
+            hasNext: table.currentPage < table.pageCount,
+            onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
+            onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
+          }}
+          toolbarActions={
+            <SectionSheetTrigger
+              icon="filter"
+              triggerLabel="Open filters"
+              label={MANAGE_FILTERS_RAIL_LABEL}>
+              {filtersRail}
+            </SectionSheetTrigger>
+          }
+          reportTrigger={
+            <SectionSheetTrigger
+              icon="report"
+              triggerLabel="Open monthly report"
+              label={MANAGE_REPORT_RAIL_LABEL}>
+              {reportRail}
+            </SectionSheetTrigger>
+          }
+        />
+      </div>
+
+      <SelectionSheet selectionKey={selected?.id ?? null} label={MANAGE_SELECTION_RAIL_LABEL}>
+        {selectionRail}
+      </SelectionSheet>
+    </RefineMockShell>
   );
 }

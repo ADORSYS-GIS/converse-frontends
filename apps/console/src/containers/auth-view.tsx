@@ -1,11 +1,11 @@
 'use client';
 
-import type { AuthPageStatus } from '@lightbridge/ui-web';
-import { AuthPage } from '@lightbridge/ui-web/src/pages/auth';
+import type { AuthScreenStatus } from '@lightbridge/ui-web';
+import { AuthScreen } from '@lightbridge/ui-web/src/sections/auth-screen';
 import { useState } from 'react';
 
 /**
- * The sign-in doorway, wrapping `ui-web`'s pure `AuthPage`.
+ * The sign-in doorway, wrapping `ui-web`'s pure `AuthScreen`.
  *
  * `onSignIn` navigates to `/auth/login` — a **route handler**, not a page. The whole OIDC dance
  * (discovery, PKCE, the code exchange) happens server-side from there; this component never sees a
@@ -17,12 +17,12 @@ export function AuthView({
   errorMessage,
   returnTo,
 }: {
-  status?: AuthPageStatus;
+  status?: AuthScreenStatus;
   signedOutMessage?: string;
   errorMessage?: string;
   returnTo?: string;
 }) {
-  const [status, setStatus] = useState<AuthPageStatus>(initialStatus);
+  const [status, setStatus] = useState<AuthScreenStatus>(initialStatus);
 
   const startLogin = () => {
     setStatus('redirecting');
@@ -33,7 +33,7 @@ export function AuthView({
   };
 
   return (
-    <AuthPage
+    <AuthScreen
       status={status}
       onSignIn={startLogin}
       signedOutMessage={signedOutMessage}

@@ -21,26 +21,29 @@ import type {
   UpdateResponse,
 } from '@refinedev/core';
 
-import { manageAccountOptions, manageProjectsFixture } from '../pages/manage/fixtures';
-import type { ProjectRow } from '../pages/manage/types';
-import { apiKeysFixture } from '../pages/api-keys/fixtures';
-import type { ApiKeyRow } from '../pages/api-keys/types';
-import { pendingRequestsFixture, recentDecisionsFixture } from '../pages/admin-budget-review/fixtures';
-import type { DecisionRow, RefillRequestRow } from '../pages/admin-budget-review/types';
+import { manageProjectsFixture } from '../sections/manage-projects-ledger/fixtures';
+import type { ProjectRow } from '../sections/manage-projects-ledger/types';
+import { manageAccountOptions } from '../sections/manage-filters-rail/fixtures';
+import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
+import type { ApiKeyRow } from '../sections/api-keys-ledger/types';
+import { pendingRequestsFixture } from '../sections/review-queue/fixtures';
+import type { RefillRequestRow } from '../sections/review-queue/types';
+import { recentDecisionsFixture } from '../sections/decisions-ledger/fixtures';
+import type { DecisionRow } from '../sections/decisions-ledger/types';
+import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
+import type { OverviewStatCardData } from '../sections/overview-stat-row/types';
+import { overviewSpendSeries } from '../sections/spend-dashboard/fixtures';
+import { overviewLatencySeries } from '../sections/latency-dashboard/fixtures';
 import {
   overviewBudget,
-  overviewLatencySeries,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
-  overviewSpendSeries,
-  overviewStatCards,
-} from '../pages/overview/fixtures';
+} from '../sections/budget-panel/fixtures';
 import type {
-  OverviewBudgetSummary,
-  OverviewNeedsAttentionProject,
-  OverviewRefillRequestStatus,
-  OverviewStatCardData,
-} from '../pages/overview/types';
+  BudgetNeedsAttentionProject,
+  BudgetRefillRequestStatus,
+  BudgetSummary,
+} from '../sections/budget-panel/types';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 
@@ -55,9 +58,9 @@ export interface OverviewSnapshot {
   statCards: OverviewStatCardData[];
   spendSeries: SpendSeriesSeries[];
   latencySeries: LatencyRidgelineSeries[];
-  budget: OverviewBudgetSummary;
-  needsAttentionProject?: OverviewNeedsAttentionProject;
-  refillRequestStatus?: OverviewRefillRequestStatus;
+  budget: BudgetSummary;
+  needsAttentionProject?: BudgetNeedsAttentionProject;
+  refillRequestStatus?: BudgetRefillRequestStatus;
 }
 
 /** Payload for the `refill-requests/decide` custom mutation (`useCustomMutation`). */

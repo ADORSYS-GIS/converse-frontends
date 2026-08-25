@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { cn } from '../../cn';
+import { useIsBelowMd } from '../../lib/use-is-below-breakpoint';
 import { BottomSheet } from '../bottom-sheet';
 import { NavSpine } from '../nav-spine';
 import { RailPanel } from '../rail-panel';
@@ -37,6 +38,9 @@ const RAIL_STICKY = 'md:sticky md:top-[56px] md:max-h-[calc(100dvh-56px)] md:ove
 //    reading of ADR 0008/README §3): `rightRail` renders only inline, `lg:flex`. Below `lg` its
 //    content is reached through page-placed contextual triggers, each opening one rail section
 //    as its own `SectionSheet` — that state and composition belongs to the page, not the shell.
+//  - **The one drawer the shell DOES own — `leftSecondary` below `md` — is gated in JS, not only
+//    in CSS**: `open && useIsBelowMd()`, plus `md:hidden` on vaul's own overlay/content. See the
+//    comment at that `BottomSheet` for why a `md:hidden` wrapper `<div>` is never enough.
 export function ConsoleShell({
   header,
   nav,
@@ -47,6 +51,18 @@ export function ConsoleShell({
   className,
 }: ConsoleShellProps) {
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+  const isBelowMd = useIsBelowMd();
+
+  // Close the drawer when a live resize crosses up past `md`, adjusted **during render** rather
+  // than in a `useEffect` — the React docs' own recommended pattern for "reset state when
+  // something changes" (a conditional `setState` gated on a state-tracked previous value; React
+  // discards the stale render and re-renders immediately, so no intermediate frame is painted).
+  // An effect here would be a cascading render, and `react-hooks/set-state-in-effect` says so.
+  const [previousIsBelowMd, setPreviousIsBelowMd] = useState(isBelowMd);
+  if (isBelowMd !== previousIsBelowMd) {
+    setPreviousIsBelowMd(isBelowMd);
+    if (!isBelowMd) setLeftDrawerOpen(false);
+  }
 
   return (
     <div className={cn('flex min-h-dvh flex-col bg-muted', className)}>
@@ -107,17 +123,31 @@ export function ConsoleShell({
         <NavSpine {...nav} layout="bottom-bar" />
       </div>
 
+      {/* The left-secondary drawer carries the SAME two-layer gate `SectionSheet` does — it is
+          the same vaul/Radix modality problem, one tier down (`md`, not `lg`):
+
+           1. `open && isBelowMd` (not merely a `md:hidden` wrapper) — plus the render-phase reset
+              above, so a later resize back down does not pop a stale drawer open again with no
+              fresh trigger: vaul's `Drawer.Portal`
+              renders to `document.body`, so a class on a wrapping `<div>` never reaches the
+              portaled overlay/content at all — and even a class that DID reach it would only
+              hide the dialog visually while Radix's unconditional `modal: true` kept `<body>`
+              at `pointer-events: none` and the rest of the page `aria-hidden`. Leaving this
+              drawer open below `md` and then resizing up past it froze the whole app with no
+              visible cause; suppressing `open` itself is the only thing that stops that.
+           2. `md:hidden` on the overlay and the content themselves (`overlayClassName` /
+              `className`) — a static net for the frame between a real `md` crossing and the
+              hook's listener firing. */}
       {leftSecondary ? (
-        <div className="md:hidden">
-          <BottomSheet
-            open={leftDrawerOpen}
-            onOpenChange={setLeftDrawerOpen}
-            title={leftSecondaryLabel}
-            className="bottom-14"
-          >
-            {leftSecondary}
-          </BottomSheet>
-        </div>
+        <BottomSheet
+          open={leftDrawerOpen && isBelowMd}
+          onOpenChange={setLeftDrawerOpen}
+          title={leftSecondaryLabel}
+          overlayClassName="md:hidden"
+          className="bottom-14 md:hidden"
+        >
+          {leftSecondary}
+        </BottomSheet>
       ) : null}
     </div>
   );

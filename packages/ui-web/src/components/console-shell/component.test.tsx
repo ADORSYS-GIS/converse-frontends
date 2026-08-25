@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { NavSpineItem } from '../nav-spine';
 import { ConsoleShell } from './component';
@@ -61,6 +61,61 @@ describe('ConsoleShell', () => {
 
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getAllByText('Scope panel')).toHaveLength(2);
+  });
+
+  // The left-secondary drawer had the same two defects `SectionSheet` already fixed one tier up:
+  // its `md:hidden` lived on a wrapper `<div>` that vaul's `Drawer.Portal` never renders into,
+  // and nothing gated `open` by tier — so an invisible-but-fully-modal dialog could freeze
+  // pointer events at `md`+ widths (Radix's unconditional `modal: true` puts `pointer-events:
+  // none` on `<body>`).
+  describe('left-secondary drawer tier gate', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    afterEach(() => {
+      if (originalMatchMedia) {
+        window.matchMedia = originalMatchMedia;
+      } else {
+        // @ts-expect-error - deliberately removing the mock to restore the pre-test state.
+        delete window.matchMedia;
+      }
+    });
+
+    function renderWithLeftSecondary() {
+      return render(
+        <ConsoleShell
+          header={<div>Header</div>}
+          nav={{ items: navItems }}
+          leftSecondary={<div>Scope panel</div>}
+          leftSecondaryLabel="Scope"
+        >
+          <div>Centre</div>
+        </ConsoleShell>,
+      );
+    }
+
+    it('carries md:hidden on vaul’s own overlay and content, not on a wrapper the portal skips', () => {
+      renderWithLeftSecondary();
+      fireEvent.click(screen.getByRole('button', { name: /scope/i }));
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveClass('md:hidden');
+      // The overlay is vaul's own sibling of the content inside the portal.
+      const overlay = dialog.parentElement?.querySelector('[data-vaul-overlay]');
+      expect(overlay).toHaveClass('md:hidden');
+    });
+
+    it('never opens the modal at md and up, even if the trigger is somehow activated', () => {
+      // `matches: false` = NOT below md, i.e. the persistent left rail is showing.
+      const mql = { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+      window.matchMedia = vi.fn().mockImplementation(() => mql);
+
+      renderWithLeftSecondary();
+      fireEvent.click(screen.getByRole('button', { name: /scope/i }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      // Only the inline rail copy exists — no second, portaled one.
+      expect(screen.getAllByText('Scope panel')).toHaveLength(1);
+    });
   });
 
   it('renders the right rail inline at lg, and nothing else — no shell-owned sheet, no peek row (owner revision 2026-08-25: pages own compact-tier right-rail access via SectionSheet)', () => {

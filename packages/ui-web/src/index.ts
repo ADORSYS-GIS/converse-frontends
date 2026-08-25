@@ -2,7 +2,7 @@
 export { cn } from './cn';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
-export { useIsBelowLg } from './lib/use-is-below-lg';
+export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
@@ -21,6 +21,13 @@ export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
 export { SectionSheet } from './components/section-sheet';
 export type { SectionSheetProps } from './components/section-sheet';
+export { SectionSheetTrigger } from './components/section-sheet-trigger';
+export type {
+  SectionSheetTriggerIcon,
+  SectionSheetTriggerProps,
+} from './components/section-sheet-trigger';
+export { SelectionSheet } from './components/selection-sheet';
+export type { SelectionSheetProps } from './components/selection-sheet';
 
 // ── data display
 export { formatMoney, formatMoneyOf } from './lib/money';
@@ -70,6 +77,9 @@ export type { FieldProps, FieldInputProps, FieldTextareaProps } from './componen
 export { SegmentedControl } from './components/segmented-control';
 export type { SegmentedControlProps, SegmentedOption } from './components/segmented-control';
 
+export { RailSelect } from './components/rail-select';
+export type { RailSelectOption, RailSelectProps } from './components/rail-select';
+
 export { ScopeSelect } from './components/scope-select';
 export type {
   ScopeSelectProps,
@@ -111,50 +121,113 @@ export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
 
-// ── pages
-export { ApiKeysPage } from './pages/api-keys';
+
+// ── sections
+// Screen sections — the zone-level compositions a route assembles (console-ui skill
+// "Composition — sections in the library, the shell mounted once, pages only in stories").
+// Presentational only: data via typed props, no fetching, no refine hooks, no routing.
+// There is deliberately NO `*Page` export here: a monolithic page made every route remount its
+// own shell. Full-page compositions live in Storybook (`src/pages-stories/`) and in
+// `apps/console`'s own route implementations.
+
+export { ScreenHeading } from './sections/screen-heading';
+export type { ScreenHeadingProps } from './sections/screen-heading';
+
+export { OverviewStatRow } from './sections/overview-stat-row';
+export type {
+  OverviewStatCardData,
+  OverviewStatCardIcon,
+  OverviewStatRowProps,
+} from './sections/overview-stat-row';
+
+export { SpendDashboard } from './sections/spend-dashboard';
+export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
+
+export { LatencyDashboard } from './sections/latency-dashboard';
+export type { LatencyDashboardProps } from './sections/latency-dashboard';
+
+export { BudgetPanel } from './sections/budget-panel';
+export type {
+  BudgetNeedsAttentionProject,
+  BudgetPanelProps,
+  BudgetRefillRequestStatus,
+  BudgetSummary,
+} from './sections/budget-panel';
+
+export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,
   ApiKeyStatus,
-  ApiKeysHygiene,
+  ApiKeysLedgerProps,
   ApiKeysPagination,
-  ApiKeysPageProps,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
-} from './pages/api-keys';
+} from './sections/api-keys-ledger';
 
-export { ManagePage } from './pages/manage';
+export { ManageProjectsLedger } from './sections/manage-projects-ledger';
 export type {
-  ManageFilters,
-  ManageOption,
   ManagePagination,
-  ManagePageProps,
+  ManageProjectsLedgerProps,
   ManageTotals,
   ProjectRow,
   ProjectStatus,
-} from './pages/manage';
+} from './sections/manage-projects-ledger';
 
-export { AdminBudgetReviewPage } from './pages/admin-budget-review';
+export { ReviewQueue } from './sections/review-queue';
+export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './sections/review-queue';
+
+export { DecisionsLedger } from './sections/decisions-ledger';
 export type {
-  AdminBudgetReviewPageProps,
   AdminReviewPagination,
-  AdminReviewTab,
   DecisionOutcome,
   DecisionRow,
-  RefillRequestRow,
-} from './pages/admin-budget-review';
+  DecisionsLedgerProps,
+} from './sections/decisions-ledger';
 
-export { OverviewPage } from './pages/overview';
-export type {
-  OverviewBudgetSummary,
-  OverviewDashboardStatus,
-  OverviewNeedsAttentionProject,
-  OverviewPageProps,
-  OverviewRefillRequestStatus,
-  OverviewSelectField,
-  OverviewSelectOption,
-  OverviewStatCardData,
-  OverviewStatCardIcon,
-} from './pages/overview';
-export { AuthPage } from './pages/auth';
-export type { AuthPageProps, AuthPageStatus } from './pages/auth';
+export { AuthScreen } from './sections/auth-screen';
+export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
+
+// ── rail sections
+// Each exports a `*_RAIL_LABEL` constant alongside its component: rail sections render their
+// content BARE (no `RailPanel` of their own), so the same section can mount twice — inside a
+// `RailPanel label={LABEL}` in the persistent `lg` rail, and inside a `SectionSheet label={LABEL}`
+// below `lg` — without doubling the heading or letting the two copies' wording drift apart.
+
+export { SCOPE_RAIL_LABEL, ScopeRail } from './sections/scope-rail';
+export type { ScopeRailProps } from './sections/scope-rail';
+
+export { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from './sections/overview-view-rail';
+export type { OverviewViewRailProps } from './sections/overview-view-rail';
+
+export { OVERVIEW_FILTERS_RAIL_LABEL, OverviewFiltersRail } from './sections/overview-filters-rail';
+export type { OverviewFiltersRailProps } from './sections/overview-filters-rail';
+
+export { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from './sections/overview-series-rail';
+export type { OverviewSeriesRailProps } from './sections/overview-series-rail';
+
+export { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from './sections/overview-export-rail';
+export type { OverviewExportRailProps } from './sections/overview-export-rail';
+
+export { API_KEYS_FILTERS_RAIL_LABEL, ApiKeysFiltersRail } from './sections/api-keys-filters-rail';
+export type { ApiKeysFiltersRailProps } from './sections/api-keys-filters-rail';
+
+export { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from './sections/api-keys-hygiene-rail';
+export type { ApiKeysHygiene, ApiKeysHygieneRailProps } from './sections/api-keys-hygiene-rail';
+
+export {
+  API_KEYS_LIFECYCLE_RAIL_LABEL,
+  ApiKeysLifecycleRail,
+} from './sections/api-keys-lifecycle-rail';
+export type { ApiKeysLifecycleRailProps } from './sections/api-keys-lifecycle-rail';
+
+export { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './sections/manage-report-rail';
+export type { ManageReportRailProps } from './sections/manage-report-rail';
+
+export { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from './sections/manage-filters-rail';
+export type { ManageFiltersRailProps, ManageOption } from './sections/manage-filters-rail';
+
+export { MANAGE_SELECTION_RAIL_LABEL, ManageSelectionRail } from './sections/manage-selection-rail';
+export type { ManageSelectionRailProps } from './sections/manage-selection-rail';
+
+export { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from './sections/review-detail-rail';
+export type { ReviewDetailRailProps } from './sections/review-detail-rail';

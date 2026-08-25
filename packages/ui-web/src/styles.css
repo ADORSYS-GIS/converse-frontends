@@ -1,3 +1,14 @@
+/*
+ * The console's single stylesheet — imported by this package's Storybook preview AND by
+ * `apps/console/src/app/globals.css` (console-ui skill "Composition — One style pipeline": the app
+ * never re-declares fonts, base rules or a second utility pass).
+ *
+ * The `@tailwind` directives live here, and here only. `apps/console`'s Tailwind pass is still the
+ * single GENERATOR of utilities for both trees — its `tailwind.config.js` `content` globs cover
+ * `apps/console/src` and `packages/ui-web/src` — it just runs over this file instead of over a
+ * duplicate of it.
+ */
+
 /* IBM Plex Mono — structural type: nav, labels, headings, table cells, all numerics, buttons. */
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
@@ -11,7 +22,14 @@
 @tailwind utilities;
 
 @layer base {
+  /* `html` as well as `body`: the console's floor has to reach past the body box (overscroll,
+     a short page), and the app used to declare this itself — one pipeline, one declaration. */
+  html,
   body {
-    @apply bg-muted text-soft font-mono;
+    @apply bg-muted;
+  }
+
+  body {
+    @apply font-mono text-soft antialiased;
   }
 }

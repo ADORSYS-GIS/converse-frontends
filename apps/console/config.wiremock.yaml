@@ -1,0 +1,47 @@
+# apps/console — alternate server config for local dev with NO `lightbridge-authz` checkout.
+#
+# Identical to `config.yaml` except `backendUrl`/`apiBasePath`/`budgetUrl`, which point at the
+# repo's own `wiremock` compose service (`docker compose up -d wiremock`, port 18888) instead of a
+# real backend. See the README's "Dev without a backend: wiremock" section.
+#
+# Point CONSOLE_CONFIG at this file to use it:
+#   CONSOLE_CONFIG=./config.wiremock.yaml pnpm --filter console dev
+#
+# `apiBasePath: '/'` is deliberate, not a typo for the usual `/api` — `normalizeBasePath()`
+# (src/server/env.ts) only strips a *trailing* slash, so an empty string would fall back to the
+# `/api` default via `asStringWithFallback`, but `'/'` itself normalizes to `''` — matching the
+# unprefixed `/rpc/{op_id}` paths `wiremock/mappings/mapping.json` stubs (those stubs were
+# originally written for `apps/self-service`, which talks to the same wiremock instance the same
+# unprefixed way).
+
+# ── Session encryption ────────────────────────────────────────────────────────────────────────
+session:
+  secret: '{env:SESSION_SECRET}'
+
+# ── Keycloak / OIDC ───────────────────────────────────────────────────────────────────────────
+# Unchanged from config.yaml — wiremock only stands in for the authz-api/authz-budget backends,
+# not Keycloak. `docker compose up -d keycloak-26` is still required for login to work.
+keycloak:
+  issuer: 'http://localhost:13444/realms/lightbridge-dev'
+  clientId: 'self-service'
+  clientSecret: '{env:KEYCLOAK_CLIENT_SECRET}'
+  scopes: 'openid profile email offline_access'
+  expectedAudiences:
+    - 'converse-frontend'
+  audienceRequired: true
+  rolesClaim: 'lightbridge_api_roles'
+
+# ── Backends — wiremock stands in for both authz-api and authz-budget ────────────────────────
+backendUrl: 'http://localhost:18888'
+apiBasePath: '/'
+budgetUrl: 'http://localhost:18888'
+
+# No usage backend to stub against — the Overview's usage/budget dashboards have no query client
+# wired up yet (see README "Known gaps"), so there's nothing for wiremock to stand in for here.
+# usageUrl: "http://localhost:13006"
+
+# ── Public origin ─────────────────────────────────────────────────────────────────────────────
+publicBaseUrl: 'http://localhost:3000'
+
+# ── Permissions (seam only — no engine yet) ───────────────────────────────────────────────────
+permissions: {}

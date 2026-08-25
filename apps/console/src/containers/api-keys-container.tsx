@@ -1,13 +1,13 @@
 'use client';
 
 import type { ApiKey } from '@lightbridge/authz-rpc';
-import {
-  ApiKeysPage,
-  type ApiKeyRow,
-  type ApiKeysRevokeTarget,
-  type ApiKeysSecretReveal,
-  type SegmentedOption,
+import type {
+  ApiKeyRow,
+  ApiKeysRevokeTarget,
+  ApiKeysSecretReveal,
+  SegmentedOption,
 } from '@lightbridge/ui-web';
+import { ApiKeysPage } from '@lightbridge/ui-web/src/pages/api-keys';
 import { useDelete, useList } from '@refinedev/core';
 import { useMemo, useState } from 'react';
 

@@ -1,14 +1,14 @@
 'use client';
 
 import type { Project } from '@lightbridge/authz-rpc';
-import {
-  ManagePage,
-  ScopeSelect,
-  type ManageOption,
-  type ProjectRow,
-  type ReportExportFormat,
-  type SegmentedOption,
+import type {
+  ManageOption,
+  ProjectRow,
+  ReportExportFormat,
+  SegmentedOption,
 } from '@lightbridge/ui-web';
+import { ManagePage } from '@lightbridge/ui-web/src/pages/manage';
+import { ScopeSelect } from '@lightbridge/ui-web/src/components/scope-select';
 import { useList } from '@refinedev/core';
 import { useMemo, useState } from 'react';
 

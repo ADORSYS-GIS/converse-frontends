@@ -1,6 +1,8 @@
 'use client';
 
-import { ConsoleHeader, InlineStatus, type NavSpineItem } from '@lightbridge/ui-web';
+import type { NavSpineItem } from '@lightbridge/ui-web';
+import { ConsoleHeader } from '@lightbridge/ui-web/src/components/console-header';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import React from 'react';
 
 import { useConsoleSession } from './session-context';
@@ -12,6 +14,17 @@ import { useOnlineStatus } from './use-online-status';
  *
  * Nothing here re-implements a `ui-web` primitive — it composes `ConsoleHeader`, `NavSpineItem`
  * and `InlineStatus` and supplies the app-specific data (routes, identity, connectivity).
+ *
+ * `ConsoleHeader`/`InlineStatus` are imported from their own `@lightbridge/ui-web/src/components/*`
+ * subpaths rather than the package's barrel (`@lightbridge/ui-web`'s `src/index.ts`) on purpose: this
+ * file is imported by every screen (`ConsoleHeaderBar` below), so a barrel import here would pull
+ * `index.ts`'s entire re-export graph — including the `d3-scale`/`d3-shape`/`d3-array`-backed chart
+ * components only `OverviewPage` actually renders — into every route's dev bundle. Next's dev
+ * webpack build doesn't tree-shake unused re-exports (that's a production-only optimization), so this
+ * was a real, measured cost: `/manage`'s compiled `page.js` contained `SpendSeriesChart` before this
+ * change. `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for
+ * exactly this. Type-only imports (`NavSpineItem`) stay on the barrel — they erase at compile time,
+ * so which module they're re-exported from is free.
  */
 
 export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'admin';

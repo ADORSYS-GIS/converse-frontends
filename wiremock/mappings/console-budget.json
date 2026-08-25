@@ -1,0 +1,171 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/budget/rpc/procedure.listPendingAugmentationRequests"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "entries": [
+            {
+              "id": "aug_01",
+              "budgetAccountId": "budget_acc_01",
+              "accountId": "acc_01",
+              "projectId": "proj_01",
+              "period": "2024-02",
+              "requestedTier": "growth",
+              "requestedAmountMicros": "50000000",
+              "status": "pending",
+              "policyEffect": null,
+              "policyReasonCodes": [],
+              "matchedRuleIds": [],
+              "policyRevision": null,
+              "approvedAmountMicros": null,
+              "grantId": null,
+              "idempotencyKey": null,
+              "reviewedBy": null,
+              "rejectionReason": null,
+              "createdAt": "2024-02-24T10:00:00Z",
+              "reviewedAt": null
+            },
+            {
+              "id": "aug_02",
+              "budgetAccountId": "budget_acc_02",
+              "accountId": "acc_02",
+              "projectId": "proj_03",
+              "period": "2024-02",
+              "requestedTier": "scale",
+              "requestedAmountMicros": "120000000",
+              "status": "pending",
+              "policyEffect": null,
+              "policyReasonCodes": [],
+              "matchedRuleIds": [],
+              "policyRevision": null,
+              "approvedAmountMicros": null,
+              "grantId": null,
+              "idempotencyKey": null,
+              "reviewedBy": null,
+              "rejectionReason": null,
+              "createdAt": "2024-02-25T15:30:00Z",
+              "reviewedAt": null
+            },
+            {
+              "id": "aug_03",
+              "budgetAccountId": "budget_acc_01",
+              "accountId": "acc_01",
+              "projectId": "proj_02",
+              "period": "2024-01",
+              "requestedTier": "growth",
+              "requestedAmountMicros": "25000000",
+              "status": "approved",
+              "policyEffect": "allow",
+              "policyReasonCodes": ["within_policy_ceiling"],
+              "matchedRuleIds": ["rule_growth_tier"],
+              "policyRevision": "rev_7",
+              "approvedAmountMicros": "25000000",
+              "grantId": "grant_01",
+              "idempotencyKey": null,
+              "reviewedBy": "admin@example.com",
+              "rejectionReason": null,
+              "createdAt": "2024-01-18T09:00:00Z",
+              "reviewedAt": "2024-01-18T11:00:00Z"
+            },
+            {
+              "id": "aug_04",
+              "budgetAccountId": "budget_acc_03",
+              "accountId": "acc_03",
+              "projectId": null,
+              "period": "2024-01",
+              "requestedTier": "scale",
+              "requestedAmountMicros": "200000000",
+              "status": "denied",
+              "policyEffect": "deny",
+              "policyReasonCodes": ["account_suspended"],
+              "matchedRuleIds": ["rule_suspended_block"],
+              "policyRevision": "rev_7",
+              "approvedAmountMicros": null,
+              "grantId": null,
+              "idempotencyKey": null,
+              "reviewedBy": "admin@example.com",
+              "rejectionReason": "Account is suspended pending billing review.",
+              "createdAt": "2024-01-22T13:45:00Z",
+              "reviewedAt": "2024-01-22T14:10:00Z"
+            }
+          ],
+          "nextCursor": null
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/budget/rpc/procedure.approveAugmentationRequest"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "aug_01",
+          "budgetAccountId": "budget_acc_01",
+          "accountId": "acc_01",
+          "projectId": "proj_01",
+          "period": "2024-02",
+          "requestedTier": "growth",
+          "requestedAmountMicros": "50000000",
+          "status": "approved",
+          "policyEffect": "allow",
+          "policyReasonCodes": ["within_policy_ceiling"],
+          "matchedRuleIds": ["rule_growth_tier"],
+          "policyRevision": "rev_7",
+          "approvedAmountMicros": "50000000",
+          "grantId": "grant_02",
+          "idempotencyKey": null,
+          "reviewedBy": "admin@example.com",
+          "rejectionReason": null,
+          "createdAt": "2024-02-24T10:00:00Z",
+          "reviewedAt": "2024-02-26T09:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/budget/rpc/procedure.rejectAugmentationRequest"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "id": "aug_02",
+          "budgetAccountId": "budget_acc_02",
+          "accountId": "acc_02",
+          "projectId": "proj_03",
+          "period": "2024-02",
+          "requestedTier": "scale",
+          "requestedAmountMicros": "120000000",
+          "status": "denied",
+          "policyEffect": "deny",
+          "policyReasonCodes": ["manual_review_rejected"],
+          "matchedRuleIds": [],
+          "policyRevision": "rev_7",
+          "approvedAmountMicros": null,
+          "grantId": null,
+          "idempotencyKey": null,
+          "reviewedBy": "admin@example.com",
+          "rejectionReason": "Requested amount exceeds this quarter's growth allowance.",
+          "createdAt": "2024-02-25T15:30:00Z",
+          "reviewedAt": "2024-02-26T09:05:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    }
+  ]
+}

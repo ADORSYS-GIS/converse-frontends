@@ -57,15 +57,47 @@ both slots; every `/admin` segment carries the server-side role gate), and
 `packages/ui-web/src/pages-stories/shell-persistence.stories.tsx` asserts the runtime half by
 object identity: stash the nav DOM node, navigate, and it is still the same node.
 
-Because the centre and the rail are now separate route segments, any state they share has to live
-**above both** — which means in the layout. `client/console-scope-context.tsx` (the account/project
-scope) and `client/view-state.tsx` (each route's filter/selection/dialog state) are mounted there
-for exactly that reason; `client/view-state.tsx`'s header explains why per-route providers are not
-reachable from a layout that must also wrap a sibling slot.
-
 Data still flows the same way it always did: a per-route `use-*-screen` hook adapts refine/TanStack
 hook state into section props. Centre and rail both call it, issue the same query key, and are
 served from one request by the query cache.
+
+## View state is the URL
+
+Because the centre and the two rails are separate route segments in separate React subtrees, any
+state they share has to live **above all three**. The query string already does
+([ADR 0011](../../docs/adr/0011-url-first-state-nuqs.md)), so the layout-level providers that used
+to hold it — `ConsoleScopeProvider`, `ConsoleViewStateProviders` — are **deleted, not wrapped**.
+Every zone calls the same hook and reads the same params.
+
+`src/client/url-state.ts` is the **only** module allowed to declare a query param. It holds the
+whole contract as typed nuqs parsers with defaults:
+
+| Route       | Params (URL names)                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| all         | `account`, `project`, `sheet`                                                               |
+| `/`         | `range`, `bucket`, `group-by`, `model`, `series`                                            |
+| `/api-keys` | `page`, `status`, `q`, `key`, `revoke`                                                      |
+| `/manage`   | `page`, `q`, `status`, `budget-state`, `row`, `period`, `report-group`, `format`, `include` |
+| `/admin`    | `tab`, `request`                                                                            |
+
+Three rules the table obeys, all enforced in that one module: **defaults stay out of the URL**
+(nuqs `clearOnDefault`), **knobs write with `history: 'replace'` and navigation-grade params
+(scope, selections, the active tab) write with `history: 'push'`** — which is what makes Back mean
+"undo that selection" instead of "leave the page" — and **free-text search is debounced onto the
+URL** while its input stays instant.
+
+`nuqs`' App Router adapter is mounted in `src/app/layout.tsx`, outside `Providers` (it is not
+`ssr: false`, so the query string is readable during the server render too). refine's
+`syncWithLocation` stays **off**: one URL writer, and the flow runs strictly URL → `use-*-screen`
+→ refine hook params.
+
+Three things deliberately stay out of the URL: the theme preference (a shared link must not
+restyle the app for its recipient — ADR 0011 Decision 6), one-time API-key secrets and reviewer
+decision notes, and mutation outcomes. The last two travel through the shared `MutationCache`
+instead (`src/client/use-shared-mutation.ts`), which is what lets a `+ New key` pressed in the
+rail reveal its secret in the centre. `useState` survives in exactly three places in `src/`, each
+carrying the one-line justification ADR 0011 Decision 3 requires: the command palette's open flag,
+the auth doorway's pre-redirect status, and the reviewer's unsent decision note.
 
 ## Configuration
 

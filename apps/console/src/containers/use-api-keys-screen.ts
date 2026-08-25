@@ -12,36 +12,62 @@ import type {
 import { useDelete, useList } from '@refinedev/core';
 import { useMemo } from 'react';
 
-import { useConsoleScopeContext } from '../client/console-scope-context';
+import { useConsoleScope } from '../client/use-console-scope';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
-import { useApiKeysViewState } from '../client/view-state';
+import {
+  API_KEYS_SELECTION_OPTIONS,
+  API_KEY_STATUSES,
+  useApiKeysParams,
+} from '../client/url-state';
+import { useSharedMutation } from '../client/use-shared-mutation';
 import { apiKeysHygiene, apiKeysStatusSummary, toApiKeyRows } from './api-key-rows';
 
 /**
  * `/api-keys` — the screen's data adapter, shared by its centre (`page.tsx`) and its rail
  * (`@rail/api-keys/page.tsx`).
  *
- * The adapter's whole job is turning hook state into section props: the sections stay pure (no
- * fetching, no refine hooks), exactly as the console-ui skill requires. Listing, paging and
- * filtering go through the generated DataProvider; create/rotate/revoke are cratestack
- * **procedures**, which a `DataProvider` has no slot for, so they call the client directly and
- * then invalidate the list.
+ * The adapter's whole job is turning URL state + hook state into section props: the sections stay
+ * pure (no fetching, no refine hooks, no nuqs), exactly as the console-ui skill requires. Listing,
+ * paging and filtering go through the generated DataProvider; create/rotate/revoke are cratestack
+ * **procedures**, which a `DataProvider` has no slot for, so they call the client directly.
  *
- * Centre and rail both call this hook. They therefore issue the same `useList` key and TanStack
- * Query serves both from ONE request — and both write to the same view-state store, so the rail's
- * FILTERS section and the centre's ledger cannot drift apart.
+ * **The URL is the bus** (ADR 0011). Centre and rail both call this hook, so they issue the same
+ * `useList` key and TanStack Query serves both from ONE request — and both read the same
+ * `?status=…&q=…&page=…&key=…` params, so the rail's FILTERS section and the centre's ledger cannot
+ * drift apart. The flow is strictly one-way: URL -> filters -> refine (`syncWithLocation` is off).
+ *
+ * **What is deliberately NOT in the URL**: the one-time secret a create/rotate returns, and the
+ * reason an action failed. Both are mutation outcomes, both are still needed in a *different* zone
+ * from the one that fired them, and the first is a credential that must never be written to a
+ * history entry — so they travel through the shared `MutationCache` instead
+ * (`client/use-shared-mutation.ts`).
  */
 
 const PAGE_SIZE = 25;
 
-export const STATUS_FILTER_OPTIONS: SegmentedOption<string>[] = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'revoked', label: 'Revoked' },
-];
+const STATUS_LABELS: Record<(typeof API_KEY_STATUSES)[number], string> = {
+  all: 'All',
+  active: 'Active',
+  revoked: 'Revoked',
+};
+
+export const STATUS_FILTER_OPTIONS: SegmentedOption<string>[] = API_KEY_STATUSES.map((value) => ({
+  value,
+  label: STATUS_LABELS[value],
+}));
 
 /** Default lifetime for a key created from the rail's one-click action. */
 const DEFAULT_KEY_LIFETIME_DAYS = 90;
+
+/**
+ * Module-level so every zone agrees on the identity: `+ New key` is pressed in the rail, the
+ * secret it returns is rendered by the ledger in the centre.
+ */
+const SECRET_MUTATION_KEY = ['api-keys', 'secret'];
+const REVOKE_MUTATION_KEY = ['api-keys', 'revoke'];
+
+type SecretRequest =
+  { kind: 'create'; projectId: string | null } | { kind: 'rotate'; keyId: string; name: string };
 
 export interface ApiKeysScreen {
   scopeAccountLabel: string;
@@ -81,23 +107,23 @@ export interface ApiKeysScreen {
 }
 
 export function useApiKeysScreen(): ApiKeysScreen {
-  const scope = useConsoleScopeContext();
+  const scope = useConsoleScope();
   const client = useConsoleAuthzClient();
-  const [view, patchView] = useApiKeysViewState();
+  const [view, setView] = useApiKeysParams();
 
   const filters = useMemo(() => {
     const active = [];
     if (scope.value.projectId) {
       active.push({ field: 'projectId', operator: 'eq' as const, value: scope.value.projectId });
     }
-    if (view.statusFilter !== 'all') {
-      active.push({ field: 'status', operator: 'eq' as const, value: view.statusFilter });
+    if (view.status !== 'all') {
+      active.push({ field: 'status', operator: 'eq' as const, value: view.status });
     }
     if (view.search.trim()) {
       active.push({ field: 'name', operator: 'contains' as const, value: view.search.trim() });
     }
     return active;
-  }, [scope.value.projectId, view.statusFilter, view.search]);
+  }, [scope.value.projectId, view.status, view.search]);
 
   const list = useList<ApiKey>({
     resource: 'apiKeys',
@@ -108,6 +134,54 @@ export function useApiKeysScreen(): ApiKeysScreen {
 
   const { mutate: deleteKey } = useDelete();
 
+  const refresh = () => {
+    void list.query.refetch();
+  };
+
+  const secret = useSharedMutation<SecretRequest, ApiKeysSecretReveal>({
+    mutationKey: SECRET_MUTATION_KEY,
+    mutationFn: async (request) => {
+      if (request.kind === 'rotate') {
+        const rotated = await client.procedures.rotateApiKey({ args: { keyId: request.keyId } });
+        return {
+          heading: `Rotated ${request.name}`,
+          description:
+            'The previous secret is now invalid. Copy the new one — it is shown only once.',
+          secret: rotated.secret,
+        };
+      }
+      // A guard, not a UI branch: reported through the same inline error line every other failure
+      // of this action uses, and visible in whichever zone is rendering it.
+      if (!request.projectId) throw new Error('Select a project before creating a key.');
+      const created = await client.procedures.createApiKey({
+        args: {
+          projectId: request.projectId,
+          name: `key-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`,
+          expiresAt: new Date(Date.now() + DEFAULT_KEY_LIFETIME_DAYS * 86_400_000).toISOString(),
+          billingPlan: 'standard',
+        },
+      });
+      return {
+        heading: 'New API key',
+        description:
+          'Copy it now — this is the only time the secret is shown. It cannot be retrieved again.',
+        secret: created.secret,
+      };
+    },
+    onSuccess: refresh,
+  });
+
+  const revoke = useSharedMutation<{ keyId: string }, void>({
+    mutationKey: REVOKE_MUTATION_KEY,
+    mutationFn: async ({ keyId }) => {
+      await client.procedures.revokeApiKey({ args: { keyId } });
+    },
+    onSuccess: () => {
+      void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      refresh();
+    },
+  });
+
   const keys = list.result.data;
   const total = list.result.total ?? keys.length;
   // The fetch timestamp, not `Date.now()`: reading the clock during render is impure (it makes
@@ -116,19 +190,10 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const now = list.query.dataUpdatedAt;
   const rows = useMemo(() => toApiKeyRows(keys, now), [keys, now]);
 
-  const refresh = () => {
-    void list.query.refetch();
-  };
-
-  const runProcedure = async (action: () => Promise<void>) => {
-    patchView({ actionError: null });
-    try {
-      await action();
-      refresh();
-    } catch (error) {
-      patchView({ actionError: error instanceof Error ? error.message : String(error) });
-    }
-  };
+  // The revoke DIALOG is view state (`?revoke=<id>`), so Back closes it and the confirmation is
+  // linkable; the row it points at is looked up in the data, and the failure reason it may carry
+  // comes from the mutation, never from the URL.
+  const revokeRow = rows.find((row) => row.id === view.revokeKeyId) ?? null;
 
   return {
     scopeAccountLabel: scope.value.accountId || '—',
@@ -137,89 +202,45 @@ export function useApiKeysScreen(): ApiKeysScreen {
       'All projects',
     rows,
     loading: list.query.isLoading,
-    errorMessage: list.query.isError
-      ? 'Could not load API keys.'
-      : (view.actionError ?? undefined),
+    errorMessage: list.query.isError ? 'Could not load API keys.' : secret.errorMessage,
     statusSummary: apiKeysStatusSummary(keys, now),
     emptyMessage: scope.value.projectId
       ? 'No API keys in this project yet.'
       : 'No API keys yet. Pick a project to scope the list.',
     hygiene: apiKeysHygiene(keys, now),
-    secretReveal: view.secretReveal,
-    dismissSecret: () => patchView({ secretReveal: null }),
-    revokeTarget: view.revokeTarget,
-    requestRevoke: (row) => patchView({ revokeTarget: { row } }),
-    confirmRevoke: (row) => {
-      void (async () => {
-        try {
-          await client.procedures.revokeApiKey({ args: { keyId: row.id } });
-          patchView({ revokeTarget: null });
-          refresh();
-        } catch (error) {
-          // The dialog stays open carrying the reason — that is its documented error contract.
-          patchView({
-            revokeTarget: {
-              row,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          });
-        }
-      })();
+    secretReveal: secret.data ?? null,
+    dismissSecret: secret.dismiss,
+    revokeTarget: revokeRow ? { row: revokeRow, error: revoke.errorMessage } : null,
+    requestRevoke: (row) => {
+      revoke.dismiss();
+      void setView({ revokeKeyId: row.id }, API_KEYS_SELECTION_OPTIONS);
     },
-    cancelRevoke: () => patchView({ revokeTarget: null }),
-    rotate: (row) => {
-      void runProcedure(async () => {
-        const rotated = await client.procedures.rotateApiKey({ args: { keyId: row.id } });
-        patchView({
-          secretReveal: {
-            heading: `Rotated ${row.name}`,
-            description:
-              'The previous secret is now invalid. Copy the new one — it is shown only once.',
-            secret: rotated.secret,
-          },
-        });
-      });
+    confirmRevoke: (row) => revoke.mutate({ keyId: row.id }),
+    cancelRevoke: () => {
+      revoke.dismiss();
+      void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
     },
+    rotate: (row) => secret.mutate({ kind: 'rotate', keyId: row.id, name: row.name }),
     remove: (row) => {
       deleteKey({ resource: 'apiKeys', id: row.id });
     },
-    createKey: () => {
-      const projectId = scope.value.projectId;
-      if (!projectId) {
-        patchView({ actionError: 'Select a project before creating a key.' });
-        return;
-      }
-      void runProcedure(async () => {
-        const created = await client.procedures.createApiKey({
-          args: {
-            projectId,
-            name: `key-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`,
-            expiresAt: new Date(
-              Date.now() + DEFAULT_KEY_LIFETIME_DAYS * 86_400_000
-            ).toISOString(),
-            billingPlan: 'standard',
-          },
-        });
-        patchView({
-          secretReveal: {
-            heading: 'New API key',
-            description:
-              'Copy it now — this is the only time the secret is shown. It cannot be retrieved again.',
-            secret: created.secret,
-          },
-        });
-      });
+    createKey: () => secret.mutate({ kind: 'create', projectId: scope.value.projectId }),
+    selectedRowKeys: view.selectedKeyId ? [view.selectedKeyId] : [],
+    selectRow: (row) => {
+      void setView({ selectedKeyId: row.id }, API_KEYS_SELECTION_OPTIONS);
     },
-    selectedRowKeys: view.selectedRowKeys,
-    selectRow: (row) => patchView({ selectedRowKeys: [row.id] }),
     retry: refresh,
     pagination: {
       shown: rows.length,
       total,
       hasPrev: view.page > 1,
       hasNext: view.page * PAGE_SIZE < total,
-      onPrev: () => patchView({ page: Math.max(1, view.page - 1) }),
-      onNext: () => patchView({ page: view.page + 1 }),
+      onPrev: () => {
+        void setView({ page: Math.max(1, view.page - 1) });
+      },
+      onNext: () => {
+        void setView({ page: view.page + 1 });
+      },
     },
     scopeSelect: {
       accounts: scope.accounts,
@@ -227,13 +248,19 @@ export function useApiKeysScreen(): ApiKeysScreen {
       value: scope.value,
       onChange: (value) => {
         scope.setValue(value);
-        patchView({ page: 1 });
+        // Re-scoping invalidates the current page number. Queued in the same tick as the scope
+        // write above, so nuqs coalesces both into ONE history entry — not two Back presses.
+        void setView({ page: 1 }, { history: 'push' });
       },
     },
     statusFilterOptions: STATUS_FILTER_OPTIONS,
-    statusFilterValue: view.statusFilter,
-    setStatusFilter: (statusFilter) => patchView({ statusFilter, page: 1 }),
+    statusFilterValue: view.status,
+    setStatusFilter: (status) => {
+      void setView({ status: status as (typeof API_KEY_STATUSES)[number], page: 1 });
+    },
     search: view.search,
-    setSearch: (search) => patchView({ search, page: 1 }),
+    setSearch: (search) => {
+      void setView({ search, page: 1 });
+    },
   };
 }

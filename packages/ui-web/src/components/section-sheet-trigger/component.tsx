@@ -58,14 +58,29 @@ const ICONS: Record<SectionSheetTriggerIcon, ReactNode> = {
 // The trigger's `lg:hidden` is only the first of the two independent gates; `SectionSheet` itself
 // carries the `useIsBelowLg` gate that stops an already-open sheet from freezing pointer events
 // after a live resize past `lg` (see that component's docstring).
+//
+// Open state is **controllable**: pass `open`/`onOpenChange` and the consumer owns it; omit both
+// and the internal `useState` below runs the uncontrolled convenience unchanged. That pairing is
+// ADR 0010's rule for every uncontrolled convenience in this package, and `apps/console` is the
+// consumer that needs it — ADR 0011 keeps *which rail section is open* in the query string, so the
+// sheet has to be able to open from a link and close on Back.
 export function SectionSheetTrigger({
   icon,
   triggerLabel,
   label,
   children,
   className,
+  open: controlledOpen,
+  onOpenChange,
 }: SectionSheetTriggerProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : uncontrolledOpen;
+
+  const setOpen = (next: boolean) => {
+    if (!controlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
 
   return (
     <>

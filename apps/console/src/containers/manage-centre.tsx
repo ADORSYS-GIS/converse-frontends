@@ -1,6 +1,5 @@
 'use client';
 
-import { SectionSheetTrigger } from '@lightbridge/ui-web/src/components/section-sheet-trigger';
 import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
 import {
   MANAGE_FILTERS_RAIL_LABEL,
@@ -18,6 +17,7 @@ import {
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 
 import { ManageScopeSlot } from './manage-scope-slot';
+import { UrlSectionSheetTrigger } from './url-section-sheet-trigger';
 import { useManageScreen } from './use-manage-screen';
 
 /**
@@ -50,20 +50,22 @@ export function ManageCentre() {
           onSelectRow={screen.selectRow}
           pagination={screen.pagination}
           toolbarActions={
-            <SectionSheetTrigger
+            <UrlSectionSheetTrigger
+              id="filters"
               icon="filter"
               triggerLabel="Open filters"
               label={MANAGE_FILTERS_RAIL_LABEL}>
               <ManageFiltersRail {...screen.filters} />
-            </SectionSheetTrigger>
+            </UrlSectionSheetTrigger>
           }
           reportTrigger={
-            <SectionSheetTrigger
+            <UrlSectionSheetTrigger
+              id="report"
               icon="report"
               triggerLabel="Open monthly report"
               label={MANAGE_REPORT_RAIL_LABEL}>
               <ManageReportRail {...screen.report} />
-            </SectionSheetTrigger>
+            </UrlSectionSheetTrigger>
           }
         />
       </div>

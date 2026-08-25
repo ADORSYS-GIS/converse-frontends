@@ -2,7 +2,6 @@
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { ScopeSelect } from '@lightbridge/ui-web/src/components/scope-select';
-import { SectionSheetTrigger } from '@lightbridge/ui-web/src/components/section-sheet-trigger';
 import {
   API_KEYS_FILTERS_RAIL_LABEL,
   ApiKeysFiltersRail,
@@ -11,6 +10,7 @@ import { ApiKeysLedger } from '@lightbridge/ui-web/src/sections/api-keys-ledger'
 import { SCOPE_RAIL_LABEL } from '@lightbridge/ui-web/src/sections/scope-rail';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 
+import { UrlSectionSheetTrigger } from './url-section-sheet-trigger';
 import { useApiKeysScreen } from './use-api-keys-screen';
 
 /**
@@ -29,16 +29,16 @@ export function ApiKeysCentre() {
         title="Api-Keys"
         subline={`${screen.scopeAccountLabel} / ${screen.scopeProjectLabel}`}
         sublineActions={
-          <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label={SCOPE_RAIL_LABEL}>
+          <UrlSectionSheetTrigger
+            id="scope"
+            icon="scope"
+            triggerLabel="Open scope"
+            label={SCOPE_RAIL_LABEL}>
             <ScopeSelect {...screen.scopeSelect} />
-          </SectionSheetTrigger>
+          </UrlSectionSheetTrigger>
         }
         actions={
-          <Button
-            type="button"
-            variant="primary"
-            onClick={screen.createKey}
-            className="lg:hidden">
+          <Button type="button" variant="primary" onClick={screen.createKey} className="lg:hidden">
             + New key
           </Button>
         }
@@ -64,7 +64,8 @@ export function ApiKeysCentre() {
         onSelectRow={screen.selectRow}
         pagination={screen.pagination}
         toolbarActions={
-          <SectionSheetTrigger
+          <UrlSectionSheetTrigger
+            id="filters"
             icon="filter"
             triggerLabel="Open filters"
             label={API_KEYS_FILTERS_RAIL_LABEL}>
@@ -75,7 +76,7 @@ export function ApiKeysCentre() {
               search={screen.search}
               onSearchChange={screen.setSearch}
             />
-          </SectionSheetTrigger>
+          </UrlSectionSheetTrigger>
         }
       />
     </div>

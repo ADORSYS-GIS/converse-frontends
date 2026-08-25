@@ -84,9 +84,14 @@ export function ConsoleProviders({ children }: { children: ReactNode }) {
         { name: 'projectMembers', meta: { label: 'Members' } },
       ]}
       options={{
-        // No `routerProvider` is registered: Next's App Router owns navigation, and the console's
-        // list state lives in component state, not the URL. Turning `syncWithLocation` on without a
-        // router binding would silently do nothing.
+        // **One URL writer** (ADR 0011 Decision, Consequences): the console's list state DOES live
+        // in the URL now, but nuqs owns that contract end to end — param names, parsers, defaults,
+        // history behaviour — and `src/client/url-state.ts` is the only module allowed to declare
+        // one. refine's own location sync would be a second writer with its own encoding
+        // (`filters[0][field]=…`) racing nuqs on every keystroke, so it stays off and the flow runs
+        // strictly one way: URL -> `use-*-screen` adapter -> refine hook params. (It would also
+        // silently do nothing regardless: no `routerProvider` is registered, because Next's App
+        // Router owns navigation.)
         syncWithLocation: false,
         disableTelemetry: true,
         warnWhenUnsavedChanges: false,

@@ -2,19 +2,21 @@
 
 import { ScopeSelect } from '@lightbridge/ui-web/src/components/scope-select';
 
-import { useConsoleScopeContext } from '../client/console-scope-context';
-import { useManageViewState } from '../client/view-state';
+import { useManageParams } from '../client/url-state';
+import { useConsoleScope } from '../client/use-console-scope';
 
 /**
  * The `scopeSlot` `ReportExportPanel` renders inside the MONTHLY REPORT section — the panel owns
  * the report's parameters but never the account/project scope, so the scope arrives as a slot.
  *
- * Shared verbatim by the Manage centre (its compact-tier report sheet) and the Manage rail, so
- * the two copies of the panel always show the same scope control.
+ * Shared verbatim by the Manage centre (its compact-tier report sheet) and the Manage rail. They
+ * are two mounts of the same control in two React subtrees, and they agree because both read the
+ * same `?account=`/`?project=` params — not because a provider is holding a value for them
+ * (ADR 0011 Decision 2).
  */
 export function ManageScopeSlot() {
-  const scope = useConsoleScopeContext();
-  const [, patchView] = useManageViewState();
+  const scope = useConsoleScope();
+  const [, setView] = useManageParams();
 
   return (
     <ScopeSelect
@@ -23,7 +25,9 @@ export function ManageScopeSlot() {
       value={scope.value}
       onChange={(value) => {
         scope.setValue(value);
-        patchView({ page: 1 });
+        // Re-scoping invalidates the current page number. Queued in the same tick as the scope
+        // write, so nuqs coalesces both into one history entry.
+        void setView({ page: 1 }, { history: 'push' });
       }}
     />
   );

@@ -7,11 +7,12 @@ import type {
   RefillRequestRow,
   ReviewDetailPanelProps,
 } from '@lightbridge/ui-web';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 
 import { useConsoleBudgetClient } from '../client/rpc-clients';
-import { useAdminViewState } from '../client/view-state';
+import { useAdminParams } from '../client/url-state';
+import { useSharedMutation } from '../client/use-shared-mutation';
 import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './refill-rows';
 
 /**
@@ -25,6 +26,11 @@ import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './
  * persistence and the offline behaviour are identical. Centre and rail share the one query key,
  * so the queue is fetched once regardless of how many zones read it.
  *
+ * View state is the URL (ADR 0011): `?tab=decided&request=req_9` is the reviewer's actual
+ * position in the queue, so a request under discussion can be pasted into a thread and Back walks
+ * the reviewer out of it. Both params are `push` — the tab is this screen's sub-nav and the
+ * request is a selection.
+ *
  * Access is gated **server-side** in both `app/(console)/admin/page.tsx` and
  * `app/(console)/@rail/admin/page.tsx` (each 404s a non-admin). The nav gating is only cosmetic,
  * and the backend refuses every one of these procedures without `budget:review` regardless.
@@ -32,6 +38,16 @@ import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './
 
 const PAGE_SIZE = 50;
 const QUERY_KEY = ['budget', 'pendingAugmentationRequests', PAGE_SIZE];
+
+/**
+ * Module-level so both zones agree on the identity: the decision is submitted from whichever zone
+ * is showing the review panel — the rail at `lg`, the centre's selection sheet below it — while
+ * its failure has to surface in the CENTRE's queue error line. Two zones mean two `useMutation`
+ * instances, so reading the outcome from the shared `MutationCache` is what makes one instance's
+ * failure visible to the other. This is the state that used to be the `decideFailed` boolean in
+ * the deleted view-state provider.
+ */
+const DECIDE_MUTATION_KEY = ['budget', 'decideAugmentationRequest'];
 
 export interface AdminScreen {
   activeTab: AdminReviewTab;
@@ -53,7 +69,17 @@ export interface AdminScreen {
 export function useAdminScreen(): AdminScreen {
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
-  const [view, patchView] = useAdminViewState();
+  const [view, setView] = useAdminParams();
+
+  /**
+   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
+   * leak into URLs or history ... the decision notes before submit"): a reviewer's free-text
+   * rejection reason. It is typed prose about a customer, it is discarded on submit, and putting
+   * it in the query string would write it into browser history and into every link copied from
+   * the address bar. Only one copy of the review panel is ever visible (the rail at `lg`, the
+   * selection sheet below it), so a per-instance draft cannot desynchronise.
+   */
+  const [note, setNote] = useState('');
 
   const pendingQuery = useQuery({
     queryKey: QUERY_KEY,
@@ -79,16 +105,12 @@ export function useAdminScreen(): AdminScreen {
     [requests]
   );
 
-  const decide = useMutation({
-    mutationFn: async ({
-      requestId,
-      decision,
-      reason,
-    }: {
-      requestId: string;
-      decision: 'approve' | 'decline';
-      reason: string;
-    }) => {
+  const decide = useSharedMutation<
+    { requestId: string; decision: 'approve' | 'decline'; reason: string },
+    void
+  >({
+    mutationKey: DECIDE_MUTATION_KEY,
+    mutationFn: async ({ requestId, decision, reason }) => {
       if (decision === 'approve') {
         await budgetClient.procedures.approveAugmentationRequest({ args: { requestId } });
         return;
@@ -96,18 +118,20 @@ export function useAdminScreen(): AdminScreen {
       await budgetClient.procedures.rejectAugmentationRequest({ args: { requestId, reason } });
     },
     onSuccess: () => {
-      patchView({ selectedRequestId: null, note: '', decideFailed: false });
+      setNote('');
+      void setView({ selectedRequestId: '' });
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
-    onError: () => patchView({ decideFailed: true }),
   });
 
   const selected = requests.find((request) => request.id === view.selectedRequestId) ?? null;
-  const rows = view.activeTab === 'pending' ? pending : decisions;
+  const rows = view.tab === 'pending' ? pending : decisions;
 
   return {
-    activeTab: view.activeTab,
-    setActiveTab: (activeTab) => patchView({ activeTab }),
+    activeTab: view.tab,
+    setActiveTab: (tab) => {
+      void setView({ tab });
+    },
     pending,
     decisions,
     pendingCount: pending.length,
@@ -115,16 +139,20 @@ export function useAdminScreen(): AdminScreen {
     loading: pendingQuery.isLoading,
     errorMessage: pendingQuery.isError
       ? 'Could not load the refill queue.'
-      : view.decideFailed
+      : decide.errorMessage
         ? 'The decision was not recorded.'
         : undefined,
     emptyPendingMessage: `Nothing awaiting a decision. ${decisions.length} decided this period.`,
     retry: () => {
-      patchView({ decideFailed: false });
+      decide.dismiss();
       void pendingQuery.refetch();
     },
-    selectedRequestId: view.selectedRequestId,
-    selectRequest: (row) => patchView({ selectedRequestId: row.id, note: '', decideFailed: false }),
+    selectedRequestId: view.selectedRequestId || null,
+    selectRequest: (row) => {
+      setNote('');
+      decide.dismiss();
+      void setView({ selectedRequestId: row.id });
+    },
     reviewDetail: selected
       ? {
           subject: selected.projectId ?? selected.accountId,
@@ -137,8 +165,8 @@ export function useAdminScreen(): AdminScreen {
           requestedAmount: microsToAmount(selected.requestedAmountMicros),
           requesterNote: selected.rejectionReason ?? undefined,
           history: [],
-          note: view.note,
-          onNoteChange: (note) => patchView({ note }),
+          note,
+          onNoteChange: setNote,
           onDecide: (decision, reason) =>
             decide.mutate({ requestId: selected.id, decision, reason }),
           deciding: decide.isPending,

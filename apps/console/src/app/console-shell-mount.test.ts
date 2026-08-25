@@ -41,8 +41,9 @@ function read(path: string): string {
 }
 
 describe('console shell mounting', () => {
-  const appFiles = walk(APP_DIR).filter((file) => !file.endsWith('.test.ts'));
-  const srcFiles = walk(SRC_DIR).filter((file) => !file.endsWith('.test.ts'));
+  const isTest = (file: string) => file.endsWith('.test.ts') || file.endsWith('.test.tsx');
+  const appFiles = walk(APP_DIR).filter((file) => !isTest(file));
+  const srcFiles = walk(SRC_DIR).filter((file) => !isTest(file));
 
   it('mounts ConsoleShell in exactly one place, and that place is the (console) layout', () => {
     const mounts = srcFiles.filter((file) => SHELL_IMPORT.test(read(file)));
@@ -91,7 +92,12 @@ describe('console shell mounting', () => {
       .map((file) => file.slice(CONSOLE_GROUP.length + 1));
 
     expect(centreRoutes.sort()).toEqual(
-      ['page.tsx', join('admin', 'page.tsx'), join('api-keys', 'page.tsx'), join('manage', 'page.tsx')].sort()
+      [
+        'page.tsx',
+        join('admin', 'page.tsx'),
+        join('api-keys', 'page.tsx'),
+        join('manage', 'page.tsx'),
+      ].sort()
     );
 
     for (const route of centreRoutes) {

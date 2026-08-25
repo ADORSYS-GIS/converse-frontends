@@ -3,15 +3,29 @@
 import type { Account, Project } from '@lightbridge/authz-rpc';
 import type { ScopeOption, ScopeProjectOption, ScopeSelectValue } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+
+import { useScopeParams } from './url-state';
 
 /**
- * The account/project scope every screen filters by, loaded through refine over the generated
- * `accounts` and `projects` resources.
+ * The account/project scope every screen filters by: the **URL** for the selection, refine for the
+ * option lists.
  *
- * The scope lives in component state rather than the URL: `syncWithLocation` is off (no
- * `routerProvider` is registered — see `console-providers.tsx`), so putting it in the query string
- * would be a second, unsynchronised source of truth.
+ * ADR 0011 Decision 2 makes this a plain hook again. It used to be a hook, then had to be hoisted
+ * into a layout-level context once the shell split into a centre and two parallel-route slots —
+ * three separate React subtrees that all read and write the same scope, which a hook called three
+ * times would have given three independent copies of. The query string is above all three by
+ * construction, so the context (`ConsoleScopeProvider`) is gone and every zone simply calls this.
+ *
+ * It also gets the property the context never had: scope is now shareable and reload-stable.
+ * `/api-keys?account=acct_1&project=proj_7` opens for a colleague on exactly the rows the sender
+ * was looking at, and Back returns to the previously-scoped view.
+ *
+ * **The empty account is resolved, never written.** `?account=` absent means "whichever account
+ * the data hands me first", resolved here from the loaded list. Writing that resolution back into
+ * the URL would put a default in the URL (ADR 0011 Decision 5) and pin every shared link to the
+ * sender's first account; leaving it derived keeps a bare `/api-keys` meaning the same thing for
+ * everyone.
  */
 export type ConsoleScope = {
   value: ScopeSelectValue;
@@ -28,7 +42,7 @@ export type ConsoleScope = {
 const SCOPE_PAGE_SIZE = 100;
 
 export function useConsoleScope(): ConsoleScope {
-  const [value, setValue] = useState<ScopeSelectValue>({ accountId: '', projectId: null });
+  const [params, setParams] = useScopeParams();
 
   const accountsQuery = useList<Account>({
     resource: 'accounts',
@@ -54,15 +68,24 @@ export function useConsoleScope(): ConsoleScope {
     [projectsQuery.result.data]
   );
 
-  // The first account becomes the scope once it arrives; the user's own choice always wins after.
+  // `''` is the parser default (and therefore absent from the URL); `ScopeSelect` speaks `null`
+  // for "all projects", so the two vocabularies are bridged here rather than in every caller.
+  const fromUrl: ScopeSelectValue = {
+    accountId: params.accountId,
+    projectId: params.projectId || null,
+  };
+
+  // The first account becomes the scope once it arrives; the URL's own choice always wins after.
   const resolved: ScopeSelectValue =
-    value.accountId || accounts.length === 0
-      ? value
+    fromUrl.accountId || accounts.length === 0
+      ? fromUrl
       : { accountId: accounts[0].id, projectId: null };
 
   return {
     value: resolved,
-    setValue,
+    setValue: (next) => {
+      void setParams({ accountId: next.accountId, projectId: next.projectId ?? '' });
+    },
     accounts,
     projects,
     allProjects: projectsQuery.result.data,

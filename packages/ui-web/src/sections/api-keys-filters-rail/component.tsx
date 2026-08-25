@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { Field } from '../../components/field';
-import { fieldLabelClassName } from '../../components/field/cva';
+import { fieldLabelClassName } from '../../components/field/field-classes';
 import { SegmentedControl } from '../../components/segmented-control';
 import type { ApiKeysFiltersRailProps } from './types';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SegmentedControl } from './component';
@@ -12,50 +12,50 @@ const options: SegmentedOption<'all' | 'active' | 'revoked'>[] = [
 ];
 
 describe('SegmentedControl', () => {
-  it('exposes radiogroup semantics with one checked radio', () => {
+  it('exposes a named group with one pressed toggle button', () => {
     render(<SegmentedControl aria-label="Status filter" options={options} value="active" onChange={() => {}} />);
 
-    expect(screen.getByRole('radiogroup', { name: 'Status filter' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Active' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('radio', { name: 'Revoked' })).toHaveAttribute('aria-checked', 'false');
-  });
-
-  it('only the active cell is tab-reachable (roving tabindex)', () => {
-    render(<SegmentedControl aria-label="Status filter" options={options} value="active" onChange={() => {}} />);
-
-    expect(screen.getByRole('radio', { name: 'Active' })).toHaveAttribute('tabIndex', '0');
-    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabIndex', '-1');
-    expect(screen.getByRole('radio', { name: 'Revoked' })).toHaveAttribute('tabIndex', '-1');
+    expect(screen.getByRole('group', { name: 'Status filter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Revoked' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('calls onChange when a cell is clicked', () => {
     const handleChange = vi.fn();
     render(<SegmentedControl aria-label="Status filter" options={options} value="all" onChange={handleChange} />);
 
-    screen.getByRole('radio', { name: 'Revoked' }).click();
+    screen.getByRole('button', { name: 'Revoked' }).click();
     expect(handleChange).toHaveBeenCalledWith('revoked');
   });
 
-  it('moves selection to the next option on ArrowRight and wraps at the end', () => {
+  it('does not call onChange when the already-active cell is clicked (no empty selection)', () => {
     const handleChange = vi.fn();
-    render(<SegmentedControl aria-label="Status filter" options={options} value="revoked" onChange={handleChange} />);
+    render(<SegmentedControl aria-label="Status filter" options={options} value="active" onChange={handleChange} />);
 
-    const revoked = screen.getByRole('radio', { name: 'Revoked' });
-    revoked.focus();
-    fireEvent.keyDown(revoked, { key: 'ArrowRight' });
+    screen.getByRole('button', { name: 'Active' }).click();
 
-    expect(handleChange).toHaveBeenCalledWith('all');
+    expect(handleChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('moves selection to the previous option on ArrowLeft and wraps at the start', () => {
-    const handleChange = vi.fn();
-    render(<SegmentedControl aria-label="Status filter" options={options} value="all" onChange={handleChange} />);
+  it('moves keyboard focus between cells with the arrow keys (Base UI composite roving focus)', async () => {
+    render(<SegmentedControl aria-label="Status filter" options={options} value="all" onChange={() => {}} />);
 
-    const all = screen.getByRole('radio', { name: 'All' });
+    const all = screen.getByRole('button', { name: 'All' });
+    const active = screen.getByRole('button', { name: 'Active' });
     all.focus();
-    fireEvent.keyDown(all, { key: 'ArrowLeft' });
+    expect(all).toHaveFocus();
 
-    expect(handleChange).toHaveBeenCalledWith('revoked');
+    fireEvent.keyDown(all, { key: 'ArrowRight' });
+    await waitFor(() => expect(active).toHaveFocus());
+  });
+
+  it('renders the 2px signal underline only on the active cell', () => {
+    const { container } = render(
+      <SegmentedControl aria-label="Status filter" options={options} value="active" onChange={() => {}} />,
+    );
+
+    expect(container.querySelectorAll('.bg-primary')).toHaveLength(1);
   });
 });

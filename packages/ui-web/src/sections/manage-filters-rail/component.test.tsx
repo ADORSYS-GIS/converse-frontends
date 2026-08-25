@@ -39,7 +39,7 @@ describe('ManageFiltersRail', () => {
     const onStatusChange = vi.fn();
     render(<ManageFiltersRail {...makeProps({ onStatusChange })} />);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Archived' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
 
     expect(onStatusChange).toHaveBeenCalledWith('archived');
   });

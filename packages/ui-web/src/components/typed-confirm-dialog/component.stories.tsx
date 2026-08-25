@@ -24,21 +24,23 @@ type Story = StoryObj<typeof TypedConfirmDialog>;
 
 export const Default: Story = {};
 
+// Base UI portals `AlertDialog.Popup` to `document.body`, outside the Storybook canvas root --
+// queries target the owner document's body rather than `within(canvasElement)`.
 export const MidTyping: Story = {
   name: 'Typed but not matching',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.type(canvas.getByLabelText('Type "ci-deploy" to confirm'), 'ci-dep');
-    await waitFor(() => expect(canvas.getByRole('button', { name: 'Revoke' })).toBeDisabled());
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.type(await body.findByLabelText('Type "ci-deploy" to confirm'), 'ci-dep');
+    await waitFor(() => expect(body.getByRole('button', { name: 'Revoke' })).toBeDisabled());
   },
 };
 
 export const Matched: Story = {
   name: 'Exact match — primary enabled',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.type(canvas.getByLabelText('Type "ci-deploy" to confirm'), 'ci-deploy');
-    await waitFor(() => expect(canvas.getByRole('button', { name: 'Revoke' })).toBeEnabled());
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.type(await body.findByLabelText('Type "ci-deploy" to confirm'), 'ci-deploy');
+    await waitFor(() => expect(body.getByRole('button', { name: 'Revoke' })).toBeEnabled());
   },
 };
 

@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 
 import { cn } from '../../cn';
-import { fieldControlVariants, fieldLabelClassName } from '../field/cva';
+import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
 import type { RailSelectProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §4 (forms & actions) — the rail's dropdown.
@@ -20,10 +20,7 @@ export function RailSelect({ label, value, options, onChange, className }: RailS
           id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(
-            fieldControlVariants({ error: false, multiline: false }),
-            'appearance-none pr-7'
-          )}>
+          className={cn(fieldControlClassName, 'appearance-none pr-7')}>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

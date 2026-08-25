@@ -9,7 +9,7 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
-import { fieldControlVariants, fieldLabelClassName } from '../components/field/cva';
+import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import { RailPanel } from '../components/rail-panel';
 import type {
   LastExportEntry,
@@ -115,7 +115,7 @@ export function RefineManageScreen() {
       <select
         value="account:adorsys-gis"
         onChange={() => {}}
-        className={fieldControlVariants({ error: false, multiline: false })}>
+        className={fieldControlClassName}>
         <option value="account:adorsys-gis">Account · adorsys-gis</option>
       </select>
     </div>

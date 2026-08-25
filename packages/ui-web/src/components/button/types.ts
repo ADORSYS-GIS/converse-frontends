@@ -1,5 +1,9 @@
 import type { ButtonHTMLAttributes } from 'react';
 
-import type { ButtonVariantProps } from './cva';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+export type ButtonSize = 'sm' | 'md' | 'icon';
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & ButtonVariantProps;
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+};

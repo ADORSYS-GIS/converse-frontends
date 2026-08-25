@@ -18,7 +18,7 @@ describe('ApiKeysFiltersRail', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Revoked' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revoked' }));
 
     expect(onStatusChange).toHaveBeenCalledWith('revoked');
   });

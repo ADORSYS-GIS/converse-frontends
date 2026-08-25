@@ -43,7 +43,6 @@ export { StatusText } from './components/status-text';
 export { statusTextVariants } from './components/status-text';
 export type { StatusTextVariantProps, StatusTextProps } from './components/status-text';
 export { RowActionGroup } from './components/row-action-group';
-export { rowActionVariants } from './components/row-action-group';
 export type { RowAction, RowActionGroupProps } from './components/row-action-group';
 export { Meter } from './components/meter';
 export type { MeterProps } from './components/meter';
@@ -70,7 +69,7 @@ export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components
 
 // ── forms & actions
 export { Button } from './components/button';
-export type { ButtonProps, ButtonVariantProps } from './components/button';
+export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 
 export { Field } from './components/field';
 export type { FieldProps, FieldInputProps, FieldTextareaProps } from './components/field';

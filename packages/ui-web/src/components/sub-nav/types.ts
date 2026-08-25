@@ -1,3 +1,5 @@
+import type { LinkComponent } from '../../lib/link-component';
+
 export interface SubNavItem {
   key: string;
   label: string;
@@ -11,4 +13,6 @@ export interface SubNavItem {
 export interface SubNavProps {
   items: SubNavItem[];
   className?: string;
+  /** Same seam as `NavSpineProps.linkComponent` — see `lib/link-component.tsx`. */
+  linkComponent?: LinkComponent;
 }

@@ -4,6 +4,8 @@ export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
 export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
 export { useCommandPaletteShortcut } from './lib/use-command-palette-shortcut';
+export { DefaultAnchor } from './lib/link-component';
+export type { LinkComponent, LinkComponentProps } from './lib/link-component';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';

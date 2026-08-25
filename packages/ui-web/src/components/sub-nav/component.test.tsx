@@ -56,4 +56,26 @@ describe('SubNav', () => {
       '/manage/projects',
     );
   });
+
+  it('renders href items through a custom linkComponent instead of a bare anchor', () => {
+    // Same seam as `NavSpine.linkComponent` (see that component's regression test) — a router-aware
+    // Link, e.g. `next/link`, receives exactly these props.
+    const CustomLink = vi.fn(
+      ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+        <a href={href} data-testid="custom-link" {...rest}>
+          {children}
+        </a>
+      ),
+    );
+
+    render(
+      <SubNav
+        items={[{ key: 'projects', label: 'Projects', href: '/manage/projects' }]}
+        linkComponent={CustomLink}
+      />,
+    );
+
+    expect(CustomLink).toHaveBeenCalled();
+    expect(screen.getByTestId('custom-link')).toHaveAttribute('href', '/manage/projects');
+  });
 });

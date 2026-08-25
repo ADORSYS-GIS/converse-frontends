@@ -1,9 +1,20 @@
+import { type ParsedConfigFile, getConfigPath, parseConfigFile } from './config-loader';
+
 /**
- * Server-side runtime configuration. Everything here is read from ordinary (non-`NEXT_PUBLIC_`)
- * environment variables at **request time**, never at module scope: `next build` imports every
- * route module, and a module-scope `throw` on a missing secret would make the build depend on
- * production secrets being present. ADR 0009 Decision 3 is what makes this possible — the browser
- * needs none of these values, so none of them are prefixed for client exposure.
+ * Server-side runtime configuration, loaded from `config.yaml` (YAML-first, per the owner
+ * directive to match lightbridge-authz's `config/default.yaml` shape — see `config-loader.ts` for
+ * the placeholder-resolution mechanics and its documented divergences from authz's syntax).
+ * `.env`/`.env.local` now only supply the environment variables `config.yaml`'s `{env:VAR}`
+ * placeholders reference (secrets and other machine-local values); every non-secret value lives as
+ * a literal in the YAML document itself.
+ *
+ * The document is read and validated **lazily, on first call**, never at module scope: `next
+ * build` imports every route module, and a module-scope `throw` on a missing secret would make the
+ * build depend on production secrets being present. ADR 0009 Decision 3 is what makes this
+ * possible — the browser needs none of these values, so none of them are prefixed for client
+ * exposure. The result is then cached for the lifetime of the process (`serverEnv()` is called on
+ * every request across several route handlers; re-reading and re-parsing the file each time would
+ * be pure per-request overhead for a document that cannot change without a restart).
  *
  * Everything under `src/server/` is server-only by construction, not by the `server-only` package:
  * these modules reach for `node:crypto` and `next/headers`, which Next refuses to bundle into a
@@ -36,30 +47,86 @@ export type ConsoleEnv = {
   publicBaseUrl?: string;
 };
 
+type RawKeycloakConfig = {
+  issuer?: unknown;
+  clientId?: unknown;
+  clientSecret?: unknown;
+  scopes?: unknown;
+  expectedAudiences?: unknown;
+  audienceRequired?: unknown;
+  rolesClaim?: unknown;
+};
+
+type RawConsoleConfig = {
+  session?: { secret?: unknown };
+  keycloak?: RawKeycloakConfig;
+  backendUrl?: unknown;
+  apiBasePath?: unknown;
+  budgetUrl?: unknown;
+  usageUrl?: unknown;
+  publicBaseUrl?: unknown;
+  // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
+  // for the future authz-style permission model (see config.yaml's comment); wiring it up before
+  // there's an engine to consume it would be dormant code.
+};
+
 /**
- * Asserts a required variable is set. The caller passes the value *and* the name rather than
- * having this read `process.env[name]` dynamically: bundlers (Next's included) can only see and
- * inline a statically-written `process.env.FOO`, so a dynamic lookup is a real footgun, not just a
- * lint complaint.
+ * Reads a required scalar out of the resolved config, failing fast with a message naming both the
+ * config key and — when the raw (pre-resolution) value at that key was a bare `{env:VAR}`
+ * placeholder — the environment variable that's missing.
  */
-function required(name: string, value: string | undefined): string {
-  if (!value) {
-    throw new Error(`[console] Missing required environment variable ${name}`);
+function requiredField(parsed: ParsedConfigFile, path: readonly string[]): string {
+  const resolvedValue = getConfigPath(parsed.resolved, path);
+  if (typeof resolvedValue === 'string' && resolvedValue !== '') return resolvedValue;
+
+  const configKey = path.join('.');
+  const rawValue = getConfigPath(parsed.raw, path);
+  if (typeof rawValue === 'string') {
+    const placeholderMatch = rawValue.match(/^\{env:([A-Za-z_][A-Za-z0-9_]*)\}$/);
+    if (placeholderMatch) {
+      throw new Error(
+        `[console] config.yaml key "${configKey}" references {env:${placeholderMatch[1]}}, but ` +
+          `${placeholderMatch[1]} is not set (${parsed.absolutePath})`
+      );
+    }
   }
-  return value;
+  throw new Error(
+    `[console] config.yaml is missing a required value for "${configKey}" (${parsed.absolutePath})`
+  );
 }
 
-function parseBoolean(value: string | undefined, fallback: boolean): boolean {
-  if (value === undefined || value === '') return fallback;
-  return value !== 'false' && value !== '0';
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-function parseList(value: string | undefined): string[] {
-  if (!value) return [];
-  return value
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+function asStringWithFallback(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value !== '' ? value : fallback;
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'string') return value !== 'false' && value !== '0';
+  return fallback;
+}
+
+/** Accepts either a real YAML array or a comma-separated string (the latter so a single
+ *  `{env:VAR}` placeholder can drive the whole list, mirroring authz's `billing.plans`/`models`
+ *  "single JSON-array string for fully env-driven setups" escape hatch). */
+function parseAudienceList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 /** Strips a single trailing slash so `${base}${path}` never doubles up. */
@@ -73,37 +140,63 @@ export function normalizeBasePath(value: string): string {
   return trimTrailingSlash(withLeading);
 }
 
-export function serverEnv(): ConsoleEnv {
-  const backendUrl = trimTrailingSlash(required('BACKEND_URL', process.env.BACKEND_URL));
-  const sessionSecret = required('SESSION_SECRET', process.env.SESSION_SECRET);
+/** Builds the typed config from an already-parsed+resolved config document. Exported (in addition
+ *  to `serverEnv()`) so loader tests can validate this step against an in-memory document without
+ *  touching the filesystem. */
+export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
+  const raw = (parsed.resolved ?? {}) as RawConsoleConfig;
+
+  const backendUrl = trimTrailingSlash(requiredField(parsed, ['backendUrl']));
+  const sessionSecret = requiredField(parsed, ['session', 'secret']);
   if (sessionSecret.length < 32) {
-    throw new Error('[console] SESSION_SECRET must be at least 32 characters');
+    throw new Error(
+      `[console] config.yaml key "session.secret" must resolve to at least 32 characters ` +
+        `(${parsed.absolutePath})`
+    );
   }
+
+  const keycloak = raw.keycloak ?? {};
+  const usageUrl = asOptionalString(raw.usageUrl);
 
   return {
     keycloak: {
-      issuer: trimTrailingSlash(required('KEYCLOAK_ISSUER', process.env.KEYCLOAK_ISSUER)),
-      clientId: required('KEYCLOAK_CLIENT_ID', process.env.KEYCLOAK_CLIENT_ID),
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || undefined,
-      scopes: process.env.KEYCLOAK_SCOPES || 'openid profile email offline_access',
-      expectedAudiences: parseList(process.env.EXPECTED_AUDIENCES),
-      audienceRequired: parseBoolean(process.env.AUDIENCE_REQUIRED, true),
-      rolesClaim: process.env.ROLES_CLAIM || 'lightbridge_api_roles',
+      issuer: trimTrailingSlash(requiredField(parsed, ['keycloak', 'issuer'])),
+      clientId: requiredField(parsed, ['keycloak', 'clientId']),
+      clientSecret: asOptionalString(keycloak.clientSecret),
+      scopes: asStringWithFallback(keycloak.scopes, 'openid profile email offline_access'),
+      expectedAudiences: parseAudienceList(keycloak.expectedAudiences),
+      audienceRequired: parseBoolean(keycloak.audienceRequired, true),
+      rolesClaim: asStringWithFallback(keycloak.rolesClaim, 'lightbridge_api_roles'),
     },
     backendUrl,
-    apiBasePath: normalizeBasePath(process.env.API_BASE_PATH || '/api'),
-    budgetUrl: trimTrailingSlash(process.env.BUDGET_URL || backendUrl),
-    usageUrl: process.env.USAGE_URL ? trimTrailingSlash(process.env.USAGE_URL) : undefined,
+    apiBasePath: normalizeBasePath(asStringWithFallback(raw.apiBasePath, '/api')),
+    budgetUrl: trimTrailingSlash(asStringWithFallback(raw.budgetUrl, backendUrl)),
+    usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
     sessionSecret,
-    publicBaseUrl: process.env.PUBLIC_BASE_URL
-      ? trimTrailingSlash(process.env.PUBLIC_BASE_URL)
+    publicBaseUrl: asOptionalString(raw.publicBaseUrl)
+      ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,
   };
 }
 
+let cachedConsoleEnv: ConsoleEnv | undefined;
+
+export function serverEnv(): ConsoleEnv {
+  if (!cachedConsoleEnv) {
+    cachedConsoleEnv = buildConsoleEnv(parseConfigFile());
+  }
+  return cachedConsoleEnv;
+}
+
+/** Test-only: clears the process-lifetime cache so a test can reload with a different
+ *  `CONSOLE_CONFIG`/fixture. Never called from production code. */
+export function __resetServerEnvCacheForTests(): void {
+  cachedConsoleEnv = undefined;
+}
+
 /** The absolute origin to build redirect URIs against, preferring the explicit deploy-time value. */
 export function publicOrigin(request: Request): string {
-  const configured = process.env.PUBLIC_BASE_URL;
+  const configured = serverEnv().publicBaseUrl;
   if (configured) return trimTrailingSlash(configured);
   return trimTrailingSlash(new URL(request.url).origin);
 }

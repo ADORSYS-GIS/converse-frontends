@@ -115,4 +115,62 @@ describe('SpendSeriesChart', () => {
     expect(container.querySelectorAll('rect').length).toBeGreaterThan(0);
     expect(container.querySelectorAll('path[stroke]').length).toBe(0);
   });
+
+  // The tooltip card renders in a `FloatingPortal` (see `chart-tooltip`'s own tests), so its
+  // rows are queried off the portalled `.bg-surface` card rather than `screen.getByText` --
+  // `project-a` also appears in the always-rendered legend below the chart.
+  function tooltipCard(): HTMLElement | null {
+    return document.body.querySelector('.bg-surface');
+  }
+
+  it('shows the tooltip continuously on hover (mouse) and hides it on pointerleave, without a click', () => {
+    render(<SpendSeriesChart series={THREE_SERIES} width={400} height={200} />);
+
+    const point = screen.getByRole('button', { name: '2/1' });
+    expect(tooltipCard()).not.toBeInTheDocument();
+
+    fireEvent.pointerEnter(point, { pointerType: 'mouse' });
+    expect(tooltipCard()).toHaveTextContent('project-a');
+
+    fireEvent.pointerLeave(point, { pointerType: 'mouse' });
+    expect(tooltipCard()).not.toBeInTheDocument();
+  });
+
+  it('tracks the nearest point as the pointer moves across timestamps', () => {
+    render(<SpendSeriesChart series={THREE_SERIES} width={400} height={200} />);
+
+    fireEvent.pointerEnter(screen.getByRole('button', { name: '2/1' }), { pointerType: 'mouse' });
+    expect(tooltipCard()).toHaveTextContent('2/1');
+
+    fireEvent.pointerEnter(screen.getByRole('button', { name: '2/2' }), { pointerType: 'mouse' });
+    expect(tooltipCard()).toHaveTextContent('2/2');
+    expect(tooltipCard()).not.toHaveTextContent('2/1');
+  });
+
+  it('a touch tap shows the tooltip and it stays up on pointerleave (touch, not a mouse hover)', () => {
+    render(<SpendSeriesChart series={THREE_SERIES} width={400} height={200} />);
+
+    const point = screen.getByRole('button', { name: '2/1' });
+    fireEvent.pointerEnter(point, { pointerType: 'touch' });
+    fireEvent.pointerLeave(point, { pointerType: 'touch' });
+
+    expect(tooltipCard()).toHaveTextContent('project-a');
+  });
+
+  it('clicking a data point does not affect series selection -- that stays the legend’s job', () => {
+    let selected: string | null = null;
+    render(
+      <SpendSeriesChart
+        series={THREE_SERIES}
+        width={400}
+        height={200}
+        onSelectSeries={(key) => {
+          selected = key;
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '2/1' }));
+    expect(selected).toBeNull();
+  });
 });

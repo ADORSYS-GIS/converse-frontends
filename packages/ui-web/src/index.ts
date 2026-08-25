@@ -66,6 +66,8 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { LatencyRidgeline } from './components/latency-ridgeline';
 export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components/latency-ridgeline';
+export { DonutChart } from './components/donut-chart';
+export type { DonutChartProps, DonutSlice } from './components/donut-chart';
 
 // ── forms & actions
 export { Button } from './components/button';
@@ -150,6 +152,9 @@ export type {
 
 export { SpendDashboard } from './sections/spend-dashboard';
 export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
+
+export { SpendShareSection } from './sections/spend-share';
+export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
 
 export { LatencyDashboard } from './sections/latency-dashboard';
 export type { LatencyDashboardProps } from './sections/latency-dashboard';

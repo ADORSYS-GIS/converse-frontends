@@ -121,7 +121,7 @@ type Story = StoryObj<typeof AdminBudgetReviewPage>;
 // pending row pre-selected, right rail showing its ReviewDetailPanel.
 export const Populated: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulAdminBudgetReviewPage initialSelectedId="gateway-prod" />
     </div>
   ),
@@ -130,7 +130,7 @@ export const Populated: Story = {
 // A different request selected — confirms the right rail retargets per row.
 export const RequestSelected: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulAdminBudgetReviewPage initialSelectedId="agent-sandbox" />
     </div>
   ),
@@ -139,7 +139,7 @@ export const RequestSelected: Story = {
 // §6 — "Nothing awaiting a decision." queue-empty state; the RECENT DECISIONS ledger fills the screen.
 export const QueueEmpty: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulAdminBudgetReviewPage pending={[]} />
     </div>
   ),
@@ -147,7 +147,7 @@ export const QueueEmpty: Story = {
 
 export const Loading: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulAdminBudgetReviewPage pending={[]} loading />
     </div>
   ),
@@ -155,7 +155,7 @@ export const Loading: Story = {
 
 export const ErrorState: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <StatefulAdminBudgetReviewPage pending={[]} error="Failed to load the review queue." />
     </div>
   ),

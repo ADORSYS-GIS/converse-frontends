@@ -12,12 +12,21 @@ import type { ConsoleShellProps } from './types';
 const RAIL_STICKY = 'md:sticky md:top-[56px] md:max-h-[calc(100dvh-56px)] md:overflow-y-auto';
 
 // Contract: docs/design/console-redesign/README.md §3 (shell and grid) + console-ui skill
-// "Shape and layout" — mobile-first ladder and flex-shell (owner directive 2026-08-25):
+// "Shape and layout" — mobile-first ladder, flex-shell (owner directive 2026-08-25), and flush
+// rails (owner revision 2026-08-25, supersedes the floating-panel-with-gutters reading of ADR
+// 0008 Decision 3):
 //
 //  - **Flex shell, centre-only stretch**: below the header, a flex row where both rails are
 //    `flex-none` and fixed-width; the centre is the only stretching zone (`flex-1 min-w-0`).
 //    No page-level horizontal overflow at any tier — anything intrinsically wide scrolls inside
 //    its own container.
+//  - **Rails are flush, aligned, full-height columns**: each rail is ONE continuous `surface`
+//    column, edge-to-edge against the viewport side and flush under the header — no outer
+//    gutter on the row that holds header/rails/centre. Sections inside a rail (`RailPanel`s —
+//    now a rail *section*, not a self-panelled card, see that component's own docstring) stack
+//    with `divide-y divide-raised` so consecutive sections separate with one hairline rule,
+//    never a gap that lets the floor show through. Only the centre column carries its own
+//    padding, since it (and only it) sits directly on the floor.
 //  - **Sticky, independently-scrollable rails**: `sticky top-[56px] max-h-[calc(100dvh-56px)]
 //    overflow-y-auto` at `md`/`lg` — the centre column is the document's own scroller.
 //  - **CSS-driven tiers, not a JS `tier` prop**: `nav` is rendered twice from one
@@ -60,10 +69,10 @@ export function ConsoleShell({
         ) : null}
       </div>
 
-      <div className="flex flex-1 items-start gap-6 px-4 py-6">
+      <div className="flex flex-1 items-start">
         <div
           className={cn(
-            'hidden flex-none flex-col gap-2 md:flex md:w-[208px]',
+            'hidden flex-none flex-col divide-y divide-raised bg-surface md:flex md:w-[208px]',
             RAIL_STICKY,
           )}
         >
@@ -73,12 +82,14 @@ export function ConsoleShell({
           {leftSecondary}
         </div>
 
-        {/* Bottom clearance for the fixed bottom nav (56px, below `md`) stacked under the right
-            rail's `BottomSheet` peek row (~96px, below `lg`) — both are position: fixed, so the
-            centre needs real padding or their last rows would sit underneath them. */}
+        {/* The centre is the only padded, only stretching zone — it sits directly on the floor
+            between two edge-to-edge rails, so it (not the row) owns the gutter. Bottom clearance
+            stacks for the fixed bottom nav (56px, below `md`) under the right rail's
+            `BottomSheet` peek row (~96px, below `lg`) — both are position: fixed, so the centre
+            needs real padding or their last rows would sit underneath them. */}
         <main
           className={cn(
-            'min-w-0 flex-1',
+            'min-w-0 flex-1 px-4 py-6 md:px-6',
             rightRail ? 'pb-40 md:pb-28 lg:pb-6' : 'pb-20 md:pb-6',
           )}
         >
@@ -86,7 +97,12 @@ export function ConsoleShell({
         </main>
 
         {rightRail ? (
-          <div className={cn('hidden lg:flex lg:w-[280px] lg:flex-none lg:flex-col', RAIL_STICKY)}>
+          <div
+            className={cn(
+              'hidden lg:flex lg:w-[280px] lg:flex-none lg:flex-col divide-y divide-raised bg-surface',
+              RAIL_STICKY,
+            )}
+          >
             {rightRail}
           </div>
         ) : null}

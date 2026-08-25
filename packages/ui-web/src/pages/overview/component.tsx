@@ -279,41 +279,45 @@ export function OverviewPage({
     </RailPanel>
   );
 
-  const rightRailBody = (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4" aria-label="View">
-        <div className={SECTION_LABEL}>VIEW</div>
-        <RailSelect {...rangeField} />
-        <RailSelect {...bucketField} />
-        <RailSelect {...groupByField} />
-      </section>
+  // Four rail *sections* (owner revision 2026-08-25, console-ui skill "Rails are flush, aligned,
+  // full-height columns"), rendered as direct children of the right-rail column so its own
+  // `divide-y divide-raised` puts one hairline between each — no per-section `border-t` divider,
+  // no wrapping `gap-6` div. Each `RailPanel`'s `label` prop supplies the uppercase heading
+  // (identical styling to `SECTION_LABEL`); the inner `<section aria-label>` is kept purely for
+  // the a11y region landmark the SERIES panel's tests rely on (`getByRole('region', ...)`).
+  const rightRail = (
+    <>
+      <RailPanel label="VIEW">
+        <section className="flex flex-col gap-4" aria-label="View">
+          <RailSelect {...rangeField} />
+          <RailSelect {...bucketField} />
+          <RailSelect {...groupByField} />
+        </section>
+      </RailPanel>
 
-      <div aria-hidden="true" className="border-t border-border" />
+      <RailPanel label="FILTERS">
+        <section className="flex flex-col gap-4" aria-label="Filters">
+          <RailSelect {...accountFilterField} />
+          <RailSelect {...projectFilterField} />
+          <RailSelect {...modelFilterField} />
+        </section>
+      </RailPanel>
 
-      <section className="flex flex-col gap-4" aria-label="Filters">
-        <div className={SECTION_LABEL}>FILTERS</div>
-        <RailSelect {...accountFilterField} />
-        <RailSelect {...projectFilterField} />
-        <RailSelect {...modelFilterField} />
-      </section>
+      <RailPanel label="SERIES">
+        <section className="flex flex-col gap-3" aria-label="Series">
+          <ChartLegend items={seriesLegendItems} selectedKey={selectedSeriesKey} onSelectKey={onSelectSeries} />
+        </section>
+      </RailPanel>
 
-      <div aria-hidden="true" className="border-t border-border" />
-
-      <section className="flex flex-col gap-3" aria-label="Series">
-        <div className={SECTION_LABEL}>SERIES</div>
-        <ChartLegend items={seriesLegendItems} selectedKey={selectedSeriesKey} onSelectKey={onSelectSeries} />
-      </section>
-
-      <div aria-hidden="true" className="border-t border-border" />
-
-      <section className="flex flex-col gap-2" aria-label="Export">
-        <div className={SECTION_LABEL}>EXPORT</div>
-        <Button type="button" variant="secondary" className="w-full" onClick={onExportView}>
-          {exportLabel ?? 'Export current view · CSV'}
-        </Button>
-        {exportCaption ? <p className="font-sans text-[10px] text-subtle">{exportCaption}</p> : null}
-      </section>
-    </div>
+      <RailPanel label="EXPORT">
+        <section className="flex flex-col gap-2" aria-label="Export">
+          <Button type="button" variant="secondary" className="w-full" onClick={onExportView}>
+            {exportLabel ?? 'Export current view · CSV'}
+          </Button>
+          {exportCaption ? <p className="font-sans text-[10px] text-subtle">{exportCaption}</p> : null}
+        </section>
+      </RailPanel>
+    </>
   );
 
   const rangeOptionLabel = rangeField.options.find((o) => o.value === rangeField.value)?.label ?? rangeField.value;
@@ -327,7 +331,7 @@ export function OverviewPage({
       nav={{ items: navItems, adminItems: adminNavItems, showAdmin }}
       leftSecondary={leftSecondary}
       leftSecondaryLabel="Scope"
-      rightRail={<RailPanel>{rightRailBody}</RailPanel>}
+      rightRail={rightRail}
       rightRailTitle="VIEW & FILTERS"
       rightRailPeek={
         <span className="font-mono text-[10px] text-subtle">
@@ -344,6 +348,10 @@ export function OverviewPage({
 
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
 
+        {/* `lg:basis-[209px]` is the 1440-reference size (4 × 209 + 3 × 12px gaps = 872px, the
+            spec's exact centre width at 1440 — README §3) — `lg:flex-1 lg:min-w-0` (not
+            `shrink-0`) let the cards scale down together below that reference instead of forcing
+            the page to overflow (console-ui skill "No overflow, ever" / "Fluid always"). */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:flex">
           {statCardsLoading
             ? Array.from({ length: statCards.length || 4 }, (_, index) => <StatCardSkeleton key={index} />)
@@ -355,7 +363,7 @@ export function OverviewPage({
                   metric={card.metric}
                   delta={card.delta}
                   sparkline={<Sparkline data={card.sparklineData} />}
-                  className="w-full lg:w-[209px] lg:shrink-0"
+                  className="w-full lg:min-w-0 lg:flex-1 lg:basis-[209px]"
                 />
               ))}
         </div>
@@ -388,8 +396,12 @@ export function OverviewPage({
           </div>
         </div>
 
+        {/* Same fluid-basis fix as the stat-card row just above: `lg:basis-[528px]` /
+            `lg:basis-[320px]` are the 1440-reference widths (528 + 320 + 24px gap = 872px, the
+            centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not `shrink-0`) let both
+            columns scale down together instead of overflowing the page below that reference. */}
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
-          <div className="w-full lg:w-[528px] lg:shrink-0">
+          <div className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]">
             <div className={DASHBOARD_LABEL}>LATENCY DISTRIBUTION — p95 BY MODEL</div>
             <div ref={latencyContainer.ref} className="mt-4 w-full overflow-x-auto">
               {latencyStatus === 'error' ? (
@@ -414,7 +426,7 @@ export function OverviewPage({
             </div>
           </div>
 
-          <div className="w-full lg:w-[320px] lg:shrink-0">
+          <div className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]">
             <div className={DASHBOARD_LABEL}>BUDGET — CONSUMPTION VS CEILING</div>
             <div className="mt-4">
               <BudgetHero

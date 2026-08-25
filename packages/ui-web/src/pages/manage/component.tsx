@@ -104,7 +104,12 @@ export function ManagePage({
         </span>
       }
       rightRail={
-        <div className="flex flex-col gap-3">
+        // A Fragment, not a wrapping `<div>`: the rail column in `ConsoleShell` applies
+        // `bg-surface divide-y divide-raised` to its direct children, so each `RailPanel`
+        // section here must render as a direct DOM child of that column for the hairline
+        // separators to land between sections instead of around one wrapping box (console-ui
+        // skill "Rails are flush, aligned, full-height columns", owner revision 2026-08-25).
+        <>
           <RailPanel label="MONTHLY REPORT">
             <ReportExportPanel {...reportExport} />
           </RailPanel>
@@ -167,7 +172,7 @@ export function ManagePage({
               <p className="font-sans text-[11px] text-subtle">No rows selected.</p>
             )}
           </RailPanel>
-        </div>
+        </>
       }
     >
       <div className="flex flex-col gap-6">

@@ -126,7 +126,7 @@ export function BottomSheet({
               </div>
               {description}
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+            <div className="flex-1 divide-y divide-raised overflow-y-auto px-4 pb-4">{children}</div>
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>

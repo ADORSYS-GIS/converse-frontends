@@ -126,11 +126,12 @@ export default meta;
 type Story = StoryObj<typeof OverviewPage>;
 
 // `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Visually comparable
-// 1:1 to docs/design/console-redesign/overview.svg — forced to the mockup's exact 1440 content
-// width; the real iframe is also ≥1024 (the `lg:` media query itself only cares about that).
+// to docs/design/console-redesign/overview.svg. Fluid (`w-full`, console-ui skill "Fluid
+// always") — the page follows the iframe's real width rather than a fixed 1440 wrapper; the
+// `lg:` media query only cares that the width is ≥1024.
 export const Populated: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo />
     </div>
   ),
@@ -139,7 +140,7 @@ export const Populated: Story = {
 // README §6: axes/structure stay rendered, an InlineStatus banner carries the "nothing yet" copy.
 export const Empty: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo
         overrides={{
           emptyMessage: 'No usage yet. Usage appears here once your first request is billed.',
@@ -158,7 +159,7 @@ export const Empty: Story = {
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
 export const Loading: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo
         overrides={{
           statCardsLoading: true,
@@ -174,7 +175,7 @@ export const Loading: Story = {
 // latency query must not take the spend chart down with it, so only LATENCY errors here.
 export const DashboardError: Story = {
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo
         overrides={{
           latencyStatus: 'error',
@@ -189,7 +190,7 @@ export const DashboardError: Story = {
 export const MemberNav: Story = {
   name: 'Nav — member (no Admin group)',
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo overrides={{ showAdmin: false }} />
     </div>
   ),
@@ -198,7 +199,7 @@ export const MemberNav: Story = {
 export const AdminNav: Story = {
   name: 'Nav — admin (Admin group visible)',
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <Demo overrides={{ showAdmin: true }} />
     </div>
   ),

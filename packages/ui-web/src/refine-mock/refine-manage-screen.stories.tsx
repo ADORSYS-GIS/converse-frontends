@@ -22,7 +22,7 @@ type Story = StoryObj<typeof RefineManageScreen>;
 export const Populated: Story = {
   decorators: [withRefineMock({ latencyMs: [300, 600] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineManageScreen />
     </div>
   ),
@@ -37,7 +37,7 @@ export const Populated: Story = {
 export const RowSelected: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20] })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineManageScreen />
     </div>
   ),
@@ -61,7 +61,7 @@ export const RowSelected: Story = {
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } })],
   render: () => (
-    <div className="w-[1440px]">
+    <div className="w-full">
       <RefineManageScreen />
     </div>
   ),

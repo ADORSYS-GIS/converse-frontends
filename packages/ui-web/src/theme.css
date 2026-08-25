@@ -77,6 +77,19 @@
   --color-subtle: #606060; /* muted label/placeholder */
   --color-ink: #eeeeee; /* strong -- headings, key numerals */
 
+  /* Our Tailwind-facing ALIASES, re-declared HERE too (not only in the bare `@theme` block below)
+     -- see that block's "Regression, found and fixed" comment for the full story: a `var()`
+     reference only re-resolves per-element for selectors that actually match that element, so
+     aliasing `--color-base-100` etc. exclusively at `:root` made these five silently ignore a
+     `data-theme` set on anything other than `<html>` itself. Declaring them again here, alongside
+     the variable they alias, means any element matching `[data-theme="black"]` -- not just
+     `:root` -- resolves them correctly and locally. */
+  --color-muted: var(--color-base-100);
+  --color-chrome: var(--color-neutral);
+  --color-surface: var(--color-base-200);
+  --color-raised: var(--color-base-300);
+  --color-soft: var(--color-base-content);
+
   --radius-selector: 0.125rem;
   --radius-field: 0.125rem;
   --radius-box: 0.125rem;
@@ -117,6 +130,14 @@
   --color-subtle: #8a8a8a; /* muted label/placeholder */
   --color-ink: #1a1a1a; /* strong -- headings, key numerals */
 
+  /* See the matching comment in the `black` block above -- re-declared here (not only aliased
+     once at `:root`) so these resolve correctly for any element matching `[data-theme="wireframe"]`. */
+  --color-muted: var(--color-base-100);
+  --color-chrome: var(--color-neutral);
+  --color-surface: var(--color-base-200);
+  --color-raised: var(--color-base-300);
+  --color-soft: var(--color-base-content);
+
   --radius-selector: 0.125rem;
   --radius-field: 0.125rem;
   --radius-box: 0.125rem;
@@ -136,23 +157,42 @@
  * the Tailwind v3 preset (ADR 0010 Decision 3b's mapping table). `primary`/`primary-content` need
  * no entry here -- they are daisy's own vocabulary and the plugin already registers them.
  *
- * The verified form (ADR 0010 Decision 3's stated phase-1 gate): entries that alias to a DAISY
- * variable (`muted`, `chrome`, `surface`, `raised`, `soft`) reference `var(--color-base-100)` etc.
- * directly -- no collision, the names differ. Entries with NO daisy vocabulary slot (`border`,
- * `subtle`, `ink`) must NOT write `var(--color-border)` here: `@theme` compiles to a `:root`-
- * scoped declaration, and `--color-border: var(--color-border)` on `:root` is a self-reference
- * (CSS "guaranteed-invalid value", confirmed against a real build below). Those three instead
- * take a literal placeholder equal to `black`'s value -- `@theme`/`:root` only needs to know the
- * key exists so Tailwind emits the utility; the theme plugin blocks above already override the
- * real value per `[data-theme]` at higher specificity and later source order, so the runtime
- * value always resolves correctly in both themes.
+ * This block exists ONLY so Tailwind's utility generator learns these eight names are valid theme
+ * colours -- `@theme` compiles to a plain `:root, :host` declaration in the `theme` cascade layer,
+ * and every value below is a throwaway placeholder (`black`'s value, arbitrarily), never consulted
+ * at runtime for a themed page. The REAL, authoritative value for all eight comes from the
+ * `@plugin 'daisyui/theme'` blocks above, which redeclare every one of them (not just
+ * `border`/`subtle`/`ink`) inside BOTH the `black` and `wireframe` blocks.
+ *
+ * **Regression, found and fixed after phase 1 first shipped**: the original version of this file
+ * aliased `muted`/`chrome`/`surface`/`raised`/`soft` ONLY here, as `var(--color-base-100)` etc.,
+ * reasoning that referencing daisy's own variable would keep them automatically in sync. That is
+ * true for an element that has NO closer-matching `[data-theme]` rule of its own -- but a CSS
+ * custom property's `var()` reference resolves using the referenced property's value AT THE SAME
+ * ELEMENT the referencing declaration's selector matches. Since `:root, :host` matches only
+ * `<html>`, `--color-muted` was computed exactly ONCE, at `<html>`, and every descendant simply
+ * INHERITED that single computed value -- completely ignoring `data-theme` on any element other
+ * than `<html>` itself. `--color-border`/`--color-subtle`/`--color-ink` (and every daisy-native
+ * variable) did NOT have this problem, because the `@plugin 'daisyui/theme'` blocks redeclare them
+ * on `[data-theme="black"]`/`[data-theme="wireframe"]` directly -- a selector that matches ANY
+ * element bearing that attribute, not just `:root` -- so they always recomputed correctly and
+ * independently per element. Confirmed live: Storybook's own preview decorator (before this fix)
+ * wrapped every story in a `<div data-theme={theme}>` in addition to setting `<html data-theme>`;
+ * setting `data-theme="wireframe"` on `<html>` alone (bypassing the toolbar, so the div kept its
+ * stale default `"black"`) left the floor/panels/body text (the aliased-only-at-root tokens)
+ * correctly light while `ink`/`border`/`subtle`/`primary` (redeclared per `[data-theme]`, so they
+ * tracked the STALE div instead) stayed dark and unreadable on the now-light background. Every
+ * token now uses the same, uniformly robust pattern this comment describes -- redeclared inside
+ * each theme's own `@plugin 'daisyui/theme'` block -- so `data-theme` set on ANY single element,
+ * `<html>` included, fully and correctly resolves all eight, matching what `apps/console`'s
+ * pre-hydration script and theme toggle actually do (ADR 0010 Decision 5).
  */
 @theme {
-  --color-muted: var(--color-base-100);
-  --color-chrome: var(--color-neutral);
-  --color-surface: var(--color-base-200);
-  --color-raised: var(--color-base-300);
-  --color-soft: var(--color-base-content);
+  --color-muted: #000000;
+  --color-chrome: #111111;
+  --color-surface: #191919;
+  --color-raised: #202020;
+  --color-soft: #b4b4b4;
   --color-border: #3a3a3a;
   --color-subtle: #606060;
   --color-ink: #eeeeee;

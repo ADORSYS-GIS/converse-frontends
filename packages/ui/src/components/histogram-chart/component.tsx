@@ -12,7 +12,7 @@ import {
   innerWidth,
   makeLinearScale,
   seriesColor,
-} from '../chart-core';
+} from '@lightbridge/chart-core';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { collectXTicks, computeXDomain, computeYDomain, layoutBars } from './layout';

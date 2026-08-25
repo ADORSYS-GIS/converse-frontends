@@ -1,7 +1,7 @@
 import React from 'react';
 import { G, Line, Text as SvgText } from 'react-native-svg';
 
-import { CHART_GRID, CHART_TEXT_MUTED } from '../chart-core/colors';
+import { CHART_GRID, CHART_TEXT_MUTED } from '@lightbridge/chart-core';
 import type { ChartAxisBottomProps, ChartAxisLeftProps } from './types';
 
 /**

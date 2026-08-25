@@ -3,15 +3,15 @@ import {
   GREY_RAMP,
   seriesColor as chartCoreSeriesColor,
   seriesDash,
-} from '@lightbridge/ui/src/components/chart-core/colors';
-import type { SeriesColorOptions } from '@lightbridge/ui/src/components/chart-core/colors';
+} from '@lightbridge/chart-core';
+import type { SeriesColorOptions } from '@lightbridge/chart-core';
 
 export { seriesDash };
 export type { SeriesColorOptions };
 
 /**
  * Spec-sheet chart colours (docs/design/console-redesign/README.md §2.4), consumed
- * alongside `@lightbridge/ui/src/components/chart-core`'s DOM-free math (scales,
+ * alongside `@lightbridge/chart-core`'s DOM-free math (scales,
  * bins, `seriesColor`'s accent/breach/selection decision) per ADR 0009 Decision 5.
  *
  * **Recorded divergence** (batch brief: "where a constant disagrees with the spec

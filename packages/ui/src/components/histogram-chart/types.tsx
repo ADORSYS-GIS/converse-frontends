@@ -1,4 +1,4 @@
-import type { HistogramBin } from '../chart-core';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 export interface HistogramChartProps {
   /** Raw numeric samples -- e.g. per-model latency readings. Bucketed via `computeHistogramBins`. */

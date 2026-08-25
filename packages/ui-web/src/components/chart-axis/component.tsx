@@ -13,7 +13,7 @@ const TICK_FONT_SIZE = 9; // console-redesign spec §2.4 "tick labels 9px" -- RN
  * separately-bordered widget (ADR-0008 Decision 3: "charts render uncontained
  * on the floor").
  *
- * DOM port of `@lightbridge/ui`'s `chart-axis` (react-native-svg -> `<svg>`).
+ * DOM port of packages/ui's `chart-axis` (react-native-svg -> `<svg>`).
  * Colours diverge from the RN source's single `CHART_GRID` constant per the
  * spec sheet: the baseline draws in `--line` (`#3a3a3a`), gridlines in
  * `--raised` (`#202020`) -- see `chart-tokens.ts` for the full divergence note.

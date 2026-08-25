@@ -18,11 +18,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
-      // Same `tsc`-only shim `packages/ui-web/tsconfig.json` carries: `@lightbridge/ui`'s
-      // `"./src/*": "./src/*"` exports wildcard resolves at runtime by extension probing, but
-      // `tsc`'s exports matcher wants the target to exist verbatim.
-      "@lightbridge/ui/src/*": ["../../packages/ui/src/*"],
-      // Same shim, for `@lightbridge/ui-web`'s own `"./src/*"` wildcard: several `apps/console`
+      // `tsc`-only shim for `@lightbridge/ui-web`'s own `"./src/*"` wildcard: several `apps/console`
       // modules import a `ui-web` page/component directly from its own subpath instead of the
       // package barrel (`src/index.ts`) to keep the barrel's `d3`-backed chart re-exports out of
       // routes that never render a chart — see `src/client/console-chrome.tsx`'s doc comment.

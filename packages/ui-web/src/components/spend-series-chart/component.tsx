@@ -10,7 +10,7 @@ import {
   makeBandScale,
   makeLinearScale,
   makeTimeScale,
-} from '@lightbridge/ui/src/components/chart-core/scales';
+} from '@lightbridge/chart-core';
 import { SPEC_FLOOR, SPEC_TEXT_MUTED, seriesDash, specSeriesColor } from '../../chart-tokens';
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
@@ -33,7 +33,7 @@ const identityFormatNumber = (v: number) => String(Math.round(v));
  * `chart-tokens.specSeriesColor`, and both render uncontained on the caller's
  * `#000` floor (Decision 3).
  *
- * DOM port of `@lightbridge/ui`'s `time-series-chart`, renamed to
+ * DOM port of packages/ui's `time-series-chart`, renamed to
  * `SpendSeriesChart` per the console-redesign spec's §4 component inventory
  * (`react-native-svg` -> `<svg>`, `Pressable`/`View` -> `<button>`/`<div>`).
  * Renders on a fixed `width`/`height` (an `<svg>` has no intrinsic size); the

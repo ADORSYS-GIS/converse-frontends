@@ -4,7 +4,7 @@ import type { PressableProps, TextProps, ViewProps } from 'react-native';
 import { Line, Svg } from 'react-native-svg';
 
 import { cn } from '../../cn';
-import { CHART_ACCENT, CHART_TEXT_PRIMARY, seriesColor, seriesDash } from '../chart-core/colors';
+import { CHART_ACCENT, CHART_TEXT_PRIMARY, seriesColor, seriesDash } from '@lightbridge/chart-core';
 import type { ChartLegendProps } from './types';
 
 const ViewBase = View as React.ComponentType<ViewProps & { className?: string }>;

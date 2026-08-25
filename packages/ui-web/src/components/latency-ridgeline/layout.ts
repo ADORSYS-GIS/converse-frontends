@@ -1,4 +1,4 @@
-import type { HistogramBin } from '@lightbridge/ui/src/components/chart-core/bins';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 /**
  * Layout maths for the ridgeline (joyplot) primitive, kept as plain,
@@ -7,12 +7,12 @@ import type { HistogramBin } from '@lightbridge/ui/src/components/chart-core/bin
  * and look correct while being wrong (e.g. a dwarfed series silently flattened
  * to a hairline, or a divide-by-zero on a single-bin domain producing NaN).
  *
- * `computeSharedBins` (`@lightbridge/ui`'s `chart-core/bins.ts`) already
+ * `computeSharedBins` (`@lightbridge/chart-core`'s `bins.ts`) already
  * buckets every row against one shared set of edges -- this module only owns
  * what sits on top of that: per-row peak normalization and the vertical
  * stacking/overlap geometry.
  *
- * Verbatim port of `@lightbridge/ui`'s `ridgeline-chart/layout.ts` -- pure
+ * Verbatim port of packages/ui's `ridgeline-chart/layout.ts` -- pure
  * math, no react-native-svg dependency.
  */
 

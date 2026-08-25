@@ -1,7 +1,7 @@
 import type { ScaleLinear } from 'd3-scale';
 
 import type { ChartTick } from '../chart-axis';
-import type { HistogramBin } from '../chart-core';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 /**
  * Pixel-mapping layer for the histogram primitive. Kept separate from

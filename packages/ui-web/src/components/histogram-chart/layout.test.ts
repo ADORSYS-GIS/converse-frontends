@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeHistogramBins } from '@lightbridge/ui/src/components/chart-core/bins';
-import { makeLinearScale } from '@lightbridge/ui/src/components/chart-core/scales';
+import { computeHistogramBins, makeLinearScale } from '@lightbridge/chart-core';
 
 import { collectXTicks, computeXDomain, computeYDomain, layoutBars } from './layout';
 

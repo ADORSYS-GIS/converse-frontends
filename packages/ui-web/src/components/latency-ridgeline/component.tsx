@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { area as d3Area, curveBasis } from 'd3-shape';
 
-import { computeSharedBins } from '@lightbridge/ui/src/components/chart-core/bins';
 import {
   DEFAULT_CHART_MARGIN,
+  computeSharedBins,
   innerHeight,
   innerWidth,
   makeLinearScale,
   widenDegenerateDomain,
-} from '@lightbridge/ui/src/components/chart-core/scales';
+} from '@lightbridge/chart-core';
 
 import { ChartAxisBottom } from '../chart-axis';
 import type { ChartTick } from '../chart-axis';
@@ -42,7 +42,7 @@ const identityFormatTooltip = (bin: { count: number }) => String(bin.count);
  * height normalized to **its own peak**, not a shared count scale (see
  * `layout.ts`'s `normalizeRowCounts` for why).
  *
- * DOM port of `@lightbridge/ui`'s `ridgeline-chart`, renamed to
+ * DOM port of packages/ui's `ridgeline-chart`, renamed to
  * `LatencyRidgeline` per the console-redesign spec's §4 component inventory.
  * Two deliberate contract changes from the RN source, both spec-driven:
  *   - ridge fill is the flat `--panel` surface colour (`overview.svg`'s own

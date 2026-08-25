@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import type { TextProps, ViewProps } from 'react-native';
 
-import { CHART_TEXT_MUTED, CHART_TEXT_PRIMARY } from '../chart-core/colors';
+import { CHART_TEXT_MUTED, CHART_TEXT_PRIMARY } from '@lightbridge/chart-core';
 import type { ChartTooltipProps } from './types';
 
 const ViewBase = View as React.ComponentType<ViewProps & { className?: string }>;

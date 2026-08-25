@@ -1,6 +1,8 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { DefaultAnchor } from '../../lib/link-component';
+import type { LinkComponent } from '../../lib/link-component';
 import {
   RAIL_ACTIVE_BAR_CLASS,
   RAIL_ICON_COLUMN_CLASS,
@@ -32,7 +34,7 @@ const ROW_BASE_CLASS = cn(
   'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
 );
 
-function SubNavRow({ item }: { item: SubNavItem }) {
+function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
   const className = cn(
     ROW_BASE_CLASS,
     item.active ? 'bg-raised! text-ink!' : 'text-soft! hover:bg-chrome! hover:text-ink!',
@@ -55,30 +57,35 @@ function SubNavRow({ item }: { item: SubNavItem }) {
     </>
   );
 
-  return (
-    <li>
-      {item.href ? (
-        <a
+  if (item.href) {
+    const Link = linkComponent;
+    return (
+      <li>
+        <Link
           href={item.href}
           aria-current={item.active ? 'page' : undefined}
           className={className}
           onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}>
           {content}
-        </a>
-      ) : (
-        <button
-          type="button"
-          aria-current={item.active ? 'page' : undefined}
-          className={className}
-          onClick={() => item.onSelect?.(item.key)}>
-          {content}
-        </button>
-      )}
+        </Link>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        aria-current={item.active ? 'page' : undefined}
+        className={className}
+        onClick={() => item.onSelect?.(item.key)}>
+        {content}
+      </button>
     </li>
   );
 }
 
-export function SubNav({ items, className }: SubNavProps) {
+export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubNavProps) {
   return (
     <nav aria-label="Section" className={className}>
       {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
@@ -86,7 +93,7 @@ export function SubNav({ items, className }: SubNavProps) {
           fill/active bar land at the identical net inset from the rail's true left edge. */}
       <ul className={cn('menu menu-sm w-full gap-1 p-0', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
-          <SubNavRow key={item.key} item={item} />
+          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}
       </ul>
     </nav>

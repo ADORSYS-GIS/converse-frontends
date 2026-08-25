@@ -1,11 +1,13 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { DefaultAnchor } from '../../lib/link-component';
+import type { LinkComponent } from '../../lib/link-component';
 import { RAIL_ACTIVE_BAR_CLASS, RAIL_ICON_COLUMN_CLASS, RAIL_ROW_BLEED_CLASS } from '../../lib/rail-grid';
 import { navBottomBarItemVariants, navSpineItemVariants } from './cva';
 import type { NavSpineItem, NavSpineProps } from './types';
 
-function NavRow({ item }: { item: NavSpineItem }) {
+function NavRow({ item, linkComponent }: { item: NavSpineItem; linkComponent: LinkComponent }) {
   const className = cn(navSpineItemVariants({ active: item.active }));
   const content = (
     <>
@@ -20,15 +22,16 @@ function NavRow({ item }: { item: NavSpineItem }) {
   );
 
   if (item.href) {
+    const Link = linkComponent;
     return (
-      <a
+      <Link
         href={item.href}
         aria-current={item.active ? 'page' : undefined}
         className={className}
         onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
       >
         {content}
-      </a>
+      </Link>
     );
   }
 
@@ -44,7 +47,7 @@ function NavRow({ item }: { item: NavSpineItem }) {
   );
 }
 
-function BottomBarRow({ item }: { item: NavSpineItem }) {
+function BottomBarRow({ item, linkComponent }: { item: NavSpineItem; linkComponent: LinkComponent }) {
   const className = cn(navBottomBarItemVariants({ active: item.active }));
   const content = (
     <>
@@ -57,15 +60,16 @@ function BottomBarRow({ item }: { item: NavSpineItem }) {
   );
 
   if (item.href) {
+    const Link = linkComponent;
     return (
-      <a
+      <Link
         href={item.href}
         aria-current={item.active ? 'page' : undefined}
         className={className}
         onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
       >
         {content}
-      </a>
+      </Link>
     );
   }
 
@@ -96,13 +100,14 @@ export function NavSpine({
   roleLabel = 'ROLE',
   layout = 'rail',
   className,
+  linkComponent = DefaultAnchor,
 }: NavSpineProps) {
   if (layout === 'bottom-bar') {
     const allItems = showAdmin ? [...items, ...adminItems] : items;
     return (
       <nav className={cn('flex h-full items-stretch', className)} aria-label="Primary">
         {allItems.map((item) => (
-          <BottomBarRow key={item.key} item={item} />
+          <BottomBarRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}
       </nav>
     );
@@ -111,7 +116,7 @@ export function NavSpine({
   return (
     <nav className={cn(RAIL_ROW_BLEED_CLASS, 'flex flex-col gap-1', className)} aria-label="Primary">
       {items.map((item) => (
-        <NavRow key={item.key} item={item} />
+        <NavRow key={item.key} item={item} linkComponent={linkComponent} />
       ))}
       {showAdmin && adminItems.length > 0 ? (
         <>
@@ -120,7 +125,7 @@ export function NavSpine({
             <span className="font-mono text-[9px] tracking-[.08em] text-subtle">{roleLabel}</span>
           </div>
           {adminItems.map((item) => (
-            <NavRow key={item.key} item={item} />
+            <NavRow key={item.key} item={item} linkComponent={linkComponent} />
           ))}
         </>
       ) : null}

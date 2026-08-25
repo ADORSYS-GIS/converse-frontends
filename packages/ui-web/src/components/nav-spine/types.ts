@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import type { LinkComponent } from '../../lib/link-component';
+
 export interface NavSpineItem {
   /** Stable identity, also passed to `onSelect`. */
   key: string;
@@ -33,4 +35,11 @@ export interface NavSpineProps {
    */
   layout?: 'rail' | 'bottom-bar';
   className?: string;
+  /**
+   * Component rendering each `href` item — `next/link` in `apps/console`, a plain `<a>`
+   * (`DefaultAnchor`) everywhere else. See `lib/link-component.tsx` for why this seam exists: a
+   * bare anchor is a full document reload under the Next.js App Router, not a client-side
+   * transition.
+   */
+  linkComponent?: LinkComponent;
 }

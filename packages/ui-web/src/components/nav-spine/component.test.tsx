@@ -51,6 +51,41 @@ describe('NavSpine', () => {
     expect(link).toHaveAttribute('href', '/overview');
   });
 
+  it('renders href items through a custom linkComponent (e.g. next/link) instead of a bare anchor', () => {
+    // Regression: `apps/console` previously had no way to route `NavSpine`'s href items through
+    // `next/link`, so every nav click was a full document reload (not a client-side transition) —
+    // the console's actual "black screen between navigations" root cause. This proves the seam
+    // that fixes it: a consumer-supplied component receives exactly the props a router-aware Link
+    // needs.
+    const CustomLink = vi.fn(
+      ({
+        href,
+        children,
+        ...rest
+      }: {
+        href: string;
+        children: React.ReactNode;
+        'aria-current'?: 'page';
+      }) => (
+        <a href={href} data-testid="custom-link" {...rest}>
+          {children}
+        </a>
+      ),
+    );
+
+    render(
+      <NavSpine
+        items={[{ key: 'overview', label: 'Overview', href: '/overview', active: true }]}
+        linkComponent={CustomLink}
+      />,
+    );
+
+    expect(CustomLink).toHaveBeenCalled();
+    const link = screen.getByTestId('custom-link');
+    expect(link).toHaveAttribute('href', '/overview');
+    expect(link).toHaveAttribute('aria-current', 'page');
+  });
+
   it('hides the Admin group when showAdmin is false', () => {
     render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} />);
 

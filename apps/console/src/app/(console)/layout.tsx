@@ -1,6 +1,7 @@
 'use client';
 
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
@@ -87,6 +88,12 @@ function ConsoleChrome({
         items: navItems(route),
         adminItems: adminNavItems(route),
         showAdmin: session.isAdmin,
+        // `next/link` (not the `<a href>` `NavSpine` falls back to): the App Router only
+        // intercepts clicks on its own `Link` for a client-side transition. Without this, every
+        // nav click was a full document reload — the console's actual "black screen between
+        // navigations" root cause (README §"Composition" persistent-shell contract was correct in
+        // the code, just never exercised because navigation itself never went through it).
+        linkComponent: Link,
       }}
       leftSecondary={scope}
       leftSecondaryLabel={leftSecondaryLabel}

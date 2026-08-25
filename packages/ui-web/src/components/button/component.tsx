@@ -6,7 +6,10 @@ import type { ButtonProps } from './types';
 // Contract: docs/design/console-redesign/README.md §4 — primary = `--signal` fill +
 // `primary-content` text; secondary = transparent + `--line` border + `--body` text; ghost =
 // text only. Radius 2, height 30–34 (`size: "icon"` = 30×30, always `variant="ghost"` + an
-// explicit `aria-label`, no visible text — the contextual sheet-trigger size).
+// explicit `aria-label`, no visible text — the contextual sheet-trigger size). Its glyph is
+// pinned to a fixed 16px (`[&_svg]:size-4` in `SIZE_CLASS.icon` below) regardless of the child
+// SVG's own `viewBox` — every icon-button usage must let this win rather than sizing its own
+// `<svg>` bigger.
 //
 // ADR 0010 Decision 4 (`cva.ts` deleted): daisy's `btn` already reads `--radius-field` (2px) and
 // zeroes shadow/inset via `--depth: 0`. `btn-primary` sets `--btn-color`/`-fg` straight to
@@ -22,7 +25,13 @@ const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
 const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
   sm: 'h-[30px]! px-3! text-xs!',
   md: 'h-[34px]! px-4! text-sm!',
-  icon: 'h-[30px]! w-[30px]! p-0!',
+  // `size="icon"` glyphs render inline SVGs whose only sizing info is a small `viewBox` (e.g. the
+  // section-sheet triggers' 12x12 line icons). An `<svg>` with no explicit `width`/`height` falls
+  // back to the browser's replaced-element default box, which is far larger than the 30x30
+  // button — the "icon-button glyphs too big" bug. `[&_svg]:size-4` pins every glyph inside an
+  // icon button to a fixed 16px regardless of the child SVG's own viewBox, so the fix lives once
+  // here rather than needing every icon usage to remember to size itself.
+  icon: 'h-[30px]! w-[30px]! p-0! [&_svg]:size-4',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

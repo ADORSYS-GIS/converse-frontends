@@ -205,4 +205,25 @@ describe('ConsoleShell', () => {
     const centre = screen.getByText('Centre').closest('main');
     expect(centre).toHaveClass('px-4', 'py-6', 'md:px-6');
   });
+
+  it('gives both rails a min-height matching their sticky max-height, so short content still fills the column to the floor', () => {
+    render(
+      <ConsoleShell
+        header={<div>Header</div>}
+        nav={{ items: navItems }}
+        leftSecondary={<div>Scope panel</div>}
+        leftSecondaryLabel="Scope"
+        rightRail={<div>Right rail</div>}
+      >
+        <div>Centre</div>
+      </ConsoleShell>,
+    );
+
+    const leftRail = screen.getByText('Scope panel').closest('div.md\\:w-\\[208px\\]');
+    expect(leftRail).toHaveClass('md:min-h-[calc(100dvh-56px)]', 'md:max-h-[calc(100dvh-56px)]');
+
+    const rightRailEls = screen.getAllByText('Right rail');
+    const inlineRightRail = rightRailEls[0].closest('div.lg\\:w-\\[280px\\]');
+    expect(inlineRightRail).toHaveClass('md:min-h-[calc(100dvh-56px)]', 'md:max-h-[calc(100dvh-56px)]');
+  });
 });

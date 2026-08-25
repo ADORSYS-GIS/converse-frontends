@@ -10,7 +10,20 @@ import type { ConsoleShellProps } from './types';
 // Sticky offset for both rails — must match the header's real height (`ConsoleHeader`'s `h-14`
 // = 56px). Written as a literal class string (not interpolated) so Tailwind's content scanner
 // can see it — a template-literal-built `md:top-[${x}]` would never be generated.
-const RAIL_STICKY = 'md:sticky md:top-[56px] md:max-h-[calc(100dvh-56px)] md:overflow-y-auto';
+//
+// `min-h-[calc(100dvh-56px)]` alongside the matching `max-h`/`overflow-y-auto` is what makes the
+// flush-rail contract (console-ui skill "Rails are flush, aligned, full-height columns") hold on
+// short-content pages, not just long ones: without it, `position: sticky` sizes the column to its
+// own content (its parent flex row, `items-start`, never stretches children to the row's cross
+// size), so a rail whose stacked sections are shorter than the viewport stopped short of the
+// floor — the bug this fixes. Pinning `min-h` to the same `calc(100dvh-56px)` the `max-h` already
+// caps at forces the column to always render exactly "viewport minus header" tall while sticky:
+// short content still fills that box (the `surface` background reaches the bottom edge), and
+// content taller than the viewport still scrolls internally via the existing `overflow-y-auto`
+// rather than growing the column past it. Sticky positioning itself is untouched — only the
+// column's own box height changes.
+const RAIL_STICKY =
+  'md:sticky md:top-[56px] md:min-h-[calc(100dvh-56px)] md:max-h-[calc(100dvh-56px)] md:overflow-y-auto';
 
 // Contract: docs/design/console-redesign/README.md §3 (shell and grid) + console-ui skill
 // "Shape and layout" — mobile-first ladder, flex-shell (owner directive 2026-08-25), and flush

@@ -12,6 +12,8 @@ export { ConsoleHeader } from './components/console-header';
 export type { ConsoleHeaderProps } from './components/console-header';
 export { AccountMenu } from './components/account-menu';
 export type { AccountMenuProps } from './components/account-menu';
+export { ThemeToggle } from './components/theme-toggle';
+export type { ThemeToggleProps, ThemeTogglePreference } from './components/theme-toggle';
 export { RailPanel } from './components/rail-panel';
 export type { RailPanelProps } from './components/rail-panel';
 export { NavSpine } from './components/nav-spine';

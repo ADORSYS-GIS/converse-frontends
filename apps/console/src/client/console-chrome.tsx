@@ -9,6 +9,7 @@ import type {
 } from '@lightbridge/ui-web/src/components/command-palette';
 import { ConsoleHeader } from '@lightbridge/ui-web/src/components/console-header';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import { useCommandPaletteShortcut } from '@lightbridge/ui-web/src/lib/use-command-palette-shortcut';
 import { useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
@@ -123,6 +124,13 @@ function initialsFor(name: string | undefined, email: string | undefined): strin
  *
  * Offline is reported as an inline mono status line, per the console-ui skill: no toast, no
  * banner, no modal. The cache is still serving the screen, so the message says exactly that.
+ *
+ * `ThemeToggle` sits beside `AccountMenu` as a visible one-click quick-cycle (dark -> light ->
+ * system) -- `AccountMenu`'s own Dark/Light/System entries stay too, for explicit selection
+ * including jumping straight to System. Both read the SAME `useConsoleTheme()` call below: the
+ * hook's state lives in `localStorage`/`prefers-color-scheme` via `useSyncExternalStore`
+ * (`apps/console/src/client/use-console-theme.ts`), not per-caller `useState`, so the toggle and
+ * the menu can never disagree even though each is its own component instance.
  */
 export function ConsoleIdentity() {
   const session = useConsoleSession();
@@ -135,6 +143,7 @@ export function ConsoleIdentity() {
       {online ? null : (
         <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
       )}
+      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
       <AccountMenu
         name={session.user?.name}
         email={label}

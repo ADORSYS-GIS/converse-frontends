@@ -5,11 +5,13 @@
 // the same data comes from `apps/console`'s own route table and session (console-ui skill
 // "Composition" — the shell mounts once, in the console's persistent layout).
 
-import React from 'react';
+import React, { useState } from 'react';
 
 import { AccountMenu } from '../components/account-menu';
 import { ConsoleHeader } from '../components/console-header';
 import type { NavSpineItem } from '../components/nav-spine';
+import { ThemeToggle } from '../components/theme-toggle';
+import type { ThemeTogglePreference } from '../components/theme-toggle';
 import type { SubNavItem } from '../components/sub-nav';
 
 export type StoryRoute = 'overview' | 'api-keys' | 'manage' | 'admin';
@@ -58,12 +60,31 @@ export function storyAdminNavItems(active: StoryRoute): NavSpineItem[] {
   ];
 }
 
+// `ThemeToggle` beside `AccountMenu`, both driven by one shared preference -- mirrors
+// `apps/console/src/client/console-chrome.tsx`'s `ConsoleIdentity`, whose single `useConsoleTheme`
+// instance is what actually keeps the header quick-cycle and the menu's Dark/Light/System entries
+// in sync for real.
+function StoryIdentity() {
+  const [preference, setPreference] = useState<ThemeTogglePreference>('black');
+  return (
+    <div className="flex items-center gap-4">
+      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
+      <AccountMenu
+        name="Sam Lambou"
+        email="sam@adorsys.com"
+        initials="SL"
+        onSignOut={() => {}}
+        theme={preference}
+        onThemeChange={setPreference}
+      />
+    </div>
+  );
+}
+
 export const storyHeader = (
   <ConsoleHeader
     orgSwitcher={<span className="font-mono text-xs text-soft">adorsys-gis</span>}
-    identity={
-      <AccountMenu name="Sam Lambou" email="sam@adorsys.com" initials="SL" onSignOut={() => {}} />
-    }
+    identity={<StoryIdentity />}
   />
 );
 

@@ -19,6 +19,7 @@ import {
 } from '@lightbridge/ui-web/src/sections/overview-view-rail';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
+import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
 import { useOverviewScreen } from './use-overview-screen';
 
@@ -79,6 +80,17 @@ export function OverviewCentre() {
             </SectionSheetTrigger>
           </>
         }
+      />
+
+      {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row -- see
+          `pages-stories/overview.stories.tsx`'s equivalent comment for the full reasoning. Fed
+          from the same (currently honestly-empty) source as `SpendDashboard` above: neither has a
+          live usage-backend query client yet (`screen.emptyMessage`). */}
+      <SpendShareSection
+        slices={[]}
+        size={200}
+        selectedKey={screen.selectedSeriesKey}
+        onSelectSlice={screen.setSelectedSeriesKey}
       />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">

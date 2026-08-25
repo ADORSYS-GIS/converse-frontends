@@ -58,6 +58,13 @@ import {
   formatOverviewSpendYTick,
   overviewSpendSeries,
 } from '../sections/spend-dashboard/fixtures';
+import { SpendShareSection } from '../sections/spend-share';
+import {
+  formatOverviewSpendShareValue,
+  overviewSpendShareSlices,
+} from '../sections/spend-share/fixtures';
+import { formatMoney } from '../lib/money';
+import type { DonutSlice } from '../components/donut-chart';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
@@ -80,6 +87,8 @@ interface OverviewScreenProps {
   statCardsLoading?: boolean;
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
+  spendShareSlices?: DonutSlice[];
+  spendShareStatus?: DashboardStatus;
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
   latencyErrorMessage?: string;
@@ -98,6 +107,8 @@ function OverviewScreen({
   statCardsLoading = false,
   spendSeries = overviewSpendSeries,
   spendStatus = 'ready',
+  spendShareSlices = overviewSpendShareSlices,
+  spendShareStatus = 'ready',
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
   latencyErrorMessage,
@@ -113,6 +124,11 @@ function OverviewScreen({
   const accountField = useSelectField('adorsys-gis', ACCOUNT_FILTER_OPTIONS, 'Account');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
   const modelField = useSelectField('all', MODEL_FILTER_OPTIONS, 'Model');
+
+  const spendShareTotal = useMemo(
+    () => spendShareSlices.reduce((sum, slice) => sum + slice.value, 0),
+    [spendShareSlices]
+  );
 
   const legendItems = useMemo(
     () =>
@@ -207,6 +223,24 @@ function OverviewScreen({
           }
         />
 
+        {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row --
+            reading order stays tiles -> trend -> share -> detail. Its own dashboard row (not
+            folded into the LATENCY/BUDGET row) because a donut is a fixed-size widget, unlike
+            those two `lg:basis-*` columns that scale to fill the centre; giving it a full-width
+            row lets it stay centered rather than stretching or crowding a third column into 872px. */}
+        <SpendShareSection
+          slices={spendShareSlices}
+          size={200}
+          status={spendShareStatus}
+          onRetry={() => {}}
+          selectedKey={selectedSeriesKey}
+          onSelectSlice={setSelectedSeriesKey}
+          centreMetric={spendShareTotal > 0 ? formatMoney(spendShareTotal) : undefined}
+          centreLabel={spendShareTotal > 0 ? 'TOTAL' : undefined}
+          formatTooltipValue={formatOverviewSpendShareValue}
+          formatLegendValue={formatOverviewSpendShareValue}
+        />
+
         {/* `lg:basis-[528px]` / `lg:basis-[320px]` are the 1440-reference widths (528 + 320 + 24px
             gap = 872px, the centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not
             `shrink-0`) lets both columns scale down together instead of overflowing. */}
@@ -272,6 +306,7 @@ export const Empty: Story = {
       emptyMessage="No usage yet. Usage appears here once your first request is billed."
       statCards={overviewEmptyStatCards}
       spendSeries={[]}
+      spendShareSlices={[]}
       latencySeries={[]}
       budget={overviewEmptyBudget}
       needsAttention={undefined}
@@ -282,7 +317,14 @@ export const Empty: Story = {
 
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
 export const Loading: Story = {
-  render: () => <OverviewScreen statCardsLoading spendStatus="loading" latencyStatus="loading" />,
+  render: () => (
+    <OverviewScreen
+      statCardsLoading
+      spendStatus="loading"
+      spendShareStatus="loading"
+      latencyStatus="loading"
+    />
+  ),
 };
 
 // README §6 error rules: section-level ErrorLine + Retry. A failed latency query must not take

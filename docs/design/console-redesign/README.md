@@ -255,6 +255,7 @@ component names; all are `PascalCase` in `kebab-case` files.
 | --- | --- |
 | `SpendSeriesChart` | Multi-series line/area over time; exactly one series may be `--signal` |
 | `LatencyRidgeline` | Stacked density ridges by model, label left / p95 right; a ridge over SLO strokes `--signal` |
+| `DonutChart` | Pie with a mono `metric`+`label` centre; `--floor`-coloured hairline slice separation; at most one slice may be `--signal` (selected, or the sole breached slice) |
 | `ChartLegend` | Swatch (10×2 rect) + name + value; the selected entry is `--strong` + `--signal` swatch |
 
 **Forms and actions**

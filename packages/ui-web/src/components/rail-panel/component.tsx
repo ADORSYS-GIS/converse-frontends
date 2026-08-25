@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 
 import { cn } from '../../cn';
+import { RAIL_SECTION_LABEL_CLASS } from '../../lib/rail-grid';
 import type { RailPanelProps } from './types';
 
 // Contract (revised, owner 2026-08-25 — console-ui skill "Rails are flush, aligned, full-height
@@ -18,11 +19,10 @@ export const RailPanel = forwardRef<HTMLDivElement, RailPanelProps>(function Rai
 ) {
   return (
     <div ref={ref} className={cn('p-4', className)} {...props}>
-      {label ? (
-        <div className="mb-3 font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
-          {label}
-        </div>
-      ) : null}
+      {/* `RAIL_SECTION_LABEL_CLASS` (rail-grid.ts) lands the label at the SAME shared x every
+          nav/sub-nav row label lands at — not at the raw `p-4` inset — so `MANAGE`-style
+          headings read as part of the same aligned text column as the rows beneath them. */}
+      {label ? <div className={RAIL_SECTION_LABEL_CLASS}>{label}</div> : null}
       {children}
     </div>
   );

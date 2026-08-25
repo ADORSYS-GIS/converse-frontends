@@ -49,18 +49,14 @@ pnpm --filter console dev                 # http://localhost:3000
 `apps/console/.env` already carries those local defaults (committed, same convention as
 `apps/self-service/.env` — nothing in it is a credential). `.env.example` documents every variable.
 
-### One manual Keycloak step
+### No manual Keycloak step
 
-The imported dev realm's `self-service` client only allows `http://localhost:8081/*` as a redirect
-URI, because it was created for the Expo app. Add the console's:
-
-1. <http://localhost:13444/admin> → sign in as `admin` / `password`
-2. realm `lightbridge-dev` → Clients → `self-service`
-3. **Valid redirect URIs**: add `http://localhost:3000/*`
-4. **Valid post logout redirect URIs**: add `http://localhost:3000/*`
-
-Without step 4 the RP-initiated logout redirect is refused by Keycloak (the local session is still
-cleared either way).
+The imported dev realm's `self-service` client allows both the Expo app's
+`http://localhost:8081/*` and the console's `http://localhost:3000/*` as redirect and post-logout
+redirect URIs (`.docker/keycloak-config/realm.theme.vymalo-wh-01.json`) — `docker compose up -d
+keycloak-26` is all the auth setup local dev needs. Verified against a real Keycloak 26.4.0:
+unauthenticated `/` redirects through `/auth/login` to the realm's authorize endpoint with PKCE
+S256, and Keycloak accepts the client + redirect URI and renders its login page.
 
 The dev realm's client also has no audience mapper, so `.env` ships `EXPECTED_AUDIENCES=` empty and
 `AUDIENCE_REQUIRED=false`. Any real deployment sets both — see `.env.example`.

@@ -33,12 +33,19 @@
       "clientId": "self-service",
       "rootUrl": "http://localhost:8081",
       "adminUrl": "http://localhost:8081",
-      "redirectUris": ["http://localhost:8081/*"],
-      "webOrigins": ["+"],
+      "redirectUris": [
+        "http://localhost:8081/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
       "bearerOnly": false,
       "publicClient": true,
       "protocol": "openid-connect",
-      "attributes": {}
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:8081/*"
+      }
     }
   ]
 }

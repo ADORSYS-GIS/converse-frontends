@@ -23,6 +23,13 @@ Boundary clarifications adopted with the Next.js design spec
   rails); it survives only as the Auth page's column cap.
 - Auth (login / signed-out) renders **outside the shell** — on the floor, no rails, no nav-spine
   group.
+- **Rail treatment revised (owner, 2026-08-25, after reviewing rendered pages)**: rails are
+  flush, aligned, full-height columns — edge-to-edge against the viewport and the header, with
+  sections separated by `raised` hairline rules inside one continuous surface. The
+  floating-with-outer-gutters panel look this ADR's Decision 3 sketched read as misaligned once
+  real screens existed; the *inversion itself* (tonal chrome above a content floor, no borders,
+  content never carded) is unchanged. The `docs/design/console-redesign` SVG mockups still show
+  the floating treatment and are superseded on that one point.
 
 ## Context
 

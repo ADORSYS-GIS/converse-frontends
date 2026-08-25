@@ -1,0 +1,93 @@
+# apps/console — server-side runtime configuration.
+#
+# YAML-first, matching lightbridge-authz's config/default.yaml shape: this file is the primary
+# config document, not `.env`. `{env:SOME_ENV}` placeholders resolve to the corresponding
+# environment variable at load time (see src/server/config-loader.ts for the exact resolution
+# rules and its documented divergences from authz's `${VAR:-default}` syntax). Everything that is
+# NOT a secret and has a safe local-dev value is written here as a plain literal instead — a real
+# deployment ships its own config.yaml (point CONSOLE_CONFIG at it) rather than overriding
+# individual non-secret fields through the environment.
+#
+# None of this reaches the browser (ADR 0009 Decision 3: the console is the only exposed origin;
+# the browser talks to same-origin /api/* and nothing else). The nginx/envsubst
+# `EXPO_PUBLIC_*`/config.json machinery the Expo app needs has no equivalent here.
+
+# ── Session encryption ────────────────────────────────────────────────────────────────────────
+session:
+  # Cookie-session JWE key material (A256GCM via an HKDF of this value). At least 32 characters.
+  # ALWAYS a placeholder, never a literal, even in dev — it's a secret regardless of how low-stakes
+  # the local value is. Deploy-time secret: rotating it invalidates every live session. Generate
+  # with: openssl rand -base64 48
+  secret: '{env:SESSION_SECRET}'
+
+# ── Keycloak / OIDC ───────────────────────────────────────────────────────────────────────────
+keycloak:
+  # Issuer URL — discovery resolves every endpoint from it, nothing is hardcoded. Not a secret, so
+  # it's a literal dev default here (local compose `keycloak-26` + .docker/keycloak-config/); a
+  # real deployment ships its own config.yaml with its own issuer rather than overriding this one
+  # field through the environment.
+  issuer: 'http://localhost:13444/realms/lightbridge-dev'
+  clientId: 'self-service'
+
+  # Only for a confidential client. The dev realm's `self-service` client is public + PKCE, so this
+  # resolves to undefined there; setting KEYCLOAK_CLIENT_SECRET switches the client to
+  # `client_secret_post` authentication. Always a placeholder (secret when present).
+  clientSecret: '{env:KEYCLOAK_CLIENT_SECRET}'
+
+  # `offline_access` is what makes the long-lived silent refresh possible.
+  scopes: 'openid profile email offline_access'
+
+  # The access token's `aud` must contain at least one of these, checked on login AND on every
+  # refresh; a mismatch blocks the session. Mirrors EXPO_PUBLIC_KEYCLOAK_EXPECTED_AUDIENCE. Empty
+  # list = skip the check entirely (not recommended). A real YAML array, not authz's comma-joined
+  # string — though a single `{env:VAR}` placeholder resolving to a comma-separated string also
+  # works (src/server/env.ts's parseAudienceList accepts both).
+  #
+  # The imported dev realm's `self-service` client carries an `oidc-audience-mapper`
+  # (`converse-frontend-audience` in .docker/keycloak-config/realm.theme.vymalo-wh-01.json) that
+  # mints `aud: converse-frontend` on every access token, so this is enough to exercise the check
+  # locally — the same audience check a real deployment exercises, not a skipped one.
+  expectedAudiences:
+    - 'converse-frontend'
+
+  # `false` allows a token with no `aud` claim at all. A WRONG audience is always rejected
+  # regardless.
+  audienceRequired: true
+
+  # Claim carrying the caller's RBAC roles. Matches `getJwtRoles`'s default in
+  # packages/hooks/src/auth/jwt-utils.ts. Keycloak's realm_access/resource_access roles are merged
+  # in as well, so a realm granting `lightbridge-admin` natively also works.
+  rolesClaim: 'lightbridge_api_roles'
+
+# ── Backends (never exposed to the browser) ───────────────────────────────────────────────────
+# authz-api. Local lightbridge-authz compose stack, plaintext HTTP dev mode. Not a secret.
+backendUrl: 'http://localhost:13000'
+
+# RPC base path on authz-api — `/api/rpc/{op_id}` is served under this prefix.
+apiBasePath: '/api'
+
+# authz-budget: the microservice the 14 budget:*-gated procedures moved onto (hard cutover,
+# lightbridge-authz PR #351). Falls back to backendUrl when unset; budget calls 404 until this
+# points at a real authz-budget instance.
+budgetUrl: 'http://localhost:13005'
+
+# The usage backend (POST /usage/v1/usage/query). Left unset (no local usage backend) — /api/usage/*
+# then answers 503 and the Overview renders its honest "unwired" status line rather than an empty
+# chart that reads as zero usage. Uncomment and point at a real instance to wire it up.
+# usageUrl: "http://localhost:13006"
+
+# ── Public origin ─────────────────────────────────────────────────────────────────────────────
+# The absolute origin browsers reach this app on. Used to build the OIDC redirect URI, the RP-
+# initiated logout redirect and the /.well-known/oauth-protected-resource `resource` identifier.
+# Falls back to the incoming request's own origin, which is correct for local development but NOT
+# behind a proxy that rewrites Host — a real deployment's own config.yaml sets this explicitly.
+publicBaseUrl: 'http://localhost:3000'
+
+# ── Permissions (seam only — no engine yet) ───────────────────────────────────────────────────
+# Empty on purpose. This is where a lightbridge-authz-style permission model (see that repo's
+# oauth2.rbac block in config/default.yaml — role -> permission-grant mapping, `*` /
+# `<resource>:*` / `<resource>:<action>` grants) will eventually live once the console grows its
+# own RBAC-in-config story, instead of only relying on the backend's own enforcement. Deliberately
+# not read by src/server/env.ts yet — wiring up a field nothing consumes would be dormant code, so
+# this stays a config seam until there's an engine behind it.
+permissions: {}

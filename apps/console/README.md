@@ -23,15 +23,42 @@ src/
     api/session                       sanitized identity for the client shell (no tokens)
     .well-known/oauth-protected-resource   RFC 9728 metadata for MCP-style clients
   middleware.ts             app-route guard: no session cookie -> /auth/login?returnTo=…
-  server/                   server-only: env, OIDC, session crypto, refresh policy, proxy
+  server/                   server-only: config loading, OIDC, session crypto, refresh policy, proxy
   client/                   'use client': refine root, cratestack clients, shell chrome
   containers/               thin adapters from refine hook state to pure page-view props
   sw.ts                     service worker (built by @serwist/next in production only)
+config.yaml                 the primary server config document — see Configuration below
 ```
 
-## Running against the local compose stack
+## Configuration
 
-Two backing services, both from this repo's `compose.yml` and the `lightbridge-authz` repo:
+Server configuration is **YAML-first**, matching `lightbridge-authz`'s `config/default.yaml`
+shape: `config.yaml` (checked in, at the app root) is the primary config document — session,
+Keycloak/OIDC (issuer, client, scopes, audiences), backends, and public origin all live there.
+Inside it, a value may reference a `{env:SOME_ENV}` placeholder that resolves to the matching
+environment variable at load time (`src/server/config-loader.ts`; loaded and validated once per
+process by `src/server/env.ts`'s `serverEnv()`).
+
+Only genuine secrets are placeholders — `session.secret` always is, `keycloak.clientSecret`
+optionally is (only a confidential client needs one). Everything else that has a safe local-dev
+value (issuer URL, backend URLs, audiences, ...) is a plain literal directly in `config.yaml`; a
+real deployment that needs different literals ships its own `config.yaml` and points the
+`CONSOLE_CONFIG` env var at it, rather than overriding individual fields through the environment.
+
+`.env`/`.env.local` therefore now supply **only** the environment variables `config.yaml`
+references — `SESSION_SECRET` (required) and `KEYCLOAK_CLIENT_SECRET` (optional). `.env.example`
+documents both, plus `CONSOLE_CONFIG` itself.
+
+**Divergence from `lightbridge-authz`'s syntax** (documented in full in
+`config-loader.ts`'s header comment): authz supports `$VAR`, `${VAR}`, `${VAR-default}`, and
+`${VAR:-default}`, and a bare unset `$VAR`/`${VAR}` silently resolves to an empty string. This
+loader supports only `{env:VAR}` — no inline default operator — and when a placeholder is the
+_entire_ value of a YAML scalar, an unset/empty variable resolves to `undefined` rather than `""`,
+so a required field (`session.secret`, `keycloak.issuer`, `keycloak.clientId`, `backendUrl`) fails
+fast at startup naming both the config key and the missing variable, instead of starting
+successfully on a blank value and breaking downstream. A placeholder embedded inside a larger
+string still falls back to `''` when unset — there's no sensible way to represent "half of a
+string is undefined".
 
 ```bash
 # 1. Keycloak (realm `lightbridge-dev`, client `self-service`, imported from
@@ -46,9 +73,6 @@ pnpm install
 pnpm --filter console dev                 # http://localhost:3000
 ```
 
-`apps/console/.env` already carries those local defaults (committed, same convention as
-`apps/self-service/.env` — nothing in it is a credential). `.env.example` documents every variable.
-
 ### No manual Keycloak step
 
 The imported dev realm's `self-service` client allows both the Expo app's
@@ -60,14 +84,13 @@ S256, and Keycloak accepts the client + redirect URI and renders its login page.
 
 The dev realm's client also carries an `oidc-audience-mapper` (`converse-frontend-audience` in
 `.docker/keycloak-config/realm.theme.vymalo-wh-01.json`) that mints `aud: converse-frontend` on
-every access token, so `.env` ships `EXPECTED_AUDIENCES=converse-frontend` and
-`AUDIENCE_REQUIRED=true` — the same audience check a real deployment exercises, not a skipped one.
-See `.env.example`.
+every access token, so `config.yaml` ships `expectedAudiences: [converse-frontend]` and
+`audienceRequired: true` — the same audience check a real deployment exercises, not a skipped one.
 
 The alternative dev realm the Expo app's `.env` points at
 (`http://localhost:9100/realms/dev`, client `test-client`, audiences
 `lightbridge-api-key,converse-frontend,lightbridge-token-issuer`) works too: point
-`KEYCLOAK_ISSUER`/`KEYCLOAK_CLIENT_ID` at it and restore the audience values.
+`keycloak.issuer`/`keycloak.clientId` in `config.yaml` at it and restore the audience values.
 
 ## Scripts
 

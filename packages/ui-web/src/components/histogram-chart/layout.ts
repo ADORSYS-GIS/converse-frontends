@@ -1,6 +1,6 @@
 import type { ScaleLinear } from 'd3-scale';
 
-import type { HistogramBin } from '@lightbridge/ui/src/components/chart-core/bins';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 import type { ChartTick } from '../chart-axis';
 
@@ -12,9 +12,9 @@ import type { ChartTick } from '../chart-axis';
  * bucket maths (`computeHistogramBins`) is already tested in
  * `chart-core/bins.test.ts` and is not re-tested here.
  *
- * Verbatim port of `@lightbridge/ui`'s `histogram-chart/layout.ts` -- pure
+ * Verbatim port of packages/ui's `histogram-chart/layout.ts` -- pure
  * math, no react-native-svg dependency, only import paths adjusted for the
- * `@lightbridge/ui/src/components/chart-core` deep import (ADR 0009 Decision 5).
+ * `@lightbridge/chart-core` package (ADR 0009 Decision 5).
  */
 
 export interface HistogramBar {

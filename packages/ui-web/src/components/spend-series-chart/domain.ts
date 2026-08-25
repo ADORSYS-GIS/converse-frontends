@@ -7,7 +7,7 @@ import type { SpendSeriesSeries } from './types';
  * that day, and the x-axis still needs to include days other series did
  * report on.
  *
- * Verbatim port of `@lightbridge/ui`'s `time-series-chart/domain.ts` --
+ * Verbatim port of packages/ui's `time-series-chart/domain.ts` --
  * pure math, no react-native-svg dependency, only the type import renamed
  * alongside the component (`TimeSeriesSeries` -> `SpendSeriesSeries`).
  */

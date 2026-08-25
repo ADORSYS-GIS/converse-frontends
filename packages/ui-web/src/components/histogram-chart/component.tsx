@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 
-import { computeHistogramBins } from '@lightbridge/ui/src/components/chart-core/bins';
 import {
   DEFAULT_CHART_MARGIN,
+  computeHistogramBins,
   innerHeight,
   innerWidth,
   makeLinearScale,
-} from '@lightbridge/ui/src/components/chart-core/scales';
+} from '@lightbridge/chart-core';
 
 import { ChartAxisBottom, ChartAxisLeft } from '../chart-axis';
 import type { ChartTick } from '../chart-axis';
@@ -37,7 +37,7 @@ const identityFormatNumber = (v: number) => String(Math.round(v));
  * "selected" state, only `breached`, which accents the whole distribution at
  * once.
  *
- * DOM port of `@lightbridge/ui`'s `histogram-chart` (react-native-svg ->
+ * DOM port of packages/ui's `histogram-chart` (react-native-svg ->
  * `<svg>`). Renders on a fixed `width`/`height`; the caller measures its own
  * layout and passes pixels down.
  */

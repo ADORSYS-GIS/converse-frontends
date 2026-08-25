@@ -16,7 +16,7 @@ import {
   makeTimeScale,
   seriesColor,
   seriesDash,
-} from '../chart-core';
+} from '@lightbridge/chart-core';
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';

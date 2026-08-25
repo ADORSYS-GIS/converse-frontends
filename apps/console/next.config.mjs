@@ -55,9 +55,10 @@ const withSerwist = withSerwistInit({
 const nextConfig = {
   reactStrictMode: true,
   // The workspace packages ship raw TypeScript (`main: src/index.ts`), so Next has to compile
-  // them itself. `@lightbridge/ui` is here only for `ui-web`'s DOM-free `chart-core` deep imports
-  // (ADR 0009 Decision 5) — no React Native module is ever reached from the console.
-  transpilePackages: ['@lightbridge/ui-web', '@lightbridge/ui', '@lightbridge/authz-rpc'],
+  // them itself. `@lightbridge/chart-core` is the DOM-free chart math package `ui-web` consumes
+  // directly (ADR 0009 Decision 5) — the React Native UI package is no longer part of the
+  // console's dependency graph at all.
+  transpilePackages: ['@lightbridge/ui-web', '@lightbridge/chart-core', '@lightbridge/authz-rpc'],
   experimental: {
     // Reason 1 above: map the generated client's NodeNext `.js` specifiers onto the `.ts` sources.
     extensionAlias: {

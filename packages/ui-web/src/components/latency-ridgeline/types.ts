@@ -1,4 +1,4 @@
-import type { HistogramBin } from '@lightbridge/ui/src/components/chart-core/bins';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 export interface LatencyRidgelineSeries {
   /** Stable identity, e.g. a model id -- matched against selection/tooltip state. */

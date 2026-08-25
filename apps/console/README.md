@@ -216,8 +216,10 @@ extensionless specifiers or Turbopack grows a real `extensionAlias`.
   shell's layout chunk is loaded by every route, so a barrel import there would be the worst place
   of all for it. Type-only imports stay on the barrel — they erase at compile time.
   `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for this;
-  `tsconfig.json` needed the same `tsc`-only `paths` shim `@lightbridge/ui/src/*` already used for
-  the same reason.
+  `tsconfig.json` needed a matching `tsc`-only `paths` shim for the same reason. (A second such
+  shim used to live here too, for the DOM-free chart math package's deep imports — removed once
+  that package, `packages/chart-core`, was extracted and every importer switched to its package
+  barrel instead of a deep path.)
 
 ## Auth model (ADR 0009 Decision 2)
 

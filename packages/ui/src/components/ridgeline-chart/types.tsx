@@ -1,4 +1,4 @@
-import type { HistogramBin } from '../chart-core';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 export interface RidgelineSeries {
   /** Stable identity, e.g. a model id -- matched against selection/tooltip state. */

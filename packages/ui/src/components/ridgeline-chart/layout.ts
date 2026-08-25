@@ -1,4 +1,4 @@
-import type { HistogramBin } from '../chart-core';
+import type { HistogramBin } from '@lightbridge/chart-core';
 
 /**
  * Layout maths for the ridgeline (joyplot) primitive, kept as plain,

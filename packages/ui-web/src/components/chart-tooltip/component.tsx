@@ -36,7 +36,7 @@ import type { ChartTooltipProps } from './types';
  * `virtual-elements.mdx`) so clipping detection and `autoUpdate` see the real
  * chart `<svg>`.
  *
- * DOM port of `@lightbridge/ui`'s `chart-tooltip` (RN `View`/`Text` ->
+ * DOM port of packages/ui's `chart-tooltip` (RN `View`/`Text` ->
  * `<div>`/`<span>`), still using the console-ui token set (`bg-surface`,
  * `text-ink`, `text-subtle`).
  */

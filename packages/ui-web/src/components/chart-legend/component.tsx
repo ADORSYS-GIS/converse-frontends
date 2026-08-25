@@ -14,7 +14,7 @@ import type { ChartLegendProps } from './types';
  * unnecessary noise for exactly one (the chart's own title already says what's
  * plotted) -- enforced here, not left to every caller to remember.
  *
- * DOM port of `@lightbridge/ui`'s `chart-legend`. Two deliberate contract
+ * DOM port of packages/ui's `chart-legend`. Two deliberate contract
  * changes from the RN source, both spec-driven (§4 component inventory):
  *   - the swatch is a plain 10×2 rect (`specSeriesColor`), not a dashed line
  *     snippet -- the spec names the exact swatch geometry.

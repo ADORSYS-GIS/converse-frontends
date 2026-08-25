@@ -114,14 +114,14 @@ export {
   seriesColor,
   seriesDash,
   widenDegenerateDomain,
-} from './components/chart-core';
+} from '@lightbridge/chart-core';
 export type {
   ChartMargin,
   ChartSeriesMeta,
   HistogramBin,
   SeriesColorOptions,
   SharedBins,
-} from './components/chart-core';
+} from '@lightbridge/chart-core';
 export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
 export type { ChartAxisBottomProps, ChartAxisLeftProps, ChartTick } from './components/chart-axis';
 export { ChartLegend } from './components/chart-legend';

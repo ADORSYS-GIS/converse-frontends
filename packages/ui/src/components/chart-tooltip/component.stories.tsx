@@ -2,7 +2,7 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import { View } from 'react-native';
 
-import { CHART_ACCENT, GREY_RAMP } from '../chart-core/colors';
+import { CHART_ACCENT, GREY_RAMP } from '@lightbridge/chart-core';
 import { ChartTooltip } from './component';
 
 const meta: Meta<typeof ChartTooltip> = {

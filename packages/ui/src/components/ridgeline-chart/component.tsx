@@ -17,7 +17,7 @@ import {
   seriesColor,
   seriesDash,
   widenDegenerateDomain,
-} from '../chart-core';
+} from '@lightbridge/chart-core';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { buildRidgelineRows } from './layout';

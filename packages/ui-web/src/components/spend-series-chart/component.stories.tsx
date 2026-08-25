@@ -10,7 +10,7 @@ const meta: Meta<typeof SpendSeriesChart> = {
   args: { width: 824, height: 176 },
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 880 }}>
+      <div className="bg-muted" style={{ padding: 24, width: 880 }}>
         <Story />
       </div>
     ),
@@ -29,7 +29,7 @@ function makeSeries(
   key: string,
   label: string,
   values: number[],
-  breached = false,
+  breached = false
 ): SpendSeriesSeries {
   const dates = febDays(values.length);
   return { key, label, breached, points: dates.map((x, i) => ({ x, y: values[i] })) };
@@ -38,22 +38,34 @@ function makeSeries(
 const gpt4oMini = makeSeries(
   'gpt-4o-mini',
   'gpt-4o-mini',
-  [92, 96, 88, 101, 118, 132, 128, 140, 155, 149, 162, 171, 168, 178, 184, 190, 186, 195, 201, 198, 205, 210, 208, 214, 218, 221, 219, 224, 226],
+  [
+    92, 96, 88, 101, 118, 132, 128, 140, 155, 149, 162, 171, 168, 178, 184, 190, 186, 195, 201, 198,
+    205, 210, 208, 214, 218, 221, 219, 224, 226,
+  ]
 );
 const claudeSonnet = makeSeries(
   'claude-sonnet',
   'claude-sonnet',
-  [58, 55, 60, 62, 64, 63, 66, 68, 70, 69, 72, 74, 73, 76, 78, 80, 79, 82, 84, 83, 86, 88, 87, 89, 91, 90, 92, 93, 94],
+  [
+    58, 55, 60, 62, 64, 63, 66, 68, 70, 69, 72, 74, 73, 76, 78, 80, 79, 82, 84, 83, 86, 88, 87, 89,
+    91, 90, 92, 93, 94,
+  ]
 );
 const llama3 = makeSeries(
   'llama-3.1-70b',
   'llama-3.1-70b',
-  [30, 32, 31, 33, 35, 34, 36, 38, 37, 39, 41, 40, 42, 44, 43, 45, 47, 46, 48, 50, 49, 51, 53, 52, 54, 56, 55, 57, 59],
+  [
+    30, 32, 31, 33, 35, 34, 36, 38, 37, 39, 41, 40, 42, 44, 43, 45, 47, 46, 48, 50, 49, 51, 53, 52,
+    54, 56, 55, 57, 59,
+  ]
 );
 const embed3 = makeSeries(
   'embed-3',
   'embed-3',
-  [12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26],
+  [
+    12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23,
+    24, 24, 25, 25, 26,
+  ]
 );
 
 const legendValues: Record<string, string> = {
@@ -81,12 +93,21 @@ export const SpendByProjectAndModel: Story = {
 /** A project has breached its budget ceiling -- renders in the accent regardless of selection. */
 export const WithBreachedProject: Story = {
   args: {
-    series: [
-      gpt4oMini,
-      claudeSonnet,
-      { ...llama3, breached: true },
-      embed3,
-    ],
+    series: [gpt4oMini, claudeSonnet, { ...llama3, breached: true }, embed3],
+    formatXTick: (d) => `${String(d.getDate()).padStart(2, '0')} Feb`,
+    formatYTick: (v) => `$${v}`,
+    formatLegendValue: (s) => legendValues[s.key] ?? '',
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `WithBreachedProject` -- this is the
+// story that first caught the phase-4 hardcoded-`#000` decorator bug (fixed by switching this
+// file's own decorator to `bg-muted`).
+export const WithBreachedProjectLight: Story = {
+  name: 'With Breached Project — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: {
+    series: [gpt4oMini, claudeSonnet, { ...llama3, breached: true }, embed3],
     formatXTick: (d) => `${String(d.getDate()).padStart(2, '0')} Feb`,
     formatYTick: (v) => `$${v}`,
     formatLegendValue: (s) => legendValues[s.key] ?? '',
@@ -159,7 +180,7 @@ export const LoadingSkeletonGeometryNote: Story = {
               width={barWidth}
               height={h}
               rx={2}
-              fill="#202020"
+              fill="var(--color-raised)"
             />
           );
         })}

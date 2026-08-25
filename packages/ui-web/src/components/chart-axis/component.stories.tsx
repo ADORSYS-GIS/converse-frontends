@@ -7,7 +7,7 @@ const meta: Meta<typeof ChartAxisBottom> = {
   title: 'Charts/ChartAxis',
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 420 }}>
+      <div className="bg-muted" style={{ padding: 24, width: 420 }}>
         <Story />
       </div>
     ),
@@ -18,6 +18,28 @@ export default meta;
 type Story = StoryObj<typeof ChartAxisBottom>;
 
 export const BottomAxis: Story = {
+  render: () => (
+    <svg width={360} height={60}>
+      <ChartAxisBottom
+        y={20}
+        ticks={[
+          { position: 20, label: 'Mon' },
+          { position: 110, label: 'Tue' },
+          { position: 200, label: 'Wed' },
+          { position: 290, label: 'Thu' },
+          { position: 340, label: 'Fri' },
+        ]}
+      />
+    </svg>
+  ),
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `BottomAxis` -- baseline/tick colour
+// come from `--color-border`/`--color-subtle` via `chart-tokens.ts`, so this only needs the theme
+// global, not a separate render.
+export const BottomAxisLight: Story = {
+  name: 'Bottom Axis — wireframe (light)',
+  globals: { theme: 'wireframe' },
   render: () => (
     <svg width={360} height={60}>
       <ChartAxisBottom

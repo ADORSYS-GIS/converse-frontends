@@ -9,7 +9,7 @@ const meta: Meta<typeof LatencyRidgeline> = {
   args: { width: 528, height: 310 },
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 580 }}>
+      <div className="bg-muted" style={{ padding: 24, width: 580 }}>
         <Story />
       </div>
     ),
@@ -65,6 +65,31 @@ export const ModelLatencyDistribution: Story = {
   },
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `ModelLatencyDistribution` -- the
+// ridgeline fill is `--panel` (white) against a `--floor` (grey) rather than `--panel` (near-
+// black) against `--floor` (black); the inversion still holds (panel is always lighter than the
+// floor it sits on), so the ridges read the same way in both themes.
+export const ModelLatencyDistributionLight: Story = {
+  name: 'Per-model latency distribution — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: {
+    series: [
+      { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: gpt4oMini, value: 'p95 312 ms' },
+      { key: 'llama-3.1-70b', label: 'llama-3.1-70b', values: llama3, value: 'p95 468 ms' },
+      {
+        key: 'claude-sonnet',
+        label: 'claude-sonnet',
+        values: claudeSonnet,
+        value: 'p95 1 240 ms · over SLO',
+        breached: true,
+      },
+      { key: 'embed-3', label: 'embed-3', values: embed3, value: 'p95 88 ms' },
+    ],
+    formatXTick: (v: number) => `${Math.round(v)}ms`,
+    formatTooltipValue: (bin: { count: number }) => `${bin.count} requests`,
+  },
+};
+
 /** No data at all -- the axis frame renders with a muted caption on the baseline (spec §6). */
 export const Empty: Story = {
   args: { series: [] },
@@ -94,7 +119,11 @@ export const SingleSeries: Story = {
 export const OneSeriesDwarfsAnother: Story = {
   args: {
     series: [
-      { key: 'high-traffic', label: 'high-traffic-model', values: normalSamples(10_000, 200, 30, 7) },
+      {
+        key: 'high-traffic',
+        label: 'high-traffic-model',
+        values: normalSamples(10_000, 200, 30, 7),
+      },
       { key: 'low-traffic', label: 'low-traffic-model', values: [180, 195, 205, 210, 190] },
     ],
     formatXTick: (v: number) => `${Math.round(v)}ms`,
@@ -126,7 +155,7 @@ export const LoadingSkeletonGeometryNote: Story = {
             width={plotWidth}
             height={rowHeight - 12}
             rx={2}
-            fill="#202020"
+            fill="var(--color-raised)"
           />
         ))}
       </svg>

@@ -15,10 +15,23 @@ export const Default: Story = {};
 
 export const InStatCardShape: Story = {
   render: () => (
-    <div className="flex w-[209px] flex-col gap-2 rounded-[2px] bg-surface p-4">
-      <span className="h-3 w-24 rounded-[2px] bg-raised" />
+    <div className="bg-surface flex w-[209px] flex-col gap-2 rounded-[2px] p-4">
+      <span className="bg-raised h-3 w-24 rounded-[2px]" />
       <SkeletonMetric width={72} className="mt-3" />
-      <span className="mt-2 h-3 w-32 rounded-[2px] bg-raised" />
+      <span className="bg-raised mt-2 h-3 w-32 rounded-[2px]" />
+    </div>
+  ),
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `InStatCardShape`.
+export const InStatCardShapeLight: Story = {
+  name: 'In Stat Card Shape — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => (
+    <div className="bg-surface flex w-[209px] flex-col gap-2 rounded-[2px] p-4">
+      <span className="bg-raised h-3 w-24 rounded-[2px]" />
+      <SkeletonMetric width={72} className="mt-3" />
+      <span className="bg-raised mt-2 h-3 w-32 rounded-[2px]" />
     </div>
   ),
 };

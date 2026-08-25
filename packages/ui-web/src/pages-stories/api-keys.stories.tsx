@@ -190,6 +190,13 @@ export const Populated: Story = {
   render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`.
+export const PopulatedLight: Story = {
+  name: 'Populated — wireframe (light)',
+  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  globals: { theme: 'wireframe' },
+};
+
 // Same data without the SecretReveal strip — the steady state once a secret is dismissed.
 export const WithoutSecretStrip: Story = { render: () => <ApiKeysScreen /> };
 
@@ -236,5 +243,12 @@ export const MdTierFiltersSheetOpen: Story = {
 // scrolls horizontally inside its own container (the page never scrolls sideways).
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
+  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile Base Tier — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
   render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
 };

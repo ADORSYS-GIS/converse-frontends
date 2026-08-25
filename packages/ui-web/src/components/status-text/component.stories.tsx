@@ -28,3 +28,19 @@ export const AllTones: Story = {
     </div>
   ),
 };
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `AllTones` -- `active` (`--body`) and
+// `attention` (`--signal`) must clear AA against the white panel; `muted` (`--muted`) is the
+// sanctioned non-load-bearing exception in both themes.
+export const AllTonesLight: Story = {
+  name: 'All Tones — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => (
+    <div className="flex flex-col gap-2">
+      <StatusText tone="active">active</StatusText>
+      <StatusText tone="muted">revoked</StatusText>
+      <StatusText tone="muted">archived</StatusText>
+      <StatusText tone="attention">expiring</StatusText>
+    </div>
+  ),
+};

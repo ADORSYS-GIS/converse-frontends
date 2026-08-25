@@ -19,6 +19,14 @@ export const Secondary: Story = { args: { variant: 'secondary' } };
 export const Ghost: Story = { args: { variant: 'ghost' } };
 export const Disabled: Story = { args: { variant: 'primary', disabled: true } };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Primary` -- text must resolve to
+// `primary-content` (`#FFFFFF` in light, AA against `#B4441C`), not `ink`.
+export const PrimaryLight: Story = {
+  name: 'Primary — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: { variant: 'primary' },
+};
+
 export const Sizes: Story = {
   render: (args) => (
     <div className="flex items-center gap-3">
@@ -37,7 +45,12 @@ export const Sizes: Story = {
 export const IconTrigger: Story = {
   render: () => (
     <Button type="button" variant="ghost" size="icon" aria-label="Open filters">
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+      <svg
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        aria-hidden="true">
         <path d="M1.5 2h9M3.5 6h5M5 10h2" strokeLinecap="round" />
       </svg>
     </Button>

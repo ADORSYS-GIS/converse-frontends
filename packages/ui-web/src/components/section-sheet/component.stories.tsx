@@ -19,8 +19,8 @@ const filterFields = (
       ['Search', 'name or prefix…'],
     ].map(([label, value]) => (
       <div key={label}>
-        <div className="mb-1 font-mono text-[9px] text-subtle">{label}</div>
-        <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-[11px] text-soft">
+        <div className="text-subtle mb-1 font-mono text-[9px]">{label}</div>
+        <div className="border-border bg-chrome text-soft flex h-[30px] items-center rounded-[2px] border px-3 font-mono text-[11px]">
           {value}
         </div>
       </div>
@@ -34,10 +34,15 @@ const filterFields = (
 function TriggerAndSheet() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex h-[420px] w-[900px] flex-col bg-muted p-4">
+    <div className="bg-muted flex h-[420px] w-[900px] flex-col p-4">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[11px] text-subtle">23 active · 4 revoked</span>
-        <Button type="button" variant="ghost" size="icon" aria-label="Open filters" onClick={() => setOpen(true)}>
+        <span className="text-subtle font-mono text-[11px]">23 active · 4 revoked</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Open filters"
+          onClick={() => setOpen(true)}>
           <FilterIcon />
         </Button>
       </div>
@@ -57,14 +62,21 @@ const meta: Meta<typeof SectionSheet> = {
 export default meta;
 type Story = StoryObj<typeof SectionSheet>;
 
-export const TriggerInContext: Story = { render: () => <TriggerAndSheet /> };
+// `SectionSheet` only ever opens below `lg` (1024px) -- `useIsBelowLg` gates it independently of
+// the caller's own `open` state (see the component's docstring). Storybook's default viewport is
+// `lg1440`, so both stories below force the compact `md900` tier or the sheet never appears --
+// found during the ADR 0010 phase 4 sweep, where "Open" rendered as a blank canvas in both themes.
+export const TriggerInContext: Story = {
+  render: () => <TriggerAndSheet />,
+  globals: { viewport: { value: 'md900' } },
+};
 
 // A component, not an inline `render` body: hooks may only be called from a component or another
 // hook, and a story's `render` is neither (`react-hooks/rules-of-hooks`).
 function OpenSheet() {
   const [open, setOpen] = useState(true);
   return (
-    <div className="relative h-[420px] w-[900px] bg-muted">
+    <div className="bg-muted relative h-[420px] w-[900px]">
       <SectionSheet open={open} onOpenChange={setOpen} label="FILTERS">
         {filterFields}
       </SectionSheet>
@@ -72,4 +84,14 @@ function OpenSheet() {
   );
 }
 
-export const Open: Story = { render: () => <OpenSheet /> };
+export const Open: Story = {
+  render: () => <OpenSheet />,
+  globals: { viewport: { value: 'md900' } },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Open`.
+export const OpenLight: Story = {
+  name: 'Open — wireframe (light)',
+  render: () => <OpenSheet />,
+  globals: { viewport: { value: 'md900' }, theme: 'wireframe' },
+};

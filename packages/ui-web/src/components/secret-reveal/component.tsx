@@ -34,26 +34,25 @@ export function SecretReveal({
   }
 
   return (
-    <div className={cn('rounded-[2px] bg-surface p-5', className)}>
+    <div className={cn('bg-surface rounded-[2px] p-5', className)}>
       <div className="flex items-start justify-between gap-4">
-        <h3 className="font-mono text-sm text-ink">{heading}</h3>
+        <h2 className="text-ink font-mono text-sm">{heading}</h2>
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="font-mono text-sm text-subtle transition-colors duration-150 ease-out hover:text-soft"
-        >
+          className="text-subtle hover:text-soft font-mono text-sm transition-colors duration-150 ease-out">
           ×
         </button>
       </div>
-      <p className="mt-1 font-sans text-[10px] leading-[1.45] text-subtle">{description}</p>
+      <p className="text-subtle mt-1 font-sans text-[10px] leading-[1.45]">{description}</p>
       <div className="mt-3 flex items-center gap-3">
         <input
           readOnly
           value={secret}
           aria-label="Secret value"
           onFocus={(event) => event.target.select()}
-          className="h-[32px] flex-1 rounded-[2px] border border-border bg-chrome px-3 font-mono text-sm text-soft"
+          className="border-border bg-chrome text-soft h-[32px] flex-1 rounded-[2px] border px-3 font-mono text-sm"
         />
         <Button type="button" variant="primary" onClick={handleCopy}>
           {copied ? copiedLabel : 'Copy'}

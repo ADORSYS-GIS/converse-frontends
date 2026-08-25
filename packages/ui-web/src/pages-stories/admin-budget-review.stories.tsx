@@ -157,6 +157,13 @@ export const Populated: Story = {
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`.
+export const PopulatedLight: Story = {
+  name: 'Populated — wireframe (light)',
+  render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
+  globals: { theme: 'wireframe' },
+};
+
 // A different request selected — confirms the right rail retargets per row.
 export const RequestSelected: Story = {
   render: () => <AdminBudgetReviewScreen initialSelectedId="agent-sandbox" />,
@@ -168,9 +175,7 @@ export const QueueEmpty: Story = { render: () => <AdminBudgetReviewScreen pendin
 export const Loading: Story = { render: () => <AdminBudgetReviewScreen pending={[]} loading /> };
 
 export const ErrorState: Story = {
-  render: () => (
-    <AdminBudgetReviewScreen pending={[]} error="Failed to load the review queue." />
-  ),
+  render: () => <AdminBudgetReviewScreen pending={[]} error="Failed to load the review queue." />,
 };
 
 // `md` tier (600–1024) — ADMIN sub-nav stays inline; the right rail has no persistent
@@ -189,5 +194,12 @@ export const MdTier: Story = {
 // nav docked as a fixed bottom navigation bar, REVIEW opens itself the same selection-driven way.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
+  render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile Base Tier — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
 };

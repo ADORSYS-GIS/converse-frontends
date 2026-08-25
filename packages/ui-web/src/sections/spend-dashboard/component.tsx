@@ -78,13 +78,16 @@ export function SpendDashboard({
         <div className={DASHBOARD_LABEL}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
-      <div ref={ref} className={cn('mt-4 w-full overflow-x-auto')}>
+      {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
+          why a landmark role here would trip axe's `landmark-unique` once a page renders more
+          than one scrollable dashboard. */}
+      <div ref={ref} className={cn('mt-4 w-full overflow-x-auto')} tabIndex={0}>
         {status === 'error' ? (
           <ErrorLine message={errorMessage ?? 'Failed to load spend data.'} onRetry={onRetry} />
         ) : status === 'loading' ? (
           <div className="flex flex-col gap-2">
             <SpendChartSkeleton width={measuredWidth} height={height} />
-            <p className="font-mono text-[10px] text-subtle">Querying usage…</p>
+            <p className="text-subtle font-mono text-[10px]">Querying usage…</p>
           </div>
         ) : (
           <SpendSeriesChart

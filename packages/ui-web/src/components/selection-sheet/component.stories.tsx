@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent, within } from 'storybook/test';
 
 import { Button } from '../button';
 import { SelectionSheet } from './component';
@@ -24,7 +25,7 @@ function Demo() {
         Clear selection
       </Button>
       <SelectionSheet selectionKey={selected} label="SELECTION">
-        <p className="font-mono text-xs text-ink">{selected ?? 'No rows selected.'}</p>
+        <p className="text-ink font-mono text-xs">{selected ?? 'No rows selected.'}</p>
       </SelectionSheet>
     </div>
   );
@@ -35,4 +36,16 @@ function Demo() {
 export const CompactTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <Demo />,
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `CompactTier`, opened via a `play`
+// function so the sheet's own content (not just the trigger buttons) is checked.
+export const CompactTierLightSelected: Story = {
+  name: 'Compact Tier — wireframe (light), row selected',
+  globals: { viewport: { value: 'md900' }, theme: 'wireframe' },
+  render: () => <Demo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Select gateway-prod' }));
+  },
 };

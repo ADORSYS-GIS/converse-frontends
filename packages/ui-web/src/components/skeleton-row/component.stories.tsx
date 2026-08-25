@@ -23,3 +23,17 @@ export const StandaloneList: Story = {
     </div>
   ),
 };
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `StandaloneList` -- the `--raised`
+// block must still read as one step darker than the light `--floor`, not disappear into it.
+export const StandaloneListLight: Story = {
+  name: 'Standalone List — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => (
+    <div className="flex w-[600px] flex-col">
+      {Array.from({ length: 5 }, (_, i) => (
+        <SkeletonRow key={i} columnCount={4} />
+      ))}
+    </div>
+  ),
+};

@@ -8,7 +8,7 @@ const meta: Meta<typeof ChartLegend> = {
   component: ChartLegend,
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 480 }}>
+      <div className="bg-muted" style={{ padding: 24, width: 480 }}>
         <Story />
       </div>
     ),
@@ -35,6 +35,16 @@ export const SingleSeriesRendersNothing: Story = {
 };
 
 export const OneSeriesBreached: Story = {
+  args: {
+    items: [MODELS[0], { ...MODELS[1], breached: true }, MODELS[2]],
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `OneSeriesBreached` -- confirms the
+// breached swatch stays `--signal` (not the dark-only hex) against the light ramp.
+export const OneSeriesBreachedLight: Story = {
+  name: 'One Series Breached — wireframe (light)',
+  globals: { theme: 'wireframe' },
   args: {
     items: [MODELS[0], { ...MODELS[1], breached: true }, MODELS[2]],
   },

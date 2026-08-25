@@ -23,6 +23,14 @@ export const Breached: Story = {
   args: { value: 498.1, ceiling: 500, label: 'gateway-prod ceiling' },
 };
 
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Breached` -- the fill must resolve to
+// the light `--signal` (`#B4441C`), not the dark hex.
+export const BreachedLight: Story = {
+  name: 'Breached — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: { value: 498.1, ceiling: 500, label: 'gateway-prod ceiling' },
+};
+
 export const NoCaption: Story = {
   args: { value: 60, ceiling: 100, showCaption: false, label: 'Consumption' },
 };

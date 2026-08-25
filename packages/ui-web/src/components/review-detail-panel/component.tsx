@@ -45,49 +45,58 @@ export function ReviewDetailPanel({
     <div className={cn('flex h-full flex-col gap-5', className)}>
       <div className="flex flex-col gap-1">
         <span className={fieldLabelClassName}>Request</span>
-        <h3 className="font-mono text-base text-ink">{subject}</h3>
-        <p className="font-sans text-[10px] text-subtle">
+        <h2 className="text-ink font-mono text-base">{subject}</h2>
+        <p className="text-subtle font-sans text-[10px]">
           {requesterEmail} · {submittedAt}
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-border pt-4">
+      <div className="border-border flex flex-col gap-2 border-t pt-4">
         <span className={fieldLabelClassName}>Consumption</span>
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[22px] leading-[1.2] text-ink">{formatMoney(consumedAmount)}</span>
-          <span className="font-mono text-[11px] text-subtle">of {formatMoney(ceilingAmount)}</span>
+          <span className="text-ink font-mono text-[22px] leading-[1.2]">
+            {formatMoney(consumedAmount)}
+          </span>
+          <span className="text-subtle font-mono text-[11px]">of {formatMoney(ceilingAmount)}</span>
         </div>
-        <Meter value={consumedAmount} ceiling={ceilingAmount} threshold={warningThreshold} showCaption={false} />
+        <Meter
+          value={consumedAmount}
+          ceiling={ceilingAmount}
+          threshold={warningThreshold}
+          showCaption={false}
+        />
       </div>
 
-      <div className="flex flex-col gap-1 border-t border-border pt-4">
+      <div className="border-border flex flex-col gap-1 border-t pt-4">
         <span className={fieldLabelClassName}>Requested amount</span>
-        <span className="font-mono text-[22px] leading-[1.2] text-ink">{formatSignedCurrency(requestedAmount)}</span>
+        <span className="text-ink font-mono text-[22px] leading-[1.2]">
+          {formatSignedCurrency(requestedAmount)}
+        </span>
       </div>
 
       {requesterNote ? (
-        <div className="flex flex-col gap-1.5 border-t border-border pt-4">
+        <div className="border-border flex flex-col gap-1.5 border-t pt-4">
           <span className={fieldLabelClassName}>Note from requester</span>
-          <p className="font-sans text-[11px] leading-[1.45] text-soft">{requesterNote}</p>
+          <p className="text-soft font-sans text-[11px] leading-[1.45]">{requesterNote}</p>
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 border-t border-border pt-4">
+      <div className="border-border flex flex-col gap-2 border-t pt-4">
         <span className={fieldLabelClassName}>History</span>
         {history.length === 0 ? (
-          <p className="font-mono text-[11px] text-subtle">No previous refills.</p>
+          <p className="text-subtle font-mono text-[11px]">No previous refills.</p>
         ) : (
-          <table className="table table-xs">
+          <table className="table-xs table">
             <tbody>
               {history.map((row) => (
                 <tr key={row.id}>
                   <td className="p-0 py-1 align-top">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-mono text-xs text-soft">{row.label}</span>
-                      <span className="font-mono text-[11px] text-subtle">{row.meta}</span>
+                      <span className="text-soft font-mono text-xs">{row.label}</span>
+                      <span className="text-subtle font-mono text-[11px]">{row.meta}</span>
                     </div>
                   </td>
-                  <td className="p-0 py-1 text-right align-top font-mono text-xs text-soft">
+                  <td className="text-soft p-0 py-1 text-right align-top font-mono text-xs">
                     {formatSignedCurrency(row.amount)}
                   </td>
                 </tr>
@@ -97,7 +106,7 @@ export function ReviewDetailPanel({
         )}
       </div>
 
-      <div className="border-t border-border pt-4">
+      <div className="border-border border-t pt-4">
         <Field
           label="Decision note"
           multiline
@@ -108,16 +117,19 @@ export function ReviewDetailPanel({
         />
       </div>
 
-      <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+      <div className="border-border mt-auto flex flex-col gap-3 border-t pt-4">
         <Button
           type="button"
           variant="primary"
           disabled={deciding}
-          onClick={() => onDecide('approve', note)}
-        >
+          onClick={() => onDecide('approve', note)}>
           Approve {formatSignedCurrency(requestedAmount)}
         </Button>
-        <Button type="button" variant="ghost" disabled={deciding} onClick={() => onDecide('decline', note)}>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={deciding}
+          onClick={() => onDecide('decline', note)}>
           Decline
         </Button>
       </div>

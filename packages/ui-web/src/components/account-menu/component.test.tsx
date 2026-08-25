@@ -105,4 +105,39 @@ describe('AccountMenu', () => {
       screen.getByRole('button', { name: 'Account menu — sam@adorsys.com' })
     ).toBeInTheDocument();
   });
+
+  it('renders no theme section when theme/onThemeChange are omitted', async () => {
+    renderMenu();
+
+    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+    await screen.findByRole('menu');
+
+    expect(screen.queryByText('Dark')).not.toBeInTheDocument();
+    expect(screen.queryByText('System')).not.toBeInTheDocument();
+  });
+
+  it('renders the theme section, marking the active preference, when both props are supplied', async () => {
+    const onThemeChange = vi.fn();
+    renderMenu({ theme: 'wireframe', onThemeChange });
+
+    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+    const menu = await screen.findByRole('menu');
+
+    expect(within(menu).getByRole('menuitem', { name: '[Light]' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'Dark' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'System' })).toBeInTheDocument();
+  });
+
+  it('fires onThemeChange with the selected value and does not close the menu', async () => {
+    const onThemeChange = vi.fn();
+    renderMenu({ theme: 'black', onThemeChange });
+
+    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+    const menu = await screen.findByRole('menu');
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Light' }));
+
+    expect(onThemeChange).toHaveBeenCalledTimes(1);
+    expect(onThemeChange).toHaveBeenCalledWith('wireframe');
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
 });

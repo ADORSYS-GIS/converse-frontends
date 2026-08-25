@@ -30,7 +30,7 @@ export function BottomSheet({
   const isBottom = direction === 'bottom';
 
   const contentClassName = cn(
-    'fixed z-50 flex flex-col bg-surface outline-none',
+    'fixed z-50 flex flex-col bg-surface outline-hidden',
     isBottom
       ? 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-[2px]'
       : 'inset-y-0 right-0 h-full w-[85vw] max-w-[320px] rounded-l-[2px]',

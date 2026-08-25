@@ -4,6 +4,7 @@ import { Providers } from '../client/providers';
 import { readSession } from '../server/session-store';
 import { isAdmin } from '../server/tokens';
 import { ANONYMOUS_SESSION, type SessionResponse } from '../shared/session-response';
+import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '../shared/theme';
 
 import './globals.css';
 
@@ -28,8 +29,12 @@ export const viewport: Viewport = {
  * cookie: it decrypts the session once and hands the client tree the sanitized identity — never a
  * token (ADR 0009 Decision 2). Everything below it fetches on the client (Decision 7).
  *
- * `.dark` on `<html>` is unconditional: the console runs dark-only at launch (ADR 0009 Decision 5),
- * and the `.dark` block of `@lightbridge/ui`'s preset is the operative ramp.
+ * The console now has a first-class light theme (ADR 0010 Decision 5): `data-theme` on `<html>`
+ * selects `black` (dark, default) or `wireframe` (light) — daisyUI's theme mechanism, never a
+ * `dark:`/`.dark` class (console-ui skill "Light theme rules"). No attribute is set here in JSX;
+ * the blocking inline script below sets it before first paint (stored preference ->
+ * `prefers-color-scheme` -> `black`), so there is no flash and no server/client mismatch to
+ * suppress beyond the usual extension-injected-attribute noise.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await readSession();
@@ -50,8 +55,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // suppressHydrationWarning is scoped to this element's ATTRIBUTES only (children still
     // warn): browser extensions inject attributes like `data-google-analytics-opt-out` on <html>
-    // before React hydrates, and Next dev re-logs the false mismatch on every render.
-    <html lang="en" className="dark" suppressHydrationWarning>
+    // before React hydrates, and Next dev re-logs the false mismatch on every render -- the same
+    // reason it also covers the no-flash script below setting `data-theme` pre-hydration.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Blocking (no `async`/`defer`) and first in `<head>`: runs before any paint, so
+            `data-theme` is already correct by the time the stylesheet's `[data-theme]` rules
+            apply -- no dark<->light flash (ADR 0010 Decision 5). */}
+        <script dangerouslySetInnerHTML={{ __html: CONSOLE_THEME_NO_FLASH_SCRIPT }} />
+      </head>
       {/* `@serwist/next` injects the service-worker registration itself, and only in a production
           build (`disable` in next.config.mjs) — no registration component belongs here. */}
       {/* No `bg-muted font-mono text-soft` here any more: the package stylesheet's own base layer

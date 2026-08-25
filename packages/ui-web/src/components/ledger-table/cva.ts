@@ -16,7 +16,7 @@ export const ledgerRowVariants = cva(
       },
       selectable: {
         true: [
-          'cursor-pointer focus:outline-none',
+          'cursor-pointer focus:outline-hidden',
           'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:-outline-offset-1',
         ],
         false: '',

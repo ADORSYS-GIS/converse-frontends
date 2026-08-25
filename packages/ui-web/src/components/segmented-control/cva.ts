@@ -6,7 +6,7 @@ export const segmentedCellVariants = cva(
   [
     'relative flex h-[30px] flex-1 items-center justify-center whitespace-nowrap',
     'font-mono text-xs transition-colors duration-150 ease-out',
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
+    'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
   ],
   {
     variants: {

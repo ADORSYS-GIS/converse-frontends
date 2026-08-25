@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { SPEC_BASELINE, SPEC_GRID } from '../../chart-tokens';
 import { ChartAxisBottom, ChartAxisLeft } from './component';
 
 describe('ChartAxisBottom', () => {
@@ -41,7 +42,9 @@ describe('ChartAxisBottom', () => {
     );
 
     const baseline = container.querySelector('line');
-    expect(baseline).toHaveAttribute('stroke', '#3a3a3a');
+    // ADR 0010 Decision 3c: theme-variable-driven, not a hex literal -- `--color-border` resolves
+    // to `#3a3a3a` in `black` / `#cfcfcf` in `wireframe` via theme.css.
+    expect(baseline).toHaveAttribute('stroke', SPEC_BASELINE);
   });
 
   it('draws gridlines in the spec --raised colour when gridHeight is set', () => {
@@ -53,7 +56,7 @@ describe('ChartAxisBottom', () => {
 
     const lines = container.querySelectorAll('line');
     // First line is the baseline (--line); the per-tick gridline is --raised.
-    expect(lines[1]).toHaveAttribute('stroke', '#202020');
+    expect(lines[1]).toHaveAttribute('stroke', SPEC_GRID);
   });
 });
 

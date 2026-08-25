@@ -7,6 +7,7 @@ import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import React from 'react';
 
 import { useConsoleSession } from './session-context';
+import { useConsoleTheme } from './use-console-theme';
 import { signOut } from './sign-out';
 import { useOnlineStatus } from './use-online-status';
 
@@ -119,6 +120,7 @@ function initialsFor(name: string | undefined, email: string | undefined): strin
 export function ConsoleIdentity() {
   const session = useConsoleSession();
   const online = useOnlineStatus();
+  const { preference, setPreference } = useConsoleTheme();
   const label = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
 
   return (
@@ -131,6 +133,8 @@ export function ConsoleIdentity() {
         email={label}
         initials={initialsFor(session.user?.name, label)}
         onSignOut={signOut}
+        theme={preference}
+        onThemeChange={setPreference}
       />
     </div>
   );

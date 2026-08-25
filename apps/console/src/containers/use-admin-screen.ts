@@ -96,9 +96,10 @@ export function useAdminScreen(): AdminScreen {
       await budgetClient.procedures.rejectAugmentationRequest({ args: { requestId, reason } });
     },
     onSuccess: () => {
-      patchView({ selectedRequestId: null, note: '' });
+      patchView({ selectedRequestId: null, note: '', decideFailed: false });
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: () => patchView({ decideFailed: true }),
   });
 
   const selected = requests.find((request) => request.id === view.selectedRequestId) ?? null;
@@ -114,13 +115,16 @@ export function useAdminScreen(): AdminScreen {
     loading: pendingQuery.isLoading,
     errorMessage: pendingQuery.isError
       ? 'Could not load the refill queue.'
-      : decide.isError
+      : view.decideFailed
         ? 'The decision was not recorded.'
         : undefined,
     emptyPendingMessage: `Nothing awaiting a decision. ${decisions.length} decided this period.`,
-    retry: () => void pendingQuery.refetch(),
+    retry: () => {
+      patchView({ decideFailed: false });
+      void pendingQuery.refetch();
+    },
     selectedRequestId: view.selectedRequestId,
-    selectRequest: (row) => patchView({ selectedRequestId: row.id, note: '' }),
+    selectRequest: (row) => patchView({ selectedRequestId: row.id, note: '', decideFailed: false }),
     reviewDetail: selected
       ? {
           subject: selected.projectId ?? selected.accountId,

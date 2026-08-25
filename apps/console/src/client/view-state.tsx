@@ -138,12 +138,22 @@ export interface AdminViewState {
   activeTab: AdminReviewTab;
   selectedRequestId: string | null;
   note: string;
+  /**
+   * Whether the last decision failed.
+   *
+   * Shared rather than read off the mutation's own `isError`, because the decision is submitted
+   * from whichever zone is showing the review panel — the rail at `lg`, the centre's selection
+   * sheet below it — while the failure has to surface in the CENTRE's queue error line. Two zones
+   * mean two `useMutation` instances, so one instance's `isError` is invisible to the other.
+   */
+  decideFailed: boolean;
 }
 
 const admin = createViewState<AdminViewState>('useAdminViewState', {
   activeTab: 'pending',
   selectedRequestId: null,
   note: '',
+  decideFailed: false,
 });
 
 export const useOverviewViewState = overview.use;

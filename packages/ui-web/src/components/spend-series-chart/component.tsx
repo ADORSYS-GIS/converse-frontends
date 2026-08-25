@@ -16,6 +16,7 @@ import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { useHoverActive } from '../../lib/use-hover-active';
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { collectTimestamps, collectYDomain } from './domain';
 import type { SpendSeriesChartProps } from './types';
 
@@ -57,7 +58,7 @@ export function SpendSeriesChart({
   // Which timestamp index the tooltip is anchored to -- hover/focus-driven (`useHoverActive`),
   // independent of `selectedKey` (legend-click-driven). See that hook's own docstring for why
   // hover, not just click, now drives this.
-  const { active: activeIndex, getHoverProps } = useHoverActive<number>();
+  const { active: activeIndex, activeInput, getHoverProps } = useHoverActive<number>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -126,6 +127,29 @@ export function SpendSeriesChart({
       })
       .filter((row): row is ChartTooltipRow => row !== null);
   }, [activeTimestamp, series, selectedKey, formatTooltipValue]);
+
+  // The tooltip's frozen fallback point for touch/keyboard activation -- the active timestamp's
+  // own plotted x, and the first series' plotted y at that timestamp (falling back to the plot's
+  // top edge when no series has a point there). Unused while a live pointer drives `activeInput`
+  // ('hover'): `useChartTooltipFloating` lets `useClientPoint` track the real cursor instead.
+  const pinnedPoint = useMemo(() => {
+    if (!activeTimestamp) return null;
+    const x =
+      MARGIN.left +
+      (variant === 'bars'
+        ? (bandScale(activeTimestamp.toISOString()) ?? 0) + bandScale.bandwidth() / 2
+        : (xScale?.(activeTimestamp) ?? 0));
+    const firstPoint = series[0]?.points.find((p) => p.x.getTime() === activeTimestamp.getTime());
+    const y = MARGIN.top + (firstPoint ? yScale(firstPoint.y) : 0);
+    return { x, y };
+  }, [activeTimestamp, variant, bandScale, xScale, series, yScale]);
+
+  const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
+    useChartTooltipFloating({
+      open: activeIndex !== null && svgElement !== null,
+      anchorElement: svgElement,
+      pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
+    });
 
   const legendItems = useMemo(
     () =>
@@ -253,7 +277,7 @@ export function SpendSeriesChart({
             key={d.toISOString()}
             type="button"
             aria-label={formatTooltipTitle(d)}
-            {...getHoverProps(index)}
+            {...getReferenceProps(getHoverProps(index))}
             className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: MARGIN.left + rawX - hitWidth / 2,
@@ -266,18 +290,11 @@ export function SpendSeriesChart({
       })}
       <ChartTooltip
         visible={activeIndex !== null}
-        anchorElement={svgElement}
-        x={
-          MARGIN.left +
-          (activeTimestamp
-            ? variant === 'bars'
-              ? (bandScale(activeTimestamp.toISOString()) ?? 0) + bandScale.bandwidth() / 2
-              : (xScale?.(activeTimestamp) ?? 0)
-            : 0)
-        }
-        y={MARGIN.top}
         title={activeTimestamp ? formatTooltipTitle(activeTimestamp) : undefined}
         rows={tooltipRows}
+        setFloating={setFloating}
+        floatingStyles={floatingStyles}
+        getFloatingProps={getFloatingProps}
       />
       <div className="mt-2">
         <ChartLegend items={legendItems} selectedKey={selectedKey} onSelectKey={handleSelect} />

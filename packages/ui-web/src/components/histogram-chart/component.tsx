@@ -14,6 +14,7 @@ import { SPEC_TEXT_MUTED, specSeriesColor } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { useHoverActive } from '../../lib/use-hover-active';
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { collectXTicks, computeXDomain, computeYDomain, layoutBars } from './layout';
 import type { HistogramChartProps } from './types';
 
@@ -54,7 +55,7 @@ export function HistogramChart({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: HistogramChartProps) {
   // Which bin index the tooltip is anchored to -- hover/focus-driven, see `useHoverActive`.
-  const { active: activeIndex, getHoverProps } = useHoverActive<number>();
+  const { active: activeIndex, activeInput, getHoverProps } = useHoverActive<number>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -99,6 +100,24 @@ export function HistogramChart({
       : formatYTick(activeBar.bin.count);
     return [{ key: 'count', label: 'count', value, color }];
   }, [activeBar, formatTooltipValue, formatYTick, color]);
+
+  // The tooltip's frozen fallback point for touch/keyboard activation -- the active bar's own
+  // plotted top. Unused while a live pointer drives `activeInput` ('hover'): see
+  // `useChartTooltipFloating`'s docstring for why that case tracks the real cursor instead.
+  const pinnedPoint = useMemo(() => {
+    if (!activeBar) return null;
+    return {
+      x: MARGIN.left + activeBar.x + activeBar.width / 2,
+      y: MARGIN.top + yScale(activeBar.bin.count),
+    };
+  }, [activeBar, yScale]);
+
+  const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
+    useChartTooltipFloating({
+      open: activeIndex !== null && svgElement !== null,
+      anchorElement: svgElement,
+      pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
+    });
 
   if (bins.length === 0) {
     return (
@@ -159,7 +178,7 @@ export function HistogramChart({
             key={`${bar.bin.x0}-${bar.bin.x1}-${index}`}
             type="button"
             aria-label={`${formatXTick(bar.bin.x0)}–${formatXTick(bar.bin.x1)}`}
-            {...getHoverProps(index)}
+            {...getReferenceProps(getHoverProps(index))}
             className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: hitLeft,
@@ -172,13 +191,13 @@ export function HistogramChart({
       })}
       <ChartTooltip
         visible={activeIndex !== null}
-        anchorElement={svgElement}
-        x={activeBar ? MARGIN.left + activeBar.x + activeBar.width / 2 : 0}
-        y={MARGIN.top}
         title={
           activeBar ? `${formatXTick(activeBar.bin.x0)}–${formatXTick(activeBar.bin.x1)}` : undefined
         }
         rows={tooltipRows}
+        setFloating={setFloating}
+        floatingStyles={floatingStyles}
+        getFloatingProps={getFloatingProps}
       />
     </div>
   );

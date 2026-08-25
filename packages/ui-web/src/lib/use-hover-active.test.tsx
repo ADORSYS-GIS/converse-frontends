@@ -5,12 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { useHoverActive } from './use-hover-active';
 
 function Harness({ onActiveChange }: { onActiveChange?: (active: string | null) => void }) {
-  const { active, getHoverProps } = useHoverActive<string>();
+  const { active, activeInput, getHoverProps } = useHoverActive<string>();
   onActiveChange?.(active);
 
   return (
     <div>
       <span data-testid="active">{active ?? 'none'}</span>
+      <span data-testid="active-input">{activeInput ?? 'none'}</span>
       <button type="button" {...getHoverProps('a')}>
         a
       </button>
@@ -96,5 +97,32 @@ describe('useHoverActive', () => {
     fireEvent.pointerLeave(a, { pointerType: 'mouse' });
 
     expect(screen.getByTestId('active')).toHaveTextContent('b');
+  });
+
+  it('reports activeInput "hover" for a fine pointer, "touch" for a touch tap, "keyboard" for focus', () => {
+    render(<Harness />);
+
+    const a = screen.getByRole('button', { name: 'a' });
+
+    fireEvent.pointerEnter(a, { pointerType: 'mouse' });
+    expect(screen.getByTestId('active-input')).toHaveTextContent('hover');
+    fireEvent.pointerLeave(a, { pointerType: 'mouse' });
+
+    fireEvent.pointerEnter(a, { pointerType: 'touch' });
+    expect(screen.getByTestId('active-input')).toHaveTextContent('touch');
+    fireEvent.pointerLeave(a, { pointerType: 'touch' });
+
+    fireEvent.focus(a);
+    expect(screen.getByTestId('active-input')).toHaveTextContent('keyboard');
+    fireEvent.blur(a);
+    expect(screen.getByTestId('active-input')).toHaveTextContent('none');
+  });
+
+  it('a pen pointer counts as a fine pointer (activeInput "hover"), not touch', () => {
+    render(<Harness />);
+
+    fireEvent.pointerEnter(screen.getByRole('button', { name: 'a' }), { pointerType: 'pen' });
+
+    expect(screen.getByTestId('active-input')).toHaveTextContent('hover');
   });
 });

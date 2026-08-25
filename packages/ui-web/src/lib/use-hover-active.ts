@@ -9,6 +9,16 @@ export interface HoverActiveProps {
 }
 
 /**
+ * How the currently-active value was activated -- distinguishes a live, continuously-moving
+ * fine pointer (mouse/pen) from a single frozen point (a touch tap, or a keyboard focus move)
+ * so a caller wiring `ChartTooltip`'s positioning (`use-chart-tooltip-floating`) knows whether
+ * to let the tooltip live-track the cursor or pin it at the datum's own coordinates -- there is
+ * no cursor to track for either 'touch' (the finger has already lifted by the time anything
+ * renders) or 'keyboard' (there was never a pointer at all).
+ */
+export type ActiveInput = 'hover' | 'touch' | 'keyboard';
+
+/**
  * Drives which datum/bucket/row a chart's `ChartTooltip` is anchored to, continuously, off
  * pointer and keyboard-focus movement across a set of per-datum hit-region elements (the
  * existing `<button>` overlays in `spend-series-chart`/`histogram-chart`/`latency-ridgeline`,
@@ -30,23 +40,41 @@ export interface HoverActiveProps {
  */
 export function useHoverActive<T>(): {
   active: T | null;
+  activeInput: ActiveInput | null;
   setActive: (value: T | null) => void;
   getHoverProps: (value: T) => HoverActiveProps;
 } {
-  const [active, setActive] = useState<T | null>(null);
+  const [state, setState] = useState<{ value: T; input: ActiveInput } | null>(null);
+
+  const setActive = useCallback((value: T | null) => {
+    setState((current) => {
+      if (value === null) return null;
+      // Programmatic activation (e.g. a legend hover forwarding into this hook) has no pointer
+      // or focus event behind it -- closest existing bucket is 'hover' (live-trackable), since
+      // it is not a frozen touch/keyboard point either.
+      return { value, input: current?.value === value ? current.input : 'hover' };
+    });
+  }, []);
 
   const getHoverProps = useCallback(
     (value: T): HoverActiveProps => ({
-      onPointerEnter: () => setActive(value),
+      onPointerEnter: (event) => {
+        setState({ value, input: event.pointerType === 'touch' ? 'touch' : 'hover' });
+      },
       onPointerLeave: (event) => {
         if (event.pointerType === 'touch') return;
-        setActive((current) => (current === value ? null : current));
+        setState((current) => (current?.value === value ? null : current));
       },
-      onFocus: () => setActive(value),
-      onBlur: () => setActive((current) => (current === value ? null : current)),
+      onFocus: () => setState({ value, input: 'keyboard' }),
+      onBlur: () => setState((current) => (current?.value === value ? null : current)),
     }),
     [],
   );
 
-  return { active, setActive, getHoverProps };
+  return {
+    active: state?.value ?? null,
+    activeInput: state?.input ?? null,
+    setActive,
+    getHoverProps,
+  };
 }

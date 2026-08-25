@@ -12,6 +12,8 @@ import {
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { useHoverActive } from '../../lib/use-hover-active';
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import type { DonutChartProps, DonutSlice } from './types';
 
 const DEFAULT_EMPTY_MESSAGE = 'No spend in this range.';
@@ -50,8 +52,11 @@ function percentOf(value: number, total: number): number {
  * below the ring is a fully keyboard-operable accessible list of the same data, satisfying either
  * half of the brief's "slices focusable or an accompanying accessible list."
  *
- * Hover tooltip uses the same `ChartTooltip` (Floating UI virtual-element) mechanism as every
- * sibling chart, anchored at the active wedge's `arc.centroid()`.
+ * Hover tooltip uses the same `useHoverActive` + `useChartTooltipFloating` mechanism as every
+ * sibling chart -- a live pointer follows the cursor continuously; a touch tap or keyboard focus
+ * pins the card at the active wedge's `arc.centroid()`. Previously wired onto a bespoke
+ * `onMouseEnter`/`onMouseLeave` pair, which never fired for a touch tap (a plain `mouseenter` is
+ * not a touch-pointer event) -- unified here onto the shared mechanism, fixing that gap.
  */
 export function DonutChart({
   slices,
@@ -66,7 +71,12 @@ export function DonutChart({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: DonutChartProps) {
   const [internalSelectedKey, setInternalSelectedKey] = useState<string | null>(null);
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  // Which slice the tooltip is anchored to -- hover/focus/tap-driven, deliberately independent
+  // of `selectedKey`/`internalSelectedKey` (click-driven, see `handleSelect`). Unified onto the
+  // same `useHoverActive` + `useChartTooltipFloating` mechanism every sibling chart uses (this
+  // component previously drove it off a bespoke `onMouseEnter`/`onMouseLeave` pair on each wedge,
+  // which never fired for a touch tap -- a plain `mouseenter` is not a touch-pointer event).
+  const { active: hoveredKey, activeInput, getHoverProps } = useHoverActive<string>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` -- state, not a plain
   // ref, so the tooltip re-renders once the `<svg>` mounts (same pattern as every sibling chart).
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -137,6 +147,22 @@ export function DonutChart({
     ];
   }, [activeArc, slices, formatTooltipValue, total, accentKey]);
 
+  // The tooltip's frozen fallback point for touch/keyboard activation -- the active wedge's own
+  // centroid. Unused while a live pointer drives `activeInput` ('hover'): see
+  // `useChartTooltipFloating`'s docstring for why that case tracks the real cursor instead.
+  const pinnedPoint = useMemo(() => {
+    if (!activeArc) return null;
+    const [dx, dy] = arcGenerator.centroid(activeArc);
+    return { x: cx + dx, y: cy + dy };
+  }, [activeArc, arcGenerator, cx, cy]);
+
+  const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
+    useChartTooltipFloating({
+      open: hoveredKey !== null && svgElement !== null,
+      anchorElement: svgElement,
+      pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
+    });
+
   if (slices.length === 0 || total <= 0) {
     return (
       <div style={{ width }} className="flex flex-col items-center gap-3">
@@ -202,10 +228,7 @@ export function DonutChart({
                       handleSelect(isSelected ? null : a.data.key);
                     }
                   }}
-                  onMouseEnter={() => setHoveredKey(a.data.key)}
-                  onMouseLeave={() => setHoveredKey((k) => (k === a.data.key ? null : k))}
-                  onFocus={() => setHoveredKey(a.data.key)}
-                  onBlur={() => setHoveredKey((k) => (k === a.data.key ? null : k))}
+                  {...getReferenceProps(getHoverProps(a.data.key))}
                 />
               );
             })}
@@ -237,10 +260,10 @@ export function DonutChart({
         </svg>
         <ChartTooltip
           visible={hoveredKey !== null}
-          anchorElement={svgElement}
-          x={activeArc ? cx + arcGenerator.centroid(activeArc)[0] : cx}
-          y={activeArc ? cy + arcGenerator.centroid(activeArc)[1] : cy}
           rows={tooltipRows}
+          setFloating={setFloating}
+          floatingStyles={floatingStyles}
+          getFloatingProps={getFloatingProps}
         />
       </div>
       <ChartLegend

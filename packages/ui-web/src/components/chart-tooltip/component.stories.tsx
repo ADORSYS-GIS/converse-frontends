@@ -2,14 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { SPEC_ACCENT, SPEC_GREY_RAMP } from '../../chart-tokens';
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { ChartTooltip } from './component';
 import type { ChartTooltipRow } from './types';
 
 /**
- * `ChartTooltip` positions itself off a real `<svg>` `contextElement` (Floating
- * UI's virtual-element requirement), so every story renders a tiny stand-in chart
- * and drives the tooltip's `anchorElement`/`x`/`y` off it -- there is no longer a
- * `containerWidth`/`width` prop to fake positioning without one.
+ * `ChartTooltip` is purely presentational -- positioning is `useChartTooltipFloating()`, called
+ * here the same way a real chart calls it, off a real `<svg>` `contextElement` (Floating UI's
+ * virtual-element requirement) and a pinned point standing in for a touch tap/keyboard focus (a
+ * live pointer hover, the mechanism's other mode, isn't something a static story can show).
  */
 function ChartTooltipHarness({
   x,
@@ -31,18 +32,25 @@ function ChartTooltipHarness({
     setAnchorElement(svgRef.current);
   }, []);
 
+  const open = visible && anchorElement !== null;
+  const { setFloating, floatingStyles, getFloatingProps } = useChartTooltipFloating({
+    open,
+    anchorElement,
+    pinnedPoint: { x, y },
+  });
+
   return (
     <div style={{ width: 320, height: 200, position: 'relative' }}>
       <svg ref={svgRef} width={320} height={200}>
         <circle cx={x} cy={y} r={4} fill={SPEC_GREY_RAMP[0]} />
       </svg>
       <ChartTooltip
-        visible={visible}
-        anchorElement={anchorElement}
-        x={x}
-        y={y}
+        visible={open}
         title={title}
         rows={rows}
+        setFloating={setFloating}
+        floatingStyles={floatingStyles}
+        getFloatingProps={getFloatingProps}
       />
     </div>
   );

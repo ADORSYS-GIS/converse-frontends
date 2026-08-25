@@ -83,8 +83,6 @@ function Shell({ showAdmin }: { showAdmin: boolean }) {
       leftSecondary={scopePanel}
       leftSecondaryLabel="Scope"
       rightRail={rightRailContent}
-      rightRailTitle="VIEW & FILTERS"
-      rightRailPeek={<span className="font-mono text-[10px] text-subtle">Last 30 days · Daily</span>}
     >
       <div className="flex flex-col gap-6">
         <div>
@@ -122,17 +120,19 @@ export const FullShellAdmin: Story = {
   render: () => <Shell showAdmin />,
 };
 
-// `md` tier (600–1024): the left rail persists inline; the right rail docks as a BottomSheet —
-// visually comparable to shell-compact.svg. A real viewport resize (not a wrapper `<div>`) is
-// what actually exercises the `md:` Tailwind classes, since the shell is CSS-tiered.
-export const MdTierBottomSheet: Story = {
+// `md` tier (600–1024): the left rail persists inline; the right rail has NO shell-owned
+// fallback at all (owner revision 2026-08-25 — no persistent footer/peek bar at this tier). This
+// bare `ConsoleShell` story has no page-level content to place contextual triggers in, so its
+// right rail is simply not reachable here below `lg` — see each page view's own md-tier story
+// (`OverviewPage`, `ApiKeysPage`, …) for the real contextual-trigger + `SectionSheet` pattern.
+export const MdTierNoRightRailFallback: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <Shell showAdmin={false} />,
 };
 
 // Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
-// nav spine docked as a fixed bottom navigation bar, right rail reachable via its BottomSheet
-// peek row, left-rail SCOPE panel reachable via the header's drawer trigger.
+// nav spine docked as a fixed bottom navigation bar, left-rail SCOPE panel reachable via the
+// header's drawer trigger. Same right-rail caveat as `MdTierNoRightRailFallback`.
 export const MobileBottomNav: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <Shell showAdmin={false} />,

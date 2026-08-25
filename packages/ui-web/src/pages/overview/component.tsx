@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { SPEC_GRID } from '../../chart-tokens';
@@ -15,6 +15,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { Meter } from '../../components/meter';
 import { RailPanel } from '../../components/rail-panel';
+import { SectionSheet } from '../../components/section-sheet';
 import { SkeletonMetric } from '../../components/skeleton-metric';
 import { Sparkline } from '../../components/sparkline';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
@@ -26,6 +27,53 @@ import type { OverviewPageProps, OverviewSelectField, OverviewStatCardIcon } fro
 
 const SECTION_LABEL = 'font-mono text-[10px] uppercase tracking-[.09em] text-subtle';
 const DASHBOARD_LABEL = 'font-mono text-[11px] uppercase tracking-[.09em] text-subtle';
+
+// Compact-tier (below `lg`) contextual sheet triggers — console-ui skill "Shape and layout"
+// (owner revision 2026-08-25): no persistent right-rail footer/peek bar below `lg`; each rail
+// section is reached through a 30×30 ghost icon-button trigger placed next to the on-page
+// element it configures, opening only that section as a `SectionSheet`. 12px line glyphs, same
+// treatment as `STAT_ICONS` below — structural, not decorative.
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+      <path d="M1 3.5h10M1 8.5h10" strokeLinecap="round" />
+      <circle cx="4" cy="3.5" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="8.5" r="1.3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+      <path d="M1.5 2h9M3.5 6h5M5 10h2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ExportIcon() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+      <path d="M6 1.2v6.4M3.2 5l2.8 2.8L8.8 5M1.5 10.3h9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SectionTriggerButton({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <Button type="button" variant="ghost" size="icon" aria-label={label} onClick={onClick} className="lg:hidden">
+      {icon}
+    </Button>
+  );
+}
 
 // 12px structural line glyphs (console-ui skill: "structural, not decorative"). One per
 // `OverviewStatCardIcon` -- kept out of `fixtures.ts` so that file stays plain data.
@@ -233,6 +281,14 @@ export function OverviewPage({
   const measuredSpendWidth = spendContainer.size.width || spendChartWidth;
   const measuredLatencyWidth = latencyContainer.size.width || latencyChartWidth;
 
+  // Compact-tier (below `lg`) sheet state — the page owns this now, not `ConsoleShell` (owner
+  // revision 2026-08-25, console-ui skill "Shape and layout"). SERIES has no trigger of its own:
+  // the chart itself already exposes series selection directly via `onSelectSeries` on click, so
+  // its rail legend is a convenience echo, not the only path to that interaction.
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  const [exportSheetOpen, setExportSheetOpen] = useState(false);
+
   const seriesLegendItems: ChartLegendItem[] = useMemo(
     () =>
       spendSeries.map((series) => ({
@@ -276,30 +332,46 @@ export function OverviewPage({
     </RailPanel>
   );
 
+  // Section content, factored out so each renders twice: once inline inside a `RailPanel` (the
+  // persistent `lg` rail) and once bare inside a `SectionSheet` (the compact-tier trigger target
+  // — `SectionSheet`'s own header already supplies the heading, so no second `RailPanel` label).
+  const viewFields = (
+    <section className="flex flex-col gap-4" aria-label="View">
+      <RailSelect {...rangeField} />
+      <RailSelect {...bucketField} />
+      <RailSelect {...groupByField} />
+    </section>
+  );
+
+  const filterFields = (
+    <section className="flex flex-col gap-4" aria-label="Filters">
+      <RailSelect {...accountFilterField} />
+      <RailSelect {...projectFilterField} />
+      <RailSelect {...modelFilterField} />
+    </section>
+  );
+
+  const exportFields = (
+    <section className="flex flex-col gap-2" aria-label="Export">
+      <Button type="button" variant="secondary" className="w-full" onClick={onExportView}>
+        {exportLabel ?? 'Export current view · CSV'}
+      </Button>
+      {exportCaption ? <p className="font-sans text-[10px] text-subtle">{exportCaption}</p> : null}
+    </section>
+  );
+
   // Four rail *sections* (owner revision 2026-08-25, console-ui skill "Rails are flush, aligned,
   // full-height columns"), rendered as direct children of the right-rail column so its own
   // `divide-y divide-raised` puts one hairline between each — no per-section `border-t` divider,
   // no wrapping `gap-6` div. Each `RailPanel`'s `label` prop supplies the uppercase heading
   // (identical styling to `SECTION_LABEL`); the inner `<section aria-label>` is kept purely for
-  // the a11y region landmark the SERIES panel's tests rely on (`getByRole('region', ...)`).
+  // the a11y region landmark the SERIES panel's tests rely on (`getByRole('region', ...)`). Only
+  // rendered inline at `lg` — below that, the same content is reachable via the VIEW/FILTERS/
+  // EXPORT triggers placed in context further down the centre column.
   const rightRail = (
     <>
-      <RailPanel label="VIEW">
-        <section className="flex flex-col gap-4" aria-label="View">
-          <RailSelect {...rangeField} />
-          <RailSelect {...bucketField} />
-          <RailSelect {...groupByField} />
-        </section>
-      </RailPanel>
-
-      <RailPanel label="FILTERS">
-        <section className="flex flex-col gap-4" aria-label="Filters">
-          <RailSelect {...accountFilterField} />
-          <RailSelect {...projectFilterField} />
-          <RailSelect {...modelFilterField} />
-        </section>
-      </RailPanel>
-
+      <RailPanel label="VIEW">{viewFields}</RailPanel>
+      <RailPanel label="FILTERS">{filterFields}</RailPanel>
       <RailPanel label="SERIES">
         <section className="flex flex-col gap-3" aria-label="Series">
           <ChartLegend
@@ -309,26 +381,9 @@ export function OverviewPage({
           />
         </section>
       </RailPanel>
-
-      <RailPanel label="EXPORT">
-        <section className="flex flex-col gap-2" aria-label="Export">
-          <Button type="button" variant="secondary" className="w-full" onClick={onExportView}>
-            {exportLabel ?? 'Export current view · CSV'}
-          </Button>
-          {exportCaption ? (
-            <p className="font-sans text-[10px] text-subtle">{exportCaption}</p>
-          ) : null}
-        </section>
-      </RailPanel>
+      <RailPanel label="EXPORT">{exportFields}</RailPanel>
     </>
   );
-
-  const rangeOptionLabel =
-    rangeField.options.find((o) => o.value === rangeField.value)?.label ?? rangeField.value;
-  const bucketOptionLabel =
-    bucketField.options.find((o) => o.value === bucketField.value)?.label ?? bucketField.value;
-  const groupByOptionLabel =
-    groupByField.options.find((o) => o.value === groupByField.value)?.label ?? groupByField.value;
 
   return (
     <ConsoleShell
@@ -337,13 +392,8 @@ export function OverviewPage({
       leftSecondary={leftSecondary}
       leftSecondaryLabel="Scope"
       rightRail={rightRail}
-      rightRailTitle="VIEW & FILTERS"
-      rightRailPeek={
-        <span className="font-mono text-[10px] text-subtle">
-          {rangeOptionLabel} · {bucketOptionLabel} · {groupByOptionLabel}
-        </span>
-      }
-      className={className}>
+      className={className}
+    >
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="font-mono text-[22px] leading-[1.25] text-ink">{pageTitle}</h1>
@@ -375,7 +425,13 @@ export function OverviewPage({
         </div>
 
         <div>
-          <div className={DASHBOARD_LABEL}>SPEND — BY PROJECT AND MODEL</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className={DASHBOARD_LABEL}>SPEND — BY PROJECT AND MODEL</div>
+            <div className="flex items-center gap-1">
+              <SectionTriggerButton label="Open view options" icon={<ViewIcon />} onClick={() => setViewSheetOpen(true)} />
+              <SectionTriggerButton label="Open filters" icon={<FilterIcon />} onClick={() => setFiltersSheetOpen(true)} />
+            </div>
+          </div>
           <div ref={spendContainer.ref} className="mt-4 w-full overflow-x-auto">
             {spendStatus === 'error' ? (
               <ErrorLine
@@ -433,7 +489,10 @@ export function OverviewPage({
           </div>
 
           <div className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]">
-            <div className={DASHBOARD_LABEL}>BUDGET — CONSUMPTION VS CEILING</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className={DASHBOARD_LABEL}>BUDGET — CONSUMPTION VS CEILING</div>
+              <SectionTriggerButton label="Open export" icon={<ExportIcon />} onClick={() => setExportSheetOpen(true)} />
+            </div>
             <div className="mt-4">
               <BudgetHero
                 value={budget.value}
@@ -492,6 +551,16 @@ export function OverviewPage({
           </div>
         </div>
       </div>
+
+      <SectionSheet open={viewSheetOpen} onOpenChange={setViewSheetOpen} label="VIEW">
+        {viewFields}
+      </SectionSheet>
+      <SectionSheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen} label="FILTERS">
+        {filterFields}
+      </SectionSheet>
+      <SectionSheet open={exportSheetOpen} onOpenChange={setExportSheetOpen} label="EXPORT">
+        {exportFields}
+      </SectionSheet>
     </ConsoleShell>
   );
 }

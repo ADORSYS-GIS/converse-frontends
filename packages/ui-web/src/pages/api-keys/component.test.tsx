@@ -44,7 +44,12 @@ describe('ApiKeysPage', () => {
     const onCreateKey = vi.fn();
     render(<ApiKeysPage {...baseProps} onCreateKey={onCreateKey} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New key' }));
+    // New key renders twice — once in the persistent `lg` rail, once as a visible primary in
+    // the compact-tier title row (console-ui skill "Shape and layout", 2026-08-25 revision:
+    // "New key stays a visible primary in the title row at compact") — both fire the same prop.
+    const buttons = screen.getAllByRole('button', { name: '+ New key' });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[0]);
     expect(onCreateKey).toHaveBeenCalledTimes(1);
   });
 
@@ -143,5 +148,40 @@ describe('ApiKeysPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load keys.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  // Compact-tier contextual sheet triggers (console-ui skill "Shape and layout", 2026-08-25
+  // revision) — no persistent right-rail footer/peek bar; SCOPE and FILTERS are each reached
+  // via a trigger placed in context, opening only that one rail section as a SectionSheet.
+  describe('compact-tier contextual sheet triggers', () => {
+    it('opens the SCOPE sheet from the trigger beside the title subtitle', () => {
+      render(<ApiKeysPage {...baseProps} />);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open scope' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'SCOPE' });
+      expect(within(dialog).getByLabelText('Account')).toBeInTheDocument();
+    });
+
+    it('opens the FILTERS sheet from the trigger in the table toolbar row', () => {
+      render(<ApiKeysPage {...baseProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open filters' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'FILTERS' });
+      expect(within(dialog).getByLabelText('Search')).toBeInTheDocument();
+    });
+
+    it('dismisses a sheet via its close control', () => {
+      render(<ApiKeysPage {...baseProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open filters' }));
+      expect(screen.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });

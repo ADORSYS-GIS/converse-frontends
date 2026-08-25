@@ -1,25 +1,19 @@
 import type { ReactNode } from 'react';
 
 export interface BottomSheetProps {
-  /**
-   * Controls the sheet's state. With `peek` set, this toggles between vaul's collapsed
-   * ("peek") and full snap points — the sheet stays mounted and docked throughout, which is
-   * the compact-tier (600–1024) pattern for right-rail content. Without `peek`, this is a
-   * standard vaul modal drawer: `true` mounts it behind a backdrop, `false` unmounts it.
-   */
+  /** `true` mounts the drawer behind a backdrop; `false` unmounts it (transient vaul modal). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Label shown in the header row, and used as the drawer's accessible title. */
   title?: string;
-  /**
-   * Collapsed peek content — a one-line summary shown at vaul's low snap point. When
-   * provided, the sheet docks persistently via `snapPoints` instead of unmounting on close;
-   * omit for a transient modal drawer that fully closes.
-   */
-  peek?: ReactNode;
-  /** Full content — shown while `open` (or, in peek mode, at the full snap point). */
+  /** Drawer content, shown while `open`. */
   children: ReactNode;
   /** Edge the drawer slides from. Defaults to `bottom`. */
   direction?: 'bottom' | 'right';
   className?: string;
+  /** Extra classes for the backdrop overlay — vaul's `Drawer.Portal` renders to `document.body`
+   * by default, so a CSS-tiering class on a *wrapping* element (e.g. `lg:hidden`) never reaches
+   * the portaled overlay/content; a caller that needs the sheet itself hidden at a breakpoint
+   * (`SectionSheet`) must pass the class here and via `className` instead. */
+  overlayClassName?: string;
 }

@@ -60,4 +60,15 @@ describe('Button', () => {
 
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
+
+  it('applies the 30x30 icon size, keyed off an explicit aria-label since it carries no visible text', () => {
+    render(
+      <Button variant="ghost" size="icon" aria-label="Open filters">
+        <svg aria-hidden="true" />
+      </Button>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Open filters' });
+    expect(button).toHaveClass('h-[30px]', 'w-[30px]', 'p-0');
+  });
 });

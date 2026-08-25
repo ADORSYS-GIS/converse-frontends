@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, waitFor, within } from 'storybook/test';
 
 import { ConsoleHeader } from '../../components/console-header';
 import type { ReviewDecision } from '../../components/review-detail-panel';
@@ -161,18 +162,24 @@ export const ErrorState: Story = {
   ),
 };
 
-// `md` tier (600–1024) — ADMIN sub-nav stays inline, the ReviewDetailPanel docks as a
-// BottomSheet. A real viewport resize is what exercises the `md:` classes now the shell is
-// CSS-tiered, not a wrapper `<div>`.
+// `md` tier (600–1024) — ADMIN sub-nav stays inline; the right rail has no persistent
+// footer/peek bar (owner revision 2026-08-25, console-ui skill "Shape and layout"). REVIEW has
+// no trigger of its own — it is selection-driven, and a request is pre-selected here, so the
+// `SectionSheet` opens itself on mount (a real browser's `matchMedia` correctly reports "below
+// lg" at this viewport — see `useIsBelowLg`'s own docstring for why that check exists at all).
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <StatefulAdminBudgetReviewPage initialSelectedId="gateway-prod" />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'REVIEW' })).toBeInTheDocument());
+  },
 };
 
 // Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
 // Pending/Decided tabs stay reachable above a horizontally-scrollable queue, nav docked as a
-// fixed bottom navigation bar, REVIEW reachable via the right rail's BottomSheet peek row,
-// ADMIN sub-nav reachable via the header's drawer trigger.
+// fixed bottom navigation bar, REVIEW opens itself the same selection-driven way as `md`, ADMIN
+// sub-nav reachable via the header's drawer trigger.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <StatefulAdminBudgetReviewPage initialSelectedId="gateway-prod" />,

@@ -163,6 +163,11 @@ max-h-[calc(100dvh-56px)] overflow-y-auto` — the centre column is the document
 - **All drawers and bottom sheets are vaul** (`vaul`'s `Drawer`) — the console's only drawer
   primitive. Never hand-roll a sheet; style vaul's parts with the semantic tokens (`surface`
   content, `muted/80` overlay, radius 2, no shadow).
+- **Rail alignment grid** (single source: `packages/ui-web/src/lib/rail-grid.ts` — consume it,
+  never hand-roll rail insets): rows bleed 8px (`-mx-2`) with 12px row padding; icon column
+  16px + 8px gap; **every rail label — nav item, sub-nav item, uppercase section label — starts
+  at the shared 44px label x** (icon-less rows reserve the icon column with a spacer); active
+  bars are 2px wide at 8px inset everywhere; row heights 34px nav / 28px sub-nav (deliberate).
 - The right rail owns the action that consumes its own parameters (`New key`,
   `Generate report`, review decisions). Row-scoped actions stay in the row.
 - Admin nav group: preceded by a `raised` rule + `ROLE` marker; hidden entirely for non-admins.

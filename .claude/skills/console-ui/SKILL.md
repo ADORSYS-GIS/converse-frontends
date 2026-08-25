@@ -66,7 +66,15 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
     as **bottom navigation**; right-rail content and nav overflow open as **vaul drawers**;
     stat cards stack; ledgers scroll horizontally inside their own `overflow-x-auto` container
     (the page never scrolls sideways); charts full-width.
-  - `md` (600–1024): persistent left rail returns; right rail docks as a vaul bottom drawer.
+  - `md` (600–1024): persistent left rail returns. The right rail does NOT dock as a persistent
+    footer/peek bar (owner revision 2026-08-25 — no footer bar at this tier): its content is
+    reachable through **contextual icon-button triggers placed where they make sense** — a
+    filter icon in the toolbar of the table it filters, view/range controls beside the chart
+    they configure, the export action near the data it exports. Each trigger opens the relevant
+    rail section (not the whole rail) as a **transient vaul bottom sheet** that dismisses on
+    action or backdrop. Selection-driven rail content (e.g. Admin's review detail) opens its
+    sheet on row selection. The mobile (<600) bottom NAVIGATION bar is unaffected — it is nav,
+    not knobs.
   - `lg` (≥1024) full shell at 1440 reference: header h56 `chrome`; left rail x16 w208 (a
     **stack** of panels: nav spine, then scope/sub-nav); centre x248 w872 on the floor; right
     rail x1144 w280, **persistent, never an overlay** — its content retargets on selection.

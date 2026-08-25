@@ -76,4 +76,18 @@ describe('Button', () => {
     expect(button.className).toContain('w-[30px]');
     expect(button.className).toContain('p-0');
   });
+
+  it('pins icon-button glyphs to a fixed 16px regardless of the child SVG viewBox', () => {
+    render(
+      <Button variant="ghost" size="icon" aria-label="Open filters">
+        <svg aria-hidden="true" viewBox="0 0 12 12" />
+      </Button>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Open filters' });
+    // `[&_svg]:size-4` (16px) — the fix for glyphs that render oversized because an inline SVG
+    // with only a `viewBox` and no `width`/`height` falls back to the browser's much larger
+    // replaced-element default box.
+    expect(button.className).toContain('[&_svg]:size-4');
+  });
 });

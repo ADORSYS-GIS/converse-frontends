@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
 import { AccountMenu } from '../account-menu';
+import { CommandPaletteTrigger } from '../command-palette';
 import { ConsoleHeader } from './component';
 
 // Mobile-first: the email is the first thing to go below `md` (console-ui skill "no overflow,
@@ -46,3 +47,11 @@ export const ConfiguredLogo: Story = {
 };
 
 export const NoOrgSwitcher: Story = { args: { identity } };
+
+export const WithPaletteTrigger: Story = {
+  args: {
+    orgSwitcher,
+    paletteTrigger: <CommandPaletteTrigger onClick={fn()} />,
+    identity,
+  },
+};

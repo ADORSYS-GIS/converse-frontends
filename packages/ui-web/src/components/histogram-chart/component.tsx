@@ -53,6 +53,9 @@ export function HistogramChart({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: HistogramChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // The tooltip's Floating UI virtual element needs a real `contextElement` --
+  // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
+  const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
 
   const bins = useMemo(() => computeHistogramBins(values, binCount), [values, binCount]);
 
@@ -115,7 +118,7 @@ export function HistogramChart({
 
   return (
     <div style={{ width, height, position: 'relative' }}>
-      <svg width={width} height={height}>
+      <svg ref={setSvgElement} width={width} height={height}>
         <ChartAxisLeft
           x={MARGIN.left}
           y1={MARGIN.top}
@@ -167,13 +170,13 @@ export function HistogramChart({
       })}
       <ChartTooltip
         visible={activeIndex !== null}
+        anchorElement={svgElement}
         x={activeBar ? MARGIN.left + activeBar.x + activeBar.width / 2 : 0}
-        y={MARGIN.top + 8}
+        y={MARGIN.top}
         title={
           activeBar ? `${formatXTick(activeBar.bin.x0)}–${formatXTick(activeBar.bin.x1)}` : undefined
         }
         rows={tooltipRows}
-        containerWidth={width}
       />
     </div>
   );

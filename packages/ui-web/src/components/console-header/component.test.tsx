@@ -43,6 +43,23 @@ describe('ConsoleHeader', () => {
     expect(screen.getByText('sam@adorsys.com')).toBeInTheDocument();
   });
 
+  it('renders the palette trigger slot before identity', () => {
+    render(
+      <ConsoleHeader
+        paletteTrigger={<button type="button">Open command palette</button>}
+        identity={<span>sam@adorsys.com</span>}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Open command palette' })).toBeInTheDocument();
+  });
+
+  it('omits the palette trigger slot when not provided', () => {
+    render(<ConsoleHeader />);
+
+    expect(screen.queryByRole('button', { name: 'Open command palette' })).not.toBeInTheDocument();
+  });
+
   it('applies the chrome surface treatment', () => {
     render(<ConsoleHeader />);
 

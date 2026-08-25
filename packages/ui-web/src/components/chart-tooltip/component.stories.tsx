@@ -1,15 +1,52 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { SPEC_ACCENT, SPEC_GREY_RAMP } from '../../chart-tokens';
 import { ChartTooltip } from './component';
+import type { ChartTooltipRow } from './types';
 
-const meta: Meta<typeof ChartTooltip> = {
+/**
+ * `ChartTooltip` positions itself off a real `<svg>` `contextElement` (Floating
+ * UI's virtual-element requirement), so every story renders a tiny stand-in chart
+ * and drives the tooltip's `anchorElement`/`x`/`y` off it -- there is no longer a
+ * `containerWidth`/`width` prop to fake positioning without one.
+ */
+function ChartTooltipHarness({
+  x,
+  y,
+  title,
+  rows,
+  visible = true,
+}: {
+  x: number;
+  y: number;
+  title?: string;
+  rows: ChartTooltipRow[];
+  visible?: boolean;
+}) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [anchorElement, setAnchorElement] = useState<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    setAnchorElement(svgRef.current);
+  }, []);
+
+  return (
+    <div style={{ width: 320, height: 200, position: 'relative' }}>
+      <svg ref={svgRef} width={320} height={200}>
+        <circle cx={x} cy={y} r={4} fill={SPEC_GREY_RAMP[0]} />
+      </svg>
+      <ChartTooltip visible={visible} anchorElement={anchorElement} x={x} y={y} title={title} rows={rows} />
+    </div>
+  );
+}
+
+const meta: Meta<typeof ChartTooltipHarness> = {
   title: 'Charts/ChartTooltip',
-  component: ChartTooltip,
+  component: ChartTooltipHarness,
   decorators: [
     (Story) => (
-      <div style={{ background: '#000', padding: 24, width: 320, height: 200, position: 'relative' }}>
+      <div style={{ background: '#000', padding: 24 }}>
         <Story />
       </div>
     ),
@@ -17,11 +54,10 @@ const meta: Meta<typeof ChartTooltip> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof ChartTooltip>;
+type Story = StoryObj<typeof ChartTooltipHarness>;
 
 export const SingleRow: Story = {
   args: {
-    visible: true,
     x: 160,
     y: 120,
     title: 'Aug 21',
@@ -31,7 +67,6 @@ export const SingleRow: Story = {
 
 export const MultiSeries: Story = {
   args: {
-    visible: true,
     x: 160,
     y: 120,
     title: 'Aug 21',
@@ -43,14 +78,22 @@ export const MultiSeries: Story = {
   },
 };
 
-/** Clamped near the chart's left edge so it never overflows the container. */
-export const ClampedAtEdge: Story = {
+/** Near the chart's left edge -- `shift` middleware keeps the card inside the viewport instead of clipping. */
+export const NearEdge: Story = {
   args: {
-    visible: true,
     x: 8,
-    y: 60,
-    containerWidth: 272,
+    y: 24,
     rows: [{ key: 'spend', label: 'Spend', value: '$12.00', color: SPEC_GREY_RAMP[0] }],
+  },
+};
+
+/** Near the top of the chart -- `flip` middleware places the card below the anchor instead of clipping above. */
+export const FlipsBelowNearTop: Story = {
+  args: {
+    x: 160,
+    y: 4,
+    title: 'Aug 21',
+    rows: [{ key: 'spend', label: 'Spend', value: '$482.10', color: SPEC_GREY_RAMP[0] }],
   },
 };
 

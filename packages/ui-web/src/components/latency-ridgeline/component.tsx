@@ -65,6 +65,9 @@ export function LatencyRidgeline({
 }: LatencyRidgelineProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  // The tooltip's Floating UI virtual element needs a real `contextElement` --
+  // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
+  const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
 
   const plotWidth = innerWidth(width, MARGIN);
   const plotHeight = innerHeight(height, MARGIN);
@@ -149,7 +152,7 @@ export function LatencyRidgeline({
 
   return (
     <div style={{ width, height, position: 'relative' }}>
-      <svg width={width} height={height}>
+      <svg ref={setSvgElement} width={width} height={height}>
         <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
           <ChartAxisBottom y={plotHeight} x1={0} x2={plotWidth} ticks={xTicks} />
           {rows.map((row, index) => {
@@ -216,6 +219,7 @@ export function LatencyRidgeline({
       {activeRow ? (
         <ChartTooltip
           visible={activeRow !== null}
+          anchorElement={svgElement}
           x={
             MARGIN.left +
             xScale(activeRow.peakBin ? (activeRow.peakBin.x0 + activeRow.peakBin.x1) / 2 : domain[0])
@@ -223,7 +227,6 @@ export function LatencyRidgeline({
           y={MARGIN.top + Math.max(activeRow.baselineY - activeRow.amplitude, 8)}
           title={activeRow.label}
           rows={tooltipRows}
-          containerWidth={width}
         />
       ) : null}
     </div>

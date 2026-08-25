@@ -54,6 +54,9 @@ export function SpendSeriesChart({
 }: SpendSeriesChartProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // The tooltip's Floating UI virtual element needs a real `contextElement` --
+  // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
+  const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
 
   const timestamps = useMemo(() => collectTimestamps(series), [series]);
   const yDomain = useMemo(() => collectYDomain(series), [series]);
@@ -151,7 +154,7 @@ export function SpendSeriesChart({
 
   return (
     <div style={{ width, height, position: 'relative' }}>
-      <svg width={width} height={height}>
+      <svg ref={setSvgElement} width={width} height={height}>
         <ChartAxisLeft
           x={MARGIN.left}
           y1={MARGIN.top}
@@ -259,6 +262,7 @@ export function SpendSeriesChart({
       })}
       <ChartTooltip
         visible={activeIndex !== null}
+        anchorElement={svgElement}
         x={
           MARGIN.left +
           (activeTimestamp
@@ -267,10 +271,9 @@ export function SpendSeriesChart({
               : (xScale?.(activeTimestamp) ?? 0)
             : 0)
         }
-        y={MARGIN.top + 8}
+        y={MARGIN.top}
         title={activeTimestamp ? formatTooltipTitle(activeTimestamp) : undefined}
         rows={tooltipRows}
-        containerWidth={width}
       />
       <div className="mt-2">
         <ChartLegend items={legendItems} selectedKey={selectedKey} onSelectKey={handleSelect} />

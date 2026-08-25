@@ -219,29 +219,33 @@ chart `<svg>` as `contextElement`), never by hand-computed `left`/`top` arithmet
 - Charts and tables render on the floor: components must not wrap themselves in a panel —
   panelling is the consumer's decision (`RailPanel`, `StatCard` are the only self-panelled ones).
 
-## Page views — full screens in Storybook
+## Composition — sections in the library, the shell mounted once, pages only in stories
 
-Every console screen exists as a **pure page view** in `packages/ui-web/src/pages/<kebab-name>/`
-(`overview`, `api-keys`, `manage`, `admin-budget-review`, `auth`), composed from the component
-inventory:
+**The library exports sections, never full pages** (owner correction 2026-08-25 — monolithic
+`*Page` exports caused every route to remount its own shell, the "rebuilt on every navigation"
+anti-pattern):
 
-- A page view is presentational only: **all data arrives via typed props; no fetching, no
-  refine hooks, no routing** — `apps/console` wires data in later. Callbacks (`onSelectSeries`,
-  `onRequestRefill`, …) are props.
-- Each page ships realistic **mock fixtures** in `fixtures.ts` beside the view (currency values
-  like `$142.55 of $500.00`, plausible model/project names, enough rows to show density), and a
-  `component.stories.tsx` rendering the full page at shell width — these page stories are the
-  acceptance surface for "is this feature correctly implemented on this page" **without starting
-  the app**.
-- Page stories must cover the states that matter per the spec: default (populated), empty,
-  loading (skeletons), error, and role variants where relevant (Admin nav visible/hidden),
-  plus the compact tier where the layout changes (right rail as bottom sheet).
-- Match the corresponding SVG mockup in `docs/design/console-redesign/` — the story should be
-  visually comparable 1:1.
-- Every page ships a **mobile story** (~390px viewport via Storybook viewport parameters)
-  proving the mobile-first base layout: bottom nav, vaul drawers, stacked cards, scrollable
-  ledger.
-- Barrel region for these: `// ── pages`.
+- `packages/ui-web/src/sections/<kebab-name>/` holds **screen sections** — the zone-level
+  compositions a route assembles: stat rows, dashboards (spend/latency/budget), ledger zones
+  (keys, projects, review queue, decisions), rail sections (scope, filters, view, export,
+  review detail), toolbars with their sheet triggers. Sections are presentational only: **data
+  via typed props, no fetching, no refine hooks, no routing**; callbacks are props. Each ships
+  `fixtures.ts`, stories, and tests. Barrel region: `// ── sections`.
+- **The shell mounts exactly once, in `apps/console`'s persistent layout** — ConsoleShell +
+  ConsoleHeader + NavSpine live in a route-group `layout.tsx`, with the per-route right-rail
+  content supplied through an App Router **parallel-route slot** (`@rail`) and the centre
+  through `children`. Route pages compose sections; they never render the shell. Navigating
+  must not remount the header/nav (this is testable: the nav DOM node persists across route
+  changes).
+- **Full-page compositions exist in exactly two places**: (1) Storybook — page-level stories
+  under `src/pages-stories/` (or equivalent) that compose sections inside the shell with mock
+  fixtures; these remain the e2e acceptance surface (populated/empty/loading/error/role/mobile
+  variants, 1:1 vs the SVG mockups, ~390px mobile story) for checking a feature per page
+  without starting the app; and (2) `apps/console`'s route implementations. There is **no
+  `*Page` component in the package barrel**.
+- **One style pipeline**: `apps/console`'s `globals.css` imports the package's stylesheet
+  (`@lightbridge/ui-web/styles.css` — and after ADR 0010 Phase 1, its `theme.css`); the app
+  never re-declares fonts/tokens or runs a duplicate base layer.
 
 ## Refine-driven mock screens
 

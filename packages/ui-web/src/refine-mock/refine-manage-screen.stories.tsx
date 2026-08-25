@@ -5,7 +5,7 @@ import { expect, waitFor, within } from 'storybook/test';
 import { RefineManageScreen } from './refine-manage-screen';
 import { withRefineMock } from './refine-decorator';
 
-// Demonstrates the real `@refinedev/core` wiring (useTable → ManagePage) that `apps/console` will
+// Demonstrates the real `@refinedev/core` wiring (useTable → the Manage sections) that `apps/console` will
 // use verbatim once it swaps in `@cratestack/refine`'s generated data provider — console-ui skill
 // "Refine-driven mock screens" / docs/adr/0009-nextjs-console-replacement.md Decision 4.
 const meta: Meta<typeof RefineManageScreen> = {
@@ -57,7 +57,7 @@ export const RowSelected: Story = {
 };
 
 // The `projects` resource rejects every `getList` call — `ErrorLine` + Retry renders in place of
-// the ledger, exactly like the fixture-driven `Pages/ManagePage`'s `ErrorState` story.
+// the ledger, exactly like the fixture-driven `Pages/Manage`'s `ErrorState` story.
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } })],
   render: () => (

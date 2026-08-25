@@ -2,13 +2,13 @@ import type { ApiKey } from '@lightbridge/authz-rpc';
 import type { ApiKeyRow, ApiKeysHygiene, ApiKeyStatus } from '@lightbridge/ui-web';
 
 /**
- * Pure adapters from the generated `ApiKey` model to the `ApiKeysPage` view's props.
+ * Pure adapters from the generated `ApiKey` model to the Api-Keys sections' props.
  *
- * They live outside the container so the mapping — which is where date/status presentation
+ * They live outside the screen adapter so the mapping — which is where date/status presentation
  * decisions actually happen — is testable without refine, a provider tree or a DOM.
  */
 
-/** A key inside this window of its expiry reads as `expiring`, matching the page's status ramp. */
+/** A key inside this window of its expiry reads as `expiring`, matching the ledger's status ramp. */
 export const EXPIRING_SOON_DAYS = 30;
 
 export function daysUntil(iso: string | null | undefined, now: number): number | null {

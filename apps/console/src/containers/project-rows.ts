@@ -2,9 +2,9 @@ import type { Project } from '@lightbridge/authz-rpc';
 import type { ManageTotals, ProjectRow, ProjectStatus } from '@lightbridge/ui-web';
 
 /**
- * Pure adapters from the generated `Project` model to `ManagePage`'s row shape.
+ * Pure adapters from the generated `Project` model to the Manage ledger's row shape.
  *
- * Spend figures deliberately map to `null`, which the `ManagePage` ledger renders as an em dash:
+ * Spend figures deliberately map to `null`, which the Manage ledger renders as an em dash:
  * the generated schema carries a project's *quota*, not its consumption. Consumption lives in the
  * usage backend (`/api/usage/*`), which has no live client yet — inventing a number here would be
  * worse than an honest dash.

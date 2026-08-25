@@ -2,12 +2,12 @@
 // docs/adr/0009-nextjs-console-replacement.md Decision 4 (refine.dev + cratestack's generated
 // refine provider). This is NOT the real provider apps/console will use (that's
 // `createCratestackRpcDataProvider` from `@cratestack/refine`) — it is an in-memory stand-in over
-// the same page fixtures already shipped beside each pure page view, so the refine wiring's real
+// the same fixtures already shipped beside each section, so the refine wiring's real
 // look and behaviour (lists, selection, forms) is verifiable in Storybook before apps/console, or
 // the generated cratestack provider, exist.
 //
 // Never exported from `src/index.ts` (console-ui skill contract) and never imported by the pure
-// page views themselves.
+// sections themselves.
 
 import type {
   BaseRecord,
@@ -155,7 +155,7 @@ function applySorters<T extends BaseRecord>(data: T[], sorters: CrudSort[] | und
   });
 }
 
-/** Builds a fresh, isolated in-memory refine `DataProvider` over the console page fixtures — call
+/** Builds a fresh, isolated in-memory refine `DataProvider` over the console section fixtures — call
  * once per story/test so mutations (create/update/delete) never leak across renders. */
 export function createMockDataProvider(config: MockDataProviderConfig = {}): DataProvider {
   const [latencyMin, latencyMax] = config.latencyMs ?? [300, 600];

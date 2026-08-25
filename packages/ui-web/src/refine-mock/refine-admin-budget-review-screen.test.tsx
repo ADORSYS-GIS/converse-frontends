@@ -11,7 +11,7 @@ import { RefineMockRoot } from './refine-decorator';
 // tests key off `ada@adorsys.com` (the pending row's REQUESTER cell) instead, which only the
 // pending queue ever renders, to assert the ledger populated without that ambiguity.
 describe('RefineAdminBudgetReviewScreen', () => {
-  it('adapts useTable loading/data state into AdminBudgetReviewPage props: skeleton while loading, then the live pending queue', async () => {
+  it('adapts useTable loading/data state into the Admin sections’ props: skeleton while loading, then the live pending queue', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineAdminBudgetReviewScreen />
@@ -42,7 +42,7 @@ describe('RefineAdminBudgetReviewScreen', () => {
     await waitFor(() => expect(screen.queryByText('ada@adorsys.com')).not.toBeInTheDocument());
   });
 
-  it('adapts a getList failure into AdminBudgetReviewPage error props (ErrorLine + Retry)', async () => {
+  it('adapts a getList failure into the Admin sections’ error props (ErrorLine + Retry)', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { 'refill-requests': 'Failed to load the review queue.' } }}>
         <RefineAdminBudgetReviewScreen />

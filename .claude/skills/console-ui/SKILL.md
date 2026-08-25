@@ -250,11 +250,11 @@ anti-pattern):
 ## Refine-driven mock screens
 
 Beside the fixture-driven page stories, `src/refine-mock/` hosts a Storybook-only harness:
-`@refinedev/core`'s `<Refine>` with a **mock data provider** over the page fixtures (simulated
-latency, optional error mode), plus thin container components that drive the pure page views
+`@refinedev/core`'s `<Refine>` with a **mock data provider** over the section fixtures (simulated
+latency, optional error mode), plus thin container components that drive the pure sections
 from refine hooks (`useTable`/`useList`/`useForm`/`useOne`) exactly the way `apps/console` will.
 Stories under the `Refine` title group (`Refine/Manage`, `Refine/ApiKeys`, …) demonstrate live
-list→selection→edit/decide flows. Rules: the page views stay pure (containers adapt hook state
+list→selection→edit/decide flows. Rules: the sections stay pure (containers adapt hook state
 to props); the mock provider is never exported from the package barrel; deps on `@refinedev/*`
 are devDependencies only.
 

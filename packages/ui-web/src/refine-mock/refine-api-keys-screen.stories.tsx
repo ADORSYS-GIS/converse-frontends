@@ -62,7 +62,7 @@ export const RevokeFlow: Story = {
 };
 
 // The `api-keys` resource rejects every `getList` call — `ErrorLine` + Retry renders in place of
-// the ledger, matching the fixture-driven `Pages/ApiKeysPage`'s `ErrorState` story.
+// the ledger, matching the fixture-driven `Pages/ApiKeys`'s `ErrorState` story.
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { 'api-keys': 'Failed to load keys for this project.' } })],
   render: () => (

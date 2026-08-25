@@ -22,15 +22,21 @@ import {
 const navItems: NavSpineItem[] = [{ key: 'overview', label: 'Overview', active: true }];
 const adminNavItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin' }];
 
-function selectField(label: string, value: string, options: OverviewSelectField['options']): OverviewSelectField {
+function selectField(
+  label: string,
+  value: string,
+  options: OverviewSelectField['options']
+): OverviewSelectField {
   return { label, value, options, onChange: vi.fn() };
 }
 
 function makeProps(overrides: Partial<OverviewPageProps> = {}): OverviewPageProps {
   return {
     orgName: 'adorsys-gis',
+    userName: 'Sam Lambou',
     userEmail: 'sam@adorsys.com',
     userInitials: 'SL',
+    onSignOut: vi.fn(),
     navItems,
     adminNavItems,
     showAdmin: false,
@@ -114,8 +120,10 @@ describe('OverviewPage', () => {
     const onChange = vi.fn();
     render(
       <OverviewPage
-        {...makeProps({ rangeField: { ...selectField('Range', 'last-30', RANGE_OPTIONS), onChange } })}
-      />,
+        {...makeProps({
+          rangeField: { ...selectField('Range', 'last-30', RANGE_OPTIONS), onChange },
+        })}
+      />
     );
 
     fireEvent.change(screen.getByLabelText('Range'), { target: { value: 'last-7' } });
@@ -132,7 +140,7 @@ describe('OverviewPage', () => {
           latencyErrorMessage: 'Failed to load latency data.',
           onRetryLatency,
         })}
-      />,
+      />
     );
 
     const alert = screen.getByRole('alert');
@@ -159,8 +167,10 @@ describe('OverviewPage', () => {
   it('renders an InlineStatus banner for the page-level empty state', () => {
     render(
       <OverviewPage
-        {...makeProps({ emptyMessage: 'No usage yet. Usage appears here once your first request is billed.' })}
-      />,
+        {...makeProps({
+          emptyMessage: 'No usage yet. Usage appears here once your first request is billed.',
+        })}
+      />
     );
 
     expect(screen.getByRole('status')).toHaveTextContent('No usage yet.');
@@ -170,10 +180,21 @@ describe('OverviewPage', () => {
     render(
       <OverviewPage
         {...makeProps({ needsAttentionProject: undefined, refillRequestStatus: undefined })}
-      />,
+      />
     );
 
     expect(screen.queryByText('NEEDS ATTENTION')).not.toBeInTheDocument();
     expect(screen.queryByText('REFILL REQUESTS')).not.toBeInTheDocument();
+  });
+
+  it('wires the header account menu to onSignOut', async () => {
+    const onSignOut = vi.fn();
+    render(<OverviewPage {...makeProps({ onSignOut })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+    const menu = await screen.findByRole('menu');
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 });

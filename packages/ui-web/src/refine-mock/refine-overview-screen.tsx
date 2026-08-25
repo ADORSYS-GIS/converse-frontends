@@ -32,7 +32,11 @@ const navItems: NavSpineItem[] = [
 ];
 const adminNavItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin' }];
 
-function useSelectField(initial: string, options: OverviewSelectField['options'], label: string): OverviewSelectField {
+function useSelectField(
+  initial: string,
+  options: OverviewSelectField['options'],
+  label: string
+): OverviewSelectField {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
@@ -56,11 +60,18 @@ export function RefineOverviewScreen() {
 
   const props: Omit<
     OverviewPageProps,
-    'rangeField' | 'bucketField' | 'groupByField' | 'accountFilterField' | 'projectFilterField' | 'modelFilterField'
+    | 'rangeField'
+    | 'bucketField'
+    | 'groupByField'
+    | 'accountFilterField'
+    | 'projectFilterField'
+    | 'modelFilterField'
   > = {
     orgName: 'adorsys-gis',
+    userName: 'Sam Lambou',
     userEmail: 'sam@adorsys.com',
     userInitials: 'SL',
+    onSignOut: () => {},
     navItems,
     adminNavItems,
     showAdmin: false,

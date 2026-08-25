@@ -8,6 +8,8 @@ export { ConsoleShell } from './components/console-shell';
 export type { ConsoleShellProps } from './components/console-shell';
 export { ConsoleHeader } from './components/console-header';
 export type { ConsoleHeaderProps } from './components/console-header';
+export { AccountMenu } from './components/account-menu';
+export type { AccountMenuProps } from './components/account-menu';
 export { RailPanel } from './components/rail-panel';
 export type { RailPanelProps } from './components/rail-panel';
 export { NavSpine } from './components/nav-spine';

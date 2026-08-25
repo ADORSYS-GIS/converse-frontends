@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 
 import type { NavSpineItem } from '../../components/nav-spine';
 import { OverviewPage } from './component';
@@ -43,12 +44,18 @@ function navItems(active: string): NavSpineItem[] {
 
 const adminNavItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin', icon: <Glyph /> }];
 
-function useSelectField(initial: string, options: OverviewSelectField['options'], label: string): OverviewSelectField {
+function useSelectField(
+  initial: string,
+  options: OverviewSelectField['options'],
+  label: string
+): OverviewSelectField {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
 
-function baseProps(overrides: Partial<OverviewPageProps> = {}): Omit<
+function baseProps(
+  overrides: Partial<OverviewPageProps> = {}
+): Omit<
   OverviewPageProps,
   | 'rangeField'
   | 'bucketField'
@@ -59,8 +66,10 @@ function baseProps(overrides: Partial<OverviewPageProps> = {}): Omit<
 > {
   return {
     orgName: 'adorsys-gis',
+    userName: 'Sam Lambou',
     userEmail: 'sam@adorsys.com',
     userInitials: 'SL',
+    onSignOut: fn(),
     navItems: navItems('overview'),
     adminNavItems,
     showAdmin: false,

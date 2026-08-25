@@ -1,11 +1,13 @@
 'use client';
 
 import type { NavSpineItem } from '@lightbridge/ui-web';
+import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
 import { ConsoleHeader } from '@lightbridge/ui-web/src/components/console-header';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import React from 'react';
 
 import { useConsoleSession } from './session-context';
+import { signOut } from './sign-out';
 import { useOnlineStatus } from './use-online-status';
 
 /**
@@ -112,19 +114,12 @@ export function ConsoleIdentity() {
       {online ? null : (
         <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
       )}
-      {label ? (
-        <span className="hidden font-mono text-[11px] text-soft md:inline">{label}</span>
-      ) : null}
-      <span
-        aria-hidden="true"
-        className="flex h-6 w-6 items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-ink">
-        {initialsFor(session.user?.name, label)}
-      </span>
-      <a
-        href="/auth/logout"
-        className="font-mono text-[11px] text-subtle transition-colors hover:text-ink">
-        Sign out
-      </a>
+      <AccountMenu
+        name={session.user?.name}
+        email={label}
+        initials={initialsFor(session.user?.name, label)}
+        onSignOut={signOut}
+      />
     </div>
   );
 }

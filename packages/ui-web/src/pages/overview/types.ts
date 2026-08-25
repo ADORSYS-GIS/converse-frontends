@@ -65,8 +65,12 @@ export interface OverviewPageProps {
   logoAlt?: string;
   wordmark?: string;
   orgName: string;
+  userName?: string;
   userEmail: string;
   userInitials: string;
+  /** Fires when "Sign out" is activated in the header's account menu. No navigation logic lives
+   * here -- `apps/console` decides what a sign-out means (console-ui skill: callback-driven). */
+  onSignOut: () => void;
 
   // ── nav (left rail)
   navItems: NavSpineItem[];

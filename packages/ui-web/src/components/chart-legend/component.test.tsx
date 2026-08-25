@@ -28,13 +28,16 @@ describe('ChartLegend', () => {
     }
   });
 
+  // ADR 0010 Decision 3c: `SPEC_*` are `var(--…)` strings now, not hex literals -- jsdom stores
+  // an unrecognized custom-property value verbatim on `.style.backgroundColor` rather than
+  // normalizing it to `rgb(...)`, so the assertions compare directly against the constant.
   it('colours swatches by rank via the spec ramp when nothing is selected/breached', () => {
     const { container } = render(<ChartLegend items={ITEMS} />);
 
     const swatches = container.querySelectorAll('[aria-hidden="true"]');
-    expect((swatches[0] as HTMLElement).style.backgroundColor).toBe(hexToRgb(SPEC_GREY_RAMP[0]));
-    expect((swatches[1] as HTMLElement).style.backgroundColor).toBe(hexToRgb(SPEC_GREY_RAMP[1]));
-    expect((swatches[2] as HTMLElement).style.backgroundColor).toBe(hexToRgb(SPEC_GREY_RAMP[2]));
+    expect((swatches[0] as HTMLElement).style.backgroundColor).toBe(SPEC_GREY_RAMP[0]);
+    expect((swatches[1] as HTMLElement).style.backgroundColor).toBe(SPEC_GREY_RAMP[1]);
+    expect((swatches[2] as HTMLElement).style.backgroundColor).toBe(SPEC_GREY_RAMP[2]);
   });
 
   it('gives the selected entry the accent swatch and ink label, at most once', () => {
@@ -42,12 +45,12 @@ describe('ChartLegend', () => {
 
     const selectedButton = screen.getByRole('button', { name: 'project-b' });
     const selectedSwatch = selectedButton.querySelector('[aria-hidden="true"]') as HTMLElement;
-    expect(selectedSwatch.style.backgroundColor).toBe(hexToRgb(SPEC_ACCENT));
+    expect(selectedSwatch.style.backgroundColor).toBe(SPEC_ACCENT);
     expect(selectedButton.querySelector('.text-ink')).toHaveTextContent('project-b');
 
     const otherButton = screen.getByRole('button', { name: 'project-a' });
     const otherSwatch = otherButton.querySelector('[aria-hidden="true"]') as HTMLElement;
-    expect(otherSwatch.style.backgroundColor).not.toBe(hexToRgb(SPEC_ACCENT));
+    expect(otherSwatch.style.backgroundColor).not.toBe(SPEC_ACCENT);
   });
 
   it('renders a breached entry in the accent even when not selected, with an "over ceiling" label', () => {
@@ -55,7 +58,7 @@ describe('ChartLegend', () => {
 
     const breachedButton = screen.getByRole('button', { name: 'project-b, over ceiling' });
     const swatch = breachedButton.querySelector('[aria-hidden="true"]') as HTMLElement;
-    expect(swatch.style.backgroundColor).toBe(hexToRgb(SPEC_ACCENT));
+    expect(swatch.style.backgroundColor).toBe(SPEC_ACCENT);
   });
 
   it('fires onSelectKey with the toggled key, and clears it on re-click', () => {
@@ -72,11 +75,3 @@ describe('ChartLegend', () => {
     expect(screen.getByRole('button', { name: 'project-a' })).toBeDisabled();
   });
 });
-
-function hexToRgb(hex: string): string {
-  const value = hex.replace('#', '');
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return `rgb(${r}, ${g}, ${b})`;
-}

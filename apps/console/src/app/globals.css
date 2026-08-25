@@ -2,11 +2,14 @@
  * ONE style pipeline (console-ui skill "Composition" — "One style pipeline").
  *
  * This file is now nothing but the import: the package's stylesheet owns the font imports, the
- * `@tailwind` directives and the base layer, and the app no longer duplicates any of them.
+ * `@import "tailwindcss"` (via `theme.css`, ADR 0010 Decision 3), the daisyUI theme blocks and
+ * the base layer, and the app no longer duplicates any of them.
  *
- * The app's Tailwind pass is still the single GENERATOR of utilities for both trees —
- * `tailwind.config.js`'s `content` globs cover `apps/console/src` and `packages/ui-web/src`; it
- * simply runs over the package's stylesheet instead of over a second copy of it.
+ * Tailwind v4 is CSS-first — there is no `tailwind.config.js` `content` glob any more.
+ * `packages/ui-web/src/theme.css`'s own `@source '../../../apps/console/src'` is what makes this
+ * app's own class usage visible to the single Tailwind pass that compiles `theme.css` (whichever
+ * project's build ends up running it — this app's Next build, via this import chain, or `ui-web`'s
+ * own Storybook/vitest pass).
  *
  * Nothing else may be added below this import: Next runs PostCSS on THIS file before css-loader
  * resolves the `@import`, so an `@layer base { … }` here would fail with "`@layer base` is used

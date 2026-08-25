@@ -7,7 +7,7 @@ export const subNavItemVariants = cva(
   [
     'relative flex h-7 w-full items-center justify-between gap-2 rounded-[2px] px-3 font-mono text-xs',
     'transition-colors duration-150 ease-out',
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
+    'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
   ],
   {
     variants: {

@@ -35,6 +35,17 @@ export const Open: Story = {
   },
 };
 
+/** The theme section (ADR 0010 Decision 5) only renders when both `theme` and `onThemeChange`
+ * are supplied -- the consumer (`apps/console`) owns persistence. */
+export const OpenWithThemeToggle: Story = {
+  name: 'Open — theme toggle (wireframe active)',
+  args: { theme: 'wireframe', onThemeChange: fn() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
+  },
+};
+
 export const NoNameFallsBackToEmail: Story = {
   name: 'No name — email only',
   args: { name: undefined },

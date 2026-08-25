@@ -26,8 +26,12 @@ describe('specSeriesColor', () => {
     }
   });
 
-  it('the spec accent is identical to chart-core\'s CHART_ACCENT (#DA5C2C), no divergence', () => {
-    expect(SPEC_ACCENT).toBe('#DA5C2C');
+  it('the spec accent resolves through the theme variable, not a hex literal (ADR 0010 Decision 3c)', () => {
+    // The accent used to be chart-core's literal CHART_ACCENT (#DA5C2C, dark-only). It is now
+    // `--color-primary`, which theme.css resolves to #DA5C2C in `black` and #B4441C in
+    // `wireframe` -- the same theme-dependent value the console-ui skill's chart ramp table
+    // records under "accent / breach".
+    expect(SPEC_ACCENT).toBe('var(--color-primary)');
   });
 
   it('handles a negative index without throwing', () => {

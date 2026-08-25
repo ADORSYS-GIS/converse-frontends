@@ -16,7 +16,9 @@ describe('Button', () => {
 
     const button = screen.getByRole('button', { name: 'Continue' });
     expect(button).toHaveClass('bg-primary');
-    expect(button).toHaveClass('text-ink');
+    // `primary-content`, not `ink` -- ADR 0010 Decision 3b a11y correction: `text-ink` on
+    // `bg-primary` is 3.26:1 (below AA); `primary-content` is tuned per theme to stay AA+.
+    expect(button).toHaveClass('text-primary-content');
   });
 
   it('applies the secondary variant classes', () => {

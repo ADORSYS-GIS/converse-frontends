@@ -7,7 +7,7 @@ export const fieldControlVariants = cva(
   [
     'w-full rounded-[2px] border bg-chrome font-mono text-sm text-soft placeholder:text-subtle',
     'transition-colors duration-150 ease-out',
-    'focus:outline-none focus:border-primary',
+    'focus:outline-hidden focus:border-primary',
     'disabled:cursor-not-allowed disabled:opacity-60',
   ],
   {

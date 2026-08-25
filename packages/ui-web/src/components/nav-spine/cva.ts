@@ -8,7 +8,7 @@ export const navSpineItemVariants = cva(
   [
     'relative flex h-[34px] w-full items-center gap-2 rounded-[2px] px-3 font-mono text-xs',
     'transition-colors duration-150 ease-out',
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
+    'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
   ],
   {
     variants: {
@@ -32,7 +32,7 @@ export const navBottomBarItemVariants = cva(
   [
     'relative flex h-full flex-1 flex-col items-center justify-center gap-1 font-mono text-[10px]',
     'transition-colors duration-150 ease-out',
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
+    'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
   ],
   {
     variants: {

@@ -31,18 +31,32 @@ export type { SeriesColorOptions };
  * `seriesColor(index, options)` to decide "is this the accent (selected/breached)
  * or grey rank N" — and only remaps the returned grey step onto the spec's ramp by
  * rank, so the accent/selection/breach logic and the rank-cycling-past-5-series
- * behaviour stay exactly what `chart-core/colors.test.ts` already covers. The
- * accent itself (`#DA5C2C`) is identical between chart-core and the spec's
- * `--signal`, so it passes through unchanged.
+ * behaviour stay exactly what `chart-core/colors.test.ts` already covers.
+ *
+ * **ADR 0010 Decision 3c / Decision 5**: these constants are the one sanctioned hex
+ * exception -- SVG `fill`/`stroke` attributes cannot be Tailwind classes -- but the
+ * exception is that the *attribute* may carry a colour, never a hex *literal in this
+ * file*. Every constant below is a `var(--…)` string resolving through
+ * `packages/ui-web/src/theme.css`'s `black`/`wireframe` theme blocks (the single
+ * colour source), which SVG presentation attributes accept natively in every
+ * evergreen browser -- so the ramp re-resolves on a `data-theme` change with no
+ * `getComputedStyle` polling or React re-render required. The 4-step series-rank
+ * ramp has no single daisy variable slot, so `theme.css` declares
+ * `--chart-rank-1..4` directly in each theme block (console-ui skill "Charts").
  */
-export const SPEC_GREY_RAMP = ['#b4b4b4', '#7c7c7c', '#565656', '#3a3a3a'] as const;
-export const SPEC_ACCENT = CHART_ACCENT; // #DA5C2C -- identical to --signal, no divergence
-export const SPEC_GRID = '#202020'; // --raised: gridlines
-export const SPEC_BASELINE = '#3a3a3a'; // --line: chart baseline / axis rule
-export const SPEC_TEXT_PRIMARY = '#eeeeee'; // --strong / `ink`
-export const SPEC_TEXT_MUTED = '#606060'; // --muted / `subtle`: tick labels, captions
-export const SPEC_SURFACE = '#191919'; // --panel / `surface`: tooltip card fill
-export const SPEC_FLOOR = '#000000'; // --floor / `muted` bg: point-marker cutout stroke
+export const SPEC_GREY_RAMP = [
+  'var(--chart-rank-1)',
+  'var(--chart-rank-2)',
+  'var(--chart-rank-3)',
+  'var(--chart-rank-4)',
+] as const;
+export const SPEC_ACCENT = 'var(--color-primary)'; // --signal: identical accent/breach role, theme-dependent hex
+export const SPEC_GRID = 'var(--color-raised)'; // gridlines
+export const SPEC_BASELINE = 'var(--color-border)'; // --line: chart baseline / axis rule
+export const SPEC_TEXT_PRIMARY = 'var(--color-ink)'; // --strong / `ink`
+export const SPEC_TEXT_MUTED = 'var(--color-subtle)'; // --muted / `subtle`: tick labels, captions
+export const SPEC_SURFACE = 'var(--color-surface)'; // --panel / `surface`: tooltip card fill
+export const SPEC_FLOOR = 'var(--color-muted)'; // --floor / `muted` bg: point-marker cutout stroke
 
 /**
  * Resolve a series colour under the spec's ramp, using chart-core's own

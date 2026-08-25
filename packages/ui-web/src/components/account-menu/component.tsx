@@ -2,7 +2,13 @@ import { Menu } from '@base-ui/react/menu';
 import React from 'react';
 
 import { cn } from '../../cn';
-import type { AccountMenuProps } from './types';
+import type { AccountMenuProps, AccountMenuTheme } from './types';
+
+const THEME_OPTIONS: { value: AccountMenuTheme; label: string }[] = [
+  { value: 'black', label: 'Dark' },
+  { value: 'wireframe', label: 'Light' },
+  { value: 'system', label: 'System' },
+];
 
 // Contract: docs/design/console-redesign/README.md §4 `ConsoleHeader` "account menu" + the
 // console-ui skill (ADR 0010 Decision 2: Base UI owns behaviour -- Menu here, never a
@@ -17,6 +23,8 @@ export function AccountMenu({
   onSignOut,
   triggerLabel,
   className,
+  theme,
+  onThemeChange,
 }: AccountMenuProps) {
   const label = name ?? email;
 
@@ -24,7 +32,7 @@ export function AccountMenu({
     <Menu.Root>
       <Menu.Trigger
         className={cn(
-          'flex items-center gap-3 rounded-[2px] font-mono outline-none',
+          'flex items-center gap-3 rounded-[2px] font-mono outline-hidden',
           'focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-chrome',
           className
         )}
@@ -38,8 +46,8 @@ export function AccountMenu({
       </Menu.Trigger>
 
       <Menu.Portal>
-        <Menu.Positioner align="end" sideOffset={6} className="z-50 outline-none">
-          <Menu.Popup className="w-[220px] rounded-[2px] bg-surface py-1 font-mono outline-none">
+        <Menu.Positioner align="end" sideOffset={6} className="z-50 outline-hidden">
+          <Menu.Popup className="w-[220px] rounded-[2px] bg-surface py-1 font-mono outline-hidden">
             {name || email ? (
               <div role="presentation" className="flex flex-col gap-0.5 px-3 py-2">
                 {name ? (
@@ -55,11 +63,35 @@ export function AccountMenu({
               </div>
             ) : null}
 
+            {theme && onThemeChange ? (
+              <>
+                <Menu.Separator className="mx-1 my-1 h-px bg-raised" />
+                <div role="presentation" className="flex flex-col gap-1 px-3 py-2">
+                  <span className="text-[10px] tracking-[.09em] text-subtle uppercase">Theme</span>
+                  <div className="flex items-center gap-3">
+                    {THEME_OPTIONS.map((option) => (
+                      <Menu.Item
+                        key={option.value}
+                        className={cn(
+                          'cursor-pointer text-[11px] outline-hidden transition-colors',
+                          option.value === theme ? 'text-ink' : 'text-subtle',
+                          'data-[highlighted]:text-ink'
+                        )}
+                        closeOnClick={false}
+                        onClick={() => onThemeChange(option.value)}>
+                        {option.value === theme ? `[${option.label}]` : option.label}
+                      </Menu.Item>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : null}
+
             <Menu.Separator className="mx-1 my-1 h-px bg-raised" />
 
             <Menu.Item
               className={cn(
-                'cursor-pointer px-3 py-2 text-[11px] text-soft outline-none transition-colors',
+                'cursor-pointer px-3 py-2 text-[11px] text-soft outline-hidden transition-colors',
                 'data-[highlighted]:bg-raised data-[highlighted]:text-ink'
               )}
               onClick={onSignOut}>

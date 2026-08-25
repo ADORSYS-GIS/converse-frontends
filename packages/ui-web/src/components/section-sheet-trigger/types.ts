@@ -17,4 +17,16 @@ export interface SectionSheetTriggerProps {
   /** The rail section's content, rendered bare inside the sheet (the sheet supplies the heading). */
   children: ReactNode;
   className?: string;
+  /**
+   * Controlled open state. Omit both this and `onOpenChange` to keep the uncontrolled convenience
+   * (the component owns the open flag itself); supply both to let the consumer own it.
+   *
+   * ADR 0010's "uncontrolled conveniences must always offer the controlled form" — and ADR 0011
+   * is the consumer that needs it: `apps/console` keeps *which rail section is open* in the query
+   * string (`?sheet=filters`), so a configured screen is linkable and Back closes the sheet. A
+   * component that owns that flag internally cannot participate in that contract.
+   */
+  open?: boolean;
+  /** Controlled counterpart to `open`. Called with the requested next state. */
+  onOpenChange?: (open: boolean) => void;
 }

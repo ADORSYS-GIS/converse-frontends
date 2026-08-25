@@ -5,15 +5,23 @@ import type { OverviewStatCardData, RailSelectProps } from '@lightbridge/ui-web'
 import { useList } from '@refinedev/core';
 import { useMemo } from 'react';
 
-import { useConsoleScopeContext } from '../client/console-scope-context';
-import { useOverviewViewState } from '../client/view-state';
+import { useConsoleScope } from '../client/use-console-scope';
+import {
+  OVERVIEW_BUCKETS,
+  OVERVIEW_GROUP_BYS,
+  OVERVIEW_RANGES,
+  OVERVIEW_SELECTION_OPTIONS,
+  useOverviewParams,
+} from '../client/url-state';
 
 /**
  * `/` — the Overview dashboard's data adapter, shared by its centre (`page.tsx`) and its rail
  * (`@rail/page.tsx`).
  *
  * The two callers issue the same `useList` query keys, so TanStack Query serves both from one
- * request; the view state they both read comes from the console layout's own provider.
+ * request; the view state they both read is the **query string** (ADR 0011) — `?range=7d&series=…`
+ * — so the rail's RANGE select and the centre's chart cannot drift apart, and the dashboard a user
+ * has configured is a link they can send.
  *
  * What is real here: the project and API-key counts, read through refine over the generated
  * resources.
@@ -29,22 +37,32 @@ import { useOverviewViewState } from '../client/view-state';
 export const USAGE_PENDING_MESSAGE =
   'Usage and budget dashboards are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project and key counts below are live.';
 
-const RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-];
+const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+};
 
-const BUCKET_OPTIONS = [
-  { value: 'hour', label: 'Hour' },
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'Week' },
-];
+const BUCKET_LABELS: Record<(typeof OVERVIEW_BUCKETS)[number], string> = {
+  hour: 'Hour',
+  day: 'Day',
+  week: 'Week',
+};
 
-const GROUP_BY_OPTIONS = [
-  { value: 'project', label: 'Project' },
-  { value: 'model', label: 'Model' },
-];
+const GROUP_BY_LABELS: Record<(typeof OVERVIEW_GROUP_BYS)[number], string> = {
+  project: 'Project',
+  model: 'Model',
+};
+
+// The option lists are derived from the URL contract's own literal unions rather than declared
+// beside it: a value the rail can offer but the parser would reject is exactly the drift ADR 0011
+// makes the contract module responsible for preventing.
+const RANGE_OPTIONS = OVERVIEW_RANGES.map((value) => ({ value, label: RANGE_LABELS[value] }));
+const BUCKET_OPTIONS = OVERVIEW_BUCKETS.map((value) => ({ value, label: BUCKET_LABELS[value] }));
+const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
+  value,
+  label: GROUP_BY_LABELS[value],
+}));
 
 const MODEL_OPTIONS = [{ value: 'all', label: 'All models' }];
 
@@ -66,8 +84,8 @@ export interface OverviewScreen {
 }
 
 export function useOverviewScreen(): OverviewScreen {
-  const scope = useConsoleScopeContext();
-  const [view, patchView] = useOverviewViewState();
+  const scope = useConsoleScope();
+  const [view, setView] = useOverviewParams();
 
   const projects = useList<Project>({
     resource: 'projects',
@@ -115,25 +133,34 @@ export function useOverviewScreen(): OverviewScreen {
     emptyMessage: USAGE_PENDING_MESSAGE,
     statCards,
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
-    selectedSeriesKey: view.selectedSeriesKey,
-    setSelectedSeriesKey: (selectedSeriesKey) => patchView({ selectedSeriesKey }),
+    // `''` is the parser default (absent from the URL); the chart sections speak `null`.
+    selectedSeriesKey: view.series || null,
+    setSelectedSeriesKey: (series) => {
+      void setView({ series: series ?? '' }, OVERVIEW_SELECTION_OPTIONS);
+    },
     rangeField: {
       label: 'Range',
       value: view.range,
       options: RANGE_OPTIONS,
-      onChange: (range) => patchView({ range }),
+      onChange: (range) => {
+        void setView({ range: range as (typeof OVERVIEW_RANGES)[number] });
+      },
     },
     bucketField: {
       label: 'Bucket',
       value: view.bucket,
       options: BUCKET_OPTIONS,
-      onChange: (bucket) => patchView({ bucket }),
+      onChange: (bucket) => {
+        void setView({ bucket: bucket as (typeof OVERVIEW_BUCKETS)[number] });
+      },
     },
     groupByField: {
       label: 'Group by',
       value: view.groupBy,
       options: GROUP_BY_OPTIONS,
-      onChange: (groupBy) => patchView({ groupBy }),
+      onChange: (groupBy) => {
+        void setView({ groupBy: groupBy as (typeof OVERVIEW_GROUP_BYS)[number] });
+      },
     },
     accountField: {
       label: 'Account',
@@ -153,9 +180,11 @@ export function useOverviewScreen(): OverviewScreen {
     },
     modelField: {
       label: 'Model',
-      value: view.modelFilter,
+      value: view.model,
       options: MODEL_OPTIONS,
-      onChange: (modelFilter) => patchView({ modelFilter }),
+      onChange: (model) => {
+        void setView({ model });
+      },
     },
   };
 }

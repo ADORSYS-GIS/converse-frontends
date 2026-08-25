@@ -12,36 +12,69 @@ import { useList } from '@refinedev/core';
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-import { useConsoleScopeContext } from '../client/console-scope-context';
-import { useManageViewState } from '../client/view-state';
+import { useConsoleScope } from '../client/use-console-scope';
+import {
+  MANAGE_BUDGET_STATES,
+  MANAGE_REPORT_GROUP_BYS,
+  MANAGE_SELECTION_OPTIONS,
+  MANAGE_STATUSES,
+  REPORT_FORMATS,
+  REPORT_INCLUDE_IDS,
+  useManageParams,
+  type ReportIncludeId,
+} from '../client/url-state';
+import { useSharedMutation } from '../client/use-shared-mutation';
 import { manageTotals, toProjectRows } from './project-rows';
 
 /**
- * `/manage` — the screen's data adapter, shared by its centre (`page.tsx`) and its rail
- * (`@rail/manage/page.tsx`).
+ * `/manage` — the screen's data adapter, shared by its centre (`page.tsx`), its rail
+ * (`@rail/manage/page.tsx`) and its left-rail sub-nav (`@scope/manage/page.tsx`).
  *
- * Both sides read the same view-state store, so the rail's FILTERS/SELECTION sections and the
- * centre's ledger cannot disagree; the identical `useList` key means one request, not two.
+ * All three read the same query params (ADR 0011), so the rail's FILTERS/SELECTION sections and
+ * the centre's ledger cannot disagree; the identical `useList` key means one request, not three.
+ * A configured ledger — `?q=alpha&status=active&budget-state=no-quota&row=proj_7` — is a link.
  */
 
 const PAGE_SIZE = 25;
 
-const STATUS_OPTIONS: SegmentedOption<string>[] = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'archived', label: 'Archived' },
-];
+const STATUS_LABELS: Record<(typeof MANAGE_STATUSES)[number], string> = {
+  all: 'All',
+  active: 'Active',
+  archived: 'Archived',
+};
 
-const BUDGET_STATE_OPTIONS = [
-  { value: 'all', label: 'Any budget state' },
-  { value: 'quota-set', label: 'Quota set' },
-  { value: 'no-quota', label: 'No quota' },
-];
+const BUDGET_STATE_LABELS: Record<(typeof MANAGE_BUDGET_STATES)[number], string> = {
+  all: 'Any budget state',
+  'quota-set': 'Quota set',
+  'no-quota': 'No quota',
+};
 
-const GROUP_BY_OPTIONS: SegmentedOption<string>[] = [
-  { value: 'project', label: 'Project' },
-  { value: 'model', label: 'Model' },
-];
+const GROUP_BY_LABELS: Record<(typeof MANAGE_REPORT_GROUP_BYS)[number], string> = {
+  project: 'Project',
+  model: 'Model',
+};
+
+const INCLUDE_LABELS: Record<ReportIncludeId, string> = {
+  totals: 'Totals row',
+  'per-model': 'Per-model breakdown',
+};
+
+// Options derive from the URL contract's literal unions: a value the rail can offer but the parser
+// would reject is exactly the drift ADR 0011 makes the contract module responsible for preventing.
+const STATUS_OPTIONS: SegmentedOption<string>[] = MANAGE_STATUSES.map((value) => ({
+  value,
+  label: STATUS_LABELS[value],
+}));
+
+const BUDGET_STATE_OPTIONS = MANAGE_BUDGET_STATES.map((value) => ({
+  value,
+  label: BUDGET_STATE_LABELS[value],
+}));
+
+const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map((value) => ({
+  value,
+  label: GROUP_BY_LABELS[value],
+}));
 
 /**
  * ADR 0009 Decision 8's `/api/reports/consumption` CSV route is a separate follow-up (the ADR's
@@ -54,6 +87,20 @@ const REPORT_EXPORT_PENDING =
 
 const NEW_PROJECT_PENDING =
   'Project creation arrives with the project form (ADR 0009 follow-up 3).';
+
+/**
+ * The two unwired actions are modelled as **mutations that fail with the reason**, not as a
+ * `notice` string someone has to own.
+ *
+ * That is not a trick to dodge `useState`: it is what they are. Each is an attempt to perform a
+ * server-side action that does not exist yet, each can be fired from either zone (the report
+ * panel is mounted twice — the rail at `lg`, the centre's report sheet below it), and the message
+ * has to appear on the centre's ledger error line regardless of which copy was pressed. Routing
+ * them through the shared `MutationCache` gives exactly that, and they disappear on retry like
+ * every other failure. The message must not enter the URL — an error is not view state.
+ */
+const NEW_PROJECT_MUTATION_KEY = ['manage', 'new-project'];
+const REPORT_MUTATION_KEY = ['manage', 'report'];
 
 export interface ManageScreen {
   rows: ProjectRow[];
@@ -85,22 +132,22 @@ export interface ManageScreen {
  * element.
  */
 export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
-  const scope = useConsoleScopeContext();
-  const [view, patchView] = useManageViewState();
+  const scope = useConsoleScope();
+  const [view, setView] = useManageParams();
 
   const filters = useMemo(() => {
     const active = [];
     if (scope.value.accountId) {
       active.push({ field: 'accountId', operator: 'eq' as const, value: scope.value.accountId });
     }
-    if (view.statusValue !== 'all') {
-      active.push({ field: 'status', operator: 'eq' as const, value: view.statusValue });
+    if (view.status !== 'all') {
+      active.push({ field: 'status', operator: 'eq' as const, value: view.status });
     }
     if (view.search.trim()) {
       active.push({ field: 'name', operator: 'contains' as const, value: view.search.trim() });
     }
     return active;
-  }, [scope.value.accountId, view.statusValue, view.search]);
+  }, [scope.value.accountId, view.status, view.search]);
 
   const list = useList<Project>({
     resource: 'projects',
@@ -114,35 +161,64 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
 
   const rows = useMemo(() => {
     const mapped = toProjectRows(projects);
-    if (view.budgetStateValue === 'quota-set') return mapped.filter((row) => row.ceiling !== null);
-    if (view.budgetStateValue === 'no-quota') return mapped.filter((row) => row.ceiling === null);
+    if (view.budgetState === 'quota-set') return mapped.filter((row) => row.ceiling !== null);
+    if (view.budgetState === 'no-quota') return mapped.filter((row) => row.ceiling === null);
     return mapped;
-  }, [projects, view.budgetStateValue]);
+  }, [projects, view.budgetState]);
+
+  const newProjectAction = useSharedMutation<void, never>({
+    mutationKey: NEW_PROJECT_MUTATION_KEY,
+    mutationFn: async () => {
+      throw new Error(NEW_PROJECT_PENDING);
+    },
+  });
+
+  const reportAction = useSharedMutation<void, never>({
+    mutationKey: REPORT_MUTATION_KEY,
+    mutationFn: async () => {
+      throw new Error(REPORT_EXPORT_PENDING);
+    },
+  });
 
   const refresh = () => {
-    patchView({ notice: undefined });
+    newProjectAction.dismiss();
+    reportAction.dismiss();
     void list.query.refetch();
   };
+
+  // The SELECTION rail's subject is `?row=<id>`, looked up in the loaded page — so a link to a
+  // selected project reopens on that project, and Back deselects instead of leaving `/manage`.
+  const selectedProject = rows.find((row) => row.id === view.selectedProjectId) ?? null;
 
   return {
     rows,
     loading: list.query.isLoading,
-    errorMessage: list.query.isError ? 'Could not load projects.' : view.notice,
+    errorMessage: list.query.isError
+      ? 'Could not load projects.'
+      : (newProjectAction.errorMessage ?? reportAction.errorMessage),
     totals: manageTotals(rows, total),
     retry: refresh,
     search: view.search,
-    setSearch: (search) => patchView({ search, page: 1 }),
-    newProject: () => patchView({ notice: NEW_PROJECT_PENDING }),
-    selectedProject: view.selectedProject,
-    selectRow: (selectedProject) => patchView({ selectedProject }),
+    setSearch: (search) => {
+      void setView({ search, page: 1 });
+    },
+    newProject: () => newProjectAction.mutate(undefined),
+    selectedProject,
+    selectRow: (row) => {
+      void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);
+    },
     projectCount: total,
     pagination: {
       shown: rows.length,
       total,
       hasPrev: view.page > 1,
       hasNext: view.page * PAGE_SIZE < total,
-      onPrev: () => patchView({ page: Math.max(1, view.page - 1) }),
-      onNext: () => patchView({ page: view.page + 1 }),
+      onPrev: () => {
+        void setView({ page: Math.max(1, view.page - 1) });
+      },
+      onNext: () => {
+        void setView({ page: view.page + 1 });
+      },
     },
     filters: {
       accountValue: scope.value.accountId,
@@ -152,32 +228,50 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
       })),
       onAccountChange: (accountId) => {
         scope.setValue({ accountId, projectId: null });
-        patchView({ page: 1 });
+        // Same tick as the scope write, so nuqs coalesces both into one history entry.
+        void setView({ page: 1 }, { history: 'push' });
       },
       statusOptions: STATUS_OPTIONS,
-      statusValue: view.statusValue,
-      onStatusChange: (statusValue) => patchView({ statusValue, page: 1 }),
-      budgetStateValue: view.budgetStateValue,
+      statusValue: view.status,
+      onStatusChange: (status) => {
+        void setView({ status: status as (typeof MANAGE_STATUSES)[number], page: 1 });
+      },
+      budgetStateValue: view.budgetState,
       budgetStateOptions: BUDGET_STATE_OPTIONS,
-      onBudgetStateChange: (budgetStateValue) => patchView({ budgetStateValue }),
+      onBudgetStateChange: (budgetState) => {
+        void setView({ budgetState: budgetState as (typeof MANAGE_BUDGET_STATES)[number] });
+      },
     },
     report: {
       period: view.period,
-      onPeriodChange: (period) => patchView({ period }),
+      onPeriodChange: (period) => {
+        void setView({ period });
+      },
       scopeSlot,
       groupByOptions: GROUP_BY_OPTIONS,
       groupBy: view.reportGroupBy,
-      onGroupByChange: (reportGroupBy) => patchView({ reportGroupBy }),
-      includeToggles: [
-        { id: 'totals', label: 'Totals row', checked: view.includes.totals },
-        { id: 'per-model', label: 'Per-model breakdown', checked: view.includes['per-model'] },
-      ],
-      onToggleInclude: (id, checked) =>
-        patchView({ includes: { ...view.includes, [id]: checked } }),
+      onGroupByChange: (reportGroupBy) => {
+        void setView({
+          reportGroupBy: reportGroupBy as (typeof MANAGE_REPORT_GROUP_BYS)[number],
+        });
+      },
+      includeToggles: REPORT_INCLUDE_IDS.map((id) => ({
+        id,
+        label: INCLUDE_LABELS[id],
+        checked: view.include.includes(id),
+      })),
+      onToggleInclude: (id, checked) => {
+        const next = REPORT_INCLUDE_IDS.filter((candidate) =>
+          candidate === id ? checked : view.include.includes(candidate)
+        );
+        void setView({ include: next });
+      },
       format: view.format,
-      onFormatChange: (format) => patchView({ format }),
-      onGenerate: () => patchView({ notice: REPORT_EXPORT_PENDING }),
-      generating: false,
+      onFormatChange: (format) => {
+        void setView({ format: format as (typeof REPORT_FORMATS)[number] });
+      },
+      onGenerate: () => reportAction.mutate(undefined),
+      generating: reportAction.isPending,
       lastExports: [],
     },
   };

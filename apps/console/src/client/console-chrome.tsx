@@ -2,7 +2,10 @@
 
 import type { NavSpineItem } from '@lightbridge/ui-web';
 import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
-import { CommandPalette, CommandPaletteTrigger } from '@lightbridge/ui-web/src/components/command-palette';
+import {
+  CommandPalette,
+  CommandPaletteTrigger,
+} from '@lightbridge/ui-web/src/components/command-palette';
 import type {
   CommandPaletteGroup,
   CommandPaletteItem,
@@ -186,6 +189,13 @@ export function ConsoleIdentity() {
 function ConsolePalette() {
   const router = useRouter();
   const session = useConsoleSession();
+  /**
+   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — ephemeral interaction state). The palette is a
+   * launcher, not a view: it describes nothing about what the user is looking at, it is dismissed
+   * by Escape or by the first selection, and `?palette=open` in a shared link would pop a modal
+   * over someone else's screen for no reason. Contrast the section sheets, which ARE in the URL
+   * (`?sheet=`) because they carry the screen's own view parameters.
+   */
   const [open, setOpen] = useState(false);
   useCommandPaletteShortcut(setOpen);
 

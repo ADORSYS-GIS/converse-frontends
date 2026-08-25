@@ -18,8 +18,8 @@ const noop = () => {};
  * `/` right-rail loading skeleton (`@rail` parallel-route slot) — see `(console)/loading.tsx`'s
  * docstring for why this file exists at all.
  *
- * VIEW and FILTERS need live option data (`useOverviewScreen()`'s scope/view-state) this static
- * file has no access to, so they render as generic field skeletons (`RailPanelSkeleton`, matching
+ * VIEW and FILTERS need live option data (`useOverviewScreen()`'s account/project lists) this
+ * static file has no access to, so they render as generic field skeletons (`RailPanelSkeleton`, matching
  * `RailSelect`'s own geometry). SERIES and EXPORT are rendered with their real components instead:
  * `OverviewRail`'s real usage always passes SERIES an empty `items` array (the spend-series legend
  * has no live query client yet) and EXPORT is a static button with no data dependency at all — so

@@ -5,10 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-import { ConsoleHeaderBar, adminNavItems, navItems, routeFromPathname } from '../../client/console-chrome';
-import { ConsoleScopeProvider, useConsoleScopeContext } from '../../client/console-scope-context';
+import {
+  ConsoleHeaderBar,
+  adminNavItems,
+  navItems,
+  routeFromPathname,
+} from '../../client/console-chrome';
+import { useConsoleScope } from '../../client/use-console-scope';
 import { useConsoleSession } from '../../client/session-context';
-import { ConsoleViewStateProviders } from '../../client/view-state';
 
 /**
  * The console's persistent shell — mounted **exactly once**, for every route in the `(console)`
@@ -32,6 +36,13 @@ import { ConsoleViewStateProviders } from '../../client/view-state';
  * Auth routes live OUTSIDE this group (`app/auth/*`) and get no shell at all — that is the whole
  * reason the group exists.
  *
+ * **No state providers wrap any of this any more (ADR 0011 Decision 2).** `ConsoleScopeProvider`
+ * and `ConsoleViewStateProviders` existed only to move view state between the centre and the two
+ * slots; the query string does that natively and above all three subtrees, so both are deleted
+ * rather than wrapped. The layout's client boundary is now the chrome and nothing else — this
+ * component reads `useConsoleScope()` directly for the header's org label, exactly the way any
+ * other zone does.
+ *
  * Nav active state comes from `usePathname()`: nothing remounts on navigation any more, so there
  * is no mount-time route prop to read it from.
  */
@@ -44,41 +55,19 @@ export default function ConsoleLayout({
   rail: ReactNode;
   scope: ReactNode;
 }) {
-  return (
-    <ConsoleScopeProvider>
-      <ConsoleViewStateProviders>
-        <ConsoleChrome rail={rail} scope={scope}>
-          {children}
-        </ConsoleChrome>
-      </ConsoleViewStateProviders>
-    </ConsoleScopeProvider>
-  );
-}
-
-/** Inside the providers, so the header's org switcher can read the live scope. */
-function ConsoleChrome({
-  children,
-  rail,
-  scope,
-}: {
-  children: ReactNode;
-  rail: ReactNode;
-  scope: ReactNode;
-}) {
   const pathname = usePathname();
   const route = routeFromPathname(pathname);
   const session = useConsoleSession();
-  const consoleScope = useConsoleScopeContext();
+  const consoleScope = useConsoleScope();
 
-  const leftSecondaryLabel =
-    route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
+  const leftSecondaryLabel = route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
 
   return (
     <ConsoleShell
       header={
         <ConsoleHeaderBar
           orgSwitcher={
-            <span className="font-mono text-xs text-soft">
+            <span className="text-soft font-mono text-xs">
               {consoleScope.value.accountId || '—'}
             </span>
           }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 import { Providers } from '../client/providers';
 import { readSession } from '../server/session-store';
@@ -71,7 +72,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           "One style pipeline"). Repeating it in the app was the second declaration of the same
           rule. */}
       <body>
-        <Providers session={sessionResponse}>{children}</Providers>
+        {/* nuqs' App Router adapter (ADR 0011): it binds `useQueryState`/`useQueryStates` to
+            Next's router and to `useSearchParams`, and it is mounted HERE, outside `Providers`,
+            for two reasons. It is the outermost thing any zone can need — the `(console)` layout's
+            own chrome reads scope from the URL — and unlike `Providers` it is not
+            `ssr: false`-dynamic, so the query string is readable on the server render too. It is
+            not a store: the URL is the state, this only wires the reads and writes to it. */}
+        <NuqsAdapter>
+          <Providers session={sessionResponse}>{children}</Providers>
+        </NuqsAdapter>
       </body>
     </html>
   );

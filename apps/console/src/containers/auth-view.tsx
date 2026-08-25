@@ -22,6 +22,13 @@ export function AuthView({
   errorMessage?: string;
   returnTo?: string;
 }) {
+  /**
+   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — in-flight submit state). This flips to
+   * `'redirecting'` in the same handler that calls `window.location.assign`, so it exists for at
+   * most one paint before the document is replaced by `/auth/login`. Writing it to the query
+   * string would be a URL update racing a full navigation away from that URL — and `/auth` is
+   * outside the `(console)` group, where there is no view to make shareable in the first place.
+   */
   const [status, setStatus] = useState<AuthScreenStatus>(initialStatus);
 
   const startLogin = () => {

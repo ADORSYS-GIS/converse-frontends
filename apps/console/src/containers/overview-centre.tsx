@@ -1,7 +1,6 @@
 'use client';
 
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { SectionSheetTrigger } from '@lightbridge/ui-web/src/components/section-sheet-trigger';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import {
@@ -21,16 +20,17 @@ import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
+import { UrlSectionSheetTrigger } from './url-section-sheet-trigger';
 import { useOverviewScreen } from './use-overview-screen';
 
 /**
  * `/` — the Overview centre column.
  *
  * The shell is NOT here: it is mounted once by `app/(console)/layout.tsx`. This composes only the
- * centre's sections, plus the compact-tier `SectionSheetTrigger`s that give the right rail's
+ * centre's sections, plus the compact-tier section-sheet triggers that give the right rail's
  * sections a home below `lg` (where the rail is not rendered at all). Each trigger renders the
- * SAME rail section component the `@rail` route mounts, driven by the same shared view state — so
- * there is one source of truth for the values, mounted in two places.
+ * SAME rail section component the `@rail` route mounts, driven by the same query params — so there
+ * is one source of truth for the values, mounted in two places, and it is the URL (ADR 0011).
  */
 export function OverviewCentre() {
   const screen = useOverviewScreen();
@@ -66,18 +66,20 @@ export function OverviewCentre() {
         onSelectSeries={screen.setSelectedSeriesKey}
         actions={
           <>
-            <SectionSheetTrigger
+            <UrlSectionSheetTrigger
+              id="view"
               icon="view"
               triggerLabel="Open view options"
               label={OVERVIEW_VIEW_RAIL_LABEL}>
               {viewRail}
-            </SectionSheetTrigger>
-            <SectionSheetTrigger
+            </UrlSectionSheetTrigger>
+            <UrlSectionSheetTrigger
+              id="filters"
               icon="filter"
               triggerLabel="Open filters"
               label={OVERVIEW_FILTERS_RAIL_LABEL}>
               {filtersRail}
-            </SectionSheetTrigger>
+            </UrlSectionSheetTrigger>
           </>
         }
       />
@@ -108,12 +110,13 @@ export function OverviewCentre() {
             caption: 'Budget figures arrive with the budget query wiring.',
           }}
           actions={
-            <SectionSheetTrigger
+            <UrlSectionSheetTrigger
+              id="export"
               icon="export"
               triggerLabel="Open export"
               label={OVERVIEW_EXPORT_RAIL_LABEL}>
               {exportRail}
-            </SectionSheetTrigger>
+            </UrlSectionSheetTrigger>
           }
         />
       </div>

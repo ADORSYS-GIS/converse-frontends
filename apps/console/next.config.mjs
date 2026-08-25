@@ -19,28 +19,35 @@ const securityHeaders = [
 ];
 
 /**
- * The console builds with **webpack**, not Next 16's default Turbopack. Two independent reasons,
- * both load-bearing:
+ * The console runs **Turbopack in development and webpack for the production build**
+ * (`package.json`: `dev: next dev --turbopack`, `build:web: next build --webpack`). That split is
+ * deliberate, and each half has exactly one reason.
  *
- * 1. `packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` as ESM
- *    TypeScript importing its siblings with explicit `.js` specifiers (`./runtime.js` for
- *    `runtime.ts`) — the NodeNext convention. `tsc`, vitest and Metro all resolve that; Turbopack
- *    has no equivalent of webpack's `resolve.extensionAlias` and fails with
- *    "Can't resolve './stream-terminal.js'". The files are generated, so the imports cannot be
- *    fixed at the source.
- * 2. `@serwist/next`, the stable Serwist integration, is a webpack plugin.
+ * **Production stays on webpack** because `@serwist/next` — the stable Serwist integration, and the
+ * thing that compiles `src/sw.ts` into `public/sw.js` — is a webpack plugin. Turbopack never calls
+ * the `webpack()` config function at all, so under Turbopack the service worker would simply never
+ * be built. In development that is a non-issue: ADR 0009 Decision 7 disables the service worker
+ * there anyway (`disable` below), so `withSerwist` is already a no-op under `next dev`.
  *
- * Revisit when cratestack emits extensionless specifiers or Turbopack grows `extensionAlias`.
+ * **Development moved to Turbopack** once the blocker that used to pin it to webpack was removed at
+ * the source. `packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` in the
+ * NodeNext convention, importing its siblings as `./runtime.js` for `runtime.ts`. `tsc`, vitest,
+ * Metro and webpack (via `experimental.extensionAlias`, which used to live in this file) all
+ * resolve that; Turbopack has no equivalent — neither `turbopack.resolveExtensions` nor
+ * `turbopack.resolveAlias` (`{'*.js': ['*.ts', '*.js']}`) makes it map the specifier onto the `.ts`
+ * source, re-verified against this exact Next version. The fix is now in the generator's own
+ * output: `packages/authz-rpc/scripts/normalize-generated-specifiers.mjs` runs as the second half
+ * of that package's `codegen` script and strips the extension from those 23 relative specifiers,
+ * which every consumer resolves (the generated tree compiles under `moduleResolution: "Bundler"`,
+ * where the extension is optional). `experimental.extensionAlias` is therefore gone from this file
+ * — nothing else in the repo emits NodeNext-style relative specifiers.
  *
- * Re-checked against Next 16.3.2's Turbopack (`next dev --turbopack`, `fix/console-dev-wiremock-
- * and-speed`): serwist's `disable` flag does make it a no-op there too (Turbopack never calls the
- * `webpack()` config function at all, so the plugin's own bundling work never runs — reason 2 is
- * moot under Turbopack regardless). Reason 1 is still live, though: neither `turbopack
- * .resolveExtensions` nor `turbopack.resolveAlias` (`{'*.js': ['*.ts', '*.js']}`) makes Turbopack
- * resolve `./runtime.js` to `runtime.ts` — both were tried and both still fail with the same
- * "Can't resolve './runtime.js'" the original comment describes, now for every generated sibling
- * import (`client.ts`, `runtime.ts`, `queries.ts`, `models.ts`, `stream-terminal.ts`). Dev therefore
- * stays on webpack.
+ * Measured on the branch that made the switch (medians of 3 cold runs): first compile of `/` 6.37s
+ * -> 1.86s, `/manage` 2.00s -> 0.44s, edit-to-rebuilt 200ms -> 71ms, first `/manage` after a warm
+ * restart 5.22s -> 2.50s, dev JS+CSS served per page load 13.6 MiB -> 9.1 MiB. The webpack profile
+ * said why: on a cold `/`, `next-flight-client-module-loader + next-swc-loader` was 17.5s of the
+ * 18.9s of server-compilation loader time — SWC transpiling ~1480 server and ~1190 client modules,
+ * which is precisely the work Turbopack does in Rust. See apps/console/README.md for the tables.
  */
 const withSerwist = withSerwistInit({
   swSrc: 'src/sw.ts',
@@ -59,13 +66,6 @@ const nextConfig = {
   // directly (ADR 0009 Decision 5) — the React Native UI package is no longer part of the
   // console's dependency graph at all.
   transpilePackages: ['@lightbridge/ui-web', '@lightbridge/chart-core', '@lightbridge/authz-rpc'],
-  experimental: {
-    // Reason 1 above: map the generated client's NodeNext `.js` specifiers onto the `.ts` sources.
-    extensionAlias: {
-      '.js': ['.ts', '.tsx', '.js'],
-      '.mjs': ['.mts', '.mjs'],
-    },
-  },
   env: {
     // Busts the persisted IndexedDB query cache on every version bump — see
     // `src/client/query-persister.ts`. The app version is not a secret; nothing else about the

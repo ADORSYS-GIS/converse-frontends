@@ -8,6 +8,12 @@ export interface ConsoleHeaderProps {
   wordmark?: string;
   /** Org/account switcher slot, rendered beside the logo behind a divider rule. */
   orgSwitcher?: ReactNode;
+  /**
+   * `⌘K` command-palette trigger slot, rendered just left of `identity`
+   * (`docs/design/console-redesign/PRIMITIVES.md` `console-header` row: "Gains
+   * ... the ⌘K palette trigger (phase 3)"). Typically a `CommandPaletteTrigger`.
+   */
+  paletteTrigger?: ReactNode;
   /** Right-side identity slot (account menu, avatar). */
   identity?: ReactNode;
   className?: string;

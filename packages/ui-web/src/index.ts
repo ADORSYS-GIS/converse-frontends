@@ -3,6 +3,7 @@ export { cn } from './cn';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
 export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
+export { useCommandPaletteShortcut } from './lib/use-command-palette-shortcut';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
@@ -109,6 +110,14 @@ export type {
   ReviewHistoryRow,
   ReviewDecision,
 } from './components/review-detail-panel';
+
+export { CommandPalette, CommandPaletteTrigger } from './components/command-palette';
+export type {
+  CommandPaletteGroup,
+  CommandPaletteItem,
+  CommandPaletteProps,
+  CommandPaletteTriggerProps,
+} from './components/command-palette';
 
 // ── states
 export { InlineStatus } from './components/inline-status';

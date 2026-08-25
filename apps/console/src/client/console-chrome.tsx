@@ -2,9 +2,16 @@
 
 import type { NavSpineItem } from '@lightbridge/ui-web';
 import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
+import { CommandPalette, CommandPaletteTrigger } from '@lightbridge/ui-web/src/components/command-palette';
+import type {
+  CommandPaletteGroup,
+  CommandPaletteItem,
+} from '@lightbridge/ui-web/src/components/command-palette';
 import { ConsoleHeader } from '@lightbridge/ui-web/src/components/console-header';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import React from 'react';
+import { useCommandPaletteShortcut } from '@lightbridge/ui-web/src/lib/use-command-palette-shortcut';
+import { useRouter } from 'next/navigation';
+import React, { useMemo, useState } from 'react';
 
 import { useConsoleSession } from './session-context';
 import { useConsoleTheme } from './use-console-theme';
@@ -140,6 +147,77 @@ export function ConsoleIdentity() {
   );
 }
 
+/**
+ * `⌘K`/`Ctrl-K` command palette, mounted once alongside the shell it opens on
+ * top of (console-ui skill "Composition": chrome mounts exactly once).
+ *
+ * `CommandPalette` itself is a pure, controlled `ui-web` component with no
+ * routing knowledge -- `apps/console` supplies the routes and actions. Only
+ * **Navigate** and **Sign out** are wired here, not the full "New key /
+ * Generate report / Request refill / Sign out" action set the console-ui skill
+ * sketches as an example: those three route-scoped actions each fail the
+ * "existing flow" bar this task set —
+ *   - `New key` *creates a real key* (`useApiKeysScreen().createKey`), but the
+ *     one-time secret it returns is only ever rendered by `ApiKeysLedger`
+ *     inside `ApiKeysCentre`, which mounts exclusively on `/api-keys`. Firing
+ *     it from another route would create a real credential with literally no
+ *     UI anywhere to show or copy it -- worse than a stub, a silent data-loss
+ *     footgun, so it stays a per-route action (the rail + heading buttons).
+ *   - `Generate report` (`useManageScreen().report.onGenerate`) is itself
+ *     already an honest placeholder in `apps/console` today -- it patches a
+ *     notice reading "needs the consumption report route ... not wired yet".
+ *     There is no real flow to reuse yet.
+ *   - `Request refill` has no `onRequestRefill` wired anywhere in
+ *     `apps/console` (`BudgetPanel`'s prop is never passed).
+ * Per this task's own instruction ("omit actions that have no wired flow
+ * rather than stubbing dead items"), all three are omitted here. Revisit once
+ * report export ships and the secret-reveal surface is lifted above the
+ * per-route centre.
+ */
+function ConsolePalette() {
+  const router = useRouter();
+  const session = useConsoleSession();
+  const [open, setOpen] = useState(false);
+  useCommandPaletteShortcut(setOpen);
+
+  const groups: CommandPaletteGroup[] = useMemo(() => {
+    const navigate: CommandPaletteItem[] = [
+      { key: 'overview', label: 'Overview', onSelect: () => router.push(NAV_HREFS.overview) },
+      { key: 'api-keys', label: 'Api-Keys', onSelect: () => router.push(NAV_HREFS['api-keys']) },
+      { key: 'manage', label: 'Manage', onSelect: () => router.push(NAV_HREFS.manage) },
+    ];
+    if (session.isAdmin) {
+      navigate.push({
+        key: 'admin',
+        label: 'Admin',
+        hint: 'ROLE',
+        onSelect: () => router.push(NAV_HREFS.admin),
+      });
+    }
+    return [
+      { key: 'navigate', heading: 'Navigate', items: navigate },
+      {
+        key: 'actions',
+        heading: 'Actions',
+        items: [{ key: 'sign-out', label: 'Sign out', onSelect: signOut }],
+      },
+    ];
+  }, [router, session.isAdmin]);
+
+  return (
+    <>
+      <CommandPaletteTrigger onClick={() => setOpen(true)} />
+      <CommandPalette open={open} onOpenChange={setOpen} groups={groups} />
+    </>
+  );
+}
+
 export function ConsoleHeaderBar({ orgSwitcher }: { orgSwitcher?: React.ReactNode }) {
-  return <ConsoleHeader orgSwitcher={orgSwitcher} identity={<ConsoleIdentity />} />;
+  return (
+    <ConsoleHeader
+      orgSwitcher={orgSwitcher}
+      paletteTrigger={<ConsolePalette />}
+      identity={<ConsoleIdentity />}
+    />
+  );
 }

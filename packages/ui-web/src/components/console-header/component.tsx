@@ -11,6 +11,7 @@ export function ConsoleHeader({
   logoAlt = 'Lightbridge',
   wordmark = 'LIGHTBRIDGE',
   orgSwitcher,
+  paletteTrigger,
   identity,
   className,
 }: ConsoleHeaderProps) {
@@ -38,6 +39,7 @@ export function ConsoleHeader({
 
       <div className="flex-1" />
 
+      {paletteTrigger}
       {identity}
     </header>
   );

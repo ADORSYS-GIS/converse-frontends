@@ -1,27 +1,50 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ChartTooltip } from './component';
+import type { ChartTooltipProps } from './types';
+
+/** Drives `anchorElement` off a real mounted `<svg>` -- Floating UI's virtual element needs a real `contextElement`. */
+function Harness(props: Omit<ChartTooltipProps, 'anchorElement'> & { anchorless?: boolean }) {
+  const { anchorless, ...rest } = props;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [anchorElement, setAnchorElement] = useState<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    if (!anchorless) setAnchorElement(svgRef.current);
+  }, [anchorless]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg ref={svgRef} width={320} height={200} />
+      <ChartTooltip anchorElement={anchorElement} {...rest} />
+    </div>
+  );
+}
 
 describe('ChartTooltip', () => {
   it('renders nothing when not visible', () => {
-    const { container } = render(
-      <ChartTooltip visible={false} x={10} y={10} rows={[{ key: 'a', label: 'A', value: '1' }]} />,
-    );
+    render(<Harness visible={false} x={10} y={10} rows={[{ key: 'a', label: 'A', value: '1' }]} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('A')).not.toBeInTheDocument();
   });
 
   it('renders nothing when there are no rows, even if visible', () => {
-    const { container } = render(<ChartTooltip visible x={10} y={10} rows={[]} />);
+    render(<Harness visible x={10} y={10} rows={[]} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(document.querySelector('.bg-surface')).not.toBeInTheDocument();
+  });
+
+  it('renders nothing when the anchor element has not mounted yet', () => {
+    render(<Harness visible anchorless x={10} y={10} rows={[{ key: 'a', label: 'A', value: '1' }]} />);
+
+    expect(screen.queryByText('A')).not.toBeInTheDocument();
   });
 
   it('renders the title and one row per entry with label and value', () => {
     render(
-      <ChartTooltip
+      <Harness
         visible
         x={100}
         y={80}
@@ -41,27 +64,24 @@ describe('ChartTooltip', () => {
   });
 
   it('omits the title row when no title is given', () => {
-    const { container } = render(
-      <ChartTooltip visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />,
-    );
+    render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
 
-    // Only the label/value row should exist inside the card, no title span.
-    expect(container.querySelectorAll('.text-subtle')).toHaveLength(0);
+    expect(document.querySelectorAll('.text-subtle')).toHaveLength(0);
   });
 
-  it('clamps left position within containerWidth', () => {
+  it('renders the tooltip card in a portal, not inline in the chart wrapper', () => {
     const { container } = render(
-      <ChartTooltip
-        visible
-        x={2}
-        y={50}
-        containerWidth={200}
-        width={168}
-        rows={[{ key: 'a', label: 'a', value: '1' }]}
-      />,
+      <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />,
     );
 
-    const card = container.firstElementChild as HTMLElement;
-    expect(card.style.left).toBe('4px');
+    expect(container.querySelector('.bg-surface')).not.toBeInTheDocument();
+    expect(document.body.querySelector('.bg-surface')).toBeInTheDocument();
+  });
+
+  it('sets pointer-events: none on the card so it never blocks pointer tracking underneath', () => {
+    render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
+
+    const card = document.body.querySelector('.bg-surface') as HTMLElement;
+    expect(card.style.pointerEvents).toBe('none');
   });
 });

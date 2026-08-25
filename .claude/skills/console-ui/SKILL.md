@@ -71,6 +71,17 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
     **stack** of panels: nav spine, then scope/sub-nav); centre x248 w872 on the floor; right
     rail x1144 w280, **persistent, never an overlay** — its content retargets on selection.
   - The visual language (floor/panels/tokens/accent rules) is identical at every tier.
+- **Rails are flush, aligned, full-height columns — not floating panels** (owner revision
+  2026-08-25, supersedes the "floating panel with gutters" reading of ADR 0008 D3): the left and
+  right rails sit edge-to-edge against the viewport sides and directly under the header — no
+  outer gutters, no gaps between stacked sections, no free-floating panel blocks. Each rail is
+  one continuous `surface` column; sections inside it (nav, scope, filters …) separate with
+  `raised` hairline rules and their `label` headings, padding 16 — never with margins that let
+  the floor show through. Tonal separation, sharp 2px edges, borderless panels, and
+  content-on-the-floor all stay; what goes is the floating-with-gaps look.
+- **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
+  (`w-[1440px]` wrappers are banned; 1440 is a reference resolution for mockups, not a CSS
+  value). Stories render fluid and follow the iframe width.
 - **Flex shell, centre-only stretch, sticky rails** (owner directive 2026-08-25):
   - The shell below the header is a flex row. Rails are fixed-width and `flex-none`
     (`w-[208px]` / `w-[280px]`); the centre is the ONLY stretching zone: `flex-1 min-w-0`

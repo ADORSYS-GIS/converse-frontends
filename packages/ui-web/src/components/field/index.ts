@@ -1,4 +1,3 @@
 export { Field } from './component';
-export { fieldControlVariants, fieldLabelClassName } from './cva';
-export type { FieldControlVariantProps } from './cva';
+export { fieldControlClassName, fieldLabelClassName } from './field-classes';
 export type { FieldProps, FieldInputProps, FieldTextareaProps } from './types';

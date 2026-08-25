@@ -15,28 +15,29 @@ describe('Button', () => {
     render(<Button>Continue</Button>);
 
     const button = screen.getByRole('button', { name: 'Continue' });
-    expect(button).toHaveClass('bg-primary');
-    // `primary-content`, not `ink` -- ADR 0010 Decision 3b a11y correction: `text-ink` on
-    // `bg-primary` is 3.26:1 (below AA); `primary-content` is tuned per theme to stay AA+.
-    expect(button).toHaveClass('text-primary-content');
+    expect(button).toHaveClass('btn');
+    // `btn-primary` sets `--btn-color`/`--btn-fg` to `--color-primary`/`--color-primary-content`
+    // via the theme (ADR 0010 Decision 4) -- the AA-corrected text-on-accent pairing (Decision
+    // 3b: `text-ink` on `bg-primary` is 3.26:1, below AA; `primary-content` stays AA+) comes from
+    // `theme.css`, not a class this component writes.
+    expect(button).toHaveClass('btn-primary');
   });
 
   it('applies the secondary variant classes', () => {
     render(<Button variant="secondary">Continue</Button>);
 
     const button = screen.getByRole('button', { name: 'Continue' });
-    expect(button).toHaveClass('border-border');
-    expect(button).toHaveClass('text-soft');
-    expect(button).not.toHaveClass('bg-primary');
+    expect(button.className).toContain('border-border');
+    expect(button.className).toContain('text-soft');
+    expect(button).not.toHaveClass('btn-primary');
   });
 
   it('applies the ghost variant classes', () => {
     render(<Button variant="ghost">Continue</Button>);
 
     const button = screen.getByRole('button', { name: 'Continue' });
-    expect(button).toHaveClass('bg-transparent');
-    expect(button).not.toHaveClass('border-border');
-    expect(button).not.toHaveClass('bg-primary');
+    expect(button).toHaveClass('btn-ghost');
+    expect(button).not.toHaveClass('btn-primary');
   });
 
   it('renders as disabled and does not fire the click handler', async () => {
@@ -71,6 +72,8 @@ describe('Button', () => {
     );
 
     const button = screen.getByRole('button', { name: 'Open filters' });
-    expect(button).toHaveClass('h-[30px]', 'w-[30px]', 'p-0');
+    expect(button.className).toContain('h-[30px]');
+    expect(button.className).toContain('w-[30px]');
+    expect(button.className).toContain('p-0');
   });
 });

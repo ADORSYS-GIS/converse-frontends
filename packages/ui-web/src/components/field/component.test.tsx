@@ -51,7 +51,10 @@ describe('Field', () => {
 
     const input = screen.getByLabelText('Key name');
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(input).toHaveClass('border-primary');
+    // The `--signal` border on error is an `aria-invalid:` CSS variant (Base UI Field + daisy
+    // `input`, ADR 0010 Decision 4), not a JS-toggled class -- `aria-invalid` is the contract to
+    // assert, since the border-colour utility is present in the class list unconditionally.
+    expect(input.className).toContain('aria-invalid:border-primary');
     expect(screen.getByText('A key with this name already exists.')).toBeInTheDocument();
   });
 

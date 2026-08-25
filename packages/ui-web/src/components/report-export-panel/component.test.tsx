@@ -80,10 +80,11 @@ describe('ReportExportPanel', () => {
     expect(button).toBeDisabled();
   });
 
-  it('toggles an include checkbox and reports its id and next checked state', () => {
+  it('toggles an include switch and reports its id and next checked state', () => {
     const { onToggleInclude } = renderPanel();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include zero-usage projects' }));
+    // Base UI `Switch.Root` (ADR 0010 Decision 4) renders `role="switch"`, not `role="checkbox"`.
+    fireEvent.click(screen.getByRole('switch', { name: 'Include zero-usage projects' }));
 
     expect(onToggleInclude).toHaveBeenCalledWith('zero-usage', true);
   });
@@ -91,7 +92,7 @@ describe('ReportExportPanel', () => {
   it('changes the group-by segmented control', () => {
     const { onGroupByChange } = renderPanel();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Project' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Project' }));
 
     expect(onGroupByChange).toHaveBeenCalledWith('project');
   });

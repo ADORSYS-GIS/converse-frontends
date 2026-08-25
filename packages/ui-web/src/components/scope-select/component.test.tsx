@@ -15,8 +15,16 @@ const projects = [
   { id: 'support-copilot', label: 'support-copilot', accountId: 'adorsys-labs' },
 ];
 
+// Base UI `Select.Item` only commits a selection on `click` when a real `pointerdown` preceded
+// it on the same item (it tracks pointer type to distinguish a genuine mouse/touch press from a
+// bare synthetic click) -- `fireEvent.click` alone is a no-op against it.
+function selectOption(element: HTMLElement) {
+  fireEvent.pointerDown(element, { pointerId: 1, pointerType: 'mouse', isPrimary: true });
+  fireEvent.click(element);
+}
+
 describe('ScopeSelect', () => {
-  it('lists only projects that belong to the selected account', () => {
+  it('shows the selected account and project labels on the triggers', () => {
     render(
       <ScopeSelect
         accounts={accounts}
@@ -26,14 +34,28 @@ describe('ScopeSelect', () => {
       />,
     );
 
-    const projectSelect = screen.getByLabelText('Project');
-    expect(screen.getByRole('option', { name: 'gateway-prod' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'gateway-edge' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'support-copilot' })).not.toBeInTheDocument();
-    expect(projectSelect).toHaveValue('gateway-prod');
+    expect(screen.getByLabelText('Account')).toHaveTextContent('adorsys-gis');
+    expect(screen.getByLabelText('Project')).toHaveTextContent('gateway-prod');
   });
 
-  it('resets projectId to null when the account changes', () => {
+  it('lists only projects that belong to the selected account when the project popup opens', async () => {
+    render(
+      <ScopeSelect
+        accounts={accounts}
+        projects={projects}
+        value={{ accountId: 'adorsys-gis', projectId: 'gateway-prod' }}
+        onChange={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Project'));
+
+    expect(await screen.findByRole('option', { name: 'gateway-prod' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'gateway-edge' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'support-copilot' })).not.toBeInTheDocument();
+  });
+
+  it('resets projectId to null when a different account is chosen', async () => {
     const handleChange = vi.fn();
     render(
       <ScopeSelect
@@ -44,12 +66,13 @@ describe('ScopeSelect', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Account'), { target: { value: 'adorsys-labs' } });
+    fireEvent.click(screen.getByLabelText('Account'));
+    selectOption(await screen.findByRole('option', { name: 'adorsys-labs' }));
 
     expect(handleChange).toHaveBeenCalledWith({ accountId: 'adorsys-labs', projectId: null });
   });
 
-  it('keeps the account and updates only projectId when the project changes', () => {
+  it('keeps the account and updates only projectId when the project changes', async () => {
     const handleChange = vi.fn();
     render(
       <ScopeSelect
@@ -60,12 +83,13 @@ describe('ScopeSelect', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Project'), { target: { value: 'gateway-edge' } });
+    fireEvent.click(screen.getByLabelText('Project'));
+    selectOption(await screen.findByRole('option', { name: 'gateway-edge' }));
 
     expect(handleChange).toHaveBeenCalledWith({ accountId: 'adorsys-gis', projectId: 'gateway-edge' });
   });
 
-  it('is a pure controlled component: selecting a project does not change without a value update', () => {
+  it('is a pure controlled component: the trigger label does not change without a value update', async () => {
     render(
       <ScopeSelect
         accounts={accounts}
@@ -75,10 +99,10 @@ describe('ScopeSelect', () => {
       />,
     );
 
-    const projectSelect = screen.getByLabelText('Project') as HTMLSelectElement;
-    fireEvent.change(projectSelect, { target: { value: 'gateway-edge' } });
+    fireEvent.click(screen.getByLabelText('Project'));
+    selectOption(await screen.findByRole('option', { name: 'gateway-edge' }));
 
-    // No re-render triggered by the parent, so the select stays at the controlled value.
-    expect(projectSelect.value).toBe('');
+    // No re-render triggered by the parent, so the trigger stays on the placeholder.
+    expect(screen.getByLabelText('Project')).toHaveTextContent('All projects');
   });
 });

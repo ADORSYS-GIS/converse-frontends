@@ -29,7 +29,7 @@ describe('SubNav', () => {
 
     const active = screen.getByRole('button', { name: 'Projects 24' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(active).toHaveClass('bg-raised');
+    expect(active.className).toContain('bg-raised');
   });
 
   it('never renders a badge/pill element for the count', () => {

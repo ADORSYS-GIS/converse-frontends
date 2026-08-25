@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { fieldLabelClassName } from '../../components/field/cva';
+import { fieldLabelClassName } from '../../components/field/field-classes';
 import { RailSelect } from '../../components/rail-select';
 import { SegmentedControl } from '../../components/segmented-control';
 import type { ManageFiltersRailProps } from './types';

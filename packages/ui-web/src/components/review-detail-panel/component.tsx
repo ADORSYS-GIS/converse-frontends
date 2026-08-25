@@ -1,24 +1,30 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { formatMoney } from '../../lib/money';
 import { Button } from '../button';
 import { Field } from '../field';
-import { fieldLabelClassName } from '../field/cva';
+import { fieldLabelClassName } from '../field/field-classes';
+import { Meter } from '../meter';
 import type { ReviewDetailPanelProps } from './types';
 
-function formatCurrency(amount: number): string {
-  const [whole, fraction] = Math.abs(amount).toFixed(2).split('.');
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${amount < 0 ? '−' : ''}$${grouped}.${fraction}`;
-}
-
 function formatSignedCurrency(amount: number): string {
-  return `${amount >= 0 ? '+' : '−'}${formatCurrency(Math.abs(amount))}`;
+  return `${amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(amount))}`;
 }
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT for Admin
 // (admin-budget-review.svg): subject, consumption, requested amount, requester note, history,
 // decision note, Approve/Decline pinned to the bottom. Fires onDecide('approve'|'decline', note).
+//
+// ADR 0010 Decision 4: composes the already-rebuilt `Field`/`Button` rather than hand-rolling a
+// second input/button treatment (composition over re-implementation). The consumption bar reuses
+// the shared `Meter` (`showCaption={false}`) instead of a duplicated `raised` track + fill —
+// `Meter`'s own caption bundles "$X of $Y" into one string, which doesn't fit this panel's
+// two-size hierarchy (22px metric, 11px "of $Y"), so only the bar is shared and the numerals stay
+// local. History rows move from a `<ul>` to daisy `table table-xs` per PRIMITIVES.md. Decision
+// buttons: approve = `primary` (the panel's one signal action), decline = `ghost` per
+// PRIMITIVES.md's `review-detail-panel` row (was `secondary`/bordered before this migration —
+// noted divergence, not a mockup pixel disagreement).
 export function ReviewDetailPanel({
   subject,
   requesterEmail,
@@ -35,9 +41,6 @@ export function ReviewDetailPanel({
   deciding = false,
   className,
 }: ReviewDetailPanelProps) {
-  const ratio = ceilingAmount > 0 ? Math.min(consumedAmount / ceilingAmount, 1) : 0;
-  const overThreshold = ratio >= warningThreshold;
-
   return (
     <div className={cn('flex h-full flex-col gap-5', className)}>
       <div className="flex flex-col gap-1">
@@ -51,15 +54,10 @@ export function ReviewDetailPanel({
       <div className="flex flex-col gap-2 border-t border-border pt-4">
         <span className={fieldLabelClassName}>Consumption</span>
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[22px] leading-[1.2] text-ink">{formatCurrency(consumedAmount)}</span>
-          <span className="font-mono text-[11px] text-subtle">of {formatCurrency(ceilingAmount)}</span>
+          <span className="font-mono text-[22px] leading-[1.2] text-ink">{formatMoney(consumedAmount)}</span>
+          <span className="font-mono text-[11px] text-subtle">of {formatMoney(ceilingAmount)}</span>
         </div>
-        <div className="h-[4px] w-full rounded-[2px] bg-raised">
-          <div
-            className={cn('h-full rounded-[2px]', overThreshold ? 'bg-primary' : 'bg-soft')}
-            style={{ width: `${Math.round(ratio * 100)}%` }}
-          />
-        </div>
+        <Meter value={consumedAmount} ceiling={ceilingAmount} threshold={warningThreshold} showCaption={false} />
       </div>
 
       <div className="flex flex-col gap-1 border-t border-border pt-4">
@@ -79,17 +77,23 @@ export function ReviewDetailPanel({
         {history.length === 0 ? (
           <p className="font-mono text-[11px] text-subtle">No previous refills.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {history.map((row) => (
-              <li key={row.id} className="flex flex-col gap-0.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono text-xs text-soft">{row.label}</span>
-                  <span className="font-mono text-xs text-soft">{formatSignedCurrency(row.amount)}</span>
-                </div>
-                <span className="font-mono text-[11px] text-subtle">{row.meta}</span>
-              </li>
-            ))}
-          </ul>
+          <table className="table table-xs">
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.id}>
+                  <td className="p-0 py-1 align-top">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-mono text-xs text-soft">{row.label}</span>
+                      <span className="font-mono text-[11px] text-subtle">{row.meta}</span>
+                    </div>
+                  </td>
+                  <td className="p-0 py-1 text-right align-top font-mono text-xs text-soft">
+                    {formatSignedCurrency(row.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
@@ -113,7 +117,7 @@ export function ReviewDetailPanel({
         >
           Approve {formatSignedCurrency(requestedAmount)}
         </Button>
-        <Button type="button" variant="secondary" disabled={deciding} onClick={() => onDecide('decline', note)}>
+        <Button type="button" variant="ghost" disabled={deciding} onClick={() => onDecide('decline', note)}>
           Decline
         </Button>
       </div>

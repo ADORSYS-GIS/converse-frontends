@@ -9,12 +9,25 @@ import { writeSession } from '../../../server/session-store';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-function failure(request: NextRequest, reason: string): NextResponse {
+function failure(request: NextRequest, reason: string, detail?: string): NextResponse {
   const url = new URL('/auth/error', publicOrigin(request));
   url.searchParams.set('reason', reason);
+  if (detail) url.searchParams.set('detail', detail.slice(0, 140));
   const response = NextResponse.redirect(url);
   response.cookies.set(AUTH_STATE_COOKIE_NAME, '', { path: '/', maxAge: 0 });
   return response;
+}
+
+/** The provider's `error_description`, when the thrown error carries one (openid-client's
+ * `ResponseBodyError` does). Rendered on /auth/error behind a strict sanitizer — without this,
+ * a real IdP message like "Offline tokens not allowed for the user or client" dies in the server
+ * log while the page shows only a generic sentence. */
+function providerDetail(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'error_description' in error) {
+    const description = (error as { error_description?: unknown }).error_description;
+    if (typeof description === 'string') return description;
+  }
+  return undefined;
 }
 
 /**
@@ -30,8 +43,9 @@ export async function GET(request: NextRequest) {
 
   const providerError = request.nextUrl.searchParams.get('error');
   if (providerError) {
-    console.error('[console] Authorization response carried an error:', providerError);
-    return failure(request, providerError);
+    const description = request.nextUrl.searchParams.get('error_description') ?? undefined;
+    console.error('[console] Authorization response carried an error:', providerError, description);
+    return failure(request, providerError, description);
   }
 
   const sealedState = request.cookies.get(AUTH_STATE_COOKIE_NAME)?.value;
@@ -66,6 +80,6 @@ export async function GET(request: NextRequest) {
       return failure(request, 'audience');
     }
     console.error('[console] Authorization code exchange failed:', error);
-    return failure(request, 'exchange');
+    return failure(request, 'exchange', providerDetail(error));
   }
 }

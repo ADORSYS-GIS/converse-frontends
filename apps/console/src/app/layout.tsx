@@ -48,7 +48,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : ANONYMOUS_SESSION;
 
   return (
-    <html lang="en" className="dark">
+    // suppressHydrationWarning is scoped to this element's ATTRIBUTES only (children still
+    // warn): browser extensions inject attributes like `data-google-analytics-opt-out` on <html>
+    // before React hydrates, and Next dev re-logs the false mismatch on every render.
+    <html lang="en" className="dark" suppressHydrationWarning>
       {/* `@serwist/next` injects the service-worker registration itself, and only in a production
           build (`disable` in next.config.mjs) — no registration component belongs here. */}
       <body className="bg-muted font-mono text-soft">

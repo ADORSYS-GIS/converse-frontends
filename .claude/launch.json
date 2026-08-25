@@ -4,14 +4,32 @@
     {
       "name": "self-service-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "apps/self-service", "web"],
+      "runtimeArgs": [
+        "--dir",
+        "apps/self-service",
+        "web"
+      ],
       "port": 8081
     },
     {
       "name": "ui-web-storybook",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "packages/ui-web", "storybook"],
+      "runtimeArgs": [
+        "--dir",
+        "packages/ui-web",
+        "storybook"
+      ],
       "port": 6007
+    },
+    {
+      "name": "console-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "apps/console",
+        "dev"
+      ],
+      "port": 3000
     }
   ]
 }

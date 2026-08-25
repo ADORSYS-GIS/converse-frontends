@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { RAIL_ACTIVE_BAR_CLASS, RAIL_ICON_COLUMN_CLASS, RAIL_ROW_BLEED_CLASS } from '../../lib/rail-grid';
 import { navBottomBarItemVariants, navSpineItemVariants } from './cva';
 import type { NavSpineItem, NavSpineProps } from './types';
 
@@ -8,10 +9,12 @@ function NavRow({ item }: { item: NavSpineItem }) {
   const className = cn(navSpineItemVariants({ active: item.active }));
   const content = (
     <>
-      {item.active ? (
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[2px] bg-primary" />
-      ) : null}
-      {item.icon}
+      {item.active ? <span aria-hidden="true" className={RAIL_ACTIVE_BAR_CLASS} /> : null}
+      {/* Fixed-width icon column (rail-grid.ts) — reserved even when `item.icon` is absent, so
+          a mix of icon/no-icon nav items never shifts where labels start. */}
+      <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+        {item.icon}
+      </span>
       <span>{item.label}</span>
     </>
   );
@@ -106,7 +109,7 @@ export function NavSpine({
   }
 
   return (
-    <nav className={cn('-mx-2 flex flex-col gap-1', className)} aria-label="Primary">
+    <nav className={cn(RAIL_ROW_BLEED_CLASS, 'flex flex-col gap-1', className)} aria-label="Primary">
       {items.map((item) => (
         <NavRow key={item.key} item={item} />
       ))}

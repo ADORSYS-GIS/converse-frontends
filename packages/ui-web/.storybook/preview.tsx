@@ -15,9 +15,21 @@ type ConsoleTheme = 'black' | 'wireframe';
 // exercises a given tier by actually resizing the Storybook preview iframe via these — a
 // fixed-width wrapper `<div>` has no effect on a real `@media` query.
 const CONSOLE_VIEWPORTS = {
-  base390: { name: 'Base — 390 (<600)', styles: { width: '390px', height: '844px' }, type: 'mobile' as const },
-  md900: { name: 'md — 900 (600–1024)', styles: { width: '900px', height: '760px' }, type: 'tablet' as const },
-  lg1440: { name: 'lg — 1440 (≥1024)', styles: { width: '1440px', height: '900px' }, type: 'desktop' as const },
+  base390: {
+    name: 'Base — 390 (<600)',
+    styles: { width: '390px', height: '844px' },
+    type: 'mobile' as const,
+  },
+  md900: {
+    name: 'md — 900 (600–1024)',
+    styles: { width: '900px', height: '760px' },
+    type: 'tablet' as const,
+  },
+  lg1440: {
+    name: 'lg — 1440 (≥1024)',
+    styles: { width: '1440px', height: '900px' },
+    type: 'desktop' as const,
+  },
 };
 
 const preview: Preview = {
@@ -54,6 +66,18 @@ const preview: Preview = {
     (Story, context) => {
       const theme = (context.globals.theme as ConsoleTheme | undefined) ?? 'black';
 
+      // `<html>` is the ONLY element this decorator ever sets `data-theme` on — matching exactly
+      // what `apps/console`'s pre-hydration script and theme toggle do (a single source of truth
+      // per ADR 0010 Decision 5). An earlier version of this decorator ALSO put `data-theme` on
+      // the wrapping `<div>` below, as a second, redundant copy. That div's own attribute only
+      // ever changed when THIS effect ran (i.e. when Storybook's own toolbar changed
+      // `context.globals.theme`), so anything that set `<html data-theme>` by another means --
+      // manual devtools, or an external check reproducing exactly what the no-flash script does --
+      // desynced the two: `<html>` had the new theme, the div still had the stale one, and because
+      // a `[data-theme]` selector matches ANY element bearing the attribute (not just `<html>`),
+      // the div's stale value won for its entire subtree. Fixed in `theme.css` too (see its
+      // trailing `@theme` block's "Regression, found and fixed" comment) — this decorator is the
+      // other half of that fix: one source of truth, not two.
       useEffect(() => {
         document.documentElement.dataset.theme = theme;
       }, [theme]);
@@ -65,7 +89,7 @@ const preview: Preview = {
       // isolated component stories breathing room; a component story that genuinely needs more
       // gets its own local decorator, never a global one.
       return (
-        <div data-theme={theme} className="bg-muted min-h-screen">
+        <div className="bg-muted min-h-screen">
           <Story />
         </div>
       );

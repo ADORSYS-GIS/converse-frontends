@@ -2,12 +2,27 @@ import React, { useEffect, useRef, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { ChartTooltip } from './component';
 import type { ChartTooltipProps } from './types';
 
-/** Drives `anchorElement` off a real mounted `<svg>` -- Floating UI's virtual element needs a real `contextElement`. */
-function Harness(props: Omit<ChartTooltipProps, 'anchorElement'> & { anchorless?: boolean }) {
-  const { anchorless, ...rest } = props;
+/**
+ * Drives `ChartTooltip`'s positioning props off a real `useChartTooltipFloating()` call over a
+ * real mounted `<svg>` -- Floating UI's virtual element needs a real `contextElement`, and
+ * `ChartTooltip` itself no longer owns any positioning logic (that moved to the hook so it can
+ * be called from wherever a chart's actual interactive hit-region elements live -- see the
+ * hook's own docstring).
+ */
+function Harness({
+  anchorless,
+  x = 10,
+  y = 10,
+  ...rest
+}: Omit<ChartTooltipProps, 'setFloating' | 'floatingStyles' | 'getFloatingProps'> & {
+  anchorless?: boolean;
+  x?: number;
+  y?: number;
+}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [anchorElement, setAnchorElement] = useState<SVGSVGElement | null>(null);
 
@@ -15,10 +30,27 @@ function Harness(props: Omit<ChartTooltipProps, 'anchorElement'> & { anchorless?
     if (!anchorless) setAnchorElement(svgRef.current);
   }, [anchorless]);
 
+  // Mirrors every real chart: the tooltip is only ever `open` once both the caller wants it
+  // visible AND the anchor has mounted -- `visible` alone (as `ChartTooltip` received pre-split)
+  // is no longer the whole gate, since positioning now depends on a real `anchorElement`.
+  const open = rest.visible && anchorElement !== null;
+
+  const { setFloating, floatingStyles, getFloatingProps } = useChartTooltipFloating({
+    open,
+    anchorElement,
+    pinnedPoint: { x, y },
+  });
+
   return (
     <div style={{ position: 'relative' }}>
       <svg ref={svgRef} width={320} height={200} />
-      <ChartTooltip anchorElement={anchorElement} {...rest} />
+      <ChartTooltip
+        {...rest}
+        visible={open}
+        setFloating={setFloating}
+        floatingStyles={floatingStyles}
+        getFloatingProps={getFloatingProps}
+      />
     </div>
   );
 }

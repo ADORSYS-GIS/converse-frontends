@@ -23,6 +23,7 @@ import {
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { useHoverActive } from '../../lib/use-hover-active';
+import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { buildRidgelineRows } from './layout';
 import type { RidgelineRowLayout } from './layout';
 import type { LatencyRidgelineProps } from './types';
@@ -68,7 +69,7 @@ export function LatencyRidgeline({
   // Which row the tooltip is anchored to -- hover/focus-driven, deliberately independent of
   // `selectedKey` (click-driven, see `handleSelect`). See `useHoverActive`'s own docstring for
   // why hover, not just click, now drives this.
-  const { active: activeKey, getHoverProps } = useHoverActive<string>();
+  const { active: activeKey, activeInput, getHoverProps } = useHoverActive<string>();
   // The tooltip's Floating UI virtual element needs a real `contextElement` --
   // state, not a plain ref, so the tooltip re-renders once the `<svg>` mounts.
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
@@ -132,6 +133,26 @@ export function LatencyRidgeline({
       },
     ];
   }, [activeRow, series, formatXTick, formatTooltipValue, selectedKey]);
+
+  // The tooltip's frozen fallback point for touch/keyboard activation -- the active row's own
+  // peak. Unused while a live pointer drives `activeInput` ('hover'): see
+  // `useChartTooltipFloating`'s docstring for why that case tracks the real cursor instead.
+  const pinnedPoint = useMemo(() => {
+    if (!activeRow) return null;
+    return {
+      x:
+        MARGIN.left +
+        xScale(activeRow.peakBin ? (activeRow.peakBin.x0 + activeRow.peakBin.x1) / 2 : domain[0]),
+      y: MARGIN.top + Math.max(activeRow.baselineY - activeRow.amplitude, 8),
+    };
+  }, [activeRow, xScale, domain]);
+
+  const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
+    useChartTooltipFloating({
+      open: activeRow !== null && svgElement !== null,
+      anchorElement: svgElement,
+      pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
+    });
 
   if (series.length === 0) {
     return (
@@ -210,7 +231,7 @@ export function LatencyRidgeline({
           aria-pressed={row.key === selectedKey}
           aria-label={row.breached ? `${row.label}, over ceiling` : row.label}
           onClick={() => handleSelect(row.key)}
-          {...getHoverProps(row.key)}
+          {...getReferenceProps(getHoverProps(row.key))}
           className="absolute cursor-pointer bg-transparent p-0"
           style={{
             left: 0,
@@ -223,14 +244,11 @@ export function LatencyRidgeline({
       {activeRow ? (
         <ChartTooltip
           visible={activeRow !== null}
-          anchorElement={svgElement}
-          x={
-            MARGIN.left +
-            xScale(activeRow.peakBin ? (activeRow.peakBin.x0 + activeRow.peakBin.x1) / 2 : domain[0])
-          }
-          y={MARGIN.top + Math.max(activeRow.baselineY - activeRow.amplitude, 8)}
           title={activeRow.label}
           rows={tooltipRows}
+          setFloating={setFloating}
+          floatingStyles={floatingStyles}
+          getFloatingProps={getFloatingProps}
         />
       ) : null}
     </div>

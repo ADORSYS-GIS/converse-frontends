@@ -38,7 +38,9 @@ export type AuthzRpcRuntimeOptions = {
   refreshAuth?: () => Promise<boolean>;
   getExpiresAt?: () => number | undefined;
   onRefreshFailure?: () => void;
-  /** Overrides the env-driven default (CBOR in prod, JSON elsewhere). Mainly for tests. */
+  /** Overrides `defaultCodec()` (CBOR, always -- see `./codec.ts`). `apps/console` always passes
+   *  this explicitly (`./web-codec.ts`'s `@cratestack/cbor`-based codec); `apps/self-service`
+   *  leaves it unset and gets the `cborg`-based default. Also used directly by tests. */
   codec?: Codec;
   /** Underlying fetch implementation `authenticatedFetch` delegates to. Defaults to global
    *  `fetch`. Mainly for tests — the generated runtime's own `fetch` option is always set to

@@ -69,6 +69,15 @@ export const CborCodec: Codec = {
  *
  * `JsonCodec` is retained as an export for its own unit tests and any non-authz consumer; it is
  * no longer reachable from this default.
+ *
+ * This `cborg`-based `CborCodec` is now specifically the **Expo app's** codec (`apps/self-service`
+ * never calls `defaultCodec()` explicitly -- it relies on this being `runtime.ts`'s fallback). It
+ * stays on `cborg` because `cborg` is pure JS with no native/WASM dependency, the one codec
+ * implementation guaranteed to run identically under Hermes, V8, and a browser. `apps/console`
+ * uses a different codec (`@cratestack/cbor`, see `./web-codec.ts`) precisely because it does NOT
+ * have that constraint -- it is browser-only. This module (and `defaultCodec()`) is deleted along
+ * with the rest of `apps/self-service` at the ADR 0009 Expo cutover, at which point `./web-codec.ts`
+ * becomes the only codec left in this package.
  */
 export function defaultCodec(): Codec {
   return CborCodec;

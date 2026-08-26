@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cratestack/api": "0.8.10",
-    "@cratestack/link-logger": "0.8.10",
-    "@cratestack/refine": "0.8.10",
+    "@cratestack/api": "0.8.13",
+    "@cratestack/link-logger": "0.8.13",
+    "@cratestack/refine": "0.8.13",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@lightbridge/authz-rpc": "workspace:*",

@@ -64,7 +64,13 @@ keycloak:
 backendUrl: 'http://localhost:13000'
 
 # RPC base path on authz-api — `/api/rpc/{op_id}` is served under this prefix.
-apiBasePath: '/api'
+# '/' normalizes to '' (see normalizeBasePath in src/server/env.ts), targeting
+# {backendUrl}/rpc/{op_id} -- which is where authz-api actually serves the generated RPC
+# surface: its `server.api.rpc_base_path` is unset in .docker/authz/container.yaml and is
+# not set by ai-helm-values either, so no deployment mounts it under /api. The previous
+# '/api' produced a 404 on every call against a real backend. Unrelated to the browser-facing
+# /api/rpc/{op} route this app serves itself -- that stays /api.
+apiBasePath: '/'
 
 # authz-budget: the microservice the 14 budget:*-gated procedures moved onto (hard cutover,
 # lightbridge-authz PR #351). Falls back to backendUrl when unset; budget calls 404 until this

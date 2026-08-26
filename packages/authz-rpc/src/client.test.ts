@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CborCodec } from './codec';
+
 // `useAuthzRpcClient`/`getAuthzRpcClient` and `useBudgetRpcClient`/`getBudgetRpcClient` are two
 // independent module-scope singletons produced by the same `createRpcClientHook` factory (see
 // client.ts) — one pointed at `authz-api`, one at `authz-budget`. These tests prove they really
@@ -26,16 +28,16 @@ describe('useAuthzRpcClient / useBudgetRpcClient', () => {
 
     const authzFetch = vi.fn(
       async () =>
-        new Response(JSON.stringify({ id: 'acc_1' }), {
+        new Response(CborCodec.encode({ id: 'acc_1' }) as unknown as BodyInit, {
           status: 200,
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/cbor' },
         })
     );
     const budgetFetch = vi.fn(
       async () =>
-        new Response(JSON.stringify({ id: 'aug_1' }), {
+        new Response(CborCodec.encode({ id: 'aug_1' }) as unknown as BodyInit, {
           status: 200,
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/cbor' },
         })
     );
 

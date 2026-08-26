@@ -60,17 +60,16 @@ export const CborCodec: Codec = {
 };
 
 /**
- * Matches the backend's env split (ADR-0003, "CBOR in production, JSON in dev/CI"):
- * production traffic goes over CBOR, everything else stays JSON so `curl`/browser devtools
- * stay readable. Overridable via `EXPO_PUBLIC_RPC_CODEC` for local CBOR-path testing.
+ * CBOR, always. The old env split (ADR-0003, "CBOR in production, JSON in dev/CI") is dead:
+ * lightbridge-authz ADR-0013 made CBOR the ONLY transport codec for the RPC/CRUD surface and
+ * DELETED the JSON variant rather than defaulting it off, so `authz-api`/`authz-budget` answer
+ * a JSON `Accept` with `406 Not Acceptable` and a JSON body with `415`. A dev/prod codec split
+ * is also exactly the "tested path != shipped path" gap ADR-0013 cites as having produced two
+ * prod-only bugs invisible to a green CI -- dev must speak the wire format prod speaks.
+ *
+ * `JsonCodec` is retained as an export for its own unit tests and any non-authz consumer; it is
+ * no longer reachable from this default.
  */
 export function defaultCodec(): Codec {
-  const override = process.env.EXPO_PUBLIC_RPC_CODEC;
-  if (override === 'cbor') {
-    return CborCodec;
-  }
-  if (override === 'json') {
-    return JsonCodec;
-  }
-  return process.env.NODE_ENV === 'production' ? CborCodec : JsonCodec;
+  return CborCodec;
 }

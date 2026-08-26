@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CborCodec } from './codec';
-
 // `useAuthzRpcClient`/`getAuthzRpcClient` and `useBudgetRpcClient`/`getBudgetRpcClient` are two
 // independent module-scope singletons produced by the same `createRpcClientHook` factory (see
 // client.ts) — one pointed at `authz-api`, one at `authz-budget`. These tests prove they really
 // are independent: each keeps its own client/runtime state, and a call through one never reaches
 // the other's `fetch`. `vi.resetModules()` + a fresh dynamic import per test gives each test a
 // clean singleton, since the module only constructs a client on the FIRST `useXRpcClient` call.
+//
+// Neither test below passes an explicit `codec` option to `useAuthzRpcClient`/`useBudgetRpcClient`
+// — matching how both real apps call them post-single-codec-cutover — so each test dynamically
+// imports `./codec` too (the same fresh module instance `vi.resetModules()` gives `./client`'s own
+// internal import of it) and awaits `ensureCborCodecReady()` before constructing any client,
+// exactly like `apps/console`'s and `apps/self-service`'s own boot gates do.
 describe('useAuthzRpcClient / useBudgetRpcClient', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -25,17 +29,20 @@ describe('useAuthzRpcClient / useBudgetRpcClient', () => {
 
   it('routes calls made through the authz client to the authz base URL/basePath, never the budget one', async () => {
     const { useAuthzRpcClient, useBudgetRpcClient } = await import('./client');
+    const { ensureCborCodecReady, getCborCodec } = await import('./codec');
+    await ensureCborCodecReady();
+    const cborCodec = getCborCodec();
 
     const authzFetch = vi.fn(
       async () =>
-        new Response(CborCodec.encode({ id: 'acc_1' }) as unknown as BodyInit, {
+        new Response(cborCodec.encode({ id: 'acc_1' }) as unknown as BodyInit, {
           status: 200,
           headers: { 'content-type': 'application/cbor' },
         })
     );
     const budgetFetch = vi.fn(
       async () =>
-        new Response(CborCodec.encode({ id: 'aug_1' }) as unknown as BodyInit, {
+        new Response(cborCodec.encode({ id: 'aug_1' }) as unknown as BodyInit, {
           status: 200,
           headers: { 'content-type': 'application/cbor' },
         })
@@ -80,6 +87,8 @@ describe('useAuthzRpcClient / useBudgetRpcClient', () => {
   it('getAuthzRpcClient/getBudgetRpcClient return the same singleton useXRpcClient configured, not two different instances', async () => {
     const { useAuthzRpcClient, useBudgetRpcClient, getAuthzRpcClient, getBudgetRpcClient } =
       await import('./client');
+    const { ensureCborCodecReady } = await import('./codec');
+    await ensureCborCodecReady();
 
     const authzClient = useAuthzRpcClient({
       baseURL: 'https://authz-api.example.com',

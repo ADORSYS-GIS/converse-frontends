@@ -23,7 +23,11 @@ import {
 import { APP_FONT_SOURCES, useAppFonts } from '@lightbridge/ui';
 import { createBatchLink } from '@cratestack/api';
 import { queryClient } from '../queries';
-import { useAuthzRpcClient, useBudgetRpcClient } from '@lightbridge/authz-rpc';
+import {
+  ensureCborCodecReady,
+  useAuthzRpcClient,
+  useBudgetRpcClient,
+} from '@lightbridge/authz-rpc';
 import { isWebPlatform } from '@lightbridge/api-native';
 import { RuntimeConfigProvider, useRuntimeConfig } from '../configs/runtime-config';
 import { AppSplashView } from '../views/app-splash-view';
@@ -152,6 +156,13 @@ function AppBootstrap() {
 export default function RootLayout() {
   const fontsLoaded = useAppFonts(APP_FONT_SOURCES);
   const [runtimeReady, setRuntimeReady] = useState(false);
+  // `AppBootstrap` constructs its RPC clients (`useAuthzRpcClient`/`useBudgetRpcClient`) without an
+  // explicit `codec` override, so it needs `@lightbridge/authz-rpc`'s default CBOR codec
+  // (`@cratestack/cbor`, resolved once via `ensureCborCodecReady()`) ready synchronously on first
+  // render — same requirement `apps/console`'s `ssr: false` provider boundary has, gated here the
+  // same way `fontsLoaded` already gates `AppBootstrap` below instead of introducing a second,
+  // differently-shaped readiness mechanism.
+  const [codecReady, setCodecReady] = useState(false);
   const webFallback = isWebPlatform() ? <AppSplashView /> : null;
 
   const handleRuntimeReady = React.useCallback(() => {
@@ -159,10 +170,14 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded && runtimeReady) {
+    void ensureCborCodecReady().then(() => setCodecReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (fontsLoaded && runtimeReady && codecReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, runtimeReady]);
+  }, [fontsLoaded, runtimeReady, codecReady]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -170,7 +185,7 @@ export default function RootLayout() {
         <I18nProvider>
           <RuntimeConfigProvider fallback={webFallback} onReady={handleRuntimeReady}>
             <QueryClientProvider client={queryClient}>
-              {fontsLoaded ? (
+              {fontsLoaded && codecReady ? (
                 <AppErrorBoundary>
                   <AppSheetProvider>
                     <AppBootstrap />

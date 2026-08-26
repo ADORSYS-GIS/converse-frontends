@@ -17,12 +17,13 @@ import {
   Text,
 } from '@lightbridge/ui';
 // Type-only -- erased at compile time, so this does NOT pull `@lightbridge/authz-rpc` (and
-// transitively `cborg`) into this file's runtime import graph. `AugmentationRequest` already
-// proved that out for this exact file; `MyBudgetRefillLadder` follows the same rule.
+// transitively `@cratestack/cbor`) into this file's runtime import graph. `AugmentationRequest`
+// already proved that out for this exact file; `MyBudgetRefillLadder` follows the same rule.
 import type { AugmentationRequest, MyBudgetRefillLadder } from '@lightbridge/hooks';
 // Pure helpers only, from the dependency-free `./budget-tiers` subpath -- NOT the `@lightbridge/hooks`
-// barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `cborg`, which Jest's resolver
-// can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level comment.
+// barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `@cratestack/cbor`, which
+// Jest's resolver can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level
+// comment.
 import {
   formatBudgetTierAmount,
   formatMicroUsd,

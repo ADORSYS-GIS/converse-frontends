@@ -176,8 +176,9 @@ One thing changed to make this work (dev-only — see `src/client/rpc-clients.ts
   converse-frontends#256 made CBOR the only wire format the backend answers — a JSON `Accept`/body
   now gets `406`/`415`), so this is **not** something WireMock dev mode can opt out of. WireMock's
   stubs (`wiremock/mappings/`) return plain `jsonBody` fixtures regardless, which the console's
-  CBOR codec (`@cratestack/cbor`, see `@lightbridge/authz-rpc/web-codec`) cannot decode as CBOR —
-  a real end-to-end data fetch against WireMock will fail to decode the response. The unauthenticated
+  CBOR codec (`@cratestack/cbor`, see `@lightbridge/authz-rpc`'s `packages/authz-rpc/src/codec.ts`
+  — the single codec both this app and `apps/self-service` use) cannot decode as CBOR — a real
+  end-to-end data fetch against WireMock will fail to decode the response. The unauthenticated
   proxy-gate checks this README's own verification below relies on (`401` before `BACKEND_URL` is
   ever reached) are unaffected, since those never get far enough to hit the codec at all. Making
   WireMock speak CBOR (hand-authored fixtures, or an actual CBOR-encoding stub layer) is tracked as
@@ -366,7 +367,8 @@ GET /manage  ──(no cookie)──▶ middleware ──302──▶ /auth/logi
 
 The console is the only exposed origin. `/api/rpc/*`, `/api/budget/rpc/*` and `/api/usage/*` forward
 raw request bytes upstream and stream the response back — **never decoding the payload**, so the
-CBOR wire format (and its `stripUndefined` `Option<T>` gotcha) stays entirely a client concern.
+CBOR wire format (and its `undefined`/`Option<T>` handling — see `packages/authz-rpc/src/codec.ts`)
+stays entirely a client concern.
 
 Request headers are forwarded through an allow-list, so the browser's own `Cookie` and any
 client-supplied `Authorization` can never reach a backend. Path segments are validated against

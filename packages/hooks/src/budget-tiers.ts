@@ -2,8 +2,12 @@
  * Pure, dependency-free budget helpers (tier ladder, dollar formatting, period formatting).
  * Deliberately split out of `./budget.ts`: that file also defines the mutation/query hooks, which
  * import `@lightbridge/authz-rpc` at the top level -- and that package's `codec.ts` imports
- * `cborg`, whose package.json `exports` map Jest's resolver cannot follow (fails with "Cannot
- * find module 'cborg'") when this app's Jest config resolves it transitively. `./pagination` and
+ * `@cratestack/cbor`, whose package.json `exports` map Jest's resolver cannot follow (fails with
+ * "Cannot find module '@cratestack/cbor'") when this app's Jest config resolves it transitively --
+ * confirmed still true after the single-codec cutover (converse-frontends -- purge of the
+ * dual-codec redundancy introduced in #257), which swapped the package.json dependency from the
+ * previously-blamed `cborg` to `@cratestack/cbor` without changing this class of problem at all.
+ * `./pagination` and
  * `./use-query-state` already use this same "small dependency-free leaf module + its own package
  * subpath export" pattern for exactly this reason -- a presentational *view* component can import
  * this module directly (`@lightbridge/hooks/budget-tiers`) without ever pulling in

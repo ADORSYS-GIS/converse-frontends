@@ -14,7 +14,7 @@ import {
   type CratestackRpcCodec,
 } from '../generated/src/runtime';
 import type { RpcLink } from '../generated/src/links';
-import { type Codec, defaultCodec } from './codec';
+import { type Codec, getCborCodec } from './codec';
 
 export type { RpcLink } from '../generated/src/links';
 
@@ -38,9 +38,10 @@ export type AuthzRpcRuntimeOptions = {
   refreshAuth?: () => Promise<boolean>;
   getExpiresAt?: () => number | undefined;
   onRefreshFailure?: () => void;
-  /** Overrides `defaultCodec()` (CBOR, always -- see `./codec.ts`). `apps/console` always passes
-   *  this explicitly (`./web-codec.ts`'s `@cratestack/cbor`-based codec); `apps/self-service`
-   *  leaves it unset and gets the `cborg`-based default. Also used directly by tests. */
+  /** Overrides the default codec (`@cratestack/cbor`, always -- see `./codec.ts`'s
+   *  `getCborCodec()`). Neither app needs to pass this: both get the same CBOR codec by default,
+   *  once their own boot boundary has awaited `ensureCborCodecReady()`. Also used directly by
+   *  tests, which pass `JsonCodec`/an explicit `Codec` fake to avoid that async dependency. */
   codec?: Codec;
   /** Underlying fetch implementation `authenticatedFetch` delegates to. Defaults to global
    *  `fetch`. Mainly for tests — the generated runtime's own `fetch` option is always set to
@@ -75,7 +76,7 @@ export class AuthzRpcRuntime {
     this.authOptions = options;
     this.runtime = new CratestackRpcRuntime(origin, {
       basePath: options.basePath,
-      codec: toCratestackCodec(options.codec ?? defaultCodec()),
+      codec: toCratestackCodec(options.codec ?? getCborCodec()),
       links: options.links,
       headers: async () => {
         const token = await this.authOptions.auth();

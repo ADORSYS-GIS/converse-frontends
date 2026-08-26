@@ -24,8 +24,9 @@ import { clearSession, readSessionFromRequest, writeSession } from './session-st
  *
  * What it deliberately does **not** do: look at the payload. The console's cratestack client runs
  * in the browser and speaks CBOR; this layer never decodes a byte of it, so it cannot drift from
- * the wire format and never has to know about the `stripUndefined` `Option<T>` gotcha in
- * `packages/authz-rpc/src/codec.ts`.
+ * the wire format and never has to know about any `Option<T>`/`undefined`-handling gotcha in
+ * `packages/authz-rpc/src/codec.ts` (see that module's doc comment for the current codec's
+ * `undefined`-handling behavior).
  *
  * The request body *is* buffered (not streamed) because the reactive 401 path has to replay the
  * exact same bytes with a fresh token, and a consumed stream cannot be replayed. RPC payloads are

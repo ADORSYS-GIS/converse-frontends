@@ -1,12 +1,22 @@
 name: docker-image
 
+# Automatic image builds are DISABLED (owner directive, 2026-08-26).
+#
+# This pipeline images `apps/self-service` — the Expo web export — which ADR 0009 schedules for
+# deletion once `apps/console` reaches feature parity. Publishing new images from it while the
+# console migration is mid-flight would push half-migrated builds down the GitOps chain
+# (GHCR → ai-helm `converse-ui` → cluster), so the `push` triggers are removed rather than left
+# to fire on every merge to main.
+#
+# `workflow_dispatch` is kept so a release can still be cut deliberately.
+#
+# Re-enable by restoring the `push:` block below — and re-point it at `apps/console` rather than
+# the Expo app, which is the cutover PR's job:
+#
+#   push:
+#     branches: [main]
+#     tags: ['v*']
 on:
-  push:
-    branches:
-      - main
-      - 8-align-lightbridge-ui-with-authz-usage-apis-before-deployment
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 env:

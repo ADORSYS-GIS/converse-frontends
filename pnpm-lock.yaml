@@ -65,14 +65,14 @@ importers:
   apps/console:
     dependencies:
       '@cratestack/api':
-        specifier: 0.8.10
-        version: 0.8.10(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+        specifier: 0.8.13
+        version: 0.8.13(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
       '@cratestack/link-logger':
-        specifier: 0.8.10
-        version: 0.8.10
+        specifier: 0.8.13
+        version: 0.8.13
       '@cratestack/refine':
-        specifier: 0.8.10
-        version: 0.8.10(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+        specifier: 0.8.13
+        version: 0.8.13(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
@@ -177,8 +177,8 @@ importers:
   apps/self-service:
     dependencies:
       '@cratestack/api':
-        specifier: 0.8.10
-        version: 0.8.10(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+        specifier: 0.8.13
+        version: 0.8.13(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
       '@expo/dom-webview':
         specifier: ^57.0.1
         version: 57.0.1(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@react-native/jest-preset@0.86.2(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -371,11 +371,14 @@ importers:
   packages/authz-rpc:
     dependencies:
       '@cratestack/api':
-        specifier: 0.8.10
-        version: 0.8.10(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+        specifier: 0.8.13
+        version: 0.8.13(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+      '@cratestack/cbor':
+        specifier: 0.8.13
+        version: 0.8.13
       '@cratestack/refine':
-        specifier: 0.8.10
-        version: 0.8.10(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+        specifier: 0.8.13
+        version: 0.8.13(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
       '@paralleldrive/cuid2':
         specifier: ^3.3.0
         version: 3.3.0
@@ -390,8 +393,8 @@ importers:
         version: 19.2.3
     devDependencies:
       '@cratestack/cli':
-        specifier: 0.8.10
-        version: 0.8.10
+        specifier: 0.8.13
+        version: 0.8.13
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@26.2.0)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
@@ -616,7 +619,7 @@ importers:
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.50.0)(yaml@2.9.0)
       vitest:
         specifier: ^3.2.7
-        version: 3.2.7(@types/node@26.2.0)(jiti@1.21.7)(jsdom@30.0.1(@noble/hashes@2.3.0))(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
+        version: 3.2.7(@types/node@26.2.0)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
 
   packages/ui-web:
     dependencies:
@@ -1235,8 +1238,8 @@ packages:
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
 
-  '@cratestack/adapter-rtk@0.8.10':
-    resolution: {integrity: sha512-Eqhgc9sp77VkGFTK2ad6QG/9lf9kpwKN8ur+F7e699NJX9bIWNf3OXbLEtJ3qZG0rur4hxD2CvjaQ0JHnKwITg==}
+  '@cratestack/adapter-rtk@0.8.13':
+    resolution: {integrity: sha512-RsOzF2ogGOBMXbZuMroUQoI+uCTOAwV57pQCfXP8s15jMmCbi2fdJt/Qdh/8rK7FvZNhJkPH+XNsWtA9suX0Og==}
     engines: {node: '>=18'}
     peerDependencies:
       '@reduxjs/toolkit': ^2.0.0
@@ -1244,8 +1247,8 @@ packages:
       '@reduxjs/toolkit':
         optional: true
 
-  '@cratestack/adapter-tanstack-query@0.8.10':
-    resolution: {integrity: sha512-E1r6SV0rQo+gN8n2gl+JIcogPoXAlVhVgusPA5X1rksC4uI275PNrje/YWuhaH5WWZnW8dg+/d4YTFoLlxE+nA==}
+  '@cratestack/adapter-tanstack-query@0.8.13':
+    resolution: {integrity: sha512-2Wt+ySw/Dk8tArrJ1O0hYYp8+26TihZMA9IltIKjKeikMmD6vJBd1HG9gsNEpaGu+I5/4z3bY1ES4h2gjyo0Lg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@tanstack/query-core': ^5.0.0
@@ -1253,33 +1256,77 @@ packages:
       '@tanstack/query-core':
         optional: true
 
-  '@cratestack/api@0.8.10':
-    resolution: {integrity: sha512-wXQIt60RjXP6h/ktWJwACedrCu7HJYCmg0NFHuRS4ql8T6bgINSp9L3sXHKeEywtRejP531H29qI+BsYv04+Kw==}
+  '@cratestack/api@0.8.13':
+    resolution: {integrity: sha512-drA5zm0C1NixkhgSvhWuCar1rc5WFgNQE0+bXI3bUXkLbWAiIk46BQkbOEyuVlf7LgioHJo/FpM3TqVwWhQHOA==}
     engines: {node: '>=18'}
 
-  '@cratestack/cli@0.8.10':
-    resolution: {integrity: sha512-EUaQNrspB8vpC+ycMiL1Vp4OqGq/ydCt0pEczCjTQX5v+GvTlV+Tndedpekx4jucVnA6QbOb3VjoijYjwpO+yw==}
+  '@cratestack/cbor-node-darwin-arm64@0.8.13':
+    resolution: {integrity: sha512-VAafpS5HgXx4Xtc+j4qSc9ysNiy4BYr+TsFoUQl9B0tmd1qqU2I6HgfwNGtiuAAAs3C/N05nCqAl6uXHUPP+Vw==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@cratestack/cbor-node-darwin-x64@0.8.13':
+    resolution: {integrity: sha512-tZB1cg3e22K6m/bHE4xfPIIZHO73g1V4NyKnRjNjdwDQlew65uYg3pUHjmVoF5DaDlNglECxxIAZbiiRWw779g==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@cratestack/cbor-node-linux-arm64-gnu@0.8.13':
+    resolution: {integrity: sha512-gWlegHi700z237v8OnxnwgKp/N+/0B/DYzdAsCjHPwflHLVwbcw4yZtmMIf3DVITwEGeYEOmdKQeb9e9KgBzKQ==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@cratestack/cbor-node-linux-x64-gnu@0.8.13':
+    resolution: {integrity: sha512-BO7zHtbfJltdGkBIxCPSVurnANDCmamSQsHvtpMGvv5f97VHvllEa9sDMIQLrZoVCoz82Zq1zf0TxuWQpacPFw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@cratestack/cbor-node-win32-x64-msvc@0.8.13':
+    resolution: {integrity: sha512-8xUWAXurutS7utmJZST7H+vwdwsFyoScmPRSVrev4GuVq9JWTxfSOxFrfXESR8x/uesmy6WspmVRGrsOcSR0dQ==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [win32]
+
+  '@cratestack/cbor-node@0.8.13':
+    resolution: {integrity: sha512-ghxsx6IWlwmUWiWtwwqGzX9kRpu9FRZ4DiVxdy3Axxdm58amRDZUG/i+74ue/A+BTu4ora+/BOX4IEGLmpSBzQ==}
+    engines: {node: '>=18'}
+
+  '@cratestack/cbor-web@0.8.13':
+    resolution: {integrity: sha512-E4OQTVCRLInAVB1O/fwLIjIdCgfj7Xl/bi13fU78jlCj8Um8ewbpdySfA/b2z5lnXMP7NO3bUNIX/zfvGaURVQ==}
+    engines: {node: '>=18'}
+
+  '@cratestack/cbor@0.8.13':
+    resolution: {integrity: sha512-HyiZXw95HIb5n2TjrKRvHsIWk04hC3Jc72QNxJNGuIJa3Y84H8P14nkRuTziP0oPjiCMyyqkWdmvQWNgb0uHZA==}
+    engines: {node: '>=18'}
+
+  '@cratestack/cli@0.8.13':
+    resolution: {integrity: sha512-iGkoJrf1eqS16NI+zYLA/d4J+T3wJd7P4epi0XipJ/Zu3f82WH3paZcn1/9pjA96pw50irtxRsgNu+ttUZB6Gw==}
     engines: {node: '>=18'}
     cpu: [x64, arm64]
     os: [darwin, linux, win32]
     hasBin: true
 
-  '@cratestack/link-batch@0.8.10':
-    resolution: {integrity: sha512-VUA2gnLZbu2wSpAi+bBEdE6kW2PQh3HqXSQZfomjD2cMFBovuRZ3mE8vC+/7gNoXf6eBlIxUGeuZTlImVrgfiw==}
+  '@cratestack/link-batch@0.8.13':
+    resolution: {integrity: sha512-04T/OdENAopFq1YSRyJaktPDMBWD5NhCAfjT+iiO28dlS2cN8fN7/Ft7tFDsHs31lKiV/d0825lGkOniYzvgRw==}
     engines: {node: '>=18'}
 
-  '@cratestack/link-logger@0.8.10':
-    resolution: {integrity: sha512-n0lfnK2fxvT9LHUb48emKkkUp2Y1G//JsyKG5S3t7cZf3zp5/9SocuqwZzm1FXKfUSBxoeojBu2NVCxdBdgDbA==}
+  '@cratestack/link-logger@0.8.13':
+    resolution: {integrity: sha512-I/jcK6pJmVRr9CJtJm8hM5vEKgr45V2ucbvRe0BuNsj1nak0XokVGIPr2AvTbJ17ondfDbfOvVIn4/13okW4QA==}
     engines: {node: '>=18'}
 
-  '@cratestack/refine@0.8.10':
-    resolution: {integrity: sha512-b9AzY/SJwkWYsN4+fXZo5Y7amZ/aUja8nu4J0HpH/ogBuRzeeg9PKmdUJtXGPVC9VWDipCAVSAMzNl3URrga1A==}
+  '@cratestack/refine@0.8.13':
+    resolution: {integrity: sha512-w4qNcnlAJWBuOijCcbhyBKa76GmuLBQdefKqokVsZlzWef8cHf6YLVklrGeuiWAPxw0ey0d/feHL3j0n99F0YQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@refinedev/core': ^5.0.0
 
-  '@cratestack/runtime-axios@0.8.10':
-    resolution: {integrity: sha512-h0qFsU7hGWW5X1NNfQNoxMmShrwgV8AcgURUrJDIj3Eux5eyDhyxb6Fa7kXoFg6VjMpUx2VABiScD0hz+MJphg==}
+  '@cratestack/runtime-axios@0.8.13':
+    resolution: {integrity: sha512-oAt3c/ntX1qMO5+ioB7UVD4afXNslCpnrWP2s9NqohSShNECZr98iBSDZ6syLqZZr+kM8mnQCchLF1NpybwSZg==}
     engines: {node: '>=18'}
     peerDependencies:
       axios: ^1.18.0
@@ -1287,16 +1334,16 @@ packages:
       axios:
         optional: true
 
-  '@cratestack/runtime-fetch@0.8.10':
-    resolution: {integrity: sha512-MwAtMVMpcCHUMJlXe8U0JWrmc3wdU2joXcg/VBVU/WxKa3Y1b9eS/xOuTAlAtpL/jtkCJb7uqtav1QSj7DSIjg==}
+  '@cratestack/runtime-fetch@0.8.13':
+    resolution: {integrity: sha512-Su7oUo4PSrjxMYuhr+vyFrK+gxq45+SbSUGgt+M8Hh8uiwfZakyAafVy1HLLdiPmMZ8GO13uG1SvS01DqZWdoQ==}
     engines: {node: '>=18'}
 
-  '@cratestack/ts-types@0.8.10':
-    resolution: {integrity: sha512-vbsXYDOAlHE2Oq62V2gpG9alzAH71xNDT2n3cQ3/d2fBMoawttnMpOGoSCt3cKXSClNDbKRjmIE3fnE21AMIsw==}
+  '@cratestack/ts-types@0.8.13':
+    resolution: {integrity: sha512-4ysEDlW2+NVserK2TnaUVuzLs+MFZjoygiYCvGTrAQrN1qmNMWq2aoeXJoE/8Dvfn1eF/ztLJb7JHgWoM991pw==}
     engines: {node: '>=18'}
 
-  '@cratestack/validator-yup@0.8.10':
-    resolution: {integrity: sha512-AYhvBZORFL2VtUpML0HgKCifas+UEzv2i26ZVB62Vcp96BX8qUnaxKtncJFx4ogGKrNJtGyuMz7yXOW1VOTu5g==}
+  '@cratestack/validator-yup@0.8.13':
+    resolution: {integrity: sha512-xBOg7Jx1WSurYBM0rql/kk//yGkMA4hvYprjOSyzSc8yoeULOxRtL53AlDMcRya9yyxuY46SaO2mC6q+2r1x/w==}
     engines: {node: '>=18'}
     peerDependencies:
       yup: ^1.4.0
@@ -1304,8 +1351,8 @@ packages:
       yup:
         optional: true
 
-  '@cratestack/validator-zod@0.8.10':
-    resolution: {integrity: sha512-i1vm289CCTHnJJLRDoTHxziuTj5OKykROuVd6ZJW8COGUzJ9ru99/t2KyTQ3xYTq3NsmreVJb2XRAc/xEV8nEw==}
+  '@cratestack/validator-zod@0.8.13':
+    resolution: {integrity: sha512-E/1X4s5NWj0IHYUgOjWLP+z/m4bPPCKcuMHi0HWE2RINYuI9qeICstJ9bk55zs82scE1PEtQ6XhB+zRGaFqarA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -9152,27 +9199,27 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  '@cratestack/adapter-rtk@0.8.10':
+  '@cratestack/adapter-rtk@0.8.13':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/ts-types': 0.8.13
 
-  '@cratestack/adapter-tanstack-query@0.8.10(@tanstack/query-core@5.102.3)':
+  '@cratestack/adapter-tanstack-query@0.8.13(@tanstack/query-core@5.102.3)':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/ts-types': 0.8.13
     optionalDependencies:
       '@tanstack/query-core': 5.102.3
 
-  '@cratestack/api@0.8.10(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)':
+  '@cratestack/api@0.8.13(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)':
     dependencies:
-      '@cratestack/adapter-rtk': 0.8.10
-      '@cratestack/adapter-tanstack-query': 0.8.10(@tanstack/query-core@5.102.3)
-      '@cratestack/link-batch': 0.8.10
-      '@cratestack/link-logger': 0.8.10
-      '@cratestack/runtime-axios': 0.8.10(axios@1.19.0)
-      '@cratestack/runtime-fetch': 0.8.10
-      '@cratestack/ts-types': 0.8.10
-      '@cratestack/validator-yup': 0.8.10
-      '@cratestack/validator-zod': 0.8.10(zod@4.4.3)
+      '@cratestack/adapter-rtk': 0.8.13
+      '@cratestack/adapter-tanstack-query': 0.8.13(@tanstack/query-core@5.102.3)
+      '@cratestack/link-batch': 0.8.13
+      '@cratestack/link-logger': 0.8.13
+      '@cratestack/runtime-axios': 0.8.13(axios@1.19.0)
+      '@cratestack/runtime-fetch': 0.8.13
+      '@cratestack/ts-types': 0.8.13
+      '@cratestack/validator-yup': 0.8.13
+      '@cratestack/validator-zod': 0.8.13(zod@4.4.3)
     transitivePeerDependencies:
       - '@reduxjs/toolkit'
       - '@tanstack/query-core'
@@ -9180,35 +9227,68 @@ snapshots:
       - yup
       - zod
 
-  '@cratestack/cli@0.8.10': {}
+  '@cratestack/cbor-node-darwin-arm64@0.8.13':
+    optional: true
 
-  '@cratestack/link-batch@0.8.10':
+  '@cratestack/cbor-node-darwin-x64@0.8.13':
+    optional: true
+
+  '@cratestack/cbor-node-linux-arm64-gnu@0.8.13':
+    optional: true
+
+  '@cratestack/cbor-node-linux-x64-gnu@0.8.13':
+    optional: true
+
+  '@cratestack/cbor-node-win32-x64-msvc@0.8.13':
+    optional: true
+
+  '@cratestack/cbor-node@0.8.13':
+    optionalDependencies:
+      '@cratestack/cbor-node-darwin-arm64': 0.8.13
+      '@cratestack/cbor-node-darwin-x64': 0.8.13
+      '@cratestack/cbor-node-linux-arm64-gnu': 0.8.13
+      '@cratestack/cbor-node-linux-x64-gnu': 0.8.13
+      '@cratestack/cbor-node-win32-x64-msvc': 0.8.13
+
+  '@cratestack/cbor-web@0.8.13':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/ts-types': 0.8.13
 
-  '@cratestack/link-logger@0.8.10':
+  '@cratestack/cbor@0.8.13':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/cbor-node': 0.8.13
+      '@cratestack/cbor-web': 0.8.13
+      '@cratestack/ts-types': 0.8.13
 
-  '@cratestack/refine@0.8.10(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
+  '@cratestack/cli@0.8.13': {}
+
+  '@cratestack/link-batch@0.8.13':
+    dependencies:
+      '@cratestack/ts-types': 0.8.13
+
+  '@cratestack/link-logger@0.8.13':
+    dependencies:
+      '@cratestack/ts-types': 0.8.13
+
+  '@cratestack/refine@0.8.13(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
     dependencies:
       '@refinedev/core': 5.0.12(@tanstack/react-query@5.102.3(react@19.2.3))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
 
-  '@cratestack/runtime-axios@0.8.10(axios@1.19.0)':
+  '@cratestack/runtime-axios@0.8.13(axios@1.19.0)':
     optionalDependencies:
       axios: 1.19.0
 
-  '@cratestack/runtime-fetch@0.8.10': {}
+  '@cratestack/runtime-fetch@0.8.13': {}
 
-  '@cratestack/ts-types@0.8.10': {}
+  '@cratestack/ts-types@0.8.13': {}
 
-  '@cratestack/validator-yup@0.8.10':
+  '@cratestack/validator-yup@0.8.13':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/ts-types': 0.8.13
 
-  '@cratestack/validator-zod@0.8.10(zod@4.4.3)':
+  '@cratestack/validator-zod@0.8.13(zod@4.4.3)':
     dependencies:
-      '@cratestack/ts-types': 0.8.10
+      '@cratestack/ts-types': 0.8.13
     optionalDependencies:
       zod: 4.4.3
 
@@ -11890,14 +11970,6 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 7.3.6(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
-
-  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 3.2.7
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
 
   '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))':
     dependencies:
@@ -16920,27 +16992,6 @@ snapshots:
       - tsx
       - yaml
 
-  vite-node@3.2.4(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0):
-    dependencies:
-      cac: 6.7.14
-      debug: 4.4.3
-      es-module-lexer: 1.7.0
-      pathe: 2.0.3
-      vite: 7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - jiti
-      - less
-      - lightningcss
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-      - tsx
-      - yaml
-
   vite-node@3.2.4(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0):
     dependencies:
       cac: 6.7.14
@@ -17014,22 +17065,6 @@ snapshots:
       terser: 5.50.0
       yaml: 2.9.0
 
-  vite@7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0):
-    dependencies:
-      esbuild: 0.28.2
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
-      postcss: 8.5.26
-      rollup: 4.62.4
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 26.2.0
-      fsevents: 2.3.3
-      jiti: 1.21.7
-      lightningcss: 1.33.0
-      terser: 5.50.0
-      yaml: 2.9.0
-
   vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.28.2
@@ -17088,48 +17123,6 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.13.3
-      jsdom: 30.0.1(@noble/hashes@2.3.0)
-    transitivePeerDependencies:
-      - jiti
-      - less
-      - lightningcss
-      - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-      - tsx
-      - yaml
-
-  vitest@3.2.7(@types/node@26.2.0)(jiti@1.21.7)(jsdom@30.0.1(@noble/hashes@2.3.0))(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0):
-    dependencies:
-      '@types/chai': 5.2.3
-      '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0))
-      '@vitest/pretty-format': 3.2.7
-      '@vitest/runner': 3.2.7
-      '@vitest/snapshot': 3.2.7
-      '@vitest/spy': 3.2.7
-      '@vitest/utils': 3.2.7
-      chai: 5.3.3
-      debug: 4.4.3
-      expect-type: 1.4.0
-      magic-string: 0.30.21
-      pathe: 2.0.3
-      picomatch: 4.0.5
-      std-env: 3.10.0
-      tinybench: 2.9.0
-      tinyexec: 0.3.2
-      tinyglobby: 0.2.17
-      tinypool: 1.1.1
-      tinyrainbow: 2.0.0
-      vite: 7.3.6(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
-      vite-node: 3.2.4(@types/node@26.2.0)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 26.2.0
       jsdom: 30.0.1(@noble/hashes@2.3.0)
     transitivePeerDependencies:
       - jiti

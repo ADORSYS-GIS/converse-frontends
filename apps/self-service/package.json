@@ -17,7 +17,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@cratestack/api": "0.8.10",
+    "@cratestack/api": "0.8.13",
     "@expo/dom-webview": "^57.0.1",
     "@expo/metro-runtime": "^57.0.0",
     "@expo/vector-icons": "15.1.1",

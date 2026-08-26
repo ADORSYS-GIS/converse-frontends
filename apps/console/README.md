@@ -170,13 +170,18 @@ CONSOLE_CONFIG=./config.wiremock.yaml pnpm --filter console dev
 # or export it once: CONSOLE_CONFIG=./config.wiremock.yaml — see .env/.env.example
 ```
 
-Two things had to change to make this work, both dev-only (production still speaks CBOR through a
-batch link — see `src/client/rpc-clients.ts`'s doc comment):
+One thing changed to make this work (dev-only — see `src/client/rpc-clients.ts`'s doc comment):
 
-- **Codec**: the console client now builds with `defaultCodec()` (`@lightbridge/authz-rpc`) instead
-  of a hardcoded `CborCodec` — JSON in `next dev`, CBOR in a production build, the same split every
-  other app in this repo already uses. WireMock stubs plain JSON; hand-authoring CBOR fixtures (as
-  base64 `__files`) was the fallback considered and rejected as more moving parts for no benefit.
+- **Codec**: there is no dev/prod codec split any more (lightbridge-authz ADR-0013 /
+  converse-frontends#256 made CBOR the only wire format the backend answers — a JSON `Accept`/body
+  now gets `406`/`415`), so this is **not** something WireMock dev mode can opt out of. WireMock's
+  stubs (`wiremock/mappings/`) return plain `jsonBody` fixtures regardless, which the console's
+  CBOR codec (`@cratestack/cbor`, see `@lightbridge/authz-rpc/web-codec`) cannot decode as CBOR —
+  a real end-to-end data fetch against WireMock will fail to decode the response. The unauthenticated
+  proxy-gate checks this README's own verification below relies on (`401` before `BACKEND_URL` is
+  ever reached) are unaffected, since those never get far enough to hit the codec at all. Making
+  WireMock speak CBOR (hand-authored fixtures, or an actual CBOR-encoding stub layer) is tracked as
+  a known gap, not fixed by this codec swap — see "Known gaps" below.
 - **Batching**: the batch link (`createBatchLink()`, which collapses every call into one `POST
 /rpc/batch`) is dev-disabled, so each op hits `POST /rpc/{op_id}` directly. Stubbing the batch
   envelope's `[{id, op, input}] -> [...]` frame shape in WireMock was the alternative — rejected for
@@ -394,3 +399,8 @@ Each is visible in the UI as an inline status line, never a fake number:
   parameter form is a follow-up.
 - `src/middleware.ts` uses the file convention Next 16 deprecated in favour of `proxy`. Renaming it
   is a follow-up rather than a silent side effect of this PR.
+- **WireMock dev mode cannot exercise a real data fetch end to end**, since `wiremock/mappings/`
+  returns plain JSON and the console's codec now always speaks CBOR (`@cratestack/cbor` — see the
+  "Dev without a backend: wiremock" section above). Verifying the proxy's auth gate (`401`/`307`)
+  against WireMock still works; verifying an actual screen renders stubbed data needs a real
+  `lightbridge-authz` checkout.

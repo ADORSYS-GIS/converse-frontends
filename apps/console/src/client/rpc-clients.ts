@@ -2,12 +2,8 @@
 
 import { createBatchLink } from '@cratestack/api';
 import { createLoggerLink } from '@cratestack/link-logger';
-import {
-  defaultCodec,
-  useAuthzRpcClient,
-  useBudgetRpcClient,
-  type RpcLink,
-} from '@lightbridge/authz-rpc';
+import { useAuthzRpcClient, useBudgetRpcClient, type RpcLink } from '@lightbridge/authz-rpc';
+import { getWebCborCodec } from '@lightbridge/authz-rpc/web-codec';
 
 /**
  * The browser-side cratestack clients (ADR 0009 Decision 7: whatever can be managed on the client
@@ -19,17 +15,22 @@ import {
  *    `Authorization` header at all, and `refreshAuth` is omitted entirely. The proxy owns both
  *    (ADR 0009 Decision 2) — a token in page JavaScript is exactly what this rebuild removes.
  * 2. **Same-origin base URLs.** `/api` and `/api/budget` are Next route handlers, not backends.
+ * 3. **A different codec.** `codec: getWebCborCodec()` passes `@cratestack/cbor` explicitly
+ *    (`@lightbridge/authz-rpc/web-codec`) instead of relying on `packages/authz-rpc/src/codec.ts`'s
+ *    `defaultCodec()` (the `cborg`-based codec `apps/self-service` still uses). See that module's
+ *    doc comment for why: no `@cratestack/cbor` backend runs under Hermes, so it stays
+ *    console-only. `getWebCborCodec()` is synchronous and only ever reached after
+ *    `./providers.tsx`'s `ssr: false` boundary has already awaited `ensureWebCborCodecReady()` —
+ *    these hooks never run before that.
  *
- * Codec and batching now DO split by env, reversing an earlier "CBOR + batch, unconditionally"
- * decision — reinstated for exactly one reason: local dev without a `lightbridge-authz` backend.
- * `docker compose up -d wiremock` (see `wiremock/` and the README's "Dev without a backend"
- * section) can only stub plain per-op JSON responses; it cannot decode a batched CBOR envelope.
- * `defaultCodec()` (already the shared JSON-in-dev/CBOR-in-prod split every other app in this repo
- * uses — see `packages/authz-rpc/src/codec.ts`) picks JSON automatically under `next dev`
- * (`NODE_ENV !== 'production'`) and CBOR under `next build`/`next start`, so production traffic is
- * byte-for-byte unchanged. The batch link is dev-disabled the same way: every call goes straight to
- * `POST /rpc/{op_id}` instead of collapsing into one `POST /rpc/batch`, which is what the wiremock
- * stubs under `wiremock/mappings/` are written against — no batch-envelope stub to keep in sync.
+ * There is exactly one wire format now (lightbridge-authz ADR-0013 / converse-frontends#256):
+ * CBOR, always, on every environment including local dev. `docker compose up -d wiremock` (see
+ * `wiremock/` and the README's "Dev without a backend" section) stubs plain per-op JSON responses
+ * and cannot decode a batched CBOR envelope, which is why the batch link stays dev-disabled below
+ * — every call goes straight to `POST /rpc/{op_id}` instead of collapsing into one
+ * `POST /rpc/batch`, matching what `wiremock/mappings/` is written against. That batching
+ * decision is independent of the codec split above; the earlier claim that this file's codec
+ * choice also varied `next dev` vs. `next build` predates ADR-0013 and is no longer true.
  *
  * The batch links are still module-scope singletons in production: `createBatchLink()` accumulates
  * a per-tick batch window, so a fresh instance per render would defeat batching entirely (the same
@@ -64,7 +65,7 @@ export function useConsoleAuthzClient() {
   return useAuthzRpcClient({
     baseURL: window.location.origin,
     basePath: '/api',
-    codec: defaultCodec(),
+    codec: getWebCborCodec(),
     auth: NO_TOKEN,
     links: links(),
   });
@@ -78,7 +79,7 @@ export function useConsoleBudgetClient() {
   return useBudgetRpcClient({
     baseURL: window.location.origin,
     basePath: '/api/budget',
-    codec: defaultCodec(),
+    codec: getWebCborCodec(),
     auth: NO_TOKEN,
     links: budgetLinks(),
   });

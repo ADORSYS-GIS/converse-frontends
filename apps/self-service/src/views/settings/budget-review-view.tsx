@@ -19,8 +19,9 @@ import {
 } from '@lightbridge/ui';
 import type { AugmentationRequest } from '@lightbridge/hooks';
 // Pure helper only, from the dependency-free `./budget-tiers` subpath -- NOT the `@lightbridge/hooks`
-// barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `cborg`, which Jest's resolver
-// can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level comment.
+// barrel, which pulls in `@lightbridge/authz-rpc` (and transitively `@cratestack/cbor`, which
+// Jest's resolver can't follow) at runtime. See packages/hooks/src/budget-tiers.ts's module-level
+// comment.
 import { formatMicroUsd } from '@lightbridge/hooks/budget-tiers';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 import { formatDate } from '../api-keys-list-view';
@@ -80,7 +81,9 @@ export function BudgetReviewView({
 
       <Scroll tone="muted" pad="md" style={{ flex: 1 }}>
         <Stack gap="lg">
-          {!showBackButton ? <Heading tone="title">{t('settings.budgetReview.title')}</Heading> : null}
+          {!showBackButton ? (
+            <Heading tone="title">{t('settings.budgetReview.title')}</Heading>
+          ) : null}
           <Text intent="body">{t('settings.budgetReview.subtitle')}</Text>
 
           {!canReview ? (
@@ -97,7 +100,11 @@ export function BudgetReviewView({
                 <Callout
                   tone="error"
                   icon={
-                    <Feather name="alert-triangle" size={designTokens.icon.action} color={colors.error} />
+                    <Feather
+                      name="alert-triangle"
+                      size={designTokens.icon.action}
+                      color={colors.error}
+                    />
                   }>
                   {actionError}
                 </Callout>
@@ -146,7 +153,9 @@ export function BudgetReviewView({
 
                           <Stack direction="row" gap="md" wrap="wrap">
                             <Text intent="caption">
-                              {t('settings.budgetReview.requestedFor', { accountId: item.accountId })}
+                              {t('settings.budgetReview.requestedFor', {
+                                accountId: item.accountId,
+                              })}
                             </Text>
                             <Text intent="caption">
                               {t('settings.budgetReview.periodLabel', { period: item.period })}

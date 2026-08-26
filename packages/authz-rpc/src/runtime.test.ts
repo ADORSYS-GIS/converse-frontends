@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { LightbridgeAuthzRpcClient } from '../generated/src/client';
 import { CratestackRpcError } from '../generated/src/runtime';
-import { CborCodec, JsonCodec } from './codec';
+import { JsonCodec, ensureCborCodecReady, getCborCodec } from './codec';
 import { AuthzRpcRuntime } from './runtime';
 
 // Mirrors cratestack-core::page::{Page, PageInfo} exactly (fixed in cratestack/cratestack#124 —
@@ -73,13 +73,15 @@ describe('AuthzRpcRuntime + generated client', () => {
   });
 
   it('round-trips through the CBOR codec end to end', async () => {
+    await ensureCborCodecReady();
+    const cborCodec = getCborCodec();
     const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
       expect((init.headers as Headers).get('content-type')).toBe('application/cbor');
       // Echo the request back through the same codec, proving the runtime both encodes
       // and decodes CBOR correctly, not just JSON.
-      const decodedRequest = CborCodec.decode(new Uint8Array(init.body as ArrayBuffer));
+      const decodedRequest = cborCodec.decode(new Uint8Array(init.body as ArrayBuffer));
       expect(decodedRequest).toEqual({ limit: 10, offset: 0 });
-      return new Response(CborCodec.encode(accountPage) as BodyInit, {
+      return new Response(cborCodec.encode(accountPage) as BodyInit, {
         status: 200,
         headers: { 'content-type': 'application/cbor' },
       });
@@ -87,7 +89,7 @@ describe('AuthzRpcRuntime + generated client', () => {
 
     const authz = new AuthzRpcRuntime('https://api.example.com', {
       auth: async () => 'test-token',
-      codec: CborCodec,
+      codec: cborCodec,
       fetch: fetchFn as unknown as typeof fetch,
     });
     const client = new LightbridgeAuthzRpcClient(authz.runtime);

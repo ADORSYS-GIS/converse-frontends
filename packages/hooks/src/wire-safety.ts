@@ -19,8 +19,10 @@
  * rather than being reinvented (or, worse, left out) at the next one.
  *
  * Deliberately NOT re-exported from `@lightbridge/hooks`'s main barrel (`./index.ts`) — that barrel
- * pulls in `@lightbridge/authz-rpc`, whose `codec.ts` imports `cborg`, which Jest's resolver cannot
- * follow (`./budget-tiers.ts` hit this exact issue first; see its own module doc comment). This
+ * pulls in `@lightbridge/authz-rpc`, whose `codec.ts` imports `@cratestack/cbor`, which Jest's
+ * resolver cannot follow (`./budget-tiers.ts` hit this exact issue first; see its own module doc
+ * comment — confirmed to still hold after the single-codec cutover that swapped the blamed package
+ * from `cborg` to `@cratestack/cbor`). This
  * module has zero dependencies of its own, so it stays reachable as its own subpath
  * (`@lightbridge/hooks/wire-safety`, see `package.json`'s `exports` map) precisely so a
  * presentational view component can import it without ever pulling `cborg` into a Jest run.

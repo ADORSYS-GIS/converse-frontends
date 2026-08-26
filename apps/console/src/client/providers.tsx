@@ -1,6 +1,6 @@
 'use client';
 
-import { ensureWebCborCodecReady } from '@lightbridge/authz-rpc/web-codec';
+import { ensureCborCodecReady } from '@lightbridge/authz-rpc';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 
@@ -16,19 +16,20 @@ import type { SessionResponse } from '../shared/session-response';
  * IndexedDB query persister has the same constraint. ADR 0009 Decision 7 puts data fetching on the
  * client anyway; server components stay reserved for the auth/proxy seam.
  *
- * This is also where the console's CBOR codec gets its one-time async init out of the way.
- * `apps/console` uses `@cratestack/cbor` (`@lightbridge/authz-rpc/web-codec`), whose
- * `createCborCodec()` is a one-time async WASM instantiation — see that module's doc comment for
- * why. `ensureWebCborCodecReady()` is awaited alongside the `./console-providers` chunk itself, so
+ * This is also where the app's CBOR codec gets its one-time async init out of the way.
+ * `@lightbridge/authz-rpc`'s single codec (`@cratestack/cbor`, see `packages/authz-rpc/src/
+ * codec.ts`) has a one-time async WASM instantiation — see that module's doc comment for why.
+ * `ensureCborCodecReady()` is awaited alongside the `./console-providers` chunk itself, so
  * `ConsoleProviders` (and the `useConsoleAuthzClient`/`useConsoleBudgetClient` hooks it calls,
- * which need the codec synchronously) never renders until the codec is ready. This adds no NEW
- * loading state: the `ssr: false` boundary already shows nothing until the dynamic import
- * resolves, so extending that same wait by the codec's one-time init is not a first-render
- * regression, just a slightly longer version of a wait that already existed.
+ * which construct their `AuthzRpcRuntime` without an explicit `codec` override and so need the
+ * default codec synchronously) never renders until the codec is ready. This adds no NEW loading
+ * state: the `ssr: false` boundary already shows nothing until the dynamic import resolves, so
+ * extending that same wait by the codec's one-time init is not a first-render regression, just a
+ * slightly longer version of a wait that already existed.
  */
 const ConsoleProviders = dynamic(
   () =>
-    Promise.all([import('./console-providers'), ensureWebCborCodecReady()]).then(
+    Promise.all([import('./console-providers'), ensureCborCodecReady()]).then(
       ([module]) => module.ConsoleProviders
     ),
   { ssr: false }

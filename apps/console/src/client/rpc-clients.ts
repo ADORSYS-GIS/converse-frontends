@@ -3,7 +3,6 @@
 import { createBatchLink } from '@cratestack/api';
 import { createLoggerLink } from '@cratestack/link-logger';
 import { useAuthzRpcClient, useBudgetRpcClient, type RpcLink } from '@lightbridge/authz-rpc';
-import { getWebCborCodec } from '@lightbridge/authz-rpc/web-codec';
 
 /**
  * The browser-side cratestack clients (ADR 0009 Decision 7: whatever can be managed on the client
@@ -15,13 +14,13 @@ import { getWebCborCodec } from '@lightbridge/authz-rpc/web-codec';
  *    `Authorization` header at all, and `refreshAuth` is omitted entirely. The proxy owns both
  *    (ADR 0009 Decision 2) — a token in page JavaScript is exactly what this rebuild removes.
  * 2. **Same-origin base URLs.** `/api` and `/api/budget` are Next route handlers, not backends.
- * 3. **A different codec.** `codec: getWebCborCodec()` passes `@cratestack/cbor` explicitly
- *    (`@lightbridge/authz-rpc/web-codec`) instead of relying on `packages/authz-rpc/src/codec.ts`'s
- *    `defaultCodec()` (the `cborg`-based codec `apps/self-service` still uses). See that module's
- *    doc comment for why: no `@cratestack/cbor` backend runs under Hermes, so it stays
- *    console-only. `getWebCborCodec()` is synchronous and only ever reached after
- *    `./providers.tsx`'s `ssr: false` boundary has already awaited `ensureWebCborCodecReady()` —
- *    these hooks never run before that.
+ *
+ * Neither hook passes a `codec` option: both apps in this workspace get the same default —
+ * `@lightbridge/authz-rpc`'s single `@cratestack/cbor`-based codec (`packages/authz-rpc/src/
+ * codec.ts`'s `getCborCodec()`) — since both ship browser-only surfaces (this app is Next.js;
+ * `apps/self-service` ships exclusively as a web export, ADR 0006/0009). `getCborCodec()` is
+ * synchronous and only ever reached after `./providers.tsx`'s `ssr: false` boundary has already
+ * awaited `ensureCborCodecReady()` — these hooks never run before that.
  *
  * There is exactly one wire format now (lightbridge-authz ADR-0013 / converse-frontends#256):
  * CBOR, always, on every environment including local dev. `docker compose up -d wiremock` (see
@@ -65,7 +64,6 @@ export function useConsoleAuthzClient() {
   return useAuthzRpcClient({
     baseURL: window.location.origin,
     basePath: '/api',
-    codec: getWebCborCodec(),
     auth: NO_TOKEN,
     links: links(),
   });
@@ -79,7 +77,6 @@ export function useConsoleBudgetClient() {
   return useBudgetRpcClient({
     baseURL: window.location.origin,
     basePath: '/api/budget',
-    codec: getWebCborCodec(),
     auth: NO_TOKEN,
     links: budgetLinks(),
   });

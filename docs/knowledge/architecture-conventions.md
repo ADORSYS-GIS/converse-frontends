@@ -82,13 +82,13 @@ Within `apps/self-service/src/`, follow this strict layering. **Corrected from a
 of this table:** views do not call hooks for data. Screens do. This was verified by reading every
 current `views/*.tsx` file's imports — see the note under the table.
 
-| Layer          | Directory                                                                        | Responsibility                                                                                                                    |
-| -------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Routes**     | `src/app/`                                                                       | Expo Router file-based routes. Thin — only renders the corresponding Screen.                                                      |
-| **Screens**    | `src/screens/`                                                                   | Owns data fetching (calls `packages/hooks`) and, where relevant, imperative sheet presentation (`useSheet`). Passes data and callbacks down to Views as props. Sheet-content components (`*-sheet.tsx`) live here too — they're screen-owned, not view-owned. |
-| **Views**      | `src/views/`                                                                     | Pure presentational components. Render UI from props only. May import **types** from `@lightbridge/hooks` (or its dependency-free subpaths, e.g. `@lightbridge/hooks/budget-tiers`) but never call a data-fetching hook. Must not import `@lightbridge/ui/sheet`. |
-| **Hooks**      | `packages/hooks/`                                                                | All data fetching, state management, and business logic. No JSX.                                                                  |
-| **API Client** | `packages/authz-rpc/` (accounts/projects/api-keys), `packages/api-rest/` (usage — currently unused, see `architecture.md`) | Auto-generated. Never edit by hand — `packages/authz-rpc/generated/` and `packages/api-rest/src/client/` are both codegen output. |
+| Layer          | Directory                                                                                                                  | Responsibility                                                                                                                                                                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Routes**     | `src/app/`                                                                                                                 | Expo Router file-based routes. Thin — only renders the corresponding Screen.                                                                                                                                                                                      |
+| **Screens**    | `src/screens/`                                                                                                             | Owns data fetching (calls `packages/hooks`) and, where relevant, imperative sheet presentation (`useSheet`). Passes data and callbacks down to Views as props. Sheet-content components (`*-sheet.tsx`) live here too — they're screen-owned, not view-owned.     |
+| **Views**      | `src/views/`                                                                                                               | Pure presentational components. Render UI from props only. May import **types** from `@lightbridge/hooks` (or its dependency-free subpaths, e.g. `@lightbridge/hooks/budget-tiers`) but never call a data-fetching hook. Must not import `@lightbridge/ui/sheet`. |
+| **Hooks**      | `packages/hooks/`                                                                                                          | All data fetching, state management, and business logic. No JSX.                                                                                                                                                                                                  |
+| **API Client** | `packages/authz-rpc/` (accounts/projects/api-keys), `packages/api-rest/` (usage — currently unused, see `architecture.md`) | Auto-generated. Never edit by hand — `packages/authz-rpc/generated/` and `packages/api-rest/src/client/` are both codegen output.                                                                                                                                 |
 
 **Dependency direction:** Routes → Screens → { Views (props only), Hooks (data), Sheet system (screens only) } → API Client
 
@@ -113,8 +113,8 @@ Every `views/*.tsx` file was grepped for `@lightbridge/hooks` imports (2026-08-1
 either `import type { ... }` or the pure, non-fetching `@lightbridge/hooks/budget-tiers` subpath
 (e.g. `formatMicroUsd` — see `apps/self-service/src/views/settings/budget-refill-view.tsx`, which
 has a comment explaining it imports that subpath specifically to avoid pulling in the full
-`@lightbridge/hooks` barrel and its `@lightbridge/authz-rpc`/`cborg` transitive chain, which Jest's
-resolver can't follow). Zero views call an actual data-fetching hook (`useQuery`, `useApiKeys`,
+`@lightbridge/hooks` barrel and its `@lightbridge/authz-rpc`/`@cratestack/cbor` transitive chain,
+which Jest's resolver can't follow). Zero views call an actual data-fetching hook (`useQuery`, `useApiKeys`,
 etc.) — every one of those calls lives in a screen. `apps/self-service/src/screens/api-key-create-screen.tsx`
 is representative: it calls `useCreateApiKey`/`useEnsureDefaultAccount`/`useEnsureDefaultProject`/
 `usePermissions` directly and passes the results as props to the purely presentational
@@ -158,7 +158,7 @@ app.
 Verified 2026-08-15 by reading `packages/ui/package.json` (no `i18next`/`react-i18next`, no
 `@tanstack/*`, no `axios` in `dependencies` or `devDependencies`) and by grepping
 `packages/ui/src` for `i18n`/`useTranslation`/`fetch(`/`axios`/`useQuery`: the only hits are code
-comments *about* the rule, not violations of it, e.g.:
+comments _about_ the rule, not violations of it, e.g.:
 
 - `packages/ui/src/components/picker/component.tsx:22` — "Fetches no data and owns no i18n: every
   string is a prop."
@@ -223,7 +223,7 @@ stateDiagram-v2
 ```
 
 The two-step `Closed → EntrySet → Open` transition (`packages/ui/src/components/sheet/provider.tsx`)
-is deliberate: `present()` sets React state synchronously, and only a `useEffect` that runs *after*
+is deliberate: `present()` sets React state synchronously, and only a `useEffect` that runs _after_
 that content commits calls `modalRef.current.present()` — so the sheet's first animated frame
 already has its body measured for dynamic sizing, instead of animating open on an empty sheet.
 
@@ -254,16 +254,16 @@ sequenceDiagram
 Every current use of `useSheet().present(...)` in the app, and the screen that owns it (verified by
 grepping `apps/self-service/src/screens` for `sheet.present(` / `openPicker(`):
 
-| Action                    | Owning screen                                    | Sheet content component                         |
-| ------------------------- | -------------------------------------------------- | -------------------------------------------------- |
-| Create project             | `screens/project-settings-screen.tsx`              | `screens/create-project-sheet.tsx`                  |
-| Delete project             | `screens/project-settings-screen.tsx`              | `screens/delete-project-sheet.tsx`                  |
-| Delete account             | `screens/account-settings-screen.tsx`              | `screens/delete-account-sheet.tsx`                  |
-| Delete API key             | `screens/api-keys-screen.tsx`                      | `screens/delete-api-key-sheet.tsx`                  |
-| Rotate API key             | `screens/api-keys-screen.tsx`                      | `screens/rotate-api-key-sheet.tsx`                  |
-| Revoke API key             | `screens/api-keys-screen.tsx`                      | `screens/revoke-api-key-sheet.tsx`                  |
-| API key detail actions     | `screens/api-key-settings-screen.tsx`              | (inline `sheet.present(({dismiss}) => ...)`, no separate file) |
-| Account/project entity picker | `screens/api-keys-screen.tsx`, `screens/account-settings-screen.tsx`, `screens/project-settings-screen.tsx` (via `usePickerSheet()`) | `PickerList` (`packages/ui/src/components/picker`) |
+| Action                        | Owning screen                                                                                                                        | Sheet content component                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Create project                | `screens/project-settings-screen.tsx`                                                                                                | `screens/create-project-sheet.tsx`                             |
+| Delete project                | `screens/project-settings-screen.tsx`                                                                                                | `screens/delete-project-sheet.tsx`                             |
+| Delete account                | `screens/account-settings-screen.tsx`                                                                                                | `screens/delete-account-sheet.tsx`                             |
+| Delete API key                | `screens/api-keys-screen.tsx`                                                                                                        | `screens/delete-api-key-sheet.tsx`                             |
+| Rotate API key                | `screens/api-keys-screen.tsx`                                                                                                        | `screens/rotate-api-key-sheet.tsx`                             |
+| Revoke API key                | `screens/api-keys-screen.tsx`                                                                                                        | `screens/revoke-api-key-sheet.tsx`                             |
+| API key detail actions        | `screens/api-key-settings-screen.tsx`                                                                                                | (inline `sheet.present(({dismiss}) => ...)`, no separate file) |
+| Account/project entity picker | `screens/api-keys-screen.tsx`, `screens/account-settings-screen.tsx`, `screens/project-settings-screen.tsx` (via `usePickerSheet()`) | `PickerList` (`packages/ui/src/components/picker`)             |
 
 Notably, **creating an API key is not a sheet** — it navigates to a dedicated route
 (`app/api-keys/new.tsx` → `ApiKeyCreateScreen`) instead, because the create form is a focused,

@@ -6,22 +6,22 @@
 
 ## Naming Standards
 
-| Element | Convention | Example |
-|---------|-----------|---------|
-| Variables | `camelCase` | `isLoading`, `scopeId` |
-| Functions | `camelCase` | `loadStoredSession`, `buildUsageDashboardUrl` |
-| React hooks | `camelCase` prefixed with `use` | `useAuthSession`, `useKeycloakLogin` |
-| Classes / Types / Interfaces | `PascalCase` | `AuthSession`, `UsageQueryParams` |
-| Enums | `PascalCase` | `ApiKeyStatus` |
-| Constants (compile-time) | `SCREAMING_SNAKE_CASE` | `STORAGE_KEY`, `WEB_DB_NAME` |
-| Constants (derived/computed) | `camelCase` | `webStore` |
-| Boolean variables | `is`, `has`, `should`, `can` prefix | `isAuthenticated`, `hasPermission` |
-| Files — modules | `kebab-case.ts` / `kebab-case.tsx` | `auth-storage.ts`, `usage-view.tsx` |
-| Files — classes/components | `kebab-case.tsx` (React Native convention) | `usage-view.tsx` |
-| Interfaces | No `I` prefix | `UserService` not `IUserService` |
-| Type parameters | Single uppercase or descriptive | `T`, `TResult`, `TInput` |
-| API endpoints (AuthZ RPC — accounts/projects/API keys, live) | `POST {basePath}/rpc/{op_id}`, not REST. **Corrected from an earlier version of this row**, which showed a REST-style `/api/v1/api-keys/{key_id}` path — that shape predates the cratestack RPC migration (ADR-0003 in `lightbridge-authz`) and no longer exists in this frontend | `POST /api/rpc/model.Account.list` |
-| API endpoints (usage REST, currently unused — see `architecture.md`) | Defined by `openapi/usage.backend.yaml` (snake_case path segments) | `/usage/v1/usage/query` |
+| Element                                                                                                                         | Convention                                                                                                                                                                                                                                                                        | Example                                       |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Variables                                                                                                                       | `camelCase`                                                                                                                                                                                                                                                                       | `isLoading`, `scopeId`                        |
+| Functions                                                                                                                       | `camelCase`                                                                                                                                                                                                                                                                       | `loadStoredSession`, `buildUsageDashboardUrl` |
+| React hooks                                                                                                                     | `camelCase` prefixed with `use`                                                                                                                                                                                                                                                   | `useAuthSession`, `useKeycloakLogin`          |
+| Classes / Types / Interfaces                                                                                                    | `PascalCase`                                                                                                                                                                                                                                                                      | `AuthSession`, `UsageQueryParams`             |
+| Enums                                                                                                                           | `PascalCase`                                                                                                                                                                                                                                                                      | `ApiKeyStatus`                                |
+| Constants (compile-time)                                                                                                        | `SCREAMING_SNAKE_CASE`                                                                                                                                                                                                                                                            | `STORAGE_KEY`, `WEB_DB_NAME`                  |
+| Constants (derived/computed)                                                                                                    | `camelCase`                                                                                                                                                                                                                                                                       | `webStore`                                    |
+| Boolean variables                                                                                                               | `is`, `has`, `should`, `can` prefix                                                                                                                                                                                                                                               | `isAuthenticated`, `hasPermission`            |
+| Files — modules                                                                                                                 | `kebab-case.ts` / `kebab-case.tsx`                                                                                                                                                                                                                                                | `auth-storage.ts`, `usage-view.tsx`           |
+| Files — classes/components                                                                                                      | `kebab-case.tsx` (React Native convention)                                                                                                                                                                                                                                        | `usage-view.tsx`                              |
+| Interfaces                                                                                                                      | No `I` prefix                                                                                                                                                                                                                                                                     | `UserService` not `IUserService`              |
+| Type parameters                                                                                                                 | Single uppercase or descriptive                                                                                                                                                                                                                                                   | `T`, `TResult`, `TInput`                      |
+| API endpoints (AuthZ RPC — accounts/projects/API keys, live)                                                                    | `POST {basePath}/rpc/{op_id}`, not REST. **Corrected from an earlier version of this row**, which showed a REST-style `/api/v1/api-keys/{key_id}` path — that shape predates the cratestack RPC migration (ADR-0003 in `lightbridge-authz`) and no longer exists in this frontend | `POST /api/rpc/model.Account.list`            |
+| API endpoints (usage REST — no importer yet; the console's usage dashboards are its designated consumer, see `architecture.md`) | Defined by `openapi/usage.backend.yaml` (snake_case path segments)                                                                                                                                                                                                                | `/usage/v1/usage/query`                       |
 
 ---
 
@@ -74,12 +74,14 @@ converse-frontends/
 - **Plugin:** `prettier-plugin-tailwindcss` (auto-sorts Tailwind classes in `className` attributes)
 
 Run formatter:
+
 ```bash
 pnpm format
 # Runs: eslint --fix + prettier --write on all .js/.jsx/.ts/.tsx/.json/.css/.md files
 ```
 
 Check without writing:
+
 ```bash
 pnpm lint
 # Runs: eslint check + prettier -c (check mode)

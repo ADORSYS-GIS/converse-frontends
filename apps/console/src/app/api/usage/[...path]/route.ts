@@ -13,6 +13,12 @@ export const runtime = 'nodejs';
  * `USAGE_URL` being unset is a real, expected deployment state while the usage backend is not yet
  * reachable — this answers `503` rather than pretending, so the Overview's usage panels can render
  * their honest inline "unavailable" status instead of an empty chart that looks like zero usage.
+ *
+ * **This route has no caller yet, and that is not a reason to delete it.** It is the console's only
+ * path to the usage backend (ADR 0009 Decision 3), and its first consumer is the usage query client
+ * of #304 — `packages/api-rest`, generated from `openapi/usage.backend.yaml`, whose zero-importer
+ * status is the gap that ticket closes. A `grep` for callers will keep coming back empty until then;
+ * read that as work not yet done, not as dead surface.
  */
 export async function POST(
   request: NextRequest,

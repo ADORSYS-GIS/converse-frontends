@@ -4,7 +4,7 @@ import { SPEC_GRID } from '../../chart-tokens';
 import { ErrorLine } from '../../components/error-line';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL, UNWIRED_CHART_MESSAGE } from '../dashboard-label';
 import type { LatencyDashboardProps } from './types';
 
 // Loading-skeleton geometry for the LATENCY ridgeline, matching `LatencyRidgeline`'s own margin
@@ -42,6 +42,7 @@ export function LatencyDashboard({
   height,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   onSelectSeries,
   formatXTick,
@@ -74,6 +75,10 @@ export function LatencyDashboard({
             series={series}
             width={measuredWidth}
             height={height}
+            // Only overridden for `unwired` — see `SpendDashboard`'s equivalent comment.
+            emptyMessage={
+              status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+            }
             formatXTick={formatXTick}
             onSelectSeries={onSelectSeries}
           />

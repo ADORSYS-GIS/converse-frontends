@@ -5,7 +5,7 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL, UNWIRED_CHART_MESSAGE } from '../dashboard-label';
 import type { SpendDashboardProps } from './types';
 
 // Loading-skeleton geometry for the SPEND chart, matching the exact frame the chart itself
@@ -56,6 +56,7 @@ export function SpendDashboard({
   height,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   onSelectSeries,
   formatXTick,
@@ -94,6 +95,12 @@ export function SpendDashboard({
             series={series}
             width={measuredWidth}
             height={height}
+            // Only overridden for `unwired`: the `ready` path (including a genuinely-empty
+            // `series`) keeps the chart's own "No usage in this range." default, which asserts a
+            // completed query found nothing — a different fact from "never queried."
+            emptyMessage={
+              status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+            }
             formatXTick={formatXTick}
             formatYTick={formatYTick}
             formatTooltipValue={formatTooltipValue}

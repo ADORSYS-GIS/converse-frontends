@@ -38,8 +38,42 @@ export const overviewStatCards: OverviewStatCardData[] = [
 ];
 
 export const overviewEmptyStatCards: OverviewStatCardData[] = [
-  { key: 'spend-this-month', icon: 'spend', label: 'SPEND THIS MONTH', metric: '$0.00', sparklineData: [0, 0] },
-  { key: 'active-projects', icon: 'projects', label: 'ACTIVE PROJECTS', metric: '1', sparklineData: [1, 1] },
-  { key: 'active-api-keys', icon: 'keys', label: 'ACTIVE API KEYS', metric: '0', sparklineData: [0, 0] },
-  { key: 'requests-today', icon: 'requests', label: 'REQUESTS TODAY', metric: '0', sparklineData: [0, 0] },
+  {
+    key: 'spend-this-month',
+    icon: 'spend',
+    label: 'SPEND THIS MONTH',
+    metric: '$0.00',
+    sparklineData: [0, 0],
+  },
+  {
+    key: 'active-projects',
+    icon: 'projects',
+    label: 'ACTIVE PROJECTS',
+    metric: '1',
+    sparklineData: [1, 1],
+  },
+  {
+    key: 'active-api-keys',
+    icon: 'keys',
+    label: 'ACTIVE API KEYS',
+    metric: '0',
+    sparklineData: [0, 0],
+  },
+  {
+    key: 'requests-today',
+    icon: 'requests',
+    label: 'REQUESTS TODAY',
+    metric: '0',
+    sparklineData: [0, 0],
+  },
+];
+
+// #273 — the real state of Overview's PROJECTS/API KEYS cards today: the counts are live, but no
+// trend data exists (no usage-backend query client), so `sparklineData` is omitted entirely
+// rather than passed as `[0, 0]` (which, unlike this fixture, would be an honest flat trend for an
+// account that IS wired and genuinely had zero activity every day -- see `overviewEmptyStatCards`
+// above for that case).
+export const overviewUnwiredStatCards: OverviewStatCardData[] = [
+  { key: 'projects', icon: 'projects', label: 'PROJECTS', metric: '6' },
+  { key: 'keys', icon: 'keys', label: 'API KEYS', metric: '23' },
 ];

@@ -8,6 +8,7 @@ import {
   overviewEmptyBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
+  overviewUnwiredBudget,
 } from './fixtures';
 
 const meta: Meta<typeof BudgetPanel> = {
@@ -42,6 +43,16 @@ export const Empty: Story = {
   },
 };
 
+// #273 — Overview's real state today: no budget query client exists yet. Distinct wording and
+// layout from `Empty` above, which is a real wired account with genuinely zero consumption.
+export const Unwired: Story = {
+  args: {
+    budget: overviewUnwiredBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
+};
+
 // Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration).
 export const Breached: Story = {
   args: { budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' } },
@@ -52,7 +63,7 @@ export const MdTierWithTrigger: Story = {
   args: {
     actions: (
       <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
-        <p className="font-mono text-xs text-ink">Export current view · CSV</p>
+        <p className="text-ink font-mono text-xs">Export current view · CSV</p>
       </SectionSheetTrigger>
     ),
   },

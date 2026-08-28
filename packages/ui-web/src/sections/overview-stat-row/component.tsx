@@ -36,18 +36,18 @@ const STAT_ICONS: Record<OverviewStatCardIcon, ReactNode> = {
 // blocks (`raised`) matching final geometry" — no spinner, no shimmer).
 function StatCardSkeleton() {
   return (
-    <div className="rounded-[2px] bg-surface p-4" role="presentation" aria-hidden="true">
+    <div className="bg-surface rounded-[2px] p-4" role="presentation" aria-hidden="true">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <span className="h-3 w-3 rounded-[1px] bg-raised" />
-          <span className="h-[10px] w-24 rounded-[2px] bg-raised" />
+          <span className="bg-raised h-3 w-3 rounded-[1px]" />
+          <span className="bg-raised h-[10px] w-24 rounded-[2px]" />
         </div>
-        <span className="h-[20px] w-20 rounded-[2px] bg-raised" />
+        <span className="bg-raised h-[20px] w-20 rounded-[2px]" />
       </div>
       <div className="mt-3">
         <SkeletonMetric width={72} />
       </div>
-      <div className="mt-2 h-[10px] w-28 rounded-[2px] bg-raised" />
+      <div className="bg-raised mt-2 h-[10px] w-28 rounded-[2px]" />
     </div>
   );
 }
@@ -71,7 +71,12 @@ export function OverviewStatRow({ cards, loading = false, className }: OverviewS
               label={card.label}
               metric={card.metric}
               delta={card.delta}
-              sparkline={<Sparkline data={card.sparklineData} />}
+              // #273 — omit the sparkline slot entirely when there is no trend data, rather than
+              // rendering `<Sparkline data={[]} />`: `Sparkline` already draws nothing for fewer
+              // than two points, but `StatCard` would still reserve the slot's layout for an
+              // element that renders empty, which is the "flat/zero decorative line" shape this
+              // ticket bans -- just invisible instead of visibly flat.
+              sparkline={card.sparklineData ? <Sparkline data={card.sparklineData} /> : undefined}
               className="w-full lg:min-w-0 lg:flex-1 lg:basis-[209px]"
             />
           ))}

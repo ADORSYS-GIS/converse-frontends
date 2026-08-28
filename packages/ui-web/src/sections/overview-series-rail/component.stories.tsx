@@ -17,7 +17,7 @@ type Story = StoryObj<typeof OverviewSeriesRail>;
 function Demo({ initial = null }: { initial?: string | null }) {
   const [selected, setSelected] = useState<string | null>(initial);
   return (
-    <div className="w-[280px] bg-surface">
+    <div className="bg-surface w-[280px]">
       <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
         <OverviewSeriesRail
           items={overviewSeriesLegendItems}
@@ -34,11 +34,24 @@ export const InRail: Story = { render: () => <Demo /> };
 // Selected — the accent appears exactly once, on the selected series.
 export const Selected: Story = { render: () => <Demo initial="claude-sonnet" /> };
 
+// #273 — zero items now explain themselves instead of leaving a bare "SERIES" heading over
+// nothing. Generic default wording; Overview's own container passes the specific "not wired"
+// reason instead (see `Unwired` below).
 export const Empty: Story = {
   render: () => (
-    <div className="w-[280px] bg-surface">
+    <div className="bg-surface w-[280px]">
       <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
         <OverviewSeriesRail items={[]} />
+      </RailPanel>
+    </div>
+  ),
+};
+
+export const Unwired: Story = {
+  render: () => (
+    <div className="bg-surface w-[280px]">
+      <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
+        <OverviewSeriesRail items={[]} emptyMessage="Not wired — see banner above." />
       </RailPanel>
     </div>
   ),

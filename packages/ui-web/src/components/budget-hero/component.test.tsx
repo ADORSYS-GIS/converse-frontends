@@ -30,7 +30,7 @@ describe('BudgetHero', () => {
         value={455.2}
         ceiling={500}
         action={<button type="button">Request refill</button>}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: 'Request refill' })).toBeInTheDocument();
@@ -40,5 +40,43 @@ describe('BudgetHero', () => {
     render(<BudgetHero value={498} ceiling={500} />);
 
     expect(screen.getByText('$498.00')).toHaveClass('text-ink');
+  });
+
+  // Regression for #273: an unknown consumption/ceiling must never render as a fabricated
+  // "$0.00 of $0.00" — the dominant element must be an honest "unknown," at the number's own
+  // visual weight, not a small caveat underneath a false figure.
+  describe('status="unwired"', () => {
+    it('shows "Not wired" as the dominant headline instead of a fabricated numeral', () => {
+      render(
+        <BudgetHero
+          status="unwired"
+          caption="Budget figures arrive with the budget query wiring."
+        />
+      );
+
+      expect(screen.queryByText(/^\$/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^of \$/)).not.toBeInTheDocument();
+      const headline = screen.getByText('Not wired');
+      expect(headline).toHaveClass('text-[26px]', 'text-ink');
+    });
+
+    it('renders no meter — an unknown ceiling has no percentage to show', () => {
+      render(<BudgetHero status="unwired" />);
+
+      expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    });
+
+    it('still renders the explanatory caption', () => {
+      render(
+        <BudgetHero
+          status="unwired"
+          caption="Budget figures arrive with the budget query wiring."
+        />
+      );
+
+      expect(
+        screen.getByText('Budget figures arrive with the budget query wiring.')
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -61,6 +61,11 @@ export function OverviewCentre() {
 
       <SpendDashboard
         series={[]}
+        // No usage-backend query client yet (`screen.emptyMessage`) — `'unwired'` renders the
+        // axes-stay/inline-status-line empty shape with wording honest about "never queried,"
+        // distinct from the default `'ready'` rendering (which would say "queried, found
+        // nothing") and from `'loading'` (implies a request in flight) (#272).
+        status="unwired"
         fallbackWidth={840}
         height={220}
         onSelectSeries={screen.setSelectedSeriesKey}
@@ -90,6 +95,7 @@ export function OverviewCentre() {
           live usage-backend query client yet (`screen.emptyMessage`). */}
       <SpendShareSection
         slices={[]}
+        status="unwired"
         size={200}
         selectedKey={screen.selectedSeriesKey}
         onSelectSlice={screen.setSelectedSeriesKey}
@@ -99,14 +105,20 @@ export function OverviewCentre() {
         <LatencyDashboard
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
           series={[]}
+          // Same "never queried" fact as SPEND/SPEND SHARE above (#272) — no usage-backend query
+          // client yet.
+          status="unwired"
           fallbackWidth={840}
           height={200}
         />
         <BudgetPanel
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
           budget={{
-            value: 0,
-            ceiling: 0,
+            // No budget microservice query client yet — `status: 'unwired'` renders BudgetHero's
+            // "Not wired" headline at the numeral's own visual weight instead of a fabricated
+            // `$0.00 of $0.00` (#273). `value`/`ceiling` are omitted; the `'unwired'` branch of
+            // `BudgetSummary` doesn't accept them (see `budget-panel/types.ts`).
+            status: 'unwired',
             caption: 'Budget figures arrive with the budget query wiring.',
           }}
           actions={

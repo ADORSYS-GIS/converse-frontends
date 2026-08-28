@@ -1,6 +1,7 @@
 'use client';
 
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
+import { UNWIRED_CHART_MESSAGE } from '@lightbridge/ui-web/src/sections/dashboard-label';
 import {
   OVERVIEW_EXPORT_RAIL_LABEL,
   OverviewExportRail,
@@ -53,6 +54,9 @@ export function OverviewRail() {
       <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
         <OverviewSeriesRail
           items={[]}
+          // Same "never wired" reason as SPEND's own legend echo (#272/#273) — the SPEND chart
+          // has no series to select from yet, so this is not "nothing selected."
+          emptyMessage={UNWIRED_CHART_MESSAGE}
           selectedKey={screen.selectedSeriesKey}
           onSelectKey={screen.setSelectedSeriesKey}
         />

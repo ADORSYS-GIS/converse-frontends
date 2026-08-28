@@ -1,0 +1,31 @@
+# LOCAL TEST override (not committed)
+# NOTE: authz-api/authz-budget are HTTPS-only with self-signed certs that carry NO SAN
+# extension (subject=CN=lightbridge-authz-api), so hostname verification can never pass for
+# `localhost` even with the CA trusted -- hence NODE_TLS_REJECT_UNAUTHORIZED=0 on the dev
+# server. Local dev only. — runs the console against the real lightbridge-authz
+# backend + its Keycloak (realm `dev` on :9100, client `test-client`), per README "The alternative
+# dev realm ... works too". Launch with: CONSOLE_CONFIG=./config.local-authz.yaml pnpm dev
+#
+# Issuer is localhost:9100: the compose Keycloak now sets KC_HOSTNAME +
+# KC_HOSTNAME_BACKCHANNEL_DYNAMIC, so it stamps a stable external `iss` while still handing
+# containers internal backchannel URLs. authz's federation.issuer matches. No /etc/hosts needed.
+session:
+  secret: '{env:SESSION_SECRET}'
+keycloak:
+  issuer: 'http://localhost:9100/realms/dev'
+  clientId: 'test-client'
+  clientSecret: '{env:KEYCLOAK_CLIENT_SECRET}'
+  scopes: 'openid profile email offline_access'
+  expectedAudiences:
+    - 'lightbridge-api-key'
+  audienceRequired: true
+  rolesClaim: 'lightbridge_api_roles'
+backendUrl: 'https://localhost:13000'
+# '/' normalizes to '' -> targets {backendUrl}/rpc/{op}. authz-api's `server.api.rpc_base_path`
+# is unset (mounts at root), so '/api' 404s. Same value config.wiremock.yaml uses.
+apiBasePath: '/'
+budgetUrl: 'https://localhost:13005'
+# usageUrl intentionally unset — the usage query listener is mTLS-only; the plain-HTTP proxy
+# cannot reach it, so /api/usage answers 503 and the Overview renders its "unwired" status line.
+publicBaseUrl: 'http://localhost:12999'
+permissions: {}

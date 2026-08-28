@@ -23,7 +23,7 @@ function parsedFrom(
 
 const VALID_CONFIG = {
   session: { secret: 'a'.repeat(48) },
-  keycloak: { issuer: 'http://localhost:13444/realms/dev', clientId: 'self-service' },
+  idp: { issuer: 'http://localhost:13444/realms/dev', clientId: 'self-service' },
   backendUrl: 'http://localhost:13000',
 };
 
@@ -31,7 +31,7 @@ describe('buildConsoleEnv', () => {
   it('builds a full ConsoleEnv from a minimal valid document, applying every default', () => {
     const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
     expect(env).toEqual({
-      keycloak: {
+      idp: {
         issuer: 'http://localhost:13444/realms/dev',
         clientId: 'self-service',
         clientSecret: undefined,
@@ -53,11 +53,11 @@ describe('buildConsoleEnv', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, issuer: 'http://localhost:13444/realms/dev/' },
+        idp: { ...VALID_CONFIG.idp, issuer: 'http://localhost:13444/realms/dev/' },
         backendUrl: 'http://localhost:13000/',
       })
     );
-    expect(env.keycloak.issuer).toBe('http://localhost:13444/realms/dev');
+    expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
     expect(env.backendUrl).toBe('http://localhost:13000');
   });
 
@@ -73,45 +73,45 @@ describe('buildConsoleEnv', () => {
     expect(env.apiBasePath).toBe('/v2');
     expect(env.usageUrl).toBeUndefined();
     expect(env.publicBaseUrl).toBeUndefined();
-    expect(env.keycloak.clientSecret).toBeUndefined();
+    expect(env.idp.clientSecret).toBeUndefined();
   });
 
   it('accepts expectedAudiences as a real YAML array', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, expectedAudiences: ['converse-frontend', 'other'] },
+        idp: { ...VALID_CONFIG.idp, expectedAudiences: ['converse-frontend', 'other'] },
       })
     );
-    expect(env.keycloak.expectedAudiences).toEqual(['converse-frontend', 'other']);
+    expect(env.idp.expectedAudiences).toEqual(['converse-frontend', 'other']);
   });
 
   it('accepts expectedAudiences as a comma-separated string (single-placeholder escape hatch)', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, expectedAudiences: 'a, b ,c' },
+        idp: { ...VALID_CONFIG.idp, expectedAudiences: 'a, b ,c' },
       })
     );
-    expect(env.keycloak.expectedAudiences).toEqual(['a', 'b', 'c']);
+    expect(env.idp.expectedAudiences).toEqual(['a', 'b', 'c']);
   });
 
   it('coerces a string "false"/"0" audienceRequired (the {env:VAR} case) to a real boolean', () => {
     const asFalseString = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, audienceRequired: 'false' },
+        idp: { ...VALID_CONFIG.idp, audienceRequired: 'false' },
       })
     );
-    expect(asFalseString.keycloak.audienceRequired).toBe(false);
+    expect(asFalseString.idp.audienceRequired).toBe(false);
 
     const asRealBoolean = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, audienceRequired: false },
+        idp: { ...VALID_CONFIG.idp, audienceRequired: false },
       })
     );
-    expect(asRealBoolean.keycloak.audienceRequired).toBe(false);
+    expect(asRealBoolean.idp.audienceRequired).toBe(false);
   });
 
   it('rejects a session secret shorter than 32 characters', () => {
@@ -133,11 +133,11 @@ describe('buildConsoleEnv', () => {
     );
   });
 
-  it('fails fast on a missing keycloak.issuer', () => {
-    const { keycloak, ...rest } = VALID_CONFIG;
-    const { issuer: _omit, ...keycloakWithoutIssuer } = keycloak;
-    expect(() => buildConsoleEnv(parsedFrom({ ...rest, keycloak: keycloakWithoutIssuer }))).toThrow(
-      /"keycloak\.issuer"/
+  it('fails fast on a missing idp.issuer', () => {
+    const { idp, ...rest } = VALID_CONFIG;
+    const { issuer: _omit, ...idpWithoutIssuer } = idp;
+    expect(() => buildConsoleEnv(parsedFrom({ ...rest, idp: idpWithoutIssuer }))).toThrow(
+      /"idp\.issuer"/
     );
   });
 
@@ -175,7 +175,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',
@@ -184,7 +184,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
 
     const env = serverEnv();
     expect(env.sessionSecret).toBe('b'.repeat(40));
-    expect(env.keycloak.issuer).toBe('http://localhost:13444/realms/dev');
+    expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
   });
 
   it('caches the result: a second call does not re-read the file even if it changes on disk', () => {
@@ -194,7 +194,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',
@@ -216,7 +216,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',

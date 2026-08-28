@@ -37,10 +37,18 @@ import { manageTotals, toProjectRows } from './project-rows';
 
 const PAGE_SIZE = 25;
 
+/**
+ * Matches `USAGE_PENDING_MESSAGE` (`use-overview-screen.ts`)'s pattern: an inline status line
+ * naming exactly what is missing, rather than a subline that quietly asserts something the screen
+ * has never fetched (issue #271 — the old `subline="spend shown month-to-date"` was that claim).
+ */
+export const MANAGE_SPEND_PENDING_MESSAGE =
+  'Spend and quota ceiling are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project status and quota tier below are live.';
+
 const STATUS_LABELS: Record<(typeof MANAGE_STATUSES)[number], string> = {
   all: 'All',
   active: 'Active',
-  archived: 'Archived',
+  suspended: 'Suspended',
 };
 
 const BUDGET_STATE_LABELS: Record<(typeof MANAGE_BUDGET_STATES)[number], string> = {
@@ -106,6 +114,9 @@ export interface ManageScreen {
   rows: ProjectRow[];
   loading: boolean;
   errorMessage: string | undefined;
+  /** Matches `useOverviewScreen`'s `emptyMessage` — an always-visible inline status line naming
+   *  exactly what is unwired (issue #271), never folded into `ScreenHeading`'s `subline`. */
+  spendPendingMessage: string;
   totals: ManageTotals;
   retry: () => void;
   search: string;
@@ -159,10 +170,13 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   const projects = list.result.data;
   const total = list.result.total ?? projects.length;
 
+  // Re-based on whether a governance quota tier is actually assigned (issue #269) — the previous
+  // `ceiling !== null` check was always false (every `projectQuota` tier id fails `Number()`), so
+  // "Quota set" returned zero rows and "No quota" returned everything, regardless of the real tier.
   const rows = useMemo(() => {
     const mapped = toProjectRows(projects);
-    if (view.budgetState === 'quota-set') return mapped.filter((row) => row.ceiling !== null);
-    if (view.budgetState === 'no-quota') return mapped.filter((row) => row.ceiling === null);
+    if (view.budgetState === 'quota-set') return mapped.filter((row) => row.quotaTier !== null);
+    if (view.budgetState === 'no-quota') return mapped.filter((row) => row.quotaTier === null);
     return mapped;
   }, [projects, view.budgetState]);
 
@@ -196,6 +210,7 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     errorMessage: list.query.isError
       ? 'Could not load projects.'
       : (newProjectAction.errorMessage ?? reportAction.errorMessage),
+    spendPendingMessage: MANAGE_SPEND_PENDING_MESSAGE,
     totals: manageTotals(rows, total),
     retry: refresh,
     search: view.search,

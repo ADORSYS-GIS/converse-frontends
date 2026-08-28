@@ -169,7 +169,11 @@ export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── /manage ──────────────────────────────────────────────────────────────────────────────────
 
-export const MANAGE_STATUSES = ['all', 'active', 'archived'] as const;
+// `active | suspended` are the only two values `Project.status` ever holds (authz.cstack:274-277,
+// 699-700 — mutated only by `disableProject`/`enableProject`). `archived` never existed on the
+// backend (issue #268); a bookmarked `?status=archived` link now falls back to nuqs's `all`
+// default rather than silently matching zero rows forever.
+export const MANAGE_STATUSES = ['all', 'active', 'suspended'] as const;
 export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
 export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
 export const REPORT_FORMATS = ['csv', 'pdf'] as const satisfies readonly ReportExportFormat[];

@@ -8,6 +8,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
+import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
 import type {
   LastExportEntry,
@@ -42,6 +43,13 @@ import {
   storyNavItems,
 } from './shell-fixtures';
 
+/**
+ * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
+ * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
+ */
+const MANAGE_SPEND_PENDING_MESSAGE =
+  'Spend and quota ceiling are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project status and quota tier below are live.';
+
 interface ManageScreenProps {
   projects?: ProjectRow[];
   loading?: boolean;
@@ -62,7 +70,7 @@ function ManageScreen({
   const [selectedProject, setSelectedProject] = useState<ProjectRow | null>(initialSelection);
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
-  const [budgetStateValue, setBudgetStateValue] = useState('any');
+  const [budgetStateValue, setBudgetStateValue] = useState('all');
 
   const [period, setPeriod] = useState('2026-02');
   const [groupBy, setGroupBy] = useState('project-model');
@@ -148,7 +156,8 @@ function ManageScreen({
         </>
       }>
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+        <ScreenHeading title="Projects" />
+        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
         <ManageProjectsLedger
           projects={projects}

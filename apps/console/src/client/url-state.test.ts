@@ -143,7 +143,7 @@ describe('the URL param contract', () => {
   it('keeps every closed vocabulary in step with the type it claims to satisfy', () => {
     expect(OVERVIEW_RANGES).toEqual(['7d', '30d', '90d']);
     expect(API_KEY_STATUSES).toEqual(['all', 'active', 'revoked']);
-    expect(MANAGE_STATUSES).toEqual(['all', 'active', 'archived']);
+    expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
     expect(SECTION_SHEET_IDS).toEqual(['view', 'filters', 'export', 'scope', 'report']);

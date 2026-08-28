@@ -1,11 +1,14 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Button } from '../../components/button';
 import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
 import { BudgetPanel } from './component';
 import {
   overviewBudget,
   overviewEmptyBudget,
+  overviewErrorBudget,
+  overviewLoadingBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
   overviewUnwiredBudget,
@@ -53,9 +56,32 @@ export const Unwired: Story = {
   },
 };
 
-// Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration).
+// Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration),
+// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7).
 export const Breached: Story = {
-  args: { budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' } },
+  args: {
+    budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' },
+    heroAction: <Button size="sm">Request refill</Button>,
+  },
+};
+
+// #306 — the budget-balance/usage query is in flight.
+export const Loading: Story = {
+  args: {
+    budget: overviewLoadingBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
+};
+
+// #306 — the budget-balance/usage query ran and failed. Distinct from `Unwired`: this account has
+// a real budget, the query for it just failed.
+export const ErrorState: Story = {
+  args: {
+    budget: overviewErrorBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
 };
 
 export const MdTierWithTrigger: Story = {

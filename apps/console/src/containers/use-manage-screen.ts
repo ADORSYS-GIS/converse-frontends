@@ -47,18 +47,25 @@ import { manageTotals, toProjectRows } from './project-rows';
 const PAGE_SIZE = 25;
 
 /**
- * Matches `USAGE_PENDING_MESSAGE` (`use-overview-screen.ts`)'s pattern: an inline status line
- * naming exactly what is missing, rather than a subline that quietly asserts something the screen
- * has never fetched (issue #271 — the old `subline="spend shown month-to-date"` was that claim).
+ * An inline status line naming exactly what is missing, rather than a subline that quietly
+ * asserts something the screen has never fetched (issue #271 — the old
+ * `subline="spend shown month-to-date"` was that claim).
  *
  * Console-ui#326: no "(ADR 0009 follow-ups N)" citation — follow-up 4 (the `apps/console`
  * scaffold) shipped, so citing it here was simply wrong, and an internal ADR follow-up index is
  * not something this self-service console's own customers should have to decode. State the fact
  * plainly instead; see the PR body for the full argument against citing follow-up numbers in
  * user-visible copy.
+ *
+ * Reworded by #304/#305 (Epic 4, Story 4.2): the usage-backend query client this string used to
+ * say didn't exist now does (`apps/console/src/client/usage-client.ts`), and Overview's own SPEND
+ * dashboards use it — so "no usage-backend query client yet" would now be a false claim on THIS
+ * screen. What remains true, and is now what this string says, is narrower: Manage itself has no
+ * query wired to its own per-project spend/quota column. Wiring that is out of this story's scope
+ * (Overview's dashboards only) — tracked as its own follow-up, not invented here.
  */
 export const MANAGE_SPEND_PENDING_MESSAGE =
-  'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
+  'Spend and quota ceiling are not shown here yet: this screen does not query the usage backend. Project status and quota tier below are live.';
 
 const STATUS_LABELS: Record<(typeof MANAGE_STATUSES)[number], string> = {
   all: 'All',

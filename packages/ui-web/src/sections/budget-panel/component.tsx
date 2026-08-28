@@ -15,6 +15,7 @@ import type { BudgetPanelProps } from './types';
 export function BudgetPanel({
   label = 'BUDGET — CONSUMPTION VS CEILING',
   budget,
+  heroAction,
   needsAttentionProject,
   onRequestRefill,
   refillRequestStatus,
@@ -31,12 +32,17 @@ export function BudgetPanel({
       <div className="mt-4">
         {budget.status === 'unwired' ? (
           <BudgetHero status="unwired" caption={budget.caption} />
+        ) : budget.status === 'loading' ? (
+          <BudgetHero status="loading" />
+        ) : budget.status === 'error' ? (
+          <BudgetHero status="error" errorMessage={budget.errorMessage} onRetry={budget.onRetry} />
         ) : (
           <BudgetHero
             value={budget.value}
             ceiling={budget.ceiling}
             threshold={budget.threshold}
             caption={budget.caption}
+            action={heroAction}
           />
         )}
 

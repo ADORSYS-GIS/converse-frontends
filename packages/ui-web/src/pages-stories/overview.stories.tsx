@@ -98,6 +98,9 @@ interface OverviewScreenProps {
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
   latencyErrorMessage?: string;
+  /** Overrides LatencyDashboard's default `UNWIRED_CHART_MESSAGE` — see `LatencyBlocked` below,
+   *  the story matching #307's actual, permanent decision for this section. */
+  latencyUnwiredMessage?: string;
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
@@ -120,6 +123,7 @@ function OverviewScreen({
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
   latencyErrorMessage,
+  latencyUnwiredMessage,
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
@@ -265,6 +269,7 @@ function OverviewScreen({
             height={310}
             status={latencyStatus}
             errorMessage={latencyErrorMessage}
+            unwiredMessage={latencyUnwiredMessage}
             onRetry={() => {}}
             formatXTick={formatOverviewLatencyXTick}
           />
@@ -330,19 +335,18 @@ export const Empty: Story = {
   ),
 };
 
-// #263/#272/#273 — Overview's REAL state today: PROJECTS/API KEYS counts are live (via refine),
-// everything usage- and budget-shaped has never been queried (no usage-backend query client yet —
-// `use-overview-screen.ts`'s `USAGE_PENDING_MESSAGE`). Every zone renders its `'unwired'` status
-// rather than defaulting to `'ready'` with fabricated empty/zero data — this is the acceptance
-// surface for #272 and #273 together.
+// #263/#272/#273 — Overview's state BEFORE #304-#307 (Epic 4 Story 4.2): PROJECTS/API KEYS
+// counts were live (via refine), everything usage- and budget-shaped had never been queried (no
+// usage-backend query client existed at all). Every zone rendered `'unwired'` rather than
+// defaulting to `'ready'` with fabricated empty/zero data — the acceptance surface for #272/#273.
+//
+// Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary itself is still
+// live — `LatencyBlocked` below exercises it for real, and this remains the reference for what
+// "the usage-backend query client doesn't exist at all yet" looks like across every zone at once,
+// which is no longer console's actual state (see `LatencyBlocked`'s own comment for what is).
 export const Unwired: Story = {
   render: () => (
     <OverviewScreen
-      // Verbatim copy of `apps/console`'s real `USAGE_PENDING_MESSAGE`
-      // (`containers/use-overview-screen.ts`) — console-ui#326 dropped the "(ADR 0009 follow-ups
-      // 4 and 6)" citation from the real string (follow-up 4 shipped, so citing it was simply
-      // wrong, and an internal ADR follow-up index doesn't belong in customer-visible copy); this
-      // copy follows.
       emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet. Project and key counts below are live."
       statCards={overviewUnwiredStatCards}
       spendSeries={[]}
@@ -362,6 +366,31 @@ export const Unwired: Story = {
 export const UnwiredLight: Story = {
   name: 'Unwired — wireframe (light)',
   render: Unwired.render,
+  globals: { theme: 'wireframe' },
+};
+
+// #307 — console's ACTUAL current state, and the acceptance surface for the #307 decision
+// itself: SPEND/SPEND SHARE/BUDGET are real (default fixtures, `spendStatus`/`spendShareStatus`
+// default to `'ready'`), and LATENCY alone stays `'unwired'` — not because no client exists (one
+// does, as of #304), but because the documented usage-API contract has no latency/percentile
+// field to query at all (Epic 6, tracked as #294 — see ADR 0008's Decision 7 status note). The
+// message is `apps/console`'s real, customer-visible `LATENCY_BLOCKED_MESSAGE`
+// (`containers/use-overview-screen.ts`) copied verbatim, minus the internal issue/Epic citation
+// that string deliberately omits (console-ui#326).
+export const LatencyBlocked: Story = {
+  render: () => (
+    <OverviewScreen
+      emptyMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
+      latencySeries={[]}
+      latencyStatus="unwired"
+      latencyUnwiredMessage="Blocked — the usage API doesn't report latency or percentile data yet."
+    />
+  ),
+};
+
+export const LatencyBlockedLight: Story = {
+  name: 'LatencyBlocked — wireframe (light)',
+  render: LatencyBlocked.render,
   globals: { theme: 'wireframe' },
 };
 

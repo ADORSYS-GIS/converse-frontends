@@ -27,9 +27,27 @@ Boundary clarifications adopted with the Next.js design spec
   flush, aligned, full-height columns — edge-to-edge against the viewport and the header, with
   sections separated by `raised` hairline rules inside one continuous surface. The
   floating-with-outer-gutters panel look this ADR's Decision 3 sketched read as misaligned once
-  real screens existed; the *inversion itself* (tonal chrome above a content floor, no borders,
+  real screens existed; the _inversion itself_ (tonal chrome above a content floor, no borders,
   content never carded) is unchanged. The `docs/design/console-redesign` SVG mockups still show
   the floating treatment and are superseded on that one point.
+- **LATENCY is contractually blocked, not merely unwired (owner decision, Epic 4 Story 4.2 / #307,
+  2026-08-28).** Decision 7 below lists "per-model latency distribution" as one of the three
+  dashboards, on the stated assumption that all three are "backed by the existing usage query API"
+  — that assumption does not hold. `openapi/usage.backend.yaml`'s `UsageQueryResponse.
+UsageSeriesPoint` carries exactly `requests`, `usage_value`, `total_cost`, `prompt_tokens`,
+  `completion_tokens` and `total_tokens` — no latency or percentile field, and never has. SPEND and
+  BUDGET are unaffected (they only ever needed `total_cost`, which the contract does provide) and
+  are wired for real as of #304-#306. **Decision: keep the LATENCY section, rendered in its
+  existing `status="unwired"` state** (reusing the vocabulary `SpendDashboard`/`BudgetHero` used
+  before their own data existed, per console-ui's "reuse the vocabulary" rule — not a new "blocked"
+  status), with its message overridden to name the real, permanent reason instead of the generic
+  "never queried" wording. Removing the section outright was rejected: the design intent (Decision 7) is still correct, only the backend support is missing, and an explicit, honestly-worded gap is
+  more useful to an operator than a vanished section they'd have to rediscover was ever planned.
+  Unblocking this is Epic 6's "Usage API — expose latency/percentile fields" item (tracked as
+  `#294`) — a cross-team backend change, out of scope for the console. Re-evaluate this note the
+  moment that field lands on the contract; until then, no console code should attempt to derive a
+  latency figure from `usage_value` or any other existing field — that would be exactly the
+  fabrication this epic exists to prevent.
 
 ## Context
 
@@ -162,7 +180,7 @@ Refero references used:
   with [source site](https://midday.ai), for the ledger-like table treatment: squared-off panels
   outlined by hairline borders instead of shadows, hierarchy carried by typography and spacing.
   **Note the deliberate mismatch:** Midday's own canvas is bright white and light-first. Only its
-  *table structure* is borrowed here, never its tone — which is exactly why this decision scopes
+  _table structure_ is borrowed here, never its tone — which is exactly why this decision scopes
   the borrow to dense money/data tables rather than the shell.
 - Style: [Hex Refero preview](https://images.refero.design/styles/hex.tech/6c402a97-7748-469e-a90a-fe68810d7ba1/preview_0.jpg),
   with [source site](https://hex.tech), recorded as the **rejected** direction: the oversized
@@ -206,12 +224,12 @@ change is implied.
 
 Product pattern to carry over from research: OpenAI's usage screen pairs the number with its
 ceiling (`"$0.60 of $120.00"`) and places **"Increase limit" directly beside it**. The budget
-dashboard here should likewise be where a refill is *requested*, not merely where consumption is
+dashboard here should likewise be where a refill is _requested_, not merely where consumption is
 displayed — `useRequestBudgetRefill`/`requestBudgetRefill` already exists
 (`budget-refill-screen.tsx`) and should be surfaced from the dashboard, not only from Settings.
 
 The OpenAI screen itself is a direct observation with no Refero capture behind it (see Decision 6's
-sourcing note). Refero references used for the same pattern, which *are* re-openable:
+sourcing note). Refero references used for the same pattern, which _are_ re-openable:
 
 - Screen: [Cohere spending limit](https://refero.design/pages/0316cb1c-3c50-4af2-8ca1-fd84b004d901) —
   a monthly cap shown with usage progress against it and the edit/remove controls placed on the
@@ -269,7 +287,7 @@ on the old pattern indefinitely.
 - **Keep the sidebar/bottom-tab shell and only reskin colours.** Rejected — the floating-panel
   inversion and the right-hand config panel are structural, not cosmetic; a reskin would leave the
   content-in-a-card / bordered-chrome pattern the owner explicitly wants inverted.
-- **A separate admin app.** Rejected outright by the owner: the self-service app *is* the admin;
+- **A separate admin app.** Rejected outright by the owner: the self-service app _is_ the admin;
   role-gating one nav group is the entire admin surface.
 - **Vega-Lite / Victory Native / another chart framework.** Not selected — the owner specified
   `react-native-svg` + `d3-scale`/`d3-shape` directly, matching what `react-graph-gallery`'s

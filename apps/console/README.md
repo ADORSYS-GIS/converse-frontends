@@ -146,6 +146,33 @@ The alternative dev realm the Expo app's `.env` points at
 `lightbridge-api-key,converse-frontend,lightbridge-token-issuer`) works too: point
 `keycloak.issuer`/`keycloak.clientId` in `config.yaml` at it and restore the audience values.
 
+### Testing on a real device (why `dev:https` exists)
+
+The session cookie is `Secure` unconditionally (`src/server/session.ts`) — deliberately, because it
+carries the JWE-sealed tokens and there is no deployment where sending it in the clear is
+acceptable. Browsers make one exception: `localhost` counts as a trustworthy origin, so plain
+`pnpm --filter console dev` over `http://localhost:3000` works fine.
+
+Any **other** http origin does not get that exception. Opening `http://192.168.1.20:3000` from a
+phone on the same network — the obvious way to check a mobile-first app (ADR 0009 Decision 6) on a
+real device — means the browser silently discards the session cookie. There is no error: the
+callback succeeds, the cookie never lands, and the app bounces straight back to `/auth/login`. It
+reads as a broken login rather than a missing `Secure` context, which is what makes it worth
+writing down.
+
+```bash
+pnpm --filter console dev:https        # https://localhost:3000, self-signed
+```
+
+Next generates and trusts a local certificate on first run. Two things to remember:
+
+- Your device must accept the self-signed certificate — visit the URL once and accept the warning
+  before expecting login to work.
+- The **IdP must allow the origin you actually use.** `idp.clientId`'s registered redirect URIs and
+  the console's `publicBaseUrl` both have to match it, so a LAN address needs adding on the
+  authz-idp side (`oauth2.token_exchange.clients` in `lightbridge-app.yaml`) — it is not something
+  the console can wave through.
+
 ### Dev without a backend: wiremock
 
 `config.yaml`'s default `backendUrl: 'http://localhost:13000'` assumes a real `lightbridge-authz`
@@ -216,6 +243,7 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 | Script                            | What it does                                                     |
 | --------------------------------- | ---------------------------------------------------------------- |
 | `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
+| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"  |
 | `pnpm --filter console build:web` | `next build --webpack` — the task `turbo run build:web` picks up |
 | `pnpm --filter console start`     | serve the production build                                       |
 | `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |

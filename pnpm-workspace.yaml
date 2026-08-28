@@ -11,6 +11,9 @@ allowBuilds:
   # Pulled in by @serwist/turbopack, which uses SWC to compile apps/console's service worker.
   # Its postinstall only resolves the prebuilt native binding for this platform.
   '@swc/core': true
+  # Its postinstall only prints a donation-request banner (wrapped in try/catch, so it can never
+  # fail the install) -- no functional side effect, so there is nothing to gain by running it.
+  core-js: false
 
 minimumReleaseAgeExclude:
   - '@cratestack/adapter-rtk@0.8.13'

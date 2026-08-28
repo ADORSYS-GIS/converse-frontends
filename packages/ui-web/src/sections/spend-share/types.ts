@@ -1,7 +1,12 @@
 import type { DonutSlice } from '../../components/donut-chart';
 
-/** Per-section load status -- this dashboard failing must never take its neighbours down (same contract as `spend-dashboard`'s `DashboardStatus`, kept as its own type so the two sections stay parallel-PR-friendly). */
-export type SpendShareStatus = 'ready' | 'loading' | 'error';
+/**
+ * Per-section load status -- this dashboard failing must never take its neighbours down (same
+ * contract as `spend-dashboard`'s `DashboardStatus`, kept as its own type so the two sections stay
+ * parallel-PR-friendly). `'unwired'` carries the same meaning as `DashboardStatus`'s own
+ * `'unwired'` -- see that type's docstring.
+ */
+export type SpendShareStatus = 'ready' | 'loading' | 'error' | 'unwired';
 
 export interface SpendShareSectionProps {
   /** Uppercase tracked heading. Defaults to the section's own wording. */
@@ -11,6 +16,8 @@ export interface SpendShareSectionProps {
   size?: number;
   status?: SpendShareStatus;
   errorMessage?: string;
+  /** Overrides `UNWIRED_CHART_MESSAGE` for `status="unwired"`. */
+  unwiredMessage?: string;
   onRetry?: () => void;
   /** Controlled selection -- pass the page's `selectedSeriesKey` state to keep this donut in sync with the SPEND time-series chart and its rail legend. */
   selectedKey?: string | null;

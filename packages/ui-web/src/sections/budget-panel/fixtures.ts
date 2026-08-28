@@ -18,6 +18,14 @@ export const overviewEmptyBudget: BudgetSummary = {
   caption: 'account ceiling · 0% used · resets 01 Mar',
 };
 
+// #273 — Overview's real state today: no usage-backend query client exists, so neither
+// consumption nor ceiling has ever been queried. Distinct from `overviewEmptyBudget` above,
+// which is a real, wired account that genuinely consumed nothing this period.
+export const overviewUnwiredBudget: BudgetSummary = {
+  status: 'unwired',
+  caption: 'Budget figures arrive with the budget query wiring.',
+};
+
 export const overviewNeedsAttentionProject: BudgetNeedsAttentionProject = {
   name: 'gateway-prod',
   value: 455.2,

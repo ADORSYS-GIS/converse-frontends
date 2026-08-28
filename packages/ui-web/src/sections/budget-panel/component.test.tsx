@@ -7,6 +7,7 @@ import {
   overviewBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
+  overviewUnwiredBudget,
 } from './fixtures';
 
 describe('BudgetPanel', () => {
@@ -53,5 +54,17 @@ describe('BudgetPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Open export' })).toBeInTheDocument();
+  });
+
+  // Regression for #273 — see `budget-hero`'s equivalent block for the full rationale.
+  it('renders BudgetHero\'s "Not wired" headline instead of a fabricated numeral for status="unwired"', () => {
+    render(<BudgetPanel budget={overviewUnwiredBudget} />);
+
+    expect(screen.getByText('Not wired')).toBeInTheDocument();
+    expect(screen.queryByText(/^\$0\.00/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Budget figures arrive with the budget query wiring.')
+    ).toBeInTheDocument();
   });
 });

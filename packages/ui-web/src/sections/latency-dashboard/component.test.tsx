@@ -38,4 +38,29 @@ describe('LatencyDashboard', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  // Regression for #272 — see `SpendDashboard`'s equivalent block for the full rationale.
+  describe('status="unwired"', () => {
+    it('keeps the axes rendered above an inline status line naming the real reason', () => {
+      const { container } = render(
+        <LatencyDashboard series={[]} fallbackWidth={528} height={310} status="unwired" />
+      );
+
+      expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByText('Not wired — see banner above.')).toBeInTheDocument();
+      expect(screen.queryByText('No usage in this range.')).not.toBeInTheDocument();
+    });
+
+    it('never routes through ErrorLine — nothing failed, there is nothing to retry', () => {
+      render(<LatencyDashboard series={[]} fallbackWidth={528} height={310} status="unwired" />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('never shows the loading "Querying usage…" line — no request is actually in flight', () => {
+      render(<LatencyDashboard series={[]} fallbackWidth={528} height={310} status="unwired" />);
+
+      expect(screen.queryByText('Querying usage…')).not.toBeInTheDocument();
+    });
+  });
 });

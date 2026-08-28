@@ -92,4 +92,27 @@ describe('SpendShareSection', () => {
 
     expect(selected).toBe(overviewSpendShareSlices[0].key);
   });
+
+  // Regression for #272 — see `spend-dashboard`'s equivalent block for the full rationale.
+  describe('status="unwired"', () => {
+    it('keeps the ring rendered above an inline status line naming the real reason', () => {
+      const { container } = render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+
+      expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByText('Not wired — see banner above.')).toBeInTheDocument();
+      expect(screen.queryByText('No spend in this range.')).not.toBeInTheDocument();
+    });
+
+    it('never routes through ErrorLine — nothing failed, there is nothing to retry', () => {
+      render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('never shows the loading "Querying usage…" line — no request is actually in flight', () => {
+      render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+
+      expect(screen.queryByText('Querying usage…')).not.toBeInTheDocument();
+    });
+  });
 });

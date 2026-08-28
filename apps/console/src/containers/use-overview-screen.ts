@@ -29,9 +29,13 @@ import {
  * What is honestly empty: spend, latency and budget. Those come from the usage backend
  * (`POST /usage/v1/usage/query`) and the budget microservice, and neither has a live query client
  * in this scaffold — `packages/api-rest` still has zero importers. Rather than render plausible
- * numbers, the screen carries its documented empty state: an inline status line naming exactly
- * what is missing, above still-rendered chart structure (console-ui skill §states). No sparkline
- * is fabricated either — the stat cards ship with empty series.
+ * numbers, every chart/budget section below is driven with `status="unwired"` — a distinct status
+ * from `"loading"` (implies a request in flight) and from a `"ready"` section given an empty
+ * array (implies a query ran and genuinely found nothing) — which renders console-ui's documented
+ * empty-state shape (still-rendered chart structure, an inline status line naming the real
+ * reason) with wording honest about "never queried" rather than "queried and empty" (#272/#273).
+ * No sparkline is fabricated either — the stat cards omit `sparklineData` entirely rather than
+ * pass an empty series.
  */
 
 export const USAGE_PENDING_MESSAGE =
@@ -110,14 +114,16 @@ export function useOverviewScreen(): OverviewScreen {
         icon: 'projects',
         label: 'Projects',
         metric: String(projects.result.total ?? 0),
-        sparklineData: [],
+        // No `sparklineData` — there is no trend series behind this count (no usage-backend
+        // query client yet), and `OverviewStatRow` renders no sparkline slot at all when it's
+        // omitted, rather than an empty/flat decorative line (#273).
       },
       {
         key: 'keys',
         icon: 'keys',
         label: 'API keys',
         metric: String(apiKeys.result.total ?? 0),
-        sparklineData: [],
+        // No `sparklineData` — see the `projects` card above.
       },
     ],
     [projects.result.total, apiKeys.result.total]

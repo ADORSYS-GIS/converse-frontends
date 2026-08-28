@@ -50,4 +50,47 @@ describe('SpendDashboard', () => {
 
     expect(container.querySelector('.overflow-x-auto')).toBeInTheDocument();
   });
+
+  // Regression for #272: an unwired data source must not render as a queried-and-empty chart.
+  // Before this fix, `status` defaulted to `'ready'` and an empty `series` fell through to
+  // `SpendSeriesChart`'s own "No usage in this range." wording — which asserts a completed query
+  // found nothing, a different (false) fact from "this was never queried."
+  describe('status="unwired"', () => {
+    it('keeps the axes rendered above an inline status line naming the real reason', () => {
+      const { container } = render(
+        <SpendDashboard series={[]} fallbackWidth={872} height={176} status="unwired" />
+      );
+
+      expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByText('Not wired — see banner above.')).toBeInTheDocument();
+      expect(screen.queryByText('No usage in this range.')).not.toBeInTheDocument();
+    });
+
+    it('never routes through ErrorLine — nothing failed, there is nothing to retry', () => {
+      render(<SpendDashboard series={[]} fallbackWidth={872} height={176} status="unwired" />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    });
+
+    it('never shows the loading "Querying usage…" line — no request is actually in flight', () => {
+      render(<SpendDashboard series={[]} fallbackWidth={872} height={176} status="unwired" />);
+
+      expect(screen.queryByText('Querying usage…')).not.toBeInTheDocument();
+    });
+
+    it('accepts a caller-supplied message override', () => {
+      render(
+        <SpendDashboard
+          series={[]}
+          fallbackWidth={872}
+          height={176}
+          status="unwired"
+          unwiredMessage="Custom unwired copy."
+        />
+      );
+
+      expect(screen.getByText('Custom unwired copy.')).toBeInTheDocument();
+    });
+  });
 });

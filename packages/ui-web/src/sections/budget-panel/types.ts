@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-export interface BudgetSummary {
+export interface BudgetSummaryReady {
+  status?: 'ready';
   value: number;
   ceiling: number;
   /** Fraction (0-1) at/past which the meter turns `--signal`. Defaults to `BudgetHero`'s own 0.9. */
@@ -8,6 +9,18 @@ export interface BudgetSummary {
   /** Inter prose caption, e.g. "account ceiling · 28% used · resets 01 Mar". */
   caption: string;
 }
+
+export interface BudgetSummaryUnwired {
+  status: 'unwired';
+  /** Inter prose caption explaining WHY, e.g. "Budget figures arrive with the budget query wiring." */
+  caption: string;
+}
+
+/**
+ * `value`/`ceiling` are absent (not optional-and-zero) on the `'unwired'` branch — see
+ * `BudgetHeroProps`'s docstring for why this is a type-level guarantee, not just a convention.
+ */
+export type BudgetSummary = BudgetSummaryReady | BudgetSummaryUnwired;
 
 export interface BudgetNeedsAttentionProject {
   name: string;

@@ -21,6 +21,7 @@ import {
   overviewEmptyBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
+  overviewUnwiredBudget,
 } from '../sections/budget-panel/fixtures';
 import { LatencyDashboard } from '../sections/latency-dashboard';
 import {
@@ -40,7 +41,11 @@ import {
 } from '../sections/overview-filters-rail/fixtures';
 import { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from '../sections/overview-series-rail';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import { overviewEmptyStatCards, overviewStatCards } from '../sections/overview-stat-row/fixtures';
+import {
+  overviewEmptyStatCards,
+  overviewStatCards,
+  overviewUnwiredStatCards,
+} from '../sections/overview-stat-row/fixtures';
 import { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from '../sections/overview-view-rail';
 import {
   BUCKET_OPTIONS,
@@ -49,6 +54,7 @@ import {
 } from '../sections/overview-view-rail/fixtures';
 import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
 import { ScreenHeading } from '../sections/screen-heading';
+import { UNWIRED_CHART_MESSAGE } from '../sections/dashboard-label';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
@@ -95,6 +101,8 @@ interface OverviewScreenProps {
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
+  /** Overrides `OverviewSeriesRail`'s own generic "No series to show." default — see `Unwired` below. */
+  seriesEmptyMessage?: string;
 }
 
 // The composition `apps/console`'s `(console)` layout + `/` route perform for real — the shell
@@ -115,6 +123,7 @@ function OverviewScreen({
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
+  seriesEmptyMessage,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
@@ -181,6 +190,7 @@ function OverviewScreen({
           <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
             <OverviewSeriesRail
               items={legendItems}
+              emptyMessage={seriesEmptyMessage}
               selectedKey={selectedSeriesKey}
               onSelectKey={setSelectedSeriesKey}
             />
@@ -300,6 +310,8 @@ export const PopulatedLight: Story = {
 };
 
 // README §6: axes/structure stay rendered, an InlineStatus banner carries the "nothing yet" copy.
+// A REAL, wired account that genuinely consumed nothing this period — distinct from `Unwired`
+// below, where no query has ever run at all.
 export const Empty: Story = {
   render: () => (
     <OverviewScreen
@@ -313,6 +325,40 @@ export const Empty: Story = {
       refillRequestStatus={undefined}
     />
   ),
+};
+
+// #263/#272/#273 — Overview's REAL state today: PROJECTS/API KEYS counts are live (via refine),
+// everything usage- and budget-shaped has never been queried (no usage-backend query client yet —
+// `use-overview-screen.ts`'s `USAGE_PENDING_MESSAGE`). Every zone renders its `'unwired'` status
+// rather than defaulting to `'ready'` with fabricated empty/zero data — this is the acceptance
+// surface for #272 and #273 together.
+export const Unwired: Story = {
+  render: () => (
+    <OverviewScreen
+      // Verbatim copy of `apps/console`'s real `USAGE_PENDING_MESSAGE`
+      // (`containers/use-overview-screen.ts`) — including its "ADR 0009 follow-ups 4 and 6"
+      // citation, which #326 tracks separately (follow-up 4 already shipped; only follow-up 6 is
+      // still outstanding). Not fixed here: out of scope for #272/#273, and #326 already owns it.
+      emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project and key counts below are live."
+      statCards={overviewUnwiredStatCards}
+      spendSeries={[]}
+      spendStatus="unwired"
+      spendShareSlices={[]}
+      spendShareStatus="unwired"
+      latencySeries={[]}
+      latencyStatus="unwired"
+      budget={overviewUnwiredBudget}
+      needsAttention={undefined}
+      refillRequestStatus={undefined}
+      seriesEmptyMessage={UNWIRED_CHART_MESSAGE}
+    />
+  ),
+};
+
+export const UnwiredLight: Story = {
+  name: 'Unwired — wireframe (light)',
+  render: Unwired.render,
+  globals: { theme: 'wireframe' },
 };
 
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.

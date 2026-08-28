@@ -50,3 +50,18 @@ export const NoActionOrCaption: Story = {
     ceiling: 100,
   },
 };
+
+// #273 — no usage-backend query client exists yet: an honest "Not wired" headline at the
+// numeral's own visual weight, no meter, no fabricated $0.00.
+export const Unwired: Story = {
+  args: {
+    status: 'unwired',
+    caption: 'Budget figures arrive with the budget query wiring.',
+  },
+};
+
+export const UnwiredLight: Story = {
+  name: 'Unwired — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: Unwired.args,
+};

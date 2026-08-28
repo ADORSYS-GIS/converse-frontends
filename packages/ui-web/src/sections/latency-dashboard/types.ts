@@ -12,6 +12,8 @@ export interface LatencyDashboardProps {
   height: number;
   status?: DashboardStatus;
   errorMessage?: string;
+  /** Overrides `UNWIRED_CHART_MESSAGE` for `status="unwired"` — see `DashboardStatus`'s docstring. */
+  unwiredMessage?: string;
   onRetry?: () => void;
   onSelectSeries?: (key: string | null) => void;
   formatXTick?: (value: number) => string;

@@ -3,7 +3,7 @@ import React from 'react';
 import { SPEC_GRID } from '../../chart-tokens';
 import { DonutChart } from '../../components/donut-chart';
 import { ErrorLine } from '../../components/error-line';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL, UNWIRED_CHART_MESSAGE } from '../dashboard-label';
 import type { SpendShareSectionProps } from './types';
 
 const RING_THICKNESS_RATIO = 0.38;
@@ -43,6 +43,7 @@ export function SpendShareSection({
   size = 200,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   selectedKey,
   onSelectSlice,
@@ -68,6 +69,10 @@ export function SpendShareSection({
             slices={slices}
             width={size}
             height={size}
+            // Only overridden for `unwired` — see `SpendDashboard`'s equivalent comment.
+            emptyMessage={
+              status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+            }
             selectedKey={selectedKey}
             onSelectSlice={onSelectSlice}
             centreMetric={centreMetric}

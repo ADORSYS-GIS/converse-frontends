@@ -43,7 +43,8 @@ export function ManageProjectsLedger({
   search,
   onSearchChange,
   onNewProject,
-  notice,
+  newProjectDisabled = false,
+  newProjectReason,
   selectedRowKeys,
   onSelectRow,
   pagination,
@@ -105,27 +106,22 @@ export function ManageProjectsLedger({
           />
           {toolbarActions}
         </div>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={onNewProject}
-          className="w-full md:w-auto md:self-end">
-          + New project
-        </Button>
+        <div className="flex flex-col items-end gap-1.5">
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onNewProject}
+            disabled={newProjectDisabled}
+            className="w-full md:w-auto md:self-end">
+            + New project
+          </Button>
+          {newProjectDisabled && newProjectReason ? (
+            <span className="text-subtle font-mono text-[11px] leading-[1.4]">
+              {newProjectReason}
+            </span>
+          ) : null}
+        </div>
       </div>
-
-      {notice ? (
-        <InlineStatus
-          action={
-            notice.onDismiss ? (
-              <Button type="button" variant="ghost" size="sm" onClick={notice.onDismiss}>
-                Dismiss
-              </Button>
-            ) : undefined
-          }>
-          {notice.message}
-        </InlineStatus>
-      ) : null}
 
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />

@@ -108,7 +108,6 @@ export type {
   ReportExportParams,
   ReportExportFormat,
   ReportIncludeToggle,
-  LastExportEntry,
 } from './components/report-export-panel';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
@@ -131,6 +130,12 @@ export type {
   CreateApiKeyDialogProps,
   CreateApiKeyPlanOption,
 } from './components/create-api-key-dialog';
+
+export { CreateProjectDialog } from './components/create-project-dialog';
+export type {
+  CreateProjectDialogProps,
+  CreateProjectPlanOption,
+} from './components/create-project-dialog';
 
 // ── states
 export { InlineStatus } from './components/inline-status';

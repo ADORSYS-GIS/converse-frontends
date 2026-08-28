@@ -50,6 +50,7 @@ describe('the URL param contract', () => {
       apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
         'budget-state',
+        'create',
         'format',
         'include',
         'page',

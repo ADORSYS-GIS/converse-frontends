@@ -8,13 +8,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
+import { CreateProjectDialog } from '../components/create-project-dialog';
+import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
-import type {
-  LastExportEntry,
-  ReportExportFormat,
-  ReportIncludeToggle,
-} from '../components/report-export-panel';
+import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ScopeSelect } from '../components/scope-select';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
 import { SelectionSheet } from '../components/selection-sheet';
@@ -29,7 +27,6 @@ import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
 import { manageProjectsFixture, manageTotals } from '../sections/manage-projects-ledger/fixtures';
 import type { ProjectRow } from '../sections/manage-projects-ledger';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
-import { manageLastExports } from '../sections/manage-report-rail/fixtures';
 import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
@@ -78,11 +75,22 @@ function ManageScreen({
   const [groupBy, setGroupBy] = useState('project-model');
   const [format, setFormat] = useState<ReportExportFormat>('csv');
   const [generating, setGenerating] = useState(false);
-  const [lastExports, setLastExports] = useState<LastExportEntry[]>(manageLastExports);
   const [includeToggles, setIncludeToggles] = useState<ReportIncludeToggle[]>([
     { id: 'totals', label: 'Totals row', checked: true },
     { id: 'per-model', label: 'Per-model breakdown', checked: false },
   ]);
+
+  // Storybook demo state only — `apps/console`'s real dialog draft lives in
+  // `use-manage-screen.ts`'s own sanctioned local state (ticket #303).
+  const [createOpen, setCreateOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [billingIdentity, setBillingIdentity] = useState('');
+  const [planId, setPlanId] = useState<string | null>('pro');
+  const plans: CreateProjectPlanOption[] = [
+    { id: 'free', name: 'Free' },
+    { id: 'pro', name: 'Pro' },
+    { id: 'enterprise', name: 'Enterprise' },
+  ];
 
   const filtersRail = (
     <ManageFiltersRail
@@ -124,16 +132,9 @@ function ManageScreen({
       format={format}
       onFormatChange={setFormat}
       generating={generating}
-      lastExports={lastExports}
-      onGenerate={(params) => {
+      onGenerate={() => {
         setGenerating(true);
-        setTimeout(() => {
-          setGenerating(false);
-          setLastExports((prev) => [
-            { filename: `${params.period} · ${params.format.toUpperCase()}`, date: 'just now' },
-            ...prev,
-          ]);
-        }, 400);
+        setTimeout(() => setGenerating(false), 400);
       }}
     />
   );
@@ -161,6 +162,24 @@ function ManageScreen({
         <ScreenHeading title="Projects" />
         <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
+        <CreateProjectDialog
+          open={createOpen}
+          accountLabel="acct_01"
+          name={projectName}
+          onNameChange={setProjectName}
+          billingIdentity={billingIdentity}
+          onBillingIdentityChange={setBillingIdentity}
+          plans={plans}
+          plansLoading={false}
+          onRetryPlans={() => {}}
+          planId={planId}
+          onPlanChange={setPlanId}
+          submitting={false}
+          canSubmit={projectName.trim().length > 0 && billingIdentity.trim().length > 0}
+          onSubmit={() => setCreateOpen(false)}
+          onCancel={() => setCreateOpen(false)}
+        />
+
         <ManageProjectsLedger
           projects={projects}
           loading={loading}
@@ -169,7 +188,7 @@ function ManageScreen({
           totals={projects.length ? manageTotals : undefined}
           search={search}
           onSearchChange={setSearch}
-          onNewProject={() => {}}
+          onNewProject={() => setCreateOpen(true)}
           selectedRowKeys={selectedProject ? [selectedProject.id] : []}
           onSelectRow={setSelectedProject}
           pagination={{ shown: projects.length, total: 24, hasPrev: false, hasNext: true }}

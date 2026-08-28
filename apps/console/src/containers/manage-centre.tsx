@@ -1,5 +1,6 @@
 'use client';
 
+import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
 import {
@@ -38,6 +39,8 @@ export function ManageCentre() {
 
         <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
 
+        <CreateProjectDialog {...screen.createProjectDialog} />
+
         <ManageProjectsLedger
           projects={screen.rows}
           loading={screen.loading}
@@ -49,7 +52,8 @@ export function ManageCentre() {
           search={screen.search}
           onSearchChange={screen.setSearch}
           onNewProject={screen.newProject}
-          notice={screen.newProjectNotice}
+          newProjectDisabled={!screen.createProjectEligible}
+          newProjectReason={screen.createProjectReason}
           selectedRowKeys={screen.selectedProject ? [screen.selectedProject.id] : []}
           onSelectRow={screen.selectRow}
           pagination={screen.pagination}

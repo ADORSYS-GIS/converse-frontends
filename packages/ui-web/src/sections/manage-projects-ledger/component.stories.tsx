@@ -5,7 +5,6 @@ import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
 import { ManageProjectsLedger } from './component';
 import { manageProjectsFixture, manageTotals } from './fixtures';
 import type { ProjectRow } from './types';
-import type { PlaceholderNotice } from '../../components/inline-status';
 
 const meta: Meta<typeof ManageProjectsLedger> = {
   title: 'Sections/ManageProjectsLedger',
@@ -20,14 +19,12 @@ function Demo({
   projects = manageProjectsFixture,
   loading = false,
   error,
-  notice,
   toolbarActions,
   reportTrigger,
 }: {
   projects?: ProjectRow[];
   loading?: boolean;
   error?: string;
-  notice?: PlaceholderNotice;
   toolbarActions?: React.ReactNode;
   reportTrigger?: React.ReactNode;
 }) {
@@ -41,7 +38,6 @@ function Demo({
         loading={loading}
         error={error}
         onRetry={() => {}}
-        notice={notice}
         totals={projects.length ? manageTotals : undefined}
         search={search}
         onSearchChange={setSearch}
@@ -66,11 +62,28 @@ export const ErrorState: Story = {
   render: () => <Demo projects={[]} error="Failed to load projects." />,
 };
 
-// console-ui#325 — pressing "+ New project" while project creation isn't wired yet: a non-alert
-// status line with Dismiss, never an ErrorLine with Retry.
-export const NewProjectNotice: Story = {
+// Ticket #303 — the account-owner-only gate stated before a submission attempt.
+export const NewProjectGated: Story = {
   render: () => (
-    <Demo notice={{ message: "Project creation isn't available yet.", onDismiss: () => {} }} />
+    <div className="p-6">
+      <ManageProjectsLedger
+        projects={manageProjectsFixture}
+        onRetry={() => {}}
+        totals={manageTotals}
+        search=""
+        onSearchChange={() => {}}
+        onNewProject={() => {}}
+        newProjectDisabled
+        newProjectReason="Only the account owner can create a project."
+        onSelectRow={() => {}}
+        pagination={{
+          shown: manageProjectsFixture.length,
+          total: 24,
+          hasPrev: false,
+          hasNext: true,
+        }}
+      />
+    </div>
   ),
 };
 

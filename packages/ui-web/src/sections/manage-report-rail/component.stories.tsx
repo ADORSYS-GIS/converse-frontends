@@ -7,7 +7,6 @@ import { ScopeSelect } from '../../components/scope-select';
 import type { SegmentedOption } from '../../components/segmented-control';
 import { scopeAccounts, scopeProjects, scopeSelectValue } from '../scope-rail/fixtures';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './component';
-import { manageLastExports } from './fixtures';
 
 const meta: Meta<typeof ManageReportRail> = {
   title: 'Sections/ManageReportRail',
@@ -23,7 +22,7 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = [
   { value: 'model', label: 'Model' },
 ];
 
-function Demo({ generating = false, lastExports = manageLastExports }) {
+function Demo({ generating = false }) {
   const [period, setPeriod] = useState('2026-02');
   const [groupBy, setGroupBy] = useState('project');
   const [format, setFormat] = useState<ReportExportFormat>('csv');
@@ -33,7 +32,7 @@ function Demo({ generating = false, lastExports = manageLastExports }) {
   });
 
   return (
-    <div className="w-[280px] bg-surface">
+    <div className="bg-surface w-[280px]">
       <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>
         <ManageReportRail
           period={period}
@@ -60,7 +59,6 @@ function Demo({ generating = false, lastExports = manageLastExports }) {
           onFormatChange={setFormat}
           onGenerate={() => {}}
           generating={generating}
-          lastExports={lastExports}
         />
       </RailPanel>
     </div>
@@ -70,6 +68,3 @@ function Demo({ generating = false, lastExports = manageLastExports }) {
 export const InRail: Story = { render: () => <Demo /> };
 
 export const Generating: Story = { render: () => <Demo generating /> };
-
-// Nothing exported yet — LAST EXPORTS carries an inline status line, not a placard.
-export const NoPriorExports: Story = { render: () => <Demo lastExports={[]} /> };

@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
 
-import type { PlaceholderNotice } from '../../components/inline-status';
-
 /**
  * `active | suspended` are the only values the backend's lifecycle state machine ever writes
  * (`authz.cstack` — `disableProject`/`enableProject`). `unknown` is not a third backend state: it
@@ -53,13 +51,16 @@ export interface ManageProjectsLedgerProps {
 
   search: string;
   onSearchChange: (value: string) => void;
+  /** Opens `CreateProjectDialog` (ticket #303) — the dialog owns its own submit-time error,
+   *  the same "one zone owns the dialog, the dialog owns its own error" shape
+   *  `CreateApiKeyDialog` established; this ledger no longer carries a `notice` for it. */
   onNewProject: () => void;
-  /**
-   * The outcome of pressing `+ New project` when project creation isn't wired yet — a
-   * non-alert notice (console-ui#325), never folded into `error` (which stays reserved for a
-   * genuine failed projects fetch, rendered through `ErrorLine`).
-   */
-  notice?: PlaceholderNotice;
+  /** Disables `+ New project` and states why — the presentation-only mirror of
+   *  `model.Project.create`'s owner-only gate (`use-manage-screen.ts`'s
+   *  `createProjectEligible`/`createProjectReason`), same companion-reason pattern
+   *  `ApiKeysRail`'s `+ New key` uses for its own lead/owner gate. */
+  newProjectDisabled?: boolean;
+  newProjectReason?: string;
 
   selectedRowKeys?: string[];
   onSelectRow: (row: ProjectRow) => void;

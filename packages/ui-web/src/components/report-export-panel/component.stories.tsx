@@ -17,7 +17,7 @@ const groupByOptions = [
   { value: 'project-model', label: 'Project × Model' },
 ];
 
-function Demo({ lastExports }: { lastExports: { filename: string; date: string }[] }) {
+function Demo() {
   const [period, setPeriod] = useState('2026-02');
   const [groupBy, setGroupBy] = useState('project-model');
   const [format, setFormat] = useState<ReportExportFormat>('csv');
@@ -53,31 +53,17 @@ function Demo({ lastExports }: { lastExports: { filename: string; date: string }
         format={format}
         onFormatChange={setFormat}
         onGenerate={() => {}}
-        lastExports={lastExports}
       />
     </div>
   );
 }
 
 export const Default: Story = {
-  render: () => (
-    <Demo
-      lastExports={[
-        { filename: '2026-01 · CSV', date: '4 d ago' },
-        { filename: '2025-12 · PDF', date: '2026-01-03' },
-      ]}
-    />
-  ),
+  render: () => <Demo />,
 };
 
-// console-ui#326 — "Export history is unwired.", never "No exports yet." (that phrasing implied
-// an export had been attempted and simply came up empty; `lastExports` is never fetched).
-export const HistoryUnwired: Story = {
-  render: () => <Demo lastExports={[]} />,
-};
-
-// console-ui#325 — pressing Generate report while report export isn't wired yet: a non-alert
-// status line with Dismiss, never an ErrorLine with Retry.
+// console-ui#325 — pressing Generate report on a genuine failure (e.g. the usage backend is
+// unreachable): a non-alert status line with Dismiss, never an ErrorLine with Retry.
 export const Notice: Story = {
   render: () => (
     <div className="bg-surface w-[280px] p-4">
@@ -93,8 +79,7 @@ export const Notice: Story = {
         format="csv"
         onFormatChange={() => {}}
         onGenerate={() => {}}
-        notice={{ message: "Report export isn't available yet.", onDismiss: () => {} }}
-        lastExports={[]}
+        notice={{ message: 'Could not generate the report. Try again.', onDismiss: () => {} }}
       />
     </div>
   ),
@@ -116,7 +101,6 @@ export const Generating: Story = {
         onFormatChange={() => {}}
         onGenerate={() => {}}
         generating
-        lastExports={[]}
       />
     </div>
   ),

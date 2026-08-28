@@ -202,6 +202,11 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
  * `include` is a set, so it is a comma-separated array param (`?include=totals,per-model`) rather
  * than one boolean param per toggle — the URL stays legible and a new toggle costs no new param.
  * `parseAsArrayOf` compares by value, so the default set still clears itself out of the URL.
+ *
+ * `createOpen` (ticket #303) is the same idea `apiKeysParsers.createOpen` (#319) established:
+ * the create-project dialog has exactly one possible target (the scoped account), so a bare
+ * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
+ * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -215,6 +220,7 @@ export const manageParsers = {
   include: parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
     'totals',
   ] as ReportIncludeId[]),
+  createOpen: parseAsBoolean.withDefault(false),
 };
 
 const manageUrlKeys = {
@@ -222,6 +228,7 @@ const manageUrlKeys = {
   budgetState: 'budget-state',
   selectedProjectId: 'row',
   reportGroupBy: 'report-group',
+  createOpen: 'create',
 };
 
 export function useManageParams() {

@@ -20,8 +20,14 @@ session:
   # with: openssl rand -base64 48
   secret: '{env:SESSION_SECRET}'
 
-# ── Keycloak / OIDC ───────────────────────────────────────────────────────────────────────────
-keycloak:
+# ── IdP (OIDC) ────────────────────────────────────────────────────────────────────────────────
+# The OIDC provider this console authenticates against. Deliberately NOT named `keycloak`: in a
+# real deployment this is `authz-idp`, lightbridge's own IdP, which brokers the actual login to
+# Keycloak behind the scenes (ADR-0025). The console is a plain OIDC client and does not care which
+# provider answers -- naming the block after one particular product made a deployment detail look
+# like a hard dependency. Sits alongside `backendUrl` / `budgetUrl` / `usageUrl`: one key per
+# lightbridge component this app talks to.
+idp:
   # Issuer URL — discovery resolves every endpoint from it, nothing is hardcoded. Not a secret, so
   # it's a literal dev default here (local compose `keycloak-26` + .docker/keycloak-config/); a
   # real deployment ships its own config.yaml with its own issuer rather than overriding this one
@@ -30,9 +36,9 @@ keycloak:
   clientId: 'self-service'
 
   # Only for a confidential client. The dev realm's `self-service` client is public + PKCE, so this
-  # resolves to undefined there; setting KEYCLOAK_CLIENT_SECRET switches the client to
+  # resolves to undefined there; setting IDP_CLIENT_SECRET switches the client to
   # `client_secret_post` authentication. Always a placeholder (secret when present).
-  clientSecret: '{env:KEYCLOAK_CLIENT_SECRET}'
+  clientSecret: '{env:IDP_CLIENT_SECRET}'
 
   # `offline_access` is what makes the long-lived silent refresh possible.
   scopes: 'openid profile email offline_access'

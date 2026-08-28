@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     {
       resource: origin,
-      authorization_servers: [env.keycloak.issuer],
+      authorization_servers: [env.idp.issuer],
       bearer_methods_supported: ['header'],
-      scopes_supported: env.keycloak.scopes.split(' ').filter(Boolean),
+      scopes_supported: env.idp.scopes.split(' ').filter(Boolean),
       resource_documentation: `${origin}/`,
     },
     {

@@ -23,7 +23,7 @@ import { type ParsedConfigFile, getConfigPath, parseConfigFile } from './config-
  */
 
 export type ConsoleEnv = {
-  keycloak: {
+  idp: {
     issuer: string;
     clientId: string;
     /** Unset for a public client (the dev realm's `self-service` client is public + PKCE). */
@@ -59,7 +59,7 @@ type RawKeycloakConfig = {
 
 type RawConsoleConfig = {
   session?: { secret?: unknown };
-  keycloak?: RawKeycloakConfig;
+  idp?: RawKeycloakConfig;
   backendUrl?: unknown;
   apiBasePath?: unknown;
   budgetUrl?: unknown;
@@ -155,18 +155,18 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     );
   }
 
-  const keycloak = raw.keycloak ?? {};
+  const idp = raw.idp ?? {};
   const usageUrl = asOptionalString(raw.usageUrl);
 
   return {
-    keycloak: {
-      issuer: trimTrailingSlash(requiredField(parsed, ['keycloak', 'issuer'])),
-      clientId: requiredField(parsed, ['keycloak', 'clientId']),
-      clientSecret: asOptionalString(keycloak.clientSecret),
-      scopes: asStringWithFallback(keycloak.scopes, 'openid profile email offline_access'),
-      expectedAudiences: parseAudienceList(keycloak.expectedAudiences),
-      audienceRequired: parseBoolean(keycloak.audienceRequired, true),
-      rolesClaim: asStringWithFallback(keycloak.rolesClaim, 'lightbridge_api_roles'),
+    idp: {
+      issuer: trimTrailingSlash(requiredField(parsed, ['idp', 'issuer'])),
+      clientId: requiredField(parsed, ['idp', 'clientId']),
+      clientSecret: asOptionalString(idp.clientSecret),
+      scopes: asStringWithFallback(idp.scopes, 'openid profile email offline_access'),
+      expectedAudiences: parseAudienceList(idp.expectedAudiences),
+      audienceRequired: parseBoolean(idp.audienceRequired, true),
+      rolesClaim: asStringWithFallback(idp.rolesClaim, 'lightbridge_api_roles'),
     },
     backendUrl,
     apiBasePath: normalizeBasePath(asStringWithFallback(raw.apiBasePath, '/api')),

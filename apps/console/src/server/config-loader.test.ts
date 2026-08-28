@@ -84,8 +84,8 @@ describe('resolveConfigEnv', () => {
   });
 
   it('resolves a required-looking nested placeholder to undefined when unset, not a throw', () => {
-    const input = { keycloak: { clientSecret: '{env:LOADER_TEST_UNSET}' } };
-    expect(resolveConfigEnv(input)).toEqual({ keycloak: { clientSecret: undefined } });
+    const input = { idp: { clientSecret: '{env:LOADER_TEST_UNSET}' } };
+    expect(resolveConfigEnv(input)).toEqual({ idp: { clientSecret: undefined } });
   });
 
   it('passes non-string scalars through untouched', () => {
@@ -97,16 +97,16 @@ describe('resolveConfigEnv', () => {
 
 describe('getConfigPath', () => {
   it('reads a nested value by dotted path', () => {
-    expect(getConfigPath({ keycloak: { issuer: 'x' } }, ['keycloak', 'issuer'])).toBe('x');
+    expect(getConfigPath({ idp: { issuer: 'x' } }, ['idp', 'issuer'])).toBe('x');
   });
 
   it('returns undefined for a path that does not exist', () => {
-    expect(getConfigPath({ keycloak: {} }, ['keycloak', 'issuer'])).toBeUndefined();
-    expect(getConfigPath({}, ['keycloak', 'issuer'])).toBeUndefined();
+    expect(getConfigPath({ idp: {} }, ['idp', 'issuer'])).toBeUndefined();
+    expect(getConfigPath({}, ['idp', 'issuer'])).toBeUndefined();
   });
 
   it('returns undefined rather than throwing when a middle segment is a scalar', () => {
-    expect(getConfigPath({ keycloak: 'not-an-object' }, ['keycloak', 'issuer'])).toBeUndefined();
+    expect(getConfigPath({ idp: 'not-an-object' }, ['idp', 'issuer'])).toBeUndefined();
   });
 });
 

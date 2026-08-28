@@ -50,7 +50,7 @@ describe('GET /auth/callback — redirect_uri origin behind a TLS-terminating pr
       [
         'session:',
         `  secret: "${SESSION_SECRET}"`,
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',

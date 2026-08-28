@@ -14,7 +14,7 @@ const SESSION_SECRET = 'a'.repeat(48);
 const BASE_CONFIG_LINES = [
   'session:',
   `  secret: "${SESSION_SECRET}"`,
-  'keycloak:',
+  'idp:',
   '  issuer: "http://localhost:13444/realms/dev"',
   '  clientId: "self-service"',
   'backendUrl: "http://localhost:13000"',

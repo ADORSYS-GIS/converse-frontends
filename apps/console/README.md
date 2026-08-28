@@ -190,7 +190,12 @@ One thing changed to make this work (dev-only — see `src/client/rpc-clients.ts
   `apps/self-service`), so keeping calls unbatched reuses them instead of adding a second stubbing
   strategy for the same ops.
 
-What's stubbed: `accounts`/`projects`/`apiKeys` list/get + the mutation procedures
+What's stubbed: `accounts`/`projects`/`apiKeys`/`projectMembers` list/get + the mutation
+procedures, plus `listBillingPlans` (`free`/`pro`/`enterprise`, the create-key form's plan
+selector, ticket #317 — `enterprise` deliberately ships no `limits` field, to exercise the
+"absent means no limit" rendering against wiremock too) and the `projectMembers` roster (ticket
+#320's lead-gate check — `acc_01` is a `lead` on `proj_03`, which `acc_01` does not own, so
+scoping to `?account=acc_01&project=proj_03` exercises the "member, not owner" eligible path)
 (`wiremock/mappings/mapping.json`), and the `/admin` refill queue's three budget procedures —
 `listPendingAugmentationRequests`, `approveAugmentationRequest`, `rejectAugmentationRequest`
 (`wiremock/mappings/console-budget.json`, mounted under the fixed `/budget` prefix). Not stubbed:
@@ -397,8 +402,6 @@ Each is visible in the UI as an inline status line, never a fake number:
 - **Report export** on `/manage` states that `/api/reports/consumption` (ADR 0009 Decision 8) is not
   wired.
 - **Project creation** has no form yet.
-- The `/api-keys` "New key" action creates a key with a generated name and a 90-day expiry; the
-  parameter form is a follow-up.
 - `src/middleware.ts` uses the file convention Next 16 deprecated in favour of `proxy`. Renaming it
   is a follow-up rather than a silent side effect of this PR.
 - **WireMock dev mode cannot exercise a real data fetch end to end**, since `wiremock/mappings/`

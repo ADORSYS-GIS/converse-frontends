@@ -2,10 +2,14 @@ import type { ApiKey } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_KEY_EXPIRY_DAYS,
   EXPIRING_SOON_DAYS,
+  EXPIRY_DAY_OPTIONS,
+  MAX_KEY_EXPIRY_DAYS,
   apiKeyStatus,
   apiKeysHygiene,
   apiKeysStatusSummary,
+  computeExpiresAtIso,
   daysUntil,
   formatDay,
   toApiKeyRow,
@@ -153,5 +157,38 @@ describe('apiKeysStatusSummary', () => {
     expect(apiKeysStatusSummary([apiKey({ expiresAt: '2026-03-05T00:00:00.000Z' })], NOW)).toBe(
       `0 active · 0 revoked · 1 expiring within ${EXPIRING_SOON_DAYS} days`
     );
+  });
+});
+
+describe('MAX_KEY_EXPIRY_DAYS / EXPIRY_DAY_OPTIONS (ticket #319)', () => {
+  it('stays under the documented 90-day server ceiling, with margin for clock skew', () => {
+    // The exact bug this ticket fixes: the old code requested precisely the documented default
+    // (90 days) with zero margin. Every offered preset — including the largest — must be
+    // strictly less than that default.
+    expect(MAX_KEY_EXPIRY_DAYS).toBeLessThan(90);
+    for (const option of EXPIRY_DAY_OPTIONS) {
+      expect(Number(option.value)).toBeLessThan(90);
+      expect(Number(option.value)).toBeLessThanOrEqual(MAX_KEY_EXPIRY_DAYS);
+    }
+  });
+
+  it('offers the default as one of the presets', () => {
+    expect(EXPIRY_DAY_OPTIONS.map((option) => option.value)).toContain(
+      String(DEFAULT_KEY_EXPIRY_DAYS)
+    );
+  });
+});
+
+describe('computeExpiresAtIso', () => {
+  it('adds whole days to the given timestamp', () => {
+    expect(computeExpiresAtIso(30, NOW)).toBe('2026-03-31T00:00:00.000Z');
+  });
+
+  it('never reaches the documented 90-day ceiling for any offered preset', () => {
+    for (const option of EXPIRY_DAY_OPTIONS) {
+      const expiresAt = computeExpiresAtIso(Number(option.value), NOW);
+      const ninetyDaysOut = computeExpiresAtIso(90, NOW);
+      expect(Date.parse(expiresAt)).toBeLessThan(Date.parse(ninetyDaysOut));
+    }
   });
 });

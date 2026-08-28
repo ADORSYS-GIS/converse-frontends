@@ -52,6 +52,8 @@ export { Meter } from './components/meter';
 export type { MeterProps } from './components/meter';
 export { BudgetHero } from './components/budget-hero';
 export type { BudgetHeroProps } from './components/budget-hero';
+export { formatBillingPlanLimits } from './lib/billing-plan-limits';
+export type { BillingPlanLimits } from './lib/billing-plan-limits';
 
 // ── charts
 export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
@@ -118,6 +120,11 @@ export { CommandPalette, CommandPaletteTrigger } from './components/command-pale
   CommandPaletteProps,
   CommandPaletteTriggerProps,
 } from './components/command-palette';
+
+export { CreateApiKeyDialog } from './components/create-api-key-dialog';
+  CreateApiKeyDialogProps,
+  CreateApiKeyPlanOption,
+} from './components/create-api-key-dialog';
 
 // ── states
 export { InlineStatus } from './components/inline-status';

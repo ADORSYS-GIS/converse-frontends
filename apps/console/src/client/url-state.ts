@@ -3,6 +3,7 @@
 import {
   debounce,
   parseAsArrayOf,
+  parseAsBoolean,
   parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
@@ -143,6 +144,11 @@ export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
  * the (admin-gated, ticket #321) delete confirmation. A dialog *target* is view state — Back
  * closes the dialog, and a colleague can be sent straight to the confirmation. Neither dialog's
  * failure reason is here: it belongs to the mutation that failed.
+ *
+ * `create` (ticket #319) is the same idea with no id to carry — the create-key dialog has exactly
+ * one possible target (the active project), so a bare boolean is the whole contract. Its draft
+ * inputs (name/expiry/plan) are NOT here: `use-api-keys-screen.ts`'s own "SANCTIONED LOCAL STATE"
+ * comment explains why a typed-but-unsent form draft must not reach the URL or history.
  */
 export const apiKeysParsers = {
   page: parseAsInteger.withDefault(1),
@@ -151,6 +157,7 @@ export const apiKeysParsers = {
   selectedKeyId: parseAsString.withDefault(''),
   revokeKeyId: parseAsString.withDefault(''),
   deleteKeyId: parseAsString.withDefault(''),
+  createOpen: parseAsBoolean.withDefault(false),
 };
 
 const apiKeysUrlKeys = {
@@ -158,6 +165,7 @@ const apiKeysUrlKeys = {
   selectedKeyId: 'key',
   revokeKeyId: 'revoke',
   deleteKeyId: 'delete',
+  createOpen: 'create',
 };
 
 export function useApiKeysParams() {

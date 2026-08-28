@@ -47,7 +47,7 @@ describe('the URL param contract', () => {
     expect(names).toEqual({
       scope: ['account', 'project'],
       overview: ['bucket', 'group-by', 'model', 'range', 'series'],
-      apiKeys: ['delete', 'key', 'page', 'q', 'revoke', 'status'],
+      apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
         'budget-state',
         'format',
@@ -121,6 +121,7 @@ describe('the URL param contract', () => {
     expect(isParserBijective(apiKeysParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(apiKeysParsers.status, 'revoked', 'revoked')).toBe(true);
     expect(isParserBijective(apiKeysParsers.search, 'alpha beta', 'alpha beta')).toBe(true);
+    expect(isParserBijective(apiKeysParsers.createOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.budgetState, 'no-quota', 'no-quota')).toBe(true);
     expect(isParserBijective(manageParsers.period, '2026-07', '2026-07')).toBe(true);
     expect(isParserBijective(manageParsers.format, 'pdf', 'pdf')).toBe(true);

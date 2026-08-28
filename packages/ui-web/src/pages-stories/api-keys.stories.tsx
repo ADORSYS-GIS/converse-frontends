@@ -9,6 +9,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { Button } from '../components/button';
 import { ConsoleShell } from '../components/console-shell';
+import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
 import { ScopeSelect } from '../components/scope-select';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
@@ -50,6 +51,14 @@ interface ApiKeysScreenProps {
   loading?: boolean;
   error?: string;
   showAdmin?: boolean;
+  /**
+   * Ticket #320 — mirrors `useApiKeysScreen`'s own `createKeyEligible`/`createKeyReason`: when
+   * false, both `+ New key` controls (rail and title row) render disabled with `createKeyReason`
+   * stated beside them as an `InlineStatus` line, never `ErrorLine` (this is "not permitted", not
+   * a retryable failure).
+   */
+  createKeyEligible?: boolean;
+  createKeyReason?: string;
 }
 
 // The composition `apps/console`'s `(console)` layout + `/api-keys` route perform for real.
@@ -65,6 +74,8 @@ function ApiKeysScreen({
   loading = false,
   error,
   showAdmin = false,
+  createKeyEligible = true,
+  createKeyReason,
 }: ApiKeysScreenProps) {
   const [secret, setSecret] = useState(secretReveal);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
@@ -116,9 +127,13 @@ function ApiKeysScreen({
               type="button"
               variant="primary"
               className="w-full"
+              disabled={!createKeyEligible}
               onClick={() => setSecret(apiKeysNewSecret)}>
               + New key
             </Button>
+            {createKeyReason ? (
+              <InlineStatus className="mt-2">{createKeyReason}</InlineStatus>
+            ) : null}
           </RailPanel>
           <RailPanel label={SCOPE_RAIL_LABEL}>{scopeSelect}</RailPanel>
           <RailPanel label={API_KEYS_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
@@ -142,13 +157,18 @@ function ApiKeysScreen({
           actions={
             // New key stays a visible primary in the title row below `lg` — the rail's own copy
             // covers `lg`, so this one is hidden there rather than duplicating the CTA.
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => setSecret(apiKeysNewSecret)}
-              className="lg:hidden">
-              + New key
-            </Button>
+            <div className="lg:hidden">
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!createKeyEligible}
+                onClick={() => setSecret(apiKeysNewSecret)}>
+                + New key
+              </Button>
+              {createKeyReason ? (
+                <InlineStatus className="mt-2">{createKeyReason}</InlineStatus>
+              ) : null}
+            </div>
           }
         />
 
@@ -248,6 +268,30 @@ export const ErrorState: Story = {
 export const AdminNav: Story = {
   name: 'Nav — admin (Admin group visible)',
   render: () => <ApiKeysScreen showAdmin />,
+};
+
+// Ticket #320 — a caller who is neither the project owner nor a lead: both `+ New key` controls
+// (rail and title row) render disabled, and the requirement is stated beside them up front rather
+// than surfacing as a raw RPC failure after a doomed attempt.
+export const NonLeadNonOwner: Story = {
+  name: 'Non-lead, non-owner — New key disabled with reason stated',
+  render: () => (
+    <ApiKeysScreen
+      createKeyEligible={false}
+      createKeyReason="Only the project owner or a lead can create keys here."
+    />
+  ),
+};
+
+export const NonLeadNonOwnerLight: Story = {
+  name: 'Non-lead, non-owner — wireframe (light)',
+  render: () => (
+    <ApiKeysScreen
+      createKeyEligible={false}
+      createKeyReason="Only the project owner or a lead can create keys here."
+    />
+  ),
+  globals: { theme: 'wireframe' },
 };
 
 // `md` tier (600–1024) — no persistent right-rail footer/peek bar. New key is a visible primary

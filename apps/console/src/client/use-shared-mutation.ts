@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiErrorMessage } from '@lightbridge/hooks/api-error';
 import { useMutation, useMutationState, useQueryClient } from '@tanstack/react-query';
 import type { MutationKey } from '@tanstack/react-query';
 
@@ -88,11 +89,12 @@ export function useSharedMutationState<TData>(
 
   return {
     data: latest?.data as TData | undefined,
-    errorMessage: latest?.error ? messageOf(latest.error) : undefined,
+    // Ticket #319: `getApiErrorMessage` (`@lightbridge/hooks/api-error`) prefers the decoded RPC
+    // error body's own `message` over `CratestackRpcError`'s own `.message`, which wraps it in
+    // "RPC call failed with code X (status Y): ..." transport boilerplate — e.g. what used to
+    // reach this line verbatim for a bad `billingPlan` was the whole wrapped string; now it is
+    // just "unknown billing_plan 'standard': must be one of the configured plans [...]".
+    errorMessage: latest?.error ? getApiErrorMessage(latest.error) : undefined,
     isPending: latest?.status === 'pending',
   };
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

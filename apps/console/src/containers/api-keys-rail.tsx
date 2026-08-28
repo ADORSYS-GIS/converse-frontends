@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
 import { ScopeSelect } from '@lightbridge/ui-web/src/components/scope-select';
 import {
@@ -27,7 +28,10 @@ import { useApiKeysScreen } from './use-api-keys-screen';
  * between sections rather than around one box.
  *
  * `+ New key` is composed here from `RailPanel` + `Button` rather than given a section of its own:
- * a single CTA is not a zone-level composition.
+ * a single CTA is not a zone-level composition. Ticket #320: when the caller cannot create a key
+ * (no project scoped, the lead/owner check is still loading, or the caller is neither), the
+ * button is disabled and `createKeyReason` is stated beside it as an `InlineStatus` line — never
+ * `ErrorLine`, since "not permitted" is not a retryable failure (console-ui skill §states).
  */
 export function ApiKeysRail() {
   const screen = useApiKeysScreen();
@@ -35,9 +39,17 @@ export function ApiKeysRail() {
   return (
     <>
       <RailPanel>
-        <Button type="button" variant="primary" className="w-full" onClick={screen.createKey}>
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full"
+          disabled={!screen.createKeyEligible}
+          onClick={screen.createKey}>
           + New key
         </Button>
+        {screen.createKeyReason ? (
+          <InlineStatus className="mt-2">{screen.createKeyReason}</InlineStatus>
+        ) : null}
       </RailPanel>
       <RailPanel label={SCOPE_RAIL_LABEL}>
         <ScopeSelect {...screen.scopeSelect} />

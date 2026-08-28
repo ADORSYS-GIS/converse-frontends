@@ -37,6 +37,24 @@ RUN apk update && \
     apk add --no-cache libc6-compat && \
     rm -rf /var/cache/apk/*
 
+# The base `node:*-alpine` image bundles npm (and npx) as part of the Node distribution —
+# `/usr/local/lib/node_modules/npm/` plus its own vendored `node_modules/**`, symlinked from
+# `/usr/local/bin/npm` and `/usr/local/bin/npx`. A Next.js `output: 'standalone'` runtime never
+# shells out to npm: `.next/standalone/server.js` is started directly with `node`, and this image
+# ships no `package.json` script that would need `npm run` at runtime. So npm has no business
+# being in the runtime image, and dragging it along means shipping (and re-scanning, and re-
+# patching) npm's own dependency tree — registry-fetch (`pacote`), archive handling (`tar`),
+# signature verification (`sigstore`) — none of which this app ever calls.
+#
+# Removed rather than patched: Trivy flags CVEs in that bundled tree (tar, brace-expansion,
+# ip-address, pacote, picomatch, sigstore — see the Trivy step in
+# .github/workflows/docker-image.yml) that no version bump of this app's own dependencies can
+# fix, because they aren't this app's dependencies; they ship inside the base image. Deleting the
+# real directory (not just the `/usr/local/bin` symlinks) is what actually removes the flagged
+# files — the symlinks alone don't carry any scannable content.
+RUN rm -f /usr/local/bin/npm /usr/local/bin/npx && \
+    rm -rf /usr/local/lib/node_modules/npm
+
 WORKDIR /app
 
 # `.next/standalone/` preserves the workspace-relative layout (this is a pnpm monorepo): hoisted

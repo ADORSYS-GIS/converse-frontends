@@ -42,7 +42,11 @@ export function AdminCentre() {
           onSelectRequest={screen.selectRequest}
         />
 
-        <DecisionsLedger decisions={screen.decisions} pagination={screen.pagination} />
+        <DecisionsLedger
+          decisions={screen.decisions}
+          pagination={screen.pagination}
+          sourceCaveat={screen.decidedSourceCaveat}
+        />
       </div>
 
       {/* Review detail has no trigger of its own — it is selection-driven. */}

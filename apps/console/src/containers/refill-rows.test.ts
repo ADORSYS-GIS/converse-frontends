@@ -2,6 +2,7 @@ import type { AugmentationRequest } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
 import {
+  AUGMENTATION_STATUS,
   isPending,
   microsToAmount,
   relativeAge,
@@ -20,7 +21,7 @@ function request(overrides: Partial<AugmentationRequest> = {}): AugmentationRequ
     period: '2026-03',
     requestedTier: 'tier-2',
     requestedAmountMicros: '250000000',
-    status: 'pending',
+    status: AUGMENTATION_STATUS.PENDING_REVIEW,
     policyEffect: null,
     policyReasonCodes: [],
     matchedRuleIds: [],
@@ -34,6 +35,18 @@ function request(overrides: Partial<AugmentationRequest> = {}): AugmentationRequ
     ...overrides,
   } as AugmentationRequest;
 }
+
+describe('AUGMENTATION_STATUS', () => {
+  // Regression pin for converse-frontends#264: the backend's real pending-state value is
+  // `pending_review` (authz.cstack:951-955,968-988), never the `'pending'` literal this module
+  // used to compare against. A future rename must fail this test, not silently empty the queue.
+  it('pins the real backend status literals', () => {
+    expect(AUGMENTATION_STATUS.PENDING_REVIEW).toBe('pending_review');
+    expect(AUGMENTATION_STATUS.AUTO_APPROVED).toBe('auto_approved');
+    expect(AUGMENTATION_STATUS.APPROVED).toBe('approved');
+    expect(AUGMENTATION_STATUS.DENIED).toBe('denied');
+  });
+});
 
 describe('microsToAmount', () => {
   it('converts integer micros to the major unit', () => {
@@ -83,6 +96,13 @@ describe('toRefillRequestRow', () => {
   it('renders an account-level request with a dash for the project', () => {
     expect(toRefillRequestRow(request({ projectId: null }), NOW).project).toBe('—');
   });
+
+  // converse-frontends#265: no consumption query is performed here — never fabricate a $0.00.
+  it('leaves consumed and ceiling unset rather than fabricating $0.00', () => {
+    const row = toRefillRequestRow(request(), NOW);
+    expect(row.consumed).toBeNull();
+    expect(row.ceiling).toBeNull();
+  });
 });
 
 describe('toDecisionRow', () => {
@@ -98,16 +118,45 @@ describe('toDecisionRow', () => {
     });
   });
 
-  it('reports a rejection, falling back to the requested amount', () => {
-    const row = toDecisionRow(request({ status: 'rejected', reviewedBy: 'ada' }));
+  // The real backend value is `denied`, never `rejected` (authz.cstack:1146-1151) — this test
+  // used to pin the wrong literal, which would have passed even with the bug this story fixes.
+  it('reports a denial, falling back to the requested amount', () => {
+    const row = toDecisionRow(request({ status: 'denied', reviewedBy: 'ada' }));
     expect(row.decision).toBe('declined');
     expect(row.amount).toBe(250);
+  });
+
+  it('keeps auto-approved distinct from a human approval', () => {
+    const row = toDecisionRow(request({ status: 'auto_approved', reviewedBy: null }));
+    expect(row.decision).toBe('auto_approved');
+    expect(row.decidedBy).toBe('—');
+  });
+
+  // converse-frontends#264: a `pending_review` request must NEVER be mislabelled "declined" —
+  // this was the actual production bug (every real pending request landed here as "declined").
+  it('never labels a pending_review request as declined', () => {
+    const row = toDecisionRow(request({ status: 'pending_review' }));
+    expect(row.decision).not.toBe('declined');
+    expect(row.decision).toBe('unknown');
+    expect(row.rawStatus).toBe('pending_review');
+  });
+
+  it('falls back to "unknown" — never "declined" — for an unrecognised status', () => {
+    const row = toDecisionRow(request({ status: 'archived' }));
+    expect(row.decision).toBe('unknown');
+    expect(row.rawStatus).toBe('archived');
   });
 });
 
 describe('isPending', () => {
-  it('matches only the pending status', () => {
+  it('matches only pending_review, the real backend literal', () => {
     expect(isPending(request())).toBe(true);
     expect(isPending(request({ status: 'approved' }))).toBe(false);
+    expect(isPending(request({ status: 'auto_approved' }))).toBe(false);
+    expect(isPending(request({ status: 'denied' }))).toBe(false);
+  });
+
+  it('does not match the old, wrong literal', () => {
+    expect(isPending(request({ status: 'pending' }))).toBe(false);
   });
 });

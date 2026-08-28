@@ -48,15 +48,44 @@ describe('ReviewQueue', () => {
     render(<ReviewQueue {...makeProps({ pending: [], pendingCount: 0 })} />);
 
     expect(
-      screen.getByText('Nothing awaiting a decision. 26 decided this month.')
+      screen.getByText('Nothing awaiting a decision. 26 decided requests shown below.')
     ).toBeInTheDocument();
     expect(screen.queryByText(/Requests expire after 14 days/)).not.toBeInTheDocument();
+  });
+
+  it('renders an honest dash instead of a fabricated $0.00 when consumption is unavailable', () => {
+    render(
+      <ReviewQueue
+        {...makeProps({
+          pending: [
+            {
+              id: 'req-unmeasured',
+              submittedAgo: '1 h ago',
+              project: 'new-service',
+              account: 'adorsys-gis',
+              consumed: null,
+              ceiling: null,
+              requestedAmount: 100,
+              requesterEmail: 'ada@adorsys.com',
+            },
+          ],
+          pendingCount: 1,
+        })}
+      />
+    );
+
+    const dashes = screen.getAllByText('—');
+    // One dash in the CONSUMED cell, one in CEILING — never a fabricated $0.00.
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
   });
 
   it('renders an ErrorLine with Retry on error', () => {
     const onRetry = vi.fn();
     render(
-      <ReviewQueue {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })} />
+      <ReviewQueue
+        {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })}
+      />
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the refill queue.');

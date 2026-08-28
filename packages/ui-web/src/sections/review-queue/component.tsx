@@ -48,6 +48,11 @@ export function ReviewQueue({
       width: '110px',
       align: 'right',
       accessor: (row) => {
+        // `—` when either figure is unavailable — never a fabricated $0.00 dressed up as a real
+        // measurement (converse-frontends#265).
+        if (row.consumed === null || row.ceiling === null) {
+          return <span className="text-subtle">—</span>;
+        }
         const ratio = row.ceiling > 0 ? row.consumed / row.ceiling : 0;
         return (
           <span className={ratio >= 0.9 ? 'text-primary' : 'text-ink'}>
@@ -56,7 +61,13 @@ export function ReviewQueue({
         );
       },
     },
-    { key: 'ceiling', header: 'CEILING', width: '100px', align: 'right', accessor: (row) => formatMoney(row.ceiling) },
+    {
+      key: 'ceiling',
+      header: 'CEILING',
+      width: '100px',
+      align: 'right',
+      accessor: (row) => (row.ceiling === null ? '—' : formatMoney(row.ceiling)),
+    },
     {
       key: 'refill',
       header: 'REFILL',
@@ -64,7 +75,13 @@ export function ReviewQueue({
       align: 'right',
       accessor: (row) => <span className="text-ink">{signedMoney(row.requestedAmount)}</span>,
     },
-    { key: 'requester', header: 'REQUESTER', width: '160px', align: 'right', accessor: (row) => row.requesterEmail },
+    {
+      key: 'requester',
+      header: 'REQUESTER',
+      width: '160px',
+      align: 'right',
+      accessor: (row) => row.requesterEmail,
+    },
   ];
 
   const isPendingEmpty = !loading && !error && pending.length === 0;
@@ -86,11 +103,11 @@ export function ReviewQueue({
             Decided ({decidedCount})
           </button>
         </div>
-        <div className="relative h-px bg-raised">
+        <div className="bg-raised relative h-px">
           <span
             aria-hidden="true"
             className={cn(
-              'absolute bottom-0 h-[2px] w-[74px] bg-primary transition-transform duration-150 ease-out',
+              'bg-primary absolute bottom-0 h-[2px] w-[74px] transition-transform duration-150 ease-out',
               activeTab === 'decided' && 'translate-x-[98px]'
             )}
           />
@@ -102,7 +119,7 @@ export function ReviewQueue({
       ) : isPendingEmpty ? (
         <InlineStatus>
           {emptyPendingMessage ??
-            `Nothing awaiting a decision. ${decidedCount} decided this month.`}
+            `Nothing awaiting a decision. ${decidedCount} decided request${decidedCount === 1 ? '' : 's'} shown below.`}
         </InlineStatus>
       ) : null}
 
@@ -118,7 +135,7 @@ export function ReviewQueue({
           onSelectRow={onSelectRequest}
         />
         {pending.length > 0 ? (
-          <p className="font-sans text-[11px] text-subtle">
+          <p className="text-subtle font-sans text-[11px]">
             Requests expire after 14 days without a decision.
           </p>
         ) : null}

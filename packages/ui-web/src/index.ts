@@ -124,6 +124,21 @@ export type {
   CommandPaletteTriggerProps,
 } from './components/command-palette';
 
+export { Toggle } from './components/toggle';
+export type { ToggleProps } from './components/toggle';
+
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
+
+export { CommandSnippet } from './components/command-snippet';
+export type { CommandSnippetProps } from './components/command-snippet';
+
+// ── settings
+// New family (LCI design pass, `docs/design/lci-app/PRIMITIVES.md`) — a floor-native settings
+// group; no console screen has needed one yet.
+export { SettingsRow, SettingsSection } from './components/settings-section';
+export type { SettingsRowProps, SettingsSectionProps } from './components/settings-section';
+
 // ── states
 export { InlineStatus } from './components/inline-status';
 export type { InlineStatusProps } from './components/inline-status';
@@ -134,7 +149,6 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
-
 
 // ── sections
 // Screen sections — the zone-level compositions a route assembles (console-ui skill

@@ -1,0 +1,33 @@
+apiVersion: v2
+name: converse-console
+description: Lightbridge Console UI (Next.js, Node runtime) — apps/console's server-rendered app, not a static export (bjw-s app-template)
+type: application
+
+# A brand-new chart/package (ticket #287), not a version bump of charts/converse-frontend: that
+# chart keeps serving apps/self-service (nginx, still live in production until Epic 4) completely
+# unchanged, on its own existing floating-semver consumer in ai-helm-values
+# (`targetRevision: ">=0.0.0"` against oci://ghcr.io/adorsys-gis/charts/converse-frontend). Editing
+# that chart's shape in place — container port, probes, labels, config mechanism — would have been
+# picked up by that consumer on the very next ArgoCD reconcile and taken self-service down; there
+# is no version-bump discipline on this repo's side that fences off a range that broad. A separate
+# chart directory publishes as a separate GHCR package
+# (oci://ghcr.io/adorsys-gis/charts/converse-console — see publish-charts-oci.yml, which globs
+# `charts/*/Chart.yaml`), so this is the only mechanism that removes the collision risk entirely
+# rather than relying on a version range holding.
+version: 0.1.0
+
+# Tracks the container image tag by default
+appVersion: 0.1.0
+
+keywords:
+  - converse
+  - console
+  - frontend
+  - ui
+  - typescript
+
+dependencies:
+  - name: app-template
+    version: 4.6.2
+    repository: https://bjw-s-labs.github.io/helm-charts
+    alias: console

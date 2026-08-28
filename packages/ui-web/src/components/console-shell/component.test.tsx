@@ -12,7 +12,7 @@ describe('ConsoleShell', () => {
     render(
       <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.getByText('Header')).toBeInTheDocument();
@@ -23,17 +23,40 @@ describe('ConsoleShell', () => {
     render(
       <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.getAllByRole('button', { name: 'Overview' })).toHaveLength(2);
+  });
+
+  it('renders the banner slot directly under the header when provided', () => {
+    render(
+      <ConsoleShell
+        header={<div>Header</div>}
+        nav={{ items: navItems }}
+        banner={<div role="alert">Could not revoke the key.</div>}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not revoke the key.');
+  });
+
+  it('renders no banner region at all when the slot is omitted', () => {
+    render(
+      <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('does not render a left-secondary trigger or right rail when neither is provided', () => {
     render(
       <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.queryByRole('button', { name: /scope/i })).not.toBeInTheDocument();
@@ -45,10 +68,9 @@ describe('ConsoleShell', () => {
         header={<div>Header</div>}
         nav={{ items: navItems }}
         leftSecondary={<div>Scope panel</div>}
-        leftSecondaryLabel="Scope"
-      >
+        leftSecondaryLabel="Scope">
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.getAllByText('Scope panel')).toHaveLength(1);
@@ -86,10 +108,9 @@ describe('ConsoleShell', () => {
           header={<div>Header</div>}
           nav={{ items: navItems }}
           leftSecondary={<div>Scope panel</div>}
-          leftSecondaryLabel="Scope"
-        >
+          leftSecondaryLabel="Scope">
           <div>Centre</div>
-        </ConsoleShell>,
+        </ConsoleShell>
       );
     }
 
@@ -120,9 +141,12 @@ describe('ConsoleShell', () => {
 
   it('renders the right rail inline at lg, and nothing else — no shell-owned sheet, no peek row (owner revision 2026-08-25: pages own compact-tier right-rail access via SectionSheet)', () => {
     render(
-      <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }} rightRail={<div>Right rail</div>}>
+      <ConsoleShell
+        header={<div>Header</div>}
+        nav={{ items: navItems }}
+        rightRail={<div>Right rail</div>}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.getAllByText('Right rail')).toHaveLength(1);
@@ -131,9 +155,12 @@ describe('ConsoleShell', () => {
 
   it('renders the inline right rail as lg:flex, hidden below lg', () => {
     render(
-      <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }} rightRail={<div>Right rail</div>}>
+      <ConsoleShell
+        header={<div>Header</div>}
+        nav={{ items: navItems }}
+        rightRail={<div>Right rail</div>}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     const rightRail = screen.getByText('Right rail').closest('div.lg\\:w-\\[280px\\]');
@@ -147,10 +174,9 @@ describe('ConsoleShell', () => {
         nav={{ items: navItems }}
         leftSecondary={<div>Scope panel</div>}
         leftSecondaryLabel="Scope"
-        rightRail={<div>Right rail</div>}
-      >
+        rightRail={<div>Right rail</div>}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     const centre = screen.getByText('Centre').closest('main');
@@ -161,14 +187,19 @@ describe('ConsoleShell', () => {
 
     const rightRailEls = screen.getAllByText('Right rail');
     const inlineRightRail = rightRailEls[0].closest('div.lg\\:w-\\[280px\\]');
-    expect(inlineRightRail).toHaveClass('lg:flex-none', 'md:sticky', 'md:top-[56px]', 'md:overflow-y-auto');
+    expect(inlineRightRail).toHaveClass(
+      'lg:flex-none',
+      'md:sticky',
+      'md:top-[56px]',
+      'md:overflow-y-auto'
+    );
   });
 
   it('renders the floor background on the shell root', () => {
     render(
       <ConsoleShell header={<div>Header</div>} nav={{ items: navItems }}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     expect(screen.getByText('Centre').closest('div.bg-muted')).toBeInTheDocument();
@@ -181,10 +212,9 @@ describe('ConsoleShell', () => {
         nav={{ items: navItems }}
         leftSecondary={<div>Scope panel</div>}
         leftSecondaryLabel="Scope"
-        rightRail={<div>Right rail</div>}
-      >
+        rightRail={<div>Right rail</div>}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     const leftRail = screen.getByText('Scope panel').closest('div.md\\:w-\\[208px\\]');
@@ -213,10 +243,9 @@ describe('ConsoleShell', () => {
         nav={{ items: navItems }}
         leftSecondary={<div>Scope panel</div>}
         leftSecondaryLabel="Scope"
-        rightRail={<div>Right rail</div>}
-      >
+        rightRail={<div>Right rail</div>}>
         <div>Centre</div>
-      </ConsoleShell>,
+      </ConsoleShell>
     );
 
     const leftRail = screen.getByText('Scope panel').closest('div.md\\:w-\\[208px\\]');
@@ -224,6 +253,9 @@ describe('ConsoleShell', () => {
 
     const rightRailEls = screen.getAllByText('Right rail');
     const inlineRightRail = rightRailEls[0].closest('div.lg\\:w-\\[280px\\]');
-    expect(inlineRightRail).toHaveClass('md:min-h-[calc(100dvh-56px)]', 'md:max-h-[calc(100dvh-56px)]');
+    expect(inlineRightRail).toHaveClass(
+      'md:min-h-[calc(100dvh-56px)]',
+      'md:max-h-[calc(100dvh-56px)]'
+    );
   });
 });

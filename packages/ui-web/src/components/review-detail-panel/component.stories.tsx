@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { ReviewDetailPanel } from './component';
 import type { ReviewHistoryRow } from './types';
@@ -118,4 +119,34 @@ export const Deciding: Story = {
       />
     </div>
   ),
+};
+
+// converse-frontends#322: `RejectAugmentationRequestInput.reason` is non-optional server-side
+// (authz.cstack:1146-1151) — Decline with an empty note is blocked client-side, before any RPC
+// call, with an inline `Field` error naming why. `onDecide` must never fire.
+export const DeclineBlockedOnEmptyNote: Story = {
+  name: 'Decline blocked — empty note (converse-frontends#322)',
+  args: {
+    subject: 'agent-sandbox',
+    requesterEmail: 'joel@adorsys.com',
+    submittedAt: '2 hours ago',
+    requestedAmount: 500,
+    history: [],
+    note: '',
+    onNoteChange: fn(),
+    onDecide: fn(),
+  },
+  render: (args) => (
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
+      <ReviewDetailPanel {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Decline' }));
+    await waitFor(() =>
+      expect(canvas.getByText('A note is required to decline this request.')).toBeInTheDocument()
+    );
+    expect(args.onDecide).not.toHaveBeenCalled();
+  },
 };

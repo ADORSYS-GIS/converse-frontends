@@ -60,6 +60,7 @@ export function ConsoleShell({
   leftSecondary,
   leftSecondaryLabel,
   rightRail,
+  banner,
   children,
   className,
 }: ConsoleShellProps) {
@@ -78,20 +79,25 @@ export function ConsoleShell({
   }
 
   return (
-    <div className={cn('flex min-h-dvh flex-col bg-muted', className)}>
-      <div className="sticky top-0 z-40 flex flex-col bg-chrome">
+    <div className={cn('bg-muted flex min-h-dvh flex-col', className)}>
+      <div className="bg-chrome sticky top-0 z-40 flex flex-col">
         {header}
+        {banner}
         {leftSecondary ? (
-          <div className="flex items-center justify-between border-t border-raised px-4 py-2 md:hidden">
+          <div className="border-raised flex items-center justify-between border-t px-4 py-2 md:hidden">
             <button
               type="button"
               aria-haspopup="dialog"
               aria-expanded={leftDrawerOpen}
               onClick={() => setLeftDrawerOpen(true)}
-              className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.09em] text-subtle hover:text-ink"
-            >
+              className="text-subtle hover:text-ink flex items-center gap-1.5 font-mono text-[10px] tracking-[.09em] uppercase">
               {leftSecondaryLabel}
-              <svg aria-hidden="true" viewBox="0 0 8 8" className="h-2 w-2 stroke-current" fill="none" strokeWidth="1.4">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 8 8"
+                className="h-2 w-2 stroke-current"
+                fill="none"
+                strokeWidth="1.4">
                 <path d="M1 3l3 3 3-3" />
               </svg>
             </button>
@@ -102,10 +108,9 @@ export function ConsoleShell({
       <div className="flex flex-1 items-start">
         <div
           className={cn(
-            'hidden flex-none flex-col divide-y divide-raised bg-surface md:flex md:w-[208px]',
-            RAIL_STICKY,
-          )}
-        >
+            'divide-raised bg-surface hidden flex-none flex-col divide-y md:flex md:w-[208px]',
+            RAIL_STICKY
+          )}>
           <RailPanel>
             <NavSpine {...nav} />
           </RailPanel>
@@ -123,16 +128,15 @@ export function ConsoleShell({
         {rightRail ? (
           <div
             className={cn(
-              'hidden lg:flex lg:w-[280px] lg:flex-none lg:flex-col divide-y divide-raised bg-surface',
-              RAIL_STICKY,
-            )}
-          >
+              'divide-raised bg-surface hidden divide-y lg:flex lg:w-[280px] lg:flex-none lg:flex-col',
+              RAIL_STICKY
+            )}>
             {rightRail}
           </div>
         ) : null}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 h-14 bg-chrome md:hidden">
+      <div className="bg-chrome fixed inset-x-0 bottom-0 z-40 h-14 md:hidden">
         <NavSpine {...nav} layout="bottom-bar" />
       </div>
 
@@ -157,8 +161,7 @@ export function ConsoleShell({
           onOpenChange={setLeftDrawerOpen}
           title={leftSecondaryLabel}
           overlayClassName="md:hidden"
-          className="bottom-14 md:hidden"
-        >
+          className="bottom-14 md:hidden">
           {leftSecondary}
         </BottomSheet>
       ) : null}

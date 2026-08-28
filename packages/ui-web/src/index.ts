@@ -61,7 +61,6 @@ export type { ChartTooltipProps, ChartTooltipRow } from './components/chart-tool
 export { ChartLegend } from './components/chart-legend';
 export type { ChartLegendItem, ChartLegendProps } from './components/chart-legend';
 export { SpendSeriesChart } from './components/spend-series-chart';
-export type {
   SpendSeriesChartProps,
   SpendSeriesPoint,
   SpendSeriesSeries,
@@ -87,7 +86,6 @@ export { RailSelect } from './components/rail-select';
 export type { RailSelectOption, RailSelectProps } from './components/rail-select';
 
 export { ScopeSelect } from './components/scope-select';
-export type {
   ScopeSelectProps,
   ScopeSelectValue,
   ScopeOption,
@@ -101,7 +99,6 @@ export { TypedConfirmDialog } from './components/typed-confirm-dialog';
 export type { TypedConfirmDialogProps } from './components/typed-confirm-dialog';
 
 export { ReportExportPanel } from './components/report-export-panel';
-export type {
   ReportExportPanelProps,
   ReportExportParams,
   ReportExportFormat,
@@ -110,14 +107,12 @@ export type {
 } from './components/report-export-panel';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
-export type {
   ReviewDetailPanelProps,
   ReviewHistoryRow,
   ReviewDecision,
 } from './components/review-detail-panel';
 
 export { CommandPalette, CommandPaletteTrigger } from './components/command-palette';
-export type {
   CommandPaletteGroup,
   CommandPaletteItem,
   CommandPaletteProps,
@@ -134,6 +129,8 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
+export { MutationFailureBanner } from './components/mutation-failure-banner';
+export type { MutationFailureBannerProps } from './components/mutation-failure-banner';
 
 // ── sections
 // Screen sections — the zone-level compositions a route assembles (console-ui skill
@@ -147,7 +144,6 @@ export { ScreenHeading } from './sections/screen-heading';
 export type { ScreenHeadingProps } from './sections/screen-heading';
 
 export { OverviewStatRow } from './sections/overview-stat-row';
-export type {
   OverviewStatCardData,
   OverviewStatCardIcon,
   OverviewStatRowProps,
@@ -163,7 +159,6 @@ export { LatencyDashboard } from './sections/latency-dashboard';
 export type { LatencyDashboardProps } from './sections/latency-dashboard';
 
 export { BudgetPanel } from './sections/budget-panel';
-export type {
   BudgetNeedsAttentionProject,
   BudgetPanelProps,
   BudgetRefillRequestStatus,
@@ -171,7 +166,6 @@ export type {
 } from './sections/budget-panel';
 
 export { ApiKeysLedger } from './sections/api-keys-ledger';
-export type {
   ApiKeyRow,
   ApiKeyStatus,
   ApiKeysDeleteTarget,
@@ -182,7 +176,6 @@ export type {
 } from './sections/api-keys-ledger';
 
 export { ManageProjectsLedger } from './sections/manage-projects-ledger';
-export type {
   ManagePagination,
   ManageProjectsLedgerProps,
   ManageTotals,
@@ -194,7 +187,6 @@ export { ReviewQueue } from './sections/review-queue';
 export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './sections/review-queue';
 
 export { DecisionsLedger } from './sections/decisions-ledger';
-export type {
   AdminReviewPagination,
   DecisionOutcome,
   DecisionRow,

@@ -7,6 +7,7 @@ import { createCratestackRpcDataProvider } from '@cratestack/refine';
 import { cratestackRefineResources } from '@lightbridge/authz-rpc/refine';
 import { useEffect, useMemo, type ReactNode } from 'react';
 
+import { useConsoleNotificationProvider } from './console-notifications';
 import {
   QUERY_CACHE_BUSTER,
   QUERY_CACHE_MAX_AGE_MS,
@@ -74,9 +75,16 @@ export function ConsoleProviders({ children }: { children: ReactNode }) {
     [authzClient]
   );
 
+  // converse-frontends#323: must be given the SAME `queryClient` instance passed to
+  // `reactQuery.clientConfig` below, and constructed here (not passed as a hook reference to
+  // `<Refine notificationProvider>`) for the same reason — see `console-notifications.ts`'s
+  // module doc comment for the `useQueryClient()`-context ordering gotcha this sidesteps.
+  const notificationProvider = useConsoleNotificationProvider(queryClient);
+
   return (
     <Refine
       dataProvider={dataProvider}
+      notificationProvider={notificationProvider}
       resources={[
         { name: 'accounts', meta: { label: 'Accounts' } },
         { name: 'projects', meta: { label: 'Projects' } },

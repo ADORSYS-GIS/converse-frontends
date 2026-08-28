@@ -28,6 +28,14 @@ export interface ConsoleShellProps {
    * trigger unlabelled. */
   leftSecondaryLabel?: string;
   /**
+   * A console-wide alert band, directly under the header — today only
+   * `MutationFailureBanner` (converse-frontends#323: refine has no default visible failure path,
+   * so the shell carries one slot every route gets for free). Renders inside the shell's own
+   * sticky chrome stack, above both rails and the centre; `undefined`/`null`/a component that
+   * renders nothing reserves no space.
+   */
+  banner?: ReactNode;
+  /**
    * Right rail content — parameters and the action that consumes them (README §3/§10.3).
    * Persistent and inline at `lg` (never an overlay, per ADR 0008 Decision 3). Below `lg` there
    * is no shell-owned fallback for this prop at all (owner revision 2026-08-25, console-ui

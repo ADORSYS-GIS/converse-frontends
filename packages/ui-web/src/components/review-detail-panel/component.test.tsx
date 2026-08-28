@@ -137,4 +137,74 @@ describe('ReviewDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Approve +$250.00' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Decline' })).toBeDisabled();
   });
+
+  it('labels the decision note honestly — required to decline, not recorded on approve', () => {
+    renderPanel();
+    expect(
+      screen.getByPlaceholderText('Required to decline · not recorded on approve')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText('Optional · visible to requester')
+    ).not.toBeInTheDocument();
+  });
+
+  // converse-frontends#322: `RejectAugmentationRequestInput.reason` is non-optional server-side
+  // (authz.cstack:1146-1151) — an empty Decline must be blocked before it ever reaches the RPC
+  // layer, not discovered via a round trip to the backend.
+  it('blocks Decline client-side with an empty note and never calls onDecide', () => {
+    const { onDecide } = renderPanel({ note: '' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(screen.getByText('A note is required to decline this request.')).toBeInTheDocument();
+  });
+
+  it('blocks Decline client-side with a whitespace-only note — not just an absent field', () => {
+    const { onDecide } = renderPanel({ note: '   ' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(screen.getByText('A note is required to decline this request.')).toBeInTheDocument();
+  });
+
+  it('does not block Approve when the note is empty — Approve never required one', () => {
+    const { onDecide } = renderPanel({ note: '' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve +$250.00' }));
+
+    expect(onDecide).toHaveBeenCalledWith('approve', '');
+    expect(
+      screen.queryByText('A note is required to decline this request.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('clears the note-required error once the reviewer starts typing', () => {
+    const { onDecide, onNoteChange } = renderPanel({ note: '' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    expect(screen.getByText('A note is required to decline this request.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Decision note'), {
+      target: { value: 'N' },
+    });
+
+    expect(onNoteChange).toHaveBeenCalledWith('N');
+    expect(
+      screen.queryByText('A note is required to decline this request.')
+    ).not.toBeInTheDocument();
+    expect(onDecide).not.toHaveBeenCalled();
+  });
+
+  it('proceeds normally when Decline is submitted with a real note', () => {
+    const { onDecide } = renderPanel({ note: 'Not this cycle.' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+
+    expect(onDecide).toHaveBeenCalledWith('decline', 'Not this cycle.');
+    expect(
+      screen.queryByText('A note is required to decline this request.')
+    ).not.toBeInTheDocument();
+  });
 });

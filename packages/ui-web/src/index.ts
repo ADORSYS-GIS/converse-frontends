@@ -126,7 +126,7 @@ export type {
 
 // ── states
 export { InlineStatus } from './components/inline-status';
-export type { InlineStatusProps } from './components/inline-status';
+export type { InlineStatusProps, PlaceholderNotice } from './components/inline-status';
 export { SkeletonRow } from './components/skeleton-row';
 export { skeletonRowVariants } from './components/skeleton-row';
 export type { SkeletonRowProps } from './components/skeleton-row';
@@ -134,7 +134,6 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
-
 
 // ── sections
 // Screen sections — the zone-level compositions a route assembles (console-ui skill

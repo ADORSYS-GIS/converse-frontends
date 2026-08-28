@@ -49,6 +49,7 @@ export function ManageCentre() {
           search={screen.search}
           onSearchChange={screen.setSearch}
           onNewProject={screen.newProject}
+          notice={screen.newProjectNotice}
           selectedRowKeys={screen.selectedProject ? [screen.selectedProject.id] : []}
           onSelectRow={screen.selectRow}
           pagination={screen.pagination}

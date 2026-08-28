@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import type { PlaceholderNotice } from '../../components/inline-status';
+
 /**
  * `active | suspended` are the only values the backend's lifecycle state machine ever writes
  * (`authz.cstack` — `disableProject`/`enableProject`). `unknown` is not a third backend state: it
@@ -52,6 +54,12 @@ export interface ManageProjectsLedgerProps {
   search: string;
   onSearchChange: (value: string) => void;
   onNewProject: () => void;
+  /**
+   * The outcome of pressing `+ New project` when project creation isn't wired yet — a
+   * non-alert notice (console-ui#325), never folded into `error` (which stays reserved for a
+   * genuine failed projects fetch, rendered through `ErrorLine`).
+   */
+  notice?: PlaceholderNotice;
 
   selectedRowKeys?: string[];
   onSelectRow: (row: ProjectRow) => void;

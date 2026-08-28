@@ -46,9 +46,11 @@ import {
 /**
  * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
  * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
+ * Console-ui#326 dropped the "(ADR 0009 follow-ups 4 and 6)" citation from the real string
+ * (follow-up 4 shipped, so citing it was simply wrong); this copy follows.
  */
 const MANAGE_SPEND_PENDING_MESSAGE =
-  'Spend and quota ceiling are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project status and quota tier below are live.';
+  'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
 
 interface ManageScreenProps {
   projects?: ProjectRow[];

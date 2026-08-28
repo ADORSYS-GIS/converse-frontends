@@ -43,6 +43,7 @@ export function ManageProjectsLedger({
   search,
   onSearchChange,
   onNewProject,
+  notice,
   selectedRowKeys,
   onSelectRow,
   pagination,
@@ -112,6 +113,19 @@ export function ManageProjectsLedger({
           + New project
         </Button>
       </div>
+
+      {notice ? (
+        <InlineStatus
+          action={
+            notice.onDismiss ? (
+              <Button type="button" variant="ghost" size="sm" onClick={notice.onDismiss}>
+                Dismiss
+              </Button>
+            ) : undefined
+          }>
+          {notice.message}
+        </InlineStatus>
+      ) : null}
 
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />

@@ -38,8 +38,23 @@ import {
  * pass an empty series.
  */
 
+// Console-ui#326: drop the "(ADR 0009 follow-ups 4 and 6)" citation — follow-up 4 (the
+// `apps/console` scaffold) shipped, so citing it as a reason the dashboards are unwired was
+// simply wrong, and this string is customer-visible copy in a self-service console, not an
+// engineering changelog. Every string in this file states plainly what is missing instead of
+// pointing at an internal, mutable ADR follow-up index (see the PR body for the full argument);
+// the underlying fact — no usage-backend query client exists yet — stays, because that IS true
+// and IS what the reader needs to know, unlike the citation.
 export const USAGE_PENDING_MESSAGE =
-  'Usage and budget dashboards are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project and key counts below are live.';
+  'Usage and budget dashboards are unwired: no usage-backend query client yet. Project and key counts below are live.';
+
+/**
+ * The Overview EXPORT rail control's disabled-reason caption (console-ui#324) — the CSV export
+ * route doesn't exist yet (tracked separately as `#308`, Epic 4). Shared by `OverviewRail` and
+ * `OverviewCentre` so the persistent rail and the compact-tier sheet can never drift onto
+ * different wording for the same control.
+ */
+export const OVERVIEW_EXPORT_UNAVAILABLE_CAPTION = "Export isn't available yet.";
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
   '7d': 'Last 7 days',

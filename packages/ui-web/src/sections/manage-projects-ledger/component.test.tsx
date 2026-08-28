@@ -95,6 +95,43 @@ describe('ManageProjectsLedger', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
+  // console-ui#325 — pressing "+ New project" when project creation isn't wired yet must not
+  // read as an error: no `role="alert"`, no `Retry`, and it must coexist with a genuine `error`
+  // (a real fetch failure) without either one masking the other.
+  it('renders the new-project placeholder notice as a non-alert status with Dismiss, never Retry', () => {
+    const onDismiss = vi.fn();
+    render(
+      <ManageProjectsLedger
+        {...makeProps({
+          notice: { message: "Project creation isn't available yet.", onDismiss },
+        })}
+      />
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent("Project creation isn't available yet.");
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the placeholder notice and a genuine load error side by side, without either masking the other', () => {
+    render(
+      <ManageProjectsLedger
+        {...makeProps({
+          projects: [],
+          error: 'Failed to load projects.',
+          notice: { message: "Project creation isn't available yet." },
+        })}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects.');
+    expect(screen.getByRole('status')).toHaveTextContent("Project creation isn't available yet.");
+  });
+
   it('renders an unrecognized status as "unknown" rather than crashing or defaulting to active', () => {
     render(
       <ManageProjectsLedger

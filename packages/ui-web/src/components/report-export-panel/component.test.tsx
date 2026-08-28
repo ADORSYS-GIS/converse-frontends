@@ -37,7 +37,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReportExport
       onGenerate={onGenerate}
       lastExports={[{ filename: '2026-01 · CSV', date: '4 d ago' }]}
       {...overrides}
-    />,
+    />
   );
 
   return { onGenerate, onToggleInclude, onPeriodChange, onGroupByChange, onFormatChange };
@@ -55,9 +55,31 @@ describe('ReportExportPanel', () => {
     expect(screen.getByText('4 d ago')).toBeInTheDocument();
   });
 
-  it('shows a fallback line when there are no exports yet', () => {
+  it('shows an honest "unwired" fallback rather than implying an export was ever attempted', () => {
     renderPanel({ lastExports: [] });
-    expect(screen.getByText('No exports yet.')).toBeInTheDocument();
+    // Console-ui#326: "No exports yet." implied an export had been tried and none exist; this
+    // list is a hardcoded `[]`, never fetched, so the fallback must not claim otherwise.
+    expect(screen.getByText('Export history is unwired.')).toBeInTheDocument();
+    expect(screen.queryByText('No exports yet.')).not.toBeInTheDocument();
+  });
+
+  // console-ui#325 — pressing Generate report when report export isn't wired yet must not read
+  // as an error: no `role="alert"`, no `Retry`, and the explanatory copy stays visible.
+  it('renders a placeholder notice as a non-alert status with Dismiss, never Retry', () => {
+    const onDismiss = vi.fn();
+    renderPanel({ notice: { message: "Report export isn't available yet.", onDismiss } });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent("Report export isn't available yet.");
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the notice entirely when none is given', () => {
+    renderPanel();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('fires onGenerate with the current period, groupBy, format and checked includes', () => {

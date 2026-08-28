@@ -14,14 +14,20 @@ export function OverviewExportRail({
   onExport,
   label = 'Export current view · CSV',
   caption,
+  disabled = false,
   className,
 }: OverviewExportRailProps) {
   return (
     <section className={cn('flex flex-col gap-2', className)} aria-label="Export">
-      <Button type="button" variant="secondary" className="w-full" onClick={onExport}>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full"
+        onClick={onExport}
+        disabled={disabled}>
         {label}
       </Button>
-      {caption ? <p className="font-sans text-[10px] text-subtle">{caption}</p> : null}
+      {caption ? <p className="text-subtle font-sans text-[10px]">{caption}</p> : null}
     </section>
   );
 }

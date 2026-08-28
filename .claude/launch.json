@@ -30,6 +30,21 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "ui-web-storybook-6021",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "packages/ui-web",
+        "exec",
+        "storybook",
+        "dev",
+        "-p",
+        "6021",
+        "--ci"
+      ],
+      "port": 6021
     }
   ]
 }

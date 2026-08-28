@@ -19,7 +19,7 @@ const history: ReviewHistoryRow[] = [
 function Demo() {
   const [note, setNote] = useState('');
   return (
-    <div className="flex h-[820px] w-[280px] flex-col bg-surface p-4">
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
         subject="gateway-prod"
         requesterEmail="ada@adorsys.com"
@@ -41,9 +41,49 @@ export const Populated: Story = {
   render: () => <Demo />,
 };
 
+// converse-frontends#265/#266: today's real `/admin` container has no consumption query, no
+// requester-note field and no history query — this is the actual honest shape it renders, not a
+// hypothetical edge case.
+export const NoSupportingData: Story = {
+  name: 'No supporting data (honest — matches the real /admin container today)',
+  render: () => (
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
+      <ReviewDetailPanel
+        subject="gateway-prod"
+        requesterEmail="ada@adorsys.com"
+        submittedAt="3 days ago"
+        requestedAmount={250}
+        history={null}
+        note=""
+        onNoteChange={() => {}}
+        onDecide={() => {}}
+      />
+    </div>
+  ),
+};
+
+// A rejected-then-reopened request: the reviewer's own prior rationale, correctly attributed.
+export const WithReviewerNote: Story = {
+  render: () => (
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
+      <ReviewDetailPanel
+        subject="gateway-prod"
+        requesterEmail="ada@adorsys.com"
+        submittedAt="3 days ago"
+        requestedAmount={250}
+        reviewerNote="Requested amount exceeds this quarter's growth allowance."
+        history={null}
+        note=""
+        onNoteChange={() => {}}
+        onDecide={() => {}}
+      />
+    </div>
+  ),
+};
+
 export const UnderThreshold: Story = {
   render: () => (
-    <div className="flex h-[820px] w-[280px] flex-col bg-surface p-4">
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
         subject="agent-sandbox"
         requesterEmail="joel@adorsys.com"
@@ -62,7 +102,7 @@ export const UnderThreshold: Story = {
 
 export const Deciding: Story = {
   render: () => (
-    <div className="flex h-[820px] w-[280px] flex-col bg-surface p-4">
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
         subject="batch-eval"
         requesterEmail="joel@adorsys.com"

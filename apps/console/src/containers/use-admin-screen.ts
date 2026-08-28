@@ -1,6 +1,6 @@
 'use client';
 
-import type { AugmentationRequest } from '@lightbridge/authz-rpc';
+import type { AugmentationRequestPage } from '@lightbridge/authz-rpc';
 import type {
   AdminReviewTab,
   DecisionRow,
@@ -34,10 +34,23 @@ import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './
  * Access is gated **server-side** in both `app/(console)/admin/page.tsx` and
  * `app/(console)/@rail/admin/page.tsx` (each 404s a non-admin). The nav gating is only cosmetic,
  * and the backend refuses every one of these procedures without `budget:review` regardless.
+ *
+ * converse-frontends#267: `listPendingAugmentationRequests` is, by its own name and doc comment
+ * (`authz.cstack:1073-1092`), the admin review queue's PENDING read path — there is no schema
+ * procedure that lists decided requests. The Decided tab below is therefore built from whatever
+ * non-pending rows happen to come back from this same pending-scoped fetch, which is not a
+ * complete or reliably paginated listing. `DECIDED_SOURCE_CAVEAT` says so out loud instead of
+ * presenting it as one. This is an explicit, recorded implementation choice (keep the tab, with a
+ * visible caveat, per ticket #267's option (b)) made because removing the tab is a bigger, more
+ * visible UX change than adding a caveat line — it still needs the ticket's own owner sign-off,
+ * which this PR does not substitute for.
  */
 
 const PAGE_SIZE = 50;
 const QUERY_KEY = ['budget', 'pendingAugmentationRequests', PAGE_SIZE];
+
+const DECIDED_SOURCE_CAVEAT =
+  'No dedicated decided-request endpoint exists yet — this list is derived from the pending-queue feed and may be incomplete.';
 
 /**
  * Module-level so both zones agree on the identity: the decision is submitted from whichever zone
@@ -63,7 +76,10 @@ export interface AdminScreen {
   selectedRequestId: string | null;
   selectRequest: (row: RefillRequestRow) => void;
   reviewDetail: ReviewDetailPanelProps | null;
-  pagination: { shown: number; total: number; hasPrev: boolean; hasNext: boolean };
+  /** `hasNext` reflects the real `nextCursor` the backend returned — never a fabricated `false`. */
+  pagination: { shown: number; hasNext?: boolean };
+  /** An honest caveat about the Decided tab's data source — see the module doc comment above. */
+  decidedSourceCaveat: string;
 }
 
 export function useAdminScreen(): AdminScreen {
@@ -83,15 +99,17 @@ export function useAdminScreen(): AdminScreen {
 
   const pendingQuery = useQuery({
     queryKey: QUERY_KEY,
-    queryFn: async (): Promise<AugmentationRequest[]> => {
-      const page = await budgetClient.procedures.listPendingAugmentationRequests({
+    queryFn: async (): Promise<AugmentationRequestPage> => {
+      return budgetClient.procedures.listPendingAugmentationRequests({
         args: { limit: PAGE_SIZE },
       });
-      return page.entries;
     },
   });
 
-  const requests = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data]);
+  const requests = useMemo(() => pendingQuery.data?.entries ?? [], [pendingQuery.data]);
+  // `null`/`undefined` means "nothing further to page to" per the schema's own contract
+  // (`AugmentationRequestPage.nextCursor`) — never assumed `false` before the fetch has answered.
+  const nextCursor = pendingQuery.data?.nextCursor ?? null;
   // The fetch timestamp, not `Date.now()`: reading the clock during render is impure, and
   // "submitted 2 days ago" is relative to when the queue was read, not to this render.
   const now = pendingQuery.dataUpdatedAt;
@@ -125,7 +143,6 @@ export function useAdminScreen(): AdminScreen {
   });
 
   const selected = requests.find((request) => request.id === view.selectedRequestId) ?? null;
-  const rows = view.tab === 'pending' ? pending : decisions;
 
   return {
     activeTab: view.tab,
@@ -142,7 +159,9 @@ export function useAdminScreen(): AdminScreen {
       : decide.errorMessage
         ? 'The decision was not recorded.'
         : undefined,
-    emptyPendingMessage: `Nothing awaiting a decision. ${decisions.length} decided this period.`,
+    emptyPendingMessage: `Nothing awaiting a decision. ${decisions.length} decided request${
+      decisions.length === 1 ? '' : 's'
+    } shown below.`,
     retry: () => {
       decide.dismiss();
       void pendingQuery.refetch();
@@ -158,13 +177,17 @@ export function useAdminScreen(): AdminScreen {
           subject: selected.projectId ?? selected.accountId,
           requesterEmail: selected.accountId,
           submittedAt: selected.createdAt,
-          // The balance procedures are a separate surface; the panel shows the request itself
-          // rather than an invented consumption figure.
-          consumedAmount: 0,
-          ceilingAmount: microsToAmount(selected.requestedAmountMicros),
+          // No consumption query is wired up here (Epic 4) — leave both unset so the panel
+          // renders an honest "not available" line instead of a fabricated $0.00 of $0.00
+          // (converse-frontends#265). The requested amount below is the ONLY real figure.
           requestedAmount: microsToAmount(selected.requestedAmountMicros),
-          requesterNote: selected.rejectionReason ?? undefined,
-          history: [],
+          // `rejectionReason` is written by the REVIEWER on a past decision, never by the
+          // requester (authz.cstack:1146-1151) — `requesterNote` is deliberately left unset,
+          // there is no requester-authored note anywhere in this schema (converse-frontends#266).
+          reviewerNote: selected.rejectionReason ?? undefined,
+          // `null`, not `[]`: this container has never fetched a history for any request, so it
+          // cannot honestly claim "No previous refills." (converse-frontends#266).
+          history: null,
           note,
           onNoteChange: setNote,
           onDecide: (decision, reason) =>
@@ -172,6 +195,7 @@ export function useAdminScreen(): AdminScreen {
           deciding: decide.isPending,
         }
       : null,
-    pagination: { shown: rows.length, total: rows.length, hasPrev: false, hasNext: false },
+    pagination: { shown: decisions.length, hasNext: nextCursor !== null },
+    decidedSourceCaveat: DECIDED_SOURCE_CAVEAT,
   };
 }

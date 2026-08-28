@@ -1,5 +1,5 @@
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import type { DecisionRow, RefillRequestRow } from '@lightbridge/ui-web';
+import type { DecisionOutcome, DecisionRow, RefillRequestRow } from '@lightbridge/ui-web';
 
 /**
  * Pure adapters from the generated `AugmentationRequest` model to the admin review page's rows.
@@ -10,6 +10,23 @@ import type { DecisionRow, RefillRequestRow } from '@lightbridge/ui-web';
  */
 
 const MICROS_PER_UNIT = 1_000_000;
+
+/**
+ * `AugmentationRequest.status`'s real values (`authz.cstack:951-955,968-988` — a plain `String`,
+ * not a schema enum; these are the Rust `AugmentationStatus::as_str` wire values). Pinned here as
+ * the single source both `isPending` and `toDecisionRow` compare against, so a future rename is
+ * caught by the regression test on this constant rather than by a silently-empty pending queue in
+ * production (converse-frontends#264).
+ *
+ * `'pending'` — the literal this module used to compare against — is not, and has never been, one
+ * of these four values.
+ */
+export const AUGMENTATION_STATUS = {
+  PENDING_REVIEW: 'pending_review',
+  AUTO_APPROVED: 'auto_approved',
+  APPROVED: 'approved',
+  DENIED: 'denied',
+} as const;
 
 export function microsToAmount(micros: string | null | undefined): number {
   if (!micros) return 0;
@@ -38,28 +55,50 @@ export function toRefillRequestRow(request: AugmentationRequest, now: number): R
     submittedAgo: relativeAge(request.createdAt, now),
     project: request.projectId ?? '—',
     account: request.accountId,
-    // Consumption and the ceiling come from the budget balance, not from the request itself; the
-    // review panel fetches them per selection rather than guessing here.
-    consumed: 0,
-    ceiling: 0,
+    // Consumption and the ceiling would come from a budget-balance query this container does not
+    // perform (no such query is wired up — Epic 4). `null` renders as an honest "—" in the queue
+    // table rather than a fabricated $0.00 of $0.00 (converse-frontends#265).
+    consumed: null,
+    ceiling: null,
     requestedAmount: microsToAmount(request.requestedAmountMicros),
     requesterEmail: request.accountId,
   };
 }
 
+/**
+ * Maps the backend's real status string to the row's decision label. `auto_approved` is kept
+ * distinct from `approved` rather than folded together — an admin should not be told a human
+ * reviewed something the policy engine approved on its own. Anything else (a status this client
+ * does not recognise) falls back to `'unknown'` rather than defaulting to `'declined'`, which is
+ * exactly the fabrication this function used to commit for every `pending_review` request.
+ */
+function decisionOutcome(status: string): DecisionOutcome {
+  switch (status) {
+    case AUGMENTATION_STATUS.APPROVED:
+      return 'approved';
+    case AUGMENTATION_STATUS.AUTO_APPROVED:
+      return 'auto_approved';
+    case AUGMENTATION_STATUS.DENIED:
+      return 'declined';
+    default:
+      return 'unknown';
+  }
+}
+
 export function toDecisionRow(request: AugmentationRequest): DecisionRow {
-  const approved = request.status === 'approved' || request.approvedAmountMicros !== null;
   return {
     id: request.id,
     date: request.createdAt.slice(0, 10),
     project: request.projectId ?? '—',
     account: request.accountId,
     amount: microsToAmount(request.approvedAmountMicros ?? request.requestedAmountMicros),
-    decision: approved ? 'approved' : 'declined',
+    decision: decisionOutcome(request.status),
+    rawStatus: request.status,
     decidedBy: request.reviewedBy ?? '—',
   };
 }
 
+/** True only for a request genuinely awaiting a decision (`authz.cstack:951-955`). */
 export function isPending(request: AugmentationRequest): boolean {
-  return request.status === 'pending';
+  return request.status === AUGMENTATION_STATUS.PENDING_REVIEW;
 }

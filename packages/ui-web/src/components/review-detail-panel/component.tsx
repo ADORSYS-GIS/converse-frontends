@@ -25,6 +25,11 @@ function formatSignedCurrency(amount: number): string {
 // buttons: approve = `primary` (the panel's one signal action), decline = `ghost` per
 // PRIMITIVES.md's `review-detail-panel` row (was `secondary`/bordered before this migration —
 // noted divergence, not a mockup pixel disagreement).
+//
+// converse-frontends#265/#266: consumption, the requester note and history are each optional and
+// independently omittable — a caller with no real data source for one of them must leave it
+// unset rather than pass a fabricated `0`/`[]`. The panel renders an honest inline line ("Not
+// available", "History not loaded.") instead of a fake measurement whenever that happens.
 export function ReviewDetailPanel({
   subject,
   requesterEmail,
@@ -34,6 +39,7 @@ export function ReviewDetailPanel({
   warningThreshold = 0.9,
   requestedAmount,
   requesterNote,
+  reviewerNote,
   history,
   note,
   onNoteChange,
@@ -53,18 +59,28 @@ export function ReviewDetailPanel({
 
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <span className={fieldLabelClassName}>Consumption</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-ink font-mono text-[22px] leading-[1.2]">
-            {formatMoney(consumedAmount)}
-          </span>
-          <span className="text-subtle font-mono text-[11px]">of {formatMoney(ceilingAmount)}</span>
-        </div>
-        <Meter
-          value={consumedAmount}
-          ceiling={ceilingAmount}
-          threshold={warningThreshold}
-          showCaption={false}
-        />
+        {consumedAmount != null && ceilingAmount != null ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="text-ink font-mono text-[22px] leading-[1.2]">
+                {formatMoney(consumedAmount)}
+              </span>
+              <span className="text-subtle font-mono text-[11px]">
+                of {formatMoney(ceilingAmount)}
+              </span>
+            </div>
+            <Meter
+              value={consumedAmount}
+              ceiling={ceilingAmount}
+              threshold={warningThreshold}
+              showCaption={false}
+            />
+          </>
+        ) : (
+          <p className="text-subtle font-mono text-[11px]">
+            Not available — no consumption query for this request yet.
+          </p>
+        )}
       </div>
 
       <div className="border-border flex flex-col gap-1 border-t pt-4">
@@ -81,9 +97,18 @@ export function ReviewDetailPanel({
         </div>
       ) : null}
 
+      {reviewerNote ? (
+        <div className="border-border flex flex-col gap-1.5 border-t pt-4">
+          <span className={fieldLabelClassName}>Reviewer note</span>
+          <p className="text-soft font-sans text-[11px] leading-[1.45]">{reviewerNote}</p>
+        </div>
+      ) : null}
+
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <span className={fieldLabelClassName}>History</span>
-        {history.length === 0 ? (
+        {history == null ? (
+          <p className="text-subtle font-mono text-[11px]">History not loaded.</p>
+        ) : history.length === 0 ? (
           <p className="text-subtle font-mono text-[11px]">No previous refills.</p>
         ) : (
           <table className="table-xs table">

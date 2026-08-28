@@ -27,7 +27,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReviewDetail
       onNoteChange={onNoteChange}
       onDecide={onDecide}
       {...overrides}
-    />,
+    />
   );
 
   return { onDecide, onNoteChange };
@@ -51,9 +51,28 @@ describe('ReviewDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Approve +$250.00' })).toBeInTheDocument();
   });
 
-  it('renders the requester note as prose', () => {
+  it('renders the requester note as prose, labelled as from the requester', () => {
     renderPanel();
+    expect(screen.getByText('Note from requester')).toBeInTheDocument();
     expect(screen.getByText('Q1 catalogue re-index lands this week.')).toBeInTheDocument();
+  });
+
+  it('renders the reviewer note as its own section, never attributed to the requester', () => {
+    renderPanel({
+      requesterNote: undefined,
+      reviewerNote: "Requested amount exceeds this quarter's growth allowance.",
+    });
+    expect(screen.getByText('Reviewer note')).toBeInTheDocument();
+    expect(
+      screen.getByText("Requested amount exceeds this quarter's growth allowance.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Note from requester')).not.toBeInTheDocument();
+  });
+
+  it('omits both note sections when neither is supplied', () => {
+    renderPanel({ requesterNote: undefined, reviewerNote: undefined });
+    expect(screen.queryByText('Note from requester')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reviewer note')).not.toBeInTheDocument();
   });
 
   it('renders history rows', () => {
@@ -61,6 +80,29 @@ describe('ReviewDetailPanel', () => {
     expect(screen.getByText('2 previous refills')).toBeInTheDocument();
     expect(screen.getByText('+$350.00')).toBeInTheDocument();
     expect(screen.getByText('last 2026-02-08 · approved by sam')).toBeInTheDocument();
+  });
+
+  it('states history was not loaded, distinct from a confirmed-empty history', () => {
+    renderPanel({ history: null });
+    expect(screen.getByText('History not loaded.')).toBeInTheDocument();
+    expect(screen.queryByText('No previous refills.')).not.toBeInTheDocument();
+  });
+
+  it('states a confirmed-empty history distinctly from "not loaded"', () => {
+    renderPanel({ history: [] });
+    expect(screen.getByText('No previous refills.')).toBeInTheDocument();
+    expect(screen.queryByText('History not loaded.')).not.toBeInTheDocument();
+  });
+
+  it('shows the requested amount and an honest "not available" line, with no meter, when consumption is unknown', () => {
+    renderPanel({ consumedAmount: undefined, ceilingAmount: undefined });
+
+    expect(
+      screen.getByText('Not available — no consumption query for this request yet.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.getByText('Approve +$250.00')).toBeInTheDocument();
   });
 
   it('fires onDecide("approve", note) with the current decision note', () => {
@@ -82,7 +124,9 @@ describe('ReviewDetailPanel', () => {
   it('propagates decision note edits via onNoteChange', () => {
     const { onNoteChange } = renderPanel();
 
-    fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'Approved for Q1.' } });
+    fireEvent.change(screen.getByLabelText('Decision note'), {
+      target: { value: 'Approved for Q1.' },
+    });
 
     expect(onNoteChange).toHaveBeenCalledWith('Approved for Q1.');
   });

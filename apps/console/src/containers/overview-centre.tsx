@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@lightbridge/ui-web/src/components/button';
+import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
@@ -59,17 +61,17 @@ export function OverviewCentre() {
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline={screen.subline} />
 
+      {/* #305/#307 — this no longer claims SPEND/SPEND SHARE/BUDGET are unwired: only LATENCY
+          stays honestly blocked (contract has no latency/percentile field, Epic 6/#294). */}
       <InlineStatus>{screen.emptyMessage}</InlineStatus>
 
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 
       <SpendDashboard
-        series={[]}
-        // No usage-backend query client yet (`screen.emptyMessage`) — `'unwired'` renders the
-        // axes-stay/inline-status-line empty shape with wording honest about "never queried,"
-        // distinct from the default `'ready'` rendering (which would say "queried, found
-        // nothing") and from `'loading'` (implies a request in flight) (#272).
-        status="unwired"
+        series={screen.spendSeries}
+        status={screen.spendStatus}
+        errorMessage={screen.spendErrorMessage}
+        onRetry={screen.spendRetry}
         fallbackWidth={840}
         height={220}
         onSelectSeries={screen.setSelectedSeriesKey}
@@ -95,11 +97,13 @@ export function OverviewCentre() {
 
       {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row -- see
           `pages-stories/overview.stories.tsx`'s equivalent comment for the full reasoning. Fed
-          from the same (currently honestly-empty) source as `SpendDashboard` above: neither has a
-          live usage-backend query client yet (`screen.emptyMessage`). */}
+          from the SAME usage query as `SpendDashboard` above -- one failed/loading query takes
+          both down together, honestly, rather than one section looking wired and its sibling not. */}
       <SpendShareSection
-        slices={[]}
-        status="unwired"
+        slices={screen.spendSlices}
+        status={screen.spendStatus}
+        errorMessage={screen.spendErrorMessage}
+        onRetry={screen.spendRetry}
         size={200}
         selectedKey={screen.selectedSeriesKey}
         onSelectSlice={screen.setSelectedSeriesKey}
@@ -109,22 +113,31 @@ export function OverviewCentre() {
         <LatencyDashboard
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
           series={[]}
-          // Same "never queried" fact as SPEND/SPEND SHARE above (#272) — no usage-backend query
-          // client yet.
+          // #307 — this is a PERMANENT, contract-level block, not "not wired yet": the usage API's
+          // documented `UsageSeriesPoint` shape carries no latency/percentile field at all, tracked
+          // as Epic 6 / #294 (ADR 0008 Decision 7 status note). Reusing `status="unwired"` (rather
+          // than inventing a second vocabulary) with an overridden message, per this epic's own
+          // instruction to reuse the existing vocabulary for what stays unwired.
           status="unwired"
+          unwiredMessage={screen.latencyMessage}
           fallbackWidth={840}
           height={200}
         />
         <BudgetPanel
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
-          budget={{
-            // No budget microservice query client yet — `status: 'unwired'` renders BudgetHero's
-            // "Not wired" headline at the numeral's own visual weight instead of a fabricated
-            // `$0.00 of $0.00` (#273). `value`/`ceiling` are omitted; the `'unwired'` branch of
-            // `BudgetSummary` doesn't accept them (see `budget-panel/types.ts`).
-            status: 'unwired',
-            caption: 'Budget figures arrive with the budget query wiring.',
-          }}
+          budget={screen.budget}
+          heroAction={
+            screen.refillAction ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={screen.refillAction.pending}
+                onClick={screen.refillAction.onClick}>
+                {screen.refillAction.label}
+              </Button>
+            ) : undefined
+          }
           actions={
             <UrlSectionSheetTrigger
               id="export"
@@ -136,6 +149,9 @@ export function OverviewCentre() {
           }
         />
       </div>
+      {screen.refillErrorMessage ? (
+        <ErrorLine message={`Refill request failed: ${screen.refillErrorMessage}`} />
+      ) : null}
     </div>
   );
 }

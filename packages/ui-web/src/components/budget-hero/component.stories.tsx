@@ -65,3 +65,18 @@ export const UnwiredLight: Story = {
   globals: { theme: 'wireframe' },
   args: Unwired.args,
 };
+
+// #306 — a budget-balance/usage query in flight: skeleton geometry, no spinner.
+export const Loading: Story = {
+  args: { status: 'loading' },
+};
+
+// #306 — a budget-balance/usage query that failed. Distinct from `Unwired`: this account HAS a
+// real budget, the query for it just failed — never rendered the same as "never wired."
+export const ErrorState: Story = {
+  args: {
+    status: 'error',
+    errorMessage: 'Failed to load budget consumption.',
+    onRetry: () => {},
+  },
+};

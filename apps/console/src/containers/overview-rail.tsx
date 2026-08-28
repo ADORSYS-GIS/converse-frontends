@@ -1,7 +1,7 @@
 'use client';
 
+import { formatMoney } from '@lightbridge/ui-web/src/lib/money';
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
-import { UNWIRED_CHART_MESSAGE } from '@lightbridge/ui-web/src/sections/dashboard-label';
 import {
   OVERVIEW_EXPORT_RAIL_LABEL,
   OverviewExportRail,
@@ -35,6 +35,23 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-ov
 export function OverviewRail() {
   const screen = useOverviewScreen();
 
+  // #305 — echoes the SAME series `SpendShareSection`'s donut plots, in the same key order, so
+  // selecting a legend row here and clicking a slice in the centre stay in sync (both drive
+  // `screen.selectedSeriesKey`, the URL's own `series` param). Only populated once the underlying
+  // usage query has actually resolved (`'ready'`) — while it's loading or has failed there is
+  // nothing real to echo yet, and an empty array here just means "nothing to select from right
+  // now," not "never wired" (#305/#306's own governing principle: a query in flight or a failure
+  // must never be dressed up as a real empty list).
+  const seriesItems =
+    screen.spendStatus === 'ready'
+      ? screen.spendSlices.map((slice) => ({
+          key: slice.key,
+          label: slice.label,
+          value: formatMoney(slice.value),
+          breached: slice.breached,
+        }))
+      : [];
+
   return (
     <>
       <RailPanel label={OVERVIEW_VIEW_RAIL_LABEL}>
@@ -53,10 +70,7 @@ export function OverviewRail() {
       </RailPanel>
       <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
         <OverviewSeriesRail
-          items={[]}
-          // Same "never wired" reason as SPEND's own legend echo (#272/#273) — the SPEND chart
-          // has no series to select from yet, so this is not "nothing selected."
-          emptyMessage={UNWIRED_CHART_MESSAGE}
+          items={seriesItems}
           selectedKey={screen.selectedSeriesKey}
           onSelectKey={screen.setSelectedSeriesKey}
         />

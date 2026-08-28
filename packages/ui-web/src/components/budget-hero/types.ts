@@ -27,6 +27,26 @@ export interface BudgetHeroUnwiredProps extends BudgetHeroSharedProps {
 }
 
 /**
+ * #306 -- a real budget-balance/usage query is now in flight or can now fail, which `'ready'`/
+ * `'unwired'` alone had no way to express honestly: `'unwired'` means "never queried," not "queried
+ * and waiting" or "queried and failed," the same distinction `DashboardStatus` already draws for
+ * `SpendDashboard`/`LatencyDashboard`. Skeleton geometry matches the `'ready'` branch's own numeral
+ * + meter frame (console-ui skill states: "skeleton blocks matching final geometry").
+ */
+export interface BudgetHeroLoadingProps extends BudgetHeroSharedProps {
+  status: 'loading';
+}
+
+/** #306 -- a budget-balance/usage query that ran and failed, distinct from `'unwired'` (never run
+ *  at all) per this epic's own governing principle: a failed query must never render the same as
+ *  "unknown." Same `ErrorLine` idiom `SpendDashboard`/`LatencyDashboard` use in place of their value. */
+export interface BudgetHeroErrorProps extends BudgetHeroSharedProps {
+  status: 'error';
+  errorMessage?: string;
+  onRetry?: () => void;
+}
+
+/**
  * `value`/`ceiling` are deliberately absent from the `'unwired'` branch, not merely optional --
  * this is a real budget consumption vs. ceiling that has never been queried, and the type system
  * should make it impossible to hand this component a fabricated `0`/`0` to draw a numeral from
@@ -35,4 +55,5 @@ export interface BudgetHeroUnwiredProps extends BudgetHeroSharedProps {
  * numeral would have carried, per the ticket's "at least as prominent as the number display would
  * be" acceptance criterion, rather than a small caption underneath a confident false figure.
  */
-export type BudgetHeroProps = BudgetHeroReadyProps | BudgetHeroUnwiredProps;
+export type BudgetHeroProps =
+  BudgetHeroReadyProps | BudgetHeroUnwiredProps | BudgetHeroLoadingProps | BudgetHeroErrorProps;

@@ -38,3 +38,14 @@ export const overviewRefillRequestStatus: BudgetRefillRequestStatus = {
   pendingCount: 1,
   submittedLabel: 'submitted 2 days ago',
 };
+
+// #306 — a budget-balance/usage query in flight, distinct from `overviewUnwiredBudget` (never
+// queried at all).
+export const overviewLoadingBudget: BudgetSummary = { status: 'loading' };
+
+// #306 — a budget-balance/usage query that ran and failed, distinct from both `'unwired'` and
+// `'loading'`.
+export const overviewErrorBudget: BudgetSummary = {
+  status: 'error',
+  errorMessage: 'Failed to load budget consumption.',
+};

@@ -8,7 +8,7 @@ import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
-import { USAGE_PENDING_MESSAGE } from '../../containers/use-overview-screen';
+import { LATENCY_BLOCKED_MESSAGE } from '../../containers/use-overview-screen';
 
 /**
  * `/` centre — the App Router `loading.tsx` Suspense fallback shown while the incoming route
@@ -24,16 +24,21 @@ import { USAGE_PENDING_MESSAGE } from '../../containers/use-overview-screen';
  * Every section below already carries its own `loading`/`status="loading"` skeleton rendering
  * (console-ui skill §states) — this file's only job is to drive those flags with empty data, the
  * same contract `OverviewCentre` uses while `useOverviewScreen()`'s own queries are in flight.
- * `USAGE_PENDING_MESSAGE` is imported rather than restated: it is shown unconditionally by the
- * real screen too (spend/latency/budget have no live query client yet), so it is not a "loading"
- * fabrication — it is literally the same line the hydrated page renders next.
+ * `LATENCY_BLOCKED_MESSAGE` is imported rather than restated: it is shown unconditionally by the
+ * real screen too (LATENCY is permanently blocked on the documented contract, #307), so it is not
+ * a "loading" fabrication — it is literally the same line the hydrated page renders next.
+ *
+ * `BudgetPanel` gets `status: 'loading'`, not a `value: 0, ceiling: 0` numeral — a Suspense
+ * fallback is exactly the "queried, waiting" fact `BudgetHeroLoadingProps` exists for (#306); the
+ * pre-#306 version of this file rendered a fabricated `$0.00 of $0.00` here, the same defect #273
+ * fixed on the hydrated page but missed on this loading boundary.
  */
 export default function OverviewLoading() {
   return (
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline="loading scope…" />
 
-      <InlineStatus>{USAGE_PENDING_MESSAGE}</InlineStatus>
+      <InlineStatus>{LATENCY_BLOCKED_MESSAGE}</InlineStatus>
 
       <OverviewStatRow cards={[]} loading />
 
@@ -51,11 +56,7 @@ export default function OverviewLoading() {
         />
         <BudgetPanel
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
-          budget={{
-            value: 0,
-            ceiling: 0,
-            caption: 'Budget figures arrive with the budget query wiring.',
-          }}
+          budget={{ status: 'loading' }}
         />
       </div>
     </div>

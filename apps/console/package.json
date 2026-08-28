@@ -15,6 +15,7 @@
     "@cratestack/refine": "0.8.13",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
+    "@lightbridge/api-rest": "workspace:*",
     "@lightbridge/authz-rpc": "workspace:*",
     "@lightbridge/hooks": "workspace:*",
     "@lightbridge/ui-web": "workspace:*",

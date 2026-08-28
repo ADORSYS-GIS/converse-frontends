@@ -14,11 +14,11 @@ export const runtime = 'nodejs';
  * reachable — this answers `503` rather than pretending, so the Overview's usage panels can render
  * their honest inline "unavailable" status instead of an empty chart that looks like zero usage.
  *
- * **This route has no caller yet, and that is not a reason to delete it.** It is the console's only
- * path to the usage backend (ADR 0009 Decision 3), and its first consumer is the usage query client
- * of #304 — `packages/api-rest`, generated from `openapi/usage.backend.yaml`, whose zero-importer
- * status is the gap that ticket closes. A `grep` for callers will keep coming back empty until then;
- * read that as work not yet done, not as dead surface.
+ * #304 wired this route's first (and, by ADR 0009 Decision 3, only sanctioned) caller:
+ * `apps/console/src/client/usage-client.ts`'s `queryUsage()`, itself calling `packages/api-rest`'s
+ * generated `queryUsage` SDK function against this same-origin path — never the usage backend
+ * directly. This is the console's only path to that backend; the browser never holds its URL or a
+ * token for it, same as the CRUD/budget proxies above.
  */
 export async function POST(
   request: NextRequest,

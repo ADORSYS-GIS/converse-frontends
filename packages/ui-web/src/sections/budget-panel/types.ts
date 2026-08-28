@@ -16,11 +16,25 @@ export interface BudgetSummaryUnwired {
   caption: string;
 }
 
+/** #306 — the budget-balance/usage query is in flight. See `BudgetHeroLoadingProps`. */
+export interface BudgetSummaryLoading {
+  status: 'loading';
+}
+
+/** #306 — the budget-balance/usage query ran and failed, distinct from `'unwired'`. See
+ *  `BudgetHeroErrorProps`. */
+export interface BudgetSummaryError {
+  status: 'error';
+  errorMessage?: string;
+  onRetry?: () => void;
+}
+
 /**
  * `value`/`ceiling` are absent (not optional-and-zero) on the `'unwired'` branch — see
  * `BudgetHeroProps`'s docstring for why this is a type-level guarantee, not just a convention.
  */
-export type BudgetSummary = BudgetSummaryReady | BudgetSummaryUnwired;
+export type BudgetSummary =
+  BudgetSummaryReady | BudgetSummaryUnwired | BudgetSummaryLoading | BudgetSummaryError;
 
 export interface BudgetNeedsAttentionProject {
   name: string;
@@ -42,6 +56,16 @@ export interface BudgetPanelProps {
   /** Uppercase tracked heading. Defaults to overview.svg's own wording. */
   label?: string;
   budget: BudgetSummary;
+  /**
+   * #306 — the account-level hero's OWN inline refill control, forwarded verbatim to
+   * `BudgetHero`'s `action` slot (ADR 0008 Decision 7: "number beside its ceiling beside its
+   * control"). Distinct from `needsAttentionProject`'s `onRequestRefill`/`refillActionLabel`
+   * below, which is a PROJECT-scoped control for a sub-block this schema currently has no
+   * project-level ceiling to populate — see `overview-usage.ts`'s module doc comment. The caller
+   * decides when to render it (e.g. only once the account itself is breached), matching
+   * `BudgetHeroProps.action`'s own "only present once breached" convention.
+   */
+  heroAction?: ReactNode;
   /** Omitted entirely when no project is near its ceiling — never an empty placeholder block. */
   needsAttentionProject?: BudgetNeedsAttentionProject;
   onRequestRefill?: () => void;

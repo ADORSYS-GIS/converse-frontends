@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { BudgetPanel } from './component';
 import {
   overviewBudget,
+  overviewErrorBudget,
+  overviewLoadingBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
   overviewUnwiredBudget,
@@ -66,5 +68,32 @@ describe('BudgetPanel', () => {
     expect(
       screen.getByText('Budget figures arrive with the budget query wiring.')
     ).toBeInTheDocument();
+  });
+
+  // #306 — the account-level hero's own inline refill control (ADR 0008 Decision 7), distinct
+  // from the NEEDS ATTENTION project sub-block's `onRequestRefill`.
+  it('forwards heroAction to BudgetHero, beside the account-level numeral', () => {
+    render(
+      <BudgetPanel
+        budget={overviewBudget}
+        heroAction={<button type="button">Request refill</button>}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Request refill' })).toBeInTheDocument();
+  });
+
+  it('renders BudgetHero\'s loading skeleton for status="loading", no fabricated numeral', () => {
+    render(<BudgetPanel budget={overviewLoadingBudget} />);
+
+    expect(screen.queryByText(/^\$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+  });
+
+  it('renders BudgetHero\'s error line for status="error", distinct from "unwired"', () => {
+    render(<BudgetPanel budget={overviewErrorBudget} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load budget consumption.');
+    expect(screen.queryByText('Not wired')).not.toBeInTheDocument();
   });
 });

@@ -38,73 +38,15 @@
                       "type": "object",
                       "additionalProperties": true,
                       "properties": {
-                        "env": {
+                        "image": {
                           "type": "object",
                           "additionalProperties": true,
                           "properties": {
-                            "EXPO_PUBLIC_BACKEND_URL": {
-                              "type": "string",
-                              "minLength": 1,
-                              "format": "uri"
-                            },
-                            "EXPO_PUBLIC_BUDGET_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            },
-                            "EXPO_PUBLIC_USAGE_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            },
-                            "EXPO_PUBLIC_GATEWAY_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            },
-                            "EXPO_PUBLIC_ANALYTICS_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            },
-                            "EXPO_PUBLIC_KEYCLOAK_ISSUER": {
-                              "type": "string",
-                              "minLength": 1,
-                              "format": "uri"
-                            },
-                            "EXPO_PUBLIC_KEYCLOAK_CLIENT_ID": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "EXPO_PUBLIC_KEYCLOAK_SCHEME": {
-                              "type": "string",
-                              "default": "https",
-                              "minLength": 1
-                            },
-                            "EXPO_PUBLIC_GRAFANA_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            },
-                            "EXPO_PUBLIC_GRAFANA_USAGE_DASHBOARD_PATH": {
-                              "type": "string",
-                              "default": ""
-                            },
-                            "EXPO_PUBLIC_LOGO_URL": {
-                              "type": "string",
-                              "default": "",
-                              "anyOf": [{ "const": "" }, { "type": "string", "format": "uri" }]
-                            }
-                          },
-                          "required": [
-                            "EXPO_PUBLIC_BACKEND_URL",
-                            "EXPO_PUBLIC_KEYCLOAK_ISSUER",
-                            "EXPO_PUBLIC_KEYCLOAK_CLIENT_ID",
-                            "EXPO_PUBLIC_KEYCLOAK_SCHEME"
-                          ]
+                            "repository": { "type": "string", "minLength": 1 },
+                            "tag": { "type": "string", "minLength": 1 }
+                          }
                         }
-                      },
-                      "required": ["env"]
+                      }
                     }
                   },
                   "required": ["frontend"]
@@ -114,9 +56,35 @@
             }
           },
           "required": ["main"]
+        },
+        "configMaps": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "console-config": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "config.yaml": {
+                      "description": "The full apps/console config.yaml document for this deployment (server.js's config-loader.ts reads it -- see that file's header comment for the {env:VAR} placeholder syntax it supports). Not the Expo app's EXPO_PUBLIC_* per-field env scheme this replaces: a real deployment supplies its own complete document here (its own Keycloak issuer, backend URLs, etc. as plain literals; secrets as {env:VAR} placeholders backed by a mounted Secret) rather than overriding individual fields.",
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["config.yaml"]
+                }
+              },
+              "required": ["data"]
+            }
+          },
+          "required": ["console-config"]
         }
       },
-      "required": ["controllers"]
+      "required": ["controllers", "configMaps"]
     }
   },
   "required": ["conversefrontend"]

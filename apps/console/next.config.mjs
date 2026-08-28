@@ -61,6 +61,14 @@ const withSerwist = withSerwistInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // The console ships as a Node-runtime container (ticket #287), not a static export — it has 8
+  // server route handlers and server components that decrypt the session cookie, so it needs
+  // `next start`'s Node server, not `output: 'export'`. `standalone` traces the actual runtime
+  // dependency graph out of node_modules into `.next/standalone/`, so the container image doesn't
+  // need to `pnpm install` the whole workspace (dev/build-only deps, other apps' deps, etc.) —
+  // only what `apps/console/server.js` actually requires at runtime gets copied in. See
+  // `apps/console/Dockerfile` for the container build that consumes this output.
+  output: 'standalone',
   // The workspace packages ship raw TypeScript (`main: src/index.ts`), so Next has to compile
   // them itself. `@lightbridge/chart-core` is the DOM-free chart math package `ui-web` consumes
   // directly (ADR 0009 Decision 5) — the React Native UI package is no longer part of the

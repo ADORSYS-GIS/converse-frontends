@@ -1,6 +1,8 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { CreateApiKeyDialog } from '@lightbridge/ui-web/src/components/create-api-key-dialog';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ScopeSelect } from '@lightbridge/ui-web/src/components/scope-select';
 import {
   API_KEYS_FILTERS_RAIL_LABEL,
@@ -18,7 +20,10 @@ import { useApiKeysScreen } from './use-api-keys-screen';
  *
  * `+ New key` appears twice by design (console-ui skill "Shape and layout"): in the rail at `lg`,
  * where the rail owns the action that consumes its own parameters, and in the title row below
- * `lg` where the rail does not exist. Both call the same `createKey`.
+ * `lg` where the rail does not exist. Both call the same `createKey`, and both are disabled with
+ * the same `createKeyReason` (ticket #320). `CreateApiKeyDialog` (ticket #319) mounts exactly once
+ * here — never inside the rail — the same "one zone owns the dialog" rule `TypedConfirmDialog`
+ * follows for Revoke/Delete.
  */
 export function ApiKeysCentre() {
   const screen = useApiKeysScreen();
@@ -38,11 +43,22 @@ export function ApiKeysCentre() {
           </UrlSectionSheetTrigger>
         }
         actions={
-          <Button type="button" variant="primary" onClick={screen.createKey} className="lg:hidden">
-            + New key
-          </Button>
+          <div className="lg:hidden">
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!screen.createKeyEligible}
+              onClick={screen.createKey}>
+              + New key
+            </Button>
+            {screen.createKeyReason ? (
+              <InlineStatus className="mt-2">{screen.createKeyReason}</InlineStatus>
+            ) : null}
+          </div>
         }
       />
+
+      <CreateApiKeyDialog {...screen.createKeyDialog} />
 
       <ApiKeysLedger
         keys={screen.rows}

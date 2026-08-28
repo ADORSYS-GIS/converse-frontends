@@ -55,11 +55,15 @@ export function ApiKeysCentre() {
         secretReveal={screen.secretReveal}
         onDismissSecret={screen.dismissSecret}
         onRotate={screen.rotate}
-        onDelete={screen.remove}
         onRequestRevoke={screen.requestRevoke}
         revokeTarget={screen.revokeTarget}
         onConfirmRevoke={screen.confirmRevoke}
         onCancelRevoke={screen.cancelRevoke}
+        isAdmin={screen.isAdmin}
+        onRequestDelete={screen.requestDelete}
+        deleteTarget={screen.deleteTarget}
+        onConfirmDelete={screen.confirmDelete}
+        onCancelDelete={screen.cancelDelete}
         selectedRowKeys={screen.selectedRowKeys}
         onSelectRow={screen.selectRow}
         pagination={screen.pagination}

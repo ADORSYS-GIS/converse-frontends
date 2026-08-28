@@ -23,6 +23,7 @@ import {
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
 import type {
   ApiKeyRow,
+  ApiKeysDeleteTarget,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
@@ -61,6 +62,10 @@ export function RefineApiKeysScreen() {
   });
   const [secretReveal, setSecretReveal] = useState<ApiKeysSecretReveal | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(null);
+  // Demo-only toggle for the admin gate (ticket #321) — `apps/console` reads this from the real
+  // session (`useConsoleSession().isAdmin`) instead.
+  const [isAdmin, setIsAdmin] = useState(true);
 
   const filters = useMemo<CrudFilter[]>(() => {
     const next: CrudFilter[] = [];
@@ -162,6 +167,15 @@ export function RefineApiKeysScreen() {
           </RailPanel>
           <RailPanel label={API_KEYS_LIFECYCLE_RAIL_LABEL}>
             <ApiKeysLifecycleRail />
+            {/* Demo-only affordance for the ticket #321 admin gate; `apps/console` has no
+                equivalent — it reads the real session instead. */}
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-3 w-full"
+              onClick={() => setIsAdmin((value) => !value)}>
+              {isAdmin ? 'Demo: acting as admin' : 'Demo: acting as non-admin'}
+            </Button>
           </RailPanel>
         </>
       }>
@@ -212,9 +226,6 @@ export function RefineApiKeysScreen() {
               }
             );
           }}
-          onDelete={(row) => {
-            deleteMutation.mutate({ resource: 'api-keys', id: row.id }, { onSuccess: refetchList });
-          }}
           onRequestRevoke={(row) => setRevokeTarget({ row })}
           revokeTarget={revokeTarget}
           onConfirmRevoke={(row) => {
@@ -234,6 +245,22 @@ export function RefineApiKeysScreen() {
             );
           }}
           onCancelRevoke={() => setRevokeTarget(null)}
+          isAdmin={isAdmin}
+          onRequestDelete={(row) => setDeleteTarget({ row })}
+          deleteTarget={deleteTarget}
+          onConfirmDelete={(row) => {
+            deleteMutation.mutate(
+              { resource: 'api-keys', id: row.id },
+              {
+                onSuccess: () => {
+                  refetchList();
+                  setDeleteTarget(null);
+                },
+                onError: (mutationError) => setDeleteTarget({ row, error: mutationError.message }),
+              }
+            );
+          }}
+          onCancelDelete={() => setDeleteTarget(null)}
           pagination={{
             shown: rows.length,
             total: table.result.total ?? rows.length,

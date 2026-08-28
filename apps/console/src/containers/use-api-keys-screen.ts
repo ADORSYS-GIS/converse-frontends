@@ -3,6 +3,7 @@
 import type { ApiKey } from '@lightbridge/authz-rpc';
 import type {
   ApiKeyRow,
+  ApiKeysDeleteTarget,
   ApiKeysHygiene,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
@@ -13,6 +14,7 @@ import { useDelete, useList } from '@refinedev/core';
 import { useMemo } from 'react';
 
 import { useConsoleScope } from '../client/use-console-scope';
+import { useConsoleSession } from '../client/session-context';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import {
   API_KEYS_SELECTION_OPTIONS,
@@ -41,6 +43,14 @@ import { apiKeysHygiene, apiKeysStatusSummary, toApiKeyRows } from './api-key-ro
  * from the one that fired them, and the first is a credential that must never be written to a
  * history entry — so they travel through the shared `MutationCache` instead
  * (`client/use-shared-mutation.ts`).
+ *
+ * **Delete (ticket #321)**: `Del` is gated exactly like Revoke — a `TypedConfirmDialog` retargeted
+ * by `?delete=<id>`, gone through `useDelete()`'s own `mutation` (a full react-query
+ * `UseMutationResult`) rather than the shared cache, because unlike Revoke this mutation has no
+ * other zone to share its outcome with — the dialog only ever renders in the centre. `isAdmin`
+ * comes straight from the session (`useConsoleSession()`) the root layout already decrypted
+ * server-side; it is presentation only — see `ApiKeysLedgerProps.isAdmin`'s doc comment for why
+ * this is not the security boundary.
  */
 
 const PAGE_SIZE = 25;
@@ -85,7 +95,11 @@ export interface ApiKeysScreen {
   confirmRevoke: (row: ApiKeyRow) => void;
   cancelRevoke: () => void;
   rotate: (row: ApiKeyRow) => void;
-  remove: (row: ApiKeyRow) => void;
+  isAdmin: boolean;
+  deleteTarget: ApiKeysDeleteTarget | null;
+  requestDelete: (row: ApiKeyRow) => void;
+  confirmDelete: (row: ApiKeyRow) => void;
+  cancelDelete: () => void;
   createKey: () => void;
   selectedRowKeys: string[];
   selectRow: (row: ApiKeyRow) => void;
@@ -108,6 +122,7 @@ export interface ApiKeysScreen {
 
 export function useApiKeysScreen(): ApiKeysScreen {
   const scope = useConsoleScope();
+  const session = useConsoleSession();
   const client = useConsoleAuthzClient();
   const [view, setView] = useApiKeysParams();
 
@@ -132,7 +147,13 @@ export function useApiKeysScreen(): ApiKeysScreen {
     sorters: [{ field: 'createdAt', order: 'desc' }],
   });
 
-  const { mutate: deleteKey } = useDelete();
+  // `mutation` is the underlying react-query `UseMutationResult` — its own `.error`/`.isPending`
+  // give the delete confirmation everything it needs without a `useSharedMutation`: unlike
+  // Revoke, which is a bespoke procedure call, Delete goes through refine's generic resource
+  // `DataProvider` (`useDelete`) already gets a per-instance mutation object for free, and the
+  // dialog it feeds only ever renders in this one zone (the centre), so there is no second zone
+  // to read the outcome from a shared cache.
+  const { mutate: deleteKeyMutate, mutation: deleteMutation } = useDelete();
 
   const refresh = () => {
     void list.query.refetch();
@@ -192,8 +213,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
 
   // The revoke DIALOG is view state (`?revoke=<id>`), so Back closes it and the confirmation is
   // linkable; the row it points at is looked up in the data, and the failure reason it may carry
-  // comes from the mutation, never from the URL.
+  // comes from the mutation, never from the URL. The delete dialog (`?delete=<id>`) is the same
+  // shape.
   const revokeRow = rows.find((row) => row.id === view.revokeKeyId) ?? null;
+  const deleteRow = rows.find((row) => row.id === view.deleteKeyId) ?? null;
+  const deleteErrorMessage = deleteMutation.error?.message;
 
   return {
     scopeAccountLabel: scope.value.accountId || '—',
@@ -213,7 +237,9 @@ export function useApiKeysScreen(): ApiKeysScreen {
     revokeTarget: revokeRow ? { row: revokeRow, error: revoke.errorMessage } : null,
     requestRevoke: (row) => {
       revoke.dismiss();
-      void setView({ revokeKeyId: row.id }, API_KEYS_SELECTION_OPTIONS);
+      // Only one destructive dialog can be open at once — clearing the other target here means
+      // Revoke and Delete can never both be `?revoke=…&delete=…` at the same time.
+      void setView({ revokeKeyId: row.id, deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
     },
     confirmRevoke: (row) => revoke.mutate({ keyId: row.id }),
     cancelRevoke: () => {
@@ -221,8 +247,28 @@ export function useApiKeysScreen(): ApiKeysScreen {
       void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
     },
     rotate: (row) => secret.mutate({ kind: 'rotate', keyId: row.id, name: row.name }),
-    remove: (row) => {
-      deleteKey({ resource: 'apiKeys', id: row.id });
+    // Presentation only (see `ApiKeysLedgerProps.isAdmin`'s doc comment): `lightbridge-authz`
+    // refuses `apiKeys:delete` server-side regardless of what this renders.
+    isAdmin: session.isAdmin,
+    deleteTarget: deleteRow ? { row: deleteRow, error: deleteErrorMessage } : null,
+    requestDelete: (row) => {
+      deleteMutation.reset();
+      void setView({ deleteKeyId: row.id, revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+    },
+    confirmDelete: (row) => {
+      deleteKeyMutate(
+        { resource: 'apiKeys', id: row.id },
+        {
+          onSuccess: () => {
+            void setView({ deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+            refresh();
+          },
+        }
+      );
+    },
+    cancelDelete: () => {
+      deleteMutation.reset();
+      void setView({ deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
     },
     createKey: () => secret.mutate({ kind: 'create', projectId: scope.value.projectId }),
     selectedRowKeys: view.selectedKeyId ? [view.selectedKeyId] : [],

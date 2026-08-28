@@ -47,7 +47,7 @@ describe('the URL param contract', () => {
     expect(names).toEqual({
       scope: ['account', 'project'],
       overview: ['bucket', 'group-by', 'model', 'range', 'series'],
-      apiKeys: ['key', 'page', 'q', 'revoke', 'status'],
+      apiKeys: ['delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
         'budget-state',
         'format',

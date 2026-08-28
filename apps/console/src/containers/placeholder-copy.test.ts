@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  MANAGE_SPEND_PENDING_MESSAGE,
-  NEW_PROJECT_PENDING,
-  REPORT_EXPORT_PENDING,
-} from './use-manage-screen';
+import { MANAGE_SPEND_PENDING_MESSAGE } from './use-manage-screen';
 import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, USAGE_PENDING_MESSAGE } from './use-overview-screen';
 
 /**
@@ -14,16 +10,18 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, USAGE_PENDING_MESSAGE } from './us
  * `MANAGE_SPEND_PENDING_MESSAGE`/`USAGE_PENDING_MESSAGE` used to cite "ADR 0009 follow-ups 4 and
  * 6" — follow-up 4 is the `apps/console` scaffold, already shipped (`docs/adr/0009-nextjs-
  * console-replacement.md`'s own "## Follow-ups" list), so citing it as a reason a dashboard is
- * unwired was simply wrong. `NEW_PROJECT_PENDING` used to cite "ADR 0009 follow-up 3" — the
- * component-library follow-up, also already shipped. None of these four strings should carry an
- * ADR follow-up citation any more (see the PR body for the argument against citing internal
- * follow-up numbers in this self-service console's own customer-visible copy at all).
+ * unwired was simply wrong. None of these strings should carry an ADR follow-up citation any more
+ * (see the PR body for the argument against citing internal follow-up numbers in this self-service
+ * console's own customer-visible copy at all).
+ *
+ * `NEW_PROJECT_PENDING`/`REPORT_EXPORT_PENDING` (the previous version of this test's other two
+ * subjects) are gone along with the placeholders they described — tickets #303/#309 built the real
+ * project-creation and report-export paths, so there is no more "isn't available yet" string to
+ * regression-test.
  */
 const USER_VISIBLE_STRINGS = {
   MANAGE_SPEND_PENDING_MESSAGE,
   USAGE_PENDING_MESSAGE,
-  NEW_PROJECT_PENDING,
-  REPORT_EXPORT_PENDING,
   OVERVIEW_EXPORT_UNAVAILABLE_CAPTION,
 };
 
@@ -42,10 +40,6 @@ describe('placeholder copy (console-ui#326)', () => {
       expect(message).not.toMatch(/#\d+/);
     }
   );
-
-  it('NEW_PROJECT_PENDING no longer cites the shipped component-library follow-up', () => {
-    expect(NEW_PROJECT_PENDING).not.toMatch(/follow-?up 3/i);
-  });
 
   it('MANAGE_SPEND_PENDING_MESSAGE and USAGE_PENDING_MESSAGE no longer cite the shipped console scaffold', () => {
     expect(MANAGE_SPEND_PENDING_MESSAGE).not.toMatch(/follow-?up.*4/i);

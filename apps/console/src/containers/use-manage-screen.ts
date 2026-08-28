@@ -1,18 +1,23 @@
 'use client';
 
-import type { Project } from '@lightbridge/authz-rpc';
+import type { BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
+import { createId } from '@lightbridge/authz-rpc';
 import type {
+  CreateProjectDialogProps,
   ManageFiltersRailProps,
   ManageReportRailProps,
   ManageTotals,
-  PlaceholderNotice,
   ProjectRow,
+  ReportExportParams,
   SegmentedOption,
 } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
-import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { useConsoleAuthzClient } from '../client/rpc-clients';
+import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
 import {
   MANAGE_BUDGET_STATES,
@@ -25,6 +30,9 @@ import {
   type ReportIncludeId,
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
+import { buildCreateProjectInput } from './build-create-project-input';
+import { classifyCreateProjectError } from './create-project-error';
+import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { manageTotals, toProjectRows } from './project-rows';
 
 /**
@@ -92,53 +100,30 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
 }));
 
 /**
- * `/api/reports/consumption`, the CSV export route this needs, doesn't exist yet — tracked
- * separately as `#308` (Epic 4), not cited here (console-ui#326: an internal ticket number is not
- * something this self-service console's own customers should have to decode, and the ADR 0009
- * Decision 8 citation this string used to carry named a design decision, not the missing route
- * itself). Rather than ship a button that silently does nothing, this states plainly why nothing
- * happened.
- */
-export const REPORT_EXPORT_PENDING = "Report export isn't available yet.";
-
-/**
- * The project-creation form doesn't exist yet — tracked separately as `#303` (Epic 4). Console-
- * ui#326: this string used to cite "ADR 0009 follow-up 3," which is the component-library
- * follow-up and had already shipped — a customer-visible string citing a shipped item as the
- * reason a feature is missing is simply wrong, on top of being internal-tracker jargon a
- * self-service console's own customers shouldn't have to decode.
- */
-export const NEW_PROJECT_PENDING = "Project creation isn't available yet.";
-
-/**
- * The two unwired actions are modelled as **mutations that fail with the reason**, not as a
- * `notice` string someone has to own.
- *
- * That is not a trick to dodge `useState`: it is what they are. Each is an attempt to perform a
- * server-side action that does not exist yet, and the report action can be fired from either zone
- * (the report panel is mounted twice — the rail at `lg`, the centre's report sheet below it), so
- * its outcome has to be visible regardless of which copy was pressed. Routing them through the
- * shared `MutationCache` gives exactly that. The message must not enter the URL — it is not view
- * state.
- *
- * console-ui#325: **neither outcome is an error.** Nothing failed and there is nothing to retry,
- * so `errorMessage` (below) never folds these in any more — it is reserved for a genuine failed
- * projects fetch, the only case `ManageProjectsLedger` renders through `ErrorLine`
- * (`role="alert"`, `Retry`). Each mutation's outcome instead surfaces as a `PlaceholderNotice`
- * (`newProjectNotice` / `report.notice`), rendered through `InlineStatus` — no alert role, no
- * signal colour, `Dismiss` rather than `Retry`, matching the "unwired" vocabulary
- * `UNWIRED_CHART_MESSAGE` already established for Overview's charts (console-ui#336) instead of
- * inventing a second one.
+ * Module-level so every zone agrees on the identity: `Generate report` can be fired from either
+ * the persistent rail or the centre's compact-tier sheet (`ReportExportPanel` mounts twice), so
+ * its outcome has to be visible regardless of which copy was pressed. `+ New project` only ever
+ * renders in the centre (`ManageProjectsLedger`'s own toolbar), but shares the same
+ * `useSharedMutation` shape as the rest of this file for consistency.
  */
 const NEW_PROJECT_MUTATION_KEY = ['manage', 'new-project'];
 const REPORT_MUTATION_KEY = ['manage', 'report'];
+const PROJECT_BILLING_PLANS_QUERY_KEY = ['manage', 'billingPlans'];
+
+type CreateProjectDraft = {
+  name: string;
+  billingIdentity: string;
+  planId: string | null;
+};
+
+function emptyProjectDraft(): CreateProjectDraft {
+  return { name: '', billingIdentity: '', planId: null };
+}
 
 export interface ManageScreen {
   rows: ProjectRow[];
   loading: boolean;
-  /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. Never the
-   *  `newProject`/`report.onGenerate` placeholder outcomes (console-ui#325); see their own
-   *  `newProjectNotice`/`report.notice` fields. */
+  /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. */
   errorMessage: string | undefined;
   /** Matches `useOverviewScreen`'s `emptyMessage` — an always-visible inline status line naming
    *  exactly what is unwired (issue #271), never folded into `ScreenHeading`'s `subline`. */
@@ -147,10 +132,24 @@ export interface ManageScreen {
   retry: () => void;
   search: string;
   setSearch: (value: string) => void;
+  /** Opens `CreateProjectDialog` — a no-op while `createProjectEligible` is false. */
   newProject: () => void;
-  /** Set after `newProject()` is pressed — project creation isn't wired yet. A non-alert notice,
-   *  never an `ErrorLine` (console-ui#325). */
-  newProjectNotice: PlaceholderNotice | undefined;
+  /**
+   * Presentation-only mirror of `model.Project.create`'s owner-only `@@allow` gate
+   * (`authz.cstack:274` — `account.id == auth().id`). This console models one account per
+   * signed-in principal (ADR-0006 "a person's defining identity is their `accountId`" — an
+   * account IS the person, not an org with members), so "owner" here means the scoped account is
+   * literally the signed-in principal, never an account this person merely has project membership
+   * in. `false` whenever ownership cannot be confirmed, never defaulted to `true` — same
+   * disclaimer as `createKeyEligible` in `use-api-keys-screen.ts`:
+   * `lightbridge-authz`'s hand-written RBAC check is the actual enforcement
+   * (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role grants), this is
+   * presentation only.
+   */
+  createProjectEligible: boolean;
+  /** Stated beside the disabled `+ New project` control; `undefined` exactly when eligible. */
+  createProjectReason: string | undefined;
+  createProjectDialog: CreateProjectDialogProps;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
   projectCount: number;
@@ -173,6 +172,8 @@ export interface ManageScreen {
  */
 export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   const scope = useConsoleScope();
+  const session = useConsoleSession();
+  const client = useConsoleAuthzClient();
   const [view, setView] = useManageParams();
 
   const filters = useMemo(() => {
@@ -209,27 +210,172 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     return mapped;
   }, [projects, view.budgetState]);
 
-  const newProjectAction = useSharedMutation<void, never>({
-    mutationKey: NEW_PROJECT_MUTATION_KEY,
-    mutationFn: async () => {
-      throw new Error(NEW_PROJECT_PENDING);
-    },
-  });
-
-  const reportAction = useSharedMutation<void, never>({
-    mutationKey: REPORT_MUTATION_KEY,
-    mutationFn: async () => {
-      throw new Error(REPORT_EXPORT_PENDING);
-    },
-  });
-
-  // Retries the genuine failed fetch only — the two placeholder notices are dismissed by their
-  // own `Dismiss` action, not bundled into the unrelated list-error `Retry` (console-ui#325: an
-  // active "project creation isn't available" notice must not vanish just because the list's
-  // Retry happened to be pressed).
+  // Retries the genuine failed fetch AND refreshes the ledger after a real create — declared
+  // ahead of the mutations below so their `onSuccess` closures can reference it.
   const refresh = () => {
     void list.query.refetch();
   };
+
+  /**
+   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
+   * leak into URLs or history"): the create-project dialog's typed-but-unsent name/billing
+   * identity/plan. Same shape as `use-api-keys-screen.ts`'s create-key draft (ticket #319):
+   * `createOpen` — WHETHER the dialog is showing — is real view state and lives in the URL
+   * (`?create=1`, `url-state.ts`); this is its CONTENTS, which are not, for the same reason —
+   * typed prose ahead of a submit, discarded either way, and `?create=1&name=widgets-prod` would
+   * write every keystroke into browser history and into any link copied from the address bar.
+   * `CreateProjectDialog` mounts in exactly one zone (the centre, same as `CreateApiKeyDialog`),
+   * so a per-instance draft cannot desynchronise across zones.
+   */
+  const [projectDraft, setProjectDraft] = useState<CreateProjectDraft>(emptyProjectDraft);
+  const resetProjectDraft = () => setProjectDraft(emptyProjectDraft());
+
+  // The real billing-plan catalogue (same procedure `use-api-keys-screen.ts` uses for the same
+  // reason) — never a hardcoded plan id.
+  const plansQuery = useQuery<BillingPlanInfo[]>({
+    queryKey: PROJECT_BILLING_PLANS_QUERY_KEY,
+    queryFn: () => client.procedures.listBillingPlans({ args: {} }),
+  });
+  const plans = plansQuery.data ?? [];
+  const resolvedPlanId = projectDraft.planId ?? plans[0]?.id ?? null;
+
+  // Owner-only gate mirror — see `ManageScreen.createProjectEligible`'s own doc comment for why
+  // this checks against the signed-in principal rather than a roster.
+  let createProjectEligible: boolean;
+  let createProjectReason: string | undefined;
+  if (!scope.value.accountId) {
+    createProjectEligible = false;
+    createProjectReason = 'Select an account to create a project.';
+  } else if (!session.user) {
+    createProjectEligible = false;
+    createProjectReason = 'Sign in to create a project.';
+  } else if (session.user.sub !== scope.value.accountId) {
+    createProjectEligible = false;
+    createProjectReason = 'Only the account owner can create a project.';
+  } else {
+    createProjectEligible = true;
+    createProjectReason = undefined;
+  }
+
+  const newProjectAction = useSharedMutation<void, Project>({
+    mutationKey: NEW_PROJECT_MUTATION_KEY,
+    mutationFn: async () => {
+      // Guards, not UI branches: `canSubmitCreateProject` (below) already keeps the dialog's own
+      // primary disabled in every one of these cases — this only fires against a caller bypassing
+      // the dialog entirely, same idiom `use-api-keys-screen.ts`'s `secret` mutation uses.
+      if (!scope.value.accountId) {
+        throw new Error('Select an account before creating a project.');
+      }
+      if (!projectDraft.name.trim()) {
+        throw new Error('Name the project before creating it.');
+      }
+      if (!projectDraft.billingIdentity.trim()) {
+        throw new Error('Give the project a billing identity before creating it.');
+      }
+      if (!resolvedPlanId) {
+        throw new Error('Choose a billing plan before creating a project.');
+      }
+      return client.projects.create(
+        buildCreateProjectInput({
+          id: createId(),
+          accountId: scope.value.accountId,
+          name: projectDraft.name.trim(),
+          billingIdentity: projectDraft.billingIdentity.trim(),
+          billingPlan: resolvedPlanId,
+        })
+      );
+    },
+    onSuccess: () => {
+      refresh();
+      resetProjectDraft();
+      void setView({ createOpen: false }, MANAGE_SELECTION_OPTIONS);
+    },
+  });
+
+  // `getApiErrorMessage` already ran inside `useSharedMutation` (see its own doc comment) — this
+  // routes the CLEAN decoded message onto the field it actually names, or a general line when it
+  // names neither (`classifyCreateProjectError`'s own doc comment).
+  const createProjectFieldErrors = newProjectAction.errorMessage
+    ? classifyCreateProjectError(newProjectAction.errorMessage)
+    : {};
+
+  const canSubmitCreateProject =
+    projectDraft.name.trim().length > 0 &&
+    projectDraft.billingIdentity.trim().length > 0 &&
+    resolvedPlanId !== null &&
+    !plansQuery.isLoading &&
+    !plansQuery.isError;
+
+  const createProjectDialog: CreateProjectDialogProps = {
+    open: view.createOpen,
+    accountLabel: scope.value.accountId || '—',
+    name: projectDraft.name,
+    onNameChange: (name) => setProjectDraft((prev) => ({ ...prev, name })),
+    nameError: createProjectFieldErrors.nameError,
+    billingIdentity: projectDraft.billingIdentity,
+    onBillingIdentityChange: (billingIdentity) =>
+      setProjectDraft((prev) => ({ ...prev, billingIdentity })),
+    billingIdentityError: createProjectFieldErrors.billingIdentityError,
+    plans,
+    plansLoading: plansQuery.isLoading,
+    plansError: plansQuery.isError ? "Couldn't load billing plans." : undefined,
+    onRetryPlans: () => void plansQuery.refetch(),
+    planId: resolvedPlanId,
+    onPlanChange: (planId) => setProjectDraft((prev) => ({ ...prev, planId })),
+    submitting: newProjectAction.isPending,
+    error: createProjectFieldErrors.error,
+    canSubmit: canSubmitCreateProject,
+    onSubmit: () => {
+      if (!canSubmitCreateProject) return;
+      newProjectAction.mutate();
+    },
+    onCancel: () => {
+      // Only clears the shared mutation entry when there is an ERROR to clear — mirrors
+      // `use-api-keys-screen.ts`'s `createKeyDialog.onCancel`.
+      if (newProjectAction.errorMessage) newProjectAction.dismiss();
+      resetProjectDraft();
+      void setView({ createOpen: false }, MANAGE_SELECTION_OPTIONS);
+    },
+  };
+
+  /**
+   * Ticket #309: `Generate report` now calls the real `/api/reports/consumption` route (#308) and
+   * triggers a real file download, replacing the mutation that unconditionally threw. `format ===
+   * 'pdf'` is refused with a clear message rather than silently downloading a CSV under a PDF
+   * label — ADR 0009 Decision 8 commits to CSV only, and the `format` toggle stays in the UI
+   * (removing it is #316, explicitly out of this ticket's scope).
+   */
+  const reportAction = useSharedMutation<ReportExportParams, void>({
+    mutationKey: REPORT_MUTATION_KEY,
+    mutationFn: async (params) => {
+      if (params.format === 'pdf') {
+        throw new Error("PDF export isn't available — CSV only.");
+      }
+      if (!scope.value.accountId) {
+        throw new Error('Select an account before generating a report.');
+      }
+      const query = new URLSearchParams({ month: params.period, account: scope.value.accountId });
+      if (scope.value.projectId) query.set('project', scope.value.projectId);
+
+      const response = await fetch(`/api/reports/consumption?${query.toString()}`);
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const message =
+          body &&
+          typeof body === 'object' &&
+          typeof (body as { message?: unknown }).message === 'string'
+            ? (body as { message: string }).message
+            : 'Could not generate the report. Try again.';
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const filename =
+        filenameFromContentDisposition(response.headers.get('content-disposition')) ??
+        `consumption-${params.period}.csv`;
+      downloadBlob(blob, filename);
+    },
+  });
 
   // The SELECTION rail's subject is `?row=<id>`, looked up in the loaded page — so a link to a
   // selected project reopens on that project, and Back deselects instead of leaving `/manage`.
@@ -238,8 +384,6 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   return {
     rows,
     loading: list.query.isLoading,
-    // Real failures only (console-ui#325) — `newProjectAction`/`reportAction`'s outcomes are
-    // deliberate, never-built placeholders, surfaced below as `PlaceholderNotice`s instead.
     errorMessage: list.query.isError ? 'Could not load projects.' : undefined,
     spendPendingMessage: MANAGE_SPEND_PENDING_MESSAGE,
     totals: manageTotals(rows, total),
@@ -248,10 +392,14 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     setSearch: (search) => {
       void setView({ search, page: 1 });
     },
-    newProject: () => newProjectAction.mutate(undefined),
-    newProjectNotice: newProjectAction.errorMessage
-      ? { message: newProjectAction.errorMessage, onDismiss: newProjectAction.dismiss }
-      : undefined,
+    newProject: () => {
+      if (!createProjectEligible) return;
+      if (newProjectAction.errorMessage) newProjectAction.dismiss();
+      void setView({ createOpen: true }, MANAGE_SELECTION_OPTIONS);
+    },
+    createProjectEligible,
+    createProjectReason,
+    createProjectDialog,
     selectedProject,
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);
@@ -319,16 +467,11 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
       onFormatChange: (format) => {
         void setView({ format: format as (typeof REPORT_FORMATS)[number] });
       },
-      onGenerate: () => reportAction.mutate(undefined),
+      onGenerate: (params) => reportAction.mutate(params),
       generating: reportAction.isPending,
       notice: reportAction.errorMessage
         ? { message: reportAction.errorMessage, onDismiss: reportAction.dismiss }
         : undefined,
-      // `[]`, not fetched from anywhere: report generation isn't wired, so there is no export
-      // history to have — `ReportExportPanel` renders "Export history is unwired." for this
-      // case, never "No exports yet." (console-ui#326 — that phrasing implied an export had been
-      // attempted and simply never checked).
-      lastExports: [],
     },
   };
 }

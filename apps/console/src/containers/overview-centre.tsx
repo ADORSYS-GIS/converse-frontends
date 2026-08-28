@@ -21,7 +21,7 @@ import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
 import { UrlSectionSheetTrigger } from './url-section-sheet-trigger';
-import { useOverviewScreen } from './use-overview-screen';
+import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-overview-screen';
 
 /**
  * `/` — the Overview centre column.
@@ -49,7 +49,11 @@ export function OverviewCentre() {
       modelField={screen.modelField}
     />
   );
-  const exportRail = <OverviewExportRail onExport={() => {}} />;
+  // CSV export route doesn't exist yet (#308) — disabled with the reason stated beside it,
+  // never a button that silently no-ops on press (console-ui#324). Same treatment as `OverviewRail`
+  // (they share `OVERVIEW_EXPORT_UNAVAILABLE_CAPTION`) so the persistent rail and this compact-tier
+  // sheet can never disagree.
+  const exportRail = <OverviewExportRail disabled caption={OVERVIEW_EXPORT_UNAVAILABLE_CAPTION} />;
 
   return (
     <div className="flex flex-col gap-8">

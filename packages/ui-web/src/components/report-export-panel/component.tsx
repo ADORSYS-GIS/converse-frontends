@@ -6,6 +6,7 @@ import { cn } from '../../cn';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
+import { InlineStatus } from '../inline-status';
 import { SegmentedControl } from '../segmented-control';
 import type { ReportExportPanelProps } from './types';
 
@@ -34,6 +35,7 @@ export function ReportExportPanel({
   onFormatChange,
   onGenerate,
   generating = false,
+  notice,
   lastExports,
   className,
 }: ReportExportPanelProps) {
@@ -50,7 +52,12 @@ export function ReportExportPanel({
 
       <div className="flex flex-col gap-1.5">
         <span className={fieldLabelClassName}>Group by</span>
-        <SegmentedControl aria-label="Group by" options={groupByOptions} value={groupBy} onChange={onGroupByChange} />
+        <SegmentedControl
+          aria-label="Group by"
+          options={groupByOptions}
+          value={groupBy}
+          onChange={onGroupByChange}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -61,7 +68,7 @@ export function ReportExportPanel({
               onCheckedChange={(checked) => onToggleInclude(toggle.id, checked)}
               className="toggle"
             />
-            <BaseField.Label className="cursor-pointer font-mono text-xs text-soft">
+            <BaseField.Label className="text-soft cursor-pointer font-mono text-xs">
               {toggle.label}
             </BaseField.Label>
           </BaseField.Root>
@@ -86,21 +93,46 @@ export function ReportExportPanel({
         variant="primary"
         className="w-full"
         disabled={generating}
-        onClick={() => onGenerate({ period, groupBy, format, includes: includeToggles.filter((t) => t.checked).map((t) => t.id) })}
-      >
+        onClick={() =>
+          onGenerate({
+            period,
+            groupBy,
+            format,
+            includes: includeToggles.filter((t) => t.checked).map((t) => t.id),
+          })
+        }>
         {generating ? 'Generating…' : 'Generate report'}
       </Button>
+
+      {notice ? (
+        <InlineStatus
+          action={
+            notice.onDismiss ? (
+              <Button type="button" variant="ghost" size="sm" onClick={notice.onDismiss}>
+                Dismiss
+              </Button>
+            ) : undefined
+          }>
+          {notice.message}
+        </InlineStatus>
+      ) : null}
 
       <div className="flex flex-col gap-3">
         <span className={fieldLabelClassName}>Last exports</span>
         {lastExports.length === 0 ? (
-          <p className="font-mono text-[11px] text-subtle">No exports yet.</p>
+          // Never "No exports yet." — that phrasing implies an export was attempted and none
+          // exist; `lastExports` is a hardcoded `[]` (`use-manage-screen.ts`), not a fetch result,
+          // so the honest line is that history is unwired, matching the vocabulary of `notice`
+          // above (console-ui#326).
+          <p className="text-subtle font-mono text-[11px]">Export history is unwired.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {lastExports.map((entry) => (
-              <li key={`${entry.filename}-${entry.date}`} className="flex items-baseline justify-between gap-3">
-                <span className="font-mono text-xs text-soft">{entry.filename}</span>
-                <span className="font-mono text-[11px] text-subtle">{entry.date}</span>
+              <li
+                key={`${entry.filename}-${entry.date}`}
+                className="flex items-baseline justify-between gap-3">
+                <span className="text-soft font-mono text-xs">{entry.filename}</span>
+                <span className="text-subtle font-mono text-[11px]">{entry.date}</span>
               </li>
             ))}
           </ul>

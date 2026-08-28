@@ -19,7 +19,7 @@ import {
   OverviewViewRail,
 } from '@lightbridge/ui-web/src/sections/overview-view-rail';
 
-import { useOverviewScreen } from './use-overview-screen';
+import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-overview-screen';
 
 /**
  * `/` — the Overview right rail, delivered through the `@rail` parallel-route slot.
@@ -62,7 +62,9 @@ export function OverviewRail() {
         />
       </RailPanel>
       <RailPanel label={OVERVIEW_EXPORT_RAIL_LABEL}>
-        <OverviewExportRail onExport={() => {}} />
+        {/* CSV export route doesn't exist yet (#308) — disabled with the reason stated beside
+            it, never a button that silently no-ops on press (console-ui#324). */}
+        <OverviewExportRail disabled caption={OVERVIEW_EXPORT_UNAVAILABLE_CAPTION} />
       </RailPanel>
     </>
   );

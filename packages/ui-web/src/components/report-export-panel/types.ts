@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import type { PlaceholderNotice } from '../inline-status';
 import type { SegmentedOption } from '../segmented-control';
 
 export type ReportExportFormat = 'csv' | 'pdf';
@@ -37,6 +38,12 @@ export type ReportExportPanelProps = {
   onGenerate: (params: ReportExportParams) => void;
   /** True while a report is being generated — the primary is the only control that disables. */
   generating?: boolean;
+  /**
+   * The outcome of pressing `Generate report` when report export isn't wired yet — a non-alert
+   * notice (console-ui#325), rendered beside the primary rather than as an `ErrorLine`: nothing
+   * failed, so there is nothing to retry.
+   */
+  notice?: PlaceholderNotice;
   lastExports: LastExportEntry[];
   className?: string;
 };

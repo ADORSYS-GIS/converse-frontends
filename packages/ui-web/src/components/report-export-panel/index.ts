@@ -4,5 +4,4 @@ export type {
   ReportExportParams,
   ReportExportFormat,
   ReportIncludeToggle,
-  LastExportEntry,
 } from './types';

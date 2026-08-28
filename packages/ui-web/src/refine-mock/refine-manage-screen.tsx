@@ -9,14 +9,12 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
+import type { CreateProjectPlanOption } from '../components/create-project-dialog';
+import { CreateProjectDialog } from '../components/create-project-dialog';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
-import type {
-  LastExportEntry,
-  ReportExportFormat,
-  ReportIncludeToggle,
-} from '../components/report-export-panel';
+import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
 import { SelectionSheet } from '../components/selection-sheet';
 import { SubNav } from '../components/sub-nav';
@@ -29,7 +27,6 @@ import {
 import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
 import type { ProjectRow } from '../sections/manage-projects-ledger';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
-import { manageLastExports } from '../sections/manage-report-rail/fixtures';
 import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
@@ -88,8 +85,17 @@ export function RefineManageScreen() {
     { id: 'per-model', label: 'Per-model breakdown', checked: true },
     { id: 'zero-usage', label: 'Include zero-usage projects', checked: false },
   ]);
-  const [lastExports, setLastExports] = useState<LastExportEntry[]>(manageLastExports);
   const [generating, setGenerating] = useState(false);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [billingIdentity, setBillingIdentity] = useState('');
+  const [planId, setPlanId] = useState<string | null>('pro');
+  const plans: CreateProjectPlanOption[] = [
+    { id: 'free', name: 'Free' },
+    { id: 'pro', name: 'Pro' },
+    { id: 'enterprise', name: 'Enterprise' },
+  ];
 
   const filters = useMemo(
     () => buildFilters({ search, accountValue, statusValue, budgetStateValue }),
@@ -166,16 +172,9 @@ export function RefineManageScreen() {
       format={format}
       onFormatChange={setFormat}
       generating={generating}
-      lastExports={lastExports}
-      onGenerate={(params) => {
+      onGenerate={() => {
         setGenerating(true);
-        setTimeout(() => {
-          setGenerating(false);
-          setLastExports((prev) => [
-            { filename: `${params.period} · ${params.format.toUpperCase()}`, date: 'just now' },
-            ...prev,
-          ]);
-        }, 400);
+        setTimeout(() => setGenerating(false), 400);
       }}
     />
   );
@@ -202,6 +201,24 @@ export function RefineManageScreen() {
         <ScreenHeading title="Projects" />
         <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
+        <CreateProjectDialog
+          open={createOpen}
+          accountLabel="acct_01"
+          name={projectName}
+          onNameChange={setProjectName}
+          billingIdentity={billingIdentity}
+          onBillingIdentityChange={setBillingIdentity}
+          plans={plans}
+          plansLoading={false}
+          onRetryPlans={() => {}}
+          planId={planId}
+          onPlanChange={setPlanId}
+          submitting={false}
+          canSubmit={projectName.trim().length > 0 && billingIdentity.trim().length > 0}
+          onSubmit={() => setCreateOpen(false)}
+          onCancel={() => setCreateOpen(false)}
+        />
+
         <ManageProjectsLedger
           projects={rows}
           loading={loading}
@@ -210,7 +227,7 @@ export function RefineManageScreen() {
           totals={totals}
           search={search}
           onSearchChange={setSearch}
-          onNewProject={() => {}}
+          onNewProject={() => setCreateOpen(true)}
           selectedRowKeys={selected ? [selected.id] : []}
           onSelectRow={setSelected}
           pagination={{

@@ -35,7 +35,6 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReportExport
       format="csv"
       onFormatChange={onFormatChange}
       onGenerate={onGenerate}
-      lastExports={[{ filename: '2026-01 · CSV', date: '4 d ago' }]}
       {...overrides}
     />
   );
@@ -49,17 +48,13 @@ describe('ReportExportPanel', () => {
     expect(screen.getByText('scope slot')).toBeInTheDocument();
   });
 
-  it('renders the last exports list as mono filename · date rows', () => {
+  // Ticket #309: there is no real export-history source, so the panel no longer renders a LAST
+  // EXPORTS section at all — neither a fabricated list nor a permanent "unwired"/"No exports yet."
+  // placeholder (console-ui#326's original complaint about the latter).
+  it('renders no export-history section — removed entirely, not emptied', () => {
     renderPanel();
-    expect(screen.getByText('2026-01 · CSV')).toBeInTheDocument();
-    expect(screen.getByText('4 d ago')).toBeInTheDocument();
-  });
-
-  it('shows an honest "unwired" fallback rather than implying an export was ever attempted', () => {
-    renderPanel({ lastExports: [] });
-    // Console-ui#326: "No exports yet." implied an export had been tried and none exist; this
-    // list is a hardcoded `[]`, never fetched, so the fallback must not claim otherwise.
-    expect(screen.getByText('Export history is unwired.')).toBeInTheDocument();
+    expect(screen.queryByText('Last exports')).not.toBeInTheDocument();
+    expect(screen.queryByText('Export history is unwired.')).not.toBeInTheDocument();
     expect(screen.queryByText('No exports yet.')).not.toBeInTheDocument();
   });
 

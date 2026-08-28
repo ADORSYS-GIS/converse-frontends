@@ -12,7 +12,17 @@ import type { ReportExportPanelProps } from './types';
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT (not self-panelled)
 // for the Manage screen (manage-projects.svg): period · scope slot · group-by segmented ·
-// include toggles · CSV|PDF segmented · one Generate report primary · LAST EXPORTS list.
+// include toggles · CSV|PDF segmented · one Generate report primary.
+//
+// Ticket #309: the LAST EXPORTS list that used to render below the primary is gone, not just
+// emptied. It was never a real list — `use-manage-screen.ts` fed it a hardcoded `[]` because no
+// export had ever been attempted (console-ui#326's "Export history is unwired." fix), but now
+// that `Generate report` calls the real `/api/reports/consumption` route (#308), keeping a
+// permanently-empty "history" section would misrepresent a genuinely-succeeding action as one
+// that still has nothing to show. There is no backend surface that records past exports (no such
+// table/procedure in `authz.cstack`), so per the ticket's own Risk section the safer default is
+// removing the section outright rather than half-implementing it — recorded here as the decision,
+// not left as a TODO.
 //
 // ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled `sr-only`
 // checkbox + drawn box/check-mark pair. daisy's `.toggle` CSS already matches `[aria-checked]`
@@ -36,7 +46,6 @@ export function ReportExportPanel({
   onGenerate,
   generating = false,
   notice,
-  lastExports,
   className,
 }: ReportExportPanelProps) {
   return (
@@ -116,28 +125,6 @@ export function ReportExportPanel({
           {notice.message}
         </InlineStatus>
       ) : null}
-
-      <div className="flex flex-col gap-3">
-        <span className={fieldLabelClassName}>Last exports</span>
-        {lastExports.length === 0 ? (
-          // Never "No exports yet." — that phrasing implies an export was attempted and none
-          // exist; `lastExports` is a hardcoded `[]` (`use-manage-screen.ts`), not a fetch result,
-          // so the honest line is that history is unwired, matching the vocabulary of `notice`
-          // above (console-ui#326).
-          <p className="text-subtle font-mono text-[11px]">Export history is unwired.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {lastExports.map((entry) => (
-              <li
-                key={`${entry.filename}-${entry.date}`}
-                className="flex items-baseline justify-between gap-3">
-                <span className="text-soft font-mono text-xs">{entry.filename}</span>
-                <span className="text-subtle font-mono text-[11px]">{entry.date}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }

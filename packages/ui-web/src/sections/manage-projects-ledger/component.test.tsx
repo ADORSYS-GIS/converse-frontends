@@ -66,6 +66,28 @@ describe('ManageProjectsLedger', () => {
     expect(onNewProject).toHaveBeenCalledTimes(1);
   });
 
+  // Ticket #303 — the account-owner-only gate is stated before a submission attempt, not
+  // discovered as a raw RPC error.
+  it('disables + New project and states the reason when creation is gated', () => {
+    render(
+      <ManageProjectsLedger
+        {...makeProps({
+          newProjectDisabled: true,
+          newProjectReason: 'Only the account owner can create a project.',
+        })}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: '+ New project' })).toBeDisabled();
+    expect(screen.getByText('Only the account owner can create a project.')).toBeInTheDocument();
+  });
+
+  it('leaves + New project enabled with no reason line when creation is not gated', () => {
+    render(<ManageProjectsLedger {...makeProps()} />);
+
+    expect(screen.getByRole('button', { name: '+ New project' })).toBeEnabled();
+  });
+
   it('fires onSelectRow when a row is activated', () => {
     const onSelectRow = vi.fn();
     render(<ManageProjectsLedger {...makeProps({ onSelectRow })} />);
@@ -93,43 +115,6 @@ describe('ManageProjectsLedger', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
-  });
-
-  // console-ui#325 — pressing "+ New project" when project creation isn't wired yet must not
-  // read as an error: no `role="alert"`, no `Retry`, and it must coexist with a genuine `error`
-  // (a real fetch failure) without either one masking the other.
-  it('renders the new-project placeholder notice as a non-alert status with Dismiss, never Retry', () => {
-    const onDismiss = vi.fn();
-    render(
-      <ManageProjectsLedger
-        {...makeProps({
-          notice: { message: "Project creation isn't available yet.", onDismiss },
-        })}
-      />
-    );
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    const status = screen.getByRole('status');
-    expect(status).toHaveTextContent("Project creation isn't available yet.");
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-    expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders the placeholder notice and a genuine load error side by side, without either masking the other', () => {
-    render(
-      <ManageProjectsLedger
-        {...makeProps({
-          projects: [],
-          error: 'Failed to load projects.',
-          notice: { message: "Project creation isn't available yet." },
-        })}
-      />
-    );
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects.');
-    expect(screen.getByRole('status')).toHaveTextContent("Project creation isn't available yet.");
   });
 
   it('renders an unrecognized status as "unknown" rather than crashing or defaulting to active', () => {

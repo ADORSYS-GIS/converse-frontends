@@ -11,11 +11,6 @@ export type ReportIncludeToggle = {
   checked: boolean;
 };
 
-export type LastExportEntry = {
-  filename: string;
-  date: string;
-};
-
 export type ReportExportParams = {
   period: string;
   groupBy: string;
@@ -44,6 +39,5 @@ export type ReportExportPanelProps = {
    * failed, so there is nothing to retry.
    */
   notice?: PlaceholderNotice;
-  lastExports: LastExportEntry[];
   className?: string;
 };

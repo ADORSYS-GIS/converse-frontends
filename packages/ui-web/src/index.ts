@@ -134,7 +134,8 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
-
+export { MutationFailureBanner } from './components/mutation-failure-banner';
+export type { MutationFailureBannerProps } from './components/mutation-failure-banner';
 
 // ── sections
 // Screen sections — the zone-level compositions a route assembles (console-ui skill

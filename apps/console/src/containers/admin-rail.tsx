@@ -16,7 +16,11 @@ export function AdminRail() {
 
   return (
     <RailPanel>
-      <ReviewDetailRail detail={screen.reviewDetail} />
+      {/* Keyed by selection: converse-frontends#322's decline-note validation is local state
+          scoped to the selected request (`ReviewDetailPanel`'s `noteMissing`) — a `key` forces a
+          fresh instance on every new selection instead of carrying a stale validation flag from
+          the previous request onto this one. */}
+      <ReviewDetailRail key={screen.selectedRequestId ?? 'none'} detail={screen.reviewDetail} />
     </RailPanel>
   );
 }

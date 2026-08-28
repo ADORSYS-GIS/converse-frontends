@@ -175,6 +175,7 @@ export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,
   ApiKeyStatus,
+  ApiKeysDeleteTarget,
   ApiKeysLedgerProps,
   ApiKeysPagination,
   ApiKeysRevokeTarget,

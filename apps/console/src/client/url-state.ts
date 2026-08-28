@@ -139,9 +139,10 @@ export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
  * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
  * per keystroke while the address bar (and the refine query it drives) settles once typing stops.
  *
- * `revoke` holds the id of the key whose revoke confirmation is open. A dialog *target* is view
- * state — Back closes the dialog, and a colleague can be sent straight to the confirmation. The
- * dialog's failure reason is not here: it belongs to the mutation that failed.
+ * `revoke` holds the id of the key whose revoke confirmation is open, and `delete` the same for
+ * the (admin-gated, ticket #321) delete confirmation. A dialog *target* is view state — Back
+ * closes the dialog, and a colleague can be sent straight to the confirmation. Neither dialog's
+ * failure reason is here: it belongs to the mutation that failed.
  */
 export const apiKeysParsers = {
   page: parseAsInteger.withDefault(1),
@@ -149,15 +150,21 @@ export const apiKeysParsers = {
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   selectedKeyId: parseAsString.withDefault(''),
   revokeKeyId: parseAsString.withDefault(''),
+  deleteKeyId: parseAsString.withDefault(''),
 };
 
-const apiKeysUrlKeys = { search: 'q', selectedKeyId: 'key', revokeKeyId: 'revoke' };
+const apiKeysUrlKeys = {
+  search: 'q',
+  selectedKeyId: 'key',
+  revokeKeyId: 'revoke',
+  deleteKeyId: 'delete',
+};
 
 export function useApiKeysParams() {
   return useQueryStates(apiKeysParsers, { urlKeys: apiKeysUrlKeys, history: 'replace' });
 }
 
-/** Row selection and the revoke dialog are navigation-grade; the filters above them are not. */
+/** Row selection and the revoke/delete dialogs are navigation-grade; the filters above them are not. */
 export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── /manage ──────────────────────────────────────────────────────────────────────────────────

@@ -86,10 +86,13 @@ function PersistentShell() {
             keys={apiKeysFixture}
             onDismissSecret={() => {}}
             onRotate={() => {}}
-            onDelete={() => {}}
             onRequestRevoke={() => {}}
             onConfirmRevoke={() => {}}
             onCancelRevoke={() => {}}
+            isAdmin
+            onRequestDelete={() => {}}
+            onConfirmDelete={() => {}}
+            onCancelDelete={() => {}}
           />
         </div>
       )}

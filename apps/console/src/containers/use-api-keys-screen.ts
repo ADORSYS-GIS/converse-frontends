@@ -436,7 +436,15 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
     confirmDelete: (row) => {
       deleteKeyMutate(
-        { resource: 'apiKeys', id: row.id },
+        // `errorNotification`/`successNotification: false` — converse-frontends#333 already
+        // gives this failure a local, contextual home (`deleteErrorMessage` inline in
+        // `TypedConfirmDialog`, right where the reviewer is looking). Without these,
+        // converse-frontends#323's new console-wide `notificationProvider` would ALSO fire its
+        // default banner for the exact same failure — the double-notification the ticket's own
+        // Risks section calls out by name. `TypedConfirmDialog`'s existing local error stays the
+        // one true source for this specific mutation; the banner is the default for everything
+        // that has no such local handling.
+        { resource: 'apiKeys', id: row.id, errorNotification: false, successNotification: false },
         {
           onSuccess: () => {
             void setView({ deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);

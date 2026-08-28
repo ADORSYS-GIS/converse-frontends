@@ -1,6 +1,7 @@
 'use client';
 
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
+import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -11,6 +12,11 @@ import {
   navItems,
   routeFromPathname,
 } from '../../client/console-chrome';
+import {
+  notificationText,
+  useConsoleNotification,
+  useDismissConsoleNotification,
+} from '../../client/console-notifications';
 import { useConsoleScope } from '../../client/use-console-scope';
 import { useConsoleSession } from '../../client/session-context';
 
@@ -59,6 +65,10 @@ export default function ConsoleLayout({
   const route = routeFromPathname(pathname);
   const session = useConsoleSession();
   const consoleScope = useConsoleScope();
+  // converse-frontends#323: the console-wide default visibility path for a failed refine
+  // mutation — see `console-notifications.ts`'s module doc comment for the full mechanism.
+  const notification = useConsoleNotification();
+  const dismissNotification = useDismissConsoleNotification();
 
   const leftSecondaryLabel = route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
 
@@ -71,6 +81,12 @@ export default function ConsoleLayout({
               {consoleScope.value.accountId || '—'}
             </span>
           }
+        />
+      }
+      banner={
+        <MutationFailureBanner
+          message={notificationText(notification)}
+          onDismiss={dismissNotification}
         />
       }
       nav={{

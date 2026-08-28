@@ -154,11 +154,14 @@ export function useAdminScreen(): AdminScreen {
     pendingCount: pending.length,
     decidedCount: decisions.length,
     loading: pendingQuery.isLoading,
-    errorMessage: pendingQuery.isError
-      ? 'Could not load the refill queue.'
-      : decide.errorMessage
-        ? 'The decision was not recorded.'
-        : undefined,
+    // converse-frontends#322: this used to collapse every decision failure into the same generic
+    // "The decision was not recorded.", discarding `decide.errorMessage`'s real cause. Now that
+    // an empty Decline is blocked client-side before it can ever reach the RPC layer (see
+    // `ReviewDetailPanel`'s `handleDecline`), whatever failure does reach here is a genuine
+    // server-side rejection (permission, a request already decided, a network error, ...) and
+    // deserves its own message — the same pattern `use-api-keys-screen.ts` already uses for
+    // `revoke.errorMessage`/`secret.errorMessage` rather than a hardcoded fallback string.
+    errorMessage: pendingQuery.isError ? 'Could not load the refill queue.' : decide.errorMessage,
     emptyPendingMessage: `Nothing awaiting a decision. ${decisions.length} decided request${
       decisions.length === 1 ? '' : 's'
     } shown below.`,

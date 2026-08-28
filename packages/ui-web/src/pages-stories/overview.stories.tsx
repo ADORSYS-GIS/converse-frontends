@@ -29,7 +29,7 @@ import {
   overviewLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
 import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
-import { overviewExportCaption } from '../sections/overview-export-rail/fixtures';
+import { overviewExportUnavailableCaption } from '../sections/overview-export-rail/fixtures';
 import {
   OVERVIEW_FILTERS_RAIL_LABEL,
   OverviewFiltersRail,
@@ -164,7 +164,10 @@ function OverviewScreen({
       modelField={modelField}
     />
   );
-  const exportRail = <OverviewExportRail onExport={() => {}} caption={overviewExportCaption} />;
+  // Matches `apps/console`'s real state (console-ui#324): the CSV export route doesn't exist
+  // yet, so the control is disabled with the reason stated beside it rather than a button that
+  // silently does nothing on press.
+  const exportRail = <OverviewExportRail disabled caption={overviewExportUnavailableCaption} />;
 
   return (
     <ConsoleShell
@@ -336,10 +339,11 @@ export const Unwired: Story = {
   render: () => (
     <OverviewScreen
       // Verbatim copy of `apps/console`'s real `USAGE_PENDING_MESSAGE`
-      // (`containers/use-overview-screen.ts`) — including its "ADR 0009 follow-ups 4 and 6"
-      // citation, which #326 tracks separately (follow-up 4 already shipped; only follow-up 6 is
-      // still outstanding). Not fixed here: out of scope for #272/#273, and #326 already owns it.
-      emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project and key counts below are live."
+      // (`containers/use-overview-screen.ts`) — console-ui#326 dropped the "(ADR 0009 follow-ups
+      // 4 and 6)" citation from the real string (follow-up 4 shipped, so citing it was simply
+      // wrong, and an internal ADR follow-up index doesn't belong in customer-visible copy); this
+      // copy follows.
+      emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet. Project and key counts below are live."
       statCards={overviewUnwiredStatCards}
       spendSeries={[]}
       spendStatus="unwired"

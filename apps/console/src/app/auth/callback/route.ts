@@ -60,7 +60,18 @@ export async function GET(request: NextRequest) {
 
   // `request.nextUrl` carries Next's own internal search params on some paths; rebuild a clean URL
   // from the incoming href so `openid-client` sees exactly what the provider redirected to.
-  const currentUrl = new URL(request.url);
+  //
+  // Critically, the *origin* of that rebuilt URL must be the public one (`origin`, computed above
+  // from `publicOrigin(request)`), not `request.url`'s own origin. Behind a TLS-terminating proxy
+  // (Traefik in this deployment), `request.url` reflects the internal hop into the Next.js
+  // process — `http://` and/or an internal host — never what the browser and Keycloak agreed on
+  // at the authorize step. `openid-client` v6's `authorizationCodeGrant` derives the token
+  // request's `redirect_uri` straight from this URL's origin+pathname, so a mismatch here is
+  // exactly what Keycloak's exchange endpoint rejects as "Incorrect redirect_uri" — `/auth/login`
+  // already gets this right via the same `publicOrigin(request)` call. Only the path and query
+  // (which carry `code`/`state`) come from the incoming request.
+  const incomingUrl = new URL(request.url);
+  const currentUrl = new URL(`${incomingUrl.pathname}${incomingUrl.search}`, origin);
 
   try {
     const session = await exchangeCode(

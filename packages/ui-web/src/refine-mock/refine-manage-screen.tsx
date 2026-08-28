@@ -10,6 +10,7 @@ import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
+import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
 import type {
   LastExportEntry,
@@ -37,6 +38,13 @@ import { ScreenHeading } from '../sections/screen-heading';
 import { manageSubNavItems } from '../pages-stories/shell-fixtures';
 import { RefineMockShell } from './shared-chrome';
 
+/**
+ * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
+ * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
+ */
+const MANAGE_SPEND_PENDING_MESSAGE =
+  'Spend and quota ceiling are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project status and quota tier below are live.';
+
 function buildFilters({
   search,
   accountValue,
@@ -53,8 +61,12 @@ function buildFilters({
   if (accountValue !== 'all')
     filters.push({ field: 'account', operator: 'eq', value: accountValue });
   if (statusValue !== 'all') filters.push({ field: 'status', operator: 'eq', value: statusValue });
-  if (budgetStateValue === 'near-ceiling')
-    filters.push({ field: 'status', operator: 'eq', value: 'near ceiling' });
+  // Real signal, not a numeric-ceiling coercion (issue #269): whether a governance quota tier is
+  // assigned at all.
+  if (budgetStateValue === 'quota-set')
+    filters.push({ field: 'quotaTier', operator: 'ne', value: null });
+  if (budgetStateValue === 'no-quota')
+    filters.push({ field: 'quotaTier', operator: 'eq', value: null });
   return filters;
 }
 
@@ -64,7 +76,7 @@ export function RefineManageScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
-  const [budgetStateValue, setBudgetStateValue] = useState('any');
+  const [budgetStateValue, setBudgetStateValue] = useState('all');
   const [selected, setSelected] = useState<ProjectRow | null>(null);
 
   const [period, setPeriod] = useState('2026-02');
@@ -98,24 +110,20 @@ export function RefineManageScreen() {
   const loading = table.tableQuery.isLoading;
   const error = table.tableQuery.isError ? table.tableQuery.error?.message : undefined;
 
+  // Spend has no live source yet (Epic 4) — every row's SPEND MTD is already `null` in the mock
+  // fixtures, so the honest total is `null` too, never a fabricated sum.
   const totals =
     rows.length > 0
       ? {
           shownLabel: `TOTAL · ${rows.length} SHOWN`,
-          spendMtd: rows.reduce((sum, row) => sum + (row.spendMtd ?? 0), 0),
-          ceiling: rows.reduce((sum, row) => sum + (row.ceiling ?? 0), 0),
-          usedPercent:
-            rows.reduce((sum, row) => sum + (row.usedPercent ?? 0), 0) / rows.length,
+          spendMtd: null,
         }
       : undefined;
 
   const scopeSlot = (
     <div className="flex flex-col gap-1.5">
       <span className={fieldLabelClassName}>Scope</span>
-      <select
-        value="account:adorsys-gis"
-        onChange={() => {}}
-        className={fieldControlClassName}>
+      <select value="account:adorsys-gis" onChange={() => {}} className={fieldControlClassName}>
         <option value="account:adorsys-gis">Account · adorsys-gis</option>
       </select>
     </div>
@@ -189,7 +197,8 @@ export function RefineManageScreen() {
         </>
       }>
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+        <ScreenHeading title="Projects" />
+        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
         <ManageProjectsLedger
           projects={rows}

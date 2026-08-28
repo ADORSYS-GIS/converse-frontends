@@ -18,22 +18,20 @@ function money(value: number | null): string {
 // Selection-driven, so below `lg` it is reached through `SelectionSheet` rather than a trigger.
 export function ManageSelectionRail({ project, className }: ManageSelectionRailProps) {
   if (!project) {
-    return (
-      <p className={cn('font-sans text-[11px] text-subtle', className)}>No rows selected.</p>
-    );
+    return <p className={cn('text-subtle font-sans text-[11px]', className)}>No rows selected.</p>;
   }
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <span className="font-mono text-sm text-ink">{project.name}</span>
-      <span className="font-mono text-[11px] text-subtle">{project.account}</span>
-      <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
-        <span className="font-mono text-[11px] text-subtle">Spend MTD</span>
-        <span className="font-mono text-xs text-soft">{money(project.spendMtd)}</span>
+      <span className="text-ink font-mono text-sm">{project.name}</span>
+      <span className="text-subtle font-mono text-[11px]">{project.account}</span>
+      <div className="border-border flex items-baseline justify-between gap-3 border-t pt-2">
+        <span className="text-subtle font-mono text-[11px]">Spend MTD</span>
+        <span className="text-soft font-mono text-xs">{money(project.spendMtd)}</span>
       </div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[11px] text-subtle">Ceiling</span>
-        <span className="font-mono text-xs text-soft">{money(project.ceiling)}</span>
+        <span className="text-subtle font-mono text-[11px]">Quota tier</span>
+        <span className="text-soft font-mono text-xs">{project.quotaTier ?? '—'}</span>
       </div>
     </div>
   );

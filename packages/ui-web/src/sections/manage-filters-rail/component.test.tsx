@@ -3,11 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ManageFiltersRail } from './component';
-import {
-  manageAccountOptions,
-  manageBudgetStateOptions,
-  manageStatusOptions,
-} from './fixtures';
+import { manageAccountOptions, manageBudgetStateOptions, manageStatusOptions } from './fixtures';
 import type { ManageFiltersRailProps } from './types';
 
 function makeProps(overrides: Partial<ManageFiltersRailProps> = {}): ManageFiltersRailProps {
@@ -18,7 +14,7 @@ function makeProps(overrides: Partial<ManageFiltersRailProps> = {}): ManageFilte
     statusOptions: manageStatusOptions,
     statusValue: 'all',
     onStatusChange: vi.fn(),
-    budgetStateValue: 'any',
+    budgetStateValue: 'all',
     budgetStateOptions: manageBudgetStateOptions,
     onBudgetStateChange: vi.fn(),
     ...overrides,
@@ -39,9 +35,9 @@ describe('ManageFiltersRail', () => {
     const onStatusChange = vi.fn();
     render(<ManageFiltersRail {...makeProps({ onStatusChange })} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suspended' }));
 
-    expect(onStatusChange).toHaveBeenCalledWith('archived');
+    expect(onStatusChange).toHaveBeenCalledWith('suspended');
   });
 
   it('fires onBudgetStateChange from the budget-state dropdown', () => {
@@ -49,9 +45,9 @@ describe('ManageFiltersRail', () => {
     render(<ManageFiltersRail {...makeProps({ onBudgetStateChange })} />);
 
     fireEvent.change(screen.getByLabelText('Budget state'), {
-      target: { value: 'near-ceiling' },
+      target: { value: 'quota-set' },
     });
 
-    expect(onBudgetStateChange).toHaveBeenCalledWith('near-ceiling');
+    expect(onBudgetStateChange).toHaveBeenCalledWith('quota-set');
   });
 });

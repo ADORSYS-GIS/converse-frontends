@@ -10,14 +10,18 @@ export const manageAccountOptions: ManageOption[] = [
   { value: 'adorsys-emea', label: 'adorsys-emea' },
 ];
 
+// Values match the real backend enum (`authz.cstack` — `disableProject`/`enableProject`) and the
+// `MANAGE_STATUSES`/`MANAGE_BUDGET_STATES` URL contract (`apps/console/src/client/url-state.ts`):
+// `archived` never existed on the backend (issue #268), and "budget state" now reflects whether a
+// governance quota tier is assigned, not a numeric ceiling that was never real (issue #269).
 export const manageStatusOptions: SegmentedOption<string>[] = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
-  { value: 'archived', label: 'Archived' },
+  { value: 'suspended', label: 'Suspended' },
 ];
 
 export const manageBudgetStateOptions: ManageOption[] = [
-  { value: 'any', label: 'Any' },
-  { value: 'near-ceiling', label: 'Near ceiling' },
-  { value: 'over-ceiling', label: 'Over ceiling' },
+  { value: 'all', label: 'Any budget state' },
+  { value: 'quota-set', label: 'Quota set' },
+  { value: 'no-quota', label: 'No quota' },
 ];

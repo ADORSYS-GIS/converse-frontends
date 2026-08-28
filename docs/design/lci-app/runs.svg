@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-label="LCI app — Runs list and review result detail screen mockup, dark theme">
+<title>LCI app — Runs (list + review-result detail)</title>
+<style>
+  .m   { font-family: ui-monospace, "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; }
+  .lab { font-size: 10px; letter-spacing: .09em; fill: #606060; }
+  .hi  { fill: #eeeeee; }
+  .bo  { fill: #b4b4b4; }
+  .mu  { fill: #606060; }
+  .ac  { fill: #DA5C2C; }
+  .rule{ stroke: #202020; stroke-width: 1; }
+  .ctl { fill: #111111; stroke: #3a3a3a; stroke-width: 1; }
+</style>
+
+<rect width="1440" height="900" fill="#000000"/>
+
+<rect x="0" y="0" width="1440" height="56" fill="#111111"/>
+<text class="m hi" x="20" y="32" font-size="12" letter-spacing=".14em">LCI</text>
+<text class="m mu" x="1362" y="32" font-size="11" text-anchor="end">sam@adorsys.com</text>
+<circle cx="1398" cy="28" r="13" fill="#202020"/>
+<text class="m bo" x="1398" y="32" font-size="10" text-anchor="middle">SL</text>
+
+<rect x="0" y="56" width="208" height="844" fill="#191919"/>
+<text class="m lab" x="16" y="88">LCI</text>
+<text class="m mu" x="44" y="125" font-size="12">Repositories</text>
+<text class="m mu" x="44" y="163" font-size="12">Overview</text>
+<rect x="0" y="180" width="208" height="34" fill="#202020"/>
+<rect x="0" y="180" width="2" height="34" fill="#DA5C2C"/>
+<text class="m hi" x="44" y="201" font-size="12">Runs</text>
+<text class="m mu" x="44" y="239" font-size="12">Admin</text>
+<text class="m mu" x="44" y="273" font-size="12">Settings</text>
+
+<!-- centre: runs ledger — status is TEXT (status-text), never a pill -->
+<text class="m lab" x="248" y="88">/DASHBOARD/RUNS</text>
+<rect x="248" y="100" width="872" height="20" rx="2" fill="#191919" stroke="#3a3a3a"/>
+<text class="m mu" x="256" y="114" font-size="9">Search runs…</text>
+<rect x="248" y="132" width="872" height="480" rx="2" fill="#191919"/>
+<line x1="264" y1="164" x2="1104" y2="164" class="rule"/>
+<text class="m lab" x="272" y="154">RUN</text>
+<text class="m lab" x="760" y="154">TRIGGERED</text>
+<text class="m lab" x="920" y="154">STATUS</text>
+
+<g class="m" font-size="11">
+  <text class="hi" x="272" y="186">PR #612 — path-scoped webhook routes</text>
+  <text class="bo" x="760" y="186">2026-08-28 09:14</text>
+  <text class="bo" x="920" y="186">Complete</text>
+
+  <!-- active row: status is still text, with a pulsing dot ahead of it — not a badge fill -->
+  <rect x="264" y="200" width="840" height="26" fill="#202020"/>
+  <text class="hi" x="272" y="218">PR #614 — Vitest + jsdom component harness</text>
+  <text class="bo" x="760" y="218">2026-08-28 10:02</text>
+  <circle cx="912" cy="214" r="3" fill="#DA5C2C">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite"/>
+  </circle>
+  <text class="ac" x="920" y="218">Running</text>
+
+  <text class="hi" x="272" y="250">PR #609 — component test harness for apps/web</text>
+  <text class="bo" x="760" y="250">2026-08-27 16:40</text>
+  <text class="ac" x="920" y="250">Failed</text>
+
+  <text class="hi" x="272" y="282">PR #606 — cursor pagination for repositories</text>
+  <text class="bo" x="760" y="282">2026-08-26 11:03</text>
+  <text class="bo" x="920" y="282">Complete</text>
+</g>
+
+<line x1="264" y1="576" x2="1104" y2="576" class="rule"/>
+<text class="m mu" x="272" y="596" font-size="9">1–4 / 41</text>
+<g class="m" font-size="10">
+  <rect x="980" y="584" width="30" height="16" rx="2" class="ctl"/>
+  <text class="bo" x="995" y="596" text-anchor="middle">Prev</text>
+  <rect x="1014" y="584" width="46" height="16" rx="2" fill="none"/>
+  <text class="mu" x="1037" y="596" text-anchor="middle">1 / 11</text>
+  <rect x="1064" y="584" width="30" height="16" rx="2" class="ctl"/>
+  <text class="bo" x="1079" y="596" text-anchor="middle">Next</text>
+</g>
+
+<!-- right rail: review-result detail for the selected run — persistent, never an overlay -->
+<rect x="1144" y="56" width="280" height="844" fill="#191919"/>
+<text class="m lab" x="1160" y="88">REVIEW RESULT</text>
+<text class="m hi" x="1160" y="112" font-size="12">PR #614</text>
+<text class="m bo" x="1160" y="132" font-size="10">Vitest + jsdom component harness</text>
+<line x1="1160" y1="148" x2="1408" y2="148" class="rule"/>
+
+<text class="m lab" x="1160" y="172">FINDINGS (2)</text>
+<text class="m bo" x="1160" y="192" font-size="10">1 · maintainability · medium</text>
+<text class="m bo" x="1160" y="210" font-size="10">1 · correctness · low</text>
+
+<line x1="1160" y1="228" x2="1408" y2="228" class="rule"/>
+<text class="m lab" x="1160" y="250">RUN LOGS</text>
+<rect x="1160" y="262" width="248" height="120" rx="2" fill="#000000" stroke="#202020"/>
+<text class="m mu" x="1176" y="282" font-size="9">Grafana d-solo embed (app-local —</text>
+<text class="m mu" x="1176" y="296" font-size="9">not a ui-web primitive; env-var-gated,</text>
+<text class="m mu" x="1176" y="310" font-size="9">honest-unavailable fallback per LCI#609)</text>
+
+<rect x="1160" y="398" width="248" height="30" rx="2" class="ctl"/>
+<text class="m hi" x="1284" y="418" font-size="12" text-anchor="middle">View full output</text>
+</svg>

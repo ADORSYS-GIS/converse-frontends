@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "converse-console values",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "app": { "type": "string" },
+            "team": { "type": "string" }
+          }
+        }
+      }
+    },
+    "console": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "controllers": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "main": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "containers": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "frontend": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "image": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "repository": { "type": "string", "minLength": 1 },
+                            "tag": { "type": "string", "minLength": 1 }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": ["frontend"]
+                }
+              },
+              "required": ["containers"]
+            }
+          },
+          "required": ["main"]
+        },
+        "configMaps": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "console-config": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "config.yaml": {
+                      "description": "The full apps/console config.yaml document for this deployment (server.js's config-loader.ts reads it -- see that file's header comment for the {env:VAR} placeholder syntax it supports). A real deployment supplies its own complete document here (its own Keycloak issuer, backend URLs, etc. as plain literals; secrets as {env:VAR} placeholders backed by a mounted Secret) rather than overriding individual fields.",
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["config.yaml"]
+                }
+              },
+              "required": ["data"]
+            }
+          },
+          "required": ["console-config"]
+        }
+      },
+      "required": ["controllers", "configMaps"]
+    }
+  },
+  "required": ["console"]
+}

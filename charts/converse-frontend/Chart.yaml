@@ -1,26 +1,15 @@
 apiVersion: v2
 name: converse-frontend
-description: Lightbridge Console UI (Next.js, Node runtime) — apps/console, not the retired nginx/static-export packaging (bjw-s app-template)
+description: Converse Frontend UI (TypeScript) served by nginx (bjw-s app-template)
 type: application
 
-# MAJOR bump (0.1.0 -> 1.0.0), deliberately not a patch/minor: this version repurposes the chart
-# from a static export served by nginx (apps/self-service, port 8080, EXPO_PUBLIC_* env config) to
-# a Node server (apps/console, port 3000, CONSOLE_CONFIG + mounted config.yaml) — see ticket #287.
-# apps/self-service keeps running in production on its existing pinned image until Epic 4 retires
-# it; this chart no longer serves that shape at all. If the consumer in the private ai-helm-values
-# repo floats on a semver range anchored to 0.x (the common convention for a pre-1.0 chart, e.g.
-# `^0.1.0` or `~0.1.0`), a major bump does NOT get silently picked up — self-service's ArgoCD app
-# must keep resolving the last 0.1.x release of this chart until it's explicitly moved (or retired
-# outright), and a new ArgoCD app for the console explicitly targets >=1.0.0. See this PR's body
-# for the full cross-repo follow-up list.
-version: 1.0.0
+version: 0.1.0
 
 # Tracks the container image tag by default
-appVersion: 1.0.0
+appVersion: 0.1.0
 
 keywords:
   - converse
-  - console
   - frontend
   - ui
   - typescript

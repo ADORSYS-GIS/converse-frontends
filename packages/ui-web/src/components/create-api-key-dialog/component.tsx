@@ -2,7 +2,6 @@ import { Dialog } from '@base-ui/react/dialog';
 import { Select } from '@base-ui/react/select';
 import React from 'react';
 
-import { cn } from '../../cn';
 import { formatBillingPlanLimits } from '../../lib/billing-plan-limits';
 import { Button } from '../button';
 import { ErrorLine } from '../error-line';
@@ -10,24 +9,40 @@ import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
 import { SegmentedControl } from '../segmented-control';
 import type { CreateApiKeyDialogProps } from './types';
-import { OVERLAY_CLASS } from '../../lib/overlay';
 import { Chevron } from '../chevron';
+import { META_CLASS } from '../../lib/type-roles';
+import { OVERLAY_ITEM_CLASS } from '../../lib/overlay';
+import {
+  SELECT_POPUP_CLASS,
+  SELECT_POSITIONER_CLASS,
+  SELECT_TRIGGER_CLASS,
+} from '../../lib/select';
+import {
+  DIALOG_ACTIONS_CLASS,
+  DIALOG_BACKDROP_CLASS,
+  DIALOG_BODY_CLASS,
+  DIALOG_DESCRIPTION_CLASS,
+  DIALOG_ERROR_CLASS,
+  DIALOG_POPUP_CLASS,
+  DIALOG_TITLE_CLASS,
+} from '../../lib/dialog';
 
-// Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) / §4 "Forms and actions" —
-// the `+ New key` primary's target. No dedicated component is named in the inventory for this
-// one, so it follows `TypedConfirmDialog`'s own established shape one row over: a modal `surface`
-// panel, no border, no shadow, radius 2, dismissed by Cancel/Escape/backdrop (unlike
-// `AlertDialog`, a plain `Dialog` — creating a key is not destructive, so an accidental outside
-// click closing it costs nothing the typed-confirm gate exists to prevent).
+// Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) and §4 "Forms and
+// actions" — the "+ New key" primary's target. No dedicated component is named in the inventory
+// for this one, so it follows the shape the other three dialogs share: a modal surface panel,
+// radius 2, no shadow, dismissed by Cancel/Escape/backdrop (unlike an AlertDialog, a plain
+// Dialog — creating a key is not destructive, so an accidental outside click costs nothing the
+// typed-confirm gate exists to prevent). The panel and the plan picker both come from lib now.
 //
-// Three inputs the schema's `CreateApiKeyInput` (authz.cstack:537) requires and none of which
-// this dialog invents a value for: `name` (typed by the caller), `expiresAt` (chosen from presets
-// kept under the operator's documented 90-day ceiling with a 1-day margin — see
-// `use-api-keys-screen.ts`'s `EXPIRY_DAY_OPTIONS` for why 89 rather than 90), and `billingPlan`
-// (chosen from the real `listBillingPlans` catalogue the caller passes in as `plans` — this
-// component never hardcodes a plan id). The selected plan's `limits` render via
-// `formatBillingPlanLimits`, which is the one place the "absent field means no limit, never 0"
-// contract on `BillingPlanInfo.limits` (authz.cstack:566) gets turned into text.
+// Three inputs the schema's CreateApiKeyInput requires, none of which this dialog invents a value
+// for: name (typed by the caller), expiresAt (chosen from presets kept under the operator's
+// documented 90-day ceiling with a one-day margin — see the api-keys screen hook for why 89
+// rather than 90), and billingPlan (chosen from the real listBillingPlans catalogue the caller
+// passes in as plans — this component never hardcodes a plan id). The selected plan's limits
+// render via formatBillingPlanLimits, which is the one place the "absent field means no limit,
+// never 0" contract on BillingPlanInfo.limits gets turned into text.
+//
+// Both label/control stacks are daisy fieldset: a 1fr grid at the 6px gap the form already used.
 export function CreateApiKeyDialog({
   open,
   projectLabel,
@@ -49,9 +64,9 @@ export function CreateApiKeyDialog({
   onCancel,
 }: CreateApiKeyDialogProps) {
   const selectedPlan = plans.find((plan) => plan.id === planId) ?? null;
-  // A placeholder item carries `value: null` rather than a `Select.Value` children-render — the
-  // same idiom `ScopeSelect`'s own "All projects" placeholder uses, so the trigger always has a
-  // real item backing whatever it displays instead of a second, parallel copy of the loading/
+  // A placeholder item carries a null value rather than a Select.Value children-render — the
+  // same idiom ScopeSelect's own "All projects" placeholder uses, so the trigger always has a
+  // real item backing whatever it displays instead of a second, parallel copy of the loading and
   // empty logic living only in the trigger's render.
   const planItems: { value: string | null; label: string }[] = plansLoading
     ? [{ value: null, label: 'Loading plans…' }]
@@ -66,14 +81,14 @@ export function CreateApiKeyDialog({
         if (!nextOpen) onCancel();
       }}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="bg-muted/80 fixed inset-0 z-50" />
-        <Dialog.Popup className={cn('fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 p-6', OVERLAY_CLASS)}>
-          <Dialog.Title className="text-ink font-mono text-base">New API key</Dialog.Title>
-          <Dialog.Description className="text-soft mt-2 font-sans text-[11px] leading-[1.45]">
+        <Dialog.Backdrop className={DIALOG_BACKDROP_CLASS} />
+        <Dialog.Popup className={DIALOG_POPUP_CLASS}>
+          <Dialog.Title className={DIALOG_TITLE_CLASS}>New API key</Dialog.Title>
+          <Dialog.Description className={DIALOG_DESCRIPTION_CLASS}>
             Scoped to {projectLabel}. The secret is shown once, immediately after creation.
           </Dialog.Description>
 
-          <div className="mt-5 flex flex-col gap-4">
+          <div className={DIALOG_BODY_CLASS}>
             <Field
               label="Name"
               placeholder="e.g. ci-deploy"
@@ -82,7 +97,7 @@ export function CreateApiKeyDialog({
               autoComplete="off"
             />
 
-            <div className="flex flex-col gap-1.5">
+            <div className="fieldset">
               <span className={fieldLabelClassName}>Expires in</span>
               <SegmentedControl
                 aria-label="Expires in"
@@ -92,45 +107,38 @@ export function CreateApiKeyDialog({
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Select.Root
-                items={planItems}
-                value={planId}
-                onValueChange={(value) => value !== null && onPlanChange(value)}
-                disabled={plansLoading || plans.length === 0}>
+            <Select.Root
+              items={planItems}
+              value={planId}
+              onValueChange={(value) => value !== null && onPlanChange(value)}
+              disabled={plansLoading || plans.length === 0}>
+              <div className="fieldset">
                 <Select.Label className={fieldLabelClassName}>Billing plan</Select.Label>
-                <Select.Trigger
-                  className={cn(
-                    'border-border bg-chrome flex h-[30px] w-full items-center justify-between gap-2 rounded-[2px] border px-3',
-                    'text-soft data-[popup-open]:border-primary focus-visible:border-primary font-mono text-sm outline-hidden',
-                    'disabled:cursor-not-allowed disabled:opacity-60'
-                  )}>
+                <Select.Trigger className={SELECT_TRIGGER_CLASS}>
                   <Select.Value />
                   <Select.Icon>
                     <Chevron />
                   </Select.Icon>
                 </Select.Trigger>
-                <Select.Portal>
-                  <Select.Positioner sideOffset={4} className="outline-hidden select-none">
-                    <Select.Popup className={cn('z-50 w-(--anchor-width) py-1 font-mono', OVERLAY_CLASS)}>
-                      <Select.List>
-                        {planItems.map((item) => (
-                          <Select.Item
-                            key={item.value ?? ''}
-                            value={item.value}
-                            className="text-soft data-[highlighted]:bg-raised data-[highlighted]:text-ink flex cursor-pointer items-center px-3 py-1.5 text-xs outline-hidden">
-                            <Select.ItemText>{item.label}</Select.ItemText>
-                          </Select.Item>
-                        ))}
-                      </Select.List>
-                    </Select.Popup>
-                  </Select.Positioner>
-                </Select.Portal>
-              </Select.Root>
-              <p className="text-subtle font-mono text-[11px] leading-[1.4]">
-                {formatBillingPlanLimits(selectedPlan?.limits)}
-              </p>
-            </div>
+                <p className={META_CLASS}>{formatBillingPlanLimits(selectedPlan?.limits)}</p>
+              </div>
+              <Select.Portal>
+                <Select.Positioner sideOffset={4} className={SELECT_POSITIONER_CLASS}>
+                  <Select.Popup className={SELECT_POPUP_CLASS}>
+                    <Select.List>
+                      {planItems.map((item) => (
+                        <Select.Item
+                          key={item.value ?? ''}
+                          value={item.value}
+                          className={OVERLAY_ITEM_CLASS}>
+                          <Select.ItemText>{item.label}</Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.List>
+                  </Select.Popup>
+                </Select.Positioner>
+              </Select.Portal>
+            </Select.Root>
 
             {plansError ? (
               <ErrorLine message={plansError} onRetry={onRetryPlans} retryLabel="Retry" />
@@ -138,12 +146,12 @@ export function CreateApiKeyDialog({
           </div>
 
           {error ? (
-            <p className="text-primary mt-4 font-mono text-[11px] leading-[1.4]" role="alert">
+            <p className={DIALOG_ERROR_CLASS} role="alert">
               {error}
             </p>
           ) : null}
 
-          <div className="mt-5 flex justify-end gap-3">
+          <div className={DIALOG_ACTIONS_CLASS}>
             <Button type="button" variant="secondary" onClick={onCancel}>
               Cancel
             </Button>

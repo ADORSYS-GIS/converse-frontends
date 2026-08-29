@@ -4,21 +4,32 @@ import React, { useRef, useState } from 'react';
 import { Button } from '../button';
 import { Field } from '../field';
 import type { TypedConfirmDialogProps } from './types';
-import { OVERLAY_CLASS } from '../../lib/overlay';
-import { cn } from '../../cn';
+import {
+  DIALOG_ACTIONS_CLASS,
+  DIALOG_BACKDROP_CLASS,
+  DIALOG_BODY_CLASS,
+  DIALOG_DESCRIPTION_CLASS,
+  DIALOG_ERROR_CLASS,
+  DIALOG_POPUP_CLASS,
+  DIALOG_TITLE_CLASS,
+} from '../../lib/dialog';
 
 // Contract: docs/design/console-redesign/README.md §4 — destructive gate. Modal dialog
-// (`surface`, radius 2, no shadow — separation via a `muted/80` backdrop), names the object,
-// states what survives/what does not, requires the object name typed exactly; primary
+// (surface, radius 2, no shadow — separation via a muted/80 backdrop), names the object,
+// states what survives and what does not, requires the object name typed exactly; primary
 // (destructive proceed) stays disabled until exact match; cancel secondary. Esc = cancel.
 //
-// ADR 0010 Decision 4 (Base UI Alert Dialog): deletes the hand-rolled `querySelectorAll` focus
-// trap, the manual `Escape` keydown listener and the manual `aria-modal`/`aria-labelledby`/
-// `aria-describedby` wiring — Base UI owns focus trap, scroll lock, initial/final focus and the
-// `role="alertdialog"` labelling. Base UI's `disablePointerDismissal` is unconditionally forced
-// `true` for `AlertDialog` (never overridable), which is exactly the old backdrop's behaviour:
-// there was never a click handler on it, so an outside click did nothing — a destructive
-// confirmation should only close via Cancel or Escape, never a stray click.
+// ADR 0010 Decision 4 (Base UI Alert Dialog): deletes the hand-rolled querySelectorAll focus
+// trap, the manual Escape keydown listener and the manual aria modal / labelledby / describedby
+// wiring — Base UI owns focus trap, scroll lock, initial and final focus, and the alertdialog
+// labelling. Base UI's disablePointerDismissal is unconditionally forced true for AlertDialog
+// (never overridable), which is exactly the old backdrop's behaviour: there was never a click
+// handler on it, so an outside click did nothing — a destructive confirmation should only close
+// via Cancel or Escape, never a stray click.
+//
+// Every class this renders now comes from lib/dialog.ts, shared with the three non-destructive
+// dialogs. It used to cap at 400px where they capped at 420 and to skip the overlay hairline;
+// all four docstrings already claimed one shared panel, so that was drift, not intent.
 export function TypedConfirmDialog({
   open,
   title,
@@ -32,11 +43,11 @@ export function TypedConfirmDialog({
   error,
 }: TypedConfirmDialogProps) {
   const [typed, setTyped] = useState('');
-  // Base UI keeps this component instance mounted across `open` toggles (only the portaled
-  // popup content unmounts) — reset the typed value on every open->close->open cycle, so a
-  // stale exact-match never survives from a previous confirmation target. Adjusted during
-  // render (React's documented pattern for "reset state when a prop changes"), not in a
-  // `useEffect`, so there is no extra commit/cascading render.
+  // Base UI keeps this component instance mounted across open toggles (only the portaled popup
+  // content unmounts) — reset the typed value on every open/close/open cycle, so a stale exact
+  // match never survives from a previous confirmation target. Adjusted during render (React's
+  // documented pattern for "reset state when a prop changes"), not in an effect, so there is no
+  // extra commit or cascading render.
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
@@ -52,15 +63,13 @@ export function TypedConfirmDialog({
         if (!nextOpen) onCancel();
       }}>
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-muted/80" />
-        <AlertDialog.Popup
-          initialFocus={inputRef}
-          className={cn('fixed top-1/2 left-1/2 z-50 w-full max-w-[400px] -translate-x-1/2 -translate-y-1/2 p-6', OVERLAY_CLASS)}>
-          <AlertDialog.Title className="font-mono text-base text-ink">{title}</AlertDialog.Title>
-          <AlertDialog.Description className="mt-2 font-sans text-[11px] leading-[1.45] text-soft">
+        <AlertDialog.Backdrop className={DIALOG_BACKDROP_CLASS} />
+        <AlertDialog.Popup initialFocus={inputRef} className={DIALOG_POPUP_CLASS}>
+          <AlertDialog.Title className={DIALOG_TITLE_CLASS}>{title}</AlertDialog.Title>
+          <AlertDialog.Description className={DIALOG_DESCRIPTION_CLASS}>
             {description}
           </AlertDialog.Description>
-          <div className="mt-4">
+          <div className={DIALOG_BODY_CLASS}>
             <Field
               ref={inputRef}
               label={`Type "${objectName}" to confirm`}
@@ -71,11 +80,11 @@ export function TypedConfirmDialog({
             />
           </div>
           {error ? (
-            <p className="mt-3 font-mono text-[11px] leading-[1.4] text-primary" role="alert">
+            <p className={DIALOG_ERROR_CLASS} role="alert">
               {error}
             </p>
           ) : null}
-          <div className="mt-5 flex justify-end gap-3">
+          <div className={DIALOG_ACTIONS_CLASS}>
             <Button type="button" variant="secondary" onClick={onCancel}>
               {cancelLabel}
             </Button>

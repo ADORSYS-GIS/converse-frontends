@@ -44,3 +44,10 @@ export const PROSE_CLASS = 'font-sans text-[11px] leading-[1.45] text-soft';
 
 /** `prose` one step down (Inter 10, subtle) — captions and non-load-bearing metadata. */
 export const PROSE_META_CLASS = 'font-sans text-[10px] leading-[1.45] text-subtle';
+
+/**
+ * The `meta` role — 11px mono, `subtle`: a secondary line under a control or beside a row.
+ * Same size and colour as `label`, but with the leading a wrapping sentence needs; a label is
+ * one word above a field, a meta line is a clause that can run to two lines.
+ */
+export const META_CLASS = 'font-mono text-[11px] leading-[1.4] text-subtle';

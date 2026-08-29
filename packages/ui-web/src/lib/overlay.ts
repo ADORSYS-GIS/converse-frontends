@@ -13,8 +13,40 @@ export const OVERLAY_CLASS = 'rounded-[2px] border border-border bg-surface outl
 export const OVERLAY_POSITIONER_CLASS = 'z-50 outline-hidden';
 
 /** Highlighted row inside an overlay list (Menu.Item, Select.Item, cmdk item). */
+
+/**
+ * The scrim behind a modal overlay. One definition for all four dialogs, the command palette and
+ * vaul's bottom sheet — they were six copies of the same three utilities.
+ *
+ * `z-50` matches the popup that sits on it: both render into the same portal, in document order
+ * backdrop-then-popup, so the popup wins the tie without a second z index step.
+ */
+export const OVERLAY_BACKDROP_CLASS = 'fixed inset-0 z-50 bg-muted/80';
+
+/**
+ * Highlighted row inside an overlay list.
+ *
+ * Covers all three primitives that render one: Base UI marks the active row `data-highlighted`
+ * (Menu.Item, Select.Item), cmdk marks it `data-selected` — same visual state, two vocabularies,
+ * so the class answers to both instead of each consumer re-deriving it.
+ *
+ * `shadow-none` is load-bearing under daisy's `menu`: daisy paints a 1%-alpha inset box shadow on
+ * item hover, and ADR 0008 bans box shadows outright. Tailwind utilities are unlayered inside
+ * `utilities` while daisy emits into a sublayer of it, so this wins with no `!important`.
+ */
 export const OVERLAY_ITEM_CLASS =
-  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink';
+  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft shadow-none outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink data-[selected=true]:bg-raised data-[selected=true]:text-ink';
 
 /** Hairline rule between groups inside an overlay. */
 export const OVERLAY_SEPARATOR_CLASS = 'mx-1 my-1 h-px bg-raised';
+
+/**
+ * A non-interactive block inside an overlay — an identity line, a labelled group of choices.
+ * Pads to the same inset the item rows use, so a block and a row line up on the same left edge.
+ *
+ * `hover:bg-transparent` and `cursor-default` are the daisy suppression: inside a `menu`, daisy
+ * fills and pointer-cursors EVERY child of an `li` on hover, which turns a block you cannot press
+ * into one that looks pressable.
+ */
+export const OVERLAY_SECTION_CLASS =
+  'flex cursor-default flex-col gap-1 px-3 py-2 hover:bg-transparent';

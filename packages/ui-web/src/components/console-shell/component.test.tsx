@@ -202,7 +202,9 @@ describe('ConsoleShell', () => {
       </ConsoleShell>
     );
 
-    expect(screen.getByText('Centre').closest('div.bg-muted')).toBeInTheDocument();
+    // The floor fill is `shell-root`'s (theme.css) — the shell's own chrome, alongside the sticky
+    // header stack and the mobile dock band, rather than four utilities on four elements.
+    expect(screen.getByText('Centre').closest('div.shell-root')).toBeInTheDocument();
   });
 
   it('renders each rail as one flush surface column — no outer gutter on the row, hairlines instead of gaps between sections (console-ui skill "Rails are flush, aligned, full-height columns")', () => {

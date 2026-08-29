@@ -38,28 +38,15 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const isBottom = direction === 'bottom';
 
-  const contentClassName = cn(
-    'fixed z-50 flex flex-col',
-    OVERLAY_CLASS,
-    isBottom
-      ? 'inset-x-0 bottom-0 max-h-[85vh]'
-      : 'inset-y-0 right-0 h-full w-[85vw] max-w-[320px]',
-    className
-  );
+  // Geometry is `sheet-panel`'s, selected off the `data-vaul-drawer-direction` vaul puts on this
+  // element — so the two directions are not a ternary here that has to stay in step with the
+  // `direction` prop passed in above.
+  const contentClassName = cn('sheet-panel', OVERLAY_CLASS, className);
 
-  // Every `!` here is beating vaul, not daisy, and it is load-bearing: vaul injects its handle
-  // rule through a plain <style> element, which is UNLAYERED, and an unlayered declaration
-  // outranks every layered one no matter the specificity — Tailwind emits utilities inside
-  // its utilities layer. So the plain height, radius and fill this line carried until now never
-  // applied at all: the computed handle was vaul's own 5px-tall #e2e2e4 bar at
-  // border-radius 16px and opacity .7 — a hardcoded light-grey PILL sitting on a black sheet,
-  // against both the no-pills and the no-hex-in-components rules (confirmed by reading the
-  // computed style in Storybook, not by reading the class list). Marking them important is the
-  // one thing that outranks an unlayered rule. Width and horizontal centring are NOT repeated:
-  // vaul's own 32px and auto margins are already what the contract wants.
-  const handle = isBottom ? (
-    <Drawer.Handle className="bg-raised! mt-2 h-[3px]! shrink-0 rounded-[2px]! opacity-100!" />
-  ) : null;
+  // The handle's paint (and the reason it has to beat vaul's own runtime <style> with
+  // `!important`) is `sheet-panel`'s `[data-vaul-handle]` branch. Rendering it stays conditional:
+  // a side sheet is dragged from its edge, and a grab bar at the top of one means nothing.
+  const handle = isBottom ? <Drawer.Handle /> : null;
 
   const titleLabel = title ? (
     <Drawer.Title className={LABEL_CLASS}>{title}</Drawer.Title>
@@ -79,7 +66,7 @@ export function BottomSheet({
         <Drawer.Overlay className={cn(OVERLAY_BACKDROP_CLASS, overlayClassName)} />
         <Drawer.Content className={contentClassName}>
           {handle}
-          <div className="flex shrink-0 items-center justify-between px-4 py-2">
+          <div className="sheet-header">
             {titleLabel}
             <Button
               variant="ghost"
@@ -91,7 +78,7 @@ export function BottomSheet({
             </Button>
           </div>
           {description}
-          <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+          <div className="sheet-body">{children}</div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

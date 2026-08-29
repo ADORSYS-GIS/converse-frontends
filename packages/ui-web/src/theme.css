@@ -334,6 +334,319 @@
 }
 
 /*
+ * `kbd` — the shortcut chip. daisy fills it with `base-200`, which IS the panel a palette floats
+ * on (so a stock chip is invisible against it) and colours the glyph `base-content`, where a
+ * shortcut hint is metadata. Its hairline is a 20% tint of the body colour rather than the
+ * console's `--line` token. Three corrections, stated once, so both chips the palette renders —
+ * `esc` inside the dialog and the open shortcut on the trigger — are the same chip by
+ * construction rather than by a shared constant someone has to remember to import.
+ */
+@utility kbd {
+  background-color: var(--color-base-300);
+  color: var(--color-subtle);
+  border-color: var(--color-border);
+}
+
+/*
+ * ─── The command palette ─────────────────────────────────────────────────────────────────────
+ *
+ * cmdk owns the primitive (fuzzy filtering, traversal, the focus trap it brings via Radix). Its
+ * parts are addressed through the `cmdk-*` attributes cmdk itself puts on them — its documented
+ * styling seam — rather than through a class per part, which is why the component below reads as
+ * markup with one class on the list.
+ */
+@utility palette-popup {
+  position: fixed;
+  /* Anchored near the top rather than centred, so the list grows downward into empty space
+     instead of pushing itself off both edges as it fills. */
+  top: 18vh;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 50;
+  width: 92vw;
+  max-width: 560px;
+  font-family: var(--font-mono);
+}
+
+@utility palette-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline-end: 0.75rem;
+  border-block-end: 1px solid var(--color-base-300);
+}
+
+@utility palette-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0.25rem;
+
+  & [cmdk-group] {
+    padding: 0.375rem 0.25rem;
+  }
+  & [cmdk-group-heading] {
+    display: block;
+    padding: 0.25rem 0.5rem 0.375rem;
+  }
+  & [cmdk-empty] {
+    padding: 1.5rem 0.75rem;
+    text-align: center;
+  }
+  & [cmdk-item] {
+    justify-content: space-between;
+    border-radius: var(--radius-field);
+  }
+  /* The trailing hint on a row (a route, a shortcut) — last child, and only when the row has a
+     label in front of it, so a hintless row is untouched. */
+  & [cmdk-item] > span:last-child:not(:only-child) {
+    margin-inline-start: 0.75rem;
+    flex-shrink: 0;
+  }
+}
+
+/*
+ * ─── The header band and its identity affordances ────────────────────────────────────────────
+ *
+ * NO UPSTREAM: daisy `navbar` is a padded, min-height flex bar with its own start/center/end slot
+ * model, and the console's header is a fixed 56px chrome band that both rails stick to. The
+ * behaviour arrives through slots instead — the caller passes Base UI-driven switchers — so this
+ * is the band and nothing else.
+ *
+ * `--focus-gap` is set HERE rather than on the controls inside: the focus ring's 1px gap is the
+ * colour of the surface behind the control, and that is a fact about the band. Before this, the
+ * one control that remembered (`AccountBadge`) carried its own `ring-offset-chrome`, and every
+ * other focusable thing in the header punched a floor-coloured gap through it.
+ */
+@utility console-header {
+  --focus-gap: var(--color-neutral);
+  display: flex;
+  /* 56px — the number ConsoleShell's sticky rails offset themselves by. */
+  height: 3.5rem;
+  align-items: center;
+  gap: 1rem;
+  padding-inline: 1.25rem;
+  background-color: var(--color-neutral);
+}
+
+/* Logo and wordmark, one unit. 12px apart — a step wider than `identity-row`'s 8px, because this
+   pair is a mark and its name rather than two related strings. */
+@utility header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* 20px square at the contract radius, identical whether it holds the configured image or the
+   fallback mark, so swapping one for the other never nudges the row. The fallback branch is
+   selected structurally (`:not(img)`) rather than by a second class. */
+@utility header-logo {
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: var(--radius-field);
+
+  &:not(img) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-base-300);
+    color: var(--color-subtle);
+  }
+}
+
+/* The wordmark is a BRAND mark, not a `label`: the console-ui skill's ban on uppercase applies to
+   labels, and the tracking exists to make these caps legible at 12px. */
+@utility header-wordmark {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+}
+
+/* The one place a `border`-toned stroke is right outside a form control: a vertical rule parting
+   two identity affordances inside a single band. */
+@utility header-rule {
+  height: 1.5rem;
+  width: 1px;
+  background-color: var(--color-border);
+}
+
+/* The identity line — a name, then the short id beside it. Worn plain when the badge is only a
+   label, and with `account-chip` when it is also a control. */
+@utility identity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The identity line WHEN IT IS A CONTROL (a switcher trigger or a copy button): a hit target with
+   a hover fill. One class for both affordances, so the badge cannot look like two different chips
+   depending on which one it has. */
+@utility account-chip {
+  padding: 0.25rem 0.375rem;
+  transition: background-color 0.15s ease-out;
+
+  &:hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+@utility account-popup {
+  width: 240px;
+  padding-block: 0.25rem;
+  font-family: var(--font-mono);
+}
+
+/* The initials square in the account menu's trigger. A square at the contract radius, never a
+   circle: the console has no pills and no round avatars. */
+@utility avatar-chip {
+  display: flex;
+  height: 26px;
+  width: 26px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.625rem;
+}
+
+/* The three theme choices read as one row of words rather than three menu rows — they are a
+   single setting with three states, and stacking them would turn a two-line menu into a five-line
+   one. So they keep menuitem semantics (Base UI still owns arrow-key traversal) without the
+   full-row paint `OVERLAY_ITEM_CLASS` gives the actions. */
+@utility theme-choice {
+  cursor: pointer;
+  outline: none;
+  transition: color 0.15s ease-out;
+
+  &[data-highlighted] {
+    color: var(--color-ink);
+  }
+}
+
+/* The element-anchored tooltip's popup. It takes `OVERLAY_CLASS`'s hairline like every other
+   overlay; this is the type and the measure. */
+@utility tooltip-popup {
+  max-width: 280px;
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-base-content);
+}
+
+/*
+ * ─── The bottom sheet ────────────────────────────────────────────────────────────────────────
+ *
+ * vaul owns the drawer (ADR 0009 Decision 6); this is its paint. The two directions the console
+ * uses are selected off `data-vaul-drawer-direction`, which vaul puts on the content element
+ * itself — so the geometry is a fact the sheet already announces, rather than a ternary the
+ * component computes and then has to keep in step with the `direction` prop it passed in.
+ */
+@utility sheet-panel {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+
+  &[data-vaul-drawer-direction='bottom'] {
+    inset-inline: 0;
+    bottom: 0;
+    max-height: 85vh;
+  }
+
+  /* A side sheet stops short of full width: the page behind it stays visible, which is what
+     distinguishes a sheet from a route change. */
+  &[data-vaul-drawer-direction='right'] {
+    inset-block: 0;
+    right: 0;
+    height: 100%;
+    width: 85vw;
+    max-width: 320px;
+  }
+
+  /*
+   * The grab handle. `!important` here is NOT a specificity war with daisy — it is the one thing
+   * that outranks vaul, and it is load-bearing. vaul injects its handle rule through a plain
+   * `<style>` element at runtime, which is UNLAYERED and appended after this stylesheet; an
+   * unlayered declaration outranks every layered one regardless of specificity, and ties with
+   * another unlayered one on source order, which vaul wins by arriving later. Before this was
+   * marked important the computed handle was vaul's own 5px #e2e2e4 bar at border-radius 16px and
+   * opacity .7 — a hardcoded light-grey PILL on a black sheet, against both the no-pills rule and
+   * the no-hex-outside-this-file rule (confirmed by reading the computed style in Storybook, not
+   * by reading the class list). Width and horizontal centring are deliberately NOT restated:
+   * vaul's own 32px and auto margins are already what the contract wants.
+   */
+  & [data-vaul-handle] {
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+    height: 3px !important;
+    border-radius: var(--radius-field) !important;
+    background-color: var(--color-base-300) !important;
+    opacity: 1 !important;
+  }
+}
+
+@utility sheet-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+}
+
+@utility sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1rem 1rem;
+}
+
+/*
+ * ─── The shell's chrome ──────────────────────────────────────────────────────────────────────
+ *
+ * `console-shell`'s own boxes. NO UPSTREAM by construction (PRIMITIVES.md rejects daisy `drawer`:
+ * a CSS-grid sidebar cannot be sticky, independently scrollable and flush under the header at
+ * once), so these are the console's geometry with nothing to inherit. The COLUMN grid stays in
+ * `lib/shell-grid.ts` beside `rail-grid.ts` — this is the chrome that wraps those columns.
+ */
+@utility shell-root {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  background-color: var(--color-base-100);
+}
+
+/* Header, console-wide banner and the mobile-only `leftSecondary` trigger stick as ONE block, so
+   the banner can never scroll out from under the header it belongs to. */
+@utility shell-chrome-stack {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-neutral);
+}
+
+@utility shell-secondary-trigger-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-block-start: 1px solid var(--color-base-300);
+}
+
+/* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it.
+   56px matches the header it mirrors. */
+@utility shell-dock-band {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  height: 3.5rem;
+  background-color: var(--color-neutral);
+}
+
+/*
  * ─── Ranked series lists ─────────────────────────────────────────────────────────────────────
  *
  * `ChartLegend` and `ShareBar` render the same row — swatch, name, value — and they are the two
@@ -645,6 +958,32 @@
 /* `textarea` — the same treatment, keeping daisy's own 5rem min-height, with vertical-only resize
    (the browser default is `both`, and a control that can be dragged wider than its column is a
    horizontal-overflow bug waiting to happen). */
+/*
+ * `input-ghost` — daisy's name for a control with no chrome of its own. The command palette's
+ * search line is its only consumer: inside a popup that IS the panel, a second inset fill and a
+ * border would draw a box around a box.
+ *
+ * Two of daisy's own declarations contradict that, both read out of `daisyui/components/input.css`
+ * rather than assumed. `.input-ghost` zeroes the fill, but `.input-ghost:focus` REPAINTS it with
+ * `base-100` — the FLOOR, which in `black` is #000 and in `wireframe` is grey, either way a
+ * rectangle appearing under the caret the moment you type. And the text you are typing inherits
+ * `base-content` (body), where the palette's query is the most load-bearing string on screen and
+ * belongs on `ink`.
+ *
+ * Order is load-bearing: this sits immediately after `input` because both land unlayered, so the
+ * transparent fill has to be declared AFTER `input`'s `chrome` one to win the tie.
+ */
+@utility input-ghost {
+  color: var(--color-ink);
+  background-color: transparent;
+
+  &:focus,
+  &:focus-within {
+    background-color: transparent;
+    color: var(--color-ink);
+  }
+}
+
 @utility textarea {
   background-color: var(--color-neutral);
   width: 100%;

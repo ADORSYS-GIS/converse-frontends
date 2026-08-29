@@ -2,7 +2,7 @@ import { Tooltip as BaseTooltip } from '@base-ui/react/tooltip';
 import React from 'react';
 
 import { cn } from '../../cn';
-import { OVERLAY_CLASS } from '../../lib/overlay';
+import { OVERLAY_CLASS, OVERLAY_POSITIONER_CLASS } from '../../lib/overlay';
 import type { TooltipProps } from './types';
 
 // PRIMITIVE-MATRIX row 47. The console had no element-anchored tooltip at all: `chart-tooltip` is
@@ -61,7 +61,7 @@ export function Tooltip({
         // treatment, the same one `Button` and `AccountMenu` use. Base UI merges this with the
         // child's own `className`, and a child that already carries this ring just gets it twice
         // to the same effect.
-        className="focus-visible:ring-primary rounded-[2px] focus-visible:ring-1 focus-visible:outline-hidden"
+        className="focus-ring"
         render={children}
       />
       <BaseTooltip.Portal>
@@ -69,15 +69,11 @@ export function Tooltip({
           side={side}
           align={align}
           sideOffset={sideOffset}
-          className="z-50 outline-hidden">
+          className={OVERLAY_POSITIONER_CLASS}>
           <BaseTooltip.Popup
             id={popupId}
             role="tooltip"
-            className={cn(
-              'text-soft max-w-[280px] px-2 py-1 font-mono text-[11px]',
-              OVERLAY_CLASS,
-              className
-            )}>
+            className={cn('tooltip-popup', OVERLAY_CLASS, className)}>
             {content}
           </BaseTooltip.Popup>
         </BaseTooltip.Positioner>

@@ -11,19 +11,13 @@ const DEFAULT_PLACEHOLDER = 'Jump to a page or run an action…';
 const DEFAULT_EMPTY_MESSAGE = 'No matches.';
 const DEFAULT_LABEL = 'Command palette';
 
-// A shortcut chip, on daisy kbd. Written once because the palette shows two of them — esc inside
-// the dialog, the open shortcut on the trigger — and they are the same chip. daisy's own defaults
-// are re-pointed at the console's tokens rather than accepted: it fills a chip with base-200,
-// which IS the panel the palette floats on, so a stock kbd would be invisible; and it colours the
-// glyph base-content, where a shortcut hint is metadata and belongs on subtle.
-const KBD_HINT_CLASS = 'kbd kbd-sm border-border bg-raised text-subtle';
+// A shortcut chip, on daisy kbd. The three places daisy's defaults contradict the console (its
+// panel-coloured fill, its body-coloured glyph, its tinted hairline) are corrected once in
+// theme.css's `@utility kbd`, so both chips the palette renders are the same chip by construction.
+const KBD_HINT_CLASS = 'kbd kbd-sm';
 
-// The palette's own panel: wide, anchored near the top of the viewport rather than centred, so
-// the list grows downward into empty space instead of pushing itself off both edges.
-const PALETTE_POPUP_CLASS = cn(
-  'fixed top-[18vh] left-1/2 z-50 w-[92vw] max-w-[560px] -translate-x-1/2 font-mono',
-  OVERLAY_CLASS
-);
+// The palette's own panel: overlay chrome, plus the geometry `palette-popup` carries.
+const PALETTE_POPUP_CLASS = cn('palette-popup', OVERLAY_CLASS);
 
 /**
  * The ⌘K command palette (ADR 0010 Decision 6, the command-palette row of
@@ -37,14 +31,16 @@ const PALETTE_POPUP_CLASS = cn(
  * (console-ui skill "Composition").
  *
  * Paint is daisy plus the shared overlay vocabulary. The search line is daisy input at
- * input-ghost, which is the library's name for an input with no chrome of its own; the three
- * overrides on it are the three places daisy contradicts the contract, each checked against the
- * compiled stylesheet: input-ghost repaints its fill with base-100 (the FLOOR) on focus, .input
- * draws a 2px focus outline where the console never rings a field, and neither sets a text colour
- * strong enough for the thing you are typing. Rows, the scrim and the hairline all come from
- * lib/overlay.ts, so the palette highlights exactly like a Menu or a Select popup — cmdk marks
- * the active row data-selected where Base UI marks it data-highlighted, and that shared class
- * answers to both.
+ * input-ghost, the library's name for an input with no chrome of its own; the places daisy
+ * contradicts the contract there are corrected in theme.css against daisy's own class, not as a
+ * row of ! utilities here. Rows, the scrim and the hairline come from lib/overlay.ts, so the
+ * palette highlights exactly like a Menu or a Select popup -- cmdk marks the active row
+ * data-selected where Base UI marks it data-highlighted, and that shared class answers to both.
+ *
+ * Everything BELOW the search row is addressed through the cmdk-* attributes cmdk puts on its own
+ * parts (its documented styling seam), from theme.css's palette-list. That is why the group,
+ * heading, empty line and item rows carry no geometry classes at all: a list, a heading and a row
+ * are facts about the palette, not decisions each element re-states.
  */
 export function CommandPalette({
   open,
@@ -62,26 +58,21 @@ export function CommandPalette({
       loop
       overlayClassName={OVERLAY_BACKDROP_CLASS}
       contentClassName={PALETTE_POPUP_CLASS}>
-      <div className="border-raised flex items-center gap-2 border-b pr-3">
+      <div className="palette-search-row">
         <Command.Input
           autoFocus
           placeholder={placeholder}
-          className="input input-ghost text-ink! placeholder:text-subtle flex-1 bg-transparent! outline-none!"
+          className="input input-ghost flex-1"
         />
         {/* daisy's own kbd already pins flex-shrink to 0, so the row cannot squeeze this. */}
         <kbd className={KBD_HINT_CLASS}>esc</kbd>
       </div>
-      <Command.List className="max-h-[60vh] overflow-y-auto p-1">
-        <Command.Empty className={cn(META_CLASS, 'px-3 py-6 text-center')}>
-          {emptyMessage}
-        </Command.Empty>
+      <Command.List className="palette-list">
+        <Command.Empty className={META_CLASS}>{emptyMessage}</Command.Empty>
         {groups.map((group) => (
           <Command.Group
             key={group.key}
-            heading={
-              <span className={cn(LABEL_CLASS, 'block px-2 pt-1 pb-1.5')}>{group.heading}</span>
-            }
-            className="px-1 py-1.5">
+            heading={<span className={LABEL_CLASS}>{group.heading}</span>}>
             {group.items.map((item) => (
               <Command.Item
                 key={item.key}
@@ -90,11 +81,9 @@ export function CommandPalette({
                   onOpenChange(false);
                   item.onSelect();
                 }}
-                className={cn(OVERLAY_ITEM_CLASS, 'justify-between rounded-[2px]')}>
+                className={OVERLAY_ITEM_CLASS}>
                 <span className="truncate">{item.label}</span>
-                {item.hint ? (
-                  <span className={cn(META_CLASS, 'ml-3 shrink-0')}>{item.hint}</span>
-                ) : null}
+                {item.hint ? <span className={META_CLASS}>{item.hint}</span> : null}
               </Command.Item>
             ))}
           </Command.Group>

@@ -117,10 +117,10 @@ describe('SpendSeriesChart', () => {
   });
 
   // The tooltip card renders in a `FloatingPortal` (see `chart-tooltip`'s own tests), so its
-  // rows are queried off the portalled `.bg-surface` card rather than `screen.getByText` --
+  // rows are queried off the portalled `.chart-tooltip-card` rather than `screen.getByText` --
   // `project-a` also appears in the always-rendered legend below the chart.
   function tooltipCard(): HTMLElement | null {
-    return document.body.querySelector('.bg-surface');
+    return document.body.querySelector('.chart-tooltip-card');
   }
 
   it('shows the tooltip continuously on hover (mouse) and hides it on pointerleave, without a click', () => {

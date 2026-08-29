@@ -75,15 +75,15 @@ export function ConsoleShell({
   }
 
   return (
-    <div className={cn('bg-muted flex min-h-dvh flex-col', className)}>
+    <div className={cn('shell-root', className)}>
       {/* The chrome stack — header, console-wide banner, and the mobile-only trigger for
           `leftSecondary` — is sticky as ONE block, so the banner can never scroll out from under
           the header it belongs to. */}
-      <div className="bg-chrome sticky top-0 z-40 flex flex-col">
+      <div className="shell-chrome-stack">
         {header}
         {banner}
         {leftSecondary ? (
-          <div className="border-raised flex items-center justify-between border-t px-4 py-2 md:hidden">
+          <div className="shell-secondary-trigger-bar md:hidden">
             <button
               type="button"
               aria-haspopup="dialog"
@@ -116,7 +116,7 @@ export function ConsoleShell({
       </div>
 
       {/* Bottom navigation below md — nav, not knobs, so it is unaffected by the rail rules. */}
-      <div className="bg-chrome fixed inset-x-0 bottom-0 z-40 h-14 md:hidden">
+      <div className="shell-dock-band md:hidden">
         <NavSpine {...nav} layout="bottom-bar" />
       </div>
 

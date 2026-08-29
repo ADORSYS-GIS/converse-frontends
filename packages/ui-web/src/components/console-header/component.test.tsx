@@ -63,6 +63,8 @@ describe('ConsoleHeader', () => {
   it('applies the chrome surface treatment', () => {
     render(<ConsoleHeader />);
 
-    expect(screen.getByText('LIGHTBRIDGE').closest('header')).toHaveClass('bg-chrome');
+    // The 56px band, its `chrome` fill and the `--focus-gap` it declares for every focusable
+    // slot inside it are all `console-header` (theme.css).
+    expect(screen.getByText('LIGHTBRIDGE').closest('header')).toHaveClass('console-header');
   });
 });

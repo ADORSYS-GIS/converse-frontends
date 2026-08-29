@@ -6,6 +6,7 @@ import {
   OVERLAY_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
+  OVERLAY_SECTION_CLASS,
   OVERLAY_SEPARATOR_CLASS,
 } from '../../lib/overlay';
 import { LABEL_CLASS, ROW_CLASS } from '../../lib/type-roles';
@@ -17,18 +18,10 @@ import { Chevron } from '../chevron';
  *  rather than as data. */
 const SHORT_ID_LENGTH = 8;
 
-// The identity line itself: name, then the short id beside it.
-const IDENTITY_ROW_CLASS = 'flex items-center gap-2';
-
-// The same line when it is also a control (switcher trigger or copy button) — a hit target with
-// a hover fill, at the console's 2px radius. Shared by both interactive branches so the badge
-// cannot look like two different chips depending on which affordance it has.
-const CHIP_CLASS = `${IDENTITY_ROW_CLASS} hover:bg-raised rounded-[2px] px-1.5 py-1 transition-colors duration-150 ease-out`;
-
-// The header sits on `chrome`, so the focus ring's offset must too — the default offset colour
-// would punch a floor-coloured gap through the header band.
-const CHIP_FOCUS_CLASS =
-  'outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-chrome';
+// The identity line, and the same line when it is also a control — both from `theme.css`. The
+// focus ring is the shared one; the 1px gap under it is the colour `ConsoleHeader` declares for
+// its band, so this component no longer has to know it sits on `chrome`.
+const CHIP_CLASS = 'identity-row account-chip focus-ring';
 
 /**
  * `49534505-4c60-4550-83dd-7af22152cec6` → `acct_49534505`.
@@ -98,15 +91,15 @@ export function AccountBadge({
         <Menu.Trigger
           aria-label={`Account ${display}. Switch account.`}
           title={accountId || undefined}
-          className={cn(CHIP_CLASS, CHIP_FOCUS_CLASS, className)}>
+          className={cn(CHIP_CLASS, className)}>
           {content}
           <Chevron />
         </Menu.Trigger>
 
         <Menu.Portal>
           <Menu.Positioner align="start" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
-            <Menu.Popup className={cn(OVERLAY_CLASS, 'w-[240px] py-1 font-mono')}>
-              <div role="presentation" className="px-3 py-2">
+            <Menu.Popup className={cn(OVERLAY_CLASS, 'account-popup')}>
+              <div role="presentation" className={OVERLAY_SECTION_CLASS}>
                 <span className={LABEL_CLASS}>Account</span>
               </div>
               {accounts?.map((account) => {
@@ -146,7 +139,7 @@ export function AccountBadge({
 
   if (!onCopyId) {
     return (
-      <span title={accountId || undefined} className={cn(IDENTITY_ROW_CLASS, className)}>
+      <span title={accountId || undefined} className={cn('identity-row', className)}>
         {content}
       </span>
     );
@@ -158,7 +151,7 @@ export function AccountBadge({
       onClick={() => onCopyId(accountId)}
       title={accountId ? `${accountId} — click to copy` : undefined}
       aria-label={`Account ${display}. Copy full account id.`}
-      className={cn(CHIP_CLASS, CHIP_FOCUS_CLASS, className)}>
+      className={cn(CHIP_CLASS, className)}>
       {content}
     </button>
   );

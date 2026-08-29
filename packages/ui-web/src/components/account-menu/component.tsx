@@ -8,6 +8,7 @@ import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import {
   OVERLAY_CLASS,
   OVERLAY_ITEM_CLASS,
+  OVERLAY_POSITIONER_CLASS,
   OVERLAY_SECTION_CLASS,
   OVERLAY_SEPARATOR_CLASS,
 } from '../../lib/overlay';
@@ -21,11 +22,9 @@ const THEME_OPTIONS: { value: AccountMenuTheme; label: string }[] = [
 // The three theme choices read as one row of words, not three menu rows: they are a single
 // setting with three states, and stacking them would make a two-line menu into a five-line one.
 // So they keep menuitem semantics (Base UI still owns arrow-key traversal) but not the full-row
-// paint that OVERLAY_ITEM_CLASS gives the actions.
-const THEME_ITEM_CLASS = cn(
-  META_CLASS,
-  'cursor-pointer outline-hidden transition-colors data-[highlighted]:text-ink'
-);
+// paint that OVERLAY_ITEM_CLASS gives the actions -- `theme-choice` (theme.css) is that
+// narrower treatment.
+const THEME_ITEM_CLASS = cn(META_CLASS, 'theme-choice');
 
 // Contract: docs/design/console-redesign/README.md §4 ConsoleHeader "account menu" + the
 // console-ui skill (ADR 0010 Decision 2: Base UI owns behaviour — Menu here, never a hand-written
@@ -72,13 +71,13 @@ export function AccountMenu({
         {email ? <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{email}</span> : null}
         <span
           aria-hidden="true"
-          className="bg-raised text-soft flex h-[26px] w-[26px] items-center justify-center rounded-[2px] text-[10px]">
+          className="avatar-chip">
           {initials}
         </span>
       </Menu.Trigger>
 
       <Menu.Portal>
-        <Menu.Positioner align="end" sideOffset={6} className="z-50 outline-hidden">
+        <Menu.Positioner align="end" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
           <Menu.Popup
             render={<ul />}
             className={cn('menu menu-sm w-[220px] font-mono', OVERLAY_CLASS)}>

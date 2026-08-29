@@ -13,7 +13,12 @@ interface Row {
 
 const columns: LedgerColumn<Row>[] = [
   { key: 'name', header: 'Name', accessor: (row) => row.name },
-  { key: 'amount', header: 'Amount', align: 'right', accessor: (row) => `$${row.amount.toFixed(2)}` },
+  {
+    key: 'amount',
+    header: 'Amount',
+    align: 'right',
+    accessor: (row) => `$${row.amount.toFixed(2)}`,
+  },
 ];
 
 const rows: Row[] = [
@@ -58,7 +63,7 @@ describe('LedgerTable', () => {
         rowKey={(row) => row.id}
         selectedRowKeys={['a']}
         onSelectRow={() => {}}
-      />,
+      />
     );
 
     const rowEls = screen.getAllByRole('row').slice(1); // skip header row
@@ -68,7 +73,14 @@ describe('LedgerTable', () => {
 
   it('fires onSelectRow on click and on Enter', () => {
     const onSelectRow = vi.fn();
-    render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} onSelectRow={onSelectRow} />);
+    render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        onSelectRow={onSelectRow}
+      />
+    );
 
     const rowEls = screen.getAllByRole('row').slice(1);
     rowEls[0].click();
@@ -94,7 +106,7 @@ describe('LedgerTable', () => {
         data={rows}
         rowKey={(row) => row.id}
         renderRowActions={(row) => <button type="button">Rotate {row.name}</button>}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: 'Rotate ci-deploy' })).toBeInTheDocument();
@@ -107,7 +119,7 @@ describe('LedgerTable', () => {
         data={rows}
         rowKey={(row) => row.id}
         totals={{ name: 'TOTAL · 2 SHOWN', amount: '$20.50' }}
-      />,
+      />
     );
 
     expect(screen.getByText('TOTAL · 2 SHOWN')).toBeInTheDocument();
@@ -125,12 +137,64 @@ describe('LedgerTable', () => {
 
     const table = screen.getByRole('table');
     expect(table).toHaveClass('min-w-max');
-    expect(table.parentElement).toHaveClass('overflow-x-auto', 'w-full');
+    // `overflow-y-clip` is load-bearing: `overflow-x-auto` alone computes `overflow-y` to `auto`,
+    // which turns this box into a vertical scroll container and eats the wheel.
+    expect(table.parentElement).toHaveClass('overflow-x-auto', 'overflow-y-clip', 'w-full');
+    // A deliberate axe `scrollable-region-focusable` fix, and deliberately NOT a landmark: two
+    // ledgers on one page would trip `landmark-unique`.
+    expect(table.parentElement).toHaveAttribute('tabindex', '0');
+    expect(table.parentElement).not.toHaveAttribute('role');
+  });
+
+  // PRIMITIVES.md row `ledger-table`: real table semantics were the precondition for the daisy
+  // `table` class swap — the previous CSS-grid of `<div role="table">` could not be styled by it.
+  it('renders real table semantics with daisy table classes', () => {
+    render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        totals={{ name: 'TOTAL', amount: '$20.50' }}
+      />
+    );
+
+    const table = screen.getByRole('table');
+    expect(table.tagName).toBe('TABLE');
+    expect(table).toHaveClass('table', 'table-xs');
+    expect(table).not.toHaveClass('table-zebra');
+    expect(table.querySelector('thead')).not.toBeNull();
+    expect(table.querySelector('tbody')).not.toBeNull();
+    expect(table.querySelector('tfoot')).not.toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'Name' }).tagName).toBe('TH');
+    expect(screen.getByText('ci-deploy').tagName).toBe('TD');
+  });
+
+  it('turns each column width into a colgroup track', () => {
+    render(
+      <LedgerTable
+        columns={[{ ...columns[0], width: '220px' }, columns[1]]}
+        data={rows}
+        rowKey={(row) => row.id}
+        renderRowActions={() => <button type="button">Revoke</button>}
+      />
+    );
+
+    const cols = screen.getByRole('table').querySelectorAll('colgroup > col');
+    // one per column, plus the actions track
+    expect(cols).toHaveLength(3);
+    expect((cols[0] as HTMLElement).style.width).toBe('220px');
+    expect((cols[1] as HTMLElement).style.width).toBe('');
   });
 
   it('renders skeleton rows instead of data when loading', () => {
     const { container } = render(
-      <LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} loading loadingRowCount={3} />,
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        loading
+        loadingRowCount={3}
+      />
     );
 
     expect(screen.queryByText('ci-deploy')).not.toBeInTheDocument();

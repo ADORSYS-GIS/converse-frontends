@@ -13,25 +13,44 @@ describe('RowActionGroup', () => {
           { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
           { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
         ]}
-      />,
+      />
     );
 
     const buttons = screen.getAllByRole('button');
     expect(buttons.map((b) => b.textContent)).toEqual(['Rotate', 'Revoke', 'Del']);
   });
 
-  it('inserts a diagonal separator between actions but not before the first', () => {
+  // The diagonal hairline is a `::before` on every action after the first — decoration lives in
+  // CSS, not in the DOM (and daisy `join`/`join-item` is rejected here: `join-item` draws a real
+  // 1px border per item, which is the opposite treatment). It therefore has no node of its own.
+  it('draws a diagonal separator on every action but the first, and adds no DOM node for it', () => {
     const { container } = render(
       <RowActionGroup
         actions={[
           { key: 'rotate', label: 'Rotate', onClick: () => {} },
           { key: 'revoke', label: 'Revoke', onClick: () => {} },
         ]}
-      />,
+      />
     );
 
-    const separators = container.querySelectorAll('[aria-hidden="true"]');
-    expect(separators).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Rotate' })).not.toHaveClass('before:rotate-[20deg]');
+    expect(screen.getByRole('button', { name: 'Revoke' })).toHaveClass('before:rotate-[20deg]');
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(0);
+    expect(container.querySelectorAll('span')).toHaveLength(0);
+  });
+
+  it('does not adopt daisy join/join-item (it would border every action)', () => {
+    const { container } = render(
+      <RowActionGroup
+        actions={[
+          { key: 'rotate', label: 'Rotate', onClick: () => {} },
+          { key: 'revoke', label: 'Revoke', onClick: () => {} },
+        ]}
+      />
+    );
+
+    expect(container.querySelector('.join')).toBeNull();
+    expect(container.querySelector('.join-item')).toBeNull();
   });
 
   it('fires the action click handler', () => {
@@ -51,7 +70,7 @@ describe('RowActionGroup', () => {
           { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
           { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: 'Revoke' })).toHaveClass('text-ink');
@@ -63,7 +82,7 @@ describe('RowActionGroup', () => {
     render(
       <RowActionGroup
         actions={[{ key: 'revoke', label: 'Revoke', onClick: () => {}, disabled: true }]}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeDisabled();

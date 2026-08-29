@@ -19,25 +19,38 @@ describe('NavSpine', () => {
     expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
   });
 
-  it('marks the active item with aria-current and the raised fill', () => {
+  // Active state is a `data-*` variant now, not a cva boolean axis (console-ui skill shrink
+  // policy): the row carries `data-active` and daisy's `menu-active`, and the `raised` fill is
+  // selected by `data-[active=true]:bg-raised` rather than by a class swapped in JS.
+  it('marks the active item with aria-current, data-active and daisy menu-active', () => {
     render(<NavSpine items={items} />);
 
     const active = screen.getByRole('button', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(active).toHaveClass('bg-raised');
+    expect(active).toHaveAttribute('data-active', 'true');
+    expect(active).toHaveClass('menu-active');
+    expect(active).toHaveClass('data-[active=true]:bg-raised');
 
     const inactive = screen.getByRole('button', { name: 'Api-Keys' });
     expect(inactive).not.toHaveAttribute('aria-current');
-    expect(inactive).not.toHaveClass('bg-raised');
+    expect(inactive).toHaveAttribute('data-active', 'false');
+    expect(inactive).not.toHaveClass('menu-active');
+  });
+
+  it('renders the rail rows as a daisy menu list, like its SubNav sibling', () => {
+    const { container } = render(<NavSpine items={items} />);
+
+    const list = container.querySelector('ul');
+    expect(list).toHaveClass('menu', 'menu-sm');
+    // daisy `menu`'s own gutters must stay neutralised — the rail alignment grid owns every
+    // inset (lib/rail-grid.ts), which is exactly what `SubNav` regressed on before it existed.
+    expect(list).toHaveClass('p-0', '-mx-2');
+    expect(container.querySelectorAll('li')).toHaveLength(items.length);
   });
 
   it('fires onSelect with the item key', () => {
     const onSelect = vi.fn();
-    render(
-      <NavSpine
-        items={[{ key: 'overview', label: 'Overview', onSelect }]}
-      />,
-    );
+    render(<NavSpine items={[{ key: 'overview', label: 'Overview', onSelect }]} />);
 
     screen.getByRole('button', { name: 'Overview' }).click();
 
@@ -70,14 +83,14 @@ describe('NavSpine', () => {
         <a href={href} data-testid="custom-link" {...rest}>
           {children}
         </a>
-      ),
+      )
     );
 
     render(
       <NavSpine
         items={[{ key: 'overview', label: 'Overview', href: '/overview', active: true }]}
         linkComponent={CustomLink}
-      />,
+      />
     );
 
     expect(CustomLink).toHaveBeenCalled();
@@ -101,9 +114,7 @@ describe('NavSpine', () => {
   });
 
   it('supports a custom role marker label', () => {
-    render(
-      <NavSpine items={items} adminItems={adminItems} showAdmin roleLabel="STAFF" />,
-    );
+    render(<NavSpine items={items} adminItems={adminItems} showAdmin roleLabel="STAFF" />);
 
     expect(screen.getByText('STAFF')).toBeInTheDocument();
   });
@@ -119,7 +130,9 @@ describe('NavSpine', () => {
     });
 
     it('hides the Admin item when showAdmin is false', () => {
-      render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} layout="bottom-bar" />);
+      render(
+        <NavSpine items={items} adminItems={adminItems} showAdmin={false} layout="bottom-bar" />
+      );
 
       expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
     });
@@ -129,7 +142,8 @@ describe('NavSpine', () => {
 
       const active = screen.getByRole('button', { name: 'Overview' });
       expect(active).toHaveAttribute('aria-current', 'page');
-      expect(active).toHaveClass('text-primary');
+      expect(active).toHaveAttribute('data-active', 'true');
+      expect(active).toHaveClass('data-[active=true]:text-primary');
     });
   });
 });

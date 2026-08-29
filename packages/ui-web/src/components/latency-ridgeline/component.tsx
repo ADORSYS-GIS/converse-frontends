@@ -22,6 +22,8 @@ import {
 } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { ChartEmptyMessage } from '../../lib/chart-empty-message';
+import { ChartHitRegion } from '../../lib/chart-hit-region';
 import { useHoverActive } from '../../lib/use-hover-active';
 import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { buildRidgelineRows } from './layout';
@@ -81,9 +83,9 @@ export function LatencyRidgeline({
     () =>
       computeSharedBins(
         series.map((s) => s.values),
-        binCount,
+        binCount
       ),
-    [series, binCount],
+    [series, binCount]
   );
 
   const domain = useMemo<[number, number]>(() => {
@@ -100,7 +102,7 @@ export function LatencyRidgeline({
       buildRidgelineRows(series, edges, counts, plotHeight, (value) => xScale(value), {
         fallbackDomain: domain,
       }),
-    [series, edges, counts, plotHeight, xScale, domain],
+    [series, edges, counts, plotHeight, xScale, domain]
   );
 
   const valueByKey = useMemo(() => new Map(series.map((s) => [s.key, s.value])), [series]);
@@ -162,24 +164,14 @@ export function LatencyRidgeline({
             <ChartAxisBottom y={plotHeight} x1={0} x2={plotWidth} ticks={[]} />
           </g>
         </svg>
-      {/* The message is DOM text, NOT an SVG `<text>` (owner-reported bug, 2026-08-29).
-          SVG text never wraps, and this one is centred on the plot — so any message longer than
-          the plot is wide spills off BOTH ends at once, which is exactly how production rendered
-          the latency zone's real copy: "…isn't available: the usage API doesn't report latency or
-          percentile data yet. Spend, budget an…", clipped head and tail. Inset to the plot area
-          and left to wrap, it is also finally what the console-ui skill actually asks for — "an
-          inline mono status line above still-rendered structure (headers/axes stay)" — rather
-          than the centred placard the same skill forbids. */}
-        <p
-          className="text-subtle absolute font-mono text-[10px] leading-[1.5]"
-          style={{
-            left: MARGIN.left,
-            right: MARGIN.right,
-            top: MARGIN.top + plotHeight / 2,
-            transform: 'translateY(-50%)',
-          }}>
+        {/* DOM text, never an SVG `<text>`. This zone's own copy is the message the bug was
+            reported against — see `ChartEmptyMessage`. */}
+        <ChartEmptyMessage
+          left={MARGIN.left}
+          right={MARGIN.right}
+          top={MARGIN.top + plotHeight / 2}>
           {emptyMessage}
-        </p>
+        </ChartEmptyMessage>
       </div>
     );
   }
@@ -235,14 +227,12 @@ export function LatencyRidgeline({
         </g>
       </svg>
       {rows.map((row) => (
-        <button
+        <ChartHitRegion
           key={row.key}
-          type="button"
           aria-pressed={row.key === selectedKey}
           aria-label={row.breached ? `${row.label}, over ceiling` : row.label}
           onClick={() => handleSelect(row.key)}
           {...getReferenceProps(getHoverProps(row.key))}
-          className="absolute cursor-pointer bg-transparent p-0"
           style={{
             left: 0,
             top: MARGIN.top + Math.max(row.baselineY - row.amplitude, 0) - MIN_HIT_HEIGHT / 2,

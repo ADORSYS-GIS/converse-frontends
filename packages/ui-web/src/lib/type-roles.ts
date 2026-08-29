@@ -28,6 +28,17 @@ export const METRIC_CLASS = 'font-mono text-[22px] leading-[1.2] text-ink';
 export const HERO_METRIC_CLASS = 'font-mono text-[26px] leading-[1.2] text-ink';
 
 /**
+ * The ceiling beside a hero metric — "of $2,000.00", one step down from the numeral it qualifies
+ * and never in the numeral's `ink`, because it is the reference value and not the reading.
+ *
+ * A step of its own rather than `LABEL_CLASS` (11px), which is what the same pairing uses beside
+ * the 22px `METRIC_CLASS` in `ReviewDetailPanel`: an 11px ceiling next to a 26px numeral reads as
+ * a footnote rather than the other half of the sentence. `metric-ceiling-row` in `theme.css` owns
+ * the baseline alignment the pair shares; the step is what differs, so the step is the role.
+ */
+export const HERO_CEILING_CLASS = 'font-mono text-sm text-subtle';
+
+/**
  * `row` with no colour — 12 mono. The only consumer that wants this rather than `ROW_CLASS` is a
  * component whose colour is a variant axis (`StatusText`), so the two never disagree on size.
  */

@@ -67,50 +67,93 @@ const BUDGET: Record<string, number> = {
   //     and `<foreignObject>` styling that no class layer reaches.
   //   * Single-axis variant maps (`status-text` 3, `row-action-group`'s emphasis 3, `stat-card`'s
   //     delta tone 3) — exactly the "cva adds max 2 per variant" allowance, one token per branch.
-  //
-  // CVA SWEEP (2026-08-30, owner: "No! Use cva"). Four hand-rolled `Record<Variant, string>` lookup
-  // tables became three `cva.ts` files: `button` (variant x size, the library's only genuinely
-  // two-axis set), `row-action-group` (emphasis) and `stat-card` (delta tone). Not one CLASS moved
-  // and not one comment was deleted to move a number — but each new file pays exactly +1 for its
-  // `class-variance-authority` import specifier, which the counter reads as a class (see the
-  // HONESTY NOTE above, where that specifier is already named as a miscount). Paid for by deleting
-  // prose that the split made REDUNDANT rather than by deleting reasoning: `row-action-group`'s
-  // component header no longer re-quotes the two theme.css block names now that it does not paint
-  // the button (8 -> 7, ratcheted below), and `stat-card`'s no longer re-quotes the block the JSX
-  // beneath it names (holds at 10). `button` is 0 -> 1, still well under DEFAULT_BUDGET and so
-  // still without an entry here.
-  //
   // 28 -> 26 with the Base UI `navigation-menu` adoption (2026-08-30). Not one CSS class moved:
   // the drop is `aria-current`/`data-active` bookkeeping that the primitive now owns, plus naming
   // the import specifier (`@base-ui/react/navigation-menu`) in prose where the bare subpath used
   // to sit — which the counter read as a class and which is the more precise reference anyway.
   // `sub-nav` (9) and `console-header` (7) held flat through the same pass.
+  //
+  // ─── Round 3, the chart and panel set (2026-08-30): 303 -> 249 ────────────────────────────
+  //
+  // `chart-legend`, `latency-ridgeline`, `histogram-chart` and `chart-tooltip` are GONE from this
+  // object — all four now come in at or under DEFAULT_BUDGET. What moved:
+  //   * `lib/series-row.tsx` — `ChartLegend` and `ShareBar` render the same five-element row and
+  //     each wrote it out. One module, two consumers, `theme.css`'s `series-row` unchanged.
+  //   * `lib/chart-hit-region.tsx` + `@utility chart-hit-region` — the transparent per-datum
+  //     `<button>` over a plot, written out identically in all THREE chart primitives.
+  //   * `lib/chart-empty-message.tsx` + `@utility chart-empty-message` — the "nothing to plot"
+  //     line, written out twice with its inline inset and its own eight-line note. It also
+  //     carried a live BUG: `histogram-chart` was still drawing that copy as an SVG `<text>`, the
+  //     exact non-wrapping element the 2026-08-29 report was about. Fixed by adopting the module.
+  //   * `lib/zone-heading.tsx` + `@utility zone-heading` — the dashboard zone label row, written
+  //     out byte for byte in `SpendDashboard`/`LatencyDashboard`/`BudgetPanel` and once more as a
+  //     baseline variant in `SpendShareSection`. (Sections are not audited here; see below.)
+  //   * `@utility share-bar` / `budget-hero` / `date-range-popup` / `date-range-presets` —
+  //     component blocks for parts daisy has no vocabulary for. `date-range-field`'s preset rows
+  //     dropped their selected-state ternary entirely: `data-selected` is an attribute
+  //     `OVERLAY_ITEM_CLASS` already paints, and the call site was restating it.
+  //   * `chart-tooltip-title` DELETED as a class — the card's rows are `<div>`s, so the title is
+  //     its only direct `<span>` child, which is the same positional rule the card already used
+  //     for its label and value.
+  //   * `HERO_CEILING_CLASS` joined `lib/type-roles.ts` — the "of $ceiling" step beside a hero
+  //     numeral, hand-typed in `BudgetHero`.
+  //
+  // Verified in Storybook from computed styles, `black` and `wireframe`: the rank ramp still
+  // resolves per theme (dark `#b4b4b4/#7c7c7c/#565656/#3a3a3a`, light `#363636/#636363/#8b8b8b/
+  // #afafaf`) and the accent appears exactly once per chart.
+  //
+  // WHAT THE COUNTER IS ACTUALLY COUNTING, for the six entries below that did not move. It counts
+  // TOKEN OCCURRENCES in string literals, so it charges for three separate things:
+  //   (a) real hand-written Tailwind — the thing the bar is about;
+  //   (b) a `theme.css` `@utility` name, which is the DESTINATION of every sweep so far and which
+  //       the owner's own bar names as compliant — yet still reads as one utility per use site;
+  //   (c) comment prose and quoted code identifiers.
+  // Of the 53 the twelve components in this round now carry, 23 are (c) and 12 are (b). The
+  // counter is left alone anyway: changing its vocabulary mid-ratchet would move every number
+  // retroactively and make 651 -> 307 -> 249 meaningless. It is an owner call.
+  //
+  // Held flat, with the clause that requires it:
+  //   * `meter` 10 — 8 are prose (`aria-valuenow`, `aria-valuetext`×2, `aria-labelledby`,
+  //     `aria-hidden`, `aria-label`, `data-breached`, `radial-progress`); the believed 8/10 is
+  //     CONFIRMED. The real CSS is `sr-only` on Base UI's Label and the `meter-track` class.
+  //     daisy `progress` stays REJECTED (rounded, animated) — the 4px square track is ours.
+  //   * `tooltip` 8 — 6 prose, and the two real ones are `@utility` names (`focus-ring`,
+  //     `tooltip-popup`). ZERO raw Tailwind. daisy `tooltip` is on the not-adopted list.
+  //   * `checkbox` 5 — 3 are quoted destructuring KEYS (`'aria-label'`, `'aria-labelledby'`), not
+  //     even prose. The 2 real ones are `CheckboxGroup`'s `flex flex-col gap-2`. daisy `fieldset`
+  //     was read (`daisyui@5.7.22/components/fieldset.css`) and REFUSED: it is `display: grid`
+  //     with a `.375rem` gap, so adopting it would move the group's 8px rhythm to 6px to satisfy
+  //     a counter.
+  //   * `status-text` 4 — 1 is the `class-variance-authority` import specifier; the other 3 are
+  //     the `tone` colours, exactly the "cva adds max 2 per variant" allowance.
+  //   * `share-bar` 4 / `spend-series-chart` 4 / `budget-hero` 4 — each is 1 over, and each is
+  //     over by prose or by an `@utility` name: `share-bar` has 3 class names + `aria-hidden`;
+  //     `spend-series-chart` has 3 prose (`d3-shape`, `react-native-svg`,
+  //     `chart-tokens.specSeriesColor`) + one real `mt-2`; `budget-hero` has 2 class names + 2
+  //     prose. `date-range-field` 5 is `en-GB` (a LOCALE, read as a class), `data-selected`
+  //     (prose), 2 block names and one real `text-primary`.
   'nav-spine': 26,
   'ledger-table': 21,
   'review-detail-panel': 18,
-  'share-bar': 16,
-  'date-range-field': 14,
   'console-shell': 12,
-  'spend-series-chart': 12,
   'account-menu': 11,
-  'budget-hero': 11,
   'skeleton-row': 11,
-  'latency-ridgeline': 10,
   meter: 10,
   'stat-card': 10,
   'account-badge': 9,
   'bottom-sheet': 9,
   'mutation-failure-banner': 9,
   'sub-nav': 9,
-  'chart-legend': 8,
+  'row-action-group': 8,
   tooltip: 8,
   'command-palette': 7,
   'console-header': 7,
-  'row-action-group': 7,
   'section-sheet': 5,
   checkbox: 5,
-  'histogram-chart': 5,
-  'chart-tooltip': 4,
+  'date-range-field': 5,
+  'budget-hero': 4,
+  'share-bar': 4,
+  'spend-series-chart': 4,
   'status-text': 4,
 };
 

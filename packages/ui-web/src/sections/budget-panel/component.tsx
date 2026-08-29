@@ -4,7 +4,8 @@ import { BudgetHero } from '../../components/budget-hero';
 import { Button } from '../../components/button';
 import { Meter } from '../../components/meter';
 import { formatUsdOf } from '../../lib/money';
-import { DASHBOARD_LABEL_CLASS, LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
 import type { BudgetPanelProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 3) — the BUDGET
@@ -12,6 +13,10 @@ import type { BudgetPanelProps } from './types';
 // ATTENTION (the project closest to its ceiling, with its refill action) and REFILL REQUESTS (a
 // count plus the link into Admin). Both are omitted entirely when their data is absent; neither
 // leaves an empty placeholder behind.
+// The hairline between the panel's optional blocks. One definition, because the two blocks that
+// draw it must never disagree about the rule that separates them.
+const BLOCK_DIVIDER_CLASS = 'border-border my-5 border-t';
+
 export function BudgetPanel({
   label = 'Budget — consumption vs ceiling',
   budget,
@@ -25,10 +30,7 @@ export function BudgetPanel({
 }: BudgetPanelProps) {
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
-        {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
-      </div>
+      <ZoneHeading label={label} actions={actions} />
       <div className="mt-4">
         {budget.status === 'unwired' ? (
           <BudgetHero status="unwired" caption={budget.caption} />
@@ -48,7 +50,7 @@ export function BudgetPanel({
 
         {needsAttentionProject ? (
           <>
-            <div aria-hidden="true" className="border-border my-5 border-t" />
+            <div aria-hidden="true" className={BLOCK_DIVIDER_CLASS} />
             <div className={LABEL_CLASS}>Needs attention</div>
             <div className="mt-3 flex items-baseline justify-between gap-3">
               <span className="text-ink font-mono text-xs">{needsAttentionProject.name}</span>
@@ -78,7 +80,7 @@ export function BudgetPanel({
 
         {refillRequestStatus ? (
           <>
-            <div aria-hidden="true" className="border-border my-5 border-t" />
+            <div aria-hidden="true" className={BLOCK_DIVIDER_CLASS} />
             <div className={LABEL_CLASS}>Refill requests</div>
             <p className="text-soft mt-3 font-mono text-[11px]">
               {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}

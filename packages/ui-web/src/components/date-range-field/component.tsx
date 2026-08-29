@@ -94,25 +94,24 @@ export function DateRangeField({
           {/* Base UI's Popover popup is a `role="dialog"`, and an unnamed dialog is an axe
               violation (pre-existing, surfaced while auditing the daisy adoption). The field's
               own label names it, the way the trigger is named. */}
-          <Popover.Popup aria-label={label} className={cn('flex gap-4 p-3', OVERLAY_CLASS)}>
-            <div className="border-raised flex w-[132px] flex-col border-r pr-3">
+          <Popover.Popup aria-label={label} className={cn('date-range-popup', OVERLAY_CLASS)}>
+            <div className="date-range-presets">
               {presets.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => onPresetChange(option.value)}
                   // The same row an option in a Select popup gets — these ARE options, in an
-                  // overlay, and the console has one treatment for that.
-                  className={cn(
-                    OVERLAY_ITEM_CLASS,
-                    option.value === preset ? 'bg-raised text-ink' : 'hover:bg-chrome'
-                  )}>
+                  // overlay, and the console has one treatment for that, including for the
+                  // current one: `data-selected` is the attribute OVERLAY_ITEM_CLASS already
+                  // paints, so the fill is not re-stated here. Its else-branch hover belongs to
+                  // the column and is stated there.
+                  data-selected={option.value === preset ? 'true' : undefined}
+                  className={OVERLAY_ITEM_CLASS}>
                   {option.label}
                 </button>
               ))}
-              <span className={cn(LABEL_CLASS, 'mt-2 px-3')}>
-                {preset ? 'Or pick a span' : 'Custom'}
-              </span>
+              <span className={LABEL_CLASS}>{preset ? 'Or pick a span' : 'Custom'}</span>
             </div>
 
             <DayPicker

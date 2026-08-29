@@ -69,7 +69,9 @@ describe('ChartTooltip', () => {
   });
 
   it('renders nothing when the anchor element has not mounted yet', () => {
-    render(<Harness visible anchorless x={10} y={10} rows={[{ key: 'a', label: 'A', value: '1' }]} />);
+    render(
+      <Harness visible anchorless x={10} y={10} rows={[{ key: 'a', label: 'A', value: '1' }]} />
+    );
 
     expect(screen.queryByText('A')).not.toBeInTheDocument();
   });
@@ -85,7 +87,7 @@ describe('ChartTooltip', () => {
           { key: 'a', label: 'project-a', value: '$212.40' },
           { key: 'b', label: 'project-b', value: '$88.00' },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByText('Aug 21')).toBeInTheDocument();
@@ -96,14 +98,34 @@ describe('ChartTooltip', () => {
   });
 
   it('omits the title row when no title is given', () => {
-    render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
+    render(
+      <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />
+    );
 
-    expect(document.querySelectorAll('.chart-tooltip-title')).toHaveLength(0);
+    // The title is the card's only direct `<span>` child — rows are `<div class=…-row>` — which
+    // is what `theme.css` selects it by, so its absence is the absence of that child.
+    expect(document.querySelectorAll('.chart-tooltip-card > span')).toHaveLength(0);
+  });
+
+  it("renders the title as the card's only direct span child, which is how it is painted", () => {
+    render(
+      <Harness
+        visible
+        x={100}
+        y={80}
+        title="Aug 21"
+        rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]}
+      />
+    );
+
+    const titles = document.querySelectorAll('.chart-tooltip-card > span');
+    expect(titles).toHaveLength(1);
+    expect(titles[0]).toHaveTextContent('Aug 21');
   });
 
   it('renders the tooltip card in a portal, not inline in the chart wrapper', () => {
     const { container } = render(
-      <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />,
+      <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />
     );
 
     expect(container.querySelector('.chart-tooltip-card')).not.toBeInTheDocument();
@@ -111,7 +133,9 @@ describe('ChartTooltip', () => {
   });
 
   it('sets pointer-events: none on the card so it never blocks pointer tracking underneath', () => {
-    render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
+    render(
+      <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />
+    );
 
     const card = document.body.querySelector('.chart-tooltip-card') as HTMLElement;
     expect(card.style.pointerEvents).toBe('none');

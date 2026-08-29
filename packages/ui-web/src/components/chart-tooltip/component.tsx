@@ -14,12 +14,14 @@ import type { ChartTooltipProps } from './types';
  *
  * DOM port of packages/ui's chart tooltip (RN View/Text -> div/span), still on
  * the console-ui token set. Its paint is one named class in theme.css
- * (chart-tooltip-card and the three parts under it): the card is the one
+ * (chart-tooltip-card, and two parts under it): the card is the one
  * overlay that is deliberately not OVERLAY_CLASS, because a hairline border on
- * a card that tracks the cursor reads as flicker. Inside a row the label and
- * value are positional, not two more class names -- the value is the last
- * child and the label the one before it, which holds whether or not the row
- * has a swatch in front.
+ * a card that tracks the cursor reads as flicker.
+ *
+ * Every part inside the card is positional rather than its own class name. The
+ * rows are divs, so the optional title is the card's only direct span child.
+ * Inside a row the value is the last child and the label the one before it,
+ * which holds whether or not the row has a swatch in front.
  */
 export function ChartTooltip({
   visible,
@@ -42,7 +44,7 @@ export function ChartTooltip({
         style={{ ...floatingStyles, pointerEvents: 'none' }}
         {...getFloatingProps()}
         className="chart-tooltip-card">
-        {title ? <span className="chart-tooltip-title">{title}</span> : null}
+        {title ? <span>{title}</span> : null}
         {rows.map((row) => (
           <div key={row.key} className="chart-tooltip-row">
             {row.color ? (

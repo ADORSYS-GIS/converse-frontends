@@ -4,13 +4,13 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../error-line';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { formatUsd } from '../../lib/money';
-import { HERO_METRIC_CLASS, PROSE_META_CLASS } from '../../lib/type-roles';
+import { HERO_CEILING_CLASS, HERO_METRIC_CLASS, PROSE_META_CLASS } from '../../lib/type-roles';
 import { Meter } from '../meter';
 import type { BudgetHeroProps } from './types';
 
 // One stack, four branches. Every status renders into the same box so the zone never changes
-// height or alignment as it resolves — the reason this is a constant rather than five literals.
-const STACK_CLASS = 'flex flex-col gap-3';
+// height or alignment as it resolves — see the `budget-hero` block in theme.css, which owns that
+// stack and the loading branch's two block heights.
 
 // Trailing action/caption row — identical markup across every branch below, factored out so
 // none of them has to duplicate it. `INLINE_ROW_CLASS` is the console's shared status-line
@@ -32,17 +32,14 @@ function BudgetHeroFooter({
 }
 
 // Skeleton matching the `'ready'` branch's own numeral + meter geometry exactly (console-ui
-// skill states: "skeleton blocks matching final geometry", no spinner, no shimmer).
-//
-// daisy `skeleton` supplies the raised fill and the 2px radius, exactly as it does in
-// SkeletonMetric and SkeletonRow; its shimmer is killed centrally by the `@utility skeleton`
-// override in theme.css, so nothing has to be suppressed here. Only the two heights stay local,
-// because they are the geometry of the branch below and nothing else.
+// skill states: "skeleton blocks matching final geometry", no spinner, no shimmer). daisy
+// `skeleton` is the fill and the 2px radius; the two heights that make it match are stated in
+// theme.css beside the stack they sit in, keyed off this role="presentation".
 function BudgetHeroSkeleton() {
   return (
-    <div className={STACK_CLASS} role="presentation" aria-hidden="true">
-      <div className="skeleton h-[26px] w-32" />
-      <div className="skeleton h-1 w-full" />
+    <div role="presentation" aria-hidden="true">
+      <div className="skeleton" />
+      <div className="skeleton" />
     </div>
   );
 }
@@ -68,50 +65,53 @@ function BudgetHeroSkeleton() {
 // `SpendDashboard`/`LatencyDashboard`: "never queried" (`'unwired'`), "queried, waiting"
 // (`'loading'`), "queried, failed" (`'error'`) and "queried, here's the real number" (`'ready'`,
 // including a real `$0.00`) are four different facts and must never collapse into one rendering.
-export function BudgetHero(props: BudgetHeroProps) {
-  const { className } = props;
-
+// The four branches differ only in what goes INSIDE the stack — which is the whole point of the
+// stack being one box — so the wrapper is rendered once, here, and each branch returns its body.
+// Written as four returns of the same wrapper it was four chances to disagree about it.
+function BudgetHeroBody(props: BudgetHeroProps) {
   if (props.status === 'loading') {
-    return (
-      <div className={cn(STACK_CLASS, className)}>
-        <BudgetHeroSkeleton />
-      </div>
-    );
+    return <BudgetHeroSkeleton />;
   }
 
   if (props.status === 'error') {
     return (
-      <div className={cn(STACK_CLASS, className)}>
-        <ErrorLine
-          message={props.errorMessage ?? 'Failed to load budget consumption.'}
-          onRetry={props.onRetry}
-        />
-      </div>
+      <ErrorLine
+        message={props.errorMessage ?? 'Failed to load budget consumption.'}
+        onRetry={props.onRetry}
+      />
     );
   }
 
   if (props.status === 'unwired') {
     return (
-      <div className={cn(STACK_CLASS, className)}>
+      <>
         <span className={HERO_METRIC_CLASS}>Not wired</span>
         <BudgetHeroFooter action={props.action} caption={props.caption} />
-      </div>
+      </>
     );
   }
 
   const { value, ceiling, threshold, action, caption } = props;
   return (
-    <div className={cn(STACK_CLASS, className)}>
+    <>
       {/* Baseline-aligned so the hero numeral and its ceiling sit on one line and wrap together
           rather than the ceiling dropping half a line below it. */}
       <div className="metric-ceiling-row">
         <span className={HERO_METRIC_CLASS}>{formatUsd(value)}</span>
-        <span className="text-subtle font-mono text-sm">of {formatUsd(ceiling)}</span>
+        <span className={HERO_CEILING_CLASS}>of {formatUsd(ceiling)}</span>
       </div>
 
       <Meter value={value} ceiling={ceiling} threshold={threshold} showCaption={false} />
 
       <BudgetHeroFooter action={action} caption={caption} />
+    </>
+  );
+}
+
+export function BudgetHero(props: BudgetHeroProps) {
+  return (
+    <div className={cn('budget-hero', props.className)}>
+      <BudgetHeroBody {...props} />
     </div>
   );
 }

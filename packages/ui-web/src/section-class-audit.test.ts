@@ -47,6 +47,33 @@ describe('section class budget', () => {
     expect(source.utils + source.daisy).toBeGreaterThan(0);
   });
 
+  /**
+   * The four dashboard zones, pinned at what the 2026-08-30 chart/panel sweep left them at.
+   *
+   * Deliberately still not a ratchet over every section — the other eighteen are untouched and
+   * unmeasured, exactly as this file's docstring says, and turning this into a second competing
+   * meter beside `class-budget.test.ts` was ruled out. These four are pinned because they are the
+   * ones that just moved, and because what moved out of them is now shared: all four render
+   * `lib/zone-heading.tsx` rather than each writing out the same label row. If one of them grows a
+   * utility back, that is a visible diff on this file.
+   *
+   * Before -> after: budget-panel 41 -> 33, latency-dashboard 25 -> 17, spend-dashboard 15 -> 10,
+   * spend-share 25 -> 9. The residue is genuine per-zone layout (scroll boxes, `mt-4` rhythm,
+   * skeleton geometry) plus the same comment-prose inflation `class-budget.test.ts` documents.
+   */
+  it.each([
+    ['spend-share', 9],
+    ['spend-dashboard', 10],
+    ['latency-dashboard', 17],
+    ['budget-panel', 33],
+  ])('%s stays at or under the %d it was left at', (section, budget) => {
+    const { utils } = auditComponent(join(import.meta.dirname, 'sections', section));
+    expect(
+      utils,
+      `${section} carries ${utils} hand-written utilities (pinned at ${budget})`
+    ).toBeLessThanOrEqual(budget);
+  });
+
   it('holds the DEFAULT_BUDGET contract for any section added with no local geometry at all', () => {
     // The bar a section with nothing of its own to draw must meet — `api-keys-hygiene-notes` is
     // the closest existing example of one that nearly does.

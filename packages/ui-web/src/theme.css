@@ -729,6 +729,38 @@
 }
 
 /*
+ * `BudgetHero` — one stack, four status branches. Every status renders into the same box so the
+ * zone never changes height or alignment as it resolves; that is the reason the stack is stated
+ * once here rather than at each of the four returns.
+ *
+ * The loading branch's two blocks are the geometry of the ready branch below them (26px numeral,
+ * 4px meter track), matched exactly — console-ui skill: "skeleton blocks matching final
+ * geometry", no spinner, no shimmer. daisy `skeleton` supplies the raised fill and the 2px
+ * radius, and its shimmer is already killed by the `@utility skeleton` override above; only the
+ * two heights are this component's, and they are facts about the branch beneath them rather than
+ * anything the call site chooses. Width needs no statement at all — a stretch-aligned flex column
+ * already gives both blocks the full column.
+ */
+@utility budget-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  & [role='presentation'] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  & [role='presentation'] > .skeleton:first-child {
+    height: 26px;
+    width: 8rem;
+  }
+  & [role='presentation'] > .skeleton:last-child {
+    height: 0.25rem;
+  }
+}
+
+/*
  * ─── Self-panelling blocks ───────────────────────────────────────────────────────────────────
  *
  * `StatCard` and `SecretReveal` are the two components allowed to draw their own panel
@@ -933,8 +965,36 @@
   flex-shrink: 0;
 }
 
-/* `ShareBar`'s track — an 8px bar whose segments are parted by a hairline gap, clipped to the
-   console's 2px radius. */
+/*
+ * `ShareBar` — the track, and the two things its rows do differently from `ChartLegend`'s.
+ *
+ * Both components render `lib/series-row.tsx`'s markup verbatim; the ONLY difference is that a
+ * share bar's rows fill a column (so the percent gutter lines up down the list) and sit one gap
+ * step wider, while a legend wraps inline. That difference is a fact about the CONTEXT, not about
+ * the row, so it is stated here — contextually, once — instead of as two utilities passed in at
+ * the call site to a component that would then need a variant prop to forward them.
+ */
+@utility share-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  /* The ranked list. No gap of its own — the rows already carry a 28px minimum height, and a
+     second gap between them would read as a gapped table rather than one list. */
+  & ul {
+    display: flex;
+    flex-direction: column;
+  }
+
+  & .series-row {
+    width: 100%;
+    gap: 0.75rem;
+  }
+}
+
+/* The track — an 8px bar whose segments are parted by a hairline gap, clipped to the console's
+   2px radius. Nothing to show is still a bar at the empty tone, never a collapsed zero-height
+   gap, so the empty fill is a rule here rather than two utilities on a conditional span. */
 @utility share-track {
   display: flex;
   height: 0.5rem;
@@ -942,6 +1002,11 @@
   gap: 1px;
   overflow: hidden;
   border-radius: var(--radius-field);
+
+  & .share-track-empty {
+    flex: 1;
+    background-color: var(--color-base-300);
+  }
 }
 
 /*
@@ -949,8 +1014,9 @@
  * `OVERLAY_CLASS`: it carries no hairline (a 1px border on a card that tracks the cursor reads as
  * flicker) and it is never interactive.
  *
- * The label/value split inside a row is positional rather than a third and fourth class name: the
- * value is the last child and the label the one before it, with or without a swatch in front.
+ * Every part inside the card is positional rather than its own class name. The card's rows are
+ * `<div>`s, so the optional title is the card's ONLY direct `<span>` child; inside a row the value
+ * is the last child and the label the one before it, with or without a swatch in front.
  */
 @utility chart-tooltip-card {
   display: flex;
@@ -961,14 +1027,15 @@
   background-color: var(--color-base-200);
   padding: 0.5rem 0.625rem;
   font-family: var(--font-mono);
-}
 
-@utility chart-tooltip-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.6875rem;
-  color: var(--color-subtle);
+  /* The title. Rows are `<div class="chart-tooltip-row">`, so this cannot collide with one. */
+  & > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    color: var(--color-subtle);
+  }
 }
 
 @utility chart-tooltip-row {
@@ -998,6 +1065,55 @@
   width: 0.5rem;
   flex-shrink: 0;
   border-radius: var(--radius-field);
+}
+
+/*
+ * ─── Chart chrome shared by every plot ───────────────────────────────────────────────────────
+ *
+ * `SpendSeriesChart`, `LatencyRidgeline` and `HistogramChart` each draw a different plot, but they
+ * sit inside the SAME frame: an `<svg>` under a layer of transparent hit targets, with an inline
+ * status line taking the plot's place when there is nothing to draw. Those two frame parts were
+ * written out three times and twice respectively, byte for byte, before this block existed.
+ *
+ * NO UPSTREAM (ADR 0009 bans a chart framework; daisy ships no chart vocabulary at all), so the
+ * win here is that the frame is declared ONCE, not that it was inherited from somewhere.
+ * `lib/chart-hit-region.tsx` and `lib/chart-empty-message.tsx` own the matching markup.
+ */
+
+/*
+ * The transparent button laid over the plot so a pointer, a tap or a keyboard focus has a real
+ * element to land on. It must be a `<button>` — the plot itself is `<path>`/`<rect>` inside an
+ * `aria-hidden` canvas, so this is the only thing in the chart a screen reader or the Tab key can
+ * reach, and Floating UI's reference props are bound to it. Its box is per-datum arithmetic and
+ * stays an inline style; everything else about it is identical in all three charts.
+ */
+@utility chart-hit-region {
+  position: absolute;
+  cursor: pointer;
+  background-color: transparent;
+  padding: 0;
+}
+
+/*
+ * The "nothing to plot" line, inset to the plot area and centred on it.
+ *
+ * DOM text, never an SVG `<text>` — owner-reported production bug, 2026-08-29: SVG text does not
+ * wrap, so a message longer than the plot is wide spills off BOTH ends at once. The latency zone
+ * shipped exactly that ("…isn't available: the usage API doesn't report latency or percentile
+ * data yet. Spend, budget an…", clipped head and tail). A `<p>` inset to the plot and left to
+ * wrap is also what the console-ui skill asks for — "an inline mono status line above still-
+ * rendered structure (headers/axes stay)" — rather than the centred placard it forbids.
+ *
+ * `left`/`right`/`top` are the caller's margins and plot height, so they stay inline; the
+ * half-height correction that turns `top` into a true centre belongs to the class.
+ */
+@utility chart-empty-message {
+  position: absolute;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: var(--color-subtle);
 }
 
 /*
@@ -1735,5 +1851,82 @@
     &:hover {
       color: var(--color-base-content);
     }
+  }
+}
+
+/*
+ * `zone-heading` — the label row at the top of a dashboard zone, with whatever the zone puts at
+ * its trailing edge.
+ *
+ * `SpendDashboard`, `LatencyDashboard` and `BudgetPanel` wrote this out byte for byte, and
+ * `SpendShareSection` wrote out the baseline-aligned variant. `lib/zone-heading.tsx` owns the
+ * matching markup. NO UPSTREAM: daisy's nearest offer is `card-title`/`stat-title`, and `card` and
+ * `stat` are both on PRIMITIVES.md's not-adopted list.
+ *
+ * Alignment follows what the zone puts on the right, which is why it is not a prop the caller
+ * chooses: buttons are a cluster and centre against the label, while a figure is the other half
+ * of the label's own sentence and has to sit on its baseline.
+ */
+@utility zone-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  & .zone-heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  &[data-align='baseline'] {
+    align-items: baseline;
+    gap: 0.75rem;
+
+    /* A trailing figure is a numeral — it aligns down the zone stack like every other. */
+    & > :last-child {
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+/*
+ * `DateRangeField`'s popover — the frame around the calendar, and the preset column beside it.
+ *
+ * The calendar itself is daisy's (`react-day-picker` above, in the corrections half); everything
+ * here is the console's own furniture around it, which daisy has no vocabulary for. It was twelve
+ * utilities across four call sites inside one popup, three of which only existed to re-state what
+ * `OVERLAY_ITEM_CLASS` already says about a selected row in an overlay list.
+ */
+@utility date-range-popup {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+/*
+ * The presets column: a fixed 132px so the calendar's own width decides the popup's, parted from
+ * it by the same `raised` hairline every in-overlay divider uses.
+ *
+ * Its rows ARE options in an overlay, so they wear `OVERLAY_ITEM_CLASS` and mark the current one
+ * `data-selected` — the attribute that class already paints for cmdk, and which the call site was
+ * re-stating as `bg-raised text-ink`. Only the hover on the rows that are NOT current is left to
+ * say, and it is said here, contextually, rather than as a ternary's else-branch at the call site.
+ */
+@utility date-range-presets {
+  display: flex;
+  width: 132px;
+  flex-direction: column;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--color-base-300);
+
+  & > button:not([data-selected]):hover {
+    background-color: var(--color-neutral);
+  }
+
+  /* The trailing hint, indented onto the rows' own left edge. */
+  & > span:last-child {
+    margin-top: 0.5rem;
+    padding-inline: 0.75rem;
   }
 }

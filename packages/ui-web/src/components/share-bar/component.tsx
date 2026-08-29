@@ -2,6 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { SPEC_ACCENT, specSeriesColor } from '../../chart-tokens';
+import { SeriesRow } from '../../lib/series-row';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ShareBarProps, ShareBarSegment } from './types';
 
@@ -14,9 +15,11 @@ import type { ShareBarProps, ShareBarSegment } from './types';
 // share bar, no ranked series list and (per PRIMITIVES.md § "not adopted") no `progress` we are
 // allowed to use — its rounded, animated track is the opposite of the console's square 4px one.
 //
-// The row it renders IS `ChartLegend`'s row (swatch, name, value), so both take `series-row` /
-// `series-swatch` and the `data-emphasized` ramp from `theme.css` rather than each restating the
-// same four colour ternaries. Only the track and the percent column are this component's own.
+// The row it renders IS `ChartLegend`'s row, so both now render `lib/series-row.tsx` rather than
+// each restating the same five elements and the same colour ternaries. The two ways a share
+// bar's rows differ from a legend's — full width, one gap step wider — are stated contextually in
+// `theme.css`'s `share-bar` block, so nothing about that difference is passed in from here. Only
+// the track is this component's own.
 
 const MIN_VISIBLE_PERCENT = 0.6;
 
@@ -51,7 +54,7 @@ export function ShareBar({
   });
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
+    <div className={cn('share-bar', className)}>
       {/* The bar is a PICTURE of the list below it, so it is `aria-hidden` and carries no tab
           stops: every segment's identity, value and share is already in the list as real text,
           and the list rows are the interactive control when `onSelectSegment` is set. Making
@@ -70,46 +73,32 @@ export function ShareBar({
             }}
           />
         ))}
-        {/* Nothing to show is still a bar, at the empty tone — not a collapsed zero-height gap. */}
-        {total === 0 ? <span className="bg-raised flex-1" /> : null}
+        {/* Nothing to show is still a bar, at the empty tone — not a collapsed zero-height gap.
+            The fill itself is a rule inside the track's own block. */}
+        {total === 0 ? <span className="share-track-empty" /> : null}
       </div>
 
       {computed.length === 0 ? <p className={LABEL_CLASS}>{emptyMessage}</p> : null}
 
-      <ul className="flex flex-col">
+      <ul>
         {computed.map((segment) => {
           const selected = segment.key === selectedKey;
-          const emphasized = selected || Boolean(segment.breached);
-          const handleClick = onSelectSegment
-            ? () => onSelectSegment(selected ? null : segment.key)
-            : undefined;
-
           return (
             <li key={segment.key}>
-              <button
-                type="button"
-                onClick={handleClick}
-                disabled={!onSelectSegment}
-                aria-pressed={onSelectSegment ? selected : undefined}
-                aria-label={segment.breached ? `${segment.label}, over ceiling` : undefined}
-                data-emphasized={emphasized ? 'true' : 'false'}
-                // A non-selectable ShareBar is still rendered as buttons (one markup, one set of
-                // tests) and marked `disabled`; `series-row` reads that for the cursor and the
-                // hover fill, so there is no affordance decision left at this call site. The row
-                // fills its column here (it does not in the wrapping legend) and its gap is one
-                // step wider, which is the whole of the difference between the two.
-                className="series-row w-full gap-3">
-                <span
-                  aria-hidden="true"
-                  className="series-swatch"
-                  style={{ backgroundColor: segment.color }}
-                />
-                <span className="series-label">{segment.label}</span>
-                {segment.formattedValue ? (
-                  <span className="series-value">{segment.formattedValue}</span>
-                ) : null}
-                <span className="series-percent">{formatPercent(segment.percent)}</span>
-              </button>
+              <SeriesRow
+                color={segment.color}
+                label={segment.label}
+                value={segment.formattedValue}
+                percent={formatPercent(segment.percent)}
+                emphasized={selected || Boolean(segment.breached)}
+                pressed={selected}
+                // Only a breach overrides the name. A plain row's text already reads
+                // "name, value, share" and naming it would throw the numbers away.
+                ariaLabel={segment.breached ? `${segment.label}, over ceiling` : undefined}
+                onSelect={
+                  onSelectSegment ? () => onSelectSegment(selected ? null : segment.key) : undefined
+                }
+              />
             </li>
           );
         })}

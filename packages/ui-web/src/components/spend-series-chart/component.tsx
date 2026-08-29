@@ -11,10 +11,12 @@ import {
   makeLinearScale,
   makeTimeScale,
 } from '@lightbridge/chart-core';
-import { SPEC_FLOOR, SPEC_TEXT_MUTED, seriesDash, specSeriesColor } from '../../chart-tokens';
+import { SPEC_FLOOR, seriesDash, specSeriesColor } from '../../chart-tokens';
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { ChartEmptyMessage } from '../../lib/chart-empty-message';
+import { ChartHitRegion } from '../../lib/chart-hit-region';
 import { useHoverActive } from '../../lib/use-hover-active';
 import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { collectTimestamps, collectYDomain } from './domain';
@@ -74,15 +76,15 @@ export function SpendSeriesChart({
       timestamps.length > 0
         ? makeTimeScale([timestamps[0], timestamps[timestamps.length - 1]], [0, plotWidth])
         : null,
-    [timestamps, plotWidth],
+    [timestamps, plotWidth]
   );
   const bandScale = useMemo(
     () =>
       makeBandScale(
         timestamps.map((d) => d.toISOString()),
-        [0, plotWidth],
+        [0, plotWidth]
       ),
-    [timestamps, plotWidth],
+    [timestamps, plotWidth]
   );
   const yScale = useMemo(() => makeLinearScale(yDomain, [plotHeight, 0]), [yDomain, plotHeight]);
 
@@ -159,33 +161,28 @@ export function SpendSeriesChart({
         value: formatLegendValue?.(s),
         breached: s.breached,
       })),
-    [series, formatLegendValue],
+    [series, formatLegendValue]
   );
 
   if (series.length === 0 || timestamps.length === 0) {
     return (
       <div style={{ width, height, position: 'relative' }}>
         <svg width={width} height={height}>
-          <ChartAxisLeft x={MARGIN.left} y1={MARGIN.top} y2={MARGIN.top + plotHeight} ticks={yTicks} />
+          <ChartAxisLeft
+            x={MARGIN.left}
+            y1={MARGIN.top}
+            y2={MARGIN.top + plotHeight}
+            ticks={yTicks}
+          />
         </svg>
-      {/* The message is DOM text, NOT an SVG `<text>` (owner-reported bug, 2026-08-29).
-          SVG text never wraps, and this one is centred on the plot — so any message longer than
-          the plot is wide spills off BOTH ends at once, which is exactly how production rendered
-          the latency zone's real copy: "…isn't available: the usage API doesn't report latency or
-          percentile data yet. Spend, budget an…", clipped head and tail. Inset to the plot area
-          and left to wrap, it is also finally what the console-ui skill actually asks for — "an
-          inline mono status line above still-rendered structure (headers/axes stay)" — rather
-          than the centred placard the same skill forbids. */}
-        <p
-          className="text-subtle absolute font-mono text-[10px] leading-[1.5]"
-          style={{
-            left: MARGIN.left,
-            right: MARGIN.right,
-            top: MARGIN.top + plotHeight / 2,
-            transform: 'translateY(-50%)',
-          }}>
+        {/* DOM text, never an SVG `<text>` — see `ChartEmptyMessage` for the bug that settled
+            that, and for why the copy is inset to the plot rather than centred on it. */}
+        <ChartEmptyMessage
+          left={MARGIN.left}
+          right={MARGIN.right}
+          top={MARGIN.top + plotHeight / 2}>
           {emptyMessage}
-        </p>
+        </ChartEmptyMessage>
       </div>
     );
   }
@@ -283,12 +280,10 @@ export function SpendSeriesChart({
             : (xScale?.(d) ?? 0);
         const hitWidth = Math.max(bandScale.step() || MIN_HIT_WIDTH, MIN_HIT_WIDTH / 2);
         return (
-          <button
+          <ChartHitRegion
             key={d.toISOString()}
-            type="button"
             aria-label={formatTooltipTitle(d)}
             {...getReferenceProps(getHoverProps(index))}
-            className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: MARGIN.left + rawX - hitWidth / 2,
               top: MARGIN.top,

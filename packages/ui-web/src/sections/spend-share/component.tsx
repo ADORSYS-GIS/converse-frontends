@@ -2,7 +2,8 @@ import React from 'react';
 
 import { ErrorLine } from '../../components/error-line';
 import { ShareBar } from '../../components/share-bar';
-import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, SUBJECT_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
 import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendShareSectionProps } from './types';
 
@@ -29,14 +30,15 @@ export function SpendShareSection({
 }: SpendShareSectionProps) {
   return (
     <div className={className}>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
-        {/* Only when there is a real figure to show. An `unwired` zone must never print a total,
-            fabricated or zero — that is the whole point of the status existing. */}
-        {total && status === 'ready' ? (
-          <span className="font-mono text-sm tabular-nums text-ink">{total}</span>
-        ) : null}
-      </div>
+      {/* `trailing`, not `actions`: the total is the other half of the label's sentence and sits
+          on its baseline. Rendered only when there is a real figure to show — an `unwired` zone
+          must never print a total, fabricated or zero, which is the whole point of the status. */}
+      <ZoneHeading
+        label={label}
+        trailing={
+          total && status === 'ready' ? <span className={SUBJECT_CLASS}>{total}</span> : undefined
+        }
+      />
 
       {status === 'error' ? (
         <div className="mt-4">
@@ -44,15 +46,17 @@ export function SpendShareSection({
         </div>
       ) : status === 'loading' ? (
         // Skeleton over the exact final geometry (console-ui skill "States"): the 8px bar, then
-        // three list rows at the `ShareBar` row height.
+        // three list rows at the `ShareBar` row height. daisy `skeleton` is the raised fill and
+        // the 2px radius — byte for byte what these blocks were spelling out — with its shimmer
+        // already killed by the `@utility skeleton` override; only the heights are local.
         <div className="mt-4 flex flex-col gap-3">
-          <div className="h-2 w-full rounded-[2px] bg-raised" />
+          <div className="skeleton h-2" />
           <div className="flex flex-col gap-1">
             {[0, 1, 2].map((row) => (
-              <div key={row} className="h-[28px] w-full rounded-[2px] bg-raised" />
+              <div key={row} className="skeleton h-[28px]" />
             ))}
           </div>
-          <p className="text-subtle font-mono text-[11px]">Querying usage…</p>
+          <p className={LABEL_CLASS}>Querying usage…</p>
         </div>
       ) : (
         <ShareBar
@@ -64,7 +68,9 @@ export function SpendShareSection({
           // Only overridden for `unwired` — see `SpendDashboard`'s equivalent comment. A zone
           // whose source was never queried says so; one that WAS queried and came back empty
           // keeps `ShareBar`'s own "No spend in this range."
-          emptyMessage={status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined}
+          emptyMessage={
+            status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+          }
         />
       )}
     </div>

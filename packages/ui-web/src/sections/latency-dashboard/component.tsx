@@ -4,7 +4,8 @@ import { SPEC_GRID } from '../../chart-tokens';
 import { ErrorLine } from '../../components/error-line';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
 import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { LatencyDashboardProps } from './types';
 
@@ -71,10 +72,7 @@ export function LatencyDashboard({
     // The ref observes the OUTER wrapper: the chart's scroll box only exists in the chart branch,
     // so a ref mounted only there would leave the loading skeleton at `fallbackWidth` forever.
     <div ref={ref} className={className}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
-        {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
-      </div>
+      <ZoneHeading label={label} actions={actions} />
       {/* Only the CHART goes in the horizontal scroller — error and loading are prose that wraps
           to the column, and inside the scroll box they were clipped along with it. */}
       {status === 'error' ? (
@@ -86,7 +84,7 @@ export function LatencyDashboard({
           <div className="w-full overflow-x-auto overflow-y-clip">
             <LatencyChartSkeleton width={measuredWidth} height={height} />
           </div>
-          <p className="text-subtle font-mono text-[11px]">Querying usage…</p>
+          <p className={LABEL_CLASS}>Querying usage…</p>
         </div>
       ) : (
         /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`. `overflow-y-clip` --

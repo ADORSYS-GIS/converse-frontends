@@ -5,7 +5,7 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
 import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendDashboardProps } from './types';
 
@@ -76,10 +76,7 @@ export function SpendDashboard({
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
-        {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
-      </div>
+      <ZoneHeading label={label} actions={actions} />
       {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
           why a landmark role here would trip axe's `landmark-unique` once a page renders more
           than one scrollable dashboard. */}

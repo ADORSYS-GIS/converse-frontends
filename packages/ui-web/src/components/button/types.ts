@@ -1,8 +1,15 @@
 import type { Button as BaseButton } from '@base-ui/react/button';
 import type { ButtonHTMLAttributes, ComponentPropsWithoutRef } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
-export type ButtonSize = 'sm' | 'md' | 'icon';
+import type { ButtonVariantProps } from './cva';
+
+/**
+ * Both unions are now INFERRED from `cva.ts` rather than restated here, so the paint table and the
+ * public type can never drift apart. They resolve to exactly what they always were:
+ * `'primary' | 'secondary' | 'ghost'` and `'sm' | 'md' | 'icon'`.
+ */
+export type ButtonVariant = NonNullable<ButtonVariantProps['variant']>;
+export type ButtonSize = NonNullable<ButtonVariantProps['size']>;
 
 /**
  * The three props Base UI's own `Button` adds on top of a native `<button>`, taken from its

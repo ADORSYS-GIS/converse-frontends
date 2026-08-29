@@ -67,6 +67,19 @@ const BUDGET: Record<string, number> = {
   //     and `<foreignObject>` styling that no class layer reaches.
   //   * Single-axis variant maps (`status-text` 3, `row-action-group`'s emphasis 3, `stat-card`'s
   //     delta tone 3) — exactly the "cva adds max 2 per variant" allowance, one token per branch.
+  //
+  // CVA SWEEP (2026-08-30, owner: "No! Use cva"). Four hand-rolled `Record<Variant, string>` lookup
+  // tables became three `cva.ts` files: `button` (variant x size, the library's only genuinely
+  // two-axis set), `row-action-group` (emphasis) and `stat-card` (delta tone). Not one CLASS moved
+  // and not one comment was deleted to move a number — but each new file pays exactly +1 for its
+  // `class-variance-authority` import specifier, which the counter reads as a class (see the
+  // HONESTY NOTE above, where that specifier is already named as a miscount). Paid for by deleting
+  // prose that the split made REDUNDANT rather than by deleting reasoning: `row-action-group`'s
+  // component header no longer re-quotes the two theme.css block names now that it does not paint
+  // the button (8 -> 7, ratcheted below), and `stat-card`'s no longer re-quotes the block the JSX
+  // beneath it names (holds at 10). `button` is 0 -> 1, still well under DEFAULT_BUDGET and so
+  // still without an entry here.
+  //
   // 28 -> 26 with the Base UI `navigation-menu` adoption (2026-08-30). Not one CSS class moved:
   // the drop is `aria-current`/`data-active` bookkeeping that the primitive now owns, plus naming
   // the import specifier (`@base-ui/react/navigation-menu`) in prose where the bare subpath used
@@ -90,10 +103,10 @@ const BUDGET: Record<string, number> = {
   'mutation-failure-banner': 9,
   'sub-nav': 9,
   'chart-legend': 8,
-  'row-action-group': 8,
   tooltip: 8,
   'command-palette': 7,
   'console-header': 7,
+  'row-action-group': 7,
   'section-sheet': 5,
   checkbox: 5,
   'histogram-chart': 5,

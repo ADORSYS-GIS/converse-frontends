@@ -1,13 +1,14 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { rowActionVariants } from './cva';
 import type { RowActionGroupProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §4 — lifecycle actions separated by DIAGONAL
 // hairlines (ADR 0001), e.g. `Rotate ╱ Revoke ╱ Del`. Reveal-on-hover is the container's concern.
 //
-// The paint, the hairline and the reason daisy join is rejected all live in theme.css's
-// `row-action-group` / `row-action` pair. Two things follow from that which matter here:
+// The group's paint, its hairline and the reason daisy join is rejected all live in theme.css;
+// the per-action tone axis is cva.ts. Two things follow from that which matter here:
 //
 //  - the tick is drawn by the GROUP, as a pseudo-element on every button after the first, so
 //    this file no longer threads an index through to decide which button wears a separator;
@@ -29,13 +30,7 @@ import type { RowActionGroupProps } from './types';
 // reason attached; it is a refusal on evidence, not an oversight.
 //
 // Base UI **Menu** for overflow is still not wired: no consumer exceeds 3 actions (checked:
-// the API-keys and manage-projects ledgers). `cva()` is dropped for a plain object map (single
-// `emphasis` axis, no multi-axis set survives the shrink policy).
-const EMPHASIS_CLASS: Record<'strong' | 'default' | 'muted', string> = {
-  strong: 'text-ink',
-  default: 'text-soft',
-  muted: 'text-subtle',
-};
+// the API-keys and manage-projects ledgers).
 
 export function RowActionGroup({
   actions,
@@ -50,7 +45,7 @@ export function RowActionGroup({
           type="button"
           disabled={action.disabled}
           onClick={action.onClick}
-          className={cn('row-action', EMPHASIS_CLASS[action.emphasis ?? 'default'])}>
+          className={rowActionVariants({ emphasis: action.emphasis })}>
           {action.label}
         </button>
       ))}

@@ -44,6 +44,28 @@ describe('RowActionGroup', () => {
     expect(container.querySelectorAll('span')).toHaveLength(0);
   });
 
+  // The Base UI `separator` refusal, pinned. Re-taken against the shipped 1.7.0 source on
+  // 2026-08-29: Separator's entire contribution is the announced role, this group renders once per
+  // ledger ROW, and 1.7.0 exposes no decorative flag — so adopting it would announce roughly a
+  // hundred separators across a fifty-key ledger to describe a 1px tick. `src/base-ui-adoption.
+  // test.ts` keeps the ledger entry open with that reason; this asserts the resulting DOM.
+  it('announces no separator to assistive tech — the tick is decoration, not structure', () => {
+    const { container } = render(
+      <RowActionGroup
+        actions={[
+          { key: 'rotate', label: 'Rotate', onClick: () => {} },
+          { key: 'revoke', label: 'Revoke', onClick: () => {} },
+          { key: 'del', label: 'Del', onClick: () => {} },
+        ]}
+      />
+    );
+
+    expect(screen.queryAllByRole('separator')).toHaveLength(0);
+    expect(container.querySelectorAll('[role="separator"]')).toHaveLength(0);
+    // Every element inside the group is either the group itself or one of its three buttons.
+    expect(container.querySelectorAll('*')).toHaveLength(4);
+  });
+
   it('does not adopt daisy join/join-item (it would border every action)', () => {
     const { container } = render(
       <RowActionGroup

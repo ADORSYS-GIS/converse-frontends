@@ -21,9 +21,22 @@ import type { AdoptionRow } from '../scripts/base-ui-adoption';
  * met, and no summary may claim otherwise before then.
  */
 const KNOWN_GAPS = new Set([
-  'button', // Base UI ships `button`; ours is daisy classes on a forwardRef
-  'row-action-group', // hand-draws a rotated <span> hairline instead of `separator`
-  'secret-reveal', // raw <input> + a class string instead of `input`
+  // `button` and `secret-reveal` were removed on 2026-08-29 when they were actually converted:
+  // Button is Base UI's `button` element wearing the daisy classes, and SecretReveal's control is
+  // Base UI's `input` inside a Field.Root, which is what finally associates the "shown once"
+  // caption with the secret. Neither may come back without this file failing.
+  //
+  // `row-action-group` STAYS, and its reason is rewritten rather than repeated. It is not an
+  // unexamined gap: Base UI 1.7.0's `separator` was read in full and REFUSED, because its entire
+  // contribution is the announced `role="separator"`, this component renders once per ledger ROW,
+  // and 1.7.0 ships no decorative flag (its only own prop is `orientation`) to keep it quiet.
+  // Adopting it would put roughly a hundred announced separators into a fifty-key ledger to
+  // describe a 1px decorative tick, and the only way to silence that — `aria-hidden` — cancels the
+  // primitive's one contribution while still costing a DOM node per action. The refusal is pinned
+  // by `components/row-action-group/component.test.tsx`, which asserts the hairline costs no node
+  // and announces no separator role. Close this entry only by deleting the decoration or by Base
+  // UI shipping a decorative separator — never by adopting it as ceremony.
+  'row-action-group',
   'console-header', // a flex row instead of `toolbar`
   'nav-spine', // link/button rows instead of `navigation-menu`
   'sub-nav', // same

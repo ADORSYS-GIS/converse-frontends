@@ -1010,9 +1010,16 @@
  *
  * The hairline is a pseudo-element on every button after the first, so it is a rule about the
  * GROUP rather than a class each button has to be told to wear at the right index. It is
- * deliberately not Base UI `Separator` (whose contribution is `role="separator"` semantics — two
- * extra announced separators on every ledger row, for decoration) and not daisy `divider` (a
- * full-width rule with its own margins and a text slot).
+ * deliberately not Base UI `Separator` and not daisy `divider` (a full-width rule with its own
+ * margins and a text slot).
+ *
+ * The Separator half of that was re-checked against Base UI 1.7.0's shipped source on 2026-08-29,
+ * because a rejection taken before a primitive existed is not a rejection of the primitive that
+ * now ships. It still holds, and for a sharper reason than the first pass gave: Separator's whole
+ * contribution is the announced `role="separator"`, this group renders once per ledger ROW, and
+ * 1.7.0 exposes no decorative flag to silence it — only `orientation`. Adopting it would announce
+ * roughly a hundred separators across a fifty-key ledger to describe a 1px tick. See the docstring
+ * in `components/row-action-group/component.tsx` for the full re-take.
  */
 @utility row-action-group {
   display: flex;

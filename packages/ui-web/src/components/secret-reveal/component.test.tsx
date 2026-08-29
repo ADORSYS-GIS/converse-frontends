@@ -31,6 +31,31 @@ describe('SecretReveal', () => {
     expect(input).toHaveAttribute('readonly');
   });
 
+  // What Base UI's `input` brought: the control is Field.Control, so every Field.Description in
+  // the strip registers its id and the control announces it. Before this the caption was a loose
+  // paragraph beside the control -- a screen-reader user landing on the secret heard "Secret
+  // value, read only" and never heard the sentence that makes the strip urgent.
+  it('associates the shown-once caption with the secret rather than leaving it to proximity', () => {
+    render(
+      <SecretReveal
+        heading="New key created — shown once"
+        description="This value cannot be retrieved again."
+        secret={secret}
+        onDismiss={() => {}}
+      />
+    );
+
+    const input = screen.getByLabelText('Secret value');
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+
+    const caption = document.getElementById(describedBy as string);
+    expect(caption).toHaveTextContent('This value cannot be retrieved again.');
+    // The name stays the terse label: promoting the heading to a Field.Label would announce the
+    // control as "New key created — shown once", which names the event, not the control.
+    expect(input).toHaveAttribute('aria-label', 'Secret value');
+  });
+
   it('copies the secret to the clipboard and shows a confirmation', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });

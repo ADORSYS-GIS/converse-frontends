@@ -25,7 +25,12 @@ export function shortAccountId(accountId: string): string {
 
 function displayName(name: string | null | undefined, accountId: string) {
   const trimmed = name?.trim();
-  return { display: trimmed || shortAccountId(accountId), isFallback: !trimmed };
+  // A "name" that embeds the account id is not a name — it is a pre-formatted fallback label
+  // someone built upstream. Rendering it would defeat this component's only job and, since the
+  // short id is appended beside a real name, would print the account twice (live regression,
+  // 2026-08-29: `accountScopeLabel`'s "Unnamed account · <uuid>" reached here as `name`).
+  const usable = trimmed && accountId ? !trimmed.includes(accountId) : Boolean(trimmed);
+  return { display: usable ? trimmed! : shortAccountId(accountId), isFallback: !usable };
 }
 
 // The console's one rendering of which account you are in, and the only place it can be changed.

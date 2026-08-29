@@ -71,7 +71,12 @@ export default function ConsoleLayout({
   const notification = useConsoleNotification();
   const dismissNotification = useDismissConsoleNotification();
 
-  const activeAccount = consoleScope.accounts.find(
+  // `allAccounts` (raw rows), NOT `accounts` (flattened to `{id, label}` by `accountScopeLabel`,
+  // which renders an unnamed account as "Unnamed account · <full uuid>"). Feeding that label to
+  // `AccountBadge` as a `name` put the raw UUID back in the header AND appended the short form
+  // beside it — longer and noisier than what the badge replaced. The badge owns its own fallback;
+  // it needs the real `name`, or nothing.
+  const activeAccount = consoleScope.allAccounts.find(
     (account) => account.id === consoleScope.value.accountId
   );
 
@@ -90,10 +95,10 @@ export default function ConsoleLayout({
             // (lightbridge-authz#551 — a nullable name with no truthful backfill).
             <AccountBadge
               accountId={consoleScope.value.accountId}
-              name={activeAccount?.label}
-              accounts={consoleScope.accounts.map((account) => ({
+              name={activeAccount?.name}
+              accounts={consoleScope.allAccounts.map((account) => ({
                 id: account.id,
-                label: account.label,
+                label: account.name,
               }))}
               onSelectAccount={(accountId) =>
                 consoleScope.setValue({ accountId, projectId: null })

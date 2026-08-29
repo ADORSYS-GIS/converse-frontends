@@ -425,7 +425,7 @@ export function useOverviewScreen(): OverviewScreen {
     scopeProjectLabel,
     // No account id here: the header's `AccountBadge` is the console's one rendering of which
     // account you are in. This was copy two of four.
-    subline: `Last ${view.range} · UTC`,
+    subline: `${RANGE_LABELS[view.range]} · UTC`,
     statCards,
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
     // `''` is the parser default (absent from the URL); the chart sections speak `null`.

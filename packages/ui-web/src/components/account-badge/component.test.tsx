@@ -123,4 +123,15 @@ describe('AccountBadge', () => {
       screen.getByRole('button', { name: 'Account adorsys-gis. Copy full account id.' })
     ).toBeInTheDocument();
   });
+
+  // Regression (live, 2026-08-29): the console fed `accountScopeLabel`'s output — which renders
+  // an unnamed account as "Unnamed account · <full uuid>" — into `name`. The badge appended its
+  // own short form beside it, so the header read
+  // "Unnamed account · 49534505-… acct_49534505": the raw UUID back, now twice as long as what
+  // the badge replaced. `name` is the account's REAL name or nothing; the fallback is the badge's.
+  it('never renders a name containing the full account id', () => {
+    render(<AccountBadge name={`Unnamed account · ${ACCOUNT_ID}`} accountId={ACCOUNT_ID} />);
+
+    expect(screen.queryByText(new RegExp(ACCOUNT_ID))).not.toBeInTheDocument();
+  });
 });

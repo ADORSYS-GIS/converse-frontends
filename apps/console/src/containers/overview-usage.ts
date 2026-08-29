@@ -7,6 +7,7 @@ import type {
 import type { DonutSlice, SpendSeriesSeries } from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
+import { microUsdToUsd } from '../server/consumption-csv';
 
 /**
  * Pure request/response adapters between the Overview screen's URL-driven view state and
@@ -75,18 +76,43 @@ export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): Usage
     scope_id: scoped ? (input.projectId as string) : input.accountId,
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
-    bucket: input.bucket,
+    bucket: USAGE_BUCKET_INTERVAL[input.bucket],
     group_by: [overviewGroupByToUsageGroupBy(input.groupBy)],
     filters: input.model !== 'all' ? { model: input.model } : undefined,
   };
 }
+
+/**
+ * The URL's bucket vocabulary translated into the interval strings the usage API accepts.
+ *
+ * The backend validates against `^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$`
+ * (`lightbridge-authz` `crates/lightbridge-authz-usage/src/repo.rs`'s `validate_bucket_interval`),
+ * so a bare `'day'` is a `400 Bad request: bucket must look like ...` on every dashboard load --
+ * which is exactly what it was doing.
+ *
+ * The URL keeps the short vocabulary deliberately: `?bucket=day` is the readable, shareable form,
+ * and it is what `OVERVIEW_BUCKETS`/`BUCKET_LABELS` are keyed on. Translating at the API boundary
+ * keeps the wire format an implementation detail of this request builder rather than leaking a
+ * Postgres interval literal into every shared link.
+ *
+ * `week` maps to `7 days`, not `1 week`: the regex above has no `week` arm at all, and
+ * `validate_bucket_interval_rejects_unexpected_values` asserts `"1 week"` is refused. `7 days` is
+ * both accepted and the same bucket width.
+ */
+const USAGE_BUCKET_INTERVAL: Record<OverviewBucket, string> = {
+  hour: '1 hour',
+  day: '1 day',
+  week: '7 days',
+};
 
 /** A finite, non-negative cost — a malformed or negative `total_cost` from the backend renders as
  *  `0` for THIS point only rather than throwing and taking the whole chart down with it (#304's
  *  "a malformed response does not crash the caller" AC extended to the mapping layer, not just
  *  the transport one `usage-client.ts` already covers). */
 function safeCost(point: UsageSeriesPoint): number {
-  return Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  const microUsd =
+    Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  return microUsdToUsd(microUsd);
 }
 
 function groupKey(point: UsageSeriesPoint, groupBy: OverviewGroupBy): string {

@@ -234,9 +234,9 @@ describe('GET /api/reports/consumption', () => {
 
     const text = await response.text();
     expect(text).toBe(
-      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost\r\n' +
-        'proj_1,gpt-4,10,100,50,150,1.50\r\n' +
-        'TOTAL,,10,100,50,150,1.50\r\n'
+      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost_usd\r\n' +
+        'proj_1,gpt-4,10,100,50,150,0.000002\r\n' +
+        'TOTAL,,10,100,50,150,0.000002\r\n'
     );
   });
 });

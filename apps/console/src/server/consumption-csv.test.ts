@@ -37,7 +37,7 @@ describe('aggregateConsumptionRows', () => {
         promptTokens: 200,
         completionTokens: 100,
         totalTokens: 300,
-        totalCost: 2.25,
+        totalCostMicroUsd: 2.25,
       },
     ]);
   });
@@ -104,7 +104,7 @@ describe('consumptionTotals', () => {
       promptTokens: 200,
       completionTokens: 100,
       totalTokens: 300,
-      totalCost: 2,
+      totalCostMicroUsd: 2,
     });
   });
 
@@ -114,7 +114,7 @@ describe('consumptionTotals', () => {
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
-      totalCost: 0,
+      totalCostMicroUsd: 0,
     });
   });
 });
@@ -127,10 +127,12 @@ describe('consumptionCsvLines', () => {
     const lines = consumptionCsvLines(rows);
 
     expect(lines[0]).toBe(
-      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost\r\n'
+      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost_usd\r\n'
     );
-    expect(lines[1]).toBe('proj_1,gpt-4,10,100,50,150,1.50\r\n');
-    expect(lines[2]).toBe('TOTAL,,10,100,50,150,1.50\r\n');
+    // 1.5 micro-USD is $0.0000015. The column is USD and names it, and 6dp is exactly
+    // micro-USD resolution -- `toFixed(2)` would print `0.00` and report nothing.
+    expect(lines[1]).toBe('proj_1,gpt-4,10,100,50,150,0.000002\r\n');
+    expect(lines[2]).toBe('TOTAL,,10,100,50,150,0.000002\r\n');
     expect(lines).toHaveLength(3);
   });
 
@@ -145,7 +147,7 @@ describe('consumptionCsvLines', () => {
     const lines = consumptionCsvLines([]);
 
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toBe('TOTAL,,0,0,0,0,0.00\r\n');
+    expect(lines[1]).toBe('TOTAL,,0,0,0,0,0.000000\r\n');
   });
 });
 

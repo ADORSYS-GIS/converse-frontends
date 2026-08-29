@@ -67,24 +67,43 @@ async function renderCentre(overrides: Partial<OverviewScreenData> = {}) {
 }
 
 describe('OverviewCentre', () => {
-  it('renders SPEND with real data when the usage query succeeded (status="ready")', async () => {
-    await renderCentre({
-      spendStatus: 'ready',
-      // Two series: `ChartLegend` renders no legend at all for exactly one series (a single
-      // series needs no identification, per the dataviz skill) — this asserts the legend ITSELF
-      // renders real labels, which needs at least two to be a meaningful check.
-      spendSeries: [
-        { key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 42 }] },
-        { key: 'proj_b', label: 'proj_b', points: [{ x: new Date('2026-08-01'), y: 7 }] },
-      ],
-    });
+  /**
+   * 15s, not the 5s default, and measured rather than guessed.
+   *
+   * This is the only test here that renders the FULL dashboard — a real Recharts spend chart plus
+   * a donut — through jsdom. It runs in ~580ms locally and ~5.05s on the shared CI runner: a ~9x
+   * environment factor, which is ordinary for a loaded self-hosted runner but leaves it 1% under
+   * the default limit. It failed three times on 2026-08-29 at 5048ms, 5057ms and once more, always
+   * for the timeout and never for an assertion, and passed on re-run each time.
+   *
+   * Raising the budget for THIS test is the honest fix; re-running until green is not, and a
+   * global `testTimeout` bump would hide the next genuinely-slow test. If this ever needs raising
+   * again, that is the signal to split the chart render out rather than to add another second.
+   */
+  const FULL_DASHBOARD_RENDER_TIMEOUT_MS = 15_000;
 
-    // A real series renders the chart's legend entry for it -- the SAME text that would be
-    // absent for an empty (but real) result, and absent from an error/loading render too.
-    expect(screen.getByText('proj_a')).toBeInTheDocument();
-    expect(screen.getByText('proj_b')).toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
+  it(
+    'renders SPEND with real data when the usage query succeeded (status="ready")',
+    async () => {
+      await renderCentre({
+        spendStatus: 'ready',
+        // Two series: `ChartLegend` renders no legend at all for exactly one series (a single
+        // series needs no identification, per the dataviz skill) — this asserts the legend ITSELF
+        // renders real labels, which needs at least two to be a meaningful check.
+        spendSeries: [
+          { key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 42 }] },
+          { key: 'proj_b', label: 'proj_b', points: [{ x: new Date('2026-08-01'), y: 7 }] },
+        ],
+      });
+
+      // A real series renders the chart's legend entry for it -- the SAME text that would be
+      // absent for an empty (but real) result, and absent from an error/loading render too.
+      expect(screen.getByText('proj_a')).toBeInTheDocument();
+      expect(screen.getByText('proj_b')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    },
+    FULL_DASHBOARD_RENDER_TIMEOUT_MS
+  );
 
   it('a FAILED spend query renders an error line, never a zero-value or confirmed-empty chart', async () => {
     await renderCentre({
@@ -200,8 +219,18 @@ describe('OverviewCentre', () => {
     await renderCentre({
       latencyStatus: 'ready',
       latencySeries: [
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240, 260], value: 'peak p95 260 ms' },
-        { key: 'claude-sonnet', label: 'claude-sonnet', values: [900, 950], value: 'peak p95 950 ms' },
+        {
+          key: 'gpt-4o-mini',
+          label: 'gpt-4o-mini',
+          values: [210, 240, 260],
+          value: 'peak p95 260 ms',
+        },
+        {
+          key: 'claude-sonnet',
+          label: 'claude-sonnet',
+          values: [900, 950],
+          value: 'peak p95 950 ms',
+        },
       ],
     });
 
@@ -233,7 +262,12 @@ describe('OverviewCentre', () => {
       latencyStatus: 'ready',
       latencySeries: [
         { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240], value: 'peak p95 240 ms' },
-        { key: 'signal-summary', label: 'signal-summary', values: [], value: 'no latency reported' },
+        {
+          key: 'signal-summary',
+          label: 'signal-summary',
+          values: [],
+          value: 'no latency reported',
+        },
       ],
       latencyFootnote:
         'No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration.',

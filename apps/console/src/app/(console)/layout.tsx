@@ -83,8 +83,14 @@ export default function ConsoleLayout({
   // Every route fills the left rail's secondary section: Manage/Admin with a sub-nav, Overview
   // and Api-Keys with their own controls (owner, 2026-08-29 — one rail carries navigation AND the
   // screen's parameters; the content column is content only).
-  const leftSecondaryLabel =
-    route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : route === 'api-keys' ? 'Keys' : 'View';
+  const LEFT_SECONDARY_LABELS: Record<typeof route, string> = {
+    manage: 'Manage',
+    settings: 'Settings',
+    admin: 'Admin',
+    'api-keys': 'Keys',
+    overview: 'View',
+  };
+  const leftSecondaryLabel = LEFT_SECONDARY_LABELS[route];
 
   // Which routes get the RIGHT rail is decided here, not by whether the slot renders something.
   //
@@ -96,7 +102,8 @@ export default function ConsoleLayout({
   // review it." Passing `undefined` for rail-less routes fixes both.
   //
   // Only selection-driven content earns the right rail: Manage and Admin retarget it on the row
-  // you pick. Everything else lives in the LEFT rail's secondary section.
+  // you pick. Everything else lives in the LEFT rail's secondary section — including `/settings`,
+  // whose two sections are both always on screen and neither of which retargets on a selection.
   const hasRightRail = route === 'manage' || route === 'admin';
 
   return (
@@ -115,9 +122,7 @@ export default function ConsoleLayout({
                 id: account.id,
                 label: account.name,
               }))}
-              onSelectAccount={(accountId) =>
-                consoleScope.setValue({ accountId, projectId: null })
-              }
+              onSelectAccount={(accountId) => consoleScope.setValue({ accountId, projectId: null })}
               onCopyId={(accountId) => {
                 // Best-effort: `navigator.clipboard` is undefined on insecure origins. A failed
                 // copy leaves the id in the tooltip, so there is nothing to recover.

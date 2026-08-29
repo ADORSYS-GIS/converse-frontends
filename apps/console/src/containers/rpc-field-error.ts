@@ -61,3 +61,30 @@ export function classifyCreateAccountError(message: string): AccountNameFieldErr
   }
   return { error: message };
 }
+
+export type ProjectNameFieldErrors = {
+  nameError?: string;
+  error?: string;
+};
+
+/**
+ * Routes a `model.Project.update` rename failure onto the dialog's single field, or onto the
+ * general line.
+ *
+ * The realistic general failures name neither the field nor a value: an authorization refusal
+ * (`model.Project.update`'s `@@allow` is owner-or-member, and the console can only *mirror* that
+ * gate — see `use-settings-screen.ts`'s `renameEligible`) and cratestack's own "update input must
+ * contain at least one changed column" 422. Both must stay on the general line: attaching
+ * "permission denied" to the name input would tell the user to retype a name that was never the
+ * problem. Hence the permission check runs BEFORE the `name` substring match, the same ordering
+ * `classifyCreateAccountError` uses for its conflict case.
+ */
+export function classifyProjectNameError(message: string): ProjectNameFieldErrors {
+  if (mentions(message, 'permission', 'denied', 'forbidden', 'unauthorized', 'not allowed')) {
+    return { error: message };
+  }
+  if (mentions(message, 'name')) {
+    return { nameError: message };
+  }
+  return { error: message };
+}

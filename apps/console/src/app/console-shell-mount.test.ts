@@ -95,6 +95,10 @@ describe('console shell mounting', () => {
    * is selection-driven — it retargets on the row you pick and carries multi-field forms and
    * decision actions, which is the case the rail contract was written for.
    *
+   * Settings joins them in the rail-less column: both its sections are always on screen at once
+   * and neither retargets on a selection, so its `@scope` sub-nav is the whole of its rail
+   * presence.
+   *
    * A route that opts out must NOT get a stub segment; it falls through to the slot's
    * `default.tsx` (asserted above), which renders nothing. The assertion below is two-sided on
    * purpose: a missing segment where one is expected is a bug, and so is a stray segment for a
@@ -113,6 +117,7 @@ describe('console shell mounting', () => {
         join('admin', 'page.tsx'),
         join('api-keys', 'page.tsx'),
         join('manage', 'page.tsx'),
+        join('settings', 'page.tsx'),
       ].sort()
     );
 

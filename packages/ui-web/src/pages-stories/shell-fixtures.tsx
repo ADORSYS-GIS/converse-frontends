@@ -15,7 +15,7 @@ import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 import type { SubNavItem } from '../components/sub-nav';
 
-export type StoryRoute = 'overview' | 'api-keys' | 'manage' | 'admin';
+export type StoryRoute = 'overview' | 'api-keys' | 'manage' | 'settings' | 'admin';
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
 function NavGlyph({ shape }: { shape: StoryRoute }) {
@@ -23,6 +23,8 @@ function NavGlyph({ shape }: { shape: StoryRoute }) {
     overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
     'api-keys': 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
     manage: 'M1 2h8M1 5h8M1 8h5',
+    // Two rails with an offset knob on each — the settings glyph, same 10px line vocabulary.
+    settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
     admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
   };
   return (
@@ -46,7 +48,18 @@ export function storyNavItems(active: StoryRoute): NavSpineItem[] {
       icon: <NavGlyph shape="api-keys" />,
       active: active === 'api-keys',
     },
-    { key: 'manage', label: 'Manage', icon: <NavGlyph shape="manage" />, active: active === 'manage' },
+    {
+      key: 'manage',
+      label: 'Manage',
+      icon: <NavGlyph shape="manage" />,
+      active: active === 'manage',
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      icon: <NavGlyph shape="settings" />,
+      active: active === 'settings',
+    },
   ];
 }
 
@@ -110,6 +123,11 @@ export const manageSubNavItems: SubNavItem[] = [
   { key: 'accounts', label: 'Accounts', count: 3 },
   { key: 'budgets', label: 'Budgets', count: 24 },
   { key: 'members', label: 'Members', count: 17 },
+];
+
+export const settingsSubNavItems: SubNavItem[] = [
+  { key: 'account', label: 'Account', active: true },
+  { key: 'projects', label: 'Projects', count: 3 },
 ];
 
 export const adminSubNavItems: SubNavItem[] = [

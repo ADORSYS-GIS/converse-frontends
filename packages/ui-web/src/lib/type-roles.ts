@@ -51,3 +51,13 @@ export const PROSE_META_CLASS = 'font-sans text-[10px] leading-[1.45] text-subtl
  * one word above a field, a meta line is a clause that can run to two lines.
  */
 export const META_CLASS = 'font-mono text-[11px] leading-[1.4] text-subtle';
+
+/**
+ * The subject line of a fact block — 14 mono `ink`: an account's name above its id, a project's
+ * name above its settings rows. Sits between `panel-title` (a zone heading) and `row` (a value):
+ * it is the thing the block is ABOUT, not the block's own heading and not one of its values.
+ *
+ * Already rendered by hand in `AccountPanel` and `ManageSelectionRail` before this existed —
+ * declared here so the third and fourth consumers inherit it rather than re-typing it.
+ */
+export const SUBJECT_CLASS = 'font-mono text-sm text-ink';

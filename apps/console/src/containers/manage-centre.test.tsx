@@ -5,14 +5,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ManageScreen as ManageScreenData } from './use-manage-screen';
 
 /**
- * Container-level acceptance coverage for the account flow's placement and its null-name
- * rendering (converse-frontends#365 — "I cannot create an account on the console").
+ * Container-level acceptance coverage for what `/manage` mounts — and, since the Settings screen
+ * landed, for what it must NOT.
  *
  * `useManageScreen` is mocked wholesale, matching `overview-centre.test.tsx`'s established split:
- * the hook's own pure mapping is covered cheaply elsewhere (`build-create-account-input.test.ts`,
- * `rpc-field-error.test.ts`, `account-label.test.ts`), while this file answers the different,
- * black-box question — given an account state, does `/manage` actually render the corresponding
- * affordance, and is it on THIS screen at all.
+ * the hook's own pure mapping is covered cheaply elsewhere (`project-rows.test.ts`,
+ * `rpc-field-error.test.ts`), while this file answers the different, black-box question — is this
+ * affordance on THIS screen at all.
+ *
+ * The account flow's own coverage moved to `settings-centre.test.tsx` along with the flow. What
+ * stays here is the inverse assertion: Manage is a filtering and browsing screen, so a core
+ * account mutation appearing on it again is a regression (owner, 2026-08-29 — "We cannot modify
+ * account core information on the same page we're filtering").
  */
 const useManageScreenMock = vi.fn();
 vi.mock('./use-manage-screen', async (importOriginal) => {
@@ -48,25 +52,6 @@ function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData
       onRetryPlans: vi.fn(),
       planId: null,
       onPlanChange: vi.fn(),
-      submitting: false,
-      canSubmit: false,
-      onSubmit: vi.fn(),
-      onCancel: vi.fn(),
-    },
-    accountPanel: {
-      account: { id: 'auth0|9f3a', name: 'Widgets Ltd' },
-      loading: false,
-      onCreate: vi.fn(),
-      onRename: vi.fn(),
-      onRetry: vi.fn(),
-    },
-    accountNameDialog: {
-      open: false,
-      mode: 'rename',
-      subjectLabel: 'auth0|9f3a',
-      currentlyNamed: true,
-      name: 'Widgets Ltd',
-      onNameChange: vi.fn(),
       submitting: false,
       canSubmit: false,
       onSubmit: vi.fn(),
@@ -118,74 +103,23 @@ async function renderCentre(overrides: Partial<ManageScreenData> = {}) {
   return render(<ManageCentre />, { wrapper: withNuqsTestingAdapter() });
 }
 
-describe('ManageCentre — the account flow', () => {
-  it('offers a way to create an account when the signed-in principal has none', async () => {
-    await renderCentre({
-      accountPanel: {
-        account: null,
-        loading: false,
-        onCreate: vi.fn(),
-        onRename: vi.fn(),
-        onRetry: vi.fn(),
-      },
-    });
-
-    // The reported dead end: before this, /manage rendered a disabled `+ New project` reading
-    // "Select an account to create a project." with no account to select and no way to make one.
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
-  });
-
-  it('renders an unnamed account as a named absence, never as its id or a blank', async () => {
-    await renderCentre({
-      accountPanel: {
-        account: { id: 'auth0|9f3a', name: null },
-        loading: false,
-        onCreate: vi.fn(),
-        onRename: vi.fn(),
-        onRetry: vi.fn(),
-      },
-    });
-
-    expect(screen.getByText('Unnamed account')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
-  });
-
-  it('offers a rename for an account that already has a name', async () => {
-    await renderCentre();
-
-    expect(screen.getByText('Widgets Ltd')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
-  });
-
-  it('mounts the account dialog on this screen, opened from the URL flag', async () => {
-    await renderCentre({
-      accountNameDialog: {
-        open: true,
-        mode: 'create',
-        subjectLabel: 'auth0|9f3a',
-        currentlyNamed: false,
-        name: '',
-        onNameChange: vi.fn(),
-        submitting: false,
-        canSubmit: true,
-        onSubmit: vi.fn(),
-        onCancel: vi.fn(),
-      },
-    });
-
-    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Create account');
-  });
-
-  it('places the account panel above the projects ledger it is upstream of', async () => {
+describe('ManageCentre', () => {
+  it('does not mount the account panel any more — it moved to /settings', async () => {
     const { container } = await renderCentre();
 
-    const panel = container.querySelector('section[aria-label="Account"]');
-    const ledgerHeading = screen.getByRole('heading', { name: 'Projects' });
-    expect(panel).not.toBeNull();
-    // `Node.compareDocumentPosition` — the panel must follow the screen heading and precede the
-    // ledger's own toolbar, i.e. it is part of this screen rather than bolted on at the end.
-    expect(
-      ledgerHeading.compareDocumentPosition(panel as Node) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(container.querySelector('section[aria-label="Account"]')).toBeNull();
+    expect(container.querySelector('section[aria-label="Account settings"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Name this account' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create account' })).not.toBeInTheDocument();
+  });
+
+  it('still owns the project ledger and its own create-project write', async () => {
+    // `+ New project` stays: creating a project IS what this ledger is a list of, and it is the
+    // one write Manage legitimately owns.
+    await renderCentre();
+
+    expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ New project' })).toBeInTheDocument();
   });
 });

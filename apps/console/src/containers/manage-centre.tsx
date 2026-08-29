@@ -1,10 +1,8 @@
 'use client';
 
-import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-name-dialog';
 import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
-import { AccountPanel } from '@lightbridge/ui-web/src/sections/account-panel';
 import {
   MANAGE_FILTERS_RAIL_LABEL,
   ManageFiltersRail,
@@ -30,6 +28,14 @@ import { useManageScreen } from './use-manage-screen';
  * SELECTION has no trigger: it is selection-driven, so below `lg` it opens through
  * `SelectionSheet` the moment a row is picked. That component is gated by `useIsBelowLg`, which
  * is what stops a selection at `lg` from opening an invisible-but-modal dialog.
+ *
+ * **No account panel.** `AccountPanel` and `AccountNameDialog` used to mount here, directly above
+ * this screen's own filters — a core account mutation on the screen you filter from (owner,
+ * 2026-08-29: "We cannot modify account core information on the same page we're filtering"). They
+ * moved to `/settings` intact, along with their `?account-name=` param and both procedures. Manage
+ * is now purely a filtering and browsing surface: everything it mounts is about finding a project,
+ * and `+ New project` is the one write left, because creating a project IS what this ledger is a
+ * list of.
  */
 export function ManageCentre() {
   const screen = useManageScreen(<ManageScopeSlot />);
@@ -39,13 +45,8 @@ export function ManageCentre() {
       <div className="flex flex-col gap-6">
         <ScreenHeading title="Projects" />
 
-        {/* Above the projects ledger because it is upstream of it: with no account there are no
-            projects to list, and every "select an account" affordance below is inert. */}
-        <AccountPanel {...screen.accountPanel} />
-
         <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
 
-        <AccountNameDialog {...screen.accountNameDialog} />
         <CreateProjectDialog {...screen.createProjectDialog} />
 
         <ManageProjectsLedger

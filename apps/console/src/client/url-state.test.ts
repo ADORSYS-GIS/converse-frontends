@@ -16,6 +16,7 @@ import {
   manageParsers,
   overviewParsers,
   scopeParsers,
+  settingsParsers,
 } from './url-state';
 
 /**
@@ -49,7 +50,6 @@ describe('the URL param contract', () => {
       overview: ['bucket', 'from', 'group-by', 'model', 'range', 'series', 'to'],
       apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
-        'account-name',
         'budget-state',
         'create',
         'format',
@@ -61,6 +61,9 @@ describe('the URL param contract', () => {
         'row',
         'status',
       ],
+      // `account-name` moved off `manage` with the panel that opens it: a core account mutation
+      // does not belong on the screen you filter from (owner, 2026-08-29).
+      settings: ['account-name', 'rename'],
       admin: ['request', 'tab'],
     });
   });
@@ -104,6 +107,14 @@ describe('the URL param contract', () => {
     expect(overview({ range: '30d' })).toBe('');
     expect(overview({ groupBy: 'model' })).toBe('?group-by=model');
 
+    const settings = createSerializer(settingsParsers, {
+      urlKeys: URL_PARAM_CONTRACT.settings.urlKeys,
+    });
+    // The rename target IS the open flag — one param, so the two can never contradict each other.
+    expect(settings({ renameProjectId: 'proj_7' })).toBe('?rename=proj_7');
+    expect(settings({ renameProjectId: '' })).toBe('');
+    expect(settings({ accountNameOpen: true })).toBe('?account-name=true');
+
     const manage = createSerializer(manageParsers, { urlKeys: URL_PARAM_CONTRACT.manage.urlKeys });
     expect(manage({ search: 'alpha', budgetState: 'no-quota' })).toBe(
       '?q=alpha&budget-state=no-quota'
@@ -130,6 +141,8 @@ describe('the URL param contract', () => {
     expect(
       isParserBijective(manageParsers.include, 'totals,per-model', ['totals', 'per-model'])
     ).toBe(true);
+    expect(isParserBijective(settingsParsers.accountNameOpen, 'true', true)).toBe(true);
+    expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
     expect(isParserBijective(adminParsers.tab, 'decided', 'decided')).toBe(true);
     expect(isParserBijective(adminParsers.selectedRequestId, 'req_9', 'req_9')).toBe(true);
   });

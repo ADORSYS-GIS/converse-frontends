@@ -42,12 +42,13 @@ import { useOnlineStatus } from './use-online-status';
  * time, so which module they're re-exported from is free.
  */
 
-export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'admin';
+export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'settings' | 'admin';
 
 const NAV_HREFS: Record<ConsoleRoute, string> = {
   overview: '/',
   'api-keys': '/api-keys',
   manage: '/manage',
+  settings: '/settings',
   admin: '/admin',
 };
 
@@ -58,16 +59,20 @@ const NAV_HREFS: Record<ConsoleRoute, string> = {
 export function routeFromPathname(pathname: string): ConsoleRoute {
   if (pathname.startsWith('/api-keys')) return 'api-keys';
   if (pathname.startsWith('/manage')) return 'manage';
+  if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/admin')) return 'admin';
   return 'overview';
 }
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
-function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'admin' }) {
+function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'settings' | 'admin' }) {
   const paths: Record<typeof shape, string> = {
     overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
     keys: 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
     manage: 'M1 2h8M1 5h8M1 8h5',
+    // Two rails with an offset knob on each — deliberately close to `manage`'s three rules but
+    // legibly different at 10px: settings is the same list with something set on it.
+    settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
     admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
   };
   return (
@@ -99,6 +104,13 @@ export function navItems(active: ConsoleRoute): NavSpineItem[] {
       href: NAV_HREFS.manage,
       icon: <NavGlyph shape="manage" />,
       active: active === 'manage',
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      href: NAV_HREFS.settings,
+      icon: <NavGlyph shape="settings" />,
+      active: active === 'settings',
     },
   ];
 }
@@ -204,6 +216,7 @@ function ConsolePalette() {
       { key: 'overview', label: 'Overview', onSelect: () => router.push(NAV_HREFS.overview) },
       { key: 'api-keys', label: 'Api-Keys', onSelect: () => router.push(NAV_HREFS['api-keys']) },
       { key: 'manage', label: 'Manage', onSelect: () => router.push(NAV_HREFS.manage) },
+      { key: 'settings', label: 'Settings', onSelect: () => router.push(NAV_HREFS.settings) },
     ];
     if (session.isAdmin) {
       navigate.push({

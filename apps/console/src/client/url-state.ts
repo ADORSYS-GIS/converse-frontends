@@ -217,13 +217,10 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
  * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
  * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
  *
- * `accountNameOpen` (`?account-name=true`) is that pattern once more, for `AccountNameDialog`.
- * It is one param and not two even though the dialog drives two different procedures
- * (`createAccount` / `updateAccountName`), because which one it drives is not a choice the user
- * makes — it is derived from whether the signed-in subject already holds an account. Putting a
- * `mode` in the URL would let a link assert a mode the data contradicts. The wire key is
- * `account-name`, deliberately distinct from scope's own `account` (which carries an id, not a
- * flag); its typed-but-unsent value is local state, same as every other draft.
+ * What is NO LONGER here: `accountNameOpen` (`?account-name=`). The account naming flow moved to
+ * `/settings` along with the panel that opens it, so the param moved with it — see
+ * `settingsParsers` below. A `/manage` bookmark carrying `?account-name=true` now simply ignores
+ * an unknown param rather than opening a dialog on a screen that no longer mounts one.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -238,7 +235,6 @@ export const manageParsers = {
     'totals',
   ] as ReportIncludeId[]),
   createOpen: parseAsBoolean.withDefault(false),
-  accountNameOpen: parseAsBoolean.withDefault(false),
 };
 
 const manageUrlKeys = {
@@ -247,7 +243,6 @@ const manageUrlKeys = {
   selectedProjectId: 'row',
   reportGroupBy: 'report-group',
   createOpen: 'create',
-  accountNameOpen: 'account-name',
 };
 
 export function useManageParams() {
@@ -256,6 +251,47 @@ export function useManageParams() {
 
 /** Picking a project row retargets the SELECTION rail — a view change worth a Back press. */
 export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
+
+// ── /settings ─────────────────────────────────────────────────────────────────
+
+/**
+ * Settings owns the console's account-level and project-level *identity* writes, so its two params
+ * are both "which write is open", never "what has been typed into it".
+ *
+ * `accountNameOpen` (`?account-name=true`) moved here from `manageParsers` together with
+ * `AccountPanel` itself (owner, 2026-08-29: "We cannot modify account core information on the same
+ * page we're filtering"). It stays ONE param and not two even though the dialog drives two
+ * different procedures (`createAccount` / `updateAccountName`), because which one it drives is not
+ * a choice the user makes — it is derived from whether the signed-in subject already holds an
+ * account. Putting a `mode` in the URL would let a link assert a mode the data contradicts. The
+ * wire key stays `account-name`, deliberately distinct from scope's own `account` (which carries
+ * an id, not a flag).
+ *
+ * `renameProjectId` (`?rename=<project id>`) carries an ID rather than a boolean, which is the one
+ * structural difference from every other dialog param in this module: the account dialog has
+ * exactly one possible target (the signed-in subject), while a rename has as many targets as the
+ * account has projects. A boolean would have to be paired with a separate "which row" param — two
+ * params that can contradict each other — so the id IS the open flag, exactly the way
+ * `apiKeysParsers.revokeKeyId` already works.
+ *
+ * Both write with `push` (`SETTINGS_DIALOG_OPTIONS`): opening a dialog that is about to perform a
+ * write is navigation, and Back must close it rather than leave the screen. The typed-but-unsent
+ * names in either dialog are NOT here — see `use-settings-screen.ts`'s own "SANCTIONED LOCAL
+ * STATE" comment for why a draft must never reach the URL or browser history.
+ */
+export const settingsParsers = {
+  accountNameOpen: parseAsBoolean.withDefault(false),
+  renameProjectId: parseAsString.withDefault(''),
+};
+
+const settingsUrlKeys = { accountNameOpen: 'account-name', renameProjectId: 'rename' };
+
+export function useSettingsParams() {
+  return useQueryStates(settingsParsers, { urlKeys: settingsUrlKeys, history: 'replace' });
+}
+
+/** Opening or closing either dialog is navigation-grade: Back closes it, it does not leave. */
+export const SETTINGS_DIALOG_OPTIONS = { history: 'push' as const };
 
 // ── /admin ───────────────────────────────────────────────────────────────────────────────────
 
@@ -297,5 +333,6 @@ export const URL_PARAM_CONTRACT = {
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },
+  settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
 } as const;

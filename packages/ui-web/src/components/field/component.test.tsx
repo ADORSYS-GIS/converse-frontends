@@ -50,11 +50,11 @@ describe('Field', () => {
     render(<Field label="Key name" error="A key with this name already exists." />);
 
     const input = screen.getByLabelText('Key name');
+    // The `--signal` border on error is CSS keyed off `aria-invalid` (Base UI Field + the
+    // `@utility input` block, ADR 0010 Decision 4), never a JS-toggled class -- so the attribute
+    // IS the contract, and the control's class list stays the single word it should be.
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    // The `--signal` border on error is an `aria-invalid:` CSS variant (Base UI Field + daisy
-    // `input`, ADR 0010 Decision 4), not a JS-toggled class -- `aria-invalid` is the contract to
-    // assert, since the border-colour utility is present in the class list unconditionally.
-    expect(input.className).toContain('aria-invalid:border-primary');
+    expect(input).toHaveClass('input');
     expect(screen.getByText('A key with this name already exists.')).toBeInTheDocument();
   });
 

@@ -273,5 +273,420 @@
   & tfoot tr > td {
     border-block-start: 0;
     border-block-end: 1px solid var(--color-border);
+
+* ─── The console's form-control layer ────────────────────────────────────────────────────────
+ *
+ * Owner bar, 2026-08-29: "Tiny css classes per component (max 3, and cva adds max 2 per variant).
+ * All components use daisyUI x Base UI." Base UI owns behaviour; daisyUI owns paint. Where daisy's
+ * default paint contradicts a locked ADR 0008 rule, the correction belongs HERE — once, against
+ * daisy's own class — not re-typed as a wall of `!` utilities in every component that renders a
+ * control. Before this block, Field, SelectField, ScopeSelect and DateRangeField each carried
+ * their own copy of the same 13-declaration control treatment, and they had already drifted (three
+ * spelled focus as a border move, one still shipped daisy's outline).
+ *
+ * The mechanism is the one `skeleton` above already relies on and explains: daisy emits its
+ * components into a SUBLAYER of `utilities` (`@layer utilities { @layer daisyui.l1.l2.l3 { … } }`)
+ * while Tailwind emits an `@utility` UNLAYERED inside `utilities`, and unlayered rules within a
+ * layer outrank that layer's own sublayers. No `!important`, no specificity war — which is why
+ * every `!` that used to hang off these classes is gone.
+ *
+ * Two consequences worth stating, because they are load-bearing:
+ *  1. A plain Tailwind utility (`w-auto`, `bg-raised`) is ALSO unlayered, so it TIES with these
+ *     rules and the winner is source order. Nothing here relies on beating a plain utility at
+ *     equal specificity: where a component would still need to override, the rule below is
+ *     written with a descendant/element part (`.label > button.input`) so specificity decides.
+ *  2. An `!important` utility still beats everything here, so the components that legitimately
+ *     carry a one-off (the rail nav rows' `bg-raised!`) keep working untouched.
+ */
+
+/*
+ * `input` — THE control treatment, and the only one. 30px tall, `chrome` inset fill, `--line`
+ * border, mono/14 `body` text, `muted` placeholder; focus moves the BORDER to `--signal` and
+ * removes daisy's 2px outline rather than recolouring it (README §4 — the "no ring" half of the
+ * contract). Worn by Field's text input, by SelectField/ScopeSelect's Base UI Select triggers, by
+ * DateRangeField's Popover trigger, and by SecretReveal's read-only strip.
+ */
+@utility input {
+  /* daisy fills with `base-100` — the FLOOR. The console insets a control with `chrome`. */
+  background-color: var(--color-neutral);
+  /* daisy caps a control at `clamp(3rem, 20rem, 100%)`; a console control fills its column. */
+  width: 100%;
+  /* daisy sizes to `--size-field` x 10 = 40px; the console's control height is 30. */
+  height: 30px;
+  font-family: var(--font-mono);
+  color: var(--color-base-content);
+  /* `--input-color` is daisy's own border variable — and also what its focus outline paints with,
+     which is why moving the border to `--signal` below is one declaration rather than a border
+     override plus an outline suppression, per state. */
+  --input-color: var(--color-border);
+
+  &::placeholder {
+    color: var(--color-subtle);
+    opacity: 1;
+  }
+
+  /* One border-moves-to-signal rule for all three ways a console control becomes "live": keyboard
+     focus, an open Base UI popup behind a Select/Popover trigger, and an invalid Field
+     (`aria-invalid` is what Base UI Field sets, so there is no JS-toggled class to hang this on).
+     daisy's `validator` path stays unused: error reuses the signal, and a second accent colour is
+     banned (ADR 0008), so a `--color-error` token would only ever alias `primary`. */
+  &:focus,
+  &:focus-within,
+  &[data-popup-open],
+  &[aria-invalid='true'] {
+    --input-color: var(--color-primary);
+    outline: none;
+  }
+
+  /* A control rendered as a `<button>` is a select/popover trigger: it points rather than carets,
+     and its chevron sits at the far end of the row daisy already lays out. */
+  &:where(button) {
+    cursor: pointer;
+    justify-content: space-between;
+  }
+
+  /* daisy repaints a disabled control in `base-200` — the PANEL fill, so a disabled control reads
+     as a floating panel. Every disabled control in the console is the same control at 60%. */
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--color-neutral);
+    border-color: var(--color-border);
+    color: var(--color-base-content);
+  }
+}
+
+/* `textarea` — the same treatment, keeping daisy's own 5rem min-height, with vertical-only resize
+   (the browser default is `both`, and a control that can be dragged wider than its column is a
+   horizontal-overflow bug waiting to happen). */
+@utility textarea {
+  background-color: var(--color-neutral);
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-mono);
+  color: var(--color-base-content);
+  --input-color: var(--color-border);
+
+  &::placeholder {
+    color: var(--color-subtle);
+    opacity: 1;
+  }
+
+  &:focus,
+  &:focus-within,
+  &[aria-invalid='true'] {
+    --input-color: var(--color-primary);
+    outline: none;
+  }
+
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--color-neutral);
+    border-color: var(--color-border);
+    color: var(--color-base-content);
+  }
+}
+
+/*
+ * `fieldset` / `label` — the two field LAYOUTS, which is all a labelled control ever needs:
+ * `fieldset` stacks the label above a full-width control (a rail column), `label` sets the two
+ * side by side (a toolbar row, or a box/switch beside its text). Both are daisy's own vocabulary
+ * for exactly this; the components now name a layout instead of re-deriving one out of
+ * `flex`/`flex-col`/`gap`/`items-center` four times over.
+ */
+@utility fieldset {
+  /* daisy pads the stack 4px block and forces 12px type on everything inside it. The console's
+     spacing comes from the panel, and every child here carries its own type role. */
+  padding-block: 0;
+  font-size: inherit;
+}
+
+@utility label {
+  /* daisy dims label content to 60% of currentColor. Console labels carry their own token
+     (`subtle` for the `label` role, `body` for a control's own text); dimming on top of that
+     lands them outside the ramp entirely. */
+  color: var(--color-base-content);
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  /* daisy points the cursor whenever a `.label` contains an `<input>`. Base UI's Checkbox and
+     Switch each render a hidden `<input>` for form submission, so that fires correctly for them —
+     but a Field in `inline` layout also contains a real text input, and a row of label text
+     offering a pointer cursor over a text box is a lie. Narrow it to the two controls whose whole
+     row genuinely toggles. */
+  cursor: default;
+  &:has([role='checkbox'], [role='switch']) {
+    cursor: pointer;
+  }
+  /* In an inline row a TRIGGER sizes to its own content (a toolbar of six full-width selects is
+     six columns of wasted width) while a text input still fills the row it was given. This is the
+     one place a component would otherwise still need a width utility, and it is a fact about the
+     row, not about the control. */
+  & > button.input {
+    width: auto;
+  }
+}
+
+/*
+ * `checkbox` — daisy's box on Base UI's `Checkbox.Root`: the `<Switch.Root className="toggle">`
+ * pairing generalised. daisy's `.checkbox` matches `:checked` OR `[aria-checked=true]`, and
+ * `[aria-checked]` is what Base UI's `role="checkbox"` element sets, so the tick, the fill and the
+ * transition all come from daisy untouched.
+ *
+ * Three of daisy's own selectors CANNOT match, because `Checkbox.Root` renders a `<span>` (with a
+ * hidden `<input>` beside it): `.checkbox:indeterminate` and `.checkbox:disabled` are pseudo-
+ * classes only a real form control can match, and `.checkbox:focus-visible`'s outline falls back
+ * to `currentColor`, which is the MARK colour and vanishes against the panel once ticked. Each is
+ * re-pointed at the `data-*` attribute Base UI does set. Everything else daisy draws is left alone.
+ *
+ * `checkbox-primary` is deliberately NOT used, and this is the reason to remember before reaching
+ * for it: it sets `--input-color` unconditionally, and daisy reads `--input-color` for the BORDER
+ * in every state — so an untouched box would sit there wearing an orange outline. Orange marks the
+ * ticked state only.
+ */
+@utility checkbox {
+  /* daisy's own `checkbox-sm` geometry, taken as the console's only size. */
+  --size: calc(var(--size-selector, 0.25rem) * 5);
+  padding: 0.1875rem;
+  /* Unticked, the box is a control border like every other control's; daisy's default is a 20%
+     tint of the body colour, which is not a token we have. */
+  --input-color: var(--color-border);
+  /* daisy paints the mark with `currentColor`, over an `--input-color` fill. */
+  color: var(--color-primary-content);
+
+  &[data-checked],
+  &[data-indeterminate] {
+    --input-color: var(--color-primary);
+  }
+
+  /* daisy's `:indeterminate` bar, re-pointed: the same fill, clip-path, rotation and offset it
+     applies to a native input, because the shape is daisy's to own — only the selector is ours. */
+  &[data-indeterminate] {
+    background-color: var(--input-color);
+    &::before {
+      opacity: 1;
+      rotate: 0deg;
+      translate: 0 -35%;
+      clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 80%, 80% 80%, 80% 100%);
+    }
+  }
+
+  &:focus-visible {
+    outline-color: var(--color-primary);
+  }
+
+  /* 60% is the opacity every other disabled control here uses, not daisy's 20% mix. */
+  &[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/*
+ * `btn` — daisy already reads `--radius-field` (2px) and zeroes its shadow/inset/noise through
+ * `--depth: 0`/`--noise: 0`, and `btn-primary` resolves straight to `--color-primary` /
+ * `--color-primary-content` (the AA-corrected pairing, ADR 0010 Decision 3b). What is left is the
+ * console's own type and focus treatment, plus two heights daisy has no step for.
+ */
+@utility btn {
+  /* daisy sets 600. Console buttons are mono 400, like every other structural string. */
+  font-weight: 400;
+  font-family: var(--font-mono);
+
+  &:focus-visible {
+    /* daisy draws a 2px outline in the button's own colour. The console's focus ring is `--signal`
+       with a 1px floor-coloured gap — the exact pair of shadows Tailwind's
+       `ring-1 ring-primary ring-offset-1 ring-offset-muted` compiled to before this moved here.
+       (ADR 0008 bans elevation shadows; a focus ring has always been drawn this way.) */
+    outline: none;
+    box-shadow:
+      0 0 0 1px var(--color-muted),
+      0 0 0 2px var(--color-primary);
+  }
+
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/* daisy's `btn-sm`/`btn-md` are 32/40px; the console's are 30/34 (README §4). Only the height
+   differs — daisy's own `--fontsize` (12/14) and `--btn-p` (12/16) already match the contract. */
+@utility btn-sm {
+  --size: 30px;
+}
+
+@utility btn-md {
+  --size: 34px;
+}
+
+/*
+ * `btn-secondary` — transparent fill, `--line` border, `body` text (README §4). daisy's stock
+ * `btn-secondary` fills with `--color-secondary`, and its `btn-outline` borrows `base-content` for
+ * the border rather than our `--line` token; both are re-pointed here through daisy's OWN button
+ * variables, which is what lets the variant map in Button be a bare class name again instead of
+ * four `!` overrides.
+ */
+@utility btn-secondary {
+  --btn-bg: transparent;
+  --btn-border: var(--color-border);
+  --btn-fg: var(--color-base-content);
+  color: var(--color-base-content);
+
+  &:hover {
+    --btn-bg: var(--color-neutral);
+    --btn-border: var(--color-border);
+  }
+}
+
+/* `btn-square` is the console's icon button (always ghost, always an explicit `aria-label`).
+   Its glyph is pinned to 16px: an inline `<svg>` carrying only a `viewBox` and no width/height
+   otherwise falls back to the browser's replaced-element default box, far larger than the 30x30
+   button — the "icon-button glyphs too big" bug, fixed once here rather than per icon usage. */
+@utility btn-square {
+  & svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/*
+ * `tabs`/`tab`/`tab-active` — the SEGMENTED CONTROL's paint (README §4: equal-width cells, `--line`
+ * dividers, active cell = `--raised` fill + a 2px `--signal` bottom bar). daisy's tab vocabulary is
+ * its one-of-N switch, and `.tab` already brings the height variable, the 12px inline padding, the
+ * centring, `position: relative` and the `.tab-active` hook; the divider geometry and the two state
+ * paints are what the console adds.
+ *
+ * Why this and not `join`/`join-item`: `join` supplies shared-border geometry but no cell of its
+ * own, so every cell would still need `btn` plus a hand-written pressed state, and `join-item` is
+ * already earmarked for the inline row actions. Why it is safe to specialise `tabs` this far: the
+ * segmented control is its only consumer. `sub-nav` — the other component PRIMITIVES.md pencilled
+ * in for `tabs` — deliberately took `menu` instead, because it is a list of route links rather than
+ * a switch, and it records that decision in its own docstring.
+ */
+@utility tabs {
+  --tab-height: 30px;
+  /* daisy wraps tabs onto a second line; a segmented control is one strip or it is nothing. */
+  flex-wrap: nowrap;
+  /* 2px outer corners with square inner ones — the cells themselves stay unrounded. */
+  border-radius: var(--radius-field);
+  overflow: hidden;
+}
+
+@utility tab {
+  font-size: 0.75rem;
+  /* `1 1 auto`, NOT `1 1 0%`: with a zero basis every cell wants zero width and only grows into
+     LEFTOVER space, so in a content-sized container (a toolbar row, as opposed to the full-width
+     rail this was first written for) the cells collapse onto each other and the labels overlap
+     (owner screenshot, 2026-08-29). `auto` starts each cell at its own content width and still
+     shares whatever is left. */
+  flex: 1 1 auto;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out;
+  /* daisy leaves `.tab` borderless. The console's cells share a `--line` hairline: a full border
+     per cell, with adjacent ones pulled onto each other so a divider is one line, not two. */
+  border: var(--border) solid var(--color-border);
+  &:not(:first-child) {
+    margin-inline-start: calc(var(--border) * -1);
+  }
+
+  /* Written as `:not(.tab-active)` rather than a bare `.tab` declaration on purpose: both classes
+     land unlayered, so a plain `.tab { … }` / `.tab-active { … }` pair would be decided by source
+     order. Mutually exclusive selectors cannot be. */
+  &:not(.tab-active) {
+    background-color: var(--color-neutral);
+    color: var(--color-subtle);
+    &:hover {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* Inset, because `.tabs` clips — and `--signal`, not daisy's `currentColor`. */
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+    outline-offset: calc(var(--border) * -2);
+  }
+}
+
+@utility tab-active {
+  background-color: var(--color-base-300);
+  color: var(--color-ink);
+
+  /* The 2px `--signal` bottom bar. It used to be an absolutely-positioned `<span>` inside every
+     active cell; `.tab` is already `position: relative`, so it becomes a pseudo-element and the
+     component stops rendering decoration as DOM. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--color-primary);
+  }
+}
+
+/*
+ * `react-day-picker` — daisy 5.7 ships a full `.react-day-picker`/`.rdp-*` block written against
+ * its own variables, so the calendar already resolves `--radius-field: 0.125rem`, `--depth: 0` and
+ * `--noise: 0` from the theme blocks above. Adding the class to the DayPicker root is what
+ * activates it (the class is not one of react-day-picker's own defaults — its root is `rdp-root`).
+ *
+ * These are the places daisy's default paint contradicts a console rule. They used to live in a
+ * `classNames` map inside the component, each entry spread over `getDefaultClassNames()` because
+ * react-day-picker REPLACES a part's class rather than merging it — as CSS they need neither the
+ * spread nor the map.
+ */
+@utility react-day-picker {
+  /* daisy paints the calendar as its own card: a `base-100` fill (the FLOOR, #000 in dark) inside
+     a `base-200` frame. It already sits inside the popover popup, which IS the panel — left alone
+     this drops a floor-coloured rectangle and a second, wrong-toned border inside it. */
+  background-color: transparent;
+  border: 0;
+
+  /* daisy gaps the two months by 2rem. 16 is on our spacing scale, and it keeps two months plus
+     the presets column inside a popover width a narrow viewport can still take. */
+  & .rdp-months {
+    gap: 1rem;
+  }
+
+  /* The weekday header is the `label` type role, which has exactly one definition and is applied
+     from `type-roles.ts` at the call site. daisy's own treatment is a different role (`opacity:
+     .6`, `font-size: smaller`, weight 500); only the two declarations the role does not itself
+     carry are unset here. */
+  & .rdp-weekday {
+    font-weight: 400;
+    opacity: 1;
+  }
+
+  /* The month name is a heading, so it is `ink`; daisy leaves it at the inherited body colour. */
+  & .rdp-caption_label {
+    color: var(--color-ink);
+  }
+
+  /* daisy tints the span between the two endpoints with `base-200` — exactly the popup's own fill,
+     so the selected span would be invisible. `raised` is the token defined as the step toward
+     greater contrast against the panel it marks, and it measures that way: against a `surface`
+     popup it separates 1.079:1 in dark and 1.345:1 in light, where `chrome` — the other candidate
+     — matches it in dark (1.074) but nearly vanishes in light (1.09). */
+  & .rdp-range_middle {
+    background-color: var(--color-base-300);
+  }
+
+  /* …and daisy ALSO paints every day between them as a selected endpoint. Its own
+     `.rdp-range_middle .rdp-day_button` rule tries to clear that, but the two selectors tie on
+     specificity and lose to source order once the stylesheet is flattened — so the whole span
+     renders as one solid `base-content` block instead of the `raised` tint above with the two
+     endpoints marked. (Pre-existing, from the day the daisy calendar was adopted; found by
+     reading computed styles while moving these corrections out of the component. The docstring
+     there described the intended behaviour, not the shipped one.) A large light fill is exactly
+     what "separation is tonal" rules out, so the clear is restated at a weight that holds. */
+  & .rdp-range_middle:not(.rdp-range_start, .rdp-range_end) .rdp-day_button {
+    background-color: transparent;
+    color: inherit;
   }
 }

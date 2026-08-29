@@ -129,9 +129,18 @@ export function RefineManageScreen() {
       : undefined;
 
   const scopeSlot = (
-    <div className="flex flex-col gap-1.5">
+    <div className="fieldset">
       <span className={fieldLabelClassName}>Scope</span>
-      <select value="account:adorsys-gis" onChange={() => {}} className={fieldControlClassName}>
+      {/* daisy's `input` forces `appearance: none`, which is right for a text input but strips the
+          native disclosure arrow off this one raw `<select>`, leaving a select that looks like a
+          text box. Restored at the call site rather than in the shared class, so the shared class
+          stays safe on any control. (The proper fix is for this Storybook-only mock to use
+          `SelectField` — the console-ui skill bans a native select outright — but that is not this
+          change's scope.) */}
+      <select
+        value="account:adorsys-gis"
+        onChange={() => {}}
+        className={`${fieldControlClassName} appearance-auto`}>
         <option value="account:adorsys-gis">Account · adorsys-gis</option>
       </select>
     </div>

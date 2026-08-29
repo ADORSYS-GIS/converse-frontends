@@ -15,23 +15,25 @@ import type { ReportExportPanelProps } from './types';
 // include toggles · CSV|PDF segmented · one Generate report primary.
 //
 // Ticket #309: the LAST EXPORTS list that used to render below the primary is gone, not just
-// emptied. It was never a real list — `use-manage-screen.ts` fed it a hardcoded `[]` because no
-// export had ever been attempted (console-ui#326's "Export history is unwired." fix), but now
-// that `Generate report` calls the real `/api/reports/consumption` route (#308), keeping a
-// permanently-empty "history" section would misrepresent a genuinely-succeeding action as one
-// that still has nothing to show. There is no backend surface that records past exports (no such
-// table/procedure in `authz.cstack`), so per the ticket's own Risk section the safer default is
-// removing the section outright rather than half-implementing it — recorded here as the decision,
-// not left as a TODO.
+// emptied. It was never a real list — the manage screen hook fed it a hardcoded empty array because
+// no export had ever been attempted (console-ui#326's "Export history is unwired." fix), but now
+// that Generate report calls the real consumption-report route (#308), keeping a permanently-empty
+// "history" section would misrepresent a genuinely-succeeding action as one that still has nothing
+// to show. There is no backend surface that records past exports (no such table or procedure in
+// the authz schema), so per the ticket's own Risk section the safer default is removing the
+// section outright rather than half-implementing it — recorded here as the decision, not left as
+// a TODO.
 //
-// ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled `sr-only`
-// checkbox + drawn box/check-mark pair. daisy's `.toggle` CSS already matches `[aria-checked]`
-// (not only `:checked`), which is exactly the attribute Base UI's `Switch.Root` (`role="switch"`)
-// sets — no extra styling glue needed. `--depth: 0`/`--radius-selector: 2px` (ADR 0008, both
-// theme blocks) mean the stock knob renders flat with a 2px corner, not a shadowed pill, so the
-// class needs no override. `Field.Root` + `Field.Label` (not a plain `<label>`) wires the
-// click-to-toggle + `aria-labelledby` association — a bare `<label>` wrapping a non-native
-// `role="switch"` element does not get that for free the way it did for the old native checkbox.
+// ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled visually-hidden
+// checkbox plus drawn box/check-mark pair. daisy's toggle CSS already matches `[aria-checked]`
+// (not only `:checked`), which is exactly the attribute Base UI's `Switch.Root` sets — no extra
+// styling glue needed. Both theme blocks pin no depth and a 2px selector radius, so the stock knob
+// renders flat with a square corner rather than a shadowed pill.
+//
+// Every wrapper here is now a daisy layout class: `fieldset` for a label stacked over its control,
+// `label` for a switch beside its text (which is also where the row's pointer cursor and the label
+// association come from — a bare native label wrapping a non-native `role="switch"` element gets
+// neither for free). `btn-block` is daisy's own full-width button.
 export function ReportExportPanel({
   period,
   onPeriodChange,
@@ -59,7 +61,7 @@ export function ReportExportPanel({
 
       {scopeSlot}
 
-      <div className="flex flex-col gap-1.5">
+      <div className="fieldset">
         <span className={fieldLabelClassName}>Group by</span>
         <SegmentedControl
           aria-label="Group by"
@@ -69,22 +71,20 @@ export function ReportExportPanel({
         />
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="fieldset">
         {includeToggles.map((toggle) => (
-          <BaseField.Root key={toggle.id} className="flex items-center gap-2">
+          <BaseField.Root key={toggle.id} className="label">
             <Switch.Root
               checked={toggle.checked}
               onCheckedChange={(checked) => onToggleInclude(toggle.id, checked)}
               className="toggle"
             />
-            <BaseField.Label className="text-soft cursor-pointer font-mono text-xs">
-              {toggle.label}
-            </BaseField.Label>
+            <BaseField.Label>{toggle.label}</BaseField.Label>
           </BaseField.Root>
         ))}
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="fieldset">
         <span className={fieldLabelClassName}>Format</span>
         <SegmentedControl
           aria-label="Export format"
@@ -100,7 +100,7 @@ export function ReportExportPanel({
       <Button
         type="button"
         variant="primary"
-        className="w-full"
+        className="btn-block"
         disabled={generating}
         onClick={() =>
           onGenerate({

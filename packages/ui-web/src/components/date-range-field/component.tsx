@@ -3,8 +3,8 @@ import React from 'react';
 import { DayPicker, getDefaultClassNames } from 'react-day-picker';
 
 import { cn } from '../../cn';
-import { fieldLabelClassName } from '../field/field-classes';
-import { OVERLAY_CLASS } from '../../lib/overlay';
+import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
+import { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_POSITIONER_CLASS } from '../../lib/overlay';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import { Chevron } from '../chevron';
 import type { DateRangeFieldProps, DateRangeValue } from './types';
@@ -28,63 +28,37 @@ export function presetRange(days: number, today: Date): DateRangeValue {
   return { from: new Date(today.getTime() - (days - 1) * UTC_DAY), to: today };
 }
 
-// daisyUI 5.7.22 ships first-class theming for react-day-picker — `components/calendar.css`
-// carries a full `.react-day-picker` / `.rdp-*` block written against daisy's own variables, so
-// it already resolves `--radius-field: 0.125rem`, `--depth: 0` and `--noise: 0` from our theme
-// blocks. Adding the `react-day-picker` class to the root is what activates it: the class is NOT
-// one of react-day-picker's own defaults (its root class is `rdp-root`), and daisy's every rule
-// is descendant-scoped under it.
+// daisyUI 5.7 ships first-class theming for react-day-picker: a full calendar block written
+// against daisy's own variables, so it already resolves the 2px field radius, no depth and no
+// noise from our theme blocks. Adding the class to the DayPicker root is what activates it — the
+// class is NOT one of react-day-picker's own defaults (its root class is `rdp-root`), and daisy's
+// every rule is descendant-scoped under it.
 //
-// That deletes the hand-maintained `classNames` map that used to re-declare the whole calendar —
-// the single largest re-declared CSS surface in the package (PRIMITIVE-MATRIX row 22). What
-// survives below are only the parts where daisy's default paint contradicts a console rule; each
-// carries the reason. `getDefaultClassNames()` is spread in per key because react-day-picker
-// REPLACES a part's class rather than merging, so dropping the `rdp-*` class would take daisy's
-// geometry with it. Tailwind utilities win over daisy's own declarations regardless of
-// specificity: daisy nests its calendar rules in `@layer utilities { @layer daisyui.l1.l2.l3 }`,
-// and Tailwind's utilities sit unlayered inside `utilities`, which outranks any nested sub-layer.
+// That deleted the hand-maintained map that used to re-declare the whole calendar — the single
+// largest re-declared CSS surface in the package (PRIMITIVE-MATRIX row 22) — and the four
+// corrections that survived it have now moved to `theme.css` as plain CSS, which is where they
+// always belonged: they are statements about daisy's paint, not about this component's props.
 //
-// One deliberate visual change comes with the adoption, and it is NOT listed below because
-// nothing had to be written for it: the selected range's two endpoints used to be a `primary`
-// fill and are now daisy's `base-content` fill with `base-100` text (13:1 in dark, 8:1 in light —
-// both well past AA). A chosen date is neither actionable nor a breach, so it is not what the one
-// orange signal is for; the accent now appears in this calendar only on the trigger's focus
-// border and on today's numeral.
+// Two entries stay in the map, and only because CSS is the wrong tool for either:
+//  • the weekday header is the `label` type role, and that role has exactly one definition, in
+//    type-roles.ts — spelling `11px`/`subtle` again in a stylesheet would be a second one;
+//  • today's cell drops daisy's own part class rather than overriding it. daisy fills that cell
+//    with a solid signal block — orange as decoration, which the console never does — and its rule
+//    targets the nested day BUTTON, so overriding it in CSS at a weight that also beats
+//    `.rdp-selected .rdp-day_button` would force the signal colour onto a selected endpoint's
+//    dark-on-light fill too. Dropping the class makes daisy's rule simply never match, and
+//    text-primary on the cell reaches the button through daisy's own `color: inherit`.
+//
+// One deliberate visual change came with the adoption, and nothing had to be written for it: the
+// selected range's two endpoints used to be a signal fill and are now daisy's base-content fill
+// with base-100 text (13:1 in dark, 8:1 in light — both well past AA). A chosen date is neither
+// actionable nor a breach, so it is not what the one orange signal is for; the accent now appears
+// in this calendar only on the trigger's focus border and on today's numeral.
 const RDP_DEFAULTS = getDefaultClassNames();
 
 const dayPickerClassNames = {
-  // daisy paints the calendar as its own card — `background-color: base-100` (the FLOOR, #000 in
-  // dark) plus a `base-200` frame. It already sits inside the popover popup, which IS the panel;
-  // left alone this drops a floor-coloured rectangle and a second, wrong-toned border inside it.
-  root: cn(RDP_DEFAULTS.root, 'border-0 bg-transparent'),
-
-  // daisy gaps the two months by 2rem. 16 is on our spacing scale, and it keeps the two-month
-  // calendar plus the presets column inside a popover width a narrow viewport can still take.
-  months: cn(RDP_DEFAULTS.months, 'gap-4'),
-
-  // The weekday header is the `label` type role, which has exactly one definition. daisy's own
-  // treatment (`opacity: .6`, `font-size: smaller`, weight 500) is a different role.
-  weekday: cn(RDP_DEFAULTS.weekday, LABEL_CLASS, 'font-normal opacity-100'),
-
-  // The month name is a heading, so it is `ink`; daisy leaves it at the inherited body colour.
-  caption_label: cn(RDP_DEFAULTS.caption_label, 'text-ink'),
-
-  // daisy fills today's cell with a solid `primary` block — orange as decoration, which the
-  // console never does: today is a fact about the calendar, not something actionable, so the
-  // numeral carries it instead. This is the one part that drops daisy's `rdp-today` class
-  // outright rather than adding to it, because daisy's rule targets the nested day BUTTON
-  // (`.rdp-today:not(.rdp-outside) .rdp-day_button`) and un-setting it from the cell would need a
-  // `[&_.rdp-day_button]:` arbitrary variant — whose literal underscore Tailwind would rewrite to
-  // a descendant combinator. Without `rdp-today` the rule simply never matches, and `text-primary`
-  // on the cell reaches the button through daisy's own `.rdp-day_button { color: inherit }`.
+  weekday: cn(RDP_DEFAULTS.weekday, LABEL_CLASS),
   today: 'text-primary',
-
-  // daisy tints the span between the two endpoints with `base-200` — which is exactly the popup's
-  // own fill, so the selected span would be invisible. `raised` is the token defined as the step
-  // toward greater contrast against the panel it marks, and it measures that way: against a
-  // `surface` popup it separates 1.079:1 in dark and 1.345:1 in light, where `chrome` — the other
-  // candidate — matches it in dark (1.074) but nearly vanishes in light (1.09).
-  range_middle: cn(RDP_DEFAULTS.range_middle, 'bg-raised'),
 } as const;
 
 export function DateRangeField({
@@ -104,46 +78,45 @@ export function DateRangeField({
 
   return (
     <Popover.Root>
-      <div className={cn(inline ? 'flex items-center gap-2' : 'flex flex-col gap-1.5', className)}>
-        <span className={cn(fieldLabelClassName, inline && 'shrink-0')}>{label}</span>
-        <Popover.Trigger
-          aria-label={label}
-          className={cn(
-            'border-border bg-chrome flex h-[30px] items-center justify-between gap-2 rounded-[2px] border px-3',
-            'text-soft data-[popup-open]:border-primary focus-visible:border-primary font-mono text-sm outline-hidden',
-            inline ? 'w-auto' : 'w-full'
-          )}>
+      {/* daisy's two field layouts, the same pair `Field` and `SelectField` name. The trigger
+          wears the shared control class, so a range picker reads as a field without this
+          component describing one. */}
+      <div className={cn(inline ? 'label' : 'fieldset', className)}>
+        <span className={fieldLabelClassName}>{label}</span>
+        <Popover.Trigger aria-label={label} className={fieldControlClassName}>
           {triggerText}
           <Chevron />
         </Popover.Trigger>
       </div>
 
       <Popover.Portal>
-        <Popover.Positioner sideOffset={4} align="start" className="z-50 outline-hidden">
+        <Popover.Positioner sideOffset={4} align="start" className={OVERLAY_POSITIONER_CLASS}>
           {/* Base UI's Popover popup is a `role="dialog"`, and an unnamed dialog is an axe
-              `aria-dialog-name` violation (pre-existing, surfaced while auditing the daisy
-              adoption). The field's own label names it, the way the trigger is named. */}
+              violation (pre-existing, surfaced while auditing the daisy adoption). The field's
+              own label names it, the way the trigger is named. */}
           <Popover.Popup aria-label={label} className={cn('flex gap-4 p-3', OVERLAY_CLASS)}>
-            <div className="border-raised flex w-[132px] flex-col gap-1 border-r pr-3">
+            <div className="border-raised flex w-[132px] flex-col border-r pr-3">
               {presets.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => onPresetChange(option.value)}
+                  // The same row an option in a Select popup gets — these ARE options, in an
+                  // overlay, and the console has one treatment for that.
                   className={cn(
-                    'rounded-[2px] px-2 py-1.5 text-left font-mono text-xs outline-hidden',
-                    option.value === preset ? 'bg-raised text-ink' : 'text-soft hover:bg-chrome'
+                    OVERLAY_ITEM_CLASS,
+                    option.value === preset ? 'bg-raised text-ink' : 'hover:bg-chrome'
                   )}>
                   {option.label}
                 </button>
               ))}
-              <span className={cn(LABEL_CLASS, 'mt-2 px-2')}>
+              <span className={cn(LABEL_CLASS, 'mt-2 px-3')}>
                 {preset ? 'Or pick a span' : 'Custom'}
               </span>
             </div>
 
             <DayPicker
-              // Activates daisy's `.react-day-picker` block — see the note above `RDP_DEFAULTS`.
+              // Activates daisy's calendar block — see the note above the class map.
               className="react-day-picker"
               mode="range"
               required

@@ -8,9 +8,20 @@
 
 export const OVERLAY_CLASS = 'rounded-[2px] border border-border bg-surface outline-hidden';
 
-/** The positioner an overlay's popup hangs from — above the shell's sticky chrome (`z-40`), and
- * never a focus target of its own. Every Base UI `*.Positioner` in the console wears this. */
-export const OVERLAY_POSITIONER_CLASS = 'z-50 outline-hidden';
+/**
+ * Base UI's positioner — the element Floating UI moves, not the one that gets painted. It sits
+ * above every panel, never draws a focus outline of its own (the popup inside it owns focus), and
+ * is not text-selectable. Identical at every call site, which is why it lives here rather than
+ * being re-typed beside each `Select.Positioner`/`Popover.Positioner`.
+ */
+export const OVERLAY_POSITIONER_CLASS = 'z-50 outline-hidden select-none';
+
+/**
+ * A popup anchored to a field control (a `Select`/`Combobox` list under its trigger): overlay
+ * chrome, at least as wide as the trigger it hangs off — `min-w-`, not `w-`, so a label longer
+ * than a narrow rail select still reads in full rather than truncating to the trigger's width.
+ */
+export const OVERLAY_ANCHORED_POPUP_CLASS = `min-w-(--anchor-width) py-1 ${OVERLAY_CLASS}`;
 
 /** Highlighted row inside an overlay list (Menu.Item, Select.Item, cmdk item). */
 

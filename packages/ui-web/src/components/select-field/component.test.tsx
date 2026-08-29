@@ -42,11 +42,17 @@ describe('SelectField', () => {
     expect(onChange).toHaveBeenCalledWith('last-7');
   });
 
+  // Both layouts are daisy's own: `fieldset` stacks the label over a full-width control,
+  // `label` sets the two side by side. The trigger itself is the same class in both -- the
+  // content width an inline trigger wants comes from `.label > button.input` in `theme.css`, so
+  // the control never has to know which layout it landed in.
   it('renders both layouts from one control', () => {
     const { rerender, container } = render(
       <SelectField label="Range" value="last-30" options={options} onChange={() => {}} />
     );
-    expect(screen.getByLabelText('Range')).toHaveClass('w-full');
+    const trigger = () => screen.getByLabelText('Range');
+    expect(trigger()).toHaveClass('input');
+    expect(trigger().parentElement).toHaveClass('fieldset');
 
     rerender(
       <SelectField
@@ -57,7 +63,8 @@ describe('SelectField', () => {
         layout="inline"
       />
     );
-    expect(screen.getByLabelText('Range')).toHaveClass('w-auto');
+    expect(trigger()).toHaveClass('input');
+    expect(trigger().parentElement).toHaveClass('label');
     expect(container.querySelector('select')).toBeNull();
   });
 });

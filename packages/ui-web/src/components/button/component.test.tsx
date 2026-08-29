@@ -27,8 +27,11 @@ describe('Button', () => {
     render(<Button variant="secondary">Continue</Button>);
 
     const button = screen.getByRole('button', { name: 'Continue' });
-    expect(button.className).toContain('border-border');
-    expect(button.className).toContain('text-soft');
+    // Transparent fill, `--line` border, `--body` text -- re-pointed onto daisy's own button
+    // variables in `theme.css`, because daisy's stock secondary fills with `--color-secondary` and
+    // its outline variant borrows `base-content` rather than our line token. The variant is a
+    // class name here, never a stack of overrides.
+    expect(button).toHaveClass('btn-secondary');
     expect(button).not.toHaveClass('btn-primary');
   });
 
@@ -45,7 +48,7 @@ describe('Button', () => {
     render(
       <Button disabled onClick={handleClick}>
         Continue
-      </Button>,
+      </Button>
     );
 
     const button = screen.getByRole('button', { name: 'Continue' });
@@ -64,30 +67,20 @@ describe('Button', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
+  // daisy's `btn-square` takes its width AND height from `--size`, which `btn-sm` pins to the
+  // console's 30px -- so 30x30 with zero inline padding is two daisy classes rather than three
+  // arbitrary-value overrides. The 16px glyph pin (an inline SVG with only a `viewBox` otherwise
+  // falls back to the browser's much larger replaced-element box) rides along with `btn-square`
+  // in `theme.css`.
   it('applies the 30x30 icon size, keyed off an explicit aria-label since it carries no visible text', () => {
     render(
       <Button variant="ghost" size="icon" aria-label="Open filters">
-        <svg aria-hidden="true" />
-      </Button>,
-    );
-
-    const button = screen.getByRole('button', { name: 'Open filters' });
-    expect(button.className).toContain('h-[30px]');
-    expect(button.className).toContain('w-[30px]');
-    expect(button.className).toContain('p-0');
-  });
-
-  it('pins icon-button glyphs to a fixed 16px regardless of the child SVG viewBox', () => {
-    render(
-      <Button variant="ghost" size="icon" aria-label="Open filters">
         <svg aria-hidden="true" viewBox="0 0 12 12" />
-      </Button>,
+      </Button>
     );
 
     const button = screen.getByRole('button', { name: 'Open filters' });
-    // `[&_svg]:size-4` (16px) — the fix for glyphs that render oversized because an inline SVG
-    // with only a `viewBox` and no `width`/`height` falls back to the browser's much larger
-    // replaced-element default box.
-    expect(button.className).toContain('[&_svg]:size-4');
+    expect(button).toHaveClass('btn-square');
+    expect(button).toHaveClass('btn-sm');
   });
 });

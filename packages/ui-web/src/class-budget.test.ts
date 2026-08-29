@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 
-import { DEFAULT_BUDGET, auditAll } from '../scripts/class-budget.mjs';
+import { DEFAULT_BUDGET, auditAll } from '../scripts/class-budget';
+import type { ClassAudit } from '../scripts/class-budget';
 
 /**
  * The owner's definition of done, 2026-08-29: "Tiny css classes per component (max 3, and cva adds
@@ -63,10 +64,10 @@ const BUDGET: Record<string, number> = {
   'rail-panel': 5,
 };
 
-const rows = auditAll(join(import.meta.dirname, 'components'));
+const rows: ClassAudit[] = auditAll(join(import.meta.dirname, 'components'));
 
 describe('class budget', () => {
-  it.each(rows)('$component stays within its budget ($utils utilities)', ({ component, utils }) => {
+  it.each(rows)('$component stays within its budget ($utils utilities)', ({ component, utils }: ClassAudit) => {
     const budget = BUDGET[component] ?? DEFAULT_BUDGET;
     expect(
       utils,

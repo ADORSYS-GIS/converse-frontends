@@ -23,8 +23,8 @@ const DAISY = new Set(
 const CLASSY = /^(?:[a-z]|\[)[a-z0-9!:[\]\-_/.&>+()#%,]*$/i;
 
 /** Every string literal in the file that reads as a class list, split into tokens. */
-function classTokens(source) {
-  const tokens = [];
+function classTokens(source: string): string[] {
+  const tokens: string[] = [];
   for (const match of source.matchAll(/["'`]([^"'`\n]{2,})["'`]/g)) {
     const parts = match[1].trim().split(/\s+/).filter(Boolean);
     if (!parts.length) continue;
@@ -37,20 +37,26 @@ function classTokens(source) {
   return tokens;
 }
 
-export function auditComponent(dir) {
+export function auditComponent(dir: string): { utils: number; daisy: number } {
   let utils = 0;
   let daisy = 0;
   for (const file of readdirSync(dir)) {
     if (!/^(component\.tsx|cva\.ts|.*-classes\.ts)$/.test(file)) continue;
     for (const token of classTokens(readFileSync(join(dir, file), 'utf8'))) {
-      if (DAISY.has(token) || DAISY.has(token.split(':').pop())) daisy += 1;
+      if (DAISY.has(token) || DAISY.has(token.split(':').pop() ?? '')) daisy += 1;
       else utils += 1;
     }
   }
   return { utils, daisy };
 }
 
-export function auditAll(root) {
+export interface ClassAudit {
+  component: string;
+  utils: number;
+  daisy: number;
+}
+
+export function auditAll(root: string): ClassAudit[] {
   return readdirSync(root)
     .filter((name) => statSync(join(root, name)).isDirectory())
     .map((name) => ({ component: name, ...auditComponent(join(root, name)) }))

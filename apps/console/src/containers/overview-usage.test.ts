@@ -452,4 +452,44 @@ describe('resolveOverviewWindow', () => {
     expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
   });
 
+
+});
+
+describe('series labelling', () => {
+  const response: UsageQueryResponse = {
+    points: [
+      point({ project_id: 'zezxvt21irmoi0kzm22el7gu', total_cost: 5 }),
+      point({ project_id: undefined, total_cost: 2 }),
+    ],
+  };
+  const labelFor = (key: string) =>
+    key === 'zezxvt21irmoi0kzm22el7gu' ? 'gateway-prod' : key === 'unassigned' ? 'Unassigned' : key;
+
+  it('labels spend series with the resolved name while keeping the id as the key', () => {
+    const series = toSpendSeries(response, 'project', labelFor);
+
+    const named = series.find((s) => s.key === 'zezxvt21irmoi0kzm22el7gu');
+    expect(named?.label).toBe('gateway-prod');
+    // The key stays the id — the chart, the share bar and `?series=` all match on it.
+    expect(named?.key).toBe('zezxvt21irmoi0kzm22el7gu');
+  });
+
+  it('labels share segments the same way', () => {
+    const segments = toSpendShareSegments(response, 'project', labelFor);
+
+    expect(segments.map((s) => s.label).sort()).toEqual(['Unassigned', 'gateway-prod']);
+  });
+
+  it('falls back to the raw key when nothing resolves it — e.g. a since-deleted project', () => {
+    const series = toSpendSeries(response, 'project', (key) => key);
+
+    expect(series.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
+  });
+
+  it('defaults to identity, so an un-labelled caller still gets working output', () => {
+    const segments = toSpendShareSegments(response, 'project');
+
+    expect(segments.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
+  });
+
 });

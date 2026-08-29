@@ -39,8 +39,10 @@ import {
   toLatencySeries,
   toSpendSeries,
   resolveOverviewWindow,
+  UNASSIGNED_KEY,
   toSpendShareSegments,
   toUrlDate,
+  type SeriesLabeller,
   RANGE_DAYS,
 } from './overview-usage';
 
@@ -289,13 +291,29 @@ export function useOverviewScreen(): OverviewScreen {
     : usageQuery.isPending
       ? 'loading'
       : 'ready';
+  // The usage backend groups by `project_id`, so every series comes back keyed by an opaque id.
+  // The console already knows the names — `scope.allProjects` is loaded for the project picker —
+  // so resolve them here rather than printing `zezxvt21irmoi0kzm22el7gu` on the chart legend and
+  // the share list (owner, 2026-08-29). Model keys are already human-readable, so they pass
+  // through; an id with no matching project does too, which is the honest fallback for a project
+  // deleted since the usage was recorded.
+  const labelForSeries = useMemo<SeriesLabeller>(() => {
+    if (view.groupBy !== 'project') return (key) => key;
+    const namesById = new Map(scope.allProjects.map((project) => [project.id, project.name]));
+    return (key) => {
+      if (key === UNASSIGNED_KEY) return 'Unassigned';
+      return namesById.get(key) || key;
+    };
+  }, [view.groupBy, scope.allProjects]);
+
   const spendSeries = useMemo(
-    () => (usageQuery.data ? toSpendSeries(usageQuery.data, view.groupBy) : []),
-    [usageQuery.data, view.groupBy]
+    () => (usageQuery.data ? toSpendSeries(usageQuery.data, view.groupBy, labelForSeries) : []),
+    [usageQuery.data, view.groupBy, labelForSeries]
   );
   const spendSegments = useMemo(
-    () => (usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy) : []),
-    [usageQuery.data, view.groupBy]
+    () =>
+      usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy, labelForSeries) : [],
+    [usageQuery.data, view.groupBy, labelForSeries]
   );
 
   // ── LATENCY — the SAME usageQuery SPEND already runs, never a third request. `latencyStatus`
@@ -303,8 +321,9 @@ export function useOverviewScreen(): OverviewScreen {
   // (they are the same query), never one looking wired while the other doesn't.
   const latencyStatus: DashboardStatus = spendStatus;
   const latencyAdaptation = useMemo(
-    () => (usageQuery.data ? toLatencySeries(usageQuery.data, view.groupBy) : undefined),
-    [usageQuery.data, view.groupBy]
+    () =>
+      usageQuery.data ? toLatencySeries(usageQuery.data, view.groupBy, labelForSeries) : undefined,
+    [usageQuery.data, view.groupBy, labelForSeries]
   );
   const latencySeries = latencyAdaptation?.series ?? [];
   const latencyFootnote = useMemo(

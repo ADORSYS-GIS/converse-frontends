@@ -145,18 +145,36 @@ function safeCost(point: UsageSeriesPoint): number {
   return microUsdToUsd(microUsd);
 }
 
+/** The sentinel for points the backend attributed to no project/model at all. */
+export const UNASSIGNED_KEY = 'unassigned';
+
 function groupKey(point: UsageSeriesPoint, groupBy: OverviewGroupBy): string {
   const value = point[GROUP_BY_POINT_FIELD[groupBy]];
-  return typeof value === 'string' && value.length > 0 ? value : 'unassigned';
+  return typeof value === 'string' && value.length > 0 ? value : UNASSIGNED_KEY;
 }
+
+/**
+ * Resolves a series key to something a human can read.
+ *
+ * The usage backend groups by `project_id`, so every series arrives keyed by an opaque id
+ * (`zezxvt21irmoi0kzm22el7gu`). Until now each adapter did `label: key`, which put those ids
+ * straight onto the chart legend and the share list — the console's most visible papercut, and a
+ * gap the old `toSpendSeries` docstring already admitted to.
+ *
+ * `key` stays the id: it is the identity the chart, the share bar and the `?series=` URL param all
+ * match on. Only the LABEL changes.
+ */
+export type SeriesLabeller = (key: string) => string;
+
+const identityLabel: SeriesLabeller = (key) => key;
 
 /** Maps `UsageQueryResponse.points` into `SpendSeriesSeries[]` for `SpendDashboard`, one series
  *  per distinct value of the request's own `group_by` dimension, oldest-first within each series.
- *  There is no friendly-name lookup for the group-by dimension yet (raw project/model ids double
- *  as both `key` and `label`) — the same known gap `overviewGroupByToUsageGroupBy` documents. */
+ *  `labelFor` resolves each key to a human-readable name; the key itself stays the id. */
 export function toSpendSeries(
   response: UsageQueryResponse,
-  groupBy: OverviewGroupBy
+  groupBy: OverviewGroupBy,
+  labelFor: SeriesLabeller = identityLabel
 ): SpendSeriesSeries[] {
   const seriesByKey = new Map<string, SpendSeriesSeries>();
 
@@ -164,7 +182,7 @@ export function toSpendSeries(
     const key = groupKey(point, groupBy);
     let series = seriesByKey.get(key);
     if (!series) {
-      series = { key, label: key, points: [] };
+      series = { key, label: labelFor(key), points: [] };
       seriesByKey.set(key, series);
     }
     series.points.push({ x: new Date(point.bucket_start), y: safeCost(point) });
@@ -186,7 +204,8 @@ export function toSpendSeries(
  *  mention first rather than to the largest share. */
 export function toSpendShareSegments(
   response: UsageQueryResponse,
-  groupBy: OverviewGroupBy
+  groupBy: OverviewGroupBy,
+  labelFor: SeriesLabeller = identityLabel
 ): ShareBarSegment[] {
   const totalsByKey = new Map<string, number>();
 
@@ -196,7 +215,7 @@ export function toSpendShareSegments(
   }
 
   return Array.from(totalsByKey.entries())
-    .map(([key, value]) => ({ key, label: key, value, formattedValue: formatUsd(value) }))
+    .map(([key, value]) => ({ key, label: labelFor(key), value, formattedValue: formatUsd(value) }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -246,7 +265,8 @@ export interface LatencyAdaptation {
  */
 export function toLatencySeries(
   response: UsageQueryResponse,
-  groupBy: OverviewGroupBy
+  groupBy: OverviewGroupBy,
+  labelFor: SeriesLabeller = identityLabel
 ): LatencyAdaptation {
   const seriesByKey = new Map<string, { key: string; label: string; values: number[] }>();
   let totalSamples = 0;
@@ -255,7 +275,7 @@ export function toLatencySeries(
     const key = groupKey(point, groupBy);
     let series = seriesByKey.get(key);
     if (!series) {
-      series = { key, label: key, values: [] };
+      series = { key, label: labelFor(key), values: [] };
       seriesByKey.set(key, series);
     }
 

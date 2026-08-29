@@ -7,6 +7,16 @@ import type { SecretRevealProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §4 — one-time secret strip. Shown in the
 // centre (api-keys.svg), dismissed only by the explicit `×` — never by blur or backdrop click.
+//
+// PRIMITIVE-MATRIX row 26 — daisy paint, our behaviour:
+//   • the secret `<input>` wears daisy `input` through the shared `fieldControlClassName`
+//     (row 28), so this security-sensitive strip and every `Field` in the console are painted by
+//     the same class rather than by two hand-written strings that can drift apart;
+//   • both `btn` axes arrive through `Button`, which is already `btn` + `btn-primary`/`btn-ghost`.
+// What deliberately stays ours is the behaviour: the `navigator.clipboard` call, and the mono
+// "Copied" acknowledgement on the button itself. That is NOT a toast, and not by omission —
+// ADR 0008 rules transient toasts out for this acknowledgement, and PRIMITIVE-MATRIX row 49
+// records the toast question as still-contested and explicitly undecided.
 export function SecretReveal({
   heading,
   description,

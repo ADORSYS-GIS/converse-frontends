@@ -210,3 +210,36 @@
   --color-subtle: #606060;
   --color-ink: #eeeeee;
 }
+
+/*
+ * daisyUI `skeleton`, de-shimmered — once, centrally (PRIMITIVES.md § `skeleton-row` /
+ * `skeleton-metric`; ADR 0008 bans shimmer and spinners; console-ui skill § States: "skeleton
+ * blocks (`raised`) matching final geometry … its animation suppressed centrally").
+ *
+ * `@utility` is daisy 5's documented "change a component in CSS" mechanism, and it works for a
+ * concrete cascade reason rather than by luck: daisy emits its components into a SUBLAYER of
+ * `utilities` (`@layer utilities { @layer daisyui.l1.l2.l3 { .skeleton { … } } }`), while
+ * Tailwind emits an `@utility` unlayered inside `utilities` — and unlayered rules within a layer
+ * outrank that layer's own sublayers. No `!important`, no specificity war.
+ *
+ * PRIMITIVES.md prescribes `animation: none` and nothing else. That alone is NOT sufficient, and
+ * the gap only shows once the class is actually used (it never was before now, which is why the
+ * no-shimmer rule has so far held only by accident): daisy PAINTS the shimmer with a
+ * `background-image` gradient — transparent → `--color-base-100` → transparent, at
+ * `background-size: 200%` offset `background-position-x: -50%` — and the animation merely SLIDES
+ * it. Stopping the animation therefore freezes a static light band across every loading block
+ * instead of removing it. `background-image: none` is the declaration that actually restores the
+ * flat `--raised` block the contract asks for. `will-change` goes with it: it exists only to hint
+ * the (now absent) background-position animation, and a ledger's worth of loading rows should not
+ * each ask for their own compositor layer.
+ *
+ * What is deliberately NOT overridden: `border-radius: var(--radius-box)` and
+ * `background-color: var(--color-base-300)`. Both themes pin `--radius-box: 0.125rem` and
+ * `--color-base-300` IS `raised`, so daisy already lands exactly on the contract in `black` and
+ * `wireframe` alike — that is the whole point of adopting the class instead of re-declaring it.
+ */
+@utility skeleton {
+  animation: none;
+  background-image: none;
+  will-change: auto;
+}

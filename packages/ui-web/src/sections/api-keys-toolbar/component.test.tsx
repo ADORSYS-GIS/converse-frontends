@@ -6,7 +6,12 @@ import { ApiKeysToolbar } from './component';
 import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
 
 const base = {
-  projectField: { label: 'Project', value: 'gateway-prod', options: API_KEY_PROJECT_OPTIONS, onChange: () => {} },
+  projectField: {
+    label: 'Project',
+    value: 'gateway-prod',
+    options: API_KEY_PROJECT_OPTIONS,
+    onChange: () => {},
+  },
   statusOptions: API_KEY_STATUS_OPTIONS,
   statusValue: 'all',
   onStatusChange: () => {},
@@ -53,7 +58,7 @@ describe('ApiKeysToolbar', () => {
         {...base}
         onCreate={() => {}}
         createDisabledReason="Select a project to create a key."
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: '+ New key' })).toBeEnabled();

@@ -51,7 +51,7 @@ export function OverviewToolbar({
 
       {/* A hairline between "what the chart is a picture of" and "which slice it is drawn from".
           `hidden sm:block` because once the row wraps, a vertical rule mid-wrap is noise. */}
-      <span aria-hidden="true" className="hidden h-[30px] w-px bg-border sm:block" />
+      <span aria-hidden="true" className="bg-border hidden h-[30px] w-px sm:block" />
 
       <SelectField layout="inline" {...projectField} />
       <SelectField layout="inline" {...modelField} />

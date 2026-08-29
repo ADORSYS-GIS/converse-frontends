@@ -75,11 +75,11 @@ export function ShareBar({
             }}
           />
         ))}
-        {total === 0 ? <span className="flex-1 bg-raised" /> : null}
+        {total === 0 ? <span className="bg-raised flex-1" /> : null}
       </div>
 
       {computed.length === 0 ? (
-        <p className="font-mono text-[11px] text-subtle">{emptyMessage}</p>
+        <p className="text-subtle font-mono text-[11px]">{emptyMessage}</p>
       ) : null}
 
       <ul className="flex flex-col">
@@ -100,25 +100,37 @@ export function ShareBar({
                 aria-label={segment.breached ? `${segment.label}, over ceiling` : undefined}
                 className={cn(
                   'flex min-h-[28px] w-full items-center gap-3 rounded-[2px] px-1 font-mono text-xs',
-                  onSelectSegment ? 'cursor-pointer hover:bg-chrome' : 'cursor-default',
-                  'disabled:cursor-default',
+                  onSelectSegment ? 'hover:bg-chrome cursor-pointer' : 'cursor-default',
+                  'disabled:cursor-default'
                 )}>
                 <span
                   aria-hidden="true"
                   className="h-[2px] w-[10px] shrink-0"
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className={cn('min-w-0 flex-1 truncate text-left', emphasized ? 'text-ink' : 'text-soft')}>
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-left',
+                    emphasized ? 'text-ink' : 'text-soft'
+                  )}>
                   {segment.label}
                 </span>
                 {segment.formattedValue ? (
-                  <span className={cn('shrink-0 tabular-nums', emphasized ? 'text-soft' : 'text-subtle')}>
+                  <span
+                    className={cn(
+                      'shrink-0 tabular-nums',
+                      emphasized ? 'text-soft' : 'text-subtle'
+                    )}>
                     {segment.formattedValue}
                   </span>
                 ) : null}
                 {/* Fixed track so the percent column aligns down the list regardless of value
                     width — numerics are right-aligned (console-ui skill "Type"). */}
-                <span className={cn('w-10 shrink-0 text-right tabular-nums', emphasized ? 'text-soft' : 'text-subtle')}>
+                <span
+                  className={cn(
+                    'w-10 shrink-0 text-right tabular-nums',
+                    emphasized ? 'text-soft' : 'text-subtle'
+                  )}>
                   {formatPercent(segment.percent)}
                 </span>
               </button>

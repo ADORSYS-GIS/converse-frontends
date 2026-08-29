@@ -83,11 +83,11 @@ describe('AccountBadge', () => {
           { id: 'other-id', label: 'adorsys-labs' },
         ]}
         onSelectAccount={() => {}}
-      />,
+      />
     );
 
     expect(
-      screen.getByRole('button', { name: 'Account adorsys-gis. Switch account.' }),
+      screen.getByRole('button', { name: 'Account adorsys-gis. Switch account.' })
     ).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe('AccountBadge', () => {
         accountId={ACCOUNT_ID}
         accounts={[{ id: ACCOUNT_ID, label: 'adorsys-gis' }]}
         onSelectAccount={() => {}}
-      />,
+      />
     );
 
     expect(screen.queryByRole('button', { name: /Switch account/ })).not.toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('AccountBadge', () => {
         name="adorsys-gis"
         accountId={ACCOUNT_ID}
         accounts={[{ id: ACCOUNT_ID }, { id: 'other-id' }]}
-      />,
+      />
     );
 
     expect(screen.queryByRole('button', { name: /Switch account/ })).not.toBeInTheDocument();
@@ -120,7 +120,7 @@ describe('AccountBadge', () => {
     render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} onCopyId={() => {}} />);
 
     expect(
-      screen.getByRole('button', { name: 'Account adorsys-gis. Copy full account id.' }),
+      screen.getByRole('button', { name: 'Account adorsys-gis. Copy full account id.' })
     ).toBeInTheDocument();
   });
 });

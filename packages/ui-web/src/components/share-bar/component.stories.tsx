@@ -45,7 +45,7 @@ export const Selected: Story = {
 export const Breached: Story = {
   args: {
     segments: segments.map((segment, index) =>
-      index === 2 ? { ...segment, breached: true } : segment,
+      index === 2 ? { ...segment, breached: true } : segment
     ),
   },
 };

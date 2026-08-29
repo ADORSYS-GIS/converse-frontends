@@ -9,7 +9,12 @@ const meta: Meta<typeof ApiKeysToolbar> = {
   component: ApiKeysToolbar,
   parameters: { layout: 'padded' },
   args: {
-    projectField: { label: 'Project', value: 'gateway-prod', options: API_KEY_PROJECT_OPTIONS, onChange: () => {} },
+    projectField: {
+      label: 'Project',
+      value: 'gateway-prod',
+      options: API_KEY_PROJECT_OPTIONS,
+      onChange: () => {},
+    },
     statusOptions: API_KEY_STATUS_OPTIONS,
     statusValue: 'all',
     onStatusChange: () => {},

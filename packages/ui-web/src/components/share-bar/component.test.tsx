@@ -28,7 +28,7 @@ describe('ShareBar', () => {
           { key: 'a', label: 'a', value: 1 },
           { key: 'b', label: 'b', value: 3 },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByText('25%')).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe('ShareBar', () => {
           { key: 'big', label: 'big', value: 1000 },
           { key: 'tiny', label: 'tiny', value: 1 },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByText('<1%')).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('ShareBar', () => {
           { key: 'a', label: 'a', value: 0 },
           { key: 'b', label: 'b', value: 0 },
         ]}
-      />,
+      />
     );
 
     expect(screen.getAllByText('0%')).toHaveLength(2);
@@ -81,7 +81,7 @@ describe('ShareBar', () => {
   it('selects on click and clears when the already-selected row is clicked again', () => {
     const onSelectSegment = vi.fn();
     const { rerender } = render(
-      <ShareBar segments={segments} selectedKey={null} onSelectSegment={onSelectSegment} />,
+      <ShareBar segments={segments} selectedKey={null} onSelectSegment={onSelectSegment} />
     );
 
     fireEvent.click(screen.getAllByRole('button')[0]);
@@ -98,7 +98,7 @@ describe('ShareBar', () => {
         segments={[segments[0], { ...segments[1], breached: true }]}
         selectedKey="a"
         onSelectSegment={() => {}}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: 'ledger-api, over ceiling' })).toBeInTheDocument();

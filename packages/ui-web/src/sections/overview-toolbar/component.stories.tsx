@@ -11,7 +11,11 @@ import {
   RANGE_OPTIONS,
 } from './fixtures';
 
-function field(label: string, value: string, options: OverviewToolbarField['options']): OverviewToolbarField {
+function field(
+  label: string,
+  value: string,
+  options: OverviewToolbarField['options']
+): OverviewToolbarField {
   return { label, value, options, onChange: () => {} };
 }
 

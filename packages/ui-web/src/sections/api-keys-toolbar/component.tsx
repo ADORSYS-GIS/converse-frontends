@@ -45,7 +45,7 @@ export function ApiKeysToolbar({
 
       {/* Hairline between the precondition (which project) and the filters that narrow within
           it. `hidden sm:block` — once the row wraps, a vertical rule mid-wrap is just noise. */}
-      <span aria-hidden="true" className="hidden h-[30px] w-px shrink-0 bg-border sm:block" />
+      <span aria-hidden="true" className="bg-border hidden h-[30px] w-px shrink-0 sm:block" />
 
       {/* `shrink-0` on every control, and `items-center` rather than `items-end`, because every
           label in this row is `inline`: with a mix of stacked and inline labels the row had three

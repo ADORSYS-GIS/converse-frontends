@@ -15,19 +15,19 @@ export function ApiKeysHygieneNotes({ hygiene, className }: ApiKeysHygieneNotesP
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       {hygiene.expiringCount > 0 ? (
-        <p className="font-mono text-[11px] text-primary">
+        <p className="text-primary font-mono text-[11px]">
           {hygiene.expiringCount} key{hygiene.expiringCount === 1 ? '' : 's'} expires in{' '}
           {hygiene.expiringInDays} days
         </p>
       ) : null}
       {hygiene.neverUsedCount > 0 ? (
-        <p className="font-mono text-[11px] text-soft">
+        <p className="text-soft font-mono text-[11px]">
           {hygiene.neverUsedCount} key{hygiene.neverUsedCount === 1 ? '' : 's'} never used since
           creation
         </p>
       ) : null}
       {hygiene.revokedRetainedCount > 0 ? (
-        <p className="font-mono text-[11px] text-subtle">
+        <p className="text-subtle font-mono text-[11px]">
           {hygiene.revokedRetainedCount} revoked key{hygiene.revokedRetainedCount === 1 ? '' : 's'}{' '}
           retained for audit
         </p>

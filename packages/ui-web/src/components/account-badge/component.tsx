@@ -84,15 +84,15 @@ export function AccountBadge({
           aria-label={`Account ${display}. Switch account.`}
           title={accountId || undefined}
           className={cn(
-            'flex items-center gap-2 rounded-[2px] px-1.5 py-1 outline-hidden transition-colors duration-150 ease-out hover:bg-raised',
-            'focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-chrome',
-            className,
+            'hover:bg-raised flex items-center gap-2 rounded-[2px] px-1.5 py-1 outline-hidden transition-colors duration-150 ease-out',
+            'focus-visible:ring-primary focus-visible:ring-offset-chrome focus-visible:ring-1 focus-visible:ring-offset-1',
+            className
           )}>
           {content}
           <svg
             aria-hidden="true"
             viewBox="0 0 8 8"
-            className="h-2 w-2 stroke-subtle"
+            className="stroke-subtle h-2 w-2"
             fill="none"
             strokeWidth="1.4">
             <path d="M1 3l3 3 3-3" />
@@ -101,7 +101,7 @@ export function AccountBadge({
 
         <Menu.Portal>
           <Menu.Positioner align="start" sideOffset={6} className="z-50 outline-hidden">
-            <Menu.Popup className="w-[240px] rounded-[2px] bg-surface py-1 font-mono outline-hidden">
+            <Menu.Popup className="bg-surface w-[240px] rounded-[2px] py-1 font-mono outline-hidden">
               <div role="presentation" className="px-3 py-2">
                 <span className={LABEL_CLASS}>Account</span>
               </div>
@@ -115,23 +115,27 @@ export function AccountBadge({
                     className={cn(
                       'flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-[11px] outline-hidden transition-colors',
                       active ? 'text-ink' : 'text-soft',
-                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink',
+                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink'
                     )}
                     onClick={() => onSelectAccount?.(account.id)}>
                     <span className="truncate">{optionLabel}</span>
                     {/* Selection is a text marker, never a pill or a coloured dot
                         (console-ui skill "States": status is text). */}
-                    {active ? <span aria-hidden="true" className="text-subtle">active</span> : null}
+                    {active ? (
+                      <span aria-hidden="true" className="text-subtle">
+                        active
+                      </span>
+                    ) : null}
                   </Menu.Item>
                 );
               })}
               {onCopyId ? (
                 <>
-                  <Menu.Separator className="mx-1 my-1 h-px bg-raised" />
+                  <Menu.Separator className="bg-raised mx-1 my-1 h-px" />
                   <Menu.Item
                     className={cn(
-                      'cursor-pointer px-3 py-2 text-[11px] text-soft outline-hidden transition-colors',
-                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink',
+                      'text-soft cursor-pointer px-3 py-2 text-[11px] outline-hidden transition-colors',
+                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink'
                     )}
                     onClick={() => onCopyId(accountId)}>
                     Copy account id
@@ -160,8 +164,8 @@ export function AccountBadge({
       title={accountId ? `${accountId} — click to copy` : undefined}
       aria-label={`Account ${display}. Copy full account id.`}
       className={cn(
-        'flex items-center gap-2 rounded-[2px] px-1.5 py-1 transition-colors duration-150 ease-out hover:bg-raised',
-        className,
+        'hover:bg-raised flex items-center gap-2 rounded-[2px] px-1.5 py-1 transition-colors duration-150 ease-out',
+        className
       )}>
       {content}
     </button>

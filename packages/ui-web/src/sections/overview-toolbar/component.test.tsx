@@ -16,7 +16,7 @@ function field(
   label: string,
   value: string,
   options: OverviewToolbarField['options'],
-  onChange = () => {},
+  onChange = () => {}
 ): OverviewToolbarField {
   return { label, value, options, onChange };
 }
@@ -47,7 +47,7 @@ describe('OverviewToolbar', () => {
   it('changing a control calls that field own onChange with the new value', () => {
     const onChange = vi.fn();
     render(
-      <OverviewToolbar {...base} rangeField={field('Range', 'last-30', RANGE_OPTIONS, onChange)} />,
+      <OverviewToolbar {...base} rangeField={field('Range', 'last-30', RANGE_OPTIONS, onChange)} />
     );
 
     fireEvent.change(screen.getByLabelText('Range'), { target: { value: 'last-7' } });

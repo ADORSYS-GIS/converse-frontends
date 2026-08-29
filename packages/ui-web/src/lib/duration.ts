@@ -18,13 +18,19 @@
 //
 // The bands, and why each boundary sits where it does:
 //
-//     < 1 ms      -> '<1 ms'      Below the resolution latency is actually measured at: the
-//                                  usage backend's percentiles come from OTLP histogram buckets,
-//                                  not a raw stopwatch, so a fractional-millisecond figure below
-//                                  1ms would assert a precision the underlying measurement never
-//                                  had. Named, not rounded to a fake `0.4 ms` or a misleading
-//                                  `0 ms` (the same "never fabricate a zero" rule `money.ts`'s
-//                                  `USD_DISPLAY_FLOOR` follows for a sub-cent amount).
+//     < 1 ms      -> '<1 ms'      Below the resolution the measurement actually has. The usage
+//                                  backend computes `percentile_cont` over per-request durations,
+//                                  and in this deployment those come from Envoy's `%DURATION%`
+//                                  access-log field, which is an INTEGER count of milliseconds --
+//                                  so the dominant production source cannot express a
+//                                  sub-millisecond value at all, and one arriving here means an
+//                                  interpolated percentile between two adjacent integers, or the
+//                                  seconds-valued OpenTelemetry semconv path. Either way a
+//                                  fractional figure below 1ms asserts precision the underlying
+//                                  measurement never had. Named, not rounded to a fake `0.4 ms`
+//                                  or a misleading `0 ms` (the same "never fabricate a zero" rule
+//                                  `money.ts`'s `USD_DISPLAY_FLOOR` follows for a sub-cent
+//                                  amount).
 //     [1, 10) ms  -> one decimal  A single-digit-ms difference is real signal at this scale (a
 //                                  cache hit vs. a cache miss can be exactly this size), so the
 //                                  extra digit earns its place: `4.2 ms`, not the coarser `4 ms`.

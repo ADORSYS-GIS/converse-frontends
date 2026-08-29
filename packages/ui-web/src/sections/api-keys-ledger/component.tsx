@@ -157,7 +157,12 @@ export function ApiKeysLedger({
               type="button"
               disabled={pagination.hasNext === false}
               onClick={pagination.onNext}
-              className="text-soft transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-60">
+              // `disabled:text-subtle`, not opacity alone: `next` is the emphasised half of the
+              // pager (`text-soft` vs `prev`'s `text-subtle`), so at 60% opacity it still read
+              // BRIGHTER than an enabled `prev` — "1 of 1 keys · next ›" looked like a live
+              // control that did nothing (owner screenshot, 2026-08-29). Dropping to the same
+              // token `prev` uses makes disabled look disabled on both halves.
+              className="text-soft transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:text-subtle disabled:opacity-60">
               next ›
             </button>
           </div>

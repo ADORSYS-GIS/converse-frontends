@@ -246,4 +246,19 @@ describe('ApiKeysLedger', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a disabled "next" that actually looks disabled', () => {
+    // Regression: `next` carries the emphasised `text-soft`, so `disabled:opacity-60` alone left
+    // it brighter than an enabled `prev` — a dead control that read as live.
+    render(
+      <ApiKeysLedger
+        {...baseProps}
+        pagination={{ shown: 1, total: 1, hasPrev: false, hasNext: false }}
+      />
+    );
+
+    const next = screen.getByRole('button', { name: 'next \u203a' });
+    expect(next).toBeDisabled();
+    expect(next.className).toContain('disabled:text-subtle');
+  });
 });

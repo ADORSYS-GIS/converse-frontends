@@ -45,6 +45,8 @@ export { StatCard } from './components/stat-card';
 export type { StatCardDelta, StatCardProps } from './components/stat-card';
 export { Sparkline } from './components/sparkline';
 export type { SparklineProps } from './components/sparkline';
+export { Tooltip, TooltipGroup } from './components/tooltip';
+export type { TooltipAlign, TooltipProps, TooltipSide } from './components/tooltip';
 export { LedgerTable } from './components/ledger-table';
 export { ledgerRowVariants } from './components/ledger-table';
 export type { LedgerColumn, LedgerTableProps } from './components/ledger-table';
@@ -97,6 +99,8 @@ export type {
   DateRangePreset,
   DateRangeValue,
 } from './components/date-range-field';
+export { Checkbox, CheckboxGroup } from './components/checkbox';
+export type { CheckboxGroupProps, CheckboxProps } from './components/checkbox';
 export { SelectField } from './components/select-field';
 export type { SelectFieldOption, SelectFieldProps } from './components/select-field';
 

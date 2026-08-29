@@ -135,8 +135,21 @@ Two families only.
 | `metric` | 22–26 / 1.2 mono | `--strong` | Stat-card values, budget hero |
 | `row` | 12 / 1.4 mono | `--strong` / `--body` | Table primary vs secondary cells |
 | `meta` | 11 / 1.4 mono | `--body` / `--muted` | Dates, counts, statuses |
-| `label` | 10 / 1.5 mono, `letter-spacing .09em`, uppercase | `--muted` | Section labels, table headers, field labels |
+| `label` | 11 / 1.5 mono, sentence case | `--muted` | Section labels, table headers, field labels |
 | `prose` | 10–11 / 1.45 Inter | `--muted` / `--body` | Hints and explanations |
+
+`label` is **sentence case, not uppercase** (owner review 2026-08-29, superseding
+`10 mono uppercase letter-spacing .09em`). One all-caps label reads as restraint; twenty on one
+screen — Overview had ten in the right rail alone — read as twenty things shouting for the same
+attention, which is what "dense" turned out to mean. Two consequences of dropping `uppercase` are
+deliberate: tracking returns to normal (`.09em` existed to make caps legible, and looks loose in
+sentence case), and the size goes **up** one step, 10 → 11, because lowercase reads smaller at the
+same pixel size — the x-height, not the cap-height, sets apparent size.
+
+There is exactly **one definition** of this role, `LABEL_CLASS` in
+`packages/ui-web/src/lib/type-roles.ts` (with `DASHBOARD_LABEL_CLASS` one step up for the centre
+column's dashboard headings). It was previously re-typed in eight places; changing a type role
+should never mean finding eight of them.
 
 Numeric columns are **right-aligned**; the mono family makes the digits line up as a ledger.
 Thousands use a thin space (`$1 131.80`), currency is always written out with two decimals.
@@ -177,6 +190,31 @@ Rules:
 - Meters are a 4px `--raised` track with a `--body` fill; the fill turns `--signal` **only** past
   the warning threshold. That is the same "needs you" semantic as the chart rule.
 
+### 2.4a Part-to-whole: `ShareBar`, not a donut (owner review 2026-08-29)
+
+The donut is deleted. It was the wrong mark for this palette and this data, in three
+independent ways:
+
+- **It spends two dimensions to encode one.** On Overview it stood ~330px tall — more vertical
+  space than the time-series chart above it — to say "one project is 99% of spend", which the
+  three-row legend beneath it already said in words. The replacement says the same thing in ~8px
+  of bar plus the list that was already there.
+- **A monochrome ramp is at its worst in a ring.** §2.4 orders greys by series *rank*, which reads
+  cleanly along an axis and badly as adjacent arcs. At a real 99 / 1 / 0.4 split the two minor
+  slices were sub-pixel slivers, indistinguishable from each other and from the ring itself.
+  `ShareBar` holds a `MIN_VISIBLE_PERCENT` floor so a tiny-but-real share stays visible, and
+  spells sub-1% shares as `<1%` rather than rounding them to a misleading `0%`.
+- **Angle is a weaker channel than length** for comparing magnitudes — the standard reason a pie
+  is close to the last chart type to reach for.
+
+The bar is `aria-hidden`: it is a picture of the list below it, and the list rows carry every
+label, value and share as real text and are the interactive control. Making both interactive
+would double every series in the accessibility tree.
+
+Segments must arrive **sorted by value, descending** — `ShareBar` colours by array index, so an
+unsorted list hands rank 1's lightest, most prominent grey to whichever key the backend happened
+to mention first rather than to the largest share.
+
 Explicitly rejected, with sources: fal.ai's lime/cyan/purple/blue/orange/red endpoint legend and
 its multi-colour treemap ([screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8));
 Cursor's teal/blue stacked areas ([screen](https://refero.design/pages/7573ea52-2410-4886-930a-bc76b11943ae));
@@ -207,15 +245,25 @@ ADR 0008 Decision 3, expressed as a 1440 grid. All numbers are the ones drawn in
   non-admin's three-item spine does not look like something is missing — it looks complete.
 - The **centre never gets a card**. If a piece of content needs a container, that is a signal it
   belongs in a rail.
-- The **right rail is persistent**, never an overlay. Its content retargets with selection.
+- The **right rail is persistent, never an overlay — on the screens that have one.** Its content
+  retargets with selection.
+- **Only selection-driven screens have a rail** (owner review 2026-08-29). Manage and Admin keep
+  theirs: their rail content retargets on the row you pick and carries multi-field forms and
+  decision actions, which is the case this contract was written for. Overview and Api-Keys have
+  **no rail at any tier** — their parameters are five or six controls with no selection behaviour,
+  and a permanent 280px column to host them cost a third of a 1440 viewport (38% of a 1280 one)
+  while making `lg` the odd tier out with its own composition, stories and bugs. Those controls
+  now live in one always-visible horizontal toolbar above the content (`OverviewToolbar`,
+  `ApiKeysToolbar`), which is the arrangement the compact tiers already used — promoting it to
+  every tier deletes the special case rather than adding one.
 
 ### Panel inventory per screen
 
 | Screen | Left rail stack | Right rail |
 | --- | --- | --- |
-| Overview | nav · scope | `VIEW` (range/bucket/group-by) · `FILTERS` · `SERIES` · `EXPORT` |
-| Api-Keys | nav · scope | **New key** CTA · `SCOPE` · `FILTERS` · `KEY HYGIENE` · `LIFECYCLE` help |
-| Manage | nav · Manage sub-nav | `MONTHLY REPORT` · `LAST EXPORTS` · `FILTERS` · `SELECTION` |
+| Overview | nav | *none* — `OverviewToolbar`: Range · Bucket · Group by ¦ Project · Model ¦ Export |
+| Api-Keys | nav | *none* — `ApiKeysToolbar`: Project ¦ Status · Search ¦ **New key** |
+| Manage | nav · Manage sub-nav | `Monthly report` · `Last exports` · `Filters` · `Selection` |
 | Admin | nav · Admin sub-nav | Review detail for the selected request, with the decision actions pinned to the bottom |
 | Auth | — | — |
 
@@ -255,7 +303,7 @@ component names; all are `PascalCase` in `kebab-case` files.
 | --- | --- |
 | `SpendSeriesChart` | Multi-series line/area over time; exactly one series may be `--signal` |
 | `LatencyRidgeline` | Stacked density ridges by model, label left / p95 right; a ridge over SLO strokes `--signal` |
-| `DonutChart` | Pie with a mono `metric`+`label` centre; `--floor`-coloured hairline slice separation; at most one slice may be `--signal` (selected, or the sole breached slice) |
+| `ShareBar` | 100%-stacked part-to-whole bar (8px, radius 2) over a ranked list of `swatch · label · value · share`; at most one segment may be `--signal` (selected, or the sole breached one). Replaced `DonutChart` on 2026-08-29 — see §2.4a |
 | `ChartLegend` | Swatch (10×2 rect) + name + value; the selected entry is `--strong` + `--signal` swatch |
 
 **Forms and actions**
@@ -310,19 +358,32 @@ y 544   dashboard 3  BUDGET — CONSUMPTION VS CEILING   (right col, 320w)
 
 ### 5.2 Api-Keys — `api-keys.svg`
 
-- **Account and project selectors live in the right rail**, not above the table. ADR 0001 requires
-  them; ADR 0008 Decision 3 says scope knobs are right-rail furniture. Both hold. The current
-  scope is echoed in the left rail's `SCOPE` panel and in the page subline, so it is never
-  ambiguous which project the ledger belongs to.
+- **Scope is split by what it actually is** (owner review 2026-08-29, superseding "account and
+  project selectors live in the right rail"). **Account is identity**: the thing you are inside,
+  like a workspace. It renders once, in the header, as `AccountBadge` — a name, or `acct_49534505`
+  when the account has none, never the raw 36-character UUID — and that badge is also the account
+  switcher when more than one account is reachable. **Project is a parameter**: you change it
+  constantly and every screen means something different by it, so it leads the toolbar.
+  ADR 0001 still requires both selectors; ADR 0008 Decision 3's "scope knobs are right-rail
+  furniture" is what this supersedes.
+  - The left rail's `SCOPE` echo and the page subline's copy of the account id are **both gone**.
+    With the header and the rail filter, the same UUID appeared four times on one screen; three of
+    those were removed and the survivor was made readable.
 - The **`SecretReveal` strip** occupies the top of the centre after create *or* rotate — both
   return the same one-time `secret`, so they share one component and one contract.
 - The ledger's columns are `NAME · PREFIX · STATUS · CREATED · LAST USED · EXPIRES`, with the
   `RowActionGroup` occupying the trailing 136px on hover.
 - **Revoke is the emphasised action** (ADR 0003): `--strong` text, while `Rotate` is `--body` and
   `Del` is `--muted`. Copy in the confirm dialog must distinguish them explicitly.
-- The right rail's `KEY HYGIENE` block is an inline-status treatment of the things that need a
-  human: expiring keys in `--signal`, never-used keys in `--body`, retained revoked keys in
-  `--muted`.
+- `ApiKeysHygieneNotes` is an inline-status block directly above the table (it was the right
+  rail's `KEY HYGIENE` panel until 2026-08-29): expiring keys in `--signal`, never-used keys in
+  `--body`, retained revoked keys in `--muted`. Its counts have always annotated the ledger's own
+  `Status` column, which is what an inline status line is for and what a competing side panel is
+  not. It must not restate the ledger's own count summary — carrying the expiring count in both
+  printed the same fact twice on one screen.
+- The `LIFECYCLE` help panel is **deleted**. Its standing "Revoke keeps history, Delete removes
+  it" copy is already the `TypedConfirmDialog`'s description at the moment either action is
+  taken, which is the only moment it matters.
 
 ### 5.3 Manage — `manage-projects.svg`
 

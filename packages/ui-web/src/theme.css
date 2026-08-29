@@ -581,6 +581,13 @@
 
 @utility tab {
   font-size: 0.75rem;
+  /* daisy's own variable is `--tab-p` (NOT `--tab-padding`; read `daisyui/components/tab.css`
+     rather than guessing), and it is declared on `.tab` ITSELF — setting it on the `.tabs` parent
+     is shadowed by daisy's own declaration and does nothing. At its `.75rem` default a three-cell
+     strip measures ~189px, which does not fit the 176px content box of a 208px rail: the last
+     cell was clipped by `tabs`' `overflow: hidden`, so "Revoked" rendered as "Revokec" (owner
+     screenshot, live 2026-08-29). */
+  --tab-p: 0.375rem;
   /* `1 1 auto`, NOT `1 1 0%`: with a zero basis every cell wants zero width and only grows into
      LEFTOVER space, so in a content-sized container (a toolbar row, as opposed to the full-width
      rail this was first written for) the cells collapse onto each other and the labels overlap

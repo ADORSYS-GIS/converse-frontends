@@ -4,6 +4,7 @@ import React from 'react';
 import { cn } from '../../cn';
 import type { AccountMenuProps, AccountMenuTheme } from './types';
 import { LABEL_CLASS } from '../../lib/type-roles';
+import { OVERLAY_CLASS } from '../../lib/overlay';
 
 const THEME_OPTIONS: { value: AccountMenuTheme; label: string }[] = [
   { value: 'black', label: 'Dark' },
@@ -48,7 +49,7 @@ export function AccountMenu({
 
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={6} className="z-50 outline-hidden">
-          <Menu.Popup className="w-[220px] rounded-[2px] bg-surface py-1 font-mono outline-hidden">
+          <Menu.Popup className={cn('w-[220px] py-1 font-mono', OVERLAY_CLASS)}>
             {name || email ? (
               <div role="presentation" className="flex flex-col gap-0.5 px-3 py-2">
                 {name ? (

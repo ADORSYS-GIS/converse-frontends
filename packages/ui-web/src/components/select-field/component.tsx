@@ -1,19 +1,22 @@
-import React, { useId } from 'react';
+import { Select } from '@base-ui/react/select';
+import React from 'react';
 
 import { cn } from '../../cn';
-import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
+import { fieldLabelClassName } from '../field/field-classes';
+import { OVERLAY_CLASS, OVERLAY_ITEM_CLASS } from '../../lib/overlay';
+import { Chevron } from '../chevron';
 import type { SelectFieldProps } from './types';
 
-// Contract: docs/design/console-redesign/README.md §4 (forms & actions) — a controlled native
-// `<select>` wearing the `Field` control treatment (30px, `chrome` inset, `border` stroke, radius
-// 2, focus → `primary`), with the shared `label` type role and an 8×8 chevron drawn in `subtle`
-// (native appearance suppressed).
+// Base UI `Select` (ADR 0010 Decision 2). Never a native `<select>` + `appearance-none`: the
+// native popup cannot be themed, ignores our tokens entirely, and renders as OS chrome in the
+// middle of the console — which is what it was doing until 2026-08-29.
 //
-// Two layouts, one control (owner review 2026-08-29). `stacked` is the rail's shape: label over a
-// full-width control, because a 280px column has width to spare and no other way to use it.
-// `inline` is the toolbar's: label beside a control that is only as wide as its own longest
-// option, because a toolbar's budget is horizontal and stacking six of these would waste most of
-// the row on empty label gutters. Same element, same treatment, same props — only the axis moves.
+// Two layouts: `stacked` for a rail column, `inline` for a toolbar row.
+const triggerClassName = cn(
+  'flex h-[30px] items-center justify-between gap-2 rounded-[2px] border border-border bg-chrome px-3',
+  'font-mono text-sm text-soft outline-hidden data-[popup-open]:border-primary focus-visible:border-primary'
+);
+
 export function SelectField({
   label,
   value,
@@ -22,41 +25,38 @@ export function SelectField({
   layout = 'stacked',
   className,
 }: SelectFieldProps) {
-  const id = useId();
   const inline = layout === 'inline';
 
   return (
-    <div className={cn(inline ? 'flex items-center gap-2' : 'flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className={cn(fieldLabelClassName, inline && 'shrink-0')}>
-        {label}
-      </label>
-      <div className="relative">
-        <select
-          id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={cn(
-            fieldControlClassName,
-            'appearance-none pr-7',
-            // `w-auto` lets the native select size to its widest option instead of filling the
-            // toolbar; `fieldControlClassName`'s own `w-full` is what the rail wants.
-            inline && 'w-auto'
-          )}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 8 8"
-          className="stroke-subtle pointer-events-none absolute top-1/2 right-3 h-2 w-2 -translate-y-1/2"
-          fill="none"
-          strokeWidth="1.4">
-          <path d="M1 3l3 3 3-3" />
-        </svg>
+    <Select.Root
+      items={options}
+      value={value}
+      onValueChange={(next) => next !== null && onChange(next)}>
+      <div className={cn(inline ? 'flex items-center gap-2' : 'flex flex-col gap-1.5', className)}>
+        <Select.Label className={cn(fieldLabelClassName, inline && 'shrink-0')}>
+          {label}
+        </Select.Label>
+        {/* `inline` sizes to its widest option; `stacked` fills the rail column. */}
+        <Select.Trigger className={cn(triggerClassName, inline ? 'w-auto' : 'w-full')}>
+          <Select.Value />
+          <Select.Icon>
+            <Chevron />
+          </Select.Icon>
+        </Select.Trigger>
       </div>
-    </div>
+      <Select.Portal>
+        <Select.Positioner sideOffset={4} className="z-50 outline-hidden select-none">
+          <Select.Popup className={cn('min-w-(--anchor-width) py-1 font-mono', OVERLAY_CLASS)}>
+            <Select.List>
+              {options.map((option) => (
+                <Select.Item key={option.value} value={option.value} className={OVERLAY_ITEM_CLASS}>
+                  <Select.ItemText>{option.label}</Select.ItemText>
+                </Select.Item>
+              ))}
+            </Select.List>
+          </Select.Popup>
+        </Select.Positioner>
+      </Select.Portal>
+    </Select.Root>
   );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { cn } from '../../cn';
 import { Button } from '../button';
+import { fieldControlClassName } from '../field/field-classes';
 import type { SecretRevealProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §4 — one-time secret strip. Shown in the
@@ -37,13 +38,9 @@ export function SecretReveal({
     <div className={cn('bg-surface rounded-[2px] p-5', className)}>
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-ink font-mono text-sm">{heading}</h2>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="text-subtle hover:text-soft font-mono text-sm transition-colors duration-150 ease-out">
+        <Button variant="ghost" size="sm" onClick={onDismiss} aria-label="Dismiss">
           ×
-        </button>
+        </Button>
       </div>
       <p className="text-subtle mt-1 font-sans text-[10px] leading-[1.45]">{description}</p>
       <div className="mt-3 flex items-center gap-3">
@@ -52,7 +49,7 @@ export function SecretReveal({
           value={secret}
           aria-label="Secret value"
           onFocus={(event) => event.target.select()}
-          className="border-border bg-chrome text-soft h-[32px] flex-1 rounded-[2px] border px-3 font-mono text-sm"
+          className={cn(fieldControlClassName, 'flex-1')}
         />
         <Button type="button" variant="primary" onClick={handleCopy}>
           {copied ? copiedLabel : 'Copy'}

@@ -6,6 +6,7 @@ import { BottomSheet } from '../bottom-sheet';
 import { NavSpine } from '../nav-spine';
 import { RailPanel } from '../rail-panel';
 import type { ConsoleShellProps } from './types';
+import { Chevron } from '../chevron';
 
 // Sticky offset for both rails — must match the header's real height (`ConsoleHeader`'s `h-14`
 // = 56px). Written as a literal class string (not interpolated) so Tailwind's content scanner
@@ -92,14 +93,7 @@ export function ConsoleShell({
               onClick={() => setLeftDrawerOpen(true)}
               className="text-subtle hover:text-ink flex items-center gap-1.5 font-mono text-[10px] tracking-[.09em] uppercase">
               {leftSecondaryLabel}
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 8 8"
-                className="h-2 w-2 stroke-current"
-                fill="none"
-                strokeWidth="1.4">
-                <path d="M1 3l3 3 3-3" />
-              </svg>
+              <Chevron />
             </button>
           </div>
         ) : null}

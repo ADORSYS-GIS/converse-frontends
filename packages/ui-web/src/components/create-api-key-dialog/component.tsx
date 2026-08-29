@@ -10,6 +10,8 @@ import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
 import { SegmentedControl } from '../segmented-control';
 import type { CreateApiKeyDialogProps } from './types';
+import { OVERLAY_CLASS } from '../../lib/overlay';
+import { Chevron } from '../chevron';
 
 // Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) / §4 "Forms and actions" —
 // the `+ New key` primary's target. No dedicated component is named in the inventory for this
@@ -65,7 +67,7 @@ export function CreateApiKeyDialog({
       }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="bg-muted/80 fixed inset-0 z-50" />
-        <Dialog.Popup className="bg-surface fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[2px] p-6 outline-hidden">
+        <Dialog.Popup className={cn('fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 p-6', OVERLAY_CLASS)}>
           <Dialog.Title className="text-ink font-mono text-base">New API key</Dialog.Title>
           <Dialog.Description className="text-soft mt-2 font-sans text-[11px] leading-[1.45]">
             Scoped to {projectLabel}. The secret is shown once, immediately after creation.
@@ -105,19 +107,12 @@ export function CreateApiKeyDialog({
                   )}>
                   <Select.Value />
                   <Select.Icon>
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 8 8"
-                      className="stroke-subtle h-2 w-2 shrink-0"
-                      fill="none"
-                      strokeWidth="1.4">
-                      <path d="M1 3l3 3 3-3" />
-                    </svg>
+                    <Chevron />
                   </Select.Icon>
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Positioner sideOffset={4} className="outline-hidden select-none">
-                    <Select.Popup className="bg-surface z-50 w-(--anchor-width) rounded-[2px] py-1 font-mono outline-hidden">
+                    <Select.Popup className={cn('z-50 w-(--anchor-width) py-1 font-mono', OVERLAY_CLASS)}>
                       <Select.List>
                         {planItems.map((item) => (
                           <Select.Item

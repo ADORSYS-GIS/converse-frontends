@@ -4,12 +4,13 @@
 // `ACCOUNT_FILTER_OPTIONS` is deliberately NOT carried over: account is no longer a filter on
 // this screen (see `component.tsx` on why scope is identity, not a parameter).
 
+import type { DateRangePreset } from '../../components/date-range-field';
 import type { SelectFieldOption } from '../../components/select-field';
 
-export const RANGE_OPTIONS: SelectFieldOption[] = [
-  { value: 'last-7', label: 'Last 7 days' },
-  { value: 'last-30', label: 'Last 30 days' },
-  { value: 'last-90', label: 'Last 90 days' },
+export const RANGE_PRESETS: DateRangePreset[] = [
+  { value: '7d', label: 'Last 7 days', days: 7 },
+  { value: '30d', label: 'Last 30 days', days: 30 },
+  { value: '90d', label: 'Last 90 days', days: 90 },
 ];
 
 export const BUCKET_OPTIONS: SelectFieldOption[] = [

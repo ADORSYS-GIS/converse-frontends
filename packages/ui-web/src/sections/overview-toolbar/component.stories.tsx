@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { presetRange } from '../../components/date-range-field';
 import { OverviewToolbar } from './component';
 import type { OverviewToolbarField } from './types';
 import {
@@ -8,7 +9,7 @@ import {
   GROUP_BY_OPTIONS,
   MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
-  RANGE_OPTIONS,
+  RANGE_PRESETS,
 } from './fixtures';
 
 function field(
@@ -19,12 +20,22 @@ function field(
   return { label, value, options, onChange: () => {} };
 }
 
+const TODAY = new Date(Date.UTC(2026, 7, 29));
+
 const meta: Meta<typeof OverviewToolbar> = {
   title: 'Sections/OverviewToolbar',
   component: OverviewToolbar,
   parameters: { layout: 'padded' },
   args: {
-    rangeField: field('Range', 'last-30', RANGE_OPTIONS),
+    rangeField: {
+      label: 'Range',
+      preset: '30d',
+      presets: RANGE_PRESETS,
+      value: presetRange(30, TODAY),
+      today: TODAY,
+      onPresetChange: () => {},
+      onRangeChange: () => {},
+    },
     bucketField: field('Bucket', 'daily', BUCKET_OPTIONS),
     groupByField: field('Group by', 'project-model', GROUP_BY_OPTIONS),
     projectField: field('Project', 'all', PROJECT_FILTER_OPTIONS),
@@ -77,12 +88,10 @@ export const MobileBaseTierLight: Story = {
 export const Interactive: Story = {
   render: function Render(args) {
     // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
-    const [range, setRange] = useState('last-30');
     const [project, setProject] = useState('all');
     return (
       <OverviewToolbar
         {...args}
-        rangeField={{ ...args.rangeField, value: range, onChange: setRange }}
         projectField={{ ...args.projectField, value: project, onChange: setProject }}
       />
     );

@@ -4,6 +4,7 @@ import React from 'react';
 import { cn } from '../../cn';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
+import { Chevron } from '../chevron';
 
 /** How many leading characters of a UUID survive the short form. A v4 UUID's first block is 8
  *  hex digits — enough to tell two accounts apart at a glance, short enough to read as a token
@@ -27,31 +28,15 @@ function displayName(name: string | null | undefined, accountId: string) {
   return { display: trimmed || shortAccountId(accountId), isFallback: !trimmed };
 }
 
-// Contract: owner review 2026-08-29 — the console's ONE rendering of "which account am I in",
-// and the only place it can be changed.
+// The console's one rendering of which account you are in, and the only place it can be changed.
+// Replaced four simultaneous renderings of the raw UUID (header, page subline, left-rail Scope
+// echo, right-rail Account filter).
 //
-// Before this, the active account's raw UUID appeared four times on Overview: the header bar, the
-// page subtitle, the left rail's `Scope` echo, and the right rail's `Account` filter. Thirty-six
-// characters of hex, four times, none of it readable and none of it actionable — the single
-// loudest thing on a screen whose actual content was two numbers and a chart. The rail copies and
-// the subtitle copy are gone; this is what remains, and it is the header's.
-//
-// Three rules it encodes:
-//
-//  1. **Scope is identity, not a filter.** An account is the thing you are inside, like a
-//     workspace — not a value you tune alongside range and model. It reads at the top of the
-//     chrome, once, and the toolbars' filters narrow *within* it. (Project stays a toolbar
-//     parameter, because that is genuinely what it is: you change it constantly, and every screen
-//     means something different by it.)
-//  2. **Show a name; degrade to a token, never to raw hex.** `name` when the account has one,
-//     `acct_49534505` when it does not. The full id stays one hover (`title`) or one click
-//     (`onCopyId`) away, which covers the real reason anyone wanted it on screen: pasting it into
-//     a support ticket or a CLI flag.
-//  3. **A switcher only when there is something to switch to.** Deleting the rail's `Account`
-//     dropdown must not delete the ability to change accounts — so with 2+ reachable accounts
-//     this is a Base UI `Menu` (ADR 0010 Decision 2: Base UI owns behaviour; never a hand-rolled
-//     focus trap). With 0 or 1 it renders as text, because a dropdown whose menu holds a single
-//     option is chrome imitating a control.
+//  - Scope is identity, not a filter: it reads once at the top of the chrome; toolbars filter
+//    within it.
+//  - Show a name; degrade to a token (`acct_49534505`), never raw hex. Full id on hover/copy.
+//  - A switcher only with 2+ reachable accounts — a menu of one is chrome imitating a control.
+
 export function AccountBadge({
   name,
   accountId,
@@ -89,14 +74,7 @@ export function AccountBadge({
             className
           )}>
           {content}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 8 8"
-            className="stroke-subtle h-2 w-2"
-            fill="none"
-            strokeWidth="1.4">
-            <path d="M1 3l3 3 3-3" />
-          </svg>
+          <Chevron />
         </Menu.Trigger>
 
         <Menu.Portal>

@@ -24,7 +24,7 @@ describe('rail-grid', () => {
 
   it('derives the shared label x from bleed + row padding + icon column + gap', () => {
     expect(RAIL_LABEL_X).toBe(
-      RAIL_ROW_BLEED + RAIL_ROW_PADDING_X + RAIL_ICON_COLUMN_WIDTH + RAIL_LABEL_GAP,
+      RAIL_ROW_BLEED + RAIL_ROW_PADDING_X + RAIL_ICON_COLUMN_WIDTH + RAIL_LABEL_GAP
     );
     expect(RAIL_LABEL_X).toBe(44);
   });

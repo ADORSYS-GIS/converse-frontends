@@ -1,5 +1,6 @@
 // ── foundations
 export { cn } from './cn';
+export { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_SEPARATOR_CLASS } from './lib/overlay';
 export { DASHBOARD_LABEL_CLASS, LABEL_CLASS } from './lib/type-roles';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
@@ -88,6 +89,13 @@ export type { FieldProps, FieldInputProps, FieldTextareaProps } from './componen
 export { SegmentedControl } from './components/segmented-control';
 export type { SegmentedControlProps, SegmentedOption } from './components/segmented-control';
 
+export { Chevron } from './components/chevron';
+export { DateRangeField, formatDateRange, presetRange } from './components/date-range-field';
+export type {
+  DateRangeFieldProps,
+  DateRangePreset,
+  DateRangeValue,
+} from './components/date-range-field';
 export { SelectField } from './components/select-field';
 export type { SelectFieldOption, SelectFieldProps } from './components/select-field';
 

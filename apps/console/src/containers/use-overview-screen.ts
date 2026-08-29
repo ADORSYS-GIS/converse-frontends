@@ -8,6 +8,8 @@ import type {
   DashboardStatus,
   ShareBarSegment,
   OverviewStatCardData,
+  DateRangeFieldProps,
+  DateRangePreset,
   SelectFieldProps,
   SpendSeriesSeries,
 } from '@lightbridge/ui-web';
@@ -32,7 +34,10 @@ import {
   buildOverviewUsageRequest,
   sumTotalCost,
   toSpendSeries,
+  resolveOverviewWindow,
   toSpendShareSegments,
+  toUrlDate,
+  RANGE_DAYS,
 } from './overview-usage';
 
 /**
@@ -98,7 +103,11 @@ const GROUP_BY_LABELS: Record<(typeof OVERVIEW_GROUP_BYS)[number], string> = {
 // The option lists are derived from the URL contract's own literal unions rather than declared
 // beside it: a value the rail can offer but the parser would reject is exactly the drift ADR 0011
 // makes the contract module responsible for preventing.
-const RANGE_OPTIONS = OVERVIEW_RANGES.map((value) => ({ value, label: RANGE_LABELS[value] }));
+const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
+  value,
+  label: RANGE_LABELS[value],
+  days: RANGE_DAYS[value],
+}));
 const BUCKET_OPTIONS = OVERVIEW_BUCKETS.map((value) => ({ value, label: BUCKET_LABELS[value] }));
 const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
   value,
@@ -135,7 +144,7 @@ export interface OverviewScreen {
   selectedSeriesKey: string | null;
   setSelectedSeriesKey: (key: string | null) => void;
   // `Omit<…, 'layout'>`: the toolbar owns the layout axis, the screen owns the values.
-  rangeField: Omit<SelectFieldProps, 'layout'>;
+  rangeField: Omit<DateRangeFieldProps, 'layout'>;
   bucketField: Omit<SelectFieldProps, 'layout'>;
   groupByField: Omit<SelectFieldProps, 'layout'>;
   projectField: Omit<SelectFieldProps, 'layout'>;
@@ -162,6 +171,13 @@ export function useOverviewScreen(): OverviewScreen {
   const [view, setView] = useOverviewParams();
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
+
+  // One resolution, read by both the query and the picker's displayed value — so the calendar can
+  // never show a span different from the one that was actually fetched.
+  const usageWindow = useMemo(
+    () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
+    [view.range, view.from, view.to]
+  );
 
   const projects = useList<Project>({
     resource: 'projects',
@@ -218,17 +234,18 @@ export function useOverviewScreen(): OverviewScreen {
       view.bucket,
       view.groupBy,
       view.model,
+      view.from,
+      view.to,
     ],
     queryFn: () =>
       queryUsage(
         buildOverviewUsageRequest({
           accountId,
           projectId,
-          range: view.range,
+          window: usageWindow,
           bucket: view.bucket,
           groupBy: view.groupBy,
           model: view.model,
-          now: new Date(),
         })
       ),
     enabled: Boolean(accountId),
@@ -373,10 +390,17 @@ export function useOverviewScreen(): OverviewScreen {
     },
     rangeField: {
       label: 'Range',
-      value: view.range,
-      options: RANGE_OPTIONS,
-      onChange: (range) => {
-        void setView({ range: range as (typeof OVERVIEW_RANGES)[number] });
+      presets: RANGE_PRESETS,
+      // `null` once an explicit span is in the URL — that is what makes the trigger show the
+      // dates rather than a preset label that is no longer true.
+      preset: view.from && view.to ? null : view.range,
+      value: { from: usageWindow.start, to: usageWindow.end },
+      onPresetChange: (range) => {
+        // Clear the explicit span, or it would keep winning over the preset just chosen.
+        void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
+      },
+      onRangeChange: ({ from, to }) => {
+        void setView({ from: toUrlDate(from), to: toUrlDate(to) });
       },
     },
     bucketField: {

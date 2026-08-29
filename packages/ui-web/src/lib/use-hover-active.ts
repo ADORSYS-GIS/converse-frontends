@@ -68,7 +68,7 @@ export function useHoverActive<T>(): {
       onFocus: () => setState({ value, input: 'keyboard' }),
       onBlur: () => setState((current) => (current?.value === value ? null : current)),
     }),
-    [],
+    []
   );
 
   return {

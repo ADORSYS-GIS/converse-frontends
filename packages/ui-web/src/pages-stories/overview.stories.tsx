@@ -35,13 +35,14 @@ import {
   overviewStatCards,
   overviewUnwiredStatCards,
 } from '../sections/overview-stat-row/fixtures';
+import { presetRange } from '../components/date-range-field';
 import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
   MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
-  RANGE_OPTIONS,
+  RANGE_PRESETS,
 } from '../sections/overview-toolbar/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { SpendDashboard } from '../sections/spend-dashboard';
@@ -62,6 +63,8 @@ import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import type { BudgetSummary } from '../sections/budget-panel';
 import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+
+const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
 
 function useSelectField(
   initial: string,
@@ -114,7 +117,9 @@ function OverviewScreen({
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
-  const rangeField = useSelectField('last-30', RANGE_OPTIONS, 'Range');
+  // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
+  const [rangePreset, setRangePreset] = useState<string | null>('30d');
+  const [range, setRange] = useState(presetRange(30, STORY_TODAY));
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
@@ -145,7 +150,21 @@ function OverviewScreen({
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
 
         <OverviewToolbar
-          rangeField={rangeField}
+          rangeField={{
+            label: 'Range',
+            preset: rangePreset,
+            presets: RANGE_PRESETS,
+            value: range,
+            today: STORY_TODAY,
+            onPresetChange: (next) => {
+              setRangePreset(next);
+              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY));
+            },
+            onRangeChange: (next) => {
+              setRangePreset(null);
+              setRange(next);
+            },
+          }}
           bucketField={bucketField}
           groupByField={groupByField}
           projectField={projectField}

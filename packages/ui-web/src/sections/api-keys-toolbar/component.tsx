@@ -8,23 +8,13 @@ import { SelectField } from '../../components/select-field';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ApiKeysToolbarProps } from './types';
 
-// Contract: owner review 2026-08-29 — replaces the Api-Keys screen's right rail (FILTERS, KEY
-// HYGIENE, LIFECYCLE and the `New key` action) with one horizontal strip above the ledger. See
-// `OverviewToolbar`'s docstring for the reasoning; this screen made the case most starkly, since
-// its rail was measurably TALLER than the single-row table it parameterised.
+// Replaces the Api-Keys right rail — which was taller than the single-row table it parameterised.
+// See `OverviewToolbar` for the reasoning.
 //
-// What happened to the other three rail sections:
-//
-//  - **KEY HYGIENE** → `ApiKeysHygieneNotes`, rendered inline above the table with the ledger's
-//    own status summary. Its counts were always a restatement of the ledger's STATUS column; as
-//    an inline status line they read as annotation of the table rather than a second panel
-//    competing with it (console-ui skill "States": status is an inline mono line).
-//  - **LIFECYCLE** → deleted. Its standing "Revoke keeps history, Delete removes it" copy is
-//    already the `TypedConfirmDialog`'s description at the moment either action is taken, which
-//    is the only moment it matters. Permanent help text for a modal decision is help nobody is
-//    reading when they need it.
-//  - **`New key`** → the trailing action here, keeping "the action that consumes the parameters"
-//    beside those parameters, which is what the rail contract was really protecting.
+// Where the other rail sections went: KEY HYGIENE → `ApiKeysHygieneNotes`, inline above the table;
+// LIFECYCLE → deleted, since `TypedConfirmDialog` already carries that copy at the moment it
+// matters; `New key` → the trailing action here, beside the parameters it consumes.
+
 export function ApiKeysToolbar({
   projectField,
   statusOptions,

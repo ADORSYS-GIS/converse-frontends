@@ -113,5 +113,10 @@ export function useChartTooltipFloating({
 
   const { getReferenceProps, getFloatingProps } = useInteractions([clientPoint]);
 
-  return { setFloating, floatingStyles: floatingStyles as CSSProperties, getFloatingProps, getReferenceProps };
+  return {
+    setFloating,
+    floatingStyles: floatingStyles as CSSProperties,
+    getFloatingProps,
+    getReferenceProps,
+  };
 }

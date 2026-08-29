@@ -4,24 +4,10 @@ import { cn } from '../../cn';
 import { SPEC_ACCENT, specSeriesColor } from '../../chart-tokens';
 import type { ShareBarProps, ShareBarSegment } from './types';
 
-// Contract: replaces `DonutChart` as the console's part-to-whole mark (owner review 2026-08-29).
-//
-// A donut spends two dimensions to encode one. On Overview it stood 330px tall — more vertical
-// space than the time-series chart above it — to say "one project is 99% of spend", which the
-// three-row legend beneath it already said in words. Worse, the console's ramp is monochrome by
-// design (console-ui skill "Charts": greys by series rank, orange at most once), and adjacent
-// grey arcs in a ring are the hardest possible case for that ramp — at 99/1/0 the two minor
-// slices were sub-pixel slivers indistinguishable from each other and from the ring itself.
-//
-// A 100%-stacked bar encodes the same single dimension along the axis people already read
-// left-to-right, in ~8px instead of ~330, and degrades gracefully: a 0.4% segment is still a
-// visible sliver at the right end rather than an invisible arc, and the rank list below it is
-// the accessible, sortable, scannable representation the donut's scattered radial legend never
-// was.
-//
-// Angular position is also, per the dataviz literature this repo's chart work already follows,
-// a materially worse channel than length for comparing magnitudes — the reason this is the
-// second-to-last chart type anyone should reach for and the first one to cut.
+// Replaces `DonutChart` (owner review 2026-08-29). A donut spent ~330px of height to say what its
+// own legend already said in words; adjacent grey arcs are the worst case for a monochrome
+// rank ramp, and at 99/1/0.4 the minor slices were invisible slivers. Length beats angle for
+// comparing magnitudes. See docs/design/console-redesign/README.md §2.4a.
 
 const MIN_VISIBLE_PERCENT = 0.6;
 

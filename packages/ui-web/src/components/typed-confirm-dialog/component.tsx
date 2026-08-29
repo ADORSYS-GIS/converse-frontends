@@ -4,6 +4,8 @@ import React, { useRef, useState } from 'react';
 import { Button } from '../button';
 import { Field } from '../field';
 import type { TypedConfirmDialogProps } from './types';
+import { OVERLAY_CLASS } from '../../lib/overlay';
+import { cn } from '../../cn';
 
 // Contract: docs/design/console-redesign/README.md §4 — destructive gate. Modal dialog
 // (`surface`, radius 2, no shadow — separation via a `muted/80` backdrop), names the object,
@@ -53,7 +55,7 @@ export function TypedConfirmDialog({
         <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-muted/80" />
         <AlertDialog.Popup
           initialFocus={inputRef}
-          className="fixed top-1/2 left-1/2 z-50 w-full max-w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-[2px] bg-surface p-6 outline-hidden">
+          className={cn('fixed top-1/2 left-1/2 z-50 w-full max-w-[400px] -translate-x-1/2 -translate-y-1/2 p-6', OVERLAY_CLASS)}>
           <AlertDialog.Title className="font-mono text-base text-ink">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 font-sans text-[11px] leading-[1.45] text-soft">
             {description}

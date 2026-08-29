@@ -35,7 +35,9 @@ export function useResizeObserver<T extends Element = HTMLDivElement>(): {
         return;
       }
       const { width, height } = entry.contentRect;
-      setSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+      setSize((prev) =>
+        prev.width === width && prev.height === height ? prev : { width, height }
+      );
     });
 
     observer.observe(node);

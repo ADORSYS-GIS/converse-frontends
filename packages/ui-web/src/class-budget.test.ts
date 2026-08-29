@@ -21,24 +21,23 @@ import type { ClassAudit } from '../scripts/class-budget';
  * When a component is converted, drop its line. When the object is empty, the bar is met.
  */
 const BUDGET: Record<string, number> = {
-  // REGRESSED, deliberately and visibly: `nav-spine` (57→82), `ledger-table` (52→65) and
+  // Where the sweep landed. 1424 utilities at the start of the night, 925 now, 106 daisy classes
+  // adopted (from 49). Four dialogs, `inline-status`, `error-line` and `rail-panel` are at 0 and
+  // have no entry at all.
+  //
+  // REGRESSED, deliberately and visibly: `nav-spine` (57→82), `ledger-table` (52→65),
   // `row-action-group` (22→35). Adopting daisy `menu`/`table` there COST more hand-written CSS
   // than it saved — every place daisy's defaults disagree with the console's contract needs an
-  // override, and daisy disagrees a lot. Recorded rather than gamed: this is the evidence that the
-  // two halves of the bar pull against each other wherever our contract diverges from daisy's.
+  // override, and daisy disagrees a lot. Recorded rather than gamed.
   //
-  // The panel set went the other way (99→22, 81→30, 66→23) by DEDUPLICATING into shared `lib/`
-  // modules rather than adopting a rejected daisy class. That is the pattern that works.
-  'command-palette': 83,
+  // The pattern that DID work, everywhere it was tried: deduplicate into shared `lib/` modules
+  // (`dialog.ts`, `select.ts`, `inline-row.ts`, `shell-grid.ts`, `overlay.ts`, `type-roles.ts`)
+  // rather than adopt a daisy class the contract rejects.
   'nav-spine': 82,
-  'create-api-key-dialog': 69,
-  'create-project-dialog': 69,
   field: 67,
   'ledger-table': 65,
-  'account-menu': 63,
   'date-range-field': 61,
-  'bottom-sheet': 41,
-  'account-name-dialog': 35,
+  'command-palette': 37,
   'row-action-group': 35,
   'share-bar': 34,
   'scope-select': 33,
@@ -46,11 +45,12 @@ const BUDGET: Record<string, number> = {
   'segmented-control': 32,
   'console-shell': 30,
   button: 29,
-  'typed-confirm-dialog': 29,
   'select-field': 28,
+  'bottom-sheet': 27,
   'chart-tooltip': 25,
   'account-badge': 23,
   'chart-legend': 23,
+  'account-menu': 22,
   'console-header': 22,
   'review-detail-panel': 22,
   'sub-nav': 22,

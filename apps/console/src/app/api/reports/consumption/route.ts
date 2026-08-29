@@ -21,14 +21,23 @@ import {
   streamConsumptionCsv,
   type UsageSeriesPoint,
 } from '../../../../server/consumption-csv';
+import { renderConsumptionPdf } from '../../../../server/consumption-pdf';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * `GET /api/reports/consumption?month=YYYY-MM&account=<id>[&project=<id>]` — ticket #308, ADR
- * 0009 Decision 8. Queries the usage backend server-side (never exposed to the browser directly,
- * Decision 3) and streams a CSV grouped by project × model with totals.
+ * `GET /api/reports/consumption?month=YYYY-MM&account=<id>[&project=<id>][&format=csv|pdf]` —
+ * ticket #308 (CSV), plus the PDF format this route now also answers. Queries the usage backend
+ * server-side (never exposed to the browser directly, ADR 0009 Decision 3) and renders ONE
+ * report — grouped by project × model, with totals — in whichever of the two formats was asked
+ * for.
+ *
+ * `format` is a parameter on THIS route rather than a second route because everything up to the
+ * final `NextResponse` is format-independent: validation, scope, the session refresh dance, the
+ * upstream query and the aggregation. A `/api/reports/consumption-pdf` sibling would be a copy of
+ * all of it whose only difference is the last three headers. `format` defaults to `csv`, so every
+ * link and bookmark minted before this existed keeps working unchanged.
  *
  * `month` alone (the ADR's literal example) is not enough to answer a *safe* query: the usage
  * backend's `scope`/`scope_id` (`openapi/usage.backend.yaml`) determine whose data comes back, and
@@ -80,6 +89,11 @@ export async function GET(request: NextRequest) {
     return badRequest('missing_account', 'account is required.');
   }
   const projectId = request.nextUrl.searchParams.get('project') || undefined;
+
+  const format = request.nextUrl.searchParams.get('format') ?? 'csv';
+  if (format !== 'csv' && format !== 'pdf') {
+    return badRequest('invalid_format', 'format must be csv or pdf.');
+  }
 
   let session = await readSessionFromRequest(request);
   if (!session) {
@@ -172,14 +186,29 @@ export async function GET(request: NextRequest) {
     return noStore(NextResponse.json({ error: 'upstream_error' }, { status: 502 }));
   }
 
+  // ONE aggregation, whatever the format — `aggregateConsumptionRows` is the single owner of the
+  // project × model grouping and `consumptionTotals` of the TOTAL row, so the CSV and the PDF are
+  // the same report and cannot drift apart.
   const rows = aggregateConsumptionRows(payload.points ?? []);
-  const stream = streamConsumptionCsv(rows);
 
-  const response = new NextResponse(stream, {
+  const body =
+    format === 'pdf'
+      ? // A PDF cannot be streamed honestly: its cross-reference trailer indexes the byte offset
+        // of every object, so the last object has to exist before the first byte can be final.
+        // See `consumption-pdf.ts`. The CSV keeps streaming exactly as it did.
+        renderConsumptionPdf(rows, {
+          period: month,
+          accountId,
+          projectId,
+          generatedAt: new Date(),
+        })
+      : streamConsumptionCsv(rows);
+
+  const response = new NextResponse(body, {
     status: 200,
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="consumption-${month}.csv"`,
+      'Content-Type': format === 'pdf' ? 'application/pdf' : 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="consumption-${month}.${format}"`,
       'Cache-Control': 'no-store',
     },
   });

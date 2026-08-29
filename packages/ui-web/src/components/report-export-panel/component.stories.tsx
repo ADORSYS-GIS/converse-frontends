@@ -85,6 +85,34 @@ export const Notice: Story = {
   ),
 };
 
+// Both formats are real. `Generate report` used to throw `"PDF export isn't available — CSV
+// only."` for every PDF press: the toggle offered two peers and honoured one. The route now
+// renders the same project × model report as a paginated A4 document server-side, so this story
+// is the one that documents the toggle's second position as a working choice rather than a trap.
+//
+// The panel itself is unchanged by that work — which is the point of pinning it here: if PDF ever
+// stops being a peer, it is this control that has to change, and this story is where the change
+// would show up.
+export const PdfSelected: Story = {
+  render: () => (
+    <div className="bg-surface w-[280px] p-4">
+      <ReportExportPanel
+        period="2026-02"
+        onPeriodChange={() => {}}
+        scopeSlot={null}
+        groupByOptions={groupByOptions}
+        groupBy="project-model"
+        onGroupByChange={() => {}}
+        includeToggles={[{ id: 'per-model', label: 'Per-model breakdown', checked: true }]}
+        onToggleInclude={() => {}}
+        format="pdf"
+        onFormatChange={() => {}}
+        onGenerate={() => {}}
+      />
+    </div>
+  ),
+};
+
 export const Generating: Story = {
   render: () => (
     <div className="bg-surface w-[280px] p-4">

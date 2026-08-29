@@ -32,6 +32,18 @@ export default defineConfig({
   test: {
     projects: [
       {
+        resolve: {
+          // Same alias, same reason as the `dom` project below — `src/server/consumption-pdf.ts`
+          // imports `@lightbridge/ui-web/src/lib/money` (the shared USD formatter) so the PDF
+          // report and the on-screen figures render money identically, and Vite will not resolve
+          // that wildcarded subpath on its own.
+          alias: [
+            {
+              find: /^@lightbridge\/ui-web\/src\/(.*)$/,
+              replacement: path.resolve(currentDir, '../../packages/ui-web/src/$1'),
+            },
+          ],
+        },
         test: {
           name: 'node',
           environment: 'node',

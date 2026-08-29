@@ -28,6 +28,36 @@ const VALID_CONFIG = {
 };
 
 describe('buildConsoleEnv', () => {
+  /**
+   * The usage query listener requires mTLS and has no bearer-token auth of its own
+   * (lightbridge-authz#347/#361), so a half-configured cert block is not "partly working" -- it
+   * cannot produce a TLS identity at all. Treating it as configured would turn a config typo into
+   * a per-request handshake failure instead of the same honest 503 an unconfigured deployment
+   * already gets, which is a far harder thing to diagnose from the outside.
+   */
+  it.each([
+    ['cert without key', { certPath: '/tls.crt' }],
+    ['key without cert', { keyPath: '/tls.key' }],
+    ['both blank', { certPath: '   ', keyPath: '   ' }],
+    ['empty block', {}],
+  ])('treats a %s usageClientCert block as unconfigured', (_label, usageClientCert) => {
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, usageClientCert }));
+    expect(env.usageClientCert).toBeUndefined();
+  });
+
+  it('reads a complete usageClientCert block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        usageClientCert: { certPath: '/etc/lightbridge/tls/tls.crt', keyPath: '/etc/lightbridge/tls/tls.key' },
+      })
+    );
+    expect(env.usageClientCert).toEqual({
+      certPath: '/etc/lightbridge/tls/tls.crt',
+      keyPath: '/etc/lightbridge/tls/tls.key',
+    });
+  });
+
   it('builds a full ConsoleEnv from a minimal valid document, applying every default', () => {
     const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
     expect(env).toEqual({

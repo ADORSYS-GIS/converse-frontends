@@ -72,15 +72,12 @@ export function BottomSheet({
             {isBottom ? <div className="sheet-handle" /> : null}
             <div className="sheet-header">
               {titleLabel}
+              {/* The × reads as chrome rather than as an action — `subtle` until pointed at.
+                  That pair is `sheet-header`'s, not this call site's: it is what the header's
+                  trailing control IS, and stating it here made a two-part treatment that only
+                  ever appears inside this one header look like a prop of the button. */}
               <Drawer.Close
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Close"
-                    className="text-subtle hover:text-ink"
-                  />
-                }>
+                render={<Button variant="ghost" size="icon" aria-label="Close" />}>
                 ×
               </Drawer.Close>
             </div>

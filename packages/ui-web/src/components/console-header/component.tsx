@@ -43,6 +43,12 @@ import type { ConsoleHeaderProps } from './types';
 //
 // So `toolbar` is not a gap here; it is the wrong primitive. scripts/base-ui-adoption.ts records
 // it as a reasoned `null` rather than leaving a debt entry implying we still mean to adopt it.
+
+// The logo BOX, worn by whichever of the two logo forms renders — a caller-supplied `<img>` or
+// the built-in mark. Named once because the box is the same box either way: two literals meant
+// the fallback could drift from the real thing and nothing would say so.
+const LOGO_CLASS = 'header-logo';
+
 export function ConsoleHeader({
   logoSrc,
   logoAlt = 'Lightbridge',
@@ -56,9 +62,9 @@ export function ConsoleHeader({
     <header className={cn('console-header', className)}>
       <div className="header-brand">
         {logoSrc ? (
-          <img src={logoSrc} alt={logoAlt} className="header-logo" />
+          <img src={logoSrc} alt={logoAlt} className={LOGO_CLASS} />
         ) : (
-          <span className="header-logo" aria-hidden="true">
+          <span className={LOGO_CLASS} aria-hidden="true">
             <svg width="10" height="10" viewBox="0 0 10 10">
               <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
             </svg>

@@ -4,12 +4,15 @@ import React from 'react';
 import { cn } from '../../cn';
 import {
   OVERLAY_CLASS,
+  OVERLAY_CURRENT_CLASS,
   OVERLAY_ITEM_CLASS,
+  OVERLAY_MARKER_CLASS,
   OVERLAY_POSITIONER_CLASS,
   OVERLAY_SECTION_CLASS,
   OVERLAY_SEPARATOR_CLASS,
+  OVERLAY_SPLIT_ROW_CLASS,
 } from '../../lib/overlay';
-import { LABEL_CLASS, ROW_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, ROW_CLASS, ROW_INK_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
 import { Chevron } from '../chevron';
 
@@ -18,10 +21,13 @@ import { Chevron } from '../chevron';
  *  rather than as data. */
 const SHORT_ID_LENGTH = 8;
 
-// The identity line, and the same line when it is also a control — both from `theme.css`. The
-// focus ring is the shared one; the 1px gap under it is the colour `ConsoleHeader` declares for
-// its band, so this component no longer has to know it sits on `chrome`.
-const CHIP_CLASS = 'identity-row account-chip focus-ring';
+// The identity line, and the same line when it is also a control — both from `theme.css`.
+// `account-chip` IS an identity row (it carries that layout itself), so the control form names
+// one part rather than two. The focus ring stays the shared `focus-ring`: it is the console's one
+// definition of what focus looks like, and the 1px gap under it is the colour `ConsoleHeader`
+// declares for its band, so this component no longer has to know it sits on `chrome`.
+const ROW_ONLY_CLASS = 'identity-row';
+const CHIP_CLASS = 'account-chip focus-ring';
 
 /**
  * `49534505-4c60-4550-83dd-7af22152cec6` → `acct_49534505`.
@@ -75,7 +81,7 @@ export function AccountBadge({
     <>
       {/* A real name reads at full strength; the generated token is not the account's name, so
           it stays one step back. */}
-      <span className={cn(ROW_CLASS, !isFallback && 'text-ink')}>{display}</span>
+      <span className={isFallback ? ROW_CLASS : ROW_INK_CLASS}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
           than repeating it. Hidden on phones, where the header has no room for both. */}
@@ -109,13 +115,17 @@ export function AccountBadge({
                   <Menu.Item
                     key={account.id}
                     title={account.id}
-                    className={cn(OVERLAY_ITEM_CLASS, 'justify-between', active && 'text-ink')}
+                    className={cn(
+                      OVERLAY_ITEM_CLASS,
+                      OVERLAY_SPLIT_ROW_CLASS,
+                      active && OVERLAY_CURRENT_CLASS
+                    )}
                     onClick={() => onSelectAccount?.(account.id)}>
                     <span className="truncate">{optionLabel}</span>
                     {/* Selection is a text marker, never a pill or a coloured dot
                         (console-ui skill "States": status is text). */}
                     {active ? (
-                      <span aria-hidden="true" className="text-subtle">
+                      <span aria-hidden="true" className={OVERLAY_MARKER_CLASS}>
                         active
                       </span>
                     ) : null}
@@ -139,7 +149,7 @@ export function AccountBadge({
 
   if (!onCopyId) {
     return (
-      <span title={accountId || undefined} className={cn('identity-row', className)}>
+      <span title={accountId || undefined} className={cn(ROW_ONLY_CLASS, className)}>
         {content}
       </span>
     );

@@ -35,17 +35,14 @@ export function MutationFailureBanner({
   if (!message) return null;
 
   return (
-    <div
-      role="alert"
-      // `chrome`, not `surface` and never a `primary` fill: this sits IN the header's own sticky
-      // chrome band rather than floating as a panel, and orange is never a large fill. The
-      // hairline above it is `raised` — the same rule that separates any two chrome sections —
-      // and the gutters match the centre column's at both tiers so the message lines up with the
-      // content it is about.
-      className={cn(
-        'border-raised bg-chrome flex items-center justify-between gap-3 border-t px-4 py-2 md:px-6',
-        className
-      )}>
+    // The band is `chrome-band` (theme.css), which carries the whole treatment: `chrome` fill
+    // rather than `surface` and never a `primary` one (this sits IN the header's sticky chrome
+    // stack rather than floating as a panel, and orange is never a large fill), a `raised`
+    // hairline above it, and gutters that track the centre column's at both tiers so the message
+    // lines up with the content it is about. That last clause is why it moved: the tier step was
+    // the ninth utility on one line here, and it is a fact about the shell's gutters rather than
+    // a decision this component makes.
+    <div role="alert" className={cn('chrome-band', className)}>
       <span className={ROW_SIGNAL_CLASS}>{message}</span>
       <Button variant="ghost" size="sm" onClick={onDismiss} aria-label="Dismiss">
         ×

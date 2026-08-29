@@ -1,5 +1,7 @@
 import { cva } from 'class-variance-authority';
 
+import { ROW_DENSITY_CLASSES } from '../../lib/row-density';
+
 // Contract: docs/design/console-redesign/README.md §4 (data display) — Midday treatment:
 // transparent on the floor, 0 radius, hairline `--raised` row rules, no striping, 44px rows
 // (52px variant for review queues), row hover = `--chrome` fill.
@@ -16,10 +18,10 @@ import { cva } from 'class-variance-authority';
 // exactly the two axes: how tall, and whether the row is a control.
 export const ledgerRowVariants = cva('', {
   variants: {
-    density: {
-      default: 'h-11',
-      review: 'h-[52px]',
-    },
+    // Shared with `SkeletonRow` through the row density module imported above: the placeholder
+    // row must match this one exactly, and two independent copies of the same two literals is how
+    // that stops being true without anything failing.
+    density: ROW_DENSITY_CLASSES,
     selectable: {
       true: 'ledger-row-selectable',
       false: '',

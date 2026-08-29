@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { LABEL_CLASS } from '../../lib/type-roles';
-import { SKELETON_BLOCK_WIDTHS } from '../skeleton-row/cva';
+import { SKELETON_BLOCK_CLASS, SKELETON_BLOCK_WIDTHS } from '../../lib/skeleton-geometry';
 import { ledgerRowVariants } from './cva';
 import type { LedgerTableProps } from './types';
 
@@ -94,9 +94,11 @@ export function LedgerTable<T>({
             ? Array.from({ length: loadingRowCount }, (_, index) => (
                 // Loading rows reuse the real row's geometry so the skeleton matches the final
                 // layout exactly (console-ui skill "States"). `SkeletonRow` itself is a
-                // `<div>` grid and cannot live inside a `<tbody>`, so only its deterministic
-                // block widths are shared — never randomised, so a run of rows stays stable
-                // across renders. `role="presentation" aria-hidden` is `SkeletonRow`'s own
+                // `<div>` grid and cannot live inside a `<tbody>`, so what the two share is the
+                // BLOCK rather than the row (the skeleton geometry module imported above),
+                // deterministic widths and all, never randomised, so a run of rows stays stable
+                // across renders. The row height comes from the same row density map the real
+                // rows below use. `role="presentation" aria-hidden` is `SkeletonRow`'s own
                 // contract, kept verbatim: `pages-stories/loading-skeletons.test.tsx` asserts
                 // every console `loading.tsx` renders exactly that pair, and it is also what
                 // keeps `getAllByRole('row')` at "header only" while loading.
@@ -108,7 +110,7 @@ export function LedgerTable<T>({
                   {Array.from({ length: columnCount }, (_, cellIndex) => (
                     <td key={cellIndex}>
                       <span
-                        className="skeleton block h-3"
+                        className={SKELETON_BLOCK_CLASS}
                         style={{
                           width: SKELETON_BLOCK_WIDTHS[cellIndex % SKELETON_BLOCK_WIDTHS.length],
                         }}

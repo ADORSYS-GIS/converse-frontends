@@ -43,17 +43,24 @@ import type { NavSpineItem, NavSpineProps } from './types';
 //    attribute of its own on the `<ul>` — which is why the rail alignment grid below survives
 //    the adoption untouched.
 //  - daisy `menu` owns list semantics and the row radius.
-//  - `theme.css`'s `rail-row` / `rail-list` / `rail-role-marker` own the paint and the states.
+//  - `theme.css`'s `rail-row` / `rail-list` / `rail-role-marker` own the paint, the states, and
+//    the row's own width — which was a `w-full` here that measured as a no-op (daisy makes each
+//    `li` a stretch-aligned flex column, so the row already fills it) and that the sibling
+//    `SubNav`, rendering the SAME row by contract, never carried.
 //  - `lib/rail-grid.ts` owns every x-offset and row height — it is a numeric model `RailPanel`
 //    builds from too, so it stays in TypeScript rather than being half-restated in CSS.
 //  - Active state is `aria-current="page"`, which `rail-row` reads, so there is no second parallel
-//    flag. `menu-active` stays on the active row purely to keep daisy's own row-hover rule off it.
+//    flag. daisy's own `menu-active` is NOT set: read from `daisyui@5.7.22/components/menu.css`,
+//    all it contributes here is `--menu-active-bg`/`--menu-active-fg` paint that `rail-row`
+//    already overrides, plus a depth shadow that both console themes zero (`--depth: 0`). It was
+//    carried to keep daisy's row-hover rule off the active row, but that rule loses to `rail-row`
+//    on the cascade, not on specificity — daisy emits into a sublayer of `utilities` while an
+//    `@utility` lands unlayered inside it — so the exclusion it bought was never load-bearing.
 const NAV_ROW_CLASS = cn(
-  'rail-row',
+  'rail-row focus-ring',
   RAIL_LABEL_GAP_CLASS,
   RAIL_ROW_PADDING_CLASS,
-  RAIL_NAV_ROW_HEIGHT_CLASS,
-  'focus-ring w-full'
+  RAIL_NAV_ROW_HEIGHT_CLASS
 );
 
 // The row element itself is supplied through Base UI's `render` prop rather than chosen by
@@ -67,25 +74,21 @@ function NavItemRow({
   item,
   linkComponent,
   rowClassName,
-  liClassName,
   children,
 }: {
   item: NavSpineItem;
   linkComponent: LinkComponent;
   rowClassName: string;
-  liClassName?: string;
   children: React.ReactNode;
 }) {
   const active = Boolean(item.active);
-  // `menu-active` keeps daisy's `menu` hover rule off the active row; the actual fill is ours.
-  const className = cn(rowClassName, active && 'menu-active');
   const Link = linkComponent;
 
   return (
-    <NavigationMenu.Item className={liClassName}>
+    <NavigationMenu.Item>
       <NavigationMenu.Link
         active={active}
-        className={className}
+        className={rowClassName}
         onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
         render={
           item.href ? (
@@ -121,11 +124,7 @@ function BottomBarRow({
   linkComponent: LinkComponent;
 }) {
   return (
-    <NavItemRow
-      item={item}
-      linkComponent={linkComponent}
-      rowClassName="nav-dock-row"
-      liClassName="flex-1">
+    <NavItemRow item={item} linkComponent={linkComponent} rowClassName="nav-dock-row">
       {item.icon ? <span>{item.icon}</span> : null}
       <span>{item.label}</span>
     </NavItemRow>
@@ -142,8 +141,11 @@ function BottomBarRow({
 // `CompositeItem`-registered rows join the arrow-key ring, so a plain `<li>` is correctly skipped.
 //
 // `layout="bottom-bar"` (console-ui skill "Shape and layout") swaps this to the mobile-first
-// (<600) fixed bottom navigation dock: `menu menu-horizontal` + `nav-dock`, icon above label,
-// active = `primary` text and a 2px top bar (drawn by `nav-dock-row`, not by a rendered node).
+// (<600) fixed bottom navigation dock: daisy's horizontal `menu` inside the dock class, icon
+// above label, active = `primary` text and a 2px top bar (drawn by `nav-dock-row`, not by a
+// rendered node). That dock class names the whole part from the root down — it sizes the root,
+// the list AND the equal-width cells — which is why neither the root's fill nor a per-cell flex
+// weight is stated here any more.
 // The Admin item is appended plainly (still gated by `showAdmin`) — a rule and a `ROLE` marker
 // have no legible home in a 56px horizontal strip. `orientation` follows the layout, so the dock
 // answers to Left/Right and leaves Up/Down to the page, while the rail does the reverse.
@@ -162,8 +164,8 @@ export function NavSpine({
       <NavigationMenu.Root
         orientation="horizontal"
         aria-label="Primary"
-        className={cn('h-full w-full', className)}>
-        <NavigationMenu.List className="menu menu-horizontal menu-sm nav-dock">
+        className={cn('nav-dock', className)}>
+        <NavigationMenu.List className="menu menu-horizontal menu-sm">
           {allItems.map((item) => (
             <BottomBarRow key={item.key} item={item} linkComponent={linkComponent} />
           ))}
@@ -177,12 +179,13 @@ export function NavSpine({
       {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s 16px
           inset — the same bleed `SubNav`'s `<ul>` applies — so both lists' active fill/active bar
           land at the identical net inset from the rail's true left edge. */}
-      {/* `w-auto`, not `w-full`: daisy `menu` ships a fit-content width, and a 100% width would
+      {/* The list's `auto` width is `rail-list`'s, not this call site's: a 100% width would
           resolve against the panel's 176px content box and then be SHIFTED left by the bleed,
           leaving the active fill 8px short of the rail's right edge while flush at the left.
           `auto` lets the used width absorb both negative margins, so the fill bleeds the same 8px
-          at both ends — which is what `RAIL_ROW_BLEED` means. */}
-      <NavigationMenu.List className={cn('menu menu-sm rail-list w-auto', RAIL_ROW_BLEED_CLASS)}>
+          at both ends — which is what `RAIL_ROW_BLEED` means, and which `SubNav`'s list, carrying
+          the identical bleed, needs to be true of it too. */}
+      <NavigationMenu.List className={cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
           <NavRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}

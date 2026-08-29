@@ -39,7 +39,9 @@ import type { SubNavItem, SubNavProps } from './types';
 // The five `!important` overrides that used to hang off this row are gone: an `@utility` lands
 // unlayered inside `utilities` while daisy emits into a sublayer of it, so it beats `menu` on the
 // cascade rather than on `!`. Active state is read off the `aria-current="page"` Base UI sets from
-// the `active` prop — there is no second flag to keep in step.
+// the `active` prop — there is no second flag to keep in step, and the daisy `menu-active` both
+// rails used to add alongside it is gone for the same cascade reason: it existed only to exclude
+// the active row from daisy's row-hover rule, which `rail-row` already outranks by layer.
 const ROW_BASE_CLASS = cn(
   'rail-row focus-ring',
   RAIL_SUBNAV_ROW_HEIGHT_CLASS,
@@ -48,8 +50,6 @@ const ROW_BASE_CLASS = cn(
 );
 
 function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
-  // `menu-active` keeps daisy's own row-hover rule off the active row; the fill itself is ours.
-  const className = cn(ROW_BASE_CLASS, item.active && 'menu-active');
   const Link = linkComponent;
   const content = (
     <>
@@ -59,7 +59,7 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
           row/heading uses (rail-grid.ts rule 4), and sub-nav visibly nests under the nav
           spine's label column rather than its icon column. */}
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="rail-row-label">{item.label}</span>
       {item.count !== undefined ? (
         <>
           {' '}
@@ -75,7 +75,7 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
     <NavigationMenu.Item>
       <NavigationMenu.Link
         active={Boolean(item.active)}
-        className={className}
+        className={ROW_BASE_CLASS}
         onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
         render={
           item.href ? (
@@ -94,8 +94,10 @@ export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubN
     <NavigationMenu.Root orientation="vertical" aria-label="Section" className={className}>
       {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
           16px inset — the same bleed `NavSpine`'s `<ul>` applies — so this list's active
-          fill/active bar land at the identical net inset from the rail's true left edge. */}
-      <NavigationMenu.List className={cn('menu menu-sm rail-list w-full', RAIL_ROW_BLEED_CLASS)}>
+          fill/active bar land at the identical net inset from the rail's true left edge. The
+          width that makes the bleed symmetric is `rail-list`'s; the `w-full` that used to sit
+          here fought it, resolving 100% against the panel and then shifting left by the bleed. */}
+      <NavigationMenu.List className={cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
           <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}

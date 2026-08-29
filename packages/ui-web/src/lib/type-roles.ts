@@ -50,6 +50,16 @@ export const ROW_CLASS = `${ROW_BASE_CLASS} text-soft`;
 /** `row` in the signal colour — an error line's own text, and nothing decorative. */
 export const ROW_SIGNAL_CLASS = `${ROW_BASE_CLASS} text-primary`;
 
+/**
+ * `row` at full strength — the same 12 mono, in `ink` rather than `soft`. For a row that IS the
+ * thing rather than a fact about it: an account's real name, as against the generated
+ * `acct_49534505` token that stands in when there is no name.
+ *
+ * A third colour of one size, declared beside the other two rather than as a bare `text-ink`
+ * beside `ROW_CLASS` at the call site — which is how a role acquires a fourth spelling.
+ */
+export const ROW_INK_CLASS = `${ROW_BASE_CLASS} text-ink`;
+
 /** `prose` — Inter 11, the only sentence-copy role. */
 export const PROSE_CLASS = 'font-sans text-[11px] leading-[1.45] text-soft';
 

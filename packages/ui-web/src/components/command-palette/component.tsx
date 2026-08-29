@@ -62,7 +62,7 @@ export function CommandPalette({
         <Command.Input
           autoFocus
           placeholder={placeholder}
-          className="input input-ghost flex-1"
+          className="input input-ghost"
         />
         {/* daisy's own kbd already pins flex-shrink to 0, so the row cannot squeeze this. */}
         <kbd className={KBD_HINT_CLASS}>esc</kbd>
@@ -100,8 +100,10 @@ export function CommandPalette({
  *
  * It is the library's own Button at variant secondary — it had been re-deriving btn's border,
  * radius, mono face and focus ring by hand, nine utilities to arrive back at the component one
- * import away. The two that remain are the type role a header affordance takes, one step quieter
- * than a real action button.
+ * import away. The last two — the quieter colour and size a header affordance takes, one step
+ * down from a real action button — were still written here, and written with `!`, which is what
+ * a correction fighting daisy from inside the same layer looks like. They are `palette-trigger`
+ * in theme.css now, where the same declarations beat `btn` on the cascade with no `!` at all.
  */
 export function CommandPaletteTrigger({
   onClick,
@@ -114,7 +116,7 @@ export function CommandPaletteTrigger({
       size="sm"
       onClick={onClick}
       aria-label="Open command palette"
-      className={cn('text-subtle! text-[11px]!', className)}>
+      className={cn('palette-trigger', className)}>
       <span>Search…</span>
       <kbd className={KBD_HINT_CLASS}>{shortcutHint}</kbd>
     </Button>

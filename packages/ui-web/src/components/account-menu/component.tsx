@@ -4,9 +4,10 @@ import React from 'react';
 import { cn } from '../../cn';
 import { Button } from '../button';
 import type { AccountMenuProps, AccountMenuTheme } from './types';
-import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, META_CLASS, ROW_INK_CLASS } from '../../lib/type-roles';
 import {
   OVERLAY_CLASS,
+  OVERLAY_CURRENT_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
   OVERLAY_SECTION_CLASS,
@@ -69,9 +70,7 @@ export function AccountMenu({
         className={cn('gap-3', className)}
         aria-label={triggerLabel ?? (label ? `Account menu — ${label}` : 'Account menu')}>
         {email ? <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{email}</span> : null}
-        <span
-          aria-hidden="true"
-          className="avatar-chip">
+        <span aria-hidden="true" className="avatar-chip">
           {initials}
         </span>
       </Menu.Trigger>
@@ -80,12 +79,12 @@ export function AccountMenu({
         <Menu.Positioner align="end" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
           <Menu.Popup
             render={<ul />}
-            className={cn('menu menu-sm w-[220px] font-mono', OVERLAY_CLASS)}>
+            className={cn('menu menu-sm account-menu-popup', OVERLAY_CLASS)}>
             {name || email ? (
               <li role="none">
                 <div role="presentation" className={OVERLAY_SECTION_CLASS}>
                   {name ? (
-                    <span className="text-ink truncate text-xs" title={name}>
+                    <span className={cn(ROW_INK_CLASS, 'truncate')} title={name}>
                       {name}
                     </span>
                   ) : null}
@@ -104,11 +103,14 @@ export function AccountMenu({
                 <li role="none">
                   <div role="presentation" className={OVERLAY_SECTION_CLASS}>
                     <span className={LABEL_CLASS}>Theme</span>
-                    <div className="flex items-center gap-3">
+                    <div className="theme-choice-row">
                       {THEME_OPTIONS.map((option) => (
                         <Menu.Item
                           key={option.value}
-                          className={cn(THEME_ITEM_CLASS, option.value === theme && 'text-ink')}
+                          className={cn(
+                            THEME_ITEM_CLASS,
+                            option.value === theme && OVERLAY_CURRENT_CLASS
+                          )}
                           closeOnClick={false}
                           onClick={() => onThemeChange(option.value)}>
                           {option.value === theme ? `[${option.label}]` : option.label}

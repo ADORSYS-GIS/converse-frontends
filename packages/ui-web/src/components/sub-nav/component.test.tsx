@@ -30,9 +30,16 @@ describe('SubNav', () => {
     const active = screen.getByRole('button', { name: 'Projects 24' });
     expect(active).toHaveAttribute('aria-current', 'page');
     // The `raised` fill is `theme.css`'s `rail-row[aria-current="page"]` — the same rule
-    // `NavSpine`'s rows resolve, which is the point of the shared class. `menu-active` keeps
-    // daisy's own row-hover rule from repainting it.
-    expect(active).toHaveClass('rail-row', 'menu-active');
+    // `NavSpine`'s rows resolve, which is the point of the shared class. daisy's `menu-active` is
+    // deliberately NOT added alongside it: it was carried to exclude the active row from daisy's
+    // row-hover rule, but an `@utility` is unlayered inside `utilities` while daisy emits into a
+    // sublayer of it, so `rail-row` already outranks that rule by layer — which is a fact about
+    // cascade layers and therefore the same in both themes. Measured on the identical `rail-row`
+    // in `NavSpine` under `black`: with the class removed, the hovered active row still computes
+    // `--color-raised`/`--color-ink` while a hovered inactive row computes `--color-neutral`. The
+    // active row's own paint was then confirmed under `wireframe` too.
+    expect(active).toHaveClass('rail-row');
+    expect(active).not.toHaveClass('menu-active');
   });
 
   it('never renders a badge/pill element for the count', () => {

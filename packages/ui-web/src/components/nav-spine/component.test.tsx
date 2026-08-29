@@ -22,9 +22,17 @@ describe('NavSpine', () => {
   // Active state is not a cva boolean axis (console-ui skill shrink policy) and no longer a class
   // swapped in JS either: the `raised` fill is `theme.css`'s `rail-row[aria-current="page"]`, so
   // the assertion is that the row wears `rail-row` and announces itself as the current page.
-  // daisy's `menu-active` stays, and is load-bearing for a cascade reason rather than a visual
-  // one: daisy's own row-hover rule excludes that class, and without it daisy would repaint the
-  // active fill on the way past.
+  // daisy's `menu-active` is GONE, and the reason it was thought load-bearing turned out not to
+  // hold. The claim was that daisy's own row-hover rule excludes `.menu-active`, so without the
+  // class daisy would repaint the active fill on the way past. But that is a specificity argument,
+  // and the two rules never meet on specificity: daisy emits into a sublayer of `utilities` while
+  // an `@utility` lands unlayered inside it, and unlayered wins outright. Measured in Storybook
+  // rather than reasoned about — with the class removed, pointing at the active row leaves it at
+  // `--color-raised`/`--color-ink` while an inactive row under the pointer goes to
+  // `--color-neutral`/`--color-ink`, which is the contract. (Read from
+  // `daisyui@5.7.22/components/menu.css`, all the class contributed besides that exclusion was
+  // `--menu-active-bg`/`-fg` paint `rail-row` already overrides, plus a depth shadow both console
+  // themes zero via `--depth: 0`.)
   //
   // Both `aria-current` and `data-active` now come from Base UI `NavigationMenu.Link`'s single
   // `active` prop rather than from two hand-written attributes. That changes `data-active`'s
@@ -33,14 +41,14 @@ describe('NavSpine', () => {
   // off it (checked: no `data-active` selector or `data-[active=…]` variant survives anywhere in
   // `ui-web` or `apps/console` — `rail-row` reads `aria-current`), so the marker form is kept as
   // the primitive emits it rather than being forced back into the old spelling.
-  it('marks the active item with aria-current, data-active and daisy menu-active', () => {
+  it('marks the active item with aria-current and data-active, and never with daisy menu-active', () => {
     render(<NavSpine items={items} />);
 
     const active = screen.getByRole('button', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-current', 'page');
     expect(active).toHaveAttribute('data-active');
-    expect(active).toHaveClass('menu-active');
     expect(active).toHaveClass('rail-row');
+    expect(active).not.toHaveClass('menu-active');
 
     const inactive = screen.getByRole('button', { name: 'Api-Keys' });
     expect(inactive).not.toHaveAttribute('aria-current');

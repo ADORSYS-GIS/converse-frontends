@@ -245,6 +245,27 @@
 }
 
 /*
+ * A loading ROW built out of those blocks — `SkeletonRow`'s own box, as opposed to the block
+ * inside it. daisy ships no placeholder-row vocabulary at all (`skeleton` is a single shape), so
+ * there is nothing to adopt here and nothing to correct; this is a part the console owns outright.
+ *
+ * It is stated as CSS rather than as a `cva` base string for the reason the ledger's own row
+ * contract already is: a loading row's whole job is to be geometrically indistinguishable from the
+ * loaded row it stands in for, and the two hairline/gap decisions below are the same decisions
+ * `console-table` makes for the real row. The one thing that genuinely varies — how tall — stays a
+ * variant, and shares its two literals with the real row through `lib/row-density.ts`.
+ *
+ * The columns themselves are an inline `grid-template-columns`, not a class: the caller passes the
+ * real table's track list so the placeholder lines up with it column for column.
+ */
+@utility skeleton-row {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-raised);
+}
+
+/*
  * The console's own table contract, expressed once against daisyUI `table`.
  *
  * Adopting daisy `table` on its own MOVED cost rather than removing it: the component ended up
@@ -374,6 +395,13 @@
   gap: 0.5rem;
   padding-inline-end: 0.75rem;
   border-block-end: 1px solid var(--color-base-300);
+
+  /* The field takes the row and the `esc` chip keeps its size. daisy's own `kbd` already pins
+     `flex-shrink: 0`, so this only has to say the growing half — and it says it here because it
+     is what the ROW is, not a decision the palette makes when it renders the input. */
+  & .input {
+    flex: 1 1 0%;
+  }
 }
 
 @utility palette-list {
@@ -480,8 +508,18 @@
 
 /* The identity line WHEN IT IS A CONTROL (a switcher trigger or a copy button): a hit target with
    a hover fill. One class for both affordances, so the badge cannot look like two different chips
-   depending on which one it has. */
+   depending on which one it has.
+
+   A chip IS an identity row, so it carries that layout itself rather than requiring the call site
+   to wear both names: `AccountBadge` wrote `identity-row account-chip` at both of its control call
+   sites, which is one part under two names and one more thing for the next call site to forget.
+   The three declarations are repeated rather than composed (this file does not use `@apply`), and
+   they are the cheapest half of the pair — the focus ring, which is the expensive half, stays the
+   shared `focus-ring` utility at the call site precisely so it keeps having ONE definition. */
 @utility account-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.25rem 0.375rem;
   transition: background-color 0.15s ease-out;
 
@@ -494,6 +532,24 @@
   width: 240px;
   padding-block: 0.25rem;
   font-family: var(--font-mono);
+}
+
+/* The sibling account overlay — `AccountMenu`'s popup, hanging off the header identity block
+   rather than off the badge. It is a hair narrower than `account-popup` (220 vs 240) because it
+   holds one email line and two actions rather than a list of accounts; the widths are stated as
+   two utilities rather than one shared class precisely so that difference stays deliberate and
+   visible instead of being averaged away. The mono face is common to both. */
+@utility account-menu-popup {
+  width: 220px;
+  font-family: var(--font-mono);
+}
+
+/* The three theme choices as ONE row of words. `theme-choice` below is each word; this is the row
+   that holds them, which the component had been spelling out as flex utilities beside it. */
+@utility theme-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 /* The initials square in the account menu's trigger. A square at the contract radius, never a
@@ -604,6 +660,18 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
+
+  /* The dismiss × is a `btn btn-ghost` through `Button`, the same affordance `SecretReveal`'s ×
+     uses. The one thing the header adds is that it reads as chrome rather than as an action —
+     `subtle` until pointed at. That is a fact about the header's trailing control, not a prop of
+     the button, so it is stated here rather than as a colour pair at the call site. */
+  & button {
+    color: var(--color-subtle);
+
+    &:hover {
+      color: var(--color-ink);
+    }
+  }
 }
 
 @utility sheet-body {
@@ -676,6 +744,36 @@
   z-index: 40;
   height: 3.5rem;
   background-color: var(--color-neutral);
+}
+
+/*
+ * A full-bleed message band inside the shell's sticky chrome stack — today `MutationFailureBanner`,
+ * which was nine hand-written utilities on a single line and the largest single wall in the chrome
+ * set. daisy `alert` stays REJECTED for it (PRIMITIVES.md § "not adopted": bordered, iconed,
+ * rounded); this is a band, not a box, so there was no daisy class to adopt and the wall had to
+ * become a named part instead.
+ *
+ * Every clause is a fact about the BAND rather than about any one message:
+ *  - `chrome` fill, never `surface` and never a `primary` one. The band sits in the header's own
+ *    chrome stack rather than floating as a panel, and ADR 0008 has no large signal fills.
+ *  - A `raised` hairline on the leading edge only — the same rule that separates any two chrome
+ *    sections, never a full border.
+ *  - Gutters that TRACK THE CENTRE COLUMN's, so a message lines up with the content it is about.
+ *    That is `lib/shell-grid.ts`'s `px-4 md:px-6`, and the tier step is why this is shared CSS: a
+ *    breakpoint variant restated per banner is a second, driftable copy of the shell's gutter.
+ */
+@utility chrome-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--color-raised);
+  padding: 0.5rem 1rem;
+  background-color: var(--color-chrome);
+
+  @media (width >= theme(--breakpoint-md)) {
+    padding-inline: 1.5rem;
+  }
 }
 
 /*
@@ -874,6 +972,37 @@
 @utility rail-history-cell {
   padding: 0.25rem 0;
   vertical-align: top;
+
+  /* A history row's two lines (label over meta) are ONE unit, not two related blocks, so they sit
+     tighter than the panel's own stack. Stated against the cell rather than as a gap override on
+     the stack inside it: "tighter here" is a property of this cell, and the next row added to the
+     table should inherit it rather than remember it. */
+  & .rail-stack {
+    gap: 0.125rem;
+  }
+}
+
+/*
+ * The rail panel's own outermost stack — `ReviewDetailPanel` is the case: a full-height column of
+ * `rail-section`s whose LAST child is pinned to the bottom of the rail however short the content
+ * above it is.
+ *
+ * The pin is the reason this is one class rather than a `rail-stack` plus three utilities. The
+ * height, the wider section rhythm and the auto top margin are three halves of a single idea — "a
+ * decision panel fills its rail and puts its actions at the foot" — and written separately, the
+ * `mt-auto` in particular reads as a property of the actions block when it is really a property of
+ * being last in this column.
+ */
+@utility rail-panel-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1.25rem;
+
+  & > :last-child {
+    margin-block-start: auto;
+    gap: 0.75rem;
+  }
 }
 
 /*
@@ -1487,6 +1616,36 @@
   }
 }
 
+/*
+ * `CommandPaletteTrigger` — the `Search…` button in the header, on `btn btn-secondary`.
+ *
+ * Two of the secondary button's decisions disagree with the console for this one button: its label
+ * reads at full body colour and at the button's own size, but this is a placeholder-ish affordance
+ * sitting in chrome, so it reads `subtle` and one step down at 11px. Those were `text-subtle!
+ * text-[11px]!` at the call site, and the `!` was doing real work.
+ *
+ * WHY THE COMPOUND SELECTOR, because a plain `@utility palette-trigger` is a silent no-op for half
+ * of it. The rule it has to beat is not daisy's — it is `btn-secondary` directly above, one of OUR
+ * OWN `@utility` blocks, which sets `color` as well. Two `@utility` rules are both unlayered and
+ * both single-class, so neither outranks the other by layer OR by specificity, and the tie falls to
+ * emitted order — which is Tailwind's to choose, not this file's: moving this block from beside
+ * `palette-popup` to here, immediately after `btn-secondary`, did not change the emitted order at
+ * all (measured: `.palette-trigger` still came out ~1.1kB BEFORE `.btn-secondary`). So the colour
+ * lost while the font-size — which `btn-secondary` says nothing about, so nothing contested it —
+ * won. `&.btn` makes the selector `.palette-trigger.btn`, which beats any single-class rule on
+ * specificity and therefore does not depend on order at all.
+ *
+ * Found by reading the trigger's computed `color` in Storybook (`#b4b4b4`, i.e. `--btn-fg`, rather
+ * than `--color-subtle`'s `#606060`) — never from the class list, where it looked correct. The
+ * trigger is always a `btn`: it renders through `Button`, which is where the class comes from.
+ */
+@utility palette-trigger {
+  &.btn {
+    color: var(--color-subtle);
+    font-size: 11px;
+  }
+}
+
 /* `btn-square` is the console's icon button (always ghost, always an explicit `aria-label`).
    Its glyph is pinned to 16px: an inline `<svg>` carrying only a `viewBox` and no width/height
    otherwise falls back to the browser's replaced-element default box, far larger than the 30x30
@@ -1725,6 +1884,12 @@
     color 0.15s ease-out,
     background-color 0.15s ease-out;
 
+  /* Width is the row's own, not the call site's. daisy's `menu` makes each `li` a stretch-aligned
+     flex column, so the row already fills its `li` — `NavSpine` carried a `w-full` that measured
+     as a no-op against that, while `SubNav` (the same row, by contract) carried none. Stated once
+     here so the two cannot disagree again. */
+  width: 100%;
+
   &[aria-current='page'] {
     background-color: var(--color-base-300);
     color: var(--color-ink);
@@ -1739,6 +1904,17 @@
   }
 }
 
+/* The label cell of a rail row: it takes whatever width the icon column and any trailing count
+   leave, and truncates rather than wrapping — a rail row is one line by contract (README §4), and
+   a 176px column will meet a section name too long for it sooner or later. */
+@utility rail-row-label {
+  min-width: 0;
+  flex: 1 1 0%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* A count sitting at the trailing edge of a rail row (`SubNav`'s per-section totals). It is plain
    trailing text, never a badge — daisy `badge` is in PRIMITIVES.md's not-adopted list for exactly
    the reason this rule encodes: a count is one step DOWN the ramp from its label, not a pill. */
@@ -1749,12 +1925,20 @@
 }
 
 /* The row list. daisy `menu` brings the list semantics and the row radius; its own gutters are
-   neutralised because the rail grid, not daisy, owns every x-offset here. Width stays at the call
-   site: `NavSpine` needs `w-auto` so the used width absorbs both halves of the `-mx-2` bleed
-   (daisy ships `width: fit-content`), `SubNav` fills its column. */
+   neutralised because the rail grid, not daisy, owns every x-offset here.
+
+   Width is `auto`, and it belongs here rather than at the two call sites — which had drifted into
+   saying two different things about one contract. daisy ships `width: fit-content`, so a bled list
+   must override it either way. `NavSpine` said `w-auto`, with a comment deriving why: `auto` lets
+   the used width absorb BOTH halves of the `-mx-2` bleed, so the active fill bleeds the same 8px
+   at each end. `SubNav` said `w-full` — and `width: 100%` resolves against the containing block
+   and is THEN shifted left by the bleed, which is precisely the defect `NavSpine`'s comment
+   describes: flush at the left, 8px short at the right. Both lists carry the same bleed, so both
+   want the same answer; stating it once fixes `SubNav`'s edge and removes a utility from each. */
 @utility rail-list {
   gap: 0.25rem;
   padding: 0;
+  width: auto;
 }
 
 /*
@@ -1800,13 +1984,34 @@
  * edge, so an outward ring is clipped by that edge on one side and by the neighbouring cell on
  * the other. That is why it does not simply take `focus-ring`.
  */
+/*
+ * `nav-dock` sits on the dock's `<nav>` ROOT and describes the whole part, list and cells
+ * included. It used to sit on the `<ul>`, which left the root and the cells to say the rest of
+ * one idea at the call site — `h-full w-full` on the root purely so this element's own `100%`
+ * had something to resolve against, and `flex-1` on every `<li>`. Neither was a decision the
+ * component was making; they are what "a dock fills its band and its cells share it equally"
+ * means, so they are stated here once.
+ */
 @utility nav-dock {
+  display: block;
   height: 100%;
   width: 100%;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 0;
-  padding: 0;
+
+  /* daisy `menu menu-horizontal` paints the list; these are the dock's disagreements with it. */
+  & > .menu {
+    height: 100%;
+    width: 100%;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  /* Equal cells: the dock is a fixed strip of 3-5 destinations, never a scrolling list, so every
+     cell takes the same share of the width regardless of how long its label is. */
+  & > .menu > li {
+    flex: 1 1 0%;
+  }
 }
 
 @utility nav-dock-row {

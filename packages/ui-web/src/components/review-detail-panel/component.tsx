@@ -118,8 +118,9 @@ export function ReviewDetailPanel({
   };
 
   return (
-    // Full height is what lets the decision actions pin to the bottom of the rail below.
-    <div className={cn(STACK_CLASS, 'h-full gap-5', className)}>
+    // The stack below is the full-height column AND the pin that puts its last child — the
+    // decision actions — at the foot of the rail however short the content above them is.
+    <div className={cn('rail-panel-stack', className)}>
       <div className={STACK_CLASS}>
         <span className={fieldLabelClassName}>Request</span>
         <h2 className={PANEL_TITLE_CLASS}>{subject}</h2>
@@ -181,8 +182,9 @@ export function ReviewDetailPanel({
                 <tr key={row.id}>
                   <td className={CELL_CLASS}>
                     {/* Tighter than the panel's own stack — a history row's two lines are one
-                        unit, not two related blocks. */}
-                    <div className={cn(STACK_CLASS, 'gap-0.5')}>
+                        unit, not two related blocks. The tightening belongs to the cell, so it
+                        applies to whatever this cell comes to hold. */}
+                    <div className={STACK_CLASS}>
                       <span className={ROW_CLASS}>{row.label}</span>
                       <span className={LABEL_CLASS}>{row.meta}</span>
                     </div>
@@ -210,9 +212,9 @@ export function ReviewDetailPanel({
         />
       </div>
 
-      {/* The auto top margin is the pin: decisions sit at the bottom of the rail however short
-          the panel's own content is. */}
-      <div className={cn(SECTION_CLASS, 'mt-auto gap-3')}>
+      {/* The pin lives on the enclosing stack's last-child rule, not here: sitting at the foot of
+          the rail is a property of being last in that column, not of being the decision block. */}
+      <div className={SECTION_CLASS}>
         <Button
           type="button"
           variant="primary"

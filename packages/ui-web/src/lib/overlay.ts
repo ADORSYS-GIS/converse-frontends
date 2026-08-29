@@ -52,6 +52,26 @@ export const OVERLAY_ITEM_CLASS =
 export const OVERLAY_SEPARATOR_CLASS = 'mx-1 my-1 h-px bg-raised';
 
 /**
+ * The row that is the CURRENT choice — the account you are already in, the theme already applied.
+ *
+ * Distinct from `data-highlighted`, which `OVERLAY_ITEM_CLASS` already covers: highlight is where
+ * the pointer or the arrow keys are right now, selection is what is true. Both account overlays
+ * mark it the same way and had spelled it out separately; per the console-ui skill's "States"
+ * rule, selection is a step UP in text strength, never a pill, a tick or a coloured dot.
+ */
+export const OVERLAY_CURRENT_CLASS = 'text-ink';
+
+/**
+ * A row that carries a trailing marker beside its label — the label takes the space, the marker
+ * sits at the end. `AccountBadge`'s account list is the case: name on the left, `active` on the
+ * right.
+ */
+export const OVERLAY_SPLIT_ROW_CLASS = 'justify-between';
+
+/** That trailing marker itself: plain text one step back, never a badge. */
+export const OVERLAY_MARKER_CLASS = 'text-subtle';
+
+/**
  * A non-interactive block inside an overlay — an identity line, a labelled group of choices.
  * Pads to the same inset the item rows use, so a block and a row line up on the same left edge.
  *

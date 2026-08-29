@@ -5,6 +5,7 @@ import type { ScopeOption, ScopeProjectOption, ScopeSelectValue } from '@lightbr
 import { useList } from '@refinedev/core';
 import { useMemo } from 'react';
 
+import { accountScopeLabel } from '../containers/account-label';
 import { useScopeParams } from './url-state';
 
 /**
@@ -32,6 +33,10 @@ export type ConsoleScope = {
   setValue: (value: ScopeSelectValue) => void;
   accounts: ScopeOption[];
   projects: ScopeProjectOption[];
+  /** Every account row as the backend returned it — `ScopeOption` above flattens each to an
+   *  `{id, label}` pair, which loses the `name === null` vs `name === '<something>'` distinction
+   *  `AccountPanel` is built around. `use-manage-screen.ts` needs the unflattened rows. */
+  allAccounts: Account[];
   /** Every project, unfiltered by the selected account — the Manage ledger needs the full set. */
   allProjects: Project[];
   loading: boolean;
@@ -54,7 +59,13 @@ export function useConsoleScope(): ConsoleScope {
   });
 
   const accounts = useMemo<ScopeOption[]>(
-    () => accountsQuery.result.data.map((account) => ({ id: account.id, label: account.id })),
+    () =>
+      accountsQuery.result.data.map((account) => ({
+        id: account.id,
+        // Never the bare id: `accountScopeLabel` renders a real name as itself and an unnamed
+        // account as a named absence that still carries its id (see that function's own comment).
+        label: accountScopeLabel(account),
+      })),
     [accountsQuery.result.data]
   );
 
@@ -88,6 +99,7 @@ export function useConsoleScope(): ConsoleScope {
     },
     accounts,
     projects,
+    allAccounts: accountsQuery.result.data,
     allProjects: projectsQuery.result.data,
     loading: accountsQuery.query.isLoading || projectsQuery.query.isLoading,
     error: accountsQuery.query.isError || projectsQuery.query.isError,

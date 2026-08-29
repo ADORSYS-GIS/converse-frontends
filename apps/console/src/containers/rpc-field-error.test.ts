@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyCreateProjectError } from './create-project-error';
+import { classifyCreateAccountError, classifyCreateProjectError } from './rpc-field-error';
 
 describe('classifyCreateProjectError', () => {
   it('routes a billing_identity uniqueness message to billingIdentityError', () => {
@@ -28,5 +28,30 @@ describe('classifyCreateProjectError', () => {
     // Guards against a message like "billing identity has an invalid name" being misrouted.
     const message = 'billing identity has an invalid name';
     expect(classifyCreateProjectError(message)).toEqual({ billingIdentityError: message });
+  });
+});
+
+describe('classifyCreateAccountError', () => {
+  it('routes a name-related rejection onto the dialog field', () => {
+    const message = 'account name must not be blank once set';
+    expect(classifyCreateAccountError(message)).toEqual({ nameError: message });
+  });
+
+  it('keeps the already-exists conflict OFF the name field', () => {
+    // `createAccount` is `Error::Conflict` for a subject that already holds an account — nothing
+    // about the typed name is wrong, so attributing it to the field would tell the user to fix
+    // the one thing that is not the problem.
+    const message = 'account already exists for this subject';
+    expect(classifyCreateAccountError(message)).toEqual({ error: message });
+  });
+
+  it('keeps a conflict off the field even when the message also says "name"', () => {
+    const message = 'an account already exists for this subject, named Widgets Ltd';
+    expect(classifyCreateAccountError(message)).toEqual({ error: message });
+  });
+
+  it('falls back to a general error rather than dropping an unattributable message', () => {
+    const message = 'Something went wrong. Please try again.';
+    expect(classifyCreateAccountError(message)).toEqual({ error: message });
   });
 });

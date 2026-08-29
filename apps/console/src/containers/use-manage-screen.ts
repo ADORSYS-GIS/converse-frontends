@@ -1,8 +1,11 @@
 'use client';
 
-import type { BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
+import type { Account, BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
 import { createId } from '@lightbridge/authz-rpc';
 import type {
+  AccountNameDialogMode,
+  AccountNameDialogProps,
+  AccountPanelProps,
   CreateProjectDialogProps,
   ManageFiltersRailProps,
   ManageReportRailProps,
@@ -30,8 +33,13 @@ import {
   type ReportIncludeId,
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
+import {
+  buildCreateAccountInput,
+  buildUpdateAccountNameInput,
+  normalizeAccountName,
+} from './build-create-account-input';
 import { buildCreateProjectInput } from './build-create-project-input';
-import { classifyCreateProjectError } from './create-project-error';
+import { classifyCreateAccountError, classifyCreateProjectError } from './rpc-field-error';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { manageTotals, toProjectRows } from './project-rows';
 
@@ -114,6 +122,13 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
  * `useSharedMutation` shape as the rest of this file for consistency.
  */
 const NEW_PROJECT_MUTATION_KEY = ['manage', 'new-project'];
+/**
+ * One key for both account writes. `createAccount` and `updateAccountName` are never both
+ * available at once — the signed-in subject either holds an account or does not — so they cannot
+ * be in flight simultaneously, and sharing the key means the one `AccountNameDialog` reads one
+ * `submitting`/`errorMessage` pair regardless of which procedure it is driving.
+ */
+const ACCOUNT_NAME_MUTATION_KEY = ['manage', 'account-name'];
 const REPORT_MUTATION_KEY = ['manage', 'report'];
 const PROJECT_BILLING_PLANS_QUERY_KEY = ['manage', 'billingPlans'];
 
@@ -157,6 +172,22 @@ export interface ManageScreen {
   /** Stated beside the disabled `+ New project` control; `undefined` exactly when eligible. */
   createProjectReason: string | undefined;
   createProjectDialog: CreateProjectDialogProps;
+  /**
+   * The signed-in principal's own account, plus the create/name affordance it needs.
+   *
+   * This screen, and not a dedicated route or an onboarding wizard, because Manage is the only
+   * governance surface the console has (every other screen renders usage data), because the
+   * account scope this panel is about is already what Manage filters by, and because "signed in
+   * with no account" is precisely the dead end Manage exhibits today — a `+ New project` disabled
+   * with "Select an account to create a project." and no account to select. Putting the exit next
+   * to the dead end is the point. A route of its own would also mean a permanent nav entry for a
+   * control most people press once, while leaving the rename affordance — which is NOT one-time,
+   * because every pre-#551 account is unnamed — with nowhere to live.
+   */
+  accountPanel: AccountPanelProps;
+  /** `AccountNameDialog`'s props — the same dialog for both account writes; `mode` is derived
+   *  from whether an account exists, never chosen by the user. */
+  accountNameDialog: AccountNameDialogProps;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
   projectCount: number;
@@ -236,6 +267,129 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
    */
   const [projectDraft, setProjectDraft] = useState<CreateProjectDraft>(emptyProjectDraft);
   const resetProjectDraft = () => setProjectDraft(emptyProjectDraft());
+
+  /**
+   * The signed-in principal's OWN account, matched on `sub` rather than on the scoped
+   * `?account=` id.
+   *
+   * `accounts.id` IS the JWT subject (ADR-0006) and one subject holds at most one account, so
+   * this is the only account `createAccount`/`updateAccountName` could ever target — matching the
+   * scoped id instead would make the panel silently retarget when a link carries someone else's
+   * account. `null` here means "signed in, no account", which is what the panel offers a way out
+   * of; it is distinguished from "we do not know yet" by `scope.loading`/`scope.error`, which the
+   * panel renders separately.
+   */
+  const ownAccount: Account | null =
+    scope.allAccounts.find((account) => account.id === session.user?.sub) ?? null;
+  const accountMode: AccountNameDialogMode = ownAccount === null ? 'create' : 'rename';
+
+  /**
+   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
+   * leak into URLs or history"): the account dialog's typed-but-unsent name. Exactly the same
+   * argument as the create-project draft above — `?account-name=1` (WHETHER the dialog is
+   * showing) is real view state and lives in the URL, its CONTENTS are typed prose ahead of a
+   * submit and would otherwise be written into browser history and into any copied link. Seeded
+   * from the current name when the dialog opens, so a rename starts from what the account is
+   * actually called rather than from blank.
+   */
+  const [accountNameDraft, setAccountNameDraft] = useState('');
+
+  let createAccountEligible: boolean;
+  let createAccountReason: string | undefined;
+  if (!session.user) {
+    createAccountEligible = false;
+    createAccountReason = 'Sign in to create an account.';
+  } else if (ownAccount !== null) {
+    createAccountEligible = false;
+    // `createAccount` is `Error::Conflict` for a subject that already holds one, never an upsert.
+    createAccountReason = 'This identity already has an account.';
+  } else {
+    createAccountEligible = true;
+    createAccountReason = undefined;
+  }
+
+  const accountAction = useSharedMutation<{ mode: AccountNameDialogMode; name: string }, Account>({
+    mutationKey: ACCOUNT_NAME_MUTATION_KEY,
+    mutationFn: async ({ mode, name }) => {
+      // Guards, not UI branches — `canSubmitAccountName` already keeps the dialog's own primary
+      // disabled in each of these cases; this only fires against a caller bypassing the dialog.
+      if (mode === 'create') {
+        if (!session.user) throw new Error('Sign in before creating an account.');
+        if (ownAccount !== null) throw new Error('This identity already has an account.');
+        return client.procedures.createAccount({ args: buildCreateAccountInput({ name }) });
+      }
+      if (ownAccount === null) throw new Error('There is no account to name yet.');
+      return client.procedures.updateAccountName({
+        args: buildUpdateAccountNameInput({ accountId: ownAccount.id, name }),
+      });
+    },
+    onSuccess: () => {
+      // Refetches accounts AND projects: a brand-new account arrives with a server-provisioned
+      // default project, so the ledger below is stale too.
+      scope.refetch();
+      refresh();
+      setAccountNameDraft('');
+      void setView({ accountNameOpen: false }, MANAGE_SELECTION_OPTIONS);
+    },
+  });
+
+  const accountFieldErrors = accountAction.errorMessage
+    ? classifyCreateAccountError(accountAction.errorMessage)
+    : {};
+
+  /**
+   * `create`: always submittable — a blank name is legal and produces an unnamed account, so a
+   * "fill this in" gate here would be a stricter rule than the server's own (which normalises
+   * blank to `NULL`).
+   * `rename`: blocked only when the normalised value already equals what the account is called,
+   * because that write would change nothing.
+   */
+  const canSubmitAccountName =
+    accountMode === 'create'
+      ? createAccountEligible
+      : normalizeAccountName(accountNameDraft) !== (ownAccount?.name ?? null);
+
+  const openAccountNameDialog = () => {
+    if (accountAction.errorMessage) accountAction.dismiss();
+    setAccountNameDraft(ownAccount?.name ?? '');
+    void setView({ accountNameOpen: true }, MANAGE_SELECTION_OPTIONS);
+  };
+
+  const accountPanel: AccountPanelProps = {
+    account: ownAccount === null ? null : { id: ownAccount.id, name: ownAccount.name ?? null },
+    loading: scope.loading,
+    error: scope.error ? 'Could not load your account.' : undefined,
+    onRetry: () => scope.refetch(),
+    onCreate: () => {
+      if (!createAccountEligible) return;
+      openAccountNameDialog();
+    },
+    createDisabled: !createAccountEligible,
+    createReason: createAccountReason,
+    onRename: openAccountNameDialog,
+  };
+
+  const accountNameDialog: AccountNameDialogProps = {
+    open: view.accountNameOpen,
+    mode: accountMode,
+    subjectLabel: ownAccount?.id ?? session.user?.sub ?? '—',
+    currentlyNamed: (ownAccount?.name ?? null) !== null,
+    name: accountNameDraft,
+    onNameChange: setAccountNameDraft,
+    nameError: accountFieldErrors.nameError,
+    submitting: accountAction.isPending,
+    error: accountFieldErrors.error,
+    canSubmit: canSubmitAccountName,
+    onSubmit: () => {
+      if (!canSubmitAccountName) return;
+      accountAction.mutate({ mode: accountMode, name: accountNameDraft });
+    },
+    onCancel: () => {
+      if (accountAction.errorMessage) accountAction.dismiss();
+      setAccountNameDraft('');
+      void setView({ accountNameOpen: false }, MANAGE_SELECTION_OPTIONS);
+    },
+  };
 
   // The real billing-plan catalogue (same procedure `use-api-keys-screen.ts` uses for the same
   // reason) — never a hardcoded plan id.
@@ -413,6 +567,8 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     createProjectEligible,
     createProjectReason,
     createProjectDialog,
+    accountPanel,
+    accountNameDialog,
     selectedProject,
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);

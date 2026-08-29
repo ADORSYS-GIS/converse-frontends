@@ -81,10 +81,14 @@ Four libraries, four non-overlapping jobs (ADR 0010 Decision 2). Never solve one
 | **Base UI (`@base-ui/react`)** | **Every** control with _behaviour_ — never a native `<select>`, never a hand-rolled popup. As of 2026-08-29 the adoption gap is closed; a new primitive that reimplements Base UI behaviour is a defect. Specifically: Dialog, Alert Dialog, Menu, Select, Combobox, Popover, Tooltip, Tabs, Toggle Group, Field/Fieldset/Form, Switch, Checkbox, Radio, Number Field, Scroll Area, Toast. Style its parts with daisy classes + token utilities via `className` (which also accepts a function of component state) and `data-*` variants |
 | **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                            |
 | **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                             |
-| **vaul**                       | Drawers and bottom sheets. Still the only drawer primitive                                                                                                                                                                                                                                                                                   |
 
-**`radix-ui` is not a direct dependency.** It ships transitively under `cmdk` and `vaul` and stays
-there — never `import` from `@radix-ui/*` in `ui-web` source, never add it to a `package.json`.
+Drawers and bottom sheets are Base UI's `drawer` — one more primitive on the Base UI row, not a
+library of its own. **`vaul` is gone** (owner decision 2026-08-29, superseding ADR 0010 D2, which
+named it when Base UI shipped no drawer): it is in no `package.json` and imported nowhere. Do not
+reintroduce it, and do not hand-roll a sheet.
+
+**`radix-ui` is not a direct dependency.** It ships transitively under `cmdk` and stays there —
+never `import` from `@radix-ui/*` in `ui-web` source, never add it to a `package.json`.
 If Base UI genuinely lacks a primitive, use the unified `radix-ui` package for that one primitive
 and record why; do not add a fifth library.
 
@@ -140,7 +144,7 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
   values are unchanged from the deleted Tailwind v3 configs). Never desktop-first
   overrides.
   - Base (<600, a designed target): single column, 16px gutters, header stays; nav spine docks
-    as **bottom navigation**; right-rail content and nav overflow open as **vaul drawers**;
+    as **bottom navigation**; right-rail content and nav overflow open as **drawers**;
     stat cards stack; ledgers scroll horizontally inside their own `overflow-x-auto` container
     (the page never scrolls sideways); charts full-width.
   - `md` (600–1024): persistent left rail returns. The right rail does NOT dock as a persistent
@@ -148,7 +152,7 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
     reachable through **contextual icon-button triggers placed where they make sense** — a
     filter icon in the toolbar of the table it filters, view/range controls beside the chart
     they configure, the export action near the data it exports. Each trigger opens the relevant
-    rail section (not the whole rail) as a **transient vaul bottom sheet** that dismisses on
+    rail section (not the whole rail) as a **transient bottom sheet** that dismisses on
     action or backdrop. Selection-driven rail content (e.g. Admin's review detail) opens its
     sheet on row selection. The mobile (<600) bottom NAVIGATION bar is unaffected — it is nav,
     not knobs.
@@ -178,9 +182,19 @@ Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency alw
 max-h-[calc(100dvh-56px)] overflow-y-auto` — the centre column is the document's scroller;
     rails hold position while the centre scrolls and scroll their own panel stacks when their
     content exceeds the viewport.
-- **All drawers and bottom sheets are vaul** (`vaul`'s `Drawer`) — the console's only drawer
-  primitive. Never hand-roll a sheet; style vaul's parts with the semantic tokens (`surface`
-  content, `muted/80` overlay, radius 2, no shadow).
+- **All drawers and bottom sheets are Base UI's `Drawer`** (`@base-ui/react/drawer`, since
+  2026-08-29 — `vaul` is out of the tree) — the console's only drawer primitive, reached through
+  `BottomSheet`/`SectionSheet`/`SelectionSheet`. Never hand-roll a sheet; style the drawer's parts
+  with the semantic tokens (`surface` panel, `muted/80` backdrop, radius 2, no shadow). Two things
+  the swap made non-obvious, both verified in a browser rather than inferred:
+  - A **tier class (`lg:hidden`/`md:hidden`) goes on `Drawer.Portal`**, never on the backdrop and
+    panel. A modal portal also holds Floating UI's `InternalBackdrop`, an unclassable
+    `position: fixed; inset: 0` press-absorber; hide the two visible parts and that layer stays,
+    leaving the page dead under a sheet nobody can see. `BottomSheet` exposes this as
+    `portalClassName`, and that is the only correct place for it.
+  - The CSS layer is a **net, not the gate.** A modal drawer is modal for as long as it is `open`,
+    so a sheet left open across a resize past its tier still scroll-locks and `aria-hidden`s the
+    page. Suppressing `open` itself (`open && useIsBelowLg()`) is the primary defence and stays.
 - **Rail alignment grid** (single source: `packages/ui-web/src/lib/rail-grid.ts` — consume it,
   never hand-roll rail insets): rows bleed 8px (`-mx-2`) with 12px row padding; icon column
   16px + 8px gap; **every rail label — nav item, sub-nav item, uppercase section label — starts

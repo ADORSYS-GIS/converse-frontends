@@ -56,23 +56,27 @@ describe('SectionSheet', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('is CSS-tiered lg:hidden on both the dialog and its overlay — a second, static guard beyond the trigger visibility, applied directly since vaul portals to document.body', () => {
+  // Layer 2, and it goes on the PORTAL: that one element contains the panel, the scrim and Base
+  // UI's own unclassable full-screen press-absorber, so it is the only class that hides all of
+  // the sheet rather than just the visible parts of it.
+  it('is CSS-tiered lg:hidden on the portal that holds the whole sheet', () => {
     render(
       <SectionSheet open onOpenChange={vi.fn()} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
 
-    expect(screen.getByRole('dialog')).toHaveClass('lg:hidden');
-    expect(document.querySelector('[data-vaul-overlay]')).toHaveClass('lg:hidden');
+    const portal = document.querySelector('[data-base-ui-portal]');
+    expect(portal).toHaveClass('lg:hidden');
+    expect(portal).toContainElement(screen.getByRole('dialog'));
   });
 
   // The primary defence against the real bug this component's docstring documents: a caller
   // setting `open={true}` at `lg` (e.g. a selection-driven effect that fires at every tier, or a
-  // sheet left open in state across a resize past `lg`) must never actually mount a real Radix
-  // modal dialog there — CSS alone (`lg:hidden`) hides it visually, but Radix's `hideOthers()`
-  // still runs on a merely-mounted-with-`open`-true dialog regardless of its own display:none,
-  // freezing `pointer-events` on the rest of the page. Suppressing `open` itself, not just its
+  // sheet left open in state across a resize past `lg`) must never actually mount a modal drawer
+  // there — CSS alone (`lg:hidden`) hides it visually, but the drawer's modality still runs on a
+  // merely-mounted-with-`open`-true sheet regardless of its own display:none, leaving the page
+  // scroll-locked behind a full-screen press-absorber. Suppressing `open` itself, not just its
   // visibility, is the only thing that stops that.
   it('never mounts a dialog at lg, even when the caller sets open=true', () => {
     mockMatchMedia(false); // simulate `lg`
@@ -83,7 +87,7 @@ describe('SectionSheet', () => {
     );
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(document.querySelector('[data-vaul-overlay]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-base-ui-portal]')).not.toBeInTheDocument();
   });
 
   it('mirrors the suppressed-at-lg state back to the caller via onOpenChange(false), so a later resize back down does not spuriously reopen it from stale open=true', () => {

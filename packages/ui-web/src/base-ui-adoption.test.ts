@@ -40,12 +40,8 @@ const KNOWN_GAPS = new Set([
   'console-header', // a flex row instead of `toolbar`
   'nav-spine', // link/button rows instead of `navigation-menu`
   'sub-nav', // same
-  // The three below wrap vaul. Base UI 1.7.0 now ships `drawer`; ADR 0010 rejected it as
-  // "phase 5, not authorized" when it did not exist. That rejection is stale for the same reason
-  // the button claim was — it needs re-taking on current facts, not leaving to drift.
-  'bottom-sheet',
-  'section-sheet',
-  'selection-sheet',
+  // `bottom-sheet`/`section-sheet`/`selection-sheet` were here while they wrapped vaul. Closed
+  // 2026-08-29: `bottom-sheet` is Base UI's `drawer`, and the other two compose it.
 ]);
 
 const rows: AdoptionRow[] = auditAdoption(join(import.meta.dirname, 'components'));

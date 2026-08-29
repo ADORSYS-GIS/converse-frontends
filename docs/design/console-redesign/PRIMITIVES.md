@@ -29,7 +29,7 @@ hand-written focus trap or roving tabindex.
 | `rail-panel`     | keep                 | —                               | 1     | daisy has no "flush full-height rail section" primitive. `raised` hairline rules + `label` headings stay hand-written.                                                                                     |
 | `nav-spine`      | class swap           | `menu` `menu-sm` + `menu-title` | 2     | daisy `menu` gives vertical list + `menu-active`/`menu-disabled`; the ADR 0008 active-row treatment (`raised` fill, no pill) is a utility override. Admin group's `ROLE` marker + `raised` rule stay ours. |
 | `sub-nav`        | **rebuild**          | Base UI **Tabs** + daisy `tabs` | 2     | Keyboard tab navigation comes from Base UI; `tabs-border` style, `tab-active`. Counts stay in the label text (never a badge).                                                                              |
-| `bottom-sheet`   | keep                 | `vaul` (unchanged)              | —     | ADR 0010 D2: `vaul` is the only drawer primitive. Base UI Drawer is a **phase 5** evaluation, not authorized.                                                                                              |
+| `bottom-sheet`   | **rebuild**          | Base UI **Drawer**              | done  | Owner decision 2026-08-29, superseding ADR 0010 D2's `vaul` (which was written when Base UI shipped no drawer; 1.7.0 does). `vaul` is removed from the tree. A tier class goes on `Drawer.Portal`, never on the backdrop and panel — a modal portal also holds Floating UI's unclassable full-screen press-absorber. Base UI ships no grab-bar part, so `sheet-handle` is ours, which is what finally let its paint apply. |
 
 ## Forms and actions
 
@@ -118,7 +118,7 @@ match but violates a locked ADR 0008 rule:
 | `badge`                             | Counts go in tab labels; status is text. No pills.                                      |
 | `alert`                             | Bordered, iconed, rounded box — empty/error states are inline mono lines.               |
 | `card`                              | Centre content is never carded. Panels are `RailPanel`/`StatCard` only.                 |
-| `drawer`                            | CSS-grid sidebar; incompatible with flush full-height sticky rails. Drawers are `vaul`. |
+| `drawer`                            | CSS-grid sidebar; incompatible with flush full-height sticky rails. Drawers are Base UI's `drawer`. |
 | `progress` / `radial-progress`      | Rounded, animated; `Meter` is a 4px square track.                                       |
 | `tooltip` (`data-tip`)              | CSS-only, element-anchored; chart tooltips need a virtual point anchor.                 |
 | `stats` / `stat`                    | Imposes its own padding and dividers; our stat card is tighter and mockup-locked.       |

@@ -220,8 +220,9 @@ over. For the console:
 - `600–1024` keeps the persistent left rail with the right rail docked as a bottom drawer;
   `≥1024` is the full three-panel shell. The visual language (floor/panels/accent rules) is
   tier-invariant.
-- All drawers and bottom sheets are built on **vaul** — the console's only drawer primitive; no
-  hand-rolled sheet implementations.
+- All drawers and bottom sheets are built on one primitive — no hand-rolled sheet implementations.
+  That primitive was `vaul`; since the owner decision of 2026-08-29 it is Base UI's **Drawer**
+  (`@base-ui/react/drawer`), and `vaul` is out of the tree. See ADR 0010 Decision 2.
 
 ### 7. Client-first and offline-first
 

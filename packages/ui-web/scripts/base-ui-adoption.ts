@@ -16,6 +16,7 @@ export const EXPECTED: Record<string, string | null> = {
   'account-badge': 'menu',
   'account-menu': 'menu',
   'account-name-dialog': 'dialog',
+  'bottom-sheet': 'drawer',
   checkbox: 'checkbox',
   'create-api-key-dialog': 'dialog',
   'create-project-dialog': 'dialog',
@@ -34,9 +35,6 @@ export const EXPECTED: Record<string, string | null> = {
   button: 'button',
   'row-action-group': 'separator',
   'secret-reveal': 'input',
-  'bottom-sheet': 'drawer',
-  'section-sheet': 'drawer',
-  'selection-sheet': 'drawer',
   'nav-spine': 'navigation-menu',
   'sub-nav': 'navigation-menu',
   'console-header': 'toolbar',
@@ -56,7 +54,9 @@ export const EXPECTED: Record<string, string | null> = {
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
   'rail-panel': null, // a padded div
   'review-detail-panel': null, // a composition of other primitives
+  'section-sheet': null, // composes BottomSheet, which is the drawer
   'section-sheet-trigger': null, // renders our Button; the gap is Button's
+  'selection-sheet': null, // composes SectionSheet, which composes BottomSheet
   'share-bar': null, // SVG-ish part-to-whole mark
   'skeleton-metric': null, // daisy `skeleton` paint only
   'skeleton-row': null, // daisy `skeleton` paint only

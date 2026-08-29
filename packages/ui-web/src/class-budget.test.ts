@@ -22,7 +22,11 @@ import type { ClassAudit } from '../scripts/class-budget';
  */
 const BUDGET: Record<string, number> = {
   // Where the second sweep landed: 651 hand-written utilities -> 307, and 12 of 39 components with
-  // any classes at all now sit at or under DEFAULT_BUDGET with no entry here.
+  // any classes at all now sit at or under DEFAULT_BUDGET with no entry here. 307 -> 305 with the
+  // vaul -> Base UI drawer swap (2026-08-29): `console-shell` 13 -> 12 and `section-sheet` 6 -> 5,
+  // because the tier class now goes on ONE element (the portal) instead of two (backdrop, panel).
+  // `bottom-sheet` holds at 9 — it pays +1 for a `sheet-handle` class it did not need while vaul
+  // shipped a handle part, and takes -1 back on comment prose.
   //
   // THE THREE REGRESSIONS ARE UNDONE, and by the mechanism the last note said was untried rather
   // than by reverting daisy: `nav-spine` 82 -> 28, `ledger-table` 65 -> 21, `row-action-group`
@@ -68,7 +72,7 @@ const BUDGET: Record<string, number> = {
   'review-detail-panel': 18,
   'share-bar': 16,
   'date-range-field': 14,
-  'console-shell': 13,
+  'console-shell': 12,
   'spend-series-chart': 12,
   'account-menu': 11,
   'budget-hero': 11,
@@ -85,7 +89,7 @@ const BUDGET: Record<string, number> = {
   tooltip: 8,
   'command-palette': 7,
   'console-header': 7,
-  'section-sheet': 6,
+  'section-sheet': 5,
   checkbox: 5,
   'histogram-chart': 5,
   'chart-tooltip': 4,

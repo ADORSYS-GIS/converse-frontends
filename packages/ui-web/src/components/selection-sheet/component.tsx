@@ -14,8 +14,8 @@ import type { SelectionSheetProps } from './types';
 // intermediate frame is ever painted).
 //
 // No tier check is needed here: `SectionSheet` is itself gated by `useIsBelowLg`, which is
-// precisely what stops a selection at `lg` from opening an invisible-but-fully-modal dialog and
-// freezing the page (see `use-is-below-lg`'s docstring for the mechanism).
+// precisely what stops a selection at `lg` from opening an invisible-but-fully-modal drawer and
+// freezing the page (see `use-is-below-breakpoint`'s docstring for the mechanism).
 export function SelectionSheet({ selectionKey, label, children, className }: SelectionSheetProps) {
   const [open, setOpen] = useState(false);
   const [previousSelectionKey, setPreviousSelectionKey] = useState<string | null>(null);

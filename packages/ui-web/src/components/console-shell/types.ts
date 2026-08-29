@@ -18,9 +18,9 @@ export interface ConsoleShellProps {
    * Secondary left-rail content stacked below the nav panel — a `SCOPE` echo or a section
    * `SubNav` (docs/design/console-redesign/README.md §3's "left rail is a stack of panels").
    * Rendered inline at `md`/`lg`. Below `md` it is not in the rail at all (there is no rail);
-   * instead it is reachable from a small trigger row under the header that opens it in a vaul
-   * drawer — provide `leftSecondaryLabel` alongside this to label both the trigger and the
-   * drawer title.
+   * instead it is reachable from a small trigger row under the header that opens it as a
+   * `BottomSheet` — provide `leftSecondaryLabel` alongside this to label both the trigger and
+   * the drawer title.
    */
   leftSecondary?: ReactNode;
   /** Trigger label and drawer title for `leftSecondary` below `md`. Required whenever

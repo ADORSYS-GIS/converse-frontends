@@ -538,9 +538,10 @@
 /*
  * ─── The bottom sheet ────────────────────────────────────────────────────────────────────────
  *
- * vaul owns the drawer (ADR 0009 Decision 6); this is its paint. The two directions the console
- * uses are selected off `data-vaul-drawer-direction`, which vaul puts on the content element
- * itself — so the geometry is a fact the sheet already announces, rather than a ternary the
+ * Base UI's Drawer owns the drawer (ADR 0009 Decision 6, primitive per the owner decision of
+ * 2026-08-29); this is its paint. Base UI names the axis by the gesture that dismisses the sheet
+ * and puts it on the popup as `data-swipe-direction` — `down` for a bottom sheet, `right` for an
+ * edge sheet — so the geometry is a fact the sheet already announces, rather than a ternary the
  * component computes and then has to keep in step with the `direction` prop it passed in.
  */
 @utility sheet-panel {
@@ -551,14 +552,15 @@
 
   /*
    * `:where()` around both direction branches is load-bearing, and this is the one place in this
-   * file where it is. A bare `&[data-vaul-drawer-direction='bottom']` is two classes' worth of
+   * file where it is. A bare `&[data-swipe-direction='down']` is two classes' worth of
    * specificity, which would outrank a plain utility at the call site — and there IS one:
    * `ConsoleShell` passes `bottom-14` to lift the drawer above the 56px navigation dock, and it
    * would have been silently swallowed, dropping the sheet back onto the viewport edge.
    * `:where()` contributes nothing, so this ties with a plain utility and source order decides,
-   * which is the same rule every other block here relies on.
+   * which is the same rule every other block here relies on. Nothing about the attribute rename
+   * changed that: it is the SELECTOR SHAPE that costs specificity, not which library emits it.
    */
-  &:where([data-vaul-drawer-direction='bottom']) {
+  &:where([data-swipe-direction='down']) {
     inset-inline: 0;
     bottom: 0;
     max-height: 85vh;
@@ -566,34 +568,34 @@
 
   /* A side sheet stops short of full width: the page behind it stays visible, which is what
      distinguishes a sheet from a route change. */
-  &:where([data-vaul-drawer-direction='right']) {
+  &:where([data-swipe-direction='right']) {
     inset-block: 0;
     right: 0;
     height: 100%;
     width: 85vw;
     max-width: 320px;
   }
+}
 
-  /*
-   * The grab handle. `!important` here is NOT a specificity war with daisy — it is the one thing
-   * that outranks vaul, and it is load-bearing. vaul injects its handle rule through a plain
-   * `<style>` element at runtime, which is UNLAYERED and appended after this stylesheet; an
-   * unlayered declaration outranks every layered one regardless of specificity, and ties with
-   * another unlayered one on source order, which vaul wins by arriving later. Before this was
-   * marked important the computed handle was vaul's own 5px #e2e2e4 bar at border-radius 16px and
-   * opacity .7 — a hardcoded light-grey PILL on a black sheet, against both the no-pills rule and
-   * the no-hex-outside-this-file rule (confirmed by reading the computed style in Storybook, not
-   * by reading the class list). Width and horizontal centring are deliberately NOT restated:
-   * vaul's own 32px and auto margins are already what the contract wants.
-   */
-  & [data-vaul-handle] {
-    margin-top: 0.5rem;
-    flex-shrink: 0;
-    height: 3px !important;
-    border-radius: var(--radius-field) !important;
-    background-color: var(--color-base-300) !important;
-    opacity: 1 !important;
-  }
+/*
+ * The grab bar, and the end of a two-week bug. vaul shipped its own handle and injected the paint
+ * for it through a plain runtime `<style>`, which is UNLAYERED and therefore outranked every
+ * layered rule we could write — so the console's 3px `raised` bar never applied and the computed
+ * handle stayed vaul's hardcoded 5px #e2e2e4 pill, against both the no-pills rule and the
+ * no-hex-outside-this-file rule. Four `!important`s were holding that back.
+ *
+ * Base UI ships no grab-bar part at all (`Drawer.Handle` is the imperative handle object for
+ * detached triggers), so the element is ours, there is no competing stylesheet, and every one of
+ * those `!important`s is gone. Width and centring are stated here for the same reason: they used
+ * to be inherited from vaul's own rule and now have no other source.
+ */
+@utility sheet-handle {
+  margin: 0.5rem auto 0;
+  flex-shrink: 0;
+  height: 3px;
+  width: 2rem;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
 }
 
 @utility sheet-header {

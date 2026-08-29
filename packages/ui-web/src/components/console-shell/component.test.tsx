@@ -86,10 +86,9 @@ describe('ConsoleShell', () => {
   });
 
   // The left-secondary drawer had the same two defects `SectionSheet` already fixed one tier up:
-  // its `md:hidden` lived on a wrapper `<div>` that vaul's `Drawer.Portal` never renders into,
-  // and nothing gated `open` by tier — so an invisible-but-fully-modal dialog could freeze
-  // pointer events at `md`+ widths (Radix's unconditional `modal: true` puts `pointer-events:
-  // none` on `<body>`).
+  // its `md:hidden` lived on a wrapper `<div>` the drawer's portal never renders into, and
+  // nothing gated `open` by tier — so an invisible-but-fully-modal sheet could leave the page
+  // frozen behind its press-absorber at `md`+ widths, with no visible cause.
   describe('left-secondary drawer tier gate', () => {
     const originalMatchMedia = window.matchMedia;
 
@@ -114,15 +113,15 @@ describe('ConsoleShell', () => {
       );
     }
 
-    it('carries md:hidden on vaul’s own overlay and content, not on a wrapper the portal skips', () => {
+    it('carries md:hidden on the sheet’s own portal, not on a wrapper the portal skips', () => {
       renderWithLeftSecondary();
       fireEvent.click(screen.getByRole('button', { name: /scope/i }));
 
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveClass('md:hidden');
-      // The overlay is vaul's own sibling of the content inside the portal.
-      const overlay = dialog.parentElement?.querySelector('[data-vaul-overlay]');
-      expect(overlay).toHaveClass('md:hidden');
+      const portal = document.querySelector('[data-base-ui-portal]');
+      expect(portal).toHaveClass('md:hidden');
+      expect(portal).toContainElement(screen.getByRole('dialog'));
+      // The panel keeps only the geometry the shell owns: clear of the 56px navigation dock.
+      expect(screen.getByRole('dialog')).toHaveClass('bottom-14');
     });
 
     it('never opens the modal at md and up, even if the trigger is somehow activated', () => {

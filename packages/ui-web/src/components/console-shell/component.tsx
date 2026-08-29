@@ -48,8 +48,8 @@ import { Chevron } from '../chevron';
 //    its content is reached through page-placed contextual triggers, each opening one rail
 //    section as its own SectionSheet — that state belongs to the page, not the shell.
 //  - **The one drawer the shell DOES own — `leftSecondary` below md — is gated in JS, not only
-//    in CSS**: `open && useIsBelowMd()`, plus a hidden-at-md class on vaul's own overlay and
-//    content. See the comment at that BottomSheet for why a wrapper <div> is never enough.
+//    in CSS**: `open && useIsBelowMd()`, plus a hidden-at-md class on the sheet's own backdrop
+//    and panel. See the comment at that BottomSheet for why a wrapper <div> is never enough.
 export function ConsoleShell({
   header,
   nav,
@@ -121,26 +121,27 @@ export function ConsoleShell({
       </div>
 
       {/* The left-secondary drawer carries the SAME two-layer gate SectionSheet does — it is the
-          same vaul/Radix modality problem, one tier down (md, not lg):
+          same modality problem, one tier down (md, not lg):
 
            1. `open && isBelowMd`, not merely a hidden-at-md wrapper — plus the render-phase reset
               above, so a later resize back down does not pop a stale drawer open again with no
-              fresh trigger. vaul's Drawer.Portal renders into document.body, so a class on a
-              wrapping <div> never reaches the portaled overlay/content at all; and even a class
-              that DID reach it would only hide the dialog visually while Radix's unconditional
-              modality kept <body> non-interactive and the rest of the page aria-hidden. Leaving
-              this drawer open below md and then resizing up past it froze the whole app with no
-              visible cause — suppressing `open` itself is the only thing that stops that.
-           2. The hidden-at-md class on the overlay and the content themselves
-              (`overlayClassName`/`className`) — a static net for the frame between a real md
-              crossing and the hook's listener firing. */}
+              fresh trigger. Drawer.Portal renders into document.body, so a class on a wrapping
+              <div> never reaches the portaled sheet at all; and even a class that DID reach it
+              would only hide the sheet visually while its modality kept the page scroll-locked
+              behind a full-screen press-absorber. Leaving this drawer open below md and then
+              resizing up past it freezes the whole app with no visible cause — suppressing
+              `open` itself is the only thing that stops that.
+           2. The hidden-at-md class on the sheet's own portal (`portalClassName`) — a static net
+              for the frame between a real md crossing and the hook's listener firing. It hides
+              the portal, not the backdrop and panel, because Base UI also renders an unclassable
+              full-screen press-absorber in there; see `BottomSheetProps.portalClassName`. */}
       {leftSecondary ? (
         <BottomSheet
           open={leftDrawerOpen && isBelowMd}
           onOpenChange={setLeftDrawerOpen}
           title={leftSecondaryLabel}
-          overlayClassName="md:hidden"
-          className="bottom-14 md:hidden">
+          portalClassName="md:hidden"
+          className="bottom-14">
           {leftSecondary}
         </BottomSheet>
       ) : null}

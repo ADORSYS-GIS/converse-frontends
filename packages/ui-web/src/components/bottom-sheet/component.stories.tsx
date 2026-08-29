@@ -55,14 +55,14 @@ const meta: Meta<typeof BottomSheet> = {
 export default meta;
 type Story = StoryObj<typeof BottomSheet>;
 
-// Standard vaul modal drawer, closed by default — click "Open drawer" to mount it.
+// Standard modal drawer, closed by default — click "Open drawer" to mount it.
 export const Default: Story = { render: () => <ModalDrawer /> };
 
 // direction="right" — the same primitive serving a side drawer (e.g. mobile nav overflow).
 export const RightSide: Story = { render: () => <ModalDrawer direction="right" /> };
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `Default`, opened via a `play`
-// function -- confirms vaul's portalled overlay (`bg-muted/80`) and panel (`bg-surface`, white)
+// function -- confirms the portalled backdrop (`bg-muted/80`) and panel (`bg-surface`, white)
 // both track `data-theme` even though the drawer renders outside the decorator's own subtree.
 export const DefaultLightOpen: Story = {
   name: 'Default — wireframe (light), open',

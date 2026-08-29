@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer } from 'vaul';
+import { Drawer } from '@base-ui/react/drawer';
 
 import { cn } from '../../cn';
 import { Button } from '../button';
@@ -7,26 +7,27 @@ import type { BottomSheetProps } from './types';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from '../../lib/overlay';
 
-// Contract: docs/design/console-redesign/README.md §4 BottomSheet / ADR 0009 Decision 6 — vaul is
-// the console's only drawer primitive; no hand-rolled sheets. A standard transient vaul modal
-// drawer — mounts on open behind a muted/80 scrim, unmounts on close. Dialog semantics (focus
-// trap, Escape to close, aria-modal) come from vaul's underlying Radix Dialog primitive.
+// Contract: docs/design/console-redesign/README.md §4 BottomSheet / ADR 0009 Decision 6 — one
+// drawer primitive for the console, no hand-rolled sheets. That primitive is Base UI's Drawer
+// (owner decision 2026-08-29, superseding ADR 0010 Decision 2's `vaul`: Base UI shipped no drawer
+// when the ADR was written, and 1.7.0 does). A standard transient modal drawer — mounts on open
+// behind a muted/80 scrim, unmounts on close. Dialog semantics (focus trap, Escape, aria-modal)
+// and swipe-to-dismiss are the primitive's.
 //
-// It now takes the same two shared strings every other overlay in the library takes: the scrim is
+// It takes the same two shared strings every other overlay in the library takes: the scrim is
 // OVERLAY_BACKDROP_CLASS and the panel is OVERLAY_CLASS. The hairline that comes with the latter
 // is the point, not a side effect — a sheet is the one overlay guaranteed to sit against
 // arbitrary content, and at the viewport edge only the edge facing the page is visible anyway.
-// The close affordance is the library's Button rather than a bare element re-typing btn's mono
-// face and hit area by hand.
+// The close affordance is the library's Button, handed to Drawer.Close through `render` so the
+// dismissal is the primitive's rather than a second onClick path.
 //
 // Formerly also supported a peek mode (a persistent, non-modal docked panel for the compact right
-// rail — vaul snapPoints, collapsed state rendered outside Drawer.Root to sidestep a Radix
-// modality bug). That mode is gone (owner revision 2026-08-25, console-ui skill "Shape and
-// layout"): the compact right rail is no longer a persistent footer or peek bar at all — its
-// content is reached through contextual per-section triggers (SectionSheet, each a plain
-// transient modal drawer scoped to one rail section) rendered in context on the page, not docked
-// chrome owned by the shell. ConsoleShell no longer renders a peek-mode BottomSheet for the right
-// rail; nothing else used peek either, so it is removed here rather than left dormant.
+// rail). That mode is gone (owner revision 2026-08-25, console-ui skill "Shape and layout"): the
+// compact right rail is no longer a persistent footer or peek bar at all — its content is reached
+// through contextual per-section triggers (SectionSheet, each a plain transient modal drawer
+// scoped to one rail section) rendered in context on the page, not docked chrome owned by the
+// shell. ConsoleShell no longer renders a peek-mode BottomSheet for the right rail; nothing else
+// used peek either, so it is removed here rather than left dormant.
 export function BottomSheet({
   open,
   onOpenChange,
@@ -34,19 +35,15 @@ export function BottomSheet({
   children,
   direction = 'bottom',
   className,
-  overlayClassName,
+  portalClassName,
 }: BottomSheetProps) {
   const isBottom = direction === 'bottom';
 
-  // Geometry is `sheet-panel`'s, selected off the `data-vaul-drawer-direction` vaul puts on this
-  // element — so the two directions are not a ternary here that has to stay in step with the
-  // `direction` prop passed in above.
-  const contentClassName = cn('sheet-panel', OVERLAY_CLASS, className);
-
-  // The handle's paint (and the reason it has to beat vaul's own runtime <style> with
-  // `!important`) is `sheet-panel`'s `[data-vaul-handle]` branch. Rendering it stays conditional:
-  // a side sheet is dragged from its edge, and a grab bar at the top of one means nothing.
-  const handle = isBottom ? <Drawer.Handle /> : null;
+  // Base UI names the axis by the gesture that DISMISSES the sheet, not by the edge it hangs off:
+  // a bottom sheet is swiped down, an edge sheet is swiped back out to the right. The value lands
+  // on the popup as `data-swipe-direction`, and the panel's geometry is selected off that — so
+  // the two directions are not a ternary here that has to stay in step with `direction`.
+  const swipeDirection = isBottom ? 'down' : 'right';
 
   const titleLabel = title ? (
     <Drawer.Title className={LABEL_CLASS}>{title}</Drawer.Title>
@@ -54,32 +51,47 @@ export function BottomSheet({
     <Drawer.Title className="sr-only">Drawer</Drawer.Title>
   );
 
-  const description = (
-    <Drawer.Description className="sr-only">
-      {title ? `${title} drawer` : 'Drawer content'}
-    </Drawer.Description>
-  );
-
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange} direction={direction}>
-      <Drawer.Portal>
-        <Drawer.Overlay className={cn(OVERLAY_BACKDROP_CLASS, overlayClassName)} />
-        <Drawer.Content className={contentClassName}>
-          {handle}
-          <div className="sheet-header">
-            {titleLabel}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Close"
-              onClick={() => onOpenChange(false)}
-              className="text-subtle hover:text-ink">
-              ×
-            </Button>
-          </div>
-          {description}
-          <div className="sheet-body">{children}</div>
-        </Drawer.Content>
+    <Drawer.Root
+      open={open}
+      onOpenChange={(nextOpen) => onOpenChange(nextOpen)}
+      swipeDirection={swipeDirection}>
+      <Drawer.Portal className={portalClassName}>
+        <Drawer.Backdrop className={OVERLAY_BACKDROP_CLASS} />
+        {/* The viewport is Base UI's swipe and scroll-lock host and is required around the popup,
+            but it must not become a box of its own: a full-screen viewport would swallow presses
+            meant for the page. `display: contents` gives it no box at all, and the panel keeps
+            its own `position: fixed`. */}
+        <Drawer.Viewport className="contents">
+          <Drawer.Popup className={cn('sheet-panel', OVERLAY_CLASS, className)}>
+            {/* Base UI ships no grab-bar part (`Drawer.Handle` is the imperative handle object for
+                detached triggers, not an element), so this is ours — which is exactly why its
+                paint finally applies: nothing injects a competing unlayered rule. Rendering it
+                stays conditional: an edge sheet is dragged from its edge, and a grab bar at the
+                top of one means nothing. */}
+            {isBottom ? <div className="sheet-handle" /> : null}
+            <div className="sheet-header">
+              {titleLabel}
+              <Drawer.Close
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Close"
+                    className="text-subtle hover:text-ink"
+                  />
+                }>
+                ×
+              </Drawer.Close>
+            </div>
+            <Drawer.Description className="sr-only">
+              {title ? `${title} drawer` : 'Drawer content'}
+            </Drawer.Description>
+            {/* Drawer.Content, not a plain div: it marks the scrollable region so a drag that
+                starts inside the body scrolls it instead of dismissing the sheet. */}
+            <Drawer.Content className="sheet-body">{children}</Drawer.Content>
+          </Drawer.Popup>
+        </Drawer.Viewport>
       </Drawer.Portal>
     </Drawer.Root>
   );

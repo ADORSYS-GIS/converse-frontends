@@ -34,8 +34,7 @@
     "d3-shape": "^3.2.0",
     "daisyui": "^5.7.22",
     "react-day-picker": "^10.0.1",
-    "tailwind-merge": "^3.6.0",
-    "vaul": "^1.1.2"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@refinedev/core": "^5.0.12",

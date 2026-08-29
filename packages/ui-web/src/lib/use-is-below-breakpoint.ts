@@ -13,27 +13,38 @@ function readMatches(query: string): boolean {
 // "Shape and layout") — needed only where a third-party modal primitive has a real, JS-driven
 // side effect that CSS cannot scope away.
 //
-// `BottomSheet` wraps vaul's `Drawer`, which wraps Radix's `Dialog.Root` — and vaul never
-// forwards its own `modal` prop to that underlying primitive (confirmed by reading vaul's `Root`
-// implementation). Radix's `Dialog.Root` therefore always runs as `modal: true` regardless of what
-// a caller passes: on `open`, it calls `hideOthers()`, marking every other body-level element
-// `aria-hidden` and freezing `pointer-events` on `<body>` — unconditionally, regardless of the
-// dialog's own CSS visibility (`lg:hidden`/`md:hidden` does nothing to stop it).
+// `BottomSheet` wraps Base UI's `Drawer`, and a modal drawer is modal for as long as it is `open`,
+// full stop — unconditionally, regardless of the sheet's own CSS visibility (`lg:hidden` /
+// `md:hidden` does nothing to stop it). Read off a live browser on 2026-08-29, the modality is
+// three separate things: every other body-level element goes `aria-hidden`, `<body>` goes
+// `overflow: hidden`, and — the one that actually freezes a page — `Drawer.Portal` renders
+// Floating UI's `InternalBackdrop`, a `position: fixed; inset: 0` div that swallows every press.
+//
+// That last part is why the second CSS layer targets the PORTAL and not the backdrop and panel:
+// hiding those two leaves the press-absorber on screen, so `document.elementFromPoint` at the top
+// of the page still answers with it and the page is dead under a sheet nobody can see. This is
+// not Radix's old `pointer-events: none` on `<body>` — `<body>` stays `auto` throughout, and the
+// element is not marked `inert` either, both verified. Same outcome, different element.
+//
+// `Drawer.Root`'s `modal` prop is real and does honour `false` (vaul's never reached the dialog
+// under it), but a non-modal sheet is a different component — no focus trap, no scroll lock — so
+// it is not a fix for this.
 //
 // A sheet opened by clicking a `*:hidden` trigger button is safe by construction: a real
 // `display:none` element cannot be clicked or focused, so the trigger simply cannot fire above
 // its tier in an actual browser. Two cases are NOT safe, and are why this hook exists:
 //
 //  1. **A live resize past the breakpoint while the sheet is open** (window un-maximised, tablet
-//     rotated): the sheet stays open in React state, its own CSS correctly hides it — and Radix
-//     keeps `<body>` at `pointer-events: none` with the rest of the page `aria-hidden`, silently
-//     freezing the whole app with no visible cause. Empirically confirmed in a real browser.
+//     rotated): the sheet stays open in React state, its own CSS correctly hides it — and the
+//     drawer keeps the page scroll-locked and `aria-hidden` behind a press-absorber, silently
+//     freezing the whole app with no visible cause. Empirically confirmed in a real browser,
+//     under vaul and again under Base UI.
 //  2. **Selection-driven sheets** (`SelectionSheet`: Manage's SELECTION, Admin's review detail),
 //     which a screen opens from a prop change with no gated trigger in between — the same
 //     `onSelectRow` callback fires identically at every tier.
 //
 // Consumers therefore gate `open` itself (`open && isBelow…`), which is the only thing that stops
-// Radix's modality; the `*:hidden` classes on the overlay and content are a second, independent
+// the modality outright; the `*:hidden` class on the sheet's portal is a second, independent
 // layer for the moment between a real breakpoint crossing and this hook's listener firing.
 //
 // Defaults to `true` (assume below the breakpoint) when `matchMedia` is unavailable (SSR, or a

@@ -1,4 +1,4 @@
-// Shared chrome for every floating overlay: Base UI popups, cmdk's palette, vaul's sheet.
+// Shared chrome for every floating overlay: Base UI popups and drawers, cmdk's palette.
 //
 // EDGE CASE against the skill's "no borders on panels": overlays get a `border-border` hairline,
 // docked panels do not. A panel separates tonally from a neighbour whose colour is known at
@@ -27,7 +27,7 @@ export const OVERLAY_ANCHORED_POPUP_CLASS = `min-w-(--anchor-width) py-1 ${OVERL
 
 /**
  * The scrim behind a modal overlay. One definition for all four dialogs, the command palette and
- * vaul's bottom sheet — they were six copies of the same three utilities.
+ * the bottom sheet — they were six copies of the same three utilities.
  *
  * `z-50` matches the popup that sits on it: both render into the same portal, in document order
  * backdrop-then-popup, so the popup wins the tie without a second z index step.

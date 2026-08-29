@@ -30,8 +30,20 @@ const BUDGET: Record<string, number> = {
   'account-badge': 66,
   'account-menu': 63,
   'date-range-field': 61,
-  'nav-spine': 57,
-  'ledger-table': 52,
+  // REGRESSED, deliberately and visibly (2026-08-29). Adopting daisy `menu`/`table` on these three
+  // COST more hand-written CSS than it saved: every place daisy's defaults disagree with the
+  // console's contract needs an override, and daisy disagrees a lot (outer cell padding, a
+  // `border-collapse: separate` model that never paints a row border, `--menu-active-bg` resolving
+  // to `neutral` rather than `raised`, its own `:hover` rule needing `menu-active` to be beaten).
+  //
+  // The work is still worth merging — the ledger now has REAL `<table>` semantics (a div-grid
+  // could never be styled by daisy, and screen readers never saw a table), `nav-spine`'s banned
+  // boolean-only `cva.ts` is gone, and the `join` doctrine is settled on evidence. But the numbers
+  // are recorded honestly rather than quietly raised: this is the first hard evidence that the two
+  // halves of the bar — "tiny CSS" and "all components on daisy" — are in tension wherever our
+  // visual contract diverges from daisy's defaults. Owner decision needed on which wins.
+  'nav-spine': 82,
+  'ledger-table': 65,
   'share-bar': 43,
   'bottom-sheet': 41,
   'budget-hero': 39,
@@ -46,7 +58,7 @@ const BUDGET: Record<string, number> = {
   'console-header': 25,
   'chart-legend': 23,
   'stat-card': 23,
-  'row-action-group': 22,
+  'row-action-group': 35,
   'sub-nav': 22,
   meter: 20,
   'mutation-failure-banner': 19,

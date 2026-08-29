@@ -24,11 +24,12 @@ const ACTIONS_TRACK = '136px';
 //    values, so the explicit `text-xs` on `<td>` and `LABEL_CLASS` + `font-normal` on `<th>`
 //    (declared values on the cell itself) win without needing `!`.
 const TABLE_CLASS =
-  'table table-xs min-w-max border-t border-raised font-mono [&_tr>*:first-child]:pl-0 [&_tr>*:last-child]:pr-0';
+  'table table-xs console-table min-w-max border-t border-raised font-mono';
 
 const HEAD_CELL_CLASS = cn(LABEL_CLASS, 'py-2 font-normal border-b border-raised');
 const BODY_CELL_CLASS = 'text-soft text-xs';
-const TOTALS_ROW_CLASS = '[&>td]:border-t-0 [&>td]:border-b [&>td]:border-border';
+// The totals rule is `console-table`'s `tfoot` branch — nothing per-instance to add.
+const TOTALS_ROW_CLASS = '';
 
 // Contract: docs/design/console-redesign/README.md §4 (data display) / §5.2–5.3 — generic typed
 // columns API (accessor + align + width); no sorting logic, that stays the consumer's job.

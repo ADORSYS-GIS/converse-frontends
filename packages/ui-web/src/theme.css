@@ -243,3 +243,35 @@
   background-image: none;
   will-change: auto;
 }
+
+/*
+ * The console's own table contract, expressed once against daisyUI `table`.
+ *
+ * Adopting daisy `table` on its own MOVED cost rather than removing it: the component ended up
+ * carrying five arbitrary-variant overrides (`[&_tr>*:first-child]:pl-0`, `[&>td]:border-b`, …)
+ * to undo daisy's outer cell padding and re-point its hairlines, and its hand-written utility
+ * count went UP (52 → 66). That is the opposite of the bar. These are not component decisions —
+ * they are the ledger contract — so they belong here, next to `skeleton`, using the same
+ * `@utility` mechanism and the same cascade guarantee.
+ *
+ * Two things daisy does that the contract has to undo:
+ *  - `table-xs` pads every cell `.5rem`. That reproduces our old 16px inter-column gap exactly,
+ *    but it also pads the OUTER edges, and the ledger sits flush on the floor.
+ *  - daisy sets `border-collapse: separate`, and the separated border model never paints a `<tr>`
+ *    border — so row hairlines have to live on the cells.
+ */
+@utility console-table {
+  & tr > *:first-child {
+    padding-inline-start: 0;
+  }
+  & tr > *:last-child {
+    padding-inline-end: 0;
+  }
+  & tbody tr > td {
+    border-block-end: 1px solid var(--color-raised);
+  }
+  & tfoot tr > td {
+    border-block-start: 0;
+    border-block-end: 1px solid var(--color-border);
+  }
+}

@@ -51,6 +51,7 @@
     "serwist": "^9.5.12",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
+    "unpdf": "^1.8.1",
     "vite": "^7.3.6",
     "vitest": "^3.2.7"
   },

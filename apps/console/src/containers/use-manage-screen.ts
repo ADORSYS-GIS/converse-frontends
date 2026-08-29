@@ -346,22 +346,28 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   };
 
   /**
-   * Ticket #309: `Generate report` now calls the real `/api/reports/consumption` route (#308) and
-   * triggers a real file download, replacing the mutation that unconditionally threw. `format ===
-   * 'pdf'` is refused with a clear message rather than silently downloading a CSV under a PDF
-   * label — ADR 0009 Decision 8 commits to CSV only, and the `format` toggle stays in the UI
-   * (removing it is #316, explicitly out of this ticket's scope).
+   * Ticket #309: `Generate report` calls the real `/api/reports/consumption` route (#308) and
+   * triggers a real file download.
+   *
+   * BOTH formats are now real. This used to throw `"PDF export isn't available — CSV only."` for
+   * every `format === 'pdf'` press — an honest refusal, but the defect was never the message: the
+   * UI offered PDF as a peer of CSV (the `ReportExportPanel` format toggle, taken from Coinbase's
+   * download-report pattern in `docs/design/console-redesign/README.md` §1.2) and then refused
+   * every second choice. The route now renders the same project × model report as a paginated PDF
+   * server-side (`server/consumption-pdf.ts`), so `format` is passed straight through instead of
+   * being intercepted here.
    */
   const reportAction = useSharedMutation<ReportExportParams, void>({
     mutationKey: REPORT_MUTATION_KEY,
     mutationFn: async (params) => {
-      if (params.format === 'pdf') {
-        throw new Error("PDF export isn't available — CSV only.");
-      }
       if (!scope.value.accountId) {
         throw new Error('Select an account before generating a report.');
       }
-      const query = new URLSearchParams({ month: params.period, account: scope.value.accountId });
+      const query = new URLSearchParams({
+        month: params.period,
+        account: scope.value.accountId,
+        format: params.format,
+      });
       if (scope.value.projectId) query.set('project', scope.value.projectId);
 
       const response = await fetch(`/api/reports/consumption?${query.toString()}`);
@@ -379,7 +385,7 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
       const blob = await response.blob();
       const filename =
         filenameFromContentDisposition(response.headers.get('content-disposition')) ??
-        `consumption-${params.period}.csv`;
+        `consumption-${params.period}.${params.format}`;
       downloadBlob(blob, filename);
     },
   });

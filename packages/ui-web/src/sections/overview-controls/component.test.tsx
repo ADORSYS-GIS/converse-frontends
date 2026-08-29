@@ -3,8 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { presetRange } from '../../components/date-range-field';
-import { OverviewToolbar } from './component';
-import type { OverviewToolbarField } from './types';
+import { OverviewControls } from './component';
+import type { OverviewControlsField } from './types';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
@@ -16,9 +16,9 @@ import {
 function field(
   label: string,
   value: string,
-  options: OverviewToolbarField['options'],
+  options: OverviewControlsField['options'],
   onChange = () => {}
-): OverviewToolbarField {
+): OverviewControlsField {
   return { label, value, options, onChange };
 }
 
@@ -49,9 +49,9 @@ function selectOption(element: HTMLElement) {
   fireEvent.click(element);
 }
 
-describe('OverviewToolbar', () => {
+describe('OverviewControls', () => {
   it('renders every parameter as a labelled control', () => {
-    render(<OverviewToolbar {...base} />);
+    render(<OverviewControls {...base} />);
 
     for (const label of ['Range', 'Bucket', 'Group by', 'Project', 'Model']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('OverviewToolbar', () => {
   });
 
   it('does NOT render an account control — scope is identity, and lives in the header', () => {
-    render(<OverviewToolbar {...base} />);
+    render(<OverviewControls {...base} />);
 
     expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
   });
@@ -67,7 +67,7 @@ describe('OverviewToolbar', () => {
   it('changing a select calls that field own onChange with the new value', async () => {
     const onChange = vi.fn();
     render(
-      <OverviewToolbar {...base} bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)} />
+      <OverviewControls {...base} bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)} />
     );
 
     fireEvent.click(screen.getByLabelText('Bucket'));
@@ -78,7 +78,7 @@ describe('OverviewToolbar', () => {
 
   it('range is a date-range picker, not a three-option dropdown', async () => {
     const onPresetChange = vi.fn();
-    render(<OverviewToolbar {...base} rangeField={{ ...rangeField, onPresetChange }} />);
+    render(<OverviewControls {...base} rangeField={{ ...rangeField, onPresetChange }} />);
 
     fireEvent.click(screen.getByLabelText('Range'));
     expect(await screen.findAllByRole('grid')).toHaveLength(2);
@@ -89,14 +89,14 @@ describe('OverviewToolbar', () => {
 
   it('renders the export action when it is available', () => {
     const onExport = vi.fn();
-    render(<OverviewToolbar {...base} onExport={onExport} />);
+    render(<OverviewControls {...base} onExport={onExport} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
     expect(onExport).toHaveBeenCalledTimes(1);
   });
 
   it('renders export disabled, with a stated reason, rather than omitting it silently', () => {
-    render(<OverviewToolbar {...base} exportDisabledReason="Export isn't available yet." />);
+    render(<OverviewControls {...base} exportDisabledReason="Export isn't available yet." />);
 
     const action = screen.getByRole('button', { name: 'Export CSV' });
     expect(action).toBeDisabled();
@@ -104,13 +104,13 @@ describe('OverviewToolbar', () => {
   });
 
   it('renders no export affordance at all when neither a handler nor a reason is given', () => {
-    render(<OverviewToolbar {...base} />);
+    render(<OverviewControls {...base} />);
 
     expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
   });
 
   it('is one landmark region, so the page never grows a second set of rail landmarks', () => {
-    render(<OverviewToolbar {...base} />);
+    render(<OverviewControls {...base} />);
 
     expect(screen.getByRole('region', { name: 'View and filters' })).toBeInTheDocument();
   });

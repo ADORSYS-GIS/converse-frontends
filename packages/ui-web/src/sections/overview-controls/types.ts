@@ -3,18 +3,18 @@ import type { SelectFieldProps } from '../../components/select-field';
 
 /** A toolbar control, in the order the toolbar lays them out. `SelectField`'s own props minus the
  * layout, which the toolbar owns. */
-export type OverviewToolbarField = Omit<SelectFieldProps, 'layout'>;
+export type OverviewControlsField = Omit<SelectFieldProps, 'layout'>;
 
-export interface OverviewToolbarProps {
+export interface OverviewControlsProps {
   /** What the SPEND chart is a picture *of*: range, bucket, group-by. Range is a real date-range
    *  picker (presets + calendar), not a three-option dropdown. */
   rangeField: Omit<DateRangeFieldProps, 'layout'>;
-  bucketField: OverviewToolbarField;
-  groupByField: OverviewToolbarField;
+  bucketField: OverviewControlsField;
+  groupByField: OverviewControlsField;
   /** Which slice the dashboards are drawn from. Account is NOT here — scope is identity, and it
    * lives in the header (see this section's docstring). */
-  projectField: OverviewToolbarField;
-  modelField: OverviewToolbarField;
+  projectField: OverviewControlsField;
+  modelField: OverviewControlsField;
   /** Omit to render no export affordance at all — never render a dead control. */
   onExport?: () => void;
   exportLabel?: string;

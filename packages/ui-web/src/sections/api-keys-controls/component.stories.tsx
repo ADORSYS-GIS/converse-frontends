@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { ApiKeysToolbar } from './component';
+import { ApiKeysControls } from './component';
 import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
 
-const meta: Meta<typeof ApiKeysToolbar> = {
-  title: 'Sections/ApiKeysToolbar',
-  component: ApiKeysToolbar,
+const meta: Meta<typeof ApiKeysControls> = {
+  title: 'Sections/ApiKeysControls',
+  component: ApiKeysControls,
   parameters: { layout: 'padded' },
   args: {
     projectField: {
@@ -24,7 +24,7 @@ const meta: Meta<typeof ApiKeysToolbar> = {
   },
   decorators: [
     (Story) => (
-      <div className="bg-muted p-6">
+      <div className="bg-surface w-[240px] p-4">
         <Story />
       </div>
     ),
@@ -32,7 +32,7 @@ const meta: Meta<typeof ApiKeysToolbar> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof ApiKeysToolbar>;
+type Story = StoryObj<typeof ApiKeysControls>;
 
 export const Default: Story = {};
 
@@ -73,7 +73,7 @@ export const Interactive: Story = {
     const [status, setStatus] = useState('all');
     const [search, setSearch] = useState('');
     return (
-      <ApiKeysToolbar
+      <ApiKeysControls
         {...args}
         statusValue={status}
         onStatusChange={setStatus}

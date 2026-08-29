@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ApiKeysToolbar } from './component';
+import { ApiKeysControls } from './component';
 import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
 
 const base = {
@@ -19,9 +19,9 @@ const base = {
   onSearchChange: () => {},
 };
 
-describe('ApiKeysToolbar', () => {
+describe('ApiKeysControls', () => {
   it('renders the status filter, the search field and the create action in one row', () => {
-    render(<ApiKeysToolbar {...base} onCreate={() => {}} />);
+    render(<ApiKeysControls {...base} onCreate={() => {}} />);
 
     expect(screen.getByRole('group', { name: 'Status filter' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('ApiKeysToolbar', () => {
 
   it('reports status changes', () => {
     const onStatusChange = vi.fn();
-    render(<ApiKeysToolbar {...base} onStatusChange={onStatusChange} />);
+    render(<ApiKeysControls {...base} onStatusChange={onStatusChange} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Active' }));
     expect(onStatusChange).toHaveBeenCalledWith('active');
@@ -38,14 +38,14 @@ describe('ApiKeysToolbar', () => {
 
   it('reports search input', () => {
     const onSearchChange = vi.fn();
-    render(<ApiKeysToolbar {...base} onSearchChange={onSearchChange} />);
+    render(<ApiKeysControls {...base} onSearchChange={onSearchChange} />);
 
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'desktop' } });
     expect(onSearchChange).toHaveBeenCalledWith('desktop');
   });
 
   it('states visibly why creation is unavailable instead of leaving a dead disabled button', () => {
-    render(<ApiKeysToolbar {...base} createDisabledReason="Select a project to create a key." />);
+    render(<ApiKeysControls {...base} createDisabledReason="Select a project to create a key." />);
 
     expect(screen.getByRole('button', { name: '+ New key' })).toBeDisabled();
     // Visible, not merely a `title` tooltip.
@@ -54,7 +54,7 @@ describe('ApiKeysToolbar', () => {
 
   it('drops the reason line once creation becomes available', () => {
     render(
-      <ApiKeysToolbar
+      <ApiKeysControls
         {...base}
         onCreate={() => {}}
         createDisabledReason="Select a project to create a key."
@@ -66,19 +66,19 @@ describe('ApiKeysToolbar', () => {
   });
 
   it('leads with the project selector — on this screen it is a precondition, not a filter', () => {
-    render(<ApiKeysToolbar {...base} />);
+    render(<ApiKeysControls {...base} />);
 
     expect(screen.getByLabelText('Project')).toBeInTheDocument();
   });
 
   it('does NOT render an account control — scope is identity, and lives in the header', () => {
-    render(<ApiKeysToolbar {...base} />);
+    render(<ApiKeysControls {...base} />);
 
     expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
   });
 
   it('is one landmark region', () => {
-    render(<ApiKeysToolbar {...base} />);
+    render(<ApiKeysControls {...base} />);
 
     expect(screen.getByRole('region', { name: 'Filters and actions' })).toBeInTheDocument();
   });

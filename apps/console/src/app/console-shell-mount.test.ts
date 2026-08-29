@@ -116,18 +116,23 @@ describe('console shell mounting', () => {
       ].sort()
     );
 
-    const ROUTES_WITH_RAILS = [join('admin', 'page.tsx'), join('manage', 'page.tsx')];
+    // EVERY route fills `@scope` (the left rail's secondary section — a sub-nav on Manage/Admin,
+    // the screen's own controls on Overview/Api-Keys). Only selection-driven routes fill `@rail`.
+    const ROUTES_WITH_RIGHT_RAIL = [join('admin', 'page.tsx'), join('manage', 'page.tsx')];
 
     for (const route of centreRoutes) {
-      const shouldHaveRail = ROUTES_WITH_RAILS.includes(route);
-      for (const slot of ['@rail', '@scope']) {
-        expect(
-          appFiles.includes(join(CONSOLE_GROUP, slot, route)),
-          shouldHaveRail
-            ? `${slot} is missing a segment for ${route}`
-            : `${route} is designed to have no rail, but ${slot} has a segment for it`
-        ).toBe(shouldHaveRail);
-      }
+      expect(
+        appFiles.includes(join(CONSOLE_GROUP, '@scope', route)),
+        `@scope is missing a segment for ${route}`
+      ).toBe(true);
+
+      const shouldHaveRightRail = ROUTES_WITH_RIGHT_RAIL.includes(route);
+      expect(
+        appFiles.includes(join(CONSOLE_GROUP, '@rail', route)),
+        shouldHaveRightRail
+          ? `@rail is missing a segment for ${route}`
+          : `${route} is designed to have no right rail, but @rail has a segment for it`
+      ).toBe(shouldHaveRightRail);
     }
   });
 

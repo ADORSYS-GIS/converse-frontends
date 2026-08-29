@@ -238,14 +238,14 @@ export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 // ── toolbar sections
 // Overview and Api-Keys have NO right rail at any tier (owner review 2026-08-29). Their
 // parameters and the action that consumes them live in one horizontal strip above the content,
-// always visible, at every breakpoint — see `OverviewToolbar`'s docstring for why the persistent
+// always visible, at every breakpoint — see `OverviewControls`'s docstring for why the persistent
 // `lg` rail was the odd tier out rather than the canonical one.
 
-export { OverviewToolbar } from './sections/overview-toolbar';
-export type { OverviewToolbarField, OverviewToolbarProps } from './sections/overview-toolbar';
+export { OverviewControls } from './sections/overview-controls';
+export type { OverviewControlsField, OverviewControlsProps } from './sections/overview-controls';
 
-export { ApiKeysToolbar } from './sections/api-keys-toolbar';
-export type { ApiKeysToolbarProps } from './sections/api-keys-toolbar';
+export { ApiKeysControls } from './sections/api-keys-controls';
+export type { ApiKeysControlsProps } from './sections/api-keys-controls';
 
 export { ApiKeysHygieneNotes } from './sections/api-keys-hygiene-notes';
 export type { ApiKeysHygiene, ApiKeysHygieneNotesProps } from './sections/api-keys-hygiene-notes';

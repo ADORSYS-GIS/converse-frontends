@@ -1,7 +1,7 @@
 import type { SegmentedOption } from '../../components/segmented-control';
 import type { SelectFieldProps } from '../../components/select-field';
 
-export interface ApiKeysToolbarProps {
+export interface ApiKeysControlsProps {
   /**
    * Which project's keys are listed. Leads the toolbar because on THIS screen it is not a filter
    * but a precondition — a key belongs to exactly one project, and creation is impossible until

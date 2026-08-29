@@ -80,20 +80,24 @@ export default function ConsoleLayout({
     (account) => account.id === consoleScope.value.accountId
   );
 
-  // Only Manage and Admin still supply a `@scope` sub-nav; Overview and Api-Keys render nothing
-  // there, so this label is never read on those routes.
-  const leftSecondaryLabel = route === 'admin' ? 'Admin' : 'Manage';
+  // Every route fills the left rail's secondary section: Manage/Admin with a sub-nav, Overview
+  // and Api-Keys with their own controls (owner, 2026-08-29 — one rail carries navigation AND the
+  // screen's parameters; the content column is content only).
+  const leftSecondaryLabel =
+    route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : route === 'api-keys' ? 'Keys' : 'View';
 
-  // Which routes have rails is decided HERE, not by whether the slot happens to render something.
+  // Which routes get the RIGHT rail is decided here, not by whether the slot renders something.
   //
   // A parallel-route slot is always a React element, even when its segment returns `null` — so
   // `ConsoleShell`'s `rightRail ? …` gate is truthy on every route, and Overview/Api-Keys were
   // reserving an empty 280px column (owner screenshot, live). Worse, Next only falls back to
   // `default.tsx` on a HARD navigation: a client-side Admin → Api-Keys move keeps the previously
   // matched `@rail/admin` segment mounted, so Api-Keys rendered Admin's "Select a request to
-  // review it." Passing `undefined` for rail-less routes fixes both — the slot is never rendered
-  // there at all, so there is nothing stale to retain and no column to reserve.
-  const hasRail = route === 'manage' || route === 'admin';
+  // review it." Passing `undefined` for rail-less routes fixes both.
+  //
+  // Only selection-driven content earns the right rail: Manage and Admin retarget it on the row
+  // you pick. Everything else lives in the LEFT rail's secondary section.
+  const hasRightRail = route === 'manage' || route === 'admin';
 
   return (
     <ConsoleShell
@@ -140,9 +144,9 @@ export default function ConsoleLayout({
         // the code, just never exercised because navigation itself never went through it).
         linkComponent: Link,
       }}
-      leftSecondary={hasRail ? scope : undefined}
+      leftSecondary={scope}
       leftSecondaryLabel={leftSecondaryLabel}
-      rightRail={hasRail ? rail : undefined}>
+      rightRail={hasRightRail ? rail : undefined}>
       {children}
     </ConsoleShell>
   );

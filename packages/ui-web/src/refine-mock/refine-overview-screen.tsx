@@ -16,14 +16,14 @@ import { BudgetPanel } from '../sections/budget-panel';
 import { LatencyDashboard } from '../sections/latency-dashboard';
 import { presetRange } from '../components/date-range-field';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import { OverviewToolbar } from '../sections/overview-toolbar';
+import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
   MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
-} from '../sections/overview-toolbar/fixtures';
+} from '../sections/overview-controls/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import {
@@ -74,7 +74,7 @@ export function RefineOverviewScreen() {
 
         {isError ? <InlineStatus>{errorMessage}</InlineStatus> : null}
 
-        <OverviewToolbar
+        <OverviewControls
           rangeField={{
             label: 'Range',
             preset: rangePreset,

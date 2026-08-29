@@ -16,16 +16,18 @@ const LAYOUT = readFileSync(join(process.cwd(), 'src/app/(console)/layout.tsx'),
  */
 describe('console rail routes', () => {
   it('gates both rail slots on the route, not on whether the slot renders something', () => {
-    expect(LAYOUT).toContain('rightRail={hasRail ? rail : undefined}');
-    expect(LAYOUT).toContain('leftSecondary={hasRail ? scope : undefined}');
+    expect(LAYOUT).toContain('rightRail={hasRightRail ? rail : undefined}');
   });
 
-  it('never passes the slot through unconditionally', () => {
+  it('never passes the right-rail slot through unconditionally', () => {
     expect(LAYOUT).not.toContain('rightRail={rail}');
-    expect(LAYOUT).not.toContain('leftSecondary={scope}');
   });
 
-  it('names exactly the two selection-driven routes as having a rail', () => {
-    expect(LAYOUT).toMatch(/const hasRail = route === 'manage' \|\| route === 'admin';/);
+  it('names exactly the two selection-driven routes as having a right rail', () => {
+    expect(LAYOUT).toMatch(/const hasRightRail = route === 'manage' \|\| route === 'admin';/);
+  });
+
+  it('gives every route left-rail content — the nav rail is never a bare spine', () => {
+    expect(LAYOUT).toContain('leftSecondary={scope}');
   });
 });

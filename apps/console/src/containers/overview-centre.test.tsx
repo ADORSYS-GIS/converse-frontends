@@ -71,6 +71,8 @@ async function renderCentre(overrides: Partial<OverviewScreenData> = {}) {
   return render(<OverviewCentre />, { wrapper: withNuqsTestingAdapter() });
 }
 
+// Latency left this screen on 2026-08-29 (owner: Overview is a per-USER dashboard; per-bucket p95
+// by model is an operator's metric). `LatencyDashboard`'s own tests still cover the section.
 describe('OverviewCentre', () => {
   /**
    * 15s, not the 5s default, and measured rather than guessed.
@@ -220,91 +222,15 @@ describe('OverviewCentre', () => {
     expect(screen.queryByRole('button', { name: /Request refill/ })).not.toBeInTheDocument();
   });
 
-  it('renders LATENCY with real series when the usage query returned latency data', async () => {
-    await renderCentre({
-      latencyStatus: 'ready',
-      latencySeries: [
-        {
-          key: 'gpt-4o-mini',
-          label: 'gpt-4o-mini',
-          values: [210, 240, 260],
-          value: 'peak p95 260 ms',
-        },
-        {
-          key: 'claude-sonnet',
-          label: 'claude-sonnet',
-          values: [900, 950],
-          value: 'peak p95 950 ms',
-        },
-      ],
-    });
 
-    // The ridgeline renders each row's right-hand value -- the same "label left, p95 right"
-    // contract `LatencyRidgelineSeries.value` documents, proving real data made it all the way
-    // through rather than the chart falling back to an empty/unwired rendering.
-    expect(screen.getByText('peak p95 260 ms')).toBeInTheDocument();
-    expect(screen.getByText('peak p95 950 ms')).toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByText('Not wired — see banner above.')).not.toBeInTheDocument();
-  });
-
-  it('a FAILED latency query renders an error line, independent of SPEND’s own status', async () => {
-    await renderCentre({
-      spendStatus: 'ready',
-      latencyStatus: 'error',
-      latencyErrorMessage: 'The usage backend is unreachable right now.',
-    });
-
-    const alerts = screen.getAllByRole('alert');
-    expect(alerts.some((el) => el.textContent?.includes('unreachable'))).toBe(true);
-  });
 
   // The per-series honesty contract this whole story exists to build: some groups reported real
   // latency, one genuinely reported none (an aggregate-metric-only model) -- the footnote names
   // it explicitly rather than either fabricating a shape or blanking the whole panel.
-  it('names the group(s) that reported no latency in a footnote when some, but not all, groups did', async () => {
-    await renderCentre({
-      latencyStatus: 'ready',
-      latencySeries: [
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240], value: 'peak p95 240 ms' },
-        {
-          key: 'signal-summary',
-          label: 'signal-summary',
-          values: [],
-          value: 'no latency reported',
-        },
-      ],
-      latencyFootnote:
-        'No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration.',
-    });
-
-    expect(
-      screen.getByText(
-        'No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration.'
-      )
-    ).toBeInTheDocument();
-  });
 
   // Every group reported zero samples this range -- the query still SUCCEEDED (never
   // `status="unwired"`, which would falsely claim the section was never queried at all), so the
   // empty ridgeline plus a footnote naming the range/filter itself is the honest rendering.
-  it('names the whole range/filter in the footnote when every group reported no latency', async () => {
-    await renderCentre({
-      latencyStatus: 'ready',
-      latencySeries: [
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [], value: 'no latency reported' },
-      ],
-      latencyFootnote:
-        'No latency reported for this range or filter — every event was either an aggregate metric signal or otherwise carried no per-request duration.',
-    });
-
-    expect(
-      screen.getByText(
-        'No latency reported for this range or filter — every event was either an aggregate metric signal or otherwise carried no per-request duration.'
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Not wired — see banner above.')).not.toBeInTheDocument();
-  });
 
   it('renders no footnote at all when every group reported real latency', async () => {
     await renderCentre({

@@ -17,11 +17,11 @@ import type {
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
-import { ApiKeysToolbar } from '../sections/api-keys-toolbar';
+import { ApiKeysControls } from '../sections/api-keys-controls';
 import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
-} from '../sections/api-keys-toolbar/fixtures';
+} from '../sections/api-keys-controls/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { RefineMockShell } from './shared-chrome';
 
@@ -121,7 +121,7 @@ export function RefineApiKeysScreen() {
       <div className="flex flex-col gap-6">
         <ScreenHeading title="API keys" />
 
-        <ApiKeysToolbar
+        <ApiKeysControls
           projectField={{
             label: 'Project',
             value: project,

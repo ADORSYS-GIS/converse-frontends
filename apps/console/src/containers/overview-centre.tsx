@@ -1,13 +1,10 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
-import { formatMsAxis } from '@lightbridge/ui-web/src/lib/duration';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
-import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
-import { OverviewToolbar } from '@lightbridge/ui-web/src/sections/overview-toolbar';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
@@ -19,7 +16,7 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-ov
  * screen: this route supplies no `@rail` and no `@scope` slot content at any tier.
  *
  * The shell is NOT here: it is mounted once by `app/(console)/layout.tsx`. This composes the
- * centre's sections and the one `OverviewToolbar` that carries every parameter the screen has.
+ * centre's sections. The screen's parameters live in the LEFT rail (`@scope`).
  *
  * There is no longer a rail/sheet pair to keep in sync — the controls are mounted once, visible at
  * every tier — but the values still live in the query string (ADR 0011), so a configured dashboard
@@ -48,19 +45,6 @@ export function OverviewCentre() {
   return (
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline={screen.subline} />
-
-      {/* Every parameter this screen has, in one always-visible strip — no rail at any tier, no
-          section sheets, no `lg`-only composition. */}
-      <OverviewToolbar
-        rangeField={screen.rangeField}
-        bucketField={screen.bucketField}
-        groupByField={screen.groupByField}
-        projectField={screen.projectField}
-        modelField={screen.modelField}
-        // No handler: the CSV export route does not exist yet (#308). The action renders disabled
-        // WITH its reason rather than silently no-opping (console-ui#324).
-        exportDisabledReason={OVERVIEW_EXPORT_UNAVAILABLE_CAPTION}
-      />
 
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 
@@ -93,41 +77,26 @@ export function OverviewCentre() {
         total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
       />
 
-      <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
-        {/* Wired off the SAME usageQuery SpendDashboard/SpendShareSection above already run — see
-            `use-overview-screen.ts`'s doc comment. `latencyFootnote` carries the per-series
-            honesty: `undefined` when every group reported real latency, otherwise naming exactly
-            which group(s) (or the whole range) reported none — never a chart-wide "unwired"
-            claim now that a real usage-backend query client exists and ran. */}
-        <LatencyDashboard
-          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-          series={screen.latencySeries}
-          status={screen.latencyStatus}
-          errorMessage={screen.latencyErrorMessage}
-          onRetry={screen.latencyRetry}
-          footnote={screen.latencyFootnote}
-          fallbackWidth={840}
-          height={200}
-          formatXTick={formatMsAxis}
-          onSelectSeries={screen.setSelectedSeriesKey}
-        />
-        <BudgetPanel
-          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
-          budget={screen.budget}
-          heroAction={
-            screen.refillAction ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={screen.refillAction.pending}
-                onClick={screen.refillAction.onClick}>
-                {screen.refillAction.label}
-              </Button>
-            ) : undefined
-          }
-        />
-      </div>
+      {/* Latency is gone from Overview (owner, 2026-08-29): this is a per-USER dashboard — what
+          I spend, what I have left, what keys I hold. Per-bucket p95 by model is an operator's
+          metric; it answers a question nobody reading this screen is asking. `LatencyDashboard`
+          and `LatencyRidgeline` stay in the library for a future ops screen. */}
+      <BudgetPanel
+        className="w-full"
+        budget={screen.budget}
+        heroAction={
+          screen.refillAction ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={screen.refillAction.pending}
+              onClick={screen.refillAction.onClick}>
+              {screen.refillAction.label}
+            </Button>
+          ) : undefined
+        }
+      />
       {screen.refillErrorMessage ? (
         <ErrorLine message={`Refill request failed: ${screen.refillErrorMessage}`} />
       ) : null}

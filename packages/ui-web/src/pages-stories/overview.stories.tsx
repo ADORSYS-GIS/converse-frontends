@@ -11,6 +11,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
+import { RailPanel } from '../components/rail-panel';
 import { presetRange } from '../components/date-range-field';
 import type { SelectFieldProps } from '../components/select-field';
 import { InlineStatus } from '../components/inline-status';
@@ -28,14 +29,14 @@ import {
   partiallyReportedLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import { OverviewToolbar } from '../sections/overview-toolbar';
+import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
   MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
-} from '../sections/overview-toolbar/fixtures';
+} from '../sections/overview-controls/fixtures';
 import {
   overviewEmptyStatCards,
   overviewStatCards,
@@ -144,35 +145,39 @@ function OverviewScreen({
         items: storyNavItems('overview'),
         adminItems: storyAdminNavItems('overview'),
         showAdmin,
-      }}>
+      }}
+      leftSecondaryLabel="View"
+      leftSecondary={
+        <RailPanel label="View">
+  <OverviewControls
+            rangeField={{
+              label: 'Range',
+              preset: rangePreset,
+              presets: RANGE_PRESETS,
+              value: range,
+              today: STORY_TODAY,
+              onPresetChange: (next) => {
+                setRangePreset(next);
+                setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY));
+              },
+              onRangeChange: (next) => {
+                setRangePreset(null);
+                setRange(next);
+              },
+            }}
+            bucketField={bucketField}
+            groupByField={groupByField}
+            projectField={projectField}
+            modelField={modelField}
+            onExport={exportDisabledReason ? undefined : () => {}}
+            exportDisabledReason={exportDisabledReason}
+          />
+        </RailPanel>
+      }>
       <div className="flex flex-col gap-8">
         <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
 
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
-
-        <OverviewToolbar
-          rangeField={{
-            label: 'Range',
-            preset: rangePreset,
-            presets: RANGE_PRESETS,
-            value: range,
-            today: STORY_TODAY,
-            onPresetChange: (next) => {
-              setRangePreset(next);
-              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY));
-            },
-            onRangeChange: (next) => {
-              setRangePreset(null);
-              setRange(next);
-            },
-          }}
-          bucketField={bucketField}
-          groupByField={groupByField}
-          projectField={projectField}
-          modelField={modelField}
-          onExport={exportDisabledReason ? undefined : () => {}}
-          exportDisabledReason={exportDisabledReason}
-        />
 
         <OverviewStatRow cards={statCards} loading={statCardsLoading} />
 

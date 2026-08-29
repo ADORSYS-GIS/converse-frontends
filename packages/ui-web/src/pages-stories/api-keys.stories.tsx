@@ -4,7 +4,7 @@
 // **This screen has no right rail at any tier** (owner review 2026-08-29). It was the clearest
 // case for the change: the rail carried FILTERS, KEY HYGIENE, LIFECYCLE, a scope echo and the
 // `New key` CTA — measurably taller than the table it parameterised, which in production held a
-// single row. All of it is now one `ApiKeysToolbar` above the ledger, plus inline hygiene notes.
+// single row. All of it is now one `ApiKeysControls` above the ledger, plus inline hygiene notes.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -12,6 +12,7 @@ import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { ConsoleShell } from '../components/console-shell';
+import { RailPanel } from '../components/rail-panel';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
@@ -26,11 +27,11 @@ import type {
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
-import { ApiKeysToolbar } from '../sections/api-keys-toolbar';
+import { ApiKeysControls } from '../sections/api-keys-controls';
 import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
-} from '../sections/api-keys-toolbar/fixtures';
+} from '../sections/api-keys-controls/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
 
@@ -82,29 +83,33 @@ function ApiKeysScreen({
         items: storyNavItems('api-keys'),
         adminItems: storyAdminNavItems('api-keys'),
         showAdmin,
-      }}>
+      }}
+      leftSecondaryLabel="Keys"
+      leftSecondary={
+        <RailPanel label="Keys">
+  <ApiKeysControls
+            projectField={{
+              label: 'Project',
+              value: project,
+              options: API_KEY_PROJECT_OPTIONS,
+              onChange: setProject,
+            }}
+            statusOptions={API_KEY_STATUS_OPTIONS}
+            statusValue={statusFilterValue}
+            onStatusChange={setStatusFilterValue}
+            search={search}
+            onSearchChange={setSearch}
+            onCreate={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}
+            createDisabledReason={canCreate ? undefined : 'Select a project to create a key.'}
+          />
+        </RailPanel>
+      }>
       {/* No `leftSecondary` and no `rightRail`. Scope is the header's (account) and the toolbar's
           (project); there is nothing left for either rail to hold. */}
       <div className="flex flex-col gap-6">
         {/* "API keys", not "Api-Keys" — the old title was the route slug run through a title-caser,
             which disagreed with the nav item sitting right beside it. */}
         <ScreenHeading title="API keys" />
-
-        <ApiKeysToolbar
-          projectField={{
-            label: 'Project',
-            value: project,
-            options: API_KEY_PROJECT_OPTIONS,
-            onChange: setProject,
-          }}
-          statusOptions={API_KEY_STATUS_OPTIONS}
-          statusValue={statusFilterValue}
-          onStatusChange={setStatusFilterValue}
-          search={search}
-          onSearchChange={setSearch}
-          onCreate={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}
-          createDisabledReason={canCreate ? undefined : 'Select a project to create a key.'}
-        />
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}
 

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { presetRange } from '../../components/date-range-field';
-import { OverviewToolbar } from './component';
-import type { OverviewToolbarField } from './types';
+import { OverviewControls } from './component';
+import type { OverviewControlsField } from './types';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
@@ -15,16 +15,16 @@ import {
 function field(
   label: string,
   value: string,
-  options: OverviewToolbarField['options']
-): OverviewToolbarField {
+  options: OverviewControlsField['options']
+): OverviewControlsField {
   return { label, value, options, onChange: () => {} };
 }
 
 const TODAY = new Date(Date.UTC(2026, 7, 29));
 
-const meta: Meta<typeof OverviewToolbar> = {
-  title: 'Sections/OverviewToolbar',
-  component: OverviewToolbar,
+const meta: Meta<typeof OverviewControls> = {
+  title: 'Sections/OverviewControls',
+  component: OverviewControls,
   parameters: { layout: 'padded' },
   args: {
     rangeField: {
@@ -44,7 +44,7 @@ const meta: Meta<typeof OverviewToolbar> = {
   },
   decorators: [
     (Story) => (
-      <div className="bg-muted p-6">
+      <div className="bg-surface w-[240px] p-4">
         <Story />
       </div>
     ),
@@ -52,7 +52,7 @@ const meta: Meta<typeof OverviewToolbar> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof OverviewToolbar>;
+type Story = StoryObj<typeof OverviewControls>;
 
 export const Default: Story = {};
 
@@ -67,13 +67,6 @@ export const ExportUnavailable: Story = {
   args: { onExport: undefined, exportDisabledReason: "Export isn't available yet." },
 };
 
-/**
- * `md` (600–1024): the row wraps rather than switching to a different layout. This is the whole
- * point of replacing the rail — one arrangement, at every tier.
- */
-export const MdTier: Story = {
-  globals: { viewport: { value: 'md900' } },
-};
 
 /** Base tier (<600): the same row, wrapped to three or four lines. */
 export const MobileBaseTier: Story = {
@@ -90,7 +83,7 @@ export const Interactive: Story = {
     // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
     const [project, setProject] = useState('all');
     return (
-      <OverviewToolbar
+      <OverviewControls
         {...args}
         projectField={{ ...args.projectField, value: project, onChange: setProject }}
       />

@@ -200,6 +200,29 @@ export async function proxyRequest(
     }
   }
 
+  // A 401 that survives to here means the access token was refused and could NOT be replaced:
+  // either there was no refresh token to use, or the single reactive retry already ran and the
+  // fresh token was refused too, or a cooldown from an earlier failure suppressed the attempt.
+  // Whichever it was, this session cannot make an authorized call again, so forwarding the
+  // upstream 401 verbatim strands the browser: the cookie still decrypts, `/api/session` still
+  // answers `authenticated: true`, and every request 401s indefinitely while the UI renders as a
+  // signed-in app. Observed in production 2026-08-29 — authz logged
+  // `JWT error: ExpiredSignature` in a loop while the console kept resending the dead token,
+  // because both refresh predicates short-circuit on a missing `refreshToken` and neither the
+  // clear nor the retry ever ran.
+  //
+  // Clearing the cookie converts that dead end into the recoverable state the client already
+  // knows how to handle: `session_expired` is exactly the signal `/auth/login` acts on, and the
+  // IdP session is usually still live, so the next navigation re-authenticates silently.
+  //
+  // Deliberately NOT applied to 403: authz fail-closes an unauthorized *operation* to 403
+  // (`rpc_authorize`), which says nothing about the token's validity — ending the session there
+  // would sign a user out for opening a page they simply cannot use.
+  if (upstream.status === 401) {
+    await upstream.body?.cancel().catch(() => undefined);
+    return sessionExpired();
+  }
+
   const response = new NextResponse(upstream.body, {
     status: upstream.status,
     headers: pickHeaders(upstream.headers, FORWARDED_RESPONSE_HEADERS),

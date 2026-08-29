@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { useCommandPaletteShortcut } from './use-command-palette-shortcut';
 
 function pressKey(key: string, modifiers: { metaKey?: boolean; ctrlKey?: boolean } = {}) {
-  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers });
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+    ...modifiers,
+  });
   document.dispatchEvent(event);
   return event;
 }

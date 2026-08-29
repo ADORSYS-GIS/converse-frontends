@@ -4,7 +4,8 @@ import { SPEC_GRID } from '../../chart-tokens';
 import { ErrorLine } from '../../components/error-line';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL, UNWIRED_CHART_MESSAGE } from '../dashboard-label';
+import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { LatencyDashboardProps } from './types';
 
 // Loading-skeleton geometry for the LATENCY ridgeline, matching `LatencyRidgeline`'s own margin
@@ -48,7 +49,7 @@ function LatencyChartSkeleton({ width, height }: { width: number; height: number
 // (`apps/console/src/containers/overview-usage.ts`) and ADR-0008 Decision 7's amended status note
 // both rule out.
 export function LatencyDashboard({
-  label = 'LATENCY — p95 PER BUCKET, BY MODEL',
+  label = 'Latency — p95 per bucket, by model',
   series,
   fallbackWidth,
   height,
@@ -67,23 +68,30 @@ export function LatencyDashboard({
   const measuredWidth = size.width || fallbackWidth;
 
   return (
-    <div className={className}>
+    // The ref observes the OUTER wrapper: the chart's scroll box only exists in the chart branch,
+    // so a ref mounted only there would leave the loading skeleton at `fallbackWidth` forever.
+    <div ref={ref} className={className}>
       <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
+        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
-      {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
-          why a landmark role here would trip axe's `landmark-unique` once a page renders more
-          than one scrollable dashboard. */}
-      <div ref={ref} className="mt-4 w-full overflow-x-auto" tabIndex={0}>
-        {status === 'error' ? (
+      {/* Only the CHART goes in the horizontal scroller — error and loading are prose that wraps
+          to the column, and inside the scroll box they were clipped along with it. */}
+      {status === 'error' ? (
+        <div className="mt-4">
           <ErrorLine message={errorMessage ?? 'Failed to load latency data.'} onRetry={onRetry} />
-        ) : status === 'loading' ? (
-          <div className="flex flex-col gap-2">
+        </div>
+      ) : status === 'loading' ? (
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="w-full overflow-x-auto overflow-y-clip">
             <LatencyChartSkeleton width={measuredWidth} height={height} />
-            <p className="text-subtle font-mono text-[10px]">Querying usage…</p>
           </div>
-        ) : (
+          <p className="text-subtle font-mono text-[11px]">Querying usage…</p>
+        </div>
+      ) : (
+        /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`. `overflow-y-clip` --
+           `overflow-x-auto` alone also scrolls vertically, see `SpendDashboard`. */
+        <div className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
           <LatencyRidgeline
             series={series}
             width={measuredWidth}
@@ -95,8 +103,8 @@ export function LatencyDashboard({
             formatXTick={formatXTick}
             onSelectSeries={onSelectSeries}
           />
-        )}
-      </div>
+        </div>
+      )}
       {footnote ? <p className="text-subtle mt-2 font-mono text-[10px]">{footnote}</p> : null}
     </div>
   );

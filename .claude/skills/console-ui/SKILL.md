@@ -29,6 +29,19 @@ Separation is tonal, never lines, never shadows. Mono type everywhere structural
 signal that appears only when something is actionable or needs attention. **A scalar gets a
 panel, a distribution gets the floor.**
 
+**Rails are for selection-driven content only** (owner review 2026-08-29). Manage and Admin have a
+right rail because theirs retargets on the row you pick and carries multi-field forms and decision
+actions. **Overview and Api-Keys have no rail at any tier**: their parameters are a handful of
+selects with no selection behaviour, and they live in one always-visible horizontal toolbar above
+the content (`OverviewToolbar`, `ApiKeysToolbar`) at every breakpoint. Before adding a rail to a
+screen, ask whether its content retargets on selection; if it does not, it is a toolbar.
+
+**Scope is identity, not a filter.** The account renders once, in the header, as `AccountBadge` —
+a name, or `acct_49534505` when the account has none, never a raw UUID — and that badge is also
+the account switcher when more than one account is reachable. The project IS a genuine parameter
+and belongs in the screen's toolbar. There is no left-rail `SCOPE` echo and no account id in a
+page subline; that arrangement put the same UUID on screen four times.
+
 ## Tokens — use the Tailwind semantic tokens, never hex
 
 Single source for the web surface is **`packages/ui-web/src/theme.css`** — the daisyUI
@@ -65,7 +78,7 @@ Four libraries, four non-overlapping jobs (ADR 0010 Decision 2). Never solve one
 | Reach for                      | When                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **daisyUI 5 class**            | A visual component class exists: `btn`, `input`, `textarea`, `select`, `table`, `menu`, `tabs`, `toggle`, `checkbox`, `radio`, `skeleton`, `fieldset`/`label`, `join`, `kbd`, `validator`. Add Tailwind utilities for whatever daisy does not cover                                                                                          |
-| **Base UI (`@base-ui/react`)** | Anything with _behaviour_: Dialog, Alert Dialog, Menu, Select, Combobox, Popover, Tooltip, Tabs, Toggle Group, Field/Fieldset/Form, Switch, Checkbox, Radio, Number Field, Scroll Area, Toast. Style its parts with daisy classes + token utilities via `className` (which also accepts a function of component state) and `data-*` variants |
+| **Base UI (`@base-ui/react`)** | **Every** control with _behaviour_ — never a native `<select>`, never a hand-rolled popup. As of 2026-08-29 the adoption gap is closed; a new primitive that reimplements Base UI behaviour is a defect. Specifically: Dialog, Alert Dialog, Menu, Select, Combobox, Popover, Tooltip, Tabs, Toggle Group, Field/Fieldset/Form, Switch, Checkbox, Radio, Number Field, Scroll Area, Toast. Style its parts with daisy classes + token utilities via `className` (which also accepts a function of component state) and `data-*` variants |
 | **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                            |
 | **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                             |
 | **vaul**                       | Drawers and bottom sheets. Still the only drawer primitive                                                                                                                                                                                                                                                                                   |
@@ -107,7 +120,12 @@ not adopted from daisyUI_ before reaching for `badge`, `alert`, `card`, `drawer`
 Two families only: **IBM Plex Mono** for everything structural (nav, labels, headings, table
 cells, all numerics, buttons) and **Inter 400** for sentence-prose only. Roles (size/leading):
 `page-title` 22 mono ink · `panel-title` 16 mono ink · `metric` 22–26 mono ink · `row` 12 mono ·
-`meta` 11 mono · `label` 10 mono uppercase tracked (.09em) subtle · `prose` 10–11 Inter.
+`meta` 11 mono · `label` 11 mono **sentence case** subtle · `prose` 10–11 Inter.
+**`label` has exactly one definition** — `LABEL_CLASS` in `packages/ui-web/src/lib/type-roles.ts`
+(`DASHBOARD_LABEL_CLASS` one step up for centre-column dashboard headings). Import it; never
+re-declare `font-mono text-[…] text-subtle` in a component. Sentence case, not uppercase, since
+the owner review of 2026-08-29: one all-caps label reads as restraint, twenty on one screen read
+as twenty things shouting.
 Numerics are right-aligned; thousands use thin space (`$1 131.80`); currency always two decimals.
 
 ## Shape and layout
@@ -200,7 +218,10 @@ chart `<svg>` as `contextElement`), never by hand-computed `left`/`top` arithmet
 ## States
 
 - **Empty**: an inline mono status line above still-rendered structure (headers/axes stay).
-  Never a centered placard, never an illustration.
+  Never a centered placard, never an illustration. **The message must be DOM text, never an SVG
+  `<text>`** — SVG text does not wrap, so a message longer than the plot is wide spills off both
+  ends at once (the real cause of the owner-reported "clipped at both ends" latency copy,
+  2026-08-29). Axis tick labels stay SVG; the message does not.
 - **Loading**: skeleton blocks (`raised`) matching final geometry — daisy's `skeleton` class with
   `h-*`/`w-*`, its animation suppressed centrally. No spinners, no shimmer.
 - **Error**: a `primary`-coloured mono line in place of the value with an inline `Retry` ghost.
@@ -283,7 +304,12 @@ are devDependencies only.
 
 Card-wrapped centre content · borders or shadows on panels · a second accent colour · orange as
 decoration or large fill · green/red deltas · pills/badges · rounded-full · spinners ·
-centered empty-state placards · hex colours in components · React Native imports · a chart
+centered empty-state placards · empty-state copy inside an SVG `<text>` · uppercase labels ·
+a native `<select>` (use `SelectField`) · a floating overlay without `OVERLAY_CLASS` ·
+a hand-drawn chevron (use `Chevron`) ·
+re-declaring the `label` type role instead of importing `LABEL_CLASS` · a raw account UUID as a
+visible label · a right rail on a screen whose rail content is not selection-driven · pie/donut
+charts (use `ShareBar`) · hex colours in components · React Native imports · a chart
 framework dependency · `dark:` variants or a `.dark` class · `tailwind.config.js` in `ui-web` or
 `apps/console` (Tailwind v4 is CSS-first) · importing `@radix-ui/*` directly · hand-written focus
 traps or roving `tabIndex` · a `cva.ts` that only encodes boolean state.

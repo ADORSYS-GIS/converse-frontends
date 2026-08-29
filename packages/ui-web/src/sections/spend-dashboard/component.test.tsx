@@ -11,7 +11,7 @@ describe('SpendDashboard', () => {
   it('renders its heading and the chart', () => {
     const { container } = render(<SpendDashboard {...base} />);
 
-    expect(screen.getByText('SPEND — BY PROJECT AND MODEL')).toBeInTheDocument();
+    expect(screen.getByText('Spend — by project and model')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 

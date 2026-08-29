@@ -54,7 +54,7 @@ describe('RefineManageScreen', () => {
     fireEvent.click(rows[0]);
 
     await waitFor(() => expect(screen.queryByText('No rows selected.')).not.toBeInTheDocument());
-    const selectionPanel = screen.getByText('SELECTION').parentElement as HTMLElement;
+    const selectionPanel = screen.getByText('Selection').parentElement as HTMLElement;
     expect(within(selectionPanel).getByText('adorsys-gis')).toBeInTheDocument();
   });
 

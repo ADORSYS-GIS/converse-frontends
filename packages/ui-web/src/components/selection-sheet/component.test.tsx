@@ -11,7 +11,7 @@ function Harness({ initial = null }: { initial?: string | null }) {
       <button type="button" onClick={() => setSelected('gateway-prod')}>
         Select row
       </button>
-      <SelectionSheet selectionKey={selected} label="SELECTION">
+      <SelectionSheet selectionKey={selected} label="Selection">
         <span>{selected ?? 'No rows selected.'}</span>
       </SelectionSheet>
     </>
@@ -29,14 +29,14 @@ describe('SelectionSheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Select row' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'SELECTION' });
+    const dialog = screen.getByRole('dialog', { name: 'Selection' });
     expect(within(dialog).getByText('gateway-prod')).toBeInTheDocument();
   });
 
   it('opens for a selection that is already present at mount (deep link / story)', () => {
     render(<Harness initial="batch-eval" />);
 
-    expect(screen.getByRole('dialog', { name: 'SELECTION' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Selection' })).toBeInTheDocument();
   });
 
   it('dismisses from its close control', () => {

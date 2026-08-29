@@ -46,8 +46,8 @@ describe('BudgetPanel', () => {
   it('omits both optional blocks when their data is absent', () => {
     render(<BudgetPanel budget={overviewBudget} />);
 
-    expect(screen.queryByText('NEEDS ATTENTION')).not.toBeInTheDocument();
-    expect(screen.queryByText('REFILL REQUESTS')).not.toBeInTheDocument();
+    expect(screen.queryByText('Needs attention')).not.toBeInTheDocument();
+    expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
   });
 
   it('renders the compact-tier trigger slot on the heading row', () => {

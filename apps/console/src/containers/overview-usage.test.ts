@@ -8,12 +8,25 @@ import {
   buildOverviewUsageRequest,
   currentPeriodRange,
   overviewGroupByToUsageGroupBy,
+  resolveOverviewWindow,
   sumTotalCost,
   toLatencySeries,
-  toSpendShareSlices,
+  toSpendShareSegments,
   toSpendSeries,
 } from './overview-usage';
 
+const WINDOW_7D = {
+  start: new Date(Date.UTC(2026, 7, 22)),
+  end: new Date(Date.UTC(2026, 7, 29)),
+};
+const WINDOW_30D = {
+  start: new Date(Date.UTC(2026, 6, 30)),
+  end: new Date(Date.UTC(2026, 7, 29)),
+};
+const WINDOW_90D = {
+  start: new Date(Date.UTC(2026, 4, 31)),
+  end: new Date(Date.UTC(2026, 7, 29)),
+};
 const NOW = new Date('2026-08-28T12:00:00.000Z');
 
 describe('overviewGroupByToUsageGroupBy', () => {
@@ -28,11 +41,10 @@ describe('buildOverviewUsageRequest', () => {
     const request = buildOverviewUsageRequest({
       accountId: 'acct_1',
       projectId: null,
-      range: '30d',
+      window: WINDOW_30D,
       bucket: 'day',
       groupBy: 'project',
       model: 'all',
-      now: NOW,
     });
 
     expect(request.scope).toBe('account');
@@ -43,52 +55,48 @@ describe('buildOverviewUsageRequest', () => {
     const request = buildOverviewUsageRequest({
       accountId: 'acct_1',
       projectId: 'proj_7',
-      range: '30d',
+      window: WINDOW_30D,
       bucket: 'day',
       groupBy: 'project',
       model: 'all',
-      now: NOW,
     });
 
     expect(request.scope).toBe('project');
     expect(request.scope_id).toBe('proj_7');
   });
 
-  it('computes start_time as exactly `range` days before end_time', () => {
+  it('carries the resolved window straight through as start_time/end_time', () => {
     const request = buildOverviewUsageRequest({
       accountId: 'acct_1',
       projectId: null,
-      range: '7d',
+      window: WINDOW_7D,
       bucket: 'hour',
       groupBy: 'model',
       model: 'all',
-      now: NOW,
     });
 
-    expect(request.end_time).toBe('2026-08-28T12:00:00.000Z');
-    expect(request.start_time).toBe('2026-08-21T12:00:00.000Z');
+    expect(request.start_time).toBe(WINDOW_7D.start.toISOString());
+    expect(request.end_time).toBe(WINDOW_7D.end.toISOString());
   });
 
   it('translates group-by through the #312 mapping table', () => {
     expect(
       buildOverviewUsageRequest({
         accountId: 'acct_1',
-        range: '30d',
+        window: WINDOW_30D,
         bucket: 'day',
         groupBy: 'project',
         model: 'all',
-        now: NOW,
       }).group_by
     ).toEqual(['project_id']);
 
     expect(
       buildOverviewUsageRequest({
         accountId: 'acct_1',
-        range: '30d',
+        window: WINDOW_30D,
         bucket: 'day',
         groupBy: 'model',
         model: 'all',
-        now: NOW,
       }).group_by
     ).toEqual(['model']);
   });
@@ -110,11 +118,10 @@ describe('buildOverviewUsageRequest', () => {
   it.each(OVERVIEW_BUCKETS)('sends bucket %s as an interval the backend accepts', (bucket) => {
     const request = buildOverviewUsageRequest({
       accountId: 'acct_1',
-      range: '30d',
+      window: WINDOW_30D,
       bucket,
       groupBy: 'project',
       model: 'all',
-      now: NOW,
     });
     expect(request.bucket).toMatch(BACKEND_BUCKET_RE);
   });
@@ -123,11 +130,10 @@ describe('buildOverviewUsageRequest', () => {
     const bucketFor = (bucket: (typeof OVERVIEW_BUCKETS)[number]) =>
       buildOverviewUsageRequest({
         accountId: 'acct_1',
-        range: '30d',
+        window: WINDOW_30D,
         bucket,
         groupBy: 'project',
         model: 'all',
-        now: NOW,
       }).bucket;
 
     expect(bucketFor('hour')).toBe('1 hour');
@@ -139,21 +145,19 @@ describe('buildOverviewUsageRequest', () => {
   it('omits the model filter for the "all" sentinel, sets it otherwise', () => {
     const allModels = buildOverviewUsageRequest({
       accountId: 'acct_1',
-      range: '30d',
+      window: WINDOW_30D,
       bucket: 'day',
       groupBy: 'model',
       model: 'all',
-      now: NOW,
     });
     expect(allModels.filters).toBeUndefined();
 
     const oneModel = buildOverviewUsageRequest({
       accountId: 'acct_1',
-      range: '30d',
+      window: WINDOW_30D,
       bucket: 'day',
       groupBy: 'model',
       model: 'gpt-4o-mini',
-      now: NOW,
     });
     expect(oneModel.filters).toEqual({ model: 'gpt-4o-mini' });
   });
@@ -228,7 +232,7 @@ describe('toSpendSeries', () => {
   });
 });
 
-describe('toSpendShareSlices', () => {
+describe('toSpendShareSegments', () => {
   it('sums cost per dimension value across the whole range', () => {
     const response: UsageQueryResponse = {
       points: [
@@ -238,14 +242,31 @@ describe('toSpendShareSlices', () => {
       ],
     };
 
-    const slices = toSpendShareSlices(response, 'model');
+    const slices = toSpendShareSegments(response, 'model');
 
     expect(slices).toEqual(
       expect.arrayContaining([
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', value: 7 },
-        { key: 'claude-sonnet', label: 'claude-sonnet', value: 2 },
+        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', value: 7, formattedValue: '$7.00' },
+        { key: 'claude-sonnet', label: 'claude-sonnet', value: 2, formattedValue: '$2.00' },
       ])
     );
+  });
+
+  it('returns segments sorted by value, descending — ShareBar colours by array index', () => {
+    // `ShareBar` resolves each segment's grey from its RANK (its position in the array), so an
+    // unsorted list would hand the lightest, most prominent step to whichever key the usage
+    // backend happened to mention first rather than to the largest share.
+    const response: UsageQueryResponse = {
+      points: [
+        point({ model: 'small', total_cost: 1 }),
+        point({ model: 'largest', total_cost: 9 }),
+        point({ model: 'middle', total_cost: 4 }),
+      ],
+    };
+
+    const segments = toSpendShareSegments(response, 'model');
+
+    expect(segments.map((segment) => segment.key)).toEqual(['largest', 'middle', 'small']);
   });
 });
 
@@ -393,4 +414,42 @@ describe('buildBudgetConsumptionRequest', () => {
       end_time: '2026-08-28T12:00:00.000Z',
     });
   });
+
+});
+
+describe('resolveOverviewWindow', () => {
+  const NOW_FIXED = new Date('2026-08-29T12:00:00.000Z');
+
+  it('rolls the preset back from now when no explicit span is set', () => {
+    const { start, end } = resolveOverviewWindow('7d', '', '', NOW_FIXED);
+
+    expect(end).toEqual(NOW_FIXED);
+    expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it('lets an explicit span win over the preset still in the URL', () => {
+    const { start, end } = resolveOverviewWindow('30d', '2026-08-12', '2026-08-20', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-12T00:00:00.000Z');
+    expect(end.toISOString()).toBe('2026-08-20T23:59:59.999Z');
+  });
+
+  it('falls back to the preset for a malformed span rather than throwing', () => {
+    const { start } = resolveOverviewWindow('7d', 'not-a-date', '2026-08-20', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it('falls back to the preset for a reversed span', () => {
+    const { start } = resolveOverviewWindow('7d', '2026-08-20', '2026-08-12', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it('needs BOTH ends before an explicit span counts', () => {
+    const { start } = resolveOverviewWindow('7d', '2026-08-12', '', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
 });

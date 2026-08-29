@@ -21,12 +21,20 @@ function makeProps(overrides: Partial<ManageFiltersRailProps> = {}): ManageFilte
   };
 }
 
+// Base UI `Select.Item` commits only when a real `pointerdown` preceded the click on the same
+// item -- see `scope-select/component.test.tsx`.
+function selectOption(element: HTMLElement) {
+  fireEvent.pointerDown(element, { pointerId: 1, pointerType: 'mouse', isPrimary: true });
+  fireEvent.click(element);
+}
+
 describe('ManageFiltersRail', () => {
-  it('fires onAccountChange from the account dropdown', () => {
+  it('fires onAccountChange from the account dropdown', async () => {
     const onAccountChange = vi.fn();
     render(<ManageFiltersRail {...makeProps({ onAccountChange })} />);
 
-    fireEvent.change(screen.getByLabelText('Account'), { target: { value: 'adorsys-labs' } });
+    fireEvent.click(screen.getByLabelText('Account'));
+    selectOption(await screen.findByRole('option', { name: 'adorsys-labs' }));
 
     expect(onAccountChange).toHaveBeenCalledWith('adorsys-labs');
   });
@@ -40,13 +48,12 @@ describe('ManageFiltersRail', () => {
     expect(onStatusChange).toHaveBeenCalledWith('suspended');
   });
 
-  it('fires onBudgetStateChange from the budget-state dropdown', () => {
+  it('fires onBudgetStateChange from the budget-state dropdown', async () => {
     const onBudgetStateChange = vi.fn();
     render(<ManageFiltersRail {...makeProps({ onBudgetStateChange })} />);
 
-    fireEvent.change(screen.getByLabelText('Budget state'), {
-      target: { value: 'quota-set' },
-    });
+    fireEvent.click(screen.getByLabelText('Budget state'));
+    selectOption(await screen.findByRole('option', { name: 'Quota set' }));
 
     expect(onBudgetStateChange).toHaveBeenCalledWith('quota-set');
   });

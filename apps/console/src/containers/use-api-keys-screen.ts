@@ -8,7 +8,7 @@ import type {
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
   CreateApiKeyDialogProps,
-  ScopeSelectProps,
+  SelectFieldProps,
   SegmentedOption,
 } from '@lightbridge/ui-web';
 import { useDelete, useList } from '@refinedev/core';
@@ -117,7 +117,6 @@ function emptyDraft(): CreateKeyDraft {
 }
 
 export interface ApiKeysScreen {
-  scopeAccountLabel: string;
   scopeProjectLabel: string;
   rows: ApiKeyRow[];
   loading: boolean;
@@ -159,7 +158,7 @@ export interface ApiKeysScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  scopeSelect: ScopeSelectProps;
+  projectField: Omit<SelectFieldProps, 'layout'>;
   statusFilterOptions: SegmentedOption<string>[];
   statusFilterValue: string;
   setStatusFilter: (value: string) => void;
@@ -399,7 +398,6 @@ export function useApiKeysScreen(): ApiKeysScreen {
   };
 
   return {
-    scopeAccountLabel: scope.value.accountId || '—',
     scopeProjectLabel:
       scope.projects.find((project) => project.id === scope.value.projectId)?.label ??
       'All projects',
@@ -486,12 +484,19 @@ export function useApiKeysScreen(): ApiKeysScreen {
         void setView({ page: view.page + 1 });
       },
     },
-    scopeSelect: {
-      accounts: scope.accounts,
-      projects: scope.projects,
-      value: scope.value,
-      onChange: (value) => {
-        scope.setValue(value);
+    // Project only — account is identity and lives in the header's `AccountBadge` (owner review
+    // 2026-08-29), so the rail's account+project `ScopeSelect` is gone and this is what replaced
+    // its useful half: the one scope value that genuinely changes what this screen lists, in the
+    // toolbar beside the filters that narrow within it.
+    projectField: {
+      label: 'Project',
+      value: scope.value.projectId ?? '',
+      options: [
+        { value: '', label: 'All projects' },
+        ...scope.projects.map((project) => ({ value: project.id, label: project.label })),
+      ],
+      onChange: (projectId) => {
+        scope.setValue({ accountId: scope.value.accountId, projectId: projectId || null });
         // Re-scoping invalidates the current page number. Queued in the same tick as the scope
         // write above, so nuqs coalesces both into ONE history entry — not two Back presses.
         void setView({ page: 1 }, { history: 'push' });

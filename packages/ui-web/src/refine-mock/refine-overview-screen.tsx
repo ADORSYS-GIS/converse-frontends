@@ -10,32 +10,20 @@ import React, { useMemo, useState } from 'react';
 import { useCustom } from '@refinedev/core';
 
 import { InlineStatus } from '../components/inline-status';
-import { RailPanel } from '../components/rail-panel';
-import type { RailSelectProps } from '../components/rail-select';
-import { SectionSheetTrigger } from '../components/section-sheet-trigger';
+import type { SelectFieldProps } from '../components/select-field';
 import { formatMsAxis } from '../lib/duration';
 import { BudgetPanel } from '../sections/budget-panel';
 import { LatencyDashboard } from '../sections/latency-dashboard';
-import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
-import { overviewExportCaption } from '../sections/overview-export-rail/fixtures';
-import {
-  OVERVIEW_FILTERS_RAIL_LABEL,
-  OverviewFiltersRail,
-} from '../sections/overview-filters-rail';
-import {
-  ACCOUNT_FILTER_OPTIONS,
-  MODEL_FILTER_OPTIONS,
-  PROJECT_FILTER_OPTIONS,
-} from '../sections/overview-filters-rail/fixtures';
-import { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from '../sections/overview-series-rail';
+import { presetRange } from '../components/date-range-field';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from '../sections/overview-view-rail';
+import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
-  RANGE_OPTIONS,
-} from '../sections/overview-view-rail/fixtures';
-import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
+  MODEL_FILTER_OPTIONS,
+  PROJECT_FILTER_OPTIONS,
+  RANGE_PRESETS,
+} from '../sections/overview-toolbar/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import {
@@ -47,11 +35,13 @@ import {
 import type { OverviewSnapshot } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
 
+const MOCK_TODAY = new Date(Date.UTC(2026, 7, 29));
+
 function useSelectField(
   initial: string,
-  options: RailSelectProps['options'],
+  options: SelectFieldProps['options'],
   label: string
-): RailSelectProps {
+): SelectFieldProps {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
@@ -59,10 +49,10 @@ function useSelectField(
 export function RefineOverviewScreen() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
-  const rangeField = useSelectField('last-30', RANGE_OPTIONS, 'Range');
+  const [rangePreset, setRangePreset] = useState<string | null>('30d');
+  const [range, setRange] = useState(presetRange(30, MOCK_TODAY));
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
-  const accountField = useSelectField('adorsys-gis', ACCOUNT_FILTER_OPTIONS, 'Account');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
   const modelField = useSelectField('all', MODEL_FILTER_OPTIONS, 'Model');
 
@@ -76,60 +66,36 @@ export function RefineOverviewScreen() {
   const status = loading ? 'loading' : isError ? 'error' : 'ready';
   const spendSeries = useMemo(() => snapshot?.spendSeries ?? [], [snapshot]);
 
-  const legendItems = useMemo(
-    () =>
-      spendSeries.map((series) => ({
-        key: series.key,
-        label: series.label,
-        value: formatOverviewSpendLegendValue(series),
-        breached: series.breached,
-      })),
-    [spendSeries]
-  );
-
-  const viewRail = (
-    <OverviewViewRail
-      rangeField={rangeField}
-      bucketField={bucketField}
-      groupByField={groupByField}
-    />
-  );
-  const filtersRail = (
-    <OverviewFiltersRail
-      accountField={accountField}
-      projectField={projectField}
-      modelField={modelField}
-    />
-  );
-  const exportRail = <OverviewExportRail onExport={() => {}} caption={overviewExportCaption} />;
 
   return (
-    <RefineMockShell
-      active="overview"
-      leftSecondary={
-        <RailPanel label={SCOPE_RAIL_LABEL}>
-          <ScopeRail accountLabel="adorsys-gis" projectLabel="all projects" />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Scope"
-      rail={
-        <>
-          <RailPanel label={OVERVIEW_VIEW_RAIL_LABEL}>{viewRail}</RailPanel>
-          <RailPanel label={OVERVIEW_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
-          <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
-            <OverviewSeriesRail
-              items={legendItems}
-              selectedKey={selectedSeriesKey}
-              onSelectKey={setSelectedSeriesKey}
-            />
-          </RailPanel>
-          <RailPanel label={OVERVIEW_EXPORT_RAIL_LABEL}>{exportRail}</RailPanel>
-        </>
-      }>
+    <RefineMockShell active="overview">
       <div className="flex flex-col gap-8">
-        <ScreenHeading title="Overview" subline="adorsys-gis · last 30 days · UTC" />
+        <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
 
         {isError ? <InlineStatus>{errorMessage}</InlineStatus> : null}
+
+        <OverviewToolbar
+          rangeField={{
+            label: 'Range',
+            preset: rangePreset,
+            presets: RANGE_PRESETS,
+            value: range,
+            today: MOCK_TODAY,
+            onPresetChange: (next) => {
+              setRangePreset(next);
+              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY));
+            },
+            onRangeChange: (next) => {
+              setRangePreset(null);
+              setRange(next);
+            },
+          }}
+          bucketField={bucketField}
+          groupByField={groupByField}
+          projectField={projectField}
+          modelField={modelField}
+          onExport={() => {}}
+        />
 
         <OverviewStatRow cards={snapshot?.statCards ?? []} loading={loading} />
 
@@ -145,22 +111,6 @@ export function RefineOverviewScreen() {
           formatYTick={formatOverviewSpendYTick}
           formatTooltipValue={formatOverviewSpendTooltipValue}
           formatLegendValue={formatOverviewSpendLegendValue}
-          actions={
-            <>
-              <SectionSheetTrigger
-                icon="view"
-                triggerLabel="Open view options"
-                label={OVERVIEW_VIEW_RAIL_LABEL}>
-                {viewRail}
-              </SectionSheetTrigger>
-              <SectionSheetTrigger
-                icon="filter"
-                triggerLabel="Open filters"
-                label={OVERVIEW_FILTERS_RAIL_LABEL}>
-                {filtersRail}
-              </SectionSheetTrigger>
-            </>
-          }
         />
 
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
@@ -181,14 +131,6 @@ export function RefineOverviewScreen() {
             onRequestRefill={() => {}}
             refillRequestStatus={snapshot?.refillRequestStatus}
             onReviewInAdmin={() => {}}
-            actions={
-              <SectionSheetTrigger
-                icon="export"
-                triggerLabel="Open export"
-                label={OVERVIEW_EXPORT_RAIL_LABEL}>
-                {exportRail}
-              </SectionSheetTrigger>
-            }
           />
         </div>
       </div>

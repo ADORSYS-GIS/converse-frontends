@@ -11,7 +11,7 @@ describe('LatencyDashboard', () => {
   it('renders its heading and the ridgeline', () => {
     const { container } = render(<LatencyDashboard {...base} />);
 
-    expect(screen.getByText('LATENCY — p95 PER BUCKET, BY MODEL')).toBeInTheDocument();
+    expect(screen.getByText('Latency — p95 per bucket, by model')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 

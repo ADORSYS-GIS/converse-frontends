@@ -1,5 +1,7 @@
 // ── foundations
 export { cn } from './cn';
+export { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_SEPARATOR_CLASS } from './lib/overlay';
+export { DASHBOARD_LABEL_CLASS, LABEL_CLASS } from './lib/type-roles';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
 export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
@@ -12,6 +14,8 @@ export { ConsoleShell } from './components/console-shell';
 export type { ConsoleShellProps } from './components/console-shell';
 export { ConsoleHeader } from './components/console-header';
 export type { ConsoleHeaderProps } from './components/console-header';
+export { AccountBadge, shortAccountId } from './components/account-badge';
+export type { AccountBadgeOption, AccountBadgeProps } from './components/account-badge';
 export { AccountMenu } from './components/account-menu';
 export type { AccountMenuProps } from './components/account-menu';
 export { ThemeToggle } from './components/theme-toggle';
@@ -73,8 +77,8 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { LatencyRidgeline } from './components/latency-ridgeline';
 export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components/latency-ridgeline';
-export { DonutChart } from './components/donut-chart';
-export type { DonutChartProps, DonutSlice } from './components/donut-chart';
+export { ShareBar } from './components/share-bar';
+export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
 
 // ── forms & actions
 export { Button } from './components/button';
@@ -86,8 +90,15 @@ export type { FieldProps, FieldInputProps, FieldTextareaProps } from './componen
 export { SegmentedControl } from './components/segmented-control';
 export type { SegmentedControlProps, SegmentedOption } from './components/segmented-control';
 
-export { RailSelect } from './components/rail-select';
-export type { RailSelectOption, RailSelectProps } from './components/rail-select';
+export { Chevron } from './components/chevron';
+export { DateRangeField, formatDateRange, presetRange } from './components/date-range-field';
+export type {
+  DateRangeFieldProps,
+  DateRangePreset,
+  DateRangeValue,
+} from './components/date-range-field';
+export { SelectField } from './components/select-field';
+export type { SelectFieldOption, SelectFieldProps } from './components/select-field';
 
 export { ScopeSelect } from './components/scope-select';
 export type {
@@ -224,38 +235,29 @@ export type {
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
+// ── toolbar sections
+// Overview and Api-Keys have NO right rail at any tier (owner review 2026-08-29). Their
+// parameters and the action that consumes them live in one horizontal strip above the content,
+// always visible, at every breakpoint — see `OverviewToolbar`'s docstring for why the persistent
+// `lg` rail was the odd tier out rather than the canonical one.
+
+export { OverviewToolbar } from './sections/overview-toolbar';
+export type { OverviewToolbarField, OverviewToolbarProps } from './sections/overview-toolbar';
+
+export { ApiKeysToolbar } from './sections/api-keys-toolbar';
+export type { ApiKeysToolbarProps } from './sections/api-keys-toolbar';
+
+export { ApiKeysHygieneNotes } from './sections/api-keys-hygiene-notes';
+export type { ApiKeysHygiene, ApiKeysHygieneNotesProps } from './sections/api-keys-hygiene-notes';
+
 // ── rail sections
-// Each exports a `*_RAIL_LABEL` constant alongside its component: rail sections render their
-// content BARE (no `RailPanel` of their own), so the same section can mount twice — inside a
-// `RailPanel label={LABEL}` in the persistent `lg` rail, and inside a `SectionSheet label={LABEL}`
-// below `lg` — without doubling the heading or letting the two copies' wording drift apart.
-
-export { SCOPE_RAIL_LABEL, ScopeRail } from './sections/scope-rail';
-export type { ScopeRailProps } from './sections/scope-rail';
-
-export { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from './sections/overview-view-rail';
-export type { OverviewViewRailProps } from './sections/overview-view-rail';
-
-export { OVERVIEW_FILTERS_RAIL_LABEL, OverviewFiltersRail } from './sections/overview-filters-rail';
-export type { OverviewFiltersRailProps } from './sections/overview-filters-rail';
-
-export { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from './sections/overview-series-rail';
-export type { OverviewSeriesRailProps } from './sections/overview-series-rail';
-
-export { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from './sections/overview-export-rail';
-export type { OverviewExportRailProps } from './sections/overview-export-rail';
-
-export { API_KEYS_FILTERS_RAIL_LABEL, ApiKeysFiltersRail } from './sections/api-keys-filters-rail';
-export type { ApiKeysFiltersRailProps } from './sections/api-keys-filters-rail';
-
-export { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from './sections/api-keys-hygiene-rail';
-export type { ApiKeysHygiene, ApiKeysHygieneRailProps } from './sections/api-keys-hygiene-rail';
-
-export {
-  API_KEYS_LIFECYCLE_RAIL_LABEL,
-  ApiKeysLifecycleRail,
-} from './sections/api-keys-lifecycle-rail';
-export type { ApiKeysLifecycleRailProps } from './sections/api-keys-lifecycle-rail';
+// Manage and Admin keep a persistent right rail: their rail content is SELECTION-driven (it
+// retargets on the row you pick) and carries multi-field forms and decision actions, which is the
+// case the rail contract was written for. Each exports a `*_RAIL_LABEL` constant alongside its
+// component: rail sections render their content BARE (no `RailPanel` of their own), so the same
+// section can mount twice — inside a `RailPanel label={LABEL}` in the persistent `lg` rail, and
+// inside a `SectionSheet label={LABEL}` below `lg` — without doubling the heading or letting the
+// two copies' wording drift apart.
 
 export {
   AccountPanel,

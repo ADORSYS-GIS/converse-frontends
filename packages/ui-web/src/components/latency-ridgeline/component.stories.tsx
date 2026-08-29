@@ -44,7 +44,7 @@ const llama3 = normalSamples(400, 340, 55, 3);
 const claudeSonnet = normalSamples(400, 900, 180, 2);
 const embed3 = normalSamples(400, 60, 15, 4);
 
-/** Recreates `overview.svg`'s dashboard 2 ("LATENCY — p95 PER BUCKET, BY MODEL"). */
+/** Recreates `overview.svg`'s dashboard 2 ("Latency — p95 per bucket, by model"). */
 export const ModelLatencyDistribution: Story = {
   name: 'Per-model latency distribution',
   args: {

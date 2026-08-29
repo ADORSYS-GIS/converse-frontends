@@ -59,7 +59,7 @@ export interface UseChartTooltipFloatingResult {
 /**
  * Owns the Floating UI positioning (`useFloating` + `useClientPoint` + a virtual element) shared
  * by every chart's tooltip (`spend-series-chart`, `histogram-chart`, `latency-ridgeline`,
- * `donut-chart`) -- extracted out of `ChartTooltip` itself so it can be called where the
+ * `histogram-chart`) -- extracted out of `ChartTooltip` itself so it can be called where the
  * interactive hit-region elements actually live (each chart component), not inside the
  * purely-presentational tooltip card. `useClientPoint` can only live-track a real pointer if its
  * `reference` handlers (`getReferenceProps`) are spread onto the elements the pointer is
@@ -113,5 +113,10 @@ export function useChartTooltipFloating({
 
   const { getReferenceProps, getFloatingProps } = useInteractions([clientPoint]);
 
-  return { setFloating, floatingStyles: floatingStyles as CSSProperties, getFloatingProps, getReferenceProps };
+  return {
+    setFloating,
+    floatingStyles: floatingStyles as CSSProperties,
+    getFloatingProps,
+    getReferenceProps,
+  };
 }

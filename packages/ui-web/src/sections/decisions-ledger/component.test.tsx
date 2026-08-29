@@ -9,7 +9,7 @@ describe('DecisionsLedger', () => {
   it('renders its heading and the decision rows', () => {
     render(<DecisionsLedger decisions={recentDecisionsFixture} />);
 
-    expect(screen.getByText('RECENT DECISIONS')).toBeInTheDocument();
+    expect(screen.getByText('Recent decisions')).toBeInTheDocument();
     expect(screen.getByText('rag-catalogue')).toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe('DecisionsLedger', () => {
   it('keeps the header row rendered when there are no decisions yet', () => {
     render(<DecisionsLedger decisions={[]} />);
 
-    expect(screen.getByRole('columnheader', { name: 'DATE' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
   });
 
   it('renders auto-approved distinctly from a human approval, in the same grey step', () => {

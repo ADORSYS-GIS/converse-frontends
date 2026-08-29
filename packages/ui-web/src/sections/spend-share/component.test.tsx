@@ -3,13 +3,11 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SpendShareSection } from './component';
-import { formatOverviewSpendShareCentre, overviewSpendShareSlices } from './fixtures';
+import { formatOverviewSpendShareTotal, overviewSpendShareSegments } from './fixtures';
 
 const base = {
-  slices: overviewSpendShareSlices,
-  size: 200,
-  centreMetric: formatOverviewSpendShareCentre(),
-  centreLabel: 'TOTAL',
+  segments: overviewSpendShareSegments,
+  total: formatOverviewSpendShareTotal(),
 };
 
 // testing-library's default text normalizer collapses all Unicode whitespace (including the thin
@@ -19,32 +17,27 @@ const base = {
 const exact = { normalizer: (text: string) => text };
 
 describe('SpendShareSection', () => {
-  it('renders its heading and the donut', () => {
-    const { container } = render(<SpendShareSection {...base} />);
-
-    expect(screen.getByText('SPEND — SHARE BY PROJECT')).toBeInTheDocument();
-    expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(container.querySelectorAll('path[role="button"]').length).toBe(
-      overviewSpendShareSlices.length
-    );
-  });
-
-  it('renders the centre metric and label', () => {
+  it('renders its heading and one list row per segment', () => {
     render(<SpendShareSection {...base} />);
 
-    expect(screen.getByText(formatOverviewSpendShareCentre(), exact)).toBeInTheDocument();
-    expect(screen.getByText('TOTAL')).toBeInTheDocument();
+    expect(screen.getByText('Spend — share by project')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')).toHaveLength(overviewSpendShareSegments.length);
   });
 
-  it('replaces the donut with a ring-geometry skeleton and a status line while loading', () => {
-    const { container } = render(<SpendShareSection {...base} status="loading" />);
+  it('renders the total beside the heading', () => {
+    render(<SpendShareSection {...base} />);
+
+    expect(screen.getByText(formatOverviewSpendShareTotal(), exact)).toBeInTheDocument();
+  });
+
+  it('replaces the bar with matching skeleton geometry and a status line while loading', () => {
+    render(<SpendShareSection {...base} status="loading" />);
 
     expect(screen.getByText('Querying usage…')).toBeInTheDocument();
-    expect(container.querySelectorAll('path[role="button"]')).toHaveLength(0);
-    expect(container.querySelector('circle')).toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  it('replaces the donut with an ErrorLine + Retry on failure', () => {
+  it('replaces the bar with an ErrorLine + Retry on failure', () => {
     const onRetry = vi.fn();
     render(
       <SpendShareSection
@@ -52,7 +45,7 @@ describe('SpendShareSection', () => {
         status="error"
         errorMessage="Failed to load spend share."
         onRetry={onRetry}
-      />
+      />,
     );
 
     const alert = screen.getByRole('alert');
@@ -62,55 +55,69 @@ describe('SpendShareSection', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('is controlled: selectedKey syncs the highlighted wedge with an external state', () => {
-    const { container, rerender } = render(
-      <SpendShareSection {...base} selectedKey={null} onSelectSlice={() => {}} />
+  it('is controlled: selectedKey drives which row is pressed', () => {
+    const key = overviewSpendShareSegments[0].key;
+    const { rerender } = render(
+      <SpendShareSection {...base} selectedKey={null} onSelectSegment={() => {}} />,
     );
+    expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument();
 
-    const key = overviewSpendShareSlices[0].key;
-    rerender(<SpendShareSection {...base} selectedKey={key} onSelectSlice={() => {}} />);
-
-    const selectedWedge = container.querySelector('path[aria-pressed="true"]');
-    expect(selectedWedge).toBeInTheDocument();
+    rerender(<SpendShareSection {...base} selectedKey={key} onSelectSegment={() => {}} />);
+    expect(screen.getByRole('button', { pressed: true })).toBeInTheDocument();
   });
 
-  it('selecting a wedge calls onSelectSlice', () => {
+  it('selecting a row calls onSelectSegment, and re-selecting it clears the selection', () => {
     let selected: string | null = null;
-    const { container } = render(
+    const key = overviewSpendShareSegments[0].key;
+    const { rerender } = render(
       <SpendShareSection
         {...base}
         selectedKey={null}
-        onSelectSlice={(key) => {
-          selected = key;
+        onSelectSegment={(next) => {
+          selected = next;
         }}
-      />
+      />,
     );
 
-    const firstWedge = container.querySelector('path[role="button"]');
-    if (!firstWedge) throw new Error('expected at least one wedge');
-    fireEvent.click(firstWedge);
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    expect(selected).toBe(key);
 
-    expect(selected).toBe(overviewSpendShareSlices[0].key);
+    rerender(
+      <SpendShareSection
+        {...base}
+        selectedKey={key}
+        onSelectSegment={(next) => {
+          selected = next;
+        }}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    expect(selected).toBeNull();
   });
 
   // Regression for #272 — see `spend-dashboard`'s equivalent block for the full rationale.
   describe('status="unwired"', () => {
-    it('keeps the ring rendered above an inline status line naming the real reason', () => {
-      const { container } = render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+    it('keeps the bar rendered above an inline status line naming the real reason', () => {
+      render(<SpendShareSection segments={[]} status="unwired" />);
 
-      expect(container.querySelector('svg')).toBeInTheDocument();
       expect(screen.getByText('Not wired — see banner above.')).toBeInTheDocument();
       expect(screen.queryByText('No spend in this range.')).not.toBeInTheDocument();
     });
 
+    it('prints no total — an unwired zone must never show a figure, not even zero', () => {
+      render(<SpendShareSection segments={[]} total="$0.00" status="unwired" />);
+
+      expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    });
+
     it('never routes through ErrorLine — nothing failed, there is nothing to retry', () => {
-      render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+      render(<SpendShareSection segments={[]} status="unwired" />);
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('never shows the loading "Querying usage…" line — no request is actually in flight', () => {
-      render(<SpendShareSection slices={[]} size={200} status="unwired" />);
+      render(<SpendShareSection segments={[]} status="unwired" />);
 
       expect(screen.queryByText('Querying usage…')).not.toBeInTheDocument();
     });

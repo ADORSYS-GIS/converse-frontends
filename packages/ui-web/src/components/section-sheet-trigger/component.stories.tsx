@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { RailSelect } from '../rail-select';
+import { SelectField } from '../select-field';
 import { SectionSheetTrigger } from './component';
 
 const meta: Meta<typeof SectionSheetTrigger> = {
@@ -15,7 +15,7 @@ type Story = StoryObj<typeof SectionSheetTrigger>;
 
 const filters = (
   <div className="flex flex-col gap-4">
-    <RailSelect
+    <SelectField
       label="Account"
       value="adorsys-gis"
       options={[{ value: 'adorsys-gis', label: 'adorsys-gis' }]}
@@ -32,7 +32,7 @@ export const CompactTier: Story = {
       <span className="text-subtle font-mono text-[11px] tracking-[.09em] uppercase">
         SPEND — BY PROJECT AND MODEL
       </span>
-      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
         {filters}
       </SectionSheetTrigger>
     </div>
@@ -56,7 +56,7 @@ export const Controlled: Story = {
         <SectionSheetTrigger
           icon="filter"
           triggerLabel="Open filters"
-          label="FILTERS"
+          label="Filters"
           open={open}
           onOpenChange={setOpen}>
           {filters}
@@ -73,19 +73,19 @@ export const AllGlyphsLight: Story = {
   globals: { viewport: { value: 'md900' }, theme: 'wireframe' },
   render: () => (
     <div className="flex items-center gap-2 p-4">
-      <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
+      <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="View">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
+      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="Export">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="SCOPE">
+      <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="Scope">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="MONTHLY REPORT">
+      <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="Monthly report">
         {filters}
       </SectionSheetTrigger>
     </div>
@@ -97,19 +97,19 @@ export const AllGlyphs: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => (
     <div className="flex items-center gap-2 p-4">
-      <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
+      <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="View">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+      <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
+      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="Export">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="SCOPE">
+      <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="Scope">
         {filters}
       </SectionSheetTrigger>
-      <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="MONTHLY REPORT">
+      <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="Monthly report">
         {filters}
       </SectionSheetTrigger>
     </div>

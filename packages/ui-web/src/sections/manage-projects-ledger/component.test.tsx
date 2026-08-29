@@ -101,7 +101,7 @@ describe('ManageProjectsLedger', () => {
     render(<ManageProjectsLedger {...makeProps({ projects: [], totals: undefined })} />);
 
     expect(screen.getByText('No projects in this account yet.')).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'NAME' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
   });
 
   it('renders an ErrorLine with Retry on error', () => {
@@ -131,7 +131,7 @@ describe('ManageProjectsLedger', () => {
 
   it('renders the report trigger row only when a trigger is supplied', () => {
     const { rerender } = render(<ManageProjectsLedger {...makeProps()} />);
-    expect(screen.queryByText('MONTHLY REPORT')).not.toBeInTheDocument();
+    expect(screen.queryByText('Monthly report')).not.toBeInTheDocument();
 
     rerender(
       <ManageProjectsLedger
@@ -139,7 +139,7 @@ describe('ManageProjectsLedger', () => {
       />
     );
 
-    expect(screen.getByText('MONTHLY REPORT')).toBeInTheDocument();
+    expect(screen.getByText('Monthly report')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open monthly report' })).toBeInTheDocument();
   });
 });

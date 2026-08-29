@@ -4,8 +4,12 @@ import type {
   UsageQueryResponse,
   UsageSeriesPoint,
 } from '@lightbridge/api-rest';
-import type { DonutSlice, LatencyRidgelineSeries, SpendSeriesSeries } from '@lightbridge/ui-web';
-import { formatMs } from '@lightbridge/ui-web';
+import { formatMs, formatUsd } from '@lightbridge/ui-web';
+import type {
+  LatencyRidgelineSeries,
+  ShareBarSegment,
+  SpendSeriesSeries,
+} from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
@@ -22,7 +26,34 @@ export type OverviewRange = (typeof OVERVIEW_RANGES)[number];
 export type OverviewBucket = (typeof OVERVIEW_BUCKETS)[number];
 export type OverviewGroupBy = (typeof OVERVIEW_GROUP_BYS)[number];
 
-const RANGE_DAYS: Record<OverviewRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
+export const RANGE_DAYS: Record<OverviewRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
+
+/**
+ * `range` + optional explicit `from`/`to` -> one UTC window.
+ *
+ * An explicit span wins over the preset: `?range=30d&from=2026-08-12&to=2026-08-20` must show
+ * 12–20 Aug, not re-roll the last 30 days. Malformed or reversed dates fall back to the preset
+ * rather than throwing — a hand-edited URL should degrade, not break the page.
+ */
+export function resolveOverviewWindow(
+  range: OverviewRange,
+  from: string,
+  to: string,
+  now: Date
+): { start: Date; end: Date } {
+  const start = from ? new Date(`${from}T00:00:00.000Z`) : null;
+  const end = to ? new Date(`${to}T23:59:59.999Z`) : null;
+  const usable =
+    start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start <= end;
+
+  if (usable) return { start, end };
+  return { start: new Date(now.getTime() - RANGE_DAYS[range] * 86_400_000), end: now };
+}
+
+/** `YYYY-MM-DD` in UTC — the form `from`/`to` take in the URL. */
+export function toUrlDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
 /**
  * **console-ui#312's own gap, not made worse here.** The Overview URL contract's `groupBy` offers
@@ -55,21 +86,19 @@ export interface OverviewUsageQueryInput {
   accountId: string;
   /** `null`/`''` = account-wide; a project id scopes the query to that project instead. */
   projectId?: string | null;
-  range: OverviewRange;
+  /** The resolved UTC window. Presets are resolved to dates by the caller (`resolveOverviewWindow`)
+   *  so this builder never has to know whether the user picked a preset or a calendar span. */
+  window: { start: Date; end: Date };
   bucket: OverviewBucket;
   groupBy: OverviewGroupBy;
   /** `'all'` (the rail's own sentinel — see `use-overview-screen.ts`'s `MODEL_OPTIONS`) omits the filter. */
   model: string;
-  /** Injected rather than read from `Date.now()` internally — see `CURRENT_PERIOD`'s equivalent
-   *  note in `url-state.ts`: a pure function's output must not depend on when it happens to run. */
-  now: Date;
 }
 
 /** Builds the `UsageQueryRequest` for the SPEND/SPEND SHARE dashboards from the Overview's own
  *  URL-driven view state (range/bucket/group-by/model) plus the console scope (account/project). */
 export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): UsageQueryRequest {
-  const endTime = input.now;
-  const startTime = new Date(endTime.getTime() - RANGE_DAYS[input.range] * 86_400_000);
+  const { start: startTime, end: endTime } = input.window;
   const scoped = Boolean(input.projectId);
 
   return {
@@ -148,13 +177,17 @@ export function toSpendSeries(
   return Array.from(seriesByKey.values());
 }
 
-/** Maps the same response into `DonutSlice[]` for `SpendShareSection` — one slice per group-by
- *  dimension value, summed across the whole range, in the same key order `toSpendSeries` uses so
- *  the chart and the donut share the same series identity for selection syncing. */
-export function toSpendShareSlices(
+/** Maps the same response into `ShareBarSegment[]` for `SpendShareSection` — one segment per
+ *  group-by dimension value, summed across the whole range, in the same key order `toSpendSeries`
+ *  uses so the chart and the share bar share one series identity for selection syncing.
+ *
+ *  Segments arrive sorted by value, descending: `ShareBar` colours by ARRAY INDEX (rank), so an
+ *  unsorted list would hand rank 1's lightest grey to whichever key the response happened to
+ *  mention first rather than to the largest share. */
+export function toSpendShareSegments(
   response: UsageQueryResponse,
   groupBy: OverviewGroupBy
-): DonutSlice[] {
+): ShareBarSegment[] {
   const totalsByKey = new Map<string, number>();
 
   for (const point of response.points) {
@@ -162,7 +195,9 @@ export function toSpendShareSlices(
     totalsByKey.set(key, (totalsByKey.get(key) ?? 0) + safeCost(point));
   }
 
-  return Array.from(totalsByKey.entries()).map(([key, value]) => ({ key, label: key, value }));
+  return Array.from(totalsByKey.entries())
+    .map(([key, value]) => ({ key, label: key, value, formattedValue: formatUsd(value) }))
+    .sort((a, b) => b.value - a.value);
 }
 
 /** A bucket only contributes a real number when it actually carried a latency measurement
@@ -194,7 +229,7 @@ export interface LatencyAdaptation {
  * Maps `UsageQueryResponse.points` into `LatencyRidgelineSeries[]` for `LatencyRidgeline` — the
  * per-series honesty contract this whole story exists to build (see `use-overview-screen.ts`'s
  * doc comment). One series per distinct value of the request's own `group_by` dimension, same
- * grouping/ordering as `toSpendSeries`/`toSpendShareSlices`.
+ * grouping/ordering as `toSpendSeries`/`toSpendShareSegments`.
  *
  * `values` is the list of PER-BUCKET `latency_p95_ms` observations for that group, keeping only
  * buckets that actually carried samples (`keepableP95`). This is real observed data — never

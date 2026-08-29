@@ -77,7 +77,7 @@ export const MdTierWithTriggers: Story = {
         <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
           <p className="text-ink font-mono text-xs">Range · Bucket · Group by</p>
         </SectionSheetTrigger>
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
           <p className="text-ink font-mono text-xs">Account · Project · Model</p>
         </SectionSheetTrigger>
       </>

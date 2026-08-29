@@ -46,7 +46,7 @@ function TriggerAndSheet() {
           <FilterIcon />
         </Button>
       </div>
-      <SectionSheet open={open} onOpenChange={setOpen} label="FILTERS">
+      <SectionSheet open={open} onOpenChange={setOpen} label="Filters">
         {filterFields}
       </SectionSheet>
     </div>
@@ -77,7 +77,7 @@ function OpenSheet() {
   const [open, setOpen] = useState(true);
   return (
     <div className="bg-muted relative h-[420px] w-[900px]">
-      <SectionSheet open={open} onOpenChange={setOpen} label="FILTERS">
+      <SectionSheet open={open} onOpenChange={setOpen} label="Filters">
         {filterFields}
       </SectionSheet>
     </div>

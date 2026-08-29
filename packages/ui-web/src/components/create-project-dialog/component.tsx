@@ -8,6 +8,7 @@ import { ErrorLine } from '../error-line';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
 import type { CreateProjectDialogProps } from './types';
+import { Chevron } from '../chevron';
 
 // Contract: docs/design/console-redesign/README.md §4 "Forms and actions" — the `+ New project`
 // primary's target on the Manage screen (manage-projects.svg). No dedicated component is named in
@@ -101,14 +102,7 @@ export function CreateProjectDialog({
                   )}>
                   <Select.Value />
                   <Select.Icon>
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 8 8"
-                      className="stroke-subtle h-2 w-2 shrink-0"
-                      fill="none"
-                      strokeWidth="1.4">
-                      <path d="M1 3l3 3 3-3" />
-                    </svg>
+                    <Chevron />
                   </Select.Icon>
                 </Select.Trigger>
                 <Select.Portal>

@@ -60,20 +60,20 @@ export function ApiKeysLedger({
   const columns: LedgerColumn<ApiKeyRow>[] = [
     {
       key: 'name',
-      header: 'NAME',
+      header: 'Name',
       width: '220px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'prefix', header: 'PREFIX', width: '160px', accessor: (row) => row.prefix },
+    { key: 'prefix', header: 'Prefix', width: '160px', accessor: (row) => row.prefix },
     {
       key: 'status',
-      header: 'STATUS',
+      header: 'Status',
       width: '110px',
       accessor: (row) => <StatusText tone={statusTone(row.status)}>{row.statusLabel}</StatusText>,
     },
-    { key: 'created', header: 'CREATED', width: '110px', align: 'right', accessor: (row) => row.created },
-    { key: 'lastUsed', header: 'LAST USED', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
-    { key: 'expires', header: 'EXPIRES', width: '110px', align: 'right', accessor: (row) => row.expires },
+    { key: 'created', header: 'Created', width: '110px', align: 'right', accessor: (row) => row.created },
+    { key: 'lastUsed', header: 'Last used', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
+    { key: 'expires', header: 'Expires', width: '110px', align: 'right', accessor: (row) => row.expires },
   ];
 
   const isEmpty = !loading && !error && keys.length === 0;
@@ -157,7 +157,12 @@ export function ApiKeysLedger({
               type="button"
               disabled={pagination.hasNext === false}
               onClick={pagination.onNext}
-              className="text-soft transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-60">
+              // `disabled:text-subtle`, not opacity alone: `next` is the emphasised half of the
+              // pager (`text-soft` vs `prev`'s `text-subtle`), so at 60% opacity it still read
+              // BRIGHTER than an enabled `prev` — "1 of 1 keys · next ›" looked like a live
+              // control that did nothing (owner screenshot, 2026-08-29). Dropping to the same
+              // token `prev` uses makes disabled look disabled on both halves.
+              className="text-soft transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:text-subtle disabled:opacity-60">
               next ›
             </button>
           </div>

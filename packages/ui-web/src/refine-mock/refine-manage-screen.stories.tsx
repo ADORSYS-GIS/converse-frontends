@@ -51,7 +51,7 @@ export const RowSelected: Story = {
     rows[0].click();
 
     await waitFor(() => expect(canvas.queryByText('No rows selected.')).not.toBeInTheDocument());
-    const selectionPanel = canvas.getByText('SELECTION').parentElement as HTMLElement;
+    const selectionPanel = canvas.getByText('Selection').parentElement as HTMLElement;
     await waitFor(() => expect(within(selectionPanel).getByText('adorsys-gis')).toBeInTheDocument());
   },
 };

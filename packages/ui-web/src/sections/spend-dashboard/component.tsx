@@ -5,7 +5,8 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL, UNWIRED_CHART_MESSAGE } from '../dashboard-label';
+import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendDashboardProps } from './types';
 
 // Loading-skeleton geometry for the SPEND chart, matching the exact frame the chart itself
@@ -50,7 +51,7 @@ function SpendChartSkeleton({ width, height }: { width: number; height: number }
 // unavailable) — the SVG itself never learns to shrink, only the container's own scroll makes
 // that safe.
 export function SpendDashboard({
-  label = 'SPEND — BY PROJECT AND MODEL',
+  label = 'Spend — by project and model',
   series,
   fallbackWidth,
   height,
@@ -76,7 +77,7 @@ export function SpendDashboard({
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
+        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
       {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for

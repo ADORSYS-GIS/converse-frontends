@@ -12,8 +12,8 @@ interface Row {
 }
 
 const columns: LedgerColumn<Row>[] = [
-  { key: 'name', header: 'NAME', accessor: (row) => row.name },
-  { key: 'amount', header: 'AMOUNT', align: 'right', accessor: (row) => `$${row.amount.toFixed(2)}` },
+  { key: 'name', header: 'Name', accessor: (row) => row.name },
+  { key: 'amount', header: 'Amount', align: 'right', accessor: (row) => `$${row.amount.toFixed(2)}` },
 ];
 
 const rows: Row[] = [
@@ -25,8 +25,8 @@ describe('LedgerTable', () => {
   it('renders the column headers', () => {
     render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
 
-    expect(screen.getByRole('columnheader', { name: 'NAME' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'AMOUNT' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
   });
 
   it('renders one row per data item via the accessor', () => {
@@ -39,14 +39,14 @@ describe('LedgerTable', () => {
   it('still renders the header row when data is empty', () => {
     render(<LedgerTable columns={columns} data={[]} rowKey={(row) => row.id} />);
 
-    expect(screen.getByRole('columnheader', { name: 'NAME' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /ci-deploy/ })).not.toBeInTheDocument();
   });
 
   it('right-aligns columns marked align: right', () => {
     render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
 
-    expect(screen.getByRole('columnheader', { name: 'AMOUNT' })).toHaveClass('text-right');
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toHaveClass('text-right');
     expect(screen.getByText('$12.50')).toHaveClass('text-right');
   });
 

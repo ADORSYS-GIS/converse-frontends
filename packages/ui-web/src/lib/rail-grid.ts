@@ -1,3 +1,5 @@
+import { LABEL_CLASS } from './type-roles';
+
 // The rail alignment grid — ONE explicit set of x-offsets and row heights shared by every
 // rail-column component: `NavSpine`, `SubNav`, `RailPanel`'s uppercase section label, and any
 // other rail section that ever grows a row list (scope, filters, view, export, hygiene, report,
@@ -79,6 +81,6 @@ export const RAIL_LABEL_GAP_CLASS = 'gap-2';
 export const RAIL_ACTIVE_BAR_CLASS = 'absolute inset-y-0 left-0 w-[2px] bg-primary';
 export const RAIL_NAV_ROW_HEIGHT_CLASS = 'h-[34px]';
 export const RAIL_SUBNAV_ROW_HEIGHT_CLASS = 'h-7';
-/** `pl-[28px]` = `RAIL_SECTION_LABEL_INDENT` — see the comment above. */
-export const RAIL_SECTION_LABEL_CLASS =
-  'mb-3 pl-[28px] font-mono text-[10px] uppercase tracking-[.09em] text-subtle';
+/** `pl-[28px]` = `RAIL_SECTION_LABEL_INDENT` — see the comment above. The type treatment itself
+ * is the shared `label` role (`type-roles.ts`); only the grid offset is this file's business. */
+export const RAIL_SECTION_LABEL_CLASS = `mb-3 pl-[28px] ${LABEL_CLASS}`;

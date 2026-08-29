@@ -158,4 +158,28 @@ describe('LatencyRidgeline', () => {
     );
     expect(accentStrokes).toHaveLength(1);
   });
+
+  // Regression, owner-reported 2026-08-29: the empty/blocked message used to be an SVG `<text>`
+  // centred on the plot. SVG text never wraps, so a message longer than the plot is wide spilled
+  // off BOTH ends — production rendered the latency zone's real copy as
+  // "…isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget
+  // an…", clipped head and tail. It must be DOM text, which wraps.
+  it('renders the empty message as wrapping DOM text, never as unwrappable SVG text', () => {
+    const longMessage =
+      "Latency distribution isn't available: the usage API doesn't report latency or percentile " +
+      'data yet. Spend, budget and project/key counts below are live.';
+
+    const { container } = render(
+      <LatencyRidgeline series={[]} width={528} height={240} emptyMessage={longMessage} />
+    );
+
+    const node = screen.getByText(longMessage);
+    expect(node.tagName).toBe('P');
+    // Specifically NOT inside the <svg>: an SVG-hosted node cannot wrap however it is styled.
+    expect(node.closest('svg')).toBeNull();
+    // Axis tick labels are legitimately SVG text and must survive ("headers/axes stay") — what
+    // must not survive is the MESSAGE being one of them.
+    const svgText = [...container.querySelectorAll('svg text')].map((n) => n.textContent);
+    expect(svgText).not.toContain(longMessage);
+  });
 });

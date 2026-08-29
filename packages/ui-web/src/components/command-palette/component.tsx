@@ -3,6 +3,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import type { CommandPaletteProps, CommandPaletteTriggerProps } from './types';
+import { OVERLAY_CLASS } from '../../lib/overlay';
 
 const DEFAULT_PLACEHOLDER = 'Jump to a page or run an action…';
 const DEFAULT_EMPTY_MESSAGE = 'No matches.';
@@ -39,7 +40,7 @@ export function CommandPalette({
       label={label}
       loop
       overlayClassName="fixed inset-0 z-50 bg-muted/80"
-      contentClassName="fixed top-[18vh] left-1/2 z-50 w-[92vw] max-w-[560px] -translate-x-1/2 rounded-[2px] bg-surface font-mono outline-hidden">
+      contentClassName={cn('fixed top-[18vh] left-1/2 z-50 w-[92vw] max-w-[560px] -translate-x-1/2 font-mono', OVERLAY_CLASS)}>
       <div className="flex items-center gap-2 border-b border-raised px-3">
         <Command.Input
           autoFocus
@@ -59,7 +60,7 @@ export function CommandPalette({
             className={cn(
               'px-2 py-1.5',
               '[&_[cmdk-group-heading]]:px-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1.5',
-              '[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:tracking-[.09em] [&_[cmdk-group-heading]]:text-subtle [&_[cmdk-group-heading]]:uppercase',
+              '[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:text-subtle',
             )}>
             {group.items.map((item) => (
               <Command.Item

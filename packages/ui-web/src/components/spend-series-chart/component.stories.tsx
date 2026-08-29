@@ -76,7 +76,7 @@ const legendValues: Record<string, string> = {
 };
 
 /**
- * Recreates `overview.svg`'s dashboard 1 ("SPEND — BY PROJECT AND MODEL").
+ * Recreates `overview.svg`'s dashboard 1 ("Spend — by project and model").
  * Fully interactive: select a legend entry in the canvas below to see it turn
  * `--signal` -- the chart holds its own selection state, same as the source.
  */

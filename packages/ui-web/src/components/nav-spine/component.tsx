@@ -97,7 +97,7 @@ export function NavSpine({
   items,
   adminItems = [],
   showAdmin = false,
-  roleLabel = 'ROLE',
+  roleLabel = 'Role',
   layout = 'rail',
   className,
   linkComponent = DefaultAnchor,

@@ -5,7 +5,7 @@ import { ReviewDetailPanel } from '../../components/review-detail-panel';
 import type { ReviewDetailRailProps } from './types';
 
 /** Heading for whichever host mounts this section — see `OVERVIEW_VIEW_RAIL_LABEL`'s note. */
-export const REVIEW_DETAIL_RAIL_LABEL = 'REVIEW';
+export const REVIEW_DETAIL_RAIL_LABEL = 'Review';
 
 // Contract: docs/design/console-redesign/README.md §5.4 (admin-budget-review.svg) — the right
 // rail's review detail, retargeted to the selected request. `ReviewDetailPanel` already owns the

@@ -23,7 +23,7 @@ describe('SectionSheet', () => {
 
   it('is unmounted when closed', () => {
     render(
-      <SectionSheet open={false} onOpenChange={vi.fn()} label="FILTERS">
+      <SectionSheet open={false} onOpenChange={vi.fn()} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
@@ -34,19 +34,19 @@ describe('SectionSheet', () => {
 
   it('mounts as a dialog labelled by the section label when open, below lg', () => {
     render(
-      <SectionSheet open onOpenChange={vi.fn()} label="FILTERS">
+      <SectionSheet open onOpenChange={vi.fn()} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
 
-    expect(screen.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
     expect(screen.getByText('Filter fields')).toBeInTheDocument();
   });
 
   it('calls onOpenChange(false) via the close control', () => {
     const onOpenChange = vi.fn();
     render(
-      <SectionSheet open onOpenChange={onOpenChange} label="FILTERS">
+      <SectionSheet open onOpenChange={onOpenChange} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
@@ -58,7 +58,7 @@ describe('SectionSheet', () => {
 
   it('is CSS-tiered lg:hidden on both the dialog and its overlay — a second, static guard beyond the trigger visibility, applied directly since vaul portals to document.body', () => {
     render(
-      <SectionSheet open onOpenChange={vi.fn()} label="FILTERS">
+      <SectionSheet open onOpenChange={vi.fn()} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
@@ -77,7 +77,7 @@ describe('SectionSheet', () => {
   it('never mounts a dialog at lg, even when the caller sets open=true', () => {
     mockMatchMedia(false); // simulate `lg`
     render(
-      <SectionSheet open onOpenChange={vi.fn()} label="FILTERS">
+      <SectionSheet open onOpenChange={vi.fn()} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );
@@ -90,7 +90,7 @@ describe('SectionSheet', () => {
     mockMatchMedia(false); // simulate `lg`
     const onOpenChange = vi.fn();
     render(
-      <SectionSheet open onOpenChange={onOpenChange} label="FILTERS">
+      <SectionSheet open onOpenChange={onOpenChange} label="Filters">
         <div>Filter fields</div>
       </SectionSheet>,
     );

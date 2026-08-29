@@ -1,5 +1,6 @@
 'use client';
 
+import { AccountBadge } from '@lightbridge/ui-web/src/components/account-badge';
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
 import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
 import Link from 'next/link';
@@ -70,23 +71,39 @@ export default function ConsoleLayout({
   const notification = useConsoleNotification();
   const dismissNotification = useDismissConsoleNotification();
 
-  const leftSecondaryLabel = route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
+  const activeAccount = consoleScope.accounts.find(
+    (account) => account.id === consoleScope.value.accountId
+  );
+
+  // Only Manage and Admin still supply a `@scope` sub-nav; Overview and Api-Keys render nothing
+  // there, so this label is never read on those routes.
+  const leftSecondaryLabel = route === 'admin' ? 'Admin' : 'Manage';
 
   return (
     <ConsoleShell
       header={
         <ConsoleHeaderBar
           orgSwitcher={
-            // The scoped account's LABEL, not its raw id. `accounts.id` is the caller's opaque
-            // JWT `sub` (ADR-0006), which is what this slot used to print; `Account.name` exists
-            // so a console has something human to render instead, and `accountScopeLabel` keeps
-            // an account that has never been named readable rather than blank
+            // The console's one rendering of which account you are in, and the only place it can
+            // be changed. The LABEL, never the raw id: `accounts.id` is the caller's opaque JWT
+            // `sub` (ADR-0006), and `accountScopeLabel` keeps a never-named account readable
             // (lightbridge-authz#551 — a nullable name with no truthful backfill).
-            <span className="text-soft font-mono text-xs" title={consoleScope.value.accountId}>
-              {consoleScope.accounts.find((account) => account.id === consoleScope.value.accountId)
-                ?.label ??
-                (consoleScope.value.accountId || '—')}
-            </span>
+            <AccountBadge
+              accountId={consoleScope.value.accountId}
+              name={activeAccount?.label}
+              accounts={consoleScope.accounts.map((account) => ({
+                id: account.id,
+                label: account.label,
+              }))}
+              onSelectAccount={(accountId) =>
+                consoleScope.setValue({ accountId, projectId: null })
+              }
+              onCopyId={(accountId) => {
+                // Best-effort: `navigator.clipboard` is undefined on insecure origins. A failed
+                // copy leaves the id in the tooltip, so there is nothing to recover.
+                void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
+              }}
+            />
           }
         />
       }

@@ -23,7 +23,7 @@ type Story = StoryObj<typeof RailPanel>;
 
 export const Default: Story = {
   args: {
-    label: 'SCOPE',
+    label: 'Scope',
     children: (
       <div className="space-y-3">
         <div>
@@ -52,10 +52,10 @@ export const NoLabel: Story = {
 export const Stacked: Story = {
   render: () => (
     <div className="flex w-52 flex-col divide-y divide-raised bg-surface">
-      <RailPanel label="SCOPE">
+      <RailPanel label="Scope">
         <div className="font-mono text-xs text-ink">adorsys-gis</div>
       </RailPanel>
-      <RailPanel label="FILTERS">
+      <RailPanel label="Filters">
         <div className="font-mono text-xs text-ink">All projects</div>
       </RailPanel>
     </div>

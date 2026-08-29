@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 
+import { AccountBadge } from '../components/account-badge';
 import { AccountMenu } from '../components/account-menu';
 import { ConsoleHeader } from '../components/console-header';
 import type { NavSpineItem } from '../components/nav-spine';
@@ -41,7 +42,7 @@ export function storyNavItems(active: StoryRoute): NavSpineItem[] {
     },
     {
       key: 'api-keys',
-      label: 'Api-Keys',
+      label: 'API keys',
       icon: <NavGlyph shape="api-keys" />,
       active: active === 'api-keys',
     },
@@ -81,9 +82,25 @@ function StoryIdentity() {
   );
 }
 
+// The header is now the console's ONLY rendering of "which account am I in" (owner review
+// 2026-08-29) — hence a real `AccountBadge` here rather than a bare `<span>`. The story id is the
+// same UUID production serves, so the fallback path stays honest: the badge shows a name when the
+// account has one and `acct_49534505` when it does not, never the raw 36 characters.
+export const STORY_ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
+
 export const storyHeader = (
   <ConsoleHeader
-    orgSwitcher={<span className="font-mono text-xs text-soft">adorsys-gis</span>}
+    orgSwitcher={
+      <AccountBadge name="adorsys-gis" accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} />
+    }
+    identity={<StoryIdentity />}
+  />
+);
+
+/** The same header with an UNNAMED account — the state production is actually in today. */
+export const storyHeaderUnnamed = (
+  <ConsoleHeader
+    orgSwitcher={<AccountBadge accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} />}
     identity={<StoryIdentity />}
   />
 );

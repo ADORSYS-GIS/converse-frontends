@@ -44,7 +44,14 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             value={option.value}
             className={cn(
-              'relative flex h-[30px] flex-1 items-center justify-center whitespace-nowrap',
+              // `flex-auto` (`1 1 auto`), NOT `flex-1` (`1 1 0%`): with a zero flex-basis every
+              // cell wants zero width and only grows into *leftover* space, so in a
+              // content-sized container — a toolbar row, as opposed to the full-width rail this
+              // was first written for — the cells collapsed onto each other and the labels
+              // overlapped (owner screenshot, 2026-08-29). `auto` starts each cell at its own
+              // content width and still shares any remaining space, so it fills the rail exactly
+              // as before AND stays readable in a toolbar.
+              'relative flex h-[30px] flex-auto items-center justify-center whitespace-nowrap px-3',
               'font-mono text-xs transition-colors duration-150 ease-out',
               'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset',
               active ? 'bg-raised text-ink' : 'bg-chrome text-subtle hover:text-soft',

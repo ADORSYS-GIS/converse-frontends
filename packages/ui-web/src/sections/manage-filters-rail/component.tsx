@@ -2,15 +2,15 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { fieldLabelClassName } from '../../components/field/field-classes';
-import { RailSelect } from '../../components/rail-select';
+import { SelectField } from '../../components/select-field';
 import { SegmentedControl } from '../../components/segmented-control';
 import type { ManageFiltersRailProps } from './types';
 
 /** Heading for whichever host mounts this section — see `OVERVIEW_VIEW_RAIL_LABEL`'s note. */
-export const MANAGE_FILTERS_RAIL_LABEL = 'FILTERS';
+export const MANAGE_FILTERS_RAIL_LABEL = 'Filters';
 
 // Contract: docs/design/console-redesign/README.md §5.3 (manage-projects.svg) — the right rail's
-// FILTERS section: account, status and budget-state. The two dropdowns are `RailSelect`s, the
+// FILTERS section: account, status and budget-state. The two dropdowns are `SelectField`s, the
 // same control the Overview rail uses; the old hand-rolled `selectClassName()` copy that lived in
 // the deleted `ManagePage` is gone with it.
 export function ManageFiltersRail({
@@ -27,7 +27,7 @@ export function ManageFiltersRail({
 }: ManageFiltersRailProps) {
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      <RailSelect
+      <SelectField
         label="Account"
         value={accountValue}
         options={accountOptions}
@@ -42,7 +42,7 @@ export function ManageFiltersRail({
           onChange={onStatusChange}
         />
       </div>
-      <RailSelect
+      <SelectField
         label="Budget state"
         value={budgetStateValue}
         options={budgetStateOptions}

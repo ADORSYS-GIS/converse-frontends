@@ -40,7 +40,7 @@ export default function OverviewLoading() {
 
       <SpendDashboard series={[]} fallbackWidth={840} height={220} status="loading" />
 
-      <SpendShareSection slices={[]} size={200} status="loading" />
+      <SpendShareSection segments={[]} status="loading" />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
         <LatencyDashboard

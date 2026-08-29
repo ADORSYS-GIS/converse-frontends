@@ -90,14 +90,14 @@ describe('NavSpine', () => {
     render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} />);
 
     expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
-    expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
+    expect(screen.queryByText('Role')).not.toBeInTheDocument();
   });
 
   it('renders the Admin group with a role marker when showAdmin is true', () => {
     render(<NavSpine items={items} adminItems={adminItems} showAdmin />);
 
     expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-    expect(screen.getByText('ROLE')).toBeInTheDocument();
+    expect(screen.getByText('Role')).toBeInTheDocument();
   });
 
   it('supports a custom role marker label', () => {
@@ -115,7 +115,7 @@ describe('NavSpine', () => {
       expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-      expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
+      expect(screen.queryByText('Role')).not.toBeInTheDocument();
     });
 
     it('hides the Admin item when showAdmin is false', () => {

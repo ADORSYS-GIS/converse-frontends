@@ -34,17 +34,17 @@ export function ReviewQueue({
   className,
 }: ReviewQueueProps) {
   const pendingColumns: LedgerColumn<RefillRequestRow>[] = [
-    { key: 'submitted', header: 'SUBMITTED', width: '110px', accessor: (row) => row.submittedAgo },
+    { key: 'submitted', header: 'Submitted', width: '110px', accessor: (row) => row.submittedAgo },
     {
       key: 'project',
-      header: 'PROJECT',
+      header: 'Project',
       width: '160px',
       accessor: (row) => <span className="text-ink">{row.project}</span>,
     },
-    { key: 'account', header: 'ACCOUNT', width: '190px', accessor: (row) => row.account },
+    { key: 'account', header: 'Account', width: '190px', accessor: (row) => row.account },
     {
       key: 'consumed',
-      header: 'CONSUMED',
+      header: 'Consumed',
       width: '110px',
       align: 'right',
       accessor: (row) => {
@@ -63,21 +63,21 @@ export function ReviewQueue({
     },
     {
       key: 'ceiling',
-      header: 'CEILING',
+      header: 'Ceiling',
       width: '100px',
       align: 'right',
       accessor: (row) => (row.ceiling === null ? '—' : formatUsd(row.ceiling)),
     },
     {
       key: 'refill',
-      header: 'REFILL',
+      header: 'Refill',
       width: '100px',
       align: 'right',
       accessor: (row) => <span className="text-ink">{signedMoney(row.requestedAmount)}</span>,
     },
     {
       key: 'requester',
-      header: 'REQUESTER',
+      header: 'Requester',
       width: '160px',
       align: 'right',
       accessor: (row) => row.requesterEmail,

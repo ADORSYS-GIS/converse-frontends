@@ -4,6 +4,8 @@ import React from 'react';
 import { cn } from '../../cn';
 import { fieldLabelClassName } from '../field/field-classes';
 import type { ScopeSelectProps } from './types';
+import { OVERLAY_CLASS } from '../../lib/overlay';
+import { Chevron } from '../chevron';
 
 // Contract: docs/design/console-redesign/README.md §4 — account → project cascade unit for rail
 // panels: two stacked labelled selects (`Field` control treatment), account change resets
@@ -16,19 +18,11 @@ const triggerClassName = cn(
   'flex h-[30px] w-full items-center justify-between gap-2 rounded-[2px] border border-border bg-chrome px-3',
   'font-mono text-sm text-soft outline-hidden data-[popup-open]:border-primary focus-visible:border-primary',
 );
-const popupClassName = 'z-50 w-(--anchor-width) rounded-[2px] bg-surface py-1 font-mono outline-hidden';
+const popupClassName = cn('z-50 w-(--anchor-width) py-1 font-mono', OVERLAY_CLASS);
 const itemClassName = cn(
   'flex cursor-pointer items-center px-3 py-1.5 text-xs text-soft outline-hidden',
   'data-[highlighted]:bg-raised data-[highlighted]:text-ink',
 );
-
-function Chevron() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 8 8" className="h-2 w-2 shrink-0 stroke-subtle" fill="none" strokeWidth="1.4">
-      <path d="M1 3l3 3 3-3" />
-    </svg>
-  );
-}
 
 function ScopeSelectField<V extends string | null>({
   label,

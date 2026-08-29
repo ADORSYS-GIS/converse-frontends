@@ -8,7 +8,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatUsd } from '../../lib/money';
-import { SECTION_LABEL } from '../dashboard-label';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ManageProjectsLedgerProps, ProjectRow } from './types';
 
 function money(value: number | null): string {
@@ -55,14 +55,14 @@ export function ManageProjectsLedger({
   const columns: LedgerColumn<ProjectRow>[] = [
     {
       key: 'name',
-      header: 'NAME',
+      header: 'Name',
       width: '220px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'account', header: 'ACCOUNT', width: '170px', accessor: (row) => row.account },
+    { key: 'account', header: 'Account', width: '170px', accessor: (row) => row.account },
     {
       key: 'spendMtd',
-      header: 'SPEND MTD',
+      header: 'Spend MTD',
       width: '140px',
       align: 'right',
       accessor: (row) => (
@@ -84,7 +84,7 @@ export function ManageProjectsLedger({
     },
     {
       key: 'status',
-      header: 'STATUS',
+      header: 'Status',
       width: '110px',
       align: 'right',
       accessor: (row) => <span className={statusTextClass(row.status)}>{row.statusLabel}</span>,
@@ -156,7 +156,7 @@ export function ManageProjectsLedger({
 
       {reportTrigger ? (
         <div className="flex items-center justify-between gap-3 lg:hidden">
-          <span className={SECTION_LABEL}>MONTHLY REPORT</span>
+          <span className={LABEL_CLASS}>Monthly report</span>
           {reportTrigger}
         </div>
       ) : null}

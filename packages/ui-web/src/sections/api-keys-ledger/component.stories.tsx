@@ -125,7 +125,7 @@ export const MdTierWithTrigger: Story = {
   render: () => (
     <Demo
       toolbarActions={
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
           <p className="font-mono text-xs text-ink">Status · Search</p>
         </SectionSheetTrigger>
       }

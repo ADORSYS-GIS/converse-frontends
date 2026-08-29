@@ -30,21 +30,26 @@ vi.mock('./use-overview-screen', async (importOriginal) => {
 
 function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreenData {
   return {
-    scopeAccountLabel: 'acct_1',
     scopeProjectLabel: 'All projects',
-    subline: 'acct_1 · last 30d · UTC',
+    subline: 'Last 30d · UTC',
     statCards: [],
     statCardsLoading: false,
     selectedSeriesKey: null,
     setSelectedSeriesKey: vi.fn(),
-    rangeField: { label: 'Range', value: '30d', options: [], onChange: vi.fn() },
+    rangeField: {
+      label: 'Range',
+      preset: '30d',
+      presets: [{ value: '30d', label: 'Last 30 days', days: 30 }],
+      value: { from: new Date(Date.UTC(2026, 6, 31)), to: new Date(Date.UTC(2026, 7, 29)) },
+      onPresetChange: vi.fn(),
+      onRangeChange: vi.fn(),
+    },
     bucketField: { label: 'Bucket', value: 'day', options: [], onChange: vi.fn() },
     groupByField: { label: 'Group by', value: 'project', options: [], onChange: vi.fn() },
-    accountField: { label: 'Account', value: 'acct_1', options: [], onChange: vi.fn() },
     projectField: { label: 'Project', value: '', options: [], onChange: vi.fn() },
     modelField: { label: 'Model', value: 'all', options: [], onChange: vi.fn() },
     spendSeries: [],
-    spendSlices: [],
+    spendSegments: [],
     spendStatus: 'ready',
     spendErrorMessage: undefined,
     spendRetry: vi.fn(),
@@ -146,7 +151,7 @@ describe('OverviewCentre', () => {
         { key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 0.006338 }] },
         { key: 'proj_b', label: 'proj_b', points: [{ x: new Date('2026-08-01'), y: 0.000_12 }] },
       ],
-      spendSlices: [
+      spendSegments: [
         { key: 'proj_a', label: 'proj_a', value: 0.006338 },
         { key: 'proj_b', label: 'proj_b', value: 0.000_12 },
       ],

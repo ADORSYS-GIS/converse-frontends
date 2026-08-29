@@ -109,14 +109,23 @@ export const OVERVIEW_GROUP_BYS = ['project', 'model'] as const;
  * The Overview dashboard's view params.
  *
  * `model` is a plain string rather than a literal union: model ids come from the usage backend, so
- * the closed set the rail currently offers (`all`) is a UI limitation, not a contract — a parser
- * that rejected an unknown id would silently drop a valid deep link the moment that list grows.
+ * the closed set the toolbar currently offers (`all`) is a UI limitation, not a contract — a
+ * parser that rejected an unknown id would silently drop a valid deep link the moment that list
+ * grows.
  *
  * `series` is the selected chart series — a selection, so `push`: clicking a series in the chart
  * and pressing Back deselects it rather than leaving the page.
+ *
+ * `range` and `from`/`to` are one value expressed two ways. `range` names a rolling preset and is
+ * what the URL carries by default; `from`/`to` carry an explicit UTC span picked from the calendar.
+ * **`from`/`to` win when both are present** — an explicit span is never silently re-rolled by a
+ * preset that happens to still be in the URL. A preset write clears them; see
+ * `use-overview-screen.ts`.
  */
 export const overviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
   bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
   groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
   model: parseAsString.withDefault('all'),

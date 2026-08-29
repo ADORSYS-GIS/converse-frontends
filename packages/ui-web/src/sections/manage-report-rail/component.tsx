@@ -4,7 +4,7 @@ import { ReportExportPanel } from '../../components/report-export-panel';
 import type { ManageReportRailProps } from './types';
 
 /** Heading for whichever host mounts this section — see `OVERVIEW_VIEW_RAIL_LABEL`'s note. */
-export const MANAGE_REPORT_RAIL_LABEL = 'MONTHLY REPORT';
+export const MANAGE_REPORT_RAIL_LABEL = 'Monthly report';
 
 // Contract: docs/design/console-redesign/README.md §5.3 (manage-projects.svg) — the right rail's
 // MONTHLY REPORT section. `ReportExportPanel` already owns the whole parameter set (period,

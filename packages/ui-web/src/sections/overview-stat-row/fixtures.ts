@@ -6,7 +6,7 @@ export const overviewStatCards: OverviewStatCardData[] = [
   {
     key: 'spend-this-month',
     icon: 'spend',
-    label: 'SPEND THIS MONTH',
+    label: 'Spend this month',
     metric: '$142.55',
     delta: { direction: 'up', label: '18% vs prev 30d' },
     sparklineData: [96, 92, 98, 88, 91, 84, 87, 79, 74],
@@ -14,7 +14,7 @@ export const overviewStatCards: OverviewStatCardData[] = [
   {
     key: 'active-projects',
     icon: 'projects',
-    label: 'ACTIVE PROJECTS',
+    label: 'Active projects',
     metric: '6',
     delta: { direction: 'flat', label: 'no change' },
     sparklineData: [6, 6, 5, 5, 5, 6, 6, 6, 6],
@@ -22,7 +22,7 @@ export const overviewStatCards: OverviewStatCardData[] = [
   {
     key: 'active-api-keys',
     icon: 'keys',
-    label: 'ACTIVE API KEYS',
+    label: 'Active API keys',
     metric: '23',
     delta: { direction: 'up', label: '2 this week' },
     sparklineData: [17, 18, 18, 19, 19, 20, 21, 22, 23],
@@ -30,7 +30,7 @@ export const overviewStatCards: OverviewStatCardData[] = [
   {
     key: 'requests-today',
     icon: 'requests',
-    label: 'REQUESTS TODAY',
+    label: 'Requests today',
     metric: '41,208',
     delta: { direction: 'down', label: '8% vs yesterday' },
     sparklineData: [38400, 37900, 38600, 37200, 37700, 36600, 36900, 36200, 36600],
@@ -41,28 +41,28 @@ export const overviewEmptyStatCards: OverviewStatCardData[] = [
   {
     key: 'spend-this-month',
     icon: 'spend',
-    label: 'SPEND THIS MONTH',
+    label: 'Spend this month',
     metric: '$0.00',
     sparklineData: [0, 0],
   },
   {
     key: 'active-projects',
     icon: 'projects',
-    label: 'ACTIVE PROJECTS',
+    label: 'Active projects',
     metric: '1',
     sparklineData: [1, 1],
   },
   {
     key: 'active-api-keys',
     icon: 'keys',
-    label: 'ACTIVE API KEYS',
+    label: 'Active API keys',
     metric: '0',
     sparklineData: [0, 0],
   },
   {
     key: 'requests-today',
     icon: 'requests',
-    label: 'REQUESTS TODAY',
+    label: 'Requests today',
     metric: '0',
     sparklineData: [0, 0],
   },
@@ -74,6 +74,6 @@ export const overviewEmptyStatCards: OverviewStatCardData[] = [
 // account that IS wired and genuinely had zero activity every day -- see `overviewEmptyStatCards`
 // above for that case).
 export const overviewUnwiredStatCards: OverviewStatCardData[] = [
-  { key: 'projects', icon: 'projects', label: 'PROJECTS', metric: '6' },
-  { key: 'keys', icon: 'keys', label: 'API KEYS', metric: '23' },
+  { key: 'projects', icon: 'projects', label: 'Projects', metric: '6' },
+  { key: 'keys', icon: 'keys', label: 'API keys', metric: '23' },
 ];

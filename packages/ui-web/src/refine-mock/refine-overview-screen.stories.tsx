@@ -30,7 +30,7 @@ export const Populated: Story = {
     // "$142.55" alone is ambiguous once loaded — BudgetHero echoes the same figure the SPEND THIS
     // MONTH stat card shows (docs/design/console-redesign/overview.svg's own mock numbers), so key
     // off the stat card's label instead.
-    await waitFor(() => expect(canvas.getByText('SPEND THIS MONTH')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('Spend this month')).toBeInTheDocument(), { timeout: 3000 });
     await waitFor(() => expect(canvas.getAllByText('$142.55').length).toBeGreaterThan(0));
   },
 };

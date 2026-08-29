@@ -8,6 +8,10 @@
 
 export const OVERLAY_CLASS = 'rounded-[2px] border border-border bg-surface outline-hidden';
 
+/** The positioner an overlay's popup hangs from — above the shell's sticky chrome (`z-40`), and
+ * never a focus target of its own. Every Base UI `*.Positioner` in the console wears this. */
+export const OVERLAY_POSITIONER_CLASS = 'z-50 outline-hidden';
+
 /** Highlighted row inside an overlay list (Menu.Item, Select.Item, cmdk item). */
 export const OVERLAY_ITEM_CLASS =
   'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink';

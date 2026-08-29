@@ -2,12 +2,19 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { ErrorLine } from '../error-line';
+import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { formatUsd } from '../../lib/money';
+import { HERO_METRIC_CLASS, PROSE_META_CLASS } from '../../lib/type-roles';
 import { Meter } from '../meter';
 import type { BudgetHeroProps } from './types';
 
+// One stack, four branches. Every status renders into the same box so the zone never changes
+// height or alignment as it resolves — the reason this is a constant rather than five literals.
+const STACK_CLASS = 'flex flex-col gap-3';
+
 // Trailing action/caption row — identical markup across every branch below, factored out so
-// none of them has to duplicate it.
+// none of them has to duplicate it. `INLINE_ROW_CLASS` is the console's shared status-line
+// geometry (lib/inline-row.ts), the same box `InlineStatus` and `ErrorLine` render into.
 function BudgetHeroFooter({
   action,
   caption,
@@ -17,20 +24,25 @@ function BudgetHeroFooter({
 }) {
   if (!action && !caption) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className={INLINE_ROW_CLASS}>
       {action}
-      {caption ? <span className="text-subtle font-sans text-[10px]">{caption}</span> : null}
+      {caption ? <span className={PROSE_META_CLASS}>{caption}</span> : null}
     </div>
   );
 }
 
 // Skeleton matching the `'ready'` branch's own numeral + meter geometry exactly (console-ui
 // skill states: "skeleton blocks matching final geometry", no spinner, no shimmer).
+//
+// daisy `skeleton` supplies the raised fill and the 2px radius, exactly as it does in
+// SkeletonMetric and SkeletonRow; its shimmer is killed centrally by the `@utility skeleton`
+// override in theme.css, so nothing has to be suppressed here. Only the two heights stay local,
+// because they are the geometry of the branch below and nothing else.
 function BudgetHeroSkeleton() {
   return (
-    <div className="flex flex-col gap-3" role="presentation" aria-hidden="true">
-      <div className="bg-raised h-[26px] w-32 rounded-[2px]" />
-      <div className="bg-raised h-1 w-full rounded-[2px]" />
+    <div className={STACK_CLASS} role="presentation" aria-hidden="true">
+      <div className="skeleton h-[26px] w-32" />
+      <div className="skeleton h-1 w-full" />
     </div>
   );
 }
@@ -39,6 +51,12 @@ function BudgetHeroSkeleton() {
 // "number beside its ceiling beside its control" unit: `metric` numeral + `of $ceiling` +
 // `Meter` + caption + inline action slot. Renders uncontained — panelling is the consumer's
 // decision (console-ui skill).
+//
+// PRIMITIVES.md's `budget-hero` row is NO UPSTREAM ("composition of Meter + numerals; nothing
+// daisy adds"), and daisy `stat` is rejected outright for imposing its own padding and dividers.
+// What the daisy/Base UI pass removed here was duplication, not paint: the wrapper stack was
+// written out five times and both type treatments were re-declared locally. The semantics of the
+// bar itself already come from Base UI, through `Meter`.
 //
 // #273 — `status="unwired"` (see `BudgetHeroUnwiredProps`) swaps the numeral row for its own
 // headline at the SAME 26px/`text-ink` weight the real numeral carries, and omits the meter
@@ -55,7 +73,7 @@ export function BudgetHero(props: BudgetHeroProps) {
 
   if (props.status === 'loading') {
     return (
-      <div className={cn('flex flex-col gap-3', className)}>
+      <div className={cn(STACK_CLASS, className)}>
         <BudgetHeroSkeleton />
       </div>
     );
@@ -63,7 +81,7 @@ export function BudgetHero(props: BudgetHeroProps) {
 
   if (props.status === 'error') {
     return (
-      <div className={cn('flex flex-col gap-3', className)}>
+      <div className={cn(STACK_CLASS, className)}>
         <ErrorLine
           message={props.errorMessage ?? 'Failed to load budget consumption.'}
           onRetry={props.onRetry}
@@ -74,8 +92,8 @@ export function BudgetHero(props: BudgetHeroProps) {
 
   if (props.status === 'unwired') {
     return (
-      <div className={cn('flex flex-col gap-3', className)}>
-        <span className="text-ink font-mono text-[26px] leading-[1.2]">Not wired</span>
+      <div className={cn(STACK_CLASS, className)}>
+        <span className={HERO_METRIC_CLASS}>Not wired</span>
         <BudgetHeroFooter action={props.action} caption={props.caption} />
       </div>
     );
@@ -83,9 +101,11 @@ export function BudgetHero(props: BudgetHeroProps) {
 
   const { value, ceiling, threshold, action, caption } = props;
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
+    <div className={cn(STACK_CLASS, className)}>
+      {/* Baseline-aligned so the hero numeral and its ceiling sit on one line and wrap together
+          rather than the ceiling dropping half a line below it. */}
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-ink font-mono text-[26px] leading-[1.2]">{formatUsd(value)}</span>
+        <span className={HERO_METRIC_CLASS}>{formatUsd(value)}</span>
         <span className="text-subtle font-mono text-sm">of {formatUsd(ceiling)}</span>
       </div>
 

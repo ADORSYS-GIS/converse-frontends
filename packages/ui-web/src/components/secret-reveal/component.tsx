@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { cn } from '../../cn';
+import { PROSE_META_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import { fieldControlClassName } from '../field/field-classes';
 import type { SecretRevealProps } from './types';
@@ -17,6 +18,12 @@ import type { SecretRevealProps } from './types';
 // "Copied" acknowledgement on the button itself. That is NOT a toast, and not by omission —
 // ADR 0008 rules transient toasts out for this acknowledgement, and PRIMITIVE-MATRIX row 49
 // records the toast question as still-contested and explicitly undecided.
+//
+// The third class that row lists, daisy `kbd`, is NOT adopted: `kbd` paints a keycap around
+// static text, while the secret must stay a focusable, select-on-focus, readonly `<input>` so it
+// can be selected and copied by hand when the clipboard API is unavailable. A keycap here would
+// trade a working fallback for a decoration. The remaining local classes are the strip's own
+// panel and the two spacing steps between its three rows.
 export function SecretReveal({
   heading,
   description,
@@ -52,7 +59,7 @@ export function SecretReveal({
           ×
         </Button>
       </div>
-      <p className="text-subtle mt-1 font-sans text-[10px] leading-[1.45]">{description}</p>
+      <p className={cn(PROSE_META_CLASS, 'mt-1')}>{description}</p>
       <div className="mt-3 flex items-center gap-3">
         <input
           readOnly

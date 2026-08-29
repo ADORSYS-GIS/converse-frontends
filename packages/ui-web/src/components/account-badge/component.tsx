@@ -2,7 +2,13 @@ import { Menu } from '@base-ui/react/menu';
 import React from 'react';
 
 import { cn } from '../../cn';
-import { LABEL_CLASS } from '../../lib/type-roles';
+import {
+  OVERLAY_CLASS,
+  OVERLAY_ITEM_CLASS,
+  OVERLAY_POSITIONER_CLASS,
+  OVERLAY_SEPARATOR_CLASS,
+} from '../../lib/overlay';
+import { LABEL_CLASS, ROW_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
 import { Chevron } from '../chevron';
 
@@ -10,6 +16,19 @@ import { Chevron } from '../chevron';
  *  hex digits — enough to tell two accounts apart at a glance, short enough to read as a token
  *  rather than as data. */
 const SHORT_ID_LENGTH = 8;
+
+// The identity line itself: name, then the short id beside it.
+const IDENTITY_ROW_CLASS = 'flex items-center gap-2';
+
+// The same line when it is also a control (switcher trigger or copy button) — a hit target with
+// a hover fill, at the console's 2px radius. Shared by both interactive branches so the badge
+// cannot look like two different chips depending on which affordance it has.
+const CHIP_CLASS = `${IDENTITY_ROW_CLASS} hover:bg-raised rounded-[2px] px-1.5 py-1 transition-colors duration-150 ease-out`;
+
+// The header sits on `chrome`, so the focus ring's offset must too — the default offset colour
+// would punch a floor-coloured gap through the header band.
+const CHIP_FOCUS_CLASS =
+  'outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-chrome';
 
 /**
  * `49534505-4c60-4550-83dd-7af22152cec6` → `acct_49534505`.
@@ -41,7 +60,13 @@ function displayName(name: string | null | undefined, accountId: string) {
 //    within it.
 //  - Show a name; degrade to a token (`acct_49534505`), never raw hex. Full id on hover/copy.
 //  - A switcher only with 2+ reachable accounts — a menu of one is chrome imitating a control.
-
+//
+// Base UI's Menu owns every bit of the switcher's behaviour (focus, typeahead, dismissal); the
+// popup's paint is the console's shared overlay contract from lib/overlay.ts, not a local one.
+// That is the defect this pass fixed as well as a class count: the popup was painting itself with
+// a bare `surface` fill and no hairline, which the console-ui skill bans outright ("Never do: a
+// floating overlay without OVERLAY_CLASS") precisely because this menu spans the header AND the
+// floor at once, so tonal separation alone leaves its edge indistinct.
 export function AccountBadge({
   name,
   accountId,
@@ -55,12 +80,12 @@ export function AccountBadge({
 
   const content = (
     <>
-      <span className={cn('font-mono text-xs', isFallback ? 'text-soft' : 'text-ink')}>
-        {display}
-      </span>
+      {/* A real name reads at full strength; the generated token is not the account's name, so
+          it stays one step back. */}
+      <span className={cn(ROW_CLASS, !isFallback && 'text-ink')}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
-          than repeating it. */}
+          than repeating it. Hidden on phones, where the header has no room for both. */}
       {!isFallback && accountId ? (
         <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{shortAccountId(accountId)}</span>
       ) : null}
@@ -73,18 +98,14 @@ export function AccountBadge({
         <Menu.Trigger
           aria-label={`Account ${display}. Switch account.`}
           title={accountId || undefined}
-          className={cn(
-            'hover:bg-raised flex items-center gap-2 rounded-[2px] px-1.5 py-1 outline-hidden transition-colors duration-150 ease-out',
-            'focus-visible:ring-primary focus-visible:ring-offset-chrome focus-visible:ring-1 focus-visible:ring-offset-1',
-            className
-          )}>
+          className={cn(CHIP_CLASS, CHIP_FOCUS_CLASS, className)}>
           {content}
           <Chevron />
         </Menu.Trigger>
 
         <Menu.Portal>
-          <Menu.Positioner align="start" sideOffset={6} className="z-50 outline-hidden">
-            <Menu.Popup className="bg-surface w-[240px] rounded-[2px] py-1 font-mono outline-hidden">
+          <Menu.Positioner align="start" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
+            <Menu.Popup className={cn(OVERLAY_CLASS, 'w-[240px] py-1 font-mono')}>
               <div role="presentation" className="px-3 py-2">
                 <span className={LABEL_CLASS}>Account</span>
               </div>
@@ -95,11 +116,7 @@ export function AccountBadge({
                   <Menu.Item
                     key={account.id}
                     title={account.id}
-                    className={cn(
-                      'flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-[11px] outline-hidden transition-colors',
-                      active ? 'text-ink' : 'text-soft',
-                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink'
-                    )}
+                    className={cn(OVERLAY_ITEM_CLASS, 'justify-between', active && 'text-ink')}
                     onClick={() => onSelectAccount?.(account.id)}>
                     <span className="truncate">{optionLabel}</span>
                     {/* Selection is a text marker, never a pill or a coloured dot
@@ -114,13 +131,8 @@ export function AccountBadge({
               })}
               {onCopyId ? (
                 <>
-                  <Menu.Separator className="bg-raised mx-1 my-1 h-px" />
-                  <Menu.Item
-                    className={cn(
-                      'text-soft cursor-pointer px-3 py-2 text-[11px] outline-hidden transition-colors',
-                      'data-[highlighted]:bg-raised data-[highlighted]:text-ink'
-                    )}
-                    onClick={() => onCopyId(accountId)}>
+                  <Menu.Separator className={OVERLAY_SEPARATOR_CLASS} />
+                  <Menu.Item className={OVERLAY_ITEM_CLASS} onClick={() => onCopyId(accountId)}>
                     Copy account id
                   </Menu.Item>
                 </>
@@ -134,7 +146,7 @@ export function AccountBadge({
 
   if (!onCopyId) {
     return (
-      <span title={accountId || undefined} className={cn('flex items-center gap-2', className)}>
+      <span title={accountId || undefined} className={cn(IDENTITY_ROW_CLASS, className)}>
         {content}
       </span>
     );
@@ -146,10 +158,7 @@ export function AccountBadge({
       onClick={() => onCopyId(accountId)}
       title={accountId ? `${accountId} — click to copy` : undefined}
       aria-label={`Account ${display}. Copy full account id.`}
-      className={cn(
-        'hover:bg-raised flex items-center gap-2 rounded-[2px] px-1.5 py-1 transition-colors duration-150 ease-out',
-        className
-      )}>
+      className={cn(CHIP_CLASS, CHIP_FOCUS_CLASS, className)}>
       {content}
     </button>
   );

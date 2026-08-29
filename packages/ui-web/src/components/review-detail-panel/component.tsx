@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 
 import { cn } from '../../cn';
 import { formatUsd } from '../../lib/money';
+import {
+  METRIC_CLASS,
+  PANEL_TITLE_CLASS,
+  PROSE_CLASS,
+  PROSE_META_CLASS,
+  ROW_CLASS,
+  LABEL_CLASS,
+} from '../../lib/type-roles';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
@@ -19,19 +27,44 @@ function formatSignedCurrency(amount: number): string {
 // why `reason` was made non-optional rather than left to the runtime check alone).
 const NOTE_REQUIRED_MESSAGE = 'A note is required to decline this request.';
 
+// A vertical stack of related lines — the panel's only layout idiom, declared once instead of
+// eight times with four accidentally different gaps (4/6/8/12px, two of which were off the
+// console's 4·8·12·16 spacing scale entirely).
+const STACK_CLASS = 'flex flex-col gap-2';
+
+// One subsection of the panel: the stack above, preceded by a hairline rule. The rule is `raised`,
+// not `border`: inside a rail, section separation is a `raised` hairline (console-ui skill, "Rails
+// are flush…"), which is also what the rail COLUMN uses between its own sections — a `border`
+// rule here drew the panel's inner divisions heavier than the divisions between whole rail
+// sections, i.e. exactly backwards.
+const SECTION_CLASS = `${STACK_CLASS} border-raised border-t pt-4`;
+
+// daisy `table table-xs` supplies the history table's own metrics; these three reset the cell
+// padding it ships with, because this table sits in a 280px rail and reads as a list, not a grid.
+const CELL_CLASS = 'p-0 py-1 align-top';
+
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT for Admin
 // (admin-budget-review.svg): subject, consumption, requested amount, requester note, history,
 // decision note, Approve/Decline pinned to the bottom. Fires onDecide('approve'|'decline', note).
 //
 // ADR 0010 Decision 4: composes the already-rebuilt `Field`/`Button` rather than hand-rolling a
-// second input/button treatment (composition over re-implementation). The consumption bar reuses
-// the shared `Meter` (`showCaption={false}`) instead of a duplicated `raised` track + fill —
-// `Meter`'s own caption bundles "$X of $Y" into one string, which doesn't fit this panel's
-// two-size hierarchy (22px metric, 11px "of $Y"), so only the bar is shared and the numerals stay
-// local. History rows move from a `<ul>` to daisy `table table-xs` per PRIMITIVES.md. Decision
-// buttons: approve = `primary` (the panel's one signal action), decline = `ghost` per
-// PRIMITIVES.md's `review-detail-panel` row (was `secondary`/bordered before this migration —
-// noted divergence, not a mockup pixel disagreement).
+// second input/button treatment (composition over re-implementation), so both daisy `btn` axes
+// and the daisy `input`/`textarea` paint arrive through those. The consumption bar reuses the
+// shared `Meter` (`showCaption={false}`) instead of a duplicated track + fill — `Meter`'s own
+// caption bundles "$X of $Y" into one string, which does not fit this panel's two-size hierarchy
+// (22px metric, 11px "of $Y"), so only the bar is shared and the numerals stay local. History rows
+// use daisy `table table-xs` per PRIMITIVES.md. Decision buttons: approve = `primary` (the panel's
+// one signal action), decline = `ghost` per PRIMITIVES.md's `review-detail-panel` row.
+//
+// PRIMITIVES.md row 46 also lists daisy `fieldset`, which is NOT adopted: every block above the
+// decision note is read-only display, not a form group, so a `<fieldset>`/`<legend>` around it
+// would be false semantics for a screen reader. The one genuine form control here is the decision
+// note, and `Field` already owns its Base UI Field wiring and its daisy `textarea` paint.
+//
+// Every type treatment below is an imported role from lib/type-roles.ts; this component
+// declares no type of its own. That is what took it from 99 hand-written utilities to a handful
+// of layout classes: the panel was re-typing `metric`, `row`, `label` and both prose steps at
+// nearly every line.
 //
 // converse-frontends#265/#266: consumption, the requester note and history are each optional and
 // independently omittable — a caller with no real data source for one of them must leave it
@@ -88,26 +121,24 @@ export function ReviewDetailPanel({
   };
 
   return (
-    <div className={cn('flex h-full flex-col gap-5', className)}>
-      <div className="flex flex-col gap-1">
+    // Full height is what lets the decision actions pin to the bottom of the rail below.
+    <div className={cn(STACK_CLASS, 'h-full gap-5', className)}>
+      <div className={STACK_CLASS}>
         <span className={fieldLabelClassName}>Request</span>
-        <h2 className="text-ink font-mono text-base">{subject}</h2>
-        <p className="text-subtle font-sans text-[10px]">
+        <h2 className={PANEL_TITLE_CLASS}>{subject}</h2>
+        <p className={PROSE_META_CLASS}>
           {requesterEmail} · {submittedAt}
         </p>
       </div>
 
-      <div className="border-border flex flex-col gap-2 border-t pt-4">
+      <div className={SECTION_CLASS}>
         <span className={fieldLabelClassName}>Consumption</span>
         {consumedAmount != null && ceilingAmount != null ? (
           <>
+            {/* Baseline alignment, so the 22px numeral and the 11px ceiling sit on one line. */}
             <div className="flex items-baseline gap-2">
-              <span className="text-ink font-mono text-[22px] leading-[1.2]">
-                {formatUsd(consumedAmount)}
-              </span>
-              <span className="text-subtle font-mono text-[11px]">
-                of {formatUsd(ceilingAmount)}
-              </span>
+              <span className={METRIC_CLASS}>{formatUsd(consumedAmount)}</span>
+              <span className={LABEL_CLASS}>of {formatUsd(ceilingAmount)}</span>
             </div>
             <Meter
               value={consumedAmount}
@@ -117,51 +148,50 @@ export function ReviewDetailPanel({
             />
           </>
         ) : (
-          <p className="text-subtle font-mono text-[11px]">
-            Not available — no consumption query for this request yet.
-          </p>
+          <p className={LABEL_CLASS}>Not available — no consumption query for this request yet.</p>
         )}
       </div>
 
-      <div className="border-border flex flex-col gap-1 border-t pt-4">
+      <div className={SECTION_CLASS}>
         <span className={fieldLabelClassName}>Requested amount</span>
-        <span className="text-ink font-mono text-[22px] leading-[1.2]">
-          {formatSignedCurrency(requestedAmount)}
-        </span>
+        <span className={METRIC_CLASS}>{formatSignedCurrency(requestedAmount)}</span>
       </div>
 
       {requesterNote ? (
-        <div className="border-border flex flex-col gap-1.5 border-t pt-4">
+        <div className={SECTION_CLASS}>
           <span className={fieldLabelClassName}>Note from requester</span>
-          <p className="text-soft font-sans text-[11px] leading-[1.45]">{requesterNote}</p>
+          <p className={PROSE_CLASS}>{requesterNote}</p>
         </div>
       ) : null}
 
       {reviewerNote ? (
-        <div className="border-border flex flex-col gap-1.5 border-t pt-4">
+        <div className={SECTION_CLASS}>
           <span className={fieldLabelClassName}>Reviewer note</span>
-          <p className="text-soft font-sans text-[11px] leading-[1.45]">{reviewerNote}</p>
+          <p className={PROSE_CLASS}>{reviewerNote}</p>
         </div>
       ) : null}
 
-      <div className="border-border flex flex-col gap-2 border-t pt-4">
+      <div className={SECTION_CLASS}>
         <span className={fieldLabelClassName}>History</span>
         {history == null ? (
-          <p className="text-subtle font-mono text-[11px]">History not loaded.</p>
+          <p className={LABEL_CLASS}>History not loaded.</p>
         ) : history.length === 0 ? (
-          <p className="text-subtle font-mono text-[11px]">No previous refills.</p>
+          <p className={LABEL_CLASS}>No previous refills.</p>
         ) : (
           <table className="table-xs table">
             <tbody>
               {history.map((row) => (
                 <tr key={row.id}>
-                  <td className="p-0 py-1 align-top">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-soft font-mono text-xs">{row.label}</span>
-                      <span className="text-subtle font-mono text-[11px]">{row.meta}</span>
+                  <td className={CELL_CLASS}>
+                    {/* Tighter than the panel's own stack — a history row's two lines are one
+                        unit, not two related blocks. */}
+                    <div className={cn(STACK_CLASS, 'gap-0.5')}>
+                      <span className={ROW_CLASS}>{row.label}</span>
+                      <span className={LABEL_CLASS}>{row.meta}</span>
                     </div>
                   </td>
-                  <td className="text-soft p-0 py-1 text-right align-top font-mono text-xs">
+                  {/* Numerics are right-aligned (console-ui skill, "Type"). */}
+                  <td className={cn(CELL_CLASS, ROW_CLASS, 'text-right')}>
                     {formatSignedCurrency(row.amount)}
                   </td>
                 </tr>
@@ -171,7 +201,7 @@ export function ReviewDetailPanel({
         )}
       </div>
 
-      <div className="border-border border-t pt-4">
+      <div className={SECTION_CLASS}>
         <Field
           label="Decision note"
           multiline
@@ -183,7 +213,9 @@ export function ReviewDetailPanel({
         />
       </div>
 
-      <div className="border-border mt-auto flex flex-col gap-3 border-t pt-4">
+      {/* The auto top margin is the pin: decisions sit at the bottom of the rail however short
+          the panel's own content is. */}
+      <div className={cn(SECTION_CLASS, 'mt-auto gap-3')}>
         <Button
           type="button"
           variant="primary"

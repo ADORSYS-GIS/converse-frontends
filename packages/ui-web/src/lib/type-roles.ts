@@ -11,3 +11,36 @@ export const LABEL_CLASS = 'font-mono text-[11px] text-subtle';
 
 /** The same role one step up — headings for the dashboard zones on the centre floor. */
 export const DASHBOARD_LABEL_CLASS = 'font-mono text-[12px] text-subtle';
+
+// The rest of the skill's type roles, given the same one-definition treatment `label` already
+// had. Before this, `metric` was re-typed in four components, `row` in five and the two prose
+// steps in three — each an independent chance to drift a pixel or a token. daisyUI ships no type
+// scale of its own (its `text-*` classes are Tailwind's), so these stay hand-written utilities by
+// necessity, not by choice: they are the console's own type contract, declared once.
+
+/** `panel-title` — 16 mono ink. The heading at the top of a rail section or a panel. */
+export const PANEL_TITLE_CLASS = 'font-mono text-base text-ink';
+
+/** `metric` — the 22px key numeral. Right-aligned wherever it sits in a column. */
+export const METRIC_CLASS = 'font-mono text-[22px] leading-[1.2] text-ink';
+
+/** `metric` at the hero step (26px) — one per screen, the number the page is about. */
+export const HERO_METRIC_CLASS = 'font-mono text-[26px] leading-[1.2] text-ink';
+
+/**
+ * `row` with no colour — 12 mono. The only consumer that wants this rather than `ROW_CLASS` is a
+ * component whose colour is a variant axis (`StatusText`), so the two never disagree on size.
+ */
+export const ROW_BASE_CLASS = 'font-mono text-xs';
+
+/** `row` — 12 mono body text: table cells, list rows, inline status lines. */
+export const ROW_CLASS = `${ROW_BASE_CLASS} text-soft`;
+
+/** `row` in the signal colour — an error line's own text, and nothing decorative. */
+export const ROW_SIGNAL_CLASS = `${ROW_BASE_CLASS} text-primary`;
+
+/** `prose` — Inter 11, the only sentence-copy role. */
+export const PROSE_CLASS = 'font-sans text-[11px] leading-[1.45] text-soft';
+
+/** `prose` one step down (Inter 10, subtle) — captions and non-load-bearing metadata. */
+export const PROSE_META_CLASS = 'font-sans text-[10px] leading-[1.45] text-subtle';

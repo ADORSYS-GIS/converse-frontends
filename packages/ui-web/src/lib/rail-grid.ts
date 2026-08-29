@@ -74,6 +74,11 @@ export const RAIL_SUBNAV_ROW_HEIGHT = 28;
 // class-name substrings somewhere in scanned source — this file IS scanned source (same
 // technique `cva.ts` files already use), so centralizing the strings here keeps them visible to
 // the compiler while giving every consumer one byte-identical import instead of a re-typed copy.
+/** The 16px inset every rail SECTION pads itself by — the class form of `RAIL_SECTION_INSET`,
+ * and the offset `RAIL_SECTION_LABEL_INDENT` is measured from. `RailPanel` is its only consumer
+ * today; it lives here rather than there because the row bleed below is defined as bleeding out
+ * of exactly this value, and the two must move together or the whole grid shears. */
+export const RAIL_SECTION_PADDING_CLASS = 'p-4';
 export const RAIL_ROW_BLEED_CLASS = '-mx-2';
 export const RAIL_ROW_PADDING_CLASS = 'px-3';
 export const RAIL_ICON_COLUMN_CLASS = 'flex w-4 shrink-0 items-center justify-center';

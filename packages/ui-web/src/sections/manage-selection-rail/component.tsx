@@ -5,7 +5,7 @@ import { formatMoney } from '../../lib/money';
 import type { ManageSelectionRailProps } from './types';
 
 /** Heading for whichever host mounts this section — see `OVERVIEW_VIEW_RAIL_LABEL`'s note. */
-export const MANAGE_SELECTION_RAIL_LABEL = 'SELECTION';
+export const MANAGE_SELECTION_RAIL_LABEL = 'Selection';
 
 function money(value: number | null): string {
   return value === null ? '—' : formatMoney(value);

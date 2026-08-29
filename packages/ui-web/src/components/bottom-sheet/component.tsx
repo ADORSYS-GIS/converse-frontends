@@ -3,6 +3,7 @@ import { Drawer } from 'vaul';
 
 import { cn } from '../../cn';
 import type { BottomSheetProps } from './types';
+import { LABEL_CLASS } from '../../lib/type-roles';
 
 // Contract: docs/design/console-redesign/README.md §4 `BottomSheet` / ADR 0009 Decision 6 —
 // vaul is the console's only drawer primitive; no hand-rolled sheets. A standard transient vaul
@@ -44,7 +45,7 @@ export function BottomSheet({
   ) : null;
 
   const titleLabel = title ? (
-    <Drawer.Title className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
+    <Drawer.Title className={LABEL_CLASS}>
       {title}
     </Drawer.Title>
   ) : (

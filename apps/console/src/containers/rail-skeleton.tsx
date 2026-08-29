@@ -1,8 +1,8 @@
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
 
 /**
- * A single rail form-control's loading placeholder: `RailSelect`'s own geometry is a 10px label
- * over a 30px control (`packages/ui-web/src/components/rail-select/component.tsx`) — this matches
+ * A single rail form-control's loading placeholder: `SelectField`'s own geometry is a 10px label
+ * over a 30px control (`packages/ui-web/src/components/select-field/component.tsx`) — this matches
  * it exactly so a rail section's loading state occupies the same height its real fields will.
  *
  * console-ui skill §states: "skeleton blocks (`raised`) matching final geometry ... No spinners,

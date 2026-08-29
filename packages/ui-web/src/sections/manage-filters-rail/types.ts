@@ -1,7 +1,7 @@
-import type { RailSelectOption } from '../../components/rail-select';
+import type { SelectFieldOption } from '../../components/select-field';
 import type { SegmentedOption } from '../../components/segmented-control';
 
-export type ManageOption = RailSelectOption;
+export type ManageOption = SelectFieldOption;
 
 export interface ManageFiltersRailProps {
   accountValue: string;

@@ -48,20 +48,20 @@ export function ApiKeysLedger({
   const columns: LedgerColumn<ApiKeyRow>[] = [
     {
       key: 'name',
-      header: 'NAME',
+      header: 'Name',
       width: '220px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'prefix', header: 'PREFIX', width: '160px', accessor: (row) => row.prefix },
+    { key: 'prefix', header: 'Prefix', width: '160px', accessor: (row) => row.prefix },
     {
       key: 'status',
-      header: 'STATUS',
+      header: 'Status',
       width: '110px',
       accessor: (row) => <StatusText tone={statusTone(row.status)}>{row.statusLabel}</StatusText>,
     },
-    { key: 'created', header: 'CREATED', width: '110px', align: 'right', accessor: (row) => row.created },
-    { key: 'lastUsed', header: 'LAST USED', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
-    { key: 'expires', header: 'EXPIRES', width: '110px', align: 'right', accessor: (row) => row.expires },
+    { key: 'created', header: 'Created', width: '110px', align: 'right', accessor: (row) => row.created },
+    { key: 'lastUsed', header: 'Last used', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
+    { key: 'expires', header: 'Expires', width: '110px', align: 'right', accessor: (row) => row.expires },
   ];
 
   const isEmpty = !loading && !error && keys.length === 0;

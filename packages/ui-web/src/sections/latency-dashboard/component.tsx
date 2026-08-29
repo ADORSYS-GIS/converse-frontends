@@ -4,7 +4,7 @@ import { SPEC_GRID } from '../../chart-tokens';
 import { ErrorLine } from '../../components/error-line';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
 import type { LatencyDashboardProps } from './types';
 
 // Loading-skeleton geometry for the LATENCY ridgeline, matching `LatencyRidgeline`'s own margin
@@ -36,7 +36,7 @@ function LatencyChartSkeleton({ width, height }: { width: number; height: number
 // zone. Carries its own status independently of SPEND: a failed latency query must not take the
 // spend chart down with it.
 export function LatencyDashboard({
-  label = 'LATENCY DISTRIBUTION — p95 BY MODEL',
+  label = 'Latency distribution — p95 by model',
   series,
   fallbackWidth,
   height,
@@ -53,23 +53,39 @@ export function LatencyDashboard({
   const measuredWidth = size.width || fallbackWidth;
 
   return (
-    <div className={className}>
+    // The observed element is the OUTER wrapper, not the chart's scroll box: that box only exists
+    // in the `ready` branch now, and a ref that mounts only in `ready` would leave the loading
+    // skeleton measuring `fallbackWidth` forever. Both are full-width children of this div, so
+    // the measurement is identical either way.
+    <div ref={ref} className={className}>
       <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
+        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
-      {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
-          why a landmark role here would trip axe's `landmark-unique` once a page renders more
-          than one scrollable dashboard. */}
-      <div ref={ref} className="mt-4 w-full overflow-x-auto" tabIndex={0}>
-        {status === 'error' ? (
+      {/* Only the CHART goes inside the horizontal scroller. The error and loading states are
+          prose/skeleton that wrap to the column, and putting them in the scroll box made them
+          scroll with it: a horizontally-scrolled container clipped the empty/error sentence at
+          BOTH ends, rendering it as "…isn't available: the usage API doesn't report latency or
+          percentile data yet. Spend, budget an…" (owner screenshot, 2026-08-29). A status line
+          about a chart that is not being drawn has no reason to live in that chart's viewport. */}
+      {status === 'error' ? (
+        <div className="mt-4">
           <ErrorLine message={errorMessage ?? 'Failed to load latency data.'} onRetry={onRetry} />
-        ) : status === 'loading' ? (
-          <div className="flex flex-col gap-2">
+        </div>
+      ) : status === 'loading' ? (
+        <div className="mt-4 flex flex-col gap-2">
+          {/* The skeleton matches the chart's geometry, so it keeps the chart's own scroller. */}
+          <div className="w-full overflow-x-auto overflow-y-clip">
             <LatencyChartSkeleton width={measuredWidth} height={height} />
-            <p className="text-subtle font-mono text-[10px]">Querying usage…</p>
           </div>
-        ) : (
+          <p className="text-subtle font-mono text-[11px]">Querying usage…</p>
+        </div>
+      ) : (
+        /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
+           why a landmark role here would trip axe's `landmark-unique` once a page renders more
+           than one scrollable dashboard. `overflow-y-clip` -- see `SpendDashboard`'s note on why
+           `overflow-x-auto` alone also scrolls vertically. */
+        <div className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
           <LatencyRidgeline
             series={series}
             width={measuredWidth}
@@ -77,8 +93,8 @@ export function LatencyDashboard({
             formatXTick={formatXTick}
             onSelectSeries={onSelectSeries}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

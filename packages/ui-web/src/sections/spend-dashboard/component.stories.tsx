@@ -53,10 +53,10 @@ export const MdTierWithTriggers: Story = {
   args: {
     actions: (
       <>
-        <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
+        <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="View">
           <p className="font-mono text-xs text-ink">Range · Bucket · Group by</p>
         </SectionSheetTrigger>
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
           <p className="font-mono text-xs text-ink">Account · Project · Model</p>
         </SectionSheetTrigger>
       </>

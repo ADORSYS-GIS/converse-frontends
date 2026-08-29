@@ -121,7 +121,7 @@ describe('ApiKeysLedger', () => {
     expect(
       screen.getByText('No keys in this project yet. Create one from the right.')
     ).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'NAME' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
   });
 
   it('renders an ErrorLine with Retry on error', () => {

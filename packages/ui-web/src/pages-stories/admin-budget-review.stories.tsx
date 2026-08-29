@@ -186,7 +186,7 @@ export const MdTier: Story = {
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await waitFor(() => expect(body.getByRole('dialog', { name: 'REVIEW' })).toBeInTheDocument());
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'Review' })).toBeInTheDocument());
   },
 };
 

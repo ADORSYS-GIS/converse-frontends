@@ -6,9 +6,9 @@ import { StatCard } from './component';
 
 describe('StatCard', () => {
   it('renders the label and metric', () => {
-    render(<StatCard label="SPEND THIS MONTH" metric="$142.55" />);
+    render(<StatCard label="Spend this month" metric="$142.55" />);
 
-    expect(screen.getByText('SPEND THIS MONTH')).toBeInTheDocument();
+    expect(screen.getByText('Spend this month')).toBeInTheDocument();
     expect(screen.getByText('$142.55')).toBeInTheDocument();
   });
 

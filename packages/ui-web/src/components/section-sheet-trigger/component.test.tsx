@@ -6,7 +6,7 @@ import { SectionSheetTrigger } from './component';
 
 function renderTrigger() {
   return render(
-    <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+    <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
       <button type="button">Reset</button>
     </SectionSheetTrigger>
   );
@@ -19,7 +19,7 @@ describe('SectionSheetTrigger', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open filters' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'FILTERS' });
+    const dialog = screen.getByRole('dialog', { name: 'Filters' });
     expect(within(dialog).getByRole('button', { name: 'Reset' })).toBeInTheDocument();
   });
 
@@ -47,14 +47,14 @@ describe('SectionSheetTrigger', () => {
         <SectionSheetTrigger
           icon="filter"
           triggerLabel="Open filters"
-          label="FILTERS"
+          label="Filters"
           open
           onOpenChange={() => {}}>
           <button type="button">Reset</button>
         </SectionSheetTrigger>
       );
 
-      expect(screen.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
     });
 
     it('reports open and close requests instead of acting on them itself', () => {
@@ -63,7 +63,7 @@ describe('SectionSheetTrigger', () => {
         <SectionSheetTrigger
           icon="filter"
           triggerLabel="Open filters"
-          label="FILTERS"
+          label="Filters"
           open={false}
           onOpenChange={onOpenChange}>
           <button type="button">Reset</button>

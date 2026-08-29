@@ -7,7 +7,7 @@ export interface SelectionSheetProps {
    * row already selected (a deep link, a story) opens it too, not only a *later* change.
    */
   selectionKey: string | null;
-  /** The rail section's heading — becomes the sheet's title, e.g. `"SELECTION"`. */
+  /** The rail section's heading — becomes the sheet's title, e.g. `"Selection"`. */
   label: string;
   children: ReactNode;
   className?: string;

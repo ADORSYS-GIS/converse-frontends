@@ -5,7 +5,7 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
 import type { SpendDashboardProps } from './types';
 
 // Loading-skeleton geometry for the SPEND chart, matching the exact frame the chart itself
@@ -50,7 +50,7 @@ function SpendChartSkeleton({ width, height }: { width: number; height: number }
 // unavailable) — the SVG itself never learns to shrink, only the container's own scroll makes
 // that safe.
 export function SpendDashboard({
-  label = 'SPEND — BY PROJECT AND MODEL',
+  label = 'Spend — by project and model',
   series,
   fallbackWidth,
   height,
@@ -75,13 +75,18 @@ export function SpendDashboard({
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
+        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
       {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
           why a landmark role here would trip axe's `landmark-unique` once a page renders more
           than one scrollable dashboard. */}
-      <div ref={ref} className={cn('mt-4 w-full overflow-x-auto')} tabIndex={0}>
+      {/* `overflow-x-auto` ALONE also scrolls vertically. Per CSS Overflow 3 §3.1, when one axis
+          is not `visible` the other computes from `visible` to `auto` — so this box became a
+          two-axis scroller, and a wheel gesture over the chart scrolled the chart's own box
+          instead of the page (owner-reported: "the chart eats the scroll wheel"). `overflow-y-clip`
+          pins the vertical axis explicitly so only the intended horizontal axis ever scrolls. */}
+      <div ref={ref} className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
         {status === 'error' ? (
           <ErrorLine message={errorMessage ?? 'Failed to load spend data.'} onRetry={onRetry} />
         ) : status === 'loading' ? (

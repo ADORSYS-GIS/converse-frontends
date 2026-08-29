@@ -5,7 +5,7 @@ import { RailPanel } from '../../components/rail-panel';
 import type { ReportExportFormat } from '../../components/report-export-panel';
 import { ScopeSelect } from '../../components/scope-select';
 import type { SegmentedOption } from '../../components/segmented-control';
-import { scopeAccounts, scopeProjects, scopeSelectValue } from '../scope-rail/fixtures';
+import { scopeAccounts, scopeProjects, scopeSelectValue } from '../../components/scope-select/fixtures';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './component';
 import { manageLastExports } from './fixtures';
 

@@ -8,7 +8,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatMoney } from '../../lib/money';
-import { SECTION_LABEL } from '../dashboard-label';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ManageProjectsLedgerProps, ProjectRow } from './types';
 
 function money(value: number | null): string {
@@ -47,16 +47,16 @@ export function ManageProjectsLedger({
   const columns: LedgerColumn<ProjectRow>[] = [
     {
       key: 'name',
-      header: 'NAME',
+      header: 'Name',
       width: '200px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'account', header: 'ACCOUNT', width: '150px', accessor: (row) => row.account },
-    { key: 'members', header: 'MEMBERS', width: '90px', align: 'right', accessor: (row) => row.members },
-    { key: 'keys', header: 'KEYS', width: '80px', align: 'right', accessor: (row) => row.keys },
+    { key: 'account', header: 'Account', width: '150px', accessor: (row) => row.account },
+    { key: 'members', header: 'Members', width: '90px', align: 'right', accessor: (row) => row.members },
+    { key: 'keys', header: 'Keys', width: '80px', align: 'right', accessor: (row) => row.keys },
     {
       key: 'spendMtd',
-      header: 'SPEND MTD',
+      header: 'Spend MTD',
       width: '130px',
       align: 'right',
       accessor: (row) => (
@@ -65,11 +65,11 @@ export function ManageProjectsLedger({
         </span>
       ),
     },
-    { key: 'ceiling', header: 'CEILING', width: '110px', align: 'right', accessor: (row) => money(row.ceiling) },
-    { key: 'usedPercent', header: 'USED', width: '80px', align: 'right', accessor: (row) => percent(row.usedPercent) },
+    { key: 'ceiling', header: 'Ceiling', width: '110px', align: 'right', accessor: (row) => money(row.ceiling) },
+    { key: 'usedPercent', header: 'Used', width: '80px', align: 'right', accessor: (row) => percent(row.usedPercent) },
     {
       key: 'status',
-      header: 'STATUS',
+      header: 'Status',
       width: '110px',
       align: 'right',
       accessor: (row) => <span className={statusTextClass(row.status)}>{row.statusLabel}</span>,
@@ -128,7 +128,7 @@ export function ManageProjectsLedger({
 
       {reportTrigger ? (
         <div className="flex items-center justify-between gap-3 lg:hidden">
-          <span className={SECTION_LABEL}>MONTHLY REPORT</span>
+          <span className={LABEL_CLASS}>Monthly report</span>
           {reportTrigger}
         </div>
       ) : null}

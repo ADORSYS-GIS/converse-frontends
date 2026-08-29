@@ -4,7 +4,7 @@ import { cn } from '../../cn';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatMoney } from '../../lib/money';
-import { SECTION_LABEL } from '../dashboard-label';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { DecisionRow, DecisionsLedgerProps } from './types';
 
 function signedMoney(amount: number): string {
@@ -15,24 +15,24 @@ function signedMoney(amount: number): string {
 // lower zone: the audit tail of decisions already made, with its own pager. The outcome is plain
 // text in a grey step (`soft` approved / `subtle` declined) — never green/red, never a pill.
 export function DecisionsLedger({
-  label = 'RECENT DECISIONS',
+  label = 'Recent decisions',
   decisions,
   pagination,
   className,
 }: DecisionsLedgerProps) {
   const columns: LedgerColumn<DecisionRow>[] = [
-    { key: 'date', header: 'DATE', width: '110px', accessor: (row) => row.date },
+    { key: 'date', header: 'Date', width: '110px', accessor: (row) => row.date },
     {
       key: 'project',
-      header: 'PROJECT',
+      header: 'Project',
       width: '160px',
       accessor: (row) => <span className="text-ink">{row.project}</span>,
     },
-    { key: 'account', header: 'ACCOUNT', width: '190px', accessor: (row) => row.account },
-    { key: 'amount', header: 'AMOUNT', width: '110px', align: 'right', accessor: (row) => signedMoney(row.amount) },
+    { key: 'account', header: 'Account', width: '190px', accessor: (row) => row.account },
+    { key: 'amount', header: 'Amount', width: '110px', align: 'right', accessor: (row) => signedMoney(row.amount) },
     {
       key: 'decision',
-      header: 'DECISION',
+      header: 'Decision',
       width: '110px',
       accessor: (row) => (
         <span className={row.decision === 'approved' ? 'text-soft' : 'text-subtle'}>
@@ -40,13 +40,13 @@ export function DecisionsLedger({
         </span>
       ),
     },
-    { key: 'decidedBy', header: 'DECIDED BY', width: '150px', align: 'right', accessor: (row) => row.decidedBy },
+    { key: 'decidedBy', header: 'Decided by', width: '150px', align: 'right', accessor: (row) => row.decidedBy },
   ];
 
   return (
     <div className={cn('flex flex-col gap-6', className)}>
       <div className="flex flex-col gap-2">
-        <span className={SECTION_LABEL}>{label}</span>
+        <span className={LABEL_CLASS}>{label}</span>
         <LedgerTable columns={columns} data={decisions} rowKey={(row) => row.id} />
       </div>
 

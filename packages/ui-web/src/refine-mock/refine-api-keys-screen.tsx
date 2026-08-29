@@ -7,31 +7,19 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useCreate, useDelete, useTable, useUpdate } from '@refinedev/core';
 
-import { Button } from '../components/button';
-import { RailPanel } from '../components/rail-panel';
-import { ScopeSelect } from '../components/scope-select';
-import type { ScopeSelectValue } from '../components/scope-select';
-import { SectionSheetTrigger } from '../components/section-sheet-trigger';
-import { API_KEYS_FILTERS_RAIL_LABEL, ApiKeysFiltersRail } from '../sections/api-keys-filters-rail';
-import { apiKeysStatusFilterOptions } from '../sections/api-keys-filters-rail/fixtures';
-import { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from '../sections/api-keys-hygiene-rail';
-import { apiKeysHygiene } from '../sections/api-keys-hygiene-rail/fixtures';
-import {
-  API_KEYS_LIFECYCLE_RAIL_LABEL,
-  ApiKeysLifecycleRail,
-} from '../sections/api-keys-lifecycle-rail';
+import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
+import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
 import type {
   ApiKeyRow,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
-import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
+import { ApiKeysToolbar } from '../sections/api-keys-toolbar';
 import {
-  scopeAccounts,
-  scopeProjects,
-  scopeRailFixture,
-} from '../sections/scope-rail/fixtures';
+  API_KEY_PROJECT_OPTIONS,
+  API_KEY_STATUS_OPTIONS,
+} from '../sections/api-keys-toolbar/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { RefineMockShell } from './shared-chrome';
 
@@ -42,11 +30,12 @@ function randomSecret(): string {
   return out;
 }
 
+// Counts only — the expiring key is `ApiKeysHygieneNotes`' line. Reporting it here too printed
+// the same fact twice on one screen (owner screenshot 2026-08-29).
 function summarize(rows: ApiKeyRow[]): string {
   const active = rows.filter((row) => row.status === 'active').length;
   const revoked = rows.filter((row) => row.status === 'revoked').length;
-  const expiring = rows.filter((row) => row.status === 'expiring').length;
-  return `${active} active · ${revoked} revoked${expiring > 0 ? ` · ${expiring} expiring soon` : ''}`;
+  return `${active} active · ${revoked} revoked`;
 }
 
 const ROTATED_SECRET_COPY =
@@ -55,10 +44,9 @@ const ROTATED_SECRET_COPY =
 export function RefineApiKeysScreen() {
   const [search, setSearch] = useState('');
   const [statusFilterValue, setStatusFilterValue] = useState('all');
-  const [scopeValue, setScopeValue] = useState<ScopeSelectValue>({
-    accountId: 'adorsys-gis',
-    projectId: 'gateway-prod',
-  });
+  // Project is a toolbar parameter now, not a rail `ScopeSelect` — account is identity and lives
+  // in the header (owner review 2026-08-29).
+  const [project, setProject] = useState('gateway-prod');
   const [secretReveal, setSecretReveal] = useState<ApiKeysSecretReveal | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(null);
 
@@ -120,66 +108,32 @@ export function RefineApiKeysScreen() {
     );
   }
 
-  const scopeSelect = (
-    <ScopeSelect
-      accounts={scopeAccounts}
-      projects={scopeProjects}
-      value={scopeValue}
-      onChange={setScopeValue}
-    />
-  );
-
-  const filtersRail = (
-    <ApiKeysFiltersRail
-      statusOptions={apiKeysStatusFilterOptions}
-      statusValue={statusFilterValue}
-      onStatusChange={setStatusFilterValue}
-      search={search}
-      onSearchChange={setSearch}
-    />
-  );
-
   return (
-    <RefineMockShell
-      active="api-keys"
-      leftSecondary={
-        <RailPanel label={SCOPE_RAIL_LABEL}>
-          <ScopeRail {...scopeRailFixture} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Scope"
-      rail={
-        <>
-          <RailPanel>
-            <Button type="button" variant="primary" className="w-full" onClick={createKey}>
-              + New key
-            </Button>
-          </RailPanel>
-          <RailPanel label={SCOPE_RAIL_LABEL}>{scopeSelect}</RailPanel>
-          <RailPanel label={API_KEYS_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
-          <RailPanel label={API_KEYS_HYGIENE_RAIL_LABEL}>
-            <ApiKeysHygieneRail hygiene={apiKeysHygiene} />
-          </RailPanel>
-          <RailPanel label={API_KEYS_LIFECYCLE_RAIL_LABEL}>
-            <ApiKeysLifecycleRail />
-          </RailPanel>
-        </>
-      }>
+    // No rails on this screen at any tier (owner review 2026-08-29) — filters, hygiene and the
+    // create action are the toolbar's and the ledger's now.
+    <RefineMockShell active="api-keys">
       <div className="flex flex-col gap-6">
-        <ScreenHeading
-          title="Api-Keys"
-          subline={`${scopeRailFixture.accountLabel} / ${scopeRailFixture.projectLabel}`}
-          sublineActions={
-            <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label={SCOPE_RAIL_LABEL}>
-              {scopeSelect}
-            </SectionSheetTrigger>
-          }
-          actions={
-            <Button type="button" variant="primary" onClick={createKey} className="lg:hidden">
-              + New key
-            </Button>
+        <ScreenHeading title="API keys" />
+
+        <ApiKeysToolbar
+          projectField={{
+            label: 'Project',
+            value: project,
+            options: API_KEY_PROJECT_OPTIONS,
+            onChange: setProject,
+          }}
+          statusOptions={API_KEY_STATUS_OPTIONS}
+          statusValue={statusFilterValue}
+          onStatusChange={setStatusFilterValue}
+          search={search}
+          onSearchChange={setSearch}
+          onCreate={project === 'all' ? undefined : createKey}
+          createDisabledReason={
+            project === 'all' ? 'Select a project to create a key.' : undefined
           }
         />
+
+        {rows.length > 0 ? <ApiKeysHygieneNotes hygiene={apiKeysHygiene} /> : null}
 
         <ApiKeysLedger
           keys={rows}
@@ -187,6 +141,7 @@ export function RefineApiKeysScreen() {
           error={error}
           onRetry={refetchList}
           statusSummary={summarize(rows)}
+          emptyMessage="No keys in this project yet. Create one from the toolbar above."
           secretReveal={secretReveal}
           onDismissSecret={() => setSecretReveal(null)}
           onRotate={(row) => {
@@ -242,14 +197,6 @@ export function RefineApiKeysScreen() {
             onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
             onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
           }}
-          toolbarActions={
-            <SectionSheetTrigger
-              icon="filter"
-              triggerLabel="Open filters"
-              label={API_KEYS_FILTERS_RAIL_LABEL}>
-              {filtersRail}
-            </SectionSheetTrigger>
-          }
         />
       </div>
     </RefineMockShell>

@@ -17,7 +17,9 @@ export const apiKeysFixture: ApiKeyRow[] = [
   { id: 'partner-readonly', name: 'partner-readonly', prefix: 'lb_live_b7e5…', status: 'active', statusLabel: 'active', created: '2026-01-27', lastUsed: '9 d ago', expires: '2027-01-27' },
 ];
 
-export const apiKeysStatusSummary = '23 active · 4 revoked · 1 expires in 6 days';
+// Counts only. The expiring key is `ApiKeysHygieneNotes`' line, not this one — carrying it in
+// both put "1 expires in 6 days" on screen twice, four lines apart (owner screenshot 2026-08-29).
+export const apiKeysStatusSummary = '23 active · 4 revoked';
 
 export const apiKeysNewSecret: ApiKeysSecretReveal = {
   heading: 'New key created — shown once',

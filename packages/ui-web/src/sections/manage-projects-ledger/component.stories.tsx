@@ -67,12 +67,12 @@ export const MdTierWithTriggers: Story = {
   render: () => (
     <Demo
       toolbarActions={
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="FILTERS">
+        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
           <p className="font-mono text-xs text-ink">Account · Status · Budget state</p>
         </SectionSheetTrigger>
       }
       reportTrigger={
-        <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="MONTHLY REPORT">
+        <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="Monthly report">
           <p className="font-mono text-xs text-ink">Period · Group by · Format</p>
         </SectionSheetTrigger>
       }

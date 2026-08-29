@@ -27,7 +27,7 @@ function makeProps(overrides: Partial<ManageReportRailProps> = {}): ManageReport
 
 describe('ManageReportRail', () => {
   it('exposes the label the rail and its compact-tier sheet both read', () => {
-    expect(MANAGE_REPORT_RAIL_LABEL).toBe('MONTHLY REPORT');
+    expect(MANAGE_REPORT_RAIL_LABEL).toBe('Monthly report');
   });
 
   it('fires onGenerate with the composed export params', () => {

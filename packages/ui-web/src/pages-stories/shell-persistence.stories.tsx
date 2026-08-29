@@ -21,15 +21,11 @@ import { ConsoleShell } from '../components/console-shell';
 import { RailPanel } from '../components/rail-panel';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
 import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
-import { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from '../sections/api-keys-hygiene-rail';
-import { apiKeysHygiene } from '../sections/api-keys-hygiene-rail/fixtures';
+import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
+import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
-import {
-  OVERVIEW_EXPORT_RAIL_LABEL,
-  OverviewExportRail,
-} from '../sections/overview-export-rail';
-import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
+
 import { ScreenHeading } from '../sections/screen-heading';
 import { storyAdminNavItems, storyHeader, storyNavItems, type StoryRoute } from './shell-fixtures';
 
@@ -37,12 +33,18 @@ import { storyAdminNavItems, storyHeader, storyNavItems, type StoryRoute } from 
  * One shell, two routes. `route` stands in for the App Router's pathname: changing it swaps the
  * centre and the rail, exactly as `children` and the `@rail` slot swap for real — and, exactly as
  * for real, the shell itself is never re-created.
+ *
+ * The pair is deliberately Overview ↔ Manage rather than Overview ↔ Api-Keys (owner review
+ * 2026-08-29): Overview now has NO right rail and Manage does, so navigating between them
+ * mounts and unmounts the entire rail column. That is a strictly harder case for shell
+ * persistence than swapping one rail's contents for another's, and it is the case the console
+ * actually performs now.
  */
 function PersistentShell() {
   const [route, setRoute] = useState<StoryRoute>('overview');
 
   const navigate = (key: string) => {
-    if (key === 'overview' || key === 'api-keys') setRoute(key);
+    if (key === 'overview' || key === 'manage') setRoute(key);
   };
 
   const items = storyNavItems(route).map((item) => ({
@@ -57,22 +59,14 @@ function PersistentShell() {
     <ConsoleShell
       header={storyHeader}
       nav={{ items, adminItems: storyAdminNavItems(route), showAdmin: false }}
-      leftSecondary={
-        <RailPanel label={SCOPE_RAIL_LABEL}>
-          <ScopeRail accountLabel="adorsys-gis" projectLabel="gateway-prod" />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Scope"
+      // Overview supplies NO rail; Manage supplies one. The rail column therefore unmounts and
+      // remounts across this navigation while the header and nav must not.
       rightRail={
-        route === 'overview' ? (
-          <RailPanel label={OVERVIEW_EXPORT_RAIL_LABEL}>
-            <OverviewExportRail onExport={() => {}} />
+        route === 'manage' ? (
+          <RailPanel label="Key hygiene">
+            <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
           </RailPanel>
-        ) : (
-          <RailPanel label={API_KEYS_HYGIENE_RAIL_LABEL}>
-            <ApiKeysHygieneRail hygiene={apiKeysHygiene} />
-          </RailPanel>
-        )
+        ) : undefined
       }>
       {route === 'overview' ? (
         <div className="flex flex-col gap-8">
@@ -81,7 +75,7 @@ function PersistentShell() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <ScreenHeading title="Api-Keys" subline="adorsys-gis / gateway-prod" />
+          <ScreenHeading title="Manage" />
           <ApiKeysLedger
             keys={apiKeysFixture}
             onDismissSecret={() => {}}
@@ -121,9 +115,9 @@ export const NavigationDoesNotRemountTheChrome: Story = {
     // Also expose them the way a human reviewer checks this in the live browser.
     (window as unknown as { __nav?: Element | null }).__nav = navBefore;
 
-    await canvas.findByText('SPEND THIS MONTH');
+    await canvas.findByText('Spend this month');
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Api-Keys' })[0]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Manage' })[0]);
     await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument());
 
     const navAfter = document.querySelectorAll('nav[aria-label="Primary"]')[0];
@@ -136,7 +130,7 @@ export const NavigationDoesNotRemountTheChrome: Story = {
 
     // And back again.
     await userEvent.click(canvas.getAllByRole('button', { name: 'Overview' })[0]);
-    await waitFor(() => expect(canvas.getByText('SPEND THIS MONTH')).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText('Spend this month')).toBeInTheDocument());
     expect(document.querySelectorAll('nav[aria-label="Primary"]')[0]).toBe(navBefore);
   },
 };

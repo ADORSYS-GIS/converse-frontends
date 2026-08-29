@@ -1,7 +1,7 @@
 'use client';
 
 import type { ApiKey, Project } from '@lightbridge/authz-rpc';
-import type { OverviewStatCardData, RailSelectProps } from '@lightbridge/ui-web';
+import type { OverviewStatCardData, SelectFieldProps } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
 import { useMemo } from 'react';
 
@@ -75,12 +75,12 @@ export interface OverviewScreen {
   statCardsLoading: boolean;
   selectedSeriesKey: string | null;
   setSelectedSeriesKey: (key: string | null) => void;
-  rangeField: RailSelectProps;
-  bucketField: RailSelectProps;
-  groupByField: RailSelectProps;
-  accountField: RailSelectProps;
-  projectField: RailSelectProps;
-  modelField: RailSelectProps;
+  rangeField: SelectFieldProps;
+  bucketField: SelectFieldProps;
+  groupByField: SelectFieldProps;
+  accountField: SelectFieldProps;
+  projectField: SelectFieldProps;
+  modelField: SelectFieldProps;
 }
 
 export function useOverviewScreen(): OverviewScreen {

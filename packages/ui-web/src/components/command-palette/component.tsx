@@ -59,7 +59,7 @@ export function CommandPalette({
             className={cn(
               'px-2 py-1.5',
               '[&_[cmdk-group-heading]]:px-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1.5',
-              '[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:tracking-[.09em] [&_[cmdk-group-heading]]:text-subtle [&_[cmdk-group-heading]]:uppercase',
+              '[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:text-subtle',
             )}>
             {group.items.map((item) => (
               <Command.Item

@@ -12,7 +12,7 @@ export interface SectionSheetTriggerProps {
   icon: SectionSheetTriggerIcon;
   /** Accessible name of the trigger button, e.g. `"Open filters"`. */
   triggerLabel: string;
-  /** The rail section's own heading — becomes the sheet's title, e.g. `"FILTERS"`. */
+  /** The rail section's own heading — becomes the sheet's title, e.g. `"Filters"`. */
   label: string;
   /** The rail section's content, rendered bare inside the sheet (the sheet supplies the heading). */
   children: ReactNode;

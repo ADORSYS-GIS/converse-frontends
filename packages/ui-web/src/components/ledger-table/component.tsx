@@ -4,6 +4,7 @@ import { cn } from '../../cn';
 import { SkeletonRow } from '../skeleton-row';
 import { ledgerRowVariants } from './cva';
 import type { LedgerColumn, LedgerTableProps } from './types';
+import { LABEL_CLASS } from '../../lib/type-roles';
 
 const ACTIONS_TRACK = '136px';
 
@@ -45,7 +46,7 @@ export function LedgerTable<T>({
     // two or more `LedgerTable`s (e.g. Admin's pending queue + recent decisions) would otherwise
     // trip `landmark-unique`, since every instance shares the same generic label -- found during
     // the ADR 0010 phase 4 sweep.
-    <div className="w-full overflow-x-auto" tabIndex={0}>
+    <div className="w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
       <div
         role="table"
         className={cn('border-raised min-w-max border-t font-mono text-xs', className)}>
@@ -58,7 +59,7 @@ export function LedgerTable<T>({
               key={column.key}
               role="columnheader"
               className={cn(
-                'text-subtle text-[10px] tracking-[.09em] uppercase',
+                LABEL_CLASS,
                 column.align === 'right' && 'text-right'
               )}>
               {column.header}

@@ -33,7 +33,7 @@ import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
 } from '../sections/manage-selection-rail';
-import { scopeAccounts, scopeProjects, scopeSelectValue } from '../sections/scope-rail/fixtures';
+import { scopeAccounts, scopeProjects, scopeSelectValue } from '../components/scope-select/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import {
   manageSubNavItems,
@@ -246,7 +246,7 @@ export const MdTierFiltersSheetOpen: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
 
     const body = within(canvasElement.ownerDocument.body);
-    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument());
   },
 };
 
@@ -260,7 +260,7 @@ export const MdTierSelectionSheetOpen: Story = {
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await waitFor(() =>
-      expect(body.getByRole('dialog', { name: 'SELECTION' })).toBeInTheDocument()
+      expect(body.getByRole('dialog', { name: 'Selection' })).toBeInTheDocument()
     );
   },
 };

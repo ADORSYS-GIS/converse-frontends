@@ -1,19 +1,20 @@
 // Page-level acceptance story for OVERVIEW — console-ui skill "Composition": full-page
 // compositions exist in exactly two places, Storybook and `apps/console`'s routes. This is the
-// Storybook one: sections composed inside `ConsoleShell` with the section fixtures, 1:1 against
-// docs/design/console-redesign/overview.svg, so a whole screen can be checked without starting
-// the app.
+// Storybook one: sections composed inside `ConsoleShell` with the section fixtures, so a whole
+// screen can be checked without starting the app.
+//
+// **This screen has no right rail at any tier** (owner review 2026-08-29). Its parameters live in
+// one always-visible `OverviewToolbar` above the dashboards, so there is no `RailPanel`/
+// `SectionSheetTrigger` pair to keep in sync, no `md`-vs-`lg` composition split, and the centre
+// column is ~280px wider than it was. See `sections/overview-toolbar/component.tsx` for why.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
 import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
-import type { RailSelectProps } from '../components/rail-select';
-import { SectionSheetTrigger } from '../components/section-sheet-trigger';
+import type { SelectFieldProps } from '../components/select-field';
 import { InlineStatus } from '../components/inline-status';
 import { BudgetPanel } from '../sections/budget-panel';
 import {
@@ -27,27 +28,16 @@ import {
   formatOverviewLatencyXTick,
   overviewLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
-import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
-import { overviewExportCaption } from '../sections/overview-export-rail/fixtures';
-import {
-  OVERVIEW_FILTERS_RAIL_LABEL,
-  OverviewFiltersRail,
-} from '../sections/overview-filters-rail';
-import {
-  ACCOUNT_FILTER_OPTIONS,
-  MODEL_FILTER_OPTIONS,
-  PROJECT_FILTER_OPTIONS,
-} from '../sections/overview-filters-rail/fixtures';
-import { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from '../sections/overview-series-rail';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { overviewEmptyStatCards, overviewStatCards } from '../sections/overview-stat-row/fixtures';
-import { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from '../sections/overview-view-rail';
+import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
+  MODEL_FILTER_OPTIONS,
+  PROJECT_FILTER_OPTIONS,
   RANGE_OPTIONS,
-} from '../sections/overview-view-rail/fixtures';
-import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
+} from '../sections/overview-toolbar/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
@@ -59,12 +49,9 @@ import {
   overviewSpendSeries,
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
-import {
-  formatOverviewSpendShareValue,
-  overviewSpendShareSlices,
-} from '../sections/spend-share/fixtures';
+import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
 import { formatMoney } from '../lib/money';
-import type { DonutSlice } from '../components/donut-chart';
+import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
@@ -73,9 +60,9 @@ import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures
 
 function useSelectField(
   initial: string,
-  options: RailSelectProps['options'],
-  label: string
-): RailSelectProps {
+  options: SelectFieldProps['options'],
+  label: string,
+): Omit<SelectFieldProps, 'layout'> {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
@@ -87,7 +74,7 @@ interface OverviewScreenProps {
   statCardsLoading?: boolean;
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
-  spendShareSlices?: DonutSlice[];
+  spendShareSegments?: ShareBarSegment[];
   spendShareStatus?: DashboardStatus;
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
@@ -95,11 +82,11 @@ interface OverviewScreenProps {
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
+  exportDisabledReason?: string;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/` route perform for real — the shell
-// once, sections inside it, with the right rail's sections mounted twice (persistent `RailPanel`
-// at `lg`, `SectionSheetTrigger` sheet below it) from ONE piece of state.
+// The composition `apps/console`'s `(console)` layout + `/` route perform for real: the shell
+// once, sections inside it, and — unlike before — exactly ONE arrangement of the parameters.
 function OverviewScreen({
   showAdmin = false,
   emptyMessage,
@@ -107,7 +94,7 @@ function OverviewScreen({
   statCardsLoading = false,
   spendSeries = overviewSpendSeries,
   spendStatus = 'ready',
-  spendShareSlices = overviewSpendShareSlices,
+  spendShareSegments = overviewSpendShareSegments,
   spendShareStatus = 'ready',
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
@@ -115,47 +102,20 @@ function OverviewScreen({
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
+  exportDisabledReason,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
   const rangeField = useSelectField('last-30', RANGE_OPTIONS, 'Range');
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
-  const accountField = useSelectField('adorsys-gis', ACCOUNT_FILTER_OPTIONS, 'Account');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
   const modelField = useSelectField('all', MODEL_FILTER_OPTIONS, 'Model');
 
   const spendShareTotal = useMemo(
-    () => spendShareSlices.reduce((sum, slice) => sum + slice.value, 0),
-    [spendShareSlices]
+    () => spendShareSegments.reduce((sum, segment) => sum + segment.value, 0),
+    [spendShareSegments],
   );
-
-  const legendItems = useMemo(
-    () =>
-      spendSeries.map((series) => ({
-        key: series.key,
-        label: series.label,
-        value: formatOverviewSpendLegendValue(series),
-        breached: series.breached,
-      })),
-    [spendSeries]
-  );
-
-  const viewRail = (
-    <OverviewViewRail
-      rangeField={rangeField}
-      bucketField={bucketField}
-      groupByField={groupByField}
-    />
-  );
-  const filtersRail = (
-    <OverviewFiltersRail
-      accountField={accountField}
-      projectField={projectField}
-      modelField={modelField}
-    />
-  );
-  const exportRail = <OverviewExportRail onExport={() => {}} caption={overviewExportCaption} />;
 
   return (
     <ConsoleShell
@@ -164,34 +124,27 @@ function OverviewScreen({
         items: storyNavItems('overview'),
         adminItems: storyAdminNavItems('overview'),
         showAdmin,
-      }}
-      leftSecondary={
-        <RailPanel label={SCOPE_RAIL_LABEL}>
-          <ScopeRail accountLabel="adorsys-gis" projectLabel="all projects" />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Scope"
-      rightRail={
-        // A Fragment, not a wrapping `<div>`: the rail column applies `bg-surface divide-y
-        // divide-raised` to its DIRECT children, so each section must be a direct DOM child for
-        // the hairlines to land between sections rather than around one box.
-        <>
-          <RailPanel label={OVERVIEW_VIEW_RAIL_LABEL}>{viewRail}</RailPanel>
-          <RailPanel label={OVERVIEW_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
-          <RailPanel label={OVERVIEW_SERIES_RAIL_LABEL}>
-            <OverviewSeriesRail
-              items={legendItems}
-              selectedKey={selectedSeriesKey}
-              onSelectKey={setSelectedSeriesKey}
-            />
-          </RailPanel>
-          <RailPanel label={OVERVIEW_EXPORT_RAIL_LABEL}>{exportRail}</RailPanel>
-        </>
-      }>
+      }}>
+      {/* No `leftSecondary`: the left rail's `Scope` echo is gone. It restated the account and
+          project the header already names and the toolbar already filters — three copies of one
+          fact, of which this was the least useful (read-only, and furthest from both). The rail
+          is navigation again, nothing else. */}
       <div className="flex flex-col gap-8">
-        <ScreenHeading title="Overview" subline="adorsys-gis · last 30 days · UTC" />
+        <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
+
+        {/* Subline no longer repeats the account id — the header carries it, once. */}
 
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
+
+        <OverviewToolbar
+          rangeField={rangeField}
+          bucketField={bucketField}
+          groupByField={groupByField}
+          projectField={projectField}
+          modelField={modelField}
+          onExport={exportDisabledReason ? undefined : () => {}}
+          exportDisabledReason={exportDisabledReason}
+        />
 
         <OverviewStatRow cards={statCards} loading={statCardsLoading} />
 
@@ -205,45 +158,24 @@ function OverviewScreen({
           formatYTick={formatOverviewSpendYTick}
           formatTooltipValue={formatOverviewSpendTooltipValue}
           formatLegendValue={formatOverviewSpendLegendValue}
-          actions={
-            <>
-              <SectionSheetTrigger
-                icon="view"
-                triggerLabel="Open view options"
-                label={OVERVIEW_VIEW_RAIL_LABEL}>
-                {viewRail}
-              </SectionSheetTrigger>
-              <SectionSheetTrigger
-                icon="filter"
-                triggerLabel="Open filters"
-                label={OVERVIEW_FILTERS_RAIL_LABEL}>
-                {filtersRail}
-              </SectionSheetTrigger>
-            </>
-          }
         />
 
-        {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row --
-            reading order stays tiles -> trend -> share -> detail. Its own dashboard row (not
-            folded into the LATENCY/BUDGET row) because a donut is a fixed-size widget, unlike
-            those two `lg:basis-*` columns that scale to fill the centre; giving it a full-width
-            row lets it stay centered rather than stretching or crowding a third column into 872px. */}
+        {/* Directly below the time series: reading order stays tiles → trend → share → detail.
+            Now ~90px rather than ~330 (the donut it replaced), which is why LATENCY and BUDGET
+            are visible without scrolling at the `lg` reference height. */}
         <SpendShareSection
-          slices={spendShareSlices}
-          size={200}
+          segments={spendShareSegments}
+          total={spendShareTotal > 0 ? formatMoney(spendShareTotal) : undefined}
           status={spendShareStatus}
           onRetry={() => {}}
           selectedKey={selectedSeriesKey}
-          onSelectSlice={setSelectedSeriesKey}
-          centreMetric={spendShareTotal > 0 ? formatMoney(spendShareTotal) : undefined}
-          centreLabel={spendShareTotal > 0 ? 'TOTAL' : undefined}
-          formatTooltipValue={formatOverviewSpendShareValue}
-          formatLegendValue={formatOverviewSpendShareValue}
+          onSelectSegment={setSelectedSeriesKey}
         />
 
-        {/* `lg:basis-[528px]` / `lg:basis-[320px]` are the 1440-reference widths (528 + 320 + 24px
-            gap = 872px, the centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not
-            `shrink-0`) lets both columns scale down together instead of overflowing. */}
+        {/* `lg:basis-[528px]` / `lg:basis-[320px]` were the 1440-reference widths back when the
+            centre was 872px wide. With the right rail gone the centre is ~1152px at the same
+            reference, so these are now proportions rather than pixel targets — `lg:flex-1
+            lg:min-w-0` lets both columns scale together instead of overflowing. */}
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
           <LatencyDashboard
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
@@ -262,14 +194,6 @@ function OverviewScreen({
             onRequestRefill={() => {}}
             refillRequestStatus={refillRequestStatus}
             onReviewInAdmin={() => {}}
-            actions={
-              <SectionSheetTrigger
-                icon="export"
-                triggerLabel="Open export"
-                label={OVERVIEW_EXPORT_RAIL_LABEL}>
-                {exportRail}
-              </SectionSheetTrigger>
-            }
           />
         </div>
       </div>
@@ -286,13 +210,11 @@ const meta: Meta<typeof OverviewScreen> = {
 export default meta;
 type Story = StoryObj<typeof OverviewScreen>;
 
-// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Visually comparable to
-// docs/design/console-redesign/overview.svg. Fluid (console-ui skill "Fluid always") — the page
-// follows the iframe's real width rather than a fixed 1440 wrapper.
+// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Fluid (console-ui skill
+// "Fluid always") — the page follows the iframe's real width rather than a fixed 1440 wrapper.
 export const Populated: Story = { render: () => <OverviewScreen /> };
 
-// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures — the
-// page-level acceptance surface for the light theme at the `lg` reference tier.
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures.
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   render: () => <OverviewScreen />,
@@ -306,7 +228,7 @@ export const Empty: Story = {
       emptyMessage="No usage yet. Usage appears here once your first request is billed."
       statCards={overviewEmptyStatCards}
       spendSeries={[]}
-      spendShareSlices={[]}
+      spendShareSegments={[]}
       latencySeries={[]}
       budget={overviewEmptyBudget}
       needsAttention={undefined}
@@ -329,10 +251,22 @@ export const Loading: Story = {
 
 // README §6 error rules: section-level ErrorLine + Retry. A failed latency query must not take
 // the spend chart down with it, so only LATENCY errors here.
+//
+// This is also the regression story for the owner-reported clipping bug: the error line used to
+// render INSIDE the chart's `overflow-x-auto` box and was cut off at both ends. It now sits
+// outside that box and wraps to the column.
 export const DashboardError: Story = {
   render: () => (
-    <OverviewScreen latencyStatus="error" latencyErrorMessage="Failed to load latency data." />
+    <OverviewScreen
+      latencyStatus="error"
+      latencyErrorMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
+    />
   ),
+};
+
+/** Production's real state: the usage backend serves no CSV, so export is disabled and says so. */
+export const ExportUnavailable: Story = {
+  render: () => <OverviewScreen exportDisabledReason="Export isn't available yet." />,
 };
 
 export const MemberNav: Story = {
@@ -345,33 +279,15 @@ export const AdminNav: Story = {
   render: () => <OverviewScreen showAdmin />,
 };
 
-// `md` tier (600–1024): left rail persists inline; the right rail has NO persistent footer/peek
-// bar at all (owner revision 2026-08-25). Its sections are reached via contextual triggers
-// instead: VIEW and FILTERS beside the SPEND header, EXPORT beside the BUDGET header.
+// `md` tier (600–1024): left rail persists inline; the toolbar simply wraps. There is no sheet
+// to open and no trigger to find — the reason this tier no longer needs its own story pair.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <OverviewScreen />,
 };
 
-// Same `md` tier, FILTERS trigger activated — the contextual trigger → `SectionSheet` flow end to
-// end: only the FILTERS section (not the whole rail) opens as a transient bottom sheet.
-export const MdTierFiltersSheetOpen: Story = {
-  name: 'md tier — FILTERS sheet open',
-  globals: { viewport: { value: 'md900' } },
-  render: () => <OverviewScreen />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
-
-    // The sheet's `Drawer.Portal` renders to `document.body`, outside `canvasElement`.
-    const body = within(canvasElement.ownerDocument.body);
-    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
-  },
-};
-
 // Base tier (<600, a designed target): single column, stacked stat cards, nav docked as a fixed
-// bottom navigation bar, VIEW/FILTERS/EXPORT via the same contextual triggers as `md`, SCOPE via
-// the header's drawer trigger.
+// bottom navigation bar, toolbar wrapped to several rows.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <OverviewScreen />,

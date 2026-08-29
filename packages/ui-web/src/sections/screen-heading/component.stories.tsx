@@ -23,7 +23,7 @@ export const WithActions: Story = {
       title="Api-Keys"
       subline="adorsys-gis / gateway-prod"
       sublineActions={
-        <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="SCOPE">
+        <SectionSheetTrigger icon="scope" triggerLabel="Open scope" label="Scope">
           <p className="font-mono text-xs text-ink">gateway-prod</p>
         </SectionSheetTrigger>
       }

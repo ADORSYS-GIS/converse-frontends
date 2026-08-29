@@ -42,7 +42,7 @@ const statCard = (label: string, value: string) => (
 );
 
 const scopePanel = (
-  <RailPanel label="SCOPE">
+  <RailPanel label="Scope">
     <div className="space-y-3">
       <div>
         <div className="font-mono text-[10px] text-subtle">Account</div>
@@ -57,7 +57,7 @@ const scopePanel = (
 );
 
 const rightRailContent = (
-  <RailPanel label="VIEW">
+  <RailPanel label="View">
     <div className="space-y-3">
       <div>
         <div className="mb-1 font-mono text-[10px] text-subtle">Range</div>
@@ -90,9 +90,9 @@ function Shell({ showAdmin }: { showAdmin: boolean }) {
           <p className="font-sans text-[11px] text-subtle">adorsys-gis · last 30 days · UTC</p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:flex">
-          {statCard('SPEND THIS MONTH', '$142.55')}
-          {statCard('ACTIVE PROJECTS', '6')}
-          {statCard('ACTIVE API KEYS', '23')}
+          {statCard('Spend this month', '$142.55')}
+          {statCard('Active projects', '6')}
+          {statCard('Active API keys', '23')}
         </div>
       </div>
     </ConsoleShell>

@@ -9,7 +9,7 @@ describe('OverviewStatRow', () => {
   it('renders one card per datum with its metric', () => {
     render(<OverviewStatRow cards={overviewStatCards} />);
 
-    expect(screen.getByText('SPEND THIS MONTH')).toBeInTheDocument();
+    expect(screen.getByText('Spend this month')).toBeInTheDocument();
     expect(screen.getByText('$142.55')).toBeInTheDocument();
     expect(screen.getByText('41,208')).toBeInTheDocument();
   });

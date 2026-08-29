@@ -4,7 +4,7 @@ import { BudgetHero } from '../../components/budget-hero';
 import { Button } from '../../components/button';
 import { Meter } from '../../components/meter';
 import { formatMoneyOf } from '../../lib/money';
-import { DASHBOARD_LABEL, SECTION_LABEL } from '../dashboard-label';
+import { DASHBOARD_LABEL_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import type { BudgetPanelProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 3) — the BUDGET
@@ -13,7 +13,7 @@ import type { BudgetPanelProps } from './types';
 // count plus the link into Admin). Both are omitted entirely when their data is absent; neither
 // leaves an empty placeholder behind.
 export function BudgetPanel({
-  label = 'BUDGET — CONSUMPTION VS CEILING',
+  label = 'Budget — consumption vs ceiling',
   budget,
   needsAttentionProject,
   onRequestRefill,
@@ -25,7 +25,7 @@ export function BudgetPanel({
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
+        <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
       <div className="mt-4">
@@ -39,7 +39,7 @@ export function BudgetPanel({
         {needsAttentionProject ? (
           <>
             <div aria-hidden="true" className="my-5 border-t border-border" />
-            <div className={SECTION_LABEL}>NEEDS ATTENTION</div>
+            <div className={LABEL_CLASS}>Needs attention</div>
             <div className="mt-3 flex items-baseline justify-between gap-3">
               <span className="font-mono text-xs text-ink">{needsAttentionProject.name}</span>
               <span className="font-mono text-[11px] text-soft">
@@ -69,7 +69,7 @@ export function BudgetPanel({
         {refillRequestStatus ? (
           <>
             <div aria-hidden="true" className="my-5 border-t border-border" />
-            <div className={SECTION_LABEL}>REFILL REQUESTS</div>
+            <div className={LABEL_CLASS}>Refill requests</div>
             <p className="mt-3 font-mono text-[11px] text-soft">
               {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
             </p>

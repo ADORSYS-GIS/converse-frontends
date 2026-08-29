@@ -51,7 +51,7 @@ export const MdTierWithTrigger: Story = {
   globals: { viewport: { value: 'md900' } },
   args: {
     actions: (
-      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
+      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="Export">
         <p className="font-mono text-xs text-ink">Export current view · CSV</p>
       </SectionSheetTrigger>
     ),

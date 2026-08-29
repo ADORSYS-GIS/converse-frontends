@@ -33,14 +33,23 @@ export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldPro
   props,
   ref,
 ) {
-  const { label, error, containerClassName, className, id, multiline, ...rest } = props;
+  const { label, error, containerClassName, className, id, multiline, layout, ...rest } = props;
+  // A label beside a textarea has nothing to align to, so `inline` is ignored when multiline.
+  const inline = layout === 'inline' && !multiline;
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const errorId = error ? `${controlId}-error` : undefined;
 
   return (
-    <BaseField.Root invalid={Boolean(error)} className={cn('flex flex-col gap-1.5', containerClassName)}>
-      <BaseField.Label className={fieldLabelClassName}>{label}</BaseField.Label>
+    <BaseField.Root
+      invalid={Boolean(error)}
+      className={cn(
+        inline ? 'flex items-center gap-2' : 'flex flex-col gap-1.5',
+        containerClassName,
+      )}>
+      <BaseField.Label className={cn(fieldLabelClassName, inline && 'shrink-0')}>
+        {label}
+      </BaseField.Label>
       {multiline ? (
         <BaseField.Control
           {...(rest as unknown as React.ComponentPropsWithoutRef<typeof BaseField.Control>)}

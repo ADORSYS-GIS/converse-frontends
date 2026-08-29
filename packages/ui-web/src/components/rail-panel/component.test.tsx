@@ -12,15 +12,15 @@ describe('RailPanel', () => {
   });
 
   it('renders an uppercase label heading when provided', () => {
-    render(<RailPanel label="SCOPE">Panel content</RailPanel>);
+    render(<RailPanel label="Scope">Panel content</RailPanel>);
 
-    expect(screen.getByText('SCOPE')).toBeInTheDocument();
+    expect(screen.getByText('Scope')).toBeInTheDocument();
   });
 
   it('omits the label heading when none is given', () => {
     render(<RailPanel>Panel content</RailPanel>);
 
-    expect(screen.queryByText('SCOPE')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scope')).not.toBeInTheDocument();
   });
 
   it('applies only the 16px section inset — no background/radius of its own (owner revision, console-ui skill "Rails are flush…")', () => {

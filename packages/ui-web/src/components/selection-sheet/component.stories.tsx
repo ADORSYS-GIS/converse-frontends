@@ -24,7 +24,7 @@ function Demo() {
       <Button type="button" variant="ghost" onClick={() => setSelected(null)}>
         Clear selection
       </Button>
-      <SelectionSheet selectionKey={selected} label="SELECTION">
+      <SelectionSheet selectionKey={selected} label="Selection">
         <p className="text-ink font-mono text-xs">{selected ?? 'No rows selected.'}</p>
       </SelectionSheet>
     </div>

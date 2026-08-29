@@ -6,6 +6,7 @@ import { BottomSheet } from '../bottom-sheet';
 import { NavSpine } from '../nav-spine';
 import { RailPanel } from '../rail-panel';
 import type { ConsoleShellProps } from './types';
+import { LABEL_CLASS } from '../../lib/type-roles';
 
 // Sticky offset for both rails — must match the header's real height (`ConsoleHeader`'s `h-14`
 // = 56px). Written as a literal class string (not interpolated) so Tailwind's content scanner
@@ -88,7 +89,7 @@ export function ConsoleShell({
               aria-haspopup="dialog"
               aria-expanded={leftDrawerOpen}
               onClick={() => setLeftDrawerOpen(true)}
-              className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.09em] text-subtle hover:text-ink"
+              className={cn('flex items-center gap-1.5 hover:text-ink', LABEL_CLASS)}
             >
               {leftSecondaryLabel}
               <svg aria-hidden="true" viewBox="0 0 8 8" className="h-2 w-2 stroke-current" fill="none" strokeWidth="1.4">

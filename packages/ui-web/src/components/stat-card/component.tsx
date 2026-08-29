@@ -2,6 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import type { StatCardDelta, StatCardProps } from './types';
+import { LABEL_CLASS } from '../../lib/type-roles';
 
 const DELTA_GLYPH: Record<StatCardDelta['direction'], string> = {
   up: '▲',
@@ -23,7 +24,7 @@ export function StatCard({ icon, label, metric, delta, sparkline, className }: S
               {icon}
             </span>
           ) : null}
-          <span className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
+          <span className={LABEL_CLASS}>
             {label}
           </span>
         </div>

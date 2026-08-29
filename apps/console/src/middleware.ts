@@ -39,6 +39,11 @@ export const config = {
      * Everything except:
      *   api/*              — route handlers answer 401 JSON themselves (see above)
      *   auth/*             — the login flow itself, plus the signed-out / error views
+     *                        `api/*` and `auth/*` are also the two families the service worker must
+     *                        never cache; that list lives in `src/shared/uncacheable-paths.ts` and
+     *                        `middleware.test.ts` asserts this matcher stays consistent with it.
+     *                        It cannot be imported here — Next extracts `config` by static AST
+     *                        analysis, and an imported identifier yields no matcher at all.
      *   .well-known/*      — public discovery metadata (RFC 9728)
      *   sw.js, swe-worker-*  — the generated service worker (`@serwist/next` emits both into
      *                          `public/`); a service-worker fetch carries no session and must

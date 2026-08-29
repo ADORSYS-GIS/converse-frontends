@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { config } from './middleware';
+import { UNCACHEABLE_PATH_PREFIXES } from './shared/uncacheable-paths';
 
 /**
  * Regression guard for the matcher exclusion list, not the session-gate logic itself (that's
@@ -43,6 +44,28 @@ describe('middleware matcher', () => {
       'icons/icon-192.png',
       'favicon.ico',
     ]) {
+      expect(pattern.test(path), `${path} should be excluded from the matcher`).toBe(false);
+    }
+  });
+
+  /**
+   * The drift guard between this matcher and `src/shared/uncacheable-paths.ts`. The two lists are
+   * not the same set — the matcher also skips `_next/`, `sw.js`, `icons/` and friends, which are
+   * exactly the things the service worker *should* cache — but the containment holds in one
+   * direction: a path the service worker must never cache is either unauthenticated by design
+   * (`auth/*`) or authenticated per request with a machine-readable `401` (`api/*`), and neither
+   * may be answered with a login redirect.
+   *
+   * It is asserted rather than shared because `config.matcher` cannot import the constant: Next
+   * reads this export by static AST analysis at build time (`extractExportedConstValue`, see
+   * `next/dist/build/analysis/`), which resolves literals declared in this module only. An imported
+   * identifier silently yields no matcher at all — i.e. middleware running on *every* request,
+   * including `/api/*` and the service worker script.
+   */
+  it('excludes every path the service worker refuses to cache', () => {
+    const pattern = matcherPattern();
+    for (const prefix of UNCACHEABLE_PATH_PREFIXES) {
+      const path = `${prefix.slice(1)}/probe`;
       expect(pattern.test(path), `${path} should be excluded from the matcher`).toBe(false);
     }
   });

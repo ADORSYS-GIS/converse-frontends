@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
@@ -34,8 +35,25 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-ov
  * SAME rail section component the `@rail` route mounts, driven by the same query params — so there
  * is one source of truth for the values, mounted in two places, and it is the URL (ADR 0011).
  */
+/**
+ * Every spend figure the Overview charts render is USD, and every one of them goes through the
+ * adaptive-precision ladder in `@lightbridge/ui-web/src/lib/money`.
+ *
+ * These were previously not passed at all, so both charts fell back to their unit-agnostic
+ * defaults -- `String(Math.round(v))` for the time series, the same for the donut. Against real
+ * production spend (an account at $0.006338 of a $12.00 ceiling) that labels every y-axis tick
+ * and every tooltip `0`: no currency sign, no magnitude, no information. The chart primitives are
+ * deliberately unit-blind (`LatencyDashboard` renders `ms` through the same props), so the fix
+ * belongs here, at the one place that knows these particular series are money.
+ */
+const formatSpendTooltip = (value: number) => formatUsd(value);
+const formatSpendSliceValue = (slice: { value: number }, percent: number) =>
+  `${formatUsd(slice.value)} · ${percent.toFixed(0)}%`;
+
 export function OverviewCentre() {
   const screen = useOverviewScreen();
+
+  const spendTotal = screen.spendSlices.reduce((sum, slice) => sum + slice.value, 0);
 
   const viewRail = (
     <OverviewViewRail
@@ -74,6 +92,11 @@ export function OverviewCentre() {
         onRetry={screen.spendRetry}
         fallbackWidth={840}
         height={220}
+        formatYTick={formatUsdAxis}
+        formatTooltipValue={formatSpendTooltip}
+        formatLegendValue={(series) =>
+          formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
+        }
         onSelectSeries={screen.setSelectedSeriesKey}
         actions={
           <>
@@ -107,6 +130,12 @@ export function OverviewCentre() {
         size={200}
         selectedKey={screen.selectedSeriesKey}
         onSelectSlice={screen.setSelectedSeriesKey}
+        centreMetric={
+          screen.spendStatus === 'ready' && spendTotal > 0 ? formatUsd(spendTotal) : undefined
+        }
+        centreLabel={screen.spendStatus === 'ready' && spendTotal > 0 ? 'TOTAL' : undefined}
+        formatTooltipValue={formatSpendSliceValue}
+        formatLegendValue={formatSpendSliceValue}
       />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">

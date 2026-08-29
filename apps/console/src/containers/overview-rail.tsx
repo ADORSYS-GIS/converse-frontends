@@ -1,6 +1,6 @@
 'use client';
 
-import { formatMoney } from '@lightbridge/ui-web/src/lib/money';
+import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
 import {
   OVERVIEW_EXPORT_RAIL_LABEL,
@@ -47,7 +47,7 @@ export function OverviewRail() {
       ? screen.spendSlices.map((slice) => ({
           key: slice.key,
           label: slice.label,
-          value: formatMoney(slice.value),
+          value: formatUsd(slice.value),
           breached: slice.breached,
         }))
       : [];

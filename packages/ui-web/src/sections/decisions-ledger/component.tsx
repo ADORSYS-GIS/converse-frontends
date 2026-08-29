@@ -4,12 +4,12 @@ import { cn } from '../../cn';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import { SECTION_LABEL } from '../dashboard-label';
 import type { DecisionOutcome, DecisionRow, DecisionsLedgerProps } from './types';
 
 function signedMoney(amount: number): string {
-  return `${amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(amount))}`;
+  return `${amount >= 0 ? '+' : '−'}${formatUsd(Math.abs(amount))}`;
 }
 
 const DECISION_LABEL: Record<Exclude<DecisionOutcome, 'unknown'>, string> = {

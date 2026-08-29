@@ -3,7 +3,7 @@ import React from 'react';
 import { BudgetHero } from '../../components/budget-hero';
 import { Button } from '../../components/button';
 import { Meter } from '../../components/meter';
-import { formatMoneyOf } from '../../lib/money';
+import { formatUsdOf } from '../../lib/money';
 import { DASHBOARD_LABEL, SECTION_LABEL } from '../dashboard-label';
 import type { BudgetPanelProps } from './types';
 
@@ -53,7 +53,7 @@ export function BudgetPanel({
             <div className="mt-3 flex items-baseline justify-between gap-3">
               <span className="text-ink font-mono text-xs">{needsAttentionProject.name}</span>
               <span className="text-soft font-mono text-[11px]">
-                {formatMoneyOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
+                {formatUsdOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
               </span>
             </div>
             <div className="mt-2">

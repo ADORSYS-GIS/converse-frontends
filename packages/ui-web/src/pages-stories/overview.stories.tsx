@@ -69,7 +69,7 @@ import {
   formatOverviewSpendShareValue,
   overviewSpendShareSlices,
 } from '../sections/spend-share/fixtures';
-import { formatMoney } from '../lib/money';
+import { formatUsd } from '../lib/money';
 import type { DonutSlice } from '../components/donut-chart';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
@@ -252,7 +252,7 @@ function OverviewScreen({
           onRetry={() => {}}
           selectedKey={selectedSeriesKey}
           onSelectSlice={setSelectedSeriesKey}
-          centreMetric={spendShareTotal > 0 ? formatMoney(spendShareTotal) : undefined}
+          centreMetric={spendShareTotal > 0 ? formatUsd(spendShareTotal) : undefined}
           centreLabel={spendShareTotal > 0 ? 'TOTAL' : undefined}
           formatTooltipValue={formatOverviewSpendShareValue}
           formatLegendValue={formatOverviewSpendShareValue}

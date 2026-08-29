@@ -95,6 +95,55 @@ describe('OverviewCentre', () => {
     expect(screen.queryByText('No usage in this range.')).not.toBeInTheDocument();
   });
 
+  /**
+   * The defect this guards: `OverviewCentre` passed NO `formatYTick`/`formatTooltipValue`/
+   * `formatLegendValue` to `SpendDashboard` at all, so the chart fell back to its unit-agnostic
+   * default (`String(Math.round(v))`). Against real production magnitudes — an account at
+   * $0.006338 of a $12.00 ceiling — that labels every y-axis tick and every legend value `0`: no
+   * currency sign, no magnitude, nothing.
+   *
+   * Asserted at the container, not the primitive, because the primitive is CORRECT to be
+   * unit-blind (`LatencyDashboard` renders `ms` through the same props). The bug was only ever
+   * "this container forgot to say these numbers are money", and only a container-level render can
+   * see it.
+   */
+  it('renders real sub-cent spend as USD, never as the unit-blind default "0"', async () => {
+    await renderCentre({
+      spendStatus: 'ready',
+      spendSeries: [
+        { key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 0.006338 }] },
+        { key: 'proj_b', label: 'proj_b', points: [{ x: new Date('2026-08-01'), y: 0.000_12 }] },
+      ],
+      spendSlices: [
+        { key: 'proj_a', label: 'proj_a', value: 0.006338 },
+        { key: 'proj_b', label: 'proj_b', value: 0.000_12 },
+      ],
+    });
+
+    // The chart legend states each series' total in USD at a precision that survives the trip.
+    expect(screen.getAllByText('$0.0063').length).toBeGreaterThan(0);
+    // The donut centre states the real total, not a rounded-to-nothing `$0.01`.
+    expect(screen.getByText('$0.0065')).toBeInTheDocument();
+    // Nothing anywhere renders the bare, unit-less `0` the default formatter produced.
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.queryByText('$0.01')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The hero's own half of the same defect: a sub-cent consumption against a real ceiling must
+   * read as a comparison, not as `$0.01 of $12.00` (or, a hair lower, `$0.00 of $12.00`).
+   */
+  it('renders a sub-cent budget hero against its ceiling at usable precision', async () => {
+    await renderCentre({
+      budget: { value: 0.006338, ceiling: 12, caption: 'account ceiling · 0.05% used' },
+    });
+
+    expect(screen.getByText('$0.0063')).toBeInTheDocument();
+    expect(screen.getByText('of $12.00')).toBeInTheDocument();
+    expect(screen.queryByText('$0.01')).not.toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+  });
+
   it("a FAILED budget query renders BudgetHero's error line, never a fabricated $0.00", async () => {
     await renderCentre({
       budget: { status: 'error', errorMessage: 'Failed to load budget consumption.' },

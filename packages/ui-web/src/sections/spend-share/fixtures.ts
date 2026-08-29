@@ -3,7 +3,7 @@
 // per-slice value is that series' own point total, not a re-invented dataset, so the donut and
 // the time series above it always agree on totals.
 
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import type { DonutSlice } from '../../components/donut-chart';
 import { overviewSpendSeries } from '../spend-dashboard/fixtures';
 
@@ -20,9 +20,9 @@ export const overviewSpendShareTotal = overviewSpendShareSlices.reduce(
 );
 
 export function formatOverviewSpendShareCentre(): string {
-  return formatMoney(overviewSpendShareTotal);
+  return formatUsd(overviewSpendShareTotal);
 }
 
 export function formatOverviewSpendShareValue(slice: DonutSlice, percent: number): string {
-  return `${formatMoney(slice.value)} · ${percent.toFixed(0)}%`;
+  return `${formatUsd(slice.value)} · ${percent.toFixed(0)}%`;
 }

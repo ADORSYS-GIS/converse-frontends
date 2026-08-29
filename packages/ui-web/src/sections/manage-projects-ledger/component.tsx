@@ -7,12 +7,12 @@ import { Field } from '../../components/field';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import { SECTION_LABEL } from '../dashboard-label';
 import type { ManageProjectsLedgerProps, ProjectRow } from './types';
 
 function money(value: number | null): string {
-  return value === null ? '—' : formatMoney(value);
+  return value === null ? '—' : formatUsd(value);
 }
 
 const statusTextClass = (status: ProjectRow['status']): string =>

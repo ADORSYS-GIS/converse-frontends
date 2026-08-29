@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { formatMoneyOf } from '../../lib/money';
+import { formatUsdOf } from '../../lib/money';
 import type { MeterProps } from './types';
 
 const DEFAULT_THRESHOLD = 0.9;
@@ -29,15 +29,14 @@ export function Meter({
         aria-valuenow={value}
         aria-valuemin={0}
         aria-valuemax={ceiling}
-        className="h-1 w-full rounded-[2px] bg-raised"
-      >
+        className="bg-raised h-1 w-full rounded-[2px]">
         <div
           className={cn('h-1 rounded-[2px]', breached ? 'bg-primary' : 'bg-soft')}
           style={{ width: `${percent}%` }}
         />
       </div>
       {showCaption ? (
-        <p className="font-mono text-xs text-soft">{formatMoneyOf(value, ceiling)}</p>
+        <p className="text-soft font-mono text-xs">{formatUsdOf(value, ceiling)}</p>
       ) : null}
     </div>
   );

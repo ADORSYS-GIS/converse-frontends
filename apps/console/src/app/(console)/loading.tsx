@@ -1,14 +1,11 @@
 'use client';
 
-import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
-
-import { LATENCY_BLOCKED_MESSAGE } from '../../containers/use-overview-screen';
 
 /**
  * `/` centre — the App Router `loading.tsx` Suspense fallback shown while the incoming route
@@ -24,9 +21,10 @@ import { LATENCY_BLOCKED_MESSAGE } from '../../containers/use-overview-screen';
  * Every section below already carries its own `loading`/`status="loading"` skeleton rendering
  * (console-ui skill §states) — this file's only job is to drive those flags with empty data, the
  * same contract `OverviewCentre` uses while `useOverviewScreen()`'s own queries are in flight.
- * `LATENCY_BLOCKED_MESSAGE` is imported rather than restated: it is shown unconditionally by the
- * real screen too (LATENCY is permanently blocked on the documented contract, #307), so it is not
- * a "loading" fabrication — it is literally the same line the hydrated page renders next.
+ * There is no top-of-page banner any more: SPEND, SPEND SHARE, LATENCY and BUDGET are all wired
+ * to the usage backend now (LATENCY as of the `feat/usage-latency-percentiles` contract), so there
+ * is no longer a permanent, screen-wide gap to name here — each section's own `status="loading"`
+ * skeleton is the whole story.
  *
  * `BudgetPanel` gets `status: 'loading'`, not a `value: 0, ceiling: 0` numeral — a Suspense
  * fallback is exactly the "queried, waiting" fact `BudgetHeroLoadingProps` exists for (#306); the
@@ -37,8 +35,6 @@ export default function OverviewLoading() {
   return (
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline="loading scope…" />
-
-      <InlineStatus>{LATENCY_BLOCKED_MESSAGE}</InlineStatus>
 
       <OverviewStatRow cards={[]} loading />
 

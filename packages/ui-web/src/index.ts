@@ -36,6 +36,7 @@ export type { SelectionSheetProps } from './components/selection-sheet';
 
 // ── data display
 export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
+export { formatMs, formatMsAxis } from './lib/duration';
 export { StatCard } from './components/stat-card';
 export type { StatCardDelta, StatCardProps } from './components/stat-card';
 export { Sparkline } from './components/sparkline';

@@ -4,7 +4,8 @@ import type {
   UsageQueryResponse,
   UsageSeriesPoint,
 } from '@lightbridge/api-rest';
-import type { DonutSlice, SpendSeriesSeries } from '@lightbridge/ui-web';
+import type { DonutSlice, LatencyRidgelineSeries, SpendSeriesSeries } from '@lightbridge/ui-web';
+import { formatMs } from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
@@ -162,6 +163,94 @@ export function toSpendShareSlices(
   }
 
   return Array.from(totalsByKey.entries()).map(([key, value]) => ({ key, label: key, value }));
+}
+
+/** A bucket only contributes a real number when it actually carried a latency measurement
+ *  (`latency_samples > 0`) and the requested percentile survived the trip as a finite number.
+ *  Guards both independently rather than trusting the backend's own "null iff zero samples"
+ *  contract to hold at the wire boundary -- a malformed response degrades to "nothing kept for
+ *  this bucket" rather than plotting `NaN`/`null` as a real sample. */
+function safeSampleCount(point: UsageSeriesPoint): number {
+  return Number.isFinite(point.latency_samples) && point.latency_samples > 0
+    ? point.latency_samples
+    : 0;
+}
+
+function keepableP95(point: UsageSeriesPoint): number | null {
+  if (safeSampleCount(point) === 0) return null;
+  const p95 = point.latency_p95_ms;
+  return typeof p95 === 'number' && Number.isFinite(p95) ? p95 : null;
+}
+
+export interface LatencyAdaptation {
+  series: LatencyRidgelineSeries[];
+  /** Group keys present in the response that reported zero latency samples across the whole range. */
+  seriesWithoutLatency: string[];
+  /** Total latency samples across every group — 0 means the whole range reported none. */
+  totalSamples: number;
+}
+
+/**
+ * Maps `UsageQueryResponse.points` into `LatencyRidgelineSeries[]` for `LatencyRidgeline` — the
+ * per-series honesty contract this whole story exists to build (see `use-overview-screen.ts`'s
+ * doc comment). One series per distinct value of the request's own `group_by` dimension, same
+ * grouping/ordering as `toSpendSeries`/`toSpendShareSlices`.
+ *
+ * `values` is the list of PER-BUCKET `latency_p95_ms` observations for that group, keeping only
+ * buckets that actually carried samples (`keepableP95`). This is real observed data — never
+ * synthesised from a percentile, never interpolated, never repeated to fake a density. Doing
+ * either would be exactly the fabrication ADR-0008 Decision 7's status note (amended by this
+ * change) and this repo's own budget-decision-contract precedent (rule-data over invented
+ * numbers) both rule out: a ridgeline's shape is read as a distribution of real samples, and a
+ * bucketed p95 repeated N times would draw a shape that never happened.
+ *
+ * A group whose buckets all report zero samples still gets a row (`values: []`, `value: 'no
+ * latency reported'`) rather than being dropped — the reader needs to see the model exists and
+ * genuinely reported nothing, not have it silently vanish from the ridgeline. Its key is also
+ * returned in `seriesWithoutLatency` so the caller can name it in a footnote.
+ */
+export function toLatencySeries(
+  response: UsageQueryResponse,
+  groupBy: OverviewGroupBy
+): LatencyAdaptation {
+  const seriesByKey = new Map<string, { key: string; label: string; values: number[] }>();
+  let totalSamples = 0;
+
+  for (const point of response.points) {
+    const key = groupKey(point, groupBy);
+    let series = seriesByKey.get(key);
+    if (!series) {
+      series = { key, label: key, values: [] };
+      seriesByKey.set(key, series);
+    }
+
+    totalSamples += safeSampleCount(point);
+
+    const p95 = keepableP95(point);
+    if (p95 !== null) {
+      series.values.push(p95);
+    }
+  }
+
+  const seriesWithoutLatency: string[] = [];
+  const series: LatencyRidgelineSeries[] = [];
+
+  for (const entry of seriesByKey.values()) {
+    if (entry.values.length === 0) {
+      seriesWithoutLatency.push(entry.key);
+      series.push({ key: entry.key, label: entry.label, values: [], value: 'no latency reported' });
+      continue;
+    }
+    const max = Math.max(...entry.values);
+    series.push({
+      key: entry.key,
+      label: entry.label,
+      values: entry.values,
+      value: `peak p95 ${formatMs(max)}`,
+    });
+  }
+
+  return { series, seriesWithoutLatency, totalSamples };
 }
 
 /** Total spend across every point in the response — used for the SPEND stat card and, with a

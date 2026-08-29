@@ -25,8 +25,8 @@ import {
 } from '../sections/budget-panel/fixtures';
 import { LatencyDashboard } from '../sections/latency-dashboard';
 import {
-  formatOverviewLatencyXTick,
   overviewLatencySeries,
+  partiallyReportedLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
 import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
 import { overviewExportUnavailableCaption } from '../sections/overview-export-rail/fixtures';
@@ -69,6 +69,7 @@ import {
   formatOverviewSpendShareValue,
   overviewSpendShareSlices,
 } from '../sections/spend-share/fixtures';
+import { formatMsAxis } from '../lib/duration';
 import { formatUsd } from '../lib/money';
 import type { DonutSlice } from '../components/donut-chart';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
@@ -98,9 +99,13 @@ interface OverviewScreenProps {
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
   latencyErrorMessage?: string;
-  /** Overrides LatencyDashboard's default `UNWIRED_CHART_MESSAGE` — see `LatencyBlocked` below,
-   *  the story matching #307's actual, permanent decision for this section. */
+  /** Overrides LatencyDashboard's default `UNWIRED_CHART_MESSAGE` — see `Unwired` above, the
+   *  reference story for what "no usage-backend query client at all" looked like before #304. */
   latencyUnwiredMessage?: string;
+  /** The per-series honesty line below the ridgeline — see `LatencyPartiallyReported` below, the
+   *  story for the "some models reported nothing" case `use-overview-screen.ts`'s real
+   *  `latencyFootnote` derives. */
+  latencyFootnote?: string;
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
@@ -124,6 +129,7 @@ function OverviewScreen({
   latencyStatus = 'ready',
   latencyErrorMessage,
   latencyUnwiredMessage,
+  latencyFootnote,
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
@@ -270,8 +276,9 @@ function OverviewScreen({
             status={latencyStatus}
             errorMessage={latencyErrorMessage}
             unwiredMessage={latencyUnwiredMessage}
+            footnote={latencyFootnote}
             onRetry={() => {}}
-            formatXTick={formatOverviewLatencyXTick}
+            formatXTick={formatMsAxis}
           />
           <BudgetPanel
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
@@ -341,9 +348,12 @@ export const Empty: Story = {
 // defaulting to `'ready'` with fabricated empty/zero data — the acceptance surface for #272/#273.
 //
 // Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary itself is still
-// live — `LatencyBlocked` below exercises it for real, and this remains the reference for what
-// "the usage-backend query client doesn't exist at all yet" looks like across every zone at once,
-// which is no longer console's actual state (see `LatencyBlocked`'s own comment for what is).
+// live — `component.stories.tsx`'s own `Unwired` story for `LatencyDashboard` exercises it for
+// real — and this remains the reference for what "the usage-backend query client doesn't exist at
+// all yet" looks like across every zone at once, which is no longer console's actual state: as of
+// the lightbridge-authz `feat/usage-latency-percentiles` contract landing, LATENCY is wired the
+// same way SPEND/SPEND SHARE/BUDGET already were (see `LatencyPopulated`/`LatencyPartiallyReported`
+// below for what that looks like).
 export const Unwired: Story = {
   render: () => (
     <OverviewScreen
@@ -369,29 +379,33 @@ export const UnwiredLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// #307 — console's ACTUAL current state, and the acceptance surface for the #307 decision
-// itself: SPEND/SPEND SHARE/BUDGET are real (default fixtures, `spendStatus`/`spendShareStatus`
-// default to `'ready'`), and LATENCY alone stays `'unwired'` — not because no client exists (one
-// does, as of #304), but because the documented usage-API contract has no latency/percentile
-// field to query at all (Epic 6, tracked as #294 — see ADR 0008's Decision 7 status note). The
-// message is `apps/console`'s real, customer-visible `LATENCY_BLOCKED_MESSAGE`
-// (`containers/use-overview-screen.ts`) copied verbatim, minus the internal issue/Epic citation
-// that string deliberately omits (console-ui#326).
-export const LatencyBlocked: Story = {
-  render: () => (
-    <OverviewScreen
-      emptyMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
-      latencySeries={[]}
-      latencyStatus="unwired"
-      latencyUnwiredMessage="Blocked — the usage API doesn't report latency or percentile data yet."
-    />
-  ),
+// Console's ACTUAL current state, and the acceptance surface for ADR 0008 Decision 7's amended
+// status note: SPEND/SPEND SHARE/BUDGET/LATENCY are all real now (default fixtures,
+// `spendStatus`/`spendShareStatus`/`latencyStatus` all default to `'ready'`) — the usage-API
+// contract gained `latency_samples`/`latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms` on
+// `lightbridge-authz`'s `feat/usage-latency-percentiles` branch, closing the gap the earlier
+// `LatencyBlocked` story (removed) exercised. Every model here reported real per-bucket p95
+// samples across the whole range, so there is nothing to caveat — no footnote.
+export const LatencyPopulated: Story = {
+  render: () => <OverviewScreen latencySeries={overviewLatencySeries} latencyStatus="ready" />,
 };
 
-export const LatencyBlockedLight: Story = {
-  name: 'LatencyBlocked — wireframe (light)',
-  render: LatencyBlocked.render,
-  globals: { theme: 'wireframe' },
+// The per-series honesty this feature is actually built around: a query can succeed
+// (`latencyStatus="ready"`, never `'unwired'` — that vocabulary is reserved for "never queried at
+// all") while one group within it genuinely reported no latency at all, e.g. `signal-summary`
+// here, an aggregate metric signal that never carries a per-request duration
+// (`openapi/usage.backend.yaml`'s own `latency_samples` doc comment). The gap is named in the
+// footnote and in that row's own "no latency reported" value, never silently dropped and never
+// fabricated — see `apps/console/src/containers/use-overview-screen.ts`'s `latencyFootnote` for
+// the real per-series logic this story's `latencyFootnote` prop mirrors.
+export const LatencyPartiallyReported: Story = {
+  render: () => (
+    <OverviewScreen
+      latencySeries={partiallyReportedLatencySeries}
+      latencyStatus="ready"
+      latencyFootnote="No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration."
+    />
+  ),
 };
 
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.

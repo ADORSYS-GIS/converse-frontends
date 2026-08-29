@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
+import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
@@ -91,6 +92,49 @@ describe('buildOverviewUsageRequest', () => {
     ).toEqual(['model']);
   });
 
+  /**
+   * The bug this suite did not catch: the Overview sent `bucket: 'day'` and every dashboard load
+   * came back `400 Bad request: bucket must look like \`5 minutes\`, \`1 hour\`, or \`1 day\``.
+   *
+   * Asserted against the backend's OWN regex, copied verbatim from
+   * `lightbridge-authz` `crates/lightbridge-authz-usage/src/repo.rs`'s `validate_bucket_interval`,
+   * rather than against a hand-written list of expected strings. A list would happily accept
+   * `'1 week'` -- which reads correct, is what anyone would write for the `week` bucket, and is
+   * explicitly refused by that validator (`validate_bucket_interval_rejects_unexpected_values`
+   * asserts it). This encodes the real contract, so a new bucket option cannot be added without
+   * either mapping it to something the backend accepts or turning this red.
+   */
+  const BACKEND_BUCKET_RE = /^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$/;
+
+  it.each(OVERVIEW_BUCKETS)('sends bucket %s as an interval the backend accepts', (bucket) => {
+    const request = buildOverviewUsageRequest({
+      accountId: 'acct_1',
+      range: '30d',
+      bucket,
+      groupBy: 'project',
+      model: 'all',
+      now: NOW,
+    });
+    expect(request.bucket).toMatch(BACKEND_BUCKET_RE);
+  });
+
+  it('maps each bucket to the expected interval width', () => {
+    const bucketFor = (bucket: (typeof OVERVIEW_BUCKETS)[number]) =>
+      buildOverviewUsageRequest({
+        accountId: 'acct_1',
+        range: '30d',
+        bucket,
+        groupBy: 'project',
+        model: 'all',
+        now: NOW,
+      }).bucket;
+
+    expect(bucketFor('hour')).toBe('1 hour');
+    expect(bucketFor('day')).toBe('1 day');
+    // NOT '1 week' -- the backend regex has no `week` arm at all.
+    expect(bucketFor('week')).toBe('7 days');
+  });
+
   it('omits the model filter for the "all" sentinel, sets it otherwise', () => {
     const allModels = buildOverviewUsageRequest({
       accountId: 'acct_1',
@@ -114,12 +158,20 @@ describe('buildOverviewUsageRequest', () => {
   });
 });
 
+/** Dollars -> the micro-USD the usage backend actually sends
+ *  (`usage_events.total_cost`; see `microUsdToUsd`'s doc comment). Written out at every call site
+ *  so a reader can see the unit boundary the mapping layer exists to cross, instead of inferring
+ *  it from a bare number. */
+function usd(dollars: number): number {
+  return dollars * 1_000_000;
+}
+
 function point(overrides: Partial<UsageQueryResponse['points'][number]>) {
   return {
     bucket_start: '2026-08-01T00:00:00.000Z',
     requests: 1,
     usage_value: 1,
-    total_cost: 1,
+    total_cost: usd(1),
     prompt_tokens: 1,
     completion_tokens: 1,
     total_tokens: 2,
@@ -131,9 +183,9 @@ describe('toSpendSeries', () => {
   it('groups points by the requested dimension and sorts each series oldest-first', () => {
     const response: UsageQueryResponse = {
       points: [
-        point({ project_id: 'proj_a', bucket_start: '2026-08-02T00:00:00.000Z', total_cost: 5 }),
-        point({ project_id: 'proj_b', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 2 }),
-        point({ project_id: 'proj_a', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 3 }),
+        point({ project_id: 'proj_a', bucket_start: '2026-08-02T00:00:00.000Z', total_cost: usd(5) }),
+        point({ project_id: 'proj_b', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: usd(2) }),
+        point({ project_id: 'proj_a', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: usd(3) }),
       ],
     };
 
@@ -147,7 +199,7 @@ describe('toSpendSeries', () => {
 
   it('falls back to "unassigned" when the dimension field is null (never drops the point)', () => {
     const response: UsageQueryResponse = {
-      points: [point({ project_id: null, total_cost: 4 })],
+      points: [point({ project_id: null, total_cost: usd(4) })],
     };
 
     const series = toSpendSeries(response, 'project');
@@ -179,9 +231,9 @@ describe('toSpendShareSlices', () => {
   it('sums cost per dimension value across the whole range', () => {
     const response: UsageQueryResponse = {
       points: [
-        point({ model: 'gpt-4o-mini', total_cost: 3 }),
-        point({ model: 'gpt-4o-mini', total_cost: 4 }),
-        point({ model: 'claude-sonnet', total_cost: 2 }),
+        point({ model: 'gpt-4o-mini', total_cost: usd(3) }),
+        point({ model: 'gpt-4o-mini', total_cost: usd(4) }),
+        point({ model: 'claude-sonnet', total_cost: usd(2) }),
       ],
     };
 
@@ -199,7 +251,7 @@ describe('toSpendShareSlices', () => {
 describe('sumTotalCost', () => {
   it('sums every point regardless of grouping', () => {
     const response: UsageQueryResponse = {
-      points: [point({ total_cost: 1.5 }), point({ total_cost: 2.25 })],
+      points: [point({ total_cost: usd(1.5) }), point({ total_cost: usd(2.25) })],
     };
 
     expect(sumTotalCost(response)).toBeCloseTo(3.75);

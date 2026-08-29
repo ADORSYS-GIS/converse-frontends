@@ -9,10 +9,28 @@ import {
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
 
+import { useAdminSectionParam } from '../client/url-state';
+import { AdminOverviewCentre } from './admin-overview-centre';
 import { useAdminScreen } from './use-admin-screen';
 
-/** `/admin` — the centre column. The shell is mounted once, in `app/(console)/layout.tsx`. */
+/**
+ * `/admin` — the centre column. The shell is mounted once, in `app/(console)/layout.tsx`.
+ *
+ * `/admin` is one route with two sections rather than two nav entries (see `admin-sub-nav.tsx`):
+ * the operator's dashboard is the LANDING section, and the budget refill queue below is the other.
+ * Which one renders is `?section=`, the same param the sub-nav writes and the shell layout reads
+ * to decide whether this route gets a right rail at all — the review queue is selection-driven and
+ * earns one, the dashboard is not and does not.
+ */
 export function AdminCentre() {
+  const [section] = useAdminSectionParam();
+
+  if (section === 'overview') return <AdminOverviewCentre />;
+  return <AdminReviewCentre />;
+}
+
+/** `/admin?section=refills` — the budget refill review queue and its selection-driven rail. */
+function AdminReviewCentre() {
   const screen = useAdminScreen();
 
   return (

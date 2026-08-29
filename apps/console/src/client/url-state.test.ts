@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ADMIN_REVIEW_TABS,
+  ADMIN_SECTIONS,
   API_KEY_STATUSES,
   CURRENT_PERIOD,
   MANAGE_BUDGET_STATES,
@@ -62,9 +63,11 @@ describe('the URL param contract', () => {
         'status',
       ],
       // `account-name` moved off `manage` with the panel that opens it: a core account mutation
-      // does not belong on the screen you filter from (owner, 2026-08-29).
       settings: ['account-name', 'rename'],
-      admin: ['request', 'tab'],
+      // `/admin` is one route with two sections: the operator overview it lands on carries the
+      // same dashboard knobs `/` does (deliberately the same names — see the shared-meaning test
+      // below), plus `section` for the sub-nav itself.
+      admin: ['bucket', 'from', 'group-by', 'range', 'request', 'section', 'series', 'tab', 'to'],
     });
   });
 
@@ -85,6 +88,18 @@ describe('the URL param contract', () => {
     expect(apiKeysParsers.status.defaultValue).toBe(manageParsers.status.defaultValue);
     expect(URL_PARAM_CONTRACT.apiKeys.urlKeys.search).toBe(
       URL_PARAM_CONTRACT.manage.urlKeys.search
+    );
+
+    // `range`/`from`/`to`/`bucket`/`group-by`/`series` appear on both `/` and `/admin`. They are
+    // the SAME parser instances, not lookalikes — `?range=7d&group-by=model` cannot come to mean
+    // one thing on the user dashboard and another on the operator one.
+    for (const key of ['range', 'from', 'to', 'bucket', 'groupBy', 'series'] as const) {
+      expect(adminParsers[key], `admin.${key} must be overview.${key} itself`).toBe(
+        overviewParsers[key]
+      );
+    }
+    expect(URL_PARAM_CONTRACT.admin.urlKeys.groupBy).toBe(
+      URL_PARAM_CONTRACT.overview.urlKeys.groupBy
     );
   });
 
@@ -145,6 +160,7 @@ describe('the URL param contract', () => {
     expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
     expect(isParserBijective(adminParsers.tab, 'decided', 'decided')).toBe(true);
     expect(isParserBijective(adminParsers.selectedRequestId, 'req_9', 'req_9')).toBe(true);
+    expect(isParserBijective(adminParsers.section, 'refills', 'refills')).toBe(true);
   });
 
   it('falls back to the default rather than crashing on a hand-edited or stale value', () => {
@@ -153,6 +169,9 @@ describe('the URL param contract', () => {
     expect(overviewParsers.range.parse('42y')).toBeNull();
     expect(apiKeysParsers.status.parse('deleted')).toBeNull();
     expect(adminParsers.tab.parse('everything')).toBeNull();
+    // A bookmark to a section that no longer exists lands on the landing section, never nowhere.
+    expect(adminParsers.section.parse('org-config')).toBeNull();
+    expect(adminParsers.section.defaultValue).toBe('overview');
     expect(manageParsers.page.parse('not-a-number')).toBeNull();
   });
 
@@ -162,6 +181,7 @@ describe('the URL param contract', () => {
     expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
+    expect(ADMIN_SECTIONS).toEqual(['overview', 'refills']);
     expect(SECTION_SHEET_IDS).toEqual(['view', 'filters', 'export', 'scope', 'report']);
   });
 

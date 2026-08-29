@@ -11,10 +11,17 @@ export interface OverviewControlsProps {
   rangeField: Omit<DateRangeFieldProps, 'layout'>;
   bucketField: OverviewControlsField;
   groupByField: OverviewControlsField;
-  /** Which slice the dashboards are drawn from. Account is NOT here — scope is identity, and it
-   * lives in the header (see this section's docstring). */
-  projectField: OverviewControlsField;
-  modelField: OverviewControlsField;
+  /**
+   * Which slice the dashboards are drawn from. Account is NOT here — scope is identity, and it
+   * lives in the header (see this section's docstring).
+   *
+   * Both are optional so a screen whose whole point is "every project, unsliced" can omit them
+   * rather than render a filter it must then ignore: the admin overview is account-wide by
+   * definition, and a project picker there would offer a narrowing the screen refuses to apply.
+   * Omitted means "not rendered at all" — never a disabled or dead control.
+   */
+  projectField?: OverviewControlsField;
+  modelField?: OverviewControlsField;
   /** Omit to render no export affordance at all — never render a dead control. */
   onExport?: () => void;
   exportLabel?: string;

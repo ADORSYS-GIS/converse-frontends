@@ -23,8 +23,14 @@ describe('console rail routes', () => {
     expect(LAYOUT).not.toContain('rightRail={rail}');
   });
 
-  it('names exactly the two selection-driven routes as having a right rail', () => {
-    expect(LAYOUT).toMatch(/const hasRightRail = route === 'manage' \|\| route === 'admin';/);
+  it('names exactly the selection-driven zones as having a right rail', () => {
+    // Admin is now two sections behind one nav entry, and only one of them is selection-driven:
+    // the refill queue retargets the rail on the request you pick, the operator overview it now
+    // lands on retargets nothing. Gating on the route alone would put an empty 280px column beside
+    // the dashboard — the very regression the two assertions above exist for, one level down.
+    expect(LAYOUT).toMatch(
+      /const hasRightRail = route === 'manage' \|\| \(route === 'admin' && adminSection === 'refills'\);/
+    );
   });
 
   it('gives every route left-rail content — the nav rail is never a bare spine', () => {

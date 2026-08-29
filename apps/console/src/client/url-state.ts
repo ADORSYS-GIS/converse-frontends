@@ -301,22 +301,83 @@ export const ADMIN_REVIEW_TABS = [
 ] as const satisfies readonly AdminReviewTab[];
 
 /**
- * The review queue's active tab and selected request.
+ * Which of `/admin`'s two sections is showing.
  *
- * Both are `push`: the tab is this screen's sub-nav (ADR 0011 Decision 1 names "active sub-nav
- * tab" explicitly), and selecting a request is what fills the review rail — a reviewer who opens
- * the wrong request expects Back to return to the queue, not to leave `/admin`.
+ * `/admin` is one route with a sub-nav, not two top-level nav entries: the operator's dashboard
+ * and the budget refill queue are two views of the same role-gated area, and the console's admin
+ * nav group is deliberately a single item. `overview` is the landing section, so it is the
+ * default and (by `clearOnDefault`) never appears in the URL — a bare `/admin` opens the
+ * dashboard, `?section=refills` opens the queue.
+ */
+export const ADMIN_SECTIONS = ['overview', 'refills'] as const;
+export type AdminSection = (typeof ADMIN_SECTIONS)[number];
+
+/**
+ * `/admin`'s params: the sub-nav section, the review queue's tab and selected request, and — for
+ * the admin overview — the same dashboard view knobs `/` uses.
+ *
+ * The view knobs are **the very same parser objects** `overviewParsers` declares, not copies.
+ * `?range=7d&bucket=hour&group-by=model` has to mean one thing across the product (ADR 0011
+ * Consequences: "param names are a contract"), and sharing the instances makes that a structural
+ * guarantee rather than a convention two literals could drift out of.
+ *
+ * Three different history behaviours, so three hooks over subsets of this one table rather than
+ * one hook over all of it (ADR 0011 rule 2 — history is for navigation, not for knobs):
+ *
+ *  - `useAdminSectionParam` — `push`. The sub-nav is navigation; Back returns to the section you
+ *    came from.
+ *  - `useAdminParams` — `push`. The review tab is this screen's own sub-nav, and a selected
+ *    request is a selection.
+ *  - `useAdminOverviewParams` — `replace`. Dragging a range or a bucket through four values must
+ *    not cost four Back presses. Its one selection (`series`) opts back into `push` through
+ *    `ADMIN_OVERVIEW_SELECTION_OPTIONS`, exactly as Overview's own does.
  */
 export const adminParsers = {
+  section: parseAsStringLiteral(ADMIN_SECTIONS).withDefault('overview'),
   tab: parseAsStringLiteral(ADMIN_REVIEW_TABS).withDefault('pending'),
   selectedRequestId: parseAsString.withDefault(''),
+  range: overviewParsers.range,
+  from: overviewParsers.from,
+  to: overviewParsers.to,
+  bucket: overviewParsers.bucket,
+  groupBy: overviewParsers.groupBy,
+  series: overviewParsers.series,
 };
 
-const adminUrlKeys = { selectedRequestId: 'request' };
+const adminUrlKeys = { selectedRequestId: 'request', groupBy: 'group-by' };
+
+const adminQueueParsers = {
+  tab: adminParsers.tab,
+  selectedRequestId: adminParsers.selectedRequestId,
+};
+
+const adminOverviewParsers = {
+  range: adminParsers.range,
+  from: adminParsers.from,
+  to: adminParsers.to,
+  bucket: adminParsers.bucket,
+  groupBy: adminParsers.groupBy,
+  series: adminParsers.series,
+};
 
 export function useAdminParams() {
-  return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });
+  return useQueryStates(adminQueueParsers, { urlKeys: adminUrlKeys, history: 'push' });
 }
+
+/** The `/admin` sub-nav's position. Read by the centre, the left-rail sub-nav, the right-rail slot
+ *  and the shell layout — which is exactly the cross-zone bus ADR 0011 Decision 2 makes the URL. */
+export function useAdminSectionParam() {
+  return useQueryState('section', adminParsers.section.withOptions({ history: 'push' }));
+}
+
+/** The admin overview's dashboard knobs — same vocabulary as `/`, `replace` history. */
+export function useAdminOverviewParams() {
+  return useQueryStates(adminOverviewParsers, { urlKeys: adminUrlKeys, history: 'replace' });
+}
+
+/** The one admin-overview param that is a selection rather than a knob (mirrors
+ *  `OVERVIEW_SELECTION_OPTIONS`). */
+export const ADMIN_OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 

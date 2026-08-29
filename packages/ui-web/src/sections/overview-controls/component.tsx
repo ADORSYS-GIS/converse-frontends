@@ -32,8 +32,9 @@ export function OverviewControls({
       <DateRangeField {...rangeField} />
       <SelectField {...bucketField} />
       <SelectField {...groupByField} />
-      <SelectField {...projectField} />
-      <SelectField {...modelField} />
+      {/* Omitted entirely, never rendered disabled — see `OverviewControlsProps.projectField`. */}
+      {projectField ? <SelectField {...projectField} /> : null}
+      {modelField ? <SelectField {...modelField} /> : null}
 
       {onExport || exportDisabledReason ? (
         <div className="flex flex-col gap-1.5">

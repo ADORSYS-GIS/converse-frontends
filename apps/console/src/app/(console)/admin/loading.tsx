@@ -1,47 +1,61 @@
 'use client';
 
-import { SkeletonRow } from '@lightbridge/ui-web/src/components/skeleton-row';
-import { LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
-import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
+import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
+import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
+import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
+import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
-
-const noop = () => {};
+import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
+import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
 /**
  * `/admin` centre loading skeleton — see `(console)/loading.tsx`'s docstring for why this file
  * exists at all. The route itself is `async` (`readSession()` before the role gate), so this
  * boundary also covers that real server-side latency, not just the client chunk fetch.
  *
- * `ReviewQueue` already renders its own row-skeleton geometry when `loading` is set. `DecisionsLedger`
- * (the "RECENT DECISIONS" tail below it) has no `loading` prop of its own — nothing in
- * `AdminCentre`'s real usage wires one either, decisions and the pending queue share one query —
- * so this composes the same `SkeletonRow` primitive `LedgerTable`'s own loading state uses
- * directly, under an identical `LABEL_CLASS` heading, rather than adding a prop no live caller
- * would ever set.
+ * It matches the LANDING section's geometry, which is now the admin OVERVIEW rather than the
+ * refill queue: a `loading.tsx` is a Suspense fallback for the segment, and the segment cannot
+ * read `?section=` before it resolves, so it has to skeleton one of the two. The default section
+ * (`url-state.ts`'s `adminParsers.section`) is the only defensible choice — it is what a bare
+ * `/admin` opens, and it is by far the more common entry. Arriving straight at
+ * `?section=refills` briefly shows this shape instead of the queue's; `ReviewQueue`'s own
+ * `loading` skeleton then takes over the moment the client component mounts.
+ *
+ * Every section below already carries its own `loading`/`status="loading"` rendering (console-ui
+ * skill §states) — this file only drives those flags with empty data. No fabricated numerals:
+ * `BudgetPanel` gets `status: 'loading'`, and `BudgetPressure` a `null` ceiling with loading rows,
+ * never a `$0.00 of $0.00`.
  */
 export default function AdminLoading() {
   return (
-    <div className="flex flex-col gap-6">
-      <ScreenHeading title="Budget refill review" subline="loading queue…" />
+    <div className="flex flex-col gap-8">
+      <ScreenHeading title="Admin overview" subline="loading account…" />
 
-      <ReviewQueue
-        activeTab="pending"
-        onTabChange={noop}
-        pendingCount={0}
-        decidedCount={0}
-        pending={[]}
-        loading
-        loadingRowCount={6}
-        onSelectRequest={noop}
+      <OverviewStatRow cards={[]} loading />
+
+      <SpendDashboard
+        label="Spend — every project in this account"
+        series={[]}
+        fallbackWidth={840}
+        height={220}
+        status="loading"
       />
 
-      <div className="flex flex-col gap-2">
-        <span className={LABEL_CLASS}>Recent decisions</span>
-        <div role="presentation" aria-hidden="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <SkeletonRow key={index} columnCount={6} />
-          ))}
-        </div>
+      <SpendShareSection segments={[]} status="loading" />
+
+      <LatencyDashboard series={[]} fallbackWidth={840} height={310} status="loading" />
+
+      <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
+        <BudgetPressure
+          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
+          projects={[]}
+          ceiling={null}
+          status="loading"
+        />
+        <BudgetPanel
+          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
+          budget={{ status: 'loading' }}
+        />
       </div>
     </div>
   );

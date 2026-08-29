@@ -4,6 +4,7 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
+  buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
   currentPeriodRange,
@@ -188,9 +189,21 @@ describe('toSpendSeries', () => {
   it('groups points by the requested dimension and sorts each series oldest-first', () => {
     const response: UsageQueryResponse = {
       points: [
-        point({ project_id: 'proj_a', bucket_start: '2026-08-02T00:00:00.000Z', total_cost: usd(5) }),
-        point({ project_id: 'proj_b', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: usd(2) }),
-        point({ project_id: 'proj_a', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: usd(3) }),
+        point({
+          project_id: 'proj_a',
+          bucket_start: '2026-08-02T00:00:00.000Z',
+          total_cost: usd(5),
+        }),
+        point({
+          project_id: 'proj_b',
+          bucket_start: '2026-08-01T00:00:00.000Z',
+          total_cost: usd(2),
+        }),
+        point({
+          project_id: 'proj_a',
+          bucket_start: '2026-08-01T00:00:00.000Z',
+          total_cost: usd(3),
+        }),
       ],
     };
 
@@ -303,7 +316,12 @@ describe('toLatencySeries', () => {
     const { series, seriesWithoutLatency } = toLatencySeries(response, 'model');
 
     const embed = series.find((s) => s.key === 'embed-3');
-    expect(embed).toEqual({ key: 'embed-3', label: 'embed-3', values: [], value: 'no latency reported' });
+    expect(embed).toEqual({
+      key: 'embed-3',
+      label: 'embed-3',
+      values: [],
+      value: 'no latency reported',
+    });
     // The model with real data is untouched by its sibling reporting nothing.
     expect(series.find((s) => s.key === 'gpt-4o-mini')?.values).toEqual([300]);
     expect(seriesWithoutLatency).toEqual(['embed-3']);
@@ -414,7 +432,36 @@ describe('buildBudgetConsumptionRequest', () => {
       end_time: '2026-08-28T12:00:00.000Z',
     });
   });
+});
 
+describe('buildBudgetConsumptionByProjectRequest', () => {
+  it('is the same account-scoped period window, broken down by project', () => {
+    const request = buildBudgetConsumptionByProjectRequest('acct_1', NOW);
+
+    expect(request).toEqual({
+      scope: 'account',
+      scope_id: 'acct_1',
+      start_time: '2026-08-01T00:00:00.000Z',
+      end_time: '2026-08-28T12:00:00.000Z',
+      group_by: ['project_id'],
+    });
+  });
+
+  it('shares the ungrouped request’s window exactly, so the parts sum to the whole', () => {
+    const whole = buildBudgetConsumptionRequest('acct_1', NOW);
+    const parts = buildBudgetConsumptionByProjectRequest('acct_1', NOW);
+
+    expect(parts.start_time).toBe(whole.start_time);
+    expect(parts.end_time).toBe(whole.end_time);
+    expect(parts.scope).toBe(whole.scope);
+    expect(parts.scope_id).toBe(whole.scope_id);
+  });
+
+  it('never scopes to a project, whatever the console scope holds', () => {
+    // The admin overview is every project in the account by definition; budget is account-scoped
+    // in the schema regardless (`budget_account_id is always identical to account_id`).
+    expect(buildBudgetConsumptionByProjectRequest('acct_1', NOW).scope).toBe('account');
+  });
 });
 
 describe('resolveOverviewWindow', () => {
@@ -451,8 +498,6 @@ describe('resolveOverviewWindow', () => {
 
     expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
   });
-
-
 });
 
 describe('series labelling', () => {
@@ -491,5 +536,4 @@ describe('series labelling', () => {
 
     expect(segments.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
   });
-
 });

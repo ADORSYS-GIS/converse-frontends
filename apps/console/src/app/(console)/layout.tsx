@@ -18,6 +18,7 @@ import {
   useConsoleNotification,
   useDismissConsoleNotification,
 } from '../../client/console-notifications';
+import { useAdminSectionParam } from '../../client/url-state';
 import { useConsoleScope } from '../../client/use-console-scope';
 import { useConsoleSession } from '../../client/session-context';
 
@@ -66,6 +67,7 @@ export default function ConsoleLayout({
   const route = routeFromPathname(pathname);
   const session = useConsoleSession();
   const consoleScope = useConsoleScope();
+  const [adminSection] = useAdminSectionParam();
   // converse-frontends#323: the console-wide default visibility path for a failed refine
   // mutation — see `console-notifications.ts`'s module doc comment for the full mechanism.
   const notification = useConsoleNotification();
@@ -101,10 +103,14 @@ export default function ConsoleLayout({
   // matched `@rail/admin` segment mounted, so Api-Keys rendered Admin's "Select a request to
   // review it." Passing `undefined` for rail-less routes fixes both.
   //
-  // Only selection-driven content earns the right rail: Manage and Admin retarget it on the row
-  // you pick. Everything else lives in the LEFT rail's secondary section — including `/settings`,
-  // whose two sections are both always on screen and neither of which retargets on a selection.
-  const hasRightRail = route === 'manage' || route === 'admin';
+  // Only selection-driven content earns the right rail: Manage retargets it on the project row
+  // you pick, and Admin's REVIEW section retargets it on the request you pick. Admin's other
+  // section — the operator overview that `/admin` now lands on — is a dashboard whose content does
+  // not retarget on anything, so it is a toolbar screen and its parameters live in the LEFT rail's
+  // secondary section instead — as do `/settings`' two sections, neither of which retargets (`containers/admin-sub-nav.tsx`). Reading `?section=` here is the
+  // same URL-as-cross-zone-bus the rest of the console runs on (ADR 0011 Decision 2); the param
+  // itself is still declared in the one module allowed to declare one.
+  const hasRightRail = route === 'manage' || (route === 'admin' && adminSection === 'refills');
 
   return (
     <ConsoleShell

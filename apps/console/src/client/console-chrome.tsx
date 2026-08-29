@@ -115,11 +115,20 @@ export function navItems(active: ConsoleRoute): NavSpineItem[] {
   ];
 }
 
+/**
+ * The role-gated nav group — one entry, deliberately.
+ *
+ * It reads `Admin`, not `Budget review`, since `/admin` gained its operator overview: the route is
+ * an AREA with a sub-nav (Overview · Refill requests, `containers/admin-sub-nav.tsx`), and naming
+ * the top-level entry after one of its two sections would mislabel the other. Adding a second
+ * top-level entry instead was the alternative, and rejected — the group's value is that it is
+ * small enough to read as one thing an operator either has or does not.
+ */
 export function adminNavItems(active: ConsoleRoute): NavSpineItem[] {
   return [
     {
       key: 'admin',
-      label: 'Budget review',
+      label: 'Admin',
       href: NAV_HREFS.admin,
       icon: <NavGlyph shape="admin" />,
       active: active === 'admin',

@@ -67,7 +67,6 @@ export const ExportUnavailable: Story = {
   args: { onExport: undefined, exportDisabledReason: "Export isn't available yet." },
 };
 
-
 /** Base tier (<600): the same row, wrapped to three or four lines. */
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
@@ -82,10 +81,15 @@ export const Interactive: Story = {
   render: function Render(args) {
     // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
     const [project, setProject] = useState('all');
+    // `projectField` is optional now (the admin overview omits it), so this narrows rather than
+    // spreading a possibly-absent field — meta's args always supply it for this story.
+    const { projectField } = args;
     return (
       <OverviewControls
         {...args}
-        projectField={{ ...args.projectField, value: project, onChange: setProject }}
+        projectField={
+          projectField ? { ...projectField, value: project, onChange: setProject } : undefined
+        }
       />
     );
   },

@@ -135,8 +135,15 @@ const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as 
  *   of models (there is nothing to list that would add information).
  * - Some, but not all, groups reported zero samples — names exactly those groups, so the reader
  *   can tell a genuine gap (an aggregate-metric-only model) from "the whole panel is broken."
+ *
+ * Exported because the admin overview (`use-admin-overview-screen.ts`) renders the same
+ * `LatencyDashboard` off the same `toLatencySeries` adaptation. The honesty contract is a property
+ * of the DATA, not of which screen is displaying it — a second copy of this logic is exactly how
+ * one screen ends up quietly less honest than the other.
  */
-function buildLatencyFootnote(adaptation: LatencyAdaptation | undefined): string | undefined {
+export function buildLatencyFootnote(
+  adaptation: LatencyAdaptation | undefined
+): string | undefined {
   if (!adaptation) return undefined;
   const { series, seriesWithoutLatency } = adaptation;
   if (series.length === 0 || seriesWithoutLatency.length === 0) return undefined;

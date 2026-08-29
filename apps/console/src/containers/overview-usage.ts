@@ -140,8 +140,7 @@ const USAGE_BUCKET_INTERVAL: Record<OverviewBucket, string> = {
  *  "a malformed response does not crash the caller" AC extended to the mapping layer, not just
  *  the transport one `usage-client.ts` already covers). */
 function safeCost(point: UsageSeriesPoint): number {
-  const microUsd =
-    Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  const microUsd = Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
   return microUsdToUsd(microUsd);
 }
 
@@ -333,5 +332,30 @@ export function buildBudgetConsumptionRequest(accountId: string, now: Date): Usa
     scope_id: accountId,
     start_time: start.toISOString(),
     end_time: end.toISOString(),
+  };
+}
+
+/**
+ * The same billing-period, account-scoped consumption request as `buildBudgetConsumptionRequest`,
+ * but broken down **by project** — the admin overview's budget-pressure zone.
+ *
+ * Deliberately a separate builder rather than a `groupBy` argument on the one above: the ungrouped
+ * request answers "what has this account spent this period" (BudgetHero's single numeral) and this
+ * one answers "which projects did that spend come from," and the two are read by different zones
+ * with different query keys. Sharing `currentPeriodRange` keeps them over the identical window, so
+ * the parts always sum to the whole.
+ *
+ * Always account-scoped and never project-scoped, for the same reason the ungrouped one is: budget
+ * is account-scoped in the schema (`GetMyBudgetBalanceInput`'s own doc comment — "budget_account_id
+ * is always identical to account_id"), and the admin overview is by definition every project in
+ * the account rather than whichever one the scope picker happens to hold.
+ */
+export function buildBudgetConsumptionByProjectRequest(
+  accountId: string,
+  now: Date
+): UsageQueryRequest {
+  return {
+    ...buildBudgetConsumptionRequest(accountId, now),
+    group_by: ['project_id'],
   };
 }

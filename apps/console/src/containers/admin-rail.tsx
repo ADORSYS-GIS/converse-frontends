@@ -3,6 +3,7 @@
 import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
 import { ReviewDetailRail } from '@lightbridge/ui-web/src/sections/review-detail-rail';
 
+import { useAdminSectionParam } from '../client/url-state';
 import { useAdminScreen } from './use-admin-screen';
 
 /**
@@ -10,8 +11,21 @@ import { useAdminScreen } from './use-admin-screen';
  *
  * One unlabelled `RailPanel`, matching admin-budget-review.svg: the review detail is the whole
  * rail, so it carries no section heading of its own.
+ *
+ * **Only the refill-review section has a rail.** The admin overview's content does not retarget on
+ * a selection, so by the console-ui rail rule it is a toolbar screen, not a rail screen, and its
+ * parameters live in the left rail's secondary section instead. This returns `null` there; the
+ * shell layout independently declines to reserve the 280px column, because a slot rendering `null`
+ * is still a truthy React element and would otherwise leave an empty column behind.
  */
 export function AdminRail() {
+  const [section] = useAdminSectionParam();
+
+  if (section !== 'refills') return null;
+  return <AdminReviewRail />;
+}
+
+function AdminReviewRail() {
   const screen = useAdminScreen();
 
   return (

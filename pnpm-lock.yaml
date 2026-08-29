@@ -79,9 +79,15 @@ importers:
       '@fontsource/inter':
         specifier: ^5.3.0
         version: 5.3.0
+      '@lightbridge/api-rest':
+        specifier: workspace:*
+        version: link:../../packages/api-rest
       '@lightbridge/authz-rpc':
         specifier: workspace:*
         version: link:../../packages/authz-rpc
+      '@lightbridge/hooks':
+        specifier: workspace:*
+        version: link:../../packages/hooks
       '@lightbridge/ui-web':
         specifier: workspace:*
         version: link:../../packages/ui-web
@@ -97,6 +103,9 @@ importers:
       '@tanstack/react-query-persist-client':
         specifier: ^5.102.3
         version: 5.102.3(@tanstack/react-query@5.102.3(react@19.2.3))(react@19.2.3)
+      core-js:
+        specifier: ^3.50.0
+        version: 3.50.0
       idb-keyval:
         specifier: ^6.3.0
         version: 6.3.0
@@ -4593,6 +4602,9 @@ packages:
   core-js-compat@3.50.0:
     resolution: {integrity: sha512-XGpFGbMLHwSt74YLTKho7Ib242qi6O8MSX+sRokV4oz7iKXvQWGYZthjIhjRGMxjzVkAubBO512dKGYcefmX3Q==}
     engines: {node: '>=6.4.0'}
+
+  core-js@3.50.0:
+    resolution: {integrity: sha512-BRWgOLKkFeCgRudR6zrs8p9XJZcE14grzKMMssoYrk6krtuEZ7MTKPIY5RzOnqsEKIR9kst7wNzphttraT+Yqw==}
 
   create-jest@29.7.0:
     resolution: {integrity: sha512-Adz2bdH0Vq3F53KEMJOoftQFutWCukm6J24wbPWRO4k1kMY7gS7ds/uoJkNuV8wDCtWWnuwGcJwpWcih+zEW1Q==}
@@ -12720,6 +12732,8 @@ snapshots:
   core-js-compat@3.50.0:
     dependencies:
       browserslist: 4.28.8
+
+  core-js@3.50.0: {}
 
   create-jest@29.7.0(@types/node@26.2.0):
     dependencies:

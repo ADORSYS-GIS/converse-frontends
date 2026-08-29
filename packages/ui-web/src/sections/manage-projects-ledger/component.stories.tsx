@@ -62,18 +62,46 @@ export const ErrorState: Story = {
   render: () => <Demo projects={[]} error="Failed to load projects." />,
 };
 
+// Ticket #303 — the account-owner-only gate stated before a submission attempt.
+export const NewProjectGated: Story = {
+  render: () => (
+    <div className="p-6">
+      <ManageProjectsLedger
+        projects={manageProjectsFixture}
+        onRetry={() => {}}
+        totals={manageTotals}
+        search=""
+        onSearchChange={() => {}}
+        onNewProject={() => {}}
+        newProjectDisabled
+        newProjectReason="Only the account owner can create a project."
+        onSelectRow={() => {}}
+        pagination={{
+          shown: manageProjectsFixture.length,
+          total: 24,
+          hasPrev: false,
+          hasNext: true,
+        }}
+      />
+    </div>
+  ),
+};
+
 export const MdTierWithTriggers: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => (
     <Demo
       toolbarActions={
         <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
-          <p className="font-mono text-xs text-ink">Account · Status · Budget state</p>
+          <p className="text-ink font-mono text-xs">Account · Status · Budget state</p>
         </SectionSheetTrigger>
       }
       reportTrigger={
-        <SectionSheetTrigger icon="report" triggerLabel="Open monthly report" label="Monthly report">
-          <p className="font-mono text-xs text-ink">Period · Group by · Format</p>
+        <SectionSheetTrigger
+          icon="report"
+          triggerLabel="Open monthly report"
+          label="Monthly report">
+          <p className="text-ink font-mono text-xs">Period · Group by · Format</p>
         </SectionSheetTrigger>
       }
     />

@@ -1,10 +1,23 @@
 'use client';
 
-import type { ApiKey, Project } from '@lightbridge/authz-rpc';
-import type { OverviewStatCardData, SelectFieldProps } from '@lightbridge/ui-web';
+import { createId } from '@lightbridge/authz-rpc';
+import type { ApiKey, AugmentationRequest, Project } from '@lightbridge/authz-rpc';
+import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
+import type {
+  BudgetSummary,
+  DashboardStatus,
+  ShareBarSegment,
+  OverviewStatCardData,
+  SelectFieldProps,
+  SpendSeriesSeries,
+} from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import { useConsoleBudgetClient } from '../client/rpc-clients';
+import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
+import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
 import {
   OVERVIEW_BUCKETS,
@@ -13,29 +26,57 @@ import {
   OVERVIEW_SELECTION_OPTIONS,
   useOverviewParams,
 } from '../client/url-state';
+import { microsToAmount } from './refill-rows';
+import {
+  buildBudgetConsumptionRequest,
+  buildOverviewUsageRequest,
+  sumTotalCost,
+  toSpendSeries,
+  toSpendShareSegments,
+} from './overview-usage';
 
 /**
  * `/` — the Overview dashboard's data adapter, shared by its centre (`page.tsx`) and its rail
  * (`@rail/page.tsx`).
  *
- * The two callers issue the same `useList` query keys, so TanStack Query serves both from one
- * request; the view state they both read is the **query string** (ADR 0011) — `?range=7d&series=…`
- * — so the rail's RANGE select and the centre's chart cannot drift apart, and the dashboard a user
- * has configured is a link they can send.
+ * The two callers issue the same `useList`/`useQuery` query keys, so TanStack Query serves both
+ * from one request; the view state they both read is the **query string** (ADR 0011) —
+ * `?range=7d&series=…` — so the rail's RANGE select and the centre's chart cannot drift apart, and
+ * the dashboard a user has configured is a link they can send.
  *
- * What is real here: the project and API-key counts, read through refine over the generated
- * resources.
+ * What is real here, as of #304-#306: project/API-key counts (refine over the generated
+ * resources), SPEND/SPEND SHARE (`queryUsage` -> `overview-usage.ts`'s adapters), and BudgetHero's
+ * consumption-vs-ceiling (the SAME `queryUsage` summed for the current billing period, paired with
+ * `getMyBudgetBalance`'s `effectiveBudgetMicros` for the ceiling).
  *
- * What is honestly empty: spend, latency and budget. Those come from the usage backend
- * (`POST /usage/v1/usage/query`) and the budget microservice, and neither has a live query client
- * in this scaffold — `packages/api-rest` still has zero importers. Rather than render plausible
- * numbers, the screen carries its documented empty state: an inline status line naming exactly
- * what is missing, above still-rendered chart structure (console-ui skill §states). No sparkline
- * is fabricated either — the stat cards ship with empty series.
+ * What stays honestly blocked: LATENCY (#307). `UsageQueryResponse.UsageSeriesPoint` carries
+ * `requests`/`usage_value`/`total_cost`/`tokens` — no latency or percentile field exists in the
+ * documented contract at all, so there is nothing to query. `LatencyDashboard` keeps rendering
+ * with `status="unwired"` (this codebase's existing "never queried" vocabulary, reused rather than
+ * inventing a second one — console-ui skill) but with `unwiredMessage` overridden to name the real,
+ * permanent reason: the contract gap tracked as Epic 6 / #294, recorded in ADR 0008's Decision 7
+ * status note. This is NOT the same fact `'unwired'` used to carry for SPEND/BUDGET before this
+ * story (a client that didn't exist yet) — see `LATENCY_BLOCKED_MESSAGE`'s own comment.
  */
 
-export const USAGE_PENDING_MESSAGE =
-  'Usage and budget dashboards are unwired: no usage-backend query client yet (ADR 0009 follow-ups 4 and 6). Project and key counts below are live.';
+// #305/#306 — SPEND, SPEND SHARE and BudgetHero are wired; the one remaining, permanent gap is
+// LATENCY (#307), so the banner now names that instead of a blanket "unwired" claim that would no
+// longer be true (#305's own AC: "the Overview banner's claims about these sections being unwired
+// are dropped once they're accurate"). Console-ui#326: no internal issue/Epic number in the
+// user-visible string itself (a customer should never have to decode a bare `#294`) — the Epic 6 /
+// #294 cross-reference lives in this module's own doc comment and the ADR 0008 status note, not
+// here; `placeholder-copy.test.ts` regression-tests every customer-visible string in this app
+// against exactly this rule.
+export const LATENCY_BLOCKED_MESSAGE =
+  "Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live.";
+
+/**
+ * The Overview EXPORT rail control's disabled-reason caption (console-ui#324) — the CSV export
+ * route doesn't exist yet (tracked separately as `#308`, Epic 4). Shared by `OverviewRail` and
+ * `OverviewCentre` so the persistent rail and the compact-tier sheet can never drift onto
+ * different wording for the same control.
+ */
+export const OVERVIEW_EXPORT_UNAVAILABLE_CAPTION = "Export isn't available yet.";
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
   '7d': 'Last 7 days',
@@ -66,26 +107,61 @@ const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
 
 const MODEL_OPTIONS = [{ value: 'all', label: 'All models' }];
 
+/** Matches `Meter`'s own default (`packages/ui-web/src/components/meter/component.tsx`) — the
+ *  account-level refill control only appears once the SAME ratio that turns the meter `--signal`
+ *  is crossed, so the control and the visual breach cue always agree. */
+const BUDGET_BREACH_THRESHOLD = 0.9;
+
+/** Module-level so both zones (centre/rail, if the control is ever echoed there) agree on the
+ *  shared-mutation identity — same pattern as `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY`. */
+const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
+
+/** Ascending-sorts `allowedAmountsMicros` (decimal strings — `BigInt`, never `Number`, since a
+ *  micros amount can exceed `Number.MAX_SAFE_INTEGER`) and returns the smallest. `null` when the
+ *  policy currently offers nothing. */
+function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
+  if (amountsMicros.length === 0) return null;
+  return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1))[0];
+}
+
 export interface OverviewScreen {
-  scopeAccountLabel: string;
   scopeProjectLabel: string;
   subline: string;
+  /** Names the one dashboard that stays honestly blocked (LATENCY, #307) — never a blanket
+   *  "unwired" claim for sections that now have real data. */
   emptyMessage: string;
   statCards: OverviewStatCardData[];
   statCardsLoading: boolean;
   selectedSeriesKey: string | null;
   setSelectedSeriesKey: (key: string | null) => void;
-  rangeField: SelectFieldProps;
-  bucketField: SelectFieldProps;
-  groupByField: SelectFieldProps;
-  accountField: SelectFieldProps;
-  projectField: SelectFieldProps;
-  modelField: SelectFieldProps;
+  // `Omit<…, 'layout'>`: the toolbar owns the layout axis, the screen owns the values.
+  rangeField: Omit<SelectFieldProps, 'layout'>;
+  bucketField: Omit<SelectFieldProps, 'layout'>;
+  groupByField: Omit<SelectFieldProps, 'layout'>;
+  projectField: Omit<SelectFieldProps, 'layout'>;
+  modelField: Omit<SelectFieldProps, 'layout'>;
+  // ── #305: SPEND / SPEND SHARE ────────────────────────────────────────────────────────────
+  spendSeries: SpendSeriesSeries[];
+  spendSegments: ShareBarSegment[];
+  spendStatus: DashboardStatus;
+  spendErrorMessage?: string;
+  spendRetry: () => void;
+  // ── #307: LATENCY stays blocked, on purpose ──────────────────────────────────────────────
+  latencyMessage: string;
+  // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
+  budget: BudgetSummary;
+  /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
+   *  policy currently offers an amount — `BudgetHero.action`'s own "only present once breached"
+   *  convention (see `budget-hero/types.ts`). */
+  refillAction: { label: string; onClick: () => void; pending: boolean } | undefined;
+  refillErrorMessage: string | undefined;
 }
 
 export function useOverviewScreen(): OverviewScreen {
   const scope = useConsoleScope();
   const [view, setView] = useOverviewParams();
+  const budgetClient = useConsoleBudgetClient();
+  const queryClient = useQueryClient();
 
   const projects = useList<Project>({
     resource: 'projects',
@@ -110,14 +186,16 @@ export function useOverviewScreen(): OverviewScreen {
         icon: 'projects',
         label: 'Projects',
         metric: String(projects.result.total ?? 0),
-        sparklineData: [],
+        // No `sparklineData` — there is no trend series behind a project/key COUNT (as opposed
+        // to spend, which now has one — see `spendSeries` below), and `OverviewStatRow` renders
+        // no sparkline slot at all when it's omitted, rather than an empty/flat decorative line.
       },
       {
         key: 'keys',
         icon: 'keys',
         label: 'API keys',
         metric: String(apiKeys.result.total ?? 0),
-        sparklineData: [],
+        // No `sparklineData` — see the `projects` card above.
       },
     ],
     [projects.result.total, apiKeys.result.total]
@@ -126,11 +204,166 @@ export function useOverviewScreen(): OverviewScreen {
   const scopeProjectLabel =
     scope.projects.find((project) => project.id === scope.value.projectId)?.label ?? 'All projects';
 
+  const accountId = scope.value.accountId;
+  const projectId = scope.value.projectId;
+
+  // ── #305: SPEND / SPEND SHARE ──────────────────────────────────────────────────────────────
+  const usageQuery = useQuery({
+    queryKey: [
+      'usage',
+      'overview',
+      accountId,
+      projectId,
+      view.range,
+      view.bucket,
+      view.groupBy,
+      view.model,
+    ],
+    queryFn: () =>
+      queryUsage(
+        buildOverviewUsageRequest({
+          accountId,
+          projectId,
+          range: view.range,
+          bucket: view.bucket,
+          groupBy: view.groupBy,
+          model: view.model,
+          now: new Date(),
+        })
+      ),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const spendStatus: DashboardStatus = usageQuery.isError
+    ? 'error'
+    : usageQuery.isPending
+      ? 'loading'
+      : 'ready';
+  const spendSeries = useMemo(
+    () => (usageQuery.data ? toSpendSeries(usageQuery.data, view.groupBy) : []),
+    [usageQuery.data, view.groupBy]
+  );
+  const spendSegments = useMemo(
+    () => (usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy) : []),
+    [usageQuery.data, view.groupBy]
+  );
+
+  // ── #306: BudgetHero — consumption (usage backend, this billing period) vs ceiling (budget
+  // microservice's own `getMyBudgetBalance`) ────────────────────────────────────────────────
+  // Resolved once per mount, not per render (same "moving default, resolved once" pattern
+  // `url-state.ts`'s own `CURRENT_PERIOD` uses at module load) — a calendar-month period changes
+  // at most once a session, and this keeps the budget queries' keys stable across re-renders.
+  const period = useMemo(() => currentBudgetPeriod(), []);
+
+  const consumptionQuery = useQuery({
+    queryKey: ['usage', 'budget-consumption', accountId, period],
+    queryFn: () => queryUsage(buildBudgetConsumptionRequest(accountId, new Date())),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const balanceQuery = useQuery({
+    queryKey: ['budget', 'myBalance', accountId, period],
+    queryFn: () => budgetClient.procedures.getMyBudgetBalance({ args: { period } }),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const ladderQuery = useQuery({
+    queryKey: ['budget', 'myRefillLadder', period],
+    queryFn: () => budgetClient.procedures.getMyBudgetRefillLadder({ args: { period } }),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const refill = useSharedMutation<string, AugmentationRequest>({
+    mutationKey: OVERVIEW_REFILL_MUTATION_KEY,
+    mutationFn: (requestedAmountMicros) =>
+      budgetClient.procedures.requestBudgetRefill({
+        args: {
+          accountId,
+          // One account is one budget account (`authz.cstack`'s own `GetMyBudgetBalanceInput`
+          // doc comment: "budget_account_id is always identical to account_id") — no separate
+          // "list my budget accounts" RPC exists, matching `@lightbridge/hooks/budget.ts`'s own
+          // `RequestBudgetRefillArgs.budgetAccountId` convention.
+          budgetAccountId: accountId,
+          period,
+          idempotencyKey: createId(),
+          requestedAmountMicros,
+        },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['budget', 'myBalance', accountId, period] });
+      void queryClient.invalidateQueries({ queryKey: ['budget', 'myRefillLadder', period] });
+    },
+  });
+
+  const budget: BudgetSummary = useMemo(() => {
+    if (consumptionQuery.isError) {
+      return {
+        status: 'error',
+        errorMessage: getUsageErrorMessage(consumptionQuery.error),
+        onRetry: () => void consumptionQuery.refetch(),
+      };
+    }
+    if (balanceQuery.isError) {
+      return {
+        status: 'error',
+        errorMessage: 'Failed to load the account budget ceiling.',
+        onRetry: () => void balanceQuery.refetch(),
+      };
+    }
+    if (consumptionQuery.isPending || balanceQuery.isPending) {
+      return { status: 'loading' };
+    }
+    const value = sumTotalCost(consumptionQuery.data);
+    const ceiling = microsToAmount(balanceQuery.data.effectiveBudgetMicros);
+    const percent = ceiling > 0 ? Math.round((value / ceiling) * 100) : 0;
+    return {
+      value,
+      ceiling,
+      threshold: BUDGET_BREACH_THRESHOLD,
+      caption: `account ceiling · ${percent}% used this period`,
+    };
+  }, [
+    consumptionQuery.isError,
+    consumptionQuery.isPending,
+    consumptionQuery.data,
+    consumptionQuery.error,
+    balanceQuery.isError,
+    balanceQuery.isPending,
+    balanceQuery.data,
+    balanceQuery.error,
+  ]);
+
+  // `'value' in budget` narrows to the `'ready'` branch (the only one carrying `value`/`ceiling`)
+  // without a `status` comparison the compiler can't fully discriminate on here.
+  const isBreached =
+    'value' in budget && 'ceiling' in budget && budget.ceiling > 0
+      ? budget.value / budget.ceiling >= BUDGET_BREACH_THRESHOLD
+      : false;
+
+  const smallestAmountMicros = isBreached
+    ? smallestAllowedAmountMicros(ladderQuery.data?.allowedAmountsMicros ?? [])
+    : null;
+
+  let refillAction: OverviewScreen['refillAction'];
+  if (smallestAmountMicros) {
+    const amountMicros = smallestAmountMicros;
+    refillAction = {
+      label: `Request refill (+${formatMicros(amountMicros)})`,
+      onClick: () => refill.mutate(amountMicros),
+      pending: refill.isPending,
+    };
+  }
+
   return {
-    scopeAccountLabel: scope.value.accountId || '—',
     scopeProjectLabel,
-    subline: `${scope.value.accountId || '—'} · last ${view.range} · UTC`,
-    emptyMessage: USAGE_PENDING_MESSAGE,
+    // No account id here: the header's `AccountBadge` is the console's ONE rendering of
+    // which account you are in (owner review 2026-08-29). This was copy two of four.
+    subline: `Last ${view.range} · UTC`,
+    emptyMessage: LATENCY_BLOCKED_MESSAGE,
     statCards,
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
     // `''` is the parser default (absent from the URL); the chart sections speak `null`.
@@ -162,12 +395,6 @@ export function useOverviewScreen(): OverviewScreen {
         void setView({ groupBy: groupBy as (typeof OVERVIEW_GROUP_BYS)[number] });
       },
     },
-    accountField: {
-      label: 'Account',
-      value: scope.value.accountId,
-      options: scope.accounts.map((account) => ({ value: account.id, label: account.label })),
-      onChange: (accountId) => scope.setValue({ accountId, projectId: null }),
-    },
     projectField: {
       label: 'Project',
       value: scope.value.projectId ?? '',
@@ -186,5 +413,19 @@ export function useOverviewScreen(): OverviewScreen {
         void setView({ model });
       },
     },
+    spendSeries,
+    spendSegments,
+    spendStatus,
+    spendErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
+    spendRetry: () => void usageQuery.refetch(),
+    latencyMessage: LATENCY_BLOCKED_MESSAGE,
+    budget,
+    refillAction,
+    refillErrorMessage: refill.errorMessage,
   };
+}
+
+function formatMicros(amountMicros: string): string {
+  const amount = microsToAmount(amountMicros);
+  return `$${amount.toLocaleString('en-US')}`;
 }

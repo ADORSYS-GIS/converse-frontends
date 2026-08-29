@@ -1,0 +1,141 @@
+global:
+  labels:
+    app: console
+    team: ''
+
+console:
+  controllers:
+    main:
+      type: deployment
+      strategy: RollingUpdate
+      replicas: 2
+      pod:
+        labels:
+          app: console-app
+      containers:
+        frontend:
+          image:
+            # A GHCR package distinct from `ghcr.io/adorsys-gis/converse-frontends` (self-service's
+            # image) — see .github/workflows/docker-image.yml's IMAGE_NAME comment for why.
+            repository: ghcr.io/adorsys-gis/converse-frontends/console
+            # argocd-image-updater re-pins this to a real `sha-<gitsha>` tag once the workflow has
+            # pushed at least one image; `latest` here is only a bootstrap default.
+            tag: latest
+            pullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          env:
+            # apps/console/src/server/config-loader.ts: config.yaml is the primary config
+            # document (YAML-first, not env-var-first) — this is the ONLY app env var this chart
+            # sets. It points at the file mounted from configMaps.console-config below (see
+            # persistence.console-config), which a real deployment supplies via its own values
+            # file (see README.md) rather than editing individual fields through the environment.
+            CONSOLE_CONFIG: /config/console/config.yaml
+
+          resources:
+            # A Node SSR server, not nginx serving static files — every request runs application
+            # code (session decrypt, RPC proxying, React server rendering), so both floors sit
+            # meaningfully above the old nginx pod's.
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 512Mi
+
+          probes:
+            # /robots.txt (app/robots.ts): a static Next.js metadata route, unauthenticated
+            # (middleware.ts's matcher excludes it from the session-cookie gate) and independent of
+            # runtime config (renders the same fixed body regardless of Keycloak/backend
+            # reachability) — a clean "is the Node server actually serving requests" signal. `/`
+            # itself always 307s to /auth/login when unauthenticated, and a kubelet probe can't
+            # follow that redirect meaningfully; /api/session legitimately 401s with no session,
+            # which would make a naive status-code probe flap on an otherwise healthy pod.
+            liveness:
+              enabled: true
+              type: HTTP
+              path: /robots.txt
+              spec:
+                httpGet:
+                  port: http
+            readiness:
+              enabled: true
+              type: HTTP
+              path: /robots.txt
+              spec:
+                httpGet:
+                  port: http
+            startup:
+              enabled: true
+              type: HTTP
+              path: /robots.txt
+              spec:
+                httpGet:
+                  port: http
+                failureThreshold: 30
+                periodSeconds: 5
+
+  # Mounts the ConfigMap generated from configMaps.console-config (below) at the path
+  # CONSOLE_CONFIG points the app at above (controllers.main.containers.frontend.env). This is
+  # this chart's whole "bring your own config.yaml" mechanism: config-loader.ts reads one YAML
+  # document and resolves the handful of `{env:VAR}` placeholders it actually contains (secrets
+  # only — see config.yaml's own header comment) against the pod's environment; everything else
+  # is a plain literal in the document itself. A deployment that needs different literals (a real
+  # Keycloak issuer, real backend URLs, ...) supplies its own config.yaml text via
+  # configMaps.console-config.data, not per-field env overrides. (`persistence` is a top-level
+  # app-template key, a sibling of `controllers` — not nested under it — even though it's only
+  # ever mounted into the one `main` controller here.)
+  persistence:
+    console-config:
+      type: configMap
+      identifier: console-config
+      globalMounts:
+        - path: /config/console/config.yaml
+          subPath: config.yaml
+          readOnly: true
+
+  service:
+    frontend:
+      enabled: true
+      annotations: {}
+      type: ClusterIP
+      controller: main
+      ports:
+        http:
+          enabled: true
+          port: 80
+          targetPort: http
+
+  # Deliberately disabled with no host: the console's public hostname is decided and owned by the
+  # private ai-helm-values repo (this chart does not set it — see that repo's converse-console
+  # values / Application for the real value), not this chart. Set `enabled: true` and populate
+  # `hosts` there; this stanza only exists so an operator has somewhere obvious to do that instead
+  # of inventing a new key.
+  ingress:
+    frontend:
+      enabled: false
+      className: ''
+      hosts: []
+
+  # The operator-supplied config.yaml, mounted into the pod at CONSOLE_CONFIG above. No default
+  # value is shipped here (see values.schema.json — it's a required field): `helm lint`/`helm
+  # template`/`helm install` all fail fast on a missing document rather than silently deploying a
+  # console pointed at nothing. See README.md's "Option A: values file" for a worked example.
+  #
+  # NOTE: `configMaps` (like `persistence` and `ingress` above) is a top-level app-template key —
+  # it must live under `console:`, the same as `controllers`/`service`/`persistence`, not at this
+  # chart's own top level next to `global:`. app-template's common-library templates resolve
+  # `persistence.console-config.identifier: console-config` by looking up
+  # `.Values.configMaps.console-config` from the *subchart's own* root context, which after Helm
+  # strips the `console:` alias prefix means "the configMaps key inside console" — a top-level
+  # configMaps block here would render successfully but silently fail template execution with "No
+  # configmap found with this identifier" (verified locally).
+  configMaps:
+    console-config:
+      enabled: true
+      data:
+        config.yaml: ''

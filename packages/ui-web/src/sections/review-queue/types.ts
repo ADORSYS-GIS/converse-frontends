@@ -5,8 +5,10 @@ export type RefillRequestRow = {
   submittedAgo: string;
   project: string;
   account: string;
-  consumed: number;
-  ceiling: number;
+  /** Null when no consumption query has been made for this request — render `—`, never `$0.00`. */
+  consumed: number | null;
+  /** Null alongside `consumed` — never backfilled with the requested amount. */
+  ceiling: number | null;
   requestedAmount: number;
   requesterEmail: string;
 };

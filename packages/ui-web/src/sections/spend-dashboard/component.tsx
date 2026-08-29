@@ -6,6 +6,7 @@ import { ErrorLine } from '../../components/error-line';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
 import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendDashboardProps } from './types';
 
 // Loading-skeleton geometry for the SPEND chart, matching the exact frame the chart itself
@@ -56,6 +57,7 @@ export function SpendDashboard({
   height,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   onSelectSeries,
   formatXTick,
@@ -81,12 +83,7 @@ export function SpendDashboard({
       {/* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
           why a landmark role here would trip axe's `landmark-unique` once a page renders more
           than one scrollable dashboard. */}
-      {/* `overflow-x-auto` ALONE also scrolls vertically. Per CSS Overflow 3 §3.1, when one axis
-          is not `visible` the other computes from `visible` to `auto` — so this box became a
-          two-axis scroller, and a wheel gesture over the chart scrolled the chart's own box
-          instead of the page (owner-reported: "the chart eats the scroll wheel"). `overflow-y-clip`
-          pins the vertical axis explicitly so only the intended horizontal axis ever scrolls. */}
-      <div ref={ref} className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
+      <div ref={ref} className={cn('mt-4 w-full overflow-x-auto')} tabIndex={0}>
         {status === 'error' ? (
           <ErrorLine message={errorMessage ?? 'Failed to load spend data.'} onRetry={onRetry} />
         ) : status === 'loading' ? (
@@ -99,6 +96,12 @@ export function SpendDashboard({
             series={series}
             width={measuredWidth}
             height={height}
+            // Only overridden for `unwired`: the `ready` path (including a genuinely-empty
+            // `series`) keeps the chart's own "No usage in this range." default, which asserts a
+            // completed query found nothing — a different fact from "never queried."
+            emptyMessage={
+              status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+            }
             formatXTick={formatXTick}
             formatYTick={formatYTick}
             formatTooltipValue={formatTooltipValue}

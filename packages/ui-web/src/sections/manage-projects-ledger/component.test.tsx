@@ -6,9 +6,7 @@ import { ManageProjectsLedger } from './component';
 import { manageProjectsFixture, manageTotals } from './fixtures';
 import type { ManageProjectsLedgerProps } from './types';
 
-function makeProps(
-  overrides: Partial<ManageProjectsLedgerProps> = {}
-): ManageProjectsLedgerProps {
+function makeProps(overrides: Partial<ManageProjectsLedgerProps> = {}): ManageProjectsLedgerProps {
   return {
     projects: manageProjectsFixture,
     totals: manageTotals,
@@ -28,10 +26,35 @@ describe('ManageProjectsLedger', () => {
     expect(screen.getByText('TOTAL · 12 SHOWN')).toBeInTheDocument();
   });
 
-  it('renders an em dash rather than a fabricated zero for a project with no ceiling', () => {
+  it('renders an em dash rather than a fabricated zero for a project with no quota tier', () => {
     render(<ManageProjectsLedger {...makeProps({ projects: [manageProjectsFixture[10]] })} />);
 
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders a suspended project as "suspended", never as active', () => {
+    render(<ManageProjectsLedger {...makeProps({ projects: [manageProjectsFixture[10]] })} />);
+
+    expect(screen.getByText('suspended')).toBeInTheDocument();
+    expect(screen.queryByText('active')).not.toBeInTheDocument();
+  });
+
+  it('renders a quota tier id as text, never coerced into a currency figure', () => {
+    render(<ManageProjectsLedger {...makeProps({ projects: [manageProjectsFixture[11]] })} />);
+
+    // pilot-2025 (index 11) is suspended with a real tier assigned ('growth') — a tier label,
+    // not a `$`-prefixed number.
+    expect(screen.getByText('growth')).toBeInTheDocument();
+    expect(screen.queryByText(/^\$/)).not.toBeInTheDocument();
+  });
+
+  it('renders the TOTALS footer as an em dash, not $0.00, while spend is unwired', () => {
+    render(<ManageProjectsLedger {...makeProps()} />);
+
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    // The totals row and every row's SPEND MTD cell all render the same em dash — none of them
+    // fabricate a number spend has no live source for yet.
+    expect(screen.getAllByText('—').length).toBeGreaterThan(manageProjectsFixture.length);
   });
 
   it('fires onNewProject from the toolbar primary', () => {
@@ -41,6 +64,28 @@ describe('ManageProjectsLedger', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
 
     expect(onNewProject).toHaveBeenCalledTimes(1);
+  });
+
+  // Ticket #303 — the account-owner-only gate is stated before a submission attempt, not
+  // discovered as a raw RPC error.
+  it('disables + New project and states the reason when creation is gated', () => {
+    render(
+      <ManageProjectsLedger
+        {...makeProps({
+          newProjectDisabled: true,
+          newProjectReason: 'Only the account owner can create a project.',
+        })}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: '+ New project' })).toBeDisabled();
+    expect(screen.getByText('Only the account owner can create a project.')).toBeInTheDocument();
+  });
+
+  it('leaves + New project enabled with no reason line when creation is not gated', () => {
+    render(<ManageProjectsLedger {...makeProps()} />);
+
+    expect(screen.getByRole('button', { name: '+ New project' })).toBeEnabled();
   });
 
   it('fires onSelectRow when a row is activated', () => {
@@ -70,6 +115,18 @@ describe('ManageProjectsLedger', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders an unrecognized status as "unknown" rather than crashing or defaulting to active', () => {
+    render(
+      <ManageProjectsLedger
+        {...makeProps({
+          projects: [{ ...manageProjectsFixture[0], status: 'unknown', statusLabel: 'unknown' }],
+        })}
+      />
+    );
+
+    expect(screen.getByText('unknown')).toBeInTheDocument();
   });
 
   it('renders the report trigger row only when a trigger is supplied', () => {

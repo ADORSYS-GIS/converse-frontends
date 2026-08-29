@@ -15,6 +15,7 @@ import type { BudgetPanelProps } from './types';
 export function BudgetPanel({
   label = 'Budget — consumption vs ceiling',
   budget,
+  heroAction,
   needsAttentionProject,
   onRequestRefill,
   refillRequestStatus,
@@ -29,20 +30,29 @@ export function BudgetPanel({
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
       <div className="mt-4">
-        <BudgetHero
-          value={budget.value}
-          ceiling={budget.ceiling}
-          threshold={budget.threshold}
-          caption={budget.caption}
-        />
+        {budget.status === 'unwired' ? (
+          <BudgetHero status="unwired" caption={budget.caption} />
+        ) : budget.status === 'loading' ? (
+          <BudgetHero status="loading" />
+        ) : budget.status === 'error' ? (
+          <BudgetHero status="error" errorMessage={budget.errorMessage} onRetry={budget.onRetry} />
+        ) : (
+          <BudgetHero
+            value={budget.value}
+            ceiling={budget.ceiling}
+            threshold={budget.threshold}
+            caption={budget.caption}
+            action={heroAction}
+          />
+        )}
 
         {needsAttentionProject ? (
           <>
-            <div aria-hidden="true" className="my-5 border-t border-border" />
+            <div aria-hidden="true" className="border-border my-5 border-t" />
             <div className={LABEL_CLASS}>Needs attention</div>
             <div className="mt-3 flex items-baseline justify-between gap-3">
-              <span className="font-mono text-xs text-ink">{needsAttentionProject.name}</span>
-              <span className="font-mono text-[11px] text-soft">
+              <span className="text-ink font-mono text-xs">{needsAttentionProject.name}</span>
+              <span className="text-soft font-mono text-[11px]">
                 {formatMoneyOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
               </span>
             </div>
@@ -59,7 +69,7 @@ export function BudgetPanel({
               <Button type="button" variant="primary" size="sm" onClick={onRequestRefill}>
                 {needsAttentionProject.refillActionLabel ?? 'Request refill'}
               </Button>
-              <span className="font-sans text-[10px] text-subtle">
+              <span className="text-subtle font-sans text-[10px]">
                 {needsAttentionProject.caption}
               </span>
             </div>
@@ -68,15 +78,15 @@ export function BudgetPanel({
 
         {refillRequestStatus ? (
           <>
-            <div aria-hidden="true" className="my-5 border-t border-border" />
+            <div aria-hidden="true" className="border-border my-5 border-t" />
             <div className={LABEL_CLASS}>Refill requests</div>
-            <p className="mt-3 font-mono text-[11px] text-soft">
+            <p className="text-soft mt-3 font-mono text-[11px]">
               {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
             </p>
             <button
               type="button"
               onClick={onReviewInAdmin}
-              className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline">
+              className="text-soft hover:text-ink mt-1 font-mono text-[11px] underline-offset-2 hover:underline">
               Review in Admin →
             </button>
           </>

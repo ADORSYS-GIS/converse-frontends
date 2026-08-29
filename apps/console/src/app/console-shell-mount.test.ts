@@ -85,7 +85,23 @@ describe('console shell mounting', () => {
     );
   });
 
-  it('provides a @rail and a @scope segment for every centre route in the group', () => {
+  /**
+   * Which routes have rails is a DESIGN decision, so it is asserted as an explicit table rather
+   * than as "every route must have one" (owner review 2026-08-29).
+   *
+   * Overview and Api-Keys have no rail at any tier: their parameters live in an always-visible
+   * toolbar in the centre column, so a `@rail`/`@scope` segment for them would be an empty panel
+   * column reserving 280px for nothing. Manage and Admin keep theirs, because their rail content
+   * is selection-driven — it retargets on the row you pick and carries multi-field forms and
+   * decision actions, which is the case the rail contract was written for.
+   *
+   * A route that opts out must NOT get a stub segment; it falls through to the slot's
+   * `default.tsx` (asserted above), which renders nothing. The assertion below is two-sided on
+   * purpose: a missing segment where one is expected is a bug, and so is a stray segment for a
+   * route that is supposed to be rail-less — that is how this table stays true rather than
+   * quietly rotting into "whatever the filesystem happens to contain".
+   */
+  it('gives a @rail and @scope segment to exactly the routes designed to have one', () => {
     const centreRoutes = appFiles
       .filter((file) => file.startsWith(CONSOLE_GROUP) && file.endsWith('page.tsx'))
       .filter((file) => !file.includes('@rail') && !file.includes('@scope'))
@@ -100,12 +116,17 @@ describe('console shell mounting', () => {
       ].sort()
     );
 
+    const ROUTES_WITH_RAILS = [join('admin', 'page.tsx'), join('manage', 'page.tsx')];
+
     for (const route of centreRoutes) {
+      const shouldHaveRail = ROUTES_WITH_RAILS.includes(route);
       for (const slot of ['@rail', '@scope']) {
         expect(
           appFiles.includes(join(CONSOLE_GROUP, slot, route)),
-          `${slot} is missing a segment for ${route}`
-        ).toBe(true);
+          shouldHaveRail
+            ? `${slot} is missing a segment for ${route}`
+            : `${route} is designed to have no rail, but ${slot} has a segment for it`
+        ).toBe(shouldHaveRail);
       }
     }
   });

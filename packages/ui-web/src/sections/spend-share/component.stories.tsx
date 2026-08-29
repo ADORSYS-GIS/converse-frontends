@@ -81,6 +81,17 @@ export const EmptyLight: Story = {
   args: { segments: [], total: undefined },
 };
 
+// #272 — no usage-backend query client exists yet; distinct wording from `Empty` above.
+export const Unwired: Story = {
+  args: { segments: [], total: undefined, status: 'unwired' },
+};
+
+export const UnwiredLight: Story = {
+  name: 'Unwired — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: Unwired.args,
+};
+
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
 export const Loading: Story = {
   args: { status: 'loading' },

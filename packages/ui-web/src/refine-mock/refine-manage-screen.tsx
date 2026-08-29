@@ -9,13 +9,12 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
+import type { CreateProjectPlanOption } from '../components/create-project-dialog';
+import { CreateProjectDialog } from '../components/create-project-dialog';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
+import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
-import type {
-  LastExportEntry,
-  ReportExportFormat,
-  ReportIncludeToggle,
-} from '../components/report-export-panel';
+import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
 import { SelectionSheet } from '../components/selection-sheet';
 import { SubNav } from '../components/sub-nav';
@@ -28,7 +27,6 @@ import {
 import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
 import type { ProjectRow } from '../sections/manage-projects-ledger';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
-import { manageLastExports } from '../sections/manage-report-rail/fixtures';
 import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
@@ -36,6 +34,15 @@ import {
 import { ScreenHeading } from '../sections/screen-heading';
 import { manageSubNavItems } from '../pages-stories/shell-fixtures';
 import { RefineMockShell } from './shared-chrome';
+
+/**
+ * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
+ * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
+ * Console-ui#326 dropped the "(ADR 0009 follow-ups 4 and 6)" citation from the real string
+ * (follow-up 4 shipped, so citing it was simply wrong); this copy follows.
+ */
+const MANAGE_SPEND_PENDING_MESSAGE =
+  'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
 
 function buildFilters({
   search,
@@ -53,8 +60,12 @@ function buildFilters({
   if (accountValue !== 'all')
     filters.push({ field: 'account', operator: 'eq', value: accountValue });
   if (statusValue !== 'all') filters.push({ field: 'status', operator: 'eq', value: statusValue });
-  if (budgetStateValue === 'near-ceiling')
-    filters.push({ field: 'status', operator: 'eq', value: 'near ceiling' });
+  // Real signal, not a numeric-ceiling coercion (issue #269): whether a governance quota tier is
+  // assigned at all.
+  if (budgetStateValue === 'quota-set')
+    filters.push({ field: 'quotaTier', operator: 'ne', value: null });
+  if (budgetStateValue === 'no-quota')
+    filters.push({ field: 'quotaTier', operator: 'eq', value: null });
   return filters;
 }
 
@@ -64,7 +75,7 @@ export function RefineManageScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
-  const [budgetStateValue, setBudgetStateValue] = useState('any');
+  const [budgetStateValue, setBudgetStateValue] = useState('all');
   const [selected, setSelected] = useState<ProjectRow | null>(null);
 
   const [period, setPeriod] = useState('2026-02');
@@ -74,8 +85,17 @@ export function RefineManageScreen() {
     { id: 'per-model', label: 'Per-model breakdown', checked: true },
     { id: 'zero-usage', label: 'Include zero-usage projects', checked: false },
   ]);
-  const [lastExports, setLastExports] = useState<LastExportEntry[]>(manageLastExports);
   const [generating, setGenerating] = useState(false);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [billingIdentity, setBillingIdentity] = useState('');
+  const [planId, setPlanId] = useState<string | null>('pro');
+  const plans: CreateProjectPlanOption[] = [
+    { id: 'free', name: 'Free' },
+    { id: 'pro', name: 'Pro' },
+    { id: 'enterprise', name: 'Enterprise' },
+  ];
 
   const filters = useMemo(
     () => buildFilters({ search, accountValue, statusValue, budgetStateValue }),
@@ -98,24 +118,20 @@ export function RefineManageScreen() {
   const loading = table.tableQuery.isLoading;
   const error = table.tableQuery.isError ? table.tableQuery.error?.message : undefined;
 
+  // Spend has no live source yet (Epic 4) — every row's SPEND MTD is already `null` in the mock
+  // fixtures, so the honest total is `null` too, never a fabricated sum.
   const totals =
     rows.length > 0
       ? {
           shownLabel: `TOTAL · ${rows.length} SHOWN`,
-          spendMtd: rows.reduce((sum, row) => sum + (row.spendMtd ?? 0), 0),
-          ceiling: rows.reduce((sum, row) => sum + (row.ceiling ?? 0), 0),
-          usedPercent:
-            rows.reduce((sum, row) => sum + (row.usedPercent ?? 0), 0) / rows.length,
+          spendMtd: null,
         }
       : undefined;
 
   const scopeSlot = (
     <div className="flex flex-col gap-1.5">
       <span className={fieldLabelClassName}>Scope</span>
-      <select
-        value="account:adorsys-gis"
-        onChange={() => {}}
-        className={fieldControlClassName}>
+      <select value="account:adorsys-gis" onChange={() => {}} className={fieldControlClassName}>
         <option value="account:adorsys-gis">Account · adorsys-gis</option>
       </select>
     </div>
@@ -156,16 +172,9 @@ export function RefineManageScreen() {
       format={format}
       onFormatChange={setFormat}
       generating={generating}
-      lastExports={lastExports}
-      onGenerate={(params) => {
+      onGenerate={() => {
         setGenerating(true);
-        setTimeout(() => {
-          setGenerating(false);
-          setLastExports((prev) => [
-            { filename: `${params.period} · ${params.format.toUpperCase()}`, date: 'just now' },
-            ...prev,
-          ]);
-        }, 400);
+        setTimeout(() => setGenerating(false), 400);
       }}
     />
   );
@@ -189,7 +198,26 @@ export function RefineManageScreen() {
         </>
       }>
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+        <ScreenHeading title="Projects" />
+        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
+
+        <CreateProjectDialog
+          open={createOpen}
+          accountLabel="acct_01"
+          name={projectName}
+          onNameChange={setProjectName}
+          billingIdentity={billingIdentity}
+          onBillingIdentityChange={setBillingIdentity}
+          plans={plans}
+          plansLoading={false}
+          onRetryPlans={() => {}}
+          planId={planId}
+          onPlanChange={setPlanId}
+          submitting={false}
+          canSubmit={projectName.trim().length > 0 && billingIdentity.trim().length > 0}
+          onSubmit={() => setCreateOpen(false)}
+          onCancel={() => setCreateOpen(false)}
+        />
 
         <ManageProjectsLedger
           projects={rows}
@@ -199,7 +227,7 @@ export function RefineManageScreen() {
           totals={totals}
           search={search}
           onSearchChange={setSearch}
-          onNewProject={() => {}}
+          onNewProject={() => setCreateOpen(true)}
           selectedRowKeys={selected ? [selected.id] : []}
           onSelectRow={setSelected}
           pagination={{

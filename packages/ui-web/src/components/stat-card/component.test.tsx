@@ -27,14 +27,14 @@ describe('StatCard', () => {
   });
 
   it('renders a flat delta with the subtle tone', () => {
-    render(<StatCard label="PROJECTS" metric="6" delta={{ direction: 'flat', label: 'no change' }} />);
+    render(<StatCard label="Projects" metric="6" delta={{ direction: 'flat', label: 'no change' }} />);
 
     const delta = screen.getByText(/no change/);
     expect(delta).toHaveClass('text-subtle');
   });
 
   it('omits the delta line when none is given', () => {
-    render(<StatCard label="PROJECTS" metric="6" />);
+    render(<StatCard label="Projects" metric="6" />);
 
     expect(screen.queryByText('▲')).not.toBeInTheDocument();
     expect(screen.queryByText('▼')).not.toBeInTheDocument();

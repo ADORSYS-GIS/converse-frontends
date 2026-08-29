@@ -22,6 +22,7 @@ import {
 } from '../sections/api-keys-ledger/fixtures';
 import type {
   ApiKeyRow,
+  ApiKeysDeleteTarget,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
@@ -37,6 +38,7 @@ interface ApiKeysScreenProps {
   keys?: ApiKeyRow[];
   secretReveal?: ApiKeysSecretReveal | null;
   revokeInitial?: ApiKeysRevokeTarget | null;
+  deleteInitial?: ApiKeysDeleteTarget | null;
   loading?: boolean;
   error?: string;
   showAdmin?: boolean;
@@ -45,10 +47,15 @@ interface ApiKeysScreenProps {
 }
 
 // The composition `apps/console`'s `(console)` layout + `/api-keys` route perform for real.
+//
+// `showAdmin` doubles as the ledger's `isAdmin` (ticket #321): the same `lightbridge-admin` grant
+// that reveals the NavSpine's Admin group is what the console-side container reads to decide
+// whether `Del` renders at all, so one story flag drives both consistently.
 function ApiKeysScreen({
   keys = apiKeysFixture,
   secretReveal = null,
   revokeInitial = null,
+  deleteInitial = null,
   loading = false,
   error,
   showAdmin = false,
@@ -56,6 +63,7 @@ function ApiKeysScreen({
 }: ApiKeysScreenProps) {
   const [secret, setSecret] = useState(secretReveal);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
+  const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(deleteInitial);
   const [project, setProject] = useState(noProjectSelected ? 'all' : 'gateway-prod');
   const [statusFilterValue, setStatusFilterValue] = useState('all');
   const [search, setSearch] = useState('');
@@ -110,11 +118,15 @@ function ApiKeysScreen({
           secretReveal={secret}
           onDismissSecret={() => setSecret(null)}
           onRotate={() => {}}
-          onDelete={() => {}}
           onRequestRevoke={(row) => setRevokeTarget({ row })}
           revokeTarget={revokeTarget}
           onConfirmRevoke={() => setRevokeTarget(null)}
           onCancelRevoke={() => setRevokeTarget(null)}
+          isAdmin={showAdmin}
+          onRequestDelete={(row) => setDeleteTarget({ row })}
+          deleteTarget={deleteTarget}
+          onConfirmDelete={() => setDeleteTarget(null)}
+          onCancelDelete={() => setDeleteTarget(null)}
           selectedRowKeys={selectedRowKeys}
           onSelectRow={(row) => setSelectedRowKeys([row.id])}
           pagination={{ shown: keys.length, total: 27, hasPrev: false, hasNext: true }}
@@ -161,6 +173,26 @@ export const NoProjectSelected: Story = {
 // Revoke gating flow mid-state: TypedConfirmDialog open, typed value not yet matching the name.
 export const RevokeDialogOpen: Story = {
   render: () => <ApiKeysScreen revokeInitial={{ row: apiKeysFixture[0] }} />,
+};
+
+// Ticket #321 — Del is admin-only and typed-confirm gated. The standing LIFECYCLE rail panel that
+// used to state this is gone (owner review 2026-08-29); the dialog itself is where that
+// explanation now lives, at the moment it is needed.
+export const DeleteDialogOpen: Story = {
+  render: () => <ApiKeysScreen showAdmin deleteInitial={{ row: apiKeysFixture[0] }} />,
+};
+
+export const DeleteDialogOpenLight: Story = {
+  name: 'Delete dialog open — wireframe (light)',
+  render: () => <ApiKeysScreen showAdmin deleteInitial={{ row: apiKeysFixture[0] }} />,
+  globals: { theme: 'wireframe' },
+};
+
+// A signed-in non-admin: NavSpine's Admin group and the ledger's `Del` action are both absent —
+// same grant, same story flag.
+export const NonAdminView: Story = {
+  name: 'Non-admin — Del omitted, Admin nav hidden',
+  render: () => <ApiKeysScreen />,
 };
 
 // §6 — empty ledger still renders its header row; InlineStatus carries the message.

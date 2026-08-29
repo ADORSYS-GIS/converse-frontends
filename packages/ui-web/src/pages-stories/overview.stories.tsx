@@ -22,6 +22,7 @@ import {
   overviewEmptyBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
+  overviewUnwiredBudget,
 } from '../sections/budget-panel/fixtures';
 import { LatencyDashboard } from '../sections/latency-dashboard';
 import {
@@ -29,7 +30,11 @@ import {
   overviewLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import { overviewEmptyStatCards, overviewStatCards } from '../sections/overview-stat-row/fixtures';
+import {
+  overviewEmptyStatCards,
+  overviewStatCards,
+  overviewUnwiredStatCards,
+} from '../sections/overview-stat-row/fixtures';
 import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
@@ -79,6 +84,8 @@ interface OverviewScreenProps {
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
   latencyErrorMessage?: string;
+  /** Overrides `UNWIRED_CHART_MESSAGE` for `latencyStatus="unwired"` — see `LatencyBlocked`. */
+  latencyUnwiredMessage?: string;
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
@@ -99,6 +106,7 @@ function OverviewScreen({
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
   latencyErrorMessage,
+  latencyUnwiredMessage,
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
@@ -184,6 +192,7 @@ function OverviewScreen({
             height={310}
             status={latencyStatus}
             errorMessage={latencyErrorMessage}
+            unwiredMessage={latencyUnwiredMessage}
             onRetry={() => {}}
             formatXTick={formatOverviewLatencyXTick}
           />
@@ -237,6 +246,64 @@ export const Empty: Story = {
   ),
 };
 
+// #263/#272/#273 — Overview's state BEFORE #304-#307 (Epic 4 Story 4.2): PROJECTS/API KEYS counts
+// were live (via refine), everything usage- and budget-shaped had never been queried at all. Every
+// zone renders `'unwired'` rather than defaulting to `'ready'` with fabricated empty/zero data.
+//
+// Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary is still live —
+// `LatencyBlocked` below exercises it for real — and this remains the reference for what "no
+// usage-backend query client exists at all" looks like across every zone at once.
+export const Unwired: Story = {
+  render: () => (
+    <OverviewScreen
+      emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet. Project and key counts below are live."
+      statCards={overviewUnwiredStatCards}
+      spendSeries={[]}
+      spendStatus="unwired"
+      spendShareSegments={[]}
+      spendShareStatus="unwired"
+      latencySeries={[]}
+      latencyStatus="unwired"
+      budget={overviewUnwiredBudget}
+      needsAttention={undefined}
+      refillRequestStatus={undefined}
+      exportDisabledReason="Export isn't available yet."
+    />
+  ),
+};
+
+export const UnwiredLight: Story = {
+  name: 'Unwired — wireframe (light)',
+  render: Unwired.render,
+  globals: { theme: 'wireframe' },
+};
+
+// #307 — console's ACTUAL current state: SPEND/SPEND SHARE/BUDGET are real, and LATENCY alone
+// stays `'unwired'` — not because no client exists (one does, as of #304), but because the
+// documented usage-API contract has no latency/percentile field to query at all (Epic 6, tracked
+// as #294). The banner is `apps/console`'s real, customer-visible `LATENCY_BLOCKED_MESSAGE`
+// (`containers/use-overview-screen.ts`) verbatim.
+//
+// It is also the regression story for the owner-reported clipping bug: that message used to
+// render INSIDE the chart's `overflow-x-auto` box and was cut off at both ends. It now sits
+// outside that box and wraps to the column.
+export const LatencyBlocked: Story = {
+  render: () => (
+    <OverviewScreen
+      emptyMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
+      latencySeries={[]}
+      latencyStatus="unwired"
+      latencyUnwiredMessage="Blocked — the usage API doesn't report latency or percentile data yet."
+    />
+  ),
+};
+
+export const LatencyBlockedLight: Story = {
+  name: 'LatencyBlocked — wireframe (light)',
+  render: LatencyBlocked.render,
+  globals: { theme: 'wireframe' },
+};
+
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
 export const Loading: Story = {
   render: () => (
@@ -252,15 +319,9 @@ export const Loading: Story = {
 // README §6 error rules: section-level ErrorLine + Retry. A failed latency query must not take
 // the spend chart down with it, so only LATENCY errors here.
 //
-// This is also the regression story for the owner-reported clipping bug: the error line used to
-// render INSIDE the chart's `overflow-x-auto` box and was cut off at both ends. It now sits
-// outside that box and wraps to the column.
 export const DashboardError: Story = {
   render: () => (
-    <OverviewScreen
-      latencyStatus="error"
-      latencyErrorMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
-    />
+    <OverviewScreen latencyStatus="error" latencyErrorMessage="Failed to load latency data." />
   ),
 };
 

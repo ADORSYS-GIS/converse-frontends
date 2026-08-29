@@ -112,6 +112,7 @@
               "allowedModels": {},
               "defaultLimits": {},
               "billingPlan": "pro",
+              "projectQuota": "growth",
               "status": "active",
               "createdAt": "2024-01-01T12:00:00Z",
               "updatedAt": "2024-01-01T12:00:00Z"
@@ -123,6 +124,7 @@
               "allowedModels": {},
               "defaultLimits": {},
               "billingPlan": "free",
+              "projectQuota": null,
               "status": "active",
               "createdAt": "2024-01-10T10:00:00Z",
               "updatedAt": "2024-01-10T10:00:00Z"
@@ -134,7 +136,8 @@
               "allowedModels": {},
               "defaultLimits": {},
               "billingPlan": "pro",
-              "status": "archived",
+              "projectQuota": "scale",
+              "status": "suspended",
               "createdAt": "2024-01-20T11:00:00Z",
               "updatedAt": "2024-02-05T16:45:00Z"
             }
@@ -559,6 +562,60 @@
           "createdAt": "2024-01-01T12:00:00Z",
           "updatedAt": "2024-02-26T12:00:00Z",
           "secret": "lb_live_new_rotated_secret"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/procedure.listBillingPlans"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": [
+          {
+            "id": "free",
+            "name": "Free",
+            "limits": { "requestsPerSecond": 2, "requestsPerDay": 500 }
+          },
+          {
+            "id": "pro",
+            "name": "Pro",
+            "limits": { "requestsPerSecond": 20, "requestsPerDay": 50000 }
+          },
+          {
+            "id": "enterprise",
+            "name": "Enterprise"
+          }
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "/rpc/model.ProjectMember.list"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "items": [
+            {
+              "id": "member_01",
+              "projectId": "proj_03",
+              "accountId": "acc_01",
+              "role": "lead",
+              "quotaTier": null,
+              "createdAt": "2024-01-20T11:00:00Z"
+            }
+          ],
+          "totalCount": 1,
+          "pageInfo": { "limit": 10, "offset": 0, "hasNextPage": false, "hasPreviousPage": false }
         },
         "headers": {
           "Content-Type": "application/json"

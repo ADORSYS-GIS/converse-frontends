@@ -15,7 +15,7 @@ function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
         { key: 'overview', label: 'Overview', onSelect: () => onSelect('overview') },
         { key: 'api-keys', label: 'Api-Keys', onSelect: () => onSelect('api-keys') },
         { key: 'manage', label: 'Manage', onSelect: () => onSelect('manage') },
-        { key: 'admin', label: 'Admin', onSelect: () => onSelect('admin'), hint: 'ROLE' },
+        { key: 'admin', label: 'Admin', onSelect: () => onSelect('admin'), hint: 'Role' },
       ],
     },
     {

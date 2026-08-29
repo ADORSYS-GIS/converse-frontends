@@ -82,8 +82,8 @@ export function RefineAdminBudgetReviewScreen() {
               subject: selected.project,
               requesterEmail: selected.requesterEmail,
               submittedAt: selected.submittedAgo,
-              consumedAmount: selected.consumed,
-              ceilingAmount: selected.ceiling,
+              consumedAmount: selected.consumed ?? undefined,
+              ceilingAmount: selected.ceiling ?? undefined,
               requestedAmount: selected.requestedAmount,
               requesterNote:
                 'Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar.',

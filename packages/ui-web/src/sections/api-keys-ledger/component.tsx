@@ -17,12 +17,20 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
 // Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) — the centre zone of the
 // Api-Keys screen, in the order the mockup stacks it: the one-time secret strip (present only
 // right after a create or rotate), the table toolbar (status/empty/error line plus the compact-
-// tier FILTERS trigger), the key ledger with its per-row actions, and the pager. The revoke
-// gate — a `TypedConfirmDialog` retargeted to one row — belongs to this zone too, since it is the
-// row action that opens it.
+// tier FILTERS trigger), the key ledger with its per-row actions, and the pager. The revoke and
+// delete gates — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too,
+// since they are the row actions that open them.
 //
-// Presentational only: every row action is a callback prop, and the dialog's open state is the
-// caller's `revokeTarget`, not local state.
+// Delete (ticket #321): the LIFECYCLE rail states delete is "admin only, behind typed
+// confirmation" — `Del` now actually is both. `isAdmin` hides the row action entirely for a
+// non-admin rather than rendering it disabled with no explanation (the rail's own "admin only"
+// copy is the stated reason, console-ui skill §states); this is presentation only, not a
+// security boundary (see `isAdmin`'s doc comment in `types.ts`). Delete is no longer disabled for
+// `revoked` keys — ADR 0003 states delete is exactly the cleanup step for a key once it is
+// revoked or expired, so blocking it there inverted the design.
+//
+// Presentational only: every row action is a callback prop, and each dialog's open state is the
+// caller's `revokeTarget`/`deleteTarget`, not local state.
 export function ApiKeysLedger({
   keys,
   loading = false,
@@ -34,11 +42,15 @@ export function ApiKeysLedger({
   secretReveal,
   onDismissSecret,
   onRotate,
-  onDelete,
   onRequestRevoke,
   revokeTarget,
   onConfirmRevoke,
   onCancelRevoke,
+  isAdmin,
+  onRequestDelete,
+  deleteTarget,
+  onConfirmDelete,
+  onCancelDelete,
   selectedRowKeys,
   onSelectRow,
   pagination,
@@ -112,13 +124,17 @@ export function ApiKeysLedger({
                 onClick: () => onRequestRevoke(row),
                 emphasis: 'strong',
               },
-              {
-                key: 'del',
-                label: 'Del',
-                onClick: () => onDelete(row),
-                emphasis: 'muted',
-                disabled: row.status === 'revoked',
-              },
+              // Omitted (not disabled) for a non-admin — see the file-level contract note above.
+              ...(isAdmin
+                ? [
+                    {
+                      key: 'del',
+                      label: 'Del',
+                      onClick: () => onRequestDelete(row),
+                      emphasis: 'muted' as const,
+                    },
+                  ]
+                : []),
             ]}
           />
         )}
@@ -158,6 +174,19 @@ export function ApiKeysLedger({
           onConfirm={() => onConfirmRevoke(revokeTarget.row)}
           onCancel={onCancelRevoke}
           error={revokeTarget.error}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <TypedConfirmDialog
+          open
+          title={`Delete ${deleteTarget.row.name}?`}
+          description="This permanently removes the key record and its audit trail — status, revoked_at and last_used_at. This cannot be undone. Rotate or Revoke instead if you only need to stop it working."
+          objectName={deleteTarget.row.name}
+          confirmLabel="Delete"
+          onConfirm={() => onConfirmDelete(deleteTarget.row)}
+          onCancel={onCancelDelete}
+          error={deleteTarget.error}
         />
       ) : null}
     </div>

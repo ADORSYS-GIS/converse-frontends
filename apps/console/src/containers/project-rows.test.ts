@@ -1,13 +1,7 @@
 import type { Project } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
-import {
-  NEAR_CEILING_FRACTION,
-  manageTotals,
-  parseQuota,
-  projectStatus,
-  toProjectRow,
-} from './project-rows';
+import { manageTotals, projectStatus, toProjectRow } from './project-rows';
 
 function project(overrides: Partial<Project> = {}): Project {
   return {
@@ -21,7 +15,7 @@ function project(overrides: Partial<Project> = {}): Project {
     defaultLimits: {},
     billingPlan: 'standard',
     billingIdentity: 'adorsys-gis',
-    projectQuota: '500',
+    projectQuota: 'growth',
     isDefault: false,
     status: 'active',
     account: undefined as unknown as Project['account'],
@@ -31,93 +25,77 @@ function project(overrides: Partial<Project> = {}): Project {
   };
 }
 
-describe('parseQuota', () => {
-  it('parses a decimal-string quota', () => {
-    expect(parseQuota('500')).toBe(500);
-    expect(parseQuota('142.55')).toBe(142.55);
-  });
-
-  it('returns null for absent or unparseable quotas rather than zero', () => {
-    // Zero would render as a real ceiling of $0.00; null renders as an em dash.
-    expect(parseQuota(null)).toBeNull();
-    expect(parseQuota(undefined)).toBeNull();
-    expect(parseQuota('')).toBeNull();
-    expect(parseQuota('not-a-number')).toBeNull();
-  });
-});
-
 describe('projectStatus', () => {
-  it('is active by default', () => {
-    expect(projectStatus(project(), null, 500)).toBe('active');
+  it('is active for the real backend "active" value', () => {
+    expect(projectStatus(project({ status: 'active' }))).toBe('active');
   });
 
-  it.each(['archived', 'disabled'])('maps backend status %s to archived', (status) => {
-    expect(projectStatus(project({ status }), 0, 500)).toBe('archived');
+  it('is suspended for the real backend "suspended" value — never active', () => {
+    expect(projectStatus(project({ status: 'suspended' }))).toBe('suspended');
   });
 
-  it('is near ceiling at the threshold', () => {
-    expect(projectStatus(project(), 500 * NEAR_CEILING_FRACTION, 500)).toBe('near ceiling');
-  });
-
-  it('stays active just below the threshold', () => {
-    expect(projectStatus(project(), 500 * NEAR_CEILING_FRACTION - 1, 500)).toBe('active');
-  });
-
-  it('never divides by a zero or absent ceiling', () => {
-    expect(projectStatus(project(), 10, 0)).toBe('active');
-    expect(projectStatus(project(), 10, null)).toBe('active');
-  });
+  it.each(['archived', 'disabled', '', 'anything-else'])(
+    'maps an unrecognized backend status %j to "unknown" rather than crashing or defaulting to active',
+    (status) => {
+      expect(projectStatus(project({ status }))).toBe('unknown');
+    }
+  );
 });
 
 describe('toProjectRow', () => {
-  it('maps identity, roster and key counts', () => {
-    const row = toProjectRow(
-      project({
-        members: [{}, {}] as Project['members'],
-        apiKeys: [{}] as Project['apiKeys'],
-      })
-    );
+  it('maps identity fields and carries the quota tier id through as-is', () => {
+    const row = toProjectRow(project({ projectQuota: 'growth' }));
     expect(row).toMatchObject({
       id: 'gateway-prod',
       name: 'gateway-prod',
       account: 'adorsys-gis',
-      members: 2,
-      keys: 1,
-      ceiling: 500,
+      quotaTier: 'growth',
+      status: 'active',
+      statusLabel: 'active',
     });
+  });
+
+  it('never coerces a quota tier id through Number() — a non-numeric tier stays the tier label', () => {
+    const row = toProjectRow(project({ projectQuota: 'not-a-number' }));
+    expect(row.quotaTier).toBe('not-a-number');
+  });
+
+  it('renders no tier as null, not a fabricated zero', () => {
+    const row = toProjectRow(project({ projectQuota: null }));
+    expect(row.quotaTier).toBeNull();
+  });
+
+  it('renders a suspended project as suspended, never active', () => {
+    const row = toProjectRow(project({ status: 'suspended' }));
+    expect(row.status).toBe('suspended');
+    expect(row.statusLabel).toBe('suspended');
   });
 
   it('leaves spend null so the ledger shows a dash instead of a fabricated figure', () => {
     const row = toProjectRow(project());
     expect(row.spendMtd).toBeNull();
-    expect(row.usedPercent).toBeNull();
   });
 
-  it('tolerates absent relation arrays', () => {
-    const row = toProjectRow(
-      project({
-        members: undefined as unknown as Project['members'],
-        apiKeys: undefined as unknown as Project['apiKeys'],
-      })
-    );
-    expect(row.members).toBe(0);
-    expect(row.keys).toBe(0);
+  it('does not carry members/apiKeys counts — the list endpoint never returns those relations', () => {
+    const row = toProjectRow(project());
+    expect(row).not.toHaveProperty('members');
+    expect(row).not.toHaveProperty('keys');
   });
 });
 
 describe('manageTotals', () => {
-  it('sums the ceilings of the rows on screen', () => {
-    const rows = [toProjectRow(project()), toProjectRow(project({ projectQuota: '250' }))];
+  it('never sums spend into a fabricated $0.00 — it stays null like every row cell', () => {
+    const rows = [toProjectRow(project()), toProjectRow(project({ projectQuota: 'starter' }))];
     expect(manageTotals(rows, 7)).toEqual({
       shownLabel: '2 of 7',
-      spendMtd: 0,
-      ceiling: 750,
-      usedPercent: 0,
+      spendMtd: null,
     });
   });
 
-  it('does not divide by a zero ceiling', () => {
-    const rows = [toProjectRow(project({ projectQuota: null }))];
-    expect(manageTotals(rows, 1).usedPercent).toBe(0);
+  it('has no ceiling/usedPercent field — quota tiers are categorical and cannot be summed', () => {
+    const rows = [toProjectRow(project())];
+    const totals = manageTotals(rows, 1);
+    expect(totals).not.toHaveProperty('ceiling');
+    expect(totals).not.toHaveProperty('usedPercent');
   });
 });

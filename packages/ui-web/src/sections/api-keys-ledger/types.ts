@@ -20,6 +20,17 @@ export type ApiKeysRevokeTarget = {
   error?: string;
 };
 
+/**
+ * Props for the `TypedConfirmDialog` gating a Delete action, retargeted to the row in question —
+ * the same shape as `ApiKeysRevokeTarget`, kept as its own type because the two actions are never
+ * interchangeable (ticket #321: Delete is destructive and admin-only, Revoke is not).
+ */
+export type ApiKeysDeleteTarget = {
+  row: ApiKeyRow;
+  /** Kept open with an inline error when a confirmed delete fails server-side. */
+  error?: string;
+};
+
 /** The one-time secret strip shared by create and rotate (api-keys.svg). */
 export type ApiKeysSecretReveal = {
   heading: string;
@@ -55,12 +66,24 @@ export interface ApiKeysLedgerProps {
   onDismissSecret: () => void;
 
   onRotate: (row: ApiKeyRow) => void;
-  onDelete: (row: ApiKeyRow) => void;
   /** Opens the `TypedConfirmDialog` for this row. */
   onRequestRevoke: (row: ApiKeyRow) => void;
   revokeTarget?: ApiKeysRevokeTarget | null;
   onConfirmRevoke: (row: ApiKeyRow) => void;
   onCancelRevoke: () => void;
+
+  /**
+   * Client-side presentation gate only (ticket #321) — it hides the `Del` row action for a
+   * non-admin so the LIFECYCLE rail's "admin only" copy stays true of what is actually on
+   * screen. It is **not** a security boundary: `lightbridge-authz` enforces `apiKeys:delete`
+   * server-side regardless of what this flag renders (`packages/hooks/src/rbac.ts`).
+   */
+  isAdmin: boolean;
+  /** Opens the `TypedConfirmDialog` for this row, gating Delete exactly like Revoke. */
+  onRequestDelete: (row: ApiKeyRow) => void;
+  deleteTarget?: ApiKeysDeleteTarget | null;
+  onConfirmDelete: (row: ApiKeyRow) => void;
+  onCancelDelete: () => void;
 
   selectedRowKeys?: string[];
   onSelectRow?: (row: ApiKeyRow) => void;

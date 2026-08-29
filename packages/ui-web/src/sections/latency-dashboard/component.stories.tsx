@@ -30,6 +30,9 @@ export const Populated: Story = {};
 
 export const Empty: Story = { args: { series: [] } };
 
+// #272 — no usage-backend query client exists yet; distinct wording from `Empty` above.
+export const Unwired: Story = { args: { series: [], status: 'unwired' } };
+
 export const Loading: Story = { args: { status: 'loading' } };
 
 export const ErrorState: Story = {

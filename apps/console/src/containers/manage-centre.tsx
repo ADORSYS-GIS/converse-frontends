@@ -1,5 +1,7 @@
 'use client';
 
+import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
 import {
   MANAGE_FILTERS_RAIL_LABEL,
@@ -33,7 +35,11 @@ export function ManageCentre() {
   return (
     <>
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+        <ScreenHeading title="Projects" />
+
+        <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
+
+        <CreateProjectDialog {...screen.createProjectDialog} />
 
         <ManageProjectsLedger
           projects={screen.rows}
@@ -46,6 +52,8 @@ export function ManageCentre() {
           search={screen.search}
           onSearchChange={screen.setSearch}
           onNewProject={screen.newProject}
+          newProjectDisabled={!screen.createProjectEligible}
+          newProjectReason={screen.createProjectReason}
           selectedRowKeys={screen.selectedProject ? [screen.selectedProject.id] : []}
           onSelectRow={screen.selectRow}
           pagination={screen.pagination}

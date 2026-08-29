@@ -5,6 +5,7 @@ import { ErrorLine } from '../../components/error-line';
 import { LatencyRidgeline } from '../../components/latency-ridgeline';
 import { useResizeObserver } from '../../lib/use-resize-observer';
 import { DASHBOARD_LABEL_CLASS } from '../../lib/type-roles';
+import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { LatencyDashboardProps } from './types';
 
 // Loading-skeleton geometry for the LATENCY ridgeline, matching `LatencyRidgeline`'s own margin
@@ -42,6 +43,7 @@ export function LatencyDashboard({
   height,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   onSelectSeries,
   formatXTick,
@@ -54,9 +56,9 @@ export function LatencyDashboard({
 
   return (
     // The observed element is the OUTER wrapper, not the chart's scroll box: that box only exists
-    // in the `ready` branch now, and a ref that mounts only in `ready` would leave the loading
-    // skeleton measuring `fallbackWidth` forever. Both are full-width children of this div, so
-    // the measurement is identical either way.
+    // in the chart branch now, and a ref that mounts only there would leave the loading skeleton
+    // measuring `fallbackWidth` forever. Both are full-width children of this div, so the
+    // measurement is identical either way.
     <div ref={ref} className={className}>
       <div className="flex items-center justify-between gap-2">
         <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
@@ -64,8 +66,8 @@ export function LatencyDashboard({
       </div>
       {/* Only the CHART goes inside the horizontal scroller. The error and loading states are
           prose/skeleton that wrap to the column, and putting them in the scroll box made them
-          scroll with it: a horizontally-scrolled container clipped the empty/error sentence at
-          BOTH ends, rendering it as "…isn't available: the usage API doesn't report latency or
+          scroll with it: a horizontally-scrolled container clipped the status sentence at BOTH
+          ends, rendering it as "…isn't available: the usage API doesn't report latency or
           percentile data yet. Spend, budget an…" (owner screenshot, 2026-08-29). A status line
           about a chart that is not being drawn has no reason to live in that chart's viewport. */}
       {status === 'error' ? (
@@ -90,6 +92,10 @@ export function LatencyDashboard({
             series={series}
             width={measuredWidth}
             height={height}
+            // Only overridden for `unwired` — see `SpendDashboard`'s equivalent comment.
+            emptyMessage={
+              status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+            }
             formatXTick={formatXTick}
             onSelectSeries={onSelectSeries}
           />

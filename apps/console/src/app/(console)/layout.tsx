@@ -1,6 +1,8 @@
 'use client';
 
+import { AccountBadge } from '@lightbridge/ui-web/src/components/account-badge';
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
+import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -11,6 +13,11 @@ import {
   navItems,
   routeFromPathname,
 } from '../../client/console-chrome';
+import {
+  notificationText,
+  useConsoleNotification,
+  useDismissConsoleNotification,
+} from '../../client/console-notifications';
 import { useConsoleScope } from '../../client/use-console-scope';
 import { useConsoleSession } from '../../client/session-context';
 
@@ -59,18 +66,50 @@ export default function ConsoleLayout({
   const route = routeFromPathname(pathname);
   const session = useConsoleSession();
   const consoleScope = useConsoleScope();
+  // converse-frontends#323: the console-wide default visibility path for a failed refine
+  // mutation — see `console-notifications.ts`'s module doc comment for the full mechanism.
+  const notification = useConsoleNotification();
+  const dismissNotification = useDismissConsoleNotification();
 
-  const leftSecondaryLabel = route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
+  // Only Manage and Admin still supply a `@scope` sub-nav; Overview and Api-Keys render nothing
+  // there (their `@scope/default.tsx` returns null), so this label is never read on those routes.
+  const leftSecondaryLabel = route === 'admin' ? 'Admin' : 'Manage';
 
   return (
     <ConsoleShell
       header={
         <ConsoleHeaderBar
           orgSwitcher={
-            <span className="text-soft font-mono text-xs">
-              {consoleScope.value.accountId || '—'}
-            </span>
+            // The console's ONE rendering of which account you are in, and the only place it can
+            // be changed (owner review 2026-08-29). It replaced four simultaneous renderings of
+            // the raw account UUID — this header, the page subline, the left rail's `Scope` echo,
+            // and the right rail's `Account` filter.
+            //
+            // `name` is deliberately unset: the authz `Account` model carries no name field at
+            // all (`packages/authz-rpc/generated/src/models.ts` — `id`, `status`, `defaultQuota`,
+            // `projects`, nothing else), so the badge's short-token form (`acct_49534505`) is not
+            // a degraded fallback here but the permanent rendering, until the schema grows one.
+            // The full id stays on hover and one click away.
+            <AccountBadge
+              accountId={consoleScope.value.accountId}
+              accounts={consoleScope.accounts.map((account) => ({ id: account.id }))}
+              onSelectAccount={(accountId) =>
+                consoleScope.setValue({ accountId, projectId: null })
+              }
+              onCopyId={(accountId) => {
+                // Best-effort: `navigator.clipboard` is undefined on insecure origins and can
+                // reject when the document is not focused. A failed copy leaves the id visible in
+                // the tooltip, so there is nothing to report and nothing to recover.
+                void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
+              }}
+            />
           }
+        />
+      }
+      banner={
+        <MutationFailureBanner
+          message={notificationText(notification)}
+          onDismiss={dismissNotification}
         />
       }
       nav={{

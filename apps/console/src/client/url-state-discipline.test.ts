@@ -77,11 +77,19 @@ describe('ADR 0011 discipline', () => {
     // The exceptions ADR 0011 Decision 3 sanctions, and nothing else:
     //  - the command palette's open flag (ephemeral chrome interaction — a launcher, not a view),
     //  - the auth doorway's pre-redirect status (in-flight submit, one paint before navigating),
-    //  - the reviewer's unsent decision note (a pre-submit draft that must never reach a URL).
+    //  - the reviewer's unsent decision note (a pre-submit draft that must never reach a URL),
+    //  - the create-key dialog's unsent name/expiry/plan draft (ticket #319 — same shape as the
+    //    decision note above: `?create=1` itself IS in the URL, its typed-but-unsubmitted
+    //    contents are not),
+    //  - the create-project dialog's unsent name/billing-identity/plan draft (ticket #303 — same
+    //    shape again: `?create=1` on `/manage` IS in the URL, its typed-but-unsubmitted contents
+    //    are not).
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
       join('containers', 'use-admin-screen.ts'),
+      join('containers', 'use-api-keys-screen.ts'),
+      join('containers', 'use-manage-screen.ts'),
     ]);
   });
 

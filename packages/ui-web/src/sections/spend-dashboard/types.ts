@@ -2,8 +2,19 @@ import type { ReactNode } from 'react';
 
 import type { SpendSeriesSeries } from '../../components/spend-series-chart';
 
-/** Per-dashboard load status — one dashboard failing must never take its neighbour down. */
-export type DashboardStatus = 'ready' | 'loading' | 'error';
+/**
+ * Per-dashboard load status — one dashboard failing must never take its neighbour down.
+ *
+ * `'unwired'` is distinct from both `'loading'` (implies a request is in flight and data is
+ * imminent) and the default `'ready'` rendering an empty `series`/`slices` array (implies a query
+ * ran and genuinely found nothing — chart-core's own "No usage in this range." wording). Neither
+ * is honest for "this data source has never been queried at all," which is what Overview's spend,
+ * latency and budget zones actually are today (no usage-backend query client yet — see
+ * `use-overview-screen.ts`'s `USAGE_PENDING_MESSAGE`). `'unwired'` renders the same
+ * axes-stay/inline-status-line shape console-ui's empty state already uses, with wording that
+ * says "never wired," never "checked and empty."
+ */
+export type DashboardStatus = 'ready' | 'loading' | 'error' | 'unwired';
 
 export interface SpendDashboardProps {
   /** Uppercase tracked heading. Defaults to overview.svg's own wording. */
@@ -18,6 +29,8 @@ export interface SpendDashboardProps {
   height: number;
   status?: DashboardStatus;
   errorMessage?: string;
+  /** Overrides `UNWIRED_CHART_MESSAGE` for `status="unwired"`. */
+  unwiredMessage?: string;
   onRetry?: () => void;
   onSelectSeries?: (key: string | null) => void;
   formatXTick?: (date: Date) => string;

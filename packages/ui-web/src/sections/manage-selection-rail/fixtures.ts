@@ -5,5 +5,6 @@ import type { ProjectRow } from '../manage-projects-ledger/types';
 
 export const selectedProjectFixture: ProjectRow = manageProjectsFixture[0];
 
-/** An archived project — its spend/ceiling are `null`, so the section shows em dashes. */
-export const archivedProjectFixture: ProjectRow = manageProjectsFixture[10];
+/** A suspended project with no quota tier assigned — its spend/tier are `null`, so the section
+ * shows em dashes. */
+export const suspendedProjectFixture: ProjectRow = manageProjectsFixture[10];

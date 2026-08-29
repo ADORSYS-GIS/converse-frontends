@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { manageStatusOptions } from '../manage-filters-rail/fixtures';
 import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './component';
-import { manageLastExports } from './fixtures';
 import type { ManageReportRailProps } from './types';
 
 function makeProps(overrides: Partial<ManageReportRailProps> = {}): ManageReportRailProps {
@@ -20,7 +19,6 @@ function makeProps(overrides: Partial<ManageReportRailProps> = {}): ManageReport
     format: 'csv',
     onFormatChange: vi.fn(),
     onGenerate: vi.fn(),
-    lastExports: manageLastExports,
     ...overrides,
   };
 }

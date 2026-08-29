@@ -6,12 +6,23 @@ import { cn } from '../../cn';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
+import { InlineStatus } from '../inline-status';
 import { SegmentedControl } from '../segmented-control';
 import type { ReportExportPanelProps } from './types';
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT (not self-panelled)
 // for the Manage screen (manage-projects.svg): period · scope slot · group-by segmented ·
-// include toggles · CSV|PDF segmented · one Generate report primary · LAST EXPORTS list.
+// include toggles · CSV|PDF segmented · one Generate report primary.
+//
+// Ticket #309: the LAST EXPORTS list that used to render below the primary is gone, not just
+// emptied. It was never a real list — `use-manage-screen.ts` fed it a hardcoded `[]` because no
+// export had ever been attempted (console-ui#326's "Export history is unwired." fix), but now
+// that `Generate report` calls the real `/api/reports/consumption` route (#308), keeping a
+// permanently-empty "history" section would misrepresent a genuinely-succeeding action as one
+// that still has nothing to show. There is no backend surface that records past exports (no such
+// table/procedure in `authz.cstack`), so per the ticket's own Risk section the safer default is
+// removing the section outright rather than half-implementing it — recorded here as the decision,
+// not left as a TODO.
 //
 // ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled `sr-only`
 // checkbox + drawn box/check-mark pair. daisy's `.toggle` CSS already matches `[aria-checked]`
@@ -34,7 +45,7 @@ export function ReportExportPanel({
   onFormatChange,
   onGenerate,
   generating = false,
-  lastExports,
+  notice,
   className,
 }: ReportExportPanelProps) {
   return (
@@ -50,7 +61,12 @@ export function ReportExportPanel({
 
       <div className="flex flex-col gap-1.5">
         <span className={fieldLabelClassName}>Group by</span>
-        <SegmentedControl aria-label="Group by" options={groupByOptions} value={groupBy} onChange={onGroupByChange} />
+        <SegmentedControl
+          aria-label="Group by"
+          options={groupByOptions}
+          value={groupBy}
+          onChange={onGroupByChange}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -61,7 +77,7 @@ export function ReportExportPanel({
               onCheckedChange={(checked) => onToggleInclude(toggle.id, checked)}
               className="toggle"
             />
-            <BaseField.Label className="cursor-pointer font-mono text-xs text-soft">
+            <BaseField.Label className="text-soft cursor-pointer font-mono text-xs">
               {toggle.label}
             </BaseField.Label>
           </BaseField.Root>
@@ -86,26 +102,29 @@ export function ReportExportPanel({
         variant="primary"
         className="w-full"
         disabled={generating}
-        onClick={() => onGenerate({ period, groupBy, format, includes: includeToggles.filter((t) => t.checked).map((t) => t.id) })}
-      >
+        onClick={() =>
+          onGenerate({
+            period,
+            groupBy,
+            format,
+            includes: includeToggles.filter((t) => t.checked).map((t) => t.id),
+          })
+        }>
         {generating ? 'Generating…' : 'Generate report'}
       </Button>
 
-      <div className="flex flex-col gap-3">
-        <span className={fieldLabelClassName}>Last exports</span>
-        {lastExports.length === 0 ? (
-          <p className="font-mono text-[11px] text-subtle">No exports yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {lastExports.map((entry) => (
-              <li key={`${entry.filename}-${entry.date}`} className="flex items-baseline justify-between gap-3">
-                <span className="font-mono text-xs text-soft">{entry.filename}</span>
-                <span className="font-mono text-[11px] text-subtle">{entry.date}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {notice ? (
+        <InlineStatus
+          action={
+            notice.onDismiss ? (
+              <Button type="button" variant="ghost" size="sm" onClick={notice.onDismiss}>
+                Dismiss
+              </Button>
+            ) : undefined
+          }>
+          {notice.message}
+        </InlineStatus>
+      ) : null}
     </div>
   );
 }

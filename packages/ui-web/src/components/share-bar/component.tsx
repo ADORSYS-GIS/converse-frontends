@@ -25,6 +25,8 @@ import type { ShareBarProps, ShareBarSegment } from './types';
 
 const MIN_VISIBLE_PERCENT = 0.6;
 
+const DEFAULT_EMPTY_MESSAGE = 'No spend in this range.';
+
 function defaultFormatPercent(percent: number): string {
   if (percent === 0) return '0%';
   if (percent < 1) return '<1%';
@@ -38,6 +40,7 @@ export function ShareBar({
   selectedKey,
   onSelectSegment,
   formatPercent = defaultFormatPercent,
+  emptyMessage = DEFAULT_EMPTY_MESSAGE,
   className,
 }: ShareBarProps) {
   const total = segments.reduce((sum, segment) => sum + Math.max(segment.value, 0), 0);
@@ -74,6 +77,10 @@ export function ShareBar({
         ))}
         {total === 0 ? <span className="flex-1 bg-raised" /> : null}
       </div>
+
+      {computed.length === 0 ? (
+        <p className="font-mono text-[11px] text-subtle">{emptyMessage}</p>
+      ) : null}
 
       <ul className="flex flex-col">
         {computed.map((segment) => {

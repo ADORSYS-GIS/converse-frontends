@@ -21,10 +21,10 @@ session:
 # ── Keycloak / OIDC ───────────────────────────────────────────────────────────────────────────
 # Unchanged from config.yaml — wiremock only stands in for the authz-api/authz-budget backends,
 # not Keycloak. `docker compose up -d keycloak-26` is still required for login to work.
-keycloak:
+idp:
   issuer: 'http://localhost:13444/realms/lightbridge-dev'
   clientId: 'self-service'
-  clientSecret: '{env:KEYCLOAK_CLIENT_SECRET}'
+  clientSecret: '{env:IDP_CLIENT_SECRET}'
   scopes: 'openid profile email offline_access'
   expectedAudiences:
     - 'converse-frontend'

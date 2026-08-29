@@ -17,7 +17,7 @@ const groupByOptions = [
   { value: 'project-model', label: 'Project × Model' },
 ];
 
-function Demo({ lastExports }: { lastExports: { filename: string; date: string }[] }) {
+function Demo() {
   const [period, setPeriod] = useState('2026-02');
   const [groupBy, setGroupBy] = useState('project-model');
   const [format, setFormat] = useState<ReportExportFormat>('csv');
@@ -27,14 +27,16 @@ function Demo({ lastExports }: { lastExports: { filename: string; date: string }
   ]);
 
   return (
-    <div className="w-[280px] bg-surface p-4">
+    <div className="bg-surface w-[280px] p-4">
       <ReportExportPanel
         period={period}
         onPeriodChange={setPeriod}
         scopeSlot={
           <div className="flex flex-col gap-1.5">
-            <span className="block font-mono text-[10px] uppercase tracking-[.09em] text-subtle">Scope</span>
-            <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-sm text-soft">
+            <span className="text-subtle block font-mono text-[10px] tracking-[.09em] uppercase">
+              Scope
+            </span>
+            <div className="border-border bg-chrome text-soft flex h-[30px] items-center rounded-[2px] border px-3 font-mono text-sm">
               Account · adorsys-gis
             </div>
           </div>
@@ -44,35 +46,48 @@ function Demo({ lastExports }: { lastExports: { filename: string; date: string }
         onGroupByChange={setGroupBy}
         includeToggles={toggles}
         onToggleInclude={(id, checked) =>
-          setToggles((prev) => prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle)))
+          setToggles((prev) =>
+            prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle))
+          )
         }
         format={format}
         onFormatChange={setFormat}
         onGenerate={() => {}}
-        lastExports={lastExports}
       />
     </div>
   );
 }
 
 export const Default: Story = {
-  render: () => (
-    <Demo
-      lastExports={[
-        { filename: '2026-01 · CSV', date: '4 d ago' },
-        { filename: '2025-12 · PDF', date: '2026-01-03' },
-      ]}
-    />
-  ),
+  render: () => <Demo />,
 };
 
-export const NoExportsYet: Story = {
-  render: () => <Demo lastExports={[]} />,
+// console-ui#325 — pressing Generate report on a genuine failure (e.g. the usage backend is
+// unreachable): a non-alert status line with Dismiss, never an ErrorLine with Retry.
+export const Notice: Story = {
+  render: () => (
+    <div className="bg-surface w-[280px] p-4">
+      <ReportExportPanel
+        period="2026-02"
+        onPeriodChange={() => {}}
+        scopeSlot={null}
+        groupByOptions={groupByOptions}
+        groupBy="project"
+        onGroupByChange={() => {}}
+        includeToggles={[{ id: 'per-model', label: 'Per-model breakdown', checked: false }]}
+        onToggleInclude={() => {}}
+        format="csv"
+        onFormatChange={() => {}}
+        onGenerate={() => {}}
+        notice={{ message: 'Could not generate the report. Try again.', onDismiss: () => {} }}
+      />
+    </div>
+  ),
 };
 
 export const Generating: Story = {
   render: () => (
-    <div className="w-[280px] bg-surface p-4">
+    <div className="bg-surface w-[280px] p-4">
       <ReportExportPanel
         period="2026-02"
         onPeriodChange={() => {}}
@@ -86,7 +101,6 @@ export const Generating: Story = {
         onFormatChange={() => {}}
         onGenerate={() => {}}
         generating
-        lastExports={[]}
       />
     </div>
   ),

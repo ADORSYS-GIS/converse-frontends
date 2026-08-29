@@ -42,12 +42,18 @@ export function AdminCentre() {
           onSelectRequest={screen.selectRequest}
         />
 
-        <DecisionsLedger decisions={screen.decisions} pagination={screen.pagination} />
+        <DecisionsLedger
+          decisions={screen.decisions}
+          pagination={screen.pagination}
+          sourceCaveat={screen.decidedSourceCaveat}
+        />
       </div>
 
-      {/* Review detail has no trigger of its own — it is selection-driven. */}
+      {/* Review detail has no trigger of its own — it is selection-driven. Keyed the same way as
+          `admin-rail.tsx` — see that file's comment: converse-frontends#322's decline-note
+          validation is local state scoped to the selected request. */}
       <SelectionSheet selectionKey={screen.selectedRequestId} label={REVIEW_DETAIL_RAIL_LABEL}>
-        <ReviewDetailRail detail={screen.reviewDetail} />
+        <ReviewDetailRail key={screen.selectedRequestId ?? 'none'} detail={screen.reviewDetail} />
       </SelectionSheet>
     </>
   );

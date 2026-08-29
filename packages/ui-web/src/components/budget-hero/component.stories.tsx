@@ -50,3 +50,33 @@ export const NoActionOrCaption: Story = {
     ceiling: 100,
   },
 };
+
+// #273 — no usage-backend query client exists yet: an honest "Not wired" headline at the
+// numeral's own visual weight, no meter, no fabricated $0.00.
+export const Unwired: Story = {
+  args: {
+    status: 'unwired',
+    caption: 'Budget figures arrive with the budget query wiring.',
+  },
+};
+
+export const UnwiredLight: Story = {
+  name: 'Unwired — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: Unwired.args,
+};
+
+// #306 — a budget-balance/usage query in flight: skeleton geometry, no spinner.
+export const Loading: Story = {
+  args: { status: 'loading' },
+};
+
+// #306 — a budget-balance/usage query that failed. Distinct from `Unwired`: this account HAS a
+// real budget, the query for it just failed — never rendered the same as "never wired."
+export const ErrorState: Story = {
+  args: {
+    status: 'error',
+    errorMessage: 'Failed to load budget consumption.',
+    onRetry: () => {},
+  },
+};

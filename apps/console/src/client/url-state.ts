@@ -3,6 +3,7 @@
 import {
   debounce,
   parseAsArrayOf,
+  parseAsBoolean,
   parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
@@ -139,9 +140,15 @@ export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
  * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
  * per keystroke while the address bar (and the refine query it drives) settles once typing stops.
  *
- * `revoke` holds the id of the key whose revoke confirmation is open. A dialog *target* is view
- * state — Back closes the dialog, and a colleague can be sent straight to the confirmation. The
- * dialog's failure reason is not here: it belongs to the mutation that failed.
+ * `revoke` holds the id of the key whose revoke confirmation is open, and `delete` the same for
+ * the (admin-gated, ticket #321) delete confirmation. A dialog *target* is view state — Back
+ * closes the dialog, and a colleague can be sent straight to the confirmation. Neither dialog's
+ * failure reason is here: it belongs to the mutation that failed.
+ *
+ * `create` (ticket #319) is the same idea with no id to carry — the create-key dialog has exactly
+ * one possible target (the active project), so a bare boolean is the whole contract. Its draft
+ * inputs (name/expiry/plan) are NOT here: `use-api-keys-screen.ts`'s own "SANCTIONED LOCAL STATE"
+ * comment explains why a typed-but-unsent form draft must not reach the URL or history.
  */
 export const apiKeysParsers = {
   page: parseAsInteger.withDefault(1),
@@ -149,20 +156,32 @@ export const apiKeysParsers = {
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   selectedKeyId: parseAsString.withDefault(''),
   revokeKeyId: parseAsString.withDefault(''),
+  deleteKeyId: parseAsString.withDefault(''),
+  createOpen: parseAsBoolean.withDefault(false),
 };
 
-const apiKeysUrlKeys = { search: 'q', selectedKeyId: 'key', revokeKeyId: 'revoke' };
+const apiKeysUrlKeys = {
+  search: 'q',
+  selectedKeyId: 'key',
+  revokeKeyId: 'revoke',
+  deleteKeyId: 'delete',
+  createOpen: 'create',
+};
 
 export function useApiKeysParams() {
   return useQueryStates(apiKeysParsers, { urlKeys: apiKeysUrlKeys, history: 'replace' });
 }
 
-/** Row selection and the revoke dialog are navigation-grade; the filters above them are not. */
+/** Row selection and the revoke/delete dialogs are navigation-grade; the filters above them are not. */
 export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── /manage ──────────────────────────────────────────────────────────────────────────────────
 
-export const MANAGE_STATUSES = ['all', 'active', 'archived'] as const;
+// `active | suspended` are the only two values `Project.status` ever holds (authz.cstack:274-277,
+// 699-700 — mutated only by `disableProject`/`enableProject`). `archived` never existed on the
+// backend (issue #268); a bookmarked `?status=archived` link now falls back to nuqs's `all`
+// default rather than silently matching zero rows forever.
+export const MANAGE_STATUSES = ['all', 'active', 'suspended'] as const;
 export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
 export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
 export const REPORT_FORMATS = ['csv', 'pdf'] as const satisfies readonly ReportExportFormat[];
@@ -183,6 +202,11 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
  * `include` is a set, so it is a comma-separated array param (`?include=totals,per-model`) rather
  * than one boolean param per toggle — the URL stays legible and a new toggle costs no new param.
  * `parseAsArrayOf` compares by value, so the default set still clears itself out of the URL.
+ *
+ * `createOpen` (ticket #303) is the same idea `apiKeysParsers.createOpen` (#319) established:
+ * the create-project dialog has exactly one possible target (the scoped account), so a bare
+ * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
+ * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -196,6 +220,7 @@ export const manageParsers = {
   include: parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
     'totals',
   ] as ReportIncludeId[]),
+  createOpen: parseAsBoolean.withDefault(false),
 };
 
 const manageUrlKeys = {
@@ -203,6 +228,7 @@ const manageUrlKeys = {
   budgetState: 'budget-state',
   selectedProjectId: 'row',
   reportGroupBy: 'report-group',
+  createOpen: 'create',
 };
 
 export function useManageParams() {

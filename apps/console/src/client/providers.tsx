@@ -1,5 +1,35 @@
 'use client';
 
+/**
+ * `core-js/stable` — a global, eager, side-effect import.
+ *
+ * `providers.tsx` is `'use client'` and is mounted once by the root layout
+ * (`../app/layout.tsx`) around the entire page tree, so this import (unlike the `ConsoleProviders`
+ * import a few lines down, which is deliberately deferred via `next/dynamic`) is a *static* import
+ * at module top level: it lands in the shared client entry chunk and runs in the browser on every
+ * route, before any route-specific code. That placement matters — the root layout itself is a
+ * **server** component (see its doc comment), and importing a polyfill there would patch the
+ * Node.js runtime instead, shipping nothing to users while still looking like it worked.
+ *
+ * What this DOES: polyfills JS standard-library *built-ins/APIs* (e.g. `Array.prototype.at`,
+ * `Object.groupBy`, `Promise.withResolvers`) so they exist even on a browser engine that predates
+ * them.
+ *
+ * What this does NOT do: down-level *syntax* (optional chaining, nullish coalescing, class
+ * fields, etc.) — that's Next/SWC's job, driven by `browserslist` below, and is untouched by
+ * core-js entirely.
+ *
+ * `browserslist` in `apps/console/package.json` is deliberately left at `chrome 111` / `edge 111`
+ * / `firefox 111` / `safari 16.4` for production and stays that way. Do NOT lower it to "match"
+ * this polyfill: at older targets, Turbopack/LightningCSS folds daisyUI's selector lists into
+ * `:is()`, whose specificity is set by its *most specific* argument, so daisyUI's stock theme
+ * values silently beat this project's overrides and the whole `#DA5C2C` accent system reverts to
+ * grey — no error, no warning, no failing test (see the `development` entry pinned at
+ * `firefox 121` for the same reason). Net effect: this import only broadens standard-library API
+ * coverage for the already-supported browser floor; it does not add support for older browsers.
+ */
+import 'core-js/stable';
+
 import { ensureCborCodecReady } from '@lightbridge/authz-rpc';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';

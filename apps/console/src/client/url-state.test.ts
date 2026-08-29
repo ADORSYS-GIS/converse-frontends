@@ -47,9 +47,10 @@ describe('the URL param contract', () => {
     expect(names).toEqual({
       scope: ['account', 'project'],
       overview: ['bucket', 'group-by', 'model', 'range', 'series'],
-      apiKeys: ['key', 'page', 'q', 'revoke', 'status'],
+      apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
         'budget-state',
+        'create',
         'format',
         'include',
         'page',
@@ -121,6 +122,7 @@ describe('the URL param contract', () => {
     expect(isParserBijective(apiKeysParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(apiKeysParsers.status, 'revoked', 'revoked')).toBe(true);
     expect(isParserBijective(apiKeysParsers.search, 'alpha beta', 'alpha beta')).toBe(true);
+    expect(isParserBijective(apiKeysParsers.createOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.budgetState, 'no-quota', 'no-quota')).toBe(true);
     expect(isParserBijective(manageParsers.period, '2026-07', '2026-07')).toBe(true);
     expect(isParserBijective(manageParsers.format, 'pdf', 'pdf')).toBe(true);
@@ -143,7 +145,7 @@ describe('the URL param contract', () => {
   it('keeps every closed vocabulary in step with the type it claims to satisfy', () => {
     expect(OVERVIEW_RANGES).toEqual(['7d', '30d', '90d']);
     expect(API_KEY_STATUSES).toEqual(['all', 'active', 'revoked']);
-    expect(MANAGE_STATUSES).toEqual(['all', 'active', 'archived']);
+    expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
     expect(SECTION_SHEET_IDS).toEqual(['view', 'filters', 'export', 'scope', 'report']);

@@ -38,8 +38,14 @@ type Story = StoryObj<typeof SpendDashboard>;
 
 export const Populated: Story = {};
 
-// §6 — the axes and heading stay; the chart simply has nothing to draw.
+// §6 — the axes and heading stay; the chart simply has nothing to draw (a query ran and found
+// zero rows — different from `Unwired` below, where no query has ever run).
 export const Empty: Story = { args: { series: [] } };
+
+// #272 — the real state of Overview's SPEND zone today: no usage-backend query client exists yet.
+// Axes stay rendered; the inline status line names the real reason, distinct from `Empty`'s
+// "No usage in this range." (which would falsely imply a query ran).
+export const Unwired: Story = { args: { series: [], status: 'unwired' } };
 
 export const Loading: Story = { args: { status: 'loading' } };
 
@@ -53,11 +59,11 @@ export const MdTierWithTriggers: Story = {
   args: {
     actions: (
       <>
-        <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="View">
-          <p className="font-mono text-xs text-ink">Range · Bucket · Group by</p>
+        <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
+          <p className="text-ink font-mono text-xs">Range · Bucket · Group by</p>
         </SectionSheetTrigger>
         <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
-          <p className="font-mono text-xs text-ink">Account · Project · Model</p>
+          <p className="text-ink font-mono text-xs">Account · Project · Model</p>
         </SectionSheetTrigger>
       </>
     ),

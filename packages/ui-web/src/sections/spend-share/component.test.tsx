@@ -94,4 +94,32 @@ describe('SpendShareSection', () => {
     fireEvent.click(screen.getAllByRole('button')[0]);
     expect(selected).toBeNull();
   });
+
+  // Regression for #272 — see `spend-dashboard`'s equivalent block for the full rationale.
+  describe('status="unwired"', () => {
+    it('keeps the bar rendered above an inline status line naming the real reason', () => {
+      render(<SpendShareSection segments={[]} status="unwired" />);
+
+      expect(screen.getByText('Not wired — see banner above.')).toBeInTheDocument();
+      expect(screen.queryByText('No spend in this range.')).not.toBeInTheDocument();
+    });
+
+    it('prints no total — an unwired zone must never show a figure, not even zero', () => {
+      render(<SpendShareSection segments={[]} total="$0.00" status="unwired" />);
+
+      expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    });
+
+    it('never routes through ErrorLine — nothing failed, there is nothing to retry', () => {
+      render(<SpendShareSection segments={[]} status="unwired" />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('never shows the loading "Querying usage…" line — no request is actually in flight', () => {
+      render(<SpendShareSection segments={[]} status="unwired" />);
+
+      expect(screen.queryByText('Querying usage…')).not.toBeInTheDocument();
+    });
+  });
 });

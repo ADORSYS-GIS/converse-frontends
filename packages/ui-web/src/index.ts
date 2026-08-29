@@ -55,6 +55,8 @@ export { Meter } from './components/meter';
 export type { MeterProps } from './components/meter';
 export { BudgetHero } from './components/budget-hero';
 export type { BudgetHeroProps } from './components/budget-hero';
+export { formatBillingPlanLimits } from './lib/billing-plan-limits';
+export type { BillingPlanLimits } from './lib/billing-plan-limits';
 
 // ── charts
 export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
@@ -109,7 +111,6 @@ export type {
   ReportExportParams,
   ReportExportFormat,
   ReportIncludeToggle,
-  LastExportEntry,
 } from './components/report-export-panel';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
@@ -127,9 +128,21 @@ export type {
   CommandPaletteTriggerProps,
 } from './components/command-palette';
 
+export { CreateApiKeyDialog } from './components/create-api-key-dialog';
+export type {
+  CreateApiKeyDialogProps,
+  CreateApiKeyPlanOption,
+} from './components/create-api-key-dialog';
+
+export { CreateProjectDialog } from './components/create-project-dialog';
+export type {
+  CreateProjectDialogProps,
+  CreateProjectPlanOption,
+} from './components/create-project-dialog';
+
 // ── states
 export { InlineStatus } from './components/inline-status';
-export type { InlineStatusProps } from './components/inline-status';
+export type { InlineStatusProps, PlaceholderNotice } from './components/inline-status';
 export { SkeletonRow } from './components/skeleton-row';
 export { skeletonRowVariants } from './components/skeleton-row';
 export type { SkeletonRowProps } from './components/skeleton-row';
@@ -137,7 +150,6 @@ export { SkeletonMetric } from './components/skeleton-metric';
 export type { SkeletonMetricProps } from './components/skeleton-metric';
 export { ErrorLine } from './components/error-line';
 export type { ErrorLineProps } from './components/error-line';
-
 
 // ── sections
 // Screen sections — the zone-level compositions a route assembles (console-ui skill
@@ -178,6 +190,7 @@ export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,
   ApiKeyStatus,
+  ApiKeysDeleteTarget,
   ApiKeysLedgerProps,
   ApiKeysPagination,
   ApiKeysRevokeTarget,

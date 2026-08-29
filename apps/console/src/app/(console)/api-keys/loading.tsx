@@ -25,10 +25,13 @@ export default function ApiKeysLoading() {
         loadingRowCount={8}
         onDismissSecret={noop}
         onRotate={noop}
-        onDelete={noop}
         onRequestRevoke={noop}
         onConfirmRevoke={noop}
         onCancelRevoke={noop}
+        isAdmin={false}
+        onRequestDelete={noop}
+        onConfirmDelete={noop}
+        onCancelDelete={noop}
       />
     </div>
   );

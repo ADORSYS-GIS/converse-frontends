@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { serverEnv } from '../../../../server/env';
 import { proxyRequest } from '../../../../server/proxy';
 import { usageTargetUrl } from '../../../../server/proxy-target';
+import { usageDispatcher } from '../../../../server/usage-dispatcher';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -34,5 +35,9 @@ export async function POST(
   }
   return proxyRequest(request, {
     resolveTarget: () => usageTargetUrl(usageUrl, path),
+    // The usage query listener requires a client certificate -- there is no bearer-only path to
+    // it (lightbridge-authz#347/#361). `undefined` when unconfigured, which is why `usageUrl`
+    // and `usageClientCert` are set together or not at all.
+    dispatcher: usageDispatcher(),
   });
 }

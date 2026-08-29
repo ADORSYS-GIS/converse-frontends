@@ -13,6 +13,7 @@ import {
   writeSession,
 } from '../../../../server/session-store';
 import type { ConsoleSession } from '../../../../server/session';
+import { usageDispatcher } from '../../../../server/usage-dispatcher';
 import {
   aggregateConsumptionRows,
   isValidMonth,
@@ -54,13 +55,18 @@ async function queryUsage(
   body: unknown,
   signal: AbortSignal
 ): Promise<Response> {
+  const dispatcher = usageDispatcher();
   return fetch(`${usageUrl}/usage/v1/usage/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    // Same mTLS client identity the /api/usage proxy presents -- this route talks to the same
+    // query listener, just without going through `proxyRequest`. `dispatcher` is undici's, not
+    // the WHATWG `RequestInit`'s, hence the cast below.
+    ...(dispatcher ? { dispatcher } : {}),
     body: JSON.stringify(body),
     signal,
     cache: 'no-store',
-  });
+  } as RequestInit);
 }
 
 export async function GET(request: NextRequest) {

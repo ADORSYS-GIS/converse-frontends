@@ -20,9 +20,10 @@ const DEFAULT_THRESHOLD = 0.9;
 // `Meter.Indicator` computes the fill width. The a11y contract here carries the budget-breach
 // signal, so it is the one place a hand-rolled approximation was least affordable.
 //
-// daisy `progress`/`radial-progress` stay REJECTED (PRIMITIVES.md § "not adopted"): both are
-// rounded and animated. The visual below is unchanged — a 4px square track, `raised`/`soft`,
-// `primary` only past the threshold.
+// The paint is theme.css's `meter`: a 4px square track, `raised`/`soft`, `primary` only past the
+// threshold, with the breach read off `data-breached` rather than chosen between two background
+// utilities here. daisy `progress`/`radial-progress` stay REJECTED (PRIMITIVES.md § "not
+// adopted"): both are rounded and animated.
 export function Meter({
   value,
   ceiling,
@@ -44,16 +45,17 @@ export function Meter({
       min={0}
       max={ceiling}
       getAriaValueText={() => caption}
-      className={cn('flex flex-col gap-2', className)}>
+      data-breached={breached ? 'true' : 'false'}
+      className={cn('meter', className)}>
       {/* The meter's name is never drawn — the surrounding panel already titles it (BudgetHero,
           ReviewDetailPanel, BudgetPanel). `Meter.Label` keeps it a real, referenced element
           rather than an `aria-label` string. */}
       <BaseMeter.Label className="sr-only">{label}</BaseMeter.Label>
-      <BaseMeter.Track className="bg-raised h-1 w-full rounded-[2px]">
-        <BaseMeter.Indicator className={cn('rounded-[2px]', breached ? 'bg-primary' : 'bg-soft')} />
+      <BaseMeter.Track className="meter-track">
+        <BaseMeter.Indicator />
       </BaseMeter.Track>
       {showCaption ? (
-        <BaseMeter.Value className="text-soft font-mono text-xs" render={<p />}>
+        <BaseMeter.Value render={<p />}>
           {() => caption}
         </BaseMeter.Value>
       ) : null}

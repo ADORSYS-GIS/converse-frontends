@@ -92,7 +92,7 @@ export function ConsoleShell({
               // The shared `label` role, not a re-typed one. This trigger was the console's last
               // surviving uppercase label — banned outright by the console-ui skill's "Never do"
               // since the owner review of 2026-08-29. Only the hover affordance is local.
-              className={cn(LABEL_CLASS, 'hover:text-ink flex items-center gap-1.5')}>
+              className={cn(LABEL_CLASS, 'shell-secondary-trigger')}>
               {leftSecondaryLabel}
               <Chevron />
             </button>
@@ -100,7 +100,7 @@ export function ConsoleShell({
         ) : null}
       </div>
 
-      <div className="flex flex-1 items-start">
+      <div className="shell-columns">
         <div className={cn(LEFT_RAIL_CLASS, RAIL_STICKY_CLASS)}>
           <RailPanel>
             <NavSpine {...nav} />

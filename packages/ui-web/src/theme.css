@@ -549,7 +549,16 @@
   display: flex;
   flex-direction: column;
 
-  &[data-vaul-drawer-direction='bottom'] {
+  /*
+   * `:where()` around both direction branches is load-bearing, and this is the one place in this
+   * file where it is. A bare `&[data-vaul-drawer-direction='bottom']` is two classes' worth of
+   * specificity, which would outrank a plain utility at the call site — and there IS one:
+   * `ConsoleShell` passes `bottom-14` to lift the drawer above the 56px navigation dock, and it
+   * would have been silently swallowed, dropping the sheet back onto the viewport edge.
+   * `:where()` contributes nothing, so this ties with a plain utility and source order decides,
+   * which is the same rule every other block here relies on.
+   */
+  &:where([data-vaul-drawer-direction='bottom']) {
     inset-inline: 0;
     bottom: 0;
     max-height: 85vh;
@@ -557,7 +566,7 @@
 
   /* A side sheet stops short of full width: the page behind it stays visible, which is what
      distinguishes a sheet from a route change. */
-  &[data-vaul-drawer-direction='right'] {
+  &:where([data-vaul-drawer-direction='right']) {
     inset-block: 0;
     right: 0;
     height: 100%;
@@ -635,6 +644,27 @@
   border-block-start: 1px solid var(--color-base-300);
 }
 
+/* The trigger inside that bar wears the shared `label` role for its type; only the hover
+   affordance and the gap to its chevron are local. */
+@utility shell-secondary-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  &:hover {
+    color: var(--color-ink);
+  }
+}
+
+/* Below the chrome stack: both rails are fixed-width and non-flexing, and the centre is the only
+   stretching zone. `align-items: flex-start` is what lets each rail be its own sticky column
+   rather than being stretched to the row's height. */
+@utility shell-columns {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+}
+
 /* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it.
    56px matches the header it mirrors. */
 @utility shell-dock-band {
@@ -644,6 +674,172 @@
   z-index: 40;
   height: 3.5rem;
   background-color: var(--color-neutral);
+}
+
+/*
+ * ─── Measurement ─────────────────────────────────────────────────────────────────────────────
+ *
+ * `meter` — the 4px consumption bar (README §4/§2.4): a `raised` track, `body` fill, `signal`
+ * only at or past the threshold. Base UI's Meter owns the semantics (role, clamped
+ * `aria-valuenow`, the referenced label); this is the whole of its paint.
+ *
+ * daisy `progress`/`radial-progress` stay REJECTED (PRIMITIVES.md § "not adopted"): both are
+ * rounded and animated, which is the opposite of a square 4px rule that does not move.
+ *
+ * The breach is read off `data-breached` on the root, so the fill colour is one rule here rather
+ * than a ternary between two background utilities at the call site.
+ */
+@utility meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-base-content);
+
+  & .meter-track {
+    height: 0.25rem;
+    width: 100%;
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-300);
+  }
+  /* Base UI's Indicator is the track's only child, and it is the element whose width Base UI
+     computes — so it needs no class of its own. */
+  & .meter-track > * {
+    height: 100%;
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-content);
+  }
+  &[data-breached='true'] .meter-track > * {
+    background-color: var(--color-primary);
+  }
+}
+
+/* A key numeral beside the ceiling it is measured against, on one baseline so the two read as one
+   line and wrap together rather than the ceiling dropping half a line below it. `BudgetHero` and
+   `ReviewDetailPanel` both render this pairing; only the ceiling's type step differs, which is why
+   that stays a role at the call site. */
+@utility metric-ceiling-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+/*
+ * ─── Self-panelling blocks ───────────────────────────────────────────────────────────────────
+ *
+ * `StatCard` and `SecretReveal` are the two components allowed to draw their own panel
+ * (console-ui skill) — everything else renders uncontained and lets the consumer decide. Both are
+ * NO UPSTREAM: PRIMITIVES.md rejects daisy `stat`/`stats` (its own padding, its own dividers, a
+ * horizontal grouping model) against a card that is mockup-locked at a tighter geometry.
+ */
+@utility stat-card {
+  background-color: var(--color-base-200);
+  border-radius: var(--radius-field);
+  padding: 1rem;
+
+  & .stat-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  /* Glyph over label, as one column. */
+  & .stat-card-head > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  /* The glyph is pinned to 12px whatever viewBox the caller's SVG carries — an unsized inline
+     `<svg>` otherwise falls back to the browser's replaced-element default box. */
+  & .stat-card-icon {
+    color: var(--color-subtle);
+    & > svg {
+      width: 0.75rem;
+      height: 0.75rem;
+    }
+  }
+  & .stat-card-spark {
+    flex-shrink: 0;
+    padding-top: 0.25rem;
+  }
+  & .stat-card-metric {
+    margin-top: 0.75rem;
+  }
+  /* Deltas are direction plus wording in greys, never green/red (ADR 0008); the tone itself is
+     the component's one variant map. */
+  & .stat-card-delta {
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+  }
+}
+
+/*
+ * The one-time secret strip (api-keys.svg). Three rows: heading + dismiss, the caption, then the
+ * readonly `<input>` beside its Copy button. Each row is selected structurally rather than
+ * carrying a class, because the strip has exactly this shape and no other.
+ */
+@utility secret-strip {
+  background-color: var(--color-base-200);
+  border-radius: var(--radius-field);
+  padding: 1.25rem;
+
+  & > div:first-child {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  & h2 {
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+  & > p {
+    margin-top: 0.25rem;
+  }
+  & > div:last-child {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  /* The secret fills the row; the Copy button sizes to its own label. */
+  & input {
+    flex: 1;
+  }
+}
+
+/*
+ * ─── Rail panel content ──────────────────────────────────────────────────────────────────────
+ *
+ * A vertical stack of related lines, and the same stack preceded by a hairline. `rail-section`'s
+ * rule is `raised`, not `border`: inside a rail, section separation is a `raised` hairline
+ * (console-ui skill, "Rails are flush…"), which is what the rail COLUMN uses between its own
+ * sections — a `border` rule here drew a panel's inner divisions heavier than the divisions
+ * between whole rail sections, i.e. exactly backwards.
+ */
+@utility rail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@utility rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--color-base-300);
+}
+
+/* A history row inside a rail panel's `table table-xs`. daisy's cell padding is sized for a grid;
+   this table sits in a 280px rail and reads as a list. */
+@utility rail-history-cell {
+  padding: 0.25rem 0;
+  vertical-align: top;
 }
 
 /*

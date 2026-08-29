@@ -25,30 +25,28 @@ const DELTA_TONE: Record<StatCardDelta['direction'], string> = {
 //
 // NO UPSTREAM: PRIMITIVES.md rejects daisy `stat`/`stats` outright — it imposes its own padding,
 // its own dividers and a horizontal grouping model, against a card that is mockup-locked at a
-// tighter geometry. Every class here is therefore hand-written by necessity; each survives
-// because it states a locked fact (the panel, the 4-8-12 spacing steps, the fixed 12px glyph box)
-// rather than a type treatment — both type roles are imported.
+// tighter geometry. So the card's own geometry (the panel, the 4-8-12 spacing steps, the fixed
+// 12px glyph box) is `stat-card` in theme.css, named part by part; both type roles are imported,
+// and the only thing left in this file is the delta's variant map.
 export function StatCard({ icon, label, metric, delta, sparkline, className }: StatCardProps) {
   return (
-    <div className={cn('bg-surface rounded-[2px] p-4', className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          {/* The glyph is pinned to 12px whatever viewBox the caller's SVG carries — an unsized
-              inline <svg> otherwise falls back to the browser's replaced-element default box. */}
+    <div className={cn('stat-card', className)}>
+      <div className="stat-card-head">
+        <div>
           {icon ? (
-            <span aria-hidden="true" className="text-subtle [&>svg]:size-3">
+            <span aria-hidden="true" className="stat-card-icon">
               {icon}
             </span>
           ) : null}
           <span className={LABEL_CLASS}>{label}</span>
         </div>
-        {sparkline ? <div className="shrink-0 pt-1">{sparkline}</div> : null}
+        {sparkline ? <div className="stat-card-spark">{sparkline}</div> : null}
       </div>
 
-      <div className={cn(METRIC_CLASS, 'mt-3')}>{metric}</div>
+      <div className={cn(METRIC_CLASS, 'stat-card-metric')}>{metric}</div>
 
       {delta ? (
-        <div className={cn('mt-2 font-mono text-[10px]', DELTA_TONE[delta.direction])}>
+        <div className={cn('stat-card-delta', DELTA_TONE[delta.direction])}>
           <span aria-hidden="true">{DELTA_GLYPH[delta.direction]}</span> {delta.label}
         </div>
       ) : null}

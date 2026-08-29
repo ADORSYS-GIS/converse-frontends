@@ -12,10 +12,12 @@ describe('Meter', () => {
   const exact = { normalizer: (text: string) => text };
 
   // Base UI's `Meter.Root` is the `role="meter"` element and renders `Label`, `Track` and `Value`
-  // as siblings beneath it, so the fill is no longer the root's first child. The track is the one
-  // `--raised` block inside the meter; the indicator is its only child.
+  // as siblings beneath it, so the fill is no longer the root's first child. The track is
+  // `meter-track` (theme.css, which carries its `raised` fill, its 4px height and the 2px radius);
+  // the indicator is its only child and needs no class of its own, since the breach colour is a
+  // rule on the root's `data-breached` rather than a swapped background utility.
   function trackOf(): HTMLElement {
-    const track = screen.getByRole('meter').querySelector('.bg-raised');
+    const track = screen.getByRole('meter').querySelector('.meter-track');
     expect(track).not.toBeNull();
     return track as HTMLElement;
   }
@@ -39,22 +41,21 @@ describe('Meter', () => {
   it('renders the body-grey fill under the threshold', () => {
     render(<Meter value={142.55} ceiling={500} />);
 
-    const fill = indicatorOf();
-    expect(fill).toHaveClass('bg-soft');
-    expect(fill).not.toHaveClass('bg-primary');
+    expect(indicatorOf()).not.toBeNull();
+    expect(screen.getByRole('meter')).toHaveAttribute('data-breached', 'false');
   });
 
   it('renders the signal fill at or past the threshold', () => {
     render(<Meter value={455.2} ceiling={500} threshold={0.9} />);
 
-    expect(indicatorOf()).toHaveClass('bg-primary');
+    expect(screen.getByRole('meter')).toHaveAttribute('data-breached', 'true');
   });
 
   it('keeps the 4px square track — never a rounded, animated daisy `progress`', () => {
     render(<Meter value={142.55} ceiling={500} />);
 
     const track = trackOf();
-    expect(track).toHaveClass('h-1', 'rounded-[2px]');
+    expect(track).toHaveClass('meter-track');
     expect(track.className).not.toMatch(/progress|rounded-full/);
   });
 

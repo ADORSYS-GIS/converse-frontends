@@ -22,8 +22,9 @@ import type { SecretRevealProps } from './types';
 // The third class that row lists, daisy `kbd`, is NOT adopted: `kbd` paints a keycap around
 // static text, while the secret must stay a focusable, select-on-focus, readonly `<input>` so it
 // can be selected and copied by hand when the clipboard API is unavailable. A keycap here would
-// trade a working fallback for a decoration. The remaining local classes are the strip's own
-// panel and the two spacing steps between its three rows.
+// trade a working fallback for a decoration. The strip's own panel and the geometry of its three
+// rows are `secret-strip` in theme.css, selected structurally — the strip has exactly this shape
+// and no other, so its rows need no class each.
 export function SecretReveal({
   heading,
   description,
@@ -52,21 +53,21 @@ export function SecretReveal({
   }
 
   return (
-    <div className={cn('bg-surface rounded-[2px] p-5', className)}>
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="text-ink font-mono text-sm">{heading}</h2>
+    <div className={cn('secret-strip', className)}>
+      <div>
+        <h2>{heading}</h2>
         <Button variant="ghost" size="sm" onClick={onDismiss} aria-label="Dismiss">
           ×
         </Button>
       </div>
-      <p className={cn(PROSE_META_CLASS, 'mt-1')}>{description}</p>
-      <div className="mt-3 flex items-center gap-3">
+      <p className={PROSE_META_CLASS}>{description}</p>
+      <div>
         <input
           readOnly
           value={secret}
           aria-label="Secret value"
           onFocus={(event) => event.target.select()}
-          className={cn(fieldControlClassName, 'flex-1')}
+          className={fieldControlClassName}
         />
         <Button type="button" variant="primary" onClick={handleCopy}>
           {copied ? copiedLabel : 'Copy'}

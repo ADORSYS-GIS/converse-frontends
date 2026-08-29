@@ -27,21 +27,18 @@ function formatSignedCurrency(amount: number): string {
 // why `reason` was made non-optional rather than left to the runtime check alone).
 const NOTE_REQUIRED_MESSAGE = 'A note is required to decline this request.';
 
-// A vertical stack of related lines — the panel's only layout idiom, declared once instead of
-// eight times with four accidentally different gaps (4/6/8/12px, two of which were off the
+// The panel's two layout idioms — a vertical stack of related lines, and the same stack preceded
+// by a hairline rule — are `rail-stack` / `rail-section` in theme.css, which is also where the
+// reason that rule is `raised` rather than `border` is recorded. Before they existed the stack was
+// written out eight times with four accidentally different gaps (4/6/8/12px, two of them off the
 // console's 4·8·12·16 spacing scale entirely).
-const STACK_CLASS = 'flex flex-col gap-2';
+const STACK_CLASS = 'rail-stack';
+const SECTION_CLASS = 'rail-section';
 
-// One subsection of the panel: the stack above, preceded by a hairline rule. The rule is `raised`,
-// not `border`: inside a rail, section separation is a `raised` hairline (console-ui skill, "Rails
-// are flush…"), which is also what the rail COLUMN uses between its own sections — a `border`
-// rule here drew the panel's inner divisions heavier than the divisions between whole rail
-// sections, i.e. exactly backwards.
-const SECTION_CLASS = `${STACK_CLASS} border-raised border-t pt-4`;
-
-// daisy `table table-xs` supplies the history table's own metrics; these three reset the cell
-// padding it ships with, because this table sits in a 280px rail and reads as a list, not a grid.
-const CELL_CLASS = 'p-0 py-1 align-top';
+// daisy `table table-xs` supplies the history table's own metrics; `rail-history-cell` resets the
+// cell padding it ships with, because this table sits in a 280px rail and reads as a list, not a
+// grid.
+const CELL_CLASS = 'rail-history-cell';
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT for Admin
 // (admin-budget-review.svg): subject, consumption, requested amount, requester note, history,
@@ -136,7 +133,7 @@ export function ReviewDetailPanel({
         {consumedAmount != null && ceilingAmount != null ? (
           <>
             {/* Baseline alignment, so the 22px numeral and the 11px ceiling sit on one line. */}
-            <div className="flex items-baseline gap-2">
+            <div className="metric-ceiling-row">
               <span className={METRIC_CLASS}>{formatUsd(consumedAmount)}</span>
               <span className={LABEL_CLASS}>of {formatUsd(ceilingAmount)}</span>
             </div>

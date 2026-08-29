@@ -104,7 +104,7 @@ export function BudgetHero(props: BudgetHeroProps) {
     <div className={cn(STACK_CLASS, className)}>
       {/* Baseline-aligned so the hero numeral and its ceiling sit on one line and wrap together
           rather than the ceiling dropping half a line below it. */}
-      <div className="flex flex-wrap items-baseline gap-2">
+      <div className="metric-ceiling-row">
         <span className={HERO_METRIC_CLASS}>{formatUsd(value)}</span>
         <span className="text-subtle font-mono text-sm">of {formatUsd(ceiling)}</span>
       </div>

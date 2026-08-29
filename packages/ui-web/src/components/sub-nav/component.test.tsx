@@ -29,7 +29,10 @@ describe('SubNav', () => {
 
     const active = screen.getByRole('button', { name: 'Projects 24' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(active.className).toContain('bg-raised');
+    // The `raised` fill is `theme.css`'s `rail-row[aria-current="page"]` — the same rule
+    // `NavSpine`'s rows resolve, which is the point of the shared class. `menu-active` keeps
+    // daisy's own row-hover rule from repainting it.
+    expect(active).toHaveClass('rail-row', 'menu-active');
   });
 
   it('never renders a badge/pill element for the count', () => {

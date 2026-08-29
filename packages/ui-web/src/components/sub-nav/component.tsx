@@ -24,21 +24,24 @@ import type { SubNavItem, SubNavProps } from './types';
 // ADR 0010 Decision 4 (task assignment note): a route-navigation list (`href` links, like
 // `NavSpine`), not a tab-panel switcher, so it takes daisy's `menu` rather than PRIMITIVES.md's
 // general Base UI Tabs row — Tabs couples a trigger to a same-tree `Tabs.Panel`, which doesn't
-// fit route links. `menu`'s radius/list semantics stay; its default row padding is explicitly
-// overridden below (`RAIL_ROW_PADDING_CLASS`) so the row's own inset is grid-driven, not
-// daisy's default — the active fill/bar stay explicit overrides since daisy's `menu-active`
-// resolves to `chrome`, not our `raised` token.
+// fit route links. `menu`'s radius/list semantics stay; the row's inset is grid-driven rather
+// than daisy's default.
+//
+// The paint is `theme.css`'s `rail-row`, byte-identical to `NavSpine`'s, which is the contract.
+// The five `!important` overrides that used to hang off this row are gone: an `@utility` lands
+// unlayered inside `utilities` while daisy emits into a sublayer of it, so it beats `menu` on the
+// cascade rather than on `!`. Active state is read off the `aria-current="page"` this row already
+// sets — there is no second flag to keep in step.
 const ROW_BASE_CLASS = cn(
-  `relative flex ${RAIL_SUBNAV_ROW_HEIGHT_CLASS} items-center ${RAIL_LABEL_GAP_CLASS} ${RAIL_ROW_PADDING_CLASS} font-mono text-xs`,
-  'transition-colors duration-150 ease-out',
-  'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
+  'rail-row focus-ring',
+  RAIL_SUBNAV_ROW_HEIGHT_CLASS,
+  RAIL_LABEL_GAP_CLASS,
+  RAIL_ROW_PADDING_CLASS,
 );
 
 function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
-  const className = cn(
-    ROW_BASE_CLASS,
-    item.active ? 'bg-raised! text-ink!' : 'text-soft! hover:bg-chrome! hover:text-ink!',
-  );
+  // `menu-active` keeps daisy's own row-hover rule off the active row; the fill itself is ours.
+  const className = cn(ROW_BASE_CLASS, item.active && 'menu-active');
   const content = (
     <>
       {item.active ? <span aria-hidden="true" className={RAIL_ACTIVE_BAR_CLASS} /> : null}
@@ -51,7 +54,7 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
       {item.count !== undefined ? (
         <>
           {' '}
-          <span className="shrink-0 text-[10px] text-subtle">{item.count}</span>
+          <span className="rail-row-count">{item.count}</span>
         </>
       ) : null}
     </>
@@ -91,7 +94,7 @@ export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubN
       {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
           16px inset — the same bleed `NavSpine`'s `<nav>` applies — so this list's active
           fill/active bar land at the identical net inset from the rail's true left edge. */}
-      <ul className={cn('menu menu-sm w-full gap-1 p-0', RAIL_ROW_BLEED_CLASS)}>
+      <ul className={cn('menu menu-sm rail-list w-full', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
           <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}

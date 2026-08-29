@@ -136,10 +136,12 @@ describe('LedgerTable', () => {
     render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
 
     const table = screen.getByRole('table');
-    expect(table).toHaveClass('min-w-max');
-    // `overflow-y-clip` is load-bearing: `overflow-x-auto` alone computes `overflow-y` to `auto`,
-    // which turns this box into a vertical scroll container and eats the wheel.
-    expect(table.parentElement).toHaveClass('overflow-x-auto', 'overflow-y-clip', 'w-full');
+    // The table's natural (unshrunk) width and the box's two overflow axes are both `theme.css`
+    // rules now — `console-table` and `ledger-scroll`. `overflow-y: clip` is load-bearing there:
+    // `overflow-x: auto` alone computes `overflow-y` to `auto`, which turns the box into a
+    // vertical scroll container and eats the wheel.
+    expect(table).toHaveClass('console-table');
+    expect(table.parentElement).toHaveClass('ledger-scroll');
     // A deliberate axe `scrollable-region-focusable` fix, and deliberately NOT a landmark: two
     // ledgers on one page would trip `landmark-unique`.
     expect(table.parentElement).toHaveAttribute('tabindex', '0');

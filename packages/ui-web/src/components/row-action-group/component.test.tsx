@@ -33,8 +33,13 @@ describe('RowActionGroup', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Rotate' })).not.toHaveClass('before:rotate-[20deg]');
-    expect(screen.getByRole('button', { name: 'Revoke' })).toHaveClass('before:rotate-[20deg]');
+    // The tick is `row-action-group > button + button::before` (theme.css), so it is a fact about
+    // the GROUP rather than a class the first button has to be told not to wear — which is why
+    // there is nothing index-dependent left to assert on the buttons themselves. What still has
+    // to hold is that it costs no node: no separator element, of any kind, in the tree.
+    expect(container.firstElementChild).toHaveClass('row-action-group');
+    expect(screen.getByRole('button', { name: 'Rotate' })).toHaveClass('row-action');
+    expect(screen.getByRole('button', { name: 'Revoke' })).toHaveClass('row-action');
     expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(0);
     expect(container.querySelectorAll('span')).toHaveLength(0);
   });

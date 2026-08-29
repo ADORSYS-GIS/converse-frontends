@@ -19,9 +19,12 @@ describe('NavSpine', () => {
     expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
   });
 
-  // Active state is a `data-*` variant now, not a cva boolean axis (console-ui skill shrink
-  // policy): the row carries `data-active` and daisy's `menu-active`, and the `raised` fill is
-  // selected by `data-[active=true]:bg-raised` rather than by a class swapped in JS.
+  // Active state is not a cva boolean axis (console-ui skill shrink policy) and no longer a class
+  // swapped in JS either: the `raised` fill is `theme.css`'s `rail-row[aria-current="page"]`, so
+  // the assertion is that the row wears `rail-row` and announces itself as the current page.
+  // daisy's `menu-active` stays, and is load-bearing for a cascade reason rather than a visual
+  // one: daisy's own row-hover rule excludes that class, and without it daisy would repaint the
+  // active fill on the way past.
   it('marks the active item with aria-current, data-active and daisy menu-active', () => {
     render(<NavSpine items={items} />);
 
@@ -29,7 +32,7 @@ describe('NavSpine', () => {
     expect(active).toHaveAttribute('aria-current', 'page');
     expect(active).toHaveAttribute('data-active', 'true');
     expect(active).toHaveClass('menu-active');
-    expect(active).toHaveClass('data-[active=true]:bg-raised');
+    expect(active).toHaveClass('rail-row');
 
     const inactive = screen.getByRole('button', { name: 'Api-Keys' });
     expect(inactive).not.toHaveAttribute('aria-current');
@@ -44,7 +47,8 @@ describe('NavSpine', () => {
     expect(list).toHaveClass('menu', 'menu-sm');
     // daisy `menu`'s own gutters must stay neutralised — the rail alignment grid owns every
     // inset (lib/rail-grid.ts), which is exactly what `SubNav` regressed on before it existed.
-    expect(list).toHaveClass('p-0', '-mx-2');
+    // `rail-list` is where the gutter reset lives now; the bleed stays a grid class.
+    expect(list).toHaveClass('rail-list', '-mx-2');
     expect(container.querySelectorAll('li')).toHaveLength(items.length);
   });
 
@@ -143,7 +147,9 @@ describe('NavSpine', () => {
       const active = screen.getByRole('button', { name: 'Overview' });
       expect(active).toHaveAttribute('aria-current', 'page');
       expect(active).toHaveAttribute('data-active', 'true');
-      expect(active).toHaveClass('data-[active=true]:text-primary');
+      // `nav-dock-row[aria-current="page"]` is where the `primary` text and the 2px top bar live
+      // (theme.css) — the bar is a pseudo-element, so there is no node to look for.
+      expect(active).toHaveClass('nav-dock-row');
     });
   });
 });

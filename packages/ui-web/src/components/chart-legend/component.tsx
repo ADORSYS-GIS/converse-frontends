@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { cn } from '../../cn';
 import { SPEC_ACCENT, specSeriesColor } from '../../chart-tokens';
 import type { ChartLegendProps } from './types';
 
@@ -22,6 +21,11 @@ import type { ChartLegendProps } from './types';
  *     (`overview.svg`'s spend legend shows `gpt-4o-mini  $61.20`).
  * The selected/breached entry is `ink` label + `primary` swatch (task brief);
  * its value renders `soft`. A default entry is `soft` label + `subtle` value.
+ *
+ * That whole ramp, the row geometry and the swatch are `theme.css`'s
+ * `series-legend`/`series-row`/`series-swatch` — shared byte-for-byte with
+ * `ShareBar`, which renders the same row and used to state the same four
+ * colour ternaries independently.
  */
 export function ChartLegend({ items, selectedKey, onSelectKey }: ChartLegendProps) {
   if (items.length < 2) {
@@ -29,7 +33,7 @@ export function ChartLegend({ items, selectedKey, onSelectKey }: ChartLegendProp
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1 font-mono">
+    <div className="series-legend">
       {items.map((item, index) => {
         const selected = item.key === selectedKey;
         const emphasized = selected || Boolean(item.breached);
@@ -44,24 +48,15 @@ export function ChartLegend({ items, selectedKey, onSelectKey }: ChartLegendProp
             disabled={!onSelectKey}
             aria-pressed={onSelectKey ? selected : undefined}
             aria-label={item.breached ? `${item.label}, over ceiling` : item.label}
-            className={cn(
-              'flex min-h-[28px] items-center gap-2 rounded-[2px] px-1',
-              onSelectKey ? 'cursor-pointer hover:bg-chrome' : 'cursor-default',
-              'disabled:cursor-default',
-            )}>
+            data-emphasized={emphasized ? 'true' : 'false'}
+            className="series-row">
             <span
               aria-hidden="true"
-              className="h-[2px] w-[10px] shrink-0"
+              className="series-swatch"
               style={{ backgroundColor: color }}
             />
-            <span className={cn('text-xs', emphasized ? 'text-ink' : 'text-soft')}>
-              {item.label}
-            </span>
-            {item.value ? (
-              <span className={cn('text-xs tabular-nums', emphasized ? 'text-soft' : 'text-subtle')}>
-                {item.value}
-              </span>
-            ) : null}
+            <span className="series-label">{item.label}</span>
+            {item.value ? <span className="series-value">{item.value}</span> : null}
           </button>
         );
       })}

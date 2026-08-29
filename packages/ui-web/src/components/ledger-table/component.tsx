@@ -18,18 +18,19 @@ const ACTIONS_TRACK = '136px';
 //
 // Sizing notes, so the next reader does not "tidy" them away:
 //  - `table-xs` pads cells `.25rem/.5rem`; two adjacent cells therefore reproduce the old grid's
-//    16px `gap-4` exactly, and `[&_tr>*:first-child]:pl-0` / `:last-child]:pr-0` strip the outer
-//    8px so the ledger still starts flush with the floor's content edge.
-//  - daisy sizes body rows at 11px (`table-xs`) and `thead` at 14px/600; both are inherited
-//    values, so the explicit `text-xs` on `<td>` and `LABEL_CLASS` + `font-normal` on `<th>`
-//    (declared values on the cell itself) win without needing `!`.
-const TABLE_CLASS =
-  'table table-xs console-table min-w-max border-t border-raised font-mono';
+//    16px gutter exactly, and `console-table` strips the outer 8px so the ledger still starts
+//    flush with the floor's content edge.
+//  - daisy sizes body rows at 11px (`table-xs`) and `thead` at 14px/600. Every correction to that
+//    — and to daisy's hairline colour, its row hover, and the reveal-on-hover actions column —
+//    is a descendant rule inside `console-table`, not a class on the element here. That is the
+//    difference between this file and the version that adopted daisy `table` first: correcting
+//    daisy at the call site pushed it from 52 hand-written utilities to 65, because each
+//    disagreement bought its own arbitrary variant.
+const TABLE_CLASS = 'table table-xs console-table';
 
-const HEAD_CELL_CLASS = cn(LABEL_CLASS, 'py-2 font-normal border-b border-raised');
-const BODY_CELL_CLASS = 'text-soft text-xs';
-// The totals rule is `console-table`'s `tfoot` branch — nothing per-instance to add.
-const TOTALS_ROW_CLASS = '';
+// Numeric columns are right-aligned (console-ui skill "Type"); named once because four cells ask
+// for the same thing and a repeated literal is four chances to disagree.
+const ALIGN_RIGHT_CLASS = 'text-right';
 
 // Contract: docs/design/console-redesign/README.md §4 (data display) / §5.2–5.3 — generic typed
 // columns API (accessor + align + width); no sorting logic, that stays the consumer's job.
@@ -53,17 +54,15 @@ export function LedgerTable<T>({
 
   // Contract: console-ui skill "No overflow, ever" — a ledger's fixed-width columns can exceed
   // the centre column's width at the base/md tiers; the container scrolls horizontally, the
-  // page never does. `min-w-max` keeps the table at its natural (unshrunk) width inside the
-  // scrollable box rather than letting cells wrap to fit.
+  // page never does. The box itself is `ledger-scroll` (theme.css), which carries the reason
+  // its two overflow axes differ.
   return (
-    // `overflow-y-clip` is load-bearing, NOT redundant: `overflow-x-auto` on its own computes
-    // `overflow-y` to `auto` too, which makes this box a vertical scroll container and swallows
-    // the wheel. `tabIndex={0}` alone (no `role="region"`) satisfies axe's
-    // `scrollable-region-focusable` (a scrollable area must be reachable by keyboard) without
-    // adding a landmark: a page with two or more `LedgerTable`s (e.g. Admin's pending queue +
-    // recent decisions) would otherwise trip `landmark-unique`, since every instance shares the
-    // same generic label -- found during the ADR 0010 phase 4 sweep.
-    <div className="w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
+    // `tabIndex={0}` alone (no `role="region"`) satisfies axe's scrollable-region-focusable rule
+    // (a scrollable area must be reachable by keyboard) without adding a landmark: a page with
+    // two or more `LedgerTable`s (e.g. Admin's pending queue + recent decisions) would otherwise
+    // trip landmark-unique, since every instance shares the same generic label -- found during
+    // the ADR 0010 phase 4 sweep.
+    <div className="ledger-scroll" tabIndex={0}>
       <table className={cn(TABLE_CLASS, className)}>
         <colgroup>
           {columns.map((column) => (
@@ -78,12 +77,12 @@ export function LedgerTable<T>({
               <th
                 key={column.key}
                 scope="col"
-                className={cn(HEAD_CELL_CLASS, column.align === 'right' && 'text-right')}>
+                className={cn(LABEL_CLASS, column.align === 'right' && ALIGN_RIGHT_CLASS)}>
                 {column.header}
               </th>
             ))}
             {hasActions ? (
-              <th scope="col" className={cn(HEAD_CELL_CLASS, 'text-right')}>
+              <th scope="col" className={cn(LABEL_CLASS, ALIGN_RIGHT_CLASS)}>
                 <span className="sr-only">Actions</span>
               </th>
             ) : null}
@@ -109,7 +108,7 @@ export function LedgerTable<T>({
                   {Array.from({ length: columnCount }, (_, cellIndex) => (
                     <td key={cellIndex}>
                       <span
-                        className="bg-raised block h-3 rounded-[2px]"
+                        className="skeleton block h-3"
                         style={{
                           width: SKELETON_BLOCK_WIDTHS[cellIndex % SKELETON_BLOCK_WIDTHS.length],
                         }}
@@ -142,12 +141,14 @@ export function LedgerTable<T>({
                     {columns.map((column) => (
                       <td
                         key={column.key}
-                        className={cn(BODY_CELL_CLASS, column.align === 'right' && 'text-right')}>
+                        className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
                         {column.accessor(row)}
                       </td>
                     ))}
                     {hasActions ? (
-                      <td className="opacity-0 transition-opacity duration-150 ease-out group-focus-within:opacity-100 group-hover:opacity-100">
+                      // `row-actions` is `console-table`'s reveal-on-hover hook, not a paint class
+                      // of its own.
+                      <td className="row-actions">
                         {/* The flex box lives INSIDE the cell: a `display:flex` on the `<td>`
                             itself would take it out of the table box model and break column
                             alignment. */}
@@ -161,11 +162,11 @@ export function LedgerTable<T>({
 
         {totals ? (
           <tfoot>
-            <tr className={TOTALS_ROW_CLASS}>
+            {/* The totals rule, padding and type are `console-table`'s `tfoot` branch — nothing
+                per-instance to add. */}
+            <tr>
               {columns.map((column) => (
-                <td
-                  key={column.key}
-                  className={cn(BODY_CELL_CLASS, 'py-2', column.align === 'right' && 'text-right')}>
+                <td key={column.key} className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
                   {totals[column.key]}
                 </td>
               ))}

@@ -98,7 +98,7 @@ describe('ChartTooltip', () => {
   it('omits the title row when no title is given', () => {
     render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
 
-    expect(document.querySelectorAll('.text-subtle')).toHaveLength(0);
+    expect(document.querySelectorAll('.chart-tooltip-title')).toHaveLength(0);
   });
 
   it('renders the tooltip card in a portal, not inline in the chart wrapper', () => {
@@ -106,14 +106,14 @@ describe('ChartTooltip', () => {
       <Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />,
     );
 
-    expect(container.querySelector('.bg-surface')).not.toBeInTheDocument();
-    expect(document.body.querySelector('.bg-surface')).toBeInTheDocument();
+    expect(container.querySelector('.chart-tooltip-card')).not.toBeInTheDocument();
+    expect(document.body.querySelector('.chart-tooltip-card')).toBeInTheDocument();
   });
 
   it('sets pointer-events: none on the card so it never blocks pointer tracking underneath', () => {
     render(<Harness visible x={100} y={80} rows={[{ key: 'a', label: 'project-a', value: '$1.00' }]} />);
 
-    const card = document.body.querySelector('.bg-surface') as HTMLElement;
+    const card = document.body.querySelector('.chart-tooltip-card') as HTMLElement;
     expect(card.style.pointerEvents).toBe('none');
   });
 });

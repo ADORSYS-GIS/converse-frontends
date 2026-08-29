@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { SPEC_ACCENT, specSeriesColor } from '../../chart-tokens';
-import { LABEL_CLASS, ROW_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ShareBarProps, ShareBarSegment } from './types';
 
 // Replaces `DonutChart` (owner review 2026-08-29). A donut spent ~330px of height to say what its
@@ -13,33 +13,14 @@ import type { ShareBarProps, ShareBarSegment } from './types';
 // NO UPSTREAM, by construction: this primitive originates in the DOM build and daisy ships no
 // share bar, no ranked series list and (per PRIMITIVES.md § "not adopted") no `progress` we are
 // allowed to use — its rounded, animated track is the opposite of the console's square 4px one.
-// So the utilities below are the component, not decoration on top of one. What they are NOT is
-// repeated: every treatment used more than once is a constant here, and both type roles come from
-// lib/type-roles.ts.
+//
+// The row it renders IS `ChartLegend`'s row (swatch, name, value), so both take `series-row` /
+// `series-swatch` and the `data-emphasized` ramp from `theme.css` rather than each restating the
+// same four colour ternaries. Only the track and the percent column are this component's own.
 
 const MIN_VISIBLE_PERCENT = 0.6;
 
 const DEFAULT_EMPTY_MESSAGE = 'No spend in this range.';
-
-// The bar: an 8px track whose segments are separated by a hairline gap, clipped to the console's
-// 2px radius.
-const BAR_CLASS = 'flex h-2 w-full gap-px overflow-hidden rounded-[2px]';
-
-// A list row. 28px is the minimum comfortable hit target for a rail-width list; `px-1` keeps the
-// hover fill from cropping the swatch.
-const ROW_BUTTON_CLASS = `${ROW_CLASS} flex min-h-[28px] w-full items-center gap-3 rounded-[2px] px-1`;
-
-// The 10x2 rank swatch — a 2px rule, matching the chart legend's, never a dot or a pill.
-const SWATCH_CLASS = 'h-[2px] w-[10px] shrink-0';
-
-// Numeric columns never reflow when a value gets wider, and never wrap.
-const NUMERIC_CLASS = 'shrink-0 tabular-nums';
-
-// Emphasis is a step up the grey ramp, never a colour: the selected or breached series reads
-// stronger than its neighbours without introducing a second accent (ADR 0008).
-const emphasis = (on: boolean, [off, up]: readonly [string, string]) => (on ? up : off);
-const LABEL_EMPHASIS = ['text-soft', 'text-ink'] as const;
-const VALUE_EMPHASIS = ['text-subtle', 'text-soft'] as const;
 
 function defaultFormatPercent(percent: number): string {
   if (percent === 0) return '0%';
@@ -76,7 +57,7 @@ export function ShareBar({
           and the list rows are the interactive control when `onSelectSegment` is set. Making
           both interactive would double every series in the accessibility tree — the same
           reasoning `ChartLegend` applies when it suppresses itself for a single series. */}
-      <div aria-hidden="true" className={BAR_CLASS}>
+      <div aria-hidden="true" className="share-track">
         {computed.map((segment) => (
           <span
             key={segment.key}
@@ -111,39 +92,23 @@ export function ShareBar({
                 disabled={!onSelectSegment}
                 aria-pressed={onSelectSegment ? selected : undefined}
                 aria-label={segment.breached ? `${segment.label}, over ceiling` : undefined}
+                data-emphasized={emphasized ? 'true' : 'false'}
                 // A non-selectable ShareBar is still rendered as buttons (one markup, one set of
-                // tests) but must not offer a hover fill or a pointer it cannot honour.
-                className={cn(
-                  ROW_BUTTON_CLASS,
-                  onSelectSegment ? 'hover:bg-chrome cursor-pointer' : 'cursor-default'
-                )}>
+                // tests) and marked `disabled`; `series-row` reads that for the cursor and the
+                // hover fill, so there is no affordance decision left at this call site. The row
+                // fills its column here (it does not in the wrapping legend) and its gap is one
+                // step wider, which is the whole of the difference between the two.
+                className="series-row w-full gap-3">
                 <span
                   aria-hidden="true"
-                  className={SWATCH_CLASS}
+                  className="series-swatch"
                   style={{ backgroundColor: segment.color }}
                 />
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate text-left',
-                    emphasis(emphasized, LABEL_EMPHASIS)
-                  )}>
-                  {segment.label}
-                </span>
+                <span className="series-label">{segment.label}</span>
                 {segment.formattedValue ? (
-                  <span className={cn(NUMERIC_CLASS, emphasis(emphasized, VALUE_EMPHASIS))}>
-                    {segment.formattedValue}
-                  </span>
+                  <span className="series-value">{segment.formattedValue}</span>
                 ) : null}
-                {/* Fixed track so the percent column aligns down the list regardless of value
-                    width — numerics are right-aligned (console-ui skill "Type"). */}
-                <span
-                  className={cn(
-                    NUMERIC_CLASS,
-                    'w-10 text-right',
-                    emphasis(emphasized, VALUE_EMPHASIS)
-                  )}>
-                  {formatPercent(segment.percent)}
-                </span>
+                <span className="series-percent">{formatPercent(segment.percent)}</span>
               </button>
             </li>
           );

@@ -1,9 +1,8 @@
-// "Spend — share by project", derived from the *same* series data
-// `spend-dashboard/fixtures.ts`'s `overviewSpendSeries` already plots as the SPEND time series --
-// per-segment value is that series' own point total, not a re-invented dataset, so the share bar
-// and the time series above it always agree on totals.
+// "Spend — share by project", derived from the same series data `spend-dashboard/fixtures.ts`'s
+// `overviewSpendSeries` plots as the SPEND time series — so the share bar and the chart above it
+// always agree on totals.
 
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import type { ShareBarSegment } from '../../components/share-bar';
 import { overviewSpendSeries } from '../spend-dashboard/fixtures';
 
@@ -13,7 +12,7 @@ export const overviewSpendShareSegments: ShareBarSegment[] = overviewSpendSeries
     key: series.key,
     label: series.label,
     value,
-    formattedValue: formatMoney(value),
+    formattedValue: formatUsd(value),
     breached: series.breached,
   };
 });
@@ -24,5 +23,5 @@ export const overviewSpendShareTotal = overviewSpendShareSegments.reduce(
 );
 
 export function formatOverviewSpendShareTotal(): string {
-  return formatMoney(overviewSpendShareTotal);
+  return formatUsd(overviewSpendShareTotal);
 }

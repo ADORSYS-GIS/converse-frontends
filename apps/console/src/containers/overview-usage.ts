@@ -4,10 +4,15 @@ import type {
   UsageQueryResponse,
   UsageSeriesPoint,
 } from '@lightbridge/api-rest';
-import { formatMoney } from '@lightbridge/ui-web';
-import type { ShareBarSegment, SpendSeriesSeries } from '@lightbridge/ui-web';
+import { formatMs, formatUsd } from '@lightbridge/ui-web';
+import type {
+  LatencyRidgelineSeries,
+  ShareBarSegment,
+  SpendSeriesSeries,
+} from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
+import { microUsdToUsd } from '../server/consumption-csv';
 
 /**
  * Pure request/response adapters between the Overview screen's URL-driven view state and
@@ -101,18 +106,43 @@ export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): Usage
     scope_id: scoped ? (input.projectId as string) : input.accountId,
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
-    bucket: input.bucket,
+    bucket: USAGE_BUCKET_INTERVAL[input.bucket],
     group_by: [overviewGroupByToUsageGroupBy(input.groupBy)],
     filters: input.model !== 'all' ? { model: input.model } : undefined,
   };
 }
+
+/**
+ * The URL's bucket vocabulary translated into the interval strings the usage API accepts.
+ *
+ * The backend validates against `^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$`
+ * (`lightbridge-authz` `crates/lightbridge-authz-usage/src/repo.rs`'s `validate_bucket_interval`),
+ * so a bare `'day'` is a `400 Bad request: bucket must look like ...` on every dashboard load --
+ * which is exactly what it was doing.
+ *
+ * The URL keeps the short vocabulary deliberately: `?bucket=day` is the readable, shareable form,
+ * and it is what `OVERVIEW_BUCKETS`/`BUCKET_LABELS` are keyed on. Translating at the API boundary
+ * keeps the wire format an implementation detail of this request builder rather than leaking a
+ * Postgres interval literal into every shared link.
+ *
+ * `week` maps to `7 days`, not `1 week`: the regex above has no `week` arm at all, and
+ * `validate_bucket_interval_rejects_unexpected_values` asserts `"1 week"` is refused. `7 days` is
+ * both accepted and the same bucket width.
+ */
+const USAGE_BUCKET_INTERVAL: Record<OverviewBucket, string> = {
+  hour: '1 hour',
+  day: '1 day',
+  week: '7 days',
+};
 
 /** A finite, non-negative cost — a malformed or negative `total_cost` from the backend renders as
  *  `0` for THIS point only rather than throwing and taking the whole chart down with it (#304's
  *  "a malformed response does not crash the caller" AC extended to the mapping layer, not just
  *  the transport one `usage-client.ts` already covers). */
 function safeCost(point: UsageSeriesPoint): number {
-  return Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  const microUsd =
+    Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  return microUsdToUsd(microUsd);
 }
 
 function groupKey(point: UsageSeriesPoint, groupBy: OverviewGroupBy): string {
@@ -166,8 +196,96 @@ export function toSpendShareSegments(
   }
 
   return Array.from(totalsByKey.entries())
-    .map(([key, value]) => ({ key, label: key, value, formattedValue: formatMoney(value) }))
+    .map(([key, value]) => ({ key, label: key, value, formattedValue: formatUsd(value) }))
     .sort((a, b) => b.value - a.value);
+}
+
+/** A bucket only contributes a real number when it actually carried a latency measurement
+ *  (`latency_samples > 0`) and the requested percentile survived the trip as a finite number.
+ *  Guards both independently rather than trusting the backend's own "null iff zero samples"
+ *  contract to hold at the wire boundary -- a malformed response degrades to "nothing kept for
+ *  this bucket" rather than plotting `NaN`/`null` as a real sample. */
+function safeSampleCount(point: UsageSeriesPoint): number {
+  return Number.isFinite(point.latency_samples) && point.latency_samples > 0
+    ? point.latency_samples
+    : 0;
+}
+
+function keepableP95(point: UsageSeriesPoint): number | null {
+  if (safeSampleCount(point) === 0) return null;
+  const p95 = point.latency_p95_ms;
+  return typeof p95 === 'number' && Number.isFinite(p95) ? p95 : null;
+}
+
+export interface LatencyAdaptation {
+  series: LatencyRidgelineSeries[];
+  /** Group keys present in the response that reported zero latency samples across the whole range. */
+  seriesWithoutLatency: string[];
+  /** Total latency samples across every group — 0 means the whole range reported none. */
+  totalSamples: number;
+}
+
+/**
+ * Maps `UsageQueryResponse.points` into `LatencyRidgelineSeries[]` for `LatencyRidgeline` — the
+ * per-series honesty contract this whole story exists to build (see `use-overview-screen.ts`'s
+ * doc comment). One series per distinct value of the request's own `group_by` dimension, same
+ * grouping/ordering as `toSpendSeries`/`toSpendShareSegments`.
+ *
+ * `values` is the list of PER-BUCKET `latency_p95_ms` observations for that group, keeping only
+ * buckets that actually carried samples (`keepableP95`). This is real observed data — never
+ * synthesised from a percentile, never interpolated, never repeated to fake a density. Doing
+ * either would be exactly the fabrication ADR-0008 Decision 7's status note (amended by this
+ * change) and this repo's own budget-decision-contract precedent (rule-data over invented
+ * numbers) both rule out: a ridgeline's shape is read as a distribution of real samples, and a
+ * bucketed p95 repeated N times would draw a shape that never happened.
+ *
+ * A group whose buckets all report zero samples still gets a row (`values: []`, `value: 'no
+ * latency reported'`) rather than being dropped — the reader needs to see the model exists and
+ * genuinely reported nothing, not have it silently vanish from the ridgeline. Its key is also
+ * returned in `seriesWithoutLatency` so the caller can name it in a footnote.
+ */
+export function toLatencySeries(
+  response: UsageQueryResponse,
+  groupBy: OverviewGroupBy
+): LatencyAdaptation {
+  const seriesByKey = new Map<string, { key: string; label: string; values: number[] }>();
+  let totalSamples = 0;
+
+  for (const point of response.points) {
+    const key = groupKey(point, groupBy);
+    let series = seriesByKey.get(key);
+    if (!series) {
+      series = { key, label: key, values: [] };
+      seriesByKey.set(key, series);
+    }
+
+    totalSamples += safeSampleCount(point);
+
+    const p95 = keepableP95(point);
+    if (p95 !== null) {
+      series.values.push(p95);
+    }
+  }
+
+  const seriesWithoutLatency: string[] = [];
+  const series: LatencyRidgelineSeries[] = [];
+
+  for (const entry of seriesByKey.values()) {
+    if (entry.values.length === 0) {
+      seriesWithoutLatency.push(entry.key);
+      series.push({ key: entry.key, label: entry.label, values: [], value: 'no latency reported' });
+      continue;
+    }
+    const max = Math.max(...entry.values);
+    series.push({
+      key: entry.key,
+      label: entry.label,
+      values: entry.values,
+      value: `peak p95 ${formatMs(max)}`,
+    });
+  }
+
+  return { series, seriesWithoutLatency, totalSamples };
 }
 
 /** Total spend across every point in the response — used for the SPEND stat card and, with a

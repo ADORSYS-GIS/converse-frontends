@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { ErrorLine } from '../error-line';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import { Meter } from '../meter';
 import type { BudgetHeroProps } from './types';
 
@@ -85,8 +85,8 @@ export function BudgetHero(props: BudgetHeroProps) {
   return (
     <div className={cn('flex flex-col gap-3', className)}>
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-ink font-mono text-[26px] leading-[1.2]">{formatMoney(value)}</span>
-        <span className="text-subtle font-mono text-sm">of {formatMoney(ceiling)}</span>
+        <span className="text-ink font-mono text-[26px] leading-[1.2]">{formatUsd(value)}</span>
+        <span className="text-subtle font-mono text-sm">of {formatUsd(ceiling)}</span>
       </div>
 
       <Meter value={value} ceiling={ceiling} threshold={threshold} showCaption={false} />

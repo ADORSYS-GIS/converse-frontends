@@ -36,8 +36,20 @@ function LatencyChartSkeleton({ width, height }: { width: number; height: number
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 2) — the LATENCY
 // zone. Carries its own status independently of SPEND: a failed latency query must not take the
 // spend chart down with it.
+//
+// The default label reads "p95 PER BUCKET, BY MODEL", not "p95 BY MODEL": the usage API
+// (`openapi/usage.backend.yaml`'s `UsageSeriesPoint`) returns one already-computed `latency_p95_ms`
+// PER BUCKET, not raw per-request samples — a percentile over a percentile is not a thing, so this
+// chart cannot show "the distribution of requests," only "the distribution of this model's own
+// per-bucket p95 across the selected range." Naming that distinction in the label matters because
+// the two read very differently: a wide ridge here means the model's tail latency swung a lot bucket
+// to bucket (e.g. degraded for an hour then recovered), not that individual requests were widely
+// spread. Rendering the latter would require the backend to hand back raw samples, and doing so from
+// the percentiles it actually sends would be exactly the fabrication `toLatencySeries`
+// (`apps/console/src/containers/overview-usage.ts`) and ADR-0008 Decision 7's amended status note
+// both rule out.
 export function LatencyDashboard({
-  label = 'Latency distribution — p95 by model',
+  label = 'Latency — p95 per bucket, by model',
   series,
   fallbackWidth,
   height,
@@ -47,6 +59,7 @@ export function LatencyDashboard({
   onRetry,
   onSelectSeries,
   formatXTick,
+  footnote,
   actions,
   className,
 }: LatencyDashboardProps) {
@@ -55,38 +68,29 @@ export function LatencyDashboard({
   const measuredWidth = size.width || fallbackWidth;
 
   return (
-    // The observed element is the OUTER wrapper, not the chart's scroll box: that box only exists
-    // in the chart branch now, and a ref that mounts only there would leave the loading skeleton
-    // measuring `fallbackWidth` forever. Both are full-width children of this div, so the
-    // measurement is identical either way.
+    // The ref observes the OUTER wrapper: the chart's scroll box only exists in the chart branch,
+    // so a ref mounted only there would leave the loading skeleton at `fallbackWidth` forever.
     <div ref={ref} className={className}>
       <div className="flex items-center justify-between gap-2">
         <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
         {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
       </div>
-      {/* Only the CHART goes inside the horizontal scroller. The error and loading states are
-          prose/skeleton that wrap to the column, and putting them in the scroll box made them
-          scroll with it: a horizontally-scrolled container clipped the status sentence at BOTH
-          ends, rendering it as "…isn't available: the usage API doesn't report latency or
-          percentile data yet. Spend, budget an…" (owner screenshot, 2026-08-29). A status line
-          about a chart that is not being drawn has no reason to live in that chart's viewport. */}
+      {/* Only the CHART goes in the horizontal scroller — error and loading are prose that wraps
+          to the column, and inside the scroll box they were clipped along with it. */}
       {status === 'error' ? (
         <div className="mt-4">
           <ErrorLine message={errorMessage ?? 'Failed to load latency data.'} onRetry={onRetry} />
         </div>
       ) : status === 'loading' ? (
         <div className="mt-4 flex flex-col gap-2">
-          {/* The skeleton matches the chart's geometry, so it keeps the chart's own scroller. */}
           <div className="w-full overflow-x-auto overflow-y-clip">
             <LatencyChartSkeleton width={measuredWidth} height={height} />
           </div>
           <p className="text-subtle font-mono text-[11px]">Querying usage…</p>
         </div>
       ) : (
-        /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`'s equivalent comment for
-           why a landmark role here would trip axe's `landmark-unique` once a page renders more
-           than one scrollable dashboard. `overflow-y-clip` -- see `SpendDashboard`'s note on why
-           `overflow-x-auto` alone also scrolls vertically. */
+        /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`. `overflow-y-clip` --
+           `overflow-x-auto` alone also scrolls vertically, see `SpendDashboard`. */
         <div className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
           <LatencyRidgeline
             series={series}
@@ -101,6 +105,7 @@ export function LatencyDashboard({
           />
         </div>
       )}
+      {footnote ? <p className="text-subtle mt-2 font-mono text-[10px]">{footnote}</p> : null}
     </div>
   );
 }

@@ -216,6 +216,14 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
  * the create-project dialog has exactly one possible target (the scoped account), so a bare
  * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
  * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
+ *
+ * `accountNameOpen` (`?account-name=true`) is that pattern once more, for `AccountNameDialog`.
+ * It is one param and not two even though the dialog drives two different procedures
+ * (`createAccount` / `updateAccountName`), because which one it drives is not a choice the user
+ * makes — it is derived from whether the signed-in subject already holds an account. Putting a
+ * `mode` in the URL would let a link assert a mode the data contradicts. The wire key is
+ * `account-name`, deliberately distinct from scope's own `account` (which carries an id, not a
+ * flag); its typed-but-unsent value is local state, same as every other draft.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -230,6 +238,7 @@ export const manageParsers = {
     'totals',
   ] as ReportIncludeId[]),
   createOpen: parseAsBoolean.withDefault(false),
+  accountNameOpen: parseAsBoolean.withDefault(false),
 };
 
 const manageUrlKeys = {
@@ -238,6 +247,7 @@ const manageUrlKeys = {
   selectedProjectId: 'row',
   reportGroupBy: 'report-group',
   createOpen: 'create',
+  accountNameOpen: 'account-name',
 };
 
 export function useManageParams() {

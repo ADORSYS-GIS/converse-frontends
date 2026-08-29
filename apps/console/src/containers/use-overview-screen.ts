@@ -3,9 +3,11 @@
 import { createId } from '@lightbridge/authz-rpc';
 import type { ApiKey, AugmentationRequest, Project } from '@lightbridge/authz-rpc';
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
+import { formatUsd } from '@lightbridge/ui-web';
 import type {
   BudgetSummary,
   DashboardStatus,
+  LatencyRidgelineSeries,
   ShareBarSegment,
   OverviewStatCardData,
   DateRangeFieldProps,
@@ -29,10 +31,12 @@ import {
   useOverviewParams,
 } from '../client/url-state';
 import { microsToAmount } from './refill-rows';
+import type { LatencyAdaptation } from './overview-usage';
 import {
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
   sumTotalCost,
+  toLatencySeries,
   toSpendSeries,
   resolveOverviewWindow,
   toSpendShareSegments,
@@ -49,31 +53,25 @@ import {
  * `?range=7d&series=…` — so the rail's RANGE select and the centre's chart cannot drift apart, and
  * the dashboard a user has configured is a link they can send.
  *
- * What is real here, as of #304-#306: project/API-key counts (refine over the generated
- * resources), SPEND/SPEND SHARE (`queryUsage` -> `overview-usage.ts`'s adapters), and BudgetHero's
- * consumption-vs-ceiling (the SAME `queryUsage` summed for the current billing period, paired with
- * `getMyBudgetBalance`'s `effectiveBudgetMicros` for the ceiling).
+ * What is real here, as of #304-#306 and this story: project/API-key counts (refine over the
+ * generated resources), SPEND/SPEND SHARE (`queryUsage` -> `overview-usage.ts`'s adapters),
+ * BudgetHero's consumption-vs-ceiling (the SAME `queryUsage` summed for the current billing
+ * period, paired with `getMyBudgetBalance`'s `effectiveBudgetMicros` for the ceiling), and now
+ * LATENCY, off the exact same `usageQuery` SPEND already runs — no third request.
  *
- * What stays honestly blocked: LATENCY (#307). `UsageQueryResponse.UsageSeriesPoint` carries
- * `requests`/`usage_value`/`total_cost`/`tokens` — no latency or percentile field exists in the
- * documented contract at all, so there is nothing to query. `LatencyDashboard` keeps rendering
- * with `status="unwired"` (this codebase's existing "never queried" vocabulary, reused rather than
- * inventing a second one — console-ui skill) but with `unwiredMessage` overridden to name the real,
- * permanent reason: the contract gap tracked as Epic 6 / #294, recorded in ADR 0008's Decision 7
- * status note. This is NOT the same fact `'unwired'` used to carry for SPEND/BUDGET before this
- * story (a client that didn't exist yet) — see `LATENCY_BLOCKED_MESSAGE`'s own comment.
+ * LATENCY is honest PER SERIES rather than all-or-nothing: the lightbridge-authz usage API now
+ * returns `latency_samples`/`latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms` per bucket (ADR
+ * 0008 Decision 7's amended status note), but an individual group within a response can still
+ * legitimately report zero samples — an aggregate metric signal (an OTLP histogram/summary data
+ * point) never carries a per-request duration, so the backend deliberately records no latency for
+ * it rather than fabricating a mean. `toLatencySeries` (`overview-usage.ts`) keeps that group in
+ * the ridgeline (so the reader can see the model exists) while naming the gap in
+ * `latencyFootnote` rather than either fabricating a shape for it or blanking the whole panel.
+ * `latencyStatus` stays `'ready'` even when EVERY group reported nothing this range — the query
+ * itself succeeded; an empty ridgeline plus the footnote is the honest rendering, not
+ * `'unwired'` (that vocabulary means "never queried," which is no longer true for anything on
+ * this screen).
  */
-
-// #305/#306 — SPEND, SPEND SHARE and BudgetHero are wired; the one remaining, permanent gap is
-// LATENCY (#307), so the banner now names that instead of a blanket "unwired" claim that would no
-// longer be true (#305's own AC: "the Overview banner's claims about these sections being unwired
-// are dropped once they're accurate"). Console-ui#326: no internal issue/Epic number in the
-// user-visible string itself (a customer should never have to decode a bare `#294`) — the Epic 6 /
-// #294 cross-reference lives in this module's own doc comment and the ADR 0008 status note, not
-// here; `placeholder-copy.test.ts` regression-tests every customer-visible string in this app
-// against exactly this rule.
-export const LATENCY_BLOCKED_MESSAGE =
-  "Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live.";
 
 /**
  * The Overview EXPORT rail control's disabled-reason caption (console-ui#324) — the CSV export
@@ -125,6 +123,35 @@ const BUDGET_BREACH_THRESHOLD = 0.9;
  *  shared-mutation identity — same pattern as `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY`. */
 const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
 
+/**
+ * The LATENCY footnote's per-series honesty logic (`toLatencySeries`'s `LatencyAdaptation`):
+ *
+ * - No response yet, or an empty response (no groups at all) — `undefined`. Nothing to caveat;
+ *   the empty ridgeline already says "no data" on its own terms, the same as SPEND's empty chart.
+ * - Every group reported real latency — `undefined`. Nothing to caveat.
+ * - Every group reported zero samples — names the range/filter itself as the reason, not a list
+ *   of models (there is nothing to list that would add information).
+ * - Some, but not all, groups reported zero samples — names exactly those groups, so the reader
+ *   can tell a genuine gap (an aggregate-metric-only model) from "the whole panel is broken."
+ */
+function buildLatencyFootnote(adaptation: LatencyAdaptation | undefined): string | undefined {
+  if (!adaptation) return undefined;
+  const { series, seriesWithoutLatency } = adaptation;
+  if (series.length === 0 || seriesWithoutLatency.length === 0) return undefined;
+
+  if (seriesWithoutLatency.length === series.length) {
+    return (
+      'No latency reported for this range or filter — every event was either an aggregate ' +
+      'metric signal or otherwise carried no per-request duration.'
+    );
+  }
+
+  return (
+    `No latency reported for ${seriesWithoutLatency.join(', ')} — aggregate metric signals ` +
+    'carry a bucketed distribution, not a per-request duration.'
+  );
+}
+
 /** Ascending-sorts `allowedAmountsMicros` (decimal strings — `BigInt`, never `Number`, since a
  *  micros amount can exceed `Number.MAX_SAFE_INTEGER`) and returns the smallest. `null` when the
  *  policy currently offers nothing. */
@@ -136,9 +163,6 @@ function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
 export interface OverviewScreen {
   scopeProjectLabel: string;
   subline: string;
-  /** Names the one dashboard that stays honestly blocked (LATENCY, #307) — never a blanket
-   *  "unwired" claim for sections that now have real data. */
-  emptyMessage: string;
   statCards: OverviewStatCardData[];
   statCardsLoading: boolean;
   selectedSeriesKey: string | null;
@@ -155,8 +179,16 @@ export interface OverviewScreen {
   spendStatus: DashboardStatus;
   spendErrorMessage?: string;
   spendRetry: () => void;
-  // ── #307: LATENCY stays blocked, on purpose ──────────────────────────────────────────────
-  latencyMessage: string;
+  // ── LATENCY — wired off the same usageQuery as SPEND, honest per series ─────────────────
+  latencySeries: LatencyRidgelineSeries[];
+  latencyStatus: DashboardStatus;
+  latencyErrorMessage?: string;
+  latencyRetry: () => void;
+  /** Names which group(s) reported zero latency samples across the whole range, or that NONE
+   *  did — `undefined` when every group reported real latency (nothing to caveat). See
+   *  `toLatencySeries` (`overview-usage.ts`) for the per-series honesty contract this derives
+   *  from. */
+  latencyFootnote?: string;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
@@ -264,6 +296,20 @@ export function useOverviewScreen(): OverviewScreen {
   const spendSegments = useMemo(
     () => (usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy) : []),
     [usageQuery.data, view.groupBy]
+  );
+
+  // ── LATENCY — the SAME usageQuery SPEND already runs, never a third request. `latencyStatus`
+  // mirrors `spendStatus` exactly: a failed/pending usage query takes both charts down together
+  // (they are the same query), never one looking wired while the other doesn't.
+  const latencyStatus: DashboardStatus = spendStatus;
+  const latencyAdaptation = useMemo(
+    () => (usageQuery.data ? toLatencySeries(usageQuery.data, view.groupBy) : undefined),
+    [usageQuery.data, view.groupBy]
+  );
+  const latencySeries = latencyAdaptation?.series ?? [];
+  const latencyFootnote = useMemo(
+    () => buildLatencyFootnote(latencyAdaptation),
+    [latencyAdaptation]
   );
 
   // ── #306: BudgetHero — consumption (usage backend, this billing period) vs ceiling (budget
@@ -377,10 +423,9 @@ export function useOverviewScreen(): OverviewScreen {
 
   return {
     scopeProjectLabel,
-    // No account id here: the header's `AccountBadge` is the console's ONE rendering of
-    // which account you are in (owner review 2026-08-29). This was copy two of four.
+    // No account id here: the header's `AccountBadge` is the console's one rendering of which
+    // account you are in. This was copy two of four.
     subline: `Last ${view.range} · UTC`,
-    emptyMessage: LATENCY_BLOCKED_MESSAGE,
     statCards,
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
     // `''` is the parser default (absent from the URL); the chart sections speak `null`.
@@ -442,14 +487,27 @@ export function useOverviewScreen(): OverviewScreen {
     spendStatus,
     spendErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
     spendRetry: () => void usageQuery.refetch(),
-    latencyMessage: LATENCY_BLOCKED_MESSAGE,
+    latencySeries,
+    latencyStatus,
+    latencyErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
+    latencyRetry: () => void usageQuery.refetch(),
+    latencyFootnote,
     budget,
     refillAction,
     refillErrorMessage: refill.errorMessage,
   };
 }
 
+/**
+ * The refill CTA's amount, e.g. `Request refill (+$12.00)`.
+ *
+ * `microsToAmount` handles the unit (budget-domain integer micros arriving as a decimal string —
+ * see its own docstring for why a string); `formatUsd` handles the rendering. This used to call
+ * `amount.toLocaleString('en-US')` directly, which is a SECOND currency convention: it groups
+ * thousands with a comma (`$1,200`) where the whole console groups with a thin space
+ * (`$1 200.00`), and it drops the cents the rest of the console always writes. One convention,
+ * one function.
+ */
 function formatMicros(amountMicros: string): string {
-  const amount = microsToAmount(amountMicros);
-  return `$${amount.toLocaleString('en-US')}`;
+  return formatUsd(microsToAmount(amountMicros));
 }

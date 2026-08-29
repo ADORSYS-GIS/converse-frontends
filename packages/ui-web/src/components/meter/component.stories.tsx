@@ -31,6 +31,14 @@ export const BreachedLight: Story = {
   args: { value: 498.1, ceiling: 500, label: 'gateway-prod ceiling' },
 };
 
+// Adaptive-precision USD in the paired caption: `$0.0063 of $12.00`, the real production figures.
+// The track is a hair off empty here and that is honest — what must NOT happen is the caption
+// agreeing with it by printing `$0.00`.
+export const SubCentAgainstCeiling: Story = {
+  name: 'Sub-cent against ceiling — $0.006338 of $12.00',
+  args: { value: 0.006338, ceiling: 12, label: 'Account ceiling' },
+};
+
 export const NoCaption: Story = {
   args: { value: 60, ceiling: 100, showCaption: false, label: 'Consumption' },
 };

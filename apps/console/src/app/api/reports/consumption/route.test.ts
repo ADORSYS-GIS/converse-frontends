@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { NextRequest } from 'next/server';
+import { extractText } from 'unpdf';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetServerEnvCacheForTests } from '../../../../server/env';
@@ -234,9 +235,108 @@ describe('GET /api/reports/consumption', () => {
 
     const text = await response.text();
     expect(text).toBe(
-      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost\r\n' +
-        'proj_1,gpt-4,10,100,50,150,1.50\r\n' +
-        'TOTAL,,10,100,50,150,1.50\r\n'
+      'project,model,requests,prompt_tokens,completion_tokens,total_tokens,total_cost_usd\r\n' +
+        'proj_1,gpt-4,10,100,50,150,0.000002\r\n' +
+        'TOTAL,,10,100,50,150,0.000002\r\n'
     );
+  });
+
+  it('answers format=pdf with a real PDF, named and typed as one', async () => {
+    writeConfig(configDir, ['usageUrl: "http://localhost:14000"']);
+    process.env.CONSOLE_CONFIG = join(configDir, 'config.yaml');
+    __resetServerEnvCacheForTests();
+    const points = [
+      {
+        project_id: 'proj_1',
+        model: 'gpt-4',
+        requests: 10,
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        total_tokens: 150,
+        // 6338 micro-USD is $0.006338 — the value that proves the shared `formatUsd` ladder is
+        // what rendered the money, since a fixed-2dp rule would print `$0.01`.
+        total_cost: 6338,
+      },
+    ];
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ points }), { status: 200 })
+      ) as unknown as typeof fetch;
+
+    const { GET } = await import('./route');
+    const cookie = await sessionCookieHeader();
+    const response = await GET(requestFor('?month=2026-02&account=acct_01&format=pdf', cookie));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/pdf');
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment; filename="consumption-2026-02.pdf"'
+    );
+    expect(response.headers.get('cache-control')).toBe('no-store');
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    expect(Buffer.from(bytes.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
+
+    const { text } = await extractText(bytes, { mergePages: true });
+    expect(text).toContain('Consumption report');
+    expect(text).toContain('Account acct_01');
+    expect(text).toContain('Period 2026-02');
+    expect(text).toContain('proj_1');
+    expect(text).toContain('gpt-4');
+    expect(text).toContain('$0.0063');
+  });
+
+  it('queries the usage backend exactly the same way for either format', async () => {
+    writeConfig(configDir, ['usageUrl: "http://localhost:14000"']);
+    process.env.CONSOLE_CONFIG = join(configDir, 'config.yaml');
+    __resetServerEnvCacheForTests();
+    // A fresh Response per call — one `Response` instance cannot have its body read twice.
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => new Response(JSON.stringify({ points: [] }), { status: 200 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { GET } = await import('./route');
+    const cookie = await sessionCookieHeader();
+    await GET(requestFor('?month=2026-02&account=acct_01', cookie));
+    await GET(requestFor('?month=2026-02&account=acct_01&format=pdf', cookie));
+
+    const [csvCall, pdfCall] = fetchMock.mock.calls as [string, RequestInit][];
+    expect(csvCall[0]).toBe(pdfCall[0]);
+    expect(csvCall[1].body).toBe(pdfCall[1].body);
+  });
+
+  it('defaults to CSV when no format is asked for, so every pre-existing link still works', async () => {
+    writeConfig(configDir, ['usageUrl: "http://localhost:14000"']);
+    process.env.CONSOLE_CONFIG = join(configDir, 'config.yaml');
+    __resetServerEnvCacheForTests();
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ points: [] }), { status: 200 })
+      ) as unknown as typeof fetch;
+
+    const { GET } = await import('./route');
+    const cookie = await sessionCookieHeader();
+    const response = await GET(requestFor('?month=2026-02&account=acct_01', cookie));
+
+    expect(response.headers.get('content-type')).toBe('text/csv; charset=utf-8');
+  });
+
+  it('rejects an unknown format with 400, without calling the usage backend', async () => {
+    writeConfig(configDir, ['usageUrl: "http://localhost:14000"']);
+    process.env.CONSOLE_CONFIG = join(configDir, 'config.yaml');
+    __resetServerEnvCacheForTests();
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { GET } = await import('./route');
+    const cookie = await sessionCookieHeader();
+    const response = await GET(requestFor('?month=2026-02&account=acct_01&format=xlsx', cookie));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: 'invalid_format' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

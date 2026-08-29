@@ -1,19 +1,17 @@
 // Page-level acceptance story for OVERVIEW — console-ui skill "Composition": full-page
 // compositions exist in exactly two places, Storybook and `apps/console`'s routes. This is the
-// Storybook one: sections composed inside `ConsoleShell` with the section fixtures, so a whole
-// screen can be checked without starting the app.
-//
-// **This screen has no right rail at any tier** (owner review 2026-08-29). Its parameters live in
-// one always-visible `OverviewToolbar` above the dashboards, so there is no `RailPanel`/
-// `SectionSheetTrigger` pair to keep in sync, no `md`-vs-`lg` composition split, and the centre
-// column is ~280px wider than it was. See `sections/overview-toolbar/component.tsx` for why.
+// Storybook one: sections composed inside `ConsoleShell` with the section fixtures, 1:1 against
+// docs/design/console-redesign/overview.svg, so a whole screen can be checked without starting
+// the app.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
 import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
+import { presetRange } from '../components/date-range-field';
 import type { SelectFieldProps } from '../components/select-field';
 import { InlineStatus } from '../components/inline-status';
 import { BudgetPanel } from '../sections/budget-panel';
@@ -26,16 +24,10 @@ import {
 } from '../sections/budget-panel/fixtures';
 import { LatencyDashboard } from '../sections/latency-dashboard';
 import {
-  formatOverviewLatencyXTick,
   overviewLatencySeries,
+  partiallyReportedLatencySeries,
 } from '../sections/latency-dashboard/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
-import {
-  overviewEmptyStatCards,
-  overviewStatCards,
-  overviewUnwiredStatCards,
-} from '../sections/overview-stat-row/fixtures';
-import { presetRange } from '../components/date-range-field';
 import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
@@ -44,7 +36,13 @@ import {
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
 } from '../sections/overview-toolbar/fixtures';
+import {
+  overviewEmptyStatCards,
+  overviewStatCards,
+  overviewUnwiredStatCards,
+} from '../sections/overview-stat-row/fixtures';
 import { ScreenHeading } from '../sections/screen-heading';
+import { UNWIRED_CHART_MESSAGE } from '../sections/unwired-chart-message';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
@@ -56,7 +54,8 @@ import {
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
 import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
-import { formatMoney } from '../lib/money';
+import { formatMsAxis } from '../lib/duration';
+import { formatUsd } from '../lib/money';
 import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
@@ -69,8 +68,8 @@ const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
 function useSelectField(
   initial: string,
   options: SelectFieldProps['options'],
-  label: string,
-): Omit<SelectFieldProps, 'layout'> {
+  label: string
+): SelectFieldProps {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
@@ -83,20 +82,26 @@ interface OverviewScreenProps {
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
   spendShareSegments?: ShareBarSegment[];
+  exportDisabledReason?: string;
   spendShareStatus?: DashboardStatus;
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
   latencyErrorMessage?: string;
-  /** Overrides `UNWIRED_CHART_MESSAGE` for `latencyStatus="unwired"` — see `LatencyBlocked`. */
+  /** Overrides LatencyDashboard's default `UNWIRED_CHART_MESSAGE` — see `Unwired` above, the
+   *  reference story for what "no usage-backend query client at all" looked like before #304. */
   latencyUnwiredMessage?: string;
+  /** The per-series honesty line below the ridgeline — see `LatencyPartiallyReported` below, the
+   *  story for the "some models reported nothing" case `use-overview-screen.ts`'s real
+   *  `latencyFootnote` derives. */
+  latencyFootnote?: string;
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
-  exportDisabledReason?: string;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/` route perform for real: the shell
-// once, sections inside it, and — unlike before — exactly ONE arrangement of the parameters.
+// The composition `apps/console`'s `(console)` layout + `/` route perform for real — the shell
+// once, sections inside it, with the right rail's sections mounted twice (persistent `RailPanel`
+// at `lg`, `SectionSheetTrigger` sheet below it) from ONE piece of state.
 function OverviewScreen({
   showAdmin = false,
   emptyMessage,
@@ -105,15 +110,16 @@ function OverviewScreen({
   spendSeries = overviewSpendSeries,
   spendStatus = 'ready',
   spendShareSegments = overviewSpendShareSegments,
+  exportDisabledReason,
   spendShareStatus = 'ready',
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
   latencyErrorMessage,
   latencyUnwiredMessage,
+  latencyFootnote,
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
-  exportDisabledReason,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
@@ -127,8 +133,9 @@ function OverviewScreen({
 
   const spendShareTotal = useMemo(
     () => spendShareSegments.reduce((sum, segment) => sum + segment.value, 0),
-    [spendShareSegments],
+    [spendShareSegments]
   );
+
 
   return (
     <ConsoleShell
@@ -138,14 +145,8 @@ function OverviewScreen({
         adminItems: storyAdminNavItems('overview'),
         showAdmin,
       }}>
-      {/* No `leftSecondary`: the left rail's `Scope` echo is gone. It restated the account and
-          project the header already names and the toolbar already filters — three copies of one
-          fact, of which this was the least useful (read-only, and furthest from both). The rail
-          is navigation again, nothing else. */}
       <div className="flex flex-col gap-8">
         <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
-
-        {/* Subline no longer repeats the account id — the header carries it, once. */}
 
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
 
@@ -187,22 +188,23 @@ function OverviewScreen({
           formatLegendValue={formatOverviewSpendLegendValue}
         />
 
-        {/* Directly below the time series: reading order stays tiles → trend → share → detail.
-            Now ~90px rather than ~330 (the donut it replaced), which is why LATENCY and BUDGET
-            are visible without scrolling at the `lg` reference height. */}
+        {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row --
+            reading order stays tiles -> trend -> share -> detail. Its own dashboard row (not
+            folded into the LATENCY/BUDGET row) because a donut is a fixed-size widget, unlike
+            those two `lg:basis-*` columns that scale to fill the centre; giving it a full-width
+            row lets it stay centered rather than stretching or crowding a third column into 872px. */}
         <SpendShareSection
           segments={spendShareSegments}
-          total={spendShareTotal > 0 ? formatMoney(spendShareTotal) : undefined}
           status={spendShareStatus}
           onRetry={() => {}}
           selectedKey={selectedSeriesKey}
           onSelectSegment={setSelectedSeriesKey}
+          total={spendShareTotal > 0 ? formatUsd(spendShareTotal) : undefined}
         />
 
-        {/* `lg:basis-[528px]` / `lg:basis-[320px]` were the 1440-reference widths back when the
-            centre was 872px wide. With the right rail gone the centre is ~1152px at the same
-            reference, so these are now proportions rather than pixel targets — `lg:flex-1
-            lg:min-w-0` lets both columns scale together instead of overflowing. */}
+        {/* `lg:basis-[528px]` / `lg:basis-[320px]` are the 1440-reference widths (528 + 320 + 24px
+            gap = 872px, the centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not
+            `shrink-0`) lets both columns scale down together instead of overflowing. */}
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
           <LatencyDashboard
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
@@ -212,8 +214,9 @@ function OverviewScreen({
             status={latencyStatus}
             errorMessage={latencyErrorMessage}
             unwiredMessage={latencyUnwiredMessage}
+            footnote={latencyFootnote}
             onRetry={() => {}}
-            formatXTick={formatOverviewLatencyXTick}
+            formatXTick={formatMsAxis}
           />
           <BudgetPanel
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
@@ -238,11 +241,13 @@ const meta: Meta<typeof OverviewScreen> = {
 export default meta;
 type Story = StoryObj<typeof OverviewScreen>;
 
-// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Fluid (console-ui skill
-// "Fluid always") — the page follows the iframe's real width rather than a fixed 1440 wrapper.
+// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Visually comparable to
+// docs/design/console-redesign/overview.svg. Fluid (console-ui skill "Fluid always") — the page
+// follows the iframe's real width rather than a fixed 1440 wrapper.
 export const Populated: Story = { render: () => <OverviewScreen /> };
 
-// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures.
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures — the
+// page-level acceptance surface for the light theme at the `lg` reference tier.
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   render: () => <OverviewScreen />,
@@ -250,6 +255,8 @@ export const PopulatedLight: Story = {
 };
 
 // README §6: axes/structure stay rendered, an InlineStatus banner carries the "nothing yet" copy.
+// A REAL, wired account that genuinely consumed nothing this period — distinct from `Unwired`
+// below, where no query has ever run at all.
 export const Empty: Story = {
   render: () => (
     <OverviewScreen
@@ -265,13 +272,18 @@ export const Empty: Story = {
   ),
 };
 
-// #263/#272/#273 — Overview's state BEFORE #304-#307 (Epic 4 Story 4.2): PROJECTS/API KEYS counts
-// were live (via refine), everything usage- and budget-shaped had never been queried at all. Every
-// zone renders `'unwired'` rather than defaulting to `'ready'` with fabricated empty/zero data.
+// #263/#272/#273 — Overview's state BEFORE #304-#307 (Epic 4 Story 4.2): PROJECTS/API KEYS
+// counts were live (via refine), everything usage- and budget-shaped had never been queried (no
+// usage-backend query client existed at all). Every zone rendered `'unwired'` rather than
+// defaulting to `'ready'` with fabricated empty/zero data — the acceptance surface for #272/#273.
 //
-// Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary is still live —
-// `LatencyBlocked` below exercises it for real — and this remains the reference for what "no
-// usage-backend query client exists at all" looks like across every zone at once.
+// Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary itself is still
+// live — `component.stories.tsx`'s own `Unwired` story for `LatencyDashboard` exercises it for
+// real — and this remains the reference for what "the usage-backend query client doesn't exist at
+// all yet" looks like across every zone at once, which is no longer console's actual state: as of
+// the lightbridge-authz `feat/usage-latency-percentiles` contract landing, LATENCY is wired the
+// same way SPEND/SPEND SHARE/BUDGET already were (see `LatencyPopulated`/`LatencyPartiallyReported`
+// below for what that looks like).
 export const Unwired: Story = {
   render: () => (
     <OverviewScreen
@@ -286,7 +298,6 @@ export const Unwired: Story = {
       budget={overviewUnwiredBudget}
       needsAttention={undefined}
       refillRequestStatus={undefined}
-      exportDisabledReason="Export isn't available yet."
     />
   ),
 };
@@ -297,30 +308,33 @@ export const UnwiredLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// #307 — console's ACTUAL current state: SPEND/SPEND SHARE/BUDGET are real, and LATENCY alone
-// stays `'unwired'` — not because no client exists (one does, as of #304), but because the
-// documented usage-API contract has no latency/percentile field to query at all (Epic 6, tracked
-// as #294). The banner is `apps/console`'s real, customer-visible `LATENCY_BLOCKED_MESSAGE`
-// (`containers/use-overview-screen.ts`) verbatim.
-//
-// It is also the regression story for the owner-reported clipping bug: that message used to
-// render INSIDE the chart's `overflow-x-auto` box and was cut off at both ends. It now sits
-// outside that box and wraps to the column.
-export const LatencyBlocked: Story = {
-  render: () => (
-    <OverviewScreen
-      emptyMessage="Latency distribution isn't available: the usage API doesn't report latency or percentile data yet. Spend, budget and project/key counts below are live."
-      latencySeries={[]}
-      latencyStatus="unwired"
-      latencyUnwiredMessage="Blocked — the usage API doesn't report latency or percentile data yet."
-    />
-  ),
+// Console's ACTUAL current state, and the acceptance surface for ADR 0008 Decision 7's amended
+// status note: SPEND/SPEND SHARE/BUDGET/LATENCY are all real now (default fixtures,
+// `spendStatus`/`spendShareStatus`/`latencyStatus` all default to `'ready'`) — the usage-API
+// contract gained `latency_samples`/`latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms` on
+// `lightbridge-authz`'s `feat/usage-latency-percentiles` branch, closing the gap the earlier
+// `LatencyBlocked` story (removed) exercised. Every model here reported real per-bucket p95
+// samples across the whole range, so there is nothing to caveat — no footnote.
+export const LatencyPopulated: Story = {
+  render: () => <OverviewScreen latencySeries={overviewLatencySeries} latencyStatus="ready" />,
 };
 
-export const LatencyBlockedLight: Story = {
-  name: 'LatencyBlocked — wireframe (light)',
-  render: LatencyBlocked.render,
-  globals: { theme: 'wireframe' },
+// The per-series honesty this feature is actually built around: a query can succeed
+// (`latencyStatus="ready"`, never `'unwired'` — that vocabulary is reserved for "never queried at
+// all") while one group within it genuinely reported no latency at all, e.g. `signal-summary`
+// here, an aggregate metric signal that never carries a per-request duration
+// (`openapi/usage.backend.yaml`'s own `latency_samples` doc comment). The gap is named in the
+// footnote and in that row's own "no latency reported" value, never silently dropped and never
+// fabricated — see `apps/console/src/containers/use-overview-screen.ts`'s `latencyFootnote` for
+// the real per-series logic this story's `latencyFootnote` prop mirrors.
+export const LatencyPartiallyReported: Story = {
+  render: () => (
+    <OverviewScreen
+      latencySeries={partiallyReportedLatencySeries}
+      latencyStatus="ready"
+      latencyFootnote="No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration."
+    />
+  ),
 };
 
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
@@ -337,16 +351,10 @@ export const Loading: Story = {
 
 // README §6 error rules: section-level ErrorLine + Retry. A failed latency query must not take
 // the spend chart down with it, so only LATENCY errors here.
-//
 export const DashboardError: Story = {
   render: () => (
     <OverviewScreen latencyStatus="error" latencyErrorMessage="Failed to load latency data." />
   ),
-};
-
-/** Production's real state: the usage backend serves no CSV, so export is disabled and says so. */
-export const ExportUnavailable: Story = {
-  render: () => <OverviewScreen exportDisabledReason="Export isn't available yet." />,
 };
 
 export const MemberNav: Story = {
@@ -359,15 +367,33 @@ export const AdminNav: Story = {
   render: () => <OverviewScreen showAdmin />,
 };
 
-// `md` tier (600–1024): left rail persists inline; the toolbar simply wraps. There is no sheet
-// to open and no trigger to find — the reason this tier no longer needs its own story pair.
+// `md` tier (600–1024): left rail persists inline; the right rail has NO persistent footer/peek
+// bar at all (owner revision 2026-08-25). Its sections are reached via contextual triggers
+// instead: VIEW and FILTERS beside the SPEND header, EXPORT beside the BUDGET header.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <OverviewScreen />,
 };
 
+// Same `md` tier, FILTERS trigger activated — the contextual trigger → `SectionSheet` flow end to
+// end: only the FILTERS section (not the whole rail) opens as a transient bottom sheet.
+export const MdTierFiltersSheetOpen: Story = {
+  name: 'md tier — FILTERS sheet open',
+  globals: { viewport: { value: 'md900' } },
+  render: () => <OverviewScreen />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
+
+    // The sheet's `Drawer.Portal` renders to `document.body`, outside `canvasElement`.
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
+  },
+};
+
 // Base tier (<600, a designed target): single column, stacked stat cards, nav docked as a fixed
-// bottom navigation bar, toolbar wrapped to several rows.
+// bottom navigation bar, VIEW/FILTERS/EXPORT via the same contextual triggers as `md`, SCOPE via
+// the header's drawer trigger.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <OverviewScreen />,

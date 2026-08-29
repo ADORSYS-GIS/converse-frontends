@@ -5,11 +5,11 @@ import { ErrorLine } from '../../components/error-line';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import type { RefillRequestRow, ReviewQueueProps } from './types';
 
 function signedMoney(amount: number): string {
-  return `${amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(amount))}`;
+  return `${amount >= 0 ? '+' : '−'}${formatUsd(Math.abs(amount))}`;
 }
 
 // Contract: docs/design/console-redesign/README.md §5.4 (admin-budget-review.svg) — the centre's
@@ -56,7 +56,7 @@ export function ReviewQueue({
         const ratio = row.ceiling > 0 ? row.consumed / row.ceiling : 0;
         return (
           <span className={ratio >= 0.9 ? 'text-primary' : 'text-ink'}>
-            {formatMoney(row.consumed)}
+            {formatUsd(row.consumed)}
           </span>
         );
       },
@@ -66,7 +66,7 @@ export function ReviewQueue({
       header: 'Ceiling',
       width: '100px',
       align: 'right',
-      accessor: (row) => (row.ceiling === null ? '—' : formatMoney(row.ceiling)),
+      accessor: (row) => (row.ceiling === null ? '—' : formatUsd(row.ceiling)),
     },
     {
       key: 'refill',

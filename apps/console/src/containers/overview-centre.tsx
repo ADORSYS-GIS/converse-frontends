@@ -1,8 +1,9 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { formatMsAxis } from '@lightbridge/ui-web/src/lib/duration';
+import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
-import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
@@ -24,20 +25,32 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-ov
  * every tier — but the values still live in the query string (ADR 0011), so a configured dashboard
  * stays a link you can send.
  */
+/**
+ * Every spend figure the Overview charts render is USD, and every one of them goes through the
+ * adaptive-precision ladder in `@lightbridge/ui-web/src/lib/money`.
+ *
+ * These were previously not passed at all, so both charts fell back to their unit-agnostic
+ * defaults -- `String(Math.round(v))` for the time series, the same for the donut. Against real
+ * production spend (an account at $0.006338 of a $12.00 ceiling) that labels every y-axis tick
+ * and every tooltip `0`: no currency sign, no magnitude, no information. The chart primitives are
+ * deliberately unit-blind (`LatencyDashboard` renders `ms` through the same props), so the fix
+ * belongs here, at the one place that knows these particular series are money.
+ */
+const formatSpendTooltip = (value: number) => formatUsd(value);
+const formatSpendSliceValue = (slice: { value: number }, percent: number) =>
+  `${formatUsd(slice.value)} · ${percent.toFixed(0)}%`;
+
 export function OverviewCentre() {
   const screen = useOverviewScreen();
 
+  const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
 
   return (
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline={screen.subline} />
 
-      {/* #305/#307 — this no longer claims SPEND/SPEND SHARE/BUDGET are unwired: only LATENCY
-          stays honestly blocked (contract has no latency/percentile field, Epic 6/#294). */}
-      <InlineStatus>{screen.emptyMessage}</InlineStatus>
-
       {/* Every parameter this screen has, in one always-visible strip — no rail at any tier, no
-          section sheets, no `lg`-only composition (owner review 2026-08-29). */}
+          section sheets, no `lg`-only composition. */}
       <OverviewToolbar
         rangeField={screen.rangeField}
         bucketField={screen.bucketField}
@@ -58,6 +71,11 @@ export function OverviewCentre() {
         onRetry={screen.spendRetry}
         fallbackWidth={840}
         height={220}
+        formatYTick={formatUsdAxis}
+        formatTooltipValue={formatSpendTooltip}
+        formatLegendValue={(series) =>
+          formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
+        }
         onSelectSeries={screen.setSelectedSeriesKey}
       />
 
@@ -72,21 +90,26 @@ export function OverviewCentre() {
         onRetry={screen.spendRetry}
         selectedKey={screen.selectedSeriesKey}
         onSelectSegment={screen.setSelectedSeriesKey}
+        total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
       />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
+        {/* Wired off the SAME usageQuery SpendDashboard/SpendShareSection above already run — see
+            `use-overview-screen.ts`'s doc comment. `latencyFootnote` carries the per-series
+            honesty: `undefined` when every group reported real latency, otherwise naming exactly
+            which group(s) (or the whole range) reported none — never a chart-wide "unwired"
+            claim now that a real usage-backend query client exists and ran. */}
         <LatencyDashboard
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-          series={[]}
-          // #307 — this is a PERMANENT, contract-level block, not "not wired yet": the usage API's
-          // documented `UsageSeriesPoint` shape carries no latency/percentile field at all, tracked
-          // as Epic 6 / #294 (ADR 0008 Decision 7 status note). Reusing `status="unwired"` (rather
-          // than inventing a second vocabulary) with an overridden message, per this epic's own
-          // instruction to reuse the existing vocabulary for what stays unwired.
-          status="unwired"
-          unwiredMessage={screen.latencyMessage}
+          series={screen.latencySeries}
+          status={screen.latencyStatus}
+          errorMessage={screen.latencyErrorMessage}
+          onRetry={screen.latencyRetry}
+          footnote={screen.latencyFootnote}
           fallbackWidth={840}
           height={200}
+          formatXTick={formatMsAxis}
+          onSelectSeries={screen.setSelectedSeriesKey}
         />
         <BudgetPanel
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"

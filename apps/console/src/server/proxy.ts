@@ -70,7 +70,8 @@ async function forward(
   headers: Headers,
   body: ArrayBuffer | undefined,
   accessToken: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  dispatcher?: unknown
 ): Promise<Response> {
   const upstreamHeaders = new Headers(headers);
   upstreamHeaders.set('Authorization', `Bearer ${accessToken}`);
@@ -82,12 +83,23 @@ async function forward(
     // Never let a redirect from a backend turn into a request the console did not intend.
     redirect: 'manual',
     cache: 'no-store',
-  });
+    // `dispatcher` is undici's, not the WHATWG `RequestInit`'s, so it needs the cast -- Node's
+    // global fetch IS undici and honours it. Present only for the usage backend, whose query
+    // listener requires a client certificate; every other proxy call leaves it undefined and so
+    // presents no client identity at all.
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit);
 }
 
 export type ProxyOptions = {
   /** Resolves the upstream URL. Throws `InvalidProxyPathError` for a rejected path. */
   resolveTarget: () => string;
+  /**
+   * undici dispatcher for the upstream call. Only the usage proxy sets one (its backend's query
+   * listener requires mTLS); leaving it undefined is what keeps the console from presenting a
+   * client certificate to backends that never asked for one.
+   */
+  dispatcher?: unknown;
 };
 
 /**
@@ -98,7 +110,7 @@ export type ProxyOptions = {
  */
 export async function proxyRequest(
   request: NextRequest,
-  { resolveTarget }: ProxyOptions
+  { resolveTarget, dispatcher }: ProxyOptions
 ): Promise<NextResponse> {
   let targetUrl: string;
   try {
@@ -155,7 +167,8 @@ export async function proxyRequest(
       headers,
       body,
       session.tokens.accessToken,
-      request.signal
+      request.signal,
+      dispatcher
     );
   } catch (error) {
     console.error('[console] Upstream request failed:', error);
@@ -192,7 +205,12 @@ export async function proxyRequest(
         headers,
         body,
         session.tokens.accessToken,
-        request.signal
+        request.signal,
+        // MUST be passed here too. This is the reactive-401 retry, and dropping the dispatcher
+        // would send the retry without the client certificate -- so any usage query that happened
+        // to land on an expiring token would fail the TLS handshake instead of succeeding with the
+        // refreshed one. The two call sites differ only in which token they carry.
+        dispatcher
       );
     } catch (error) {
       console.error('[console] Upstream retry failed:', error);

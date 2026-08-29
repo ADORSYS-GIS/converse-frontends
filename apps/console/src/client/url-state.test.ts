@@ -49,6 +49,7 @@ describe('the URL param contract', () => {
       overview: ['bucket', 'from', 'group-by', 'model', 'range', 'series', 'to'],
       apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
+        'account-name',
         'budget-state',
         'create',
         'format',

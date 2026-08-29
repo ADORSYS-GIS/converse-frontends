@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { MANAGE_SPEND_PENDING_MESSAGE } from './use-manage-screen';
-import {
-  LATENCY_BLOCKED_MESSAGE,
-  OVERVIEW_EXPORT_UNAVAILABLE_CAPTION,
-} from './use-overview-screen';
+import * as overviewScreenModule from './use-overview-screen';
+import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION } from './use-overview-screen';
 
 /**
  * console-ui#326 — regression coverage for the ticket's own Test Plan ("grep-based regression
@@ -24,10 +22,16 @@ import {
  * subjects) are gone along with the placeholders they described — tickets #303/#309 built the real
  * project-creation and report-export paths, so there is no more "isn't available yet" string to
  * regression-test.
+ *
+ * `LATENCY_BLOCKED_MESSAGE` is gone too, along with the whole panel-wide "isn't available" claim
+ * it carried: the lightbridge-authz usage API now returns `latency_samples`/`latency_p50_ms`/
+ * `latency_p95_ms`/`latency_p99_ms` per bucket, so LATENCY is wired the same way SPEND/BUDGET
+ * already were (`use-overview-screen.ts`'s `latencySeries`/`latencyStatus`/`latencyFootnote`).
+ * What survives from that old test is the SAME regression concern applied to what replaced it: no
+ * blanket "isn't available"/"unwired" claim should exist anywhere in this module any more.
  */
 const USER_VISIBLE_STRINGS = {
   MANAGE_SPEND_PENDING_MESSAGE,
-  LATENCY_BLOCKED_MESSAGE,
   OVERVIEW_EXPORT_UNAVAILABLE_CAPTION,
 };
 
@@ -47,22 +51,27 @@ describe('placeholder copy (console-ui#326)', () => {
     }
   );
 
-  it('MANAGE_SPEND_PENDING_MESSAGE and LATENCY_BLOCKED_MESSAGE no longer cite the shipped console scaffold', () => {
+  it('MANAGE_SPEND_PENDING_MESSAGE no longer cites the shipped console scaffold', () => {
     expect(MANAGE_SPEND_PENDING_MESSAGE).not.toMatch(/follow-?up.*4/i);
-    expect(LATENCY_BLOCKED_MESSAGE).not.toMatch(/follow-?up.*4/i);
   });
 
-  it('every placeholder string still states the real reason, not a bare "unavailable"', () => {
+  it('every remaining placeholder string still states the real reason, not a bare "unavailable"', () => {
     // Regression against over-correcting into content-free copy: each string must still name
     // what's actually missing.
     expect(MANAGE_SPEND_PENDING_MESSAGE).toMatch(/usage backend/);
-    expect(LATENCY_BLOCKED_MESSAGE).toMatch(/latency or percentile/);
   });
 
-  // #304-#307 (Epic 4 Story 4.2) — Overview's SPEND/SPEND SHARE/BUDGET are wired to the usage
-  // backend now; a customer-visible string still asserting "no usage-backend query client" would
-  // itself be a stale-claim defect (the same class #326 fixed for the ADR follow-up citations).
-  it('LATENCY_BLOCKED_MESSAGE does not claim the usage-backend query client is missing', () => {
-    expect(LATENCY_BLOCKED_MESSAGE).not.toMatch(/no usage-backend query client/i);
+  // #304-#307 (Epic 4 Story 4.2), extended by this story to LATENCY: SPEND/SPEND SHARE/BUDGET/
+  // LATENCY are all wired to the usage backend now, so this module must no longer export any
+  // blanket "isn't available"/"unwired" copy for the Overview screen at all — the panel is
+  // honest PER SERIES (`latencyFootnote`) rather than through a permanent blocked-panel message.
+  it('no longer exports a blanket latency-unavailable/blocked message', () => {
+    expect('LATENCY_BLOCKED_MESSAGE' in overviewScreenModule).toBe(false);
+    const values: unknown[] = Object.values(overviewScreenModule);
+    for (const value of values) {
+      if (typeof value !== 'string') continue;
+      expect(value).not.toMatch(/latency.{0,40}isn'?t available/i);
+      expect(value).not.toMatch(/latency or percentile/i);
+    }
   });
 });

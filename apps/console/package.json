@@ -32,6 +32,7 @@
     "openid-client": "^6.8.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "undici": "^7.16.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
@@ -50,6 +51,7 @@
     "serwist": "^9.5.12",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
+    "unpdf": "^1.8.1",
     "vite": "^7.3.6",
     "vitest": "^3.2.7"
   },

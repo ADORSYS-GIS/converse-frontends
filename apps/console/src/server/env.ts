@@ -42,6 +42,13 @@ export type ConsoleEnv = {
   apiBasePath: string;
   budgetUrl: string;
   usageUrl?: string;
+  /**
+   * Client certificate for the usage backend's query listener, which requires mTLS
+   * (lightbridge-authz#347/#361) and has no bearer-token auth of its own. Unset on any deployment
+   * that has no usage backend wired up; `usage-dispatcher.ts` then yields no dispatcher and the
+   * usage routes answer their honest 503.
+   */
+  usageClientCert?: { certPath: string; keyPath: string };
   sessionSecret: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
   publicBaseUrl?: string;
@@ -64,6 +71,7 @@ type RawConsoleConfig = {
   apiBasePath?: unknown;
   budgetUrl?: unknown;
   usageUrl?: unknown;
+  usageClientCert?: { certPath?: unknown; keyPath?: unknown };
   publicBaseUrl?: unknown;
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
   // for the future authz-style permission model (see config.yaml's comment); wiring it up before
@@ -157,6 +165,19 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
 
   const idp = raw.idp ?? {};
   const usageUrl = asOptionalString(raw.usageUrl);
+  // Both halves or neither: a cert without a key (or vice versa) cannot produce a working TLS
+  // identity, so treating a half-configured block as "configured" would turn a config typo into a
+  // per-request handshake failure instead of the same honest 503 an unconfigured deployment gets.
+  // Trimmed, unlike `asOptionalString`'s plain `!== ''` check: these are FILE PATHS resolved from
+  // a mounted volume, and a `{env:VAR}` placeholder that resolves to whitespace is a realistic
+  // config accident. Untrimmed, `'   '` counts as configured and the failure surfaces later as a
+  // `readFileSync` error logged on every boot; trimmed, it is simply unconfigured and the usage
+  // routes give their honest 503. Kept local rather than changed inside `asOptionalString`, whose
+  // other callers are URLs and secrets with their own validation.
+  const usageCertPath = asOptionalString(raw.usageClientCert?.certPath)?.trim() || undefined;
+  const usageKeyPath = asOptionalString(raw.usageClientCert?.keyPath)?.trim() || undefined;
+  const usageClientCert =
+    usageCertPath && usageKeyPath ? { certPath: usageCertPath, keyPath: usageKeyPath } : undefined;
 
   return {
     idp: {
@@ -172,6 +193,7 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     apiBasePath: normalizeBasePath(asStringWithFallback(raw.apiBasePath, '/api')),
     budgetUrl: trimTrailingSlash(asStringWithFallback(raw.budgetUrl, backendUrl)),
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
+    usageClientCert,
     sessionSecret,
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)

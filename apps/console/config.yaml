@@ -88,6 +88,23 @@ budgetUrl: 'http://localhost:13005'
 # chart that reads as zero usage. Uncomment and point at a real instance to wire it up.
 # usageUrl: "http://localhost:13006"
 
+# Client certificate for the usage backend's QUERY listener, which requires mTLS
+# (lightbridge-authz#347/#361) and has no bearer-token auth of its own -- the certificate IS the
+# authentication, so there is no "just send the access token" path: without it the connection is
+# refused at the TLS handshake, before any HTTP exists to carry a token.
+#
+# Both keys or neither. A cert without a key cannot produce a working identity, so a
+# half-configured block is treated as unconfigured rather than failing per-request.
+#
+# Unset here (local dev has no usage backend). When unset, `usageDispatcher()` yields nothing and
+# /api/usage/* answers its honest 503 -- the same state a deployment without `usageUrl` gets.
+#
+# What this configures is what the console PRESENTS. What it TRUSTS comes from
+# NODE_EXTRA_CA_CERTS. Both directions stay verified; neither is a way to turn verification off.
+# usageClientCert:
+#   certPath: /etc/lightbridge/tls/tls.crt
+#   keyPath: /etc/lightbridge/tls/tls.key
+
 # ── Public origin ─────────────────────────────────────────────────────────────────────────────
 # The absolute origin browsers reach this app on. Used to build the OIDC redirect URI, the RP-
 # initiated logout redirect and the /.well-known/oauth-protected-resource `resource` identifier.

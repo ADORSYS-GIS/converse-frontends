@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { AccountNameDialog } from '../components/account-name-dialog';
 import { ConsoleShell } from '../components/console-shell';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
@@ -17,6 +18,8 @@ import { ScopeSelect } from '../components/scope-select';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
 import { SelectionSheet } from '../components/selection-sheet';
 import { SubNav } from '../components/sub-nav';
+import { AccountPanel } from '../sections/account-panel';
+import type { AccountPanelAccount } from '../sections/account-panel';
 import { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from '../sections/manage-filters-rail';
 import {
   manageAccountOptions,
@@ -55,6 +58,11 @@ interface ManageScreenProps {
   error?: string;
   initialSelection?: ProjectRow | null;
   showAdmin?: boolean;
+  /** `null` = signed in with no account at all — the reported production dead end. An account
+   *  whose own `name` is `null` is the separate, and today far more common, unnamed state. */
+  account?: AccountPanelAccount | null;
+  /** Opens `AccountNameDialog` on mount, the way `?account-name=true` does for real. */
+  initialAccountDialogOpen?: boolean;
 }
 
 // The composition `apps/console`'s `(console)` layout + `/manage` route perform for real.
@@ -64,6 +72,8 @@ function ManageScreen({
   error,
   initialSelection = null,
   showAdmin = false,
+  account = { id: 'auth0|9f3a2c7e41b0', name: 'Widgets Ltd' },
+  initialAccountDialogOpen = false,
 }: ManageScreenProps) {
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectRow | null>(initialSelection);
@@ -81,7 +91,9 @@ function ManageScreen({
   ]);
 
   // Storybook demo state only — `apps/console`'s real dialog draft lives in
-  // `use-manage-screen.ts`'s own sanctioned local state (ticket #303).
+  // `use-manage-screen.ts`'s own sanctioned local state (tickets #303 / #365).
+  const [accountDialogOpen, setAccountDialogOpen] = useState(initialAccountDialogOpen);
+  const [accountName, setAccountName] = useState(account?.name ?? '');
   const [createOpen, setCreateOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [billingIdentity, setBillingIdentity] = useState('');
@@ -160,7 +172,29 @@ function ManageScreen({
       }>
       <div className="flex flex-col gap-6">
         <ScreenHeading title="Projects" />
+
+        <AccountPanel
+          account={account}
+          loading={false}
+          onCreate={() => setAccountDialogOpen(true)}
+          onRename={() => setAccountDialogOpen(true)}
+          onRetry={() => {}}
+        />
+
         <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
+
+        <AccountNameDialog
+          open={accountDialogOpen}
+          mode={account === null ? 'create' : 'rename'}
+          subjectLabel={account?.id ?? 'auth0|9f3a2c7e41b0'}
+          currentlyNamed={(account?.name ?? null) !== null}
+          name={accountName}
+          onNameChange={setAccountName}
+          submitting={false}
+          canSubmit={account === null || accountName.trim() !== (account.name ?? '')}
+          onSubmit={() => setAccountDialogOpen(false)}
+          onCancel={() => setAccountDialogOpen(false)}
+        />
 
         <CreateProjectDialog
           open={createOpen}
@@ -257,6 +291,75 @@ export const ErrorState: Story = {
 export const AdminNav: Story = {
   name: 'Nav — admin (Admin group visible)',
   render: () => <ManageScreen showAdmin />,
+};
+
+// ── the account flow (converse-frontends#365) ────────────────────────────────────────────────
+
+/**
+ * Signed in, no account. Every other affordance on this screen is inert in this state — the
+ * projects ledger has nothing to list and `+ New project` reads "Select an account to create a
+ * project." with no account to select — which is exactly the reported "I cannot create an account
+ * on the console". The exit lives next to the dead end.
+ */
+export const NoAccount: Story = {
+  name: 'Account — none yet (the reported dead end)',
+  render: () => <ManageScreen projects={[]} account={null} />,
+};
+
+/** Same state with the create dialog open, which is what `?account-name=true` produces. */
+export const NoAccountDialogOpen: Story = {
+  name: 'Account — create dialog open',
+  render: () => <ManageScreen projects={[]} account={null} initialAccountDialogOpen />,
+};
+
+/**
+ * The state most production accounts are in today: `Account.name` shipped nullable with no
+ * truthful backfill (lightbridge-authz#551), so an account created before that migration has
+ * never been named. The panel names the absence and offers "Name this account" — it does not
+ * quietly print the id in the name's place.
+ */
+export const UnnamedAccount: Story = {
+  name: 'Account — unnamed (name === null)',
+  render: () => <ManageScreen account={{ id: 'auth0|1b77de04aa93', name: null }} />,
+};
+
+export const UnnamedAccountLight: Story = {
+  name: 'Account — unnamed, wireframe (light)',
+  render: () => <ManageScreen account={{ id: 'auth0|1b77de04aa93', name: null }} />,
+  globals: { theme: 'wireframe' },
+};
+
+/** Opening the naming dialog from an unnamed account: the verb is "Name", not "Rename". */
+export const UnnamedAccountDialogOpen: Story = {
+  name: 'Account — naming an unnamed account',
+  render: () => (
+    <ManageScreen account={{ id: 'auth0|1b77de04aa93', name: null }} initialAccountDialogOpen />
+  ),
+};
+
+/**
+ * The whole flow driven through the real controls: press `Create account`, type a name, submit.
+ * Interaction rather than a static arg set, because the thing worth pinning is that the panel's
+ * primary actually reaches the dialog.
+ */
+export const CreateAccountFlow: Story = {
+  name: 'Account — create flow, driven',
+  render: () => <ManageScreen projects={[]} account={null} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }));
+
+    // The dialog portals to `document.body`, outside `canvasElement`.
+    const dialog = await within(document.body).findByRole('dialog');
+    await expect(dialog).toHaveAccessibleName('Create account');
+
+    await userEvent.type(within(dialog).getByLabelText('Account name'), 'Widgets Ltd');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument()
+    );
+  },
 };
 
 // `md` tier (600–1024) — MANAGE sub-nav stays inline; the right rail has no persistent

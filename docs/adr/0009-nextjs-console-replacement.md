@@ -242,9 +242,19 @@ client.** Consequences:
 
 ### 8. Report export: month consumption, server-rendered
 
-A route handler (`/api/reports/consumption?month=…`) queries the usage backend server-side and
-streams a **CSV** download (grouped by project × model, with totals). The UI offers it from
-`Manage`. CSV is the committed format; PDF is out of scope until someone asks for it.
+A route handler (`/api/reports/consumption?month=…&format=csv|pdf`) queries the usage backend
+server-side and returns the report (grouped by project × model, with totals). The UI offers it
+from `Manage`.
+
+**Amended:** this originally read "CSV is the committed format; PDF is out of scope until someone
+asks for it." Someone asked. `format=pdf` now renders the SAME report — same
+`aggregateConsumptionRows`/`consumptionTotals` call, in the same request — as a paginated A4
+document (`apps/console/src/server/consumption-pdf.ts`), and the format toggle the UI has always
+shown (`ReportExportPanel`, taken from Coinbase's download-report pattern in
+`docs/design/console-redesign/README.md` §1.2) finally means both of its options. `format`
+defaults to `csv`, so nothing that predates the change had to move. The CSV keeps streaming; a
+PDF cannot be streamed honestly, because its cross-reference trailer indexes the byte offset of
+every object in the file.
 
 ### 9. What stays
 

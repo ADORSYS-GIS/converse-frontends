@@ -3,22 +3,19 @@
 //
 // The sections stay pure — this container only adapts hook state (`query.isLoading` → skeleton
 // props, `query.isError` → error props, `result.data` → stat cards / chart series / budget) into
-// section props, exactly the way `apps/console`'s route does.
-//
-// Overview supplies NO rail slot at all any more (owner review 2026-08-29) — its parameters are
-// an always-visible `OverviewToolbar` in the centre column, so there is no `@rail/page.tsx`
-// counterpart for this screen to mirror.
+// section props, and hands the shell its centre and its rail exactly the way `apps/console`'s
+// route + `@rail/page.tsx` pair does.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCustom } from '@refinedev/core';
 
 import { InlineStatus } from '../components/inline-status';
 import type { SelectFieldProps } from '../components/select-field';
+import { formatMsAxis } from '../lib/duration';
 import { BudgetPanel } from '../sections/budget-panel';
 import { LatencyDashboard } from '../sections/latency-dashboard';
-import { formatOverviewLatencyXTick } from '../sections/latency-dashboard/fixtures';
-import { OverviewStatRow } from '../sections/overview-stat-row';
 import { presetRange } from '../components/date-range-field';
+import { OverviewStatRow } from '../sections/overview-stat-row';
 import { OverviewToolbar } from '../sections/overview-toolbar';
 import {
   BUCKET_OPTIONS,
@@ -38,13 +35,13 @@ import {
 import type { OverviewSnapshot } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
 
-const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
+const MOCK_TODAY = new Date(Date.UTC(2026, 7, 29));
 
 function useSelectField(
   initial: string,
   options: SelectFieldProps['options'],
   label: string
-): Omit<SelectFieldProps, 'layout'> {
+): SelectFieldProps {
   const [value, setValue] = useState(initial);
   return { label, value, options, onChange: setValue };
 }
@@ -52,9 +49,8 @@ function useSelectField(
 export function RefineOverviewScreen() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
-  // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
   const [rangePreset, setRangePreset] = useState<string | null>('30d');
-  const [range, setRange] = useState(presetRange(30, STORY_TODAY));
+  const [range, setRange] = useState(presetRange(30, MOCK_TODAY));
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
@@ -68,12 +64,10 @@ export function RefineOverviewScreen() {
   const snapshot = overviewQuery.result.data;
 
   const status = loading ? 'loading' : isError ? 'error' : 'ready';
-  const spendSeries = snapshot?.spendSeries ?? [];
+  const spendSeries = useMemo(() => snapshot?.spendSeries ?? [], [snapshot]);
 
 
   return (
-    // No rails on this screen at any tier (owner review 2026-08-29) — the parameters live in the
-    // always-visible `OverviewToolbar` below the heading.
     <RefineMockShell active="overview">
       <div className="flex flex-col gap-8">
         <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
@@ -86,10 +80,10 @@ export function RefineOverviewScreen() {
             preset: rangePreset,
             presets: RANGE_PRESETS,
             value: range,
-            today: STORY_TODAY,
+            today: MOCK_TODAY,
             onPresetChange: (next) => {
               setRangePreset(next);
-              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY));
+              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY));
             },
             onRangeChange: (next) => {
               setRangePreset(null);
@@ -128,7 +122,7 @@ export function RefineOverviewScreen() {
             status={status}
             errorMessage={errorMessage}
             onRetry={() => overviewQuery.query.refetch()}
-            formatXTick={formatOverviewLatencyXTick}
+            formatXTick={formatMsAxis}
           />
           <BudgetPanel
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"

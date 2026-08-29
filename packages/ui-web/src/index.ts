@@ -39,7 +39,8 @@ export { SelectionSheet } from './components/selection-sheet';
 export type { SelectionSheetProps } from './components/selection-sheet';
 
 // ── data display
-export { formatMoney, formatMoneyOf } from './lib/money';
+export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
+export { formatMs, formatMsAxis } from './lib/duration';
 export { StatCard } from './components/stat-card';
 export type { StatCardDelta, StatCardProps } from './components/stat-card';
 export { Sparkline } from './components/sparkline';
@@ -135,6 +136,12 @@ export type {
   CommandPaletteProps,
   CommandPaletteTriggerProps,
 } from './components/command-palette';
+
+export { AccountNameDialog } from './components/account-name-dialog';
+export type {
+  AccountNameDialogMode,
+  AccountNameDialogProps,
+} from './components/account-name-dialog';
 
 export { CreateApiKeyDialog } from './components/create-api-key-dialog';
 export type {
@@ -251,6 +258,14 @@ export type { ApiKeysHygiene, ApiKeysHygieneNotesProps } from './sections/api-ke
 // section can mount twice — inside a `RailPanel label={LABEL}` in the persistent `lg` rail, and
 // inside a `SectionSheet label={LABEL}` below `lg` — without doubling the heading or letting the
 // two copies' wording drift apart.
+
+export {
+  AccountPanel,
+  NO_ACCOUNT_MESSAGE,
+  UNNAMED_ACCOUNT_HINT,
+  UNNAMED_ACCOUNT_LABEL,
+} from './sections/account-panel';
+export type { AccountPanelAccount, AccountPanelProps } from './sections/account-panel';
 
 export { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './sections/manage-report-rail';
 export type { ManageReportRailProps } from './sections/manage-report-rail';

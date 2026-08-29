@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 import { cn } from '../../cn';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
@@ -9,7 +9,7 @@ import { Meter } from '../meter';
 import type { ReviewDetailPanelProps } from './types';
 
 function formatSignedCurrency(amount: number): string {
-  return `${amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(amount))}`;
+  return `${amount >= 0 ? '+' : '−'}${formatUsd(Math.abs(amount))}`;
 }
 
 // converse-frontends#322: `RejectAugmentationRequestInput.reason` is non-optional server-side by
@@ -103,10 +103,10 @@ export function ReviewDetailPanel({
           <>
             <div className="flex items-baseline gap-2">
               <span className="text-ink font-mono text-[22px] leading-[1.2]">
-                {formatMoney(consumedAmount)}
+                {formatUsd(consumedAmount)}
               </span>
               <span className="text-subtle font-mono text-[11px]">
-                of {formatMoney(ceilingAmount)}
+                of {formatUsd(ceilingAmount)}
               </span>
             </div>
             <Meter

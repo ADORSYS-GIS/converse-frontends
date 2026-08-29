@@ -1,14 +1,14 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import type { ManageSelectionRailProps } from './types';
 
 /** Heading for whichever host mounts this section — see `OVERVIEW_VIEW_RAIL_LABEL`'s note. */
 export const MANAGE_SELECTION_RAIL_LABEL = 'SELECTION';
 
 function money(value: number | null): string {
-  return value === null ? '—' : formatMoney(value);
+  return value === null ? '—' : formatUsd(value);
 }
 
 // Contract: docs/design/console-redesign/README.md §5.3 (manage-projects.svg) — the right rail's

@@ -3,6 +3,7 @@
 import { createId } from '@lightbridge/authz-rpc';
 import type { ApiKey, AugmentationRequest, Project } from '@lightbridge/authz-rpc';
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
+import { formatUsd } from '@lightbridge/ui-web';
 import type {
   BudgetSummary,
   DashboardStatus,
@@ -431,7 +432,16 @@ export function useOverviewScreen(): OverviewScreen {
   };
 }
 
+/**
+ * The refill CTA's amount, e.g. `Request refill (+$12.00)`.
+ *
+ * `microsToAmount` handles the unit (budget-domain integer micros arriving as a decimal string —
+ * see its own docstring for why a string); `formatUsd` handles the rendering. This used to call
+ * `amount.toLocaleString('en-US')` directly, which is a SECOND currency convention: it groups
+ * thousands with a comma (`$1,200`) where the whole console groups with a thin space
+ * (`$1 200.00`), and it drops the cents the rest of the console always writes. One convention,
+ * one function.
+ */
 function formatMicros(amountMicros: string): string {
-  const amount = microsToAmount(amountMicros);
-  return `$${amount.toLocaleString('en-US')}`;
+  return formatUsd(microsToAmount(amountMicros));
 }

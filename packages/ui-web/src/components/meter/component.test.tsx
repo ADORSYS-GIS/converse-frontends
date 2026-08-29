@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { formatMoneyOf } from '../../lib/money';
+import { formatUsdOf } from '../../lib/money';
 import { Meter } from './component';
 
 describe('Meter', () => {
@@ -14,13 +14,13 @@ describe('Meter', () => {
   it('renders the paired "$X of $Y" caption with thin-space thousands', () => {
     render(<Meter value={142.55} ceiling={500} />);
 
-    expect(screen.getByText(formatMoneyOf(142.55, 500), exact)).toBeInTheDocument();
+    expect(screen.getByText(formatUsdOf(142.55, 500), exact)).toBeInTheDocument();
   });
 
   it('formats larger amounts with a thin-space thousands separator', () => {
     render(<Meter value={1131.8} ceiling={2250} />);
 
-    expect(screen.getByText(formatMoneyOf(1131.8, 2250), exact)).toBeInTheDocument();
+    expect(screen.getByText(formatUsdOf(1131.8, 2250), exact)).toBeInTheDocument();
   });
 
   it('renders the body-grey fill under the threshold', () => {

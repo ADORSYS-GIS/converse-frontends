@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { formatMoney } from '../../lib/money';
+import { formatUsd } from '../../lib/money';
 import { DonutChart } from './component';
 import type { DonutSlice } from './types';
 
@@ -31,7 +31,7 @@ const SPEND_SHARE_SLICES: DonutSlice[] = [
 const total = SPEND_SHARE_SLICES.reduce((sum, s) => sum + s.value, 0);
 
 function percentLabel(slice: DonutSlice, percent: number): string {
-  return `${formatMoney(slice.value)} · ${percent.toFixed(0)}%`;
+  return `${formatUsd(slice.value)} · ${percent.toFixed(0)}%`;
 }
 
 /**
@@ -43,7 +43,7 @@ function percentLabel(slice: DonutSlice, percent: number): string {
 export const Populated: Story = {
   args: {
     slices: SPEND_SHARE_SLICES,
-    centreMetric: formatMoney(total),
+    centreMetric: formatUsd(total),
     centreLabel: 'TOTAL',
     formatTooltipValue: percentLabel,
     formatLegendValue: percentLabel,
@@ -78,7 +78,7 @@ export const Breached: Story = {
       { ...SPEND_SHARE_SLICES[2], breached: true },
       SPEND_SHARE_SLICES[3],
     ],
-    centreMetric: formatMoney(total),
+    centreMetric: formatUsd(total),
     centreLabel: 'TOTAL',
     formatTooltipValue: percentLabel,
     formatLegendValue: percentLabel,
@@ -106,7 +106,7 @@ export const EmptyLight: Story = {
 export const SingleSlice: Story = {
   args: {
     slices: [{ key: 'only-project', label: 'only-project', value: 42 }],
-    centreMetric: formatMoney(42),
+    centreMetric: formatUsd(42),
     centreLabel: 'TOTAL',
   },
 };
@@ -130,7 +130,7 @@ export const ControlledSelection: Story = {
     return <Harness />;
   },
   args: {
-    centreMetric: formatMoney(total),
+    centreMetric: formatUsd(total),
     centreLabel: 'TOTAL',
     formatTooltipValue: percentLabel,
     formatLegendValue: percentLabel,

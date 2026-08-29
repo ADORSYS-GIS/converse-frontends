@@ -14,7 +14,7 @@ const base = {
 
 // testing-library's default text normalizer collapses all Unicode whitespace (including the thin
 // space, U+2009 — a JS `\s` match) to a plain space, so an exact-string query against
-// `formatMoney`'s thin-space thousands separator needs its own normalization disabled (same
+// `formatUsd`'s thin-space thousands separator needs its own normalization disabled (same
 // pattern as `meter/component.test.tsx`).
 const exact = { normalizer: (text: string) => text };
 

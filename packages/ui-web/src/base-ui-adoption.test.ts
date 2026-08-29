@@ -37,9 +37,15 @@ const KNOWN_GAPS = new Set([
   // and announces no separator role. Close this entry only by deleting the decoration or by Base
   // UI shipping a decorative separator — never by adopting it as ceremony.
   'row-action-group',
-  'console-header', // a flex row instead of `toolbar`
-  'nav-spine', // link/button rows instead of `navigation-menu`
-  'sub-nav', // same
+  // `nav-spine` and `sub-nav` CLOSED 2026-08-30: both build on `navigation-menu`'s
+  // `Root`/`List`/`Item`/`Link` (the popup half is optional and omitted), so `active` ->
+  // `aria-current="page"` comes from the primitive, and the rows gained orientation-aware arrow
+  // navigation. `NavigationMenuLink` merges `tabIndex: undefined` OVER `CompositeItem`'s roving
+  // `-1`, so the composite root does NOT collapse the rows to a single tab stop — that prop-merge
+  // order is invisible from the hook and is the only reason this was adoptable.
+  //
+  // `console-header` left by REFUSAL, not adoption, so it is `EXPECTED: null` with its reason
+  // rather than a debt entry here — a debt entry would imply we still mean to adopt `toolbar`.
   // `bottom-sheet`/`section-sheet`/`selection-sheet` were here while they wrapped vaul. Closed
   // 2026-08-29: `bottom-sheet` is Base UI's `drawer`, and the other two compose it.
 ]);

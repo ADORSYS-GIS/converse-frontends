@@ -1,3 +1,4 @@
+import { NavigationMenu } from '@base-ui/react/navigation-menu';
 import React from 'react';
 
 import { cn } from '../../cn';
@@ -21,27 +22,35 @@ import type { SubNavItem, SubNavProps } from './types';
 // that and instead relied on daisyUI's default `menu` gutters, which is what let its rows,
 // active bar, and text start at a different x than `NavSpine`'s).
 //
-// ADR 0010 Decision 4 (task assignment note): a route-navigation list (`href` links, like
-// `NavSpine`), not a tab-panel switcher, so it takes daisy's `menu` rather than PRIMITIVES.md's
-// general Base UI Tabs row — Tabs couples a trigger to a same-tree `Tabs.Panel`, which doesn't
-// fit route links. `menu`'s radius/list semantics stay; the row's inset is grid-driven rather
-// than daisy's default.
+// Base UI `@base-ui/react/navigation-menu`, byte-for-byte the same adoption `NavSpine` makes — see
+// the long note at the top of `../nav-spine/component.tsx` for why a primitive usually described
+// as a popup menu is the right one for a list of route links, and for the measured proof that its
+// `CompositeRoot` does NOT take the rows out of the tab order. Two components spelling one
+// contract two ways is exactly the thing the shared row class was introduced to end; the behaviour
+// half now matches too.
+//
+// The ADR 0010 Decision 4 note this file used to carry still stands and is untouched by the
+// adoption: this is a route-navigation list, not a tab-panel switcher, so Base UI `Tabs` remains
+// wrong for it — `Tabs` couples a trigger to a same-tree `Tabs.Panel`, which route links have no
+// equivalent of. The primitive adopted here models a DESTINATION rather than a panel, which is why
+// its `Link` ships an `active` prop that emits `aria-current="page"`.
 //
 // The paint is `theme.css`'s `rail-row`, byte-identical to `NavSpine`'s, which is the contract.
 // The five `!important` overrides that used to hang off this row are gone: an `@utility` lands
 // unlayered inside `utilities` while daisy emits into a sublayer of it, so it beats `menu` on the
-// cascade rather than on `!`. Active state is read off the `aria-current="page"` this row already
-// sets — there is no second flag to keep in step.
+// cascade rather than on `!`. Active state is read off the `aria-current="page"` Base UI sets from
+// the `active` prop — there is no second flag to keep in step.
 const ROW_BASE_CLASS = cn(
   'rail-row focus-ring',
   RAIL_SUBNAV_ROW_HEIGHT_CLASS,
   RAIL_LABEL_GAP_CLASS,
-  RAIL_ROW_PADDING_CLASS,
+  RAIL_ROW_PADDING_CLASS
 );
 
 function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
   // `menu-active` keeps daisy's own row-hover rule off the active row; the fill itself is ours.
   const className = cn(ROW_BASE_CLASS, item.active && 'menu-active');
+  const Link = linkComponent;
   const content = (
     <>
       {item.active ? <span aria-hidden="true" className={RAIL_ACTIVE_BAR_CLASS} /> : null}
@@ -60,45 +69,37 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
     </>
   );
 
-  if (item.href) {
-    const Link = linkComponent;
-    return (
-      <li>
-        <Link
-          href={item.href}
-          aria-current={item.active ? 'page' : undefined}
-          className={className}
-          onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}>
-          {content}
-        </Link>
-      </li>
-    );
-  }
-
+  // Same `render` seam as `NavSpine`: the row element is a `<button>` or the caller's
+  // `linkComponent`, never Base UI's own bare `<a>`, and the children hang off that element.
   return (
-    <li>
-      <button
-        type="button"
-        aria-current={item.active ? 'page' : undefined}
+    <NavigationMenu.Item>
+      <NavigationMenu.Link
+        active={Boolean(item.active)}
         className={className}
-        onClick={() => item.onSelect?.(item.key)}>
-        {content}
-      </button>
-    </li>
+        onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
+        render={
+          item.href ? (
+            <Link href={item.href}>{content}</Link>
+          ) : (
+            <button type="button">{content}</button>
+          )
+        }
+      />
+    </NavigationMenu.Item>
   );
 }
 
 export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubNavProps) {
   return (
-    <nav aria-label="Section" className={className}>
+    <NavigationMenu.Root orientation="vertical" aria-label="Section" className={className}>
       {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
-          16px inset — the same bleed `NavSpine`'s `<nav>` applies — so this list's active
+          16px inset — the same bleed `NavSpine`'s `<ul>` applies — so this list's active
           fill/active bar land at the identical net inset from the rail's true left edge. */}
-      <ul className={cn('menu menu-sm rail-list w-full', RAIL_ROW_BLEED_CLASS)}>
+      <NavigationMenu.List className={cn('menu menu-sm rail-list w-full', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
           <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
         ))}
-      </ul>
-    </nav>
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
   );
 }

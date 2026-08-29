@@ -37,7 +37,10 @@ export const EXPECTED: Record<string, string | null> = {
   'secret-reveal': 'input',
   'nav-spine': 'navigation-menu',
   'sub-nav': 'navigation-menu',
-  'console-header': 'toolbar',
+  'console-header': null, // REFUSED 2026-08-30: `ToolbarRoot` emits `role="toolbar"`
+  // unconditionally, which would replace this <header>'s implicit `banner` landmark — and the
+  // roving focus a toolbar exists for would never arrive, since only Toolbar.Button/Link/Input
+  // join the ring and this component is a pure host of opaque slots.
 
   // — nothing upstream, with the reason
   'chart-axis': null, // SVG primitive

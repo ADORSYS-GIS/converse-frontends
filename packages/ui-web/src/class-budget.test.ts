@@ -67,7 +67,12 @@ const BUDGET: Record<string, number> = {
   //     and `<foreignObject>` styling that no class layer reaches.
   //   * Single-axis variant maps (`status-text` 3, `row-action-group`'s emphasis 3, `stat-card`'s
   //     delta tone 3) — exactly the "cva adds max 2 per variant" allowance, one token per branch.
-  'nav-spine': 28,
+  // 28 -> 26 with the Base UI `navigation-menu` adoption (2026-08-30). Not one CSS class moved:
+  // the drop is `aria-current`/`data-active` bookkeeping that the primitive now owns, plus naming
+  // the import specifier (`@base-ui/react/navigation-menu`) in prose where the bare subpath used
+  // to sit — which the counter read as a class and which is the more precise reference anyway.
+  // `sub-nav` (9) and `console-header` (7) held flat through the same pass.
+  'nav-spine': 26,
   'ledger-table': 21,
   'review-detail-panel': 18,
   'share-bar': 16,

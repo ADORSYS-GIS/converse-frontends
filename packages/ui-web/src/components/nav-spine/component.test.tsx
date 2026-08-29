@@ -25,19 +25,42 @@ describe('NavSpine', () => {
   // daisy's `menu-active` stays, and is load-bearing for a cascade reason rather than a visual
   // one: daisy's own row-hover rule excludes that class, and without it daisy would repaint the
   // active fill on the way past.
+  //
+  // Both `aria-current` and `data-active` now come from Base UI `NavigationMenu.Link`'s single
+  // `active` prop rather than from two hand-written attributes. That changes `data-active`'s
+  // shape: Base UI writes it as a valueless marker on the active row and OMITS it entirely
+  // elsewhere, where this component used to write the strings `"true"`/`"false"`. Nothing styles
+  // off it (checked: no `data-active` selector or `data-[active=…]` variant survives anywhere in
+  // `ui-web` or `apps/console` — `rail-row` reads `aria-current`), so the marker form is kept as
+  // the primitive emits it rather than being forced back into the old spelling.
   it('marks the active item with aria-current, data-active and daisy menu-active', () => {
     render(<NavSpine items={items} />);
 
     const active = screen.getByRole('button', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(active).toHaveAttribute('data-active', 'true');
+    expect(active).toHaveAttribute('data-active');
     expect(active).toHaveClass('menu-active');
     expect(active).toHaveClass('rail-row');
 
     const inactive = screen.getByRole('button', { name: 'Api-Keys' });
     expect(inactive).not.toHaveAttribute('aria-current');
-    expect(inactive).toHaveAttribute('data-active', 'false');
+    expect(inactive).not.toHaveAttribute('data-active');
     expect(inactive).not.toHaveClass('menu-active');
+  });
+
+  // The invariant that decided the adoption. Base UI's `NavigationMenu.List` is a `CompositeRoot`,
+  // and a composite normally imposes a roving tab stop — which would take Tab away from every
+  // destination but one. `NavigationMenuLink` opts out of it by merging `tabIndex: undefined` over
+  // `CompositeItem`'s roving value, so the rail keeps one tab stop PER ROUTE. If a future Base UI
+  // bump drops that opt-out, this test is the thing that catches it.
+  it('leaves every destination in the natural tab order — no roving tab stop', () => {
+    const { container } = render(<NavSpine items={items} adminItems={adminItems} showAdmin />);
+
+    const rows = [...container.querySelectorAll('li > a, li > button')];
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row).not.toHaveAttribute('tabindex');
+    }
   });
 
   it('renders the rail rows as a daisy menu list, like its SubNav sibling', () => {
@@ -146,7 +169,7 @@ describe('NavSpine', () => {
 
       const active = screen.getByRole('button', { name: 'Overview' });
       expect(active).toHaveAttribute('aria-current', 'page');
-      expect(active).toHaveAttribute('data-active', 'true');
+      expect(active).toHaveAttribute('data-active');
       // `nav-dock-row[aria-current="page"]` is where the `primary` text and the 2px top bar live
       // (theme.css) — the bar is a pseudo-element, so there is no node to look for.
       expect(active).toHaveClass('nav-dock-row');

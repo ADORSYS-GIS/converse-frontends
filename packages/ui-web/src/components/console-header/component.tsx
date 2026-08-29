@@ -15,6 +15,34 @@ import type { ConsoleHeaderProps } from './types';
 // named classes in `theme.css` rather than eighteen utilities spread over five elements. The band
 // also sets `--focus-gap`, so every focusable slot the caller passes in gets a focus ring whose
 // 1px gap is the header's own colour instead of the floor's.
+//
+// BASE UI `toolbar` WAS CONSIDERED AND REFUSED (2026-08-30). "A logo, a switcher, a palette
+// trigger and an account menu" is arguably a toolbar, so the claim was tested against the shipped
+// 1.7.0 source and against rendered output, not against the description. Two findings, either of
+// which is disqualifying:
+//
+//  1. `ToolbarRoot` puts `role="toolbar"` on the element it renders, unconditionally
+//     (`toolbar/root/ToolbarRoot.js` — `defaultProps = { 'aria-orientation', role: 'toolbar' }`).
+//     This `<header>` is a direct child of `ConsoleShell`'s `shell-chrome-stack`, outside `<main>`
+//     and any sectioning element, so it is the page's `banner` landmark. An explicit `role`
+//     replaces the implicit one: adopting `toolbar` here trades the console's only banner landmark
+//     for a widget role. Losing a landmark to gain a meter is not a trade worth making.
+//
+//  2. The roving focus a toolbar exists to provide would not arrive anyway. `ToolbarRoot` is a
+//     `CompositeRoot`, and only children registered as `CompositeItem`s — `Toolbar.Button` /
+//     `Toolbar.Link` / `Toolbar.Input` — join its ring. Rendered with ordinary children, it emits
+//     `role="toolbar"` while every child keeps its native `tabindex` and the arrow keys do
+//     nothing: a toolbar that announces itself and manages no controls. Measured both ways —
+//     ordinary `<button>` children came out `tabindex` 0/0; real `Toolbar.Button`s came out 0/-1.
+//     This component is a PURE SLOT HOST by contract, and the slots are opaque: `apps/console`'s
+//     `identity` is a `<div>` carrying an `InlineStatus`, a `ThemeToggle` AND an `AccountMenu`.
+//     Making the toolbar real would mean wrapping each slot in `Toolbar.Button render={slot}` —
+//     inverting the slot contract, and putting a roving `tabindex` on a `<div>` that wraps two
+//     buttons. And the payoff would be collapsing four header tab stops into one, which is the
+//     wrong direction for a banner.
+//
+// So `toolbar` is not a gap here; it is the wrong primitive. scripts/base-ui-adoption.ts records
+// it as a reasoned `null` rather than leaving a debt entry implying we still mean to adopt it.
 export function ConsoleHeader({
   logoSrc,
   logoAlt = 'Lightbridge',

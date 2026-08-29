@@ -156,20 +156,30 @@ export function LatencyRidgeline({
 
   if (series.length === 0) {
     return (
-      <div style={{ width, height }}>
+      <div style={{ width, height, position: 'relative' }}>
         <svg width={width} height={height}>
           <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
             <ChartAxisBottom y={plotHeight} x1={0} x2={plotWidth} ticks={[]} />
-            <text
-              x={plotWidth / 2}
-              y={plotHeight / 2}
-              fontSize={10}
-              fill={SPEC_TEXT_MUTED}
-              textAnchor="middle">
-              {emptyMessage}
-            </text>
           </g>
         </svg>
+      {/* The message is DOM text, NOT an SVG `<text>` (owner-reported bug, 2026-08-29).
+          SVG text never wraps, and this one is centred on the plot — so any message longer than
+          the plot is wide spills off BOTH ends at once, which is exactly how production rendered
+          the latency zone's real copy: "…isn't available: the usage API doesn't report latency or
+          percentile data yet. Spend, budget an…", clipped head and tail. Inset to the plot area
+          and left to wrap, it is also finally what the console-ui skill actually asks for — "an
+          inline mono status line above still-rendered structure (headers/axes stay)" — rather
+          than the centred placard the same skill forbids. */}
+        <p
+          className="text-subtle absolute font-mono text-[10px] leading-[1.5]"
+          style={{
+            left: MARGIN.left,
+            right: MARGIN.right,
+            top: MARGIN.top + plotHeight / 2,
+            transform: 'translateY(-50%)',
+          }}>
+          {emptyMessage}
+        </p>
       </div>
     );
   }

@@ -1635,12 +1635,20 @@
 /*
  * The `ROLE` marker above the admin group — a hairline rule, then the label, on daisy's
  * `menu-title` (which is how `menu` is told a row is not a nav row, so its own
- * `li:not(.menu-title)` selectors leave this one alone). The rule was a `<span>` and the label
- * another; the rule is pure decoration, so it is a pseudo-element here and the marker becomes one
- * node with text in it.
+ * `li:not(.menu-title)` selectors leave this one alone). The label is the marker's own text and
+ * the rule is pure decoration, so the rule is a pseudo-element and the marker is one node.
+ *
+ * `flex-direction: row` is NOT redundant here, and omitting it fails silently rather than loudly:
+ * daisy's `menu` lays its rows out as COLUMNS, and `display: flex` alone inherits that. In a
+ * column the rule's `flex: 1` grows it along the HEIGHT of a row whose height is just its text —
+ * so it resolves to 0x0 and vanishes, while the label, still technically "spaced between", sits
+ * mid-row. Found live in Storybook by reading the rule's own computed box (0x0) and then its
+ * parent's `flex-direction`, never from the class list; a pseudo-element is exactly where this
+ * hides, because there is no node in the inspector to click.
  */
 @utility rail-role-marker {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   margin: 0.5rem;

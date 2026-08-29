@@ -21,47 +21,74 @@ import type { ClassAudit } from '../scripts/class-budget';
  * When a component is converted, drop its line. When the object is empty, the bar is met.
  */
 const BUDGET: Record<string, number> = {
-  // Where the overnight sweep landed: 1424 hand-written utilities -> 651, daisy classes 49 -> 135,
-  // and 20 of 48 components now sit at or under DEFAULT_BUDGET with no entry here at all.
+  // Where the second sweep landed: 651 hand-written utilities -> 307, and 12 of 39 components with
+  // any classes at all now sit at or under DEFAULT_BUDGET with no entry here.
   //
-  // What worked, everywhere it was tried: push daisy's corrections into `@utility` blocks in
-  // `theme.css` (16 of them now) and deduplicate the rest into shared `lib/` modules. `field` went
-  // 67 -> 1, `button` and `select-field` to 0, the four dialogs to 0.
+  // THE THREE REGRESSIONS ARE UNDONE, and by the mechanism the last note said was untried rather
+  // than by reverting daisy: `nav-spine` 82 -> 28, `ledger-table` 65 -> 21, `row-action-group`
+  // 35 -> 8. Adopting a daisy class where the console's contract diverges from daisy's default
+  // costs an override PER DISAGREEMENT — but only if the override is written at the call site.
+  // Written once in `theme.css`, against daisy's own class, it costs nothing here, because an
+  // `@utility` lands unlayered inside `utilities` while daisy emits into a sublayer of it. That is
+  // also what let `sub-nav` (22 -> 9) drop all five of its `!important`s: verified live in
+  // Storybook, hovering an inactive row still paints `chrome` with daisy's own `menu` hover rule
+  // in play and no `!` anywhere.
   //
-  // What did NOT: adopting a daisy class where our contract diverges from its defaults. `nav-spine`
-  // (57 -> 82), `ledger-table` (52 -> 65) and `row-action-group` (22 -> 35) all got WORSE, because
-  // every disagreement needs an override. Recorded rather than gamed — the two halves of the bar
-  // pull against each other exactly there, and that is an owner decision.
+  // `theme.css` now has two halves. The first CORRECTS a daisy class (18 blocks); the second
+  // DECLARES one for a part the console owns outright and daisy has no vocabulary for — `rail-row`
+  // (shared byte-for-byte by NavSpine and SubNav), `series-row` (shared by ChartLegend and
+  // ShareBar), `console-table`, `row-action-group`, `focus-ring`, `sheet-panel`.
   //
-  // Counter caveat: it tokenises backtick-quoted words in comments, so `aria-labelledby` and file
-  // paths read as classes. A few remaining counts are prose, not CSS.
-  'nav-spine': 82,
-  'ledger-table': 65,
-  'command-palette': 37,
-  'row-action-group': 35,
-  'share-bar': 34,
-  'console-shell': 30,
-  'bottom-sheet': 27,
-  'chart-tooltip': 25,
-  'account-badge': 23,
-  'chart-legend': 23,
-  'account-menu': 22,
-  'console-header': 22,
-  'review-detail-panel': 22,
-  'sub-nav': 22,
-  meter: 20,
-  'stat-card': 19,
-  tooltip: 18,
+  // HONESTY NOTE, because the numbers below are not all CSS. Of the 307 counted:
+  //   * 87 are COMMENT PROSE or import specifiers. The counter tokenises any backtick-quoted
+  //     hyphenated word, so `aria-labelledby`, `authz.cstack:1146-1151` and
+  //     `class-variance-authority` all read as classes. Worst offenders, prose/total: `meter` 8/10,
+  //     `tooltip` 6/8, `nav-spine` 12/28, `ledger-table` 12/21, `review-detail-panel` 8/18,
+  //     `section-sheet` 4/6, `theme-toggle` 3/3, `chart-axis` 1/1, `selection-sheet` 1/1. Not one
+  //     comment was deleted to move a number.
+  //   * 4 are REAL daisyUI classes the `DAISY` set in `scripts/class-budget.ts` is missing —
+  //     `menu-active`, `menu-horizontal`, `kbd-sm` (checked against
+  //     `daisyui@5.7.22/components/*.css`; `menu.css` also ships `menu-dropdown`, `menu-focus`,
+  //     `menu-disabled`, `menu-vertical` and four more sizes). Left uncorrected here on purpose:
+  //     editing the vocabulary mid-sweep would move every number retroactively and make the
+  //     651 -> 307 comparison meaningless. It is an owner call, worth about 4.
+  //   * The remaining 216 are genuine hand-written utilities.
+  //
+  // Still irreducible, with the clause that requires it:
+  //   * `md:hidden`/`lg:hidden` (console-shell 4, section-sheet 3, section-sheet-trigger 2) — ADR
+  //     0009 Decision 6's tier ladder is CSS-driven, never a JS `tier` prop, so the breakpoint
+  //     variant IS the component's contract. It cannot move into a class without inventing a
+  //     second name for `md`.
+  //   * The chart primitives (spend-series-chart, latency-ridgeline, histogram-chart) — SVG text
+  //     and `<foreignObject>` styling that no class layer reaches.
+  //   * Single-axis variant maps (`status-text` 3, `row-action-group`'s emphasis 3, `stat-card`'s
+  //     delta tone 3) — exactly the "cva adds max 2 per variant" allowance, one token per branch.
+  'nav-spine': 28,
+  'ledger-table': 21,
+  'review-detail-panel': 18,
+  'share-bar': 16,
   'date-range-field': 14,
-  'secret-reveal': 14,
-  'budget-hero': 13,
+  'console-shell': 13,
   'spend-series-chart': 12,
+  'account-menu': 11,
+  'budget-hero': 11,
   'skeleton-row': 11,
   'latency-ridgeline': 10,
+  meter: 10,
+  'stat-card': 10,
+  'account-badge': 9,
+  'bottom-sheet': 9,
   'mutation-failure-banner': 9,
+  'sub-nav': 9,
+  'chart-legend': 8,
+  'row-action-group': 8,
+  tooltip: 8,
+  'command-palette': 7,
+  'console-header': 7,
   'section-sheet': 6,
   checkbox: 5,
   'histogram-chart': 5,
+  'chart-tooltip': 4,
   'status-text': 4,
 };
 

@@ -84,6 +84,17 @@ export default function ConsoleLayout({
   // there, so this label is never read on those routes.
   const leftSecondaryLabel = route === 'admin' ? 'Admin' : 'Manage';
 
+  // Which routes have rails is decided HERE, not by whether the slot happens to render something.
+  //
+  // A parallel-route slot is always a React element, even when its segment returns `null` — so
+  // `ConsoleShell`'s `rightRail ? …` gate is truthy on every route, and Overview/Api-Keys were
+  // reserving an empty 280px column (owner screenshot, live). Worse, Next only falls back to
+  // `default.tsx` on a HARD navigation: a client-side Admin → Api-Keys move keeps the previously
+  // matched `@rail/admin` segment mounted, so Api-Keys rendered Admin's "Select a request to
+  // review it." Passing `undefined` for rail-less routes fixes both — the slot is never rendered
+  // there at all, so there is nothing stale to retain and no column to reserve.
+  const hasRail = route === 'manage' || route === 'admin';
+
   return (
     <ConsoleShell
       header={
@@ -129,9 +140,9 @@ export default function ConsoleLayout({
         // the code, just never exercised because navigation itself never went through it).
         linkComponent: Link,
       }}
-      leftSecondary={scope}
+      leftSecondary={hasRail ? scope : undefined}
       leftSecondaryLabel={leftSecondaryLabel}
-      rightRail={rail}>
+      rightRail={hasRail ? rail : undefined}>
       {children}
     </ConsoleShell>
   );

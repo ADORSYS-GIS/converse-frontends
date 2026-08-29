@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { computeSharedBins } from '@lightbridge/chart-core';
+
 import { buildRidgelineRows, computeRowBaselines, normalizeRowCounts } from './layout';
 
 describe('computeRowBaselines', () => {
@@ -228,5 +230,53 @@ describe('buildRidgelineRows', () => {
       identity,
     );
     expect(rows[0].breached).toBe(true);
+  });
+
+  // End-to-end through `computeSharedBins` (`@lightbridge/chart-core`), not hand-built
+  // edges/counts like every other case above -- this is the real shape `LatencyRidgeline` itself
+  // feeds `buildRidgelineRows` (`series.map((s) => s.values)`), for a `toLatencySeries` group that
+  // genuinely reported no latency (`values: []`) sitting alongside groups that did. Guards the
+  // real regression this whole feature could introduce: a model with `values: []` (an aggregate
+  // metric signal, or a group `toLatencySeries` still returns a row for even though every bucket
+  // had `latency_samples === 0`) must not crash the ridgeline or draw a NaN/spiky shape next to
+  // its populated siblings.
+  it('a series with values: [] alongside populated ones lays out as a flat baseline, never NaN geometry', () => {
+    const seriesValues = [
+      [100, 120, 140, 160, 180],
+      [],
+      [900, 950, 1_000],
+    ];
+    const { edges, counts } = computeSharedBins(seriesValues, 10);
+
+    const rows = buildRidgelineRows(
+      [
+        { key: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+        { key: 'signal-summary', label: 'signal-summary' },
+        { key: 'claude-sonnet', label: 'claude-sonnet' },
+      ],
+      edges,
+      counts,
+      300,
+      identity,
+    );
+
+    expect(rows).toHaveLength(3);
+    const emptyRow = rows[1];
+    expect(emptyRow.key).toBe('signal-summary');
+    expect(emptyRow.peakCount).toBe(0);
+    expect(emptyRow.peakBin).toBeNull();
+    for (const point of emptyRow.points) {
+      expect(Number.isNaN(point.x)).toBe(false);
+      expect(Number.isNaN(point.y)).toBe(false);
+      expect(point.y).toBeCloseTo(emptyRow.baselineY, 9);
+    }
+
+    // Its populated siblings are unaffected -- each still reaches its own full peak height.
+    for (const index of [0, 2]) {
+      const row = rows[index];
+      const peakY = Math.min(...row.points.map((p) => p.y));
+      expect(peakY).toBeCloseTo(row.baselineY - row.amplitude, 6);
+      expect(row.points.every((p) => !Number.isNaN(p.y))).toBe(true);
+    }
   });
 });

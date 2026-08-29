@@ -35,8 +35,20 @@ function LatencyChartSkeleton({ width, height }: { width: number; height: number
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 2) — the LATENCY
 // zone. Carries its own status independently of SPEND: a failed latency query must not take the
 // spend chart down with it.
+//
+// The default label reads "p95 PER BUCKET, BY MODEL", not "p95 BY MODEL": the usage API
+// (`openapi/usage.backend.yaml`'s `UsageSeriesPoint`) returns one already-computed `latency_p95_ms`
+// PER BUCKET, not raw per-request samples — a percentile over a percentile is not a thing, so this
+// chart cannot show "the distribution of requests," only "the distribution of this model's own
+// per-bucket p95 across the selected range." Naming that distinction in the label matters because
+// the two read very differently: a wide ridge here means the model's tail latency swung a lot bucket
+// to bucket (e.g. degraded for an hour then recovered), not that individual requests were widely
+// spread. Rendering the latter would require the backend to hand back raw samples, and doing so from
+// the percentiles it actually sends would be exactly the fabrication `toLatencySeries`
+// (`apps/console/src/containers/overview-usage.ts`) and ADR-0008 Decision 7's amended status note
+// both rule out.
 export function LatencyDashboard({
-  label = 'LATENCY DISTRIBUTION — p95 BY MODEL',
+  label = 'LATENCY — p95 PER BUCKET, BY MODEL',
   series,
   fallbackWidth,
   height,
@@ -46,6 +58,7 @@ export function LatencyDashboard({
   onRetry,
   onSelectSeries,
   formatXTick,
+  footnote,
   actions,
   className,
 }: LatencyDashboardProps) {
@@ -84,6 +97,7 @@ export function LatencyDashboard({
           />
         )}
       </div>
+      {footnote ? <p className="text-subtle mt-2 font-mono text-[10px]">{footnote}</p> : null}
     </div>
   );
 }

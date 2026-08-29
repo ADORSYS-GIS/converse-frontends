@@ -147,8 +147,11 @@ export interface ManageScreen {
   loading: boolean;
   /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. */
   errorMessage: string | undefined;
-  /** Matches `useOverviewScreen`'s `emptyMessage` — an always-visible inline status line naming
-   *  exactly what is unwired (issue #271), never folded into `ScreenHeading`'s `subline`. */
+  /** An always-visible inline status line naming exactly what is unwired (issue #271), never
+   *  folded into `ScreenHeading`'s `subline` — the same "name the gap explicitly" pattern
+   *  Overview's own per-section status props (`latencyFootnote`, etc.) follow, though Overview no
+   *  longer carries a single screen-wide `emptyMessage` of its own now that every section there
+   *  is wired. */
   spendPendingMessage: string;
   totals: ManageTotals;
   retry: () => void;

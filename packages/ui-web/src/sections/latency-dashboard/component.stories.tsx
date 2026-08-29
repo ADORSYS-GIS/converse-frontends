@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { formatMsAxis } from '../../lib/duration';
 import { LatencyDashboard } from './component';
-import { formatOverviewLatencyXTick, overviewLatencySeries } from './fixtures';
+import { overviewLatencySeries, partiallyReportedLatencySeries, sparseLatencySeries } from './fixtures';
 
 const meta: Meta<typeof LatencyDashboard> = {
   title: 'Sections/LatencyDashboard',
@@ -12,7 +13,7 @@ const meta: Meta<typeof LatencyDashboard> = {
     series: overviewLatencySeries,
     fallbackWidth: 528,
     height: 310,
-    formatXTick: formatOverviewLatencyXTick,
+    formatXTick: formatMsAxis,
   },
   decorators: [
     (Story) => (
@@ -40,3 +41,43 @@ export const ErrorState: Story = {
 };
 
 export const MobileBaseTier: Story = { globals: { viewport: { value: 'base390' } } };
+
+// The contract's real, wired state (lightbridge-authz `feat/usage-latency-percentiles`): every
+// model reported real per-bucket p95 samples across the range, so the footnote naming a gap is
+// absent — nothing to caveat.
+export const RealPercentiles: Story = {
+  args: {
+    series: overviewLatencySeries,
+    status: 'ready',
+    formatXTick: formatMsAxis,
+    footnote: 'p95 per bucket across the last 30 days.',
+  },
+};
+
+// A short range or a low-traffic model produces only a handful of buckets per row — too few for
+// a p99 to mean anything (`openapi/usage.backend.yaml`'s own `latency_p99_ms` doc comment: it
+// "degenerates toward the bucket maximum" below ~100 samples), and barely enough to draw a shape
+// at all. The footnote says so explicitly rather than letting a thin ridge read as a rendering
+// bug.
+export const SparseData: Story = {
+  args: {
+    series: sparseLatencySeries,
+    status: 'ready',
+    formatXTick: formatMsAxis,
+    footnote: 'Only 2–4 buckets per model in this range — percentiles are noisy at this volume.',
+  },
+};
+
+// Per-series honesty, the point of this whole feature: `signal-summary` is an aggregate metric
+// signal (an OTLP summary/histogram data point), which the usage backend deliberately never
+// attaches a per-request latency to — so its row renders with no shape and "no latency reported"
+// rather than either fabricating one or dropping the row (and the reader silently losing track of
+// it) or blanking the whole chart over one model's gap.
+export const PartiallyReported: Story = {
+  args: {
+    series: partiallyReportedLatencySeries,
+    status: 'ready',
+    formatXTick: formatMsAxis,
+    footnote: 'No latency reported for signal-summary — it only emits aggregate metric signals.',
+  },
+};

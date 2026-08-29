@@ -49,6 +49,27 @@ UsageSeriesPoint` carries exactly `requests`, `usage_value`, `total_cost`, `prom
   latency figure from `usage_value` or any other existing field — that would be exactly the
   fabrication this epic exists to prevent.
 
+  **Status update — the contract landed; LATENCY is wired, honest PER SERIES rather than
+  all-or-nothing.** The `lightbridge-authz` backend contract change described above shipped
+  (`feat/usage-latency-percentiles`): `openapi/usage.backend.yaml`'s `UsageSeriesPoint` gained
+  `latency_samples` (always present), and `latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms`
+  (nullable, present exactly when `latency_samples > 0`). `LatencyDashboard` no longer renders
+  `status="unwired"` by default — it is wired off the SAME `queryUsage` call SPEND already runs
+  (`apps/console/src/containers/use-overview-screen.ts`), through `toLatencySeries`
+  (`overview-usage.ts`), the same way `toSpendSeries` always was.
+  The standing rule this status note existed to state survives the contract landing, and is now
+  enforced at a finer grain than "the whole section": a group whose buckets all report
+  `latency_samples === 0` (an aggregate metric signal — an OTLP histogram/summary/exponential-
+  histogram data point genuinely carries no per-request duration, per `latency_samples`'s own
+  schema doc comment) still gets a row in the ridgeline, but with `values: []` and a footnote
+  (`latencyFootnote`) naming exactly which group(s) — or, if every group reported nothing this
+  range, the range/filter itself — rather than either fabricating a shape for it or reverting to a
+  chart-wide `'unwired'`/blocked claim. **The rule that does not change:** no console code may
+  derive a latency figure from `usage_value` or any other non-latency field, and no console code
+  may synthesise raw per-request samples from a percentile (`LatencyRidgelineSeries.values` is
+  always real, kept per-bucket `latency_p95_ms` observations, never interpolated or repeated to
+  fake a density) — both would be exactly the fabrication this epic always existed to prevent.
+
 ## Context
 
 The self-service app **is** the admin surface — there is no separate admin app, and none will be

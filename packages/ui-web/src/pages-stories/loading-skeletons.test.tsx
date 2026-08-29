@@ -36,7 +36,7 @@ describe('console route Loading page-stories (the source `apps/console`\'s loadi
     // The chart zones keep their heading row even while loading — geometry stays, only the plot
     // area is a skeleton (console-ui skill: "axes/structure stay rendered").
     expect(screen.getByText('SPEND — BY PROJECT AND MODEL')).toBeInTheDocument();
-    expect(screen.getByText('LATENCY DISTRIBUTION — p95 BY MODEL')).toBeInTheDocument();
+    expect(screen.getByText('LATENCY — p95 PER BUCKET, BY MODEL')).toBeInTheDocument();
   });
 
   it('Api-Keys: renders ledger row skeletons and the real title', () => {

@@ -213,6 +213,7 @@ components:
         - prompt_tokens
         - completion_tokens
         - total_tokens
+        - latency_samples
       properties:
         account_id:
           type:
@@ -228,6 +229,41 @@ components:
         completion_tokens:
           type: integer
           format: int64
+        latency_samples:
+          type: integer
+          format: int64
+          description: >-
+            How many events in this bucket actually carried a latency measurement. A percentile
+            over a handful of samples is noise and p99 needs ~100 samples before it means
+            anything, so this count is returned alongside the percentiles. 0 means no event in
+            this bucket reported latency at all — a legitimate per-series outcome, not an error:
+            aggregate metric signals (OTLP histogram / exponential-histogram / summary data
+            points) carry a bucketed distribution rather than one observation, so the backend
+            deliberately records no latency for them rather than synthesising a mean.
+        latency_p50_ms:
+          type:
+            - number
+            - 'null'
+          format: double
+          description: >-
+            Median request latency in milliseconds. Null exactly when latency_samples is 0 —
+            never collapsed to 0, because "no latency was reported" and "every request took 0 ms"
+            are different facts.
+        latency_p95_ms:
+          type:
+            - number
+            - 'null'
+          format: double
+          description: 95th-percentile request latency in milliseconds. Null when latency_samples is 0.
+        latency_p99_ms:
+          type:
+            - number
+            - 'null'
+          format: double
+          description: >-
+            99th-percentile request latency in milliseconds. Null when latency_samples is 0, and
+            meaningful only once latency_samples is large (~100+); below that it degenerates
+            toward the bucket maximum.
         metric_name:
           type:
             - string

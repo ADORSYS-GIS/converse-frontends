@@ -11,8 +11,21 @@ describe('LatencyDashboard', () => {
   it('renders its heading and the ridgeline', () => {
     const { container } = render(<LatencyDashboard {...base} />);
 
-    expect(screen.getByText('LATENCY DISTRIBUTION — p95 BY MODEL')).toBeInTheDocument();
+    expect(screen.getByText('LATENCY — p95 PER BUCKET, BY MODEL')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('renders an optional footnote below the chart, in every status, when the caller provides one', () => {
+    render(<LatencyDashboard {...base} footnote="No latency reported for embed-3." />);
+
+    expect(screen.getByText('No latency reported for embed-3.')).toBeInTheDocument();
+  });
+
+  it('renders no footnote line at all when the caller omits it', () => {
+    const { container } = render(<LatencyDashboard {...base} />);
+
+    expect(screen.queryByText(/No latency reported/)).not.toBeInTheDocument();
+    expect(container.querySelectorAll('p')).toHaveLength(0);
   });
 
   it('replaces the chart with a skeleton and a status line while loading', () => {

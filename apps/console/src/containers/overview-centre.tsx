@@ -1,9 +1,9 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { formatMsAxis } from '@lightbridge/ui-web/src/lib/duration';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
-import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import {
@@ -79,10 +79,6 @@ export function OverviewCentre() {
     <div className="flex flex-col gap-8">
       <ScreenHeading title="Overview" subline={screen.subline} />
 
-      {/* #305/#307 — this no longer claims SPEND/SPEND SHARE/BUDGET are unwired: only LATENCY
-          stays honestly blocked (contract has no latency/percentile field, Epic 6/#294). */}
-      <InlineStatus>{screen.emptyMessage}</InlineStatus>
-
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 
       <SpendDashboard
@@ -139,18 +135,22 @@ export function OverviewCentre() {
       />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
+        {/* Wired off the SAME usageQuery SpendDashboard/SpendShareSection above already run — see
+            `use-overview-screen.ts`'s doc comment. `latencyFootnote` carries the per-series
+            honesty: `undefined` when every group reported real latency, otherwise naming exactly
+            which group(s) (or the whole range) reported none — never a chart-wide "unwired"
+            claim now that a real usage-backend query client exists and ran. */}
         <LatencyDashboard
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-          series={[]}
-          // #307 — this is a PERMANENT, contract-level block, not "not wired yet": the usage API's
-          // documented `UsageSeriesPoint` shape carries no latency/percentile field at all, tracked
-          // as Epic 6 / #294 (ADR 0008 Decision 7 status note). Reusing `status="unwired"` (rather
-          // than inventing a second vocabulary) with an overridden message, per this epic's own
-          // instruction to reuse the existing vocabulary for what stays unwired.
-          status="unwired"
-          unwiredMessage={screen.latencyMessage}
+          series={screen.latencySeries}
+          status={screen.latencyStatus}
+          errorMessage={screen.latencyErrorMessage}
+          onRetry={screen.latencyRetry}
+          footnote={screen.latencyFootnote}
           fallbackWidth={840}
           height={200}
+          formatXTick={formatMsAxis}
+          onSelectSeries={screen.setSelectedSeriesKey}
         />
         <BudgetPanel
           className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"

@@ -13,9 +13,9 @@ import { InlineStatus } from '../components/inline-status';
 import { RailPanel } from '../components/rail-panel';
 import type { RailSelectProps } from '../components/rail-select';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
+import { formatMsAxis } from '../lib/duration';
 import { BudgetPanel } from '../sections/budget-panel';
 import { LatencyDashboard } from '../sections/latency-dashboard';
-import { formatOverviewLatencyXTick } from '../sections/latency-dashboard/fixtures';
 import { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from '../sections/overview-export-rail';
 import { overviewExportCaption } from '../sections/overview-export-rail/fixtures';
 import {
@@ -172,7 +172,7 @@ export function RefineOverviewScreen() {
             status={status}
             errorMessage={errorMessage}
             onRetry={() => overviewQuery.query.refetch()}
-            formatXTick={formatOverviewLatencyXTick}
+            formatXTick={formatMsAxis}
           />
           <BudgetPanel
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"

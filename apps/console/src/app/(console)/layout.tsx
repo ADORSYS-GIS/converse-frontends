@@ -77,8 +77,15 @@ export default function ConsoleLayout({
       header={
         <ConsoleHeaderBar
           orgSwitcher={
-            <span className="text-soft font-mono text-xs">
-              {consoleScope.value.accountId || '—'}
+            // The scoped account's LABEL, not its raw id. `accounts.id` is the caller's opaque
+            // JWT `sub` (ADR-0006), which is what this slot used to print; `Account.name` exists
+            // so a console has something human to render instead, and `accountScopeLabel` keeps
+            // an account that has never been named readable rather than blank
+            // (lightbridge-authz#551 — a nullable name with no truthful backfill).
+            <span className="text-soft font-mono text-xs" title={consoleScope.value.accountId}>
+              {consoleScope.accounts.find((account) => account.id === consoleScope.value.accountId)
+                ?.label ??
+                (consoleScope.value.accountId || '—')}
             </span>
           }
         />

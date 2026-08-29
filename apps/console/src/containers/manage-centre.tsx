@@ -1,8 +1,10 @@
 'use client';
 
+import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-name-dialog';
 import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
+import { AccountPanel } from '@lightbridge/ui-web/src/sections/account-panel';
 import {
   MANAGE_FILTERS_RAIL_LABEL,
   ManageFiltersRail,
@@ -37,8 +39,13 @@ export function ManageCentre() {
       <div className="flex flex-col gap-6">
         <ScreenHeading title="Projects" />
 
+        {/* Above the projects ledger because it is upstream of it: with no account there are no
+            projects to list, and every "select an account" affordance below is inert. */}
+        <AccountPanel {...screen.accountPanel} />
+
         <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
 
+        <AccountNameDialog {...screen.accountNameDialog} />
         <CreateProjectDialog {...screen.createProjectDialog} />
 
         <ManageProjectsLedger

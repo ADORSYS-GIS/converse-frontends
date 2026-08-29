@@ -125,6 +125,12 @@ export type {
   CommandPaletteTriggerProps,
 } from './components/command-palette';
 
+export { AccountNameDialog } from './components/account-name-dialog';
+export type {
+  AccountNameDialogMode,
+  AccountNameDialogProps,
+} from './components/account-name-dialog';
+
 export { CreateApiKeyDialog } from './components/create-api-key-dialog';
 export type {
   CreateApiKeyDialogProps,
@@ -249,6 +255,14 @@ export {
   ApiKeysLifecycleRail,
 } from './sections/api-keys-lifecycle-rail';
 export type { ApiKeysLifecycleRailProps } from './sections/api-keys-lifecycle-rail';
+
+export {
+  AccountPanel,
+  NO_ACCOUNT_MESSAGE,
+  UNNAMED_ACCOUNT_HINT,
+  UNNAMED_ACCOUNT_LABEL,
+} from './sections/account-panel';
+export type { AccountPanelAccount, AccountPanelProps } from './sections/account-panel';
 
 export { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './sections/manage-report-rail';
 export type { ManageReportRailProps } from './sections/manage-report-rail';

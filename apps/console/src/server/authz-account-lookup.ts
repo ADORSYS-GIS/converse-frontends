@@ -7,7 +7,14 @@ import { serverEnv } from './env';
  *  outputFileTracingIncludes are the fix; this lazy boundary is the guarantee the symptom can
  *  never be a silent 500 again. */
 async function loadRpc() {
-  return import('@lightbridge/authz-rpc');
+  // `webpackMode: "eager"` is LOAD-BEARING (2026-08-30, second half of the usage outage): a bare
+  // dynamic import made webpack SPLIT this package into an async server chunk, and the standalone
+  // bundle's chunk resolution failed inside the bracketed route dir (`%5B...path%5D` →
+  // ERR_UNSUPPORTED_DIR_IMPORT + "a.replace is not a function" in webpack-runtime) — the guard
+  // then fail-closed 403'd every usage query. Eager mode keeps the module in the parent chunk
+  // (no runtime chunk fetch) while preserving the dynamic-import error boundary this function
+  // exists for.
+  return import(/* webpackMode: "eager" */ '@lightbridge/authz-rpc');
 }
 
 /**

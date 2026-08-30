@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useCustomMutation, useInvalidate, useList, useOne, useTable } from '@refinedev/core';
 
-import { RailPanel } from '../components/rail-panel';
+import { Card } from '../components/card';
 import type { ReviewDecision } from '../components/review-detail-panel';
 import { SelectionSheet } from '../components/selection-sheet';
 import { SubNav } from '../components/sub-nav';
@@ -17,7 +17,7 @@ import { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from '../sections/review-d
 import { gatewayProdHistory } from '../sections/review-detail-rail/fixtures';
 import { ReviewQueue } from '../sections/review-queue';
 import type { AdminReviewTab, RefillRequestRow } from '../sections/review-queue';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { adminSubNavItems } from '../pages-stories/shell-fixtures';
 import type { DecideRefillPayload } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
@@ -102,17 +102,18 @@ export function RefineAdminBudgetReviewScreen() {
     <RefineMockShell
       active="admin"
       showAdmin
-      leftSecondary={
-        <RailPanel label="ADMIN">
-          <SubNav items={adminSubNavItems} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Admin"
-      rail={<RailPanel>{reviewRail}</RailPanel>}>
+      aside={
+        <>
+          <Card title="Admin">
+            <SubNav items={adminSubNavItems} />
+          </Card>
+          <Card>{reviewRail}</Card>
+        </>
+      }>
       <div className="flex flex-col gap-6">
-        <ScreenHeading
+        <PageHeader
           title="Budget refill review"
-          subline={`${pendingCount} request${pendingCount === 1 ? '' : 's'} awaiting a decision${
+          subtitle={`${pendingCount} request${pendingCount === 1 ? '' : 's'} awaiting a decision${
             pending.length > 0 ? ` · oldest submitted ${pending[0]?.submittedAgo}` : ''
           }`}
         />

@@ -13,9 +13,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { AccountNameDialog } from '../components/account-name-dialog';
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { ProjectNameDialog } from '../components/project-name-dialog';
-import { RailPanel } from '../components/rail-panel';
 import { SubNav } from '../components/sub-nav';
 import { AccountSettings } from '../sections/account-settings';
 import type { AccountSettingsDetails } from '../sections/account-settings';
@@ -28,13 +28,8 @@ import type { AccountPanelAccount } from '../sections/account-panel';
 import { ProjectSettings } from '../sections/project-settings';
 import type { ProjectSettingsRow } from '../sections/project-settings';
 import { projectSettingsFixture } from '../sections/project-settings/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
-import {
-  settingsSubNavItems,
-  storyAdminNavItems,
-  storyHeader,
-  storyNavItems,
-} from './shell-fixtures';
+import { PageHeader } from '../sections/page-header';
+import { settingsSubNavItems, storySidebar, storyTopBar } from './shell-fixtures';
 
 interface SettingsScreenProps {
   /** `null` = signed in with no account at all. An account whose own `name` is `null` is the
@@ -71,47 +66,47 @@ function SettingsScreen({
   const [projectName, setProjectName] = useState(renameTarget?.name ?? '');
 
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{
-        items: storyNavItems('settings'),
-        adminItems: storyAdminNavItems('settings'),
-        showAdmin,
-      }}
-      leftSecondary={
-        <RailPanel label="SETTINGS">
-          <SubNav items={settingsSubNavItems} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Settings">
-      <div className="flex flex-col gap-6">
-        <ScreenHeading
-          title="Settings"
-          subline="Account and project configuration. Filtering and browsing live on Manage."
-        />
+    <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <PageHeader
+            title="Settings"
+            subtitle="Account and project configuration. Filtering and browsing live on Manage."
+          />
 
-        <AccountSettings
-          panel={{
-            account,
-            loading: false,
-            onCreate: () => setAccountDialogOpen(true),
-            onRename: () => setAccountDialogOpen(true),
-            onRetry: () => {},
-          }}
-          details={details}
-          onCopyId={() => {}}
-        />
+          <AccountSettings
+            panel={{
+              account,
+              loading: false,
+              onCreate: () => setAccountDialogOpen(true),
+              onRename: () => setAccountDialogOpen(true),
+              onRetry: () => {},
+            }}
+            details={details}
+            onCopyId={() => {}}
+          />
 
-        <ProjectSettings
-          projects={projects}
-          loading={loading}
-          error={error}
-          onRetry={() => {}}
-          onRename={(project) => {
-            setProjectName(project.name);
-            setRenameProjectId(project.id);
-          }}
-        />
+          <ProjectSettings
+            projects={projects}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            onRename={(project) => {
+              setProjectName(project.name);
+              setRenameProjectId(project.id);
+            }}
+          />
+        </div>
+
+        {/* The former `leftSecondary` SETTINGS sub-nav — a plain `Card`, visible from `md` the
+            same tier the old rail persisted at (shell brief 2026-08-30 dropped the shell's own
+            rail slot; there is no sheet-trigger equivalent for this screen, so it simply doesn't
+            render below `md`, same as before). */}
+        <div className="hidden w-[208px] flex-none md:flex">
+          <Card title="Settings" className="w-full">
+            <SubNav items={settingsSubNavItems} />
+          </Card>
+        </div>
       </div>
 
       <AccountNameDialog

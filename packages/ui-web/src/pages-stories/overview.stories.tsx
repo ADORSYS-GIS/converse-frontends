@@ -11,7 +11,6 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
 import { presetRange } from '../components/date-range-field';
 import type { SelectFieldProps } from '../components/select-field';
 import { InlineStatus } from '../components/inline-status';
@@ -33,7 +32,6 @@ import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
-  MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
 } from '../sections/overview-controls/fixtures';
@@ -42,7 +40,7 @@ import {
   overviewStatCards,
   overviewUnwiredStatCards,
 } from '../sections/overview-stat-row/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { UNWIRED_CHART_MESSAGE } from '../sections/unwired-chart-message';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
@@ -62,7 +60,7 @@ import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import type { BudgetSummary } from '../sections/budget-panel';
-import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+import { storySidebar, storyTopBar } from './shell-fixtures';
 
 const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
 
@@ -83,7 +81,6 @@ interface OverviewScreenProps {
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
   spendShareSegments?: ShareBarSegment[];
-  exportDisabledReason?: string;
   spendShareStatus?: DashboardStatus;
   latencySeries?: LatencyRidgelineSeries[];
   latencyStatus?: DashboardStatus;
@@ -101,8 +98,9 @@ interface OverviewScreenProps {
 }
 
 // The composition `apps/console`'s `(console)` layout + `/` route perform for real — the shell
-// once, sections inside it, with the right rail's sections mounted twice (persistent `RailPanel`
-// at `lg`, `SectionSheetTrigger` sheet below it) from ONE piece of state.
+// once, sections inside it, with the VIEW parameters as a horizontal cluster in
+// `PageHeader.controls` (shell brief 2026-08-30 — the rail is gone; every screen's own knobs move
+// to its `PageHeader`).
 function OverviewScreen({
   showAdmin = false,
   emptyMessage,
@@ -111,7 +109,6 @@ function OverviewScreen({
   spendSeries = overviewSpendSeries,
   spendStatus = 'ready',
   spendShareSegments = overviewSpendShareSegments,
-  exportDisabledReason,
   spendShareStatus = 'ready',
   latencySeries = overviewLatencySeries,
   latencyStatus = 'ready',
@@ -130,52 +127,43 @@ function OverviewScreen({
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
-  const modelField = useSelectField('all', MODEL_FILTER_OPTIONS, 'Model');
 
   const spendShareTotal = useMemo(
     () => spendShareSegments.reduce((sum, segment) => sum + segment.value, 0),
     [spendShareSegments]
   );
 
-
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{
-        items: storyNavItems('overview'),
-        adminItems: storyAdminNavItems('overview'),
-        showAdmin,
-      }}
-      leftSecondaryLabel="View"
-      leftSecondary={
-        <RailPanel label="View">
-  <OverviewControls
-            rangeField={{
-              label: 'Range',
-              preset: rangePreset,
-              presets: RANGE_PRESETS,
-              value: range,
-              today: STORY_TODAY,
-              onPresetChange: (next) => {
-                setRangePreset(next);
-                setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY));
-              },
-              onRangeChange: (next) => {
-                setRangePreset(null);
-                setRange(next);
-              },
-            }}
-            bucketField={bucketField}
-            groupByField={groupByField}
-            projectField={projectField}
-            modelField={modelField}
-            onExport={exportDisabledReason ? undefined : () => {}}
-            exportDisabledReason={exportDisabledReason}
-          />
-        </RailPanel>
-      }>
+    <ConsoleShell sidebar={storySidebar('overview', { isAdmin: showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-8">
-        <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
+        <PageHeader
+          title="Overview"
+          subtitle="Last 30 days · UTC"
+          controls={
+            <OverviewControls
+              rangeField={{
+                label: 'Range',
+                preset: rangePreset,
+                presets: RANGE_PRESETS,
+                value: range,
+                today: STORY_TODAY,
+                onPresetChange: (next) => {
+                  setRangePreset(next);
+                  setRange(
+                    presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY)
+                  );
+                },
+                onRangeChange: (next) => {
+                  setRangePreset(null);
+                  setRange(next);
+                },
+              }}
+              bucketField={bucketField}
+              groupByField={groupByField}
+              projectField={projectField}
+            />
+          }
+        />
 
         {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
 
@@ -194,10 +182,10 @@ function OverviewScreen({
         />
 
         {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row --
-            reading order stays tiles -> trend -> share -> detail. Its own dashboard row (not
-            folded into the LATENCY/BUDGET row) because a donut is a fixed-size widget, unlike
-            those two `lg:basis-*` columns that scale to fill the centre; giving it a full-width
-            row lets it stay centered rather than stretching or crowding a third column into 872px. */}
+              reading order stays tiles -> trend -> share -> detail. Its own dashboard row (not
+              folded into the LATENCY/BUDGET row) because a donut is a fixed-size widget, unlike
+              those two `lg:basis-*` columns that scale to fill the centre; giving it a full-width
+              row lets it stay centered rather than stretching or crowding a third column into 872px. */}
         <SpendShareSection
           segments={spendShareSegments}
           status={spendShareStatus}
@@ -208,8 +196,8 @@ function OverviewScreen({
         />
 
         {/* `lg:basis-[528px]` / `lg:basis-[320px]` are the 1440-reference widths (528 + 320 + 24px
-            gap = 872px, the centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not
-            `shrink-0`) lets both columns scale down together instead of overflowing. */}
+              gap = 872px, the centre's exact width at 1440) — `lg:flex-1 lg:min-w-0` (not
+              `shrink-0`) lets both columns scale down together instead of overflowing. */}
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
           <LatencyDashboard
             className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"

@@ -3,7 +3,7 @@
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
@@ -34,7 +34,7 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
 export default function OverviewLoading() {
   return (
     <div className="flex flex-col gap-8">
-      <ScreenHeading title="Overview" subline="loading scope…" />
+      <PageHeader title="Overview" subtitle="loading scope…" />
 
       <OverviewStatRow cards={[]} loading />
 

@@ -30,6 +30,7 @@ vi.mock('./use-overview-screen', async (importOriginal) => {
 
 function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreenData {
   return {
+    scopeAccountLabel: 'adorsys-gis',
     scopeProjectLabel: 'All projects',
     subline: 'Last 30d · UTC',
     statCards: [],
@@ -47,7 +48,6 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     bucketField: { label: 'Bucket', value: 'day', options: [], onChange: vi.fn() },
     groupByField: { label: 'Group by', value: 'project', options: [], onChange: vi.fn() },
     projectField: { label: 'Project', value: '', options: [], onChange: vi.fn() },
-    modelField: { label: 'Model', value: 'all', options: [], onChange: vi.fn() },
     spendSeries: [],
     spendSegments: [],
     spendStatus: 'ready',

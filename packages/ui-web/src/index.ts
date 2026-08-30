@@ -37,18 +37,16 @@ export type { DetailSheetProps } from './components/detail-sheet';
 // ── shell
 export { ConsoleShell } from './components/console-shell';
 export type { ConsoleShellProps } from './components/console-shell';
-export { ConsoleHeader } from './components/console-header';
-export type { ConsoleHeaderProps } from './components/console-header';
+export { ConsoleTopBar } from './components/console-top-bar';
+export type { ConsoleTopBarProps } from './components/console-top-bar';
 export { AccountBadge, shortAccountId } from './components/account-badge';
 export type { AccountBadgeOption, AccountBadgeProps } from './components/account-badge';
 export { AccountMenu } from './components/account-menu';
 export type { AccountMenuProps } from './components/account-menu';
 export { ThemeToggle } from './components/theme-toggle';
 export type { ThemeToggleProps, ThemeTogglePreference } from './components/theme-toggle';
-export { RailPanel } from './components/rail-panel';
-export type { RailPanelProps } from './components/rail-panel';
 export { NavSpine } from './components/nav-spine';
-export type { NavSpineItem, NavSpineProps } from './components/nav-spine';
+export type { NavGroup, NavSpineItem, NavSpineProps } from './components/nav-spine';
 export { SubNav } from './components/sub-nav';
 export type { SubNavItem, SubNavProps } from './components/sub-nav';
 export { BottomSheet } from './components/bottom-sheet';
@@ -203,11 +201,11 @@ export type { ErrorLineProps } from './components/error-line';
 // own shell. Full-page compositions live in Storybook (`src/pages-stories/`) and in
 // `apps/console`'s own route implementations.
 
-export { ScreenHeading } from './sections/screen-heading';
-export type { ScreenHeadingProps } from './sections/screen-heading';
-
 export { PageHeader } from './sections/page-header';
 export type { PageHeaderProps } from './sections/page-header';
+
+export { ConsoleSidebar } from './sections/console-sidebar';
+export type { ConsoleSidebarProps } from './sections/console-sidebar';
 
 export { OverviewStatRow } from './sections/overview-stat-row';
 export type {

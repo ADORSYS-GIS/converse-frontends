@@ -3,47 +3,52 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * `/admin` is one route with two sections (`?section=overview|refills`), and BOTH are behind the
- * same grant that reveals the Admin nav group.
+ * `/admin` is one route with two sections (`?section=overview|refills`), both behind the same
+ * grant that reveals the Admin nav group.
  *
- * The gate is server-side and per SEGMENT: a parallel-route slot is its own route segment, so a
- * `notFound()` in `children` does not by itself stop `@rail` or `@scope` from rendering. Adding a
- * second section to the area is exactly the kind of change that can quietly acquire a fourth
- * segment without one — the operator dashboard reads account-wide spend, latency and budget, so a
- * missing gate there leaks strictly more than the refill queue ever did.
+ * Shell revamp phase 2 (2026-08-30): the `@rail`/`@scope` parallel-route slots this test used to
+ * enumerate alongside the route's own `page.tsx` are deleted — `AdminCentre` now renders its own
+ * right-hand review-detail aside (`containers/admin-rail.tsx`) as an ordinary component call
+ * inside the already-gated `admin/page.tsx` tree, not as a sibling route segment that could bypass
+ * the gate on its own. There is therefore exactly one segment left to gate.
  *
  * A source-shape assertion rather than a render test, because the property is about the route
- * TREE: every `(console)/admin` segment must decrypt the session and `notFound()` a non-admin
- * before generating any admin markup. `notFound()` and not a 403, so a non-admin does not learn
- * the route exists at all. This is still only the UI half — `lightbridge-authz` enforces the real
- * permission on every procedure regardless.
+ * SEGMENT: it must decrypt the session and `notFound()` a non-admin before generating any admin
+ * markup. `notFound()` and not a 403, so a non-admin does not learn the route exists at all. This
+ * is still only the UI half — `lightbridge-authz` enforces the real permission on every procedure
+ * regardless.
  */
-const ADMIN_SEGMENTS = [
-  join('src', 'app', '(console)', 'admin', 'page.tsx'),
-  join('src', 'app', '(console)', '@rail', 'admin', 'page.tsx'),
-  join('src', 'app', '(console)', '@scope', 'admin', 'page.tsx'),
-];
+const ADMIN_SEGMENT = join('src', 'app', '(console)', 'admin', 'page.tsx');
 
 describe('the /admin role gate', () => {
-  it.each(ADMIN_SEGMENTS)('%s decrypts the session and 404s a non-admin', (segment) => {
-    const source = readFileSync(join(process.cwd(), segment), 'utf8');
+  it('decrypts the session and 404s a non-admin', () => {
+    const source = readFileSync(join(process.cwd(), ADMIN_SEGMENT), 'utf8');
 
     expect(source).toContain('readSession()');
     expect(source).toContain('isAdmin(session.user.roles)');
     expect(source).toContain('notFound()');
   });
 
-  it('gates every segment under (console)/admin, with none left ungated', () => {
-    // Guards the failure mode this file exists for: a new segment added beside these three (a
-    // section-specific slot, a nested route) that forgets the gate. If this list grows, the
-    // `it.each` above must grow with it.
-    const layout = readFileSync(
-      join(process.cwd(), 'src', 'app', '(console)', 'layout.tsx'),
+  it('gates the Admin nav group itself, cosmetic but must not regress into "shown then 404s"', () => {
+    // The nav group stays hidden for a non-admin — cosmetic, but it must not regress into "shown
+    // and then 404s", which advertises the area to everyone. `navGroups`'s own `isAdmin` param
+    // (`client/console-chrome.tsx`) is what the layout feeds from the session.
+    const chrome = readFileSync(
+      join(process.cwd(), 'src', 'client', 'console-chrome.tsx'),
       'utf8'
     );
 
-    // The nav group itself stays hidden for a non-admin — cosmetic, but it must not regress into
-    // "shown and then 404s", which advertises the area to everyone.
-    expect(layout).toContain('showAdmin: session.isAdmin');
+    expect(chrome).toContain('isAdmin: boolean');
+  });
+
+  it('never leaves the review-detail aside as a route segment the gate above does not cover', () => {
+    // Guards the failure mode this file exists for: `AdminRail` re-acquiring its own route
+    // segment (a revived `@rail` slot, or a nested route) that forgets the gate this test covers.
+    const centre = readFileSync(
+      join(process.cwd(), 'src', 'containers', 'admin-centre.tsx'),
+      'utf8'
+    );
+
+    expect(centre).toContain('<AdminRail');
   });
 });

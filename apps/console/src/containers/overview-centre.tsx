@@ -4,12 +4,13 @@ import { Button } from '@lightbridge/ui-web/src/components/button';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
+import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
-import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION, useOverviewScreen } from './use-overview-screen';
+import { useOverviewScreen } from './use-overview-screen';
 
 /**
  * `/` — the Overview centre column, which since the owner review of 2026-08-29 is the WHOLE
@@ -41,10 +42,24 @@ export function OverviewCentre() {
   const screen = useOverviewScreen();
 
   const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
+  const subtitle = screen.scopeAccountLabel
+    ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel} · ${screen.subline}`
+    : undefined;
 
   return (
     <div className="flex flex-col gap-8">
-      <ScreenHeading title="Overview" subline={screen.subline} />
+      <PageHeader
+        title="Overview"
+        subtitle={subtitle}
+        controls={
+          <OverviewControls
+            rangeField={screen.rangeField}
+            bucketField={screen.bucketField}
+            groupByField={screen.groupByField}
+            projectField={screen.projectField}
+          />
+        }
+      />
 
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 

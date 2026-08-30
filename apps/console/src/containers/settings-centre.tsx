@@ -4,7 +4,7 @@ import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-na
 import { ProjectNameDialog } from '@lightbridge/ui-web/src/components/project-name-dialog';
 import { AccountSettings } from '@lightbridge/ui-web/src/sections/account-settings';
 import { ProjectSettings } from '@lightbridge/ui-web/src/sections/project-settings';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { useSettingsScreen } from './use-settings-screen';
 
@@ -24,9 +24,11 @@ export function SettingsCentre() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeading
+      <PageHeader
         title="Settings"
-        subline="Account and project configuration. Filtering and browsing live on Manage."
+        subtitle={
+          screen.scopeLabel ? `${screen.scopeLabel} · account and project configuration` : undefined
+        }
       />
 
       <AccountSettings {...screen.accountSettings} />

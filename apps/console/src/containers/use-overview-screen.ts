@@ -23,6 +23,7 @@ import { useConsoleBudgetClient } from '../client/rpc-clients';
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
+import { accountScopeLabel } from './account-label';
 import {
   OVERVIEW_BUCKETS,
   OVERVIEW_GROUP_BYS,
@@ -75,14 +76,6 @@ import {
  * this screen).
  */
 
-/**
- * The Overview EXPORT rail control's disabled-reason caption (console-ui#324) — the CSV export
- * route doesn't exist yet (tracked separately as `#308`, Epic 4). Shared by `OverviewRail` and
- * `OverviewCentre` so the persistent rail and the compact-tier sheet can never drift onto
- * different wording for the same control.
- */
-export const OVERVIEW_EXPORT_UNAVAILABLE_CAPTION = "Export isn't available yet.";
-
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
@@ -113,8 +106,6 @@ const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
   value,
   label: GROUP_BY_LABELS[value],
 }));
-
-const MODEL_OPTIONS = [{ value: 'all', label: 'All models' }];
 
 /** Matches `Meter`'s own default (`packages/ui-web/src/components/meter/component.tsx`) — the
  *  account-level refill control only appears once the SAME ratio that turns the meter `--signal`
@@ -170,6 +161,10 @@ function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
 }
 
 export interface OverviewScreen {
+  /** The scoped account's display label (`accountScopeLabel`), for `PageHeader.subtitle` — see
+   *  `scopeProjectLabel`'s own doc for the project half of the pair. `undefined` before an
+   *  account resolves. */
+  scopeAccountLabel: string | undefined;
   scopeProjectLabel: string;
   subline: string;
   statCards: OverviewStatCardData[];
@@ -181,7 +176,6 @@ export interface OverviewScreen {
   bucketField: Omit<SelectFieldProps, 'layout'>;
   groupByField: Omit<SelectFieldProps, 'layout'>;
   projectField: Omit<SelectFieldProps, 'layout'>;
-  modelField: Omit<SelectFieldProps, 'layout'>;
   // ── #305: SPEND / SPEND SHARE ────────────────────────────────────────────────────────────
   spendSeries: SpendSeriesSeries[];
   spendSegments: ShareBarSegment[];
@@ -260,6 +254,10 @@ export function useOverviewScreen(): OverviewScreen {
 
   const scopeProjectLabel =
     scope.projects.find((project) => project.id === scope.value.projectId)?.label ?? 'All projects';
+  const activeAccount = scope.allAccounts.find(
+    (account) => account.id === scope.value.accountId
+  );
+  const scopeAccountLabel = activeAccount ? accountScopeLabel(activeAccount) : undefined;
 
   const accountId = scope.value.accountId;
   const projectId = scope.value.projectId;
@@ -448,9 +446,8 @@ export function useOverviewScreen(): OverviewScreen {
   }
 
   return {
+    scopeAccountLabel,
     scopeProjectLabel,
-    // No account id here: the header's `AccountBadge` is the console's one rendering of which
-    // account you are in. This was copy two of four.
     subline: `${RANGE_LABELS[view.range]} · UTC`,
     statCards,
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
@@ -499,14 +496,6 @@ export function useOverviewScreen(): OverviewScreen {
       ],
       onChange: (projectId) =>
         scope.setValue({ accountId: scope.value.accountId, projectId: projectId || null }),
-    },
-    modelField: {
-      label: 'Model',
-      value: view.model,
-      options: MODEL_OPTIONS,
-      onChange: (model) => {
-        void setView({ model });
-      },
     },
     spendSeries,
     spendSegments,

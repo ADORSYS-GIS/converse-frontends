@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { RailPanel } from '../../components/rail-panel';
+import { Card } from '../../components/card';
 import { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from './component';
 import { manageAccountOptions, manageBudgetStateOptions, manageStatusOptions } from './fixtures';
 
@@ -21,7 +21,7 @@ function Demo() {
 
   return (
     <div className="w-[280px] bg-surface">
-      <RailPanel label={MANAGE_FILTERS_RAIL_LABEL}>
+      <Card title={MANAGE_FILTERS_RAIL_LABEL}>
         <ManageFiltersRail
           accountValue={account}
           accountOptions={manageAccountOptions}
@@ -33,7 +33,7 @@ function Demo() {
           budgetStateOptions={manageBudgetStateOptions}
           onBudgetStateChange={setBudgetState}
         />
-      </RailPanel>
+      </Card>
     </div>
   );
 }

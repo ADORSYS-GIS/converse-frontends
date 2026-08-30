@@ -14,26 +14,33 @@ export interface NavSpineItem {
   onSelect?: (key: string) => void;
 }
 
-export interface NavSpineProps {
-  /** The four fixed nav groups (minus Admin, which is gated separately). */
+/**
+ * One nav group — a `sidebar-group-label` (docs/design/console-revamp shell brief §"Nav groups")
+ * heading rendered before its items when `label` is set, otherwise just the items. The
+ * "Operator" group's own presence (or absence) IS the console's role marker now — there is no
+ * separate `adminItems`/`showAdmin` axis any more: a caller that wants a gated group simply
+ * includes or omits it from `groups`.
+ */
+export interface NavGroup {
+  key: string;
+  /** Sentence-case, e.g. "Workspace", "Account", "Operator" — never uppercase. Omit for a group
+   *  with no heading of its own. */
+  label?: string;
   items: NavSpineItem[];
+}
+
+export interface NavSpineProps {
+  groups: NavGroup[];
   /**
-   * Admin group items. Rendered only when `showAdmin` is true, preceded by a `--raised`
-   * rule and a right-aligned role marker (docs/design/console-redesign/README.md §3, §4).
+   * `sidebar` is the persistent left-sidebar stack: icon + label side by side, active = 2px
+   * `--signal` left bar, groups separated by their own label rows. `bottom-bar` is the
+   * mobile-first (<600) fixed bottom navigation dock: a horizontal row, icon above label, active
+   * = `primary` text + a 2px `--signal` top bar — every group's items flattened into one strip,
+   * since a 56px dock has no legible home for group headings. Same `NavGroup[]` data either way —
+   * `ConsoleSidebar` is the only consumer that renders both layouts (CSS-hidden per tier) from
+   * one `groups` prop.
    */
-  adminItems?: NavSpineItem[];
-  /** Gates the Admin group — pass the `lightbridge-admin` grant check result. */
-  showAdmin?: boolean;
-  /** Text for the right-aligned marker preceding the Admin group at `rail` layout. Defaults to `ROLE`. */
-  roleLabel?: string;
-  /**
-   * `rail` (default) is the vertical left-rail stack: icon + label side by side, active = 2px
-   * `--signal` left bar. `bottom-bar` is the mobile-first (<600) fixed bottom navigation dock
-   * (console-ui skill "Shape and layout"): a horizontal row, icon above label, active = `primary`
-   * text + a 2px `--signal` top bar. Same `NavSpineItem[]` data either way — `ConsoleShell` is
-   * the only consumer that renders both layouts (CSS-hidden per tier) from one `nav` prop.
-   */
-  layout?: 'rail' | 'bottom-bar';
+  layout: 'sidebar' | 'bottom-bar';
   className?: string;
   /**
    * Component rendering each `href` item — `next/link` in `apps/console`, a plain `<a>`

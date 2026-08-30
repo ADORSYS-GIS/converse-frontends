@@ -38,10 +38,6 @@ export const EXPECTED: Record<string, string | null> = {
   'secret-reveal': 'input',
   'nav-spine': 'navigation-menu',
   'sub-nav': 'navigation-menu',
-  'console-header': null, // REFUSED 2026-08-30: `ToolbarRoot` emits `role="toolbar"`
-  // unconditionally, which would replace this <header>'s implicit `banner` landmark — and the
-  // roving focus a toolbar exists for would never arrive, since only Toolbar.Button/Link/Input
-  // join the ring and this component is a pure host of opaque slots.
 
   // — nothing upstream, with the reason
   card: null, // a padded panel, no behaviour of its own
@@ -50,7 +46,13 @@ export const EXPECTED: Record<string, string | null> = {
   'chart-tooltip': null, // point-anchored: Floating UI virtual element, not a DOM anchor
   chevron: null, // a static path
   'command-palette': null, // cmdk owns the palette (ADR 0010)
-  'console-shell': null, // the flush full-height rail contract; daisy `drawer` rejected
+  'console-shell': null, // the two-column responsive contract; daisy `drawer` rejected
+  'console-top-bar': null, // REFUSED 2026-08-30, same reasoning `console-header` was refused
+  // under before it was deleted: a layout band around opaque slots (AccountBadge, CommandPalette,
+  // AccountMenu) each of which already delegates its own behaviour — there is no primitive to
+  // adopt for a band that has none of its own. `sections/console-sidebar` is the same shape, one
+  // column over, and carries the identical `null` in ITS OWN doc comment — this audit only walks
+  // `components/`, so a `sections/` entry here would never be reachable.
   'empty-state': null, // a static composition of two type roles and a slot
   'error-line': null, // a status line, not a control
   pagination: null, // composes Button; no behaviour of its own
@@ -59,7 +61,6 @@ export const EXPECTED: Record<string, string | null> = {
   'latency-ridgeline': null, // SVG primitive
   'ledger-table': null, // Base UI ships no table
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
-  'rail-panel': null, // a padded div
   'review-detail-panel': null, // a composition of other primitives
   'section-sheet': null, // composes BottomSheet, which is the drawer
   'section-sheet-trigger': null, // renders our Button; the gap is Button's

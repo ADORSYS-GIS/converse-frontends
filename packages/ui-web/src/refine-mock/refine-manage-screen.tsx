@@ -9,11 +9,11 @@ import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
+import { Card } from '../components/card';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import { InlineStatus } from '../components/inline-status';
-import { RailPanel } from '../components/rail-panel';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
 import { SelectionSheet } from '../components/selection-sheet';
@@ -31,7 +31,7 @@ import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
 } from '../sections/manage-selection-rail';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { manageSubNavItems } from '../pages-stories/shell-fixtures';
 import { RefineMockShell } from './shared-chrome';
 
@@ -193,21 +193,18 @@ export function RefineManageScreen() {
   return (
     <RefineMockShell
       active="manage"
-      leftSecondary={
-        <RailPanel label="MANAGE">
-          <SubNav items={manageSubNavItems} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Manage"
-      rail={
+      aside={
         <>
-          <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</RailPanel>
-          <RailPanel label={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
-          <RailPanel label={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</RailPanel>
+          <Card title="Manage">
+            <SubNav items={manageSubNavItems} />
+          </Card>
+          <Card title={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</Card>
+          <Card title={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</Card>
+          <Card title={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</Card>
         </>
       }>
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" />
+        <PageHeader title="Projects" />
         <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
         <CreateProjectDialog

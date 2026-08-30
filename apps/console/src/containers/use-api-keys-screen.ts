@@ -24,6 +24,7 @@ import {
   useApiKeysParams,
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
+import { accountScopeLabel } from './account-label';
 import {
   DEFAULT_KEY_EXPIRY_DAYS,
   EXPIRY_DAY_OPTIONS,
@@ -117,6 +118,9 @@ function emptyDraft(): CreateKeyDraft {
 }
 
 export interface ApiKeysScreen {
+  /** The scoped account's display label (`accountScopeLabel`), for `PageHeader.subtitle`.
+   *  `undefined` before an account resolves. */
+  scopeAccountLabel: string | undefined;
   scopeProjectLabel: string;
   rows: ApiKeyRow[];
   loading: boolean;
@@ -397,7 +401,12 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
   };
 
+  const activeAccount = scope.allAccounts.find(
+    (account) => account.id === scope.value.accountId
+  );
+
   return {
+    scopeAccountLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     scopeProjectLabel:
       scope.projects.find((project) => project.id === scope.value.projectId)?.label ??
       'All projects',

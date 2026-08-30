@@ -4,7 +4,7 @@ import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
@@ -29,7 +29,7 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
 export default function AdminLoading() {
   return (
     <div className="flex flex-col gap-8">
-      <ScreenHeading title="Admin overview" subline="loading account…" />
+      <PageHeader title="Admin overview" subtitle="loading account…" />
 
       <OverviewStatRow cards={[]} loading />
 

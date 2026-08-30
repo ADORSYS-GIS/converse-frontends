@@ -16,8 +16,9 @@ import {
   MANAGE_SELECTION_RAIL_LABEL,
   ManageSelectionRail,
 } from '@lightbridge/ui-web/src/sections/manage-selection-rail';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import { ManageRail } from './manage-rail';
 import { ManageScopeSlot } from './manage-scope-slot';
 import { UrlSectionSheetTrigger } from './url-section-sheet-trigger';
 import { useManageScreen } from './use-manage-screen';
@@ -36,54 +37,69 @@ import { useManageScreen } from './use-manage-screen';
  * is now purely a filtering and browsing surface: everything it mounts is about finding a project,
  * and `+ New project` is the one write left, because creating a project IS what this ledger is a
  * list of.
+ *
+ * Shell revamp phase 2: `ManageRail` (report/filters/selection) used to render through the
+ * deleted `@rail` parallel-route slot; it now renders inline as a right-hand `<aside>` at `lg`,
+ * beside the ledger, matching what the shell's own `rightRail` prop used to give it for free.
+ * `// phase-3 removes` — a real right-rail replacement is designed in phase 3. Below `lg` the same
+ * sections stay reachable through the existing `UrlSectionSheetTrigger`/`SelectionSheet` pattern,
+ * which was already tier-gated (`lg:hidden`) independently of the shell's own rail slot.
  */
 export function ManageCentre() {
   const screen = useManageScreen(<ManageScopeSlot />);
+  const subtitle = screen.scopeLabel ? `${screen.scopeLabel} · browse and filter projects` : undefined;
 
   return (
     <>
-      <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" />
+      <div className="flex gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <PageHeader title="Projects" subtitle={subtitle} />
 
-        <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
+          <InlineStatus>{screen.spendPendingMessage}</InlineStatus>
 
-        <CreateProjectDialog {...screen.createProjectDialog} />
+          <CreateProjectDialog {...screen.createProjectDialog} />
 
-        <ManageProjectsLedger
-          projects={screen.rows}
-          loading={screen.loading}
-          loadingRowCount={8}
-          error={screen.errorMessage}
-          onRetry={screen.retry}
-          emptyMessage="No projects in this account yet."
-          totals={screen.totals}
-          search={screen.search}
-          onSearchChange={screen.setSearch}
-          onNewProject={screen.newProject}
-          newProjectDisabled={!screen.createProjectEligible}
-          newProjectReason={screen.createProjectReason}
-          selectedRowKeys={screen.selectedProject ? [screen.selectedProject.id] : []}
-          onSelectRow={screen.selectRow}
-          pagination={screen.pagination}
-          toolbarActions={
-            <UrlSectionSheetTrigger
-              id="filters"
-              icon="filter"
-              triggerLabel="Open filters"
-              label={MANAGE_FILTERS_RAIL_LABEL}>
-              <ManageFiltersRail {...screen.filters} />
-            </UrlSectionSheetTrigger>
-          }
-          reportTrigger={
-            <UrlSectionSheetTrigger
-              id="report"
-              icon="report"
-              triggerLabel="Open monthly report"
-              label={MANAGE_REPORT_RAIL_LABEL}>
-              <ManageReportRail {...screen.report} />
-            </UrlSectionSheetTrigger>
-          }
-        />
+          <ManageProjectsLedger
+            projects={screen.rows}
+            loading={screen.loading}
+            loadingRowCount={8}
+            error={screen.errorMessage}
+            onRetry={screen.retry}
+            emptyMessage="No projects in this account yet."
+            totals={screen.totals}
+            search={screen.search}
+            onSearchChange={screen.setSearch}
+            onNewProject={screen.newProject}
+            newProjectDisabled={!screen.createProjectEligible}
+            newProjectReason={screen.createProjectReason}
+            selectedRowKeys={screen.selectedProject ? [screen.selectedProject.id] : []}
+            onSelectRow={screen.selectRow}
+            pagination={screen.pagination}
+            toolbarActions={
+              <UrlSectionSheetTrigger
+                id="filters"
+                icon="filter"
+                triggerLabel="Open filters"
+                label={MANAGE_FILTERS_RAIL_LABEL}>
+                <ManageFiltersRail {...screen.filters} />
+              </UrlSectionSheetTrigger>
+            }
+            reportTrigger={
+              <UrlSectionSheetTrigger
+                id="report"
+                icon="report"
+                triggerLabel="Open monthly report"
+                label={MANAGE_REPORT_RAIL_LABEL}>
+                <ManageReportRail {...screen.report} />
+              </UrlSectionSheetTrigger>
+            }
+          />
+        </div>
+
+        {/* phase-3 removes */}
+        <aside className="hidden w-[280px] shrink-0 lg:block">
+          <ManageRail />
+        </aside>
       </div>
 
       <SelectionSheet

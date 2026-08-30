@@ -1,7 +1,7 @@
 'use client';
 
 import { ManageProjectsLedger } from '@lightbridge/ui-web/src/sections/manage-projects-ledger';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 const noop = () => {};
 
@@ -15,7 +15,7 @@ const noop = () => {};
 export default function ManageLoading() {
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeading title="Projects" subline="spend shown month-to-date" />
+      <PageHeader title="Projects" subtitle="loading account…" />
 
       <ManageProjectsLedger
         projects={[]}

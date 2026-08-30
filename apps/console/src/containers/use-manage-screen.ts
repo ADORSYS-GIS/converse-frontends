@@ -30,6 +30,7 @@ import {
   type ReportIncludeId,
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
+import { accountScopeLabel } from './account-label';
 import { buildCreateProjectInput } from './build-create-project-input';
 import { classifyCreateProjectError } from './rpc-field-error';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
@@ -128,6 +129,9 @@ function emptyProjectDraft(): CreateProjectDraft {
 }
 
 export interface ManageScreen {
+  /** The scoped account's display label (`accountScopeLabel`) — for `PageHeader.subtitle`, never
+   *  a second, driftable computation at the call site. `undefined` before an account resolves. */
+  scopeLabel: string | undefined;
   rows: ProjectRow[];
   loading: boolean;
   /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. */
@@ -397,7 +401,12 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   // selected project reopens on that project, and Back deselects instead of leaving `/manage`.
   const selectedProject = rows.find((row) => row.id === view.selectedProjectId) ?? null;
 
+  const activeAccount = scope.allAccounts.find(
+    (account) => account.id === scope.value.accountId
+  );
+
   return {
+    scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     rows,
     loading: list.query.isLoading,
     errorMessage: list.query.isError ? 'Could not load projects.' : undefined,

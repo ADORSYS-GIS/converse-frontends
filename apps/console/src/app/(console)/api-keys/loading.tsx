@@ -1,7 +1,7 @@
 'use client';
 
 import { ApiKeysLedger } from '@lightbridge/ui-web/src/sections/api-keys-ledger';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 const noop = () => {};
 
@@ -17,7 +17,7 @@ const noop = () => {};
 export default function ApiKeysLoading() {
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeading title="Api-Keys" subline="loading scope…" />
+      <PageHeader title="API keys" subtitle="loading scope…" />
 
       <ApiKeysLedger
         keys={[]}

@@ -1,19 +1,21 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { Button } from '../../components/button';
 import { Field } from '../../components/field';
 import { SegmentedControl } from '../../components/segmented-control';
 import { SelectField } from '../../components/select-field';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ApiKeysControlsProps } from './types';
 
-// The Api-Keys screen's parameters and its create action, stacked in the LEFT rail beneath the
-// nav (owner, 2026-08-29) — see `OverviewControls` for why the rail, not the content column.
+// Shell brief (2026-08-30) — the Api-Keys screen's parameters, now a HORIZONTAL compact cluster in
+// `PageHeader.controls` rather than a stack in the left rail: the rail is gone, and every screen's
+// own knobs move to its `PageHeader` instead. `+ New key` is no longer here at all — it is
+// `PageHeader.action`, the emphasised, right-most control on the title row, not one filter among
+// several.
 //
 // Where the old right-rail sections went: KEY HYGIENE -> `ApiKeysHygieneNotes`, inline above the
 // table; LIFECYCLE -> deleted, since `TypedConfirmDialog` carries that copy at the moment it
-// matters. Account is not here: it is identity, and lives in the header.
+// matters. Account is not here: it is identity, and lives in the sidebar's workspace switcher.
 export function ApiKeysControls({
   projectField,
   statusOptions,
@@ -21,33 +23,13 @@ export function ApiKeysControls({
   onStatusChange,
   search,
   onSearchChange,
-  onCreate,
-  createLabel = '+ New key',
-  createDisabledReason,
   className,
 }: ApiKeysControlsProps) {
   return (
-    <section aria-label="Filters and actions" className={cn('flex flex-col gap-4', className)}>
-      {/* The action leads: a key belongs to a project, so creating one is what you came for, and
-          the project picker directly below it is the precondition. */}
-      <div className="flex flex-col gap-1.5">
-        <Button
-          type="button"
-          variant="primary"
-          className="w-full"
-          disabled={!onCreate}
-          title={createDisabledReason}
-          onClick={onCreate}>
-          {createLabel}
-        </Button>
-        {!onCreate && createDisabledReason ? (
-          <span className={LABEL_CLASS}>{createDisabledReason}</span>
-        ) : null}
-      </div>
+    <section aria-label="Filters and actions" className={cn('flex flex-wrap items-end gap-3', className)}>
+      <SelectField {...projectField} layout="inline" />
 
-      <SelectField {...projectField} />
-
-      <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
         <span className={LABEL_CLASS}>Status</span>
         <SegmentedControl
           aria-label="Status filter"
@@ -59,6 +41,7 @@ export function ApiKeysControls({
 
       <Field
         label="Search"
+        layout="inline"
         placeholder="name or prefix…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}

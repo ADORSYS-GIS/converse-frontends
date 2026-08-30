@@ -2,7 +2,7 @@
 
 import { AccountSettings } from '@lightbridge/ui-web/src/sections/account-settings';
 import { ProjectSettings } from '@lightbridge/ui-web/src/sections/project-settings';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 const noop = () => {};
 
@@ -20,10 +20,7 @@ const noop = () => {};
 export default function SettingsLoading() {
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeading
-        title="Settings"
-        subline="Account and project configuration. Filtering and browsing live on Manage."
-      />
+      <PageHeader title="Settings" subtitle="loading account…" />
 
       <AccountSettings
         panel={{ account: null, loading: true, onCreate: noop, onRename: noop }}

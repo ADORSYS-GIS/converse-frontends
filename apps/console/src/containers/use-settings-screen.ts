@@ -24,6 +24,7 @@ import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
 import { SETTINGS_DIALOG_OPTIONS, useSettingsParams } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
+import { accountScopeLabel } from './account-label';
 import {
   buildCreateAccountInput,
   buildUpdateAccountNameInput,
@@ -62,6 +63,9 @@ const ACCOUNT_NAME_MUTATION_KEY = ['settings', 'account-name'];
 const PROJECT_NAME_MUTATION_KEY = ['settings', 'project-name'];
 
 export interface SettingsScreen {
+  /** The scoped account's display label (`accountScopeLabel`), for `PageHeader.subtitle`.
+   *  `undefined` before an account resolves. */
+  scopeLabel: string | undefined;
   /** `AccountSettings`' props — `AccountPanel`'s three states plus the read-only fact rows. */
   accountSettings: AccountSettingsProps;
   /** `AccountNameDialog`'s props — the same dialog for both account writes; `mode` is derived
@@ -340,7 +344,12 @@ export function useSettingsScreen(): SettingsScreen {
     },
   };
 
+  const activeAccount = scope.allAccounts.find(
+    (account) => account.id === scope.value.accountId
+  );
+
   return {
+    scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     accountSettings,
     accountNameDialog,
     projectSettings,

@@ -87,3 +87,25 @@ export const SwitcherLight: Story = {
 export const SingleAccount: Story = {
   args: { accounts: [{ id: ACCOUNT_ID, label: 'adorsys-gis' }], onSelectAccount: () => {} },
 };
+
+/**
+ * The shell brief's own workspace switcher — `ConsoleSidebar`'s full-width row, `variant="sidebar"`.
+ * Same switcher behaviour as `Switcher` above, relocated.
+ */
+export const SidebarVariant: Story = {
+  args: { ...Switcher.args, variant: 'sidebar', initials: 'AG' },
+  decorators: [
+    (Story) => (
+      <div className="bg-chrome w-60 p-2">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export const SidebarVariantLight: Story = {
+  name: 'Sidebar variant — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: SidebarVariant.args,
+  decorators: SidebarVariant.decorators,
+};

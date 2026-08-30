@@ -9,53 +9,29 @@ import {
   RAIL_ICON_COLUMN_CLASS,
   RAIL_LABEL_GAP_CLASS,
   RAIL_NAV_ROW_HEIGHT_CLASS,
-  RAIL_ROW_BLEED_CLASS,
   RAIL_ROW_PADDING_CLASS,
 } from '../../lib/rail-grid';
-import type { NavSpineItem, NavSpineProps } from './types';
+import type { NavGroup, NavSpineItem, NavSpineProps } from './types';
 
-// PRIMITIVES.md row `nav-spine` — Base UI `@base-ui/react/navigation-menu` for behaviour, daisy
-// `menu`/`menu-sm`/`menu-title` for paint, the SAME mechanism the sibling `SubNav` uses.
+// Shell brief (2026-08-30) — `NavSpine` now renders GROUPS, not a flat item list plus a bolted-on
+// `adminItems`/`showAdmin` axis. The `rail` layout name is retired in favour of `sidebar`, which
+// is what it actually renders now (`ConsoleSidebar`'s nav list, not a `RailPanel` — that component
+// is gone). Base UI `@base-ui/react/navigation-menu` still owns the structure and behaviour; see
+// the adoption note this file used to carry in full — unchanged by the rewrite:
 //
-// WHY `@base-ui/react/navigation-menu` FITS, given it is usually described as a popup menu. Read
-// from the shipped 1.7.0 source rather than the docs: the primitive is two halves, and only one of
-// them is about popups. `Trigger`/`Content`/`Positioner`/`Popup`/`Viewport`/`Backdrop`/`Arrow` are
-// the popup half and are entirely optional — omit them and `Root` never leaves `value === null`, so
-// nothing mounts and no floating machinery runs. `Root`/`List`/`Item`/`Link` are the other half, and
-// `NavigationMenuLink` is built for exactly our case: it takes an `active` boolean and emits
-// `aria-current="page"` from it (`link/NavigationMenuLink.js`), which is the contract this
-// component used to hand-write in two components that had already drifted apart in spelling.
+//  - `Root`/`List`/`Item`/`Link` model a destination list, not a popup menu (the popup half —
+//    `Trigger`/`Content`/`Positioner`/`Popup`/`Viewport` — is simply never rendered).
+//  - `NavigationMenuLink`'s `active` prop emits `aria-current="page"`.
+//  - `NavigationMenuLink` merges `tabIndex: undefined` OVER `CompositeItem`'s roving `-1`, so the
+//    composite root does NOT collapse rows to a single tab stop — every destination keeps its own
+//    natural tab stop, verified by rendering three links in a `List` with no `tabindex` attribute
+//    at all. What the composite DOES add is orientation-aware, non-looping arrow navigation
+//    between rows (`NavigationMenuList` hard-codes `loopFocus: false`).
 //
-// The one thing worth checking before adopting a Base UI list — whether its `CompositeRoot` would
-// impose a roving tab stop and take Tab away from every destination but one — does NOT happen
-// here, and not by accident: `NavigationMenuLink` sets `tabIndex: undefined` in the props it
-// merges OVER `CompositeItem`'s `tabIndex: isHighlighted ? 0 : -1`, deliberately opting its links
-// out of roving. Measured, not assumed: three links in a `List` render with no `tabindex`
-// attribute at all, so every route stays a natural tab stop exactly as before. What the composite
-// DOES add is orientation-aware arrow navigation between destinations — Up/Down in the vertical
-// rail, Left/Right in the horizontal dock (where Up/Down pass straight through to page scroll),
-// non-looping, because `NavigationMenuList` hard-codes `loopFocus: false`. That is behaviour this
-// file had none of.
-//
-// Division of labour, so the next reader does not move a piece back:
-//  - Base UI `@base-ui/react/navigation-menu` owns the `<nav>`/`<ul>`/`<li>`/`<a>` structure,
-//    `aria-current`, and arrow navigation. It inserts NO wrapper element, and `List` puts no
-//    attribute of its own on the `<ul>` — which is why the rail alignment grid below survives
-//    the adoption untouched.
-//  - daisy `menu` owns list semantics and the row radius.
-//  - `theme.css`'s `rail-row` / `rail-list` / `rail-role-marker` own the paint, the states, and
-//    the row's own width — which was a `w-full` here that measured as a no-op (daisy makes each
-//    `li` a stretch-aligned flex column, so the row already fills it) and that the sibling
-//    `SubNav`, rendering the SAME row by contract, never carried.
-//  - `lib/rail-grid.ts` owns every x-offset and row height — it is a numeric model `RailPanel`
-//    builds from too, so it stays in TypeScript rather than being half-restated in CSS.
-//  - Active state is `aria-current="page"`, which `rail-row` reads, so there is no second parallel
-//    flag. daisy's own `menu-active` is NOT set: read from `daisyui@5.7.22/components/menu.css`,
-//    all it contributes here is `--menu-active-bg`/`--menu-active-fg` paint that `rail-row`
-//    already overrides, plus a depth shadow that both console themes zero (`--depth: 0`). It was
-//    carried to keep daisy's row-hover rule off the active row, but that rule loses to `rail-row`
-//    on the cascade, not on specificity — daisy emits into a sublayer of `utilities` while an
-//    `@utility` lands unlayered inside it — so the exclusion it bought was never load-bearing.
+// Division of labour: Base UI owns the `<nav>`/`<ul>`/`<li>`/`<a>` structure, `aria-current`, and
+// arrow navigation; daisy `menu` owns list semantics and row radius; `theme.css`'s `rail-row` /
+// `rail-list` / `sidebar-group-label` / `nav-dock` / `nav-dock-row` own the paint; `lib/rail-grid.ts`
+// owns every row x-offset and height.
 const NAV_ROW_CLASS = cn(
   'rail-row focus-ring',
   RAIL_LABEL_GAP_CLASS,
@@ -131,35 +107,32 @@ function BottomBarRow({
   );
 }
 
-// Contract: docs/design/console-redesign/README.md §3/§4 — the four fixed nav groups; Admin
-// renders only with the `lightbridge-admin` grant, preceded by a `--raised` rule + `ROLE`
-// marker (overview.svg), so a non-admin's shorter spine reads as complete, not missing. The
-// marker row takes daisy's `menu-title`, which is how `menu` is told a row is NOT a nav row —
-// its own no-title selectors then leave the rule and label alone — plus `rail-role-marker`, which
-// draws the hairline as a pseudo-element instead of a second `<span>`. It stays a plain `<li>`
-// rather than a `NavigationMenu.Item`: it is a label, not a destination, and only
-// `CompositeItem`-registered rows join the arrow-key ring, so a plain `<li>` is correctly skipped.
-//
-// `layout="bottom-bar"` (console-ui skill "Shape and layout") swaps this to the mobile-first
-// (<600) fixed bottom navigation dock: daisy's horizontal `menu` inside the dock class, icon
-// above label, active = `primary` text and a 2px top bar (drawn by `nav-dock-row`, not by a
-// rendered node). That dock class names the whole part from the root down — it sizes the root,
-// the list AND the equal-width cells — which is why neither the root's fill nor a per-cell flex
-// weight is stated here any more.
-// The Admin item is appended plainly (still gated by `showAdmin`) — a rule and a `ROLE` marker
-// have no legible home in a 56px horizontal strip. `orientation` follows the layout, so the dock
-// answers to Left/Right and leaves Up/Down to the page, while the rail does the reverse.
+// `layout="sidebar"` renders every group in order: an optional `sidebar-group-label` heading
+// (daisy `menu-title`, so `menu`'s own `li:not(.menu-title)` selectors leave it alone), then that
+// group's rows. A group with no `label` renders no heading at all — there is no longer a special
+// "Admin group gets a marker" case; every group is the same shape, gated or not by whether the
+// caller includes it in `groups`.
+function SidebarGroup({ group, linkComponent }: { group: NavGroup; linkComponent: LinkComponent }) {
+  return (
+    <>
+      {group.label ? (
+        <li className="menu-title sidebar-group-label">{group.label}</li>
+      ) : null}
+      {group.items.map((item) => (
+        <NavRow key={item.key} item={item} linkComponent={linkComponent} />
+      ))}
+    </>
+  );
+}
+
 export function NavSpine({
-  items,
-  adminItems = [],
-  showAdmin = false,
-  roleLabel = 'Role',
-  layout = 'rail',
+  groups,
+  layout,
   className,
   linkComponent = DefaultAnchor,
 }: NavSpineProps) {
   if (layout === 'bottom-bar') {
-    const allItems = showAdmin ? [...items, ...adminItems] : items;
+    const allItems = groups.flatMap((group) => group.items);
     return (
       <NavigationMenu.Root
         orientation="horizontal"
@@ -176,27 +149,10 @@ export function NavSpine({
 
   return (
     <NavigationMenu.Root orientation="vertical" aria-label="Primary" className={className}>
-      {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s 16px
-          inset — the same bleed `SubNav`'s `<ul>` applies — so both lists' active fill/active bar
-          land at the identical net inset from the rail's true left edge. */}
-      {/* The list's `auto` width is `rail-list`'s, not this call site's: a 100% width would
-          resolve against the panel's 176px content box and then be SHIFTED left by the bleed,
-          leaving the active fill 8px short of the rail's right edge while flush at the left.
-          `auto` lets the used width absorb both negative margins, so the fill bleeds the same 8px
-          at both ends — which is what `RAIL_ROW_BLEED` means, and which `SubNav`'s list, carrying
-          the identical bleed, needs to be true of it too. */}
-      <NavigationMenu.List className={cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
-        {items.map((item) => (
-          <NavRow key={item.key} item={item} linkComponent={linkComponent} />
+      <NavigationMenu.List className="menu menu-sm rail-list">
+        {groups.map((group) => (
+          <SidebarGroup key={group.key} group={group} linkComponent={linkComponent} />
         ))}
-        {showAdmin && adminItems.length > 0 ? (
-          <>
-            <li className="menu-title rail-role-marker">{roleLabel}</li>
-            {adminItems.map((item) => (
-              <NavRow key={item.key} item={item} linkComponent={linkComponent} />
-            ))}
-          </>
-        ) : null}
       </NavigationMenu.List>
     </NavigationMenu.Root>
   );

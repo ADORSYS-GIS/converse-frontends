@@ -24,10 +24,18 @@ const SHORT_ID_LENGTH = 8;
 // The identity line, and the same line when it is also a control — both from `theme.css`.
 // `account-chip` IS an identity row (it carries that layout itself), so the control form names
 // one part rather than two. The focus ring stays the shared `focus-ring`: it is the console's one
-// definition of what focus looks like, and the 1px gap under it is the colour `ConsoleHeader`
-// declares for its band, so this component no longer has to know it sits on `chrome`.
+// definition of what focus looks like, and the 1px gap under it is the colour the hosting zone
+// (`ConsoleTopBar`/`ConsoleSidebar`) declares via `[--focus-gap:var(--color-chrome)]`, so this
+// component no longer has to know it sits on `chrome`.
 const ROW_ONLY_CLASS = 'identity-row';
 const CHIP_CLASS = 'account-chip focus-ring';
+
+// `variant="sidebar"` (shell brief 2026-08-30 — "the existing AccountBadge behaviour relocated")
+// — the SAME identity-row content, worn as a full-width `ConsoleSidebar` row instead of a compact
+// header chip. `workspace-switcher-row` already carries the hover fill and hit target; only the
+// focus ring is added at the call site, same split `CHIP_CLASS` makes above.
+const SIDEBAR_ROW_ONLY_CLASS = 'workspace-switcher-row';
+const SIDEBAR_CHIP_CLASS = 'workspace-switcher-row focus-ring';
 
 /**
  * `49534505-4c60-4550-83dd-7af22152cec6` → `acct_49534505`.
@@ -72,23 +80,53 @@ export function AccountBadge({
   accounts,
   onSelectAccount,
   onCopyId,
+  variant = 'inline',
+  initials,
   className,
 }: AccountBadgeProps) {
   const { display, isFallback } = displayName(name, accountId);
   const canSwitch = Boolean(onSelectAccount) && (accounts?.length ?? 0) > 1;
+  const sidebar = variant === 'sidebar';
+  const rowOnlyClass = sidebar ? SIDEBAR_ROW_ONLY_CLASS : ROW_ONLY_CLASS;
+  const chipClass = sidebar ? SIDEBAR_CHIP_CLASS : CHIP_CLASS;
 
-  const content = (
+  const nameAndId = (
     <>
       {/* A real name reads at full strength; the generated token is not the account's name, so
           it stays one step back. */}
       <span className={isFallback ? DATA_CLASS : SECTION_TITLE_CLASS}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
-          than repeating it. Hidden on phones, where the header has no room for both. */}
+          than repeating it. Hidden below `md` at the `inline` variant, where the top bar has no
+          room for both — the `sidebar` variant only ever renders at `md`+, so it always shows. */}
       {!isFallback && accountId ? (
-        <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{shortAccountId(accountId)}</span>
+        <>
+          {sidebar ? ' ' : null}
+          <span className={cn(LABEL_CLASS, !sidebar && 'hidden md:inline')}>
+            {shortAccountId(accountId)}
+          </span>
+        </>
       ) : null}
     </>
+  );
+
+  const content = sidebar ? (
+    <>
+      {/* The sidebar variant's leading avatar chip — same square-at-radius treatment as the
+          identity footer row beside it, so every full-width sidebar row reads as one family. */}
+      {initials ? (
+        <span aria-hidden="true" className="avatar-chip">
+          {initials}
+        </span>
+      ) : null}
+      {/* One flex-shrinking, truncating wrapper so the name+id pair reads as a unit against the
+          row's full width, leaving room for the trailing chevron — `rail-row-label` (theme.css),
+          the same truncation contract every other rail/sidebar row label already uses, rather
+          than a one-off hand-written rule for this call site. */}
+      <span className="rail-row-label">{nameAndId}</span>
+    </>
+  ) : (
+    nameAndId
   );
 
   if (canSwitch) {
@@ -97,7 +135,7 @@ export function AccountBadge({
         <Menu.Trigger
           aria-label={`Account ${display}. Switch account.`}
           title={accountId || undefined}
-          className={cn(CHIP_CLASS, className)}>
+          className={cn(chipClass, className)}>
           {content}
           <Chevron />
         </Menu.Trigger>
@@ -149,7 +187,7 @@ export function AccountBadge({
 
   if (!onCopyId) {
     return (
-      <span title={accountId || undefined} className={cn(ROW_ONLY_CLASS, className)}>
+      <span title={accountId || undefined} className={cn(rowOnlyClass, className)}>
         {content}
       </span>
     );
@@ -161,7 +199,7 @@ export function AccountBadge({
       onClick={() => onCopyId(accountId)}
       title={accountId ? `${accountId} — click to copy` : undefined}
       aria-label={`Account ${display}. Copy full account id.`}
-      className={cn(CHIP_CLASS, className)}>
+      className={cn(chipClass, className)}>
       {content}
     </button>
   );

@@ -25,5 +25,15 @@ export interface AccountBadgeProps {
    * via the `title` tooltip, so there is never a dead end.
    */
   onCopyId?: (accountId: string) => void;
+  /**
+   * `inline` (default) — the compact identity-row chip this component has always rendered, sized
+   * for the mobile top bar. `sidebar` — a full-width `workspace-switcher-row` with a leading
+   * initials chip, for `ConsoleSidebar`'s workspace switcher slot (shell brief 2026-08-30, "the
+   * existing `AccountBadge` behaviour relocated").
+   */
+  variant?: 'inline' | 'sidebar';
+  /** Initials for the `sidebar` variant's avatar chip, e.g. `"AG"`. Ignored at `inline`. Omit and
+   *  the sidebar variant renders with no chip rather than a guessed one. */
+  initials?: string;
   className?: string;
 }

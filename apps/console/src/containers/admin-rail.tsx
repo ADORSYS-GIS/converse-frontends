@@ -1,22 +1,24 @@
 'use client';
 
-import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
+import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ReviewDetailRail } from '@lightbridge/ui-web/src/sections/review-detail-rail';
 
 import { useAdminSectionParam } from '../client/url-state';
 import { useAdminScreen } from './use-admin-screen';
 
 /**
- * `/admin` — the right rail, delivered through the `@rail` parallel-route slot.
+ * `/admin`'s right-hand review-detail panel — rendered inline inside `AdminCentre`'s own
+ * `<aside>` at `lg`, refills section only (shell revamp phase 2: the `@rail` parallel-route slot
+ * this used to fill is deleted along with `RailPanel`; `Card` is the console's one generic panel
+ * now). // phase-3 removes: the whole right-hand aside pattern is temporary.
  *
- * One unlabelled `RailPanel`, matching admin-budget-review.svg: the review detail is the whole
- * rail, so it carries no section heading of its own.
+ * One unlabelled `Card`, matching admin-budget-review.svg: the review detail is the whole panel,
+ * so it carries no title of its own.
  *
- * **Only the refill-review section has a rail.** The admin overview's content does not retarget on
- * a selection, so by the console-ui rail rule it is a toolbar screen, not a rail screen, and its
- * parameters live in the left rail's secondary section instead. This returns `null` there; the
- * shell layout independently declines to reserve the 280px column, because a slot rendering `null`
- * is still a truthy React element and would otherwise leave an empty column behind.
+ * **Only the refill-review section has one.** The admin overview's content does not retarget on a
+ * selection, so by the console-ui rail rule it is a toolbar screen, not a rail screen, and its
+ * parameters live in `PageHeader.controls` instead (see `admin-overview-centre.tsx`). This returns
+ * `null` there — `admin-centre.tsx` only renders the aside at all on the refills section.
  */
 export function AdminRail() {
   const [section] = useAdminSectionParam();
@@ -29,12 +31,12 @@ function AdminReviewRail() {
   const screen = useAdminScreen();
 
   return (
-    <RailPanel>
+    <Card>
       {/* Keyed by selection: converse-frontends#322's decline-note validation is local state
           scoped to the selected request (`ReviewDetailPanel`'s `noteMissing`) — a `key` forces a
           fresh instance on every new selection instead of carrying a stale validation flag from
           the previous request onto this one. */}
       <ReviewDetailRail key={screen.selectedRequestId ?? 'none'} detail={screen.reviewDetail} />
-    </RailPanel>
+    </Card>
   );
 }

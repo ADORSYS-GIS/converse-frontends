@@ -20,15 +20,7 @@ const meta: Meta<typeof ApiKeysControls> = {
     onStatusChange: () => {},
     search: '',
     onSearchChange: () => {},
-    onCreate: () => {},
   },
-  decorators: [
-    (Story) => (
-      <div className="bg-surface w-[240px] p-4">
-        <Story />
-      </div>
-    ),
-  ],
 };
 
 export default meta;
@@ -43,15 +35,6 @@ export const DefaultLight: Story = {
 
 export const Filtered: Story = {
   args: { statusValue: 'active', search: 'desktop' },
-};
-
-/**
- * The console's most common landing state: scope is "All projects", which no key can belong to,
- * so creation is unavailable. The reason is stated visibly, not just as a `title` — a disabled
- * primary action with no explanation is the screen's worst dead end.
- */
-export const CannotCreate: Story = {
-  args: { onCreate: undefined, createDisabledReason: 'Select a project to create a key.' },
 };
 
 export const MdTier: Story = {

@@ -20,11 +20,10 @@ import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
   GROUP_BY_OPTIONS,
-  MODEL_FILTER_OPTIONS,
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
 } from '../sections/overview-controls/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import {
   formatOverviewSpendLegendValue,
@@ -54,7 +53,6 @@ export function RefineOverviewScreen() {
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
-  const modelField = useSelectField('all', MODEL_FILTER_OPTIONS, 'Model');
 
   const overviewQuery = useCustom<OverviewSnapshot>({ url: 'overview', method: 'get' });
 
@@ -66,36 +64,39 @@ export function RefineOverviewScreen() {
   const status = loading ? 'loading' : isError ? 'error' : 'ready';
   const spendSeries = useMemo(() => snapshot?.spendSeries ?? [], [snapshot]);
 
-
   return (
     <RefineMockShell active="overview">
       <div className="flex flex-col gap-8">
-        <ScreenHeading title="Overview" subline="Last 30 days · UTC" />
+        <PageHeader
+          title="Overview"
+          subtitle="Last 30 days · UTC"
+          controls={
+            <OverviewControls
+              rangeField={{
+                label: 'Range',
+                preset: rangePreset,
+                presets: RANGE_PRESETS,
+                value: range,
+                today: MOCK_TODAY,
+                onPresetChange: (next) => {
+                  setRangePreset(next);
+                  setRange(
+                    presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY)
+                  );
+                },
+                onRangeChange: (next) => {
+                  setRangePreset(null);
+                  setRange(next);
+                },
+              }}
+              bucketField={bucketField}
+              groupByField={groupByField}
+              projectField={projectField}
+            />
+          }
+        />
 
         {isError ? <InlineStatus>{errorMessage}</InlineStatus> : null}
-
-        <OverviewControls
-          rangeField={{
-            label: 'Range',
-            preset: rangePreset,
-            presets: RANGE_PRESETS,
-            value: range,
-            today: MOCK_TODAY,
-            onPresetChange: (next) => {
-              setRangePreset(next);
-              setRange(presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY));
-            },
-            onRangeChange: (next) => {
-              setRangePreset(null);
-              setRange(next);
-            },
-          }}
-          bucketField={bucketField}
-          groupByField={groupByField}
-          projectField={projectField}
-          modelField={modelField}
-          onExport={() => {}}
-        />
 
         <OverviewStatRow cards={snapshot?.statCards ?? []} loading={loading} />
 

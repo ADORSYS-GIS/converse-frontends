@@ -60,12 +60,20 @@ export function ProjectsIcon(props: IconProps) {
   );
 }
 
-/** API keys — a key. */
+/** API keys — a conventional 45deg key: a round bow, a straight shaft, two teeth perpendicular
+ *  to it near the bit. The previous path's "teeth" (`M10.5 5.5 12.5 3.5M9 7l1.5-1.5`) were two
+ *  segments COLLINEAR with the shaft itself (`M6.8 9.2 12.5 3.5`, also exactly 45deg) rather than
+ *  perpendicular to it, so they painted no visible tooth at all — just a longer, doubled-over
+ *  line on top of the shaft, reading as a balloon on a stick rather than a key (owner review,
+ *  2026-08-30 — "the key (lopsided)"). The bow and shaft are unchanged (both were already correct
+ *  — same centre/radius, same 45deg line); only the two teeth are redrawn, each a short stroke
+ *  perpendicular to the shaft at a point along it. */
 export function KeysIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <circle cx="5" cy="11" r="2.5" />
-      <path d="M6.8 9.2 12.5 3.5M10.5 5.5 12.5 3.5M9 7l1.5-1.5" />
+      <path d="M6.8 9.2 12.5 3.5" />
+      <path d="M9.5 6.5 10.6 7.6M11 5 12.2 6.2" />
     </IconBase>
   );
 }

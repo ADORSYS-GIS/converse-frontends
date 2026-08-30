@@ -12,7 +12,7 @@ import {
   OVERLAY_SEPARATOR_CLASS,
   OVERLAY_SPLIT_ROW_CLASS,
 } from '../../lib/overlay';
-import { LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, ROW_LABEL_CLASS, ROW_LABEL_SUBTLE_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
 import { Chevron } from '../chevron';
 
@@ -113,8 +113,12 @@ export function AccountBadge({
           (`acct_49534505`) reads as a NAME here, standing in for one that was never set, not as
           a data value beside a name — keeping it mono would be the one mono island left in an
           otherwise all-sans control. A real name reads at full strength; the generated token
-          stays one step back. */}
-      <span className={isFallback ? LABEL_CLASS : SECTION_TITLE_CLASS}>{display}</span>
+          steps back in COLOUR only (`ROW_LABEL_SUBTLE_CLASS`) — both are 13px, the switcher's
+          own row size (owner rework, 2026-08-30: the switcher used to render its name at
+          `SECTION_TITLE_CLASS`, 15px/medium, a full step above every nav row beneath it — "you
+          really find this modern and beautiful?" — `ROW_LABEL_CLASS` is the same 13px `rail-row`
+          rows already carry). */}
+      <span className={isFallback ? ROW_LABEL_SUBTLE_CLASS : ROW_LABEL_CLASS}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
           than repeating it. Hidden below `md` at the `inline` variant, where the top bar has no
@@ -133,9 +137,11 @@ export function AccountBadge({
   const content = sidebar ? (
     <>
       {/* The sidebar variant's leading avatar chip — same square-at-radius treatment as the
-          identity footer row beside it, so every full-width sidebar row reads as one family. */}
+          identity footer row beside it, so every full-width sidebar row reads as one family.
+          `avatar-chip-md` (20px), not the full 26px `avatar-chip`: the switcher is a standard
+          rail row now, not a header-weight exception (owner rework, 2026-08-30). */}
       {initials ? (
-        <span aria-hidden="true" className="avatar-chip">
+        <span aria-hidden="true" className="avatar-chip-md">
           {initials}
         </span>
       ) : null}

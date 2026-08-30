@@ -30,6 +30,11 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
  */
 export default defineConfig({
   test: {
+    // 15s, not vitest's 5s default: the heaviest centre tests (overview/projects/settings) render
+    // the full dashboard composition and take ~4s on a warm laptop — on the cold `ubuntu-latest`
+    // runner (no turbo remote cache, #134) they cross 5s and fail CI-only, taking the NEXT test in
+    // the file down with leaked DOM ("found multiple elements"). Seen on main at 28a046d.
+    testTimeout: 15_000,
     projects: [
       {
         resolve: {

@@ -59,7 +59,10 @@ async function guardUsageQueryRequest(request: NextRequest) {
   return guardUsageScope(
     rawBody,
     () => resolveOwnedAccountIds(accessToken),
-    (projectId) => resolveProjectAccountId(accessToken, projectId)
+    (projectId) => resolveProjectAccountId(accessToken, projectId),
+    // Optional chaining, not an invariant: test/session shapes without a user still take the
+    // resolver path — the fast-path is an optimization, never a requirement.
+    session.user?.sub
   );
 }
 

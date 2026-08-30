@@ -93,11 +93,23 @@ export type ResolveProjectAccountId = (projectId: string) => Promise<string | nu
 export async function guardUsageScope(
   rawBody: unknown,
   resolveOwnedAccountIds: ResolveOwnedAccountIds,
-  resolveProjectAccountId: ResolveProjectAccountId
+  resolveProjectAccountId: ResolveProjectAccountId,
+  homeAccountId?: string
 ): Promise<UsageScopeGuardOutcome> {
   const parsed = parseUsageScopeRequest(rawBody);
   if (!parsed) {
     return { ok: false, status: 400, error: 'invalid_body' };
+  }
+
+  // ── Fast path (owner directive, 2026-08-30): the session's own `sub` IS the home-account id
+  // (ADR-0025 mints it so; ADR-0026 keeps it as the ownership anchor), so an account-scoped
+  // query for the caller's OWN home account needs no authz round-trip at all — approving it from
+  // the session alone keeps the common case free of the server-side CBOR path whose packaging
+  // caused the 2026-08-30 usage outage. Child accounts (minted cuid ids) and project scopes
+  // still resolve through authz below; a mismatched sub falls through to the slow path, never
+  // to a refusal here.
+  if (homeAccountId && parsed.scope === 'account' && parsed.scopeId === homeAccountId) {
+    return { ok: true };
   }
 
   const ownedAccountIds = await resolveOwnedAccountIds();

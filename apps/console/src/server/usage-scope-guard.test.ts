@@ -182,3 +182,54 @@ describe('guardUsageScope', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 });
+
+// ── The sub fast-path (2026-08-30): own home account approves from the session alone ──────────
+describe('home-account fast path', () => {
+  const neverResolve = () => {
+    throw new Error('resolver must not be called on the fast path');
+  };
+
+  it('approves scope=account for the caller own home account without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'home-1' },
+      neverResolve as never,
+      neverResolve as never,
+      'home-1'
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('falls through to the resolvers for a child account id', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'child-9' },
+      async () => new Set(['home-1', 'child-9']),
+      async () => null,
+      'home-1'
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('never fast-paths a project scope, even for an id equal to the home account', async () => {
+    let resolved = false;
+    await guardUsageScope(
+      { scope: 'project', scope_id: 'home-1' },
+      async () => {
+        resolved = true;
+        return new Set(['home-1']);
+      },
+      async () => 'home-1',
+      'home-1'
+    );
+    expect(resolved).toBe(true);
+  });
+
+  it('still refuses a foreign account when the fast path does not match', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'foreign-2' },
+      async () => new Set(['home-1']),
+      async () => null,
+      'home-1'
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+});

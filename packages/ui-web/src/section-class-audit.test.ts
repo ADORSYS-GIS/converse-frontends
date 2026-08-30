@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 
-import { DEFAULT_BUDGET, auditComponent } from '../scripts/class-budget';
+import { DEFAULT_BUDGET, auditComponent, themeUtilities } from '../scripts/class-budget';
 
 /**
  * The class budget, applied to SECTIONS.
@@ -19,10 +19,15 @@ import { DEFAULT_BUDGET, auditComponent } from '../scripts/class-budget';
  * of adding a screen). If `budget-pressure` grows a utility, this fails and the growth is a
  * visible diff on this file.
  */
+// `auditComponent` takes the theme's named-part set as its second argument since the counter was
+// re-baselined (2026-08-30) — a `@utility` name is the sanctioned destination, not a cost.
+const THEME = themeUtilities(join(import.meta.dirname, 'theme.css'));
+
 describe('section class budget', () => {
   it('budget-pressure hand-writes only what daisy and lib/ cannot supply', () => {
     const { utils, daisy } = auditComponent(
-      join(import.meta.dirname, 'sections', 'budget-pressure')
+      join(import.meta.dirname, 'sections', 'budget-pressure'),
+      THEME,
     );
 
     // Measured at 9 utilities / 3 daisy classes. The whole hand-written CSS inventory: the stack
@@ -43,7 +48,7 @@ describe('section class budget', () => {
     // A section that re-declared `font-mono text-[11px] text-subtle` instead of importing
     // LABEL_CLASS would score the same on the counter above but break the ONE-definition rule the
     // console-ui skill states for the `label` role. This asserts the imports are real.
-    const source = auditComponent(join(import.meta.dirname, 'sections', 'budget-pressure'));
+    const source = auditComponent(join(import.meta.dirname, 'sections', 'budget-pressure'), THEME);
     expect(source.utils + source.daisy).toBeGreaterThan(0);
   });
 
@@ -67,7 +72,7 @@ describe('section class budget', () => {
     ['latency-dashboard', 17],
     ['budget-panel', 33],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
-    const { utils } = auditComponent(join(import.meta.dirname, 'sections', section));
+    const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(
       utils,
       `${section} carries ${utils} hand-written utilities (pinned at ${budget})`

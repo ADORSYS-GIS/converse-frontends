@@ -335,8 +335,15 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const route = routeFromPathname(pathname);
+  // Fall back to the subject's short account label when the IdP returns no identity claims at
+  // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
+  // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
+  // outside this repo). A naked avatar chip with no text reads as a rendering bug.
   const identityLabel =
-    session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+    session.user?.email ??
+    session.user?.preferredUsername ??
+    session.user?.name ??
+    (session.user ? shortAccountId(session.user.sub) : undefined);
   const refillCount = useOperatorRefillCount(session.isAdmin);
 
   return (
@@ -408,8 +415,15 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
   const session = useConsoleSession();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
+  // Fall back to the subject's short account label when the IdP returns no identity claims at
+  // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
+  // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
+  // outside this repo). A naked avatar chip with no text reads as a rendering bug.
   const identityLabel =
-    session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+    session.user?.email ??
+    session.user?.preferredUsername ??
+    session.user?.name ??
+    (session.user ? shortAccountId(session.user.sub) : undefined);
 
   return (
     <ConsoleTopBar

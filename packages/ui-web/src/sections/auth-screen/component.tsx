@@ -9,7 +9,7 @@ import type { AuthScreenProps } from './types';
 // Contract: docs/design/console-redesign/README.md §5.5 (Auth) — a screen section that lives outside the shell entirely,
 // no rails, no nav-spine group (ADR 0008 D3 status-block amendment + README §10 tension 7).
 // `#000` full-bleed, logo top-left, one centred narrow column: wordmark -> page-title -> one
-// line of Inter prose -> one primary button -> nothing else.
+// line of Inter prose -> one primary control -> nothing else.
 //
 // **Recorded divergence**: ADR 0007's `maxContentWidth` (1040px) token is repurposed here as
 // "the Auth page's column cap" (ADR 0008 status block), but 1040px is not a "centred single
@@ -18,6 +18,13 @@ import type { AuthScreenProps } from './types';
 // actually reads as narrow at. This component caps at the spec's literal 360px rather than the
 // historical 1040px token value; noted here and in the PR body per the batch brief's
 // spec-vs-mockup tie-break rule.
+//
+// Phase 7 polish (2026-08-30): the error state used to stack the `ErrorLine` UNDER an
+// always-rendered "Continue to sign in" button and give the line its own "Try again" ghost
+// button -- two controls that both re-started the exact same redirect. Now there is exactly one
+// control at any time: the message renders above it (the reader sees WHY before deciding what to
+// do), and the single primary button relabels itself "Try again" and calls `onRetry` (falling
+// back to `onSignIn`) once `status` is `'error'`.
 export function AuthScreen({
   logoSrc,
   logoAlt = 'Lightbridge',
@@ -27,10 +34,13 @@ export function AuthScreen({
   signedOutMessage,
   errorMessage,
   onRetry,
+  supportHref,
   className,
 }: AuthScreenProps) {
   const redirecting = status === 'redirecting';
   const hasError = status === 'error';
+  const primaryLabel = redirecting ? 'Redirecting…' : hasError ? 'Try again' : 'Continue to sign in';
+  const handlePrimaryClick = hasError ? (onRetry ?? onSignIn) : onSignIn;
 
   return (
     <div className={cn('flex min-h-screen flex-col bg-muted px-6', className)}>
@@ -60,8 +70,12 @@ export function AuthScreen({
             </p>
           </div>
 
-          {signedOutMessage ? (
+          {signedOutMessage && !hasError ? (
             <InlineStatus className="text-subtle">{signedOutMessage}</InlineStatus>
+          ) : null}
+
+          {hasError ? (
+            <ErrorLine message={errorMessage ?? 'Sign-in failed. Please try again.'} />
           ) : null}
 
           <Button
@@ -69,17 +83,20 @@ export function AuthScreen({
             variant="primary"
             className="w-full"
             disabled={redirecting}
-            onClick={onSignIn}
+            onClick={handlePrimaryClick}
           >
-            {redirecting ? 'Redirecting…' : 'Continue to sign in'}
+            {primaryLabel}
           </Button>
 
-          {hasError ? (
-            <ErrorLine
-              message={errorMessage ?? 'Sign-in failed. Please try again.'}
-              onRetry={onRetry}
-              retryLabel="Try again"
-            />
+          {supportHref ? (
+            <a
+              href={supportHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-sans text-[11px] leading-[1.45] text-subtle hover:text-soft"
+            >
+              Need help signing in?
+            </a>
           ) : null}
         </div>
       </div>

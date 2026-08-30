@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthScreen } from './component';
@@ -43,7 +43,7 @@ describe('AuthScreen', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('renders an ErrorLine with the provider reason and a retry button on callback error', () => {
+  it('renders exactly one control on callback error -- the primary button relabelled "Try again"', () => {
     const onRetry = vi.fn();
     render(
       <AuthScreen
@@ -56,15 +56,50 @@ describe('AuthScreen', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('adorsys-gis declined the sign-in request.');
+    // Never a nested Retry ghost button inside the ErrorLine itself -- that would be a second
+    // control duplicating the primary button below it.
+    expect(within(alert).queryByRole('button')).not.toBeInTheDocument();
 
+    expect(screen.getAllByRole('button')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('places the error message above the primary button in document order', () => {
+    render(<AuthScreen onSignIn={() => {}} status="error" errorMessage="Sign-in failed." />);
+
+    const alert = screen.getByRole('alert');
+    const button = screen.getByRole('button', { name: 'Try again' });
+    expect(alert.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('falls back to onSignIn when no onRetry is given on callback error', () => {
+    const onSignIn = vi.fn();
+    render(<AuthScreen onSignIn={onSignIn} status="error" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(onSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to a default sentence when no errorMessage is given', () => {
     render(<AuthScreen onSignIn={() => {}} status="error" />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Sign-in failed. Please try again.');
+  });
+
+  it('omits the support link when no supportHref is given', () => {
+    render(<AuthScreen onSignIn={() => {}} />);
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders a subtle support link under the primary control when supportHref is given', () => {
+    render(<AuthScreen onSignIn={() => {}} supportHref="https://docs.example.com/sign-in" />);
+
+    const link = screen.getByRole('link', { name: 'Need help signing in?' });
+    expect(link).toHaveAttribute('href', 'https://docs.example.com/sign-in');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 
   it('falls back to the wordmark when no logoSrc is given', () => {

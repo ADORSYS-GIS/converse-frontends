@@ -11,6 +11,15 @@ mono numerics, one signal accent, status-as-text, flush full-height rails, "a sc
 a distribution gets the floor" all continue to bind. This ADR decides _what libraries produce that
 look with the least hand-written code_, and _where the theme lives_.
 
+**Amended by [ADR 0012](0012-console-visual-revamp.md)** (owner directive 2026-08-30): this
+paragraph's restatement of ADR 0008's radius-2 and flush-full-height-rails doctrine no longer
+holds — radius is now 8px (panels) / 4px (controls), and the flush right rail it describes is
+deleted in favour of a two-column shell (`Card` as the default zone container, `DetailSheet` for
+row detail). Nothing else in this document moves: the daisyUI/Base UI/cmdk/Floating UI primitive
+stack, Tailwind v4, the `theme.css` single-source-of-truth rule, and the two-theme (`black` /
+`wireframe`) model below are all still binding, including the mono-for-numerics rule wherever this
+ADR states it **for data values** — ADR 0012 narrows that to "data only," it does not remove it.
+
 ## Context
 
 `packages/ui-web` today is entirely hand-built: 30 component directories, each with

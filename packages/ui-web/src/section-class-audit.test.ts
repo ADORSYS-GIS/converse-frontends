@@ -30,16 +30,21 @@ describe('section class budget', () => {
       THEME,
     );
 
-    // Measured at 9 utilities / 3 daisy classes. The whole hand-written CSS inventory: the stack
-    // (mt-4 flex flex-col gap-4), one justify on top of the shared INLINE_ROW_CLASS, one colour on
-    // top of the shared ROW_BASE_CLASS, one meter offset, one note offset, and the two skeleton
-    // heights — everything else is imported from lib/ (type roles, inline-row geometry, the money
-    // ladder) or supplied by daisy (the skeleton fill and its 2px radius). For scale, the two
-    // nearest existing sections sit at 25 (spend-share) and 41 (budget-panel).
+    // Measured at 9 utilities / 3 daisy classes when this test was written. The whole
+    // hand-written CSS inventory then: the stack (mt-4 flex flex-col gap-4), one justify on top
+    // of the shared INLINE_ROW_CLASS, one colour on top of the shared ROW_BASE_CLASS, one meter
+    // offset, one note offset, and the two skeleton heights — everything else is imported from
+    // lib/ (type roles, inline-row geometry, the money ladder) or supplied by daisy (the skeleton
+    // fill and its 2px radius).
+    //
+    // Re-measured 2026-08-30 (Phase 8 docs/ratchet pass, console visual revamp): 8 utilities / 1
+    // daisy class — the shell/type-role work of phases 2-7.5 pulled another hand-written class
+    // into a shared `lib/` constant since this was last pinned. Pin tightened to match; for scale
+    // the two nearest existing sections now sit at 6 (spend-share) and 23 (budget-panel).
     //
     // The counter also tokenises backtick-quoted words in comments (its own docstring says so), so
     // a couple of these are prose, not CSS.
-    expect(utils, `budget-pressure carries ${utils} hand-written utilities`).toBeLessThanOrEqual(9);
+    expect(utils, `budget-pressure carries ${utils} hand-written utilities`).toBeLessThanOrEqual(8);
     // Paint comes from daisy where daisy has it: the skeleton fill and its 2px radius.
     expect(daisy).toBeGreaterThan(0);
   });
@@ -62,15 +67,20 @@ describe('section class budget', () => {
    * `lib/zone-heading.tsx` rather than each writing out the same label row. If one of them grows a
    * utility back, that is a visible diff on this file.
    *
-   * Before -> after: budget-panel 41 -> 33, latency-dashboard 25 -> 17, spend-dashboard 15 -> 10,
-   * spend-share 25 -> 9. The residue is genuine per-zone layout (scroll boxes, `mt-4` rhythm,
-   * skeleton geometry) plus the same comment-prose inflation `class-budget.test.ts` documents.
+   * Before -> after (chart/panel sweep): budget-panel 41 -> 33, latency-dashboard 25 -> 17,
+   * spend-dashboard 15 -> 10, spend-share 25 -> 9. The residue is genuine per-zone layout (scroll
+   * boxes, `mt-4` rhythm, skeleton geometry) plus the same comment-prose inflation
+   * `class-budget.test.ts` documents.
+   *
+   * Re-measured 2026-08-30 (Phase 8 docs/ratchet pass, console visual revamp): budget-panel
+   * 33 -> 23, latency-dashboard 17 -> 10, spend-dashboard 10 -> 8, spend-share 9 -> 6. Pins
+   * tightened to the honest current measurement rather than left loose above it.
    */
   it.each([
-    ['spend-share', 9],
-    ['spend-dashboard', 10],
-    ['latency-dashboard', 17],
-    ['budget-panel', 33],
+    ['spend-share', 6],
+    ['spend-dashboard', 8],
+    ['latency-dashboard', 10],
+    ['budget-panel', 23],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(

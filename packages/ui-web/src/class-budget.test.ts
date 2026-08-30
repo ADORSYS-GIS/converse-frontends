@@ -20,6 +20,11 @@ import type { ClassAudit } from '../scripts/class-budget';
  * specifiers. It was re-baselined on 2026-08-30 on the owner's call, deliberately as a separate
  * step so the old figures stay legible rather than being quietly restated. They are NOT comparable
  * with what this reports now. See `scripts/class-budget.ts` for exactly what changed.
+ *
+ * Re-measured 2026-08-30 (Phase 8, console visual revamp docs/ratchet pass): the two-column shell
+ * landing (`ConsoleTopBar`, `ConsoleSidebar` folding the old rail/header components) moved the
+ * count to **33 hand-written utilities across 50 components, none over 3**, beside 54 daisyUI
+ * classes and 78 named `@utility` parts — still zero `BUDGET` entries.
  */
 const BUDGET: Record<string, number> = {
   // EMPTY — the bar is met. Every one of the 49 components sits at or under DEFAULT_BUDGET (3).

@@ -3,18 +3,38 @@ import { serverEnv } from './env';
 /** Lazily imported so a missing/untraceable codec package degrades to the guard's fail-closed
  *  path (403 with a logged reason) instead of killing the whole route MODULE at import — the
  *  exact failure mode of the 2026-08-30 prod incident (bare 500, empty body, nothing logged:
- *  Next never reached a handler). `next.config.mjs`'s serverExternalPackages +
- *  outputFileTracingIncludes are the fix; this lazy boundary is the guarantee the symptom can
- *  never be a silent 500 again. */
+ *  Next never reached a handler). `next.config.mjs`'s `serverExternalPackages` plus
+ *  `apps/console/Dockerfile` shipping the codec's store dirs into the image (see both files' own
+ *  comments) are the fix for the package actually being *present*; this lazy `import()` boundary
+ *  is the separate guarantee that even a still-broken codec degrades this ONE guard check instead
+ *  of taking the whole route module down with it. */
 async function loadRpc() {
-  // `webpackMode: "eager"` is LOAD-BEARING (2026-08-30, second half of the usage outage): a bare
-  // dynamic import made webpack SPLIT this package into an async server chunk, and the standalone
-  // bundle's chunk resolution failed inside the bracketed route dir (`%5B...path%5D` →
-  // ERR_UNSUPPORTED_DIR_IMPORT + "a.replace is not a function" in webpack-runtime) — the guard
-  // then fail-closed 403'd every usage query. Eager mode keeps the module in the parent chunk
-  // (no runtime chunk fetch) while preserving the dynamic-import error boundary this function
-  // exists for.
-  return import(/* webpackMode: "eager" */ '@lightbridge/authz-rpc');
+  // The `webpackMode: "eager"` magic comment this line used to carry is gone: it was written for
+  // webpack (2026-08-30, second half of the usage outage — a bare dynamic import made webpack
+  // SPLIT this package into an async server chunk, and the standalone bundle's chunk resolution
+  // failed inside the bracketed route dir, `ERR_UNSUPPORTED_DIR_IMPORT` + "a.replace is not a
+  // function" in webpack-runtime), and Turbopack (this app's bundler since the serwist/Turbopack
+  // migration) doesn't understand webpack magic comments — it silently ignores them, so the
+  // comment was dead weight, not a functioning fix, and removing it changes nothing Turbopack
+  // actually does.
+  //
+  // Turbopack DOES still split this import: the compiled route (`.next/server/app/api/usage/
+  // [...path]/route.js`'s chunk graph) shows `@lightbridge/authz-rpc` resolving through a
+  // `[externals]_@cratestack_cbor_*` chunk, fetched at call time via Turbopack's own async-import
+  // runtime helper (`e.A(...)` / `Context.externalImport`) — a genuinely different mechanism from
+  // webpack's, not "the same bug, still there." Verified this doesn't reproduce the 2026-08-30
+  // failure mode by forcing the exact failure it would need to survive: with the native CBOR
+  // binding deliberately broken (an Alpine/musl container — see the "known gap" note on
+  // `next.config.mjs`'s CBOR block — genuinely cannot load `@cratestack/cbor-node`'s glibc-only
+  // binding), a real `POST /api/usage/usage/v1/usage/query` against the built image returned a
+  // clean `403 {"error":"scope_not_owned"}` with a properly logged cause
+  // (`[console] usage-scope-guard: failed to resolve owned accounts: Error: Failed to load
+  // external module @cratestack/cbor-...: Cannot find native binding`) — not a bare 500. Turbopack's
+  // async-chunk fetch rejects like any other failed `import()`, which is exactly what this
+  // function's caller (`authzClient`, called from `resolveOwnedAccountIds` /
+  // `resolveProjectAccountId`, both already wrapped in `try`/`catch`) already handles. The dynamic
+  // `import()` itself — not any magic comment — is what keeps this catchable; that's unchanged.
+  return import('@lightbridge/authz-rpc');
 }
 
 /**

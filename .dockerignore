@@ -23,6 +23,21 @@ node_modules
 !apps/console/.next/standalone/**
 !apps/console/.next/standalone/**/node_modules
 !apps/console/.next/standalone/**/node_modules/**
+
+# apps/console's runtime CBOR codec (see apps/console/Dockerfile + next.config.mjs's
+# `serverExternalPackages` comment): @cratestack/cbor's native N-API addon and its per-platform
+# binary packages are shipped into the image via an explicit `COPY`, not via Next's standalone
+# tracer (which panics under Turbopack on this exact package family — see next.config.mjs).
+# `apps/console/scripts/stage-cratestack-cbor-for-docker.mjs` (run before `docker build`/`buildah
+# build` — see that script + the Dockerfile) copies the needed pnpm-store dirs into
+# apps/console/.docker-stage/ first, preserving each dir's own name — a plain Dockerfile `COPY` of
+# a glob matching multiple directories does NOT do that (verified: it merges their *contents* into
+# one destination and collides). Same `!`-triplet pattern as the apps/console/.next/standalone
+# carve-out above: the staged dirs' own content, then the nested node_modules those dirs'
+# packages resolve their own `@cratestack/*` siblings through.
+!apps/console/.docker-stage/**
+!apps/console/.docker-stage/**/node_modules
+!apps/console/.docker-stage/**/node_modules/**
 .expo
 **/.expo
 .DS_Store

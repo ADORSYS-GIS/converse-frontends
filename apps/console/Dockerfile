@@ -18,6 +18,11 @@
 # (the standalone bundle's node_modules is hoisted to the pnpm workspace root, not scoped under
 # apps/console, so anything narrower than the repo root as context can't see it.)
 #
+# One more thing MUST run before that command: `node apps/console/scripts/
+# stage-cratestack-cbor-for-docker.mjs` — see that script and the CBOR `COPY` below for why. CI
+# (.github/workflows/docker-image.yml) runs it as its own step between building the standalone
+# bundle and invoking Buildah; this comment is the reminder for a local reproduction.
+#
 # Fully-qualified (docker.io/library/…) so rootless Buildah resolves it without
 # `unqualified-search-registries` configured on the runner (a bare `node:…` short-name fails there
 # with "did not resolve to an alias") — same reasoning as the root Dockerfile.
@@ -69,6 +74,42 @@ COPY apps/console/.next/standalone/ ./
 # recipe.
 COPY apps/console/.next/static/ ./apps/console/.next/static/
 COPY apps/console/public/ ./apps/console/public/
+
+# The usage scope guard's CBOR codec (2026-08-30 incident; see next.config.mjs's
+# `serverExternalPackages` comment) — shipped here, not by Next's standalone tracer. This used to be
+# an `outputFileTracingIncludes` block in next.config.mjs, but under Turbopack that block crashes
+# the build outright (`TurbopackInternalError: ... Is a directory (os error 21)`, hit on any glob
+# match that resolves through a pnpm-store symlink to a directory — the per-platform
+# `@cratestack/cbor-node-*` binary package is exactly that). Copying the store dirs straight from
+# the build context sidesteps Next's tracer for this package family entirely.
+#
+# Source is NOT `node_modules/.pnpm/@cratestack+cbor*` directly — a Dockerfile `COPY` whose source
+# glob matches multiple directories does not preserve each match's own name, it merges their
+# *contents* into one destination and collides the first time two matches both have their own
+# `node_modules/` subdirectory ("cannot copy to non-directory: .../node_modules/.pnpm/node_modules/
+# @cratestack/cbor-node-darwin-arm64" — true regardless of trailing slashes on source or dest).
+# `scripts/stage-cratestack-cbor-for-docker.mjs` (run before this build — see the top-of-file note)
+# works around that by staging every needed store dir, under its own original name, as a child of
+# ONE directory first; copying that single staged directory here does not hit the same problem. See
+# that script's own header for why "needed" is more than just `@cratestack+cbor*` (a transitive
+# `@cratestack+ts-types` dependency) and why the store dirs' exact original names have to survive.
+# `.docker-stage/` is un-ignored in .dockerignore the same way `.next/standalone/` is above it.
+#
+# Destination is this image's own top-level `node_modules/.pnpm/` — the standalone COPY above
+# already flattened the bundle root onto `/app`, so that's the same `node_modules` every other
+# traced package landed in.
+COPY apps/console/.docker-stage/cratestack-cbor/ ./node_modules/.pnpm/
+
+# `scripts/link-standalone-cratestack.mjs` re-materializes the top-level `node_modules/@cratestack/*`
+# scope symlinks (what Node's resolver actually walks) that the plain COPY above only put the
+# *targets* of into `.pnpm/`, glob-driven off whatever `@cratestack+cbor*` store dirs actually
+# landed above so a cratestack version bump changes nothing here. Passed `/app/node_modules`
+# explicitly: this script's own no-arg default resolves relative to *its own* file location
+# (`.next/standalone/node_modules`, the local post-`next build` layout), which is not this image's
+# layout. Fails the image build hard (non-zero exit) if it links zero packages, so a regression in
+# either this COPY or the upstream store layout is a CI failure, not a silent runtime 500.
+COPY apps/console/scripts/link-standalone-cratestack.mjs ./apps/console/scripts/link-standalone-cratestack.mjs
+RUN node ./apps/console/scripts/link-standalone-cratestack.mjs /app/node_modules
 
 # Ship the repo's own dev-shaped config.yaml as the image default, so the image is runnable
 # out-of-the-box for a smoke test (`docker run` with no other configuration). This is NOT how a

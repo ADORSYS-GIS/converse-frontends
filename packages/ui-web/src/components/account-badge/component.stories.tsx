@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent, within } from 'storybook/test';
 
 import { AccountBadge } from './component';
 
@@ -107,5 +108,43 @@ export const SidebarVariantLight: Story = {
   name: 'Sidebar variant — wireframe (light)',
   globals: { theme: 'wireframe' },
   args: SidebarVariant.args,
+  decorators: SidebarVariant.decorators,
+};
+
+/** The switcher's menu, actually open — a `play` function rather than a screenshot claim, so a
+ *  regression that silently stops the menu from opening (Addition 6: this is exactly what
+ *  shipped broken for the single-account case below) fails the story's own test, not just a
+ *  human's eyeball pass. */
+export const SidebarVariantOpen: Story = {
+  name: 'Sidebar variant — open',
+  args: SidebarVariant.args,
+  decorators: SidebarVariant.decorators,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Switch account/ }));
+  },
+};
+
+/**
+ * Addition 6 (owner review) — the case that shipped broken: this backend seats exactly ONE
+ * account per identity for almost every real sign-in, so the sidebar switcher must still read
+ * and behave as a real dropdown (account list, even a list of one, + "Copy account id") rather
+ * than silently falling to a copy-only button with no chevron and no menu. No account-creation
+ * item — the backend policy is one account per identity; `createAccount` conflicts otherwise.
+ */
+export const SidebarVariantSingleAccount: Story = {
+  name: 'Sidebar variant — single account (the common real case)',
+  args: { ...SingleAccount.args, variant: 'sidebar', initials: 'AG' },
+  decorators: SidebarVariant.decorators,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Switch account/ }));
+  },
+};
+
+export const SidebarVariantSingleAccountLight: Story = {
+  name: 'Sidebar variant — single account, wireframe (light)',
+  globals: { theme: 'wireframe' },
+  args: SidebarVariantSingleAccount.args,
   decorators: SidebarVariant.decorators,
 };

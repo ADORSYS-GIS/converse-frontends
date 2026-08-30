@@ -96,3 +96,27 @@ export const ListLight: Story = {
   render: List.render,
   globals: { theme: 'wireframe' },
 };
+
+/** The affordance boundary this component draws (phase 9 nit): rows that open `DetailSheet`
+ *  (`ProjectSettings`' project rows — the `sections/project-settings` list) get the trailing
+ *  chevron/hover/pointer; plain value rows (`/settings/account`'s Status, Default quota tier)
+ *  get none of it, because they have nothing to open. */
+export const MixedClickableAndPlain: Story = {
+  name: 'Clickable + plain rows in one list',
+  render: () => (
+    <Card>
+      <div className="settings-list">
+        <SettingsRow label="gateway-prod" description="active · growth" onClick={fn()} />
+        <SettingsRow label="batch-eval" description="suspended · scale" onClick={fn()} />
+        <SettingsRow label="Status" value="active" />
+        <SettingsRow label="Default quota tier" value="growth" />
+      </div>
+    </Card>
+  ),
+};
+
+export const MixedClickableAndPlainLight: Story = {
+  name: 'Clickable + plain rows — wireframe (light)',
+  render: MixedClickableAndPlain.render,
+  globals: { theme: 'wireframe' },
+};

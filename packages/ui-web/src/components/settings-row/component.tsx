@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 
 import { cn } from '../../cn';
+import { Chevron } from '../chevron';
 import { BODY_CLASS, DATA_CLASS, META_CLASS, ROW_LABEL_CLASS } from '../../lib/type-roles';
 import type { SettingsRowProps } from './types';
 
@@ -53,6 +54,10 @@ export function SettingsRow({
           </span>
         ) : null}
         {action}
+        {/* The click affordance itself (phase 9 nit): a row that opens `DetailSheet` gets the
+            console's one chevron, rotated to point at what it does — never on a plain value row,
+            which has no `onClick` and nothing to open. */}
+        {onClick ? <Chevron direction="right" /> : null}
       </div>
     </>
   );

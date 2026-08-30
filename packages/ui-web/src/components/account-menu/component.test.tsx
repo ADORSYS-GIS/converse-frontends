@@ -7,7 +7,7 @@ import type { AccountMenuProps } from './types';
 
 function renderMenu(overrides: Partial<AccountMenuProps> = {}) {
   const onSignOut = vi.fn();
-  render(
+  const { container } = render(
     <AccountMenu
       name="Sam Lambou"
       email="sam@adorsys.com"
@@ -16,7 +16,7 @@ function renderMenu(overrides: Partial<AccountMenuProps> = {}) {
       {...overrides}
     />
   );
-  return { onSignOut };
+  return { onSignOut, container };
 }
 
 describe('AccountMenu', () => {
@@ -152,11 +152,46 @@ describe('AccountMenu', () => {
       expect(trigger).not.toHaveClass('btn');
     });
 
-    it('always shows the email — no `hidden md:inline` gate the top bar variant carries', () => {
-      renderMenu({ variant: 'sidebar', email: 'sam@adorsys.com' });
+    it('shows the name when present — no `hidden md:inline` gate the top bar variant carries', () => {
+      renderMenu({ variant: 'sidebar', name: 'Sam Lambou', email: 'sam@adorsys.com' });
+
+      const name = screen.getByText('Sam Lambou');
+      expect(name).not.toHaveClass('hidden');
+    });
+
+    it('falls back to the email when there is no name', () => {
+      renderMenu({ variant: 'sidebar', name: undefined, email: 'sam@adorsys.com' });
 
       const email = screen.getByText('sam@adorsys.com');
       expect(email).not.toHaveClass('hidden');
+    });
+
+    // Addition 5 (owner screenshot): the identity row rendered a bare initials chip with no
+    // text at all — `label` (name, falling back to email) is what was missing.
+    it('never renders a bare chip with no identity text, when a name or email is known', () => {
+      const { container } = renderMenu({
+        variant: 'sidebar',
+        name: 'Sam Lambou',
+        email: 'sam@adorsys.com',
+      });
+
+      expect(container.querySelector('.rail-row-label')).toHaveTextContent('Sam Lambou');
+    });
+
+    // Addition 5 — the identity chip used to sit at a THIRD x, matching neither the Search row's
+    // icon nor the (now-deleted) Theme row's toggle: `avatar-chip-sm` inside the shared 16px
+    // `RAIL_ICON_COLUMN_CLASS` puts it on the exact same grid as every other footer/nav row.
+    it('renders the avatar inside the shared 16px icon column, not the full-size chip', () => {
+      const { container } = renderMenu({ variant: 'sidebar' });
+
+      expect(container.querySelector('.avatar-chip-sm')).toBeInTheDocument();
+      expect(container.querySelector('.avatar-chip')).not.toBeInTheDocument();
+    });
+
+    it('shows a trailing chevron so the row reads as opening a menu', () => {
+      const { container } = renderMenu({ variant: 'sidebar' });
+
+      expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('still opens the menu and fires onSignOut', async () => {

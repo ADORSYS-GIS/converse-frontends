@@ -64,3 +64,37 @@ export const Mobile: Story = {
     await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
   },
 };
+
+/** `ConsoleSidebar`'s own footer identity row (Addition 5, owner screenshot review): a
+ *  240px-wide chrome column, the same width the real sidebar renders at, so the alignment
+ *  against the footer's other rows (Search, offline) is visible at its real measure — the
+ *  `avatar-chip-sm` sits in the same 16px `RAIL_ICON_COLUMN_CLASS` those rows' own icons do. */
+export const SidebarVariant: Story = {
+  name: 'Sidebar footer — identity row',
+  args: { variant: 'sidebar', theme: 'black', onThemeChange: fn() },
+  decorators: [
+    (Story) => (
+      <div className="bg-chrome w-60 p-2">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export const SidebarVariantOpen: Story = {
+  name: 'Sidebar footer — identity row, open',
+  args: { variant: 'sidebar', theme: 'black', onThemeChange: fn() },
+  decorators: SidebarVariant.decorators,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart.
+export const SidebarVariantLight: Story = {
+  name: 'Sidebar footer — identity row, wireframe (light)',
+  args: { variant: 'sidebar', theme: 'wireframe', onThemeChange: fn() },
+  decorators: SidebarVariant.decorators,
+  globals: { theme: 'wireframe' },
+};

@@ -59,7 +59,6 @@ export const EXPECTED: Record<string, string | null> = {
   pagination: null, // composes Button; no behaviour of its own
   'histogram-chart': null, // SVG primitive
   'inline-status': null, // a status line, not a control
-  'latency-ridgeline': null, // SVG primitive
   'ledger-table': null, // Base UI ships no table
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
   'review-detail-panel': null, // a composition of other primitives

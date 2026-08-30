@@ -75,11 +75,14 @@ describe('section class budget', () => {
    * Re-measured 2026-08-30 (Phase 8 docs/ratchet pass, console visual revamp): budget-panel
    * 33 -> 23, latency-dashboard 17 -> 10, spend-dashboard 10 -> 8, spend-share 9 -> 6. Pins
    * tightened to the honest current measurement rather than left loose above it.
+   *
+   * `latency-dashboard` is gone (phase 9.2, 2026-08-30 owner directive — the usage backend has no
+   * per-request duration, so the panel could never fill; "Spend by model" replaces it). Its pin is
+   * removed, not zeroed, since the section itself no longer exists to measure.
    */
   it.each([
     ['spend-share', 6],
     ['spend-dashboard', 8],
-    ['latency-dashboard', 10],
     ['budget-panel', 23],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);

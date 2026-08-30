@@ -10,7 +10,6 @@ import type {
   BudgetPressureStatus,
   BudgetSummary,
   DashboardStatus,
-  LatencyRidgelineSeries,
   ShareBarSegment,
   OverviewStatCardData,
   DateRangeFieldProps,
@@ -45,14 +44,12 @@ import { apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { microsToAmount } from './refill-rows';
 import { useAdminScreen } from './use-admin-screen';
-import type { LatencyAdaptation } from './overview-usage';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
   sumTotalCost,
-  toLatencySeries,
   toSpendSeries,
   resolveOverviewWindow,
   UNASSIGNED_KEY,
@@ -67,23 +64,30 @@ import {
  * centre.tsx`) is the ONLY caller now: the deleted `/admin?section=overview` used to duplicate a
  * large slice of this adapter (`use-admin-overview-screen.ts`, removed by this phase) for a
  * dashboard that differed only in SCOPE — always account-wide, never narrowed by the project
- * filter — and in the four extra zones an operator needs. Rather than two screens that could drift
+ * filter — and in the extra zones an operator needs. Rather than two screens that could drift
  * (and did: the admin one alone carried the `BUDGET_PRESSURE_SCOPE_NOTE` honesty contract), this
  * hook now absorbs those operator queries directly, gated behind `session.isAdmin`.
  *
- * **What is real here.** The per-user half — project/API-key counts, SPEND/SPEND SHARE, BudgetHero
- * consumption-vs-ceiling, the refill control, and now Export — matches what `/` already did.
- * Layered on top, ADMIN-ONLY and firing NO extra query for a non-admin: an account-wide usage
- * query feeding LATENCY (`adminLatency`), the per-project budget-pressure query feeding
- * `adminPressure`, an account-wide API-key listing feeding `adminHygiene`, and the pending-refill
- * queue (`useAdminScreen`, shared by query key with `/admin`'s own review centre and the sidebar's
- * nav count) feeding `refillRequestStatus`. Every admin-only query below passes its own `enabled:
- * … && isAdmin` (or, for `useAdminScreen`, its own `enabled` parameter) rather than relying on the
- * caller never mounting for a non-admin — `/` mounts for everyone.
+ * **What is real here.** The per-user half — project/API-key counts, SPEND/SPEND SHARE/SPEND BY
+ * MODEL, BudgetHero consumption-vs-ceiling, the refill control, and now Export — matches what `/`
+ * already did. Layered on top, ADMIN-ONLY and firing NO extra query for a non-admin: the
+ * per-project budget-pressure query feeding `adminPressure`, an account-wide API-key listing
+ * feeding `adminHygiene`, and the pending-refill queue (`useAdminScreen`, shared by query key with
+ * `/admin`'s own review centre and the sidebar's nav count) feeding `refillRequestStatus`. Every
+ * admin-only query below passes its own `enabled: … && isAdmin` (or, for `useAdminScreen`, its own
+ * `enabled` parameter) rather than relying on the caller never mounting for a non-admin — `/`
+ * mounts for everyone.
  *
  * The admin zones are always ACCOUNT-WIDE, never narrowed by `scope.value.projectId`: a project
  * filter on an operator's cross-account picture is exactly the narrowing those zones exist to
  * refuse (the same argument `use-admin-overview-screen.ts` made before this merge).
+ *
+ * **LATENCY is gone (phase 9.2, 2026-08-30 owner directive).** The usage backend's events are
+ * aggregate metric signals with no per-request duration — `toLatencySeries`'s own per-series
+ * honesty logic (deleted with it) existed only because that panel could never genuinely fill.
+ * SPEND BY MODEL (`modelSpendSegments`) replaces it: a real breakdown the backend can actually
+ * answer, scoped identically to the per-user SPEND query below so the two can never disagree about
+ * the period.
  */
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
@@ -162,53 +166,12 @@ export const BUDGET_PRESSURE_SCOPE_NOTE =
   'Projects have no ceiling of their own — a project’s quota is a governance tier, not a ' +
   'currency amount — so this ranks pressure, it does not report per-project headroom.';
 
-/**
- * The LATENCY footnote's per-series honesty logic (`toLatencySeries`'s `LatencyAdaptation`):
- *
- * - No response yet, or an empty response (no groups at all) — `undefined`. Nothing to caveat;
- *   the empty ridgeline already says "no data" on its own terms, the same as SPEND's empty chart.
- * - Every group reported real latency — `undefined`. Nothing to caveat.
- * - Every group reported zero samples — names the range/filter itself as the reason, not a list
- *   of models (there is nothing to list that would add information).
- * - Some, but not all, groups reported zero samples — names exactly those groups, so the reader
- *   can tell a genuine gap (an aggregate-metric-only model) from "the whole panel is broken."
- */
-export function buildLatencyFootnote(
-  adaptation: LatencyAdaptation | undefined
-): string | undefined {
-  if (!adaptation) return undefined;
-  const { series, seriesWithoutLatency } = adaptation;
-  if (series.length === 0 || seriesWithoutLatency.length === 0) return undefined;
-
-  if (seriesWithoutLatency.length === series.length) {
-    return (
-      'No latency reported for this range or filter — every event was either an aggregate ' +
-      'metric signal or otherwise carried no per-request duration.'
-    );
-  }
-
-  return (
-    `No latency reported for ${seriesWithoutLatency.join(', ')} — aggregate metric signals ` +
-    'carry a bucketed distribution, not a per-request duration.'
-  );
-}
-
 /** Ascending-sorts `allowedAmountsMicros` (decimal strings — `BigInt`, never `Number`, since a
  *  micros amount can exceed `Number.MAX_SAFE_INTEGER`) and returns the smallest. `null` when the
  *  policy currently offers nothing. */
 function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
   if (amountsMicros.length === 0) return null;
   return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1))[0];
-}
-
-/** The admin-only "Latency" card's data — an account-wide adaptation of `LatencyAdaptation`,
- *  never the per-user, project-filtered one SPEND uses (see this module's own doc comment). */
-export interface AdminLatencyCard {
-  series: LatencyRidgelineSeries[];
-  status: DashboardStatus;
-  errorMessage?: string;
-  retry: () => void;
-  footnote?: string;
 }
 
 /** The admin-only "Budget pressure" card's data. */
@@ -252,6 +215,14 @@ export interface OverviewScreen {
   spendStatus: DashboardStatus;
   spendErrorMessage?: string;
   spendRetry: () => void;
+  // ── phase 9.2: SPEND BY MODEL — a second aggregate view of the SAME scope/period as SPEND
+  // above (never a separately-scoped query, so the two cards can never disagree), grouped by
+  // model rather than whatever the toolbar's own `groupByField` currently holds. Replaces the
+  // deleted LATENCY panel (see this module's own doc comment). ─────────────────────────────
+  modelSpendSegments: ShareBarSegment[];
+  modelSpendStatus: DashboardStatus;
+  modelSpendErrorMessage?: string;
+  modelSpendRetry: () => void;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
@@ -264,7 +235,6 @@ export interface OverviewScreen {
   // ── phase 4: role-parameterised — undefined for a non-admin, never a permanently-loading
   // placeholder (these queries never fire for one; see this module's own doc comment) ───────
   isAdmin: boolean;
-  adminLatency: AdminLatencyCard | undefined;
   adminPressure: AdminPressureCard | undefined;
   adminHygiene: AdminHygieneCard | undefined;
   /** Omitted entirely when nothing is pending — mirrors `BudgetPanel.refillRequestStatus`'s own
@@ -370,6 +340,13 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     [view.groupBy, labelForProject]
   );
 
+  // Model keys are already human-readable, so no id->name lookup is needed the way
+  // `labelForProject` needs one — only the `UNASSIGNED_KEY` sentinel gets a friendlier label.
+  const labelForModel = useMemo<SeriesLabeller>(
+    () => (key) => (key === UNASSIGNED_KEY ? 'Unassigned' : key),
+    []
+  );
+
   const spendSeries = useMemo(
     () => (usageQuery.data ? toSpendSeries(usageQuery.data, view.groupBy, labelForSeries) : []),
     [usageQuery.data, view.groupBy, labelForSeries]
@@ -378,6 +355,53 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     () =>
       usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy, labelForSeries) : [],
     [usageQuery.data, view.groupBy, labelForSeries]
+  );
+
+  // ── phase 9.2: SPEND BY MODEL — scoped EXACTLY like the query above (same accountId/
+  // projectId/window/model filter), forcing `groupBy: 'model'` regardless of what the toolbar's
+  // own `groupByField` currently holds, so this card can never disagree with SPEND/SPEND BY
+  // PROJECT about the period. A separate query (not a client-side re-slice of `usageQuery.data`)
+  // because the backend, not the client, owns the grouping dimension — the same reason SPEND
+  // itself is re-fetched rather than re-sliced whenever `view.groupBy` changes.
+  const modelUsageQuery = useQuery({
+    queryKey: [
+      'usage',
+      'overview-by-model',
+      accountId,
+      projectId,
+      view.range,
+      view.bucket,
+      view.model,
+      view.from,
+      view.to,
+    ],
+    queryFn: () =>
+      queryUsage(
+        buildOverviewUsageRequest({
+          accountId,
+          projectId,
+          window: usageWindow,
+          bucket: view.bucket,
+          groupBy: 'model',
+          model: view.model,
+        })
+      ),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const modelSpendStatus: DashboardStatus = modelUsageQuery.isError
+    ? 'error'
+    : modelUsageQuery.isPending
+      ? 'loading'
+      : 'ready';
+
+  const modelSpendSegments = useMemo(
+    () =>
+      modelUsageQuery.data
+        ? toSpendShareSegments(modelUsageQuery.data, 'model', labelForModel)
+        : [],
+    [modelUsageQuery.data, labelForModel]
   );
 
   // ── #306: BudgetHero — consumption (usage backend, this billing period) vs ceiling (budget
@@ -560,52 +584,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     },
   });
 
-  // ── phase 4, admin-only: account-wide LATENCY — a SEPARATE usage query from SPEND's above
-  // (SPEND is deliberately narrowed by `scope.value.projectId`; the operator's LATENCY card is
-  // deliberately not — see this module's own doc comment). Fires only for an admin.
-  const adminUsageQuery = useQuery({
-    queryKey: [
-      'usage',
-      'admin-overview',
-      accountId,
-      view.range,
-      view.bucket,
-      view.groupBy,
-      view.from,
-      view.to,
-    ],
-    queryFn: () =>
-      queryUsage(
-        buildOverviewUsageRequest({
-          accountId,
-          projectId: null,
-          window: usageWindow,
-          bucket: view.bucket,
-          groupBy: view.groupBy,
-          model: 'all',
-        })
-      ),
-    enabled: Boolean(accountId) && isAdmin,
-    staleTime: 30_000,
-  });
-
-  const adminLatencyStatus: DashboardStatus = adminUsageQuery.isError
-    ? 'error'
-    : adminUsageQuery.isPending
-      ? 'loading'
-      : 'ready';
-  const adminLatencyAdaptation = useMemo(
-    () =>
-      adminUsageQuery.data
-        ? toLatencySeries(adminUsageQuery.data, view.groupBy, labelForSeries)
-        : undefined,
-    [adminUsageQuery.data, view.groupBy, labelForSeries]
-  );
-  const adminLatencyFootnote = useMemo(
-    () => buildLatencyFootnote(adminLatencyAdaptation),
-    [adminLatencyAdaptation]
-  );
-
   // ── phase 4, admin-only: budget pressure — the account-wide per-project draw on the SAME
   // ceiling `budget` above already reads (reused rather than a second balance query). ─────────
   const pressureQuery = useQuery({
@@ -726,6 +704,12 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     spendStatus,
     spendErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
     spendRetry: () => void usageQuery.refetch(),
+    modelSpendSegments,
+    modelSpendStatus,
+    modelSpendErrorMessage: modelUsageQuery.isError
+      ? getUsageErrorMessage(modelUsageQuery.error)
+      : undefined,
+    modelSpendRetry: () => void modelUsageQuery.refetch(),
     budget,
     refillAction,
     refillErrorMessage: refill.errorMessage,
@@ -766,17 +750,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
         : undefined,
     },
     isAdmin,
-    adminLatency: isAdmin
-      ? {
-          series: adminLatencyAdaptation?.series ?? [],
-          status: adminLatencyStatus,
-          errorMessage: adminUsageQuery.isError
-            ? getUsageErrorMessage(adminUsageQuery.error)
-            : undefined,
-          retry: () => void adminUsageQuery.refetch(),
-          footnote: adminLatencyFootnote,
-        }
-      : undefined,
     adminPressure: isAdmin
       ? {
           projects: pressureProjects,

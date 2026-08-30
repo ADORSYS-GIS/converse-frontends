@@ -17,12 +17,12 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
  * (pure `bg-muted` black in the default theme) until the payload lands, very visible in dev where
  * compilation adds real latency. This is the skeleton that fills that gap.
  *
- * Shell revamp phase 4 (2026-08-30): matches the ROLE-AGNOSTIC part of `OverviewCentre`'s
- * geometry — the money-first stat row, then SPEND OVER TIME → SPEND BY PROJECT → BUDGET, each in
- * its own `Card` — which is what every signed-in user (admin or not) sees. The four admin-only
- * cards below BUDGET are deliberately NOT skeletoned here: this boundary resolves before the
- * session (and therefore `session.isAdmin`) is known client-side, so it can only honestly
- * skeleton the part of the screen that renders unconditionally — the same reasoning
+ * Shell revamp phase 4 (2026-08-30), extended by phase 9.2: matches the ROLE-AGNOSTIC part of
+ * `OverviewCentre`'s geometry — the money-first stat row, then SPEND OVER TIME → SPEND BY PROJECT
+ * → SPEND BY MODEL → BUDGET, each in its own `Card` — which is what every signed-in user (admin or
+ * not) sees. The admin-only cards below BUDGET are deliberately NOT skeletoned here: this boundary
+ * resolves before the session (and therefore `session.isAdmin`) is known client-side, so it can
+ * only honestly skeleton the part of the screen that renders unconditionally — the same reasoning
  * `admin/loading.tsx` uses to skeleton `/admin`'s one remaining section rather than guessing.
  *
  * Every section below already carries its own `loading`/`status="loading"` skeleton rendering
@@ -53,6 +53,10 @@ export default function OverviewLoading() {
 
       <Card>
         <SpendShareSection label="Spend by project" segments={[]} status="loading" />
+      </Card>
+
+      <Card>
+        <SpendShareSection label="Spend by model" segments={[]} status="loading" />
       </Card>
 
       <Card>

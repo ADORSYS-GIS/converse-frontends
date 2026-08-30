@@ -95,8 +95,6 @@ export type {
 } from './components/spend-series-chart';
 export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
-export { LatencyRidgeline } from './components/latency-ridgeline';
-export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components/latency-ridgeline';
 export { ShareBar } from './components/share-bar';
 export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
 
@@ -212,9 +210,6 @@ export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dash
 
 export { SpendShareSection } from './sections/spend-share';
 export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
-
-export { LatencyDashboard } from './sections/latency-dashboard';
-export type { LatencyDashboardProps } from './sections/latency-dashboard';
 
 export { BudgetPanel } from './sections/budget-panel';
 export type {

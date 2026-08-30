@@ -188,119 +188,129 @@ export function SpendSeriesChart({
   }
 
   return (
-    <div style={{ width, height, position: 'relative' }}>
-      <svg ref={setSvgElement} width={width} height={height}>
-        <ChartAxisLeft
-          x={MARGIN.left}
-          y1={MARGIN.top}
-          y2={MARGIN.top + plotHeight}
-          gridWidth={plotWidth}
-          ticks={yTicks}
-        />
-        <ChartAxisBottom
-          y={MARGIN.top + plotHeight}
-          x1={MARGIN.left}
-          x2={MARGIN.left + plotWidth}
-          ticks={xTicks}
-        />
-        <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-          {variant === 'line'
-            ? series.map((s, index) => {
-                const selected = s.key === selectedKey;
-                const color = specSeriesColor(index, { selected, breached: s.breached });
-                const sorted = [...s.points].sort((a, b) => a.x.getTime() - b.x.getTime());
-                const lineGen = d3Line<(typeof sorted)[number]>()
-                  .x((p) => xScale?.(p.x) ?? 0)
-                  .y((p) => yScale(p.y))
-                  .curve(curveMonotoneX);
-                const areaGen = d3Area<(typeof sorted)[number]>()
-                  .x((p) => xScale?.(p.x) ?? 0)
-                  .y0(yScale(0))
-                  .y1((p) => yScale(p.y))
-                  .curve(curveMonotoneX);
-                const d = lineGen(sorted) ?? undefined;
-                return (
-                  <g key={s.key}>
-                    {selected && sorted.length > 1 ? (
-                      <path d={areaGen(sorted) ?? undefined} fill={color} fillOpacity={0.1} />
-                    ) : null}
-                    {sorted.length > 1 ? (
-                      <path
-                        d={d}
-                        stroke={color}
-                        strokeWidth={2}
-                        strokeDasharray={seriesDash(index) || undefined}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                    ) : null}
-                    {sorted.map((p) => (
-                      <circle
-                        key={p.x.toISOString()}
-                        cx={xScale?.(p.x) ?? 0}
-                        cy={yScale(p.y)}
-                        r={sorted.length === 1 ? 5 : 4}
-                        fill={color}
-                        stroke={SPEC_FLOOR}
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </g>
-                );
-              })
-            : series.map((s, index) => {
-                const selected = s.key === selectedKey;
-                const color = specSeriesColor(index, { selected, breached: s.breached });
-                const groupWidth = bandScale.bandwidth() / series.length;
-                return s.points.map((p) => {
-                  const groupX = bandScale(p.x.toISOString()) ?? 0;
-                  const barWidth = Math.min(groupWidth * 0.7, 24);
-                  const barX = groupX + groupWidth * index + (groupWidth - barWidth) / 2;
-                  const barY = yScale(p.y);
-                  return (
-                    <rect
-                      key={`${s.key}-${p.x.toISOString()}`}
-                      x={barX}
-                      y={barY}
-                      width={Math.max(barWidth, 1)}
-                      height={Math.max(plotHeight - barY, 0)}
-                      rx={2}
-                      fill={color}
-                    />
-                  );
-                });
-              })}
-        </g>
-      </svg>
-      {timestamps.map((d, index) => {
-        const rawX =
-          variant === 'bars'
-            ? (bandScale(d.toISOString()) ?? 0) + bandScale.bandwidth() / 2
-            : (xScale?.(d) ?? 0);
-        const hitWidth = Math.max(bandScale.step() || MIN_HIT_WIDTH, MIN_HIT_WIDTH / 2);
-        return (
-          <ChartHitRegion
-            key={d.toISOString()}
-            aria-label={formatTooltipTitle(d)}
-            {...getReferenceProps(getHoverProps(index))}
-            style={{
-              left: MARGIN.left + rawX - hitWidth / 2,
-              top: MARGIN.top,
-              width: hitWidth,
-              height: Math.max(plotHeight, MIN_HIT_WIDTH),
-            }}
+    // Outer wrapper is auto-height: the plot box below is pinned to the caller's `height`, but the
+    // legend is a normal-flow sibling AFTER it, not a child squeezed inside it (phase 9 nit —
+    // owner screenshot: the legend row sat at/over the Card's bottom padding). A `<div
+    // style={{ height }}>` clips nothing itself (default `overflow: visible`), so a legend nested
+    // INSIDE that fixed-height box paints past its bottom edge while the box's own layout size
+    // stays exactly `height` — which is what let the legend overlap the Card's padding instead of
+    // pushing it. Moving the legend outside the fixed-height box makes its real rendered height
+    // part of this wrapper's normal flow, so the Card sizes around it correctly.
+    <div style={{ width }}>
+      <div style={{ width, height, position: 'relative' }}>
+        <svg ref={setSvgElement} width={width} height={height}>
+          <ChartAxisLeft
+            x={MARGIN.left}
+            y1={MARGIN.top}
+            y2={MARGIN.top + plotHeight}
+            gridWidth={plotWidth}
+            ticks={yTicks}
           />
-        );
-      })}
-      <ChartTooltip
-        visible={activeIndex !== null}
-        title={activeTimestamp ? formatTooltipTitle(activeTimestamp) : undefined}
-        rows={tooltipRows}
-        setFloating={setFloating}
-        floatingStyles={floatingStyles}
-        getFloatingProps={getFloatingProps}
-      />
+          <ChartAxisBottom
+            y={MARGIN.top + plotHeight}
+            x1={MARGIN.left}
+            x2={MARGIN.left + plotWidth}
+            ticks={xTicks}
+          />
+          <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
+            {variant === 'line'
+              ? series.map((s, index) => {
+                  const selected = s.key === selectedKey;
+                  const color = specSeriesColor(index, { selected, breached: s.breached });
+                  const sorted = [...s.points].sort((a, b) => a.x.getTime() - b.x.getTime());
+                  const lineGen = d3Line<(typeof sorted)[number]>()
+                    .x((p) => xScale?.(p.x) ?? 0)
+                    .y((p) => yScale(p.y))
+                    .curve(curveMonotoneX);
+                  const areaGen = d3Area<(typeof sorted)[number]>()
+                    .x((p) => xScale?.(p.x) ?? 0)
+                    .y0(yScale(0))
+                    .y1((p) => yScale(p.y))
+                    .curve(curveMonotoneX);
+                  const d = lineGen(sorted) ?? undefined;
+                  return (
+                    <g key={s.key}>
+                      {selected && sorted.length > 1 ? (
+                        <path d={areaGen(sorted) ?? undefined} fill={color} fillOpacity={0.1} />
+                      ) : null}
+                      {sorted.length > 1 ? (
+                        <path
+                          d={d}
+                          stroke={color}
+                          strokeWidth={2}
+                          strokeDasharray={seriesDash(index) || undefined}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      ) : null}
+                      {sorted.map((p) => (
+                        <circle
+                          key={p.x.toISOString()}
+                          cx={xScale?.(p.x) ?? 0}
+                          cy={yScale(p.y)}
+                          r={sorted.length === 1 ? 5 : 4}
+                          fill={color}
+                          stroke={SPEC_FLOOR}
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </g>
+                  );
+                })
+              : series.map((s, index) => {
+                  const selected = s.key === selectedKey;
+                  const color = specSeriesColor(index, { selected, breached: s.breached });
+                  const groupWidth = bandScale.bandwidth() / series.length;
+                  return s.points.map((p) => {
+                    const groupX = bandScale(p.x.toISOString()) ?? 0;
+                    const barWidth = Math.min(groupWidth * 0.7, 24);
+                    const barX = groupX + groupWidth * index + (groupWidth - barWidth) / 2;
+                    const barY = yScale(p.y);
+                    return (
+                      <rect
+                        key={`${s.key}-${p.x.toISOString()}`}
+                        x={barX}
+                        y={barY}
+                        width={Math.max(barWidth, 1)}
+                        height={Math.max(plotHeight - barY, 0)}
+                        rx={2}
+                        fill={color}
+                      />
+                    );
+                  });
+                })}
+          </g>
+        </svg>
+        {timestamps.map((d, index) => {
+          const rawX =
+            variant === 'bars'
+              ? (bandScale(d.toISOString()) ?? 0) + bandScale.bandwidth() / 2
+              : (xScale?.(d) ?? 0);
+          const hitWidth = Math.max(bandScale.step() || MIN_HIT_WIDTH, MIN_HIT_WIDTH / 2);
+          return (
+            <ChartHitRegion
+              key={d.toISOString()}
+              aria-label={formatTooltipTitle(d)}
+              {...getReferenceProps(getHoverProps(index))}
+              style={{
+                left: MARGIN.left + rawX - hitWidth / 2,
+                top: MARGIN.top,
+                width: hitWidth,
+                height: Math.max(plotHeight, MIN_HIT_WIDTH),
+              }}
+            />
+          );
+        })}
+        <ChartTooltip
+          visible={activeIndex !== null}
+          title={activeTimestamp ? formatTooltipTitle(activeTimestamp) : undefined}
+          rows={tooltipRows}
+          setFloating={setFloating}
+          floatingStyles={floatingStyles}
+          getFloatingProps={getFloatingProps}
+        />
+      </div>
       <div className="mt-2">
         <ChartLegend items={legendItems} selectedKey={selectedKey} onSelectKey={handleSelect} />
       </div>

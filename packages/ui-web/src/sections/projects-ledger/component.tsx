@@ -108,6 +108,7 @@ export function ProjectsLedger({
         <Field
           label="Search"
           layout="inline"
+          hideLabel
           placeholder="Find a project…"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}

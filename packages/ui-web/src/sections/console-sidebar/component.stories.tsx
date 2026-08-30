@@ -51,21 +51,29 @@ const workspaceSwitcher = (
   </button>
 );
 
+// Addition 5 (owner review): the standalone Theme row is gone — theme lives only inside
+// `AccountMenu`'s own popup now, one control instead of two. Search's icon and the identity
+// chip both sit in the SAME `w-4` (16px) column `NavSpine`'s own rows use (`RAIL_ICON_COLUMN_CLASS`
+// in the real chrome), so this fixture mirrors that instead of drifting back to a hand-picked x.
 const footer = (
   <>
     <button type="button" className="sidebar-footer-row">
+      <span aria-hidden="true" className="flex w-4 shrink-0 items-center justify-center">
+        <Glyph />
+      </span>
       <span className="font-sans text-[13px] text-subtle">Search</span>
       <span className="kbd kbd-sm ml-auto">⌘K</span>
     </button>
-    <div className="sidebar-footer-row">
-      <span className="font-sans text-[13px] text-subtle">Theme</span>
-    </div>
-    <div className="sidebar-footer-row">
-      <span className="avatar-chip" aria-hidden="true">
-        SL
+    <button type="button" className="sidebar-footer-row">
+      <span aria-hidden="true" className="flex w-4 shrink-0 items-center justify-center">
+        <span aria-hidden="true" className="avatar-chip-sm">
+          SL
+        </span>
       </span>
-      <span className="truncate font-sans text-[12px] text-subtle">sam@adorsys.com</span>
-    </div>
+      <span className="rail-row-label truncate font-sans text-[13px] text-soft">
+        sam@adorsys.com
+      </span>
+    </button>
   </>
 );
 

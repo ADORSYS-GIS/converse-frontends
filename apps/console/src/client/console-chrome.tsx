@@ -13,7 +13,6 @@ import type {
 } from '@lightbridge/ui-web/src/components/command-palette';
 import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import {
   AdminIcon,
@@ -46,7 +45,7 @@ import { useOnlineStatus } from './use-online-status';
  *
  * All of it is mounted **once**, by `app/(console)/layout.tsx` — never by a route (console-ui
  * skill "Composition"). Nothing here re-implements a `ui-web` primitive: it composes
- * `ConsoleSidebar`, `ConsoleTopBar`, `NavGroup`, `AccountBadge`, `AccountMenu`, `ThemeToggle` and
+ * `ConsoleSidebar`, `ConsoleTopBar`, `NavGroup`, `AccountBadge`, `AccountMenu` and
  * `InlineStatus`, and supplies the app-specific data (routes, identity, connectivity).
  *
  * Subpath imports (`@lightbridge/ui-web/src/components/*`) rather than the package barrel are
@@ -368,12 +367,17 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <span className="text-subtle font-sans text-[13px]">Search</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
-          <div className="sidebar-footer-row">
-            <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-            <span className="text-subtle font-sans text-[13px]">Theme</span>
-          </div>
+          {/* Standalone Theme row DELETED (Addition 5 dedupe, owner review): the theme
+              control already lives inside `AccountMenu`'s own popup below (`theme`/
+              `onThemeChange`, passed through unchanged) — a second, separate Theme row in the
+              footer duplicated the same control. `preference`/`setPreference` stay in scope only
+              to feed that one AccountMenu prop pair now. */}
           {online ? null : (
             <div className="sidebar-footer-row">
+              {/* Empty icon-column spacer (rail-grid.ts rule 3) — an iconless row still reserves
+                  the same 16px column every other footer/nav row's glyph sits in, so its text
+                  starts at the one shared label x rather than flush at the row's own padding. */}
+              <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
               <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
             </div>
           )}

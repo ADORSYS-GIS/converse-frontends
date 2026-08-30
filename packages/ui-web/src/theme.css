@@ -626,6 +626,25 @@
   font-size: 0.625rem;
 }
 
+/* The SAME initials square, sized to fit the sidebar footer's 16px icon column exactly
+   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — `AccountMenu`'s `variant="sidebar"` identity row
+   (Addition 5, owner screenshot: the identity chip sat at a THIRD x, neither the Search icon's
+   nor the old Theme row's). The footer's own workspace-switcher row above the nav list keeps the
+   full 26px `avatar-chip` — it is a one-off header-weight row, not a repeating item in the footer
+   row family this column discipline is about. */
+@utility avatar-chip-sm {
+  display: flex;
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.5rem;
+}
+
 /* The three theme choices read as one row of words rather than three menu rows — they are a
    single setting with three states, and stacking them would turn a two-line menu into a five-line
    one. So they keep menuitem semantics (Base UI still owns arrow-key traversal) without the
@@ -829,22 +848,30 @@
   padding: 0.5rem;
 }
 
-/* One row of the footer stack (search, theme, offline, identity) — a 36px hit target with a hover
-   fill, label at the leading edge and a trailing control/marker. Not every row is interactive
-   (the offline line is a status, not a button), so this is a layout/paint utility, not a `<button>`
-   contract — `SidebarFooterRow`'s call sites choose the element. */
+/* One row of the footer stack (search, offline, identity — the standalone Theme row is gone,
+   Addition 5 dedupe: theme lives only inside `AccountMenu`'s own popup now) — a 36px hit target
+   with a hover fill, label at the leading edge and a trailing control/marker. Not every row is
+   interactive (the offline line is a status, not a button), so this is a layout/paint utility,
+   not a `<button>` contract — `SidebarFooterRow`'s call sites choose the element. */
 /* `RAIL_ROW_PADDING_X` (12px), matched here as a literal rem rather than imported — this is CSS,
    the constant is TypeScript, and the two are asserted to agree by `rail-grid.test.ts` /
    `component.test.tsx` rendering both row kinds side by side. Every row in the sidebar (nav rows,
    footer rows, the switcher, group labels) starts its own padding at this one x, which is the fix
    for the owner-reported "group labels render larger and centred" bug: they were flush at daisy
    `menu-title`'s own inset (12px) while nav rows START THEIR ICON at 12px and their LABEL 26px
-   further in — two different left edges wearing the same visual column. */
+   further in — two different left edges wearing the same visual column.
+   `gap` is `RAIL_LABEL_GAP` (10px), matched as a literal here for the same TS/CSS reason as the
+   padding above — NOT the 8px this used to carry (Addition 5, owner screenshot: Search's icon,
+   the old Theme row's toggle, and the identity chip each landed at a different label x). Every
+   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or `AccountMenu`'s
+   `avatar-chip-sm` in that same column) is now exactly the nav rows' own 16px column, so
+   `padding(12) + column(16) + gap(10) = 38px` is one number the whole sidebar shares top to
+   bottom, not a per-row guess. */
 @utility sidebar-footer-row {
   display: flex;
   height: 2.25rem;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   border-radius: var(--radius-field);
   padding-inline: 0.75rem;
   transition: background-color 0.15s ease-out;
@@ -1361,10 +1388,12 @@
 /*
  * ─── Chart chrome shared by every plot ───────────────────────────────────────────────────────
  *
- * `SpendSeriesChart`, `LatencyRidgeline` and `HistogramChart` each draw a different plot, but they
- * sit inside the SAME frame: an `<svg>` under a layer of transparent hit targets, with an inline
- * status line taking the plot's place when there is nothing to draw. Those two frame parts were
- * written out three times and twice respectively, byte for byte, before this block existed.
+ * `SpendSeriesChart` and `HistogramChart` each draw a different plot, but they sit inside the SAME
+ * frame: an `<svg>` under a layer of transparent hit targets, with an inline status line taking
+ * the plot's place when there is nothing to draw. Those two frame parts were written out
+ * repeatedly, byte for byte, before this block existed — `LatencyRidgeline` was a third such
+ * caller until phase 9.2 deleted it (owner directive: the usage backend has no per-request
+ * duration, so its panel could never fill).
  *
  * NO UPSTREAM (ADR 0009 bans a chart framework; daisy ships no chart vocabulary at all), so the
  * win here is that the frame is declared ONCE, not that it was inherited from somewhere.
@@ -2081,10 +2110,15 @@
 
 /* A count sitting at the trailing edge of a rail row (`SubNav`'s per-section totals). It is plain
    trailing text, never a badge — daisy `badge` is in PRIMITIVES.md's not-adopted list for exactly
-   the reason this rule encodes: a count is one step DOWN the ramp from its label, not a pill. */
+   the reason this rule encodes: a count is one step DOWN the ramp from its label, not a pill.
+   `margin-left` is the real gap (phase 9 nit — the "Projects2" stutter): the previous fix relied
+   on a bare `{' '}` text node between label and count, which at 13px sans renders under 4px wide —
+   visually indistinguishable from no gap at all. A stated 8px margin is legible regardless of the
+   label's own font size or the count's, and it's the one place the gap is declared. */
 @utility rail-row-count {
   flex-shrink: 0;
-  font-size: 0.625rem;
+  margin-left: 0.5rem;
+  font-size: 0.6875rem;
   color: var(--color-subtle);
 }
 
@@ -2517,4 +2551,11 @@
   &[data-current='true'] {
     background-color: var(--color-neutral);
   }
+}
+
+/* `Chevron`'s `direction="right"` — the console's one disclosure glyph, rotated into a "this row
+   opens something" mark rather than a second hand-drawn icon (phase 9 nit: `SettingsRow`'s
+   clickable rows had no click affordance at all beyond the hover fill). */
+@utility chevron-right {
+  transform: rotate(-90deg);
 }

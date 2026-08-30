@@ -93,12 +93,16 @@ describe('ADR 0011 discipline', () => {
     //    press needs is a browser-history-shaped concept, not itself "what am I looking at" the
     //    way its own `?after=` param is, so it stays local rather than a second, redundant URL
     //    param.
+    //  - `use-create-account-dialog.ts`'s unsent name draft (ADR-0026, lightbridge-authz#564 —
+    //    account creation lifted into its own shared, cross-route container): same shape as every
+    //    other dialog draft above — `?new-account=true` IS in the URL, the half-typed name is not.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
       join('containers', 'use-account-settings-screen.ts'),
       join('containers', 'use-admin-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
+      join('containers', 'use-create-account-dialog.ts'),
       join('containers', 'use-project-settings-screen.ts'),
       join('containers', 'use-projects-screen.ts'),
     ]);

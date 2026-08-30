@@ -13,12 +13,15 @@ export interface AccountNameDialogProps {
   open: boolean;
   mode: AccountNameDialogMode;
   /**
-   * The account this write targets, rendered as read-only context.
+   * The identity this write is attributed to, rendered as read-only context.
    *
-   * In `create` mode this is the **signed-in subject** — `accounts.id` IS the caller's JWT `sub`
-   * (lightbridge-authz ADR-0006), so `createAccount`'s input carries no `id` at all and the form
-   * must never offer one. Echoing it here is what makes that visible instead of mysterious:
-   * unlike `CreateProjectDialog` one row over, there is no `createId()` anywhere in this flow.
+   * In `create` mode this is the **signed-in subject**, which OWNS the new account
+   * (`Account.userId`, lightbridge-authz ADR-0026) but is only ever also its `id` for that
+   * identity's first account (ADR-0006's original rule) — a second or later account gets a
+   * server-minted id instead. `createAccount`'s input carries no `id` field either way, so the
+   * form must never offer one; echoing the owning identity here is what makes that visible
+   * instead of mysterious, without asserting an id the new account may not actually get. Unlike
+   * `CreateProjectDialog` one row over, there is no `createId()` anywhere in this flow.
    */
   subjectLabel: string;
   /**

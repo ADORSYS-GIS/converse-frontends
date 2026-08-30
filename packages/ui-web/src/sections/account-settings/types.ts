@@ -1,6 +1,10 @@
 export type AccountSettingsAccount = {
-  /** `accounts.id` — the caller's opaque JWT `sub` (lightbridge-authz ADR-0006). The only
-   *  identifier an account has; a name is never one. */
+  /**
+   * `accounts.id` — the only identifier an account has; a name is never one. Equal to the
+   * caller's opaque JWT `sub` (lightbridge-authz ADR-0006) for a person's first ("home") account
+   * only; a second or later account (ADR-0026 — one identity may own several) gets its own
+   * server-minted id instead, while staying owned by the same identity (`Account.userId`).
+   */
   id: string;
   /**
    * `null` means **never named**, and is NOT interchangeable with `''`.
@@ -16,10 +20,13 @@ export type AccountSettingsAccount = {
 
 export interface AccountSettingsPanel {
   /**
-   * The signed-in principal's own account, or `null` when they do not have one yet.
+   * The currently SCOPED account (ADR-0026 — one identity may own several, so "the" account is
+   * whichever the workspace switcher has selected, not necessarily a "home"/first one), or `null`
+   * when there is none: either the signed-in identity has no account at all yet, or nothing is
+   * scoped.
    *
-   * `null` is the state the production report ("I cannot create an account on the console") was
-   * about: with no account there is nothing to scope by, so every other screen is empty. This
+   * `null` is also the state the production report ("I cannot create an account on the console")
+   * was about: with no account there is nothing to scope by, so every other screen is empty. This
    * section is the way out.
    */
   account: AccountSettingsAccount | null;
@@ -48,9 +55,10 @@ export interface AccountSettingsPanel {
  */
 export type AccountSettingsDetails = {
   /**
-   * `accounts.id` — the caller's opaque JWT `sub` (lightbridge-authz ADR-0006), and the only way
-   * to address an account. Long, opaque and frequently needed in a ticket or a support thread,
-   * which is the entire reason this row carries a copy affordance.
+   * `accounts.id` — the only way to address an account (see `AccountSettingsAccount.id`'s own
+   * comment on when this does, and does not, equal the caller's JWT `sub`). Long, opaque and
+   * frequently needed in a ticket or a support thread, which is the entire reason this row
+   * carries a copy affordance.
    */
   id: string;
   /**

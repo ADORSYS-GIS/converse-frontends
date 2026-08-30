@@ -36,9 +36,10 @@ describe('AccountNameDialog', () => {
     render(<AccountNameDialog {...baseProps({ subjectLabel: 'auth0|abc123' })} />);
 
     expect(await screen.findByText(/auth0\|abc123/)).toBeInTheDocument();
-    // `accounts.id` is the JWT `sub` (ADR-0006) — `CreateAccountInput` carries no id, so the form
-    // must never offer a way to type one. This is the property that would silently regress if
-    // someone copied `CreateProjectDialog`'s `createId()`-driven shape wholesale.
+    // `CreateAccountInput` carries no id field at all — the backend decides it (ADR-0006 for a
+    // first account, ADR-0026 for every one after) — so the form must never offer a way to type
+    // one. This is the property that would silently regress if someone copied
+    // `CreateProjectDialog`'s `createId()`-driven shape wholesale.
     expect(screen.queryByLabelText(/account id/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
   });

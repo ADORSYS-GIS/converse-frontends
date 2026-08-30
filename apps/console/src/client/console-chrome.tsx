@@ -33,6 +33,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
 import { useAdminScreen } from '../containers/use-admin-screen';
+import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -224,6 +225,7 @@ const BRAND = (
  */
 function useWorkspaceSwitcher() {
   const consoleScope = useConsoleScope();
+  const openCreateAccount = useOpenCreateAccountDialog();
   const activeAccount = consoleScope.allAccounts.find(
     (account) => account.id === consoleScope.value.accountId
   );
@@ -243,6 +245,10 @@ function useWorkspaceSwitcher() {
       // leaves the id in the tooltip, so there is nothing to recover.
       void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
     },
+    // ADR-0026 (lightbridge-authz#564): one identity may own several accounts now, so the
+    // switcher always offers a way to add another — see `AccountBadge`'s own doc comment for why
+    // this alone is enough to make it a real dropdown even with a single account today.
+    onCreateAccount: openCreateAccount,
   };
 }
 
@@ -358,6 +364,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
           accounts={switcher.accounts}
           onSelectAccount={switcher.onSelectAccount}
           onCopyId={switcher.onCopyId}
+          onCreateAccount={switcher.onCreateAccount}
         />
       }
       groups={navGroups(route, session.isAdmin, refillCount)}
@@ -435,6 +442,7 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
           accounts={switcher.accounts}
           onSelectAccount={switcher.onSelectAccount}
           onCopyId={switcher.onCopyId}
+          onCreateAccount={switcher.onCreateAccount}
         />
       }
       paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}

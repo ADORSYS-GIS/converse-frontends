@@ -46,6 +46,10 @@ describe('the URL param contract', () => {
 
     expect(names).toEqual({
       scope: ['account', 'project'],
+      // ADR-0026: "+ New account" opens from the workspace switcher (chrome, every route) AND
+      // `/settings/account`'s own `PageHeader` — the one dialog instance both trigger, so its
+      // open flag is shared rather than owned by either route.
+      createAccount: ['new-account'],
       // Phase 4: `/` absorbed the admin-only dashboard's own Export action, so it carries the
       // same report vocabulary `/manage` does, on top of its own dashboard knobs.
       overview: [

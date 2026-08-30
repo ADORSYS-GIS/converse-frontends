@@ -1,5 +1,6 @@
 'use client';
 
+import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-name-dialog';
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
 import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
 import type { ReactNode } from 'react';
@@ -15,6 +16,7 @@ import {
   useConsoleNotification,
   useDismissConsoleNotification,
 } from '../../client/console-notifications';
+import { useCreateAccountDialog } from '../../containers/use-create-account-dialog';
 
 /**
  * The console's persistent shell — mounted **exactly once**, for every route in the `(console)`
@@ -33,18 +35,27 @@ import {
  * (their own phase-2 placeholder for the deleted `@rail` slot) with a `DetailSheet` that opens on
  * row selection, at every tier — the console has no persistent rail anywhere any more.
  *
- * The ONE piece of state this layout still owns is the command palette's open/shortcut state
- * (`useConsolePalette`) — it has to be lifted here rather than owned by either chrome zone,
- * because both the sidebar's search row and the top bar's palette icon open the SAME instance,
- * and only one of the two zones is ever visible at a given tier.
+ * Two pieces of state this layout owns rather than either chrome zone or any one routed screen,
+ * both for the same reason — two structurally separate triggers have to open the identical
+ * instance, and only one trigger is ever visible/reachable at a time:
+ *
+ *  - the command palette's open/shortcut state (`useConsolePalette`) — the sidebar's search row
+ *    and the top bar's palette icon;
+ *  - the create-account dialog (`useCreateAccountDialog`, ADR-0026 — lightbridge-authz#564, one
+ *    identity may own several accounts) — the workspace switcher's `+ New account` row (any
+ *    route) and `/settings/account`'s own `PageHeader` action. Unlike the palette, its open state
+ *    is real view state driven by the URL (`?new-account=`), not a lifted local `useState`,
+ *    because it also has to open from INSIDE a routed screen's own subtree, which this layout
+ *    cannot hand a prop to — see `use-create-account-dialog.ts`'s own doc comment.
  *
  * Auth routes live OUTSIDE this group (`app/auth/*`) and get no shell at all — that is the whole
  * reason the group exists.
  */
 export default function ConsoleLayout({ children }: { children: ReactNode }) {
   const palette = useConsolePalette();
+  const createAccount = useCreateAccountDialog();
   // converse-frontends#323: the console-wide default visibility path for a failed refine
-  // mutation — see `console-notifications.ts`'s module doc comment for the full mechanism.
+  // mutation — see `console-notifications.ts`'s own module doc comment for the full mechanism.
   const notification = useConsoleNotification();
   const dismissNotification = useDismissConsoleNotification();
 
@@ -66,6 +77,7 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
         onOpenChange={palette.setOpen}
         groups={palette.groups}
       />
+      <AccountNameDialog {...createAccount.dialog} />
     </>
   );
 }

@@ -116,6 +116,55 @@ describe('AccountBadge', () => {
     expect(screen.queryByRole('button', { name: /Switch account/ })).not.toBeInTheDocument();
   });
 
+  // ADR-0026 (lightbridge-authz#564): one identity may now own several accounts, so "+ New
+  // account" is a real action even where there is nothing yet to switch BETWEEN.
+  it('is a switcher when onCreateAccount is offered, even with zero or one accounts', () => {
+    render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} onCreateAccount={() => {}} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Account adorsys-gis. Switch account.' })
+    ).toBeInTheDocument();
+  });
+
+  it('lists "+ New account" in the switcher menu when onCreateAccount is given', () => {
+    const onCreateAccount = vi.fn();
+    render(
+      <AccountBadge
+        name="adorsys-gis"
+        accountId={ACCOUNT_ID}
+        accounts={[
+          { id: ACCOUNT_ID, label: 'adorsys-gis' },
+          { id: 'other-id', label: 'adorsys-labs' },
+        ]}
+        onSelectAccount={() => {}}
+        onCreateAccount={onCreateAccount}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Switch account/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ New account' }));
+
+    expect(onCreateAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits "+ New account" from the menu without an onCreateAccount handler', () => {
+    render(
+      <AccountBadge
+        name="adorsys-gis"
+        accountId={ACCOUNT_ID}
+        accounts={[
+          { id: ACCOUNT_ID, label: 'adorsys-gis' },
+          { id: 'other-id', label: 'adorsys-labs' },
+        ]}
+        onSelectAccount={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Switch account/ }));
+
+    expect(screen.queryByRole('menuitem', { name: '+ New account' })).not.toBeInTheDocument();
+  });
+
   it('names itself for assistive tech including the copy affordance', () => {
     render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} onCopyId={() => {}} />);
 
@@ -139,7 +188,14 @@ describe('AccountBadge', () => {
   // `ConsoleSidebar`'s full-width workspace switcher row.
   describe('variant="sidebar"', () => {
     it('renders the workspace-switcher-row class instead of the compact chip', () => {
-      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          onCopyId={() => {}}
+        />
+      );
 
       const button = screen.getByRole('button');
       expect(button).toHaveClass('workspace-switcher-row');
@@ -161,13 +217,27 @@ describe('AccountBadge', () => {
     });
 
     it('renders no initials chip when none are given', () => {
-      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          onCopyId={() => {}}
+        />
+      );
 
       expect(screen.queryByText('AG')).not.toBeInTheDocument();
     });
 
     it('shows the short id beside the name without the md-and-up gate the inline variant uses', () => {
-      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          onCopyId={() => {}}
+        />
+      );
 
       const shortId = screen.getByText('acct_49534505');
       expect(shortId).not.toHaveClass('hidden');
@@ -215,8 +285,7 @@ describe('AccountBadge', () => {
     });
 
     // Addition 6 regression: this backend seats exactly ONE account per identity in the
-    // overwhelming common case (owner note — no account-creation item, `createAccount` conflicts
-    // on a second attempt). The OLD rule ("a menu of one is not a control") left the sidebar
+    // overwhelming common case. The OLD rule ("a menu of one is not a control") left the sidebar
     // switcher looking like a dropdown that did nothing for almost every real sign-in — clicking
     // it fell straight to the copy-only button branch, no menu at all. The sidebar variant now
     // opens the SAME menu (account list, even a list of one, + Copy account id) whenever there is

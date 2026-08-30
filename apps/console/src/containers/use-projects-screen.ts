@@ -33,6 +33,7 @@ import {
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
+import { isOwnedAccountId } from './account-ownership';
 import { buildBudgetConsumptionByProjectRequest } from './overview-usage';
 import { buildCreateProjectInput } from './build-create-project-input';
 import { classifyCreateProjectError } from './rpc-field-error';
@@ -138,15 +139,16 @@ export interface ProjectsScreen {
   newProject: () => void;
   /**
    * Presentation-only mirror of `model.Project.create`'s owner-only `@@allow` gate
-   * (`authz.cstack:274` — `account.id == auth().id`). This console models one account per
-   * signed-in principal (ADR-0006 "a person's defining identity is their `accountId`" — an
-   * account IS the person, not an org with members), so "owner" here means the scoped account is
-   * literally the signed-in principal, never an account this person merely has project membership
-   * in. `false` whenever ownership cannot be confirmed, never defaulted to `true` — same
-   * disclaimer as `createKeyEligible` in `use-api-keys-screen.ts`:
-   * `lightbridge-authz`'s hand-written RBAC check is the actual enforcement
-   * (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role grants), this is
-   * presentation only.
+   * (`authz.cstack` — `account.userId == auth().id`). "Owner" means `isAccountOwner`
+   * (`account-ownership.ts`, ADR-0026 — lightbridge-authz#564): the scoped account's `userId` is
+   * the signed-in principal, not merely that person having project membership in it. One identity
+   * may own several accounts now, so this is no longer "the scoped account IS the signed-in
+   * principal" (ADR-0006's original, single-account framing) — a genuinely owned SECOND account
+   * has its own `id`, distinct from the principal's `sub`. `false` whenever ownership cannot be
+   * confirmed, never defaulted to `true` — same disclaimer as `createKeyEligible` in
+   * `use-api-keys-screen.ts`: `lightbridge-authz`'s hand-written RBAC check is the actual
+   * enforcement (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role
+   * grants), this is presentation only.
    */
   createProjectEligible: boolean;
   /** Stated beside the disabled `+ New project` control; `undefined` exactly when eligible. */
@@ -291,6 +293,11 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
 
   // Owner-only gate mirror — see `ProjectsScreen.createProjectEligible`'s own doc comment for why
   // this checks against the signed-in principal rather than a roster.
+  //
+  // ADR-0026: ownership is `account.userId === session.user.sub`, resolved via `isOwnedAccountId`
+  // (`account-ownership.ts`) — `scope.value.accountId === session.user.sub` only ever held for a
+  // person's first (home) account and would wrongly disable this for a genuinely-owned second
+  // account, which keeps its owner's `userId` but gets its own minted `id`.
   let createProjectEligible: boolean;
   let createProjectReason: string | undefined;
   if (!scope.value.accountId) {
@@ -299,7 +306,7 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   } else if (!session.user) {
     createProjectEligible = false;
     createProjectReason = 'Sign in to create a project.';
-  } else if (session.user.sub !== scope.value.accountId) {
+  } else if (!isOwnedAccountId(scope.value.accountId, scope.allAccounts, session)) {
     createProjectEligible = false;
     createProjectReason = 'Only the account owner can create a project.';
   } else {

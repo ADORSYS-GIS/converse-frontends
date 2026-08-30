@@ -1,7 +1,8 @@
 // The account states `/settings` has to render. Deliberately built from real shapes: `id` is an
-// opaque JWT subject (ADR-0006), `defaultQuotaTier` is a catalogue tier id and not a currency
-// figure, and the unnamed account is the COMMON case in production today, not an edge one —
-// `Account.name` shipped nullable with no truthful backfill (lightbridge-authz#551).
+// opaque string (a JWT subject for a person's first/home account per ADR-0006, a server-minted id
+// for any account after that per ADR-0026), `defaultQuotaTier` is a catalogue tier id and not a
+// currency figure, and the unnamed account is the COMMON case in production today, not an edge
+// one — `Account.name` shipped nullable with no truthful backfill (lightbridge-authz#551).
 import type { AccountSettingsDetails, AccountSettingsPanel } from './types';
 
 const noop = () => {};

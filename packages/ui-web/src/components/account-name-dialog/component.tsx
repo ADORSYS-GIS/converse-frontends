@@ -24,10 +24,13 @@ import {
 //
 // What this form asks for is the whole of what createAccount's input can affect from a console:
 //
-//  * NOT the id. accounts.id is the caller's JWT sub (ADR-0006); the procedure reads it off the
-//    bearer token and CreateAccountInput has no id field. This is the one real difference from
-//    CreateProjectDialog, whose model.Project.create verb genuinely needs a caller-supplied
-//    createId().
+//  * NOT the id. CreateAccountInput has no id field at all — the backend decides it
+//    (lightbridge-authz ADR-0026): an identity's FIRST account keeps id == the caller's JWT sub
+//    (ADR-0006's original rule, still true for that one account), and every account after that
+//    gets a server-minted id while still being owned by the same identity. This is the one real
+//    difference from CreateProjectDialog, whose model.Project.create verb genuinely needs a
+//    caller-supplied createId() — and the reason `create` mode's copy below names the identity
+//    this account will be OWNED BY, never the id the new account will get.
 //  * NOT defaultQuota. It IS on CreateAccountInput, but it is a governance tier validated at
 //    write time against an operator-configured catalogue that no RPC procedure exposes —
 //    listBillingPlans and listModelCatalog have no quota-tier twin. Offering it would mean
@@ -51,8 +54,7 @@ const COPY: Record<
 > = {
   create: {
     title: () => 'Create account',
-    description: (subjectLabel) =>
-      `Created for ${subjectLabel} — your signed-in identity, which is also the account's id.`,
+    description: (subjectLabel) => `Owned by your signed-in identity (${subjectLabel}).`,
     hint: () => 'Optional. Leave blank to create the account unnamed and name it later.',
     primary: 'Create account',
     pending: 'Creating…',

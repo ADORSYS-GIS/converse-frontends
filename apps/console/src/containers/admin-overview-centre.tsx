@@ -8,8 +8,9 @@ import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-h
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
 import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
+import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
@@ -42,7 +43,17 @@ export function AdminOverviewCentre() {
 
   return (
     <div className="flex flex-col gap-8">
-      <ScreenHeading title="Admin overview" subline={screen.subline} />
+      <PageHeader
+        title="Admin overview"
+        subtitle={screen.subline}
+        controls={
+          <OverviewControls
+            rangeField={screen.rangeField}
+            bucketField={screen.bucketField}
+            groupByField={screen.groupByField}
+          />
+        }
+      />
 
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 

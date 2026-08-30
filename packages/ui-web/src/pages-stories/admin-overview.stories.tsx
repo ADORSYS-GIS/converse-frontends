@@ -12,9 +12,9 @@
 import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { InlineStatus } from '../components/inline-status';
-import { RailPanel } from '../components/rail-panel';
 import { SubNav } from '../components/sub-nav';
 import { presetRange } from '../components/date-range-field';
 import type { SelectFieldProps } from '../components/select-field';
@@ -49,7 +49,7 @@ import {
 } from '../sections/overview-controls/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
@@ -60,7 +60,7 @@ import {
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
 import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
-import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+import { storySidebar, storyTopBar } from './shell-fixtures';
 
 const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
 
@@ -149,17 +149,14 @@ function AdminOverviewScreen({
   );
 
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{
-        items: storyNavItems('admin'),
-        adminItems: storyAdminNavItems('admin'),
-        showAdmin: true,
-      }}
-      leftSecondaryLabel="Admin"
-      leftSecondary={
-        <>
-          <RailPanel label="Admin">
+    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* The former `leftSecondary` ADMIN sub-nav — a plain `Card`, visible from `md`, the tier
+            the old rail persisted at (shell brief 2026-08-30 dropped the shell's own rail slot;
+            this screen has no sheet-trigger equivalent, so it simply doesn't render below `md`,
+            same as before). */}
+        <div className="hidden w-[208px] flex-none flex-col gap-4 md:flex">
+          <Card title="Admin">
             {/* Two sections, one nav entry: `/admin` lands on this dashboard and `?section=refills`
                 switches to the review queue. Buttons, not links — the switch is a query-string
                 write, not a route change. */}
@@ -169,97 +166,101 @@ function AdminOverviewScreen({
                 { key: 'refills', label: 'Refill requests', count: 4 },
               ]}
             />
-          </RailPanel>
-          <RailPanel label="View">
-            {/* No project or model picker: this screen is account-wide by definition, so a
-                narrowing control it would refuse to apply is omitted, never rendered disabled. */}
-            <OverviewControls
-              rangeField={{
-                label: 'Range',
-                preset: rangePreset,
-                presets: RANGE_PRESETS,
-                value: range,
-                today: STORY_TODAY,
-                onPresetChange: (next) => {
-                  setRangePreset(next);
-                  setRange(
-                    presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY)
-                  );
-                },
-                onRangeChange: (next) => {
-                  setRangePreset(null);
-                  setRange(next);
-                },
-              }}
-              bucketField={bucketField}
-              groupByField={groupByField}
-            />
-          </RailPanel>
-        </>
-      }>
-      <div className="flex flex-col gap-8">
-        <ScreenHeading
-          title="Admin overview"
-          subline="Last 30 days · every project in this account · UTC"
-        />
-
-        <OverviewStatRow cards={statCards} />
-
-        <SpendDashboard
-          label="Spend — every project in this account"
-          series={spendSeries}
-          status={spendStatus}
-          errorMessage={spendErrorMessage}
-          fallbackWidth={872}
-          height={220}
-          onSelectSeries={setSelectedSeriesKey}
-          formatXTick={formatOverviewSpendXTick}
-          formatYTick={formatUsdAxis}
-          formatTooltipValue={formatOverviewSpendTooltipValue}
-          formatLegendValue={formatOverviewSpendLegendValue}
-        />
-
-        <SpendShareSection
-          segments={spendShareSegments}
-          status={spendStatus}
-          errorMessage={spendErrorMessage}
-          selectedKey={selectedSeriesKey}
-          onSelectSegment={setSelectedSeriesKey}
-          total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
-        />
-
-        {/* Latency, full width — the section `/` gave up. Same usage query as the two spend
-            sections above, so they resolve together or fail together. */}
-        <LatencyDashboard
-          series={latencySeries}
-          status={latencyStatus}
-          footnote={latencyFootnote}
-          fallbackWidth={872}
-          height={310}
-          formatXTick={formatMsAxis}
-        />
-
-        <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
-          <BudgetPressure
-            className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-            projects={pressureProjects}
-            ceiling={pressureCeiling}
-            status={pressureStatus}
-            note={ADMIN_BUDGET_PRESSURE_NOTE}
-          />
-          <BudgetPanel
-            className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
-            budget={budget}
-            refillRequestStatus={{ pendingCount: 4, submittedLabel: 'oldest submitted 2 days ago' }}
-            onReviewInAdmin={() => {}}
-          />
+          </Card>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className={LABEL_CLASS}>Key hygiene — every project in this account</span>
-          <InlineStatus>52 active · 7 revoked · 2 expiring within 30 days</InlineStatus>
-          <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
-          {hygieneCaveat ? <InlineStatus>{hygieneCaveat}</InlineStatus> : null}
+        <div className="flex min-w-0 flex-1 flex-col gap-8">
+          <PageHeader
+            title="Admin overview"
+            subtitle="Last 30 days · every project in this account · UTC"
+            controls={
+              // No project or model picker: this screen is account-wide by definition, so a
+              // narrowing control it would refuse to apply is omitted, never rendered disabled.
+              <OverviewControls
+                rangeField={{
+                  label: 'Range',
+                  preset: rangePreset,
+                  presets: RANGE_PRESETS,
+                  value: range,
+                  today: STORY_TODAY,
+                  onPresetChange: (next) => {
+                    setRangePreset(next);
+                    setRange(
+                      presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, STORY_TODAY)
+                    );
+                  },
+                  onRangeChange: (next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  },
+                }}
+                bucketField={bucketField}
+                groupByField={groupByField}
+              />
+            }
+          />
+
+          <OverviewStatRow cards={statCards} />
+
+          <SpendDashboard
+            label="Spend — every project in this account"
+            series={spendSeries}
+            status={spendStatus}
+            errorMessage={spendErrorMessage}
+            fallbackWidth={872}
+            height={220}
+            onSelectSeries={setSelectedSeriesKey}
+            formatXTick={formatOverviewSpendXTick}
+            formatYTick={formatUsdAxis}
+            formatTooltipValue={formatOverviewSpendTooltipValue}
+            formatLegendValue={formatOverviewSpendLegendValue}
+          />
+
+          <SpendShareSection
+            segments={spendShareSegments}
+            status={spendStatus}
+            errorMessage={spendErrorMessage}
+            selectedKey={selectedSeriesKey}
+            onSelectSegment={setSelectedSeriesKey}
+            total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
+          />
+
+          {/* Latency, full width — the section `/` gave up. Same usage query as the two spend
+            sections above, so they resolve together or fail together. */}
+          <LatencyDashboard
+            series={latencySeries}
+            status={latencyStatus}
+            footnote={latencyFootnote}
+            fallbackWidth={872}
+            height={310}
+            formatXTick={formatMsAxis}
+          />
+
+          <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
+            <BudgetPressure
+              className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
+              projects={pressureProjects}
+              ceiling={pressureCeiling}
+              status={pressureStatus}
+              note={ADMIN_BUDGET_PRESSURE_NOTE}
+            />
+            <BudgetPanel
+              className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
+              budget={budget}
+              refillRequestStatus={{
+                pendingCount: 4,
+                submittedLabel: 'oldest submitted 2 days ago',
+              }}
+              onReviewInAdmin={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={LABEL_CLASS}>Key hygiene — every project in this account</span>
+            <InlineStatus>52 active · 7 revoked · 2 expiring within 30 days</InlineStatus>
+            <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
+            {hygieneCaveat ? <InlineStatus>{hygieneCaveat}</InlineStatus> : null}
+          </div>
         </div>
       </div>
     </ConsoleShell>

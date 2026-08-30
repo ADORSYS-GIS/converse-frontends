@@ -20,12 +20,18 @@ const base = {
 };
 
 describe('ApiKeysControls', () => {
-  it('renders the status filter, the search field and the create action in one row', () => {
-    render(<ApiKeysControls {...base} onCreate={() => {}} />);
+  it('renders the project field, the status filter and the search field in one row', () => {
+    render(<ApiKeysControls {...base} />);
 
+    expect(screen.getByLabelText('Project')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Status filter' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ New key' })).toBeInTheDocument();
+  });
+
+  it('does NOT render a create action — that moved to PageHeader.action', () => {
+    render(<ApiKeysControls {...base} />);
+
+    expect(screen.queryByRole('button', { name: /new key/i })).not.toBeInTheDocument();
   });
 
   it('reports status changes', () => {
@@ -44,42 +50,23 @@ describe('ApiKeysControls', () => {
     expect(onSearchChange).toHaveBeenCalledWith('desktop');
   });
 
-  it('states visibly why creation is unavailable instead of leaving a dead disabled button', () => {
-    render(<ApiKeysControls {...base} createDisabledReason="Select a project to create a key." />);
-
-    expect(screen.getByRole('button', { name: '+ New key' })).toBeDisabled();
-    // Visible, not merely a `title` tooltip.
-    expect(screen.getByText('Select a project to create a key.')).toBeInTheDocument();
-  });
-
-  it('drops the reason line once creation becomes available', () => {
-    render(
-      <ApiKeysControls
-        {...base}
-        onCreate={() => {}}
-        createDisabledReason="Select a project to create a key."
-      />
-    );
-
-    expect(screen.getByRole('button', { name: '+ New key' })).toBeEnabled();
-    expect(screen.queryByText('Select a project to create a key.')).not.toBeInTheDocument();
-  });
-
   it('leads with the project selector — on this screen it is a precondition, not a filter', () => {
     render(<ApiKeysControls {...base} />);
 
     expect(screen.getByLabelText('Project')).toBeInTheDocument();
   });
 
-  it('does NOT render an account control — scope is identity, and lives in the header', () => {
+  it('does NOT render an account control — scope is identity, and lives in the sidebar', () => {
     render(<ApiKeysControls {...base} />);
 
     expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
   });
 
-  it('is one landmark region', () => {
+  it('is one landmark region, and a horizontal cluster, not a stacked rail', () => {
     render(<ApiKeysControls {...base} />);
 
-    expect(screen.getByRole('region', { name: 'Filters and actions' })).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Filters and actions' });
+    expect(region).toHaveClass('flex-wrap', 'items-end');
+    expect(region).not.toHaveClass('flex-col');
   });
 });

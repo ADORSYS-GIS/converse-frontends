@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { RailPanel } from '../../components/rail-panel';
+import { Card } from '../../components/card';
 import type { ReportExportFormat } from '../../components/report-export-panel';
 import { ScopeSelect } from '../../components/scope-select';
 import type { SegmentedOption } from '../../components/segmented-control';
@@ -33,7 +33,7 @@ function Demo({ generating = false }) {
 
   return (
     <div className="bg-surface w-[280px]">
-      <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>
+      <Card title={MANAGE_REPORT_RAIL_LABEL}>
         <ManageReportRail
           period={period}
           onPeriodChange={setPeriod}
@@ -60,7 +60,7 @@ function Demo({ generating = false }) {
           onGenerate={() => {}}
           generating={generating}
         />
-      </RailPanel>
+      </Card>
     </div>
   );
 }

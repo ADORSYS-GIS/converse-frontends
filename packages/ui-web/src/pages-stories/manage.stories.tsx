@@ -8,10 +8,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
+import { Card } from '../components/card';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { InlineStatus } from '../components/inline-status';
-import { RailPanel } from '../components/rail-panel';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ScopeSelect } from '../components/scope-select';
 import { SectionSheetTrigger } from '../components/section-sheet-trigger';
@@ -36,13 +36,8 @@ import {
   scopeProjects,
   scopeSelectValue,
 } from '../components/scope-select/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
-import {
-  manageSubNavItems,
-  storyAdminNavItems,
-  storyHeader,
-  storyNavItems,
-} from './shell-fixtures';
+import { PageHeader } from '../sections/page-header';
+import { manageSubNavItems, storySidebar, storyTopBar } from './shell-fixtures';
 
 /**
  * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
@@ -146,77 +141,81 @@ function ManageScreen({
   const selectionRail = <ManageSelectionRail project={selectedProject} />;
 
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{ items: storyNavItems('manage'), adminItems: storyAdminNavItems('manage'), showAdmin }}
-      leftSecondary={
-        <RailPanel label="MANAGE">
-          <SubNav items={manageSubNavItems} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Manage"
-      rightRail={
-        <>
-          <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</RailPanel>
-          <RailPanel label={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</RailPanel>
-          <RailPanel label={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</RailPanel>
-        </>
-      }>
-      <div className="flex flex-col gap-6">
-        <ScreenHeading title="Projects" />
+    <ConsoleShell sidebar={storySidebar('manage', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <PageHeader title="Projects" />
 
-        {/* The account panel and its naming dialog moved to `/settings` (see
-            `settings.stories.tsx`): Manage is a filtering and browsing screen, and a core account
-            mutation does not belong beside a ledger's filters. */}
-        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
+          {/* The account panel and its naming dialog moved to `/settings` (see
+              `settings.stories.tsx`): Manage is a filtering and browsing screen, and a core account
+              mutation does not belong beside a ledger's filters. */}
+          <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
-        <CreateProjectDialog
-          open={createOpen}
-          accountLabel="acct_01"
-          name={projectName}
-          onNameChange={setProjectName}
-          billingIdentity={billingIdentity}
-          onBillingIdentityChange={setBillingIdentity}
-          plans={plans}
-          plansLoading={false}
-          onRetryPlans={() => {}}
-          planId={planId}
-          onPlanChange={setPlanId}
-          submitting={false}
-          canSubmit={projectName.trim().length > 0 && billingIdentity.trim().length > 0}
-          onSubmit={() => setCreateOpen(false)}
-          onCancel={() => setCreateOpen(false)}
-        />
+          <CreateProjectDialog
+            open={createOpen}
+            accountLabel="acct_01"
+            name={projectName}
+            onNameChange={setProjectName}
+            billingIdentity={billingIdentity}
+            onBillingIdentityChange={setBillingIdentity}
+            plans={plans}
+            plansLoading={false}
+            onRetryPlans={() => {}}
+            planId={planId}
+            onPlanChange={setPlanId}
+            submitting={false}
+            canSubmit={projectName.trim().length > 0 && billingIdentity.trim().length > 0}
+            onSubmit={() => setCreateOpen(false)}
+            onCancel={() => setCreateOpen(false)}
+          />
 
-        <ManageProjectsLedger
-          projects={projects}
-          loading={loading}
-          error={error}
-          onRetry={() => {}}
-          totals={projects.length ? manageTotals : undefined}
-          search={search}
-          onSearchChange={setSearch}
-          onNewProject={() => setCreateOpen(true)}
-          selectedRowKeys={selectedProject ? [selectedProject.id] : []}
-          onSelectRow={setSelectedProject}
-          pagination={{ shown: projects.length, total: 24, hasPrev: false, hasNext: true }}
-          toolbarActions={
-            <SectionSheetTrigger
-              icon="filter"
-              triggerLabel="Open filters"
-              label={MANAGE_FILTERS_RAIL_LABEL}>
-              {filtersRail}
-            </SectionSheetTrigger>
-          }
-          reportTrigger={
-            <SectionSheetTrigger
-              icon="report"
-              triggerLabel="Open monthly report"
-              label={MANAGE_REPORT_RAIL_LABEL}>
-              {reportRail}
-            </SectionSheetTrigger>
-          }
-        />
+          <ManageProjectsLedger
+            projects={projects}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            totals={projects.length ? manageTotals : undefined}
+            search={search}
+            onSearchChange={setSearch}
+            onNewProject={() => setCreateOpen(true)}
+            selectedRowKeys={selectedProject ? [selectedProject.id] : []}
+            onSelectRow={setSelectedProject}
+            pagination={{ shown: projects.length, total: 24, hasPrev: false, hasNext: true }}
+            toolbarActions={
+              <SectionSheetTrigger
+                icon="filter"
+                triggerLabel="Open filters"
+                label={MANAGE_FILTERS_RAIL_LABEL}>
+                {filtersRail}
+              </SectionSheetTrigger>
+            }
+            reportTrigger={
+              <SectionSheetTrigger
+                icon="report"
+                triggerLabel="Open monthly report"
+                label={MANAGE_REPORT_RAIL_LABEL}>
+                {reportRail}
+              </SectionSheetTrigger>
+            }
+          />
+        </div>
+
+        {/* The former left/right rail sections as plain `Card`s beside the centre content now
+            that the shell owns no rail slot at all (shell brief 2026-08-30). Visibility mirrors
+            the old rail's own tiers so nothing doubles up with the `SectionSheetTrigger`/
+            `SelectionSheet` content below: the MANAGE sub-nav (former `leftSecondary`) persists
+            from `md`; the report/filters/selection cards (former `rightRail`) persisted only at
+            `lg`, with everything below reached through the sheets, which stays true here. */}
+        <div className="hidden w-[208px] flex-none flex-col gap-4 md:flex lg:w-[280px]">
+          <Card title="Manage">
+            <SubNav items={manageSubNavItems} />
+          </Card>
+          <div className="hidden flex-col gap-4 lg:flex">
+            <Card title={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</Card>
+            <Card title={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</Card>
+            <Card title={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</Card>
+          </div>
+        </div>
       </div>
 
       {/* SELECTION has no trigger of its own — it is selection-driven, and `SelectionSheet` is

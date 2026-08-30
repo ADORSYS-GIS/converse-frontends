@@ -54,7 +54,11 @@ describe('RefineManageScreen', () => {
     fireEvent.click(rows[0]);
 
     await waitFor(() => expect(screen.queryByText('No rows selected.')).not.toBeInTheDocument());
-    const selectionPanel = screen.getByText('Selection').parentElement as HTMLElement;
+    // `Card`'s title (`Selection`) and its `children` (the selection rail) are siblings inside
+    // the card's own `<section>`, not nested one under the other — `Card`, unlike the deleted
+    // `RailPanel`, keeps the head row and the body as separate rows of one section (shell brief
+    // 2026-08-30). `closest('section')` is the shared container both actually sit in.
+    const selectionPanel = screen.getByText('Selection').closest('section') as HTMLElement;
     expect(within(selectionPanel).getByText('adorsys-gis')).toBeInTheDocument();
   });
 

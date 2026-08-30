@@ -29,6 +29,7 @@ vi.mock('./use-manage-screen', async (importOriginal) => {
 
 function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData {
   return {
+    scopeLabel: 'adorsys-gis',
     rows: [],
     loading: false,
     errorMessage: undefined,

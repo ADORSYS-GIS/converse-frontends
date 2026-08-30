@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { RailPanel } from '../../components/rail-panel';
+import { Card } from '../../components/card';
 import { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from './component';
 import { gatewayProdHistory } from './fixtures';
 
@@ -18,7 +18,7 @@ function Demo({ deciding = false }) {
   const [note, setNote] = useState('');
   return (
     <div className="w-[280px] bg-surface">
-      <RailPanel>
+      <Card>
         <ReviewDetailRail
           detail={{
             subject: 'gateway-prod',
@@ -35,7 +35,7 @@ function Demo({ deciding = false }) {
             deciding,
           }}
         />
-      </RailPanel>
+      </Card>
     </div>
   );
 }
@@ -44,14 +44,14 @@ export const RequestSelected: Story = { render: () => <Demo /> };
 
 export const Deciding: Story = { render: () => <Demo deciding /> };
 
-// Nothing selected — an inline status line, not a centered placard. The `RailPanel` here carries
+// Nothing selected — an inline status line, not a centered placard. The `Card` here carries
 // no label at all, matching the mockup's unlabelled review panel.
 export const NothingSelected: Story = {
   render: () => (
     <div className="w-[280px] bg-surface">
-      <RailPanel label={REVIEW_DETAIL_RAIL_LABEL}>
+      <Card title={REVIEW_DETAIL_RAIL_LABEL}>
         <ReviewDetailRail detail={null} />
-      </RailPanel>
+      </Card>
     </div>
   ),
 };

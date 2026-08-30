@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { MANAGE_SPEND_PENDING_MESSAGE } from './use-manage-screen';
 import * as overviewScreenModule from './use-overview-screen';
-import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION } from './use-overview-screen';
 
 /**
  * console-ui#326 — regression coverage for the ticket's own Test Plan ("grep-based regression
@@ -29,10 +28,14 @@ import { OVERVIEW_EXPORT_UNAVAILABLE_CAPTION } from './use-overview-screen';
  * already were (`use-overview-screen.ts`'s `latencySeries`/`latencyStatus`/`latencyFootnote`).
  * What survives from that old test is the SAME regression concern applied to what replaced it: no
  * blanket "isn't available"/"unwired" claim should exist anywhere in this module any more.
+ *
+ * `OVERVIEW_EXPORT_UNAVAILABLE_CAPTION` is gone too (shell revamp phase 2, 2026-08-30) — the
+ * Overview EXPORT control it captioned is deleted outright rather than left permanently disabled;
+ * export gets wired for real in phase 4, at which point it becomes a live `PageHeader.action`
+ * with no disabled-reason caption to test at all.
  */
 const USER_VISIBLE_STRINGS = {
   MANAGE_SPEND_PENDING_MESSAGE,
-  OVERVIEW_EXPORT_UNAVAILABLE_CAPTION,
 };
 
 describe('placeholder copy (console-ui#326)', () => {
@@ -59,6 +62,10 @@ describe('placeholder copy (console-ui#326)', () => {
     // Regression against over-correcting into content-free copy: each string must still name
     // what's actually missing.
     expect(MANAGE_SPEND_PENDING_MESSAGE).toMatch(/usage backend/);
+  });
+
+  it('no longer exports an Overview export-unavailable caption — the control is deleted, not disabled', () => {
+    expect('OVERVIEW_EXPORT_UNAVAILABLE_CAPTION' in overviewScreenModule).toBe(false);
   });
 
   // #304-#307 (Epic 4 Story 4.2), extended by this story to LATENCY: SPEND/SPEND SHARE/BUDGET/

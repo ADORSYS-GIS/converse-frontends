@@ -15,8 +15,10 @@ export const dynamic = 'force-dynamic';
  * the UI half — `lightbridge-authz` enforces `budget:review` on every procedure the screen calls,
  * so a forged session could at most render an empty queue.
  *
- * The `@rail` and `@scope` slots for this route carry the SAME gate: a parallel-route slot is its
- * own segment, so `notFound()` here does not by itself stop a sibling slot from rendering.
+ * Shell revamp phase 2 (2026-08-30): the `@rail`/`@scope` parallel-route slots this comment used
+ * to describe are deleted — `AdminCentre` now renders its own right-hand review-detail aside
+ * (`containers/admin-rail.tsx`) inline, as an ordinary component call inside this already-gated
+ * tree, so there is no longer a sibling segment that could bypass this gate.
  */
 export default async function AdminRoute() {
   const session = await readSession();

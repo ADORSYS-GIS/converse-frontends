@@ -2,9 +2,9 @@
 // not remount the chrome**.
 //
 // Before, every route imported a monolithic `*Page` that mounted its own
-// ConsoleShell/ConsoleHeader/NavSpine, so a route change rebuilt the entire shell. Now the shell
+// ConsoleShell/ConsoleSidebar/NavSpine, so a route change rebuilt the entire shell. Now the shell
 // is mounted once — by `apps/console/src/app/(console)/layout.tsx` for real, and by this story's
-// single `<ConsoleShell>` here — and only the centre (`children`) and the rail (`@rail`) swap.
+// single `<ConsoleShell>` here — and only the centre (`children`) swaps.
 //
 // This story reproduces that structure with two "routes" swapped by a nav click, and its `play`
 // function performs exactly the check the PR is judged on: stash a reference to the live nav DOM
@@ -17,8 +17,10 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
+import { ConsoleTopBar } from '../components/console-top-bar';
+import { ConsoleSidebar } from '../sections/console-sidebar';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
 import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
@@ -26,8 +28,14 @@ import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
 
-import { ScreenHeading } from '../sections/screen-heading';
-import { storyAdminNavItems, storyHeader, storyNavItems, type StoryRoute } from './shell-fixtures';
+import { PageHeader } from '../sections/page-header';
+import {
+  storyBrand,
+  storyNavGroups,
+  storyTopBarWorkspaceSwitcher,
+  storyWorkspaceSwitcher,
+  type StoryRoute,
+} from './shell-fixtures';
 
 /**
  * One shell, two routes. `route` stands in for the App Router's pathname: changing it swaps the
@@ -47,47 +55,62 @@ function PersistentShell() {
     if (key === 'overview' || key === 'manage') setRoute(key);
   };
 
-  const items = storyNavItems(route).map((item) => ({
-    ...item,
-    // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
-    // `href`s and Next's client-side navigation does the same swap.
-    href: undefined,
-    onSelect: navigate,
+  // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
+  // `href`s and Next's client-side navigation does the same swap.
+  const groups = storyNavGroups(route, false).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item, href: undefined, onSelect: navigate })),
   }));
 
   return (
     <ConsoleShell
-      header={storyHeader}
-      nav={{ items, adminItems: storyAdminNavItems(route), showAdmin: false }}
-      // Overview supplies NO rail; Manage supplies one. The rail column therefore unmounts and
-      // remounts across this navigation while the header and nav must not.
-      rightRail={
-        route === 'manage' ? (
-          <RailPanel label="Key hygiene">
-            <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
-          </RailPanel>
-        ) : undefined
+      sidebar={
+        <ConsoleSidebar
+          brand={storyBrand}
+          workspaceSwitcher={storyWorkspaceSwitcher}
+          groups={groups}
+          footer={<span />}
+        />
+      }
+      topBar={
+        <ConsoleTopBar
+          brand={storyBrand}
+          workspaceSwitcher={storyTopBarWorkspaceSwitcher}
+          identity={<span />}
+        />
       }>
       {route === 'overview' ? (
         <div className="flex flex-col gap-8">
-          <ScreenHeading title="Overview" subline="adorsys-gis · last 30 days · UTC" />
+          <PageHeader title="Overview" subtitle="adorsys-gis · last 30 days · UTC" />
           <OverviewStatRow cards={overviewStatCards} />
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          <ScreenHeading title="Manage" />
-          <ApiKeysLedger
-            keys={apiKeysFixture}
-            onDismissSecret={() => {}}
-            onRotate={() => {}}
-            onRequestRevoke={() => {}}
-            onConfirmRevoke={() => {}}
-            onCancelRevoke={() => {}}
-            isAdmin
-            onRequestDelete={() => {}}
-            onConfirmDelete={() => {}}
-            onCancelDelete={() => {}}
-          />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <PageHeader title="Manage" />
+            <ApiKeysLedger
+              keys={apiKeysFixture}
+              onDismissSecret={() => {}}
+              onRotate={() => {}}
+              onRequestRevoke={() => {}}
+              onConfirmRevoke={() => {}}
+              onCancelRevoke={() => {}}
+              isAdmin
+              onRequestDelete={() => {}}
+              onConfirmDelete={() => {}}
+              onCancelDelete={() => {}}
+            />
+          </div>
+
+          {/* Overview supplies no card here; Manage does — content that differs structurally
+              between routes while the chrome (`sidebar`/`topBar`) must not remount, reproduced
+              inside `children` now that the shell no longer owns a rail slot of its own (shell
+              brief 2026-08-30; owner review 2026-08-29 on why this pair is the harder case). */}
+          <div className="w-full lg:w-[280px] lg:flex-none">
+            <Card title="Key hygiene">
+              <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
+            </Card>
+          </div>
         </div>
       )}
     </ConsoleShell>

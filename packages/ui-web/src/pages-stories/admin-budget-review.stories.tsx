@@ -7,8 +7,8 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
 
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
 import type { ReviewDecision } from '../components/review-detail-panel';
 import { SelectionSheet } from '../components/selection-sheet';
 import { SubNav } from '../components/sub-nav';
@@ -19,8 +19,8 @@ import { gatewayProdHistory } from '../sections/review-detail-rail/fixtures';
 import { ReviewQueue } from '../sections/review-queue';
 import { pendingRequestsFixture } from '../sections/review-queue/fixtures';
 import type { AdminReviewTab, RefillRequestRow } from '../sections/review-queue';
-import { ScreenHeading } from '../sections/screen-heading';
-import { adminSubNavItems, storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+import { PageHeader } from '../sections/page-header';
+import { adminSubNavItems, storySidebar, storyTopBar } from './shell-fixtures';
 
 interface AdminScreenProps {
   pending?: RefillRequestRow[];
@@ -93,45 +93,51 @@ function AdminBudgetReviewScreen({
   );
 
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{
-        items: storyNavItems('admin'),
-        adminItems: storyAdminNavItems('admin'),
-        showAdmin: true,
-      }}
-      leftSecondary={
-        <RailPanel label="ADMIN">
-          <SubNav items={adminSubNavItems} />
-        </RailPanel>
-      }
-      leftSecondaryLabel="Admin"
-      rightRail={<RailPanel>{reviewRail}</RailPanel>}>
-      <div className="flex flex-col gap-6">
-        <ScreenHeading
-          title="Budget refill review"
-          subline={`${pendingRows.length} request${pendingRows.length === 1 ? '' : 's'} awaiting a decision${
-            pendingRows.length > 0 ? ` · oldest submitted ${pendingRows[0]?.submittedAgo}` : ''
-          }`}
-        />
+    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* The former `leftSecondary` ADMIN sub-nav — a plain `Card`, visible from `md`, the tier
+            the old rail persisted at (shell brief 2026-08-30 dropped the shell's own rail slot;
+            this screen has no sheet-trigger equivalent for it, so it simply doesn't render below
+            `md`, same as before). */}
+        <div className="hidden w-[208px] flex-none md:flex">
+          <Card title="Admin" className="w-full">
+            <SubNav items={adminSubNavItems} />
+          </Card>
+        </div>
 
-        <ReviewQueue
-          activeTab={tab}
-          onTabChange={setTab}
-          pendingCount={pendingRows.length}
-          decidedCount={26}
-          pending={pendingRows}
-          loading={loading}
-          error={error}
-          onRetry={() => {}}
-          selectedRequestId={selectedId}
-          onSelectRequest={(row) => setSelectedId(row.id)}
-        />
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <PageHeader
+            title="Budget refill review"
+            subtitle={`${pendingRows.length} request${pendingRows.length === 1 ? '' : 's'} awaiting a decision${
+              pendingRows.length > 0 ? ` · oldest submitted ${pendingRows[0]?.submittedAgo}` : ''
+            }`}
+          />
 
-        <DecisionsLedger
-          decisions={decisions}
-          pagination={{ shown: decisions.length, total: 26, hasPrev: false, hasNext: true }}
-        />
+          <ReviewQueue
+            activeTab={tab}
+            onTabChange={setTab}
+            pendingCount={pendingRows.length}
+            decidedCount={26}
+            pending={pendingRows}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            selectedRequestId={selectedId}
+            onSelectRequest={(row) => setSelectedId(row.id)}
+          />
+
+          <DecisionsLedger
+            decisions={decisions}
+            pagination={{ shown: decisions.length, total: 26, hasPrev: false, hasNext: true }}
+          />
+        </div>
+
+        {/* The former `rightRail` REVIEW detail — persistent only at `lg`, same as before; below
+            `lg` it stays reachable exclusively through the selection-driven `SelectionSheet`
+            below (it has no trigger of its own). */}
+        <div className="hidden lg:flex lg:w-[280px] lg:flex-none">
+          <Card className="w-full">{reviewRail}</Card>
+        </div>
       </div>
 
       {/* REVIEW has no trigger of its own — it is selection-driven. */}

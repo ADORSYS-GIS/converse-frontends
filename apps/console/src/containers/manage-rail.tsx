@@ -1,6 +1,6 @@
 'use client';
 
-import { RailPanel } from '@lightbridge/ui-web/src/components/rail-panel';
+import { Card } from '@lightbridge/ui-web/src/components/card';
 import {
   MANAGE_FILTERS_RAIL_LABEL,
   ManageFiltersRail,
@@ -17,21 +17,28 @@ import {
 import { ManageScopeSlot } from './manage-scope-slot';
 import { useManageScreen } from './use-manage-screen';
 
-/** `/manage` — the right rail, delivered through the `@rail` parallel-route slot. */
+/**
+ * `/manage`'s right-hand parameter stack — report, filters, and the selected project's detail.
+ *
+ * Shell revamp phase 2: rendered inline inside `ManageCentre`'s own `<aside>` at `lg` (the `@rail`
+ * parallel-route slot this used to fill is deleted along with `RailPanel`; `Card` is the console's
+ * one generic panel now — see `manage-centre.tsx`). // phase-3 removes: the whole right-hand aside
+ * pattern is temporary — a real right-rail replacement is designed in phase 3.
+ */
 export function ManageRail() {
   const screen = useManageScreen(<ManageScopeSlot />);
 
   return (
-    <>
-      <RailPanel label={MANAGE_REPORT_RAIL_LABEL}>
+    <div className="flex flex-col gap-3">
+      <Card title={MANAGE_REPORT_RAIL_LABEL}>
         <ManageReportRail {...screen.report} />
-      </RailPanel>
-      <RailPanel label={MANAGE_FILTERS_RAIL_LABEL}>
+      </Card>
+      <Card title={MANAGE_FILTERS_RAIL_LABEL}>
         <ManageFiltersRail {...screen.filters} />
-      </RailPanel>
-      <RailPanel label={MANAGE_SELECTION_RAIL_LABEL}>
+      </Card>
+      <Card title={MANAGE_SELECTION_RAIL_LABEL}>
         <ManageSelectionRail project={screen.selectedProject} />
-      </RailPanel>
-    </>
+      </Card>
+    </div>
   );
 }

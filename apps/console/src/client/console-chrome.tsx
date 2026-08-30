@@ -1,6 +1,7 @@
 'use client';
 
-import type { NavSpineItem } from '@lightbridge/ui-web';
+import type { NavGroup } from '@lightbridge/ui-web';
+import { AccountBadge } from '@lightbridge/ui-web/src/components/account-badge';
 import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
 import {
   CommandPalette,
@@ -10,36 +11,37 @@ import type {
   CommandPaletteGroup,
   CommandPaletteItem,
 } from '@lightbridge/ui-web/src/components/command-palette';
-import { ConsoleHeader } from '@lightbridge/ui-web/src/components/console-header';
+import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
+import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import { useCommandPaletteShortcut } from '@lightbridge/ui-web/src/lib/use-command-palette-shortcut';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
 import { useConsoleSession } from './session-context';
+import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
 import { signOut } from './sign-out';
 import { useOnlineStatus } from './use-online-status';
 
 /**
- * The chrome every console screen shares: the nav spine's items, the header identity slot, and the
- * offline status line.
+ * The chrome every console screen shares: the sidebar's brand/switcher/nav/footer, the mobile top
+ * bar's compact equivalents, and the command palette they both open.
  *
  * All of it is mounted **once**, by `app/(console)/layout.tsx` — never by a route (console-ui
  * skill "Composition"). Nothing here re-implements a `ui-web` primitive: it composes
- * `ConsoleHeader`, `NavSpineItem` and `InlineStatus` and supplies the app-specific data (routes,
- * identity, connectivity).
+ * `ConsoleSidebar`, `ConsoleTopBar`, `NavGroup`, `AccountBadge`, `AccountMenu`, `ThemeToggle` and
+ * `InlineStatus`, and supplies the app-specific data (routes, identity, connectivity).
  *
- * `ConsoleHeader`/`InlineStatus`/`AccountMenu` are imported from their own
- * `@lightbridge/ui-web/src/components/*` subpaths rather than the package's barrel on purpose:
- * a barrel import here would pull `index.ts`'s entire re-export graph — including the
+ * Subpath imports (`@lightbridge/ui-web/src/components/*`) rather than the package barrel are
+ * deliberate: a barrel import here would pull `index.ts`'s entire re-export graph — including the
  * `d3-scale`/`d3-shape`/`d3-array`-backed chart components only the Overview route renders — into
  * the shared layout chunk every route loads. Next's dev webpack build doesn't tree-shake unused
- * re-exports (that's a production-only optimization), so this is a real, measured cost.
- * `@lightbridge/ui-web`'s `package.json` already publishes a `"./src/*"` subpath export for
- * exactly this. Type-only imports (`NavSpineItem`) stay on the barrel — they erase at compile
- * time, so which module they're re-exported from is free.
+ * re-exports (that's a production-only optimization), so this is a real, measured cost. Type-only
+ * imports (`NavGroup`) stay on the barrel — they erase at compile time, so which module
+ * re-exports them costs nothing.
  */
 
 export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'settings' | 'admin';
@@ -82,58 +84,75 @@ function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'settings
   );
 }
 
-export function navItems(active: ConsoleRoute): NavSpineItem[] {
-  return [
-    {
-      key: 'overview',
-      label: 'Overview',
-      href: NAV_HREFS.overview,
-      icon: <NavGlyph shape="overview" />,
-      active: active === 'overview',
-    },
-    {
-      key: 'api-keys',
-      label: 'API keys',
-      href: NAV_HREFS['api-keys'],
-      icon: <NavGlyph shape="keys" />,
-      active: active === 'api-keys',
-    },
-    {
-      key: 'manage',
-      label: 'Manage',
-      href: NAV_HREFS.manage,
-      icon: <NavGlyph shape="manage" />,
-      active: active === 'manage',
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
-      href: NAV_HREFS.settings,
-      icon: <NavGlyph shape="settings" />,
-      active: active === 'settings',
-    },
-  ];
-}
-
 /**
- * The role-gated nav group — one entry, deliberately.
+ * The four fixed destinations plus the role-gated Operator group — shell brief (2026-08-30)
+ * "Nav groups". There is no more `adminItems`/`showAdmin`/`roleLabel` axis: a gated group is
+ * simply included or omitted from the array, and its own label row IS the role marker.
  *
- * It reads `Admin`, not `Budget review`, since `/admin` gained its operator overview: the route is
- * an AREA with a sub-nav (Overview · Refill requests, `containers/admin-sub-nav.tsx`), and naming
- * the top-level entry after one of its two sections would mislabel the other. Adding a second
- * top-level entry instead was the alternative, and rejected — the group's value is that it is
- * small enough to read as one thing an operator either has or does not.
+ * `/admin` reads "Admin", not "Budget review": the route is an area with its own section switch
+ * (operator overview · refill requests, now a horizontal tab row inside `AdminCentre` rather than
+ * a rail sub-nav — see `containers/admin-centre.tsx`), and naming the top-level entry after one of
+ * its two sections would mislabel the other.
  */
-export function adminNavItems(active: ConsoleRoute): NavSpineItem[] {
-  return [
+export function navGroups(active: ConsoleRoute, isAdmin: boolean): NavGroup[] {
+  const groups: NavGroup[] = [
     {
-      key: 'admin',
-      label: 'Admin',
-      href: NAV_HREFS.admin,
-      icon: <NavGlyph shape="admin" />,
-      active: active === 'admin',
+      key: 'workspace',
+      label: 'Workspace',
+      items: [
+        {
+          key: 'overview',
+          label: 'Overview',
+          href: NAV_HREFS.overview,
+          icon: <NavGlyph shape="overview" />,
+          active: active === 'overview',
+        },
+        {
+          key: 'manage',
+          label: 'Projects',
+          href: NAV_HREFS.manage,
+          icon: <NavGlyph shape="manage" />,
+          active: active === 'manage',
+        },
+        {
+          key: 'api-keys',
+          label: 'API keys',
+          href: NAV_HREFS['api-keys'],
+          icon: <NavGlyph shape="keys" />,
+          active: active === 'api-keys',
+        },
+      ],
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      items: [
+        {
+          key: 'settings',
+          label: 'Settings',
+          href: NAV_HREFS.settings,
+          icon: <NavGlyph shape="settings" />,
+          active: active === 'settings',
+        },
+      ],
     },
   ];
+  if (isAdmin) {
+    groups.push({
+      key: 'operator',
+      label: 'Operator',
+      items: [
+        {
+          key: 'admin',
+          label: 'Admin',
+          href: NAV_HREFS.admin,
+          icon: <NavGlyph shape="admin" />,
+          active: active === 'admin',
+        },
+      ],
+    });
+  }
+  return groups;
 }
 
 function initialsFor(name: string | undefined, email: string | undefined): string {
@@ -143,79 +162,63 @@ function initialsFor(name: string | undefined, email: string | undefined): strin
   return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
 }
 
-/**
- * Identity + connectivity, in the header's right-hand slot.
- *
- * Offline is reported as an inline mono status line, per the console-ui skill: no toast, no
- * banner, no modal. The cache is still serving the screen, so the message says exactly that.
- *
- * `ThemeToggle` sits beside `AccountMenu` as a visible one-click quick-cycle (dark -> light ->
- * system) -- `AccountMenu`'s own Dark/Light/System entries stay too, for explicit selection
- * including jumping straight to System. Both read the SAME `useConsoleTheme()` call below: the
- * hook's state lives in `localStorage`/`prefers-color-scheme` via `useSyncExternalStore`
- * (`apps/console/src/client/use-console-theme.ts`), not per-caller `useState`, so the toggle and
- * the menu can never disagree even though each is its own component instance.
- */
-export function ConsoleIdentity() {
-  const session = useConsoleSession();
-  const online = useOnlineStatus();
-  const { preference, setPreference } = useConsoleTheme();
-  const label = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+const BRAND = (
+  <>
+    <span className="header-logo" aria-hidden="true">
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      </svg>
+    </span>
+    <span className="header-wordmark">Lightbridge</span>
+  </>
+);
 
-  return (
-    <div className="flex items-center gap-4">
-      {online ? null : (
-        <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
-      )}
-      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-      <AccountMenu
-        name={session.user?.name}
-        email={label}
-        initials={initialsFor(session.user?.name, label)}
-        onSignOut={signOut}
-        theme={preference}
-        onThemeChange={setPreference}
-      />
-    </div>
+/**
+ * The workspace switcher's data — shared by the sidebar's full-width row and the top bar's
+ * compact one, since both are the SAME `AccountBadge` behaviour at two variants. Reads
+ * `allAccounts` (raw rows), NOT `accounts` (flattened to `{id, label}` by `accountScopeLabel`,
+ * which renders an unnamed account as "Unnamed account · <full uuid>"). Feeding that label to
+ * `AccountBadge` as `name` would put the raw UUID back AND append the short form beside it — the
+ * badge owns its own fallback; it needs the real `name`, or nothing.
+ */
+function useWorkspaceSwitcher() {
+  const consoleScope = useConsoleScope();
+  const activeAccount = consoleScope.allAccounts.find(
+    (account) => account.id === consoleScope.value.accountId
   );
+
+  return {
+    accountId: consoleScope.value.accountId,
+    name: activeAccount?.name,
+    initials: initialsFor(activeAccount?.name ?? undefined, undefined),
+    accounts: consoleScope.allAccounts.map((account) => ({ id: account.id, label: account.name })),
+    onSelectAccount: (accountId: string) => consoleScope.setValue({ accountId, projectId: null }),
+    onCopyId: (accountId: string) => {
+      // Best-effort: `navigator.clipboard` is undefined on insecure origins. A failed copy
+      // leaves the id in the tooltip, so there is nothing to recover.
+      void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
+    },
+  };
 }
 
 /**
- * `⌘K`/`Ctrl-K` command palette, mounted once alongside the shell it opens on
- * top of (console-ui skill "Composition": chrome mounts exactly once).
+ * `⌘K`/`Ctrl-K` command palette, mounted once alongside the shell it opens on top of (console-ui
+ * skill "Composition": chrome mounts exactly once) — the sidebar's search row and the top bar's
+ * palette icon both open the SAME instance, so the shortcut listener and the dialog state exist
+ * exactly once regardless of which chrome zone is visible at the current tier.
  *
- * `CommandPalette` itself is a pure, controlled `ui-web` component with no
- * routing knowledge -- `apps/console` supplies the routes and actions. Only
- * **Navigate** and **Sign out** are wired here, not the full "New key /
- * Generate report / Request refill / Sign out" action set the console-ui skill
- * sketches as an example: those three route-scoped actions each fail the
- * "existing flow" bar this task set —
- *   - `New key` *creates a real key* (`useApiKeysScreen().createKey`), but the
- *     one-time secret it returns is only ever rendered by `ApiKeysLedger`
- *     inside `ApiKeysCentre`, which mounts exclusively on `/api-keys`. Firing
- *     it from another route would create a real credential with literally no
- *     UI anywhere to show or copy it -- worse than a stub, a silent data-loss
- *     footgun, so it stays a per-route action (the rail + heading buttons).
- *   - `Generate report` (`useManageScreen().report.onGenerate`) is itself
- *     already an honest placeholder in `apps/console` today -- it patches a
- *     notice reading "needs the consumption report route ... not wired yet".
- *     There is no real flow to reuse yet.
- *   - `Request refill` has no `onRequestRefill` wired anywhere in
- *     `apps/console` (`BudgetPanel`'s prop is never passed).
- * Per this task's own instruction ("omit actions that have no wired flow
- * rather than stubbing dead items"), all three are omitted here. Revisit once
- * report export ships and the secret-reveal surface is lifted above the
- * per-route centre.
+ * Only **Navigate** and **Sign out** are wired — see the git history of this file for the fuller
+ * "New key / Generate report / Request refill" candidates this task considered and rejected, each
+ * for lacking a wired flow to reuse rather than stub.
  */
-function ConsolePalette() {
+export function useConsolePalette() {
   const router = useRouter();
   const session = useConsoleSession();
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — ephemeral interaction state). The palette is a
    * launcher, not a view: it describes nothing about what the user is looking at, it is dismissed
    * by Escape or by the first selection, and `?palette=open` in a shared link would pop a modal
-   * over someone else's screen for no reason. Contrast the section sheets, which ARE in the URL
-   * (`?sheet=`) because they carry the screen's own view parameters.
+   * over someone else's screen for no reason.
    */
   const [open, setOpen] = useState(false);
   useCommandPaletteShortcut(setOpen);
@@ -245,20 +248,116 @@ function ConsolePalette() {
     ];
   }, [router, session.isAdmin]);
 
+  return { open, setOpen, groups };
+}
+
+export function ConsolePaletteDialog({
+  open,
+  onOpenChange,
+  groups,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  groups: CommandPaletteGroup[];
+}) {
+  return <CommandPalette open={open} onOpenChange={onOpenChange} groups={groups} />;
+}
+
+/**
+ * The persistent left sidebar's content — brand, workspace switcher, nav groups, and a footer
+ * stack (search/palette trigger, theme, offline status, identity). `ConsoleSidebar` (`ui-web`)
+ * renders both this and the mobile bottom-nav dock from the same `groups`.
+ */
+export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
+  const pathname = usePathname();
+  const session = useConsoleSession();
+  const online = useOnlineStatus();
+  const { preference, setPreference } = useConsoleTheme();
+  const switcher = useWorkspaceSwitcher();
+  const route = routeFromPathname(pathname);
+  const identityLabel = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+
   return (
-    <>
-      <CommandPaletteTrigger onClick={() => setOpen(true)} />
-      <CommandPalette open={open} onOpenChange={setOpen} groups={groups} />
-    </>
+    <ConsoleSidebar
+      brand={BRAND}
+      workspaceSwitcher={
+        <AccountBadge
+          variant="sidebar"
+          accountId={switcher.accountId}
+          name={switcher.name}
+          initials={switcher.initials}
+          accounts={switcher.accounts}
+          onSelectAccount={switcher.onSelectAccount}
+          onCopyId={switcher.onCopyId}
+        />
+      }
+      groups={navGroups(route, session.isAdmin)}
+      linkComponent={Link}
+      footer={
+        <>
+          <button type="button" onClick={onOpenPalette} className="sidebar-footer-row">
+            <span className="font-sans text-[13px] text-subtle">Search</span>
+            <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
+          </button>
+          <div className="sidebar-footer-row">
+            <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
+            <span className="font-sans text-[13px] text-subtle">Theme</span>
+          </div>
+          {online ? null : (
+            <div className="sidebar-footer-row">
+              <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
+            </div>
+          )}
+          <div className="sidebar-footer-row">
+            <AccountMenu
+              name={session.user?.name}
+              email={identityLabel}
+              initials={initialsFor(session.user?.name, identityLabel)}
+              onSignOut={signOut}
+              theme={preference}
+              onThemeChange={setPreference}
+            />
+          </div>
+        </>
+      }
+    />
   );
 }
 
-export function ConsoleHeaderBar({ orgSwitcher }: { orgSwitcher?: React.ReactNode }) {
+/**
+ * The mobile/tablet top bar's content — brand, a compact workspace switcher, the palette trigger
+ * and the identity avatar. Below `md`, this replaces the sidebar entirely (nav lives in the
+ * bottom dock `ConsoleSidebar` renders alongside the persistent sidebar).
+ */
+export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
+  const session = useConsoleSession();
+  const { preference, setPreference } = useConsoleTheme();
+  const switcher = useWorkspaceSwitcher();
+  const identityLabel = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+
   return (
-    <ConsoleHeader
-      orgSwitcher={orgSwitcher}
-      paletteTrigger={<ConsolePalette />}
-      identity={<ConsoleIdentity />}
+    <ConsoleTopBar
+      brand={BRAND}
+      workspaceSwitcher={
+        <AccountBadge
+          accountId={switcher.accountId}
+          name={switcher.name}
+          accounts={switcher.accounts}
+          onSelectAccount={switcher.onSelectAccount}
+          onCopyId={switcher.onCopyId}
+        />
+      }
+      paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}
+      identity={
+        <AccountMenu
+          name={session.user?.name}
+          email={identityLabel}
+          initials={initialsFor(session.user?.name, identityLabel)}
+          onSignOut={signOut}
+          theme={preference}
+          onThemeChange={setPreference}
+        />
+      }
     />
   );
 }

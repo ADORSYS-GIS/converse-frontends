@@ -1,57 +1,35 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { Button } from '../../components/button';
 import { DateRangeField } from '../../components/date-range-field';
 import { SelectField } from '../../components/select-field';
-import { LABEL_CLASS } from '../../lib/type-roles';
 import type { OverviewControlsProps } from './types';
 
-// The Overview screen's parameters, stacked in the LEFT rail beneath the nav (owner, 2026-08-29).
+// Shell brief (2026-08-30) — the Overview screen's parameters, now a HORIZONTAL compact cluster in
+// `PageHeader.controls` rather than a stack in the left rail: the rail is gone (the sidebar is
+// navigation only now), and every screen's own knobs move to its `PageHeader` instead. Every
+// field takes `layout="inline"` — label beside a content-sized control — so five fields read as
+// one row instead of five stacked columns.
 //
-// They were briefly a horizontal strip in the content column, which was wrong twice over: it ate
-// the top of the screen for chrome, and it ignored a 208px rail that was already reserved and
-// 80% empty. One rail now carries navigation AND the screen's controls; the content column is
-// content only, full width.
-//
-// Not here, deliberately: Account (identity — the header's `AccountBadge`) and Series (the chart
-// draws its own legend, and the share bar lists the same series again).
+// Not here, deliberately: Account (identity — the sidebar's workspace switcher), Model (deleted
+// this phase — `MODEL_OPTIONS` was a single, permanently-inert "All models" entry with nothing
+// behind it) and Export (deleted this phase — a permanently-disabled action with no real flow;
+// export gets wired for real in phase 4, at which point it becomes `PageHeader.action`, not a
+// field in this cluster).
 export function OverviewControls({
   rangeField,
   bucketField,
   groupByField,
   projectField,
-  modelField,
-  onExport,
-  exportLabel = 'Export CSV',
-  exportDisabledReason,
   className,
 }: OverviewControlsProps) {
   return (
-    <section aria-label="View and filters" className={cn('flex flex-col gap-4', className)}>
-      <DateRangeField {...rangeField} />
-      <SelectField {...bucketField} />
-      <SelectField {...groupByField} />
+    <section aria-label="View and filters" className={cn('flex flex-wrap items-end gap-3', className)}>
+      <DateRangeField {...rangeField} layout="inline" />
+      <SelectField {...bucketField} layout="inline" />
+      <SelectField {...groupByField} layout="inline" />
       {/* Omitted entirely, never rendered disabled — see `OverviewControlsProps.projectField`. */}
-      {projectField ? <SelectField {...projectField} /> : null}
-      {modelField ? <SelectField {...modelField} /> : null}
-
-      {onExport || exportDisabledReason ? (
-        <div className="flex flex-col gap-1.5">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            disabled={!onExport}
-            title={exportDisabledReason}
-            onClick={onExport}>
-            {exportLabel}
-          </Button>
-          {!onExport && exportDisabledReason ? (
-            <span className={LABEL_CLASS}>{exportDisabledReason}</span>
-          ) : null}
-        </div>
-      ) : null}
+      {projectField ? <SelectField {...projectField} layout="inline" /> : null}
     </section>
   );
 }

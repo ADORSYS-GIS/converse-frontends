@@ -22,7 +22,7 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
+import { PageHeader } from '../sections/page-header';
 import { RefineMockShell } from './shared-chrome';
 
 function randomSecret(): string {
@@ -119,23 +119,32 @@ export function RefineApiKeysScreen() {
     // create action are the toolbar's and the ledger's now.
     <RefineMockShell active="api-keys">
       <div className="flex flex-col gap-6">
-        <ScreenHeading title="API keys" />
-
-        <ApiKeysControls
-          projectField={{
-            label: 'Project',
-            value: project,
-            options: API_KEY_PROJECT_OPTIONS,
-            onChange: setProject,
-          }}
-          statusOptions={API_KEY_STATUS_OPTIONS}
-          statusValue={statusFilterValue}
-          onStatusChange={setStatusFilterValue}
-          search={search}
-          onSearchChange={setSearch}
-          onCreate={project === 'all' ? undefined : createKey}
-          createDisabledReason={
-            project === 'all' ? 'Select a project to create a key.' : undefined
+        <PageHeader
+          title="API keys"
+          controls={
+            <ApiKeysControls
+              projectField={{
+                label: 'Project',
+                value: project,
+                options: API_KEY_PROJECT_OPTIONS,
+                onChange: setProject,
+              }}
+              statusOptions={API_KEY_STATUS_OPTIONS}
+              statusValue={statusFilterValue}
+              onStatusChange={setStatusFilterValue}
+              search={search}
+              onSearchChange={setSearch}
+            />
+          }
+          action={
+            <Button
+              type="button"
+              variant="primary"
+              disabled={project === 'all'}
+              title={project === 'all' ? 'Select a project to create a key.' : undefined}
+              onClick={project === 'all' ? undefined : createKey}>
+              + New key
+            </Button>
           }
         />
 

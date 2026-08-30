@@ -11,8 +11,8 @@
 import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Button } from '../components/button';
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
@@ -32,8 +32,8 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
-import { ScreenHeading } from '../sections/screen-heading';
-import { storyAdminNavItems, storyHeader, storyNavItems } from './shell-fixtures';
+import { PageHeader } from '../sections/page-header';
+import { storySidebar, storyTopBar } from './shell-fixtures';
 
 interface ApiKeysScreenProps {
   keys?: ApiKeyRow[];
@@ -77,39 +77,43 @@ function ApiKeysScreen({
   const hygiene = useMemo(() => (keys.length > 0 ? apiKeysHygiene : undefined), [keys.length]);
 
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{
-        items: storyNavItems('api-keys'),
-        adminItems: storyAdminNavItems('api-keys'),
-        showAdmin,
-      }}
-      leftSecondaryLabel="Keys"
-      leftSecondary={
-        <RailPanel label="Keys">
-  <ApiKeysControls
-            projectField={{
-              label: 'Project',
-              value: project,
-              options: API_KEY_PROJECT_OPTIONS,
-              onChange: setProject,
-            }}
-            statusOptions={API_KEY_STATUS_OPTIONS}
-            statusValue={statusFilterValue}
-            onStatusChange={setStatusFilterValue}
-            search={search}
-            onSearchChange={setSearch}
-            onCreate={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}
-            createDisabledReason={canCreate ? undefined : 'Select a project to create a key.'}
-          />
-        </RailPanel>
-      }>
-      {/* No `leftSecondary` and no `rightRail`. Scope is the header's (account) and the toolbar's
-          (project); there is nothing left for either rail to hold. */}
+    <ConsoleShell sidebar={storySidebar('api-keys', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+      {/* No aside column here either — this screen has no rail content at any tier (owner review
+          2026-08-29). Scope is the sidebar's (account) and the toolbar's (project); there is
+          nothing left for a rail to hold. Filters live in `PageHeader.controls`; `+ New key` is
+          `PageHeader.action`, the emphasised, right-most control on the title row (shell brief
+          2026-08-30). */}
       <div className="flex flex-col gap-6">
         {/* "API keys", not "Api-Keys" — the old title was the route slug run through a title-caser,
             which disagreed with the nav item sitting right beside it. */}
-        <ScreenHeading title="API keys" />
+        <PageHeader
+          title="API keys"
+          controls={
+            <ApiKeysControls
+              projectField={{
+                label: 'Project',
+                value: project,
+                options: API_KEY_PROJECT_OPTIONS,
+                onChange: setProject,
+              }}
+              statusOptions={API_KEY_STATUS_OPTIONS}
+              statusValue={statusFilterValue}
+              onStatusChange={setStatusFilterValue}
+              search={search}
+              onSearchChange={setSearch}
+            />
+          }
+          action={
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!canCreate}
+              title={canCreate ? undefined : 'Select a project to create a key.'}
+              onClick={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}>
+              + New key
+            </Button>
+          }
+        />
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}
 

@@ -1,31 +1,59 @@
 'use client';
 
+import { Button } from '@lightbridge/ui-web/src/components/button';
 import { CreateApiKeyDialog } from '@lightbridge/ui-web/src/components/create-api-key-dialog';
+import { ApiKeysControls } from '@lightbridge/ui-web/src/sections/api-keys-controls';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { ApiKeysLedger } from '@lightbridge/ui-web/src/sections/api-keys-ledger';
-import { ScreenHeading } from '@lightbridge/ui-web/src/sections/screen-heading';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { useApiKeysScreen } from './use-api-keys-screen';
 
 /**
  * `/api-keys` — the centre column. The shell is mounted once, in `app/(console)/layout.tsx`.
  *
- * Since the owner review of 2026-08-29 this route supplies no `@rail` and no `@scope` slot: every
- * parameter and the create action live in the LEFT rail (`@scope`). `+ New key` appears exactly
- * ONCE — it used to be rendered twice (rail at `lg`, title row below) with two disabled-state code
- * paths to keep in agreement.
+ * Shell revamp phase 2: every parameter lives in `PageHeader.controls` (`ApiKeysControls`,
+ * horizontal) now — the left rail it used to live in is gone. `+ New key` is `PageHeader.action`,
+ * the emphasised, right-most control on the title row — it appears exactly ONCE, same invariant
+ * the pre-revamp rail/title-row split existed to protect, just relocated.
  *
  * `CreateApiKeyDialog` (ticket #319) still mounts exactly once here, the same "one zone owns the
  * dialog" rule `TypedConfirmDialog` follows for Revoke/Delete.
  */
 export function ApiKeysCentre() {
   const screen = useApiKeysScreen();
+  const subtitle = screen.scopeAccountLabel
+    ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel}`
+    : undefined;
 
   return (
     <div className="flex flex-col gap-6">
       {/* "API keys", not "Api-Keys": the old title was this route's slug run through a
           title-caser, and disagreed with the nav item sitting beside it. */}
-      <ScreenHeading title="API keys" />
+      <PageHeader
+        title="API keys"
+        subtitle={subtitle}
+        controls={
+          <ApiKeysControls
+            projectField={screen.projectField}
+            statusOptions={screen.statusFilterOptions}
+            statusValue={screen.statusFilterValue}
+            onStatusChange={screen.setStatusFilter}
+            search={screen.search}
+            onSearchChange={screen.setSearch}
+          />
+        }
+        action={
+          <Button
+            type="button"
+            variant="primary"
+            disabled={!screen.createKeyEligible}
+            title={screen.createKeyReason}
+            onClick={screen.createKey}>
+            + New key
+          </Button>
+        }
+      />
 
       <ApiKeysHygieneNotes hygiene={screen.hygiene} />
 

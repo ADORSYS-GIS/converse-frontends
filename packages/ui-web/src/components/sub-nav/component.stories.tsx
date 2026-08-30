@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { RailPanel } from '../rail-panel';
+import { Card } from '../card';
 import { SubNav } from './component';
 import type { SubNavItem } from './types';
 
@@ -18,9 +18,9 @@ const meta: Meta<typeof SubNav> = {
   decorators: [
     (Story) => (
       <div className="w-52">
-        <RailPanel label="MANAGE">
+        <Card title="MANAGE">
           <Story />
-        </RailPanel>
+        </Card>
       </div>
     ),
   ],

@@ -53,7 +53,7 @@ function ThemeGlyph({ preference }: { preference: ThemeTogglePreference }) {
   );
 }
 
-// Contract: the console-ui skill's "the toggle lives in `ConsoleHeader`" (ADR 0010 Decision 5) --
+// Contract: shell revamp phase 2 (2026-08-30) — the toggle lives in the sidebar footer / top bar now (ADR 0010 Decision 5 superseded) --
 // the `AccountMenu` Dark/Light/System entries stay (explicit selection), but they are buried
 // behind the account trigger; this is the visible quick-cycle in the header's right cluster
 // beside `CommandPaletteTrigger`/`AccountMenu`. A single click advances the SAME preference state

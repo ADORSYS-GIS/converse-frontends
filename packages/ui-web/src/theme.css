@@ -437,28 +437,16 @@
 }
 
 /*
- * ─── The header band and its identity affordances ────────────────────────────────────────────
+ * ─── The sidebar/top-bar brand and identity affordances ──────────────────────────────────────
  *
- * NO UPSTREAM: daisy `navbar` is a padded, min-height flex bar with its own start/center/end slot
- * model, and the console's header is a fixed 56px chrome band that both rails stick to. The
- * behaviour arrives through slots instead — the caller passes Base UI-driven switchers — so this
- * is the band and nothing else.
- *
- * `--focus-gap` is set HERE rather than on the controls inside: the focus ring's 1px gap is the
- * colour of the surface behind the control, and that is a fact about the band. Before this, the
- * one control that remembered (`AccountBadge`) carried its own `ring-offset-chrome`, and every
- * other focusable thing in the header punched a floor-coloured gap through it.
+ * Revamp phase 2 (shell brief, 2026-08): the 56px header band (`console-header`) is dead — the
+ * shell is a sidebar plus a mobile top bar now, and both carry the SAME brand mark. `header-brand`
+ * / `header-logo` survive under their old names (they were never about the band itself, only
+ * about the logo unit), `header-wordmark` moves from the header's mono/tracked treatment to the
+ * sidebar brief's own "13px sans medium ink, sentence case" (mono-everywhere is dead along with
+ * the band it lived in), and `header-rule` is gone — the brand and the workspace switcher are two
+ * stacked rows now, not two items either side of a vertical divider.
  */
-@utility console-header {
-  --focus-gap: var(--color-neutral);
-  display: flex;
-  /* 56px — the number ConsoleShell's sticky rails offset themselves by. */
-  height: 3.5rem;
-  align-items: center;
-  gap: 1rem;
-  padding-inline: 1.25rem;
-  background-color: var(--color-neutral);
-}
 
 /* Logo and wordmark, one unit. 12px apart — a step wider than `identity-row`'s 8px, because this
    pair is a mark and its name rather than two related strings. */
@@ -485,21 +473,13 @@
   }
 }
 
-/* The wordmark is a BRAND mark, not a `label`: the console-ui skill's ban on uppercase applies to
-   labels, and the tracking exists to make these caps legible at 12px. */
+/* The wordmark, sentence case, sans (shell brief 2026-08-30 — supersedes the old mono/tracked
+   caps treatment the 56px header band wore; mono-everywhere is dead along with that band). */
 @utility header-wordmark {
   color: var(--color-ink);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-}
-
-/* The one place a `border`-toned stroke is right outside a form control: a vertical rule parting
-   two identity affordances inside a single band. */
-@utility header-rule {
-  height: 1.5rem;
-  width: 1px;
-  background-color: var(--color-border);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 /* The identity line — a name, then the short id beside it. Worn plain when the badge is only a
@@ -687,83 +667,155 @@
 /*
  * ─── The shell's chrome ──────────────────────────────────────────────────────────────────────
  *
- * `console-shell`'s own boxes. NO UPSTREAM by construction (PRIMITIVES.md rejects daisy `drawer`:
- * a CSS-grid sidebar cannot be sticky, independently scrollable and flush under the header at
- * once), so these are the console's geometry with nothing to inherit. The COLUMN grid stays in
- * `lib/shell-grid.ts` beside `rail-grid.ts` — this is the chrome that wraps those columns.
+ * `console-shell`'s own boxes. Revamp phase 2 (shell brief, 2026-08): the three-rail, header-band
+ * shell is dead. The shape is now two columns — a persistent `ConsoleSidebar` at `md`+, a single
+ * stretching content column — with a mobile-only top bar and the existing bottom navigation dock
+ * replacing the sidebar below `md`. NO UPSTREAM by construction (PRIMITIVES.md rejects daisy
+ * `drawer`: a CSS-grid sidebar cannot be sticky, independently scrollable and flush at once), so
+ * these are the console's geometry with nothing to inherit. The zone-level grid (sidebar width,
+ * top-bar height, centre padding) stays in `lib/shell-grid.ts` beside `rail-grid.ts` — this is
+ * the chrome that wraps those zones.
  */
 @utility shell-root {
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
   background-color: var(--color-base-100);
-}
 
-/* Header, console-wide banner and the mobile-only `leftSecondary` trigger stick as ONE block, so
-   the banner can never scroll out from under the header it belongs to. */
-@utility shell-chrome-stack {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-neutral);
-}
-
-@utility shell-secondary-trigger-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  border-block-start: 1px solid var(--color-base-300);
-}
-
-/* The trigger inside that bar wears the shared `label` role for its type; only the hover
-   affordance and the gap to its chevron are local. */
-@utility shell-secondary-trigger {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-
-  &:hover {
-    color: var(--color-ink);
+  /* Side by side at `md`+, where the sidebar is visible; stacked below it, where the top bar and
+     the content column are the only two blocks (the sidebar renders `hidden` at this tier, not
+     absent — see `SIDEBAR_CLASS` — so the row/column choice only matters once it is visible). */
+  @media (width >= theme(--breakpoint-md)) {
+    flex-direction: row;
   }
 }
 
-/* Below the chrome stack: both rails are fixed-width and non-flexing, and the centre is the only
-   stretching zone. `align-items: flex-start` is what lets each rail be its own sticky column
-   rather than being stretched to the row's height. */
-@utility shell-columns {
+/* The content column: top bar (mobile-only), then the centre's own padded main, stacked. Owns no
+   width itself — `SHELL_CENTRE_CLASS` on `<main>` is the only place `flex-1 min-w-0` is stated. */
+@utility shell-content-column {
   display: flex;
-  flex: 1;
-  align-items: flex-start;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
 }
 
-/* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it.
-   56px matches the header it mirrors. */
+/* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it. */
 @utility shell-dock-band {
   position: fixed;
   inset-inline: 0;
   bottom: 0;
   z-index: 40;
   height: 3.5rem;
-  background-color: var(--color-neutral);
+  background-color: var(--color-chrome);
+  border-top: 1px solid var(--color-raised);
 }
 
 /*
- * A full-bleed message band inside the shell's sticky chrome stack — today `MutationFailureBanner`,
- * which was nine hand-written utilities on a single line and the largest single wall in the chrome
- * set. daisy `alert` stays REJECTED for it (PRIMITIVES.md § "not adopted": bordered, iconed,
- * rounded); this is a band, not a box, so there was no daisy class to adopt and the wall had to
- * become a named part instead.
+ * ─── ConsoleSidebar's own rows ───────────────────────────────────────────────────────────────
+ *
+ * `ConsoleSidebar` (sections/console-sidebar) is a flat container — `SIDEBAR_CLASS`
+ * (lib/shell-grid.ts) owns the column itself (width/fill/edge/scroll); these five parts are its
+ * internal rows, top to bottom: brand, workspace switcher, the nav list (`NavSpine`'s own
+ * business, not styled here), a spacer, and the footer stack.
+ */
+@utility sidebar-brand-row {
+  display: flex;
+  height: 3.25rem; /* ~52px, per the shell brief */
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 1rem;
+}
+
+@utility sidebar-switcher-row {
+  flex-shrink: 0;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+/* The nav list's own scroller — everything between the switcher and the footer. */
+@utility sidebar-nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+@utility sidebar-footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  border-block-start: 1px solid var(--color-raised);
+  padding: 0.5rem;
+}
+
+/* One row of the footer stack (search, theme, offline, identity) — a 36px hit target with a hover
+   fill, label at the leading edge and a trailing control/marker. Not every row is interactive
+   (the offline line is a status, not a button), so this is a layout/paint utility, not a `<button>`
+   contract — `SidebarFooterRow`'s call sites choose the element. */
+@utility sidebar-footer-row {
+  display: flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-field);
+  padding-inline: 0.5rem;
+  transition: background-color 0.15s ease-out;
+
+  &:where(button, a):hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+/* The workspace switcher itself — `AccountBadge`'s `variant="sidebar"` — a full-width row with
+   the same 36px/hover contract as the footer rows, so every interactive row in the sidebar reads
+   as one family. */
+@utility workspace-switcher-row {
+  display: flex;
+  height: 2.25rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-field);
+  padding-inline: 0.5rem;
+  transition: background-color 0.15s ease-out;
+
+  &:hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+/* A nav group's own label row — sentence case, 12px sans `subtle` (the `label` role), with a
+   leading hairline for every group after the first so groups read as visually separated without
+   a heavier rule. Supersedes the deleted `rail-role-marker`: there is no more single "Admin" group
+   singled out with its own marker — every group, including the operator one, gets the SAME
+   optional label row, which is the shell brief's own "the group label IS the role marker". */
+@utility sidebar-group-label {
+  display: flex;
+  align-items: center;
+  height: 1.75rem; /* 28px — the shell brief's own "group-label height 28" */
+  padding-inline: 0.75rem;
+
+  &:not(:first-child) {
+    margin-block-start: 0.25rem;
+    border-block-start: 1px solid var(--color-raised);
+  }
+}
+
+/*
+ * A full-bleed message band, sticky at the top of the content column — today
+ * `MutationFailureBanner`, which was nine hand-written utilities on a single line and the largest
+ * single wall in the chrome set. daisy `alert` stays REJECTED for it (PRIMITIVES.md §
+ * "not adopted": bordered, iconed, rounded); this is a band, not a box, so there was no daisy
+ * class to adopt and the wall had to become a named part instead.
  *
  * Every clause is a fact about the BAND rather than about any one message:
- *  - `chrome` fill, never `surface` and never a `primary` one. The band sits in the header's own
- *    chrome stack rather than floating as a panel, and ADR 0008 has no large signal fills.
+ *  - `chrome` fill, never `surface` and never a `primary` one. The band sits in the shell's own
+ *    chrome rather than floating as a panel, and ADR 0008 has no large signal fills.
  *  - A `raised` hairline on the leading edge only — the same rule that separates any two chrome
  *    sections, never a full border.
  *  - Gutters that TRACK THE CENTRE COLUMN's, so a message lines up with the content it is about.
- *    That is `lib/shell-grid.ts`'s `px-4 md:px-6`, and the tier step is why this is shared CSS: a
+ *    That is `lib/shell-grid.ts`'s `px-4 md:px-8`, and the tier step is why this is shared CSS: a
  *    breakpoint variant restated per banner is a second, driftable copy of the shell's gutter.
  */
 @utility chrome-band {
@@ -776,7 +828,7 @@
   background-color: var(--color-chrome);
 
   @media (width >= theme(--breakpoint-md)) {
-    padding-inline: 1.5rem;
+    padding-inline: 2rem;
   }
 }
 
@@ -1839,9 +1891,10 @@
  * `Tooltip`'s trigger shipped the ring with no gap at all.
  *
  * The gap colour is a fact about the BAND, not about the control, so it reads a variable the band
- * sets. Default `surface` (a panel, where most focusable chrome lives); `ConsoleHeader` sets
- * `--focus-gap` to `chrome` for its own row, which is what a lone `ring-offset-chrome` used to say
- * at the one call site that remembered to say it.
+ * sets. Default `surface` (a panel, where most focusable chrome lives); the sidebar and the top
+ * bar (`SIDEBAR_CLASS`/`TOP_BAR_CLASS`, lib/shell-grid.ts) each set `--focus-gap` to `chrome` for
+ * their own zone, which is what a lone `ring-offset-chrome` used to say at the one call site that
+ * remembered to say it.
  */
 @utility focus-ring {
   /* The ring is a box-shadow, so it traces the element's OWN radius — declared here rather than
@@ -1875,15 +1928,18 @@
  * element) on the way past.
  *
  * The GRID — bleed, row padding, icon column, label gap, row height — deliberately does NOT move
- * here. It stays in `lib/rail-grid.ts`, a numeric model `RailPanel`'s section label also builds
- * from; splitting it across two languages is how it drifted the first time.
+ * here. It stays in `lib/rail-grid.ts`, a numeric model this and `NavSpine`'s sidebar layout both
+ * build from; splitting it across two languages is how it drifted the first time.
+ *
+ * Type: sans, 13px (shell brief 2026-08-30 — supersedes the earlier mono treatment; nav/sub-nav
+ * rows are UI chrome, not data, and mono-everywhere is dead).
  */
 @utility rail-row {
   position: relative;
   display: flex;
   align-items: center;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
   transition:
     color 0.15s ease-out,
     background-color 0.15s ease-out;
@@ -1946,40 +2002,6 @@
 }
 
 /*
- * The `ROLE` marker above the admin group — a hairline rule, then the label, on daisy's
- * `menu-title` (which is how `menu` is told a row is not a nav row, so its own
- * `li:not(.menu-title)` selectors leave this one alone). The label is the marker's own text and
- * the rule is pure decoration, so the rule is a pseudo-element and the marker is one node.
- *
- * `flex-direction: row` is NOT redundant here, and omitting it fails silently rather than loudly:
- * daisy's `menu` lays its rows out as COLUMNS, and `display: flex` alone inherits that. In a
- * column the rule's `flex: 1` grows it along the HEIGHT of a row whose height is just its text —
- * so it resolves to 0x0 and vanishes, while the label, still technically "spaced between", sits
- * mid-row. Found live in Storybook by reading the rule's own computed box (0x0) and then its
- * parent's `flex-direction`, never from the class list; a pseudo-element is exactly where this
- * hides, because there is no node in the inspector to click.
- */
-@utility rail-role-marker {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--color-subtle);
-
-  &::before {
-    content: '';
-    height: 1px;
-    flex: 1;
-    background-color: var(--color-base-300);
-  }
-}
-
-/*
  * The mobile-first (<600) bottom navigation dock — the rail rotated onto the bottom edge
  * (console-ui skill "Shape and layout"): icon above a 10px label, active = `primary` text and a
  * 2px `signal` bar on the TOP edge, the left bar rotated the same way the sheet direction is.
@@ -2027,7 +2049,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.625rem;
   transition: color 0.15s ease-out;
 

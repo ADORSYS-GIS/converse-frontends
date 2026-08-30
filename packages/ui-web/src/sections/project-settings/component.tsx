@@ -67,7 +67,7 @@ export function ProjectSettings({
 
           The `label` role, NOT `panel-title`: `AccountPanel` heads the section directly above this
           one with the same role, and two peer sections on one screen whose headings differ by a
-          type step read as a hierarchy that is not there. The page's own heading is `ScreenHeading`
+          type step read as a hierarchy that is not there. The page's own heading is `PageHeader`
           above both. */}
       <h2 className={LABEL_CLASS}>{PROJECT_SETTINGS_LABEL}</h2>
 

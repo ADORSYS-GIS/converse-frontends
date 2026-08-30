@@ -27,7 +27,7 @@ const THEME_OPTIONS: { value: AccountMenuTheme; label: string }[] = [
 // narrower treatment.
 const THEME_ITEM_CLASS = cn(META_CLASS, 'theme-choice');
 
-// Contract: docs/design/console-redesign/README.md §4 ConsoleHeader "account menu" + the
+// Contract: shell revamp phase 2 (2026-08-30) — the sidebar footer / top bar "account menu" +
 // console-ui skill (ADR 0010 Decision 2: Base UI owns behaviour — Menu here, never a hand-written
 // focus trap or roving tabindex). The avatar and email identity block already in the header IS
 // the trigger, so nothing about the header's visual footprint changes when this menu closes.

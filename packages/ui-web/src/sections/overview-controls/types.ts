@@ -13,19 +13,13 @@ export interface OverviewControlsProps {
   groupByField: OverviewControlsField;
   /**
    * Which slice the dashboards are drawn from. Account is NOT here — scope is identity, and it
-   * lives in the header (see this section's docstring).
+   * lives in the sidebar's workspace switcher (see this section's docstring).
    *
-   * Both are optional so a screen whose whole point is "every project, unsliced" can omit them
-   * rather than render a filter it must then ignore: the admin overview is account-wide by
-   * definition, and a project picker there would offer a narrowing the screen refuses to apply.
-   * Omitted means "not rendered at all" — never a disabled or dead control.
+   * Optional so a screen whose whole point is "every project, unsliced" can omit it rather than
+   * render a filter it must then ignore: the admin overview is account-wide by definition, and a
+   * project picker there would offer a narrowing the screen refuses to apply. Omitted means "not
+   * rendered at all" — never a disabled or dead control.
    */
   projectField?: OverviewControlsField;
-  modelField?: OverviewControlsField;
-  /** Omit to render no export affordance at all — never render a dead control. */
-  onExport?: () => void;
-  exportLabel?: string;
-  /** Why export is unavailable. When set, the action renders disabled with this as its title. */
-  exportDisabledReason?: string;
   className?: string;
 }

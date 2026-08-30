@@ -4,13 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { presetRange } from '../../components/date-range-field';
 import { OverviewControls } from './component';
 import type { OverviewControlsField } from './types';
-import {
-  BUCKET_OPTIONS,
-  GROUP_BY_OPTIONS,
-  MODEL_FILTER_OPTIONS,
-  PROJECT_FILTER_OPTIONS,
-  RANGE_PRESETS,
-} from './fixtures';
+import { BUCKET_OPTIONS, GROUP_BY_OPTIONS, PROJECT_FILTER_OPTIONS, RANGE_PRESETS } from './fixtures';
 
 function field(
   label: string,
@@ -39,16 +33,7 @@ const meta: Meta<typeof OverviewControls> = {
     bucketField: field('Bucket', 'daily', BUCKET_OPTIONS),
     groupByField: field('Group by', 'project-model', GROUP_BY_OPTIONS),
     projectField: field('Project', 'all', PROJECT_FILTER_OPTIONS),
-    modelField: field('Model', 'all', MODEL_FILTER_OPTIONS),
-    onExport: () => {},
   },
-  decorators: [
-    (Story) => (
-      <div className="bg-surface w-[240px] p-4">
-        <Story />
-      </div>
-    ),
-  ],
 };
 
 export default meta;
@@ -61,13 +46,12 @@ export const DefaultLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-/** Export unavailable — the action stays visible but disabled, and says why on hover. Never a
- *  silently dead control. */
-export const ExportUnavailable: Story = {
-  args: { onExport: undefined, exportDisabledReason: "Export isn't available yet." },
+/** Account-wide (the admin overview omits a project filter — see `OverviewControlsProps.projectField`). */
+export const NoProjectField: Story = {
+  args: { projectField: undefined },
 };
 
-/** Base tier (<600): the same row, wrapped to three or four lines. */
+/** Base tier (<600): the row wraps rather than overflowing. */
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
 };
@@ -81,8 +65,6 @@ export const Interactive: Story = {
   render: function Render(args) {
     // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
     const [project, setProject] = useState('all');
-    // `projectField` is optional now (the admin overview omits it), so this narrows rather than
-    // spreading a possibly-absent field — meta's args always supply it for this story.
     const { projectField } = args;
     return (
       <OverviewControls

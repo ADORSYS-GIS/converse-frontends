@@ -26,6 +26,7 @@ vi.mock('./use-settings-screen', async (importOriginal) => {
 
 function baseScreen(overrides: Partial<SettingsScreenData> = {}): SettingsScreenData {
   return {
+    scopeLabel: 'Widgets Ltd',
     accountSettings: {
       panel: {
         account: { id: 'auth0|9f3a', name: 'Widgets Ltd' },

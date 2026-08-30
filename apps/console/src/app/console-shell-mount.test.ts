@@ -14,6 +14,11 @@ import { describe, expect, it } from 'vitest';
  * rebuilt the entire chrome, no shell state could survive a route change, and every route bundled
  * the whole shell.
  *
+ * Shell revamp phase 2 (2026-08-30): `ConsoleHeader`/`ConsoleHeaderBar` are deleted along with the
+ * header band — the persistent chrome is now `ConsoleSidebarContent`/`ConsoleTopBarContent`
+ * (`client/console-chrome.tsx`), composed into `ConsoleShell`'s `sidebar`/`topBar` slots. The
+ * mount-once invariant is unchanged; only the names of what must be mounted exactly once changed.
+ *
  * This is a source-shape assertion, not a render test, precisely because the property is about
  * the ROUTE TREE rather than about any one component's output — and because the runtime half of
  * the same claim (the nav DOM node surviving a content swap by object identity) is checked
@@ -25,7 +30,7 @@ const CONSOLE_GROUP = join(APP_DIR, '(console)');
 const SRC_DIR = join(__dirname, '..');
 
 const SHELL_IMPORT = /components\/console-shell/;
-const HEADER_MOUNTS = /<ConsoleHeaderBar|components\/console-header/;
+const CHROME_MOUNTS = /ConsoleSidebarContent|ConsoleTopBarContent/;
 const NAV_MOUNTS = /components\/nav-spine/;
 
 function walk(dir: string): string[] {
@@ -52,14 +57,15 @@ describe('console shell mounting', () => {
     expect(mounts[0]).toBe(join(CONSOLE_GROUP, 'layout.tsx'));
   });
 
-  it('mounts the header and the nav spine only from that same layout', () => {
-    const headerMounts = srcFiles.filter(
-      (file) => HEADER_MOUNTS.test(read(file)) && !file.endsWith('console-chrome.tsx')
+  it('mounts the sidebar/top-bar chrome only from that same layout', () => {
+    const chromeMounts = srcFiles.filter(
+      (file) => CHROME_MOUNTS.test(read(file)) && !file.endsWith('console-chrome.tsx')
     );
     const navMounts = srcFiles.filter((file) => NAV_MOUNTS.test(read(file)));
 
-    expect(headerMounts).toEqual([join(CONSOLE_GROUP, 'layout.tsx')]);
-    // `console-chrome.tsx` only builds `NavSpineItem[]` data — a type-only import, which erases.
+    expect(chromeMounts).toEqual([join(CONSOLE_GROUP, 'layout.tsx')]);
+    // `console-chrome.tsx` only imports `ConsoleSidebar`/`ConsoleTopBar` (the `ui-web` primitives)
+    // and `NavGroup` (a type-only import, which erases) — never `nav-spine` directly.
     expect(navMounts).toEqual([]);
   });
 
@@ -74,73 +80,6 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gives both parallel-route slots a default, so a rail-less route renders rather than 404s', () => {
-    const defaults = appFiles.filter((file) => file.endsWith('default.tsx'));
-
-    expect(defaults.sort()).toEqual(
-      [
-        join(CONSOLE_GROUP, '@rail', 'default.tsx'),
-        join(CONSOLE_GROUP, '@scope', 'default.tsx'),
-      ].sort()
-    );
-  });
-
-  /**
-   * Which routes have rails is a DESIGN decision, so it is asserted as an explicit table rather
-   * than as "every route must have one" (owner review 2026-08-29).
-   *
-   * Overview and Api-Keys have no rail at any tier: their parameters live in an always-visible
-   * toolbar in the centre column, so a `@rail`/`@scope` segment for them would be an empty panel
-   * column reserving 280px for nothing. Manage and Admin keep theirs, because their rail content
-   * is selection-driven — it retargets on the row you pick and carries multi-field forms and
-   * decision actions, which is the case the rail contract was written for.
-   *
-   * Settings joins them in the rail-less column: both its sections are always on screen at once
-   * and neither retargets on a selection, so its `@scope` sub-nav is the whole of its rail
-   * presence.
-   *
-   * A route that opts out must NOT get a stub segment; it falls through to the slot's
-   * `default.tsx` (asserted above), which renders nothing. The assertion below is two-sided on
-   * purpose: a missing segment where one is expected is a bug, and so is a stray segment for a
-   * route that is supposed to be rail-less — that is how this table stays true rather than
-   * quietly rotting into "whatever the filesystem happens to contain".
-   */
-  it('gives a @rail and @scope segment to exactly the routes designed to have one', () => {
-    const centreRoutes = appFiles
-      .filter((file) => file.startsWith(CONSOLE_GROUP) && file.endsWith('page.tsx'))
-      .filter((file) => !file.includes('@rail') && !file.includes('@scope'))
-      .map((file) => file.slice(CONSOLE_GROUP.length + 1));
-
-    expect(centreRoutes.sort()).toEqual(
-      [
-        'page.tsx',
-        join('admin', 'page.tsx'),
-        join('api-keys', 'page.tsx'),
-        join('manage', 'page.tsx'),
-        join('settings', 'page.tsx'),
-      ].sort()
-    );
-
-    // EVERY route fills `@scope` (the left rail's secondary section — a sub-nav on Manage/Admin,
-    // the screen's own controls on Overview/Api-Keys). Only selection-driven routes fill `@rail`.
-    const ROUTES_WITH_RIGHT_RAIL = [join('admin', 'page.tsx'), join('manage', 'page.tsx')];
-
-    for (const route of centreRoutes) {
-      expect(
-        appFiles.includes(join(CONSOLE_GROUP, '@scope', route)),
-        `@scope is missing a segment for ${route}`
-      ).toBe(true);
-
-      const shouldHaveRightRail = ROUTES_WITH_RIGHT_RAIL.includes(route);
-      expect(
-        appFiles.includes(join(CONSOLE_GROUP, '@rail', route)),
-        shouldHaveRightRail
-          ? `@rail is missing a segment for ${route}`
-          : `${route} is designed to have no right rail, but @rail has a segment for it`
-      ).toBe(shouldHaveRightRail);
-    }
-  });
-
   it('keeps the auth routes outside the (console) group, so they get no shell', () => {
     const authPages = appFiles.filter((file) => file.includes(join('app', 'auth')));
 
@@ -150,16 +89,10 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gates every /admin segment — centre and both slots — server-side on the admin role', () => {
-    const adminSegments = appFiles.filter(
-      (file) => file.startsWith(CONSOLE_GROUP) && file.includes(`${'admin'}${'/'}page.tsx`)
-    );
+  it('gates the /admin route server-side on the admin role', () => {
+    const source = read(join(CONSOLE_GROUP, 'admin', 'page.tsx'));
 
-    expect(adminSegments).toHaveLength(3);
-    for (const segment of adminSegments) {
-      const source = read(segment);
-      expect(source, `${segment} must read the session server-side`).toContain('readSession');
-      expect(source, `${segment} must 404 a non-admin`).toContain('notFound()');
-    }
+    expect(source, 'admin/page.tsx must read the session server-side').toContain('readSession');
+    expect(source, 'admin/page.tsx must 404 a non-admin').toContain('notFound()');
   });
 });

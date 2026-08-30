@@ -134,4 +134,43 @@ describe('AccountBadge', () => {
 
     expect(screen.queryByText(new RegExp(ACCOUNT_ID))).not.toBeInTheDocument();
   });
+
+  // Shell brief (2026-08-30) — the sidebar variant is the same identity content, relocated into
+  // `ConsoleSidebar`'s full-width workspace switcher row.
+  describe('variant="sidebar"', () => {
+    it('renders the workspace-switcher-row class instead of the compact chip', () => {
+      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('workspace-switcher-row');
+      expect(button).not.toHaveClass('account-chip');
+    });
+
+    it('renders the initials chip when initials are given', () => {
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          initials="AG"
+          onCopyId={() => {}}
+        />
+      );
+
+      expect(screen.getByText('AG')).toBeInTheDocument();
+    });
+
+    it('renders no initials chip when none are given', () => {
+      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+
+      expect(screen.queryByText('AG')).not.toBeInTheDocument();
+    });
+
+    it('shows the short id beside the name without the md-and-up gate the inline variant uses', () => {
+      render(<AccountBadge name="adorsys-gis" accountId={ACCOUNT_ID} variant="sidebar" onCopyId={() => {}} />);
+
+      const shortId = screen.getByText('acct_49534505');
+      expect(shortId).not.toHaveClass('hidden');
+    });
+  });
 });

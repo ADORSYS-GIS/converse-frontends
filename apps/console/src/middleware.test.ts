@@ -38,8 +38,8 @@ describe('middleware matcher', () => {
       'auth/login',
       '.well-known/oauth-protected-resource',
       '_next/static/chunk.js',
-      'sw.js',
-      'swe-worker-abc123.js',
+      'serwist/sw.js',
+      'serwist/sw.js.map',
       'manifest.json',
       'icons/icon-192.png',
       'favicon.ico',
@@ -50,7 +50,7 @@ describe('middleware matcher', () => {
 
   /**
    * The drift guard between this matcher and `src/shared/uncacheable-paths.ts`. The two lists are
-   * not the same set — the matcher also skips `_next/`, `sw.js`, `icons/` and friends, which are
+   * not the same set — the matcher also skips `_next/`, `serwist/`, `icons/` and friends, which are
    * exactly the things the service worker *should* cache — but the containment holds in one
    * direction: a path the service worker must never cache is either unauthenticated by design
    * (`auth/*`) or authenticated per request with a machine-readable `401` (`api/*`), and neither

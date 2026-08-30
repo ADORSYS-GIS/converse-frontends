@@ -65,8 +65,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             apply -- no dark<->light flash (ADR 0010 Decision 5). */}
         <script dangerouslySetInnerHTML={{ __html: CONSOLE_THEME_NO_FLASH_SCRIPT }} />
       </head>
-      {/* `@serwist/next` injects the service-worker registration itself, and only in a production
-          build (`disable` in next.config.mjs) — no registration component belongs here. */}
+      {/* Service-worker registration is `SerwistProvider`, mounted inside `Providers`
+          (`../client/providers.tsx`) — it needs `'use client'`, and this layout is a server
+          component, so it cannot be rendered directly here. */}
       {/* No `bg-muted font-mono text-soft` here any more: the package stylesheet's own base layer
           already sets exactly that on `body`, and `globals.css` now imports it (console-ui skill
           "One style pipeline"). Repeating it in the app was the second declaration of the same

@@ -72,6 +72,15 @@ jobs:
       - name: Build console (Turbo)
         run: pnpm turbo run build:web --filter=console
 
+      # `next.config.mjs` no longer has an `outputFileTracingIncludes` block for the CBOR codec
+      # (Turbopack panics on it — see that file's own comment); the image ships those pnpm-store
+      # dirs via an explicit `COPY` in apps/console/Dockerfile instead, sourced from
+      # apps/console/.docker-stage/ (git-ignored, regenerated every run). This step is what
+      # regenerates it — see scripts/stage-cratestack-cbor-for-docker.mjs's own header for why a
+      # plain Dockerfile `COPY` can't do this glob-and-preserve-names copy itself.
+      - name: Stage CBOR codec for the image (Turbopack CBOR-tracing workaround)
+        run: node apps/console/scripts/stage-cratestack-cbor-for-docker.mjs
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v6

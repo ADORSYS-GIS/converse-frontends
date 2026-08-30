@@ -149,9 +149,12 @@ export const config = {
      *                        It cannot be imported here — Next extracts `config` by static AST
      *                        analysis, and an imported identifier yields no matcher at all.
      *   .well-known/*      — public discovery metadata (RFC 9728)
-     *   sw.js, swe-worker-*  — the generated service worker (`@serwist/next` emits both into
-     *                          `public/`); a service-worker fetch carries no session and must
-     *                          never be answered with a login redirect
+     *   serwist/*          — the service worker route (`src/app/serwist/[path]/route.ts`, backed by
+     *                        `@serwist/turbopack`'s `createSerwistRoute`), serving `/serwist/sw.js`
+     *                        and its sourcemap; a service-worker fetch carries no session and must
+     *                        never be answered with a login redirect. Replaces the old `sw.js` /
+     *                        `swe-worker-*` prefixes that matched `@serwist/next`'s webpack-emitted
+     *                        `public/sw.js`, which no longer exists.
      *   _next/*            — build output
      *   manifest.json, icons/*, favicon.ico            — public static assets
      *   robots.txt, sitemap.xml — Next.js metadata routes (app/robots.ts, app/sitemap.ts);
@@ -159,6 +162,6 @@ export const config = {
      *                              the documents that say so must themselves be servable to an
      *                              unauthenticated crawler, not gated behind a login redirect
      */
-    '/((?!api/|auth/|\\.well-known/|_next/|sw\\.js|swe-worker-|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
+    '/((?!api/|auth/|\\.well-known/|_next/|serwist/|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

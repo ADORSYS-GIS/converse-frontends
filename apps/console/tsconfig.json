@@ -34,7 +34,8 @@
     ".next/dev/types/**/*.ts"
   ],
   // `src/sw.ts` is a service worker: it needs `lib: webworker`, whose `self` typing is
-  // irreconcilable with the `DOM` lib this app needs everywhere else. `@serwist/next` compiles it
-  // with its own worker-targeted pass; `tsc` deliberately does not look at it.
+  // irreconcilable with the `DOM` lib this app needs everywhere else. `@serwist/turbopack`'s
+  // `createSerwistRoute` (`src/app/serwist/[path]/route.ts`) bundles it with `esbuild-wasm` in its
+  // own worker-targeted pass; `tsc` deliberately does not look at it.
   "exclude": ["node_modules", ".next", "src/sw.ts"]
 }

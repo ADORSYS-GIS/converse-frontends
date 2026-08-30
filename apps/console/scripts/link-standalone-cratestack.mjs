@@ -1,30 +1,44 @@
 // Post-`next build` step for `output: 'standalone'` (2026-08-30 usage-500 incident).
 //
-// `outputFileTracingIncludes` copies the pnpm STORE dirs (`node_modules/.pnpm/@cratestack+*`)
-// into the standalone bundle, but never materializes the top-level scope links
-// (`node_modules/@cratestack/<pkg>`) that Node's resolver actually walks — so the first
-// server-side `import('@cratestack/cbor')` threw MODULE_NOT_FOUND in the container while every
-// local gate (full node_modules present) stayed green. This script recreates exactly those links,
-// glob-driven so a cratestack version bump changes nothing here.
+// The traced/copied store dirs (`node_modules/.pnpm/@cratestack+*`) never materialize the
+// top-level scope links (`node_modules/@cratestack/<pkg>`) that Node's resolver actually walks —
+// so the first server-side `import('@cratestack/cbor')` threw MODULE_NOT_FOUND in the container
+// while every local gate (full node_modules present) stayed green. This script recreates exactly
+// those links, glob-driven so a cratestack version bump changes nothing here.
 //
-// The traced store can contain more than one version of the same package name at once — verified
-// while bumping cratestack 0.8.13 -> 0.9.4: the standalone `.pnpm` dir carried both
+// Two callers, as of the move to Docker-side CBOR shipping (next.config.mjs no longer has an
+// `outputFileTracingIncludes` block — Turbopack panics on it, see that file's comment):
+//   1. `apps/console/Dockerfile`, at image-build time, against the image's own root layout
+//      (`/app/node_modules`, not `/app/apps/console/.next/standalone/node_modules` — the
+//      standalone COPY already flattens the bundle root onto `/app`). Passed explicitly:
+//      `node link-standalone-cratestack.mjs /app/node_modules`.
+//   2. Anyone reproducing the image's steps locally against a `.next/standalone` produced by
+//      `next build` — the default (no CLI arg) still resolves relative to this script's own
+//      location, unchanged from before this file gained an explicit-root mode.
+//
+// The traced/copied store can contain more than one version of the same package name at once —
+// verified while bumping cratestack 0.8.13 -> 0.9.4: the standalone `.pnpm` dir carried both
 // `@cratestack+cbor-web@0.8.13` and `@cratestack+cbor-web@0.9.4` side by side (the workspace store
-// hadn't pruned the old version yet when `next build` traced it). Linking whichever one a plain
-// `readdirSync` scan happens to visit last would make the final link version-order-dependent — not
-// wrong today only because directory order happened to put the newer version last. Instead, each
-// candidate's version is parsed from its containing store dirname and only replaces an existing
-// link for the same package name if it is actually newer, so the newest resolved version always
-// wins regardless of scan order.
+// hadn't pruned the old version yet). Linking whichever one a plain `readdirSync` scan happens to
+// visit last would make the final link version-order-dependent — not wrong today only because
+// directory order happened to put the newer version last. Instead, each candidate's version is
+// parsed from its containing store dirname and only replaces an existing link for the same package
+// name if it is actually newer, so the newest resolved version always wins regardless of scan
+// order.
 import { mkdirSync, readdirSync, symlinkSync, existsSync, rmSync } from 'node:fs';
-import { join, relative, dirname } from 'node:path';
+import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const standaloneNm = join(here, '..', '.next', 'standalone', 'node_modules');
+const explicitRoot = process.argv[2];
+const standaloneNm = explicitRoot
+  ? resolve(explicitRoot)
+  : join(here, '..', '.next', 'standalone', 'node_modules');
 const store = join(standaloneNm, '.pnpm');
 if (!existsSync(store)) {
-  console.error('[link-standalone-cratestack] no standalone .pnpm store — did next build run?');
+  console.error(
+    `[link-standalone-cratestack] no .pnpm store under ${standaloneNm} — did next build (or the image COPY) run?`
+  );
   process.exit(1);
 }
 
@@ -65,7 +79,9 @@ for (const [pkg, { target }] of candidates) {
   linked += 1;
 }
 if (linked === 0) {
-  console.error('[link-standalone-cratestack] traced store had no @cratestack packages — tracing regressed');
+  console.error(
+    `[link-standalone-cratestack] store under ${standaloneNm} had no @cratestack packages — shipping regressed`
+  );
   process.exit(1);
 }
-console.log(`[link-standalone-cratestack] linked ${linked} package(s)`);
+console.log(`[link-standalone-cratestack] linked ${linked} package(s) under ${standaloneNm}`);

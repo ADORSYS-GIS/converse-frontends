@@ -14,9 +14,10 @@ import {
  * this module precisely so it is reachable from a test.
  *
  * The production report this guards against: the service worker was serving `/auth/*` from cache.
- * `@serwist/next`'s `defaultCache` ends in same-origin catch-alls — a `NetworkFirst` `apis` cache
- * for `pathname.startsWith('/api/')`, then `pages`/`others` for everything else same-origin — so
- * both families were being stored and replayed.
+ * `@serwist/turbopack`'s `defaultCache` (same shape as the old `@serwist/next` one this project
+ * migrated off of) ends in same-origin catch-alls — a `NetworkFirst` `apis` cache for
+ * `pathname.startsWith('/api/')`, then `pages`/`others` for everything else same-origin — so both
+ * families were being stored and replayed.
  */
 describe('isUncacheablePath', () => {
   it('excludes the OIDC redirect legs', () => {

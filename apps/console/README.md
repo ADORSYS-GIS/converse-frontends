@@ -30,7 +30,8 @@ src/
   client/                   'use client': refine root, cratestack clients, shell chrome, view state
   containers/               per-route `use-*-screen` adapters (refine hooks -> section props) and
                             the thin centre/rail components that compose ui-web sections from them
-  sw.ts                     service worker (built by @serwist/next in production only)
+  sw.ts                     service worker (bundled by @serwist/turbopack's route handler; see
+                            app/serwist/[path]/route.ts — registered client-side in production only)
 config.yaml                 the primary server config document — see Configuration below
 ```
 
@@ -244,23 +245,24 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 | --------------------------------- | ---------------------------------------------------------------- |
 | `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
 | `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"  |
-| `pnpm --filter console build:web` | `next build --webpack` — the task `turbo run build:web` picks up |
+| `pnpm --filter console build:web` | `next build --turbopack` — the task `turbo run build:web` picks up |
 | `pnpm --filter console start`     | serve the production build                                       |
 | `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |
 | `pnpm --filter console typecheck` | `tsc --noEmit`                                                   |
 
-### Turbopack in dev, webpack for the build
+### Turbopack for both dev and the build
 
-Two different bundlers on purpose, one reason each.
+The console now runs Turbopack everywhere (`next dev --turbopack`, `next build --turbopack`).
+Production used to stay on webpack for one reason: `@serwist/next`, the Serwist integration that
+compiled `src/sw.ts` into `public/sw.js`, was a webpack plugin, and Turbopack never calls a
+`next.config.mjs` `webpack()` function at all. That reason is gone — the console now runs
+`@serwist/turbopack` instead, whose `createSerwistRoute` bundles `src/sw.ts` with `esbuild-wasm`
+inside a normal route handler (`src/app/serwist/[path]/route.ts`), so there is no webpack-only
+build step left to keep production on. `src/client/providers.tsx` still gates SW *registration* on
+`NODE_ENV === 'production'` (ADR 0009 Decision 7 — in development it would serve a stale precached
+shell over every edit), but the route itself, and thus the bundler, is no longer the reason.
 
-**The production build stays on webpack** because `@serwist/next` — the stable Serwist integration,
-and the only thing that compiles `src/sw.ts` into `public/sw.js` — is a webpack plugin. Turbopack
-never calls a `next.config.mjs` `webpack()` function at all, so under Turbopack the service worker
-would simply never be built. In development that costs nothing: ADR 0009 Decision 7 disables the
-service worker there anyway (`disable: process.env.NODE_ENV !== 'production'`), so `withSerwist` is
-already a no-op under `next dev`.
-
-**Dev moved to Turbopack** once the one thing pinning it to webpack was fixed at the source.
+**Dev moved to Turbopack first**, once the one thing pinning it to webpack was fixed at the source.
 `packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` as ESM TypeScript
 using NodeNext `.js` import specifiers (`./runtime.js` for `runtime.ts`). `tsc`, vitest, Metro and
 webpack all resolve that — webpack did so through `experimental.extensionAlias`, which used to live
@@ -314,7 +316,8 @@ Ruled out along the way, each measured rather than assumed:
   reach the top 14 packages by module count in any compilation. The console already imports it
   granularly — `@lightbridge/authz-rpc/refine` is a single re-export of `generated/src/refine.ts`,
   deliberately off the package barrel.
-- **Serwist is already fully dev-disabled** (below), and under Turbopack it cannot run at all.
+- **Serwist registration is already fully dev-disabled** (below) — irrelevant to this migration
+  since it was true before and after the switch to `@serwist/turbopack`.
 - **`theme.css`'s `@source '.'` does not over-scan.** It resolves to `packages/ui-web/src` (the file
   lives in `src/`), not the package root — 364 files. The whole CSS loader chain cost 810 ms + 486 ms
   on a cold client compile, ~9% of that compilation's loader time.
@@ -347,10 +350,11 @@ pipeline never had the problem — it does not run Lightning CSS over the Tailwi
 
 ### Other dev-speed notes
 
-- **Serwist is already fully dev-disabled** (`disable: process.env.NODE_ENV !== 'production'` in
-  `next.config.mjs`) — confirmed by reading `@serwist/next`'s own webpack plugin: with `disable`
-  true it returns the untouched webpack config immediately, before any of its precache-manifest or
-  service-worker-bundling work runs.
+- **Serwist registration is already fully dev-disabled** (`register={process.env.NODE_ENV ===
+  'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
+  itself (`src/app/serwist/[path]/route.ts`) still exists and can be fetched in dev — unlike the old
+  `@serwist/next` webpack plugin, `@serwist/turbopack` has no build-wide `disable` switch — but a
+  route nothing registers against never runs, so this has no dev-speed cost either.
 - **The refine/query-client provider tree is already lazy**: `src/client/providers.tsx` mounts
   `ConsoleProviders` via `next/dynamic({ ssr: false })`, not a static import.
 - **Every `ui-web` value import goes through its own `@lightbridge/ui-web/src/*` subpath**, not the
@@ -412,7 +416,7 @@ exact same bytes with a fresh token. Responses are streamed.
 
 ## Offline-first
 
-- **Service worker** via `@serwist/next`: precached app shell plus Next-aware runtime caching.
+- **Service worker** via `@serwist/turbopack`: precached app shell plus Next-aware runtime caching.
   Registered **only in a production build**. Nothing under `/api/*` is cached — every proxy response
   is `no-store`, and caching an authenticated response into an origin-scoped store would outlive the
   session that authorised it.

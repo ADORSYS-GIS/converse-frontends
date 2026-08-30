@@ -15,9 +15,14 @@ import type { ReportExportFormat } from '@lightbridge/ui-web';
  * **The console's URL param contract — the single module that owns it (ADR 0011).**
  *
  * Every piece of state that describes *what the user is looking at* lives here, as a typed nuqs
- * parser with a default: scope, dashboard view params, per-route filters and pagination,
+ * parser with a default: project scope, dashboard view params, per-route filters and pagination,
  * selections, the active sub-nav tab, and which rail section is open as a sheet. Nothing else in
  * `apps/console` may declare a query param — one module, one writer, one contract.
+ *
+ * **The account is a path segment, not a param, as of IA v3 phase 1** ("account into the path"):
+ * every screen lives under `/accounts/[accountId]/*`, and `client/use-account-id.ts`'s
+ * `useAccountId()` reads it from the route. This module owns everything that is genuinely a query
+ * param — which, for scope, is now the project alone (`projectScopeParsers` below).
  *
  * **Param names are product surface.** These strings appear in URLs users bookmark, share and
  * paste into tickets; renaming one is a breaking change to the same degree an API field rename is
@@ -47,31 +52,60 @@ import type { ReportExportFormat } from '@lightbridge/ui-web';
  * cache, see `use-shared-mutation.ts`).
  */
 
-// ── shared: scope ────────────────────────────────────────────────────────────────────────────
+// ── shared: project scope ───────────────────────────────────────────────────────────────────
 
 /**
- * Account/project scope, read by every route and by all three zones (centre, `@rail`, `@scope`).
+ * Project scope — `?project=` — read by every screen under `/accounts/[accountId]/*`.
  *
- * This is the clearest case of "the URL is the cross-zone state bus" (ADR 0011 Decision 2): the
- * rail's `ScopeSelect` writes it, the centre's ledger filters by it and the left rail's SCOPE echo
- * displays it, and none of the three knows the others exist.
+ * **The account half of scope is a path segment, not a URL param, as of IA v3 phase 1** ("account
+ * into the path"): every screen now lives under `/accounts/[accountId]/*`, and `useAccountId()`
+ * (`client/use-account-id.ts`) reads it from the route, never from here. Only the project — a
+ * narrowing WITHIN the account already named by the path — remains a query param, because a
+ * project is optional (bare `/accounts/<id>/overview` means "every project in this account") in a
+ * way the account segment itself never is.
  *
- * An empty `account` does not mean "no account" — it means *"whichever account the data hands me
- * first"*, resolved in `use-console-scope.ts` without ever being written back. That keeps the
- * default out of the URL (rule 1) instead of pinning a shared link to the sender's first account.
+ * This is still "the URL is the cross-zone state bus" (ADR 0011 Decision 2) for the project half:
+ * the scope picker writes it, the centre's ledger filters by it, and neither knows the other
+ * exists. An empty `project` does not mean "no project" — it means *"every project in this
+ * account"*, the parser's own default, which `clearOnDefault` keeps out of the URL.
  */
-export const scopeParsers = {
-  accountId: parseAsString.withDefault(''),
+export const projectScopeParsers = {
   projectId: parseAsString.withDefault(''),
 };
 
-const scopeUrlKeys = { accountId: 'account', projectId: 'project' };
+const projectScopeUrlKeys = { projectId: 'project' };
 
-/** Scope is a navigation-grade change: Back should return to the previous account/project. */
-const scopeOptions = { history: 'push' as const };
+/** Scope is a navigation-grade change: Back should return to the previous project. */
+const projectScopeOptions = { history: 'push' as const };
 
-export function useScopeParams() {
-  return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
+export function useProjectScopeParams() {
+  return useQueryStates(projectScopeParsers, {
+    urlKeys: projectScopeUrlKeys,
+    ...projectScopeOptions,
+  });
+}
+
+// ── / (account resolver) ─────────────────────────────────────────────────────────────────────
+
+/** The three screens the account resolver can send a visitor on to — `ConsoleRoute` minus
+ *  `settings`/`admin`, which are not (yet — Phase 2) reached under `/accounts/[accountId]/*`. */
+export const RESOLVER_TARGETS = ['overview', 'projects', 'api-keys'] as const;
+export type ResolverTarget = (typeof RESOLVER_TARGETS)[number];
+
+/**
+ * `?next=` — the account resolver's (`app/(console)/page.tsx`) own single param: which of the
+ * three account-scoped screens to land on once an account id is resolved. Lets a link like
+ * `/?next=api-keys` (bookmarked, or minted by a legacy-redirect table entry — `middleware.ts`)
+ * survive the account resolution hop instead of always landing on Overview.
+ */
+export const resolverParsers = {
+  next: parseAsStringLiteral(RESOLVER_TARGETS).withDefault('overview'),
+};
+
+const resolverUrlKeys = { next: 'next' };
+
+export function useResolverParams() {
+  return useQueryStates(resolverParsers, { urlKeys: resolverUrlKeys, history: 'replace' });
 }
 
 // ── shared: create-account dialog ───────────────────────────────────────────────────────────
@@ -84,7 +118,7 @@ export function useScopeParams() {
  * into a standing action reachable from two structurally separate places at once: the workspace
  * switcher (chrome — mounted once, present on every route, `console-chrome.tsx`) and
  * `/settings/account`'s own `PageHeader`. Both have to open the SAME dialog instance, the same way
- * `scopeParsers` above is the account/project scope every zone reads without knowing the others
+ * `projectScopeParsers` above is the project scope every zone reads without knowing the others
  * exist. That rules out a lifted local `useState` (`useConsolePalette`'s own pattern): the palette
  * is only ever triggered from chrome, so lifting it to `app/(console)/layout.tsx` and threading a
  * prop down to the two chrome zones is enough — this dialog also needs to open from inside a
@@ -507,7 +541,8 @@ export function useAdminParams() {
  * letting the two lists drift.
  */
 export const URL_PARAM_CONTRACT = {
-  scope: { parsers: scopeParsers, urlKeys: scopeUrlKeys },
+  projectScope: { parsers: projectScopeParsers, urlKeys: projectScopeUrlKeys },
+  resolver: { parsers: resolverParsers, urlKeys: resolverUrlKeys },
   createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
   createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
   requestRefill: { parsers: requestRefillParsers, urlKeys: requestRefillUrlKeys },

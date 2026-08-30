@@ -4,7 +4,9 @@ import { sanitizeReturnTo } from './return-to';
 
 describe('sanitizeReturnTo', () => {
   it('keeps a same-origin path with a query string', () => {
-    expect(sanitizeReturnTo('/projects?status=active')).toBe('/projects?status=active');
+    expect(sanitizeReturnTo('/accounts/acct_1/projects?status=active')).toBe(
+      '/accounts/acct_1/projects?status=active'
+    );
   });
 
   it.each([
@@ -24,10 +26,14 @@ describe('sanitizeReturnTo', () => {
   });
 
   it('allows a colon inside the query, where it cannot read as a scheme', () => {
-    expect(sanitizeReturnTo('/projects?range=12:00')).toBe('/projects?range=12:00');
+    expect(sanitizeReturnTo('/accounts/acct_1/projects?range=12:00')).toBe(
+      '/accounts/acct_1/projects?range=12:00'
+    );
   });
 
   it('honours a caller-supplied fallback', () => {
-    expect(sanitizeReturnTo('https://evil.example', '/api-keys')).toBe('/api-keys');
+    expect(sanitizeReturnTo('https://evil.example', '/accounts/acct_1/api-keys')).toBe(
+      '/accounts/acct_1/api-keys'
+    );
   });
 });

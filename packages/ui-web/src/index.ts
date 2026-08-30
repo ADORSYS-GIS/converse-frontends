@@ -224,6 +224,17 @@ export type {
   BudgetSummary,
 } from './sections/budget-panel';
 
+// Phase 4 — `/` now renders this section too (admin-only "Budget pressure" card), so it earns its
+// barrel lines: `use-overview-screen.ts`/`use-admin-screen.ts` callers no longer need the
+// `/src/sections/budget-pressure` subpath import the admin-only screen used while the barrel was
+// mid-edit by parallel work.
+export { BudgetPressure } from './sections/budget-pressure';
+export type {
+  BudgetPressureProject,
+  BudgetPressureProps,
+  BudgetPressureStatus,
+} from './sections/budget-pressure';
+
 export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,

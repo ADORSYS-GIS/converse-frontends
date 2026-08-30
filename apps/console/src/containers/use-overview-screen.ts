@@ -5,6 +5,9 @@ import type { ApiKey, AugmentationRequest, Project } from '@lightbridge/authz-rp
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
 import { formatUsd } from '@lightbridge/ui-web';
 import type {
+  ApiKeysHygiene,
+  BudgetPressureProject,
+  BudgetPressureStatus,
   BudgetSummary,
   DashboardStatus,
   LatencyRidgelineSeries,
@@ -12,14 +15,18 @@ import type {
   OverviewStatCardData,
   DateRangeFieldProps,
   DateRangePreset,
+  ReportExportDialogProps,
+  ReportExportParams,
   SelectFieldProps,
   SpendSeriesSeries,
 } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 
 import { useConsoleBudgetClient } from '../client/rpc-clients';
+import { useConsoleSession } from '../client/session-context';
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
@@ -29,11 +36,18 @@ import {
   OVERVIEW_GROUP_BYS,
   OVERVIEW_RANGES,
   OVERVIEW_SELECTION_OPTIONS,
+  REPORT_FORMATS,
+  REPORT_INCLUDE_IDS,
   useOverviewParams,
+  type ReportIncludeId,
 } from '../client/url-state';
+import { apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
+import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { microsToAmount } from './refill-rows';
+import { useAdminScreen } from './use-admin-screen';
 import type { LatencyAdaptation } from './overview-usage';
 import {
+  buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
   sumTotalCost,
@@ -48,32 +62,27 @@ import {
 } from './overview-usage';
 
 /**
- * `/` — the Overview dashboard's data adapter, shared by its centre (`page.tsx`) and its rail
- * (`@rail/page.tsx`).
+ * `/` — one dashboard, parameterised by role (shell revamp phase 4). The centre (`overview-
+ * centre.tsx`) is the ONLY caller now: the deleted `/admin?section=overview` used to duplicate a
+ * large slice of this adapter (`use-admin-overview-screen.ts`, removed by this phase) for a
+ * dashboard that differed only in SCOPE — always account-wide, never narrowed by the project
+ * filter — and in the four extra zones an operator needs. Rather than two screens that could drift
+ * (and did: the admin one alone carried the `BUDGET_PRESSURE_SCOPE_NOTE` honesty contract), this
+ * hook now absorbs those operator queries directly, gated behind `session.isAdmin`.
  *
- * The two callers issue the same `useList`/`useQuery` query keys, so TanStack Query serves both
- * from one request; the view state they both read is the **query string** (ADR 0011) —
- * `?range=7d&series=…` — so the rail's RANGE select and the centre's chart cannot drift apart, and
- * the dashboard a user has configured is a link they can send.
+ * **What is real here.** The per-user half — project/API-key counts, SPEND/SPEND SHARE, BudgetHero
+ * consumption-vs-ceiling, the refill control, and now Export — matches what `/` already did.
+ * Layered on top, ADMIN-ONLY and firing NO extra query for a non-admin: an account-wide usage
+ * query feeding LATENCY (`adminLatency`), the per-project budget-pressure query feeding
+ * `adminPressure`, an account-wide API-key listing feeding `adminHygiene`, and the pending-refill
+ * queue (`useAdminScreen`, shared by query key with `/admin`'s own review centre and the sidebar's
+ * nav count) feeding `refillRequestStatus`. Every admin-only query below passes its own `enabled:
+ * … && isAdmin` (or, for `useAdminScreen`, its own `enabled` parameter) rather than relying on the
+ * caller never mounting for a non-admin — `/` mounts for everyone.
  *
- * What is real here, as of #304-#306 and this story: project/API-key counts (refine over the
- * generated resources), SPEND/SPEND SHARE (`queryUsage` -> `overview-usage.ts`'s adapters),
- * BudgetHero's consumption-vs-ceiling (the SAME `queryUsage` summed for the current billing
- * period, paired with `getMyBudgetBalance`'s `effectiveBudgetMicros` for the ceiling), and now
- * LATENCY, off the exact same `usageQuery` SPEND already runs — no third request.
- *
- * LATENCY is honest PER SERIES rather than all-or-nothing: the lightbridge-authz usage API now
- * returns `latency_samples`/`latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms` per bucket (ADR
- * 0008 Decision 7's amended status note), but an individual group within a response can still
- * legitimately report zero samples — an aggregate metric signal (an OTLP histogram/summary data
- * point) never carries a per-request duration, so the backend deliberately records no latency for
- * it rather than fabricating a mean. `toLatencySeries` (`overview-usage.ts`) keeps that group in
- * the ridgeline (so the reader can see the model exists) while naming the gap in
- * `latencyFootnote` rather than either fabricating a shape for it or blanking the whole panel.
- * `latencyStatus` stays `'ready'` even when EVERY group reported nothing this range — the query
- * itself succeeded; an empty ridgeline plus the footnote is the honest rendering, not
- * `'unwired'` (that vocabulary means "never queried," which is no longer true for anything on
- * this screen).
+ * The admin zones are always ACCOUNT-WIDE, never narrowed by `scope.value.projectId`: a project
+ * filter on an operator's cross-account picture is exactly the narrowing those zones exist to
+ * refuse (the same argument `use-admin-overview-screen.ts` made before this merge).
  */
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
@@ -93,9 +102,16 @@ const GROUP_BY_LABELS: Record<(typeof OVERVIEW_GROUP_BYS)[number], string> = {
   model: 'Model',
 };
 
+const REPORT_INCLUDE_LABELS: Record<ReportIncludeId, string> = {
+  totals: 'Totals row',
+  'per-model': 'Per-model breakdown',
+};
+
 // The option lists are derived from the URL contract's own literal unions rather than declared
-// beside it: a value the rail can offer but the parser would reject is exactly the drift ADR 0011
-// makes the contract module responsible for preventing.
+// beside it: a value the toolbar can offer but the parser would reject is exactly the drift ADR
+// 0011 makes the contract module responsible for preventing. `GROUP_BY_OPTIONS` doubles as the
+// Export dialog's `groupByOptions` — the report's grouping and the dashboard's are the same
+// vocabulary (`url-state.ts`'s own `overviewParsers.reportGroupBy` doc comment).
 const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
   value,
   label: RANGE_LABELS[value],
@@ -116,6 +132,32 @@ const BUDGET_BREACH_THRESHOLD = 0.9;
  *  shared-mutation identity — same pattern as `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY`. */
 const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
 
+/** Same idiom, for the Export dialog's own mutation (ticket #309's pattern, now shared by `/` and
+ *  `/manage`). */
+const REPORT_MUTATION_KEY = ['overview', 'report'] as const;
+
+/**
+ * How many API keys the admin hygiene block reads in one page, and how many projects the admin
+ * pressure/hygiene zones resolve names against — lifted verbatim from the deleted
+ * `use-admin-overview-screen.ts`. See that file's own `KEYS_PAGE_SIZE` doc comment (git history)
+ * for why `listApiKeys` has to be paged and matched against the account's own project ids rather
+ * than filtered directly: `ApiKey` carries `projectId`, never `accountId`.
+ */
+const KEYS_PAGE_SIZE = 100;
+const PROJECTS_PAGE_SIZE = 100;
+
+/**
+ * The budget-pressure zone's scope caveat, stated in the UI rather than only in a code comment —
+ * kept verbatim from the deleted `use-admin-overview-screen.ts`; see its git history for the full
+ * argument. There is no per-project budget ceiling anywhere in the authz schema, so what `
+ * adminPressure` shows is each project's draw on the account's ONE ceiling, never a per-project
+ * headroom.
+ */
+export const BUDGET_PRESSURE_SCOPE_NOTE =
+  'Each bar is the project’s draw on the account’s single ceiling for this billing period. ' +
+  'Projects have no ceiling of their own — a project’s quota is a governance tier, not a ' +
+  'currency amount — so this ranks pressure, it does not report per-project headroom.';
+
 /**
  * The LATENCY footnote's per-series honesty logic (`toLatencySeries`'s `LatencyAdaptation`):
  *
@@ -126,11 +168,6 @@ const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as 
  *   of models (there is nothing to list that would add information).
  * - Some, but not all, groups reported zero samples — names exactly those groups, so the reader
  *   can tell a genuine gap (an aggregate-metric-only model) from "the whole panel is broken."
- *
- * Exported because the admin overview (`use-admin-overview-screen.ts`) renders the same
- * `LatencyDashboard` off the same `toLatencySeries` adaptation. The honesty contract is a property
- * of the DATA, not of which screen is displaying it — a second copy of this logic is exactly how
- * one screen ends up quietly less honest than the other.
  */
 export function buildLatencyFootnote(
   adaptation: LatencyAdaptation | undefined
@@ -160,6 +197,35 @@ function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
   return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1))[0];
 }
 
+/** The admin-only "Latency" card's data — an account-wide adaptation of `LatencyAdaptation`,
+ *  never the per-user, project-filtered one SPEND uses (see this module's own doc comment). */
+export interface AdminLatencyCard {
+  series: LatencyRidgelineSeries[];
+  status: DashboardStatus;
+  errorMessage?: string;
+  retry: () => void;
+  footnote?: string;
+}
+
+/** The admin-only "Budget pressure" card's data. */
+export interface AdminPressureCard {
+  projects: BudgetPressureProject[];
+  /** `null` when no ceiling could be read — `BudgetPressure` then drops its meters entirely. */
+  ceiling: number | null;
+  status: BudgetPressureStatus;
+  errorMessage?: string;
+  onRetry: () => void;
+  note: string;
+}
+
+/** The admin-only "Key hygiene" card's data. */
+export interface AdminHygieneCard {
+  hygiene: ApiKeysHygiene;
+  summary: string;
+  /** Set only when the key listing was truncated — never left implicit. */
+  caveat?: string;
+}
+
 export interface OverviewScreen {
   /** The scoped account's display label (`accountScopeLabel`), for `PageHeader.subtitle` — see
    *  `scopeProjectLabel`'s own doc for the project half of the pair. `undefined` before an
@@ -182,16 +248,6 @@ export interface OverviewScreen {
   spendStatus: DashboardStatus;
   spendErrorMessage?: string;
   spendRetry: () => void;
-  // ── LATENCY — wired off the same usageQuery as SPEND, honest per series ─────────────────
-  latencySeries: LatencyRidgelineSeries[];
-  latencyStatus: DashboardStatus;
-  latencyErrorMessage?: string;
-  latencyRetry: () => void;
-  /** Names which group(s) reported zero latency samples across the whole range, or that NONE
-   *  did — `undefined` when every group reported real latency (nothing to caveat). See
-   *  `toLatencySeries` (`overview-usage.ts`) for the per-series honesty contract this derives
-   *  from. */
-  latencyFootnote?: string;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
@@ -199,13 +255,26 @@ export interface OverviewScreen {
    *  convention (see `budget-hero/types.ts`). */
   refillAction: { label: string; onClick: () => void; pending: boolean } | undefined;
   refillErrorMessage: string | undefined;
+  // ── phase 4: `Export` — `PageHeader.action`, defaults from this screen's own params ──────
+  report: ReportExportDialogProps;
+  // ── phase 4: role-parameterised — undefined for a non-admin, never a permanently-loading
+  // placeholder (these queries never fire for one; see this module's own doc comment) ───────
+  isAdmin: boolean;
+  adminLatency: AdminLatencyCard | undefined;
+  adminPressure: AdminPressureCard | undefined;
+  adminHygiene: AdminHygieneCard | undefined;
+  /** Omitted entirely when nothing is pending — mirrors `BudgetPanel.refillRequestStatus`'s own
+   *  "no empty placeholder" convention. */
+  refillRequestStatus: { pendingCount: number; submittedLabel: string } | undefined;
 }
 
-export function useOverviewScreen(): OverviewScreen {
+export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const scope = useConsoleScope();
+  const session = useConsoleSession();
   const [view, setView] = useOverviewParams();
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
+  const isAdmin = session.isAdmin;
 
   // One resolution, read by both the query and the picker's displayed value — so the calendar can
   // never show a span different from the one that was actually fetched.
@@ -229,28 +298,6 @@ export function useOverviewScreen(): OverviewScreen {
       ? [{ field: 'projectId', operator: 'eq', value: scope.value.projectId }]
       : [],
   });
-
-  const statCards = useMemo<OverviewStatCardData[]>(
-    () => [
-      {
-        key: 'projects',
-        icon: 'projects',
-        label: 'Projects',
-        metric: String(projects.result.total ?? 0),
-        // No `sparklineData` — there is no trend series behind a project/key COUNT (as opposed
-        // to spend, which now has one — see `spendSeries` below), and `OverviewStatRow` renders
-        // no sparkline slot at all when it's omitted, rather than an empty/flat decorative line.
-      },
-      {
-        key: 'keys',
-        icon: 'keys',
-        label: 'API keys',
-        metric: String(apiKeys.result.total ?? 0),
-        // No `sparklineData` — see the `projects` card above.
-      },
-    ],
-    [projects.result.total, apiKeys.result.total]
-  );
 
   const scopeProjectLabel =
     scope.projects.find((project) => project.id === scope.value.projectId)?.label ?? 'All projects';
@@ -296,20 +343,30 @@ export function useOverviewScreen(): OverviewScreen {
     : usageQuery.isPending
       ? 'loading'
       : 'ready';
+
   // The usage backend groups by `project_id`, so every series comes back keyed by an opaque id.
   // The console already knows the names — `scope.allProjects` is loaded for the project picker —
   // so resolve them here rather than printing `zezxvt21irmoi0kzm22el7gu` on the chart legend and
   // the share list (owner, 2026-08-29). Model keys are already human-readable, so they pass
   // through; an id with no matching project does too, which is the honest fallback for a project
   // deleted since the usage was recorded.
-  const labelForSeries = useMemo<SeriesLabeller>(() => {
-    if (view.groupBy !== 'project') return (key) => key;
-    const namesById = new Map(scope.allProjects.map((project) => [project.id, project.name]));
-    return (key) => {
-      if (key === UNASSIGNED_KEY) return 'Unassigned';
-      return namesById.get(key) || key;
-    };
-  }, [view.groupBy, scope.allProjects]);
+  //
+  // `labelForProject` resolves a project id regardless of the dashboard's own `groupBy` — the
+  // admin-only pressure zone below is always grouped by project, independent of what the user's
+  // own SPEND chart is currently grouped by, so it needs the unconditional mapping rather than
+  // `labelForSeries`'s groupBy-gated one.
+  const namesById = useMemo(
+    () => new Map(scope.allProjects.map((project) => [project.id, project.name])),
+    [scope.allProjects]
+  );
+  const labelForProject = useMemo<SeriesLabeller>(
+    () => (key) => (key === UNASSIGNED_KEY ? 'Unassigned' : namesById.get(key) || key),
+    [namesById]
+  );
+  const labelForSeries = useMemo<SeriesLabeller>(
+    () => (view.groupBy === 'project' ? labelForProject : (key) => key),
+    [view.groupBy, labelForProject]
+  );
 
   const spendSeries = useMemo(
     () => (usageQuery.data ? toSpendSeries(usageQuery.data, view.groupBy, labelForSeries) : []),
@@ -319,21 +376,6 @@ export function useOverviewScreen(): OverviewScreen {
     () =>
       usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy, labelForSeries) : [],
     [usageQuery.data, view.groupBy, labelForSeries]
-  );
-
-  // ── LATENCY — the SAME usageQuery SPEND already runs, never a third request. `latencyStatus`
-  // mirrors `spendStatus` exactly: a failed/pending usage query takes both charts down together
-  // (they are the same query), never one looking wired while the other doesn't.
-  const latencyStatus: DashboardStatus = spendStatus;
-  const latencyAdaptation = useMemo(
-    () =>
-      usageQuery.data ? toLatencySeries(usageQuery.data, view.groupBy, labelForSeries) : undefined,
-    [usageQuery.data, view.groupBy, labelForSeries]
-  );
-  const latencySeries = latencyAdaptation?.series ?? [];
-  const latencyFootnote = useMemo(
-    () => buildLatencyFootnote(latencyAdaptation),
-    [latencyAdaptation]
   );
 
   // ── #306: BudgetHero — consumption (usage backend, this billing period) vs ceiling (budget
@@ -445,6 +487,190 @@ export function useOverviewScreen(): OverviewScreen {
     };
   }
 
+  // ── phase 4: money-first stat row — spend leads, budget remaining next (omitted while no
+  // ceiling can be read), then the existing counts. Never a fabricated figure: SPEND is an em
+  // dash while the period query is unresolved, and BUDGET REMAINING is dropped entirely rather
+  // than guessed at (see `OverviewStatRow`'s own contract). ──────────────────────────────────
+  const statCards = useMemo<OverviewStatCardData[]>(() => {
+    const cards: OverviewStatCardData[] = [
+      {
+        key: 'spend',
+        icon: 'spend',
+        label: 'Spend this period',
+        metric: consumptionQuery.data ? formatUsd(sumTotalCost(consumptionQuery.data)) : '—',
+      },
+    ];
+    if ('value' in budget && 'ceiling' in budget) {
+      cards.push({
+        key: 'budget-remaining',
+        icon: 'budget',
+        label: 'Budget remaining',
+        metric: formatUsd(budget.ceiling - budget.value),
+      });
+    }
+    cards.push(
+      {
+        key: 'keys',
+        icon: 'keys',
+        label: 'API keys',
+        metric: String(apiKeys.result.total ?? 0),
+        // No `sparklineData` — there is no trend series behind a key COUNT, and `OverviewStatRow`
+        // renders no sparkline slot at all when it's omitted, rather than an empty/flat
+        // decorative line.
+      },
+      {
+        key: 'projects',
+        icon: 'projects',
+        label: 'Projects',
+        metric: String(projects.result.total ?? 0),
+      }
+    );
+    return cards;
+  }, [consumptionQuery.data, budget, apiKeys.result.total, projects.result.total]);
+
+  // ── phase 4: Export — `PageHeader.action`, defaults from this screen's own params ──────────
+  const reportAction = useSharedMutation<ReportExportParams, void>({
+    mutationKey: REPORT_MUTATION_KEY,
+    mutationFn: async (params) => {
+      if (!accountId) {
+        throw new Error('Select an account before generating a report.');
+      }
+      const query = new URLSearchParams({
+        month: params.period,
+        account: accountId,
+        format: params.format,
+      });
+      if (projectId) query.set('project', projectId);
+
+      const response = await fetch(`/api/reports/consumption?${query.toString()}`);
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const message =
+          body &&
+          typeof body === 'object' &&
+          typeof (body as { message?: unknown }).message === 'string'
+            ? (body as { message: string }).message
+            : 'Could not generate the report. Try again.';
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const filename =
+        filenameFromContentDisposition(response.headers.get('content-disposition')) ??
+        `consumption-${params.period}.${params.format}`;
+      downloadBlob(blob, filename);
+    },
+  });
+
+  // ── phase 4, admin-only: account-wide LATENCY — a SEPARATE usage query from SPEND's above
+  // (SPEND is deliberately narrowed by `scope.value.projectId`; the operator's LATENCY card is
+  // deliberately not — see this module's own doc comment). Fires only for an admin.
+  const adminUsageQuery = useQuery({
+    queryKey: [
+      'usage',
+      'admin-overview',
+      accountId,
+      view.range,
+      view.bucket,
+      view.groupBy,
+      view.from,
+      view.to,
+    ],
+    queryFn: () =>
+      queryUsage(
+        buildOverviewUsageRequest({
+          accountId,
+          projectId: null,
+          window: usageWindow,
+          bucket: view.bucket,
+          groupBy: view.groupBy,
+          model: 'all',
+        })
+      ),
+    enabled: Boolean(accountId) && isAdmin,
+    staleTime: 30_000,
+  });
+
+  const adminLatencyStatus: DashboardStatus = adminUsageQuery.isError
+    ? 'error'
+    : adminUsageQuery.isPending
+      ? 'loading'
+      : 'ready';
+  const adminLatencyAdaptation = useMemo(
+    () =>
+      adminUsageQuery.data
+        ? toLatencySeries(adminUsageQuery.data, view.groupBy, labelForSeries)
+        : undefined,
+    [adminUsageQuery.data, view.groupBy, labelForSeries]
+  );
+  const adminLatencyFootnote = useMemo(
+    () => buildLatencyFootnote(adminLatencyAdaptation),
+    [adminLatencyAdaptation]
+  );
+
+  // ── phase 4, admin-only: budget pressure — the account-wide per-project draw on the SAME
+  // ceiling `budget` above already reads (reused rather than a second balance query). ─────────
+  const pressureQuery = useQuery({
+    queryKey: ['usage', 'budget-consumption-by-project', accountId, period],
+    queryFn: () => queryUsage(buildBudgetConsumptionByProjectRequest(accountId, new Date())),
+    enabled: Boolean(accountId) && isAdmin,
+    staleTime: 30_000,
+  });
+
+  const pressureProjects = useMemo<BudgetPressureProject[]>(
+    () =>
+      pressureQuery.data
+        ? toSpendShareSegments(pressureQuery.data, 'project', labelForProject).map((segment) => ({
+            key: segment.key,
+            name: segment.label,
+            spend: segment.value,
+          }))
+        : [],
+    [pressureQuery.data, labelForProject]
+  );
+
+  const pressureStatus: BudgetPressureStatus = pressureQuery.isError
+    ? 'error'
+    : pressureQuery.isPending
+      ? 'loading'
+      : 'ready';
+
+  const pressureCeiling = 'ceiling' in budget ? budget.ceiling : null;
+
+  // ── phase 4, admin-only: key hygiene, account-wide (every project, not only the scoped one).
+  const adminProjects = useList<Project>({
+    resource: 'projects',
+    pagination: { currentPage: 1, pageSize: PROJECTS_PAGE_SIZE },
+    filters: accountId ? [{ field: 'accountId', operator: 'eq', value: accountId }] : [],
+    queryOptions: { enabled: isAdmin },
+  });
+
+  const adminApiKeys = useList<ApiKey>({
+    resource: 'apiKeys',
+    pagination: { currentPage: 1, pageSize: KEYS_PAGE_SIZE },
+    queryOptions: { enabled: isAdmin },
+  });
+
+  const accountProjectIds = useMemo(
+    () => new Set(adminProjects.result.data.map((project) => project.id)),
+    [adminProjects.result.data]
+  );
+
+  const accountKeys = useMemo(
+    () => adminApiKeys.result.data.filter((key) => accountProjectIds.has(key.projectId)),
+    [adminApiKeys.result.data, accountProjectIds]
+  );
+
+  // The fetch timestamp, not `Date.now()`: reading the clock during render is impure, and an
+  // "expires in N days" count is relative to when the listing was read.
+  const adminKeysReadAt = adminApiKeys.query.dataUpdatedAt;
+  const adminKeysTotal = adminApiKeys.result.total ?? adminApiKeys.result.data.length;
+
+  // ── phase 4, admin-only: pending refill requests — the SAME query `/admin`'s review centre
+  // and the sidebar's nav count read, shared by query key (`use-admin-screen.ts`'s own doc
+  // comment), fired only for an admin.
+  const queue = useAdminScreen(isAdmin);
+
   return {
     scopeAccountLabel,
     scopeProjectLabel,
@@ -502,14 +728,92 @@ export function useOverviewScreen(): OverviewScreen {
     spendStatus,
     spendErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
     spendRetry: () => void usageQuery.refetch(),
-    latencySeries,
-    latencyStatus,
-    latencyErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
-    latencyRetry: () => void usageQuery.refetch(),
-    latencyFootnote,
     budget,
     refillAction,
     refillErrorMessage: refill.errorMessage,
+    report: {
+      open: view.reportOpen,
+      onOpenChange: (open) => {
+        void setView({ reportOpen: open }, OVERVIEW_SELECTION_OPTIONS);
+      },
+      period: view.period,
+      onPeriodChange: (period) => {
+        void setView({ period });
+      },
+      scopeSlot,
+      groupByOptions: GROUP_BY_OPTIONS,
+      groupBy: view.reportGroupBy,
+      onGroupByChange: (reportGroupBy) => {
+        void setView({ reportGroupBy: reportGroupBy as (typeof OVERVIEW_GROUP_BYS)[number] });
+      },
+      includeToggles: REPORT_INCLUDE_IDS.map((id) => ({
+        id,
+        label: REPORT_INCLUDE_LABELS[id],
+        checked: view.include.includes(id),
+      })),
+      onToggleInclude: (id, checked) => {
+        const next = REPORT_INCLUDE_IDS.filter((candidate) =>
+          candidate === id ? checked : view.include.includes(candidate)
+        );
+        void setView({ include: next });
+      },
+      format: view.format,
+      onFormatChange: (format) => {
+        void setView({ format: format as (typeof REPORT_FORMATS)[number] });
+      },
+      onGenerate: (params) => reportAction.mutate(params),
+      generating: reportAction.isPending,
+      notice: reportAction.errorMessage
+        ? { message: reportAction.errorMessage, onDismiss: reportAction.dismiss }
+        : undefined,
+    },
+    isAdmin,
+    adminLatency: isAdmin
+      ? {
+          series: adminLatencyAdaptation?.series ?? [],
+          status: adminLatencyStatus,
+          errorMessage: adminUsageQuery.isError
+            ? getUsageErrorMessage(adminUsageQuery.error)
+            : undefined,
+          retry: () => void adminUsageQuery.refetch(),
+          footnote: adminLatencyFootnote,
+        }
+      : undefined,
+    adminPressure: isAdmin
+      ? {
+          projects: pressureProjects,
+          ceiling: pressureCeiling,
+          status: pressureStatus,
+          errorMessage: pressureQuery.isError
+            ? getUsageErrorMessage(pressureQuery.error)
+            : undefined,
+          onRetry: () => void pressureQuery.refetch(),
+          note: BUDGET_PRESSURE_SCOPE_NOTE,
+        }
+      : undefined,
+    adminHygiene: isAdmin
+      ? {
+          hygiene: apiKeysHygiene(accountKeys, adminKeysReadAt),
+          summary: apiKeysStatusSummary(accountKeys, adminKeysReadAt),
+          // Precise about WHAT was truncated: the key LISTING is unfiltered (an `ApiKey` carries
+          // no `accountId` to filter on), so a total above one page means keys belonging to this
+          // account may sit beyond it.
+          caveat:
+            adminKeysTotal > adminApiKeys.result.data.length
+              ? `Counted over the first ${adminApiKeys.result.data.length} of ${adminKeysTotal} keys the listing returned — any of this account’s keys beyond that page are not included.`
+              : undefined,
+        }
+      : undefined,
+    // Omitted entirely when there is nothing pending — mirrors `BudgetPanel`'s own contract.
+    refillRequestStatus:
+      queue.pendingCount > 0
+        ? {
+            pendingCount: queue.pendingCount,
+            submittedLabel: queue.pending[0]
+              ? `oldest submitted ${queue.pending[0].submittedAgo}`
+              : 'awaiting a decision',
+          }
+        : undefined,
   };
 }
 

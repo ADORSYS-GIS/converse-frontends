@@ -87,7 +87,10 @@ function NavRow({ item, linkComponent }: { item: NavSpineItem; linkComponent: Li
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
         {item.icon}
       </span>
-      <span>{item.label}</span>
+      <span className="rail-row-label">{item.label}</span>
+      {/* Plain trailing text, never a badge (console-ui skill) — same `rail-row-count` treatment
+          `SubNav`'s own per-section counts use. */}
+      {item.count !== undefined ? <span className="rail-row-count">{item.count}</span> : null}
     </NavItemRow>
   );
 }

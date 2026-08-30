@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ADMIN_REVIEW_TABS,
-  ADMIN_SECTIONS,
   API_KEY_STATUSES,
   CURRENT_PERIOD,
   MANAGE_BUDGET_STATES,
@@ -47,7 +46,22 @@ describe('the URL param contract', () => {
 
     expect(names).toEqual({
       scope: ['account', 'project'],
-      overview: ['bucket', 'from', 'group-by', 'model', 'range', 'series', 'to'],
+      // Phase 4: `/` absorbed the admin-only dashboard's own Export action, so it carries the
+      // same report vocabulary `/manage` does, on top of its own dashboard knobs.
+      overview: [
+        'bucket',
+        'format',
+        'from',
+        'group-by',
+        'include',
+        'model',
+        'period',
+        'range',
+        'report',
+        'report-group',
+        'series',
+        'to',
+      ],
       apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
       manage: [
         'budget-state',
@@ -64,10 +78,9 @@ describe('the URL param contract', () => {
       ],
       // `account-name` moved off `manage` with the panel that opens it: a core account mutation
       settings: ['account-name', 'rename'],
-      // `/admin` is one route with two sections: the operator overview it lands on carries the
-      // same dashboard knobs `/` does (deliberately the same names — see the shared-meaning test
-      // below), plus `section` for the sub-nav itself.
-      admin: ['bucket', 'from', 'group-by', 'range', 'request', 'section', 'series', 'tab', 'to'],
+      // Phase 4: `/admin` is now ONE screen (the budget refill review queue) — its dashboard
+      // section and every param it mirrored from `/` moved to `/` itself, gated by role.
+      admin: ['request', 'tab'],
     });
   });
 
@@ -90,17 +103,14 @@ describe('the URL param contract', () => {
       URL_PARAM_CONTRACT.manage.urlKeys.search
     );
 
-    // `range`/`from`/`to`/`bucket`/`group-by`/`series` appear on both `/` and `/admin`. They are
-    // the SAME parser instances, not lookalikes — `?range=7d&group-by=model` cannot come to mean
-    // one thing on the user dashboard and another on the operator one.
-    for (const key of ['range', 'from', 'to', 'bucket', 'groupBy', 'series'] as const) {
-      expect(adminParsers[key], `admin.${key} must be overview.${key} itself`).toBe(
-        overviewParsers[key]
+    // `format`/`include`/`period` appear on both `/` and `/manage`'s report dialogs. They are the
+    // SAME parser instances, not lookalikes — `?format=pdf` cannot come to mean one thing on one
+    // screen's Export dialog and another on the other's.
+    for (const key of ['format', 'include', 'period'] as const) {
+      expect(overviewParsers[key], `overview.${key} must be manage.${key} itself`).toBe(
+        manageParsers[key]
       );
     }
-    expect(URL_PARAM_CONTRACT.admin.urlKeys.groupBy).toBe(
-      URL_PARAM_CONTRACT.overview.urlKeys.groupBy
-    );
   });
 
   describe('defaults stay out of the URL', () => {
@@ -161,7 +171,11 @@ describe('the URL param contract', () => {
     expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
     expect(isParserBijective(adminParsers.tab, 'decided', 'decided')).toBe(true);
     expect(isParserBijective(adminParsers.selectedRequestId, 'req_9', 'req_9')).toBe(true);
-    expect(isParserBijective(adminParsers.section, 'refills', 'refills')).toBe(true);
+    // Overview's own Export dialog (phase 4) — same parsers as `/manage`'s, checked once here and
+    // by instance-identity in the "shared meaning" test above.
+    expect(isParserBijective(overviewParsers.reportOpen, 'true', true)).toBe(true);
+    expect(isParserBijective(overviewParsers.period, '2026-07', '2026-07')).toBe(true);
+    expect(isParserBijective(overviewParsers.format, 'pdf', 'pdf')).toBe(true);
   });
 
   it('falls back to the default rather than crashing on a hand-edited or stale value', () => {
@@ -170,9 +184,6 @@ describe('the URL param contract', () => {
     expect(overviewParsers.range.parse('42y')).toBeNull();
     expect(apiKeysParsers.status.parse('deleted')).toBeNull();
     expect(adminParsers.tab.parse('everything')).toBeNull();
-    // A bookmark to a section that no longer exists lands on the landing section, never nowhere.
-    expect(adminParsers.section.parse('org-config')).toBeNull();
-    expect(adminParsers.section.defaultValue).toBe('overview');
     expect(manageParsers.page.parse('not-a-number')).toBeNull();
   });
 
@@ -182,11 +193,12 @@ describe('the URL param contract', () => {
     expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
-    expect(ADMIN_SECTIONS).toEqual(['overview', 'refills']);
   });
 
   it('defaults the report period to the current month, resolved once', () => {
     expect(CURRENT_PERIOD).toMatch(/^\d{4}-\d{2}$/);
     expect(manageParsers.period.defaultValue).toBe(CURRENT_PERIOD);
+    // Same parser instance as `/manage`'s (checked above) — so it carries the same default.
+    expect(overviewParsers.period.defaultValue).toBe(CURRENT_PERIOD);
   });
 });

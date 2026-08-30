@@ -12,6 +12,13 @@ export interface NavSpineItem {
   /** Renders the item as an `<a>` when set; otherwise a `<button>`. */
   href?: string;
   onSelect?: (key: string) => void;
+  /**
+   * A trailing numeral at the row's own trailing edge — plain text, never a badge (console-ui
+   * skill), the same `SubNav`'s own `count` already renders. Omit when there is nothing to
+   * count, or the count is `0`/still loading (`console-chrome.tsx`'s Operator row: "don't block
+   * nav rendering on it — show nothing while loading").
+   */
+  count?: number;
 }
 
 /**

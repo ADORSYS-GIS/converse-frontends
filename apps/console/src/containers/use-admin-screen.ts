@@ -87,7 +87,15 @@ export interface AdminScreen {
   decidedSourceCaveat: string;
 }
 
-export function useAdminScreen(): AdminScreen {
+/**
+ * `enabled` (phase 4) — gates the network fetch only, never the hook's other state. Two more
+ * callers now share this hook besides `AdminCentre`'s own full queue view: `use-overview-screen.ts`
+ * derives its "Refill requests" card from the same query, and `console-chrome.tsx`'s sidebar
+ * derives the Operator nav row's trailing count from it, both fired only `session.isAdmin ===
+ * true` ("fire NO extra query for non-admins" — shell revamp phase 4 brief). Defaults to `true` so
+ * `AdminCentre` — already behind the server-side role gate — needs no change.
+ */
+export function useAdminScreen(enabled = true): AdminScreen {
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
   const [view, setView] = useAdminParams();
@@ -109,6 +117,7 @@ export function useAdminScreen(): AdminScreen {
         args: { limit: PAGE_SIZE },
       });
     },
+    enabled,
   });
 
   const requests = useMemo(() => pendingQuery.data?.entries ?? [], [pendingQuery.data]);

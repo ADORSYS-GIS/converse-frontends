@@ -15,6 +15,13 @@ const STAT_ICONS: Record<OverviewStatCardIcon, ReactNode> = {
       <path d="M1 11 L5 3 L9 11" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  budget: (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+      <rect x="1.5" y="3" width="9" height="7" rx="1" />
+      <path d="M1.5 5.25 h9" strokeLinecap="round" />
+      <path d="M7.5 7.25 h1.5" strokeLinecap="round" />
+    </svg>
+  ),
   projects: (
     <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
       <rect x="1.5" y="1.5" width="9" height="9" rx="1" />

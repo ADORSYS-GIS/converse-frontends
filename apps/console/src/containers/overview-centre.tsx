@@ -1,45 +1,50 @@
 'use client';
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
+import { Card } from '@lightbridge/ui-web/src/components/card';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
+import { formatMsAxis } from '@lightbridge/ui-web/src/lib/duration';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
+import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
+import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
+import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
+import Link from 'next/link';
 
+import { OverviewScopeSlot } from './overview-scope-slot';
 import { useOverviewScreen } from './use-overview-screen';
 
 /**
- * `/` — the Overview centre column, which since the owner review of 2026-08-29 is the WHOLE
- * screen: this route supplies no `@rail` and no `@scope` slot content at any tier.
+ * `/` — one dashboard, parameterised by role (shell revamp phase 4). This route supplies no
+ * `@rail`/`@scope` slot at any tier — the shell is mounted once by `app/(console)/layout.tsx`.
  *
- * The shell is NOT here: it is mounted once by `app/(console)/layout.tsx`. This composes the
- * centre's sections. The screen's parameters live in the LEFT rail (`@scope`).
+ * Composition, top to bottom: `PageHeader` (controls + the `Export` action) → the money-first stat
+ * row → SPEND OVER TIME → SPEND BY PROJECT → BUDGET, all four real for every signed-in user; then,
+ * ADMIN-ONLY and purely additive, BUDGET PRESSURE → LATENCY → KEY HYGIENE → REFILL REQUESTS. The
+ * admin block replaces `/admin?section=overview` (deleted this phase) — `/admin` is now the
+ * refill-review queue alone, reached from the sidebar's "Refill requests" item or the REFILL
+ * REQUESTS card's own `Review` link below.
  *
- * There is no longer a rail/sheet pair to keep in sync — the controls are mounted once, visible at
- * every tier — but the values still live in the query string (ADR 0011), so a configured dashboard
- * stays a link you can send.
- */
-/**
- * Every spend figure the Overview charts render is USD, and every one of them goes through the
- * adaptive-precision ladder in `@lightbridge/ui-web/src/lib/money`.
- *
- * These were previously not passed at all, so both charts fell back to their unit-agnostic
- * defaults -- `String(Math.round(v))` for the time series, the same for the donut. Against real
- * production spend (an account at $0.006338 of a $12.00 ceiling) that labels every y-axis tick
- * and every tooltip `0`: no currency sign, no magnitude, no information. The chart primitives are
- * deliberately unit-blind (`LatencyDashboard` renders `ms` through the same props), so the fix
- * belongs here, at the one place that knows these particular series are money.
+ * `Card` wraps every zone below the stat row (phase 4 supersedes the earlier "render uncontained
+ * on the floor" reading for these dashboard zones specifically — see `Card`'s own doc comment for
+ * the precedent). Several sections already render their own tracked heading (`SpendDashboard`,
+ * `SpendShareSection`, `BudgetPanel`, `BudgetPressure`, `LatencyDashboard` all default their own
+ * `label`); those `Card`s carry no `title` of their own; only the section's `label` is overridden
+ * to the name this composition wants, so each zone has exactly ONE heading, never two stacked.
+ * `ApiKeysHygieneNotes` and the Refill requests block have no heading of their own, so their
+ * `Card` DOES carry a `title`.
  */
 const formatSpendTooltip = (value: number) => formatUsd(value);
-const formatSpendSliceValue = (slice: { value: number }, percent: number) =>
-  `${formatUsd(slice.value)} · ${percent.toFixed(0)}%`;
 
 export function OverviewCentre() {
-  const screen = useOverviewScreen();
+  const screen = useOverviewScreen(<OverviewScopeSlot />);
 
   const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
   const subtitle = screen.scopeAccountLabel
@@ -59,61 +64,127 @@ export function OverviewCentre() {
             projectField={screen.projectField}
           />
         }
+        action={
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => screen.report.onOpenChange(true)}>
+            Export
+          </Button>
+        }
       />
 
       <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
 
-      <SpendDashboard
-        series={screen.spendSeries}
-        status={screen.spendStatus}
-        errorMessage={screen.spendErrorMessage}
-        onRetry={screen.spendRetry}
-        fallbackWidth={840}
-        height={220}
-        formatYTick={formatUsdAxis}
-        formatTooltipValue={formatSpendTooltip}
-        formatLegendValue={(series) =>
-          formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
-        }
-        onSelectSeries={screen.setSelectedSeriesKey}
-      />
+      <ReportExportDialog {...screen.report} />
 
-      {/* Placement: directly below the SPEND time series, above the LATENCY/BUDGET row -- see
-          `pages-stories/overview.stories.tsx`'s equivalent comment for the full reasoning. Fed
-          from the SAME usage query as `SpendDashboard` above -- one failed/loading query takes
-          both down together, honestly, rather than one section looking wired and its sibling not. */}
-      <SpendShareSection
-        segments={screen.spendSegments}
-        status={screen.spendStatus}
-        errorMessage={screen.spendErrorMessage}
-        onRetry={screen.spendRetry}
-        selectedKey={screen.selectedSeriesKey}
-        onSelectSegment={screen.setSelectedSeriesKey}
-        total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
-      />
+      <Card>
+        <SpendDashboard
+          label="Spend over time"
+          series={screen.spendSeries}
+          status={screen.spendStatus}
+          errorMessage={screen.spendErrorMessage}
+          onRetry={screen.spendRetry}
+          fallbackWidth={840}
+          height={220}
+          formatYTick={formatUsdAxis}
+          formatTooltipValue={formatSpendTooltip}
+          formatLegendValue={(series) =>
+            formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
+          }
+          onSelectSeries={screen.setSelectedSeriesKey}
+        />
+      </Card>
 
-      {/* Latency is gone from Overview (owner, 2026-08-29): this is a per-USER dashboard — what
-          I spend, what I have left, what keys I hold. Per-bucket p95 by model is an operator's
-          metric; it answers a question nobody reading this screen is asking. `LatencyDashboard`
-          and `LatencyRidgeline` stay in the library for a future ops screen. */}
-      <BudgetPanel
-        className="w-full"
-        budget={screen.budget}
-        heroAction={
-          screen.refillAction ? (
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={screen.refillAction.pending}
-              onClick={screen.refillAction.onClick}>
-              {screen.refillAction.label}
-            </Button>
-          ) : undefined
-        }
-      />
+      <Card>
+        <SpendShareSection
+          label="Spend by project"
+          segments={screen.spendSegments}
+          status={screen.spendStatus}
+          errorMessage={screen.spendErrorMessage}
+          onRetry={screen.spendRetry}
+          selectedKey={screen.selectedSeriesKey}
+          onSelectSegment={screen.setSelectedSeriesKey}
+          total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
+        />
+      </Card>
+
+      <Card>
+        <BudgetPanel
+          className="w-full"
+          label="Budget"
+          budget={screen.budget}
+          heroAction={
+            screen.refillAction ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={screen.refillAction.pending}
+                onClick={screen.refillAction.onClick}>
+                {screen.refillAction.label}
+              </Button>
+            ) : undefined
+          }
+        />
+      </Card>
       {screen.refillErrorMessage ? (
         <ErrorLine message={`Refill request failed: ${screen.refillErrorMessage}`} />
+      ) : null}
+
+      {/* ── admin-only, purely additive — see this file's own doc comment ─────────────────── */}
+      {screen.isAdmin && screen.adminPressure ? (
+        <Card>
+          <BudgetPressure
+            label="Budget pressure"
+            projects={screen.adminPressure.projects}
+            ceiling={screen.adminPressure.ceiling}
+            status={screen.adminPressure.status}
+            errorMessage={screen.adminPressure.errorMessage}
+            onRetry={screen.adminPressure.onRetry}
+            note={screen.adminPressure.note}
+          />
+        </Card>
+      ) : null}
+
+      {screen.isAdmin && screen.adminLatency ? (
+        <Card>
+          <LatencyDashboard
+            label="Latency"
+            series={screen.adminLatency.series}
+            status={screen.adminLatency.status}
+            errorMessage={screen.adminLatency.errorMessage}
+            onRetry={screen.adminLatency.retry}
+            footnote={screen.adminLatency.footnote}
+            fallbackWidth={840}
+            height={220}
+            formatXTick={formatMsAxis}
+          />
+        </Card>
+      ) : null}
+
+      {screen.isAdmin && screen.adminHygiene ? (
+        <Card title="Key hygiene">
+          <InlineStatus>{screen.adminHygiene.summary}</InlineStatus>
+          <ApiKeysHygieneNotes className="mt-3" hygiene={screen.adminHygiene.hygiene} />
+          {screen.adminHygiene.caveat ? (
+            <InlineStatus className="mt-2">{screen.adminHygiene.caveat}</InlineStatus>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {screen.isAdmin && screen.refillRequestStatus ? (
+        <Card title="Refill requests">
+          <p className="text-soft font-mono text-[11px]">
+            {screen.refillRequestStatus.pendingCount} pending ·{' '}
+            {screen.refillRequestStatus.submittedLabel}
+          </p>
+          <Link
+            href="/admin"
+            className="text-soft hover:text-ink mt-1 inline-block font-mono text-[11px] underline-offset-2 hover:underline">
+            Review →
+          </Link>
+        </Card>
       ) : null}
     </div>
   );

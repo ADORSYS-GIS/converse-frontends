@@ -9,11 +9,10 @@
 import React, { useMemo, useState } from 'react';
 import { useCustom } from '@refinedev/core';
 
+import { Card } from '../components/card';
 import { InlineStatus } from '../components/inline-status';
 import type { SelectFieldProps } from '../components/select-field';
-import { formatMsAxis } from '../lib/duration';
 import { BudgetPanel } from '../sections/budget-panel';
-import { LatencyDashboard } from '../sections/latency-dashboard';
 import { presetRange } from '../components/date-range-field';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { OverviewControls } from '../sections/overview-controls';
@@ -100,40 +99,41 @@ export function RefineOverviewScreen() {
 
         <OverviewStatRow cards={snapshot?.statCards ?? []} loading={loading} />
 
-        <SpendDashboard
-          series={spendSeries}
-          fallbackWidth={872}
-          height={176}
-          status={status}
-          errorMessage={errorMessage}
-          onRetry={() => overviewQuery.query.refetch()}
-          onSelectSeries={setSelectedSeriesKey}
-          formatXTick={formatOverviewSpendXTick}
-          formatYTick={formatOverviewSpendYTick}
-          formatTooltipValue={formatOverviewSpendTooltipValue}
-          formatLegendValue={formatOverviewSpendLegendValue}
-        />
-
-        <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
-          <LatencyDashboard
-            className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-            series={snapshot?.latencySeries ?? []}
-            fallbackWidth={528}
-            height={310}
+        {/* Phase 4 — matches `apps/console/src/containers/overview-centre.tsx`'s own Card
+            treatment: each zone below the stat row sits in a `Card`, with its own tracked
+            `label` overridden to the composition's name rather than a second `Card.title`
+            stacked on top of it. LATENCY moved off this per-user screen in shell revamp phase 4
+            (it is now admin-only, gated behind `session.isAdmin` — this mock harness has no
+            session/role concept to drive that gate from, so it is left off here rather than
+            shown unconditionally, which is what the real container refuses to do too). */}
+        <Card>
+          <SpendDashboard
+            label="Spend over time"
+            series={spendSeries}
+            fallbackWidth={872}
+            height={176}
             status={status}
             errorMessage={errorMessage}
             onRetry={() => overviewQuery.query.refetch()}
-            formatXTick={formatMsAxis}
+            onSelectSeries={setSelectedSeriesKey}
+            formatXTick={formatOverviewSpendXTick}
+            formatYTick={formatOverviewSpendYTick}
+            formatTooltipValue={formatOverviewSpendTooltipValue}
+            formatLegendValue={formatOverviewSpendLegendValue}
           />
+        </Card>
+
+        <Card>
           <BudgetPanel
-            className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
+            className="w-full"
+            label="Budget"
             budget={snapshot?.budget ?? { value: 0, ceiling: 0, caption: '' }}
             needsAttentionProject={snapshot?.needsAttentionProject}
             onRequestRefill={() => {}}
             refillRequestStatus={snapshot?.refillRequestStatus}
             onReviewInAdmin={() => {}}
           />
-        </div>
+        </Card>
       </div>
     </RefineMockShell>
   );

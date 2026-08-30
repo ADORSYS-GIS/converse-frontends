@@ -1,91 +1,31 @@
 'use client';
 
-import { cn } from '@lightbridge/ui-web/src/cn';
 import { DetailSheet } from '@lightbridge/ui-web/src/components/detail-sheet';
 import { ReviewDetailPanel } from '@lightbridge/ui-web/src/components/review-detail-panel';
 import { DecisionsLedger } from '@lightbridge/ui-web/src/sections/decisions-ledger';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
-import { useAdminSectionParam } from '../client/url-state';
-import { AdminOverviewCentre } from './admin-overview-centre';
 import { useAdminScreen } from './use-admin-screen';
-import type { AdminSection } from '../client/url-state';
 
 /**
- * The Admin area's section switch — one route, two sections behind one nav entry, so the switch
- * lives here rather than as a second top-level nav item or a second URL segment.
+ * `/admin` — the centre column, and (shell revamp phase 4, 2026-08-30) the WHOLE of `/admin`: the
+ * operator's dashboard that used to live behind `?section=overview` moved to `/` itself, gated by
+ * `session.isAdmin` (`use-overview-screen.ts`'s admin-only block) — one dashboard, parameterised
+ * by role, rather than two screens that could (and did) drift. `/admin` is now exactly what its
+ * name plus this queue always meant: the budget refill review queue, reached from the sidebar's
+ * "Refill requests" item or the Overview REFILL REQUESTS card's own `Review` link.
  *
- * `// phase-4 removes`: this horizontal tab row is the shell revamp's temporary relocation of the
- * deleted `admin-sub-nav.tsx`'s rail sub-nav — it survives until phase 4, which redesigns the
- * Admin area's own navigation properly rather than carrying a rail-shaped switcher into a shell
- * that no longer has a rail for it to live in.
- */
-function AdminSectionTabs({
-  section,
-  pendingCount,
-  onSelect,
-}: {
-  section: AdminSection;
-  pendingCount: number;
-  onSelect: (section: AdminSection) => void;
-}) {
-  const tabClass = (active: boolean) =>
-    cn('pb-2 font-sans text-[13px]', active ? 'text-ink' : 'text-subtle');
-
-  return (
-    <div role="tablist" aria-label="Admin section" className="flex flex-col gap-0">
-      <div className="flex items-center gap-6">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === 'overview'}
-          onClick={() => onSelect('overview')}
-          className={tabClass(section === 'overview')}>
-          Overview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === 'refills'}
-          onClick={() => onSelect('refills')}
-          className={tabClass(section === 'refills')}>
-          Refill requests ({pendingCount})
-        </button>
-      </div>
-      <div className="bg-raised h-px" />
-    </div>
-  );
-}
-
-/**
- * `/admin` — the centre column. The shell is mounted once, in `app/(console)/layout.tsx`.
- *
- * `/admin` is one route with two sections rather than two nav entries (see `AdminSectionTabs`
- * above): the operator's dashboard is the LANDING section, and the budget refill queue below is
- * the other. Which one renders is `?section=`, the same param the tab row writes.
+ * The shell is NOT here — it is mounted once by `app/(console)/layout.tsx`.
  *
  * Shell revamp phase 3 (right rail out): the review queue's right-hand review-detail panel (the
- * temporary `AdminRail` aside, phase 2) is gone. Picking a pending request now opens `DetailSheet`
+ * temporary `AdminRail` aside, phase 2) is gone. Picking a pending request opens `DetailSheet`
  * hosting `ReviewDetailPanel` directly — it already owns its whole decision surface, so it needs
  * no rail section of its own — at every tier, the same way.
  */
 export function AdminCentre() {
-  const [section, setSection] = useAdminSectionParam();
-  // Mounted regardless of section, same as the deleted `admin-sub-nav.tsx` did, so the tab row's
-  // own "Refill requests (N)" count is always current even while the overview section is showing.
-  const queue = useAdminScreen();
+  const screen = useAdminScreen();
 
-  return (
-    <div className="flex flex-col gap-6">
-      <AdminSectionTabs section={section} pendingCount={queue.pendingCount} onSelect={setSection} />
-      {section === 'overview' ? <AdminOverviewCentre /> : <AdminReviewCentre screen={queue} />}
-    </div>
-  );
-}
-
-/** `/admin?section=refills` — the budget refill review queue and its selection-driven detail. */
-function AdminReviewCentre({ screen }: { screen: ReturnType<typeof useAdminScreen> }) {
   return (
     <>
       <div className="flex flex-col gap-6">

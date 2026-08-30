@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
 
 import { cn } from '../../cn';
+import { DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
 import { formatUsd } from '../../lib/money';
-import {
-  BODY_CLASS,
-  DATA_CLASS,
-  LABEL_CLASS,
-  META_CLASS,
-  METRIC_CLASS,
-  SECTION_TITLE_CLASS,
-} from '../../lib/type-roles';
+import { BODY_CLASS, LABEL_CLASS, METRIC_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
-import { Meter } from '../meter';
 import type { ReviewDetailPanelProps } from './types';
 
 function formatSignedCurrency(amount: number): string {
@@ -29,66 +22,44 @@ const NOTE_REQUIRED_MESSAGE = 'A note is required to decline this request.';
 
 // The panel's two layout idioms — a vertical stack of related lines, and the same stack preceded
 // by a hairline rule — are `rail-stack` / `rail-section` in theme.css, which is also where the
-// reason that rule is `raised` rather than `border` is recorded. Before they existed the stack was
-// written out eight times with four accidentally different gaps (4/6/8/12px, two of them off the
-// console's 4·8·12·16 spacing scale entirely).
+// reason that rule is `raised` rather than `border` is recorded.
 const STACK_CLASS = 'rail-stack';
 const SECTION_CLASS = 'rail-section';
 
-// daisy `table table-xs` supplies the history table's own metrics; `rail-history-cell` resets the
-// cell padding it ships with, because this table sits in a 280px rail and reads as a list, not a
-// grid.
-const CELL_CLASS = 'rail-history-cell';
-
-// Contract: task assignment (forms & actions batch) — right-rail CONTENT for Admin
-// (admin-budget-review.svg): subject, consumption, requested amount, requester note, history,
-// decision note, Approve/Decline pinned to the bottom. Fires onDecide('approve'|'decline', note).
+// Admin review revamp (phase 6): the Consumption meter and the History table are both gone —
+// `consumedAmount`/`ceilingAmount`/`warningThreshold`/`history` were permanently `null`/never
+// fetched upstream (no consumption or history query is wired up anywhere in `apps/console`;
+// backend issues already filed), so the blocks they fed could only ever render their own "not
+// available"/"not loaded" line. A block that can never hold a real value is not a state, it is a
+// promise this panel cannot keep — see `sections/review-queue`'s own doc comment for the sibling
+// correction on the Consumed/Ceiling table columns.
+//
+// The requested amount is now the panel's visual anchor (`METRIC_CLASS`, the role a hero figure
+// gets elsewhere in the console) rather than a small line below a meter that no longer exists.
+// Project/account/submitted-at follow as a definition list — `lib/detail-row.ts`'s shared
+// term/value geometry, the same one `AccountSettings`/`ProjectSettings` build their own rows
+// from — reflowed to fit the 420px `DetailSheet` cleanly now that there is one less block fighting
+// it for room. Decision actions stay pinned to the foot of the rail via the enclosing
+// `rail-panel-stack`'s own last-child rule.
 //
 // ADR 0010 Decision 4: composes the already-rebuilt `Field`/`Button` rather than hand-rolling a
-// second input/button treatment (composition over re-implementation), so both daisy `btn` axes
-// and the daisy `input`/`textarea` paint arrive through those. The consumption bar reuses the
-// shared `Meter` (`showCaption={false}`) instead of a duplicated track + fill — `Meter`'s own
-// caption bundles "$X of $Y" into one string, which does not fit this panel's two-size hierarchy
-// (22px metric, 11px "of $Y"), so only the bar is shared and the numerals stay local. History rows
-// use daisy `table table-xs` per PRIMITIVES.md. Decision buttons: approve = `primary` (the panel's
-// one signal action), decline = `ghost` per PRIMITIVES.md's `review-detail-panel` row.
+// second input/button treatment. Decision buttons: approve = `primary` (the panel's one signal
+// action), decline = `ghost` per PRIMITIVES.md's `review-detail-panel` row.
 //
-// PRIMITIVES.md row 46 also lists daisy `fieldset`, which is NOT adopted: every block above the
-// decision note is read-only display, not a form group, so a `<fieldset>`/`<legend>` around it
-// would be false semantics for a screen reader. The one genuine form control here is the decision
-// note, and `Field` already owns its Base UI Field wiring and its daisy `textarea` paint.
-//
-// Every type treatment below is an imported role from lib/type-roles.ts; this component
-// declares no type of its own. That is what took it from 99 hand-written utilities to a handful
-// of layout classes: the panel was re-typing `metric`, `row`, `label` and both prose steps at
-// nearly every line.
-//
-// converse-frontends#265/#266: consumption, the requester note and history are each optional and
-// independently omittable — a caller with no real data source for one of them must leave it
-// unset rather than pass a fabricated `0`/`[]`. The panel renders an honest inline line ("Not
-// available", "History not loaded.") instead of a fake measurement whenever that happens.
-//
-// converse-frontends#322: the decision note field's placeholder was "Optional · visible to
-// requester" (still what admin-budget-review.svg and the README §8.2 sequence diagram show) —
-// wrong in both directions. `RejectAugmentationRequestInput.reason` is a non-optional schema
-// field (`authz.cstack:1146-1151`); `ApproveAugmentationRequestInput` has no note field at all
-// (`authz.cstack:1132-1136`), so the note is silently dropped on Approve
-// (`use-admin-screen.ts`'s `decide.mutationFn` only ever sends `{ requestId }` on that branch).
-// This is a functional-contract divergence from the mockup/spec, not a pixel one, so it is not
-// resolved in the mockup's favour: the placeholder now reads "Required to decline · not recorded
-// on approve", and Decline is blocked client-side on an empty/whitespace-only note before any
-// RPC call, with a `Field` error line naming why.
+// converse-frontends#265/#266/#322: the requester note is optional and independently omittable —
+// a caller with no real data source for it must leave it unset rather than pass a fabricated
+// string. The decision note field's placeholder is "Required to decline · not recorded on
+// approve" (`RejectAugmentationRequestInput.reason` is non-optional; `ApproveAugmentationRequestInput`
+// carries no note field at all, so the note is silently dropped on Approve — see
+// `use-admin-screen.ts`'s `decide.mutationFn`), and Decline is blocked client-side on an
+// empty/whitespace-only note before any RPC call, with a `Field` error line naming why.
 export function ReviewDetailPanel({
-  subject,
-  requesterEmail,
+  projectLabel,
+  accountLabel,
   submittedAt,
-  consumedAmount,
-  ceilingAmount,
-  warningThreshold = 0.9,
   requestedAmount,
   requesterNote,
   reviewerNote,
-  history,
   note,
   onNoteChange,
   onDecide,
@@ -122,38 +93,24 @@ export function ReviewDetailPanel({
     // decision actions — at the foot of the rail however short the content above them is.
     <div className={cn('rail-panel-stack', className)}>
       <div className={STACK_CLASS}>
-        <span className={fieldLabelClassName}>Request</span>
-        <h2 className={SECTION_TITLE_CLASS}>{subject}</h2>
-        <p className={META_CLASS}>
-          {requesterEmail} · {submittedAt}
-        </p>
-      </div>
-
-      <div className={SECTION_CLASS}>
-        <span className={fieldLabelClassName}>Consumption</span>
-        {consumedAmount != null && ceilingAmount != null ? (
-          <>
-            {/* Baseline alignment, so the 22px numeral and the 11px ceiling sit on one line. */}
-            <div className="metric-ceiling-row">
-              <span className={METRIC_CLASS}>{formatUsd(consumedAmount)}</span>
-              <span className={LABEL_CLASS}>of {formatUsd(ceilingAmount)}</span>
-            </div>
-            <Meter
-              value={consumedAmount}
-              ceiling={ceilingAmount}
-              threshold={warningThreshold}
-              showCaption={false}
-            />
-          </>
-        ) : (
-          <p className={LABEL_CLASS}>Not available — no consumption query for this request yet.</p>
-        )}
-      </div>
-
-      <div className={SECTION_CLASS}>
         <span className={fieldLabelClassName}>Requested amount</span>
         <span className={METRIC_CLASS}>{formatSignedCurrency(requestedAmount)}</span>
       </div>
+
+      <dl className={cn(DETAIL_LIST_CLASS, SECTION_CLASS)}>
+        <div className={DETAIL_ROW_CLASS}>
+          <dt className={LABEL_CLASS}>Project</dt>
+          <dd className={BODY_CLASS}>{projectLabel}</dd>
+        </div>
+        <div className={DETAIL_ROW_CLASS}>
+          <dt className={LABEL_CLASS}>Account</dt>
+          <dd className={BODY_CLASS}>{accountLabel}</dd>
+        </div>
+        <div className={DETAIL_ROW_CLASS}>
+          <dt className={LABEL_CLASS}>Submitted</dt>
+          <dd className={BODY_CLASS}>{submittedAt}</dd>
+        </div>
+      </dl>
 
       {requesterNote ? (
         <div className={SECTION_CLASS}>
@@ -168,37 +125,6 @@ export function ReviewDetailPanel({
           <p className={BODY_CLASS}>{reviewerNote}</p>
         </div>
       ) : null}
-
-      <div className={SECTION_CLASS}>
-        <span className={fieldLabelClassName}>History</span>
-        {history == null ? (
-          <p className={LABEL_CLASS}>History not loaded.</p>
-        ) : history.length === 0 ? (
-          <p className={LABEL_CLASS}>No previous refills.</p>
-        ) : (
-          <table className="table-xs table">
-            <tbody>
-              {history.map((row) => (
-                <tr key={row.id}>
-                  <td className={CELL_CLASS}>
-                    {/* Tighter than the panel's own stack — a history row's two lines are one
-                        unit, not two related blocks. The tightening belongs to the cell, so it
-                        applies to whatever this cell comes to hold. */}
-                    <div className={STACK_CLASS}>
-                      <span className={BODY_CLASS}>{row.label}</span>
-                      <span className={LABEL_CLASS}>{row.meta}</span>
-                    </div>
-                  </td>
-                  {/* Numerics are right-aligned (console-ui skill, "Type"). */}
-                  <td className={cn(CELL_CLASS, DATA_CLASS, 'text-right')}>
-                    {formatSignedCurrency(row.amount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
 
       <div className={SECTION_CLASS}>
         <Field

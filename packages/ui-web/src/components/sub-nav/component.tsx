@@ -49,9 +49,22 @@ const ROW_BASE_CLASS = cn(
   RAIL_ROW_PADDING_CLASS
 );
 
-function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
+function SubNavRow({
+  item,
+  linkComponent,
+  horizontal,
+}: {
+  item: SubNavItem;
+  linkComponent: LinkComponent;
+  horizontal: boolean;
+}) {
   const Link = linkComponent;
-  const content = (
+  const content = horizontal ? (
+    <>
+      {item.label}
+      {item.count !== undefined ? ` ${item.count}` : null}
+    </>
+  ) : (
     <>
       {item.active ? <span aria-hidden="true" className={RAIL_ACTIVE_BAR_CLASS} /> : null}
       {/* Reserves the same width `NavSpine`'s icon column occupies, even though sub-nav rows
@@ -75,7 +88,7 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
     <NavigationMenu.Item>
       <NavigationMenu.Link
         active={Boolean(item.active)}
-        className={ROW_BASE_CLASS}
+        className={horizontal ? 'sub-nav-tab focus-ring' : ROW_BASE_CLASS}
         onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
         render={
           item.href ? (
@@ -89,17 +102,29 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
   );
 }
 
-export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubNavProps) {
+export function SubNav({
+  items,
+  className,
+  linkComponent = DefaultAnchor,
+  orientation = 'vertical',
+}: SubNavProps) {
+  const horizontal = orientation === 'horizontal';
   return (
-    <NavigationMenu.Root orientation="vertical" aria-label="Section" className={className}>
-      {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
-          16px inset — the same bleed `NavSpine`'s `<ul>` applies — so this list's active
-          fill/active bar land at the identical net inset from the rail's true left edge. The
-          width that makes the bleed symmetric is `rail-list`'s; the `w-full` that used to sit
-          here fought it, resolving 100% against the panel and then shifting left by the bleed. */}
-      <NavigationMenu.List className={cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
+    <NavigationMenu.Root
+      orientation={horizontal ? 'horizontal' : 'vertical'}
+      aria-label="Section"
+      className={className}>
+      {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the VERTICAL list out of the enclosing
+          `RailPanel`'s 16px inset — the same bleed `NavSpine`'s `<ul>` applies — so this list's
+          active fill/active bar land at the identical net inset from the rail's true left edge.
+          The width that makes the bleed symmetric is `rail-list`'s; the `w-full` that used to sit
+          here fought it, resolving 100% against the panel and then shifting left by the bleed.
+          The HORIZONTAL list is not a rail at all — no bleed, no daisy `menu` paint, just
+          `sub-nav-tabs`'s row of cells (theme.css). */}
+      <NavigationMenu.List
+        className={horizontal ? 'sub-nav-tabs' : cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
-          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
+          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} horizontal={horizontal} />
         ))}
       </NavigationMenu.List>
     </NavigationMenu.Root>

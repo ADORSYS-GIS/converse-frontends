@@ -2,12 +2,11 @@
 // opaque JWT subject (ADR-0006), `defaultQuotaTier` is a catalogue tier id and not a currency
 // figure, and the unnamed account is the COMMON case in production today, not an edge one —
 // `Account.name` shipped nullable with no truthful backfill (lightbridge-authz#551).
-import type { AccountPanelProps } from '../account-panel/types';
-import type { AccountSettingsDetails } from './types';
+import type { AccountSettingsDetails, AccountSettingsPanel } from './types';
 
 const noop = () => {};
 
-export const namedAccountPanelFixture: AccountPanelProps = {
+export const namedAccountPanelFixture: AccountSettingsPanel = {
   account: { id: 'auth0|9f3a2c7e41b0', name: 'Widgets Ltd' },
   loading: false,
   onCreate: noop,
@@ -15,12 +14,12 @@ export const namedAccountPanelFixture: AccountPanelProps = {
   onRetry: noop,
 };
 
-export const unnamedAccountPanelFixture: AccountPanelProps = {
+export const unnamedAccountPanelFixture: AccountSettingsPanel = {
   ...namedAccountPanelFixture,
   account: { id: 'auth0|1b77de04aa93', name: null },
 };
 
-export const noAccountPanelFixture: AccountPanelProps = {
+export const noAccountPanelFixture: AccountSettingsPanel = {
   ...namedAccountPanelFixture,
   account: null,
 };

@@ -24,14 +24,15 @@ function props(
 }
 
 describe('AccountSettings', () => {
-  it('renders the account panel and the read-only facts around it', () => {
+  it('renders one Card, with Rename in its header and the facts as a definition grid', () => {
     render(<AccountSettings {...props()} />);
 
     expect(screen.getByText('Widgets Ltd')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByText('Account id')).toBeInTheDocument();
-    // Twice on this screen by design: the panel keeps the id beside the name, and the row below
-    // is the addressable, copyable one.
-    expect(screen.getAllByText(accountDetailsFixture.id)).toHaveLength(2);
+    // The id renders exactly once now — Copy sits beside it, and the Card header no longer
+    // echoes it a second time the way the deleted `AccountPanel` did.
+    expect(screen.getAllByText(accountDetailsFixture.id)).toHaveLength(1);
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByText('Default quota tier')).toBeInTheDocument();
@@ -46,11 +47,7 @@ describe('AccountSettings', () => {
   });
 
   it('names an unassigned quota tier rather than printing a zero or an em dash', () => {
-    render(
-      <AccountSettings
-        {...props({ panel: unnamedAccountPanelFixture, details: accountDetailsNoQuotaFixture })}
-      />
-    );
+    render(<AccountSettings {...props({ details: accountDetailsNoQuotaFixture })} />);
 
     expect(screen.getByText(NO_QUOTA_TIER_LABEL)).toBeInTheDocument();
   });
@@ -67,16 +64,32 @@ describe('AccountSettings', () => {
     render(<AccountSettings {...props({ onCopyId: undefined })} />);
 
     expect(screen.queryByRole('button', { name: 'Copy account id' })).not.toBeInTheDocument();
-    // The id itself is still on screen — it is the only way to address an account.
     expect(screen.getAllByText(accountDetailsFixture.id).length).toBeGreaterThan(0);
   });
 
-  it('omits the fact rows entirely when there is no account to describe', () => {
+  it('restyles the no-account prompt as an EmptyState block, with no dead Rename in the header', () => {
     render(<AccountSettings {...props({ panel: noAccountPanelFixture, details: null })} />);
 
+    expect(screen.getByText('No account yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
     // A row reading "Status —" would claim a fourth state next to the panel's three.
     expect(screen.queryByText('Status')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
+  });
+
+  it('restyles the never-named prompt as an EmptyState block with the naming CTA', () => {
+    render(
+      <AccountSettings
+        {...props({ panel: unnamedAccountPanelFixture, details: accountDetailsNoQuotaFixture })}
+      />
+    );
+
+    expect(screen.getByText('Unnamed account')).toBeInTheDocument();
+    expect(
+      screen.getByText('This account has never been named, so it shows as its id across the console.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
   });
 
   it('preserves the panel’s three distinct states — loading is not "no account"', () => {
@@ -98,5 +111,11 @@ describe('AccountSettings', () => {
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load your account.');
     expect(screen.queryByRole('button', { name: 'Create account' })).not.toBeInTheDocument();
+  });
+
+  it('names the region distinctly from the Card’s own "Account" title', () => {
+    render(<AccountSettings {...props()} />);
+
+    expect(screen.getByRole('region', { name: 'Account settings' })).toBeInTheDocument();
   });
 });

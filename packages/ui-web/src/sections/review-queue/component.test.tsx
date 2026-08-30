@@ -8,10 +8,6 @@ import type { ReviewQueueProps } from './types';
 
 function makeProps(overrides: Partial<ReviewQueueProps> = {}): ReviewQueueProps {
   return {
-    activeTab: 'pending',
-    onTabChange: vi.fn(),
-    pendingCount: pendingRequestsFixture.length,
-    decidedCount: 26,
     pending: pendingRequestsFixture,
     onSelectRequest: vi.fn(),
     ...overrides,
@@ -19,20 +15,38 @@ function makeProps(overrides: Partial<ReviewQueueProps> = {}): ReviewQueueProps 
 }
 
 describe('ReviewQueue', () => {
-  it('puts counts in the tab labels, never in a badge', () => {
+  it('renders Submitted, Project, Account and Refill — no Consumed/Ceiling/Requester', () => {
     render(<ReviewQueue {...makeProps()} />);
 
-    expect(screen.getByRole('button', { name: 'Pending (4)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Decided (26)' })).toBeInTheDocument();
+    for (const header of ['Submitted', 'Project', 'Account', 'Refill']) {
+      expect(screen.getByRole('columnheader', { name: new RegExp(header) })).toBeInTheDocument();
+    }
+    for (const gone of ['Consumed', 'Ceiling', 'Requester']) {
+      expect(screen.queryByRole('columnheader', { name: gone })).not.toBeInTheDocument();
+    }
   });
 
-  it('fires onTabChange when the other tab is activated', () => {
-    const onTabChange = vi.fn();
-    render(<ReviewQueue {...makeProps({ onTabChange })} />);
+  it('renders the resolved account label, never a raw id, in the Account column', () => {
+    render(<ReviewQueue {...makeProps()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Decided (26)' }));
+    expect(screen.getAllByText('adorsys-gis').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('adorsys-labs').length).toBeGreaterThan(0);
+  });
 
-    expect(onTabChange).toHaveBeenCalledWith('decided');
+  it('carries no Pending/Decided tabs any more', () => {
+    render(<ReviewQueue {...makeProps()} />);
+
+    expect(screen.queryByRole('button', { name: /Pending/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Decided/ })).not.toBeInTheDocument();
+  });
+
+  it('renders Submitted as a sortable header and fires onSortChange', () => {
+    const onSortChange = vi.fn();
+    render(<ReviewQueue {...makeProps({ onSortChange })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Submitted/ }));
+
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'submitted', direction: 'asc' });
   });
 
   it('fires onSelectRequest when a queue row is activated', () => {
@@ -44,52 +58,42 @@ describe('ReviewQueue', () => {
     expect(onSelectRequest).toHaveBeenCalledWith(pendingRequestsFixture[0]);
   });
 
-  it('shows the inline empty status and drops the expiry note when nothing is pending', () => {
-    render(<ReviewQueue {...makeProps({ pending: [], pendingCount: 0 })} />);
+  it('replaces the table with an honest empty state when nothing is pending', () => {
+    render(<ReviewQueue {...makeProps({ pending: [] })} />);
 
+    expect(screen.getByText('No requests awaiting a decision')).toBeInTheDocument();
     expect(
-      screen.getByText('Nothing awaiting a decision. 26 decided requests shown below.')
+      screen.getByText('Refill requests submitted by project members appear here.')
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Requests expire after 14 days/)).not.toBeInTheDocument();
-  });
-
-  it('renders an honest dash instead of a fabricated $0.00 when consumption is unavailable', () => {
-    render(
-      <ReviewQueue
-        {...makeProps({
-          pending: [
-            {
-              id: 'req-unmeasured',
-              submittedAgo: '1 h ago',
-              project: 'new-service',
-              account: 'adorsys-gis',
-              consumed: null,
-              ceiling: null,
-              requestedAmount: 100,
-              requesterEmail: 'ada@adorsys.com',
-            },
-          ],
-          pendingCount: 1,
-        })}
-      />
-    );
-
-    const dashes = screen.getAllByText('—');
-    // One dash in the CONSUMED cell, one in CEILING — never a fabricated $0.00.
-    expect(dashes.length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('renders an ErrorLine with Retry on error', () => {
     const onRetry = vi.fn();
-    render(
-      <ReviewQueue
-        {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })}
-      />
-    );
+    render(<ReviewQueue {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the refill queue.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('never renders a pagination row with nothing wired — no dead "more exist" caption', () => {
+    render(<ReviewQueue {...makeProps()} />);
+
+    expect(screen.queryByRole('button', { name: /Next/ })).not.toBeInTheDocument();
+  });
+
+  it('renders pagination when the container wires a further page', () => {
+    const onNext = vi.fn();
+    render(
+      <ReviewQueue
+        {...makeProps({ pagination: { shown: 4, hasPrev: false, hasNext: true, onNext } })}
+      />
+    );
+
+    const next = screen.getByRole('button', { name: /Next/ });
+    expect(next).toBeEnabled();
+    fireEvent.click(next);
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 });

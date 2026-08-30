@@ -1,2 +1,2 @@
 export { ReviewDetailPanel } from './component';
-export type { ReviewDetailPanelProps, ReviewHistoryRow, ReviewDecision } from './types';
+export type { ReviewDecision, ReviewDetailPanelProps } from './types';

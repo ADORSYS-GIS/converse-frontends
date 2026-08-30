@@ -33,7 +33,8 @@ export const NamedLight: Story = {
 /**
  * The state most production accounts are in: never named, and no quota tier, because the console's
  * own `createAccount` call sends `defaultQuota: null` (no procedure exposes the tier catalogue for
- * a picker to read). Both absences are named rather than dashed.
+ * a picker to read). Restyled as an `EmptyState` block with the naming CTA, rather than a row of
+ * dashes.
  */
 export const UnnamedNoTier: Story = {
   name: 'Unnamed account, no tier assigned — the production default today',
@@ -41,11 +42,11 @@ export const UnnamedNoTier: Story = {
 };
 
 /**
- * Signed in with no account. The rows are omitted entirely, not dashed out: there is no account to
- * have a status, and the panel above is already saying so with a way out.
+ * Signed in with no account. Restyled as an `EmptyState` block with the `Create account` CTA —
+ * there is no account to have a status, and this is the way out.
  */
 export const NoAccount: Story = {
-  name: 'No account yet — rows omitted, not dashed',
+  name: 'No account yet — EmptyState block, not dashed rows',
   args: { panel: noAccountPanelFixture, details: null },
 };
 

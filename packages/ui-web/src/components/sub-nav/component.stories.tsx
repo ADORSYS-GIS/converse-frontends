@@ -36,3 +36,16 @@ export const WithoutCounts: Story = {
     items: manageItems.map(({ count: _count, ...item }) => item),
   },
 };
+
+const settingsTabs: SubNavItem[] = [
+  { key: 'account', label: 'Account', active: true },
+  { key: 'projects', label: 'Projects', count: 3 },
+];
+
+// Settings' Account/Projects tab row (Attio pattern) — text tabs in a line, active marked by a
+// 2px underline rather than a rail's full-width fill. The meta's rail `Card` decorator is sized
+// for the VERTICAL stories above, so this one replaces it with a plain full-width box.
+export const Horizontal: Story = {
+  decorators: [() => <SubNav items={settingsTabs} orientation="horizontal" />],
+  args: { items: settingsTabs, orientation: 'horizontal' },
+};

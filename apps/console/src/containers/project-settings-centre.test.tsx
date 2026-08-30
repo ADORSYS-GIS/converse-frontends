@@ -1,0 +1,140 @@
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { describe, expect, it, vi } from 'vitest';
+
+import type { ProjectSettingsScreen as ProjectSettingsScreenData } from './use-project-settings-screen';
+
+/**
+ * Container-level acceptance coverage for `/settings/projects` — the project-identity half of
+ * the screen the account flow moved to, now its own real route (phase 6, admin/settings revamp).
+ *
+ * `useProjectSettingsScreen` is mocked wholesale, matching every other `*-centre.test.tsx` in
+ * this app. `next/navigation`/`next/link` are mocked for the same reason
+ * `account-settings-centre.test.tsx` mocks them — see that file's own comment.
+ */
+vi.mock('next/navigation', () => ({ usePathname: () => '/settings/projects' }));
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
+const useProjectSettingsScreenMock = vi.fn();
+vi.mock('./use-project-settings-screen', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./use-project-settings-screen')>();
+  return {
+    ...actual,
+    useProjectSettingsScreen: () => useProjectSettingsScreenMock(),
+  };
+});
+
+function baseScreen(overrides: Partial<ProjectSettingsScreenData> = {}): ProjectSettingsScreenData {
+  return {
+    scopeLabel: 'Widgets Ltd',
+    projectSettings: {
+      projects: [
+        {
+          id: 'proj_7f21',
+          name: 'gateway-prod',
+          billingIdentity: 'adorsys-gis/gateway',
+          billingPlan: 'pro',
+          quotaTier: 'scale',
+          modelPolicy: 'allow_all',
+          status: 'active',
+          isDefault: true,
+        },
+      ],
+      loading: false,
+      search: '',
+      onSearchChange: vi.fn(),
+      onRename: vi.fn(),
+      onRetry: vi.fn(),
+    },
+    projectNameDialog: {
+      open: false,
+      projectId: 'proj_7f21',
+      currentName: 'gateway-prod',
+      name: 'gateway-prod',
+      onNameChange: vi.fn(),
+      submitting: false,
+      canSubmit: false,
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+    },
+    projectCount: 1,
+    ...overrides,
+  };
+}
+
+async function renderCentre(overrides: Partial<ProjectSettingsScreenData> = {}) {
+  useProjectSettingsScreenMock.mockReturnValue(baseScreen(overrides));
+  const { ProjectSettingsCentre } = await import('./project-settings-centre');
+  return render(<ProjectSettingsCentre />, { wrapper: withNuqsTestingAdapter() });
+}
+
+describe('ProjectSettingsCentre', () => {
+  it('renders each project’s own settings, and mounts the rename dialog per row', async () => {
+    await renderCentre();
+
+    expect(screen.getByText('gateway-prod')).toBeInTheDocument();
+    expect(screen.getByText('adorsys-gis/gateway')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename gateway-prod' })).toBeInTheDocument();
+  });
+
+  it('opens the rename dialog on the row the URL names', async () => {
+    await renderCentre({
+      projectNameDialog: {
+        open: true,
+        projectId: 'proj_7f21',
+        currentName: 'gateway-prod',
+        name: 'gateway-prod',
+        onNameChange: vi.fn(),
+        submitting: false,
+        canSubmit: false,
+        onSubmit: vi.fn(),
+        onCancel: vi.fn(),
+      },
+    });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Rename project');
+    expect(dialog).toHaveTextContent('proj_7f21');
+  });
+
+  it('carries a real search box — this is a browsable, paginated list now', async () => {
+    await renderCentre();
+
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  it('renders a real, clickable pagination row when the container wires a further page', async () => {
+    const onNext = vi.fn();
+    await renderCentre({
+      projectSettings: {
+        ...baseScreen().projectSettings,
+        pagination: { shown: 1, total: 24, hasPrev: false, hasNext: true, onNext },
+      },
+    });
+
+    expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
+  });
+
+  it('renders the Account/Projects tab row, Projects active, carrying the project count', async () => {
+    await renderCentre({ projectCount: 24 });
+
+    const projectsTab = screen.getByRole('link', { name: 'Projects 24' });
+    expect(projectsTab).toHaveAttribute('aria-current', 'page');
+    const accountTab = screen.getByRole('link', { name: 'Account' });
+    expect(accountTab).toHaveAttribute('href', '/settings/account');
+    expect(accountTab).not.toHaveAttribute('aria-current');
+  });
+
+  it('scopes the page subtitle to the account label only — no stale IA-explainer sentence', async () => {
+    await renderCentre();
+
+    expect(screen.queryByText(/Filtering and browsing live on Manage/)).not.toBeInTheDocument();
+  });
+});

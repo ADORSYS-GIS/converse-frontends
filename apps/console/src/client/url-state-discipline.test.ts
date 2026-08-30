@@ -84,16 +84,23 @@ describe('ADR 0011 discipline', () => {
     //  - the create-project dialog's unsent name/billing-identity/plan draft (ticket #303 — same
     //    shape again: `?create=1` on `/manage` IS in the URL, its typed-but-unsubmitted contents
     //    are not),
-    //  - the Settings screen's two unsent name drafts (account and project rename — the same
-    //    shape once more: `?account-name=true` and `?rename=<project id>` ARE in the URL, the
-    //    half-typed names going into either dialog are not).
+    //  - the Settings screens' two unsent name drafts, now split across `/settings/account`
+    //    (account rename) and `/settings/projects` (project rename) — phase 6 (admin/settings
+    //    revamp) split `use-settings-screen.ts` into one hook per real route. Same shape as
+    //    ever: `?account-name=true` and `?rename=<project id>` ARE in the URL, the half-typed
+    //    names going into either dialog are not,
+    //  - `use-admin-screen.ts`'s page-cursor stack (phase 6) — the trail of cursors a `Previous`
+    //    press needs is a browser-history-shaped concept, not itself "what am I looking at" the
+    //    way its own `?after=` param is, so it stays local rather than a second, redundant URL
+    //    param.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
+      join('containers', 'use-account-settings-screen.ts'),
       join('containers', 'use-admin-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
+      join('containers', 'use-project-settings-screen.ts'),
       join('containers', 'use-projects-screen.ts'),
-      join('containers', 'use-settings-screen.ts'),
     ]);
   });
 

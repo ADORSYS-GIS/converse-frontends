@@ -148,11 +148,7 @@ export { ReportExportDialog } from './components/report-export-dialog';
 export type { ReportExportDialogProps } from './components/report-export-dialog';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
-export type {
-  ReviewDetailPanelProps,
-  ReviewHistoryRow,
-  ReviewDecision,
-} from './components/review-detail-panel';
+export type { ReviewDetailPanelProps, ReviewDecision } from './components/review-detail-panel';
 
 export { CommandPalette, CommandPaletteTrigger } from './components/command-palette';
 export type {
@@ -260,15 +256,11 @@ export type {
 } from './sections/projects-ledger';
 
 export { ReviewQueue } from './sections/review-queue';
-export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './sections/review-queue';
-
-export { DecisionsLedger } from './sections/decisions-ledger';
 export type {
-  AdminReviewPagination,
-  DecisionOutcome,
-  DecisionRow,
-  DecisionsLedgerProps,
-} from './sections/decisions-ledger';
+  RefillRequestRow,
+  ReviewQueuePagination,
+  ReviewQueueProps,
+} from './sections/review-queue';
 
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
@@ -296,12 +288,24 @@ export { ManageControls } from './sections/manage-controls';
 export type { ManageControlsProps, ManageOption } from './sections/manage-controls';
 
 export {
-  AccountPanel,
+  AccountSettings,
   NO_ACCOUNT_MESSAGE,
   UNNAMED_ACCOUNT_HINT,
   UNNAMED_ACCOUNT_LABEL,
-} from './sections/account-panel';
-export type { AccountPanelAccount, AccountPanelProps } from './sections/account-panel';
+} from './sections/account-settings';
+export type {
+  AccountSettingsAccount,
+  AccountSettingsDetails,
+  AccountSettingsPanel,
+  AccountSettingsProps,
+} from './sections/account-settings';
+
+export { ProjectSettings, NO_PROJECTS_MESSAGE, PROJECT_SETTINGS_LABEL } from './sections/project-settings';
+export type {
+  ProjectSettingsPagination,
+  ProjectSettingsProps,
+  ProjectSettingsRow,
+} from './sections/project-settings';
 
 // ── selection-driven detail
 // The un-railed content `DetailSheet` hosts once a row is picked (`projects-centre.tsx`'s

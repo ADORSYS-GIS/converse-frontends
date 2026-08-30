@@ -19,7 +19,6 @@ import { ConsoleTopBar } from '../components/console-top-bar';
 import type { NavGroup, NavSpineItem } from '../components/nav-spine';
 import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
-import type { SubNavItem } from '../components/sub-nav';
 
 export type StoryRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
 
@@ -201,8 +200,3 @@ export function storyTopBar({ unnamed = false }: { unnamed?: boolean } = {}) {
     />
   );
 }
-
-export const settingsSubNavItems: SubNavItem[] = [
-  { key: 'account', label: 'Account', active: true },
-  { key: 'projects', label: 'Projects', count: 3 },
-];

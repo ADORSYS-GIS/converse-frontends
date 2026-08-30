@@ -9,7 +9,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
-import type { AdminReviewTab, ReportExportFormat } from '@lightbridge/ui-web';
+import type { ReportExportFormat } from '@lightbridge/ui-web';
 
 /**
  * **The console's URL param contract — the single module that owns it (ADR 0011).**
@@ -329,13 +329,27 @@ export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
  * write is navigation, and Back must close it rather than leave the screen. The typed-but-unsent
  * names in either dialog are NOT here — see `use-settings-screen.ts`'s own "SANCTIONED LOCAL
  * STATE" comment for why a draft must never reach the URL or browser history.
+ *
+ * `search`/`page` (phase 6, admin/settings revamp): `/settings/projects`' own filter and pager,
+ * the same idiom `apiKeysParsers`/`manageParsers` already use — the unbounded N×7 project dump
+ * this screen used to render died in favour of a search box + 10/page `Pagination`, so it needs
+ * the same two params every OTHER browsable list on the console carries. Both `replace`
+ * (rule 2 — knobs, not navigation), and `search` is debounced onto the URL the same way the two
+ * ledger search boxes are.
  */
 export const settingsParsers = {
   accountNameOpen: parseAsBoolean.withDefault(false),
   renameProjectId: parseAsString.withDefault(''),
+  search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  page: parseAsInteger.withDefault(1),
 };
 
-const settingsUrlKeys = { accountNameOpen: 'account-name', renameProjectId: 'rename' };
+const settingsUrlKeys = {
+  accountNameOpen: 'account-name',
+  renameProjectId: 'rename',
+  search: 'q',
+  page: 'page',
+};
 
 export function useSettingsParams() {
   return useQueryStates(settingsParsers, { urlKeys: settingsUrlKeys, history: 'replace' });
@@ -346,29 +360,43 @@ export const SETTINGS_DIALOG_OPTIONS = { history: 'push' as const };
 
 // ── /admin ───────────────────────────────────────────────────────────────────────────────────
 
-export const ADMIN_REVIEW_TABS = [
-  'pending',
-  'decided',
-] as const satisfies readonly AdminReviewTab[];
+/** The queue's one sortable column — `RefillRequestRow`'s own `submittedAgo`, sorted by the
+ *  request's real `createdAt` (`use-admin-screen.ts`). A single-member union rather than a bare
+ *  boolean, matching every other ledger's `sortKey`/`sortDirection` pair (`PROJECTS_SORT_KEYS`,
+ *  `API_KEY_SORT_KEYS`) so a second sortable column costs no new shape later. */
+export const ADMIN_SORT_KEYS = ['submitted'] as const;
 
 /**
- * `/admin`'s params: the review queue's tab and its selected request.
+ * `/admin`'s params: the review queue's sort, its selected request, and its page cursor.
  *
- * Phase 4 (2026-08-30) deletes `/admin`'s own dashboard section: the operator queries it used to
- * carry (`?section=`, and the `range`/`from`/`to`/`bucket`/`group-by`/`series` knobs mirrored from
- * `overviewParsers`) moved to `/` itself, gated behind `session.isAdmin` — see
- * `use-overview-screen.ts`'s admin-only block. `/admin` is now ONE screen, the budget refill
- * review queue, so it needs no sub-nav param at all; `tab`/`selectedRequestId` are what remain.
+ * Phase 4 (2026-08-30) deleted `/admin`'s own dashboard section (moved to `/`, gated behind
+ * `session.isAdmin`). Phase 6 (admin/settings revamp) deletes the Pending/Decided tab that used
+ * to live here too — `tab`/`ADMIN_REVIEW_TABS` are gone, because the Decided side they switched
+ * to was never backed by a real listing (see the deleted `sections/decisions-ledger`'s own doc
+ * comment). `/admin` is now ONE screen with no sub-nav param at all.
  *
- * Both write with `push` (ADR 0011 rule 2): the review tab is this screen's own sub-nav, and a
- * selected request is a selection — Back returns to the tab, or deselects the request.
+ * `after` (phase 6) is the pending queue's page cursor — `listPendingAugmentationRequests`'
+ * own `after`/`nextCursor` contract, not a page NUMBER: `use-admin-screen.ts` keeps the stack of
+ * cursors a `Previous` press needs in local state (a browser-history-shaped concept a URL param
+ * cannot express on its own), and only the CURRENT page's cursor is ever written here.
+ *
+ * All three write with `push` (ADR 0011 rule 2): the sort is this screen's own column header, a
+ * selected request is a selection, and moving a page is navigation — Back walks each of them
+ * back rather than leaving the screen.
  */
 export const adminParsers = {
-  tab: parseAsStringLiteral(ADMIN_REVIEW_TABS).withDefault('pending'),
   selectedRequestId: parseAsString.withDefault(''),
+  sortKey: parseAsStringLiteral(ADMIN_SORT_KEYS).withDefault('submitted'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('asc'),
+  after: parseAsString.withDefault(''),
 };
 
-const adminUrlKeys = { selectedRequestId: 'request' };
+const adminUrlKeys = {
+  selectedRequestId: 'request',
+  sortKey: 'sort',
+  sortDirection: 'dir',
+  after: 'after',
+};
 
 export function useAdminParams() {
   return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });

@@ -88,4 +88,30 @@ describe('SubNav', () => {
     expect(CustomLink).toHaveBeenCalled();
     expect(screen.getByTestId('custom-link')).toHaveAttribute('href', '/manage/projects');
   });
+
+  describe('horizontal orientation', () => {
+    const tabs: SubNavItem[] = [
+      { key: 'account', label: 'Account', href: '/settings/account', active: true },
+      { key: 'projects', label: 'Projects', href: '/settings/projects', count: 3 },
+    ];
+
+    it('renders every item as a real link, active state read off aria-current', () => {
+      render(<SubNav items={tabs} orientation="horizontal" />);
+
+      const active = screen.getByRole('link', { name: 'Account' });
+      expect(active).toHaveAttribute('href', '/settings/account');
+      expect(active).toHaveAttribute('aria-current', 'page');
+      expect(active).toHaveClass('sub-nav-tab');
+
+      const inactive = screen.getByRole('link', { name: 'Projects 3' });
+      expect(inactive).toHaveAttribute('href', '/settings/projects');
+      expect(inactive).not.toHaveAttribute('aria-current');
+    });
+
+    it('carries no icon column and no rail bleed — it is a tab row, not a rail', () => {
+      render(<SubNav items={tabs} orientation="horizontal" />);
+
+      expect(screen.getByRole('link', { name: 'Account' })).not.toHaveClass('rail-row');
+    });
+  });
 });

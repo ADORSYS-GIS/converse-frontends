@@ -1,4 +1,42 @@
-import type { AccountPanelProps } from '../account-panel/types';
+export type AccountSettingsAccount = {
+  /** `accounts.id` — the caller's opaque JWT `sub` (lightbridge-authz ADR-0006). The only
+   *  identifier an account has; a name is never one. */
+  id: string;
+  /**
+   * `null` means **never named**, and is NOT interchangeable with `''`.
+   *
+   * `Account.name` is nullable on purpose (lightbridge-authz#551): there was no truthful value to
+   * backfill pre-existing accounts with, and backfilling the id would have made "the user named
+   * their account `9f3a-…`" indistinguishable from "nobody has named it yet". Every account that
+   * existed before that migration reads back `null` today, so this is the ordinary case, not an
+   * edge case.
+   */
+  name: string | null;
+};
+
+export interface AccountSettingsPanel {
+  /**
+   * The signed-in principal's own account, or `null` when they do not have one yet.
+   *
+   * `null` is the state the production report ("I cannot create an account on the console") was
+   * about: with no account there is nothing to scope by, so every other screen is empty. This
+   * section is the way out.
+   */
+  account: AccountSettingsAccount | null;
+  loading: boolean;
+  /** A genuine failed accounts fetch — distinct from "the fetch succeeded and there is no
+   *  account", which is `account: null` with `error` unset. Never conflate the two: one is
+   *  unknown, the other is known-absent. */
+  error?: string;
+  onRetry?: () => void;
+
+  onCreate: () => void;
+  createDisabled?: boolean;
+  /** Stated beside the disabled create control; `undefined` exactly when it is enabled. */
+  createReason?: string;
+
+  onRename: () => void;
+}
 
 /**
  * The read-only half of the account: what the account *is*, as opposed to what it is called.
@@ -32,26 +70,17 @@ export type AccountSettingsDetails = {
 };
 
 export interface AccountSettingsProps {
-  /**
-   * `AccountPanel`'s own props, passed straight through.
-   *
-   * Composed rather than reimplemented: the panel already distinguishes the three states that
-   * matter — no account at all, an account whose `name` is `null`, and a genuinely failed fetch —
-   * and those distinctions are the contract documented in `../account-panel/types.ts`. This
-   * section adds facts around it; it does not restate them.
-   */
-  panel: AccountPanelProps;
+  panel: AccountSettingsPanel;
   /**
    * `null` whenever there is nothing truthful to show: no account, still loading, or a failed
-   * fetch. The panel above already says which of the three it is, so the rows simply do not
-   * render rather than printing em dashes that would read as "the account has no status".
+   * fetch. `panel` above already says which of the three it is, so the rows simply do not render
+   * rather than printing em dashes that would read as "the account has no status".
    */
   details: AccountSettingsDetails | null;
   /**
    * Copies the account id. Optional — omitted, the row renders without the affordance rather than
-   * with a dead button, the same contract `AccountBadge.onCopyId` uses. The clipboard write itself
-   * belongs to the app (`navigator.clipboard` is undefined on insecure origins, and this package
-   * does no I/O).
+   * with a dead button. The clipboard write itself belongs to the app (`navigator.clipboard` is
+   * undefined on insecure origins, and this package does no I/O).
    */
   onCopyId?: (accountId: string) => void;
   className?: string;

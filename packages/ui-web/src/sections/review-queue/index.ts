@@ -1,2 +1,2 @@
 export { ReviewQueue } from './component';
-export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './types';
+export type { RefillRequestRow, ReviewQueuePagination, ReviewQueueProps } from './types';

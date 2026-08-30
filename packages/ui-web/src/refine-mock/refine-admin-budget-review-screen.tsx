@@ -1,44 +1,35 @@
 // Refine-driven container for the ADMIN BUDGET REVIEW screen — `useTable` over the pending
 // `refill-requests` queue, `useOne` for the selected request's detail, approve/decline via
-// `useCustomMutation` against the mock `refill-requests/decide` endpoint (which moves the row
-// into the `decisions` resource). The sections stay pure — this container only adapts hook state
-// into their props (console-ui skill "Refine-driven mock screens").
+// `useCustomMutation` against the mock `refill-requests/decide` endpoint. The sections stay pure
+// — this container only adapts hook state into their props (console-ui skill "Refine-driven mock
+// screens").
 //
-// Shell revamp phase 3 (right rail out): the review detail no longer renders inside a right-hand
-// aside — row selection opens a `DetailSheet` hosting `ReviewDetailPanel` directly, exactly
-// matching `apps/console`'s own `admin-centre.tsx`.
+// Phase 6 (admin/settings revamp): the Pending/Decided tab and the `decisions` resource it read
+// are both gone — `refill-requests/decide` (`mock-data-provider.ts`) simply removes the row now,
+// it no longer moves it into a second resource. Row selection opens a `DetailSheet` hosting
+// `ReviewDetailPanel` directly, exactly matching `apps/console`'s own `admin-centre.tsx`.
 
 import React, { useState } from 'react';
-import { useCustomMutation, useInvalidate, useList, useOne, useTable } from '@refinedev/core';
+import { useCustomMutation, useInvalidate, useOne, useTable } from '@refinedev/core';
 
+import { Card } from '../components/card';
+import type { LedgerSort } from '../components/ledger-table';
 import { DetailSheet } from '../components/detail-sheet';
 import { ReviewDetailPanel } from '../components/review-detail-panel';
-import type { ReviewDecision, ReviewHistoryRow } from '../components/review-detail-panel';
-import { DecisionsLedger } from '../sections/decisions-ledger';
-import type { DecisionRow } from '../sections/decisions-ledger';
+import type { ReviewDecision } from '../components/review-detail-panel';
 import { ReviewQueue } from '../sections/review-queue';
-import type { AdminReviewTab, RefillRequestRow } from '../sections/review-queue';
+import type { RefillRequestRow } from '../sections/review-queue';
 import { PageHeader } from '../sections/page-header';
 import type { DecideRefillPayload } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
 
-// admin-budget-review.svg's review-detail history — moved here from the deleted
-// `sections/review-detail-rail/fixtures.ts`.
-const gatewayProdHistory: ReviewHistoryRow[] = [
-  { id: 'h1', label: '2 previous refills', amount: 350, meta: 'last 2026-02-08 · approved by sam' },
-];
-
 export function RefineAdminBudgetReviewScreen() {
-  const [tab, setTab] = useState<AdminReviewTab>('pending');
+  const [sort, setSort] = useState<LedgerSort>({ key: 'submitted', direction: 'asc' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
   const pendingTable = useTable<RefillRequestRow>({
     resource: 'refill-requests',
-    pagination: { currentPage: 1, pageSize: 6 },
-  });
-  const decisionsList = useList<DecisionRow>({
-    resource: 'decisions',
     pagination: { currentPage: 1, pageSize: 6 },
   });
 
@@ -48,11 +39,10 @@ export function RefineAdminBudgetReviewScreen() {
     queryOptions: { enabled: selectedId !== null },
   });
 
-  const decideMutation = useCustomMutation<DecisionRow>();
+  const decideMutation = useCustomMutation<RefillRequestRow>();
   const invalidate = useInvalidate();
 
   const pending = pendingTable.result.data;
-  const decisions = decisionsList.result.data;
   const loading = pendingTable.tableQuery.isLoading;
   const error = pendingTable.tableQuery.isError
     ? pendingTable.tableQuery.error?.message
@@ -69,7 +59,6 @@ export function RefineAdminBudgetReviewScreen() {
       {
         onSuccess: async () => {
           await invalidate({ resource: 'refill-requests', invalidates: ['list'] });
-          await invalidate({ resource: 'decisions', invalidates: ['list'] });
           setSelectedId(null);
           setNote('');
         },
@@ -78,7 +67,6 @@ export function RefineAdminBudgetReviewScreen() {
   }
 
   const pendingCount = pendingTable.result.total ?? pending.length;
-  const decidedCount = decisionsList.result.total ?? decisions.length;
 
   return (
     <RefineMockShell active="admin" showAdmin>
@@ -90,31 +78,26 @@ export function RefineAdminBudgetReviewScreen() {
           }`}
         />
 
-        <ReviewQueue
-          activeTab={tab}
-          onTabChange={setTab}
-          pendingCount={pendingCount}
-          decidedCount={decidedCount}
-          pending={pending}
-          loading={loading}
-          error={error}
-          onRetry={() => pendingTable.tableQuery.refetch()}
-          selectedRequestId={selectedId}
-          onSelectRequest={(row) => setSelectedId(row.id)}
-        />
-
-        <DecisionsLedger
-          decisions={decisions}
-          pagination={{
-            shown: pending.length,
-            total: pendingCount,
-            hasPrev: pendingTable.currentPage > 1,
-            hasNext: pendingTable.currentPage < pendingTable.pageCount,
-            onPrev: () => pendingTable.setCurrentPage((page) => Math.max(1, page - 1)),
-            onNext: () =>
-              pendingTable.setCurrentPage((page) => Math.min(pendingTable.pageCount, page + 1)),
-          }}
-        />
+        <Card>
+          <ReviewQueue
+            pending={pending}
+            loading={loading}
+            error={error}
+            onRetry={() => pendingTable.tableQuery.refetch()}
+            sort={sort}
+            onSortChange={setSort}
+            selectedRequestId={selectedId}
+            onSelectRequest={(row) => setSelectedId(row.id)}
+            pagination={{
+              shown: pending.length,
+              hasPrev: pendingTable.currentPage > 1,
+              hasNext: pendingTable.currentPage < pendingTable.pageCount,
+              onPrev: () => pendingTable.setCurrentPage((page) => Math.max(1, page - 1)),
+              onNext: () =>
+                pendingTable.setCurrentPage((page) => Math.min(pendingTable.pageCount, page + 1)),
+            }}
+          />
+        </Card>
       </div>
 
       <DetailSheet
@@ -126,14 +109,11 @@ export function RefineAdminBudgetReviewScreen() {
         {selected ? (
           <ReviewDetailPanel
             key={selectedId}
-            subject={selected.project}
-            requesterEmail={selected.requesterEmail}
+            projectLabel={selected.project}
+            accountLabel={selected.account}
             submittedAt={selected.submittedAgo}
-            consumedAmount={selected.consumed ?? undefined}
-            ceilingAmount={selected.ceiling ?? undefined}
             requestedAmount={selected.requestedAmount}
             requesterNote="Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar."
-            history={gatewayProdHistory}
             note={note}
             onNoteChange={setNote}
             onDecide={(decision) => handleDecide(decision)}

@@ -5,9 +5,8 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { RefineAdminBudgetReviewScreen } from './refine-admin-budget-review-screen';
 import { withRefineMock } from './refine-decorator';
 
-// `useTable` over `refill-requests` (pending) + `useList` over `decisions`, `useOne` for the
-// selected request's detail, decide via `useCustomMutation` — console-ui skill "Refine-driven
-// mock screens".
+// `useTable` over `refill-requests` (pending), `useOne` for the selected request's detail, decide
+// via `useCustomMutation` — console-ui skill "Refine-driven mock screens".
 const meta: Meta<typeof RefineAdminBudgetReviewScreen> = {
   title: 'Refine/AdminBudgetReview',
   component: RefineAdminBudgetReviewScreen,
@@ -17,10 +16,6 @@ const meta: Meta<typeof RefineAdminBudgetReviewScreen> = {
 export default meta;
 type Story = StoryObj<typeof RefineAdminBudgetReviewScreen>;
 
-// `useTable` loads the pending queue and `useList` loads RECENT DECISIONS from the mock provider.
-// Keys off `ada@adorsys.com` (the pending row's REQUESTER cell) rather than a project name — the
-// `gateway-prod` project name is deliberately reused by both fixtures, so once RECENT DECISIONS
-// also loads it legitimately renders twice on the page.
 export const Populated: Story = {
   decorators: [withRefineMock({ latencyMs: [300, 600] })],
   render: () => (
@@ -30,13 +25,13 @@ export const Populated: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('ada@adorsys.com')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
   },
 };
 
-// Selecting a pending row fetches its detail via `useOne` and retargets the right-rail
-// ReviewDetailPanel; approving it moves the row out of the pending queue into RECENT DECISIONS —
-// the interaction flow named in the task ("approve a request -> row leaves pending queue").
+// Selecting a pending row fetches its detail via `useOne` and opens the `DetailSheet`; approving
+// it removes the row from the pending queue — the interaction flow named in the task ("approve a
+// request -> row leaves pending queue").
 export const ApproveFlow: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20] })],
   render: () => (
@@ -46,7 +41,7 @@ export const ApproveFlow: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('ada@adorsys.com')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
 
     const rows = canvas.getAllByRole('row').slice(1);
     await userEvent.click(rows[0]);
@@ -61,7 +56,7 @@ export const ApproveFlow: Story = {
     // shrinking-but-still-populated pending queue, so assert the request is simply gone from it.
     await waitFor(() => {
       const remaining = canvas.getAllByRole('row').slice(1).map((row) => row.textContent);
-      expect(remaining.some((text) => text?.includes('ada@adorsys.com'))).toBe(false);
+      expect(remaining.some((text) => text?.includes('gateway-prod'))).toBe(false);
     });
   },
 };

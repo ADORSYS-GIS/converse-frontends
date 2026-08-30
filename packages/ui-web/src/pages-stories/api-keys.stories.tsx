@@ -14,6 +14,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
+import { CreateApiKeyDialog } from '../components/create-api-key-dialog';
 import { EmptyState } from '../components/empty-state';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
@@ -41,9 +42,15 @@ interface ApiKeysScreenProps {
   loading?: boolean;
   error?: string;
   showAdmin?: boolean;
-  /** Start scoped to "All projects" — the state in which no key can be created. */
-  noProjectSelected?: boolean;
+  /** Start scoped to "All projects" — the toolbar's own default. `+ New key` stays enabled here
+   *  (live findings #4, 2026-08-30): a key belongs to exactly one project, but which one is
+   *  `CreateApiKeyDialog`'s own question now, never the ledger's filter. */
+  allProjectsScoped?: boolean;
+  /** The account has no project at all — the ONLY state that disables `+ New key` itself. */
+  zeroProjects?: boolean;
 }
+
+const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value !== 'all');
 
 // The composition `apps/console`'s `(console)` layout + `/api-keys` route perform for real.
 //
@@ -58,19 +65,28 @@ function ApiKeysScreen({
   loading = false,
   error,
   showAdmin = false,
-  noProjectSelected = false,
+  allProjectsScoped = false,
+  zeroProjects = false,
 }: ApiKeysScreenProps) {
   const [secret, setSecret] = useState(secretReveal);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
   const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(deleteInitial);
-  const [project, setProject] = useState(noProjectSelected ? 'all' : 'gateway-prod');
+  const [project, setProject] = useState(allProjectsScoped ? 'all' : 'gateway-prod');
   const [statusFilterValue, setStatusFilterValue] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
+  const [name, setName] = useState('');
 
-  // A key belongs to exactly one project, so "All projects" is a readable scope but not a
-  // writable one. The toolbar states this rather than offering a button that fails.
-  const canCreate = project !== 'all';
+  // `+ New key` is disabled ONLY when the account has no project to put a key in — never merely
+  // because the toolbar's own filter happens to be scoped to "All projects" (live findings #4).
+  const canCreate = !zeroProjects && PROJECT_CHOICES.length > 0;
+  const openCreateDialog = () => {
+    if (!canCreate) return;
+    setDraftProjectId(project !== 'all' ? project : (PROJECT_CHOICES[0]?.value ?? null));
+    setCreateOpen(true);
+  };
 
   const hygiene = useMemo(() => (keys.length > 0 ? apiKeysHygiene : undefined), [keys.length]);
 
@@ -106,14 +122,46 @@ function ApiKeysScreen({
               type="button"
               variant="primary"
               disabled={!canCreate}
-              title={canCreate ? undefined : 'Select a project to create a key.'}
-              onClick={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}>
+              title={canCreate ? undefined : 'Create a project before creating a key.'}
+              onClick={openCreateDialog}>
               + New key
             </Button>
           }
         />
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}
+
+        <CreateApiKeyDialog
+          open={createOpen}
+          projectOptions={PROJECT_CHOICES}
+          projectId={draftProjectId}
+          onProjectChange={setDraftProjectId}
+          name={name}
+          onNameChange={setName}
+          expiryDays="30"
+          expiryOptions={[
+            { value: '7', label: '7 days' },
+            { value: '30', label: '30 days' },
+            { value: '89', label: '89 days' },
+          ]}
+          onExpiryDaysChange={() => {}}
+          plans={[{ id: 'pro', name: 'Pro' }]}
+          plansLoading={false}
+          onRetryPlans={() => {}}
+          planId="pro"
+          onPlanChange={() => {}}
+          submitting={false}
+          canSubmit={name.trim().length > 0 && draftProjectId !== null}
+          onSubmit={() => {
+            setSecret(apiKeysNewSecret);
+            setCreateOpen(false);
+            setName('');
+          }}
+          onCancel={() => {
+            setCreateOpen(false);
+            setName('');
+          }}
+        />
 
         <Card>
           <ApiKeysLedger
@@ -130,8 +178,8 @@ function ApiKeysScreen({
                     type="button"
                     variant="primary"
                     disabled={!canCreate}
-                    title={canCreate ? undefined : 'Select a project to create a key.'}
-                    onClick={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}>
+                    title={canCreate ? undefined : 'Create a project before creating a key.'}
+                    onClick={openCreateDialog}>
                     + New key
                   </Button>
                 }
@@ -185,12 +233,22 @@ export const PopulatedLight: Story = {
 export const WithoutSecretStrip: Story = { render: () => <ApiKeysScreen /> };
 
 /**
- * Scoped to "All projects": creation is impossible, and the toolbar says so in words rather than
- * leaving a disabled button with no explanation. This is the state the console lands in by
- * default, so it is a first-class story, not an edge case.
+ * Scoped to "All projects" — the state the console lands in by default, so it is a first-class
+ * story, not an edge case. `+ New key` stays ENABLED here (live findings #4, 2026-08-30 — this
+ * used to disable the button outright with no way to proceed): the dialog it opens asks which
+ * project to target, so browsing the ledger unscoped never blocks creating a key.
  */
-export const NoProjectSelected: Story = {
-  render: () => <ApiKeysScreen noProjectSelected />,
+export const AllProjectsScoped: Story = {
+  render: () => <ApiKeysScreen allProjectsScoped />,
+};
+
+/**
+ * The one real disable condition left (live findings #4): the account has no project at all, so
+ * there is nowhere for a new key to belong. The toolbar and the trigger both say so in words
+ * rather than leaving a disabled button with no explanation.
+ */
+export const ZeroProjects: Story = {
+  render: () => <ApiKeysScreen allProjectsScoped zeroProjects keys={[]} />,
 };
 
 // Revoke gating flow mid-state: TypedConfirmDialog open, typed value not yet matching the name.

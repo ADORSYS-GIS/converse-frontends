@@ -73,9 +73,6 @@ function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreen
       onNext: vi.fn(),
     },
     filters: {
-      accountValue: 'auth0|9f3a',
-      accountOptions: [],
-      onAccountChange: vi.fn(),
       statusOptions: [],
       statusValue: 'all',
       onStatusChange: vi.fn(),
@@ -162,5 +159,29 @@ describe('ProjectsCentre', () => {
     expect(screen.getByText('No projects match these filters.')).toBeInTheDocument();
     // Structure stays — the column headers are still on screen.
     expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+  });
+
+  /**
+   * Live findings #1 (2026-08-30) — the false-empty flash: `screen.loading` (now
+   * `list.query.isLoading || scope.loading`, see `use-projects-screen.ts`) staying `true` while
+   * the account scope itself is still resolving must keep the ledger on skeleton rows, never
+   * `EmptyState`, even though `rows` is `[]` in exactly the same shape a genuinely empty account
+   * renders. This is the regression this suite did not previously catch: the old `loading:
+   * list.query.isLoading` computation could go `false` before scope resolved, showing "No
+   * projects yet" for a real account that, moments later, turned out to have projects.
+   */
+  it('renders skeleton rows, never EmptyState, while still loading with zero rows so far', async () => {
+    await renderCentre({ rows: [], loading: true, filtersActive: false });
+
+    expect(screen.queryByText('No projects yet')).not.toBeInTheDocument();
+    // Column structure renders immediately — only the body is a skeleton (console-ui skill
+    // "Loading": skeleton blocks matching final geometry, headers stay).
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+  });
+
+  it('renders EmptyState only once the ledger has genuinely settled with zero rows', async () => {
+    await renderCentre({ rows: [], loading: false, filtersActive: false });
+
+    expect(screen.getByText('No projects yet')).toBeInTheDocument();
   });
 });

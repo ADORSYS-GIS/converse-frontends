@@ -70,6 +70,14 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     sorters: [{ field: 'name', order: 'asc' }],
   });
 
+  // Live findings #1 (2026-08-30) — the false-empty flash: see `use-projects-screen.ts`'s own
+  // doc comment on its identical `loading` computation. `scope.value.accountId` starts `''` until
+  // `useConsoleScope()`'s accounts list resolves, so the `filters` above can compute WITHOUT an
+  // `accountId` clause for a render or two — a genuinely different, wrongly-unscoped query that
+  // can settle empty before the correctly-scoped one replaces it. Gating on `scope.loading` too
+  // keeps the skeleton up until the account scope itself is known.
+  const loading = list.query.isLoading || scope.loading;
+
   const projects = list.result.data;
   const rows = useMemo(() => toProjectSettingsRows(projects), [projects]);
   const total = list.result.total ?? rows.length;
@@ -141,7 +149,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
 
   const projectSettings: ProjectSettingsProps = {
     projects: rows,
-    loading: list.query.isLoading,
+    loading,
     loadingRowCount: 3,
     error: list.query.isError ? 'Could not load projects.' : undefined,
     onRetry: refresh,
@@ -149,7 +157,9 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     onSearchChange: (search) => {
       void setView({ search, page: 1 });
     },
-    filteredEmptyMessage: view.search.trim() ? `No projects match “${view.search.trim()}”.` : undefined,
+    filteredEmptyMessage: view.search.trim()
+      ? `No projects match “${view.search.trim()}”.`
+      : undefined,
     pagination: {
       shown: rows.length,
       total,
@@ -189,9 +199,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     },
   };
 
-  const activeAccount = scope.allAccounts.find(
-    (account) => account.id === scope.value.accountId
-  );
+  const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
 
   return {
     scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,

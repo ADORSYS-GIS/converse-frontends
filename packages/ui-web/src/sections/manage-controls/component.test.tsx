@@ -3,14 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ManageControls } from './component';
-import { manageAccountOptions, manageBudgetStateOptions, manageStatusOptions } from './fixtures';
+import { manageBudgetStateOptions, manageStatusOptions } from './fixtures';
 import type { ManageControlsProps } from './types';
 
 function makeProps(overrides: Partial<ManageControlsProps> = {}): ManageControlsProps {
   return {
-    accountValue: 'all',
-    accountOptions: manageAccountOptions,
-    onAccountChange: vi.fn(),
     statusOptions: manageStatusOptions,
     statusValue: 'all',
     onStatusChange: vi.fn(),
@@ -29,28 +26,23 @@ function selectOption(element: HTMLElement) {
 }
 
 describe('ManageControls', () => {
-  it('renders the account, status and budget-state fields in one row', () => {
+  it('renders the status and budget-state fields in one row', () => {
     render(<ManageControls {...makeProps()} />);
 
-    expect(screen.getByLabelText('Account')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Project status' })).toBeInTheDocument();
     expect(screen.getByLabelText('Budget state')).toBeInTheDocument();
   });
 
-  it('renders no search field of its own — it moved to ProjectsLedger\'s own toolbar', () => {
+  it('renders no Account select of its own — that scope belongs to the sidebar workspace switcher', () => {
+    render(<ManageControls {...makeProps()} />);
+
+    expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
+  });
+
+  it("renders no search field of its own — it moved to ProjectsLedger's own toolbar", () => {
     render(<ManageControls {...makeProps()} />);
 
     expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
-  });
-
-  it('fires onAccountChange from the account dropdown', async () => {
-    const onAccountChange = vi.fn();
-    render(<ManageControls {...makeProps({ onAccountChange })} />);
-
-    fireEvent.click(screen.getByLabelText('Account'));
-    selectOption(await screen.findByRole('option', { name: 'adorsys-labs' }));
-
-    expect(onAccountChange).toHaveBeenCalledWith('adorsys-labs');
   });
 
   it('fires onStatusChange from the segmented control', () => {

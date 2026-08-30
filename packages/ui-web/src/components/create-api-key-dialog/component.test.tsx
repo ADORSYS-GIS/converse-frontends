@@ -17,6 +17,11 @@ const EXPIRY_OPTIONS = [
   { value: '89', label: '89 days' },
 ];
 
+const PROJECT_OPTIONS = [
+  { value: 'proj_default', label: 'Default Project' },
+  { value: 'proj_gateway', label: 'gateway-prod' },
+];
+
 // Base UI `Select.Item` only commits a selection on `click` when a real `pointerdown` preceded it
 // on the same item — see `ScopeSelect`'s own test file for the same helper.
 function selectOption(element: HTMLElement) {
@@ -29,7 +34,9 @@ function baseProps(
 ): React.ComponentProps<typeof CreateApiKeyDialog> {
   return {
     open: true,
-    projectLabel: 'acct_01 / Default Project',
+    projectOptions: PROJECT_OPTIONS,
+    projectId: 'proj_default',
+    onProjectChange: vi.fn(),
     name: '',
     onNameChange: vi.fn(),
     expiryDays: '30',
@@ -59,9 +66,49 @@ describe('CreateApiKeyDialog', () => {
     expect(await screen.findByRole('dialog')).toHaveAccessibleName('New API key');
   });
 
-  it('echoes the target project in the description', async () => {
-    render(<CreateApiKeyDialog {...baseProps({ projectLabel: 'acct_02 / Widgets Prod' })} />);
-    expect(await screen.findByText(/acct_02 \/ Widgets Prod/)).toBeInTheDocument();
+  it('offers a real Project field — live findings #4: this used to be a fixed label with no picker', () => {
+    render(<CreateApiKeyDialog {...baseProps()} />);
+    expect(screen.getByLabelText('Project')).toBeInTheDocument();
+  });
+
+  it('never hardcodes a project — the picker only ever offers what `projectOptions` passes in', async () => {
+    render(<CreateApiKeyDialog {...baseProps()} />);
+
+    fireEvent.click(screen.getByLabelText('Project'));
+
+    expect(await screen.findByRole('option', { name: 'Default Project' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'gateway-prod' })).toBeInTheDocument();
+  });
+
+  it('fires onProjectChange with the real project id when a project is picked', async () => {
+    const onProjectChange = vi.fn();
+    render(<CreateApiKeyDialog {...baseProps({ onProjectChange })} />);
+
+    fireEvent.click(screen.getByLabelText('Project'));
+    selectOption(await screen.findByRole('option', { name: 'gateway-prod' }));
+
+    expect(onProjectChange).toHaveBeenCalledWith('proj_gateway');
+  });
+
+  it('states why the selected project cannot take a new key, rather than a silent disable', () => {
+    render(
+      <CreateApiKeyDialog
+        {...baseProps({
+          projectReason: 'Only the project owner or a lead can create keys here.',
+          canSubmit: false,
+        })}
+      />
+    );
+    expect(
+      screen.getByText('Only the project owner or a lead can create keys here.')
+    ).toBeInTheDocument();
+  });
+
+  it('renders no project reason caption once the selected project is eligible', () => {
+    render(<CreateApiKeyDialog {...baseProps({ projectReason: undefined })} />);
+    expect(
+      screen.queryByText(/project owner or a lead|Checking whether|Couldn.t confirm/)
+    ).not.toBeInTheDocument();
   });
 
   it('never hardcodes a plan — the picker only ever offers what `plans` passes in', async () => {

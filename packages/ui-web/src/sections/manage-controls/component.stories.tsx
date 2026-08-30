@@ -2,16 +2,13 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { ManageControls } from './component';
-import { manageAccountOptions, manageBudgetStateOptions, manageStatusOptions } from './fixtures';
+import { manageBudgetStateOptions, manageStatusOptions } from './fixtures';
 
 const meta: Meta<typeof ManageControls> = {
   title: 'Sections/ManageControls',
   component: ManageControls,
   parameters: { layout: 'padded' },
   args: {
-    accountValue: 'all',
-    accountOptions: manageAccountOptions,
-    onAccountChange: () => {},
     statusOptions: manageStatusOptions,
     statusValue: 'all',
     onStatusChange: () => {},

@@ -8,11 +8,12 @@
 // hosts `ProjectDetail`, at every tier — there is no separate compact-tier sheet trigger any more,
 // because the sheet is now the ONE way this content is ever reached.
 //
-// 2026-08-30 revamp brief: FILTERS (account/status/budget-state) moved again, off
-// `PageHeader.controls` and into `ProjectsLedger`'s own toolbar, alongside the search field it now
-// owns directly — the toolbar, table and pager all sit inside ONE `Card` now, matching
-// `OverviewCentre`'s own zones. The ACCOUNT column and the permanent em-dash totals footer are
-// gone; SPEND MTD is a real, sortable column.
+// 2026-08-30 revamp brief: FILTERS (status/budget-state) moved again, off `PageHeader.controls`
+// and into `ProjectsLedger`'s own toolbar, alongside the search field it now owns directly — the
+// toolbar, table and pager all sit inside ONE `Card` now, matching `OverviewCentre`'s own zones.
+// The ACCOUNT column and the permanent em-dash totals footer are gone; SPEND MTD is a real,
+// sortable column. `ManageControls`'s Account select is gone too (live findings #6, 2026-08-30):
+// it duplicated the sidebar workspace switcher, which owns account scope exclusively now.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -33,7 +34,6 @@ import type { ReportExportFormat, ReportIncludeToggle } from '../components/repo
 import { ScopeSelect } from '../components/scope-select';
 import { ManageControls } from '../sections/manage-controls';
 import {
-  manageAccountOptions,
   manageBudgetStateOptions,
   manageStatusOptions,
 } from '../sections/manage-controls/fixtures';
@@ -67,7 +67,6 @@ function ProjectsScreen({
 }: ProjectsScreenProps) {
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectRow | null>(initialSelection);
-  const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
   const [budgetStateValue, setBudgetStateValue] = useState('all');
   const [sort, setSort] = useState<LedgerSort | undefined>();
@@ -94,7 +93,8 @@ function ProjectsScreen({
     { id: 'enterprise', name: 'Enterprise' },
   ];
 
-  const filtersActive = Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
+  const filtersActive =
+    Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
 
   const newProjectButton = (
     <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
@@ -182,9 +182,6 @@ function ProjectsScreen({
             onSearchChange={setSearch}
             filters={
               <ManageControls
-                accountValue={accountValue}
-                accountOptions={manageAccountOptions}
-                onAccountChange={setAccountValue}
                 statusOptions={manageStatusOptions}
                 statusValue={statusValue}
                 onStatusChange={setStatusValue}

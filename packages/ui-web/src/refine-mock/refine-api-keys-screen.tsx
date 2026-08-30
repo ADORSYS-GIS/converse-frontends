@@ -139,12 +139,12 @@ export function RefineApiKeysScreen() {
             />
           }
           action={
-            <Button
-              type="button"
-              variant="primary"
-              disabled={project === 'all'}
-              title={project === 'all' ? 'Select a project to create a key.' : undefined}
-              onClick={project === 'all' ? undefined : createKey}>
+            // `+ New key` stays enabled at "All projects" (live findings #4, 2026-08-30): a key
+            // belongs to exactly one project, but which one is the real dialog's own question
+            // (`CreateApiKeyDialog`'s Project field) — this mock's simplified `createKey()` has
+            // no such picker, so it targets whichever project the toolbar itself is scoped to,
+            // defaulting to the first real project rather than the "All projects" sentinel.
+            <Button type="button" variant="primary" onClick={createKey}>
               + New key
             </Button>
           }
@@ -160,97 +160,95 @@ export function RefineApiKeysScreen() {
         </Button>
 
         <Card>
-        <ApiKeysLedger
-          keys={rows}
-          loading={loading}
-          error={error}
-          onRetry={refetchList}
-          emptyState={
-            <EmptyState
-              headline="No API keys in this project"
-              explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
-              action={
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={project === 'all'}
-                  onClick={project === 'all' ? undefined : createKey}>
-                  + New key
-                </Button>
-              }
-            />
-          }
-          sort={sort}
-          onSortChange={(next) => table.setSorters([{ field: next.key, order: next.direction }])}
-          secretReveal={secretReveal}
-          onDismissSecret={() => setSecretReveal(null)}
-          onRotate={(row) => {
-            const secret = randomSecret();
-            updateMutation.mutate(
-              {
-                resource: 'api-keys',
-                id: row.id,
-                values: {
-                  prefix: `lb_live_${secret.slice(6, 10)}…`,
-                  created: new Date().toISOString().slice(0, 10),
+          <ApiKeysLedger
+            keys={rows}
+            loading={loading}
+            error={error}
+            onRetry={refetchList}
+            emptyState={
+              <EmptyState
+                headline="No API keys in this project"
+                explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+                action={
+                  <Button type="button" variant="primary" onClick={createKey}>
+                    + New key
+                  </Button>
+                }
+              />
+            }
+            sort={sort}
+            onSortChange={(next) => table.setSorters([{ field: next.key, order: next.direction }])}
+            secretReveal={secretReveal}
+            onDismissSecret={() => setSecretReveal(null)}
+            onRotate={(row) => {
+              const secret = randomSecret();
+              updateMutation.mutate(
+                {
+                  resource: 'api-keys',
+                  id: row.id,
+                  values: {
+                    prefix: `lb_live_${secret.slice(6, 10)}…`,
+                    created: new Date().toISOString().slice(0, 10),
+                  },
                 },
-              },
-              {
-                onSuccess: () => {
-                  refetchList();
-                  setSecretReveal({
-                    heading: 'Key rotated — shown once',
-                    description: ROTATED_SECRET_COPY,
-                    secret,
-                  });
+                {
+                  onSuccess: () => {
+                    refetchList();
+                    setSecretReveal({
+                      heading: 'Key rotated — shown once',
+                      description: ROTATED_SECRET_COPY,
+                      secret,
+                    });
+                  },
+                }
+              );
+            }}
+            onRequestRevoke={(row) => setRevokeTarget({ row })}
+            revokeTarget={revokeTarget}
+            onConfirmRevoke={(row) => {
+              updateMutation.mutate(
+                {
+                  resource: 'api-keys',
+                  id: row.id,
+                  values: { status: 'revoked', statusLabel: 'revoked' },
                 },
-              }
-            );
-          }}
-          onRequestRevoke={(row) => setRevokeTarget({ row })}
-          revokeTarget={revokeTarget}
-          onConfirmRevoke={(row) => {
-            updateMutation.mutate(
-              {
-                resource: 'api-keys',
-                id: row.id,
-                values: { status: 'revoked', statusLabel: 'revoked' },
-              },
-              {
-                onSuccess: () => {
-                  refetchList();
-                  setRevokeTarget(null);
-                },
-                onError: (mutationError) => setRevokeTarget({ row, error: mutationError.message }),
-              }
-            );
-          }}
-          onCancelRevoke={() => setRevokeTarget(null)}
-          isAdmin={isAdmin}
-          onRequestDelete={(row) => setDeleteTarget({ row })}
-          deleteTarget={deleteTarget}
-          onConfirmDelete={(row) => {
-            deleteMutation.mutate(
-              { resource: 'api-keys', id: row.id },
-              {
-                onSuccess: () => {
-                  refetchList();
-                  setDeleteTarget(null);
-                },
-                onError: (mutationError) => setDeleteTarget({ row, error: mutationError.message }),
-              }
-            );
-          }}
-          onCancelDelete={() => setDeleteTarget(null)}
-          pagination={{
-            shown: rows.length,
-            total: table.result.total ?? rows.length,
-            hasPrev: table.currentPage > 1,
-            hasNext: table.currentPage < table.pageCount,
-            onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
-            onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
-          }}
-        />
+                {
+                  onSuccess: () => {
+                    refetchList();
+                    setRevokeTarget(null);
+                  },
+                  onError: (mutationError) =>
+                    setRevokeTarget({ row, error: mutationError.message }),
+                }
+              );
+            }}
+            onCancelRevoke={() => setRevokeTarget(null)}
+            isAdmin={isAdmin}
+            onRequestDelete={(row) => setDeleteTarget({ row })}
+            deleteTarget={deleteTarget}
+            onConfirmDelete={(row) => {
+              deleteMutation.mutate(
+                { resource: 'api-keys', id: row.id },
+                {
+                  onSuccess: () => {
+                    refetchList();
+                    setDeleteTarget(null);
+                  },
+                  onError: (mutationError) =>
+                    setDeleteTarget({ row, error: mutationError.message }),
+                }
+              );
+            }}
+            onCancelDelete={() => setDeleteTarget(null)}
+            pagination={{
+              shown: rows.length,
+              total: table.result.total ?? rows.length,
+              hasPrev: table.currentPage > 1,
+              hasNext: table.currentPage < table.pageCount,
+              onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
+              onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
+            }}
+          />
         </Card>
       </div>
     </RefineMockShell>

@@ -4,6 +4,7 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
+  activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
@@ -535,5 +536,22 @@ describe('series labelling', () => {
     const segments = toSpendShareSegments(response, 'project');
 
     expect(segments.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
+  });
+});
+
+describe('activeApiKeysCountFilters', () => {
+  it('always filters to status eq active, so the count excludes revoked keys', () => {
+    // Live findings #5 (2026-08-30): the "Active API keys" stat card previously read an
+    // unfiltered `useList` total, which counted revoked keys as if they were live.
+    expect(activeApiKeysCountFilters(null)).toEqual([
+      { field: 'status', operator: 'eq', value: 'active' },
+    ]);
+  });
+
+  it('adds a projectId filter only when the scope has a project selected', () => {
+    expect(activeApiKeysCountFilters('proj_7')).toEqual([
+      { field: 'projectId', operator: 'eq', value: 'proj_7' },
+      { field: 'status', operator: 'eq', value: 'active' },
+    ]);
   });
 });

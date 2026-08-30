@@ -1,7 +1,7 @@
 'use client';
 
 import type { NavGroup } from '@lightbridge/ui-web';
-import { AccountBadge } from '@lightbridge/ui-web/src/components/account-badge';
+import { AccountBadge, shortAccountId } from '@lightbridge/ui-web/src/components/account-badge';
 import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
 import {
   CommandPalette,
@@ -164,11 +164,27 @@ export function navGroups(
   return groups;
 }
 
-function initialsFor(name: string | undefined, email: string | undefined): string {
+/**
+ * The one deterministic rule for every initials chip in the chrome (the sidebar workspace
+ * switcher's `avatar-chip` and `AccountMenu`'s identity avatar): a real name or email yields a
+ * two-letter monogram; with neither, fall back to the account's own short label
+ * (`shortAccountId` — `acct_<first8>`) rather than a placeholder glyph. Both chips used to render
+ * `'··'` for an unnamed account with no email on file (live findings #7, 2026-08-30) — a glyph
+ * that carries no information and reads as a rendering bug, not a real fallback.
+ *
+ * `fallbackId` is always an account id — the workspace switcher's `accountId` for the scoped
+ * account, and the signed-in person's own `sub` for the identity avatar, since a person's
+ * defining identity IS their `accountId` here (ADR-0006).
+ */
+export function initialsFor(
+  name: string | undefined,
+  email: string | undefined,
+  fallbackId: string
+): string {
   const source = name ?? email ?? '';
   const parts = source.split(/[\s@._-]+/).filter(Boolean);
-  if (parts.length === 0) return '··';
-  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+  if (parts.length > 0) return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+  return shortAccountId(fallbackId).charAt(0) || '—';
 }
 
 const BRAND = (
@@ -186,9 +202,10 @@ const BRAND = (
  * The workspace switcher's data — shared by the sidebar's full-width row and the top bar's
  * compact one, since both are the SAME `AccountBadge` behaviour at two variants. Reads
  * `allAccounts` (raw rows), NOT `accounts` (flattened to `{id, label}` by `accountScopeLabel`,
- * which renders an unnamed account as "Unnamed account · <full uuid>"). Feeding that label to
- * `AccountBadge` as `name` would put the raw UUID back AND append the short form beside it — the
- * badge owns its own fallback; it needs the real `name`, or nothing.
+ * which renders an unnamed account as its short `acct_<first8>` token). Feeding that label to
+ * `AccountBadge` as `name` would defeat the badge's own fallback and, for a real name that happens
+ * to contain the id, print the account twice — the badge owns its own fallback; it needs the real
+ * `name`, or nothing.
  */
 function useWorkspaceSwitcher() {
   const consoleScope = useConsoleScope();
@@ -199,7 +216,11 @@ function useWorkspaceSwitcher() {
   return {
     accountId: consoleScope.value.accountId,
     name: activeAccount?.name,
-    initials: initialsFor(activeAccount?.name ?? undefined, undefined),
+    initials: initialsFor(
+      activeAccount?.name ?? undefined,
+      undefined,
+      consoleScope.value.accountId
+    ),
     accounts: consoleScope.allAccounts.map((account) => ({ id: account.id, label: account.name })),
     onSelectAccount: (accountId: string) => consoleScope.setValue({ accountId, projectId: null }),
     onCopyId: (accountId: string) => {
@@ -299,7 +320,8 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const route = routeFromPathname(pathname);
-  const identityLabel = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+  const identityLabel =
+    session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
   const refillCount = useOperatorRefillCount(session.isAdmin);
 
   return (
@@ -321,12 +343,12 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
       footer={
         <>
           <button type="button" onClick={onOpenPalette} className="sidebar-footer-row">
-            <span className="font-sans text-[13px] text-subtle">Search</span>
+            <span className="text-subtle font-sans text-[13px]">Search</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
           <div className="sidebar-footer-row">
             <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-            <span className="font-sans text-[13px] text-subtle">Theme</span>
+            <span className="text-subtle font-sans text-[13px]">Theme</span>
           </div>
           {online ? null : (
             <div className="sidebar-footer-row">
@@ -337,7 +359,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <AccountMenu
               name={session.user?.name}
               email={identityLabel}
-              initials={initialsFor(session.user?.name, identityLabel)}
+              initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
               onSignOut={signOut}
               theme={preference}
               onThemeChange={setPreference}
@@ -358,7 +380,8 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
   const session = useConsoleSession();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
-  const identityLabel = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+  const identityLabel =
+    session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
 
   return (
     <ConsoleTopBar
@@ -377,7 +400,7 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
         <AccountMenu
           name={session.user?.name}
           email={identityLabel}
-          initials={initialsFor(session.user?.name, identityLabel)}
+          initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
           onSignOut={signOut}
           theme={preference}
           onThemeChange={setPreference}

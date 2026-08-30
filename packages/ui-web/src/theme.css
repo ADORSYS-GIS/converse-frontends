@@ -629,9 +629,7 @@
 /* The SAME initials square, sized to fit the sidebar footer's 16px icon column exactly
    (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — `AccountMenu`'s `variant="sidebar"` identity row
    (Addition 5, owner screenshot: the identity chip sat at a THIRD x, neither the Search icon's
-   nor the old Theme row's). The footer's own workspace-switcher row above the nav list keeps the
-   full 26px `avatar-chip` — it is a one-off header-weight row, not a repeating item in the footer
-   row family this column discipline is about. */
+   nor the old Theme row's). */
 @utility avatar-chip-sm {
   display: flex;
   height: 16px;
@@ -643,6 +641,28 @@
   background-color: var(--color-base-300);
   color: var(--color-base-content);
   font-size: 0.5rem;
+}
+
+/* The SAME initials square again, at the workspace switcher's own step — owner rework,
+   2026-08-30: "the switcher IS a standard rail row" retires the older "one-off header-weight
+   row keeps the full 26px avatar-chip" call (superseded — that read as one of the type-scale
+   inflations the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s
+   `sidebar` variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN
+   size, and the switcher chip is not inside that column — it leads the row the way the footer's
+   26px chip used to) and not the full 26px `avatar-chip` either — 20px sits between the two,
+   matching the row's own `h-9` (36px) the way a chip two-thirds the row height reads as sized
+   FOR the row rather than dropped into it. */
+@utility avatar-chip-md {
+  display: flex;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.5625rem;
 }
 
 /* The three theme choices read as one row of words rather than three menu rows — they are a
@@ -817,9 +837,17 @@
  * internal rows, top to bottom: brand, workspace switcher, the nav list (`NavSpine`'s own
  * business, not styled here), a spacer, and the footer stack.
  */
+/* Owner rework (2026-08-30, "you really find this modern and beautiful?"): the header block
+   used to run brand(52) -> switcher(48, its own top/bottom padding both doing gap duty) with no
+   stated gap between the two rows. `h-12`/`h-9` are now literal — brand is the ONE row in the
+   sidebar that isn't nav-row-scaled (it is the wordmark, not a destination), the switcher IS a
+   standard rail row in every other respect (see `avatar-chip-md`/`ROW_LABEL_CLASS` at its call
+   site) and reads as one at this height. The 8px gap between them is stated as the switcher row's
+   own top margin rather than baked into either row's padding, so it cannot silently drift back
+   into "whatever the padding leaves" the way the old 52/48 pair did. */
 @utility sidebar-brand-row {
   display: flex;
-  height: 3.25rem; /* ~52px, per the shell brief */
+  height: 3rem; /* 48px, h-12 */
   flex-shrink: 0;
   align-items: center;
   gap: 0.75rem;
@@ -828,10 +856,14 @@
 
 @utility sidebar-switcher-row {
   flex-shrink: 0;
-  padding: 0.25rem 0.5rem 0.5rem;
+  margin-block-start: 0.5rem; /* 8px gap from the brand row above — stated once, not padding */
+  padding-inline: 0.5rem;
 }
 
-/* The nav list's own scroller — everything between the switcher and the footer. */
+/* The nav list's own scroller — everything between the switcher and the footer. 8px padding on
+   every side is the sidebar's own bleed grid (`RAIL_ROW_BLEED`, rail-grid.ts) — combined with
+   `sidebar-group-label`'s own first-child margin below, it is what puts a stated 16px between the
+   switcher and the first group label rather than an incidental one. */
 @utility sidebar-nav {
   min-height: 0;
   flex: 1 1 auto;
@@ -920,6 +952,13 @@
  */
 @utility sidebar-group-label {
   display: flex;
+  /* `row` is LOAD-BEARING, not the default it looks like: daisy's `menu li` contributes
+   * `flex-direction: column`, which silently turns the `align-items: center` below (meant as
+   * VERTICAL centering in the 28px row) into HORIZONTAL centering of the label text — the
+   * "centered group labels" the owner rejected twice (2026-08-30). Box left, padding, font-size
+   * and text-align all measured correct while the text painted centered: text-align does not
+   * position flex children. */
+  flex-direction: row;
   align-items: center;
   height: 1.75rem; /* 28px — the shell brief's own "group-label height 28" */
   padding-inline-start: 2.375rem; /* 38px = 12 (row padding) + 16 (icon column) + 10 (label gap) */
@@ -928,9 +967,28 @@
   font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 400;
+  /* Tracking (owner rework, 2026-08-30): a step above 0 so the 11px label reads as a deliberately
+     smaller CAPS-ADJACENT marker rather than as body text that shrank — sentence case stays, this
+     is spacing only. Within the 0.02-0.05em band the brief asked for. */
+  letter-spacing: 0.03em;
+
+  /* Vertical rhythm (owner rework, 2026-08-30 — the live gap between groups measured ~45px+
+     against a stated 20-24px target): a group's own boundary is two stated halves, not one
+     lump margin. `margin-block-end` (4px) plus `rail-list`'s own 4px item `gap` puts 8px between
+     THIS label and its first row; `margin-block-start` puts ~16px between the PREVIOUS group's
+     last row and this one (12px here + the same 4px `gap`) — 8 + 16 = the stated 20-24px total,
+     with the label's own 28px height living outside that count as content, not gap. The
+     first-of-list label gets a smaller start margin because it sits under the switcher, not a
+     nav row — `sidebar-switcher-row`'s 8px margin plus `sidebar-nav`'s 8px padding already
+     account for half the 16px there, so only 8px more is this label's own to add. */
+  margin-block-end: 0.25rem;
+
+  &:first-child {
+    margin-block-start: 0.5rem;
+  }
 
   &:not(:first-child) {
-    margin-block-start: 1.25rem; /* 20px between groups — vertical rhythm replaces the hairline */
+    margin-block-start: 0.75rem;
   }
 }
 

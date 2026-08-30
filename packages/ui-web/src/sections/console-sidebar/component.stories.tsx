@@ -1,41 +1,78 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 
+import { AccountBadge } from '../../components/account-badge';
+import { AccountMenu } from '../../components/account-menu';
 import type { NavGroup } from '../../components/nav-spine';
+import {
+  AdminIcon,
+  KeysIcon,
+  OverviewIcon,
+  ProjectsIcon,
+  SearchIcon,
+  SettingsIcon,
+} from '../../lib/icons';
+import { RAIL_ICON_COLUMN_CLASS, RAIL_ICON_SIZE, RAIL_ICON_STROKE_WIDTH } from '../../lib/rail-grid';
 import { ConsoleSidebar } from './component';
 
-function Glyph() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-      <rect x="0.5" y="0.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" />
-    </svg>
-  );
-}
+// This fixture now composes the SAME parts `apps/console/src/client/console-chrome.tsx` does —
+// the real `AccountBadge`/`AccountMenu` components and the real `lib/icons.tsx` glyph set, not a
+// hand-rolled stand-in for either (owner rework, 2026-08-30: a previous pass of this story drew
+// its own 10x10 `Glyph` placeholder and its own inline workspace-switcher button, which happened
+// to already read at the CORRECT 13px/26px-vs-20px mix of sizes — so this story kept passing
+// visual review while the real `AccountBadge` rendered its name at `SECTION_TITLE_CLASS` (15px)
+// and the real `lib/icons.tsx` key glyph painted with no visible teeth. A story that stands in
+// for the real subcomponents cannot catch a regression that lives IN them; this is why "app and
+// stories agree" is a contract about which components render, not just which classes are typed
+// out. Stories are the acceptance surface (console-ui skill "Composition") — only real components
+// hold that line.
+const NAV_ICON = {
+  overview: <OverviewIcon />,
+  keys: <KeysIcon />,
+  projects: <ProjectsIcon />,
+  settings: <SettingsIcon />,
+  admin: <AdminIcon />,
+};
 
 const groups: NavGroup[] = [
   {
     key: 'workspace',
     label: 'Workspace',
     items: [
-      { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
-      { key: 'api-keys', label: 'Api-Keys', icon: <Glyph /> },
-      { key: 'manage', label: 'Projects', icon: <Glyph /> },
+      { key: 'overview', label: 'Overview', icon: NAV_ICON.overview, active: true },
+      { key: 'projects', label: 'Projects', icon: NAV_ICON.projects },
+      { key: 'api-keys', label: 'API keys', icon: NAV_ICON.keys },
     ],
   },
-  { key: 'account', label: 'Account', items: [{ key: 'settings', label: 'Settings', icon: <Glyph /> }] },
+  {
+    key: 'account',
+    label: 'Account',
+    items: [{ key: 'settings', label: 'Settings', icon: NAV_ICON.settings }],
+  },
 ];
 
 const operatorGroup: NavGroup = {
   key: 'operator',
   label: 'Operator',
-  items: [{ key: 'admin', label: 'Admin', icon: <Glyph /> }],
+  items: [{ key: 'admin', label: 'Refill requests', icon: NAV_ICON.admin, count: 3 }],
 };
 
+// The brand mark — same 16px box / 1.5 stroke contract as every nav glyph (`lib/rail-grid.ts`'s
+// `RAIL_ICON_SIZE`/`RAIL_ICON_STROKE_WIDTH`), same triangle path `console-chrome.tsx`'s `BRAND`
+// draws, so a story reviewer sees the exact mark the app ships rather than a stand-in silhouette.
 const brand = (
   <>
     <span className="header-logo" aria-hidden="true">
-      <svg width="10" height="10" viewBox="0 0 10 10">
-        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      <svg
+        width={RAIL_ICON_SIZE}
+        height={RAIL_ICON_SIZE}
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={RAIL_ICON_STROKE_WIDTH}
+        strokeLinejoin="round">
+        <path d="M2 14 8 2 14 14Z" />
       </svg>
     </span>
     <span className="header-wordmark">Lightbridge</span>
@@ -43,12 +80,19 @@ const brand = (
 );
 
 const workspaceSwitcher = (
-  <button type="button" className="workspace-switcher-row">
-    <span aria-hidden="true" className="avatar-chip">
-      AG
-    </span>
-    <span className="truncate font-sans text-[13px] text-ink">adorsys-gis</span>
-  </button>
+  <AccountBadge
+    variant="sidebar"
+    accountId="49534505-4c60-4550-83dd-7af22152cec6"
+    name="adorsys-gis"
+    initials="AG"
+    accounts={[
+      { id: '49534505-4c60-4550-83dd-7af22152cec6', label: 'adorsys-gis' },
+      { id: '7af22152-4c60-4550-83dd-49534505cec6', label: 'sandbox' },
+    ]}
+    onSelectAccount={fn()}
+    onCopyId={fn()}
+    onCreateAccount={fn()}
+  />
 );
 
 // Addition 5 (owner review): the standalone Theme row is gone — theme lives only inside
@@ -58,22 +102,21 @@ const workspaceSwitcher = (
 const footer = (
   <>
     <button type="button" className="sidebar-footer-row">
-      <span aria-hidden="true" className="flex w-4 shrink-0 items-center justify-center">
-        <Glyph />
+      <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+        <SearchIcon />
       </span>
       <span className="font-sans text-[13px] text-subtle">Search</span>
       <span className="kbd kbd-sm ml-auto">⌘K</span>
     </button>
-    <button type="button" className="sidebar-footer-row">
-      <span aria-hidden="true" className="flex w-4 shrink-0 items-center justify-center">
-        <span aria-hidden="true" className="avatar-chip-sm">
-          SL
-        </span>
-      </span>
-      <span className="rail-row-label truncate font-sans text-[13px] text-soft">
-        sam@adorsys.com
-      </span>
-    </button>
+    <AccountMenu
+      variant="sidebar"
+      name="Sam Lambou"
+      email="sam@adorsys.com"
+      initials="SL"
+      onSignOut={fn()}
+      theme="black"
+      onThemeChange={fn()}
+    />
   </>
 );
 

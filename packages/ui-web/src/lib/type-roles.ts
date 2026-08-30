@@ -46,3 +46,11 @@ export const HERO_CEILING_CLASS = 'font-sans text-[13px] text-subtle';
 /** A settings-row's own label — one step stronger than `LABEL_CLASS`, since it stands alone as
  *  the row's name rather than captioning a control beside it (`components/settings-row`). */
 export const ROW_LABEL_CLASS = 'font-sans text-[13px] text-ink';
+
+/** `ROW_LABEL_CLASS` at rest — same 13px, `subtle` instead of `ink` (`AccountBadge`'s sidebar
+ *  fallback: a generated `acct_xxxxxxxx` token standing in for a name nobody set). One rail row
+ *  reads as one size regardless of whether its text is a real name or a fallback — only the
+ *  colour steps back, never the size (owner rework, 2026-08-30: "one visual size for all rail
+ *  text except the 11px group labels" — this used to be `LABEL_CLASS` at 12px, one step smaller
+ *  than every row beside it). */
+export const ROW_LABEL_SUBTLE_CLASS = 'font-sans text-[13px] text-subtle';

@@ -52,6 +52,11 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
+          // Root-level `testTimeout` is NOT inherited by `projects` entries (proven on main at
+          // bdd5e34: CI still failed at "5000ms" with the root set to 15s) — it must sit in each
+          // project. 15s covers the cold ubuntu-latest runner where the heavy centre renders
+          // cross vitest's 5s default and leak DOM into the next test.
+          testTimeout: 15_000,
           globals: true,
           include: ['src/**/*.test.ts'],
         },
@@ -69,6 +74,8 @@ export default defineConfig({
         test: {
           name: 'dom',
           environment: 'jsdom',
+          // See the `node` project's note — per-project on purpose, root is not inherited.
+          testTimeout: 15_000,
           globals: true,
           include: ['src/**/*.test.tsx'],
           setupFiles: ['./src/test/setup.ts'],

@@ -59,8 +59,8 @@ export const Unlabelled: Story = {
 const STATUSES = ['active', 'revoked', 'expiring', 'unused'];
 
 /**
- * The shape `manage-filters-rail` needs: one `string[]`, plus a parent box whose mixed state is
- * derived by Base UI from `allValues` rather than computed at the call site.
+ * A multi-value filter's shape: one `string[]`, plus a parent box whose mixed state is derived by
+ * Base UI from `allValues` rather than computed at the call site.
  */
 export const Group: Story = {
   render: function Render() {

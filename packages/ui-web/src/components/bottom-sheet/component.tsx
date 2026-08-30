@@ -22,12 +22,12 @@ import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from '../../lib/overlay';
 // dismissal is the primitive's rather than a second onClick path.
 //
 // Formerly also supported a peek mode (a persistent, non-modal docked panel for the compact right
-// rail). That mode is gone (owner revision 2026-08-25, console-ui skill "Shape and layout"): the
-// compact right rail is no longer a persistent footer or peek bar at all — its content is reached
-// through contextual per-section triggers (SectionSheet, each a plain transient modal drawer
-// scoped to one rail section) rendered in context on the page, not docked chrome owned by the
-// shell. ConsoleShell no longer renders a peek-mode BottomSheet for the right rail; nothing else
-// used peek either, so it is removed here rather than left dormant.
+// rail). That mode is gone (owner revision 2026-08-25, console-ui skill "Shape and layout"), and
+// the right rail concept it served is gone too (shell revamp phase 3, 2026-08-30 — Manage and
+// Admin's selection-driven detail is `DetailSheet` now, at every tier). `BottomSheet` remains the
+// console's one general drawer primitive for whatever below-`lg` overflow needs one next (nav
+// overflow, a future transient panel); nothing consumes it today, and that is fine — it is not
+// rail-specific chrome, so it is not deleted alongside the rail concept it used to also serve.
 export function BottomSheet({
   open,
   onOpenChange,

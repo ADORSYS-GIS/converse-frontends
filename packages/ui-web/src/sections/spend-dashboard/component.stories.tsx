@@ -1,7 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
 import { SpendDashboard } from './component';
 import {
   formatOverviewSpendLegendValue,
@@ -66,23 +65,6 @@ export const Loading: Story = { args: { status: 'loading' } };
 
 export const ErrorState: Story = {
   args: { status: 'error', errorMessage: 'Failed to load spend data.', onRetry: () => {} },
-};
-
-// Compact tier: the VIEW/FILTERS triggers appear on the heading row, since the rail is gone.
-export const MdTierWithTriggers: Story = {
-  globals: { viewport: { value: 'md900' } },
-  args: {
-    actions: (
-      <>
-        <SectionSheetTrigger icon="view" triggerLabel="Open view options" label="VIEW">
-          <p className="text-ink font-mono text-xs">Range · Bucket · Group by</p>
-        </SectionSheetTrigger>
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
-          <p className="text-ink font-mono text-xs">Account · Project · Model</p>
-        </SectionSheetTrigger>
-      </>
-    ),
-  },
 };
 
 export const MobileBaseTier: Story = { globals: { viewport: { value: 'base390' } } };

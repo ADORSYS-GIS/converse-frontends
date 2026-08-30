@@ -7,10 +7,12 @@ import { join } from 'node:path';
  * grant that reveals the Admin nav group.
  *
  * Shell revamp phase 2 (2026-08-30): the `@rail`/`@scope` parallel-route slots this test used to
- * enumerate alongside the route's own `page.tsx` are deleted — `AdminCentre` now renders its own
- * right-hand review-detail aside (`containers/admin-rail.tsx`) as an ordinary component call
- * inside the already-gated `admin/page.tsx` tree, not as a sibling route segment that could bypass
- * the gate on its own. There is therefore exactly one segment left to gate.
+ * enumerate alongside the route's own `page.tsx` are deleted. Phase 3 then deleted the temporary
+ * right-hand aside (`admin-rail.tsx`) phase 2 had replaced them with — `AdminCentre` now renders
+ * its review detail as a `DetailSheet` (`components/detail-sheet`) hosting `ReviewDetailPanel`
+ * directly, still an ordinary component call inside the already-gated `admin/page.tsx` tree, not a
+ * sibling route segment that could bypass the gate on its own. There is therefore exactly one
+ * segment left to gate.
  *
  * A source-shape assertion rather than a render test, because the property is about the route
  * SEGMENT: it must decrypt the session and `notFound()` a non-admin before generating any admin
@@ -41,14 +43,15 @@ describe('the /admin role gate', () => {
     expect(chrome).toContain('isAdmin: boolean');
   });
 
-  it('never leaves the review-detail aside as a route segment the gate above does not cover', () => {
-    // Guards the failure mode this file exists for: `AdminRail` re-acquiring its own route
+  it('never leaves the review-detail sheet as a route segment the gate above does not cover', () => {
+    // Guards the failure mode this file exists for: the review detail re-acquiring its own route
     // segment (a revived `@rail` slot, or a nested route) that forgets the gate this test covers.
     const centre = readFileSync(
       join(process.cwd(), 'src', 'containers', 'admin-centre.tsx'),
       'utf8'
     );
 
-    expect(centre).toContain('<AdminRail');
+    expect(centre).toContain('<DetailSheet');
+    expect(centre).toContain('<ReviewDetailPanel');
   });
 });

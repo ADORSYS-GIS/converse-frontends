@@ -37,10 +37,9 @@ export interface SpendDashboardProps {
   formatYTick?: (value: number) => string;
   formatTooltipValue?: (value: number) => string;
   formatLegendValue?: (series: SpendSeriesSeries) => string;
-  /**
-   * Compact-tier slot on the heading row — the `SectionSheetTrigger`s for the rail sections that
-   * parameterise this chart (VIEW, FILTERS). Empty at `lg`, where the rail is persistent.
-   */
+  /** A slot on the heading row for whatever action the host wants beside this chart's title —
+   *  unused by the real Overview screen today, whose own VIEW/FILTERS controls live in
+   *  `PageHeader.controls` at every tier (shell revamp phase 3). */
   actions?: ReactNode;
   className?: string;
 }

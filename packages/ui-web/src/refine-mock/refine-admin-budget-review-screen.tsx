@@ -3,24 +3,30 @@
 // `useCustomMutation` against the mock `refill-requests/decide` endpoint (which moves the row
 // into the `decisions` resource). The sections stay pure — this container only adapts hook state
 // into their props (console-ui skill "Refine-driven mock screens").
+//
+// Shell revamp phase 3 (right rail out): the review detail no longer renders inside a right-hand
+// aside — row selection opens a `DetailSheet` hosting `ReviewDetailPanel` directly, exactly
+// matching `apps/console`'s own `admin-centre.tsx`.
 
 import React, { useState } from 'react';
 import { useCustomMutation, useInvalidate, useList, useOne, useTable } from '@refinedev/core';
 
-import { Card } from '../components/card';
-import type { ReviewDecision } from '../components/review-detail-panel';
-import { SelectionSheet } from '../components/selection-sheet';
-import { SubNav } from '../components/sub-nav';
+import { DetailSheet } from '../components/detail-sheet';
+import { ReviewDetailPanel } from '../components/review-detail-panel';
+import type { ReviewDecision, ReviewHistoryRow } from '../components/review-detail-panel';
 import { DecisionsLedger } from '../sections/decisions-ledger';
 import type { DecisionRow } from '../sections/decisions-ledger';
-import { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from '../sections/review-detail-rail';
-import { gatewayProdHistory } from '../sections/review-detail-rail/fixtures';
 import { ReviewQueue } from '../sections/review-queue';
 import type { AdminReviewTab, RefillRequestRow } from '../sections/review-queue';
 import { PageHeader } from '../sections/page-header';
-import { adminSubNavItems } from '../pages-stories/shell-fixtures';
 import type { DecideRefillPayload } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
+
+// admin-budget-review.svg's review-detail history — moved here from the deleted
+// `sections/review-detail-rail/fixtures.ts`.
+const gatewayProdHistory: ReviewHistoryRow[] = [
+  { id: 'h1', label: '2 previous refills', amount: 350, meta: 'last 2026-02-08 · approved by sam' },
+];
 
 export function RefineAdminBudgetReviewScreen() {
   const [tab, setTab] = useState<AdminReviewTab>('pending');
@@ -74,42 +80,8 @@ export function RefineAdminBudgetReviewScreen() {
   const pendingCount = pendingTable.result.total ?? pending.length;
   const decidedCount = decisionsList.result.total ?? decisions.length;
 
-  const reviewRail = (
-    <ReviewDetailRail
-      detail={
-        selected
-          ? {
-              subject: selected.project,
-              requesterEmail: selected.requesterEmail,
-              submittedAt: selected.submittedAgo,
-              consumedAmount: selected.consumed ?? undefined,
-              ceilingAmount: selected.ceiling ?? undefined,
-              requestedAmount: selected.requestedAmount,
-              requesterNote:
-                'Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar.',
-              history: gatewayProdHistory,
-              note,
-              onNoteChange: setNote,
-              onDecide: (decision) => handleDecide(decision),
-              deciding,
-            }
-          : null
-      }
-    />
-  );
-
   return (
-    <RefineMockShell
-      active="admin"
-      showAdmin
-      aside={
-        <>
-          <Card title="Admin">
-            <SubNav items={adminSubNavItems} />
-          </Card>
-          <Card>{reviewRail}</Card>
-        </>
-      }>
+    <RefineMockShell active="admin" showAdmin>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Budget refill review"
@@ -145,9 +117,30 @@ export function RefineAdminBudgetReviewScreen() {
         />
       </div>
 
-      <SelectionSheet selectionKey={selectedId} label={REVIEW_DETAIL_RAIL_LABEL}>
-        {reviewRail}
-      </SelectionSheet>
+      <DetailSheet
+        open={selectedId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+        title={selected?.project ?? ''}>
+        {selected ? (
+          <ReviewDetailPanel
+            key={selectedId}
+            subject={selected.project}
+            requesterEmail={selected.requesterEmail}
+            submittedAt={selected.submittedAgo}
+            consumedAmount={selected.consumed ?? undefined}
+            ceilingAmount={selected.ceiling ?? undefined}
+            requestedAmount={selected.requestedAmount}
+            requesterNote="Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar."
+            history={gatewayProdHistory}
+            note={note}
+            onNoteChange={setNote}
+            onDecide={(decision) => handleDecide(decision)}
+            deciding={deciding}
+          />
+        ) : null}
+      </DetailSheet>
     </RefineMockShell>
   );
 }

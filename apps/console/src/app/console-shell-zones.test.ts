@@ -14,12 +14,14 @@ const LAYOUT = readFileSync(join(CONSOLE_GROUP, 'layout.tsx'), 'utf8');
  * the session/scope/pathname themselves), and the layout no longer computes or threads a per-route
  * `rail`/`scope` prop at all.
  *
- * What replaced the deleted rail/scope slots for the two screens that actually needed one
- * (Manage, Admin's refill-review section): `containers/manage-centre.tsx` and
- * `containers/admin-centre.tsx` render their own right-hand `<aside>` inline, gated to `lg` — see
- * those files' own `// phase-3 removes` comments. This file's job is narrower than the old one's:
- * confirm the parallel-route slots are actually gone (so a stale `@rail`/`@scope` segment can't
- * silently reappear and go unrendered) and confirm the layout's own shape.
+ * What replaced the deleted rail/scope slots, for the two screens that actually needed one
+ * (Manage, Admin's refill-review section): phase 2 first gave `containers/manage-centre.tsx` and
+ * `containers/admin-centre.tsx` their own right-hand `<aside>`, rendered inline and gated to `lg`,
+ * as a temporary placeholder; phase 3 (2026-08-30, right rail out) deleted that aside in favour of
+ * a `DetailSheet` that opens on row selection, at every tier — the console has no persistent rail
+ * anywhere any more. This file's job is narrower than the old one's: confirm the parallel-route
+ * slots are actually gone (so a stale `@rail`/`@scope` segment can't silently reappear and go
+ * unrendered) and confirm the layout's own shape.
  */
 describe('console shell zones (shell revamp phase 2)', () => {
   it('deletes the @rail parallel-route slot entirely — no stale segment survives unrendered', () => {

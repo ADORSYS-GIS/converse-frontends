@@ -4,42 +4,39 @@
 // generated one (docs/adr/0009-nextjs-console-replacement.md Decision 4). The sections stay pure —
 // this container only translates hook state (`isLoading` → skeleton props, `isError` → error
 // props, `result.data` → rows) into their props.
+//
+// Shell revamp phase 3 (right rail out): FILTERS/MONTHLY REPORT/SELECTION no longer render inside
+// a right-hand aside — FILTERS is `ManageControls` in `PageHeader.controls`, MONTHLY REPORT is a
+// `PageHeader.action` button that opens `ReportExportDialog`, and SELECTION is a `DetailSheet`
+// hosting `ProjectDetail`, exactly matching `apps/console`'s own `manage-centre.tsx`.
 
 import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
-import { Card } from '../components/card';
+import { Button } from '../components/button';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { CreateProjectDialog } from '../components/create-project-dialog';
+import { DetailSheet } from '../components/detail-sheet';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import { InlineStatus } from '../components/inline-status';
+import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
-import { SectionSheetTrigger } from '../components/section-sheet-trigger';
-import { SelectionSheet } from '../components/selection-sheet';
-import { SubNav } from '../components/sub-nav';
-import { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from '../sections/manage-filters-rail';
+import { ManageControls } from '../sections/manage-controls';
 import {
   manageAccountOptions,
   manageBudgetStateOptions,
   manageStatusOptions,
-} from '../sections/manage-filters-rail/fixtures';
+} from '../sections/manage-controls/fixtures';
 import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
 import type { ProjectRow } from '../sections/manage-projects-ledger';
-import { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from '../sections/manage-report-rail';
-import {
-  MANAGE_SELECTION_RAIL_LABEL,
-  ManageSelectionRail,
-} from '../sections/manage-selection-rail';
 import { PageHeader } from '../sections/page-header';
-import { manageSubNavItems } from '../pages-stories/shell-fixtures';
+import { ProjectDetail } from '../sections/project-detail';
 import { RefineMockShell } from './shared-chrome';
 
 /**
  * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
  * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
- * Console-ui#326 dropped the "(ADR 0009 follow-ups 4 and 6)" citation from the real string
- * (follow-up 4 shipped, so citing it was simply wrong); this copy follows.
  */
 const MANAGE_SPEND_PENDING_MESSAGE =
   'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
@@ -70,7 +67,7 @@ function buildFilters({
 }
 
 /** Live-wired Manage screen: `useTable` drives the ledger, pagination and server-side filters;
- * row selection retargets the right-rail SELECTION section exactly like the fixture-driven story. */
+ * row selection opens `DetailSheet` exactly like the fixture-driven story. */
 export function RefineManageScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
@@ -78,6 +75,7 @@ export function RefineManageScreen() {
   const [budgetStateValue, setBudgetStateValue] = useState('all');
   const [selected, setSelected] = useState<ProjectRow | null>(null);
 
+  const [reportOpen, setReportOpen] = useState(false);
   const [period, setPeriod] = useState('2026-02');
   const [groupBy, setGroupBy] = useState('project-model');
   const [format, setFormat] = useState<ReportExportFormat>('csv');
@@ -146,65 +144,38 @@ export function RefineManageScreen() {
     </div>
   );
 
-  const filtersRail = (
-    <ManageFiltersRail
-      accountValue={accountValue}
-      accountOptions={manageAccountOptions}
-      onAccountChange={setAccountValue}
-      statusOptions={manageStatusOptions}
-      statusValue={statusValue}
-      onStatusChange={setStatusValue}
-      budgetStateValue={budgetStateValue}
-      budgetStateOptions={manageBudgetStateOptions}
-      onBudgetStateChange={setBudgetStateValue}
-    />
-  );
-
-  const reportRail = (
-    <ManageReportRail
-      period={period}
-      onPeriodChange={setPeriod}
-      scopeSlot={scopeSlot}
-      groupByOptions={[
-        { value: 'project-model', label: 'Project × Model' },
-        { value: 'project', label: 'Project' },
-        { value: 'model', label: 'Model' },
-      ]}
-      groupBy={groupBy}
-      onGroupByChange={setGroupBy}
-      includeToggles={includeToggles}
-      onToggleInclude={(id, checked) =>
-        setIncludeToggles((prev) =>
-          prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle))
-        )
-      }
-      format={format}
-      onFormatChange={setFormat}
-      generating={generating}
-      onGenerate={() => {
-        setGenerating(true);
-        setTimeout(() => setGenerating(false), 400);
-      }}
-    />
-  );
-
-  const selectionRail = <ManageSelectionRail project={selected} />;
-
   return (
-    <RefineMockShell
-      active="manage"
-      aside={
-        <>
-          <Card title="Manage">
-            <SubNav items={manageSubNavItems} />
-          </Card>
-          <Card title={MANAGE_REPORT_RAIL_LABEL}>{reportRail}</Card>
-          <Card title={MANAGE_FILTERS_RAIL_LABEL}>{filtersRail}</Card>
-          <Card title={MANAGE_SELECTION_RAIL_LABEL}>{selectionRail}</Card>
-        </>
-      }>
+    <RefineMockShell active="manage">
       <div className="flex flex-col gap-6">
-        <PageHeader title="Projects" />
+        <PageHeader
+          title="Projects"
+          controls={
+            <ManageControls
+              accountValue={accountValue}
+              accountOptions={manageAccountOptions}
+              onAccountChange={setAccountValue}
+              statusOptions={manageStatusOptions}
+              statusValue={statusValue}
+              onStatusChange={setStatusValue}
+              budgetStateValue={budgetStateValue}
+              budgetStateOptions={manageBudgetStateOptions}
+              onBudgetStateChange={setBudgetStateValue}
+              search={search}
+              onSearchChange={setSearch}
+            />
+          }
+          action={
+            <>
+              <Button type="button" variant="secondary" onClick={() => setReportOpen(true)}>
+                Monthly report
+              </Button>
+              <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
+                + New project
+              </Button>
+            </>
+          }
+        />
+
         <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
         <CreateProjectDialog
@@ -225,15 +196,40 @@ export function RefineManageScreen() {
           onCancel={() => setCreateOpen(false)}
         />
 
+        <ReportExportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          period={period}
+          onPeriodChange={setPeriod}
+          scopeSlot={scopeSlot}
+          groupByOptions={[
+            { value: 'project-model', label: 'Project × Model' },
+            { value: 'project', label: 'Project' },
+            { value: 'model', label: 'Model' },
+          ]}
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
+          includeToggles={includeToggles}
+          onToggleInclude={(id, checked) =>
+            setIncludeToggles((prev) =>
+              prev.map((toggle) => (toggle.id === id ? { ...toggle, checked } : toggle))
+            )
+          }
+          format={format}
+          onFormatChange={setFormat}
+          generating={generating}
+          onGenerate={() => {
+            setGenerating(true);
+            setTimeout(() => setGenerating(false), 400);
+          }}
+        />
+
         <ManageProjectsLedger
           projects={rows}
           loading={loading}
           error={error}
           onRetry={() => table.tableQuery.refetch()}
           totals={totals}
-          search={search}
-          onSearchChange={setSearch}
-          onNewProject={() => setCreateOpen(true)}
           selectedRowKeys={selected ? [selected.id] : []}
           onSelectRow={setSelected}
           pagination={{
@@ -244,28 +240,18 @@ export function RefineManageScreen() {
             onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
             onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
           }}
-          toolbarActions={
-            <SectionSheetTrigger
-              icon="filter"
-              triggerLabel="Open filters"
-              label={MANAGE_FILTERS_RAIL_LABEL}>
-              {filtersRail}
-            </SectionSheetTrigger>
-          }
-          reportTrigger={
-            <SectionSheetTrigger
-              icon="report"
-              triggerLabel="Open monthly report"
-              label={MANAGE_REPORT_RAIL_LABEL}>
-              {reportRail}
-            </SectionSheetTrigger>
-          }
         />
       </div>
 
-      <SelectionSheet selectionKey={selected?.id ?? null} label={MANAGE_SELECTION_RAIL_LABEL}>
-        {selectionRail}
-      </SelectionSheet>
+      <DetailSheet
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+        title={selected?.name ?? ''}
+        subtitle={selected?.account}>
+        {selected ? <ProjectDetail project={selected} /> : null}
+      </DetailSheet>
     </RefineMockShell>
   );
 }

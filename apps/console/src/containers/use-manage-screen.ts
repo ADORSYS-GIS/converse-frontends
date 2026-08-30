@@ -4,10 +4,10 @@ import type { BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
 import { createId } from '@lightbridge/authz-rpc';
 import type {
   CreateProjectDialogProps,
-  ManageFiltersRailProps,
-  ManageReportRailProps,
+  ManageControlsProps,
   ManageTotals,
   ProjectRow,
+  ReportExportDialogProps,
   ReportExportParams,
   SegmentedOption,
 } from '@lightbridge/ui-web';
@@ -37,12 +37,12 @@ import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { manageTotals, toProjectRows } from './project-rows';
 
 /**
- * `/manage` — the screen's data adapter, shared by its centre (`page.tsx`), its rail
- * (`@rail/manage/page.tsx`) and its left-rail sub-nav (`@scope/manage/page.tsx`).
+ * `/manage` — the screen's data adapter. `ManageCentre` is the one zone that reads it (shell
+ * revamp phase 2 deleted the `@rail`/`@scope` parallel-route slots this used to be shared with;
+ * phase 3 deleted the right-hand aside those slots had been temporarily replaced by).
  *
- * All three read the same query params (ADR 0011), so the rail's FILTERS/SELECTION sections and
- * the centre's ledger cannot disagree; the identical `useList` key means one request, not three.
- * A configured ledger — `?q=alpha&status=active&budget-state=no-quota&row=proj_7` — is a link.
+ * View state is the URL (ADR 0011): a configured ledger —
+ * `?q=alpha&status=active&budget-state=no-quota&row=proj_7` — is a link.
  */
 
 const PAGE_SIZE = 25;
@@ -108,11 +108,10 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
 }));
 
 /**
- * Module-level so every zone agrees on the identity: `Generate report` can be fired from either
- * the persistent rail or the centre's compact-tier sheet (`ReportExportPanel` mounts twice), so
- * its outcome has to be visible regardless of which copy was pressed. `+ New project` only ever
- * renders in the centre (`ManageProjectsLedger`'s own toolbar), but shares the same
- * `useSharedMutation` shape as the rest of this file for consistency.
+ * Module-level so `Generate report`'s outcome is visible wherever it is read from, the same
+ * `useSharedMutation` idiom every mutation in this file follows for consistency — even though
+ * `ReportExportDialog` now mounts exactly once (shell revamp phase 3: it used to mount twice, in
+ * the persistent rail and the centre's compact-tier sheet, both gone).
  */
 const NEW_PROJECT_MUTATION_KEY = ['manage', 'new-project'];
 const REPORT_MUTATION_KEY = ['manage', 'report'];
@@ -166,6 +165,9 @@ export interface ManageScreen {
   createProjectDialog: CreateProjectDialogProps;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
+  /** Closes `DetailSheet` — clears `?row=` (shell revamp phase 3: replaces the deleted right
+   *  rail's SELECTION section). */
+  clearSelection: () => void;
   projectCount: number;
   pagination: {
     shown: number;
@@ -175,8 +177,12 @@ export interface ManageScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  filters: ManageFiltersRailProps;
-  report: ManageReportRailProps;
+  /** `ManageControls` in `PageHeader.controls` — everything but `search`/`onSearchChange`, which
+   *  are their own top-level fields above (same split `ApiKeysScreen.projectField` etc. use). */
+  filters: Omit<ManageControlsProps, 'search' | 'onSearchChange' | 'className'>;
+  /** `ReportExportDialog` — opened from the `Monthly report` button in `PageHeader.action`
+   *  (shell revamp phase 3: replaces the deleted right rail's MONTHLY REPORT section). */
+  report: ReportExportDialogProps;
 }
 
 /**
@@ -429,6 +435,9 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);
     },
+    clearSelection: () => {
+      void setView({ selectedProjectId: '' }, MANAGE_SELECTION_OPTIONS);
+    },
     projectCount: total,
     pagination: {
       shown: rows.length,
@@ -465,6 +474,10 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
       },
     },
     report: {
+      open: view.reportOpen,
+      onOpenChange: (open) => {
+        void setView({ reportOpen: open }, MANAGE_SELECTION_OPTIONS);
+      },
       period: view.period,
       onPeriodChange: (period) => {
         void setView({ period });

@@ -23,7 +23,7 @@ import type {
 
 import { manageProjectsFixture } from '../sections/manage-projects-ledger/fixtures';
 import type { ProjectRow } from '../sections/manage-projects-ledger/types';
-import { manageAccountOptions } from '../sections/manage-filters-rail/fixtures';
+import { manageAccountOptions } from '../sections/manage-controls/fixtures';
 import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
 import type { ApiKeyRow } from '../sections/api-keys-ledger/types';
 import { pendingRequestsFixture } from '../sections/review-queue/fixtures';

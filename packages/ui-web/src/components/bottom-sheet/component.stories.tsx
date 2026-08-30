@@ -25,8 +25,8 @@ const filterFields = (
 
 // Transient modal drawer: mounts on `open` behind a `muted/80` backdrop and unmounts on close —
 // the console's only drawer idiom (console-ui skill, 2026-08-25 revision: the compact right rail
-// no longer docks as a persistent peek/footer bar; every below-`lg` sheet, whether nav overflow
-// or a `SectionSheet`-wrapped rail section, is this same transient drawer).
+// no longer docks as a persistent peek/footer bar; every below-`lg` sheet, e.g. nav overflow, is
+// this same transient drawer).
 function ModalDrawer(props: { direction?: 'bottom' | 'right' }) {
   const [open, setOpen] = useState(false);
 

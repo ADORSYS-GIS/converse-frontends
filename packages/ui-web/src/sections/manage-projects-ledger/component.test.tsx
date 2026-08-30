@@ -10,9 +10,6 @@ function makeProps(overrides: Partial<ManageProjectsLedgerProps> = {}): ManagePr
   return {
     projects: manageProjectsFixture,
     totals: manageTotals,
-    search: '',
-    onSearchChange: vi.fn(),
-    onNewProject: vi.fn(),
     onSelectRow: vi.fn(),
     ...overrides,
   };
@@ -57,37 +54,6 @@ describe('ManageProjectsLedger', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(manageProjectsFixture.length);
   });
 
-  it('fires onNewProject from the toolbar primary', () => {
-    const onNewProject = vi.fn();
-    render(<ManageProjectsLedger {...makeProps({ onNewProject })} />);
-
-    fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
-
-    expect(onNewProject).toHaveBeenCalledTimes(1);
-  });
-
-  // Ticket #303 — the account-owner-only gate is stated before a submission attempt, not
-  // discovered as a raw RPC error.
-  it('disables + New project and states the reason when creation is gated', () => {
-    render(
-      <ManageProjectsLedger
-        {...makeProps({
-          newProjectDisabled: true,
-          newProjectReason: 'Only the account owner can create a project.',
-        })}
-      />
-    );
-
-    expect(screen.getByRole('button', { name: '+ New project' })).toBeDisabled();
-    expect(screen.getByText('Only the account owner can create a project.')).toBeInTheDocument();
-  });
-
-  it('leaves + New project enabled with no reason line when creation is not gated', () => {
-    render(<ManageProjectsLedger {...makeProps()} />);
-
-    expect(screen.getByRole('button', { name: '+ New project' })).toBeEnabled();
-  });
-
   it('fires onSelectRow when a row is activated', () => {
     const onSelectRow = vi.fn();
     render(<ManageProjectsLedger {...makeProps({ onSelectRow })} />);
@@ -129,17 +95,11 @@ describe('ManageProjectsLedger', () => {
     expect(screen.getByText('unknown')).toBeInTheDocument();
   });
 
-  it('renders the report trigger row only when a trigger is supplied', () => {
-    const { rerender } = render(<ManageProjectsLedger {...makeProps()} />);
+  it('renders no toolbar of its own — search, + New project and Monthly report all moved to PageHeader', () => {
+    render(<ManageProjectsLedger {...makeProps()} />);
+
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ New project' })).not.toBeInTheDocument();
     expect(screen.queryByText('Monthly report')).not.toBeInTheDocument();
-
-    rerender(
-      <ManageProjectsLedger
-        {...makeProps({ reportTrigger: <button type="button">Open monthly report</button> })}
-      />
-    );
-
-    expect(screen.getByText('Monthly report')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open monthly report' })).toBeInTheDocument();
   });
 });

@@ -17,7 +17,6 @@ export {
 } from './lib/type-roles';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
-export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
 export { useCommandPaletteShortcut } from './lib/use-command-palette-shortcut';
 export { DefaultAnchor } from './lib/link-component';
 export type { LinkComponent, LinkComponentProps } from './lib/link-component';
@@ -51,15 +50,6 @@ export { SubNav } from './components/sub-nav';
 export type { SubNavItem, SubNavProps } from './components/sub-nav';
 export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
-export { SectionSheet } from './components/section-sheet';
-export type { SectionSheetProps } from './components/section-sheet';
-export { SectionSheetTrigger } from './components/section-sheet-trigger';
-export type {
-  SectionSheetTriggerIcon,
-  SectionSheetTriggerProps,
-} from './components/section-sheet-trigger';
-export { SelectionSheet } from './components/selection-sheet';
-export type { SelectionSheetProps } from './components/selection-sheet';
 
 // ── data display
 export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
@@ -148,6 +138,9 @@ export type {
   ReportExportFormat,
   ReportIncludeToggle,
 } from './components/report-export-panel';
+
+export { ReportExportDialog } from './components/report-export-dialog';
+export type { ReportExportDialogProps } from './components/report-export-dialog';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
 export type {
@@ -266,10 +259,13 @@ export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
 // ── toolbar sections
-// Overview and Api-Keys have NO right rail at any tier (owner review 2026-08-29). Their
-// parameters and the action that consumes them live in one horizontal strip above the content,
-// always visible, at every breakpoint — see `OverviewControls`'s docstring for why the persistent
-// `lg` rail was the odd tier out rather than the canonical one.
+// Shell revamp phase 3 (right rail out): the console has no persistent right rail anywhere any
+// more. Every screen's parameters and the action that consumes them live in one horizontal strip
+// above the content, always visible, at every breakpoint — see `OverviewControls`'s docstring for
+// the toolbar-vs-rail judgement call, and `ManageControls`'s for how Manage's own former FILTERS
+// rail section made the same move. Selection-driven detail (Manage's picked project, Admin's
+// picked review request) now opens as a `DetailSheet` instead of retargeting a persistent aside —
+// see `manage-centre.tsx`/`admin-centre.tsx` in `apps/console`.
 
 export { OverviewControls } from './sections/overview-controls';
 export type { OverviewControlsField, OverviewControlsProps } from './sections/overview-controls';
@@ -280,14 +276,8 @@ export type { ApiKeysControlsProps } from './sections/api-keys-controls';
 export { ApiKeysHygieneNotes } from './sections/api-keys-hygiene-notes';
 export type { ApiKeysHygiene, ApiKeysHygieneNotesProps } from './sections/api-keys-hygiene-notes';
 
-// ── rail sections
-// Manage and Admin keep a persistent right rail: their rail content is SELECTION-driven (it
-// retargets on the row you pick) and carries multi-field forms and decision actions, which is the
-// case the rail contract was written for. Each exports a `*_RAIL_LABEL` constant alongside its
-// component: rail sections render their content BARE (no `RailPanel` of their own), so the same
-// section can mount twice — inside a `RailPanel label={LABEL}` in the persistent `lg` rail, and
-// inside a `SectionSheet label={LABEL}` below `lg` — without doubling the heading or letting the
-// two copies' wording drift apart.
+export { ManageControls } from './sections/manage-controls';
+export type { ManageControlsProps, ManageOption } from './sections/manage-controls';
 
 export {
   AccountPanel,
@@ -297,14 +287,10 @@ export {
 } from './sections/account-panel';
 export type { AccountPanelAccount, AccountPanelProps } from './sections/account-panel';
 
-export { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './sections/manage-report-rail';
-export type { ManageReportRailProps } from './sections/manage-report-rail';
+// ── selection-driven detail
+// The un-railed content `DetailSheet` hosts once a row is picked (`manage-centre.tsx`'s selected
+// project; `admin-centre.tsx` hosts `ReviewDetailPanel` — from "── forms & actions" above —
+// directly, since it already owned its whole decision surface and needed no section of its own).
 
-export { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from './sections/manage-filters-rail';
-export type { ManageFiltersRailProps, ManageOption } from './sections/manage-filters-rail';
-
-export { MANAGE_SELECTION_RAIL_LABEL, ManageSelectionRail } from './sections/manage-selection-rail';
-export type { ManageSelectionRailProps } from './sections/manage-selection-rail';
-
-export { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from './sections/review-detail-rail';
-export type { ReviewDetailRailProps } from './sections/review-detail-rail';
+export { ProjectDetail } from './sections/project-detail';
+export type { ProjectDetailProps } from './sections/project-detail';

@@ -14,7 +14,7 @@ export interface BottomSheetProps {
    * `bottom-14` lifting the sheet above the navigation dock. NOT the place for a tier class. */
   className?: string;
   /** Extra classes for `Drawer.Portal`'s wrapper element, and the ONLY correct hook for a tier
-   * class (`lg:hidden`/`md:hidden`, see `SectionSheet`).
+   * class (`lg:hidden`/`md:hidden`) on a below-`lg`-only sheet.
    *
    * `Drawer.Portal` renders to `document.body`, so a class on a wrapping element in the caller's
    * own tree never reaches the sheet — but unlike vaul's, Base UI's portal IS an element, and it

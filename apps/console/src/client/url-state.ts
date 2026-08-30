@@ -75,30 +75,6 @@ export function useScopeParams() {
   return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
 }
 
-// ── shared: which rail section is open as a sheet ────────────────────────────────────────────
-
-/**
- * Below `lg` the right rail is not rendered and each of its sections is reached through a
- * contextual trigger that opens *that one section* as a `SectionSheet`. Which one is open is view
- * state — it is part of what the user is looking at, and a link to `?sheet=filters` opens the
- * screen with its filter parameters already in front of the recipient.
- *
- * One param for the whole console, not one per route: only one sheet can be open at a time, and
- * the ids are the rail-section vocabulary the trigger glyphs already use.
- *
- * `history: 'replace'` — opening and closing a sheet is knob-twiddling, not navigation, and the
- * sheet's own dismiss gestures (backdrop, Escape) would otherwise each cost a history entry.
- */
-export const SECTION_SHEET_IDS = ['view', 'filters', 'export', 'scope', 'report'] as const;
-export type SectionSheetId = (typeof SECTION_SHEET_IDS)[number];
-
-export function useSectionSheetParam() {
-  return useQueryState(
-    'sheet',
-    parseAsStringLiteral(SECTION_SHEET_IDS).withOptions({ history: 'replace' })
-  );
-}
-
 // ── / (overview) ─────────────────────────────────────────────────────────────────────────────
 
 export const OVERVIEW_RANGES = ['7d', '30d', '90d'] as const;
@@ -217,6 +193,12 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
  * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
  * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
  *
+ * `reportOpen` (`?report=`) is shell revamp phase 3's replacement for the deleted right rail's
+ * persistent MONTHLY REPORT section: `Monthly report` is now a `PageHeader.action` button that
+ * opens `ReportExportDialog`, and the same boolean-target idiom `createOpen` already uses applies
+ * — the dialog has exactly one possible target (the scoped account/period), so a bare boolean is
+ * the whole contract.
+ *
  * What is NO LONGER here: `accountNameOpen` (`?account-name=`). The account naming flow moved to
  * `/settings` along with the panel that opens it, so the param moved with it — see
  * `settingsParsers` below. A `/manage` bookmark carrying `?account-name=true` now simply ignores
@@ -228,6 +210,7 @@ export const manageParsers = {
   status: parseAsStringLiteral(MANAGE_STATUSES).withDefault('all'),
   budgetState: parseAsStringLiteral(MANAGE_BUDGET_STATES).withDefault('all'),
   selectedProjectId: parseAsString.withDefault(''),
+  reportOpen: parseAsBoolean.withDefault(false),
   period: parseAsString.withDefault(CURRENT_PERIOD),
   reportGroupBy: parseAsStringLiteral(MANAGE_REPORT_GROUP_BYS).withDefault('project'),
   format: parseAsStringLiteral(REPORT_FORMATS).withDefault('csv'),
@@ -241,6 +224,7 @@ const manageUrlKeys = {
   search: 'q',
   budgetState: 'budget-state',
   selectedProjectId: 'row',
+  reportOpen: 'report',
   reportGroupBy: 'report-group',
   createOpen: 'create',
 };

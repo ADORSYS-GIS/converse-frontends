@@ -10,7 +10,6 @@ import {
   MANAGE_BUDGET_STATES,
   MANAGE_STATUSES,
   OVERVIEW_RANGES,
-  SECTION_SHEET_IDS,
   URL_PARAM_CONTRACT,
   adminParsers,
   apiKeysParsers,
@@ -58,6 +57,7 @@ describe('the URL param contract', () => {
         'page',
         'period',
         'q',
+        'report',
         'report-group',
         'row',
         'status',
@@ -151,6 +151,7 @@ describe('the URL param contract', () => {
     expect(isParserBijective(apiKeysParsers.search, 'alpha beta', 'alpha beta')).toBe(true);
     expect(isParserBijective(apiKeysParsers.createOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.budgetState, 'no-quota', 'no-quota')).toBe(true);
+    expect(isParserBijective(manageParsers.reportOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.period, '2026-07', '2026-07')).toBe(true);
     expect(isParserBijective(manageParsers.format, 'pdf', 'pdf')).toBe(true);
     expect(
@@ -182,7 +183,6 @@ describe('the URL param contract', () => {
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
     expect(ADMIN_SECTIONS).toEqual(['overview', 'refills']);
-    expect(SECTION_SHEET_IDS).toEqual(['view', 'filters', 'export', 'scope', 'report']);
   });
 
   it('defaults the report period to the current month, resolved once', () => {

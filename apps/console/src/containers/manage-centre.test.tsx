@@ -60,6 +60,7 @@ function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData
     },
     selectedProject: null,
     selectRow: vi.fn(),
+    clearSelection: vi.fn(),
     projectCount: 0,
     pagination: {
       shown: 0,
@@ -81,6 +82,8 @@ function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData
       onBudgetStateChange: vi.fn(),
     },
     report: {
+      open: false,
+      onOpenChange: vi.fn(),
       period: '2026-08',
       onPeriodChange: vi.fn(),
       scopeSlot: null,

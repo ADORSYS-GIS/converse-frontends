@@ -1,18 +1,14 @@
 'use client';
 
 import { cn } from '@lightbridge/ui-web/src/cn';
-import { SelectionSheet } from '@lightbridge/ui-web/src/components/selection-sheet';
+import { DetailSheet } from '@lightbridge/ui-web/src/components/detail-sheet';
+import { ReviewDetailPanel } from '@lightbridge/ui-web/src/components/review-detail-panel';
 import { DecisionsLedger } from '@lightbridge/ui-web/src/sections/decisions-ledger';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import {
-  REVIEW_DETAIL_RAIL_LABEL,
-  ReviewDetailRail,
-} from '@lightbridge/ui-web/src/sections/review-detail-rail';
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
 import { useAdminSectionParam } from '../client/url-state';
 import { AdminOverviewCentre } from './admin-overview-centre';
-import { AdminRail } from './admin-rail';
 import { useAdminScreen } from './use-admin-screen';
 import type { AdminSection } from '../client/url-state';
 
@@ -69,11 +65,10 @@ function AdminSectionTabs({
  * above): the operator's dashboard is the LANDING section, and the budget refill queue below is
  * the other. Which one renders is `?section=`, the same param the tab row writes.
  *
- * Shell revamp phase 2: the review queue's right-hand review-detail panel (`AdminRail`, refills
- * section only) used to render through the deleted `@rail` parallel-route slot; it now renders
- * inline as a right-hand `<aside>` at `lg`. `// phase-3 removes` — a real right-rail replacement
- * is designed in phase 3. Below `lg` it stays reachable through the existing
- * `SelectionSheet`, unaffected by the shell's own rail slot removal.
+ * Shell revamp phase 3 (right rail out): the review queue's right-hand review-detail panel (the
+ * temporary `AdminRail` aside, phase 2) is gone. Picking a pending request now opens `DetailSheet`
+ * hosting `ReviewDetailPanel` directly — it already owns its whole decision surface, so it needs
+ * no rail section of its own — at every tier, the same way.
  */
 export function AdminCentre() {
   const [section, setSection] = useAdminSectionParam();
@@ -89,55 +84,56 @@ export function AdminCentre() {
   );
 }
 
-/** `/admin?section=refills` — the budget refill review queue and its selection-driven aside. */
+/** `/admin?section=refills` — the budget refill review queue and its selection-driven detail. */
 function AdminReviewCentre({ screen }: { screen: ReturnType<typeof useAdminScreen> }) {
   return (
     <>
-      <div className="flex gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <PageHeader
-            title="Budget refill review"
-            subtitle={`${screen.pendingCount} request${screen.pendingCount === 1 ? '' : 's'} awaiting a decision${
-              screen.pending.length > 0
-                ? ` · oldest submitted ${screen.pending[0]?.submittedAgo}`
-                : ''
-            }`}
-          />
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Budget refill review"
+          subtitle={`${screen.pendingCount} request${screen.pendingCount === 1 ? '' : 's'} awaiting a decision${
+            screen.pending.length > 0
+              ? ` · oldest submitted ${screen.pending[0]?.submittedAgo}`
+              : ''
+          }`}
+        />
 
-          <ReviewQueue
-            activeTab={screen.activeTab}
-            onTabChange={screen.setActiveTab}
-            pendingCount={screen.pendingCount}
-            decidedCount={screen.decidedCount}
-            pending={screen.pending}
-            loading={screen.loading}
-            loadingRowCount={6}
-            error={screen.errorMessage}
-            onRetry={screen.retry}
-            emptyPendingMessage={screen.emptyPendingMessage}
-            selectedRequestId={screen.selectedRequestId}
-            onSelectRequest={screen.selectRequest}
-          />
+        <ReviewQueue
+          activeTab={screen.activeTab}
+          onTabChange={screen.setActiveTab}
+          pendingCount={screen.pendingCount}
+          decidedCount={screen.decidedCount}
+          pending={screen.pending}
+          loading={screen.loading}
+          loadingRowCount={6}
+          error={screen.errorMessage}
+          onRetry={screen.retry}
+          emptyPendingMessage={screen.emptyPendingMessage}
+          selectedRequestId={screen.selectedRequestId}
+          onSelectRequest={screen.selectRequest}
+        />
 
-          <DecisionsLedger
-            decisions={screen.decisions}
-            pagination={screen.pagination}
-            sourceCaveat={screen.decidedSourceCaveat}
-          />
-        </div>
-
-        {/* phase-3 removes */}
-        <aside className="hidden w-[280px] shrink-0 lg:block">
-          <AdminRail />
-        </aside>
+        <DecisionsLedger
+          decisions={screen.decisions}
+          pagination={screen.pagination}
+          sourceCaveat={screen.decidedSourceCaveat}
+        />
       </div>
 
-      {/* Review detail has no trigger of its own — it is selection-driven. Keyed the same way as
-          `admin-rail.tsx` — see that file's comment: converse-frontends#322's decline-note
-          validation is local state scoped to the selected request. */}
-      <SelectionSheet selectionKey={screen.selectedRequestId} label={REVIEW_DETAIL_RAIL_LABEL}>
-        <ReviewDetailRail key={screen.selectedRequestId ?? 'none'} detail={screen.reviewDetail} />
-      </SelectionSheet>
+      {/* Review detail has no trigger of its own — it is selection-driven. `ReviewDetailPanel` is
+          keyed by request id: converse-frontends#322's decline-note validation is local state
+          scoped to the selected request, and a `key` forces a fresh instance on every new
+          selection instead of carrying a stale validation flag onto a different request. */}
+      <DetailSheet
+        open={screen.selectedRequestId !== null}
+        onOpenChange={(open) => {
+          if (!open) screen.clearSelection();
+        }}
+        title={screen.reviewDetail?.subject ?? ''}>
+        {screen.reviewDetail ? (
+          <ReviewDetailPanel key={screen.selectedRequestId} {...screen.reviewDetail} />
+        ) : null}
+      </DetailSheet>
     </>
   );
 }

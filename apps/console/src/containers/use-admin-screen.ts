@@ -16,24 +16,26 @@ import { useSharedMutation } from '../client/use-shared-mutation';
 import { isPending, microsToAmount, toDecisionRow, toRefillRequestRow } from './refill-rows';
 
 /**
- * `/admin` — the budget refill review queue's data adapter, shared by its centre (`page.tsx`) and
- * its rail (`@rail/admin/page.tsx`).
+ * `/admin` — the budget refill review queue's data adapter, shared by its centre
+ * (`admin-centre.tsx`) and the `DetailSheet` it opens on row pick (shell revamp phase 2 deleted
+ * the `@rail/admin/page.tsx` parallel-route slot this used to be shared with; phase 3 deleted the
+ * right-hand aside that slot had been temporarily replaced by).
  *
  * Unlike the other screens this one is not refine-driven: `listPendingAugmentationRequests`,
  * `approveAugmentationRequest` and `rejectAugmentationRequest` are cratestack **procedures** on
  * the `authz-budget` microservice, and a refine `DataProvider` only models resource CRUD. They go
  * through TanStack Query directly — the same `QueryClient` refine uses, so the IndexedDB
- * persistence and the offline behaviour are identical. Centre and rail share the one query key,
- * so the queue is fetched once regardless of how many zones read it.
+ * persistence and the offline behaviour are identical.
  *
  * View state is the URL (ADR 0011): `?tab=decided&request=req_9` is the reviewer's actual
  * position in the queue, so a request under discussion can be pasted into a thread and Back walks
  * the reviewer out of it. Both params are `push` — the tab is this screen's sub-nav and the
  * request is a selection.
  *
- * Access is gated **server-side** in both `app/(console)/admin/page.tsx` and
- * `app/(console)/@rail/admin/page.tsx` (each 404s a non-admin). The nav gating is only cosmetic,
- * and the backend refuses every one of these procedures without `budget:review` regardless.
+ * Access is gated **server-side** in `app/(console)/admin/page.tsx` (404s a non-admin) — the one
+ * route segment this screen renders behind now that the `@rail` slot is gone (see
+ * `admin-route-gate.test.ts`). The nav gating is only cosmetic, and the backend refuses every one
+ * of these procedures without `budget:review` regardless.
  *
  * converse-frontends#267: `listPendingAugmentationRequests` is, by its own name and doc comment
  * (`authz.cstack:1073-1092`), the admin review queue's PENDING read path — there is no schema
@@ -75,6 +77,9 @@ export interface AdminScreen {
   retry: () => void;
   selectedRequestId: string | null;
   selectRequest: (row: RefillRequestRow) => void;
+  /** Closes `DetailSheet` — clears `?request=` (shell revamp phase 3: replaces the deleted right
+   *  rail's REVIEW section). */
+  clearSelection: () => void;
   reviewDetail: ReviewDetailPanelProps | null;
   /** `hasNext` reflects the real `nextCursor` the backend returned — never a fabricated `false`. */
   pagination: { shown: number; hasNext?: boolean };
@@ -174,6 +179,11 @@ export function useAdminScreen(): AdminScreen {
       setNote('');
       decide.dismiss();
       void setView({ selectedRequestId: row.id });
+    },
+    clearSelection: () => {
+      setNote('');
+      decide.dismiss();
+      void setView({ selectedRequestId: '' });
     },
     reviewDetail: selected
       ? {

@@ -25,6 +25,7 @@ export const EXPECTED: Record<string, string | null> = {
   field: 'field',
   meter: 'meter',
   'project-name-dialog': 'dialog',
+  'report-export-dialog': 'dialog',
   'report-export-panel': 'switch',
   'scope-select': 'select',
   'segmented-control': 'toggle-group',
@@ -62,9 +63,6 @@ export const EXPECTED: Record<string, string | null> = {
   'ledger-table': null, // Base UI ships no table
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
   'review-detail-panel': null, // a composition of other primitives
-  'section-sheet': null, // composes BottomSheet, which is the drawer
-  'section-sheet-trigger': null, // renders our Button; the gap is Button's
-  'selection-sheet': null, // composes SectionSheet, which composes BottomSheet
   'share-bar': null, // SVG-ish part-to-whole mark
   'skeleton-metric': null, // daisy `skeleton` paint only
   'skeleton-row': null, // daisy `skeleton` paint only

@@ -3,12 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  OVERVIEW_SELECTION_OPTIONS,
-  useOverviewParams,
-  useScopeParams,
-  useSectionSheetParam,
-} from './url-state';
+import { OVERVIEW_SELECTION_OPTIONS, useOverviewParams, useScopeParams } from './url-state';
 
 /**
  * The claim ADR 0011 Decision 2 actually makes — **"the URL is the cross-zone state bus"** — and
@@ -168,38 +163,3 @@ describe('scope', () => {
   });
 });
 
-function SheetZone() {
-  const [sheet, setSheet] = useSectionSheetParam();
-  return (
-    <div>
-      <button type="button" onClick={() => void setSheet(sheet === 'filters' ? null : 'filters')}>
-        toggle filters sheet
-      </button>
-      <output data-testid="sheet">{sheet ?? 'closed'}</output>
-    </div>
-  );
-}
-
-describe('the open section sheet', () => {
-  it('is a linkable param that closes back to nothing in the URL', async () => {
-    const user = userEvent.setup();
-    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
-    render(<SheetZone />, {
-      wrapper: withNuqsTestingAdapter({
-        searchParams: '?sheet=filters',
-        hasMemory: true,
-        onUrlUpdate,
-      }),
-    });
-
-    // A deep link opens the sheet — the compact-tier equivalent of sharing a configured rail.
-    expect(screen.getByTestId('sheet')).toHaveTextContent('filters');
-
-    await user.click(screen.getByRole('button', { name: 'toggle filters sheet' }));
-
-    expect(screen.getByTestId('sheet')).toHaveTextContent('closed');
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    // Opening and closing a sheet is not navigation; it must not fill the history stack.
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
-  });
-});

@@ -202,20 +202,7 @@ export function storyTopBar({ unnamed = false }: { unnamed?: boolean } = {}) {
   );
 }
 
-export const manageSubNavItems: SubNavItem[] = [
-  { key: 'projects', label: 'Projects', count: 24, active: true },
-  { key: 'accounts', label: 'Accounts', count: 3 },
-  { key: 'budgets', label: 'Budgets', count: 24 },
-  { key: 'members', label: 'Members', count: 17 },
-];
-
 export const settingsSubNavItems: SubNavItem[] = [
   { key: 'account', label: 'Account', active: true },
   { key: 'projects', label: 'Projects', count: 3 },
-];
-
-export const adminSubNavItems: SubNavItem[] = [
-  { key: 'budget-review', label: 'Budget review', count: 4, active: true },
-  { key: 'org-config', label: 'Org config' },
-  { key: 'roles', label: 'Roles', count: 3 },
 ];

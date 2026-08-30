@@ -91,9 +91,13 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
   // know WHETHER a selection exists to decide whether to mount `InspectorRail` at all (see this
   // file's own doc comment); the typed parsers, and the actual data fetch, live inside the
   // screen hooks `InspectorRail` itself calls once mounted.
+  //
+  // `/accounts/<id>/overview|projects` segment matches (IA v3 phase 1) — `/admin` keeps its plain
+  // match, since it isn't moving under `/accounts/*` this phase.
+  const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
   const showRail =
-    pathname === '/' ||
-    (pathname === '/projects' && Boolean(searchParams.get('row'))) ||
+    accountScopedSegment === 'overview' ||
+    (accountScopedSegment === 'projects' && Boolean(searchParams.get('row'))) ||
     (pathname === '/admin' && Boolean(searchParams.get('request')));
 
   return (

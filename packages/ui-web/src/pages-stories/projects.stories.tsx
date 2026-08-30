@@ -57,7 +57,7 @@ interface ProjectsScreenProps {
   showAdmin?: boolean;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/projects` route perform for real.
+// The composition `apps/console`'s `(console)` layout + the `/accounts/[accountId]/projects` route perform for real.
 function ProjectsScreen({
   projects = projectsFixture,
   loading = false,

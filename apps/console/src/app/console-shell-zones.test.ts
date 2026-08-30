@@ -48,9 +48,29 @@ describe('console shell zones (shell revamp phase 2)', () => {
   });
 
   it('gives every route in the group a real page, with no leftover rail-only route file', () => {
-    const routePages = ['page.tsx', 'projects/page.tsx', 'api-keys/page.tsx', 'settings/page.tsx', 'admin/page.tsx'];
+    // IA v3 phase 1 ("account into the path"): Overview/Projects/API keys moved under
+    // `/accounts/[accountId]/*`; `page.tsx` here is now the account resolver, not Overview itself.
+    const routePages = [
+      'page.tsx',
+      join('accounts', '[accountId]', 'overview', 'page.tsx'),
+      join('accounts', '[accountId]', 'projects', 'page.tsx'),
+      join('accounts', '[accountId]', 'api-keys', 'page.tsx'),
+      'settings/page.tsx',
+      'admin/page.tsx',
+    ];
     for (const page of routePages) {
       expect(existsSync(join(CONSOLE_GROUP, page)), `missing ${page}`).toBe(true);
     }
+  });
+
+  it('has no leftover top-level /projects or /api-keys route now that both moved under /accounts/[accountId]/*', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'projects'))).toBe(false);
+    expect(existsSync(join(CONSOLE_GROUP, 'api-keys'))).toBe(false);
+  });
+
+  it('gives /accounts/[accountId]/* its own guard layout', () => {
+    expect(
+      existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx'))
+    ).toBe(true);
   });
 });

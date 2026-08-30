@@ -26,18 +26,19 @@ import { useAdminScreen } from './use-admin-screen';
  * "the right rail was empty depending on the situation. Solution: hide it if empty. Simple." —
  * this resolver follows the SECOND, more specific instruction, which is stricter, not the first:
  *
- *  - `/projects` — the selected project's detail, ONLY while a row is selected. No selection, no
- *    rail (returns `undefined`, which collapses `ConsoleShell`'s rail column entirely — see its
- *    own doc comment).
+ *  - `/accounts/<id>/projects` — the selected project's detail, ONLY while a row is selected. No
+ *    selection, no rail (returns `undefined`, which collapses `ConsoleShell`'s rail column
+ *    entirely — see its own doc comment).
  *  - `/admin` — the selected request's review panel, ONLY while a request is selected. Same "no
  *    selection, no rail" rule.
- *  - `/` (Overview) — the scope quick-settings panel, ALWAYS. This is the one STANDING case: the
- *    owner explicitly wanted account settings visible in the rail, and on the dashboard it has a
- *    real job beside the Budget card (account identity, `+ New account`/`+ New project`, and
- *    `Request refill` — the same dialog the Budget card's own actions open).
- *  - every other route (`/api-keys`, `/settings/*`) — no rail. `/settings/*` already IS the
- *    account/project settings surface as its centre content; echoing it in a rail beside itself
- *    would be pure noise.
+ *  - `/accounts/<id>/overview` — the scope quick-settings panel, ALWAYS. This is the one STANDING
+ *    case: the owner explicitly wanted account settings visible in the rail, and on the dashboard
+ *    it has a real job beside the Budget card (account identity, `+ New account`/`+ New project`,
+ *    and `Request refill` — the same dialog the Budget card's own actions open).
+ *  - every other route (`/`, `/accounts/<id>/api-keys`, `/settings/*`) — no rail. `/settings/*`
+ *    already IS the account/project settings surface as its centre content; echoing it in a rail
+ *    beside itself would be pure noise, and `/` (the account resolver, IA v3 phase 1) has no
+ *    scoped account settled yet to show one for.
  *
  * Below `lg`, none of this renders at all — `ConsoleShell` only mounts the `rail` slot inside its
  * `lg:flex` column, so this component's own output is simply never placed on screen there; the
@@ -52,12 +53,21 @@ import { useAdminScreen } from './use-admin-screen';
  * resource/pagination/filters produce the identical query key), so this costs no extra network
  * traffic — the two React hook instances share one cache entry, not two independent fetches.
  */
+/** The account-scoped route's own trailing segment (`overview`/`projects`/`api-keys`) — `null`
+ *  off `/accounts/[accountId]/*` entirely. Mirrors `console-chrome.tsx`'s identical match, kept
+ *  as its own copy rather than a shared import: the two modules read the pathname for unrelated
+ *  reasons (which rail to show vs. which nav row is active) and neither depends on the other. */
+function accountScopedSegment(pathname: string): string | undefined {
+  return pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
+}
+
 export function InspectorRail() {
   const pathname = usePathname();
+  const segment = accountScopedSegment(pathname);
 
-  if (pathname === '/projects') return <ProjectsRail />;
+  if (segment === 'projects') return <ProjectsRail />;
   if (pathname === '/admin') return <AdminRail />;
-  if (pathname === '/') return <OverviewRail />;
+  if (segment === 'overview') return <OverviewRail />;
   return undefined;
 }
 

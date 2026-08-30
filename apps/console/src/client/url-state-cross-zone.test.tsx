@@ -7,7 +7,7 @@ import {
   OVERVIEW_SELECTION_OPTIONS,
   useCreateAccountDialogParams,
   useOverviewParams,
-  useScopeParams,
+  useProjectScopeParams,
 } from './url-state';
 
 /**
@@ -125,26 +125,27 @@ describe('the URL as the cross-zone state bus', () => {
   });
 });
 
+/**
+ * IA v3 phase 1 ("account into the path"): the account half of scope moved to a path segment
+ * (`/accounts/[accountId]/*`, `client/use-account-id.ts`), so it is no longer a URL param this
+ * file's cross-zone claim needs to cover — only the project half remains one.
+ */
 function ScopeWriter() {
-  const [, setScope] = useScopeParams();
+  const [, setScope] = useProjectScopeParams();
   return (
-    <button
-      type="button"
-      onClick={() => void setScope({ accountId: 'acct_1', projectId: 'proj_3' })}>
-      pick scope
+    <button type="button" onClick={() => void setScope({ projectId: 'proj_3' })}>
+      pick project
     </button>
   );
 }
 
 function ScopeReader() {
-  const [scope] = useScopeParams();
-  return (
-    <output data-testid="scope">{`${scope.accountId || '—'}/${scope.projectId || 'all'}`}</output>
-  );
+  const [scope] = useProjectScopeParams();
+  return <output data-testid="scope">{scope.projectId || 'all'}</output>;
 }
 
-describe('scope', () => {
-  it('crosses zones and writes one push entry for both halves', async () => {
+describe('project scope', () => {
+  it('crosses zones and writes a push entry', async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
     render(
@@ -155,15 +156,13 @@ describe('scope', () => {
       { wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }) }
     );
 
-    expect(screen.getByTestId('scope')).toHaveTextContent('—/all');
+    expect(screen.getByTestId('scope')).toHaveTextContent('all');
 
-    await user.click(screen.getByRole('button', { name: 'pick scope' }));
+    await user.click(screen.getByRole('button', { name: 'pick project' }));
 
-    expect(screen.getByTestId('scope')).toHaveTextContent('acct_1/proj_3');
-    // Account and project move together in ONE update, so Back returns to the previous scope in
-    // one press rather than leaving the user half-scoped between two entries.
+    expect(screen.getByTestId('scope')).toHaveTextContent('proj_3');
     expect(onUrlUpdate).toHaveBeenCalledTimes(1);
-    expect(onUrlUpdate.mock.calls[0][0].queryString).toBe('?account=acct_1&project=proj_3');
+    expect(onUrlUpdate.mock.calls[0][0].queryString).toBe('?project=proj_3');
     expect(onUrlUpdate.mock.calls[0][0].options.history).toBe('push');
   });
 });

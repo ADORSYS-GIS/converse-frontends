@@ -51,6 +51,14 @@ describe('isUncacheablePath', () => {
   it('leaves the cacheable app shell and static assets alone', () => {
     for (const path of [
       '/',
+      // IA v3 phase 1 ("account into the path"): the real screens now live here — still ordinary
+      // cacheable app-shell routes, just no longer bare `/projects`/`/api-keys`.
+      '/accounts/acct_1/overview',
+      '/accounts/acct_1/projects',
+      '/accounts/acct_1/api-keys',
+      // The legacy bare paths still resolve to a real request (redirected by `middleware.ts`, not
+      // 404s) and must stay just as cacheable as before — a stale bookmark deserves the same app
+      // shell, not a network round-trip on every hit.
       '/projects',
       '/api-keys',
       '/admin',
@@ -66,7 +74,7 @@ describe('isUncacheablePath', () => {
   });
 
   it('does not match a prefix that only appears mid-path', () => {
-    expect(isUncacheablePath('/projects/api/rpc')).toBe(false);
+    expect(isUncacheablePath('/accounts/acct_1/projects/api/rpc')).toBe(false);
   });
 });
 

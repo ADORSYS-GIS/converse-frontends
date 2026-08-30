@@ -3,6 +3,49 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { chunkCookieName } from './server/cookie-names';
 
 /**
+ * `/<legacy path>[?account=<id>]` -> `/accounts/<id>/<segment>[?<other params>]` (IA v3 phase 1,
+ * "account into the path") — every screen now lives under `/accounts/[accountId]/*`, so every
+ * pre-existing deep link (bookmarked, linked from a ticket, minted by an old email) needs a
+ * standing redirect rather than a 404.
+ *
+ * `account` is always stripped from the query string once resolved into the path segment it now
+ * is; every OTHER param (`?status=active`, `?row=proj_1`, …) survives verbatim onto the target —
+ * this table only ever touches `account`/`next`, nothing a screen's own `url-state.ts` parser
+ * owns. `null` return means "not a legacy link this table covers" — including a bare `/` with no
+ * `?account=` (already IS the resolver, `app/(console)/page.tsx`) and `/admin`/`/settings/*`
+ * (deliberately NOT redirected this phase — Phase 2 moves them; see this table's own two missing
+ * rows for `/admin` and `/settings/*` and `middleware.test.ts` for the full row-by-row contract).
+ */
+const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'api-keys'> = {
+  '/': 'overview',
+  '/projects': 'projects',
+  '/api-keys': 'api-keys',
+};
+
+export function legacyRedirectTarget(pathname: string, searchParams: URLSearchParams): string | null {
+  const segment = LEGACY_ACCOUNT_SCOPED_SEGMENT[pathname];
+  if (segment === undefined) return null;
+
+  const remaining = new URLSearchParams(searchParams);
+  const accountId = remaining.get('account');
+  remaining.delete('account');
+
+  if (accountId) {
+    // Meaningless once the account is a path segment — an old `/?account=A&next=projects` link
+    // would otherwise survive as a dead param on `/accounts/A/overview`.
+    remaining.delete('next');
+    const query = remaining.toString();
+    return `/accounts/${accountId}/${segment}${query ? `?${query}` : ''}`;
+  }
+
+  // A bare `/` with no `?account=` is already the resolver itself — nothing to redirect.
+  if (pathname === '/') return null;
+
+  remaining.set('next', segment);
+  return `/?${remaining.toString()}`;
+}
+
+/**
  * The app-route guard: no session cookie means no console.
  *
  * NOTE(next 16): the `middleware` file convention is deprecated in favour of `proxy`; `next build`
@@ -22,6 +65,13 @@ import { chunkCookieName } from './server/cookie-names';
  */
 export function middleware(request: NextRequest) {
   if (request.cookies.has(chunkCookieName(0))) {
+    // The legacy-deep-link redirect table runs only for an authenticated visitor — an
+    // unauthenticated one is about to be sent to `/auth/login` below regardless, and rewriting
+    // `returnTo` here would be solving a problem the login flow doesn't have.
+    const target = legacyRedirectTarget(request.nextUrl.pathname, request.nextUrl.searchParams);
+    if (target) {
+      return NextResponse.redirect(new URL(target, request.url), 308);
+    }
     return NextResponse.next();
   }
 

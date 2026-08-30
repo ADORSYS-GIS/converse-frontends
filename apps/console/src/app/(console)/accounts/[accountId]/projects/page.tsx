@@ -1,4 +1,4 @@
-import { ProjectsCentre } from '../../../containers/projects-centre';
+import { ProjectsCentre } from '../../../../../containers/projects-centre';
 
 export const dynamic = 'force-dynamic';
 

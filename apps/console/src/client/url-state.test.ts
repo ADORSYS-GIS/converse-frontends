@@ -9,14 +9,16 @@ import {
   MANAGE_BUDGET_STATES,
   MANAGE_STATUSES,
   OVERVIEW_RANGES,
+  RESOLVER_TARGETS,
   URL_PARAM_CONTRACT,
   adminParsers,
   apiKeysParsers,
   createProjectParsers,
   manageParsers,
   overviewParsers,
+  projectScopeParsers,
   requestRefillParsers,
-  scopeParsers,
+  resolverParsers,
   settingsParsers,
 } from './url-state';
 
@@ -47,7 +49,13 @@ describe('the URL param contract', () => {
     );
 
     expect(names).toEqual({
-      scope: ['account', 'project'],
+      // IA v3 phase 1 ("account into the path"): the account half of scope is now a path segment
+      // (`/accounts/[accountId]/*`, `client/use-account-id.ts`), not a URL param — only the
+      // project half remains one.
+      projectScope: ['project'],
+      // `/`'s account resolver (`app/(console)/page.tsx`) — which of the three account-scoped
+      // screens to land on once an account id is resolved.
+      resolver: ['next'],
       // ADR-0026: "+ New account" opens from the workspace switcher (chrome, every route) AND
       // `/settings/account`'s own `PageHeader` — the one dialog instance both trigger, so its
       // open flag is shared rather than owned by either route.
@@ -178,8 +186,8 @@ describe('the URL param contract', () => {
   });
 
   it('round-trips every parser', () => {
-    expect(isParserBijective(scopeParsers.accountId, 'acct_1', 'acct_1')).toBe(true);
-    expect(isParserBijective(scopeParsers.projectId, 'proj_7', 'proj_7')).toBe(true);
+    expect(isParserBijective(projectScopeParsers.projectId, 'proj_7', 'proj_7')).toBe(true);
+    expect(isParserBijective(resolverParsers.next, 'api-keys', 'api-keys')).toBe(true);
     expect(isParserBijective(overviewParsers.range, '7d', '7d')).toBe(true);
     expect(isParserBijective(overviewParsers.bucket, 'hour', 'hour')).toBe(true);
     expect(isParserBijective(overviewParsers.groupBy, 'model', 'model')).toBe(true);
@@ -228,6 +236,7 @@ describe('the URL param contract', () => {
     expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_SORT_KEYS).toEqual(['submitted']);
+    expect(RESOLVER_TARGETS).toEqual(['overview', 'projects', 'api-keys']);
   });
 
   it('defaults the report period to the current month, resolved once', () => {

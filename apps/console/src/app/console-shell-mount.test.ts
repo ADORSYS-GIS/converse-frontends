@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -94,5 +94,41 @@ describe('console shell mounting', () => {
 
     expect(source, 'admin/page.tsx must read the session server-side').toContain('readSession');
     expect(source, 'admin/page.tsx must 404 a non-admin').toContain('notFound()');
+  });
+
+  /**
+   * IA v3 phase 1 ("account into the path") — the deliverable's own acceptance criterion: "the
+   * shell does NOT remount on account switch." `ConsoleShell` mounts exactly once, in
+   * `(console)/layout.tsx` — the FIRST test in this file already proves that in isolation.
+   * `/accounts/[accountId]/layout.tsx` is a nested layout strictly BELOW it in the route tree, so
+   * by the App Router's own routing model a change to the `[accountId]` dynamic segment can only
+   * re-render/remount `accounts/[accountId]/layout.tsx` and what's inside it — it structurally
+   * cannot touch an ANCESTOR layout. Combined, these two facts are what make "the shell survives
+   * an account switch" true by construction rather than by convention: there is no file where a
+   * shell mount and the `[accountId]` segment coexist for a remount to even be possible.
+   *
+   * The second half checks the actual account-switch TRIGGER — the workspace switcher
+   * (`console-chrome.tsx`'s `onSelectAccount`) — uses client-side navigation (`router.push`,
+   * `next/navigation`) rather than a hard browser navigation (`window.location`, a plain `<a>`),
+   * which is what would force a full document reload and remount everything, shell included, even
+   * though the shell itself never re-mounts on the SPA-navigation path this asserts is the one
+   * actually wired up.
+   */
+  it('keeps the [accountId] segment strictly below the shell-mounting layout, so switching account cannot remount it', () => {
+    const accountLayout = join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx');
+    expect(existsSync(accountLayout), 'accounts/[accountId]/layout.tsx must exist').toBe(true);
+
+    const source = read(accountLayout);
+    expect(
+      SHELL_IMPORT.test(source),
+      'accounts/[accountId]/layout.tsx must not mount ConsoleShell — that stays the ancestor ' +
+        '(console)/layout.tsx\'s job, which is what keeps it from remounting on account switch'
+    ).toBe(false);
+  });
+
+  it('switches account via client-side navigation (router.push), never a hard reload', () => {
+    const chrome = read(join(SRC_DIR, 'client', 'console-chrome.tsx'));
+    expect(chrome).toMatch(/onSelectAccount:\s*\([^)]*\)\s*=>\s*\{[\s\S]*?router\.push/);
+    expect(chrome).not.toContain('window.location');
   });
 });

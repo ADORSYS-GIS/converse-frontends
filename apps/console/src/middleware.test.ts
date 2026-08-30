@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { config } from './middleware';
+import { config, legacyRedirectTarget } from './middleware';
 import { UNCACHEABLE_PATH_PREFIXES } from './shared/uncacheable-paths';
 
 /**
@@ -75,5 +75,65 @@ describe('middleware matcher', () => {
     for (const path of ['', 'projects', 'api-keys', 'admin']) {
       expect(pattern.test(path), `${path || '/'} should stay matched (gated)`).toBe(true);
     }
+  });
+});
+
+/**
+ * IA v3 phase 1 ("account into the path") — every legacy deep link's redirect target, row by
+ * row against `middleware.ts`'s own table doc comment. `legacyRedirectTarget` is the pure half of
+ * the redirect (`middleware()` itself only decides WHETHER to run it — after the session-cookie
+ * gate, per that function's own comment — and wraps a non-null result in a 308); this file tests
+ * the row logic directly rather than through a full `NextRequest`/`NextResponse` round-trip.
+ */
+describe('legacyRedirectTarget', () => {
+  const params = (query: string) => new URLSearchParams(query);
+
+  it('/?account=A -> /accounts/A/overview', () => {
+    expect(legacyRedirectTarget('/', params('account=A'))).toBe('/accounts/A/overview');
+  });
+
+  it('/projects?account=A -> /accounts/A/projects', () => {
+    expect(legacyRedirectTarget('/projects', params('account=A'))).toBe('/accounts/A/projects');
+  });
+
+  it('/api-keys?account=A -> /accounts/A/api-keys', () => {
+    expect(legacyRedirectTarget('/api-keys', params('account=A'))).toBe('/accounts/A/api-keys');
+  });
+
+  it('/projects -> /?next=projects', () => {
+    expect(legacyRedirectTarget('/projects', params(''))).toBe('/?next=projects');
+  });
+
+  it('/api-keys -> /?next=api-keys', () => {
+    expect(legacyRedirectTarget('/api-keys', params(''))).toBe('/?next=api-keys');
+  });
+
+  it('/admin is left alone this phase — Phase 2 moves it, not this table', () => {
+    expect(legacyRedirectTarget('/admin', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/admin', params('account=A'))).toBeNull();
+  });
+
+  it('/settings/* is left alone this phase, with or without a stray ?account=', () => {
+    expect(legacyRedirectTarget('/settings/account', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/projects', params('account=A'))).toBeNull();
+  });
+
+  it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {
+    expect(legacyRedirectTarget('/', params(''))).toBeNull();
+  });
+
+  it('strips only `account` (and, once resolved, `next`) — every other param survives onto the target', () => {
+    expect(legacyRedirectTarget('/projects', params('account=A&status=active&row=proj_1'))).toBe(
+      '/accounts/A/projects?status=active&row=proj_1'
+    );
+    expect(legacyRedirectTarget('/', params('account=A&next=projects'))).toBe(
+      '/accounts/A/overview'
+    );
+  });
+
+  it('preserves other params on the no-account rows too', () => {
+    // `next` is appended after whatever already existed (`URLSearchParams.set` on a fresh key)
+    // rather than reordering the existing params — order carries no meaning here, only presence.
+    expect(legacyRedirectTarget('/api-keys', params('q=foo'))).toBe('/?q=foo&next=api-keys');
   });
 });

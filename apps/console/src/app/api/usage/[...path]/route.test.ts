@@ -25,6 +25,28 @@ vi.mock('../../../../server/proxy', () => ({
   proxyRequest: (...args: unknown[]) => proxyRequestMock(...args),
 }));
 
+/**
+ * P1 security fix (IA v3 phase 1) — the scope-ownership guard's own wiring into this route.
+ * `usage-scope-guard.test.ts` covers the guard's logic directly (pure predicate + resolver fakes);
+ * these mocks let this file assert only the ROUTE's own responsibility: read the session, hand
+ * the body to the guard for the one query path, and turn a rejection into a response WITHOUT ever
+ * reaching `proxyRequest`.
+ */
+const readSessionFromRequestMock = vi.fn();
+vi.mock('../../../../server/session-store', () => ({
+  readSessionFromRequest: (...args: unknown[]) => readSessionFromRequestMock(...args),
+}));
+
+const guardUsageScopeMock = vi.fn();
+vi.mock('../../../../server/usage-scope-guard', () => ({
+  guardUsageScope: (...args: unknown[]) => guardUsageScopeMock(...args),
+}));
+
+vi.mock('../../../../server/authz-account-lookup', () => ({
+  resolveOwnedAccountIds: vi.fn(),
+  resolveProjectAccountId: vi.fn(),
+}));
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -83,6 +105,81 @@ describe('POST /api/usage/[...path]', () => {
 
     await POST(request, context);
 
+    expect(proxyRequestMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('POST /api/usage/usage/v1/usage/query scope-ownership guard (P1 security fix)', () => {
+  it('rejects a foreign scope_id with 403 before proxyRequest ever runs', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({ tokens: { accessToken: 'tok' } });
+    guardUsageScopeMock.mockResolvedValue({ ok: false, status: 403, error: 'scope_not_owned' });
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    const response = await POST(request, context);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: 'scope_not_owned' });
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(proxyRequestMock).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 invalid_body for a malformed body without calling proxyRequest', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({ tokens: { accessToken: 'tok' } });
+    guardUsageScopeMock.mockResolvedValue({ ok: false, status: 400, error: 'invalid_body' });
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    const response = await POST(request, context);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'invalid_body' });
+    expect(proxyRequestMock).not.toHaveBeenCalled();
+  });
+
+  it('proxies through once the guard passes', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({ tokens: { accessToken: 'tok' } });
+    guardUsageScopeMock.mockResolvedValue({ ok: true });
+    const sentinelResponse = new Response(null, { status: 200 });
+    proxyRequestMock.mockResolvedValue(sentinelResponse);
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    const response = await POST(request, context);
+
+    expect(response).toBe(sentinelResponse);
+    expect(proxyRequestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never reads the session or runs the guard for a non-query usage path (e.g. otel ingestion)', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    const sentinelResponse = new Response(null, { status: 200 });
+    proxyRequestMock.mockResolvedValue(sentinelResponse);
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['v1', 'otel', 'logs']);
+
+    const response = await POST(request, context);
+
+    expect(response).toBe(sentinelResponse);
+    expect(readSessionFromRequestMock).not.toHaveBeenCalled();
+    expect(guardUsageScopeMock).not.toHaveBeenCalled();
+  });
+
+  it('skips the guard and proceeds to proxyRequest when there is no session — proxyRequest owns the 401 there', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue(null);
+    const sentinelResponse = new Response(null, { status: 401 });
+    proxyRequestMock.mockResolvedValue(sentinelResponse);
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    const response = await POST(request, context);
+
+    expect(response).toBe(sentinelResponse);
+    expect(guardUsageScopeMock).not.toHaveBeenCalled();
     expect(proxyRequestMock).toHaveBeenCalledTimes(1);
   });
 });

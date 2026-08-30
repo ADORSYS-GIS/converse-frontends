@@ -55,7 +55,7 @@ interface ApiKeysScreenProps {
 
 const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value !== 'all');
 
-// The composition `apps/console`'s `(console)` layout + `/api-keys` route perform for real.
+// The composition `apps/console`'s `(console)` layout + the `/accounts/[accountId]/api-keys` route perform for real.
 //
 // `showAdmin` doubles as the ledger's `isAdmin` (ticket #321): the same `lightbridge-admin` grant
 // that reveals the NavSpine's Admin group is what the console-side container reads to decide

@@ -34,6 +34,7 @@ import React, { useMemo, useState } from 'react';
 
 import { useAdminScreen } from '../containers/use-admin-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
+import { writeLastAccountId } from '../containers/use-account-resolver';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -60,21 +61,52 @@ import { useOnlineStatus } from './use-online-status';
 
 export type ConsoleRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
 
-const NAV_HREFS: Record<ConsoleRoute, string> = {
-  overview: '/',
-  'api-keys': '/api-keys',
-  projects: '/projects',
-  settings: '/settings',
-  admin: '/admin',
-};
+/**
+ * The three account-scoped destinations' hrefs, built off whichever account id is currently in
+ * play — `/accounts/[accountId]/*` (IA v3 phase 1, "account into the path"). `settings`/`admin`
+ * carry no account segment this phase (`middleware.test.ts`'s redirect table, `app/(console)/
+ * admin/page.tsx` — Phase 2 moves them).
+ *
+ * An empty `accountId` (accounts not loaded yet, or genuinely none) routes through `/` — the
+ * account resolver — rather than minting a broken `/accounts//overview` URL: `?next=` carries the
+ * intended destination through the resolution hop for `api-keys`/`projects` (`overview` needs no
+ * `?next=` — it is the resolver's own default). This is what keeps the nav "never dead" even on
+ * `/` itself or on `/settings/*`, where there is no path segment to read an account id from at
+ * all (`use-console-scope.ts`'s own last-account/first-account fallback is what fills `accountId`
+ * in that case).
+ */
+export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
+  if (!accountId) {
+    return {
+      overview: '/',
+      'api-keys': '/?next=api-keys',
+      projects: '/?next=projects',
+      settings: '/settings',
+      admin: '/admin',
+    };
+  }
+  return {
+    overview: `/accounts/${accountId}/overview`,
+    'api-keys': `/accounts/${accountId}/api-keys`,
+    projects: `/accounts/${accountId}/projects`,
+    settings: '/settings',
+    admin: '/admin',
+  };
+}
 
 /**
  * Nav active state comes from the pathname, not from a per-route prop — the shell no longer
  * re-mounts per route, so nothing is left to hand it a route name at mount time.
+ *
+ * Matches `/accounts/<id>/<segment>` for the three account-scoped destinations (IA v3 phase 1);
+ * `/settings/*`/`/admin` keep their plain prefix match, and anything else (including `/`, the
+ * account resolver) reads as `overview` — the same default the old bare `/` match gave it.
  */
 export function routeFromPathname(pathname: string): ConsoleRoute {
-  if (pathname.startsWith('/api-keys')) return 'api-keys';
-  if (pathname.startsWith('/projects')) return 'projects';
+  const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
+  if (accountScopedSegment === 'api-keys') return 'api-keys';
+  if (accountScopedSegment === 'projects') return 'projects';
+  if (accountScopedSegment === 'overview') return 'overview';
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/admin')) return 'admin';
   return 'overview';
@@ -107,8 +139,10 @@ const NAV_ICON: Record<'overview' | 'keys' | 'projects' | 'settings' | 'admin', 
 export function navGroups(
   active: ConsoleRoute,
   isAdmin: boolean,
+  accountId: string,
   refillCount?: number
 ): NavGroup[] {
+  const hrefs = navHrefs(accountId);
   const groups: NavGroup[] = [
     {
       key: 'workspace',
@@ -117,21 +151,21 @@ export function navGroups(
         {
           key: 'overview',
           label: 'Overview',
-          href: NAV_HREFS.overview,
+          href: hrefs.overview,
           icon: NAV_ICON.overview,
           active: active === 'overview',
         },
         {
           key: 'projects',
           label: 'Projects',
-          href: NAV_HREFS.projects,
+          href: hrefs.projects,
           icon: NAV_ICON.projects,
           active: active === 'projects',
         },
         {
           key: 'api-keys',
           label: 'API keys',
-          href: NAV_HREFS['api-keys'],
+          href: hrefs['api-keys'],
           icon: NAV_ICON.keys,
           active: active === 'api-keys',
         },
@@ -144,7 +178,7 @@ export function navGroups(
         {
           key: 'settings',
           label: 'Settings',
-          href: NAV_HREFS.settings,
+          href: hrefs.settings,
           icon: NAV_ICON.settings,
           active: active === 'settings',
         },
@@ -159,7 +193,7 @@ export function navGroups(
         {
           key: 'admin',
           label: 'Refill requests',
-          href: NAV_HREFS.admin,
+          href: hrefs.admin,
           icon: NAV_ICON.admin,
           active: active === 'admin',
           count: refillCount && refillCount > 0 ? refillCount : undefined,
@@ -224,6 +258,8 @@ const BRAND = (
  * `name`, or nothing.
  */
 function useWorkspaceSwitcher() {
+  const router = useRouter();
+  const pathname = usePathname();
   const consoleScope = useConsoleScope();
   const openCreateAccount = useOpenCreateAccountDialog();
   const activeAccount = consoleScope.allAccounts.find(
@@ -239,7 +275,15 @@ function useWorkspaceSwitcher() {
       consoleScope.value.accountId
     ),
     accounts: consoleScope.allAccounts.map((account) => ({ id: account.id, label: account.name })),
-    onSelectAccount: (accountId: string) => consoleScope.setValue({ accountId, projectId: null }),
+    // Account is a path segment now (IA v3 phase 1) -- switching it is real navigation, to the
+    // SAME screen under the new account, not a param write `use-console-scope.ts`'s `setValue`
+    // no longer supports. `routeFromPathname` + `navHrefs` are the same pair `ConsolePaletteDialog`
+    // and `ConsoleSidebarContent` build their own hrefs from, so all three agree on what "the same
+    // screen" means without knowing about each other.
+    onSelectAccount: (accountId: string) => {
+      writeLastAccountId(accountId);
+      router.push(navHrefs(accountId)[routeFromPathname(pathname)]);
+    },
     onCopyId: (accountId: string) => {
       // Best-effort: `navigator.clipboard` is undefined on insecure origins. A failed copy
       // leaves the id in the tooltip, so there is nothing to recover.
@@ -265,6 +309,12 @@ function useWorkspaceSwitcher() {
 export function useConsolePalette() {
   const router = useRouter();
   const session = useConsoleSession();
+  // Same accountId resolution the sidebar's own hrefs use (`useWorkspaceSwitcher`) — path first,
+  // then the last-account/first-account fallback (`use-console-scope.ts`) — so the palette's
+  // "Navigate" items always land on a real account, even when the palette is opened from `/` or
+  // `/settings/*`.
+  const scope = useConsoleScope();
+  const hrefs = navHrefs(scope.value.accountId);
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — ephemeral interaction state). The palette is a
    * launcher, not a view: it describes nothing about what the user is looking at, it is dismissed
@@ -276,17 +326,17 @@ export function useConsolePalette() {
 
   const groups: CommandPaletteGroup[] = useMemo(() => {
     const navigate: CommandPaletteItem[] = [
-      { key: 'overview', label: 'Overview', onSelect: () => router.push(NAV_HREFS.overview) },
-      { key: 'api-keys', label: 'API keys', onSelect: () => router.push(NAV_HREFS['api-keys']) },
-      { key: 'projects', label: 'Projects', onSelect: () => router.push(NAV_HREFS.projects) },
-      { key: 'settings', label: 'Settings', onSelect: () => router.push(NAV_HREFS.settings) },
+      { key: 'overview', label: 'Overview', onSelect: () => router.push(hrefs.overview) },
+      { key: 'api-keys', label: 'API keys', onSelect: () => router.push(hrefs['api-keys']) },
+      { key: 'projects', label: 'Projects', onSelect: () => router.push(hrefs.projects) },
+      { key: 'settings', label: 'Settings', onSelect: () => router.push(hrefs.settings) },
     ];
     if (session.isAdmin) {
       navigate.push({
         key: 'admin',
         label: 'Refill requests',
         hint: 'ROLE',
-        onSelect: () => router.push(NAV_HREFS.admin),
+        onSelect: () => router.push(hrefs.admin),
       });
     }
     return [
@@ -297,7 +347,7 @@ export function useConsolePalette() {
         items: [{ key: 'sign-out', label: 'Sign out', onSelect: signOut }],
       },
     ];
-  }, [router, session.isAdmin]);
+  }, [router, session.isAdmin, hrefs]);
 
   return { open, setOpen, groups };
 }
@@ -367,7 +417,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
           onCreateAccount={switcher.onCreateAccount}
         />
       }
-      groups={navGroups(route, session.isAdmin, refillCount)}
+      groups={navGroups(route, session.isAdmin, switcher.accountId, refillCount)}
       linkComponent={Link}
       footer={
         <>

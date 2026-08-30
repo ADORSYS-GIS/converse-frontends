@@ -17,7 +17,8 @@ import type { FieldProps } from './types';
 // rather than four copies that drift.
 export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldProps>(
   function Field(props, ref) {
-    const { label, error, containerClassName, className, id, multiline, layout, ...rest } = props;
+    const { label, error, containerClassName, className, id, multiline, layout, hideLabel, ...rest } =
+      props;
     // A label beside a textarea has nothing to align to, so `inline` is ignored when multiline.
     const inline = layout === 'inline' && !multiline;
     const generatedId = useId();
@@ -30,7 +31,9 @@ export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldPro
         // daisy's own two field layouts: `label` sets label and control side by side, `fieldset`
         // stacks them. See the `@utility` pair in `theme.css`.
         className={cn(inline ? 'label' : 'fieldset', containerClassName)}>
-        <BaseField.Label className={fieldLabelClassName}>{label}</BaseField.Label>
+        <BaseField.Label className={hideLabel ? 'sr-only' : fieldLabelClassName}>
+          {label}
+        </BaseField.Label>
         {multiline ? (
           <BaseField.Control
             {...(rest as unknown as React.ComponentPropsWithoutRef<typeof BaseField.Control>)}

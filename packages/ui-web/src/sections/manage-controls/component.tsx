@@ -3,7 +3,6 @@ import React from 'react';
 import { cn } from '../../cn';
 import { SegmentedControl } from '../../components/segmented-control';
 import { SelectField } from '../../components/select-field';
-import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ManageControlsProps } from './types';
 
 // Projects screen filter cluster (renamed from Manage, phase 5 revamp brief). Status and budget
@@ -28,21 +27,22 @@ export function ManageControls({
   onBudgetStateChange,
   className,
 }: ManageControlsProps) {
+  // Phase 9 — no external "Status" label: the segmented control's own cells already read the
+  // status words. `Budget state`'s label stays hidden the same way, self-describing through its
+  // chosen option text.
   return (
     <section aria-label="Filters" className={cn('flex flex-wrap items-end gap-3', className)}>
-      <div className="flex items-center gap-2">
-        <span className={LABEL_CLASS}>Status</span>
-        <SegmentedControl
-          aria-label="Project status"
-          options={statusOptions}
-          value={statusValue}
-          onChange={onStatusChange}
-        />
-      </div>
+      <SegmentedControl
+        aria-label="Project status"
+        options={statusOptions}
+        value={statusValue}
+        onChange={onStatusChange}
+      />
 
       <SelectField
         label="Budget state"
         layout="inline"
+        hideLabel
         value={budgetStateValue}
         options={budgetStateOptions}
         onChange={onBudgetStateChange}

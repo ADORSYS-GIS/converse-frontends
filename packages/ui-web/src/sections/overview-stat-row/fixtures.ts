@@ -5,7 +5,6 @@ import type { OverviewStatCardData } from './types';
 export const overviewStatCards: OverviewStatCardData[] = [
   {
     key: 'spend-this-month',
-    icon: 'spend',
     label: 'Spend this month',
     metric: '$142.55',
     delta: { direction: 'up', label: '18% vs prev 30d' },
@@ -13,7 +12,6 @@ export const overviewStatCards: OverviewStatCardData[] = [
   },
   {
     key: 'active-projects',
-    icon: 'projects',
     label: 'Active projects',
     metric: '6',
     delta: { direction: 'flat', label: 'no change' },
@@ -21,7 +19,6 @@ export const overviewStatCards: OverviewStatCardData[] = [
   },
   {
     key: 'active-api-keys',
-    icon: 'keys',
     label: 'Active API keys',
     metric: '23',
     delta: { direction: 'up', label: '2 this week' },
@@ -29,7 +26,6 @@ export const overviewStatCards: OverviewStatCardData[] = [
   },
   {
     key: 'requests-today',
-    icon: 'requests',
     label: 'Requests today',
     metric: '41,208',
     delta: { direction: 'down', label: '8% vs yesterday' },
@@ -40,28 +36,24 @@ export const overviewStatCards: OverviewStatCardData[] = [
 export const overviewEmptyStatCards: OverviewStatCardData[] = [
   {
     key: 'spend-this-month',
-    icon: 'spend',
     label: 'Spend this month',
     metric: '$0.00',
     sparklineData: [0, 0],
   },
   {
     key: 'active-projects',
-    icon: 'projects',
     label: 'Active projects',
     metric: '1',
     sparklineData: [1, 1],
   },
   {
     key: 'active-api-keys',
-    icon: 'keys',
     label: 'Active API keys',
     metric: '0',
     sparklineData: [0, 0],
   },
   {
     key: 'requests-today',
-    icon: 'requests',
     label: 'Requests today',
     metric: '0',
     sparklineData: [0, 0],
@@ -74,6 +66,6 @@ export const overviewEmptyStatCards: OverviewStatCardData[] = [
 // account that IS wired and genuinely had zero activity every day -- see `overviewEmptyStatCards`
 // above for that case).
 export const overviewUnwiredStatCards: OverviewStatCardData[] = [
-  { key: 'projects', icon: 'projects', label: 'Projects', metric: '6' },
-  { key: 'keys', icon: 'keys', label: 'API keys', metric: '23' },
+  { key: 'projects', label: 'Projects', metric: '6' },
+  { key: 'keys', label: 'API keys', metric: '23' },
 ];

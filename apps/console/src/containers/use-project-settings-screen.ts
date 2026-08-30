@@ -32,10 +32,25 @@ import { classifyProjectNameError } from './rpc-field-error';
 
 const PAGE_SIZE = 10;
 
+/**
+ * The `DetailSheet` a project row's click opens (phase 9, Addition C). `Rename` is the sheet's
+ * OWN action now — it targets whichever project is open, not a per-row button — so this carries
+ * the same eligibility pair `renameDisabled`/`renameReason` used to sit on `ProjectSettingsProps`.
+ */
+export interface ProjectSettingsDetailScreen {
+  open: boolean;
+  project: ProjectSettingsRow | null;
+  onOpenChange: (open: boolean) => void;
+  onRename: () => void;
+  renameDisabled: boolean;
+  renameReason: string | undefined;
+}
+
 export interface ProjectSettingsScreen {
   /** The scoped account's display label (`accountScopeLabel`), for `PageHeader.subtitle`. */
   scopeLabel: string | undefined;
   projectSettings: ProjectSettingsProps;
+  projectDetail: ProjectSettingsDetailScreen;
   projectNameDialog: ProjectNameDialogProps;
   /** The account's TOTAL project count (unfiltered by search), for `SettingsSubNav`'s
    *  `Projects` tab. */
@@ -89,9 +104,9 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — same clause `use-account-settings-screen.ts`
-   * documents): the project rename dialog's typed-but-unsent name. `?rename=<project id>` — WHICH
-   * project's dialog is open — is real view state and lives in the URL; the half-typed
-   * replacement name is not.
+   * documents): the project rename dialog's typed-but-unsent name. `?rename=true` — WHETHER the
+   * dialog is open — is real view state and lives in the URL; the half-typed replacement name is
+   * not.
    */
   const [projectNameDraft, setProjectNameDraft] = useState('');
 
@@ -116,9 +131,13 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     renameReason = undefined;
   }
 
-  // The dialog's subject is `?rename=<id>`, looked up in the loaded page — so a link to an open
-  // rename reopens on that project, and Back closes it instead of leaving the screen.
-  const renameTarget = rows.find((row) => row.id === view.renameProjectId) ?? null;
+  // Phase 9 (Addition C) split what used to be one `?rename=<id>` param in two: `renameProjectId`
+  // (wire key `row`) is the project `DetailSheet` has open — a SELECTION, from clicking a row —
+  // and `projectNameOpen` (wire key `rename`) is whether the rename dialog is stacked on top of
+  // it, targeting the same id. A link to an open sheet reopens on that project; Back closes
+  // whichever of the two is open, innermost first, instead of leaving the screen.
+  const selectedProject = rows.find((row) => row.id === view.renameProjectId) ?? null;
+  const renameTarget = view.projectNameOpen ? selectedProject : null;
 
   const projectAction = useSharedMutation<{ id: string; name: string }, Project>({
     mutationKey: PROJECT_NAME_MUTATION_KEY,
@@ -134,7 +153,8 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
       // The scope hook's own project list feeds the header/scope selector, so it is stale too.
       scope.refetch();
       setProjectNameDraft('');
-      void setView({ renameProjectId: '' }, SETTINGS_DIALOG_OPTIONS);
+      // Only the rename dialog closes — the sheet stays open and shows the refreshed name.
+      void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
     },
   });
 
@@ -168,11 +188,23 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
       onPrev: () => void setView({ page: Math.max(1, view.page - 1) }),
       onNext: () => void setView({ page: view.page + 1 }),
     },
-    onRename: (project: ProjectSettingsRow) => {
-      if (!renameEligible) return;
+    onSelectRow: (project: ProjectSettingsRow) => {
+      void setView({ renameProjectId: project.id, projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+    },
+    selectedProjectId: view.renameProjectId || undefined,
+  };
+
+  const projectDetail: ProjectSettingsDetailScreen = {
+    open: selectedProject !== null,
+    project: selectedProject,
+    onOpenChange: (open) => {
+      if (!open) void setView({ renameProjectId: '', projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+    },
+    onRename: () => {
+      if (!renameEligible || selectedProject === null) return;
       if (projectAction.errorMessage) projectAction.dismiss();
-      setProjectNameDraft(project.name);
-      void setView({ renameProjectId: project.id }, SETTINGS_DIALOG_OPTIONS);
+      setProjectNameDraft(selectedProject.name);
+      void setView({ projectNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
     },
     renameDisabled: !renameEligible,
     renameReason,
@@ -195,7 +227,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     onCancel: () => {
       if (projectAction.errorMessage) projectAction.dismiss();
       setProjectNameDraft('');
-      void setView({ renameProjectId: '' }, SETTINGS_DIALOG_OPTIONS);
+      void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
     },
   };
 
@@ -204,6 +236,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
   return {
     scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     projectSettings,
+    projectDetail,
     projectNameDialog,
     projectCount: total,
   };

@@ -135,14 +135,17 @@ function StoryTopBarIdentity() {
 // has one and `acct_49534505` when it does not, never the raw 36 characters.
 export const STORY_ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
 
-// A tiny brand fixture standing in for the old `ConsoleHeader`'s logo box + wordmark — these are
-// Storybook fixtures, not production chrome, so a plain marker plus a wordmark string is enough.
+// A tiny brand fixture standing in for `ConsoleSidebar`/`ConsoleTopBar`'s real `BRAND` constant
+// (`apps/console/src/client/console-chrome.tsx`) — these are Storybook fixtures, not production
+// chrome, so a plain marker plus a wordmark string is enough. Sans, sentence case (phase 9
+// consistency pass: this used to be mono/uppercase/tracked, the pre-revamp header band's face,
+// which the console-ui skill's "no uppercase labels" rule already ruled out for real chrome).
 export const storyBrand = (
-  <span className="inline-flex items-center gap-2 font-mono text-xs tracking-wide">
+  <span className="inline-flex items-center gap-2 font-sans text-xs text-ink">
     <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
       <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
     </svg>
-    LIGHTBRIDGE
+    Lightbridge
   </span>
 );
 

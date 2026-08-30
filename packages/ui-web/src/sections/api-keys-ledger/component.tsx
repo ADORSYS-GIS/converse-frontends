@@ -70,7 +70,7 @@ export function ApiKeysLedger({
       width: '220px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'prefix', header: 'Prefix', width: '160px', accessor: (row) => row.prefix },
+    { key: 'prefix', header: 'Prefix', width: '160px', kind: 'data', accessor: (row) => row.prefix },
     {
       key: 'status',
       header: 'Status',
@@ -83,6 +83,7 @@ export function ApiKeysLedger({
       width: '110px',
       align: 'right',
       sortable: true,
+      kind: 'data',
       accessor: (row) => row.created,
     },
     {
@@ -91,6 +92,7 @@ export function ApiKeysLedger({
       width: '120px',
       align: 'right',
       sortable: true,
+      kind: 'data',
       accessor: (row) => row.lastUsed,
     },
     {
@@ -99,6 +101,7 @@ export function ApiKeysLedger({
       width: '110px',
       align: 'right',
       sortable: true,
+      kind: 'data',
       accessor: (row) => row.expires,
     },
   ];
@@ -159,7 +162,7 @@ export function ApiKeysLedger({
                     ? [
                         {
                           key: 'del',
-                          label: 'Del',
+                          label: 'Delete',
                           onClick: () => onRequestDelete(row),
                           emphasis: 'muted' as const,
                         },

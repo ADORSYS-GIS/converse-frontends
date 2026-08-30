@@ -12,7 +12,7 @@ import {
   OVERLAY_SEPARATOR_CLASS,
   OVERLAY_SPLIT_ROW_CLASS,
 } from '../../lib/overlay';
-import { DATA_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
 import { Chevron } from '../chevron';
 
@@ -92,9 +92,12 @@ export function AccountBadge({
 
   const nameAndId = (
     <>
-      {/* A real name reads at full strength; the generated token is not the account's name, so
-          it stays one step back. */}
-      <span className={isFallback ? DATA_CLASS : SECTION_TITLE_CLASS}>{display}</span>
+      {/* Always sans (phase 9 — "simpler: sans always in the switcher"): the fallback token
+          (`acct_49534505`) reads as a NAME here, standing in for one that was never set, not as
+          a data value beside a name — keeping it mono would be the one mono island left in an
+          otherwise all-sans control. A real name reads at full strength; the generated token
+          stays one step back. */}
+      <span className={isFallback ? LABEL_CLASS : SECTION_TITLE_CLASS}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
           than repeating it. Hidden below `md` at the `inline` variant, where the top bar has no

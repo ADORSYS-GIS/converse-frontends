@@ -73,7 +73,7 @@ export const WithRowActions: Story = {
           actions={[
             { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
             { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-            { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted', disabled: row.status === 'revoked' },
+            { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted', disabled: row.status === 'revoked' },
           ]}
         />
       )}

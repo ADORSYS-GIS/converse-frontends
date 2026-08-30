@@ -42,3 +42,7 @@ export const HERO_METRIC_CLASS = 'font-mono data-numeral text-[34px] leading-[1.
 
 /** The reference value beside a hero metric ("of $2,000.00") — never in the numeral's `ink`. */
 export const HERO_CEILING_CLASS = 'font-sans text-[13px] text-subtle';
+
+/** A settings-row's own label — one step stronger than `LABEL_CLASS`, since it stands alone as
+ *  the row's name rather than captioning a control beside it (`components/settings-row`). */
+export const ROW_LABEL_CLASS = 'font-sans text-[13px] text-ink';

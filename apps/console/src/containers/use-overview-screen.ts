@@ -92,15 +92,18 @@ const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
   '90d': 'Last 90 days',
 };
 
+// Self-describing option words (phase 9 — the toolbar's own external "Bucket"/"Group by" labels
+// are gone; each select's chosen option now has to read on its own, e.g. "Daily" rather than a
+// bare "Day" beside a label that used to say what axis it was).
 const BUCKET_LABELS: Record<(typeof OVERVIEW_BUCKETS)[number], string> = {
-  hour: 'Hour',
-  day: 'Day',
-  week: 'Week',
+  hour: 'Hourly',
+  day: 'Daily',
+  week: 'Weekly',
 };
 
 const GROUP_BY_LABELS: Record<(typeof OVERVIEW_GROUP_BYS)[number], string> = {
-  project: 'Project',
-  model: 'Model',
+  project: 'By project',
+  model: 'By model',
 };
 
 const REPORT_INCLUDE_LABELS: Record<ReportIncludeId, string> = {
@@ -494,7 +497,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     const cards: OverviewStatCardData[] = [
       {
         key: 'spend',
-        icon: 'spend',
         label: 'Spend this period',
         metric: consumptionQuery.data ? formatUsd(sumTotalCost(consumptionQuery.data)) : '—',
       },
@@ -502,7 +504,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     if ('value' in budget && 'ceiling' in budget) {
       cards.push({
         key: 'budget-remaining',
-        icon: 'budget',
         label: 'Budget remaining',
         metric: formatUsd(budget.ceiling - budget.value),
       });
@@ -510,7 +511,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     cards.push(
       {
         key: 'keys',
-        icon: 'keys',
         label: 'Active API keys',
         metric: String(apiKeys.result.total ?? 0),
         // No `sparklineData` — there is no trend series behind a key COUNT, and `OverviewStatRow`
@@ -519,7 +519,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       },
       {
         key: 'projects',
-        icon: 'projects',
         label: 'Projects',
         metric: String(projects.result.total ?? 0),
       }

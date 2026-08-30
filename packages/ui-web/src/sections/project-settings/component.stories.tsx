@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
-import { ProjectSettings } from './component';
-import { projectSettingsFixture } from './fixtures';
+import { ProjectSettings, ProjectSettingsDetail } from './component';
+import { defaultProjectFixture, projectSettingsFixture } from './fixtures';
 
 const meta: Meta<typeof ProjectSettings> = {
   title: 'Sections/ProjectSettings',
   component: ProjectSettings,
   args: {
     projects: projectSettingsFixture,
-    onRename: fn(),
+    onSelectRow: fn(),
     onRetry: fn(),
     search: '',
     onSearchChange: fn(),
@@ -46,13 +46,11 @@ export const ErrorState: Story = {
   args: { projects: [], error: 'Could not load projects.' },
 };
 
-/** The presentation-only mirror of `model.Project.update`'s owner-or-member `@@allow` gate. */
-export const RenameGated: Story = {
-  name: 'Renaming not possible — the reason is stated, not discovered on submit',
-  args: {
-    renameDisabled: true,
-    renameReason: 'Only the account owner or a project member can rename a project.',
-  },
+/** The row a click opens — `DetailSheet`'s current selection (phase 9, Addition C). Rename lives
+ *  inside that sheet now, not on the row (`apps/console`'s `project-settings-centre.tsx`). */
+export const RowSelected: Story = {
+  name: 'A row open in DetailSheet — data-current, not a hand-written fill',
+  args: { selectedProjectId: projectSettingsFixture[1].id },
 };
 
 export const WithPagination: Story = {
@@ -70,4 +68,10 @@ export const FilteredEmpty: Story = {
 export const MobileBaseTier: Story = {
   name: 'Mobile base tier (<600)',
   globals: { viewport: { value: 'base390' } },
+};
+
+/** `DetailSheet`'s body for one open row — the full field list a summary row's click reveals. */
+export const DetailBody: StoryObj<typeof ProjectSettingsDetail> = {
+  name: 'ProjectSettingsDetail — the sheet body a row opens',
+  render: () => <ProjectSettingsDetail project={defaultProjectFixture} />,
 };

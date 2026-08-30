@@ -20,6 +20,16 @@ export interface LedgerColumn<T> {
    *  `onSortChange` on press. A column with no `onSortChange` wired renders the same button but
    *  it is inert — see `LedgerTableProps.onSortChange`. */
   sortable?: boolean;
+  /**
+   * Which type role the CELL renders in (phase 9 consistency pass — supersedes the table's old
+   * mono-everywhere body font). `'text'` (default) — a name, a status word, a tier id: sans, like
+   * every other UI string. `'data'` — a displayed data value: currency, a count, an id, a key
+   * prefix, a date/timestamp: mono, tabular. Lands as `data-kind="data"` on the `<td>`/`<tfoot>`
+   * cell (`component.tsx`), which `console-table`'s own `theme.css` block reads — the same
+   * attribute-not-a-second-class idiom `column.align`'s `data-align` already uses on the sort
+   * button, so this costs no extra hand-written utility (`class-budget.test.ts`).
+   */
+  kind?: 'text' | 'data';
 }
 
 export interface LedgerTableProps<T> {

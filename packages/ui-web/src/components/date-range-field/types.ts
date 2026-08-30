@@ -23,5 +23,8 @@ export interface DateRangeFieldProps {
   /** Days after this are not selectable. Defaults to today. */
   today?: Date;
   layout?: 'stacked' | 'inline';
+  /** Visually hides the label (`sr-only`) — see `SelectFieldProps.hideLabel`'s doc comment; the
+   *  trigger's own text ("Last 30 days") already says what the control is. */
+  hideLabel?: boolean;
   className?: string;
 }

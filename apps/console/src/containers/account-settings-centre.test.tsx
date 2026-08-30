@@ -106,17 +106,19 @@ describe('AccountSettingsCentre', () => {
       },
     });
 
-    expect(screen.getByText('Unnamed account')).toBeInTheDocument();
+    // Phase 9 (Addition C): the unnamed state is an ordinary row now ("Not set" + a naming
+    // action), not a full-card placard — see `sections/account-settings/component.test.tsx`.
+    expect(screen.getByText('Not set')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
   });
 
-  it('offers a rename for an account that already has a name, in the Card header', async () => {
+  it('offers a rename for an account that already has a name, as the Account name row’s own action', async () => {
     await renderCentre();
 
-    // Twice on this screen: the `PageHeader` subtitle (the scope) and the definition grid's own
-    // `Name` row (the account, in a screen that can hold several accounts' worth of settings
-    // over a session) — see `renders the Account/Projects tab row` for the count that would
-    // catch either going missing.
+    // Twice on this screen: the `PageHeader` subtitle (the scope) and the settings list's own
+    // `Account name` row (the account, in a screen that can hold several accounts' worth of
+    // settings over a session) — see `renders the Account/Projects tab row` for the count that
+    // would catch either going missing.
     expect(screen.getAllByText('Widgets Ltd').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });

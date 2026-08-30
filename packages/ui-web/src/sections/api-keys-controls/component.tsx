@@ -4,7 +4,6 @@ import { cn } from '../../cn';
 import { Field } from '../../components/field';
 import { SegmentedControl } from '../../components/segmented-control';
 import { SelectField } from '../../components/select-field';
-import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ApiKeysControlsProps } from './types';
 
 // Shell brief (2026-08-30) — the Api-Keys screen's parameters, now a HORIZONTAL compact cluster in
@@ -25,23 +24,25 @@ export function ApiKeysControls({
   onSearchChange,
   className,
 }: ApiKeysControlsProps) {
+  // Phase 9 — no external "Project"/"Status"/"Search" labels: the project select shows the
+  // chosen project's own name, the segmented control's cells already read `Active`/`Revoked`/…,
+  // and the search field's placeholder says what it searches. Every `label`/`aria-label` stays
+  // for a11y (`hideLabel` only hides the visible text).
   return (
     <section aria-label="Filters and actions" className={cn('flex flex-wrap items-end gap-3', className)}>
-      <SelectField {...projectField} layout="inline" />
+      <SelectField {...projectField} layout="inline" hideLabel />
 
-      <div className="flex items-center gap-2">
-        <span className={LABEL_CLASS}>Status</span>
-        <SegmentedControl
-          aria-label="Status filter"
-          options={statusOptions}
-          value={statusValue}
-          onChange={onStatusChange}
-        />
-      </div>
+      <SegmentedControl
+        aria-label="Status filter"
+        options={statusOptions}
+        value={statusValue}
+        onChange={onStatusChange}
+      />
 
       <Field
         label="Search"
         layout="inline"
+        hideLabel
         placeholder="name or prefix…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}

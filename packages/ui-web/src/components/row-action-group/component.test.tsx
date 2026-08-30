@@ -11,13 +11,13 @@ describe('RowActionGroup', () => {
         actions={[
           { key: 'rotate', label: 'Rotate', onClick: () => {} },
           { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-          { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
+          { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted' },
         ]}
       />
     );
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons.map((b) => b.textContent)).toEqual(['Rotate', 'Revoke', 'Del']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Rotate', 'Revoke', 'Delete']);
   });
 
   // The diagonal hairline is a `::before` on every action after the first — decoration lives in
@@ -55,7 +55,7 @@ describe('RowActionGroup', () => {
         actions={[
           { key: 'rotate', label: 'Rotate', onClick: () => {} },
           { key: 'revoke', label: 'Revoke', onClick: () => {} },
-          { key: 'del', label: 'Del', onClick: () => {} },
+          { key: 'del', label: 'Delete', onClick: () => {} },
         ]}
       />
     );
@@ -95,14 +95,14 @@ describe('RowActionGroup', () => {
         actions={[
           { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
           { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-          { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
+          { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted' },
         ]}
       />
     );
 
     expect(screen.getByRole('button', { name: 'Revoke' })).toHaveClass('text-ink');
     expect(screen.getByRole('button', { name: 'Rotate' })).toHaveClass('text-soft');
-    expect(screen.getByRole('button', { name: 'Del' })).toHaveClass('text-subtle');
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('text-subtle');
   });
 
   it('respects disabled actions', () => {

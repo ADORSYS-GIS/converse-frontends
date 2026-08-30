@@ -70,6 +70,7 @@ export function DateRangeField({
   onRangeChange,
   today = new Date(),
   layout = 'stacked',
+  hideLabel,
   className,
 }: DateRangeFieldProps) {
   const inline = layout === 'inline';
@@ -82,7 +83,7 @@ export function DateRangeField({
           wears the shared control class, so a range picker reads as a field without this
           component describing one. */}
       <div className={cn(inline ? 'label' : 'fieldset', className)}>
-        <span className={fieldLabelClassName}>{label}</span>
+        <span className={hideLabel ? 'sr-only' : fieldLabelClassName}>{label}</span>
         <Popover.Trigger aria-label={label} className={fieldControlClassName}>
           {triggerText}
           <Chevron />

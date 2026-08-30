@@ -20,7 +20,7 @@ import { OVERLAY_CLASS } from './overlay';
  */
 export const SELECT_TRIGGER_CLASS = cn(
   'input h-[30px]! w-full! cursor-pointer justify-between rounded-[2px]! border! border-border! bg-chrome! px-3!',
-  'font-mono text-sm text-soft shadow-none! outline-none!',
+  'font-sans text-sm text-soft shadow-none! outline-none!',
   'focus-visible:border-primary! data-[popup-open]:border-primary!',
   'disabled:cursor-not-allowed disabled:opacity-60'
 );
@@ -28,5 +28,7 @@ export const SELECT_TRIGGER_CLASS = cn(
 /** Positioner: Base UI owns placement; this only lifts it and kills the wrapper's own outline. */
 export const SELECT_POSITIONER_CLASS = 'z-50 outline-hidden select-none';
 
-/** The popup list, on the shared overlay chrome, sized to its anchor. */
-export const SELECT_POPUP_CLASS = `w-(--anchor-width) py-1 font-mono ${OVERLAY_CLASS}`;
+/** The popup list, on the shared overlay chrome, sized to its anchor. A select's value is a
+ *  SETTING ("Last 30 days"), not data, so the popup reads sans like every other control (phase 9
+ *  consistency pass — this was mono). */
+export const SELECT_POPUP_CLASS = `w-(--anchor-width) py-1 font-sans ${OVERLAY_CLASS}`;

@@ -1,15 +1,15 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { Button } from '../../components/button';
 import { ErrorLine } from '../../components/error-line';
 import { Field } from '../../components/field';
 import { InlineStatus } from '../../components/inline-status';
 import { Pagination } from '../../components/pagination';
+import { SettingsRow } from '../../components/settings-row';
 import { SkeletonRow } from '../../components/skeleton-row';
-import { DETAIL_GROUP_CLASS, DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
+import { DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
-import { BODY_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { BODY_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import type { ProjectSettingsProps, ProjectSettingsRow } from './types';
 
 /** Heading for whichever host mounts this section — see `MANAGE_SELECTION_RAIL_LABEL`'s note. */
@@ -17,17 +17,23 @@ export const PROJECT_SETTINGS_LABEL = 'Projects';
 
 export const NO_PROJECTS_MESSAGE = 'No projects in this account yet.';
 
-const GRID_CLASS = 'grid grid-cols-1 gap-5 md:grid-cols-2';
-const ROW_CLASS = 'flex flex-col gap-1';
+/** The row's own one-line status/tier summary — enough to scan the list without opening any one
+ *  project; the rest of its facts (`detailRows`, below) are what the sheet is for. */
+function rowSummary(project: ProjectSettingsRow): string {
+  return `${project.status} · ${project.quotaTier ?? NO_QUOTA_TIER_LABEL}`;
+}
 
 /**
  * The rows one project owns, in the order they answer questions: who pays, on what plan, under
- * what ceiling, against which models, and what state the thing is in.
+ * what ceiling, against which models, and what state the thing is in. Exported for
+ * `ProjectSettingsDetail` (below) — the sheet body `apps/console`'s `project-settings-centre.tsx`
+ * renders inside `DetailSheet`, whose own `title`/`subtitle` already carry the project's name, the
+ * same "chrome already said it" contract `sections/project-detail` follows for its own sheet.
  *
  * A module-level function rather than six inline ternaries so the ORDER is stated once and every
- * project block is guaranteed to be readable down the same column.
+ * project's detail is guaranteed to read down the same column.
  */
-function detailRows(project: ProjectSettingsRow): { term: string; value: string }[] {
+export function detailRows(project: ProjectSettingsRow): { term: string; value: string }[] {
   return [
     { term: 'Project id', value: project.id },
     { term: 'Billing identity', value: project.billingIdentity },
@@ -41,12 +47,41 @@ function detailRows(project: ProjectSettingsRow): { term: string; value: string 
   ];
 }
 
-// Contract: console visual revamp (2026-08, admin/settings phase) — one sub-block per project
-// (name + Rename, then a 2-column definition grid at `md`), fronted by a search field + a real
-// `Pagination` (10/page). The unbounded N×7 dump this section used to be — every project's full
-// fact column, one after another, with nothing to page through — died the moment an account holds
-// more than a handful of projects; search + pagination are what keep this a settings surface
-// rather than a second, worse ledger.
+/** The `DetailSheet` body for one project's full field list — `ProjectSettings`' rows open the
+ *  sheet; this is what fills it. Kept as its own export (rather than inlined at the container)
+ *  because the field order/labels are this section's contract, not the app's to restate. */
+export function ProjectSettingsDetail({
+  project,
+  className,
+}: {
+  project: ProjectSettingsRow;
+  className?: string;
+}) {
+  return (
+    <dl className={cn(DETAIL_LIST_CLASS, className)}>
+      {detailRows(project).map(({ term, value }) => (
+        <div key={term} className={DETAIL_ROW_CLASS}>
+          <dt className={LABEL_CLASS}>{term}</dt>
+          <dd className={BODY_CLASS}>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+// Contract: phase 9 (Addition C, owner: "The settings pages do NOT look like a settings page. Why
+// not do the classical list-like setting page?") — a search field leading the card, then a
+// classical settings LIST (`settings-list`/`SettingsRow`): one clickable row per project, name
+// plus a status/tier summary, opening `DetailSheet` with the project's full field list — the same
+// row-opens-a-sheet contract `ProjectsLedger`'s table already uses, at settings density instead of
+// a ledger's. `Rename` moved off the row and into the sheet's own footer (`apps/console`'s
+// `project-settings-centre.tsx`), since it now targets whichever project the sheet has open rather
+// than needing its own button on every row.
+//
+// Supersedes the "one sub-card per project, full field grid inline" shape this section used to
+// render: an account with more than a handful of projects turned that into a long scroll of
+// definition grids, which is exactly what a settings LIST (scan the summary, open what you need)
+// replaces.
 export function ProjectSettings({
   projects,
   loading = false,
@@ -58,9 +93,8 @@ export function ProjectSettings({
   onSearchChange,
   filteredEmptyMessage,
   pagination,
-  onRename,
-  renameDisabled = false,
-  renameReason,
+  onSelectRow,
+  selectedProjectId,
   className,
 }: ProjectSettingsProps) {
   const isEmpty = !loading && !error && projects.length === 0;
@@ -74,51 +108,36 @@ export function ProjectSettings({
         <Field
           label="Search"
           layout="inline"
+          hideLabel
           placeholder="Find a project…"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </div>
 
-      {renameReason ? <InlineStatus>{renameReason}</InlineStatus> : null}
-
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />
       ) : loading ? (
-        <div className={DETAIL_LIST_CLASS}>
+        <div className="settings-list">
           {Array.from({ length: loadingRowCount }, (_, index) => (
-            <SkeletonRow key={index} columnCount={3} />
+            <SkeletonRow key={index} columnCount={2} />
           ))}
         </div>
       ) : isEmpty ? (
         <InlineStatus>{search ? (filteredEmptyMessage ?? emptyMessage) : emptyMessage}</InlineStatus>
       ) : (
         <>
-          {projects.map((project) => (
-            <div key={project.id} className={DETAIL_GROUP_CLASS}>
-              <div className={DETAIL_ROW_CLASS}>
-                <h3 className={SECTION_TITLE_CLASS}>{project.name}</h3>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={renameDisabled}
-                  aria-label={`Rename ${project.name}`}
-                  onClick={() => onRename(project)}>
-                  Rename
-                </Button>
-              </div>
-
-              <dl className={GRID_CLASS}>
-                {detailRows(project).map(({ term, value }) => (
-                  <div key={term} className={ROW_CLASS}>
-                    <dt className={LABEL_CLASS}>{term}</dt>
-                    <dd className={BODY_CLASS}>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ))}
+          <div className="settings-list">
+            {projects.map((project) => (
+              <SettingsRow
+                key={project.id}
+                label={project.name}
+                description={rowSummary(project)}
+                current={project.id === selectedProjectId}
+                onClick={() => onSelectRow(project)}
+              />
+            ))}
+          </div>
 
           {pagination ? (
             <Pagination

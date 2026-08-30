@@ -133,7 +133,7 @@ describe('ApiKeysLedger', () => {
       );
 
       const group = screen.getByRole('group', { name: `${row.name} actions` });
-      fireEvent.click(within(group).getByRole('button', { name: 'Del' }));
+      fireEvent.click(within(group).getByRole('button', { name: 'Delete' }));
 
       expect(onRequestDelete).toHaveBeenCalledWith(row);
       expect(onConfirmDelete).not.toHaveBeenCalled();
@@ -209,7 +209,7 @@ describe('ApiKeysLedger', () => {
       render(<ApiKeysLedger {...baseProps} onRequestDelete={onRequestDelete} />);
 
       const group = screen.getByRole('group', { name: `${revoked!.name} actions` });
-      const delButton = within(group).getByRole('button', { name: 'Del' });
+      const delButton = within(group).getByRole('button', { name: 'Delete' });
 
       expect(delButton).toBeEnabled();
       fireEvent.click(delButton);
@@ -223,8 +223,8 @@ describe('ApiKeysLedger', () => {
       const group = screen.getByRole('group', { name: `${apiKeysFixture[0].name} actions` });
       expect(within(group).getByRole('button', { name: 'Rotate' })).toBeInTheDocument();
       expect(within(group).getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
-      expect(within(group).queryByRole('button', { name: 'Del' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Del' })).not.toBeInTheDocument();
+      expect(within(group).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     });
   });
 

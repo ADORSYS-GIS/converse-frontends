@@ -23,13 +23,19 @@ export function OverviewControls({
   projectField,
   className,
 }: OverviewControlsProps) {
+  // Phase 9 (owner: kills the "Group by Project Project All projects" stutter) — no external
+  // label beside any of these: each control self-describes through its OWN chosen value ("Last
+  // 30 days", "Daily", "By project", a project's name), the way a setting reads in every
+  // reference this shell is modelled on. The `label` prop each field still carries is not gone —
+  // it stays the field's real accessible name (`hideLabel` only hides it visually), which is why
+  // `OverviewControlsField`/`DateRangeFieldProps` keep requiring one.
   return (
     <section aria-label="View and filters" className={cn('flex flex-wrap items-end gap-3', className)}>
-      <DateRangeField {...rangeField} layout="inline" />
-      <SelectField {...bucketField} layout="inline" />
-      <SelectField {...groupByField} layout="inline" />
+      <DateRangeField {...rangeField} layout="inline" hideLabel />
+      <SelectField {...bucketField} layout="inline" hideLabel />
+      <SelectField {...groupByField} layout="inline" hideLabel />
       {/* Omitted entirely, never rendered disabled — see `OverviewControlsProps.projectField`. */}
-      {projectField ? <SelectField {...projectField} layout="inline" /> : null}
+      {projectField ? <SelectField {...projectField} layout="inline" hideLabel /> : null}
     </section>
   );
 }

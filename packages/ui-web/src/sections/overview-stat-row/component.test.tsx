@@ -33,8 +33,8 @@ describe('OverviewStatRow', () => {
   });
 
   // Regression for #273: a card with no trend data must not draw a flat/zero decorative
-  // sparkline -- nor even reserve an empty sparkline slot for one. `polyline` (not `svg`, which
-  // the card's own icon glyph also uses) is what `Sparkline` itself draws.
+  // sparkline -- nor even reserve an empty sparkline slot for one. `polyline` is what
+  // `Sparkline` itself draws (phase 9 dropped the card's own corner glyph entirely).
   it('renders no sparkline polyline for a card whose sparklineData is omitted', () => {
     const { container } = render(<OverviewStatRow cards={overviewUnwiredStatCards} />);
 

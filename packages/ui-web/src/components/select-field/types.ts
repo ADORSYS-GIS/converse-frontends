@@ -24,5 +24,11 @@ export interface SelectFieldProps {
    * where six stacked label/control pairs would be six columns of wasted width.
    */
   layout?: 'stacked' | 'inline';
+  /**
+   * Visually hides the label (`sr-only`) while keeping it as the trigger's real accessible name
+   * (phase 9 — a select's chosen option already says what it is, e.g. "Last 30 days"; a label
+   * beside it too is the "Group by Project Project All projects" stutter the owner flagged).
+   */
+  hideLabel?: boolean;
   className?: string;
 }

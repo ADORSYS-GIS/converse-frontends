@@ -25,4 +25,12 @@ export interface AccountMenuProps {
   theme?: AccountMenuTheme;
   /** Fires when a theme option is activated. */
   onThemeChange?: (theme: AccountMenuTheme) => void;
+  /**
+   * `inline` (default) — the top bar's compact trigger, email hidden below `md`. `sidebar`
+   * (phase 9) — the sidebar footer's full-width identity row: the SAME `sidebar-footer-row`
+   * grid every other footer row uses (chip in the icon column, email at the label x), and the
+   * email always shows (the sidebar only ever renders at `md`+, so there is no narrow tier to
+   * hide it from — see `AccountBadge`'s identical `sidebar` variant for the precedent).
+   */
+  variant?: 'inline' | 'sidebar';
 }

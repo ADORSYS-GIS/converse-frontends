@@ -62,7 +62,15 @@ function SubNavRow({
   const content = horizontal ? (
     <>
       {item.label}
-      {item.count !== undefined ? ` ${item.count}` : null}
+      {/* A trailing numeral, styled — not bare concatenation (phase 9, owner: the "Projects 2"
+          stutter). The same `rail-row-count` treatment the vertical rail's own counts use: one
+          step back on the ramp, proper spacing, never a badge (console-ui skill). */}
+      {item.count !== undefined ? (
+        <>
+          {' '}
+          <span className="rail-row-count">{item.count}</span>
+        </>
+      ) : null}
     </>
   ) : (
     <>

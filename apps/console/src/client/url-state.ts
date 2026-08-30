@@ -318,12 +318,19 @@ export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
  * wire key stays `account-name`, deliberately distinct from scope's own `account` (which carries
  * an id, not a flag).
  *
- * `renameProjectId` (`?rename=<project id>`) carries an ID rather than a boolean, which is the one
+ * `renameProjectId` (`?row=<project id>`) carries an ID rather than a boolean, which is the one
  * structural difference from every other dialog param in this module: the account dialog has
  * exactly one possible target (the signed-in subject), while a rename has as many targets as the
  * account has projects. A boolean would have to be paired with a separate "which row" param — two
  * params that can contradict each other — so the id IS the open flag, exactly the way
  * `apiKeysParsers.revokeKeyId` already works.
+ *
+ * Phase 9 (Addition C) split what `renameProjectId` used to mean in two: it now names the row
+ * `DetailSheet` has open (a SELECTION — clicking a project row), and `projectNameOpen` is a
+ * separate boolean for whether the RENAME dialog is stacked on top of that sheet, targeting the
+ * same id. Two params rather than one because they are two different things a person does: open a
+ * project to look at it, versus open its rename dialog — the settings list's own row click no
+ * longer implies "and also start renaming this."
  *
  * Both write with `push` (`SETTINGS_DIALOG_OPTIONS`): opening a dialog that is about to perform a
  * write is navigation, and Back must close it rather than leave the screen. The typed-but-unsent
@@ -340,13 +347,15 @@ export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
 export const settingsParsers = {
   accountNameOpen: parseAsBoolean.withDefault(false),
   renameProjectId: parseAsString.withDefault(''),
+  projectNameOpen: parseAsBoolean.withDefault(false),
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   page: parseAsInteger.withDefault(1),
 };
 
 const settingsUrlKeys = {
   accountNameOpen: 'account-name',
-  renameProjectId: 'rename',
+  renameProjectId: 'row',
+  projectNameOpen: 'rename',
   search: 'q',
   page: 'page',
 };

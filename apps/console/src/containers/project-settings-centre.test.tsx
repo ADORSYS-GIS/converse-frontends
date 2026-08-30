@@ -31,27 +31,35 @@ vi.mock('./use-project-settings-screen', async (importOriginal) => {
   };
 });
 
+const gatewayProd = {
+  id: 'proj_7f21',
+  name: 'gateway-prod',
+  billingIdentity: 'adorsys-gis/gateway',
+  billingPlan: 'pro',
+  quotaTier: 'scale',
+  modelPolicy: 'allow_all',
+  status: 'active',
+  isDefault: true,
+};
+
 function baseScreen(overrides: Partial<ProjectSettingsScreenData> = {}): ProjectSettingsScreenData {
   return {
     scopeLabel: 'Widgets Ltd',
     projectSettings: {
-      projects: [
-        {
-          id: 'proj_7f21',
-          name: 'gateway-prod',
-          billingIdentity: 'adorsys-gis/gateway',
-          billingPlan: 'pro',
-          quotaTier: 'scale',
-          modelPolicy: 'allow_all',
-          status: 'active',
-          isDefault: true,
-        },
-      ],
+      projects: [gatewayProd],
       loading: false,
       search: '',
       onSearchChange: vi.fn(),
-      onRename: vi.fn(),
+      onSelectRow: vi.fn(),
       onRetry: vi.fn(),
+    },
+    projectDetail: {
+      open: false,
+      project: null,
+      onOpenChange: vi.fn(),
+      onRename: vi.fn(),
+      renameDisabled: false,
+      renameReason: undefined,
     },
     projectNameDialog: {
       open: false,
@@ -76,15 +84,33 @@ async function renderCentre(overrides: Partial<ProjectSettingsScreenData> = {}) 
 }
 
 describe('ProjectSettingsCentre', () => {
-  it('renders each project’s own settings, and mounts the rename dialog per row', async () => {
+  it('renders one summary row per project — name and a status/tier line', async () => {
     await renderCentre();
 
     expect(screen.getByText('gateway-prod')).toBeInTheDocument();
-    expect(screen.getByText('adorsys-gis/gateway')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Rename gateway-prod' })).toBeInTheDocument();
+    expect(screen.getByText('active · scale')).toBeInTheDocument();
   });
 
-  it('opens the rename dialog on the row the URL names', async () => {
+  it('opens the DetailSheet with the project’s full field list and a Rename action in the footer', async () => {
+    await renderCentre({
+      projectDetail: {
+        open: true,
+        project: gatewayProd,
+        onOpenChange: vi.fn(),
+        onRename: vi.fn(),
+        renameDisabled: false,
+        renameReason: undefined,
+      },
+    });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('gateway-prod');
+    expect(screen.getByText('Billing identity')).toBeInTheDocument();
+    expect(screen.getByText('adorsys-gis/gateway')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+  });
+
+  it('opens the rename dialog on the project the URL names', async () => {
     await renderCentre({
       projectNameDialog: {
         open: true,
@@ -99,9 +125,9 @@ describe('ProjectSettingsCentre', () => {
       },
     });
 
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveAccessibleName('Rename project');
-    expect(dialog).toHaveTextContent('proj_7f21');
+    const dialogs = await screen.findAllByRole('dialog');
+    const renameDialog = dialogs.find((dialog) => dialog.textContent?.includes('proj_7f21'));
+    expect(renameDialog).toHaveAccessibleName('Rename project');
   });
 
   it('carries a real search box — this is a browsable, paginated list now', async () => {

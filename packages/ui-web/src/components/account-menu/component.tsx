@@ -60,19 +60,40 @@ export function AccountMenu({
   className,
   theme,
   onThemeChange,
+  variant = 'inline',
 }: AccountMenuProps) {
   const label = name ?? email;
+  const sidebar = variant === 'sidebar';
 
   return (
     <Menu.Root>
       <Menu.Trigger
-        render={<Button variant="ghost" size="sm" />}
-        className={cn('gap-3', className)}
+        // `sidebar`: a plain full-width row, not `Button` — `Button`'s own `btn` sizing/focus
+        // ring would fight `sidebar-footer-row`'s 36px/hover contract instead of composing with
+        // it, the same reason `AccountBadge`'s `sidebar` variant renders its own row rather than
+        // wearing `Button`.
+        render={sidebar ? <button type="button" /> : <Button variant="ghost" size="sm" />}
+        className={cn(sidebar ? 'sidebar-footer-row' : 'gap-3', className)}
         aria-label={triggerLabel ?? (label ? `Account menu — ${label}` : 'Account menu')}>
-        {email ? <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{email}</span> : null}
-        <span aria-hidden="true" className="avatar-chip">
-          {initials}
-        </span>
+        {sidebar ? (
+          <>
+            <span aria-hidden="true" className="avatar-chip">
+              {initials}
+            </span>
+            {/* The email at the shared rail label-x, truncating rather than pushing the row
+                taller — the identity row's email the owner's review found missing entirely.
+                `rail-row-label` is the same truncating flex-1 treatment every other sidebar row
+                label already uses, so this needs no hand-written layout of its own. */}
+            {email ? <span className="rail-row-label text-soft text-[13px]">{email}</span> : null}
+          </>
+        ) : (
+          <>
+            {email ? <span className={cn(LABEL_CLASS, 'hidden md:inline')}>{email}</span> : null}
+            <span aria-hidden="true" className="avatar-chip">
+              {initials}
+            </span>
+          </>
+        )}
       </Menu.Trigger>
 
       <Menu.Portal>

@@ -43,6 +43,7 @@ export function ReviewQueue({
       header: 'Submitted',
       width: '130px',
       sortable: true,
+      kind: 'data',
       accessor: (row) => row.submittedAgo,
     },
     {
@@ -57,6 +58,7 @@ export function ReviewQueue({
       header: 'Refill',
       width: '110px',
       align: 'right',
+      kind: 'data',
       accessor: (row) => <span className="text-ink">{signedMoney(row.requestedAmount)}</span>,
     },
   ];

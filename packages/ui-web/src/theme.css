@@ -103,9 +103,12 @@
   --color-raised: var(--color-base-300);
   --color-soft: var(--color-base-content);
 
-  --radius-selector: 0.125rem;
-  --radius-field: 0.125rem;
-  --radius-box: 0.125rem;
+  /* Revamp phase 1 (console visual revamp brief, supersedes ADR 0008's 2px pin): a card/field
+     radius step, not the flush 2px rule the two-column card shell replaces. `--depth`/`--noise`
+     stay 0 -- no shadows, no grain, that part of ADR 0008 still holds. */
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -151,9 +154,10 @@
   --color-raised: var(--color-base-300);
   --color-soft: var(--color-base-content);
 
-  --radius-selector: 0.125rem;
-  --radius-field: 0.125rem;
-  --radius-box: 0.125rem;
+  /* Revamp phase 1 -- same radius step as `black`, see that block's comment. */
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -2134,4 +2138,118 @@
     margin-top: 0.5rem;
     padding-inline: 0.75rem;
   }
+}
+
+/*
+ * ─── Revamp phase 1 primitives ───────────────────────────────────────────────────────────────
+ *
+ * The console visual revamp brief (2026-08 — supersedes the console-ui skill's "never a card"
+ * rule and the ADR 0008 2px radius for the parts listed below): a two-column console modelled on
+ * Anthropic Console / fal.ai / Attio, where cards carry stats/charts/tables/forms. These five
+ * utilities are the foundation phase's paint; the components that consume them (`Card`,
+ * `EmptyState`, `Pagination`, `DetailSheet`, `PageHeader`) live in `components/`/`sections/`.
+ */
+
+/* `Card` — the console's one generic panel: a surface fill, a hairline border at the new
+   `--radius-box` step, and a padded interior. `.card-head` is the optional title/actions row a
+   card renders above its body. */
+@utility console-card {
+  background-color: var(--color-base-200);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-box);
+  padding: 1.25rem;
+
+  & .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+}
+
+/* `EmptyState` — a centred column inside a card (or standing alone): headline, optional
+   explainer, optional action, capped to a comfortable reading measure. */
+@utility empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 380px;
+  margin-inline: auto;
+  padding-block: 2.5rem;
+  text-align: center;
+}
+
+/* `Pagination`'s own row — caption on the left, Previous/Next on the right. */
+@utility pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
+/* `DetailSheet`'s popup — a fixed right panel, full viewport height, docked to the trailing edge.
+   Base UI's Dialog owns the open/close state and focus trap; this is its paint only. */
+@utility detail-sheet-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  max-width: 100vw;
+  height: 100dvh;
+  overflow-y: auto;
+  background-color: var(--color-base-200);
+  border-left: 1px solid var(--color-border);
+
+  /* The three parts `DetailSheet` renders: a header that never scrolls away from the close
+     control, a body that takes the remaining height, and an optional footer pinned to the
+     bottom edge — the same three-part shape `sheet-header`/`sheet-body` give the bottom sheet,
+     restated here so the right-panel sheet does not reach across families for its own paint. */
+  & .detail-sheet-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  & .detail-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  & .detail-sheet-footer {
+    flex-shrink: 0;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* `PageHeader` — the title block a screen opens with, and the controls row beside it. */
+@utility page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  & .page-header-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* `data-numeral` — tabular figures for any inline numeral outside the `DATA_*` type roles
+   themselves (e.g. a numeral composed into a larger hand-written string). */
+@utility data-numeral {
+  font-variant-numeric: tabular-nums;
 }

@@ -5,12 +5,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { Meter } from '../../components/meter';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { formatUsd, formatUsdOf } from '../../lib/money';
-import {
-  DASHBOARD_LABEL_CLASS,
-  PROSE_META_CLASS,
-  ROW_BASE_CLASS,
-  ROW_CLASS,
-} from '../../lib/type-roles';
+import { DATA_CLASS, META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { BudgetPressureProps } from './types';
 
 // Contract: the admin overview's budget zone — which projects are drawing hardest on the account
@@ -34,7 +29,7 @@ const STACK_CLASS = 'mt-4 flex flex-col gap-4';
 // The shared inline-row geometry, pushed apart: the amount is a numeral and numerals are
 // right-aligned (console-ui skill "Type").
 const ROW_HEAD_CLASS = `${INLINE_ROW_CLASS} justify-between`;
-const NAME_CLASS = `${ROW_BASE_CLASS} text-ink`;
+const NAME_CLASS = SECTION_TITLE_CLASS;
 
 export function BudgetPressure({
   label = 'Budget pressure — draw on the account ceiling',
@@ -56,7 +51,7 @@ export function BudgetPressure({
 
   return (
     <div className={className}>
-      <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
+      <div className={SECTION_TITLE_CLASS}>{label}</div>
 
       <div className={STACK_CLASS}>
         {status === 'error' ? (
@@ -84,7 +79,7 @@ export function BudgetPressure({
             <div key={project.key}>
               <div className={ROW_HEAD_CLASS}>
                 <span className={NAME_CLASS}>{project.name}</span>
-                <span className={ROW_CLASS}>
+                <span className={DATA_CLASS}>
                   {measurable ? formatUsdOf(project.spend, ceiling) : formatUsd(project.spend)}
                 </span>
               </div>
@@ -104,7 +99,7 @@ export function BudgetPressure({
         )}
       </div>
 
-      {note ? <p className={`${PROSE_META_CLASS} mt-3`}>{note}</p> : null}
+      {note ? <p className={`${META_CLASS} mt-3`}>{note}</p> : null}
     </div>
   );
 }

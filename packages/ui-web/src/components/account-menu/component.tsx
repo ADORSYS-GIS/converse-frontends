@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '../../cn';
 import { Button } from '../button';
 import type { AccountMenuProps, AccountMenuTheme } from './types';
-import { LABEL_CLASS, META_CLASS, ROW_INK_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import {
   OVERLAY_CLASS,
   OVERLAY_CURRENT_CLASS,
@@ -84,7 +84,7 @@ export function AccountMenu({
               <li role="none">
                 <div role="presentation" className={OVERLAY_SECTION_CLASS}>
                   {name ? (
-                    <span className={cn(ROW_INK_CLASS, 'truncate')} title={name}>
+                    <span className={cn(SECTION_TITLE_CLASS, 'truncate')} title={name}>
                       {name}
                     </span>
                   ) : null}

@@ -3,7 +3,7 @@ import { Input as BaseInput } from '@base-ui/react/input';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { cn } from '../../cn';
-import { PROSE_META_CLASS } from '../../lib/type-roles';
+import { META_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import { fieldControlClassName } from '../field/field-classes';
 import type { SecretRevealProps } from './types';
@@ -82,7 +82,7 @@ export function SecretReveal({
           ×
         </Button>
       </div>
-      <BaseField.Description className={PROSE_META_CLASS}>{description}</BaseField.Description>
+      <BaseField.Description className={META_CLASS}>{description}</BaseField.Description>
       <div>
         <BaseInput
           readOnly

@@ -4,7 +4,7 @@ import { cn } from '../../cn';
 import { ErrorLine } from '../error-line';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { formatUsd } from '../../lib/money';
-import { HERO_CEILING_CLASS, HERO_METRIC_CLASS, PROSE_META_CLASS } from '../../lib/type-roles';
+import { HERO_CEILING_CLASS, HERO_METRIC_CLASS, META_CLASS } from '../../lib/type-roles';
 import { Meter } from '../meter';
 import type { BudgetHeroProps } from './types';
 
@@ -26,7 +26,7 @@ function BudgetHeroFooter({
   return (
     <div className={INLINE_ROW_CLASS}>
       {action}
-      {caption ? <span className={PROSE_META_CLASS}>{caption}</span> : null}
+      {caption ? <span className={META_CLASS}>{caption}</span> : null}
     </div>
   );
 }

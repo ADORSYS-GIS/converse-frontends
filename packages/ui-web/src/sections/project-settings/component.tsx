@@ -12,7 +12,7 @@ import {
   DETAIL_SECTION_CLASS,
 } from '../../lib/detail-row';
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
-import { LABEL_CLASS, PANEL_TITLE_CLASS, ROW_CLASS, SUBJECT_CLASS } from '../../lib/type-roles';
+import { BODY_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { ProjectSettingsProps, ProjectSettingsRow } from './types';
 
 /** Heading for whichever host mounts this section — see `MANAGE_SELECTION_RAIL_LABEL`'s note. */
@@ -87,7 +87,7 @@ export function ProjectSettings({
         projects.map((project) => (
           <div key={project.id} className={DETAIL_GROUP_CLASS}>
             <div className={DETAIL_ROW_CLASS}>
-              <h3 className={SUBJECT_CLASS}>{project.name}</h3>
+              <h3 className={SECTION_TITLE_CLASS}>{project.name}</h3>
               <Button
                 type="button"
                 variant="secondary"
@@ -103,7 +103,7 @@ export function ProjectSettings({
               {detailRows(project).map(({ term, value }) => (
                 <div key={term} className={DETAIL_ROW_CLASS}>
                   <dt className={LABEL_CLASS}>{term}</dt>
-                  <dd className={ROW_CLASS}>{value}</dd>
+                  <dd className={BODY_CLASS}>{value}</dd>
                 </div>
               ))}
             </dl>

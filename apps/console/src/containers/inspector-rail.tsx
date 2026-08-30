@@ -2,16 +2,9 @@
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { ProjectNameDialog } from '@lightbridge/ui-web/src/components/project-name-dialog';
-import { InspectorSettingsPanel } from '@lightbridge/ui-web/src/sections/inspector-settings-panel';
 import { ProjectDetail } from '@lightbridge/ui-web/src/sections/project-detail';
 import { usePathname } from 'next/navigation';
 
-import { accountScopeLabel } from './account-label';
-import { useConsoleScope } from '../client/use-console-scope';
-import { useOpenCreateAccountDialog } from './use-create-account-dialog';
-import { useOpenCreateProjectDialog } from './use-create-project-dialog';
-import { useOpenRenameAccountDialog } from './use-rename-account-dialog';
-import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import { useProjectRename } from './use-project-rename';
 import { useProjectsScreen } from './use-projects-screen';
 
@@ -19,26 +12,21 @@ import { useProjectsScreen } from './use-projects-screen';
  * `ConsoleShell.rail`'s content resolver — mounted exactly once, from `app/(console)/layout.tsx`,
  * beside the shell itself (console-ui skill "Composition — chrome mounted once").
  *
- * **Content policy, the owner's final word on it (2026-08-30, two rounds on the same day):**
- * round one asked for a rail that is "never empty by construction"; round two corrected that to
- * "the right rail was empty depending on the situation. Solution: hide it if empty. Simple." —
- * this resolver follows the SECOND, more specific instruction, which is stricter, not the first:
+ * **Content policy, the owner's final word on it (2026-08-30, two rounds on the same day, then
+ * narrowed again in IA v3 phase 3):** round one asked for a rail that is "never empty by
+ * construction"; round two corrected that to "the right rail was empty depending on the
+ * situation. Solution: hide it if empty. Simple."; phase 3 then deleted the rail's one STANDING
+ * case outright — the `/accounts/<id>/overview` quick-settings panel (`InspectorSettingsPanel`,
+ * owner: "account mutations/creation/refill on the Overview rail makes no sense" — the switcher
+ * already carries `+ New account`, `/projects` carries `+ New project`, the Budget card links to
+ * `/accounts/<id>/refill`, and `/settings/policies` carries rename). This resolver now follows a
+ * single rule, stricter than either 2026-08-30 round:
  *
  *  - `/accounts/<id>/projects` — the selected project's detail, ONLY while a row is selected. No
  *    selection, no rail (returns `undefined`, which collapses `ConsoleShell`'s rail column
  *    entirely — see its own doc comment).
- *  - `/accounts/<id>/overview` — the scope quick-settings panel, ALWAYS. This is the one STANDING
- *    case: the owner explicitly wanted account settings visible in the rail, and on the dashboard
- *    it has a real job beside the Budget card (account identity, `+ New account`/`+ New project`,
- *    and `Request refill` — the same dialog the Budget card's own actions open).
- *  - every other route (`/`, `/accounts/<id>/api-keys`, `/settings/*`) — no rail. `/settings/*`
- *    (IA v3 phase 2, "the settings area") never shows a rail at any tier or on any selection at
- *    all — the deliverable is explicit ("no right rail anywhere in settings"), which is also why
- *    `/admin`'s old rail branch is gone outright rather than translated to
- *    `/settings/refills-queue`: that screen's review detail is now ALWAYS a `BottomSheet`
- *    (`refills-queue-centre.tsx`), with no `lg:hidden` gate to hand off to a rail that no longer
- *    exists for it. `/` (the account resolver, IA v3 phase 1) has no scoped account settled yet
- *    to show one for either.
+ *  - every other route (`/`, `/accounts/<id>/overview`, `/accounts/<id>/api-keys`, `/settings/*`)
+ *    — no rail, ever. There is no more standing content for the rail to show.
  *
  * Below `lg`, none of this renders at all — `ConsoleShell` only mounts the `rail` slot inside its
  * `lg:flex` column, so this component's own output is simply never placed on screen there; the
@@ -64,7 +52,6 @@ export function InspectorRail() {
   const segment = accountScopedSegment(pathname);
 
   if (segment === 'projects') return <ProjectsRail />;
-  if (segment === 'overview') return <OverviewRail />;
   return undefined;
 }
 
@@ -91,47 +78,5 @@ function ProjectsRail() {
       <ProjectDetail project={project} />
       <ProjectNameDialog {...rename.dialog} />
     </div>
-  );
-}
-
-function OverviewRail() {
-  const scope = useConsoleScope();
-  const openRenameAccount = useOpenRenameAccountDialog();
-  const openCreateAccount = useOpenCreateAccountDialog();
-  const createProject = useOpenCreateProjectDialog();
-  const openRequestRefill = useOpenRequestRefillDialog();
-
-  const scopedAccount =
-    scope.allAccounts.find((account) => account.id === scope.value.accountId) ?? null;
-
-  return (
-    <InspectorSettingsPanel
-      className="p-5"
-      account={
-        scopedAccount === null
-          ? null
-          : {
-              label: accountScopeLabel(scopedAccount),
-              named: scopedAccount.name != null,
-              id: scopedAccount.id,
-              status: scopedAccount.status,
-              quotaTier: scopedAccount.defaultQuota ?? null,
-            }
-      }
-      loading={scope.loading}
-      error={scope.error ? 'Could not load your account.' : undefined}
-      onRetry={() => scope.refetch()}
-      onRename={openRenameAccount}
-      onCopyId={(accountId) => {
-        void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
-      }}
-      onNewAccount={openCreateAccount}
-      // Addition C.1/C.4 (2026-08-30, owner: "I create account in settings or in a raw dropdown,
-      // but project only in projects?") — opens the SAME shared `CreateProjectDialog` instance
-      // `/projects`' and `/settings/projects`' own `PageHeader` actions open, in place, mounted
-      // once in the layout (`use-create-project-dialog.ts`).
-      onNewProject={createProject.open}
-      onRequestRefill={openRequestRefill}
-    />
   );
 }

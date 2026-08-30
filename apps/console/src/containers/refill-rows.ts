@@ -1,5 +1,5 @@
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import type { RefillRequestRow } from '@lightbridge/ui-web';
+import type { RefillHistoryRow, RefillRequestRow } from '@lightbridge/ui-web';
 
 /**
  * Pure adapters from the generated `AugmentationRequest` model to the admin review queue's rows.
@@ -71,4 +71,43 @@ export function toRefillRequestRow(
 /** True only for a request genuinely awaiting a decision (`authz.cstack:951-955`). */
 export function isPending(request: AugmentationRequest): boolean {
   return request.status === AUGMENTATION_STATUS.PENDING_REVIEW;
+}
+
+/** `AugmentationRequest.status`'s wire values, sentence-cased for display — the console-ui
+ *  skill's "sentence case everywhere" rule applied to `AUGMENTATION_STATUS`'s own vocabulary. An
+ *  unrecognised value (a future backend status this console doesn't know about yet) still renders
+ *  the raw string rather than disappearing, so a row is never silently unlabelled. */
+const AUGMENTATION_STATUS_LABEL: Record<string, string> = {
+  [AUGMENTATION_STATUS.PENDING_REVIEW]: 'Pending review',
+  [AUGMENTATION_STATUS.AUTO_APPROVED]: 'Auto-approved',
+  [AUGMENTATION_STATUS.APPROVED]: 'Approved',
+  [AUGMENTATION_STATUS.DENIED]: 'Declined',
+};
+
+export function refillStatusLabel(status: string): string {
+  return AUGMENTATION_STATUS_LABEL[status] ?? status;
+}
+
+/** `/accounts/<id>/refill`'s own history card (`use-refill-screen.ts`) — the caller's own past
+ *  requests need no project/account label the queue's row carries (`toRefillRequestRow` above):
+ *  every row here already belongs to the one account the page is scoped to. */
+export function toRefillHistoryRow(request: AugmentationRequest, now: number): RefillHistoryRow {
+  return {
+    id: request.id,
+    submittedAgo: relativeAge(request.createdAt, now),
+    amount: microsToAmount(request.requestedAmountMicros),
+    statusLabel: refillStatusLabel(request.status),
+  };
+}
+
+/**
+ * `/accounts/<id>/refill`'s own URL — the destination every refill trigger now navigates to (IA
+ * v3 phase 3) instead of opening `RequestRefillDialog` (deleted). Carries `?project=` — the same
+ * wire key `use-console-scope.ts`'s `projectScopeParsers` already owns — only when a project is
+ * actually scoped; account-wide stays a bare path, matching `projectScopeParsers`' own "absent
+ * means every project in this account" contract.
+ */
+export function refillHref(accountId: string, projectId: string | null | undefined): string {
+  const base = `/accounts/${accountId}/refill`;
+  return projectId ? `${base}?project=${encodeURIComponent(projectId)}` : base;
 }

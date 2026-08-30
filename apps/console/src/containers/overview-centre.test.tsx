@@ -59,8 +59,8 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     modelSpendErrorMessage: undefined,
     modelSpendRetry: vi.fn(),
     budget: { status: 'unwired', caption: 'Budget figures arrive with the budget query wiring.' },
+    refillHref: '/accounts/acct_1/refill',
     refillAction: undefined,
-    refillErrorMessage: undefined,
     report: {
       open: false,
       onOpenChange: vi.fn(),
@@ -248,27 +248,28 @@ describe('OverviewCentre', () => {
     expect(screen.getByText('of $500.00')).toBeInTheDocument();
   });
 
-  it('shows the account-level refill control only when the screen reports one is available', async () => {
-    const onClick = vi.fn();
+  it('shows the account-level refill control only when the screen reports one is available, navigating to its href', async () => {
     await renderCentre({
       budget: { value: 478.4, ceiling: 500, caption: '96% used' },
-      refillAction: { label: 'Request refill (+$30)', onClick, pending: false },
+      refillAction: { label: 'Request refill (+$30)', href: '/accounts/acct_1/refill' },
     });
 
-    const button = screen.getByRole('button', { name: 'Request refill (+$30)' });
-    expect(button).toBeInTheDocument();
-    button.click();
-    expect(onClick).toHaveBeenCalledTimes(1);
+    const link = screen.getByRole('button', { name: 'Request refill (+$30)' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/accounts/acct_1/refill');
   });
 
-  it('omits the breach-state refill control when the screen reports none is available, but keeps the standing header action', async () => {
+  it('omits the breach-state refill control when the screen reports none is available, but keeps the standing header action navigating to refillHref', async () => {
     // 2026-08-30 owner round ("budget refill form disappeared"): the breach-only inline button
     // (`heroAction`, beside the numeral) is still conditional on `refillAction`, but the standing
     // secondary "Request refill…" action on the Budget card's OWN header (`BudgetPanel.actions`)
-    // is unconditional now — reachable well before any breach, not just at/past 90%.
-    await renderCentre({ refillAction: undefined });
+    // is unconditional now — reachable well before any breach, not just at/past 90%. IA v3 phase
+    // 3: both navigate to `/accounts/<id>/refill` rather than opening a dialog.
+    await renderCentre({ refillAction: undefined, refillHref: '/accounts/acct_1/refill' });
 
-    expect(screen.getByRole('button', { name: 'Request refill…' })).toBeInTheDocument();
+    const link = screen.getByRole('button', { name: 'Request refill…' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/accounts/acct_1/refill');
   });
 
   // Phase 4 — one dashboard, parameterised by role (LATENCY removed from the block in phase 9.2 —

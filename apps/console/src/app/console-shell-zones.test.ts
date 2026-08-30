@@ -55,11 +55,13 @@ describe('console shell zones (shell revamp phase 2)', () => {
       join('accounts', '[accountId]', 'overview', 'page.tsx'),
       join('accounts', '[accountId]', 'projects', 'page.tsx'),
       join('accounts', '[accountId]', 'api-keys', 'page.tsx'),
+      join('accounts', '[accountId]', 'refill', 'page.tsx'),
       'settings/page.tsx',
       join('settings', 'overview', 'page.tsx'),
       join('settings', 'overview', 'usage', 'page.tsx'),
       join('settings', 'policies', 'page.tsx'),
       join('settings', 'tiers', 'page.tsx'),
+      join('settings', 'refill-options', 'page.tsx'),
       join('settings', 'info', 'page.tsx'),
       join('settings', 'refills-queue', 'page.tsx'),
     ];

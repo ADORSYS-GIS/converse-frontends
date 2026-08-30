@@ -3,7 +3,6 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
-import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
@@ -17,7 +16,6 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
 import Link from 'next/link';
 
 import { OverviewScopeSlot } from './overview-scope-slot';
-import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import { useOverviewScreen } from './use-overview-screen';
 
 /**
@@ -49,7 +47,6 @@ const formatSpendTooltip = (value: number) => formatUsd(value);
 
 export function OverviewCentre() {
   const screen = useOverviewScreen(<OverviewScopeSlot />);
-  const openRefillDialog = useOpenRequestRefillDialog();
 
   const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
   const modelSpendTotal = screen.modelSpendSegments.reduce(
@@ -59,6 +56,10 @@ export function OverviewCentre() {
   const subtitle = screen.scopeAccountLabel
     ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel} · ${screen.subline}`
     : undefined;
+  // Narrowed to a local so the `render` prop below doesn't lose `screen.refillAction`'s
+  // definedness across the closure boundary (TypeScript's property-access narrowing does not
+  // survive into a nested function).
+  const refillAction = screen.refillAction;
 
   return (
     <div className="flex flex-col gap-8">
@@ -135,27 +136,27 @@ export function OverviewCentre() {
           label="Budget"
           budget={screen.budget}
           actions={
-            <Button type="button" variant="secondary" size="sm" onClick={openRefillDialog}>
+            <Button
+              variant="secondary"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={screen.refillHref} />}>
               Request refill…
             </Button>
           }
           heroAction={
-            screen.refillAction ? (
+            refillAction ? (
               <Button
-                type="button"
                 variant="primary"
                 size="sm"
-                disabled={screen.refillAction.pending}
-                onClick={screen.refillAction.onClick}>
-                {screen.refillAction.label}
+                nativeButton={false}
+                render={<Link href={refillAction.href} />}>
+                {refillAction.label}
               </Button>
             ) : undefined
           }
         />
       </Card>
-      {screen.refillErrorMessage ? (
-        <ErrorLine message={`Refill request failed: ${screen.refillErrorMessage}`} />
-      ) : null}
 
       {/* ── admin-only, purely additive — see this file's own doc comment ─────────────────── */}
       {screen.isAdmin && screen.adminPressure ? (

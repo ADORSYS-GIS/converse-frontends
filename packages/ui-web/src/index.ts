@@ -184,9 +184,6 @@ export type {
   CreateProjectPlanOption,
 } from './components/create-project-dialog';
 
-export { RequestRefillDialog } from './components/request-refill-dialog';
-export type { RequestRefillDialogProps } from './components/request-refill-dialog';
-
 // ── states
 export { InlineStatus } from './components/inline-status';
 export type { InlineStatusProps, PlaceholderNotice } from './components/inline-status';
@@ -266,6 +263,28 @@ export type {
   ReviewQueueProps,
 } from './sections/review-queue';
 
+// `/accounts/<id>/refill` (IA v3 phase 3 — refill moved from `RequestRefillDialog` to its own
+// page): the amount-choice form and the caller's own request history, each a standalone Card zone.
+export { RefillRequestForm } from './sections/refill-request-form';
+export type {
+  RefillAmountOption,
+  RefillRequestFormProps,
+  RefillRequestFormState,
+} from './sections/refill-request-form';
+
+export { RefillHistory } from './sections/refill-history';
+export type {
+  RefillHistoryProps,
+  RefillHistoryRow,
+  RefillHistoryState,
+} from './sections/refill-history';
+
+// `/settings/refill-options` (IA v3 phase 3 — the nav row goes live): a policy scratch pad over
+// `procedure.simulateBudgetPolicy`, never the stored/active policy (no read API exists for that —
+// see `REFILL_OPTIONS_DISABLED_REASON`).
+export { PolicySimulator } from './sections/policy-simulator';
+export type { PolicySimulationResult, PolicySimulatorProps } from './sections/policy-simulator';
+
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
@@ -321,15 +340,11 @@ export type {
 // `containers/inspector-rail.tsx`), and — below `lg`, where the rail is absent — the SAME content
 // a `BottomSheet` hosts instead (`projects-centre.tsx`'s selected project; `admin-centre.tsx`
 // hosts `ReviewDetailPanel` — from "── forms & actions" above — directly, since it already owned
-// its whole decision surface and needed no section of its own). `InspectorSettingsPanel` is the
-// rail's own "otherwise" content — the scope quick-settings panel shown whenever nothing is
-// selected — and has no sheet equivalent, since it is never what a below-`lg` sheet opens for.
+// its whole decision surface and needed no section of its own). IA v3 phase 3 deletes the rail's
+// former "otherwise" content, `InspectorSettingsPanel` (the scope quick-settings panel standing on
+// `/accounts/<id>/overview`) — owner: "account mutations/creation/refill on the Overview rail
+// makes no sense" — so `InspectorRail` now returns `undefined` (no rail at all) off a selection,
+// the same as every other route that never showed one.
 
 export { ProjectDetail } from './sections/project-detail';
 export type { ProjectDetailProps } from './sections/project-detail';
-
-export { InspectorSettingsPanel } from './sections/inspector-settings-panel';
-export type {
-  InspectorSettingsPanelAccount,
-  InspectorSettingsPanelProps,
-} from './sections/inspector-settings-panel';

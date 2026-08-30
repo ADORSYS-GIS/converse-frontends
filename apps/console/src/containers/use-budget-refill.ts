@@ -9,40 +9,39 @@ import { useMemo } from 'react';
 import { useConsoleBudgetClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useSharedMutation, useSharedMutationState } from '../client/use-shared-mutation';
+import { useSharedMutation } from '../client/use-shared-mutation';
 import { isHomeAccount } from './account-ownership';
 
 /**
- * The budget-refill ladder query and the `requestBudgetRefill` mutation, lifted OUT of
- * `use-overview-screen.ts` (rail-return round, 2026-08-30 — owner: "budget refill form
- * disappeared") so `RequestRefillDialog` can be driven from a container mounted once in the
- * layout (`use-request-refill-dialog.ts`) rather than only from `/`'s own screen adapter.
+ * The budget-refill ladder query and the `requestBudgetRefill` mutation — shared by `/`'s own
+ * Budget card (the breach button, which now only NAVIGATES — see `use-overview-screen.ts`'s
+ * `refillAction`) and `/accounts/<id>/refill` (IA v3 phase 3), the one screen that actually
+ * SUBMITS a refill request now that `RequestRefillDialog` is deleted (owner: "refill deserves its
+ * own page, not a dialog three triggers all had to agree on").
  *
- * `OVERVIEW_REFILL_MUTATION_KEY` keeps its original name (rather than becoming a generic
- * `REFILL_MUTATION_KEY`) on purpose: it is a `MutationKey`, matched STRUCTURALLY by
- * `useMutationState`/`findAll` (`use-shared-mutation.ts`'s own doc comment), so changing its
- * contents — even just the array's own literal strings — would silently stop `/`'s existing
- * `refillErrorMessage` (still reading this key) from agreeing with a submit made from the dialog.
- * Same idiom `use-refills-queue-screen.ts`'s `DECIDE_MUTATION_KEY` already documents: "two zones mean two
- * `useMutation` instances... reading the outcome from the shared `MutationCache` is what makes one
- * instance's failure visible to the other" — here the two zones are `/`'s own screen and whichever
- * mounts `RequestRefillDialog` (the layout).
+ * `REFILL_MUTATION_KEY` used to be `OVERVIEW_REFILL_MUTATION_KEY` — named for `/`'s own screen
+ * back when the dialog's outcome had to stay visible on TWO zones (`/`'s screen and whichever
+ * mounted the dialog) via the shared `MutationCache`. That "two zones" need is gone: the refill
+ * page is now the ONLY zone that ever fires this mutation, so the name (and the mutation itself)
+ * moved to the plain, non-route-specific form. Kept as a real `MutationKey` constant regardless —
+ * `useSharedMutation`'s own contract — rather than an inline array literal, so a future second
+ * caller can still read the outcome via `useSharedMutationState` without redeclaring it.
  */
-export const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
+export const REFILL_MUTATION_KEY = ['budget', 'requestRefill'] as const;
 
 /**
- * The Budget card's/refill dialog's own honesty caption for a scoped account that is not the
- * caller's HOME account (Phase 2d, account-scoping audit, converse-frontends#368/#392).
- * `getMyBudgetBalance` and `getMyBudgetRefillLadder` (`authz.cstack:1291,1471`) take no target
- * account at all — they always answer for `auth().id`, the caller's home account, by construction
- * — and the admin equivalent (`getBudgetBalance`) needs the operator-only `budget:read`
- * permission a plain second-account owner does not hold. There is today no `budget:read-own`-
- * gated way to read a non-home account's balance or refill ladder at all — see
- * `account-ownership.ts`'s `isHomeAccount` for the full argument and the backend gap filed from
- * this audit. Showing the home account's own numbers under a DIFFERENT account's label would be
- * the exact class of bug this audit exists to kill, so every budget-domain surface renders this
- * instead. Exported so `use-overview-screen.ts` (the Budget card) and
- * `use-request-refill-dialog.ts` (the refill form) share the identical wording rather than two
+ * The budget domain's honesty caption for a scoped account that is not the caller's HOME account
+ * (Phase 2d, account-scoping audit, converse-frontends#368/#392). `getMyBudgetBalance`,
+ * `getMyBudgetRefillLadder` and `listMyAugmentationRequests` (`authz.cstack:1291,1471` and its
+ * sibling) take no target account at all — they always answer for `auth().id`, the caller's home
+ * account, by construction — and the admin equivalent (`getBudgetBalance`) needs the
+ * operator-only `budget:read` permission a plain second-account owner does not hold. There is
+ * today no `budget:read-own`-gated way to read a non-home account's balance, refill ladder or
+ * request history at all — see `account-ownership.ts`'s `isHomeAccount` for the full argument and
+ * the backend gap filed from this audit. Showing the home account's own numbers under a DIFFERENT
+ * account's label would be the exact class of bug this audit exists to kill, so every
+ * budget-domain surface renders this instead. Exported so every reader of this gap (`/`'s Budget
+ * card, `/accounts/<id>/refill`'s two cards) shares the identical wording rather than
  * independently-drifting captions for the same gap.
  */
 export const BUDGET_HOME_ACCOUNT_ONLY_NOTE =
@@ -57,7 +56,7 @@ export function smallestAllowedAmountMicros(amountsMicros: string[]): string | n
   return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1))[0];
 }
 
-/** `allowedAmountsMicros`, ascending — the vocabulary `RequestRefillDialog`'s amount select and
+/** `allowedAmountsMicros`, ascending — the vocabulary `RefillRequestForm`'s amount select and
  *  `/`'s own breach-preselect both read from the same sort. */
 export function sortedAllowedAmountsMicros(amountsMicros: string[]): string[] {
   return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
@@ -75,12 +74,14 @@ export interface BudgetRefillLadder {
    *  genuinely offers nothing. Callers must check this before treating an empty ladder as "no
    *  refill amount currently offered." */
   unavailable: boolean;
+  /** A no-op while `unavailable` — there is nothing to retry until the account itself changes. */
+  refetch: () => void;
 }
 
 /** `getMyBudgetRefillLadder` — the active refill policy's allowed amounts for the SCOPED account
- *  this billing period. Shared by `use-overview-screen.ts` (the breach preselect) and
- *  `use-request-refill-dialog.ts` (the dialog's amount select) so the two can never disagree about
- *  what amounts are actually offerable.
+ *  this billing period. Shared by `use-overview-screen.ts` (the breach button's own visibility
+ *  guard) and `use-refill-screen.ts` (the refill page's own amount select) so the two can never
+ *  disagree about what amounts are actually offerable.
  *
  *  Phase 2d (account-scoping audit): only ever fetched for the caller's HOME account —
  *  `getMyBudgetRefillLadder` has no target-account argument at all, so it structurally cannot
@@ -112,15 +113,16 @@ export function useBudgetRefillLadder(): BudgetRefillLadder {
     loading: !unavailable && ladderQuery.isPending,
     error: !unavailable && ladderQuery.isError,
     unavailable,
+    refetch: () => void ladderQuery.refetch(),
   };
 }
 
 /**
- * The mutation itself, owned by whichever zone actually submits — `mutate`/`isPending` are only
- * meaningful on the instance that fired it, but `errorMessage` is readable from ANY zone via
- * `useSharedMutationState` (see `useOverviewRefillOutcome` below), so a caller that only needs to
- * RENDER the outcome (not submit) should reach for that instead of instantiating a second, unused
- * `useMutation`.
+ * The mutation itself — `/accounts/<id>/refill`'s own submit (`use-refill-screen.ts`). Reads
+ * `scope.value.projectId` the same way every other scope-aware container does: an empty string
+ * (the parser's own default, "every project in this account") becomes `undefined` on the wire,
+ * so a refill requested off the account-wide page carries no `projectId` at all, exactly what
+ * `RequestBudgetRefillInput.projectId` being optional is for.
  */
 export function useRequestBudgetRefillMutation(onSuccess?: () => void) {
   const budgetClient = useConsoleBudgetClient();
@@ -128,16 +130,17 @@ export function useRequestBudgetRefillMutation(onSuccess?: () => void) {
   const scope = useConsoleScope();
   const session = useConsoleSession();
   const accountId = scope.value.accountId;
+  const projectId = scope.value.projectId || undefined;
   const period = useMemo(() => currentBudgetPeriod(), []);
 
   return useSharedMutation<string, AugmentationRequest>({
-    mutationKey: OVERVIEW_REFILL_MUTATION_KEY,
+    mutationKey: REFILL_MUTATION_KEY,
     mutationFn: (requestedAmountMicros) => {
-      // A guard, not a UI branch — `use-request-refill-dialog.ts`'s own `canSubmit` already keeps
-      // the dialog's primary disabled for a non-home account (Phase 2d: the ladder that would
-      // validate `requestedAmountMicros` against is itself never fetched for one, see
+      // A guard, not a UI branch — `use-refill-screen.ts`'s own `canSubmit` already keeps the
+      // form's primary disabled for a non-home account (Phase 2d: the ladder that would validate
+      // `requestedAmountMicros` against is itself never fetched for one, see
       // `useBudgetRefillLadder`'s `unavailable`). This only fires against a caller bypassing the
-      // dialog entirely — never silently submit a refill validated against the WRONG account's
+      // form entirely — never silently submit a refill validated against the WRONG account's
       // ladder.
       if (!isHomeAccount(accountId, session)) {
         throw new Error(BUDGET_HOME_ACCOUNT_ONLY_NOTE);
@@ -148,6 +151,7 @@ export function useRequestBudgetRefillMutation(onSuccess?: () => void) {
           // One account is one budget account (`authz.cstack`'s own `GetMyBudgetBalanceInput`
           // doc comment: "budget_account_id is always identical to account_id").
           budgetAccountId: accountId,
+          projectId,
           period,
           idempotencyKey: createId(),
           requestedAmountMicros,
@@ -162,13 +166,10 @@ export function useRequestBudgetRefillMutation(onSuccess?: () => void) {
       void queryClient.invalidateQueries({
         queryKey: ['budget', 'myRefillLadder', accountId, period],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ['budget', 'myAugmentationRequests', accountId],
+      });
       onSuccess?.();
     },
   });
-}
-
-/** Read-only: the shared outcome, for a zone that renders it but does not itself submit
- *  (`use-overview-screen.ts`'s `refillErrorMessage`, once the dialog owns the actual submit). */
-export function useOverviewRefillOutcome() {
-  return useSharedMutationState<AugmentationRequest>(OVERVIEW_REFILL_MUTATION_KEY);
 }

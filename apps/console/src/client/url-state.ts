@@ -166,33 +166,6 @@ export function useCreateProjectDialogParams() {
   });
 }
 
-// ── shared: request-refill dialog ───────────────────────────────────────────────────────────
-
-/**
- * `?refill=true` — whether `RequestRefillDialog` is open. The rail-return round (2026-08-30,
- * owner: "budget refill form disappeared") gives it the exact same shape `createAccountParsers`
- * above already solved: THREE structurally separate triggers have to open the identical instance
- * — the Budget card's own standing header action, its prominent breach-state button (`/`), and
- * the inspector rail's quick-settings "Request refill" row (every route, via
- * `containers/inspector-rail.tsx`) — so this is real view state, not a per-screen local flag. The
- * dialog itself mounts once, in `app/(console)/layout.tsx`, driven by
- * `use-request-refill-dialog.ts`. Its selected amount is NOT here — see that module's own
- * "SANCTIONED LOCAL STATE" comment for why the draft stays local the same way every other dialog
- * draft in this app does.
- */
-export const requestRefillParsers = {
-  open: parseAsBoolean.withDefault(false),
-};
-
-const requestRefillUrlKeys = { open: 'refill' };
-
-export function useRequestRefillDialogParams() {
-  return useQueryStates(requestRefillParsers, {
-    urlKeys: requestRefillUrlKeys,
-    history: 'push' as const,
-  });
-}
-
 // ── report export — shared vocabulary (`/`, `/projects`) ────────────────────────────────────
 
 /**
@@ -545,7 +518,6 @@ export const URL_PARAM_CONTRACT = {
   resolver: { parsers: resolverParsers, urlKeys: resolverUrlKeys },
   createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
   createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
-  requestRefill: { parsers: requestRefillParsers, urlKeys: requestRefillUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },

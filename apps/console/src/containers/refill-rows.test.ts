@@ -1,7 +1,16 @@
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
-import { AUGMENTATION_STATUS, isPending, microsToAmount, relativeAge, toRefillRequestRow } from './refill-rows';
+import {
+  AUGMENTATION_STATUS,
+  isPending,
+  microsToAmount,
+  refillHref,
+  refillStatusLabel,
+  relativeAge,
+  toRefillHistoryRow,
+  toRefillRequestRow,
+} from './refill-rows';
 
 const NOW = Date.parse('2026-03-01T12:00:00.000Z');
 
@@ -113,5 +122,42 @@ describe('isPending', () => {
 
   it('does not match the old, wrong literal', () => {
     expect(isPending(request({ status: 'pending' }))).toBe(false);
+  });
+});
+
+describe('refillStatusLabel', () => {
+  it('sentence-cases every known backend status literal', () => {
+    expect(refillStatusLabel(AUGMENTATION_STATUS.PENDING_REVIEW)).toBe('Pending review');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.AUTO_APPROVED)).toBe('Auto-approved');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.APPROVED)).toBe('Approved');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.DENIED)).toBe('Declined');
+  });
+
+  it('falls back to the raw string for an unrecognised status, rather than disappearing', () => {
+    expect(refillStatusLabel('some_future_status')).toBe('some_future_status');
+  });
+});
+
+describe('toRefillHistoryRow', () => {
+  it('maps identity, age, amount and a sentence-case status — no project/account label', () => {
+    const row = toRefillHistoryRow(request(), NOW);
+    expect(row).toEqual({
+      id: 'req-1',
+      submittedAgo: '2 days ago',
+      amount: 250,
+      statusLabel: 'Pending review',
+    });
+  });
+});
+
+describe('refillHref', () => {
+  it('builds the bare account-scoped path when no project is scoped', () => {
+    expect(refillHref('acct_1', undefined)).toBe('/accounts/acct_1/refill');
+    expect(refillHref('acct_1', null)).toBe('/accounts/acct_1/refill');
+    expect(refillHref('acct_1', '')).toBe('/accounts/acct_1/refill');
+  });
+
+  it('carries ?project= when a project is scoped', () => {
+    expect(refillHref('acct_1', 'proj_7')).toBe('/accounts/acct_1/refill?project=proj_7');
   });
 });

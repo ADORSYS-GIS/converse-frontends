@@ -17,7 +17,6 @@ import {
   manageParsers,
   overviewParsers,
   projectScopeParsers,
-  requestRefillParsers,
   resolverParsers,
   settingsParsers,
 } from './url-state';
@@ -65,10 +64,6 @@ describe('the URL param contract', () => {
       // solved — `/projects`, `/settings/projects` and the inspector rail's quick-settings row
       // all have to open the one instance mounted in the layout.
       createProject: ['new-project'],
-      // The SAME shape again — `RequestRefillDialog` opens from three structurally separate
-      // triggers (Budget card header, its breach button, the inspector rail's quick-settings row)
-      // that must all open the one instance mounted in the layout.
-      requestRefill: ['refill'],
       // Phase 4: `/` absorbed the admin-only dashboard's own Export action, so it carries the
       // same report vocabulary `/manage` does, on top of its own dashboard knobs.
       overview: [
@@ -217,7 +212,6 @@ describe('the URL param contract', () => {
     expect(isParserBijective(overviewParsers.reportOpen, 'true', true)).toBe(true);
     expect(isParserBijective(overviewParsers.period, '2026-07', '2026-07')).toBe(true);
     expect(isParserBijective(overviewParsers.format, 'pdf', 'pdf')).toBe(true);
-    expect(isParserBijective(requestRefillParsers.open, 'true', true)).toBe(true);
     expect(isParserBijective(createProjectParsers.open, 'true', true)).toBe(true);
   });
 

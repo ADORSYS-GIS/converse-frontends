@@ -1,9 +1,7 @@
 'use client';
 
-import type { BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
-import { createId } from '@lightbridge/authz-rpc';
+import type { Project } from '@lightbridge/authz-rpc';
 import type {
-  CreateProjectDialogProps,
   LedgerSort,
   ManageControlsProps,
   ProjectRow,
@@ -13,11 +11,9 @@ import type {
 } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-import { useConsoleAuthzClient } from '../client/rpc-clients';
-import { useConsoleSession } from '../client/session-context';
 import { queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import {
@@ -33,10 +29,7 @@ import {
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
-import { isOwnedAccountId } from './account-ownership';
 import { buildBudgetConsumptionByProjectRequest } from './overview-usage';
-import { buildCreateProjectInput } from './build-create-project-input';
-import { classifyCreateProjectError } from './rpc-field-error';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { applyProjectSpend, sortProjectRows, toProjectRows } from './project-rows';
 
@@ -48,6 +41,14 @@ import { applyProjectSpend, sortProjectRows, toProjectRows } from './project-row
  *
  * View state is the URL (ADR 0011): a configured ledger —
  * `?q=alpha&status=active&budget-state=no-quota&row=proj_7&sort=spendMtd&dir=desc` — is a link.
+ *
+ * `CreateProjectDialog` itself moved OUT (rail-return round, 2026-08-30, Addition C.1/C.4 — owner:
+ * "I create account in settings or in a raw dropdown, but project only in projects? Not in
+ * settings?"): it is a shared, cross-route dialog now (`use-create-project-dialog.ts`, mounted
+ * once in `app/(console)/layout.tsx`), the same lift `use-create-account-dialog.ts` already
+ * established. `ProjectsCentre` calls `useOpenCreateProjectDialog()` directly for its own
+ * `PageHeader` action, the same way it already calls `useOpenProjectRename()` directly rather than
+ * through this hook.
  */
 
 const PAGE_SIZE = 25;
@@ -102,19 +103,7 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
  * `ReportExportDialog` now mounts exactly once (shell revamp phase 3: it used to mount twice, in
  * the persistent rail and the centre's compact-tier sheet, both gone).
  */
-const NEW_PROJECT_MUTATION_KEY = ['projects', 'new-project'];
 const REPORT_MUTATION_KEY = ['projects', 'report'];
-const PROJECT_BILLING_PLANS_QUERY_KEY = ['projects', 'billingPlans'];
-
-type CreateProjectDraft = {
-  name: string;
-  billingIdentity: string;
-  planId: string | null;
-};
-
-function emptyProjectDraft(): CreateProjectDraft {
-  return { name: '', billingIdentity: '', planId: null };
-}
 
 export interface ProjectsScreen {
   /** The scoped account's display label (`accountScopeLabel`) — for `PageHeader.subtitle`, never
@@ -135,29 +124,9 @@ export interface ProjectsScreen {
    *  "no matches" line, same "empty collection vs empty result" split `ProjectsLedger`'s own doc
    *  comment draws). */
   filtersActive: boolean;
-  /** Opens `CreateProjectDialog` — a no-op while `createProjectEligible` is false. */
-  newProject: () => void;
-  /**
-   * Presentation-only mirror of `model.Project.create`'s owner-only `@@allow` gate
-   * (`authz.cstack` — `account.userId == auth().id`). "Owner" means `isAccountOwner`
-   * (`account-ownership.ts`, ADR-0026 — lightbridge-authz#564): the scoped account's `userId` is
-   * the signed-in principal, not merely that person having project membership in it. One identity
-   * may own several accounts now, so this is no longer "the scoped account IS the signed-in
-   * principal" (ADR-0006's original, single-account framing) — a genuinely owned SECOND account
-   * has its own `id`, distinct from the principal's `sub`. `false` whenever ownership cannot be
-   * confirmed, never defaulted to `true` — same disclaimer as `createKeyEligible` in
-   * `use-api-keys-screen.ts`: `lightbridge-authz`'s hand-written RBAC check is the actual
-   * enforcement (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role
-   * grants), this is presentation only.
-   */
-  createProjectEligible: boolean;
-  /** Stated beside the disabled `+ New project` control; `undefined` exactly when eligible. */
-  createProjectReason: string | undefined;
-  createProjectDialog: CreateProjectDialogProps;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
-  /** Closes `DetailSheet` — clears `?row=` (shell revamp phase 3: replaces the deleted right
-   *  rail's SELECTION section). */
+  /** Closes the row-detail surface (rail at `lg`+, `BottomSheet` below it) — clears `?row=`. */
   clearSelection: () => void;
   projectCount: number;
   sort: LedgerSort;
@@ -188,8 +157,6 @@ export interface ProjectsScreen {
  */
 export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   const scope = useConsoleScope();
-  const session = useConsoleSession();
-  const client = useConsoleAuthzClient();
   const [view, setView] = useManageParams();
 
   const filters = useMemo(() => {
@@ -262,137 +229,8 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     return sortProjectRows(withSpend, { key: view.sortKey, direction: view.sortDirection });
   }, [projects, view.budgetState, view.sortKey, view.sortDirection, spendQuery.data, spendStatus]);
 
-  // Retries the genuine failed fetch AND refreshes the ledger after a real create — declared
-  // ahead of the mutations below so their `onSuccess` closures can reference it.
   const refresh = () => {
     void list.query.refetch();
-  };
-
-  /**
-   * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
-   * leak into URLs or history"): the create-project dialog's typed-but-unsent name/billing
-   * identity/plan. Same shape as `use-api-keys-screen.ts`'s create-key draft (ticket #319):
-   * `createOpen` — WHETHER the dialog is showing — is real view state and lives in the URL
-   * (`?create=1`, `url-state.ts`); this is its CONTENTS, which are not, for the same reason —
-   * typed prose ahead of a submit, discarded either way, and `?create=1&name=widgets-prod` would
-   * write every keystroke into browser history and into any link copied from the address bar.
-   * `CreateProjectDialog` mounts in exactly one zone (the centre, same as `CreateApiKeyDialog`),
-   * so a per-instance draft cannot desynchronise across zones.
-   */
-  const [projectDraft, setProjectDraft] = useState<CreateProjectDraft>(emptyProjectDraft);
-  const resetProjectDraft = () => setProjectDraft(emptyProjectDraft());
-
-  // The real billing-plan catalogue (same procedure `use-api-keys-screen.ts` uses for the same
-  // reason) — never a hardcoded plan id.
-  const plansQuery = useQuery<BillingPlanInfo[]>({
-    queryKey: PROJECT_BILLING_PLANS_QUERY_KEY,
-    queryFn: () => client.procedures.listBillingPlans({ args: {} }),
-  });
-  const plans = plansQuery.data ?? [];
-  const resolvedPlanId = projectDraft.planId ?? plans[0]?.id ?? null;
-
-  // Owner-only gate mirror — see `ProjectsScreen.createProjectEligible`'s own doc comment for why
-  // this checks against the signed-in principal rather than a roster.
-  //
-  // ADR-0026: ownership is `account.userId === session.user.sub`, resolved via `isOwnedAccountId`
-  // (`account-ownership.ts`) — `scope.value.accountId === session.user.sub` only ever held for a
-  // person's first (home) account and would wrongly disable this for a genuinely-owned second
-  // account, which keeps its owner's `userId` but gets its own minted `id`.
-  let createProjectEligible: boolean;
-  let createProjectReason: string | undefined;
-  if (!scope.value.accountId) {
-    createProjectEligible = false;
-    createProjectReason = 'Select an account to create a project.';
-  } else if (!session.user) {
-    createProjectEligible = false;
-    createProjectReason = 'Sign in to create a project.';
-  } else if (!isOwnedAccountId(scope.value.accountId, scope.allAccounts, session)) {
-    createProjectEligible = false;
-    createProjectReason = 'Only the account owner can create a project.';
-  } else {
-    createProjectEligible = true;
-    createProjectReason = undefined;
-  }
-
-  const newProjectAction = useSharedMutation<void, Project>({
-    mutationKey: NEW_PROJECT_MUTATION_KEY,
-    mutationFn: async () => {
-      // Guards, not UI branches: `canSubmitCreateProject` (below) already keeps the dialog's own
-      // primary disabled in every one of these cases — this only fires against a caller bypassing
-      // the dialog entirely, same idiom `use-api-keys-screen.ts`'s `secret` mutation uses.
-      if (!scope.value.accountId) {
-        throw new Error('Select an account before creating a project.');
-      }
-      if (!projectDraft.name.trim()) {
-        throw new Error('Name the project before creating it.');
-      }
-      if (!projectDraft.billingIdentity.trim()) {
-        throw new Error('Give the project a billing identity before creating it.');
-      }
-      if (!resolvedPlanId) {
-        throw new Error('Choose a billing plan before creating a project.');
-      }
-      return client.projects.create(
-        buildCreateProjectInput({
-          id: createId(),
-          accountId: scope.value.accountId,
-          name: projectDraft.name.trim(),
-          billingIdentity: projectDraft.billingIdentity.trim(),
-          billingPlan: resolvedPlanId,
-        })
-      );
-    },
-    onSuccess: () => {
-      refresh();
-      resetProjectDraft();
-      void setView({ createOpen: false }, MANAGE_SELECTION_OPTIONS);
-    },
-  });
-
-  // `getApiErrorMessage` already ran inside `useSharedMutation` (see its own doc comment) — this
-  // routes the CLEAN decoded message onto the field it actually names, or a general line when it
-  // names neither (`classifyCreateProjectError`'s own doc comment).
-  const createProjectFieldErrors = newProjectAction.errorMessage
-    ? classifyCreateProjectError(newProjectAction.errorMessage)
-    : {};
-
-  const canSubmitCreateProject =
-    projectDraft.name.trim().length > 0 &&
-    projectDraft.billingIdentity.trim().length > 0 &&
-    resolvedPlanId !== null &&
-    !plansQuery.isLoading &&
-    !plansQuery.isError;
-
-  const createProjectDialog: CreateProjectDialogProps = {
-    open: view.createOpen,
-    accountLabel: scope.value.accountId || '—',
-    name: projectDraft.name,
-    onNameChange: (name) => setProjectDraft((prev) => ({ ...prev, name })),
-    nameError: createProjectFieldErrors.nameError,
-    billingIdentity: projectDraft.billingIdentity,
-    onBillingIdentityChange: (billingIdentity) =>
-      setProjectDraft((prev) => ({ ...prev, billingIdentity })),
-    billingIdentityError: createProjectFieldErrors.billingIdentityError,
-    plans,
-    plansLoading: plansQuery.isLoading,
-    plansError: plansQuery.isError ? "Couldn't load billing plans." : undefined,
-    onRetryPlans: () => void plansQuery.refetch(),
-    planId: resolvedPlanId,
-    onPlanChange: (planId) => setProjectDraft((prev) => ({ ...prev, planId })),
-    submitting: newProjectAction.isPending,
-    error: createProjectFieldErrors.error,
-    canSubmit: canSubmitCreateProject,
-    onSubmit: () => {
-      if (!canSubmitCreateProject) return;
-      newProjectAction.mutate();
-    },
-    onCancel: () => {
-      // Only clears the shared mutation entry when there is an ERROR to clear — mirrors
-      // `use-api-keys-screen.ts`'s `createKeyDialog.onCancel`.
-      if (newProjectAction.errorMessage) newProjectAction.dismiss();
-      resetProjectDraft();
-      void setView({ createOpen: false }, MANAGE_SELECTION_OPTIONS);
-    },
   };
 
   /**
@@ -462,14 +300,6 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     },
     filtersActive:
       Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
-    newProject: () => {
-      if (!createProjectEligible) return;
-      if (newProjectAction.errorMessage) newProjectAction.dismiss();
-      void setView({ createOpen: true }, MANAGE_SELECTION_OPTIONS);
-    },
-    createProjectEligible,
-    createProjectReason,
-    createProjectDialog,
     selectedProject,
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);

@@ -7,9 +7,8 @@ import { InlineStatus } from '../../components/inline-status';
 import { Pagination } from '../../components/pagination';
 import { SettingsRow } from '../../components/settings-row';
 import { SkeletonRow } from '../../components/skeleton-row';
-import { DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
-import { BODY_CLASS, LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ProjectSettingsProps, ProjectSettingsRow } from './types';
 
 /** Heading for whichever host mounts this section — see `MANAGE_SELECTION_RAIL_LABEL`'s note. */
@@ -27,29 +26,39 @@ function rowSummary(project: ProjectSettingsRow): string {
  * The rows one project owns, in the order they answer questions: who pays, on what plan, under
  * what ceiling, against which models, and what state the thing is in. Exported for
  * `ProjectSettingsDetail` (below) — the sheet body `apps/console`'s `project-settings-centre.tsx`
- * renders inside `DetailSheet`, whose own `title`/`subtitle` already carry the project's name, the
- * same "chrome already said it" contract `sections/project-detail` follows for its own sheet.
+ * renders inside a `BottomSheet`/the inspector rail, both of which carry the project's name (and,
+ * Addition E, its status) in their own chrome now — the same "chrome already said it" contract
+ * `sections/project-detail` follows for its own sheet.
  *
- * A module-level function rather than six inline ternaries so the ORDER is stated once and every
- * project's detail is guaranteed to read down the same column.
+ * `kind` picks `SettingsRow.valueKind` (Addition E, 2026-08-30 owner round: "mono only for ids/
+ * tiers/dates") — a module-level function rather than six inline ternaries so the ORDER and the
+ * kind are both stated once, and every project's detail is guaranteed to read down the same
+ * column the same way.
  */
-export function detailRows(project: ProjectSettingsRow): { term: string; value: string }[] {
+export function detailRows(
+  project: ProjectSettingsRow
+): { term: string; value: string; kind: 'text' | 'data' }[] {
   return [
-    { term: 'Project id', value: project.id },
-    { term: 'Billing identity', value: project.billingIdentity },
-    { term: 'Billing plan', value: project.billingPlan },
-    { term: 'Quota tier', value: project.quotaTier ?? NO_QUOTA_TIER_LABEL },
-    { term: 'Model policy', value: project.modelPolicy },
-    { term: 'Status', value: project.status },
+    { term: 'Project id', value: project.id, kind: 'data' },
+    { term: 'Billing identity', value: project.billingIdentity, kind: 'data' },
+    { term: 'Billing plan', value: project.billingPlan, kind: 'text' },
+    { term: 'Quota tier', value: project.quotaTier ?? NO_QUOTA_TIER_LABEL, kind: 'data' },
+    { term: 'Model policy', value: project.modelPolicy, kind: 'text' },
+    { term: 'Status', value: project.status, kind: 'text' },
     // Not "true"/"false": the flag's meaning is what matters, and its consequence (a default
     // project can be suspended but never hard-deleted) is not readable from a boolean.
-    { term: 'Default project', value: project.isDefault ? 'Yes' : 'No' },
+    { term: 'Default project', value: project.isDefault ? 'Yes' : 'No', kind: 'text' },
   ];
 }
 
-/** The `DetailSheet` body for one project's full field list — `ProjectSettings`' rows open the
- *  sheet; this is what fills it. Kept as its own export (rather than inlined at the container)
- *  because the field order/labels are this section's contract, not the app's to restate. */
+/** The sheet/rail body for one project's full field list — `ProjectSettings`' rows open it; this
+ *  is what fills it. Kept as its own export (rather than inlined at the container) because the
+ *  field order/labels/kinds are this section's contract, not the app's to restate.
+ *
+ *  Addition E (owner screenshot: "a full-height void with 7 rows, values flung to the far edge") —
+ *  the bare `dl`/`dt`/`dd` geometry this used to render is gone in favour of the same
+ *  `settings-list`/`SettingsRow` idiom `AccountSettings` already uses, capped to a readable
+ *  measure so a value sits near its label rather than at the far edge of a wide sheet. */
 export function ProjectSettingsDetail({
   project,
   className,
@@ -58,14 +67,13 @@ export function ProjectSettingsDetail({
   className?: string;
 }) {
   return (
-    <dl className={cn(DETAIL_LIST_CLASS, className)}>
-      {detailRows(project).map(({ term, value }) => (
-        <div key={term} className={DETAIL_ROW_CLASS}>
-          <dt className={LABEL_CLASS}>{term}</dt>
-          <dd className={BODY_CLASS}>{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className={cn('max-w-[420px]', className)}>
+      <div className="settings-list">
+        {detailRows(project).map(({ term, value, kind }) => (
+          <SettingsRow key={term} label={term} value={value} valueKind={kind} />
+        ))}
+      </div>
+    </div>
   );
 }
 

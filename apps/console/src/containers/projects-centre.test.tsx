@@ -3,6 +3,7 @@ import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ProjectsScreen as ProjectsScreenData } from './use-projects-screen';
+import type { CreateProjectDialogController } from './use-create-project-dialog';
 
 /**
  * Container-level acceptance coverage for what `/projects` (renamed from `/manage`, 2026-08-30
@@ -28,6 +29,34 @@ vi.mock('./use-projects-screen', async (importOriginal) => {
   };
 });
 
+/**
+ * `CreateProjectDialog` itself is a SHARED, cross-route dialog now (Addition C.1/C.4, 2026-08-30
+ * — `use-create-project-dialog.ts`, mounted once in `app/(console)/layout.tsx`); `ProjectsCentre`
+ * only calls its lightweight trigger (`useOpenCreateProjectDialog`), not the full controller. That
+ * trigger's real implementation reads live account/session context this container-level test does
+ * not stand up (the same reason `useProjectsScreen` above is mocked wholesale), so it is mocked
+ * the identical way.
+ */
+const useOpenCreateProjectDialogMock = vi.fn();
+vi.mock('./use-create-project-dialog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./use-create-project-dialog')>();
+  return {
+    ...actual,
+    useOpenCreateProjectDialog: () => useOpenCreateProjectDialogMock(),
+  };
+});
+
+function baseCreateProject(
+  overrides: Partial<Omit<CreateProjectDialogController, 'dialog'>> = {}
+): Omit<CreateProjectDialogController, 'dialog'> {
+  return {
+    open: vi.fn(),
+    eligible: true,
+    reason: undefined,
+    ...overrides,
+  };
+}
+
 function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreenData {
   return {
     scopeLabel: 'adorsys-gis',
@@ -38,26 +67,6 @@ function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreen
     search: '',
     setSearch: vi.fn(),
     filtersActive: false,
-    newProject: vi.fn(),
-    createProjectEligible: true,
-    createProjectReason: undefined,
-    createProjectDialog: {
-      open: false,
-      accountLabel: 'auth0|9f3a',
-      name: '',
-      onNameChange: vi.fn(),
-      billingIdentity: '',
-      onBillingIdentityChange: vi.fn(),
-      plans: [],
-      plansLoading: false,
-      onRetryPlans: vi.fn(),
-      planId: null,
-      onPlanChange: vi.fn(),
-      submitting: false,
-      canSubmit: false,
-      onSubmit: vi.fn(),
-      onCancel: vi.fn(),
-    },
     selectedProject: null,
     selectRow: vi.fn(),
     clearSelection: vi.fn(),
@@ -100,8 +109,12 @@ function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreen
   };
 }
 
-async function renderCentre(overrides: Partial<ProjectsScreenData> = {}) {
+async function renderCentre(
+  overrides: Partial<ProjectsScreenData> = {},
+  createProjectOverrides: Partial<Omit<CreateProjectDialogController, 'dialog'>> = {}
+) {
   useProjectsScreenMock.mockReturnValue(baseScreen(overrides));
+  useOpenCreateProjectDialogMock.mockReturnValue(baseCreateProject(createProjectOverrides));
   const { ProjectsCentre } = await import('./projects-centre');
   return render(<ProjectsCentre />, { wrapper: withNuqsTestingAdapter() });
 }
@@ -137,12 +150,10 @@ describe('ProjectsCentre', () => {
   });
 
   it('renders EmptyState with a gated CTA for a true empty collection (no active filter)', async () => {
-    await renderCentre({
-      rows: [],
-      filtersActive: false,
-      createProjectEligible: false,
-      createProjectReason: 'Select an account to create a project.',
-    });
+    await renderCentre(
+      { rows: [], filtersActive: false },
+      { eligible: false, reason: 'Select an account to create a project.' }
+    );
 
     expect(screen.getByText('No projects yet')).toBeInTheDocument();
     const ctas = screen.getAllByRole('button', { name: '+ New project' });

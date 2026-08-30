@@ -24,8 +24,8 @@ import type {
   ApiKeyRow,
   ApiKeysDeleteTarget,
   ApiKeysRevokeTarget,
-  ApiKeysSecretReveal,
 } from '../sections/api-keys-ledger';
+import type { CreateApiKeyResult } from '../components/create-api-key-dialog';
 import { ApiKeysControls } from '../sections/api-keys-controls';
 import {
   API_KEY_PROJECT_OPTIONS,
@@ -36,7 +36,10 @@ import { storySidebar, storyTopBar } from './shell-fixtures';
 
 interface ApiKeysScreenProps {
   keys?: ApiKeyRow[];
-  secretReveal?: ApiKeysSecretReveal | null;
+  /** Opens `CreateApiKeyDialog` straight to its secret step (Addition D, 2026-08-30) — the "just
+   *  created a key" state, in the SAME modal instance the form would have been, never a separate
+   *  floor-level card. */
+  initialResult?: CreateApiKeyResult | null;
   revokeInitial?: ApiKeysRevokeTarget | null;
   deleteInitial?: ApiKeysDeleteTarget | null;
   loading?: boolean;
@@ -59,7 +62,7 @@ const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value 
 // whether `Del` renders at all, so one story flag drives both consistently.
 function ApiKeysScreen({
   keys = apiKeysFixture,
-  secretReveal = null,
+  initialResult = null,
   revokeInitial = null,
   deleteInitial = null,
   loading = false,
@@ -68,14 +71,14 @@ function ApiKeysScreen({
   allProjectsScoped = false,
   zeroProjects = false,
 }: ApiKeysScreenProps) {
-  const [secret, setSecret] = useState(secretReveal);
+  const [createOpen, setCreateOpen] = useState(initialResult !== null);
+  const [result, setResult] = useState<CreateApiKeyResult | null>(initialResult);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
   const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(deleteInitial);
   const [project, setProject] = useState(allProjectsScoped ? 'all' : 'gateway-prod');
   const [statusFilterValue, setStatusFilterValue] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [createOpen, setCreateOpen] = useState(false);
   const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
   const [name, setName] = useState('');
 
@@ -85,6 +88,7 @@ function ApiKeysScreen({
   const openCreateDialog = () => {
     if (!canCreate) return;
     setDraftProjectId(project !== 'all' ? project : (PROJECT_CHOICES[0]?.value ?? null));
+    setResult(null);
     setCreateOpen(true);
   };
 
@@ -153,11 +157,17 @@ function ApiKeysScreen({
           submitting={false}
           canSubmit={name.trim().length > 0 && draftProjectId !== null}
           onSubmit={() => {
-            setSecret(apiKeysNewSecret);
+            // Addition D: the SAME modal instance switches to its secret step, rather than
+            // closing and handing the result to a separate floor-level card.
+            setResult(apiKeysNewSecret);
+          }}
+          onCancel={() => {
             setCreateOpen(false);
             setName('');
           }}
-          onCancel={() => {
+          result={result}
+          onDone={() => {
+            setResult(null);
             setCreateOpen(false);
             setName('');
           }}
@@ -185,8 +195,6 @@ function ApiKeysScreen({
                 }
               />
             }
-            secretReveal={secret}
-            onDismissSecret={() => setSecret(null)}
             onRotate={() => {}}
             onRequestRevoke={(row) => setRevokeTarget({ row })}
             revokeTarget={revokeTarget}
@@ -216,20 +224,21 @@ const meta: Meta<typeof ApiKeysScreen> = {
 export default meta;
 type Story = StoryObj<typeof ApiKeysScreen>;
 
-// `lg` (≥1024, the default story viewport). Full page, populated — 11-row ledger, secret strip
-// after create/rotate, inline hygiene notes.
+// `lg` (≥1024, the default story viewport). Full page, populated — 11-row ledger, inline hygiene
+// notes, `CreateApiKeyDialog` open on its own secret step (Addition D, 2026-08-30 — the "just
+// created a key" state, in place, never a separate floor-level card).
 export const Populated: Story = {
-  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  render: () => <ApiKeysScreen initialResult={apiKeysNewSecret} />,
 };
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`.
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
-  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  render: () => <ApiKeysScreen initialResult={apiKeysNewSecret} />,
   globals: { theme: 'wireframe' },
 };
 
-// Same data without the SecretReveal strip — the steady state once a secret is dismissed.
+// Same data with the dialog closed — the steady state once a secret step ends with Done.
 export const WithoutSecretStrip: Story = { render: () => <ApiKeysScreen /> };
 
 /**
@@ -294,19 +303,19 @@ export const AdminNav: Story = {
 // reason this tier no longer needs a sheet-open story of its own.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
-  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  render: () => <ApiKeysScreen initialResult={apiKeysNewSecret} />,
 };
 
 // Base tier (<600): single column, nav docked as a fixed bottom navigation bar, the key ledger
 // scrolls horizontally inside its own container (the page never scrolls sideways).
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
-  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  render: () => <ApiKeysScreen initialResult={apiKeysNewSecret} />,
 };
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
 export const MobileBaseTierLight: Story = {
   name: 'Mobile Base Tier — wireframe (light)',
   globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
-  render: () => <ApiKeysScreen secretReveal={apiKeysNewSecret} />,
+  render: () => <ApiKeysScreen initialResult={apiKeysNewSecret} />,
 };

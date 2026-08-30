@@ -26,7 +26,7 @@ import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
-import { DetailSheet } from '../components/detail-sheet';
+import { BottomSheet } from '../components/bottom-sheet';
 import { EmptyState } from '../components/empty-state';
 import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
@@ -102,8 +102,34 @@ function ProjectsScreen({
     </Button>
   );
 
+  // Owner's final resolution on rail content (2026-08-30, "hide it if empty. Simple."): `/projects`
+  // shows the rail ONLY when a row is selected — no quick-settings fallback here (that is `/`'s
+  // job alone, as standing content) — so an unselected screen renders no rail at all, and
+  // `ConsoleShell` collapses the column entirely.
+  const rail = selectedProject ? (
+    <div className="flex flex-col gap-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-sans text-[15px] font-medium text-ink">{selectedProject.name}</div>
+          <div className="text-subtle font-sans text-[12px]">
+            {selectedProject.account} · {selectedProject.statusLabel}
+          </div>
+        </div>
+        <Button type="button" variant="secondary" size="sm" onClick={() => {}}>
+          Rename
+        </Button>
+      </div>
+      <ProjectDetail project={selectedProject} />
+    </div>
+  ) : undefined;
+
   return (
-    <ConsoleShell sidebar={storySidebar('projects', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell
+      sidebar={storySidebar('projects', { isAdmin: showAdmin })}
+      topBar={storyTopBar()}
+      rail={rail}
+      railWidth={280}
+      onRailWidthChange={() => {}}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"
@@ -209,15 +235,24 @@ function ProjectsScreen({
         </Card>
       </div>
 
-      <DetailSheet
+      {/* Below `lg` only — at `lg`+ the rail above is the detail surface (owner's locked layout
+          contract, 2026-08-30 restatement: "Right rail on large screens, bottom sheet on medium
+          and small"). */}
+      <BottomSheet
         open={selectedProject !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedProject(null);
         }}
         title={selectedProject?.name ?? ''}
-        subtitle={selectedProject?.account}>
+        subtitle={selectedProject ? `${selectedProject.account} · ${selectedProject.statusLabel}` : undefined}
+        headerAction={
+          <Button type="button" variant="secondary" size="sm" onClick={() => {}}>
+            Rename
+          </Button>
+        }
+        portalClassName="lg:hidden">
         {selectedProject ? <ProjectDetail project={selectedProject} /> : null}
-      </DetailSheet>
+      </BottomSheet>
     </ConsoleShell>
   );
 }
@@ -241,8 +276,24 @@ export const PopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// A row selected — `DetailSheet` opens with that project's detail.
+// A row selected, at `lg` (the default viewport) — the inspector rail is the detail surface here,
+// not a dialog: the `BottomSheet` is `portalClassName="lg:hidden"` at this tier (owner's locked
+// layout contract, 2026-08-30 restatement).
 export const RowSelected: Story = {
+  name: 'Row selected (lg — inspector rail shows detail, no dialog)',
+  render: () => <ProjectsScreen initialSelection={projectsFixture[0]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument());
+    expect(canvas.queryByRole('dialog')).not.toBeInTheDocument();
+  },
+};
+
+// The same selection, below `lg` — the rail is absent, so the SAME content opens as a
+// `BottomSheet` instead.
+export const RowSelectedMdTier: Story = {
+  name: 'Row selected (md — BottomSheet, no rail)',
+  globals: { viewport: { value: 'md900' } },
   render: () => <ProjectsScreen initialSelection={projectsFixture[0]} />,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);

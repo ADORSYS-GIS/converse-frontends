@@ -1,6 +1,5 @@
 'use client';
 
-import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-name-dialog';
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { AccountSettings } from '@lightbridge/ui-web/src/sections/account-settings';
 import type { AccountSettingsProps } from '@lightbridge/ui-web/src/sections/account-settings';
@@ -13,19 +12,23 @@ import { useAccountSettingsScreen } from './use-account-settings-screen';
 /**
  * `/settings/account` — the centre column. The shell is mounted once, in `app/(console)/layout.tsx`.
  *
- * No right rail and no sheet triggers: nothing here retargets on a selection (console-ui skill —
- * "before adding a rail to a screen, ask whether its content retargets on selection; if it does
- * not, it is a toolbar"). The subtitle is a scope line only — the old "Filtering and browsing
- * live on Manage" IA-explainer is dead; `/manage` was renamed `/projects` two phases ago, so the
- * sentence had already gone stale on its own terms even before this revamp.
+ * No sheet triggers of its own: nothing HERE retargets on a selection. The subtitle is a scope
+ * line only — the old "Filtering and browsing live on Manage" IA-explainer is dead; `/manage` was
+ * renamed `/projects` two phases ago, so the sentence had already gone stale on its own terms even
+ * before this revamp.
  *
  * ADR-0026: `+ New account` is a `PageHeader` secondary action here — the shared create dialog
  * `app/(console)/layout.tsx` mounts once for the whole console, reached from
  * `useOpenCreateAccountDialog` (`use-create-account-dialog.ts`'s lightweight trigger half), the
- * SAME instance the workspace switcher's own `+ New account` row opens. This screen does not
- * render a second `AccountNameDialog` for `create`: only the panel's empty state and this button
- * ever trigger it, both through that one function. The `AccountNameDialog` still mounted directly
- * below is `screen.accountNameDialog` — `mode: 'rename'`, always, for whichever account is scoped.
+ * SAME instance the workspace switcher's own `+ New account` row opens.
+ *
+ * Addition C (rail-return round, 2026-08-30): the RENAME dialog moved out the same way — this
+ * screen mounts neither `AccountNameDialog` any more. `screen.accountSettings.panel.onRename` is
+ * now `useOpenRenameAccountDialog()`'s trigger (wired inside `use-account-settings-screen.ts`),
+ * and the one `AccountNameDialog` (`mode: 'rename'`) instance it opens lives in
+ * `app/(console)/layout.tsx`, alongside the `create` one — the inspector rail's quick-settings
+ * panel needs to trigger the identical write from every other route, which a screen-local dialog
+ * could never do.
  */
 export function AccountSettingsCentre() {
   const screen = useAccountSettingsScreen();
@@ -51,8 +54,6 @@ export function AccountSettingsCentre() {
       <SettingsSubNav projectCount={screen.projectCount} />
 
       <AccountSettings {...accountSettings} />
-
-      <AccountNameDialog {...screen.accountNameDialog} />
     </div>
   );
 }

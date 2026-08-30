@@ -66,8 +66,19 @@ export function SecretReveal({
   }, []);
 
   async function handleCopy() {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(secret);
+    // Best-effort, the same contract every other clipboard write in this app follows
+    // (`AccountBadge`'s own `onCopyId`): the write can genuinely fail (permission denied, an
+    // insecure origin), and the secret stays focused/selected either way as the manual-copy
+    // fallback, so a failure here is silent rather than an unhandled rejection — never a claimed
+    // "Copied" for a copy that didn't happen.
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(secret);
+      } else {
+        return;
+      }
+    } catch {
+      return;
     }
     setCopied(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);

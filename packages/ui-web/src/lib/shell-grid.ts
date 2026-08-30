@@ -45,6 +45,31 @@ export const TOP_BAR_CLASS =
  */
 export const SHELL_CENTRE_CLASS = 'min-w-0 flex-1 px-4 py-6 pb-20 md:px-8 md:py-7';
 
+/**
+ * The right INSPECTOR rail (`ConsoleShell`'s optional `rail` slot) — `chrome` fill, a hairline on
+ * its LEADING edge, full viewport height, sticky, its own scroll. The owner brought the rail back
+ * (2026-08-30: "I liked it when the right rail was there... We could display settings there") on
+ * the explicit condition that it is never empty by construction — it always resolves to either a
+ * selection's detail or the scope quick-settings panel (`containers/inspector-rail.tsx`), so there
+ * is no "nothing selected, blank column" state the way the deleted rail had. Visible at `lg`+ only
+ * (1024px) — below that, the content it shows lives in a `BottomSheet` instead.
+ *
+ * Mirrors `SIDEBAR_CLASS` deliberately (`chrome` fill, a `raised` hairline on the edge that faces
+ * the content column, `--focus-gap` set to the same fill) — the same chrome treatment, flipped to
+ * the trailing edge. Unlike the sidebar, its WIDTH is not a fixed Tailwind class: the owner's
+ * layout contract ("right rail... resizable by drag") makes it a per-viewer preference
+ * (`ConsoleShell`'s `railWidth` prop, an inline style) the same way `RailResizer` reports it —
+ * bounded by `INSPECTOR_RAIL_MIN_WIDTH`/`INSPECTOR_RAIL_MAX_WIDTH` below.
+ */
+export const INSPECTOR_RAIL_CLASS =
+  'hidden flex-col border-l border-raised bg-chrome [--focus-gap:var(--color-chrome)] lg:flex lg:flex-none lg:sticky lg:top-0 lg:h-dvh lg:overflow-y-auto';
+
+/** The inspector rail's drag-resize bounds and default, in px — one definition `RailResizer`
+ *  (clamping) and every `railWidth` owner (`use-rail-width.ts`, initial/fallback value) share. */
+export const INSPECTOR_RAIL_MIN_WIDTH = 240;
+export const INSPECTOR_RAIL_MAX_WIDTH = 480;
+export const INSPECTOR_RAIL_DEFAULT_WIDTH = 280;
+
 /** The content column's own reading measure — the shell has no page-level max-width of its own
  * (the sidebar already bounds the layout on the left), but unbounded prose/table width on an
  * ultra-wide viewport reads worse than a capped one. */

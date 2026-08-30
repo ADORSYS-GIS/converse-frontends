@@ -9,10 +9,12 @@ import { join } from 'node:path';
  * Shell revamp phase 2 (2026-08-30): the `@rail`/`@scope` parallel-route slots this test used to
  * enumerate alongside the route's own `page.tsx` are deleted. Phase 3 then deleted the temporary
  * right-hand aside (`admin-rail.tsx`) phase 2 had replaced them with — `AdminCentre` now renders
- * its review detail as a `DetailSheet` (`components/detail-sheet`) hosting `ReviewDetailPanel`
- * directly, still an ordinary component call inside the already-gated `admin/page.tsx` tree, not a
- * sibling route segment that could bypass the gate on its own. There is therefore exactly one
- * segment left to gate.
+ * its review detail as a `BottomSheet` (`components/bottom-sheet`, below `lg`) hosting
+ * `ReviewDetailPanel` directly, still an ordinary component call inside the already-gated
+ * `admin/page.tsx` tree, not a sibling route segment that could bypass the gate on its own.
+ * Rail-return round (2026-08-30): `containers/inspector-rail.tsx` is the `lg`+ surface for the
+ * same content — also an ordinary component call, mounted once from `app/(console)/layout.tsx`,
+ * not a route segment. There is therefore exactly one segment left to gate.
  *
  * A source-shape assertion rather than a render test, because the property is about the route
  * SEGMENT: it must decrypt the session and `notFound()` a non-admin before generating any admin
@@ -51,7 +53,7 @@ describe('the /admin role gate', () => {
       'utf8'
     );
 
-    expect(centre).toContain('<DetailSheet');
+    expect(centre).toContain('<BottomSheet');
     expect(centre).toContain('<ReviewDetailPanel');
   });
 });

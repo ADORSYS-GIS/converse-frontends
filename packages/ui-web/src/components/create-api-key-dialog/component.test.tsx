@@ -51,9 +51,16 @@ function baseProps(
     canSubmit: true,
     onSubmit: vi.fn(),
     onCancel: vi.fn(),
+    onDone: vi.fn(),
     ...overrides,
   };
 }
+
+const RESULT = {
+  heading: 'New API key',
+  description: "Copy it now — this is the only time it's shown. It cannot be retrieved again.",
+  secret: 'sk_live_9f3a2c7e41b0',
+};
 
 describe('CreateApiKeyDialog', () => {
   it('renders nothing when closed', () => {
@@ -239,5 +246,73 @@ describe('CreateApiKeyDialog', () => {
   it('shows a submitting label and disables Create key while in flight', () => {
     render(<CreateApiKeyDialog {...baseProps({ submitting: true, canSubmit: true })} />);
     expect(screen.getByRole('button', { name: 'Creating…' })).toBeDisabled();
+  });
+
+  describe('the secret step (Addition D — the same modal instance, not a separate card)', () => {
+    it('replaces the form with the secret once `result` is populated', async () => {
+      render(<CreateApiKeyDialog {...baseProps({ result: RESULT })} />);
+
+      expect(await screen.findByRole('dialog')).toHaveAccessibleName('New API key');
+      expect(screen.queryByLabelText('Project')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Create key' })).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue(RESULT.secret)).toBeInTheDocument();
+      expect(screen.getByText(RESULT.description)).toBeInTheDocument();
+    });
+
+    it('renders no separate card around the secret — it is inline dialog content', () => {
+      const { container } = render(<CreateApiKeyDialog {...baseProps({ result: RESULT })} />);
+      expect(container.querySelector('.secret-strip')).toBeNull();
+    });
+
+    it('copies the secret to the clipboard and acknowledges it on the button itself', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { clipboard: { writeText } });
+
+      render(<CreateApiKeyDialog {...baseProps({ result: RESULT })} />);
+      await screen.findByRole('dialog');
+
+      screen.getByRole('button', { name: 'Copy' }).click();
+
+      expect(writeText).toHaveBeenCalledWith(RESULT.secret);
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    });
+
+    it('fires onDone from the explicit Done button', async () => {
+      const onDone = vi.fn();
+      render(<CreateApiKeyDialog {...baseProps({ result: RESULT, onDone })} />);
+      await screen.findByRole('dialog');
+
+      screen.getByRole('button', { name: 'Done' }).click();
+      expect(onDone).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not close on Escape — the secret must not be lost to a stray keypress', async () => {
+      const onCancel = vi.fn();
+      const onDone = vi.fn();
+      render(<CreateApiKeyDialog {...baseProps({ result: RESULT, onCancel, onDone })} />);
+      await screen.findByRole('dialog');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(onDone).not.toHaveBeenCalled();
+    });
+
+    it('does not close on a backdrop click', async () => {
+      const onCancel = vi.fn();
+      const onDone = vi.fn();
+      const { container } = render(
+        <CreateApiKeyDialog {...baseProps({ result: RESULT, onCancel, onDone })} />
+      );
+      await screen.findByRole('dialog');
+
+      const backdrop = container.ownerDocument.querySelector('[data-base-ui-backdrop], .bg-muted\\/80');
+      if (backdrop) fireEvent.click(backdrop);
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(onDone).not.toHaveBeenCalled();
+    });
   });
 });

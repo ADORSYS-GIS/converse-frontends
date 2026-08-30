@@ -1,7 +1,16 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { BANNER_STICKY_CLASS, CONTENT_MAX_WIDTH_CLASS, SHELL_CENTRE_CLASS } from '../../lib/shell-grid';
+import { RailResizer } from '../rail-resizer';
+import {
+  BANNER_STICKY_CLASS,
+  CONTENT_MAX_WIDTH_CLASS,
+  INSPECTOR_RAIL_CLASS,
+  INSPECTOR_RAIL_DEFAULT_WIDTH,
+  INSPECTOR_RAIL_MAX_WIDTH,
+  INSPECTOR_RAIL_MIN_WIDTH,
+  SHELL_CENTRE_CLASS,
+} from '../../lib/shell-grid';
 import type { ConsoleShellProps } from './types';
 
 // Shell brief (2026-08-30) — the three-rail, header-band shell (ADR 0008 Decision 3's original
@@ -27,7 +36,30 @@ import type { ConsoleShellProps } from './types';
 //    `md`+, where there is no chrome above the content column at all).
 //  - **A capped reading measure** (`CONTENT_MAX_WIDTH_CLASS`) wraps the banner and `children`
 //    together, so a message always lines up with the content it is about.
-export function ConsoleShell({ sidebar, topBar, banner, children, className }: ConsoleShellProps) {
+//
+// The right INSPECTOR rail returned in the 2026-08-30 owner round ("I liked it when the right
+// rail was there... We could display settings there") as a THIRD flex item in the same row,
+// visible at `lg`+ only (`INSPECTOR_RAIL_CLASS`) — never a fourth column at `md`/below `lg`, where
+// its content lives in a `BottomSheet` instead. Unlike the deleted right rail, this one is built
+// to never be empty (`rail`'s own doc comment in `types.ts`) — that constraint lives in the CALLER
+// (`containers/inspector-rail.tsx`), not here: this component still renders exactly the slot it is
+// given, nothing else.
+//
+// The owner's locked layout contract restated it as resizable by drag, not a fixed 280px column:
+// `railWidth` is an inline style (a per-viewer preference the caller owns — see its own doc
+// comment), and `RailResizer` sits on the rail's leading edge reporting drags/keyboard moves back
+// through `onRailWidthChange`. The rail wrapper is `position: relative` so the resizer (`position:
+// absolute`) can straddle its edge without reaching into the content column's own box.
+export function ConsoleShell({
+  sidebar,
+  topBar,
+  rail,
+  railWidth = INSPECTOR_RAIL_DEFAULT_WIDTH,
+  onRailWidthChange,
+  banner,
+  children,
+  className,
+}: ConsoleShellProps) {
   return (
     <div className={cn('shell-root', className)}>
       {sidebar}
@@ -42,6 +74,20 @@ export function ConsoleShell({ sidebar, topBar, banner, children, className }: C
           </div>
         </main>
       </div>
+
+      {rail ? (
+        <div className={cn(INSPECTOR_RAIL_CLASS, 'relative')} style={{ width: railWidth }}>
+          {onRailWidthChange ? (
+            <RailResizer
+              value={railWidth}
+              onChange={onRailWidthChange}
+              min={INSPECTOR_RAIL_MIN_WIDTH}
+              max={INSPECTOR_RAIL_MAX_WIDTH}
+            />
+          ) : null}
+          {rail}
+        </div>
+      ) : null}
     </div>
   );
 }

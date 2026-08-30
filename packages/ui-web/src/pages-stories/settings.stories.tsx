@@ -24,7 +24,7 @@ import { AccountNameDialog } from '../components/account-name-dialog';
 import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
-import { DetailSheet } from '../components/detail-sheet';
+import { BottomSheet } from '../components/bottom-sheet';
 import { ProjectNameDialog } from '../components/project-name-dialog';
 import { SubNav } from '../components/sub-nav';
 import type { SubNavItem } from '../components/sub-nav';
@@ -152,7 +152,7 @@ function SettingsScreen({
               />
             </Card>
 
-            <DetailSheet
+            <BottomSheet
               open={selectedProject !== null}
               onOpenChange={(open) => {
                 if (!open) {
@@ -175,7 +175,7 @@ function SettingsScreen({
                 </Button>
               }>
               {selectedProject ? <ProjectSettingsDetail project={selectedProject} /> : null}
-            </DetailSheet>
+            </BottomSheet>
 
             <ProjectNameDialog
               open={renameTarget !== null}

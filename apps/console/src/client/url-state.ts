@@ -105,6 +105,60 @@ export function useCreateAccountDialogParams() {
   });
 }
 
+// ── shared: create-project dialog ───────────────────────────────────────────────────────────
+
+/**
+ * `?new-project=true` — whether `CreateProjectDialog` is open. Lifted out of `manageParsers.
+ * createOpen` (owner, 2026-08-30: "I create account in settings or in a raw dropdown, but project
+ * only in projects? Not in settings?") into the SAME shared, cross-route shape
+ * `createAccountParsers` above already established: `+ New project` is now reachable from
+ * `/projects`' own `PageHeader` action, `/settings/projects`' own `PageHeader` action, AND the
+ * inspector rail's quick-settings row (every route) — three structurally separate triggers that
+ * must all open the ONE instance mounted in `app/(console)/layout.tsx`
+ * (`use-create-project-dialog.ts`). The wire key changes (`create` on `/projects` meant this
+ * specifically; `new-project` says so on every route it now opens from) — a genuine rename, not
+ * a compatibility shim, since the flow itself moved cross-route.
+ */
+export const createProjectParsers = {
+  open: parseAsBoolean.withDefault(false),
+};
+
+const createProjectUrlKeys = { open: 'new-project' };
+
+export function useCreateProjectDialogParams() {
+  return useQueryStates(createProjectParsers, {
+    urlKeys: createProjectUrlKeys,
+    history: 'push' as const,
+  });
+}
+
+// ── shared: request-refill dialog ───────────────────────────────────────────────────────────
+
+/**
+ * `?refill=true` — whether `RequestRefillDialog` is open. The rail-return round (2026-08-30,
+ * owner: "budget refill form disappeared") gives it the exact same shape `createAccountParsers`
+ * above already solved: THREE structurally separate triggers have to open the identical instance
+ * — the Budget card's own standing header action, its prominent breach-state button (`/`), and
+ * the inspector rail's quick-settings "Request refill" row (every route, via
+ * `containers/inspector-rail.tsx`) — so this is real view state, not a per-screen local flag. The
+ * dialog itself mounts once, in `app/(console)/layout.tsx`, driven by
+ * `use-request-refill-dialog.ts`. Its selected amount is NOT here — see that module's own
+ * "SANCTIONED LOCAL STATE" comment for why the draft stays local the same way every other dialog
+ * draft in this app does.
+ */
+export const requestRefillParsers = {
+  open: parseAsBoolean.withDefault(false),
+};
+
+const requestRefillUrlKeys = { open: 'refill' };
+
+export function useRequestRefillDialogParams() {
+  return useQueryStates(requestRefillParsers, {
+    urlKeys: requestRefillUrlKeys,
+    history: 'push' as const,
+  });
+}
+
 // ── report export — shared vocabulary (`/`, `/projects`) ────────────────────────────────────
 
 /**
@@ -286,21 +340,18 @@ export const PROJECTS_SORT_KEYS = ['name', 'spendMtd'] as const;
  * than one boolean param per toggle — the URL stays legible and a new toggle costs no new param.
  * `parseAsArrayOf` compares by value, so the default set still clears itself out of the URL.
  *
- * `createOpen` (ticket #303) is the same idea `apiKeysParsers.createOpen` (#319) established:
- * the create-project dialog has exactly one possible target (the scoped account), so a bare
- * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
- * `use-projects-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
- *
  * `reportOpen` (`?report=`) is shell revamp phase 3's replacement for the deleted right rail's
  * persistent MONTHLY REPORT section: `Monthly report` is now a `PageHeader.action` button that
- * opens `ReportExportDialog`, and the same boolean-target idiom `createOpen` already uses applies
- * — the dialog has exactly one possible target (the scoped account/period), so a bare boolean is
- * the whole contract.
+ * opens `ReportExportDialog` — the dialog has exactly one possible target (the scoped
+ * account/period), so a bare boolean is the whole contract.
  *
- * What is NO LONGER here: `accountNameOpen` (`?account-name=`). The account naming flow moved to
- * `/settings` along with the panel that opens it, so the param moved with it — see
- * `settingsParsers` below. A `/projects` bookmark carrying `?account-name=true` now simply ignores
- * an unknown param rather than opening a dialog on a screen that no longer mounts one.
+ * What is NO LONGER here: `accountNameOpen` (`?account-name=`) — moved to `/settings` along with
+ * the panel that opens it (see `settingsParsers` below) — and `createOpen` (ticket #303, rail-
+ * return round 2026-08-30: lifted into the shared, cross-route `createProjectParsers` above,
+ * alongside `createAccountParsers`, since `+ New project` is reachable from `/settings/projects`
+ * and the inspector rail now too, not only from here). A `/projects` bookmark carrying either old
+ * flag now simply ignores an unknown param rather than opening a dialog on a screen that no
+ * longer mounts one.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -313,7 +364,6 @@ export const manageParsers = {
   reportGroupBy: parseAsStringLiteral(MANAGE_REPORT_GROUP_BYS).withDefault('project'),
   format: reportFormatParser,
   include: reportIncludeParser,
-  createOpen: parseAsBoolean.withDefault(false),
   // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'name', order: 'asc'
   // }]` (`use-projects-screen.ts`) — alphabetical, until a header is pressed.
   sortKey: parseAsStringLiteral(PROJECTS_SORT_KEYS).withDefault('name'),
@@ -326,7 +376,6 @@ const manageUrlKeys = {
   selectedProjectId: 'row',
   reportOpen: 'report',
   reportGroupBy: 'report-group',
-  createOpen: 'create',
   sortKey: 'sort',
   sortDirection: 'dir',
 };
@@ -460,6 +509,8 @@ export function useAdminParams() {
 export const URL_PARAM_CONTRACT = {
   scope: { parsers: scopeParsers, urlKeys: scopeUrlKeys },
   createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
+  createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
+  requestRefill: { parsers: requestRefillParsers, urlKeys: requestRefillUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },

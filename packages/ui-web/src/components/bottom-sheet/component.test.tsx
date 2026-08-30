@@ -57,44 +57,60 @@ describe('BottomSheet — transient modal drawer', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  // `sheet-panel` picks its geometry off this attribute rather than off the `direction` prop, so
-  // the mapping from our edge vocabulary to Base UI's dismiss-gesture one is what has to hold.
-  it('maps direction to the swipe axis the panel geometry is selected off', () => {
-    const { rerender } = render(
+  // Owner's locked layout contract (2026-08-30 restatement): "bottom sheet on medium and small.
+  // Not from sides." — `direction` is gone; the sheet is bottom-only, always.
+  it('always sets the swipe axis the panel geometry is selected off to down', () => {
+    render(
       <BottomSheet open onOpenChange={vi.fn()} title="Filters">
         <div>Bottom content</div>
       </BottomSheet>,
     );
 
     expect(screen.getByRole('dialog')).toHaveAttribute('data-swipe-direction', 'down');
-
-    rerender(
-      <BottomSheet open onOpenChange={vi.fn()} title="Overflow" direction="right">
-        <div>Right content</div>
-      </BottomSheet>,
-    );
-
-    expect(screen.getByText('Right content')).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toHaveAttribute('data-swipe-direction', 'right');
   });
 
-  // A grab bar on an edge sheet would be pointing the wrong way — it is dragged from its edge.
-  it('renders the grab bar only on a bottom sheet', () => {
-    const { rerender } = render(
+  it('always renders the grab bar — bottom is the only direction now', () => {
+    render(
       <BottomSheet open onOpenChange={vi.fn()} title="Filters">
         <div>Bottom content</div>
       </BottomSheet>,
     );
 
     expect(document.querySelector('.sheet-handle')).toBeInTheDocument();
+  });
 
-    rerender(
-      <BottomSheet open onOpenChange={vi.fn()} title="Overflow" direction="right">
-        <div>Right content</div>
+  it('renders a subtitle line under the title when supplied', () => {
+    render(
+      <BottomSheet open onOpenChange={vi.fn()} title="gateway-prod" subtitle="adorsys-gis">
+        <div>Content</div>
       </BottomSheet>,
     );
 
-    expect(document.querySelector('.sheet-handle')).not.toBeInTheDocument();
+    expect(screen.getByText('adorsys-gis')).toBeInTheDocument();
+  });
+
+  it('renders a sticky footer when supplied', () => {
+    render(
+      <BottomSheet
+        open
+        onOpenChange={vi.fn()}
+        title="gateway-prod"
+        footer={<button type="button">Rename</button>}>
+        <div>Content</div>
+      </BottomSheet>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+  });
+
+  it('renders no footer region at all when the slot is omitted', () => {
+    render(
+      <BottomSheet open onOpenChange={vi.fn()} title="gateway-prod">
+        <div>Content</div>
+      </BottomSheet>,
+    );
+
+    expect(document.querySelector('.sheet-footer')).not.toBeInTheDocument();
   });
 
   it('renders without a title as an accessible untitled drawer', () => {

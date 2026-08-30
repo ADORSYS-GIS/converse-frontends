@@ -65,9 +65,12 @@ describe('ProjectSettingsDetail', () => {
   });
 
   it('renders status as text, never as a pill', () => {
+    // Addition E (2026-08-30 owner round): the bare `dl`/`dt`/`dd` geometry this used to render
+    // moved to the `settings-list`/`SettingsRow` idiom — the value is a `<span>` now, the same
+    // "text, not a pill" element `AccountSettings`' own status row already uses.
     const { container } = render(<ProjectSettingsDetail project={suspendedProjectFixture} />);
 
-    expect(screen.getByText('suspended').tagName).toBe('DD');
+    expect(screen.getByText('suspended').tagName).toBe('SPAN');
     expect(container.querySelector('.badge')).toBeNull();
   });
 

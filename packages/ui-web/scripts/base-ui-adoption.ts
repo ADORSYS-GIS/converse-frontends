@@ -21,7 +21,6 @@ export const EXPECTED: Record<string, string | null> = {
   'create-api-key-dialog': 'dialog',
   'create-project-dialog': 'dialog',
   'date-range-field': 'popover',
-  'detail-sheet': 'dialog',
   field: 'field',
   meter: 'meter',
   'project-name-dialog': 'dialog',
@@ -48,6 +47,9 @@ export const EXPECTED: Record<string, string | null> = {
   chevron: null, // a static path
   'command-palette': null, // cmdk owns the palette (ADR 0010)
   'console-shell': null, // the two-column responsive contract; daisy `drawer` rejected
+  'rail-resizer': null, // WAI-ARIA window-splitter pattern — Base UI 1.7.0 ships no splitter/
+  // resizer primitive at all (checked against its own export list, not assumed); the roving
+  // separator + pointer-drag here is the bespoke implementation of that pattern.
   'console-top-bar': null, // REFUSED 2026-08-30, same reasoning `console-header` was refused
   // under before it was deleted: a layout band around opaque slots (AccountBadge, CommandPalette,
   // AccountMenu) each of which already delegates its own behaviour — there is no primitive to

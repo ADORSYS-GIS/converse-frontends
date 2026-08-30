@@ -30,12 +30,18 @@ export { EmptyState } from './components/empty-state';
 export type { EmptyStateProps } from './components/empty-state';
 export { Pagination } from './components/pagination';
 export type { PaginationProps } from './components/pagination';
-export { DetailSheet } from './components/detail-sheet';
-export type { DetailSheetProps } from './components/detail-sheet';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
 export type { ConsoleShellProps } from './components/console-shell';
+export { RailResizer } from './components/rail-resizer';
+export type { RailResizerProps } from './components/rail-resizer';
+export {
+  INSPECTOR_RAIL_CLASS,
+  INSPECTOR_RAIL_DEFAULT_WIDTH,
+  INSPECTOR_RAIL_MAX_WIDTH,
+  INSPECTOR_RAIL_MIN_WIDTH,
+} from './lib/shell-grid';
 export { ConsoleTopBar } from './components/console-top-bar';
 export type { ConsoleTopBarProps } from './components/console-top-bar';
 export { AccountBadge, shortAccountId } from './components/account-badge';
@@ -169,6 +175,7 @@ export { CreateApiKeyDialog } from './components/create-api-key-dialog';
 export type {
   CreateApiKeyDialogProps,
   CreateApiKeyPlanOption,
+  CreateApiKeyResult,
 } from './components/create-api-key-dialog';
 
 export { CreateProjectDialog } from './components/create-project-dialog';
@@ -176,6 +183,9 @@ export type {
   CreateProjectDialogProps,
   CreateProjectPlanOption,
 } from './components/create-project-dialog';
+
+export { RequestRefillDialog } from './components/request-refill-dialog';
+export type { RequestRefillDialogProps } from './components/request-refill-dialog';
 
 // ── states
 export { InlineStatus } from './components/inline-status';
@@ -260,14 +270,13 @@ export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
 // ── toolbar sections
-// Shell revamp phase 3 (right rail out): the console has no persistent right rail anywhere any
-// more. Every screen's parameters and the action that consumes them live in one horizontal strip
-// above the content, always visible, at every breakpoint — see `OverviewControls`'s docstring for
-// the toolbar-vs-rail judgement call, and `ManageControls`'s for how the Projects screen's (née
-// Manage) former FILTERS rail section made the same move — search itself lives in `ProjectsLedger`
-// 's own table toolbar now, not here. Selection-driven detail (a picked project, Admin's picked
-// review request) now opens as a `DetailSheet` instead of retargeting a persistent aside — see
-// `projects-centre.tsx`/`admin-centre.tsx` in `apps/console`.
+// Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,
+// filters, search — in one horizontal strip above the content, always visible, at every
+// breakpoint; the 2026-08-30 rail-return round did not undo that (see `OverviewControls`'s
+// docstring for the toolbar-vs-rail judgement call, and `ManageControls`'s for how the Projects
+// screen's (née Manage) former FILTERS rail section made the same move). What the INSPECTOR rail
+// carries instead is SELECTION-DRIVEN DETAIL and the scope quick-settings panel — see
+// "── selection-driven detail" below.
 
 export { OverviewControls } from './sections/overview-controls';
 export type { OverviewControlsField, OverviewControlsProps } from './sections/overview-controls';
@@ -308,10 +317,19 @@ export type {
 } from './sections/project-settings';
 
 // ── selection-driven detail
-// The un-railed content `DetailSheet` hosts once a row is picked (`projects-centre.tsx`'s
-// selected project; `admin-centre.tsx` hosts `ReviewDetailPanel` — from "── forms & actions"
-// above — directly, since it already owned its whole decision surface and needed no section of
-// its own).
+// The persistent right INSPECTOR rail's content at `lg`+ (`ConsoleShell.rail`,
+// `containers/inspector-rail.tsx`), and — below `lg`, where the rail is absent — the SAME content
+// a `BottomSheet` hosts instead (`projects-centre.tsx`'s selected project; `admin-centre.tsx`
+// hosts `ReviewDetailPanel` — from "── forms & actions" above — directly, since it already owned
+// its whole decision surface and needed no section of its own). `InspectorSettingsPanel` is the
+// rail's own "otherwise" content — the scope quick-settings panel shown whenever nothing is
+// selected — and has no sheet equivalent, since it is never what a below-`lg` sheet opens for.
 
 export { ProjectDetail } from './sections/project-detail';
 export type { ProjectDetailProps } from './sections/project-detail';
+
+export { InspectorSettingsPanel } from './sections/inspector-settings-panel';
+export type {
+  InspectorSettingsPanelAccount,
+  InspectorSettingsPanelProps,
+} from './sections/inspector-settings-panel';

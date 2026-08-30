@@ -58,9 +58,13 @@ export const NameRejected: Story = {
   },
 };
 
-/** The realistic `createAccount` refusal: one subject, one account, `Error::Conflict`. */
-export const AlreadyHasAnAccount: Story = {
-  name: 'Server-rejected submit — this subject already has an account',
+/**
+ * The one `createAccount` `Error::Conflict` case ADR-0026 left standing: two concurrent bootstraps
+ * racing to create the same identity's very first account — not "one subject, one account"
+ * (killed by ADR-0026; a repeat `createAccount` call is an ordinary success now).
+ */
+export const ConcurrentBootstrapConflict: Story = {
+  name: 'Server-rejected submit — concurrent first-account bootstrap race',
   args: {
     name: 'Widgets Ltd',
     error: 'account already exists for this subject',

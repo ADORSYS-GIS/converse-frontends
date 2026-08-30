@@ -38,9 +38,10 @@ describe('classifyCreateAccountError', () => {
   });
 
   it('keeps the already-exists conflict OFF the name field', () => {
-    // `createAccount` is `Error::Conflict` for a subject that already holds an account — nothing
-    // about the typed name is wrong, so attributing it to the field would tell the user to fix
-    // the one thing that is not the problem.
+    // ADR-0026 narrowed `createAccount`'s `Error::Conflict` down to one rare race (two concurrent
+    // bootstraps for the same identity's very first account) — nothing about the typed name is
+    // ever wrong in that case, so attributing it to the field would tell the user to fix the one
+    // thing that is not the problem.
     const message = 'account already exists for this subject';
     expect(classifyCreateAccountError(message)).toEqual({ error: message });
   });

@@ -15,6 +15,7 @@ import { useConsoleScope } from '../client/use-console-scope';
 import { SETTINGS_DIALOG_OPTIONS, useSettingsParams } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
+import { isOwnedAccountId } from './account-ownership';
 import { toProjectSettingsRows } from './project-settings-rows';
 import { classifyProjectNameError } from './rpc-field-error';
 
@@ -112,8 +113,14 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
 
   /**
    * Presentation-only mirror of `model.Project.update`'s `@@allow` gate (`authz.cstack` —
-   * `account.id == auth().id || members.some.accountId == auth().id`). The real enforcement is
-   * `lightbridge-authz`'s own RBAC check; this only avoids offering a control that would fail.
+   * `account.userId == auth().id || members.some.accountId == auth().id`). The real enforcement
+   * is `lightbridge-authz`'s own RBAC check; this only avoids offering a control that would fail.
+   *
+   * ADR-0026: ownership is `account.userId === session.user.sub`, not `account.id ===
+   * session.user.sub` — the latter only ever held for a person's first (home) account. A second
+   * owned account gets a minted id but still carries the owner's `userId`, so this goes through
+   * `isOwnedAccountId` (`account-ownership.ts`) rather than comparing the scoped account's id to
+   * `sub` directly, which would wrongly report a genuinely-owned second account as not-mine.
    */
   let renameEligible: boolean;
   let renameReason: string | undefined;
@@ -123,7 +130,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
   } else if (!session.user) {
     renameEligible = false;
     renameReason = 'Sign in to change project settings.';
-  } else if (session.user.sub !== scope.value.accountId) {
+  } else if (!isOwnedAccountId(scope.value.accountId, scope.allAccounts, session)) {
     renameEligible = false;
     renameReason = 'Only the account owner or a project member can rename a project.';
   } else {
@@ -189,7 +196,10 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
       onNext: () => void setView({ page: view.page + 1 }),
     },
     onSelectRow: (project: ProjectSettingsRow) => {
-      void setView({ renameProjectId: project.id, projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      void setView(
+        { renameProjectId: project.id, projectNameOpen: false },
+        SETTINGS_DIALOG_OPTIONS
+      );
     },
     selectedProjectId: view.renameProjectId || undefined,
   };
@@ -198,7 +208,8 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     open: selectedProject !== null,
     project: selectedProject,
     onOpenChange: (open) => {
-      if (!open) void setView({ renameProjectId: '', projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      if (!open)
+        void setView({ renameProjectId: '', projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
     },
     onRename: () => {
       if (!renameEligible || selectedProject === null) return;

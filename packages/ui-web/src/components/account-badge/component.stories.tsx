@@ -83,6 +83,25 @@ export const SwitcherLight: Story = {
   args: Switcher.args,
 };
 
+/**
+ * ADR-0026 (lightbridge-authz#564, one identity may own several accounts): the switcher's own
+ * `+ New account` row, separated from the account list by `OVERLAY_SEPARATOR_CLASS` — same
+ * treatment `Copy account id` already gets below it.
+ */
+export const SwitcherWithNewAccount: Story = {
+  name: 'Switcher — with + New account',
+  args: { ...Switcher.args, onCreateAccount: () => {} },
+};
+
+export const SwitcherWithNewAccountOpen: Story = {
+  name: 'Switcher — with + New account, open',
+  args: SwitcherWithNewAccount.args,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Switch account/ }));
+  },
+};
+
 /** Exactly one reachable account — NOT a switcher. A dropdown onto a single option is chrome
  *  imitating a control, so the badge stays text. */
 export const SingleAccount: Story = {
@@ -126,15 +145,16 @@ export const SidebarVariantOpen: Story = {
 };
 
 /**
- * Addition 6 (owner review) — the case that shipped broken: this backend seats exactly ONE
- * account per identity for almost every real sign-in, so the sidebar switcher must still read
- * and behave as a real dropdown (account list, even a list of one, + "Copy account id") rather
- * than silently falling to a copy-only button with no chevron and no menu. No account-creation
- * item — the backend policy is one account per identity; `createAccount` conflicts otherwise.
+ * Addition 6 (owner review) — the case that shipped broken: even with exactly one account, the
+ * sidebar switcher must still read and behave as a real dropdown (account list, even a list of
+ * one, + "Copy account id") rather than silently falling to a copy-only button with no chevron
+ * and no menu. `onCreateAccount` is a SECOND, independent reason this stays a real dropdown post
+ * ADR-0026 (lightbridge-authz#564): one identity may now own several accounts, so "+ New account"
+ * is always a live action here, not gated behind already having 2+.
  */
 export const SidebarVariantSingleAccount: Story = {
   name: 'Sidebar variant — single account (the common real case)',
-  args: { ...SingleAccount.args, variant: 'sidebar', initials: 'AG' },
+  args: { ...SingleAccount.args, variant: 'sidebar', initials: 'AG', onCreateAccount: () => {} },
   decorators: SidebarVariant.decorators,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

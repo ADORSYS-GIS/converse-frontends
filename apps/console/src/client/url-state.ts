@@ -74,6 +74,37 @@ export function useScopeParams() {
   return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
 }
 
+// ── shared: create-account dialog ───────────────────────────────────────────────────────────
+
+/**
+ * `?new-account=true` — whether the create-account dialog is open, read from wherever it can be
+ * triggered.
+ *
+ * ADR-0026 (lightbridge-authz#564, "one identity may own many accounts") turned "+ New account"
+ * into a standing action reachable from two structurally separate places at once: the workspace
+ * switcher (chrome — mounted once, present on every route, `console-chrome.tsx`) and
+ * `/settings/account`'s own `PageHeader`. Both have to open the SAME dialog instance, the same way
+ * `scopeParsers` above is the account/project scope every zone reads without knowing the others
+ * exist. That rules out a lifted local `useState` (`useConsolePalette`'s own pattern): the palette
+ * is only ever triggered from chrome, so lifting it to `app/(console)/layout.tsx` and threading a
+ * prop down to the two chrome zones is enough — this dialog also needs to open from inside a
+ * routed screen's own subtree, which the layout cannot hand a prop to. Real view state instead —
+ * Back closes it, same as every other dialog flag in this module — declared here rather than
+ * under `settingsParsers` because chrome is not itself a route.
+ */
+export const createAccountParsers = {
+  open: parseAsBoolean.withDefault(false),
+};
+
+const createAccountUrlKeys = { open: 'new-account' };
+
+export function useCreateAccountDialogParams() {
+  return useQueryStates(createAccountParsers, {
+    urlKeys: createAccountUrlKeys,
+    history: 'push' as const,
+  });
+}
+
 // ── report export — shared vocabulary (`/`, `/projects`) ────────────────────────────────────
 
 /**
@@ -157,7 +188,11 @@ export const overviewParsers = {
   include: reportIncludeParser,
 };
 
-const overviewUrlKeys = { groupBy: 'group-by', reportOpen: 'report', reportGroupBy: 'report-group' };
+const overviewUrlKeys = {
+  groupBy: 'group-by',
+  reportOpen: 'report',
+  reportGroupBy: 'report-group',
+};
 
 export function useOverviewParams() {
   return useQueryStates(overviewParsers, { urlKeys: overviewUrlKeys, history: 'replace' });
@@ -311,12 +346,13 @@ export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
  *
  * `accountNameOpen` (`?account-name=true`) moved here from `manageParsers` together with
  * `AccountPanel` itself (owner, 2026-08-29: "We cannot modify account core information on the same
- * page we're filtering"). It stays ONE param and not two even though the dialog drives two
- * different procedures (`createAccount` / `updateAccountName`), because which one it drives is not
- * a choice the user makes — it is derived from whether the signed-in subject already holds an
- * account. Putting a `mode` in the URL would let a link assert a mode the data contradicts. The
- * wire key stays `account-name`, deliberately distinct from scope's own `account` (which carries
- * an id, not a flag).
+ * page we're filtering"). Under ADR-0026 it drives exactly one procedure now —
+ * `updateAccountName`, renaming whichever account is currently SCOPED — not two: `createAccount`
+ * moved out to its own cross-route flag (`createAccountParsers.open`, `?new-account=`) once
+ * account creation stopped being something the data alone could derive ("does this identity
+ * already have an account" stopped being the question the moment one identity could hold several).
+ * The wire key stays `account-name`, deliberately distinct from scope's own `account` (which
+ * carries an id, not a flag) and from the new `new-account` flag (a different write entirely).
  *
  * `renameProjectId` (`?row=<project id>`) carries an ID rather than a boolean, which is the one
  * structural difference from every other dialog param in this module: the account dialog has
@@ -423,6 +459,7 @@ export function useAdminParams() {
  */
 export const URL_PARAM_CONTRACT = {
   scope: { parsers: scopeParsers, urlKeys: scopeUrlKeys },
+  createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },

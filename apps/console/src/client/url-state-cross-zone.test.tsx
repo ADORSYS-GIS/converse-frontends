@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import { OVERVIEW_SELECTION_OPTIONS, useOverviewParams, useScopeParams } from './url-state';
+import {
+  OVERVIEW_SELECTION_OPTIONS,
+  useCreateAccountDialogParams,
+  useOverviewParams,
+  useScopeParams,
+} from './url-state';
 
 /**
  * The claim ADR 0011 Decision 2 actually makes — **"the URL is the cross-zone state bus"** — and
@@ -163,3 +168,57 @@ describe('scope', () => {
   });
 });
 
+/**
+ * ADR-0026 (lightbridge-authz#564, one identity may own several accounts): "+ New account" opens
+ * from two structurally separate subtrees — the workspace switcher, mounted in the chrome, and
+ * `/settings/account`'s own `PageHeader` action — that share nothing but the query string, the
+ * same shape `scope` above already proves out. `Switcher`/`Screen` below stand in for those two.
+ */
+function Switcher() {
+  const [, setParams] = useCreateAccountDialogParams();
+  return (
+    <button type="button" onClick={() => void setParams({ open: true })}>
+      switcher: + New account
+    </button>
+  );
+}
+
+function Screen() {
+  const [params, setParams] = useCreateAccountDialogParams();
+  return (
+    <div>
+      <output data-testid="create-account-open">{String(params.open)}</output>
+      <button type="button" onClick={() => void setParams({ open: false })}>
+        screen: cancel
+      </button>
+    </div>
+  );
+}
+
+describe('createAccount dialog', () => {
+  it('opens from the switcher and is read by the settings screen sharing nothing else', async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    render(
+      <>
+        <Switcher />
+        <Screen />
+      </>,
+      { wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }) }
+    );
+
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
+
+    await user.click(screen.getByRole('button', { name: 'switcher: + New account' }));
+
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('true');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
+    // Real view state: Back closes it, same as every other dialog flag in this module.
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('push');
+
+    await user.click(screen.getByRole('button', { name: 'screen: cancel' }));
+
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
+  });
+});

@@ -26,6 +26,13 @@ export interface AccountBadgeProps {
    */
   onCopyId?: (accountId: string) => void;
   /**
+   * Opens the create-account dialog — the switcher's trailing `+ New account` row (ADR-0026,
+   * lightbridge-authz#564: one identity may own several accounts). On its own it is also enough to
+   * make the badge a real switcher: with as few as one account, there is still something to DO
+   * here even though there is nothing yet to switch BETWEEN.
+   */
+  onCreateAccount?: () => void;
+  /**
    * `inline` (default) — the compact identity-row chip this component has always rendered, sized
    * for the mobile top bar. `sidebar` — a full-width `workspace-switcher-row` with a leading
    * initials chip, for `ConsoleSidebar`'s workspace switcher slot (shell brief 2026-08-30, "the

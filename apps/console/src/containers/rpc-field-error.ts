@@ -47,10 +47,12 @@ export type AccountNameFieldErrors = {
  * Routes a `createAccount` / `updateAccountName` failure onto the dialog's single field, or onto
  * the general line.
  *
- * The realistic general failure is `createAccount`'s `Error::Conflict` — "account already exists
- * for this subject": one JWT subject holds at most one account (ADR-0006), and a second call is a
- * conflict rather than an upsert. That message mentions "account", not "name", so it must NOT be
- * routed to the field — pinning that is the point of the `account`-before-`name` ordering here.
+ * ADR-0026 killed the old "one JWT subject holds at most one account" contract — a repeat
+ * `createAccount` call is an ordinary success now, creating an additional account, not a
+ * `Error::Conflict`. `Conflict` ("account already exists for this subject") survives for exactly
+ * one case: two concurrent bootstraps racing to create an identity's very first account. That
+ * message mentions "account", not "name", so it must NOT be routed to the field — pinning that is
+ * the point of the `account`-before-`name` ordering here.
  */
 export function classifyCreateAccountError(message: string): AccountNameFieldErrors {
   if (mentions(message, 'already exists', 'conflict')) {

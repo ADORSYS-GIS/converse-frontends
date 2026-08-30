@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
-import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
+import userEvent from '@testing-library/user-event';
+import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AccountSettingsScreen as AccountSettingsScreenData } from './use-account-settings-screen';
@@ -66,10 +67,15 @@ function baseScreen(overrides: Partial<AccountSettingsScreenData> = {}): Account
   };
 }
 
-async function renderCentre(overrides: Partial<AccountSettingsScreenData> = {}) {
+async function renderCentre(
+  overrides: Partial<AccountSettingsScreenData> = {},
+  onUrlUpdate?: (event: UrlUpdateEvent) => void
+) {
   useAccountSettingsScreenMock.mockReturnValue(baseScreen(overrides));
   const { AccountSettingsCentre } = await import('./account-settings-centre');
-  return render(<AccountSettingsCentre />, { wrapper: withNuqsTestingAdapter() });
+  return render(<AccountSettingsCentre />, {
+    wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }),
+  });
 }
 
 describe('AccountSettingsCentre', () => {
@@ -123,14 +129,14 @@ describe('AccountSettingsCentre', () => {
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
 
-  it('mounts the account dialog on this screen, opened from the URL flag', async () => {
+  it('mounts the RENAME account dialog on this screen, opened from the URL flag', async () => {
     await renderCentre({
       accountNameDialog: {
         open: true,
-        mode: 'create',
+        mode: 'rename',
         subjectLabel: 'auth0|9f3a',
-        currentlyNamed: false,
-        name: '',
+        currentlyNamed: true,
+        name: 'Widgets Ltd',
         onNameChange: vi.fn(),
         submitting: false,
         canSubmit: true,
@@ -139,7 +145,47 @@ describe('AccountSettingsCentre', () => {
       },
     });
 
-    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Create account');
+    // ADR-0026: `create` mode no longer mounts here at all — `useAccountSettingsScreen`'s own
+    // dialog only ever renames the SCOPED account now. See the "+ New account" tests below for
+    // where `create` actually lives (the shared, layout-level dialog this screen only triggers).
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Rename account');
+  });
+
+  it('opens the shared create-account dialog (`?new-account=`) from the PageHeader action', async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    await renderCentre({}, onUrlUpdate);
+
+    await user.click(screen.getByRole('button', { name: '+ New account' }));
+
+    // This screen does not render the create dialog itself (see `account-settings-centre.tsx`'s
+    // own doc comment) — it only has to flip the URL flag the layout-mounted instance reads.
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('push');
+  });
+
+  it('opens the same shared create-account dialog from the empty account panel', async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    await renderCentre(
+      {
+        accountSettings: {
+          panel: {
+            account: null,
+            loading: false,
+            onCreate: vi.fn(),
+            onRename: vi.fn(),
+            onRetry: vi.fn(),
+          },
+          details: null,
+        },
+      },
+      onUrlUpdate
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
   });
 
   it('shows the account id, status and quota tier as read-only rows', async () => {

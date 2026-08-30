@@ -151,7 +151,7 @@ export const STORY_ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
 // consistency pass: this used to be mono/uppercase/tracked, the pre-revamp header band's face,
 // which the console-ui skill's "no uppercase labels" rule already ruled out for real chrome).
 export const storyBrand = (
-  <span className="inline-flex items-center gap-2 font-sans text-xs text-ink">
+  <span className="text-ink inline-flex items-center gap-2 font-sans text-xs">
     <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
       <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
     </svg>
@@ -166,20 +166,31 @@ export const storyWorkspaceSwitcher = (
     name="adorsys-gis"
     accountId={STORY_ACCOUNT_ID}
     onCopyId={() => {}}
+    onCreateAccount={() => {}}
   />
 );
 
 /** The same switcher with an UNNAMED account — the state production is actually in today. */
 export const storyWorkspaceSwitcherUnnamed = (
-  <AccountBadge variant="sidebar" accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} />
+  <AccountBadge
+    variant="sidebar"
+    accountId={STORY_ACCOUNT_ID}
+    onCopyId={() => {}}
+    onCreateAccount={() => {}}
+  />
 );
 
 export const storyTopBarWorkspaceSwitcher = (
-  <AccountBadge name="adorsys-gis" accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} />
+  <AccountBadge
+    name="adorsys-gis"
+    accountId={STORY_ACCOUNT_ID}
+    onCopyId={() => {}}
+    onCreateAccount={() => {}}
+  />
 );
 
 export const storyTopBarWorkspaceSwitcherUnnamed = (
-  <AccountBadge accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} />
+  <AccountBadge accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} onCreateAccount={() => {}} />
 );
 
 /**

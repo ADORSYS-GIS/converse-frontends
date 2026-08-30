@@ -34,6 +34,11 @@ const CHIP_CLASS = 'account-chip focus-ring';
 // — the SAME identity-row content, worn as a full-width `ConsoleSidebar` row instead of a compact
 // header chip. `workspace-switcher-row` already carries the hover fill and hit target; only the
 // focus ring is added at the call site, same split `CHIP_CLASS` makes above.
+//
+// Addition (ADR-0026, lightbridge-authz#564): "the backend seats one account per identity" is no
+// longer true — one identity may now own several — so account CREATION belongs in this switcher
+// after all, as a trailing `+ New account` menu item, separated by `OVERLAY_SEPARATOR_CLASS` the
+// same way the `Copy account id` action already is below.
 const SIDEBAR_ROW_ONLY_CLASS = 'workspace-switcher-row';
 const SIDEBAR_CHIP_CLASS = 'workspace-switcher-row focus-ring';
 
@@ -66,7 +71,8 @@ function displayName(name: string | null | undefined, accountId: string) {
 //  - Scope is identity, not a filter: it reads once at the top of the chrome; toolbars filter
 //    within it.
 //  - Show a name; degrade to a token (`acct_49534505`), never raw hex. Full id on hover/copy.
-//  - A switcher only with 2+ reachable accounts — a menu of one is chrome imitating a control.
+//  - A switcher only with 2+ reachable accounts to pick between, OR an `onCreateAccount` action to
+//    offer — a bare inline chip with neither is chrome imitating a control.
 //
 // Base UI's Menu owns every bit of the switcher's behaviour (focus, typeahead, dismissal); the
 // popup's paint is the console's shared overlay contract from lib/overlay.ts, not a local one.
@@ -80,6 +86,7 @@ export function AccountBadge({
   accounts,
   onSelectAccount,
   onCopyId,
+  onCreateAccount,
   variant = 'inline',
   initials,
   className,
@@ -90,17 +97,13 @@ export function AccountBadge({
   // stays plain text/a copy-only button until there is genuinely something to switch BETWEEN.
   //
   // `sidebar` (Addition 6, owner review — the workspace switcher must "read and behave as a real
-  // dropdown"): this backend seats exactly one account per identity in the overwhelming common
-  // case, so gating the switcher's popup behind 2+ accounts left it looking like a dropdown
-  // (chevron aside) that silently did nothing for almost every real sign-in — clicking it fell
-  // straight to the copy-only button branch below, no menu, no chevron. The popup itself already
-  // earns its keep with exactly one account listed: it still shows which account you are in AND
-  // carries the "Copy account id" action neither of the other two branches offers. Account
-  // CREATION is deliberately not added here — the backend seats one account per identity;
-  // `createAccount` conflicts against a second attempt (owner note, Addition 6).
+  // dropdown"): even before ADR-0026, this earned its keep with exactly one account listed — it
+  // still shows which account you are in AND carries the "Copy account id" action neither of the
+  // other two branches offers. `onCreateAccount` (ADR-0026) is a second, independent reason to
+  // open the popup: "+ New account" is a real action even with zero accounts to switch BETWEEN.
   const canSwitch = sidebar
-    ? Boolean(accounts?.length) && Boolean(onSelectAccount || onCopyId)
-    : Boolean(onSelectAccount) && (accounts?.length ?? 0) > 1;
+    ? Boolean(accounts?.length) && Boolean(onSelectAccount || onCopyId || onCreateAccount)
+    : Boolean(onCreateAccount) || (Boolean(onSelectAccount) && (accounts?.length ?? 0) > 1);
   const rowOnlyClass = sidebar ? SIDEBAR_ROW_ONLY_CLASS : ROW_ONLY_CLASS;
   const chipClass = sidebar ? SIDEBAR_CHIP_CLASS : CHIP_CLASS;
 
@@ -192,6 +195,14 @@ export function AccountBadge({
                   <Menu.Separator className={OVERLAY_SEPARATOR_CLASS} />
                   <Menu.Item className={OVERLAY_ITEM_CLASS} onClick={() => onCopyId(accountId)}>
                     Copy account id
+                  </Menu.Item>
+                </>
+              ) : null}
+              {onCreateAccount ? (
+                <>
+                  <Menu.Separator className={OVERLAY_SEPARATOR_CLASS} />
+                  <Menu.Item className={OVERLAY_ITEM_CLASS} onClick={onCreateAccount}>
+                    + New account
                   </Menu.Item>
                 </>
               ) : null}

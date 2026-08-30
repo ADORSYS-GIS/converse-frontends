@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:https": "next dev --turbopack --experimental-https",
-    "build:web": "next build --webpack",
+    "build:web": "next build --webpack && node scripts/link-standalone-cratestack.mjs",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

@@ -1,10 +1,14 @@
-import {
-  AuthzRpcRuntime,
-  LightbridgeAuthzRpcClient,
-  ensureCborCodecReady,
-} from '@lightbridge/authz-rpc';
-
 import { serverEnv } from './env';
+
+/** Lazily imported so a missing/untraceable codec package degrades to the guard's fail-closed
+ *  path (403 with a logged reason) instead of killing the whole route MODULE at import — the
+ *  exact failure mode of the 2026-08-30 prod incident (bare 500, empty body, nothing logged:
+ *  Next never reached a handler). `next.config.mjs`'s serverExternalPackages +
+ *  outputFileTracingIncludes are the fix; this lazy boundary is the guarantee the symptom can
+ *  never be a silent 500 again. */
+async function loadRpc() {
+  return import('@lightbridge/authz-rpc');
+}
 
 /**
  * Server-side (never-browser) `authz-api` RPC calls backing `usage-scope-guard.ts`'s two async
@@ -33,7 +37,8 @@ import { serverEnv } from './env';
  * cheap object allocation per guard check, not a connection.
  */
 
-async function authzClient(accessToken: string): Promise<LightbridgeAuthzRpcClient> {
+async function authzClient(accessToken: string) {
+  const { AuthzRpcRuntime, LightbridgeAuthzRpcClient, ensureCborCodecReady } = await loadRpc();
   await ensureCborCodecReady();
   const env = serverEnv();
   const runtime = new AuthzRpcRuntime(env.backendUrl, {

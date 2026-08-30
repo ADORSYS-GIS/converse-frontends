@@ -69,6 +69,33 @@ const nextConfig = {
   // only what `apps/console/server.js` actually requires at runtime gets copied in. See
   // `apps/console/Dockerfile` for the container build that consumes this output.
   output: 'standalone',
+
+  // ── The usage scope guard's CBOR codec must survive standalone tracing (2026-08-30 incident:
+  // every /api/usage call 500ed in prod with an empty body). `server/authz-account-lookup.ts` is
+  // the FIRST server-side consumer of `@cratestack/cbor` — until it, CBOR was browser-bundle-only,
+  // so the standalone tracer had never needed the packages and the container shipped without them;
+  // webpack externalizes the native N-API addon, the route module threw at import, and Next
+  // answered a bare 500 before any handler (or its fail-closed 403) could run.
+  //
+  // `serverExternalPackages` keeps webpack from trying to bundle the native addon;
+  // `outputFileTracingIncludes` forces the whole @cratestack codec family (including the
+  // per-platform `cbor-node-*` binary package pnpm installs for the BUILDER's platform — linux on
+  // CI, which is what the runtime container needs; see the Dockerfile's libc6-compat note) into
+  // `.next/standalone/`. The glob is store-layout based (`node_modules/.pnpm/...`) because that is
+  // where pnpm materializes packages in this workspace.
+  serverExternalPackages: ['@cratestack/cbor', '@cratestack/cbor-node', '@cratestack/cbor-web'],
+  outputFileTracingRoot: new URL('../../', import.meta.url).pathname,
+  outputFileTracingIncludes: {
+    '/api/usage/[...path]/route': [
+      './node_modules/.pnpm/@cratestack+cbor*/**',
+      '../../node_modules/.pnpm/@cratestack+cbor*/**',
+    ],
+    '*': [
+      '../../node_modules/.pnpm/@cratestack+cbor*/**',
+      '../../node_modules/@cratestack/**',
+      '../../packages/authz-rpc/node_modules/@cratestack/**',
+    ],
+  },
   // The workspace packages ship raw TypeScript (`main: src/index.ts`), so Next has to compile
   // them itself. `@lightbridge/chart-core` is the DOM-free chart math package `ui-web` consumes
   // directly (ADR 0009 Decision 5) — the React Native UI package is no longer part of the

@@ -1,29 +1,12 @@
 import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { RefineManageScreen } from './refine-manage-screen';
 import { RefineMockRoot } from './refine-decorator';
 
 describe('RefineManageScreen', () => {
-  // `useIsBelowLg` (used by the Manage screen to gate the selection-driven, compact-tier SELECTION
-  // sheet — see that hook's own docstring) defaults to "assume below lg" when `matchMedia` is
-  // unavailable, which jsdom doesn't implement here. Simulate `lg` so row selection only
-  // retargets the persistent inline rail, not also a second copy inside an auto-opened sheet.
-  beforeEach(() => {
-    window.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })) as unknown as typeof window.matchMedia;
-  });
-
-  afterEach(() => {
-    // @ts-expect-error - restore jsdom's own "matchMedia does not exist" baseline.
-    delete window.matchMedia;
-  });
-
   it('adapts useTable loading/data state into the Manage sections’ props: skeleton while loading, then the live ledger', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
@@ -40,7 +23,7 @@ describe('RefineManageScreen', () => {
     expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
   });
 
-  it('adapts row selection into the SELECTION rail panel, driven by useTable result data', async () => {
+  it('adapts row selection into a DetailSheet hosting ProjectDetail, driven by useTable result data', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20] }}>
         <RefineManageScreen />
@@ -48,18 +31,13 @@ describe('RefineManageScreen', () => {
     );
 
     await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());
-    expect(screen.getByText('No rows selected.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     const rows = screen.getAllByRole('row').slice(1);
     fireEvent.click(rows[0]);
 
-    await waitFor(() => expect(screen.queryByText('No rows selected.')).not.toBeInTheDocument());
-    // `Card`'s title (`Selection`) and its `children` (the selection rail) are siblings inside
-    // the card's own `<section>`, not nested one under the other — `Card`, unlike the deleted
-    // `RailPanel`, keeps the head row and the body as separate rows of one section (shell brief
-    // 2026-08-30). `closest('section')` is the shared container both actually sit in.
-    const selectionPanel = screen.getByText('Selection').closest('section') as HTMLElement;
-    expect(within(selectionPanel).getByText('adorsys-gis')).toBeInTheDocument();
+    const sheet = await screen.findByRole('dialog', { name: 'gateway-prod' });
+    expect(within(sheet).getByText('adorsys-gis')).toBeInTheDocument();
   });
 
   it('adapts a getList failure into the Manage sections’ error props (ErrorLine + Retry)', async () => {

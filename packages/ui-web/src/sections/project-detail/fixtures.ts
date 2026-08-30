@@ -1,4 +1,5 @@
-// The selected row shown in manage-projects.svg's SELECTION panel.
+// The rows `DetailSheet` shows for a selected project — moved here from the deleted
+// `manage-selection-rail/fixtures.ts`.
 
 import { manageProjectsFixture } from '../manage-projects-ledger/fixtures';
 import type { ProjectRow } from '../manage-projects-ledger/types';

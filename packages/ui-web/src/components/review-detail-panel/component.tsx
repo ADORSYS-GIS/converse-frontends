@@ -97,9 +97,9 @@ export function ReviewDetailPanel({
 }: ReviewDetailPanelProps) {
   // SANCTIONED LOCAL STATE (console-ui skill "State" — pre-submit validation display): whether
   // the reviewer has attempted to Decline with an empty note. Purely a display concern for the
-  // CURRENT selection; the host containers key this panel by request id
-  // (`admin-rail.tsx`/`admin-centre.tsx`) so switching the selected request always remounts it
-  // fresh rather than carrying a stale validation flag onto a different request.
+  // CURRENT selection; the host container (`admin-centre.tsx`, and its Storybook/refine-mock
+  // counterparts) keys this panel by request id so switching the selected request always remounts
+  // it fresh rather than carrying a stale validation flag onto a different request.
   const [noteMissing, setNoteMissing] = useState(false);
 
   const handleNoteChange = (value: string) => {

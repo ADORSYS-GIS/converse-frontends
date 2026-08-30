@@ -27,9 +27,11 @@ import {
  * `client/console-chrome.tsx` read the session, the scope and the pathname themselves), so this
  * layout has nothing left to compute or thread through props — no `route`, no per-route rail
  * gating, no `leftSecondary`/`rightRail` slot content. What used to live in the deleted `@rail`
- * and `@scope` parallel-route slots now lives directly inside the affected centres
- * (`containers/manage-centre.tsx`, `containers/admin-centre.tsx` render their own right-hand
- * `<aside>` at `lg`; every other screen's parameters moved into its own `PageHeader.controls`).
+ * and `@scope` parallel-route slots now lives directly inside the affected centres: every screen's
+ * parameters are its own `PageHeader.controls`, and phase 3 (2026-08-30, right rail out) replaced
+ * `containers/manage-centre.tsx`/`containers/admin-centre.tsx`'s temporary right-hand `<aside>`
+ * (their own phase-2 placeholder for the deleted `@rail` slot) with a `DetailSheet` that opens on
+ * row selection, at every tier — the console has no persistent rail anywhere any more.
  *
  * The ONE piece of state this layout still owns is the command palette's open/shortcut state
  * (`useConsolePalette`) — it has to be lifted here rather than owned by either chrome zone,

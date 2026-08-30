@@ -1,26 +1,34 @@
 // Page-level acceptance story for ADMIN BUDGET REVIEW — sections composed inside `ConsoleShell`
 // with the section fixtures, 1:1 against docs/design/console-redesign/admin-budget-review.svg.
 //
+// Shell revamp phase 3 (right rail out): the right-hand REVIEW aside is gone. The review detail
+// is a `DetailSheet` that opens on row pick and hosts `ReviewDetailPanel` directly — it already
+// owned its whole decision surface, so it needs no section of its own the way `ProjectDetail`
+// wraps `ManageSelectionRail`'s old content on `/manage` — at every tier, the same way.
+//
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
 
-import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
-import type { ReviewDecision } from '../components/review-detail-panel';
-import { SelectionSheet } from '../components/selection-sheet';
-import { SubNav } from '../components/sub-nav';
+import { DetailSheet } from '../components/detail-sheet';
+import { ReviewDetailPanel } from '../components/review-detail-panel';
+import type { ReviewDecision, ReviewHistoryRow } from '../components/review-detail-panel';
 import { DecisionsLedger } from '../sections/decisions-ledger';
 import { recentDecisionsFixture } from '../sections/decisions-ledger/fixtures';
-import { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from '../sections/review-detail-rail';
-import { gatewayProdHistory } from '../sections/review-detail-rail/fixtures';
 import { ReviewQueue } from '../sections/review-queue';
 import { pendingRequestsFixture } from '../sections/review-queue/fixtures';
 import type { AdminReviewTab, RefillRequestRow } from '../sections/review-queue';
 import { PageHeader } from '../sections/page-header';
-import { adminSubNavItems, storySidebar, storyTopBar } from './shell-fixtures';
+import { storySidebar, storyTopBar } from './shell-fixtures';
+
+// admin-budget-review.svg's review-detail history — moved here from the deleted
+// `sections/review-detail-rail/fixtures.ts`.
+const gatewayProdHistory: ReviewHistoryRow[] = [
+  { id: 'h1', label: '2 previous refills', amount: 350, meta: 'last 2026-02-08 · approved by sam' },
+];
 
 interface AdminScreenProps {
   pending?: RefillRequestRow[];
@@ -68,82 +76,59 @@ function AdminBudgetReviewScreen({
     }, 300);
   }
 
-  const reviewRail = (
-    <ReviewDetailRail
-      detail={
-        selected
-          ? {
-              subject: selected.project,
-              requesterEmail: selected.requesterEmail,
-              submittedAt: selected.submittedAgo,
-              consumedAmount: selected.consumed ?? undefined,
-              ceilingAmount: selected.ceiling ?? undefined,
-              requestedAmount: selected.requestedAmount,
-              requesterNote:
-                'Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar.',
-              history: gatewayProdHistory,
-              note,
-              onNoteChange: setNote,
-              onDecide: (decision) => handleDecide(decision),
-              deciding,
-            }
-          : null
-      }
-    />
-  );
-
   return (
     <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* The former `leftSecondary` ADMIN sub-nav — a plain `Card`, visible from `md`, the tier
-            the old rail persisted at (shell brief 2026-08-30 dropped the shell's own rail slot;
-            this screen has no sheet-trigger equivalent for it, so it simply doesn't render below
-            `md`, same as before). */}
-        <div className="hidden w-[208px] flex-none md:flex">
-          <Card title="Admin" className="w-full">
-            <SubNav items={adminSubNavItems} />
-          </Card>
-        </div>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Budget refill review"
+          subtitle={`${pendingRows.length} request${pendingRows.length === 1 ? '' : 's'} awaiting a decision${
+            pendingRows.length > 0 ? ` · oldest submitted ${pendingRows[0]?.submittedAgo}` : ''
+          }`}
+        />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <PageHeader
-            title="Budget refill review"
-            subtitle={`${pendingRows.length} request${pendingRows.length === 1 ? '' : 's'} awaiting a decision${
-              pendingRows.length > 0 ? ` · oldest submitted ${pendingRows[0]?.submittedAgo}` : ''
-            }`}
-          />
+        <ReviewQueue
+          activeTab={tab}
+          onTabChange={setTab}
+          pendingCount={pendingRows.length}
+          decidedCount={26}
+          pending={pendingRows}
+          loading={loading}
+          error={error}
+          onRetry={() => {}}
+          selectedRequestId={selectedId}
+          onSelectRequest={(row) => setSelectedId(row.id)}
+        />
 
-          <ReviewQueue
-            activeTab={tab}
-            onTabChange={setTab}
-            pendingCount={pendingRows.length}
-            decidedCount={26}
-            pending={pendingRows}
-            loading={loading}
-            error={error}
-            onRetry={() => {}}
-            selectedRequestId={selectedId}
-            onSelectRequest={(row) => setSelectedId(row.id)}
-          />
-
-          <DecisionsLedger
-            decisions={decisions}
-            pagination={{ shown: decisions.length, total: 26, hasPrev: false, hasNext: true }}
-          />
-        </div>
-
-        {/* The former `rightRail` REVIEW detail — persistent only at `lg`, same as before; below
-            `lg` it stays reachable exclusively through the selection-driven `SelectionSheet`
-            below (it has no trigger of its own). */}
-        <div className="hidden lg:flex lg:w-[280px] lg:flex-none">
-          <Card className="w-full">{reviewRail}</Card>
-        </div>
+        <DecisionsLedger
+          decisions={decisions}
+          pagination={{ shown: decisions.length, total: 26, hasPrev: false, hasNext: true }}
+        />
       </div>
 
-      {/* REVIEW has no trigger of its own — it is selection-driven. */}
-      <SelectionSheet selectionKey={selectedId} label={REVIEW_DETAIL_RAIL_LABEL}>
-        {reviewRail}
-      </SelectionSheet>
+      <DetailSheet
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+        title={selected?.project ?? ''}>
+        {selected ? (
+          <ReviewDetailPanel
+            key={selected.id}
+            subject={selected.project}
+            requesterEmail={selected.requesterEmail}
+            submittedAt={selected.submittedAgo}
+            consumedAmount={selected.consumed ?? undefined}
+            ceilingAmount={selected.ceiling ?? undefined}
+            requestedAmount={selected.requestedAmount}
+            requesterNote="Q1 catalogue re-index lands this week; expect roughly $180 of extra spend before the period resets on 01 Mar."
+            history={gatewayProdHistory}
+            note={note}
+            onNoteChange={setNote}
+            onDecide={(decision) => handleDecide(decision)}
+            deciding={deciding}
+          />
+        ) : null}
+      </DetailSheet>
     </ConsoleShell>
   );
 }
@@ -158,7 +143,7 @@ export default meta;
 type Story = StoryObj<typeof AdminBudgetReviewScreen>;
 
 // Full page, populated 1:1 against admin-budget-review.svg — first pending row pre-selected,
-// right rail showing its review detail.
+// `DetailSheet` showing its review detail.
 export const Populated: Story = {
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
 };
@@ -170,7 +155,7 @@ export const PopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// A different request selected — confirms the right rail retargets per row.
+// A different request selected — confirms the sheet retargets per row.
 export const RequestSelected: Story = {
   render: () => <AdminBudgetReviewScreen initialSelectedId="agent-sandbox" />,
 };
@@ -184,20 +169,20 @@ export const ErrorState: Story = {
   render: () => <AdminBudgetReviewScreen pending={[]} error="Failed to load the review queue." />,
 };
 
-// `md` tier (600–1024) — ADMIN sub-nav stays inline; the right rail has no persistent
-// footer/peek bar. REVIEW has no trigger of its own: it is selection-driven, and a request is
-// pre-selected here, so the sheet opens itself on mount.
+// `md` tier (600–1024) — the same `DetailSheet`, opened by the same row pick, as `lg`.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await waitFor(() => expect(body.getByRole('dialog', { name: 'Review' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(body.getByRole('dialog', { name: 'gateway-prod' })).toBeInTheDocument()
+    );
   },
 };
 
 // Base tier (<600): single column, Pending/Decided tabs above a horizontally-scrollable queue,
-// nav docked as a fixed bottom navigation bar, REVIEW opens itself the same selection-driven way.
+// nav docked as a fixed bottom navigation bar, the same selection-driven `DetailSheet`.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,

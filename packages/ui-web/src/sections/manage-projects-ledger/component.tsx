@@ -1,14 +1,11 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { Button } from '../../components/button';
 import { ErrorLine } from '../../components/error-line';
-import { Field } from '../../components/field';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatUsd } from '../../lib/money';
-import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ManageProjectsLedgerProps, ProjectRow } from './types';
 
 function money(value: number | null): string {
@@ -19,9 +16,15 @@ const statusTextClass = (status: ProjectRow['status']): string =>
   status === 'suspended' ? 'text-primary' : status === 'unknown' ? 'text-subtle' : 'text-soft';
 
 // Contract: docs/design/console-redesign/README.md §5.3 (manage-projects.svg) — the centre zone
-// of the Manage screen: a search/new-project toolbar, the projects ledger with its totals footer,
-// and the pager. Money is right-aligned and always two decimals; `null` spend renders as an em
-// dash rather than a fabricated zero.
+// of the Manage screen: the projects ledger with its totals footer, and the pager. Money is
+// right-aligned and always two decimals; `null` spend renders as an em dash rather than a
+// fabricated zero.
+//
+// Shell revamp phase 3 (right rail out): search, `+ New project` and the FILTERS/MONTHLY REPORT
+// triggers used to open here, in a toolbar row above the table — the row is gone along with them.
+// Search is `ManageControls` in `PageHeader.controls`; `+ New project` and `Monthly report` are
+// both `PageHeader.action` now (see `manage-centre.tsx`), so this section owns only the table
+// itself.
 //
 // Divergence from `manage-projects.svg`: the mockup draws MEMBERS, KEYS, CEILING and USED as
 // numeric columns. None of the four have a real source — MEMBERS/KEYS aren't returned by the list
@@ -40,16 +43,9 @@ export function ManageProjectsLedger({
   onRetry,
   emptyMessage,
   totals,
-  search,
-  onSearchChange,
-  onNewProject,
-  newProjectDisabled = false,
-  newProjectReason,
   selectedRowKeys,
   onSelectRow,
   pagination,
-  toolbarActions,
-  reportTrigger,
   className,
 }: ManageProjectsLedgerProps) {
   const columns: LedgerColumn<ProjectRow>[] = [
@@ -95,34 +91,6 @@ export function ManageProjectsLedger({
 
   return (
     <div className={cn('flex flex-col gap-6', className)}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-end gap-2">
-          <Field
-            label="Search"
-            containerClassName="w-full md:w-[300px]"
-            placeholder="Find a project…"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-          {toolbarActions}
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <Button
-            type="button"
-            variant="primary"
-            onClick={onNewProject}
-            disabled={newProjectDisabled}
-            className="w-full md:w-auto md:self-end">
-            + New project
-          </Button>
-          {newProjectDisabled && newProjectReason ? (
-            <span className="text-subtle font-mono text-[11px] leading-[1.4]">
-              {newProjectReason}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />
       ) : isEmpty ? (
@@ -153,13 +121,6 @@ export function ManageProjectsLedger({
             : undefined
         }
       />
-
-      {reportTrigger ? (
-        <div className="flex items-center justify-between gap-3 lg:hidden">
-          <span className={LABEL_CLASS}>Monthly report</span>
-          {reportTrigger}
-        </div>
-      ) : null}
 
       {pagination ? (
         <div className="text-subtle flex items-center justify-between font-mono text-[10px]">

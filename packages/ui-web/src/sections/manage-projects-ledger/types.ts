@@ -49,31 +49,10 @@ export interface ManageProjectsLedgerProps {
   emptyMessage?: ReactNode;
   totals?: ManageTotals;
 
-  search: string;
-  onSearchChange: (value: string) => void;
-  /** Opens `CreateProjectDialog` (ticket #303) — the dialog owns its own submit-time error,
-   *  the same "one zone owns the dialog, the dialog owns its own error" shape
-   *  `CreateApiKeyDialog` established; this ledger no longer carries a `notice` for it. */
-  onNewProject: () => void;
-  /** Disables `+ New project` and states why — the presentation-only mirror of
-   *  `model.Project.create`'s owner-only gate (`use-manage-screen.ts`'s
-   *  `createProjectEligible`/`createProjectReason`), same companion-reason pattern
-   *  `ApiKeysRail`'s `+ New key` uses for its own lead/owner gate. */
-  newProjectDisabled?: boolean;
-  newProjectReason?: string;
-
   selectedRowKeys?: string[];
   onSelectRow: (row: ProjectRow) => void;
 
   pagination?: ManagePagination;
 
-  /** Compact-tier trigger slot beside the search field — where the FILTERS trigger sits. */
-  toolbarActions?: ReactNode;
-  /**
-   * Compact-tier trigger for MONTHLY REPORT. Rendered in its own `lg:hidden` labelled row below
-   * the table's totals footer rather than in the title row (judgement call: the report summarises
-   * exactly the aggregate figures shown in that footer, a tighter pairing than the page title).
-   */
-  reportTrigger?: ReactNode;
   className?: string;
 }

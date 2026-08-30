@@ -17,15 +17,7 @@ export default function ManageLoading() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Projects" subtitle="loading account…" />
 
-      <ManageProjectsLedger
-        projects={[]}
-        loading
-        loadingRowCount={8}
-        search=""
-        onSearchChange={noop}
-        onNewProject={noop}
-        onSelectRow={noop}
-      />
+      <ManageProjectsLedger projects={[]} loading loadingRowCount={8} onSelectRow={noop} />
     </div>
   );
 }

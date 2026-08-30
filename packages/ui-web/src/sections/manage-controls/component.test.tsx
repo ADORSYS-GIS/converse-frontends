@@ -2,11 +2,11 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ManageFiltersRail } from './component';
+import { ManageControls } from './component';
 import { manageAccountOptions, manageBudgetStateOptions, manageStatusOptions } from './fixtures';
-import type { ManageFiltersRailProps } from './types';
+import type { ManageControlsProps } from './types';
 
-function makeProps(overrides: Partial<ManageFiltersRailProps> = {}): ManageFiltersRailProps {
+function makeProps(overrides: Partial<ManageControlsProps> = {}): ManageControlsProps {
   return {
     accountValue: 'all',
     accountOptions: manageAccountOptions,
@@ -17,6 +17,8 @@ function makeProps(overrides: Partial<ManageFiltersRailProps> = {}): ManageFilte
     budgetStateValue: 'all',
     budgetStateOptions: manageBudgetStateOptions,
     onBudgetStateChange: vi.fn(),
+    search: '',
+    onSearchChange: vi.fn(),
     ...overrides,
   };
 }
@@ -28,10 +30,19 @@ function selectOption(element: HTMLElement) {
   fireEvent.click(element);
 }
 
-describe('ManageFiltersRail', () => {
+describe('ManageControls', () => {
+  it('renders the account, status, budget-state and search fields in one row', () => {
+    render(<ManageControls {...makeProps()} />);
+
+    expect(screen.getByLabelText('Account')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Project status' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Budget state')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
   it('fires onAccountChange from the account dropdown', async () => {
     const onAccountChange = vi.fn();
-    render(<ManageFiltersRail {...makeProps({ onAccountChange })} />);
+    render(<ManageControls {...makeProps({ onAccountChange })} />);
 
     fireEvent.click(screen.getByLabelText('Account'));
     selectOption(await screen.findByRole('option', { name: 'adorsys-labs' }));
@@ -41,7 +52,7 @@ describe('ManageFiltersRail', () => {
 
   it('fires onStatusChange from the segmented control', () => {
     const onStatusChange = vi.fn();
-    render(<ManageFiltersRail {...makeProps({ onStatusChange })} />);
+    render(<ManageControls {...makeProps({ onStatusChange })} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Suspended' }));
 
@@ -50,11 +61,28 @@ describe('ManageFiltersRail', () => {
 
   it('fires onBudgetStateChange from the budget-state dropdown', async () => {
     const onBudgetStateChange = vi.fn();
-    render(<ManageFiltersRail {...makeProps({ onBudgetStateChange })} />);
+    render(<ManageControls {...makeProps({ onBudgetStateChange })} />);
 
     fireEvent.click(screen.getByLabelText('Budget state'));
     selectOption(await screen.findByRole('option', { name: 'Quota set' }));
 
     expect(onBudgetStateChange).toHaveBeenCalledWith('quota-set');
+  });
+
+  it('fires onSearchChange from the search field', () => {
+    const onSearchChange = vi.fn();
+    render(<ManageControls {...makeProps({ onSearchChange })} />);
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'gateway' } });
+
+    expect(onSearchChange).toHaveBeenCalledWith('gateway');
+  });
+
+  it('is one landmark region, and a horizontal cluster, not a stacked rail', () => {
+    render(<ManageControls {...makeProps()} />);
+
+    const region = screen.getByRole('region', { name: 'Filters' });
+    expect(region).toHaveClass('flex-wrap', 'items-end');
+    expect(region).not.toHaveClass('flex-col');
   });
 });

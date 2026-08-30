@@ -8,7 +8,6 @@
 
 import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { ConsoleShell } from '../components/console-shell';
 import { presetRange } from '../components/date-range-field';
@@ -360,33 +359,15 @@ export const AdminNav: Story = {
   render: () => <OverviewScreen showAdmin />,
 };
 
-// `md` tier (600–1024): left rail persists inline; the right rail has NO persistent footer/peek
-// bar at all (owner revision 2026-08-25). Its sections are reached via contextual triggers
-// instead: VIEW and FILTERS beside the SPEND header, EXPORT beside the BUDGET header.
+// `md` tier (600–1024): left rail persists inline; Overview has no right rail at any tier — its
+// parameters are `OverviewControls`, inline in `PageHeader.controls`, which simply wraps here.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <OverviewScreen />,
 };
 
-// Same `md` tier, FILTERS trigger activated — the contextual trigger → `SectionSheet` flow end to
-// end: only the FILTERS section (not the whole rail) opens as a transient bottom sheet.
-export const MdTierFiltersSheetOpen: Story = {
-  name: 'md tier — FILTERS sheet open',
-  globals: { viewport: { value: 'md900' } },
-  render: () => <OverviewScreen />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Open filters' }));
-
-    // The sheet's `Drawer.Portal` renders to `document.body`, outside `canvasElement`.
-    const body = within(canvasElement.ownerDocument.body);
-    await waitFor(() => expect(body.getByRole('dialog', { name: 'FILTERS' })).toBeInTheDocument());
-  },
-};
-
 // Base tier (<600, a designed target): single column, stacked stat cards, nav docked as a fixed
-// bottom navigation bar, VIEW/FILTERS/EXPORT via the same contextual triggers as `md`, SCOPE via
-// the header's drawer trigger.
+// bottom navigation bar, `PageHeader.controls` wraps onto its own rows.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <OverviewScreen />,

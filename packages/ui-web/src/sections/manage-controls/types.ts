@@ -3,7 +3,7 @@ import type { SegmentedOption } from '../../components/segmented-control';
 
 export type ManageOption = SelectFieldOption;
 
-export interface ManageFiltersRailProps {
+export interface ManageControlsProps {
   accountValue: string;
   accountOptions: ManageOption[];
   onAccountChange: (value: string) => void;
@@ -13,5 +13,7 @@ export interface ManageFiltersRailProps {
   budgetStateValue: string;
   budgetStateOptions: ManageOption[];
   onBudgetStateChange: (value: string) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
   className?: string;
 }

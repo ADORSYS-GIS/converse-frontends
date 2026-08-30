@@ -2,7 +2,6 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { Button } from '../../components/button';
-import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
 import { BudgetPanel } from './component';
 import {
   overviewBudget,
@@ -84,13 +83,3 @@ export const ErrorState: Story = {
   },
 };
 
-export const MdTierWithTrigger: Story = {
-  globals: { viewport: { value: 'md900' } },
-  args: {
-    actions: (
-      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
-        <p className="text-ink font-mono text-xs">Export current view · CSV</p>
-      </SectionSheetTrigger>
-    ),
-  },
-};

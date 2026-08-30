@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
 import { ApiKeysLedger } from './component';
 import { apiKeysFixture, apiKeysNewSecret, apiKeysStatusSummary } from './fixtures';
 import type {
@@ -117,20 +116,6 @@ export const Loading: Story = { render: () => <Demo keys={[]} loading /> };
 
 export const ErrorState: Story = {
   render: () => <Demo keys={[]} error="Failed to load keys for this project." />,
-};
-
-// Compact tier: the FILTERS trigger appears in the toolbar row, beside the status line.
-export const MdTierWithTrigger: Story = {
-  globals: { viewport: { value: 'md900' } },
-  render: () => (
-    <Demo
-      toolbarActions={
-        <SectionSheetTrigger icon="filter" triggerLabel="Open filters" label="Filters">
-          <p className="font-mono text-xs text-ink">Status · Search</p>
-        </SectionSheetTrigger>
-      }
-    />
-  ),
 };
 
 // Base tier (<600): the ledger scrolls horizontally inside its own container — the page never

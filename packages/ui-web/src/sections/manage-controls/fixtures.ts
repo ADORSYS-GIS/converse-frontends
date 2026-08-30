@@ -1,4 +1,4 @@
-// manage-projects.svg's filter options, moved here from the deleted `pages/manage/fixtures.ts`.
+// manage-projects.svg's filter options, moved here from the deleted `manage-filters-rail/fixtures.ts`.
 
 import type { SegmentedOption } from '../../components/segmented-control';
 import type { ManageOption } from './types';

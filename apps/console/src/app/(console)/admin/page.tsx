@@ -16,9 +16,10 @@ export const dynamic = 'force-dynamic';
  * so a forged session could at most render an empty queue.
  *
  * Shell revamp phase 2 (2026-08-30): the `@rail`/`@scope` parallel-route slots this comment used
- * to describe are deleted — `AdminCentre` now renders its own right-hand review-detail aside
- * (`containers/admin-rail.tsx`) inline, as an ordinary component call inside this already-gated
- * tree, so there is no longer a sibling segment that could bypass this gate.
+ * to describe are deleted. Phase 3 (2026-08-30, right rail out) then deleted the temporary
+ * right-hand aside phase 2 had replaced them with — `AdminCentre` now renders its review detail as
+ * a `DetailSheet` inline, as an ordinary component call inside this already-gated tree, so there
+ * is no longer a sibling segment that could bypass this gate.
  */
 export default async function AdminRoute() {
   const session = await readSession();

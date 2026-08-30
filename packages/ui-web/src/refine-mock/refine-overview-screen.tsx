@@ -5,6 +5,17 @@
 // props, `query.isError` → error props, `result.data` → stat cards / chart series / budget) into
 // section props, and hands the shell its centre and its rail exactly the way `apps/console`'s
 // route + `@rail/page.tsx` pair does.
+//
+// Kept in step with `/`'s real composition (`apps/console/src/containers/overview-centre.tsx`,
+// IA v3 phase 4) — brought current 2026-08-31 after drifting behind two real changes: SPEND BY
+// MODEL renders through `RankedSeriesRows` now, not the deleted `SpendShareSection` usage here
+// (build brief §7), and `/` renders NO admin-only zone at all any more (BUDGET PRESSURE moved to
+// `/settings/overview/project`, KEY HYGIENE to `/settings/overview/account` — this mock harness
+// has no session/role concept and never rendered them anyway, but the comment claiming they were
+// merely "gated off" was itself stale: there is nothing left on `/` to gate). `BudgetPanel`'s own
+// props followed suit — `actions`/`heroAction` (IA v3 phase 3, "refill as a page") replace the
+// older `needsAttentionProject`/`onRequestRefill`/`refillRequestStatus`/`onReviewInAdmin` shape,
+// which `/` stopped passing before this mock was last touched.
 
 import React, { useMemo, useState } from 'react';
 import { useCustom } from '@refinedev/core';
@@ -12,6 +23,7 @@ import { useCustom } from '@refinedev/core';
 import { Card } from '../components/card';
 import { InlineStatus } from '../components/inline-status';
 import type { SelectFieldProps } from '../components/select-field';
+import { Button } from '../components/button';
 import { BudgetPanel } from '../sections/budget-panel';
 import { presetRange } from '../components/date-range-field';
 import { OverviewStatRow } from '../sections/overview-stat-row';
@@ -23,6 +35,7 @@ import {
   RANGE_PRESETS,
 } from '../sections/overview-controls/fixtures';
 import { PageHeader } from '../sections/page-header';
+import { RankedSeriesRows } from '../sections/ranked-series-rows';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import {
   formatOverviewSpendLegendValue,
@@ -30,8 +43,7 @@ import {
   formatOverviewSpendXTick,
   formatOverviewSpendYTick,
 } from '../sections/spend-dashboard/fixtures';
-import { SpendShareSection } from '../sections/spend-share';
-import { formatUsd } from '../lib/money';
+import { ZoneHeading } from '../lib/zone-heading';
 import type { OverviewSnapshot } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
 
@@ -64,11 +76,7 @@ export function RefineOverviewScreen() {
 
   const status = loading ? 'loading' : isError ? 'error' : 'ready';
   const spendSeries = useMemo(() => snapshot?.spendSeries ?? [], [snapshot]);
-  const modelSpendSegments = useMemo(() => snapshot?.modelSpendSegments ?? [], [snapshot]);
-  const modelSpendTotal = useMemo(
-    () => modelSpendSegments.reduce((sum, segment) => sum + segment.value, 0),
-    [modelSpendSegments]
-  );
+  const modelSpendRows = useMemo(() => snapshot?.modelSpendRows ?? [], [snapshot]);
 
   return (
     <RefineMockShell active="overview">
@@ -109,10 +117,8 @@ export function RefineOverviewScreen() {
         {/* Phase 4 — matches `apps/console/src/containers/overview-centre.tsx`'s own Card
             treatment: each zone below the stat row sits in a `Card`, with its own tracked
             `label` overridden to the composition's name rather than a second `Card.title`
-            stacked on top of it. The admin-only cards (Budget pressure, Key hygiene, Refill
-            requests) are gated behind `session.isAdmin` — this mock harness has no session/role
-            concept to drive that gate from, so they are left off here rather than shown
-            unconditionally, which is what the real container refuses to do too. */}
+            stacked on top of it. `/` renders NO admin-only zone at all (IA v3 phase 4 — see this
+            file's own doc comment), so there is nothing to gate here either. */}
         <Card>
           <SpendDashboard
             label="Spend over time"
@@ -132,17 +138,28 @@ export function RefineOverviewScreen() {
 
         {/* Phase 9.2 — "Spend by model" replaces the deleted LATENCY panel, for every user (never
             admin-gated): a second, model-grouped view of the same period `SpendDashboard` above
-            plots. `SpendShareSection` is reused verbatim (it hard-codes no project-specific
-            labelling). */}
+            plots. Renders through `RankedSeriesRows` (build brief §7), not the deleted
+            `SpendShareSection` usage this mock carried before. */}
         <Card>
-          <SpendShareSection
-            label="Spend by model"
-            segments={modelSpendSegments}
-            status={status}
-            errorMessage={errorMessage}
-            onRetry={() => overviewQuery.query.refetch()}
-            total={modelSpendTotal > 0 ? formatUsd(modelSpendTotal) : undefined}
-          />
+          <ZoneHeading label="Spend by model" />
+          {status === 'error' ? (
+            <InlineStatus className="mt-4">{errorMessage}</InlineStatus>
+          ) : status === 'loading' ? (
+            <div className="mt-4 flex flex-col gap-1">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="skeleton h-[28px]" />
+              ))}
+            </div>
+          ) : (
+            <RankedSeriesRows
+              className="mt-4"
+              rows={modelSpendRows}
+              selectedKey={selectedSeriesKey}
+              onSelect={setSelectedSeriesKey}
+              otherLabel={(count) => `Other (${count} models)`}
+              emptyMessage="No usage in this range."
+            />
+          )}
         </Card>
 
         <Card>
@@ -150,10 +167,11 @@ export function RefineOverviewScreen() {
             className="w-full"
             label="Budget"
             budget={snapshot?.budget ?? { value: 0, ceiling: 0, caption: '' }}
-            needsAttentionProject={snapshot?.needsAttentionProject}
-            onRequestRefill={() => {}}
-            refillRequestStatus={snapshot?.refillRequestStatus}
-            onReviewInAdmin={() => {}}
+            actions={
+              <Button variant="secondary" size="sm" type="button">
+                Request refill…
+              </Button>
+            }
           />
         </Card>
       </div>

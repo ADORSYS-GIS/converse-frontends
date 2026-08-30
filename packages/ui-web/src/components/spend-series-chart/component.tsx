@@ -11,7 +11,7 @@ import {
   makeLinearScale,
   makeTimeScale,
 } from '@lightbridge/chart-core';
-import { SPEC_FLOOR, seriesDash, specSeriesColor } from '../../chart-tokens';
+import { SPEC_BASELINE, SPEC_FLOOR, seriesDash, specSeriesColor } from '../../chart-tokens';
 import { ChartLegend } from '../chart-legend';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
@@ -19,8 +19,8 @@ import { ChartEmptyMessage } from '../../lib/chart-empty-message';
 import { ChartHitRegion } from '../../lib/chart-hit-region';
 import { useHoverActive } from '../../lib/use-hover-active';
 import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
-import { collectTimestamps, collectYDomain } from './domain';
-import type { SpendSeriesChartProps } from './types';
+import { collectTimestamps, collectYDomain, cumulateSeries, withGapSentinels } from './domain';
+import type { SpendSeriesChartProps, SpendSeriesSeries } from './types';
 
 const MIN_HIT_WIDTH = 44;
 const MARGIN = { ...DEFAULT_CHART_MARGIN, left: 52 };
@@ -55,6 +55,8 @@ export function SpendSeriesChart({
   formatLegendValue,
   onSelectSeries,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
+  cumulative = false,
+  ceiling,
 }: SpendSeriesChartProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   // Which timestamp index the tooltip is anchored to -- hover/focus-driven (`useHoverActive`),
@@ -66,7 +68,31 @@ export function SpendSeriesChart({
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
 
   const timestamps = useMemo(() => collectTimestamps(series), [series]);
-  const yDomain = useMemo(() => collectYDomain(series), [series]);
+
+  // `cumulative` runs each series to a running total over the FULL timestamp domain before
+  // anything downstream (the y-domain, the line/area path, the tooltip, the legend) ever sees it
+  // -- see `domain.ts`'s own doc comment for why a burn-down forward-fills instead of gapping.
+  const cumulatedSeries = useMemo(
+    () => (cumulative ? cumulateSeries(series, timestamps) : series),
+    [cumulative, series, timestamps]
+  );
+
+  // A ceiling breach reuses the SAME accent `series[].breached` already drives everywhere else in
+  // this component, rather than a second colour rule for this one case -- a series' last plotted
+  // value (its final running total, in cumulative mode) at or past `ceiling` is a breach.
+  const renderSeries = useMemo<SpendSeriesSeries[]>(() => {
+    if (ceiling === undefined) return cumulatedSeries;
+    return cumulatedSeries.map((s) => {
+      const last = s.points[s.points.length - 1];
+      const breached = s.breached || (last !== undefined && last.y >= ceiling);
+      return breached === s.breached ? s : { ...s, breached };
+    });
+  }, [cumulatedSeries, ceiling]);
+
+  const yDomain = useMemo((): [number, number] => {
+    const [lo, hi] = collectYDomain(renderSeries);
+    return ceiling !== undefined ? [lo, Math.max(hi, ceiling)] : [lo, hi];
+  }, [renderSeries, ceiling]);
 
   const plotWidth = innerWidth(width, MARGIN);
   const plotHeight = innerHeight(height, MARGIN);
@@ -116,7 +142,7 @@ export function SpendSeriesChart({
   const activeTimestamp = activeIndex !== null ? timestamps[activeIndex] : null;
   const tooltipRows: ChartTooltipRow[] = useMemo(() => {
     if (!activeTimestamp) return [];
-    return series
+    return renderSeries
       .map((s, index): ChartTooltipRow | null => {
         const point = s.points.find((p) => p.x.getTime() === activeTimestamp.getTime());
         if (!point) return null;
@@ -128,7 +154,7 @@ export function SpendSeriesChart({
         };
       })
       .filter((row): row is ChartTooltipRow => row !== null);
-  }, [activeTimestamp, series, selectedKey, formatTooltipValue]);
+  }, [activeTimestamp, renderSeries, selectedKey, formatTooltipValue]);
 
   // The tooltip's frozen fallback point for touch/keyboard activation -- the active timestamp's
   // own plotted x, and the first series' plotted y at that timestamp (falling back to the plot's
@@ -141,10 +167,12 @@ export function SpendSeriesChart({
       (variant === 'bars'
         ? (bandScale(activeTimestamp.toISOString()) ?? 0) + bandScale.bandwidth() / 2
         : (xScale?.(activeTimestamp) ?? 0));
-    const firstPoint = series[0]?.points.find((p) => p.x.getTime() === activeTimestamp.getTime());
+    const firstPoint = renderSeries[0]?.points.find(
+      (p) => p.x.getTime() === activeTimestamp.getTime()
+    );
     const y = MARGIN.top + (firstPoint ? yScale(firstPoint.y) : 0);
     return { x, y };
-  }, [activeTimestamp, variant, bandScale, xScale, series, yScale]);
+  }, [activeTimestamp, variant, bandScale, xScale, renderSeries, yScale]);
 
   const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
     useChartTooltipFloating({
@@ -155,13 +183,13 @@ export function SpendSeriesChart({
 
   const legendItems = useMemo(
     () =>
-      series.map((s) => ({
+      renderSeries.map((s) => ({
         key: s.key,
         label: s.label,
         value: formatLegendValue?.(s),
         breached: s.breached,
       })),
-    [series, formatLegendValue]
+    [renderSeries, formatLegendValue]
   );
 
   if (series.length === 0 || timestamps.length === 0) {
@@ -214,24 +242,35 @@ export function SpendSeriesChart({
           />
           <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
             {variant === 'line'
-              ? series.map((s, index) => {
+              ? renderSeries.map((s, index) => {
                   const selected = s.key === selectedKey;
                   const color = specSeriesColor(index, { selected, breached: s.breached });
+                  // The actual points this series reports (no gap sentinels) — what the circle
+                  // markers draw, unchanged from before this fix: a marker only where there is
+                  // real data.
                   const sorted = [...s.points].sort((a, b) => a.x.getTime() - b.x.getTime());
-                  const lineGen = d3Line<(typeof sorted)[number]>()
+                  // The FULL timestamp domain, `NaN` standing in for a bucket this series has no
+                  // point for — what the line/area path draws. `.defined()` breaks the generated
+                  // path at every `NaN`, so the line stops drawing spend across days the series
+                  // never reported on (build brief §2a) instead of connecting straight across
+                  // them the way plotting `sorted` alone would.
+                  const withGaps = withGapSentinels(s, timestamps);
+                  const lineGen = d3Line<(typeof withGaps)[number]>()
+                    .defined((p) => Number.isFinite(p.y))
                     .x((p) => xScale?.(p.x) ?? 0)
                     .y((p) => yScale(p.y))
                     .curve(curveMonotoneX);
-                  const areaGen = d3Area<(typeof sorted)[number]>()
+                  const areaGen = d3Area<(typeof withGaps)[number]>()
+                    .defined((p) => Number.isFinite(p.y))
                     .x((p) => xScale?.(p.x) ?? 0)
                     .y0(yScale(0))
                     .y1((p) => yScale(p.y))
                     .curve(curveMonotoneX);
-                  const d = lineGen(sorted) ?? undefined;
+                  const d = lineGen(withGaps) ?? undefined;
                   return (
                     <g key={s.key}>
                       {selected && sorted.length > 1 ? (
-                        <path d={areaGen(sorted) ?? undefined} fill={color} fillOpacity={0.1} />
+                        <path d={areaGen(withGaps) ?? undefined} fill={color} fillOpacity={0.1} />
                       ) : null}
                       {sorted.length > 1 ? (
                         <path
@@ -258,10 +297,10 @@ export function SpendSeriesChart({
                     </g>
                   );
                 })
-              : series.map((s, index) => {
+              : renderSeries.map((s, index) => {
                   const selected = s.key === selectedKey;
                   const color = specSeriesColor(index, { selected, breached: s.breached });
-                  const groupWidth = bandScale.bandwidth() / series.length;
+                  const groupWidth = bandScale.bandwidth() / renderSeries.length;
                   return s.points.map((p) => {
                     const groupX = bandScale(p.x.toISOString()) ?? 0;
                     const barWidth = Math.min(groupWidth * 0.7, 24);
@@ -280,6 +319,20 @@ export function SpendSeriesChart({
                     );
                   });
                 })}
+            {/* The budget-burn-down reference ceiling — a dashed rule, never a second colour
+                convention: a series that crosses it already renders in the accent via the
+                `breached` override computed above. */}
+            {ceiling !== undefined ? (
+              <line
+                x1={0}
+                x2={plotWidth}
+                y1={yScale(ceiling)}
+                y2={yScale(ceiling)}
+                stroke={SPEC_BASELINE}
+                strokeWidth={1}
+                strokeDasharray="4 3"
+              />
+            ) : null}
           </g>
         </svg>
         {timestamps.map((d, index) => {

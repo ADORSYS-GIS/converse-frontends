@@ -9,6 +9,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
+import type { UsageGroupBy } from '@lightbridge/api-rest';
 import type { ReportExportFormat } from '@lightbridge/ui-web';
 
 /**
@@ -207,7 +208,27 @@ const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_I
 
 export const OVERVIEW_RANGES = ['7d', '30d', '90d'] as const;
 export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
-export const OVERVIEW_GROUP_BYS = ['project', 'model'] as const;
+
+/**
+ * `console-ui#312`, closed: this used to be a UI-facing pair (`'project' | 'model'`) that
+ * `overview-usage.ts`'s own `OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY` bridged onto the real
+ * `UsageGroupBy` enum — a translation table that existed only because the URL vocabulary was
+ * picked before the usage contract was read closely. The values here are now literally a subset
+ * of `UsageGroupBy` (`@lightbridge/api-rest`), asserted at the definition below, so the bridge
+ * table is gone: the URL param IS the wire value.
+ *
+ * `user_name`/`metric_name`/`signal_type`/`account_id` are deliberately excluded — the phase 4
+ * measurement's "DO NOT BUILD" list rules out `metric_name`/`signal_type` breakdowns outright,
+ * `user_name` duplicates `user_id` for this console's purposes, and `account_id` only makes sense
+ * for the estate overview's own account-scoped fan-out (`/settings/overview/usage`), which never
+ * reads this per-account param at all.
+ */
+export const OVERVIEW_GROUP_BYS = [
+  'project_id',
+  'model',
+  'user_id',
+  'api_key_id',
+] as const satisfies readonly UsageGroupBy[];
 
 /**
  * The Overview dashboard's view params.
@@ -239,12 +260,12 @@ export const overviewParsers = {
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
   bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
-  groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
+  groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
   model: parseAsString.withDefault('all'),
   series: parseAsString.withDefault(''),
   reportOpen: parseAsBoolean.withDefault(false),
   period: reportPeriodParser,
-  reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
+  reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
   format: reportFormatParser,
   include: reportIncludeParser,
 };
@@ -263,6 +284,54 @@ export function useOverviewParams() {
  *  opening/closing the Export dialog — both get their own history entry (mirrors
  *  `MANAGE_SELECTION_OPTIONS`'s `reportOpen` write). */
 export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
+
+// ── /settings/overview/{usage,account,project,user} — IA v3 phase 4 analytics lenses ──────────
+
+/**
+ * The range/bucket/selection vocabulary shared by all four analytics lenses under
+ * `/settings/overview/*` — the estate overview (`usage`) and the three scope-parameterised lenses
+ * (`account`/`project`/`user`, one `use-settings-overview-screen.ts` hook keyed by `lens`).
+ *
+ * Deliberately the SAME shape `overviewParsers` above declares (`range`/`from`/`to`/`bucket`, the
+ * explicit-span-wins-over-preset rule, `resolveOverviewWindow` reused verbatim) rather than a
+ * fifth divergent range picker: a reader who already knows what `?range=` and `?from=`/`?to=` mean
+ * on `/accounts/<id>/overview` should not have to relearn them here. Declared as its own object
+ * (not literally shared by reference with `overviewParsers`) because these lenses have no
+ * `groupBy`/report vocabulary of their own — each lens's breakdown dimension is fixed by what it
+ * IS (account lens breaks down by model, project lens by api key, …), not a toolbar choice.
+ *
+ * `series` is the selected ranked-list/chart row — `RankedSeriesRows`' own `selectedKey`, wired
+ * the same "URL is the cross-zone state bus" way `overviewParsers.series` already is, `push`-
+ * written via `SETTINGS_OVERVIEW_SELECTION_OPTIONS` below.
+ *
+ * `accountSort` (`/settings/overview/usage` only — build brief §4's "value|delta sort toggle" on
+ * the by-account `RankedSeriesRows`) follows the same ledger-sort idiom every other browsable list
+ * in this console already uses (`apiKeysParsers.sortKey`, `manageParsers.sortKey`, …): a knob, not
+ * a selection, so it writes with `replace` like the rest of this table rather than costing a Back
+ * press per toggle.
+ */
+export const SETTINGS_OVERVIEW_ACCOUNT_SORTS = ['value', 'delta'] as const;
+
+export const settingsOverviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
+  series: parseAsString.withDefault(''),
+  accountSort: parseAsStringLiteral(SETTINGS_OVERVIEW_ACCOUNT_SORTS).withDefault('value'),
+};
+
+const settingsOverviewUrlKeys = { accountSort: 'account-sort' };
+
+export function useSettingsOverviewParams() {
+  return useQueryStates(settingsOverviewParsers, {
+    urlKeys: settingsOverviewUrlKeys,
+    history: 'replace',
+  });
+}
+
+/** Selecting a ranked-list/chart row is navigation-grade — mirrors `OVERVIEW_SELECTION_OPTIONS`. */
+export const SETTINGS_OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── shared: ledger sort ──────────────────────────────────────────────────────────────────────
 
@@ -519,6 +588,7 @@ export const URL_PARAM_CONTRACT = {
   createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
   createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
+  settingsOverview: { parsers: settingsOverviewParsers, urlKeys: settingsOverviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },
   settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },

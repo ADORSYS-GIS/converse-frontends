@@ -1,9 +1,4 @@
-import type {
-  UsageGroupBy,
-  UsageQueryRequest,
-  UsageQueryResponse,
-  UsageSeriesPoint,
-} from '@lightbridge/api-rest';
+import type { UsageQueryRequest, UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import { formatUsd } from '@lightbridge/ui-web';
 import type { ShareBarSegment, SpendSeriesSeries } from '@lightbridge/ui-web';
 
@@ -53,30 +48,24 @@ export function toUrlDate(date: Date): string {
 }
 
 /**
- * **console-ui#312's own gap, not made worse here.** The Overview URL contract's `groupBy` offers
- * `'project' | 'model'` (`url-state.ts`'s `OVERVIEW_GROUP_BYS`) — a UI-facing pair chosen before
- * the usage contract's real `UsageGroupBy` enum (`account_id | project_id | api_key_id | user_id |
- * user_name | model | metric_name | signal_type`) was read closely. `'project'` is not
- * `'project_id'`; this table is the one, single, explicit place that bridges the two, so the
- * mismatch is visible and grep-able rather than silently absorbed into a request builder.
- * Renaming the URL param to match the contract is #312's job, not this ticket's — this is the
- * minimal correct fix for #304's actual need: a request that only ever uses a value the contract
- * accepts.
+ * **`console-ui#312`, closed.** `OverviewGroupBy` (`url-state.ts`'s `OVERVIEW_GROUP_BYS`) used to
+ * be a UI-facing pair (`'project' | 'model'`) picked before the usage contract's real
+ * `UsageGroupBy` enum was read closely, bridged onto it through a translation table right here.
+ * `OverviewGroupBy` is now LITERALLY a subset of `UsageGroupBy` (asserted at `OVERVIEW_GROUP_BYS`'
+ * own definition via `satisfies readonly UsageGroupBy[]`), so the URL param IS the wire value —
+ * there is nothing left to bridge. `overviewGroupByToUsageGroupBy` is gone; every call site below
+ * passes `groupBy` straight through.
  */
-const OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY: Record<OverviewGroupBy, UsageGroupBy> = {
-  project: 'project_id',
-  model: 'model',
-};
 
-export function overviewGroupByToUsageGroupBy(groupBy: OverviewGroupBy): UsageGroupBy {
-  return OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY[groupBy];
-}
-
-/** The dimension field a `UsageSeriesPoint` carries the group-by value under — the one field of
- *  `overviewGroupByToUsageGroupBy`'s output that also names a `UsageSeriesPoint` property. */
+/** The dimension field a `UsageSeriesPoint` carries the group-by value under — identical to
+ *  `OverviewGroupBy` itself now that the bridge above is gone, kept as its own map (rather than an
+ *  identity cast) so a reader can see at a glance which `UsageSeriesPoint` property each dimension
+ *  reads without cross-referencing the wire enum. */
 const GROUP_BY_POINT_FIELD: Record<OverviewGroupBy, keyof UsageSeriesPoint> = {
-  project: 'project_id',
+  project_id: 'project_id',
   model: 'model',
+  user_id: 'user_id',
+  api_key_id: 'api_key_id',
 };
 
 export interface OverviewUsageQueryInput {
@@ -92,6 +81,25 @@ export interface OverviewUsageQueryInput {
   model: string;
 }
 
+/**
+ * The `limit` every usage request sets explicitly (build brief §5) — the usage API accepts one,
+ * and an unbounded request against a wide window (90d, hourly) is a real "how many rows could this
+ * possibly return" unknown, not a hypothetical. Every request builder in this module (and
+ * `settings-overview-usage.ts`'s own, sharing this constant) sets it, and `isUsageResponseTruncated`
+ * below is how a caller detects the response actually hit it.
+ */
+export const USAGE_QUERY_LIMIT = 2000;
+
+/** `points.length === limit` is the one honest truncation signal the response shape gives —
+ *  anything less means the query returned everything there was. Never inferred from a "looks like
+ *  a round number" heuristic. */
+export function isUsageResponseTruncated(
+  response: UsageQueryResponse,
+  limit: number = USAGE_QUERY_LIMIT
+): boolean {
+  return response.points.length === limit;
+}
+
 /** Builds the `UsageQueryRequest` for the SPEND/SPEND SHARE dashboards from the Overview's own
  *  URL-driven view state (range/bucket/group-by/model) plus the console scope (account/project). */
 export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): UsageQueryRequest {
@@ -104,8 +112,9 @@ export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): Usage
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
     bucket: USAGE_BUCKET_INTERVAL[input.bucket],
-    group_by: [overviewGroupByToUsageGroupBy(input.groupBy)],
+    group_by: [input.groupBy],
     filters: input.model !== 'all' ? { model: input.model } : undefined,
+    limit: USAGE_QUERY_LIMIT,
   };
 }
 
@@ -136,7 +145,7 @@ const USAGE_BUCKET_INTERVAL: Record<OverviewBucket, string> = {
  *  `0` for THIS point only rather than throwing and taking the whole chart down with it (#304's
  *  "a malformed response does not crash the caller" AC extended to the mapping layer, not just
  *  the transport one `usage-client.ts` already covers). */
-function safeCost(point: UsageSeriesPoint): number {
+export function safeCost(point: UsageSeriesPoint): number {
   const microUsd = Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
   return microUsdToUsd(microUsd);
 }
@@ -191,6 +200,42 @@ export function toSpendSeries(
   return Array.from(seriesByKey.values());
 }
 
+/**
+ * Caps a `SpendSeriesChart` series list to `capN` (default 4) real series plus one summed
+ * "Other" — enforced HERE, at the consumer, per the build brief's own instruction (§2c): the chart
+ * component itself draws whatever `series` it is given, so the cap has to be a fact about the
+ * request/response boundary, not the chart. Ranked by total spend across the whole range, largest
+ * first — the same "rank is a value concept" the chart's own monochrome ramp already assumes.
+ *
+ * A no-op when `series.length <= capN` (no "Other" row for a real, already-short list).
+ */
+export function capSeriesWithOther(
+  series: readonly SpendSeriesSeries[],
+  capN = 4,
+  otherLabel: (count: number) => string = (count) => `Other (${count})`
+): SpendSeriesSeries[] {
+  if (series.length <= capN) return [...series];
+
+  const byTotal = [...series].sort(
+    (a, b) => b.points.reduce((s, p) => s + p.y, 0) - a.points.reduce((s, p) => s + p.y, 0)
+  );
+  const visible = byTotal.slice(0, capN);
+  const overflow = byTotal.slice(capN);
+
+  const otherByTime = new Map<number, number>();
+  for (const s of overflow) {
+    for (const p of s.points) {
+      const t = p.x.getTime();
+      otherByTime.set(t, (otherByTime.get(t) ?? 0) + p.y);
+    }
+  }
+  const otherPoints = Array.from(otherByTime.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([t, y]) => ({ x: new Date(t), y }));
+
+  return [...visible, { key: '__other__', label: otherLabel(overflow.length), points: otherPoints }];
+}
+
 /** Maps the same response into `ShareBarSegment[]` for `SpendShareSection` — one segment per
  *  group-by dimension value, summed across the whole range, in the same key order `toSpendSeries`
  *  uses so the chart and the share bar share one series identity for selection syncing.
@@ -221,6 +266,64 @@ export function sumTotalCost(response: UsageQueryResponse): number {
   return response.points.reduce((sum, point) => sum + safeCost(point), 0);
 }
 
+/**
+ * IA v3 phase 4's own measurement: 88% of usage rows carry no `project_id` at all — a real,
+ * common state, not an edge case. `groupKey` still folds those into the `UNASSIGNED_KEY` sentinel
+ * (every OTHER dimension legitimately wants that bucket rendered as an ordinary row/segment), but
+ * a PROJECT breakdown must never turn it into a series: "NULL group keys are never a series,
+ * surface as a caption" (build brief §3). This strips it out of whichever list a caller already
+ * built and hands back an honest caption describing the excluded share, or `null` when there was
+ * nothing to exclude — never a caption stating "0% unattributed" for a dataset with no gap at all.
+ */
+export function splitUnassignedProjects<T extends { key: string; value: number }>(
+  segments: readonly T[]
+): { segments: T[]; unassignedCaption: string | null } {
+  const unassigned = segments.find((s) => s.key === UNASSIGNED_KEY);
+  const kept = segments.filter((s) => s.key !== UNASSIGNED_KEY);
+  if (!unassigned || unassigned.value <= 0) {
+    return { segments: kept, unassignedCaption: null };
+  }
+  const total = segments.reduce((sum, s) => sum + Math.max(s.value, 0), 0);
+  const percent = total > 0 ? Math.round((unassigned.value / total) * 100) : 0;
+  return {
+    segments: kept,
+    unassignedCaption: `${formatUsd(unassigned.value)} (${percent}%) of spend is not attributed to a project this period.`,
+  };
+}
+
+/**
+ * A single-band chart (or a one-row breakdown) asserts a shape the data does not actually have —
+ * "here is how spend varies across N things" reads as broken when N turns out to be zero or one.
+ * This is the ONE place that decision is made, reused by both the account overview's SPEND chart
+ * (`use-overview-screen.ts`) and the settings-overview lenses' secondary breakdown
+ * (`use-settings-overview-screen.ts`) — finish item §2.
+ *
+ * No extra query: takes the SAME segments/caption the caller already computed for the real
+ * rendering (`toSpendShareSegments`/`splitUnassignedProjects`'s own output), never fires a
+ * dedicated "how many distinct values" request.
+ *
+ *  - 0 segments, no `unassignedCaption` — genuinely no usage at all; `undefined` here, since the
+ *    chart's/list's own built-in empty state already says that honestly.
+ *  - 0 segments, WITH an `unassignedCaption` — real usage exists but none of it resolved to a
+ *    real value of this dimension (e.g. 100% unattributed to a project); the caption IS the
+ *    degenerate message, stated as why there is nothing to chart, not "no usage."
+ *  - Exactly 1 segment — a real single value; states it by name rather than drawing one flat band.
+ *  - >=2 segments — a real breakdown; `undefined`.
+ */
+export function degenerateChartMessage(
+  segments: readonly { label: string }[],
+  dimensionNoun: string,
+  unassignedCaption: string | null
+): string | undefined {
+  if (segments.length === 0) {
+    return unassignedCaption ?? undefined;
+  }
+  if (segments.length === 1) {
+    return `Only one ${dimensionNoun} in this window (${segments[0].label}).`;
+  }
+  return undefined;
+}
+
 /** `[start of this calendar month (UTC), now]` — the budget domain's own period boundary
  *  (`authz.cstack`'s `'YYYY-MM'` `Period`), independent of the dashboard's own 7d/30d/90d range
  *  selector: budget consumption is always "this billing period," not "whatever range is picked." */
@@ -240,6 +343,7 @@ export function buildBudgetConsumptionRequest(accountId: string, now: Date): Usa
     scope_id: accountId,
     start_time: start.toISOString(),
     end_time: end.toISOString(),
+    limit: USAGE_QUERY_LIMIT,
   };
 }
 

@@ -31,18 +31,10 @@ import type { RefillRequestRow } from '../sections/review-queue/types';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
 import type { OverviewStatCardData } from '../sections/overview-stat-row/types';
 import { overviewSpendSeries } from '../sections/spend-dashboard/fixtures';
-import { overviewSpendShareByModelSegments } from '../sections/spend-share/fixtures';
-import {
-  overviewBudget,
-  overviewNeedsAttentionProject,
-  overviewRefillRequestStatus,
-} from '../sections/budget-panel/fixtures';
-import type {
-  BudgetNeedsAttentionProject,
-  BudgetRefillRequestStatus,
-  BudgetSummary,
-} from '../sections/budget-panel/types';
-import type { ShareBarSegment } from '../components/share-bar';
+import { rankedRowsDominantModel } from '../sections/ranked-series-rows/fixtures';
+import type { RankedSeriesRow } from '../sections/ranked-series-rows/types';
+import { overviewBudget } from '../sections/budget-panel/fixtures';
+import type { BudgetSummary } from '../sections/budget-panel/types';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 
 /** The CRUD resources the mock provider seeds. `decisions` (phase 6, admin/settings revamp) is
@@ -52,16 +44,23 @@ export type MockResourceName = 'projects' | 'accounts' | 'api-keys' | 'refill-re
 
 export type MockAccountRecord = BaseRecord & { id: string; label: string };
 
-/** Snapshot payload for the read-only `overview` custom endpoint (`useCustom({ url: 'overview' })`) —
- * the aggregation refine's `useCustom` hook fetches for `RefineOverviewScreen`. */
+/**
+ * Snapshot payload for the read-only `overview` custom endpoint (`useCustom({ url: 'overview' })`) —
+ * the aggregation refine's `useCustom` hook fetches for `RefineOverviewScreen`.
+ *
+ * Kept in step with `/`'s real shape (`apps/console/src/containers/use-overview-screen.ts`'s
+ * `OverviewScreen`, IA v3 phase 4): `modelSpendRows` (not `modelSpendSegments`) since SPEND BY
+ * MODEL renders through `RankedSeriesRows` now, not `SpendShareSection`/`ShareBar` (build brief
+ * §7); `needsAttentionProject`/`refillRequestStatus` are gone — `/` renders no admin-only zone at
+ * all any more (BUDGET PRESSURE moved to `/settings/overview/project`, KEY HYGIENE to
+ * `/settings/overview/account`, and the refill count lives in the settings nav's own numeral).
+ */
 export interface OverviewSnapshot {
   statCards: OverviewStatCardData[];
   spendSeries: SpendSeriesSeries[];
-  /** "Spend by model" (phase 9.2) — see `mock-data-provider`'s own import comment. */
-  modelSpendSegments: ShareBarSegment[];
+  /** "Spend by model" (phase 9.2). */
+  modelSpendRows: RankedSeriesRow[];
   budget: BudgetSummary;
-  needsAttentionProject?: BudgetNeedsAttentionProject;
-  refillRequestStatus?: BudgetRefillRequestStatus;
 }
 
 /** Payload for the `refill-requests/decide` custom mutation (`useCustomMutation`). */
@@ -94,10 +93,8 @@ function seedOverviewSnapshot(): OverviewSnapshot {
   return structuredClone({
     statCards: overviewStatCards,
     spendSeries: overviewSpendSeries,
-    modelSpendSegments: overviewSpendShareByModelSegments,
+    modelSpendRows: rankedRowsDominantModel,
     budget: overviewBudget,
-    needsAttentionProject: overviewNeedsAttentionProject,
-    refillRequestStatus: overviewRefillRequestStatus,
   });
 }
 

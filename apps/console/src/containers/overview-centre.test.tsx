@@ -51,10 +51,12 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     projectField: { label: 'Project', value: '', options: [], onChange: vi.fn() },
     spendSeries: [],
     spendSegments: [],
+    spendUnassignedCaption: undefined,
+    spendDegenerateMessage: undefined,
     spendStatus: 'ready',
     spendErrorMessage: undefined,
     spendRetry: vi.fn(),
-    modelSpendSegments: [],
+    modelSpendRows: [],
     modelSpendStatus: 'ready',
     modelSpendErrorMessage: undefined,
     modelSpendRetry: vi.fn(),
@@ -81,13 +83,6 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
       generating: false,
       notice: undefined,
     },
-    // Phase 4 role-parameterised block — defaults to a non-admin: every admin-only card is
-    // undefined, never a permanently-loading placeholder (see `use-overview-screen.ts`'s own
-    // doc comment).
-    isAdmin: false,
-    adminPressure: undefined,
-    adminHygiene: undefined,
-    refillRequestStatus: undefined,
     ...overrides,
   };
 }
@@ -137,6 +132,18 @@ describe('OverviewCentre', () => {
     FULL_DASHBOARD_RENDER_TIMEOUT_MS
   );
 
+  // Build brief finish-item §2: a degenerate (<=1 distinct series) SPEND chart renders an inline
+  // status in the chart's own place, instead of a single flat band.
+  it('renders spendDegenerateMessage in place of the SPEND chart when the screen reports one', async () => {
+    await renderCentre({
+      spendStatus: 'ready',
+      spendSeries: [{ key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 42 }] }],
+      spendDegenerateMessage: 'Only one project in this window (proj_a).',
+    });
+
+    expect(screen.getByText('Only one project in this window (proj_a).')).toBeInTheDocument();
+  });
+
   it('a FAILED spend query renders an error line, never a zero-value or confirmed-empty chart', async () => {
     await renderCentre({
       spendStatus: 'error',
@@ -146,18 +153,20 @@ describe('OverviewCentre', () => {
 
     const alerts = screen.getAllByRole('alert');
     expect(alerts.some((el) => el.textContent?.includes('unreachable'))).toBe(true);
-    // The failed chart's own message is present -- not "No usage in this range." (which would
-    // claim a completed, empty query) and not a fabricated series.
-    expect(screen.queryByText('No usage in this range.')).not.toBeInTheDocument();
+    // `SpendDashboard`'s own `status === 'error'` branch renders `ErrorLine` INSTEAD of
+    // `SpendSeriesChart` (mutually exclusive ternary) -- so the chart's "confirmed empty" message
+    // is structurally unreachable here, never merely absent by coincidence. Exactly TWO alerts
+    // fire: the chart's own and SPEND BY PROJECT's `SpendShareSection` (same failed query, same
+    // `spendStatus`) -- every other zone in this default fixture stays `'ready'`.
+    expect(alerts).toHaveLength(2);
   });
 
   // Phase 9.2 — SPEND BY MODEL replaces the deleted LATENCY panel, for every user (never
   // admin-gated). Renders directly under SPEND BY PROJECT, real data shown as real data.
   it('renders SPEND BY MODEL with real data for every user, not just an admin', async () => {
     await renderCentre({
-      isAdmin: false,
       modelSpendStatus: 'ready',
-      modelSpendSegments: [
+      modelSpendRows: [
         { key: 'gpt-4o-mini', label: 'gpt-4o-mini', value: 12, formattedValue: '$12.00' },
         { key: 'claude-sonnet', label: 'claude-sonnet', value: 4, formattedValue: '$4.00' },
       ],
@@ -168,11 +177,11 @@ describe('OverviewCentre', () => {
     expect(screen.getByText('claude-sonnet')).toBeInTheDocument();
   });
 
-  it('a FAILED spend-by-model query renders an error line, never a zero-value or confirmed-empty share bar', async () => {
+  it('a FAILED spend-by-model query renders an error line, never a zero-value or confirmed-empty ranked list', async () => {
     await renderCentre({
       modelSpendStatus: 'error',
       modelSpendErrorMessage: 'The usage backend is unreachable right now.',
-      modelSpendSegments: [],
+      modelSpendRows: [],
     });
 
     const alerts = screen.getAllByRole('alert');
@@ -272,56 +281,17 @@ describe('OverviewCentre', () => {
     expect(link).toHaveAttribute('href', '/accounts/acct_1/refill');
   });
 
-  // Phase 4 — one dashboard, parameterised by role (LATENCY removed from the block in phase 9.2 —
-  // three admin-only cards remain). They must never render for a non-admin, and must render with
-  // real data for an admin — never a permanently-loading placeholder in between (see
-  // `use-overview-screen.ts`'s own doc comment on why these are `undefined`, not a `status:
-  // 'loading'` shape, for a non-admin).
-  describe('the admin-only block', () => {
-    it('renders none of the three admin cards for a non-admin', async () => {
-      await renderCentre({ isAdmin: false });
+  // IA v3 phase 4 (build brief §7): `/` renders NO admin-only zone any more — BUDGET PRESSURE and
+  // KEY HYGIENE moved to `/settings/overview/project` and `/settings/overview/account`
+  // respectively (see `settings-overview-centre.test.tsx` for their coverage there), and the
+  // pending-refill count is gone outright (it lives in the settings nav's own numeral). This is a
+  // structural, not a role-conditional, guarantee now: `OverviewScreen` has no `isAdmin`/
+  // `adminPressure`/`adminHygiene`/`refillRequestStatus` field left to gate on.
+  it('never renders an admin-only zone — the admin cards live under /settings/overview now', async () => {
+    await renderCentre();
 
-      expect(screen.queryByText('Budget pressure')).not.toBeInTheDocument();
-      expect(screen.queryByText('Key hygiene')).not.toBeInTheDocument();
-      expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
-    });
-
-    it('renders all three admin cards, with real data, for an admin', async () => {
-      await renderCentre({
-        isAdmin: true,
-        adminPressure: {
-          projects: [{ key: 'proj_a', name: 'proj_a', spend: 12 }],
-          ceiling: 100,
-          status: 'ready',
-          onRetry: vi.fn(),
-          note: 'scope note',
-        },
-        adminHygiene: {
-          hygiene: {
-            expiringCount: 0,
-            expiringInDays: 30,
-            neverUsedCount: 0,
-            revokedRetainedCount: 0,
-          },
-          summary: '6 active keys',
-        },
-        refillRequestStatus: { pendingCount: 2, submittedLabel: 'oldest submitted 3 days ago' },
-      });
-
-      expect(screen.getByText('Budget pressure')).toBeInTheDocument();
-      expect(screen.getByText('Key hygiene')).toBeInTheDocument();
-      expect(screen.getByText('Refill requests')).toBeInTheDocument();
-      expect(screen.getByText(/2 pending/)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Review →' })).toHaveAttribute(
-        'href',
-        '/settings/refills-queue'
-      );
-    });
-
-    it('omits the Refill requests card when nothing is pending, even for an admin', async () => {
-      await renderCentre({ isAdmin: true, refillRequestStatus: undefined });
-
-      expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText('Budget pressure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Key hygiene')).not.toBeInTheDocument();
+    expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
   });
 });

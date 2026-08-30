@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
+import type { SpendSeriesSeries } from '@lightbridge/ui-web';
 
 import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
@@ -8,12 +9,17 @@ import {
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
+  capSeriesWithOther,
   currentPeriodRange,
-  overviewGroupByToUsageGroupBy,
+  degenerateChartMessage,
+  isUsageResponseTruncated,
   resolveOverviewWindow,
+  splitUnassignedProjects,
   sumTotalCost,
   toSpendShareSegments,
   toSpendSeries,
+  UNASSIGNED_KEY,
+  USAGE_QUERY_LIMIT,
 } from './overview-usage';
 
 const WINDOW_7D = {
@@ -30,13 +36,6 @@ const WINDOW_90D = {
 };
 const NOW = new Date('2026-08-28T12:00:00.000Z');
 
-describe('overviewGroupByToUsageGroupBy', () => {
-  it('maps the URL contract group-by to the real UsageGroupBy enum (#312 gap, not widened)', () => {
-    expect(overviewGroupByToUsageGroupBy('project')).toBe('project_id');
-    expect(overviewGroupByToUsageGroupBy('model')).toBe('model');
-  });
-});
-
 describe('buildOverviewUsageRequest', () => {
   it('scopes to the account when no project is selected', () => {
     const request = buildOverviewUsageRequest({
@@ -44,7 +43,7 @@ describe('buildOverviewUsageRequest', () => {
       projectId: null,
       window: WINDOW_30D,
       bucket: 'day',
-      groupBy: 'project',
+      groupBy: 'project_id',
       model: 'all',
     });
 
@@ -58,7 +57,7 @@ describe('buildOverviewUsageRequest', () => {
       projectId: 'proj_7',
       window: WINDOW_30D,
       bucket: 'day',
-      groupBy: 'project',
+      groupBy: 'project_id',
       model: 'all',
     });
 
@@ -80,13 +79,13 @@ describe('buildOverviewUsageRequest', () => {
     expect(request.end_time).toBe(WINDOW_7D.end.toISOString());
   });
 
-  it('translates group-by through the #312 mapping table', () => {
+  it('sends the group-by param straight through — #312, closed, no bridge table left to translate through', () => {
     expect(
       buildOverviewUsageRequest({
         accountId: 'acct_1',
         window: WINDOW_30D,
         bucket: 'day',
-        groupBy: 'project',
+        groupBy: 'project_id',
         model: 'all',
       }).group_by
     ).toEqual(['project_id']);
@@ -121,7 +120,7 @@ describe('buildOverviewUsageRequest', () => {
       accountId: 'acct_1',
       window: WINDOW_30D,
       bucket,
-      groupBy: 'project',
+      groupBy: 'project_id',
       model: 'all',
     });
     expect(request.bucket).toMatch(BACKEND_BUCKET_RE);
@@ -133,7 +132,7 @@ describe('buildOverviewUsageRequest', () => {
         accountId: 'acct_1',
         window: WINDOW_30D,
         bucket,
-        groupBy: 'project',
+        groupBy: 'project_id',
         model: 'all',
       }).bucket;
 
@@ -207,7 +206,7 @@ describe('toSpendSeries', () => {
       ],
     };
 
-    const series = toSpendSeries(response, 'project');
+    const series = toSpendSeries(response, 'project_id');
 
     expect(series).toHaveLength(2);
     const projA = series.find((s) => s.key === 'proj_a');
@@ -220,7 +219,7 @@ describe('toSpendSeries', () => {
       points: [point({ project_id: null, total_cost: usd(4) })],
     };
 
-    const series = toSpendSeries(response, 'project');
+    const series = toSpendSeries(response, 'project_id');
 
     expect(series).toEqual([
       { key: 'unassigned', label: 'unassigned', points: [{ x: expect.any(Date), y: 4 }] },
@@ -235,13 +234,48 @@ describe('toSpendSeries', () => {
       ],
     };
 
-    const series = toSpendSeries(response, 'project');
+    const series = toSpendSeries(response, 'project_id');
 
     expect(series[0].points.every((p) => p.y === 0)).toBe(true);
   });
 
   it('returns no series for an empty response (a real, queried, zero result — not fabricated)', () => {
-    expect(toSpendSeries({ points: [] }, 'project')).toEqual([]);
+    expect(toSpendSeries({ points: [] }, 'project_id')).toEqual([]);
+  });
+});
+
+describe('capSeriesWithOther', () => {
+  function series(key: string, total: number): SpendSeriesSeries {
+    return { key, label: key, points: [{ x: new Date('2026-08-01'), y: total }] };
+  }
+
+  it('is a no-op when the series list is already at or under the cap', () => {
+    const input = [series('a', 5), series('b', 3)];
+    expect(capSeriesWithOther(input, 4)).toEqual(input);
+  });
+
+  it('keeps the largest capN series and sums the rest into one Other series', () => {
+    const input = [series('a', 1), series('b', 9), series('c', 5), series('d', 3), series('e', 2)];
+    const result = capSeriesWithOther(input, 4);
+
+    expect(result.map((s) => s.key)).toEqual(['b', 'c', 'd', 'e', '__other__']);
+    expect(result[4].points[0].y).toBeCloseTo(1); // just 'a', the one overflow series
+  });
+
+  it('sums overflow series sharing a timestamp into one point, not one per series', () => {
+    const t = new Date('2026-08-01');
+    const input = [
+      series('a', 10),
+      series('b', 8),
+      series('c', 6),
+      series('d', 4),
+      { key: 'e', label: 'e', points: [{ x: t, y: 1 }] },
+      { key: 'f', label: 'f', points: [{ x: t, y: 2 }] },
+    ];
+    const result = capSeriesWithOther(input, 4);
+    const other = result.find((s) => s.key === '__other__');
+    expect(other?.points).toHaveLength(1);
+    expect(other?.points[0].y).toBeCloseTo(3);
   });
 });
 
@@ -283,6 +317,71 @@ describe('toSpendShareSegments', () => {
   });
 });
 
+describe('splitUnassignedProjects', () => {
+  it('excludes the unassigned segment and states its share as a caption', () => {
+    const segments = [
+      { key: 'proj_a', value: 40 },
+      { key: UNASSIGNED_KEY, value: 60 },
+    ];
+
+    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
+
+    expect(kept).toEqual([{ key: 'proj_a', value: 40 }]);
+    expect(unassignedCaption).toContain('60%');
+    expect(unassignedCaption).toContain('$60.00');
+  });
+
+  it('returns no caption at all when nothing was unassigned — never "0% unattributed"', () => {
+    const segments = [{ key: 'proj_a', value: 40 }];
+
+    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
+
+    expect(kept).toEqual(segments);
+    expect(unassignedCaption).toBeNull();
+  });
+
+  it('drops a zero-value unassigned entry silently rather than captioning a non-gap', () => {
+    const segments = [
+      { key: 'proj_a', value: 40 },
+      { key: UNASSIGNED_KEY, value: 0 },
+    ];
+
+    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
+
+    expect(kept).toEqual([{ key: 'proj_a', value: 40 }]);
+    expect(unassignedCaption).toBeNull();
+  });
+});
+
+describe('degenerateChartMessage', () => {
+  it('returns undefined for a genuine 0-segment, no-caption result — the chart´s own empty state handles it', () => {
+    expect(degenerateChartMessage([], 'project', null)).toBeUndefined();
+  });
+
+  it('returns the unassigned caption verbatim when 0 real segments but real spend was excluded', () => {
+    const caption = '$60.00 (60%) of spend is not attributed to a project this period.';
+    expect(degenerateChartMessage([], 'project', caption)).toBe(caption);
+  });
+
+  it('names the single segment when there is exactly one', () => {
+    expect(degenerateChartMessage([{ label: 'gateway-prod' }], 'project', null)).toBe(
+      'Only one project in this window (gateway-prod).'
+    );
+  });
+
+  it('prefers the single-segment message over a stray caption if both were somehow set', () => {
+    // Not a real caller state (unassignedCaption only exists when segments were EXCLUDED down to
+    // 0), but the precedence should still be well-defined: an actual segment beats a caption.
+    expect(degenerateChartMessage([{ label: 'solo' }], 'model', 'ignored')).toBe(
+      'Only one model in this window (solo).'
+    );
+  });
+
+  it('returns undefined once there are >=2 real segments', () => {
+    expect(degenerateChartMessage([{ label: 'a' }, { label: 'b' }], 'project', null)).toBeUndefined();
+  });
+});
+
 describe('sumTotalCost', () => {
   it('sums every point regardless of grouping', () => {
     const response: UsageQueryResponse = {
@@ -294,6 +393,32 @@ describe('sumTotalCost', () => {
 
   it('returns 0, not NaN or a thrown error, for an empty response', () => {
     expect(sumTotalCost({ points: [] })).toBe(0);
+  });
+});
+
+describe('isUsageResponseTruncated', () => {
+  it('is true only when the response hit the limit exactly', () => {
+    const atLimit: UsageQueryResponse = { points: Array.from({ length: 5 }, () => point({})) };
+    expect(isUsageResponseTruncated(atLimit, 5)).toBe(true);
+  });
+
+  it('is false when the response returned fewer points than the limit', () => {
+    const underLimit: UsageQueryResponse = { points: Array.from({ length: 4 }, () => point({})) };
+    expect(isUsageResponseTruncated(underLimit, 5)).toBe(false);
+  });
+
+  it('every real request builder sets the same shared limit', () => {
+    expect(
+      buildOverviewUsageRequest({
+        accountId: 'acct_1',
+        window: WINDOW_30D,
+        bucket: 'day',
+        groupBy: 'model',
+        model: 'all',
+      }).limit
+    ).toBe(USAGE_QUERY_LIMIT);
+    expect(buildBudgetConsumptionRequest('acct_1', NOW).limit).toBe(USAGE_QUERY_LIMIT);
+    expect(buildBudgetConsumptionByProjectRequest('acct_1', NOW).limit).toBe(USAGE_QUERY_LIMIT);
   });
 });
 
@@ -315,6 +440,7 @@ describe('buildBudgetConsumptionRequest', () => {
       scope_id: 'acct_1',
       start_time: '2026-08-01T00:00:00.000Z',
       end_time: '2026-08-28T12:00:00.000Z',
+      limit: USAGE_QUERY_LIMIT,
     });
   });
 });
@@ -329,6 +455,7 @@ describe('buildBudgetConsumptionByProjectRequest', () => {
       start_time: '2026-08-01T00:00:00.000Z',
       end_time: '2026-08-28T12:00:00.000Z',
       group_by: ['project_id'],
+      limit: USAGE_QUERY_LIMIT,
     });
   });
 
@@ -396,7 +523,7 @@ describe('series labelling', () => {
     key === 'zezxvt21irmoi0kzm22el7gu' ? 'gateway-prod' : key === 'unassigned' ? 'Unassigned' : key;
 
   it('labels spend series with the resolved name while keeping the id as the key', () => {
-    const series = toSpendSeries(response, 'project', labelFor);
+    const series = toSpendSeries(response, 'project_id', labelFor);
 
     const named = series.find((s) => s.key === 'zezxvt21irmoi0kzm22el7gu');
     expect(named?.label).toBe('gateway-prod');
@@ -405,19 +532,19 @@ describe('series labelling', () => {
   });
 
   it('labels share segments the same way', () => {
-    const segments = toSpendShareSegments(response, 'project', labelFor);
+    const segments = toSpendShareSegments(response, 'project_id', labelFor);
 
     expect(segments.map((s) => s.label).sort()).toEqual(['Unassigned', 'gateway-prod']);
   });
 
   it('falls back to the raw key when nothing resolves it — e.g. a since-deleted project', () => {
-    const series = toSpendSeries(response, 'project', (key) => key);
+    const series = toSpendSeries(response, 'project_id', (key) => key);
 
     expect(series.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
   });
 
   it('defaults to identity, so an un-labelled caller still gets working output', () => {
-    const segments = toSpendShareSegments(response, 'project');
+    const segments = toSpendShareSegments(response, 'project_id');
 
     expect(segments.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
   });

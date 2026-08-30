@@ -5,52 +5,61 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
-import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
-import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
 import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import { RankedSeriesRows } from '@lightbridge/ui-web/src/sections/ranked-series-rows';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
+import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
+import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
 import Link from 'next/link';
 
 import { OverviewScopeSlot } from './overview-scope-slot';
 import { useOverviewScreen } from './use-overview-screen';
 
 /**
- * `/` — one dashboard, parameterised by role (shell revamp phase 4). This route supplies no
+ * `/` — the account-scoped user dashboard (IA v3 phase 4, build brief §7: "`/` becomes purely the
+ * account-scoped user dashboard — that is the point of the phase"). This route supplies no
  * `@rail`/`@scope` slot at any tier — the shell is mounted once by `app/(console)/layout.tsx`.
  *
  * Composition, top to bottom: `PageHeader` (controls + the `Export` action) → the money-first stat
- * row → SPEND OVER TIME → SPEND BY PROJECT → SPEND BY MODEL → BUDGET, all five real for every
- * signed-in user; then, ADMIN-ONLY and purely additive, BUDGET PRESSURE → KEY HYGIENE → REFILL
- * REQUESTS. The admin block replaces `/admin?section=overview` (deleted this phase) — `/admin` is
- * now the refill-review queue alone, reached from the sidebar's "Refill requests" item or the
- * REFILL REQUESTS card's own `Review` link below.
+ * row → SPEND OVER TIME → SPEND BY PROJECT → SPEND BY MODEL → BUDGET — real for every signed-in
+ * user, admin or not. **No admin-only zone renders here any more**: BUDGET PRESSURE moved to
+ * `/settings/overview/project` and KEY HYGIENE to `/settings/overview/account`
+ * (`settings-overview-centre.tsx`, `use-settings-overview-screen.ts`'s own `adminPressure`/
+ * `adminHygiene`) — the pending-refill count that used to sit beside them is gone outright, not
+ * moved, since it already lives in the settings nav's own numeral. `/admin` was already, before
+ * this move, just the refill-review queue.
  *
  * LATENCY is gone (phase 9.2, 2026-08-30 owner directive): the usage backend's events are
  * aggregate metric signals with no per-request duration, so that panel could never fill. SPEND BY
- * MODEL replaces it — reuses `SpendShareSection` verbatim (it hard-codes no project-specific
- * labelling) over a second, model-grouped consumption query scoped identically to SPEND above
- * (`use-overview-screen.ts`'s `modelSpendSegments`), for every user, not admin-gated.
+ * MODEL replaces it — a second, model-grouped consumption query scoped identically to SPEND above
+ * (`use-overview-screen.ts`'s `modelSpendRows`), for every user, not admin-gated.
+ *
+ * IA v3 phase 4 (build brief §7): SPEND BY MODEL renders through `RankedSeriesRows`, not
+ * `SpendShareSection`/`ShareBar` — the phase's own measurement found `ShareBar`'s flat
+ * share-of-total reading breaks down the moment one series dominates (a single model handling
+ * ~all of an account's traffic is the common case), which `RankedSeriesRows` handles by
+ * suppressing the share bar past a dominance threshold. SPEND BY PROJECT keeps `SpendShareSection`
+ * (a project split reads fine as a flat share) and drops any NULL-project bucket in favour of
+ * `spendUnassignedCaption` rather than rendering an "Unassigned" segment.
  *
  * `Card` wraps every zone below the stat row (phase 4 supersedes the earlier "render uncontained
  * on the floor" reading for these dashboard zones specifically — see `Card`'s own doc comment for
  * the precedent). Several sections already render their own tracked heading (`SpendDashboard`,
- * `SpendShareSection`, `BudgetPanel`, `BudgetPressure` all default their own `label`); those
- * `Card`s carry no `title` of their own; only the section's `label` is overridden to the name this
- * composition wants, so each zone has exactly ONE heading, never two stacked. `ApiKeysHygieneNotes`
- * and the Refill requests block have no heading of their own, so their `Card` DOES carry a `title`.
+ * `SpendShareSection`, `BudgetPanel` all default their own `label`); those `Card`s carry no
+ * `title` of their own; only the section's `label` is overridden to the name this composition
+ * wants, so each zone has exactly ONE heading, never two stacked.
  */
 const formatSpendTooltip = (value: number) => formatUsd(value);
 
 export function OverviewCentre() {
   const screen = useOverviewScreen(<OverviewScopeSlot />);
 
-  const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
-  const modelSpendTotal = screen.modelSpendSegments.reduce(
-    (sum, segment) => sum + segment.value,
+  const spendTotal = screen.spendSegments.reduce(
+    (sum: number, segment) => sum + segment.value,
     0
   );
   const subtitle = screen.scopeAccountLabel
@@ -95,6 +104,7 @@ export function OverviewCentre() {
           status={screen.spendStatus}
           errorMessage={screen.spendErrorMessage}
           onRetry={screen.spendRetry}
+          degenerateMessage={screen.spendDegenerateMessage}
           fallbackWidth={840}
           height={220}
           formatYTick={formatUsdAxis}
@@ -117,17 +127,36 @@ export function OverviewCentre() {
           onSelectSegment={screen.setSelectedSeriesKey}
           total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
         />
+        {screen.spendUnassignedCaption ? (
+          <InlineStatus className="mt-2">{screen.spendUnassignedCaption}</InlineStatus>
+        ) : null}
       </Card>
 
       <Card>
-        <SpendShareSection
-          label="Spend by model"
-          segments={screen.modelSpendSegments}
-          status={screen.modelSpendStatus}
-          errorMessage={screen.modelSpendErrorMessage}
-          onRetry={screen.modelSpendRetry}
-          total={modelSpendTotal > 0 ? formatUsd(modelSpendTotal) : undefined}
-        />
+        <ZoneHeading label="Spend by model" />
+        {screen.modelSpendStatus === 'error' ? (
+          <div className="mt-4">
+            <ErrorLine
+              message={screen.modelSpendErrorMessage ?? 'Failed to load spend by model.'}
+              onRetry={screen.modelSpendRetry}
+            />
+          </div>
+        ) : screen.modelSpendStatus === 'loading' ? (
+          <div className="mt-4 flex flex-col gap-1">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="skeleton h-[28px]" />
+            ))}
+          </div>
+        ) : (
+          <RankedSeriesRows
+            className="mt-4"
+            rows={screen.modelSpendRows}
+            selectedKey={screen.selectedSeriesKey}
+            onSelect={screen.setSelectedSeriesKey}
+            otherLabel={(count) => `Other (${count} models)`}
+            emptyMessage="No usage in this range."
+          />
+        )}
       </Card>
 
       <Card>
@@ -157,45 +186,6 @@ export function OverviewCentre() {
           }
         />
       </Card>
-
-      {/* ── admin-only, purely additive — see this file's own doc comment ─────────────────── */}
-      {screen.isAdmin && screen.adminPressure ? (
-        <Card>
-          <BudgetPressure
-            label="Budget pressure"
-            projects={screen.adminPressure.projects}
-            ceiling={screen.adminPressure.ceiling}
-            status={screen.adminPressure.status}
-            errorMessage={screen.adminPressure.errorMessage}
-            onRetry={screen.adminPressure.onRetry}
-            note={screen.adminPressure.note}
-          />
-        </Card>
-      ) : null}
-
-      {screen.isAdmin && screen.adminHygiene ? (
-        <Card title="Key hygiene">
-          <InlineStatus>{screen.adminHygiene.summary}</InlineStatus>
-          <ApiKeysHygieneNotes className="mt-3" hygiene={screen.adminHygiene.hygiene} />
-          {screen.adminHygiene.caveat ? (
-            <InlineStatus className="mt-2">{screen.adminHygiene.caveat}</InlineStatus>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {screen.isAdmin && screen.refillRequestStatus ? (
-        <Card title="Refill requests">
-          <p className="text-soft font-mono text-[11px]">
-            {screen.refillRequestStatus.pendingCount} pending ·{' '}
-            {screen.refillRequestStatus.submittedLabel}
-          </p>
-          <Link
-            href="/settings/refills-queue"
-            className="text-soft hover:text-ink mt-1 inline-block font-sans text-[11px] underline-offset-2 hover:underline">
-            Review →
-          </Link>
-        </Card>
-      ) : null}
     </div>
   );
 }

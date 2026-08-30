@@ -35,8 +35,8 @@ export const Populated: Story = {
   },
 };
 
-// The `overview` custom endpoint rejects — the SPEND and LATENCY dashboards render their
-// section-level ErrorLine + Retry in place of the charts.
+// The `overview` custom endpoint rejects — the SPEND and SPEND BY MODEL zones render their
+// section-level error line + Retry in place of the chart/ranked list.
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { overview: 'Failed to load overview data.' } })],
   render: () => (

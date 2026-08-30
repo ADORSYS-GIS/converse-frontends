@@ -8,6 +8,7 @@ import {
   CURRENT_PERIOD,
   MANAGE_BUDGET_STATES,
   MANAGE_STATUSES,
+  OVERVIEW_GROUP_BYS,
   OVERVIEW_RANGES,
   RESOLVER_TARGETS,
   URL_PARAM_CONTRACT,
@@ -18,6 +19,7 @@ import {
   overviewParsers,
   projectScopeParsers,
   resolverParsers,
+  settingsOverviewParsers,
   settingsParsers,
 } from './url-state';
 
@@ -107,6 +109,10 @@ describe('the URL param contract', () => {
       // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
       // sort (`sort`/`dir`) and page cursor (`after`).
       admin: ['after', 'dir', 'request', 'sort'],
+      // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
+      // `project`/`user`) share this one range/bucket/selection vocabulary. `accountSort` is the
+      // estate overview's own by-account sort toggle, remapped to kebab-case on the wire.
+      settingsOverview: ['account-sort', 'bucket', 'from', 'range', 'series', 'to'],
     });
   });
 
@@ -213,6 +219,10 @@ describe('the URL param contract', () => {
     expect(isParserBijective(overviewParsers.period, '2026-07', '2026-07')).toBe(true);
     expect(isParserBijective(overviewParsers.format, 'pdf', 'pdf')).toBe(true);
     expect(isParserBijective(createProjectParsers.open, 'true', true)).toBe(true);
+    expect(isParserBijective(settingsOverviewParsers.range, '7d', '7d')).toBe(true);
+    expect(isParserBijective(settingsOverviewParsers.bucket, 'hour', 'hour')).toBe(true);
+    expect(isParserBijective(settingsOverviewParsers.series, 'acct_7', 'acct_7')).toBe(true);
+    expect(isParserBijective(settingsOverviewParsers.accountSort, 'delta', 'delta')).toBe(true);
   });
 
   it('falls back to the default rather than crashing on a hand-edited or stale value', () => {
@@ -231,6 +241,11 @@ describe('the URL param contract', () => {
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
     expect(ADMIN_SORT_KEYS).toEqual(['submitted']);
     expect(RESOLVER_TARGETS).toEqual(['overview', 'projects', 'api-keys']);
+    // `console-ui#312`, closed: this is now a literal subset of `UsageGroupBy`
+    // (`@lightbridge/api-rest`), asserted at the definition (`satisfies readonly UsageGroupBy[]`)
+    // — no bridge table translates it any more (`overview-usage.ts`'s deleted
+    // `OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY`).
+    expect(OVERVIEW_GROUP_BYS).toEqual(['project_id', 'model', 'user_id', 'api_key_id']);
   });
 
   it('defaults the report period to the current month, resolved once', () => {

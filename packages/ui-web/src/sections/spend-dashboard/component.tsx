@@ -2,6 +2,7 @@ import React from 'react';
 
 import { SPEC_GRID } from '../../chart-tokens';
 import { ErrorLine } from '../../components/error-line';
+import { InlineStatus } from '../../components/inline-status';
 import { SpendSeriesChart } from '../../components/spend-series-chart';
 import { useResizeObserver } from '../../lib/use-resize-observer';
 import { ZoneHeading } from '../../lib/zone-heading';
@@ -68,6 +69,10 @@ export function SpendDashboard({
   formatYTick,
   formatTooltipValue,
   formatLegendValue,
+  variant,
+  cumulative,
+  ceiling,
+  degenerateMessage,
   actions,
   className,
 }: SpendDashboardProps) {
@@ -90,6 +95,12 @@ export function SpendDashboard({
             {/* Status text — sans (phase 9 consistency pass: this used to be mono). */}
             <p className="text-subtle font-sans text-[10px]">Querying usage…</p>
           </div>
+        ) : status === 'ready' && degenerateMessage ? (
+          // A single-band chart asserts a shape the data doesn't have — an inline status line
+          // over still-rendered STRUCTURE would need the axes to stay, but there is no honest
+          // axis to draw for one band either, so this replaces the whole chart body (heading
+          // stays, above) rather than drawing an empty frame around one line.
+          <InlineStatus>{degenerateMessage}</InlineStatus>
         ) : (
           <SpendSeriesChart
             series={series}
@@ -106,6 +117,9 @@ export function SpendDashboard({
             formatTooltipValue={formatTooltipValue}
             formatLegendValue={formatLegendValue}
             onSelectSeries={onSelectSeries}
+            variant={variant}
+            cumulative={cumulative}
+            ceiling={ceiling}
           />
         )}
       </div>

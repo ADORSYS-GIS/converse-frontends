@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -53,14 +53,37 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     spendStatus: 'ready',
     spendErrorMessage: undefined,
     spendRetry: vi.fn(),
-    latencySeries: [],
-    latencyStatus: 'ready',
-    latencyErrorMessage: undefined,
-    latencyRetry: vi.fn(),
-    latencyFootnote: undefined,
     budget: { status: 'unwired', caption: 'Budget figures arrive with the budget query wiring.' },
     refillAction: undefined,
     refillErrorMessage: undefined,
+    report: {
+      open: false,
+      onOpenChange: vi.fn(),
+      period: '2026-08',
+      onPeriodChange: vi.fn(),
+      scopeSlot: null,
+      groupByOptions: [
+        { value: 'project', label: 'Project' },
+        { value: 'model', label: 'Model' },
+      ],
+      groupBy: 'project',
+      onGroupByChange: vi.fn(),
+      includeToggles: [],
+      onToggleInclude: vi.fn(),
+      format: 'csv',
+      onFormatChange: vi.fn(),
+      onGenerate: vi.fn(),
+      generating: false,
+      notice: undefined,
+    },
+    // Phase 4 role-parameterised block — defaults to a non-admin: every admin-only card is
+    // undefined, never a permanently-loading placeholder (see `use-overview-screen.ts`'s own
+    // doc comment).
+    isAdmin: false,
+    adminLatency: undefined,
+    adminPressure: undefined,
+    adminHygiene: undefined,
+    refillRequestStatus: undefined,
     ...overrides,
   };
 }
@@ -117,14 +140,6 @@ describe('OverviewCentre', () => {
       spendStatus: 'error',
       spendErrorMessage: 'The usage backend is unreachable right now.',
       spendSeries: [],
-      // LATENCY is off the SAME query as SPEND in reality (`use-overview-screen.ts`'s
-      // `latencyStatus` mirrors `spendStatus` exactly), so a real failed usage query takes both
-      // down together -- matching that here also sidesteps a coincidental collision:
-      // `LatencyRidgeline` shares `SpendSeriesChart`'s default empty wording ("No usage in this
-      // range."), so leaving LATENCY `'ready'` with an empty series would make its OWN honest
-      // empty state collide with the very string this test checks SPEND does not show.
-      latencyStatus: 'error',
-      latencyErrorMessage: 'The usage backend is unreachable right now.',
     });
 
     const alerts = screen.getAllByRole('alert');
@@ -222,25 +237,62 @@ describe('OverviewCentre', () => {
     expect(screen.queryByRole('button', { name: /Request refill/ })).not.toBeInTheDocument();
   });
 
+  // Phase 4 — one dashboard, parameterised by role. The four admin-only cards must never render
+  // for a non-admin, and must render with real data for an admin — never a permanently-loading
+  // placeholder in between (see `use-overview-screen.ts`'s own doc comment on why these are
+  // `undefined`, not a `status: 'loading'` shape, for a non-admin).
+  describe('the admin-only block', () => {
+    it('renders none of the four admin cards for a non-admin', async () => {
+      await renderCentre({ isAdmin: false });
 
-
-  // The per-series honesty contract this whole story exists to build: some groups reported real
-  // latency, one genuinely reported none (an aggregate-metric-only model) -- the footnote names
-  // it explicitly rather than either fabricating a shape or blanking the whole panel.
-
-  // Every group reported zero samples this range -- the query still SUCCEEDED (never
-  // `status="unwired"`, which would falsely claim the section was never queried at all), so the
-  // empty ridgeline plus a footnote naming the range/filter itself is the honest rendering.
-
-  it('renders no footnote at all when every group reported real latency', async () => {
-    await renderCentre({
-      latencyStatus: 'ready',
-      latencySeries: [
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240], value: 'peak p95 240 ms' },
-      ],
-      latencyFootnote: undefined,
+      expect(screen.queryByText('Budget pressure')).not.toBeInTheDocument();
+      expect(screen.queryByText('Latency')).not.toBeInTheDocument();
+      expect(screen.queryByText('Key hygiene')).not.toBeInTheDocument();
+      expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
     });
 
-    expect(screen.queryByText(/No latency reported/)).not.toBeInTheDocument();
+    it('renders all four admin cards, with real data, for an admin', async () => {
+      await renderCentre({
+        isAdmin: true,
+        adminPressure: {
+          projects: [{ key: 'proj_a', name: 'proj_a', spend: 12 }],
+          ceiling: 100,
+          status: 'ready',
+          onRetry: vi.fn(),
+          note: 'scope note',
+        },
+        adminLatency: {
+          series: [
+            { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240], value: 'peak p95 240 ms' },
+          ],
+          status: 'ready',
+          retry: vi.fn(),
+          footnote: undefined,
+        },
+        adminHygiene: {
+          hygiene: {
+            expiringCount: 0,
+            expiringInDays: 30,
+            neverUsedCount: 0,
+            revokedRetainedCount: 0,
+          },
+          summary: '6 active keys',
+        },
+        refillRequestStatus: { pendingCount: 2, submittedLabel: 'oldest submitted 3 days ago' },
+      });
+
+      expect(screen.getByText('Budget pressure')).toBeInTheDocument();
+      expect(screen.getByText('Latency')).toBeInTheDocument();
+      expect(screen.getByText('Key hygiene')).toBeInTheDocument();
+      expect(screen.getByText('Refill requests')).toBeInTheDocument();
+      expect(screen.getByText(/2 pending/)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Review →' })).toHaveAttribute('href', '/admin');
+    });
+
+    it('omits the Refill requests card when nothing is pending, even for an admin', async () => {
+      await renderCentre({ isAdmin: true, refillRequestStatus: undefined });
+
+      expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
+    });
   });
 });

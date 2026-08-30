@@ -155,6 +155,27 @@ describe('NavSpine', () => {
     expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
   });
 
+  // Phase 4 — the Operator row's pending-refill count, plain trailing text (never a badge).
+  it('renders a trailing count when the item carries one, and omits it when absent', () => {
+    render(
+      <NavSpine
+        groups={[
+          {
+            key: 'operator',
+            items: [{ key: 'admin', label: 'Refill requests', count: 3 }],
+          },
+        ]}
+        layout="sidebar"
+      />
+    );
+
+    const row = screen.getByRole('button', { name: /Refill requests/ });
+    expect(row).toHaveTextContent('3');
+
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
   describe('bottom-bar layout', () => {
     it('flattens every group into one horizontal strip, without any group label', () => {
       render(<NavSpine groups={[workspaceGroup, operatorGroup]} layout="bottom-bar" />);

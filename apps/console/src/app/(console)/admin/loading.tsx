@@ -1,62 +1,40 @@
 'use client';
 
-import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
-import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
-import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
-import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
+import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
 /**
  * `/admin` centre loading skeleton — see `(console)/loading.tsx`'s docstring for why this file
- * exists at all. The route itself is `async` (`readSession()` before the role gate), so this
- * boundary also covers that real server-side latency, not just the client chunk fetch.
+ * exists at all (the App Router Suspense fallback shown while the incoming route segment's RSC
+ * payload + client chunk are still in flight). The route itself is `async` (`readSession()`
+ * before the role gate), so this boundary also covers that real server-side latency, not just the
+ * client chunk fetch.
  *
- * It matches the LANDING section's geometry, which is now the admin OVERVIEW rather than the
- * refill queue: a `loading.tsx` is a Suspense fallback for the segment, and the segment cannot
- * read `?section=` before it resolves, so it has to skeleton one of the two. The default section
- * (`url-state.ts`'s `adminParsers.section`) is the only defensible choice — it is what a bare
- * `/admin` opens, and it is by far the more common entry. Arriving straight at
- * `?section=refills` briefly shows this shape instead of the queue's; `ReviewQueue`'s own
- * `loading` skeleton then takes over the moment the client component mounts.
+ * Shell revamp phase 4 (2026-08-30): `/admin` is now ONE screen — the budget refill review queue
+ * — not a dashboard-or-queue switch, so this skeleton matches `AdminCentre`'s actual geometry
+ * (`ReviewQueue` with no rows) rather than the deleted admin-overview dashboard shape the previous
+ * version of this file skeletoned.
  *
- * Every section below already carries its own `loading`/`status="loading"` rendering (console-ui
- * skill §states) — this file only drives those flags with empty data. No fabricated numerals:
- * `BudgetPanel` gets `status: 'loading'`, and `BudgetPressure` a `null` ceiling with loading rows,
- * never a `$0.00 of $0.00`.
+ * `ReviewQueue`'s own `loading` skeleton (console-ui skill §states: `raised` blocks matching the
+ * final row geometry) is what actually renders here — this file's only job is to drive it with
+ * empty data, the same contract `AdminCentre` uses while `useAdminScreen()`'s own query is in
+ * flight.
  */
 export default function AdminLoading() {
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader title="Admin overview" subtitle="loading account…" />
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Budget refill review" subtitle="loading queue…" />
 
-      <OverviewStatRow cards={[]} loading />
-
-      <SpendDashboard
-        label="Spend — every project in this account"
-        series={[]}
-        fallbackWidth={840}
-        height={220}
-        status="loading"
+      <ReviewQueue
+        activeTab="pending"
+        onTabChange={() => undefined}
+        pendingCount={0}
+        decidedCount={0}
+        pending={[]}
+        loading
+        loadingRowCount={6}
+        onSelectRequest={() => undefined}
       />
-
-      <SpendShareSection segments={[]} status="loading" />
-
-      <LatencyDashboard series={[]} fallbackWidth={840} height={310} status="loading" />
-
-      <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
-        <BudgetPressure
-          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[528px]"
-          projects={[]}
-          ceiling={null}
-          status="loading"
-        />
-        <BudgetPanel
-          className="w-full lg:min-w-0 lg:flex-1 lg:basis-[320px]"
-          budget={{ status: 'loading' }}
-        />
-      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
+import { useAdminScreen } from '../containers/use-admin-screen';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -89,12 +90,19 @@ function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'settings
  * "Nav groups". There is no more `adminItems`/`showAdmin`/`roleLabel` axis: a gated group is
  * simply included or omitted from the array, and its own label row IS the role marker.
  *
- * `/admin` reads "Admin", not "Budget review": the route is an area with its own section switch
- * (operator overview · refill requests, now a horizontal tab row inside `AdminCentre` rather than
- * a rail sub-nav — see `containers/admin-centre.tsx`), and naming the top-level entry after one of
- * its two sections would mislabel the other.
+ * `/admin` reads "Refill requests", not "Admin" (shell revamp phase 4, 2026-08-30): the route's
+ * own dashboard section moved to `/` itself (gated by `session.isAdmin`), so `/admin` is now
+ * exactly one screen — the budget refill review queue — and the nav item is named after what it
+ * actually opens. `refillCount` is the same pending-queue query `use-overview-screen.ts`'s
+ * "Refill requests" card and `/admin` itself read (`useAdminScreen`, shared by query key) — a
+ * plain trailing numeral, never a badge, and omitted (`undefined`) rather than shown as `0` while
+ * it is unresolved or genuinely empty.
  */
-export function navGroups(active: ConsoleRoute, isAdmin: boolean): NavGroup[] {
+export function navGroups(
+  active: ConsoleRoute,
+  isAdmin: boolean,
+  refillCount?: number
+): NavGroup[] {
   const groups: NavGroup[] = [
     {
       key: 'workspace',
@@ -144,10 +152,11 @@ export function navGroups(active: ConsoleRoute, isAdmin: boolean): NavGroup[] {
       items: [
         {
           key: 'admin',
-          label: 'Admin',
+          label: 'Refill requests',
           href: NAV_HREFS.admin,
           icon: <NavGlyph shape="admin" />,
           active: active === 'admin',
+          count: refillCount && refillCount > 0 ? refillCount : undefined,
         },
       ],
     });
@@ -233,7 +242,7 @@ export function useConsolePalette() {
     if (session.isAdmin) {
       navigate.push({
         key: 'admin',
-        label: 'Admin',
+        label: 'Refill requests',
         hint: 'ROLE',
         onSelect: () => router.push(NAV_HREFS.admin),
       });
@@ -268,6 +277,21 @@ export function ConsolePaletteDialog({
  * stack (search/palette trigger, theme, offline status, identity). `ConsoleSidebar` (`ui-web`)
  * renders both this and the mobile bottom-nav dock from the same `groups`.
  */
+/**
+ * The Operator nav row's trailing count — the same pending-refill query `/admin` and `/`'s
+ * "Refill requests" card read, shared by query key (`use-admin-screen.ts`'s own doc comment),
+ * fired only for an admin ("fire NO extra query for non-admins" — shell revamp phase 4 brief).
+ *
+ * `undefined` while the query hasn't resolved (or for a non-admin) rather than `0`: the row must
+ * "not block nav rendering on it — show nothing while loading" (shell brief), and a `0` shown
+ * before the real count is known would be a fabricated figure, not an honest one.
+ */
+function useOperatorRefillCount(isAdmin: boolean): number | undefined {
+  const queue = useAdminScreen(isAdmin);
+  if (!isAdmin || queue.loading) return undefined;
+  return queue.pendingCount;
+}
+
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const session = useConsoleSession();
@@ -276,6 +300,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
   const switcher = useWorkspaceSwitcher();
   const route = routeFromPathname(pathname);
   const identityLabel = session.user?.email ?? session.user?.preferredUsername ?? session.user?.name;
+  const refillCount = useOperatorRefillCount(session.isAdmin);
 
   return (
     <ConsoleSidebar
@@ -291,7 +316,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
           onCopyId={switcher.onCopyId}
         />
       }
-      groups={navGroups(route, session.isAdmin)}
+      groups={navGroups(route, session.isAdmin, refillCount)}
       linkComponent={Link}
       footer={
         <>

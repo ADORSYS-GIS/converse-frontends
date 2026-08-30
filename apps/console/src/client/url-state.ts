@@ -7,7 +7,6 @@ import {
   parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
-  useQueryState,
   useQueryStates,
 } from 'nuqs';
 import type { AdminReviewTab, ReportExportFormat } from '@lightbridge/ui-web';
@@ -75,6 +74,43 @@ export function useScopeParams() {
   return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
 }
 
+// ── report export — shared vocabulary (`/`, `/manage`) ──────────────────────────────────────
+
+/**
+ * The report export dialog's format/include vocabulary — shared verbatim by `/`'s and
+ * `/manage`'s own `?report=` params (phase 4 gives Overview the same `Export` action Manage's
+ * `Monthly report` button already opens). Declared here, ahead of both routes' own param tables,
+ * because a `const` must exist before either object literal below can reference it.
+ */
+export const REPORT_FORMATS = ['csv', 'pdf'] as const satisfies readonly ReportExportFormat[];
+export const REPORT_INCLUDE_IDS = ['totals', 'per-model'] as const;
+export type ReportIncludeId = (typeof REPORT_INCLUDE_IDS)[number];
+
+/**
+ * The month the monthly/period report defaults to, resolved **once at module load** rather than
+ * per render — reading the clock during render makes output depend on when React happens to
+ * re-render.
+ *
+ * It is a moving default by design: because it is the default, `clearOnDefault` keeps it out of
+ * the URL, so a shared link without `?period=` means "the current month" for whoever opens it,
+ * while a link to a *specific* month carries `?period=2026-07` explicitly.
+ */
+export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
+
+/**
+ * The three parsers built from the vocabulary above — declared once and shared **by instance**
+ * between `overviewParsers` and `manageParsers` below, the same way `adminParsers` used to share
+ * `overviewParsers.range` etc. by reference rather than by a lookalike copy: `?format=pdf` has to
+ * mean one thing on both routes' Export dialogs, and sharing the instance makes that a structural
+ * guarantee (`url-state.test.ts` asserts the identity), not a convention two literals could drift
+ * out of.
+ */
+const reportPeriodParser = parseAsString.withDefault(CURRENT_PERIOD);
+const reportFormatParser = parseAsStringLiteral(REPORT_FORMATS).withDefault('csv');
+const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
+  'totals',
+] as ReportIncludeId[]);
+
 // ── / (overview) ─────────────────────────────────────────────────────────────────────────────
 
 export const OVERVIEW_RANGES = ['7d', '30d', '90d'] as const;
@@ -97,6 +133,14 @@ export const OVERVIEW_GROUP_BYS = ['project', 'model'] as const;
  * **`from`/`to` win when both are present** — an explicit span is never silently re-rolled by a
  * preset that happens to still be in the URL. A preset write clears them; see
  * `use-overview-screen.ts`.
+ *
+ * `reportOpen`/`period`/`reportGroupBy`/`format`/`include` (phase 4) are the same boolean-target
+ * idiom `manageParsers.reportOpen` established (#303/#309): the Export dialog has exactly one
+ * possible target (the scoped account/project, already named by `range`/`groupBy` above), so
+ * these five params are its whole contract — no separate provider, no dialog-owned draft state.
+ * `reportGroupBy` reuses `OVERVIEW_GROUP_BYS` rather than declaring its own union: the report's
+ * grouping and the dashboard's are the same vocabulary, and `Export` defaults to whatever the
+ * dashboard is currently grouped by (see `use-overview-screen.ts`).
  */
 export const overviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
@@ -106,15 +150,22 @@ export const overviewParsers = {
   groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
   model: parseAsString.withDefault('all'),
   series: parseAsString.withDefault(''),
+  reportOpen: parseAsBoolean.withDefault(false),
+  period: reportPeriodParser,
+  reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
+  format: reportFormatParser,
+  include: reportIncludeParser,
 };
 
-const overviewUrlKeys = { groupBy: 'group-by' };
+const overviewUrlKeys = { groupBy: 'group-by', reportOpen: 'report', reportGroupBy: 'report-group' };
 
 export function useOverviewParams() {
   return useQueryStates(overviewParsers, { urlKeys: overviewUrlKeys, history: 'replace' });
 }
 
-/** The one Overview param that is a selection rather than a knob, so it gets its own history entry. */
+/** The Overview params that are navigation-grade rather than knobs: selecting a chart series, and
+ *  opening/closing the Export dialog — both get their own history entry (mirrors
+ *  `MANAGE_SELECTION_OPTIONS`'s `reportOpen` write). */
 export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── /api-keys ────────────────────────────────────────────────────────────────────────────────
@@ -169,19 +220,9 @@ export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 export const MANAGE_STATUSES = ['all', 'active', 'suspended'] as const;
 export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
 export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
-export const REPORT_FORMATS = ['csv', 'pdf'] as const satisfies readonly ReportExportFormat[];
-export const REPORT_INCLUDE_IDS = ['totals', 'per-model'] as const;
-export type ReportIncludeId = (typeof REPORT_INCLUDE_IDS)[number];
-
-/**
- * The month the monthly report defaults to, resolved **once at module load** rather than per
- * render — reading the clock during render makes output depend on when React happens to re-render.
- *
- * It is a moving default by design: because it is the default, `clearOnDefault` keeps it out of
- * the URL, so a shared link without `?period=` means "the current month" for whoever opens it,
- * while a link to a *specific* month carries `?period=2026-07` explicitly.
- */
-export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
+// `REPORT_FORMATS`/`REPORT_INCLUDE_IDS`/`ReportIncludeId`/`CURRENT_PERIOD` moved above the
+// "/ (overview)" section (phase 4): both routes' report dialogs now share the same vocabulary,
+// declared once ahead of whichever param table references it first.
 
 /**
  * `include` is a set, so it is a comma-separated array param (`?include=totals,per-model`) rather
@@ -211,12 +252,10 @@ export const manageParsers = {
   budgetState: parseAsStringLiteral(MANAGE_BUDGET_STATES).withDefault('all'),
   selectedProjectId: parseAsString.withDefault(''),
   reportOpen: parseAsBoolean.withDefault(false),
-  period: parseAsString.withDefault(CURRENT_PERIOD),
+  period: reportPeriodParser,
   reportGroupBy: parseAsStringLiteral(MANAGE_REPORT_GROUP_BYS).withDefault('project'),
-  format: parseAsStringLiteral(REPORT_FORMATS).withDefault('csv'),
-  include: parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
-    'totals',
-  ] as ReportIncludeId[]),
+  format: reportFormatParser,
+  include: reportIncludeParser,
   createOpen: parseAsBoolean.withDefault(false),
 };
 
@@ -285,83 +324,27 @@ export const ADMIN_REVIEW_TABS = [
 ] as const satisfies readonly AdminReviewTab[];
 
 /**
- * Which of `/admin`'s two sections is showing.
+ * `/admin`'s params: the review queue's tab and its selected request.
  *
- * `/admin` is one route with a sub-nav, not two top-level nav entries: the operator's dashboard
- * and the budget refill queue are two views of the same role-gated area, and the console's admin
- * nav group is deliberately a single item. `overview` is the landing section, so it is the
- * default and (by `clearOnDefault`) never appears in the URL — a bare `/admin` opens the
- * dashboard, `?section=refills` opens the queue.
- */
-export const ADMIN_SECTIONS = ['overview', 'refills'] as const;
-export type AdminSection = (typeof ADMIN_SECTIONS)[number];
-
-/**
- * `/admin`'s params: the sub-nav section, the review queue's tab and selected request, and — for
- * the admin overview — the same dashboard view knobs `/` uses.
+ * Phase 4 (2026-08-30) deletes `/admin`'s own dashboard section: the operator queries it used to
+ * carry (`?section=`, and the `range`/`from`/`to`/`bucket`/`group-by`/`series` knobs mirrored from
+ * `overviewParsers`) moved to `/` itself, gated behind `session.isAdmin` — see
+ * `use-overview-screen.ts`'s admin-only block. `/admin` is now ONE screen, the budget refill
+ * review queue, so it needs no sub-nav param at all; `tab`/`selectedRequestId` are what remain.
  *
- * The view knobs are **the very same parser objects** `overviewParsers` declares, not copies.
- * `?range=7d&bucket=hour&group-by=model` has to mean one thing across the product (ADR 0011
- * Consequences: "param names are a contract"), and sharing the instances makes that a structural
- * guarantee rather than a convention two literals could drift out of.
- *
- * Three different history behaviours, so three hooks over subsets of this one table rather than
- * one hook over all of it (ADR 0011 rule 2 — history is for navigation, not for knobs):
- *
- *  - `useAdminSectionParam` — `push`. The sub-nav is navigation; Back returns to the section you
- *    came from.
- *  - `useAdminParams` — `push`. The review tab is this screen's own sub-nav, and a selected
- *    request is a selection.
- *  - `useAdminOverviewParams` — `replace`. Dragging a range or a bucket through four values must
- *    not cost four Back presses. Its one selection (`series`) opts back into `push` through
- *    `ADMIN_OVERVIEW_SELECTION_OPTIONS`, exactly as Overview's own does.
+ * Both write with `push` (ADR 0011 rule 2): the review tab is this screen's own sub-nav, and a
+ * selected request is a selection — Back returns to the tab, or deselects the request.
  */
 export const adminParsers = {
-  section: parseAsStringLiteral(ADMIN_SECTIONS).withDefault('overview'),
   tab: parseAsStringLiteral(ADMIN_REVIEW_TABS).withDefault('pending'),
   selectedRequestId: parseAsString.withDefault(''),
-  range: overviewParsers.range,
-  from: overviewParsers.from,
-  to: overviewParsers.to,
-  bucket: overviewParsers.bucket,
-  groupBy: overviewParsers.groupBy,
-  series: overviewParsers.series,
 };
 
-const adminUrlKeys = { selectedRequestId: 'request', groupBy: 'group-by' };
-
-const adminQueueParsers = {
-  tab: adminParsers.tab,
-  selectedRequestId: adminParsers.selectedRequestId,
-};
-
-const adminOverviewParsers = {
-  range: adminParsers.range,
-  from: adminParsers.from,
-  to: adminParsers.to,
-  bucket: adminParsers.bucket,
-  groupBy: adminParsers.groupBy,
-  series: adminParsers.series,
-};
+const adminUrlKeys = { selectedRequestId: 'request' };
 
 export function useAdminParams() {
-  return useQueryStates(adminQueueParsers, { urlKeys: adminUrlKeys, history: 'push' });
+  return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });
 }
-
-/** The `/admin` sub-nav's position. Read by the centre, the left-rail sub-nav, the right-rail slot
- *  and the shell layout — which is exactly the cross-zone bus ADR 0011 Decision 2 makes the URL. */
-export function useAdminSectionParam() {
-  return useQueryState('section', adminParsers.section.withOptions({ history: 'push' }));
-}
-
-/** The admin overview's dashboard knobs — same vocabulary as `/`, `replace` history. */
-export function useAdminOverviewParams() {
-  return useQueryStates(adminOverviewParsers, { urlKeys: adminUrlKeys, history: 'replace' });
-}
-
-/** The one admin-overview param that is a selection rather than a knob (mirrors
- *  `OVERVIEW_SELECTION_OPTIONS`). */
-export const ADMIN_OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 

@@ -33,13 +33,14 @@ describe('console route Loading page-stories (the source `apps/console`\'s loadi
 
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
-    // The chart zone keeps its heading row even while loading — geometry stays, only the plot
-    // area is a skeleton (console-ui skill: "axes/structure stay rendered"). LATENCY is no longer
-    // part of this skeleton (shell revamp phase 4): it moved to the admin-only block, which a
-    // route-transition loading boundary cannot honestly render before the session (and therefore
-    // `session.isAdmin`) resolves client-side — see `apps/console/src/app/(console)/loading.tsx`'s
-    // own doc comment.
+    // The chart zones keep their heading row even while loading — geometry stays, only the plot
+    // area is a skeleton (console-ui skill: "axes/structure stay rendered"). SPEND BY MODEL
+    // (phase 9.2, replaces the deleted LATENCY panel) is part of this skeleton because, unlike
+    // LATENCY was, it is role-agnostic — every signed-in user sees it, so a route-transition
+    // loading boundary CAN honestly render it before the session resolves client-side — see
+    // `apps/console/src/app/(console)/loading.tsx`'s own doc comment.
     expect(screen.getByText('Spend over time')).toBeInTheDocument();
+    expect(screen.getByText('Spend by model')).toBeInTheDocument();
   });
 
   it('Api-Keys: renders ledger row skeletons and the real title', () => {

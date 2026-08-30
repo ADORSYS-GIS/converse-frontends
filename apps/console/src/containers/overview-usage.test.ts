@@ -12,7 +12,6 @@ import {
   overviewGroupByToUsageGroupBy,
   resolveOverviewWindow,
   sumTotalCost,
-  toLatencySeries,
   toSpendShareSegments,
   toSpendSeries,
 } from './overview-usage';
@@ -281,121 +280,6 @@ describe('toSpendShareSegments', () => {
     const segments = toSpendShareSegments(response, 'model');
 
     expect(segments.map((segment) => segment.key)).toEqual(['largest', 'middle', 'small']);
-  });
-});
-
-describe('toLatencySeries', () => {
-  it('keeps one per-bucket p95 value per group — real observed data, not synthesised from the percentile', () => {
-    const response: UsageQueryResponse = {
-      points: [
-        point({ model: 'gpt-4o-mini', latency_samples: 120, latency_p95_ms: 310 }),
-        point({ model: 'gpt-4o-mini', latency_samples: 140, latency_p95_ms: 340 }),
-        point({ model: 'claude-sonnet', latency_samples: 200, latency_p95_ms: 900 }),
-      ],
-    };
-
-    const { series, seriesWithoutLatency, totalSamples } = toLatencySeries(response, 'model');
-
-    const gpt = series.find((s) => s.key === 'gpt-4o-mini');
-    expect(gpt?.values).toEqual([310, 340]);
-    expect(gpt?.value).toBe('peak p95 340 ms');
-    const claude = series.find((s) => s.key === 'claude-sonnet');
-    expect(claude?.values).toEqual([900]);
-    expect(claude?.value).toBe('peak p95 900 ms');
-    expect(seriesWithoutLatency).toEqual([]);
-    expect(totalSamples).toBe(460);
-  });
-
-  it('a group whose buckets all report zero samples still gets a row, named as reporting none', () => {
-    const response: UsageQueryResponse = {
-      points: [
-        point({ model: 'gpt-4o-mini', latency_samples: 100, latency_p95_ms: 300 }),
-        point({ model: 'embed-3', latency_samples: 0, latency_p95_ms: null }),
-      ],
-    };
-
-    const { series, seriesWithoutLatency } = toLatencySeries(response, 'model');
-
-    const embed = series.find((s) => s.key === 'embed-3');
-    expect(embed).toEqual({
-      key: 'embed-3',
-      label: 'embed-3',
-      values: [],
-      value: 'no latency reported',
-    });
-    // The model with real data is untouched by its sibling reporting nothing.
-    expect(series.find((s) => s.key === 'gpt-4o-mini')?.values).toEqual([300]);
-    expect(seriesWithoutLatency).toEqual(['embed-3']);
-  });
-
-  it('every group reporting zero samples still returns one row per group, all honestly empty', () => {
-    const response: UsageQueryResponse = {
-      points: [
-        point({ model: 'gpt-4o-mini', latency_samples: 0, latency_p95_ms: null }),
-        point({ model: 'claude-sonnet', latency_samples: 0, latency_p95_ms: null }),
-      ],
-    };
-
-    const { series, seriesWithoutLatency, totalSamples } = toLatencySeries(response, 'model');
-
-    expect(series).toHaveLength(2);
-    expect(series.every((s) => s.values.length === 0 && s.value === 'no latency reported')).toBe(
-      true
-    );
-    expect(seriesWithoutLatency).toEqual(['gpt-4o-mini', 'claude-sonnet']);
-    expect(totalSamples).toBe(0);
-  });
-
-  it('drops a null percentile riding alongside a non-zero sample count (defensive against a malformed response)', () => {
-    const response: UsageQueryResponse = {
-      points: [point({ model: 'gpt-4o-mini', latency_samples: 50, latency_p95_ms: null })],
-    };
-
-    const { series, seriesWithoutLatency, totalSamples } = toLatencySeries(response, 'model');
-
-    // The sample count is still real (it counts toward totalSamples/telemetry) even though this
-    // particular bucket had nothing plottable — the two facts are independent.
-    expect(series).toEqual([
-      { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [], value: 'no latency reported' },
-    ]);
-    expect(seriesWithoutLatency).toEqual(['gpt-4o-mini']);
-    expect(totalSamples).toBe(50);
-  });
-
-  it('ignores a non-null percentile on a bucket that reported zero samples (malformed response, gated on the sample count, not the percentile alone)', () => {
-    const response: UsageQueryResponse = {
-      points: [point({ model: 'gpt-4o-mini', latency_samples: 0, latency_p95_ms: 500 })],
-    };
-
-    const { series, seriesWithoutLatency } = toLatencySeries(response, 'model');
-
-    // latency_samples === 0 means "no event in this bucket reported latency at all"
-    // (`openapi/usage.backend.yaml`'s own doc comment) — a stray percentile value alongside it is
-    // a malformed response, never a real observation, so it must not surface as one.
-    expect(series).toEqual([
-      { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [], value: 'no latency reported' },
-    ]);
-    expect(seriesWithoutLatency).toEqual(['gpt-4o-mini']);
-  });
-
-  it('a single sparse bucket still produces one real kept value, not an interpolated shape', () => {
-    const response: UsageQueryResponse = {
-      points: [point({ model: 'embed-3', latency_samples: 3, latency_p95_ms: 88 })],
-    };
-
-    const { series } = toLatencySeries(response, 'model');
-
-    expect(series).toEqual([
-      { key: 'embed-3', label: 'embed-3', values: [88], value: 'peak p95 88 ms' },
-    ]);
-  });
-
-  it('returns no series for an empty response', () => {
-    expect(toLatencySeries({ points: [] }, 'model')).toEqual({
-      series: [],
-      seriesWithoutLatency: [],
-      totalSamples: 0,
-    });
   });
 });
 

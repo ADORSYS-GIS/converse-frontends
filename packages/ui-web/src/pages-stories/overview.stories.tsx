@@ -34,11 +34,6 @@ import {
   ADMIN_SPEND_THIS_PERIOD,
   adminBudgetPressureProjects,
 } from '../sections/budget-pressure/fixtures';
-import { LatencyDashboard } from '../sections/latency-dashboard';
-import {
-  overviewLatencySeries,
-  partiallyReportedLatencySeries,
-} from '../sections/latency-dashboard/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { OverviewControls } from '../sections/overview-controls';
 import {
@@ -64,12 +59,13 @@ import {
   overviewSpendSeries,
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
-import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
-import { formatMsAxis } from '../lib/duration';
+import {
+  overviewSpendShareByModelSegments,
+  overviewSpendShareSegments,
+} from '../sections/spend-share/fixtures';
 import { formatUsd } from '../lib/money';
 import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
-import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import type { BudgetSummary } from '../sections/budget-panel';
 import { storySidebar, storyTopBar } from './shell-fixtures';
@@ -104,8 +100,8 @@ const adminBudgetSummary: BudgetSummary = {
 interface OverviewScreenProps {
   showAdmin?: boolean;
   /**
-   * The four ADMIN-ONLY additive cards (Budget pressure, Latency, Key hygiene, Refill requests) —
-   * a separate axis from `showAdmin` (which only toggles the sidebar's Operator nav group): a nav
+   * The three ADMIN-ONLY additive cards (Budget pressure, Key hygiene, Refill requests) — a
+   * separate axis from `showAdmin` (which only toggles the sidebar's Operator nav group): a nav
    * item being visible and this screen's own role-gated content are two different facts, exactly
    * as `use-overview-screen.ts`'s `isAdmin` gate is independent of `console-chrome.tsx`'s own.
    */
@@ -117,16 +113,12 @@ interface OverviewScreenProps {
   spendStatus?: DashboardStatus;
   spendShareSegments?: ShareBarSegment[];
   spendShareStatus?: DashboardStatus;
-  latencySeries?: LatencyRidgelineSeries[];
-  latencyStatus?: DashboardStatus;
-  latencyErrorMessage?: string;
-  /** Overrides LatencyDashboard's default `UNWIRED_CHART_MESSAGE` — see `Unwired` above, the
-   *  reference story for what "no usage-backend query client at all" looked like before #304. */
-  latencyUnwiredMessage?: string;
-  /** The per-series honesty line below the ridgeline — see `LatencyPartiallyReported` below, the
-   *  story for the "some models reported nothing" case `use-overview-screen.ts`'s real
-   *  `latencyFootnote` derives. */
-  latencyFootnote?: string;
+  /** "Spend by model" (phase 9.2) — for every user, never admin-gated. Replaces the deleted
+   *  LATENCY panel: the usage backend's events are aggregate metric signals with no per-request
+   *  duration, so that panel could never honestly fill. */
+  spendShareByModelSegments?: ShareBarSegment[];
+  spendShareByModelStatus?: DashboardStatus;
+  spendShareByModelErrorMessage?: string;
   budget?: BudgetSummary;
   needsAttention?: typeof overviewNeedsAttentionProject | undefined;
   refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
@@ -150,11 +142,9 @@ function OverviewScreen({
   spendStatus = 'ready',
   spendShareSegments = overviewSpendShareSegments,
   spendShareStatus = 'ready',
-  latencySeries = overviewLatencySeries,
-  latencyStatus = 'ready',
-  latencyErrorMessage,
-  latencyUnwiredMessage,
-  latencyFootnote,
+  spendShareByModelSegments = overviewSpendShareByModelSegments,
+  spendShareByModelStatus = 'ready',
+  spendShareByModelErrorMessage,
   budget = overviewBudget,
   needsAttention = overviewNeedsAttentionProject,
   refillRequestStatus = overviewRefillRequestStatus,
@@ -175,6 +165,10 @@ function OverviewScreen({
   const spendShareTotal = useMemo(
     () => spendShareSegments.reduce((sum, segment) => sum + segment.value, 0),
     [spendShareSegments]
+  );
+  const spendShareByModelTotal = useMemo(
+    () => spendShareByModelSegments.reduce((sum, segment) => sum + segment.value, 0),
+    [spendShareByModelSegments]
   );
 
   return (
@@ -220,9 +214,9 @@ function OverviewScreen({
 
         {/* Phase 4 — every dashboard zone below the stat row sits in a `Card`; a section that
             already renders its own tracked heading (`SpendDashboard`, `SpendShareSection`,
-            `BudgetPanel`, `BudgetPressure`, `LatencyDashboard`) gets its `label` overridden to the
-            name this composition wants and no `Card.title` of its own — one heading per zone,
-            never two stacked. */}
+            `BudgetPanel`, `BudgetPressure`) gets its `label` overridden to the name this
+            composition wants and no `Card.title` of its own — one heading per zone, never two
+            stacked. */}
         <Card>
           <SpendDashboard
             label="Spend over time"
@@ -250,6 +244,20 @@ function OverviewScreen({
           />
         </Card>
 
+        {/* Phase 9.2 — "Spend by model" replaces the deleted LATENCY panel, for every user (never
+            admin-gated): a second, model-grouped view of the same period SPEND above plots.
+            `SpendShareSection` is reused verbatim — it hard-codes no project-specific labelling. */}
+        <Card>
+          <SpendShareSection
+            label="Spend by model"
+            segments={spendShareByModelSegments}
+            status={spendShareByModelStatus}
+            errorMessage={spendShareByModelErrorMessage}
+            onRetry={() => {}}
+            total={spendShareByModelTotal > 0 ? formatUsd(spendShareByModelTotal) : undefined}
+          />
+        </Card>
+
         <Card>
           <BudgetPanel
             className="w-full"
@@ -264,9 +272,11 @@ function OverviewScreen({
 
         {/* ── admin-only, purely additive (`adminExtras`) — mirrors
             `apps/console/src/containers/overview-centre.tsx`'s own `screen.isAdmin` block. LATENCY
-            moved here from the per-user row above it in shell revamp phase 4: per-bucket p95 by
-            model is an operator's metric, not something everyone reading their own spend asks
-            for. */}
+            used to render here (shell revamp phase 4); phase 9.2 deleted it outright (owner
+            directive — the usage backend's events are aggregate metric signals with no per-request
+            duration, so that panel could never fill) rather than moving it, since "Spend by model"
+            above already answers the "which model is spend concentrated in" question for every
+            user, not just an operator. */}
         {adminExtras ? (
           <>
             <Card>
@@ -276,21 +286,6 @@ function OverviewScreen({
                 ceiling={pressureCeiling}
                 status={pressureStatus}
                 note={ADMIN_BUDGET_PRESSURE_NOTE}
-              />
-            </Card>
-
-            <Card>
-              <LatencyDashboard
-                label="Latency"
-                series={latencySeries}
-                fallbackWidth={872}
-                height={220}
-                status={latencyStatus}
-                errorMessage={latencyErrorMessage}
-                unwiredMessage={latencyUnwiredMessage}
-                footnote={latencyFootnote}
-                onRetry={() => {}}
-                formatXTick={formatMsAxis}
               />
             </Card>
 
@@ -349,7 +344,7 @@ export const Empty: Story = {
       statCards={overviewEmptyStatCards}
       spendSeries={[]}
       spendShareSegments={[]}
-      latencySeries={[]}
+      spendShareByModelSegments={[]}
       budget={overviewEmptyBudget}
       needsAttention={undefined}
       refillRequestStatus={undefined}
@@ -363,12 +358,9 @@ export const Empty: Story = {
 // defaulting to `'ready'` with fabricated empty/zero data — the acceptance surface for #272/#273.
 //
 // Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary itself is still
-// live — `component.stories.tsx`'s own `Unwired` story for `LatencyDashboard` exercises it for
-// real — and this remains the reference for what "the usage-backend query client doesn't exist at
-// all yet" looks like across every zone at once, which is no longer console's actual state: as of
-// the lightbridge-authz `feat/usage-latency-percentiles` contract landing, LATENCY is wired the
-// same way SPEND/SPEND SHARE/BUDGET already were (see `LatencyPopulated`/`LatencyPartiallyReported`
-// below for what that looks like).
+// live — `SpendDashboard`'s own `component.stories.tsx` exercises it for real — and this remains
+// the reference for what "the usage-backend query client doesn't exist at all yet" looks like
+// across every zone at once, which is no longer console's actual state.
 export const Unwired: Story = {
   render: () => (
     <OverviewScreen
@@ -378,8 +370,8 @@ export const Unwired: Story = {
       spendStatus="unwired"
       spendShareSegments={[]}
       spendShareStatus="unwired"
-      latencySeries={[]}
-      latencyStatus="unwired"
+      spendShareByModelSegments={[]}
+      spendShareByModelStatus="unwired"
       budget={overviewUnwiredBudget}
       needsAttention={undefined}
       refillRequestStatus={undefined}
@@ -393,35 +385,6 @@ export const UnwiredLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// Console's ACTUAL current state, and the acceptance surface for ADR 0008 Decision 7's amended
-// status note: SPEND/SPEND SHARE/BUDGET/LATENCY are all real now (default fixtures,
-// `spendStatus`/`spendShareStatus`/`latencyStatus` all default to `'ready'`) — the usage-API
-// contract gained `latency_samples`/`latency_p50_ms`/`latency_p95_ms`/`latency_p99_ms` on
-// `lightbridge-authz`'s `feat/usage-latency-percentiles` branch, closing the gap the earlier
-// `LatencyBlocked` story (removed) exercised. Every model here reported real per-bucket p95
-// samples across the whole range, so there is nothing to caveat — no footnote.
-export const LatencyPopulated: Story = {
-  render: () => <OverviewScreen latencySeries={overviewLatencySeries} latencyStatus="ready" />,
-};
-
-// The per-series honesty this feature is actually built around: a query can succeed
-// (`latencyStatus="ready"`, never `'unwired'` — that vocabulary is reserved for "never queried at
-// all") while one group within it genuinely reported no latency at all, e.g. `signal-summary`
-// here, an aggregate metric signal that never carries a per-request duration
-// (`openapi/usage.backend.yaml`'s own `latency_samples` doc comment). The gap is named in the
-// footnote and in that row's own "no latency reported" value, never silently dropped and never
-// fabricated — see `apps/console/src/containers/use-overview-screen.ts`'s `latencyFootnote` for
-// the real per-series logic this story's `latencyFootnote` prop mirrors.
-export const LatencyPartiallyReported: Story = {
-  render: () => (
-    <OverviewScreen
-      latencySeries={partiallyReportedLatencySeries}
-      latencyStatus="ready"
-      latencyFootnote="No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration."
-    />
-  ),
-};
-
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
 export const Loading: Story = {
   render: () => (
@@ -429,16 +392,20 @@ export const Loading: Story = {
       statCardsLoading
       spendStatus="loading"
       spendShareStatus="loading"
-      latencyStatus="loading"
+      spendShareByModelStatus="loading"
     />
   ),
 };
 
-// README §6 error rules: section-level ErrorLine + Retry. A failed latency query must not take
-// the spend chart down with it, so only LATENCY errors here.
+// README §6 error rules: section-level ErrorLine + Retry — one dashboard failing must never take
+// its neighbours down. Exercises SPEND BY MODEL's own failure path (phase 9.2's replacement for
+// the deleted LATENCY panel).
 export const DashboardError: Story = {
   render: () => (
-    <OverviewScreen latencyStatus="error" latencyErrorMessage="Failed to load latency data." />
+    <OverviewScreen
+      spendShareByModelStatus="error"
+      spendShareByModelErrorMessage="Failed to load spend by model."
+    />
   ),
 };
 
@@ -452,11 +419,12 @@ export const AdminNav: Story = {
   render: () => <OverviewScreen showAdmin />,
 };
 
-// ── phase 4: the admin-only additive block — Budget pressure, Latency, Key hygiene, Refill
-// requests. These replace `Pages/AdminOverview` (deleted this phase): the dashboard it depicted
-// merged into `/` itself, gated by `session.isAdmin` rather than living behind a second route.
+// ── phase 4: the admin-only additive block — Budget pressure, Key hygiene, Refill requests
+// (LATENCY deleted, phase 9.2). These replace `Pages/AdminOverview` (deleted phase 4): the
+// dashboard it depicted merged into `/` itself, gated by `session.isAdmin` rather than living
+// behind a second route.
 export const AdminExtras: Story = {
-  name: 'Admin — the four additive cards',
+  name: 'Admin — the three additive cards',
   // Operator-scale BUDGET, matching the account-wide numbers BUDGET PRESSURE below shows — the
   // same "one figure, three renderings, kept in sync" property `use-overview-screen.ts` gets from
   // deriving all three off the same query.
@@ -464,24 +432,9 @@ export const AdminExtras: Story = {
 };
 
 export const AdminExtrasLight: Story = {
-  name: 'Admin — the four additive cards — wireframe (light)',
+  name: 'Admin — the three additive cards — wireframe (light)',
   render: () => <OverviewScreen showAdmin adminExtras budget={adminBudgetSummary} />,
   globals: { theme: 'wireframe' },
-};
-
-// The per-series latency honesty this block inherits from the deleted admin-overview story: the
-// query succeeded, and one group within it genuinely reported no samples. It stays in the
-// ridgeline and is NAMED below it — never dropped, never given a fabricated shape.
-export const AdminExtrasLatencyPartiallyReported: Story = {
-  name: 'Admin — Latency, partially reported',
-  render: () => (
-    <OverviewScreen
-      showAdmin
-      adminExtras
-      latencySeries={partiallyReportedLatencySeries}
-      latencyFootnote="No latency reported for signal-summary — aggregate metric signals carry a bucketed distribution, not a per-request duration."
-    />
-  ),
 };
 
 // No ceiling could be read: the pressure rows keep their real spend and drop their meters, rather

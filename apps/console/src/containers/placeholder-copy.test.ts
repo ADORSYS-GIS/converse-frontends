@@ -21,9 +21,11 @@ import * as projectsScreenModule from './use-projects-screen';
  * regression-test.
  *
  * `LATENCY_BLOCKED_MESSAGE` is gone too, along with the whole panel-wide "isn't available" claim
- * it carried: the lightbridge-authz usage API now returns `latency_samples`/`latency_p50_ms`/
- * `latency_p95_ms`/`latency_p99_ms` per bucket, so LATENCY is wired the same way SPEND/BUDGET
- * already were (`use-overview-screen.ts`'s `latencySeries`/`latencyStatus`/`latencyFootnote`).
+ * it carried. The panel it captioned went on to be wired for real (SPEND/BUDGET-style, per-series
+ * honesty) and then, per the 2026-08-30 phase 9.2 owner directive, removed outright: the usage
+ * backend's events are aggregate metric signals with no per-request duration, so LATENCY could
+ * never honestly fill regardless of how it was wired. Either way, this module has no business
+ * exporting a blanket "isn't available" string for it.
  *
  * `OVERVIEW_EXPORT_UNAVAILABLE_CAPTION` is gone too (shell revamp phase 2, 2026-08-30) — the
  * Overview EXPORT control it captioned is deleted outright rather than left permanently disabled;

@@ -5,13 +5,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { OverviewScreen as OverviewScreenData } from './use-overview-screen';
 
 /**
- * Container-level acceptance coverage for the story's own governing principle (Story 4.2 /
- * #300, extended to LATENCY by the `feat/usage-latency-percentiles` backend contract): a panel
- * with real data shows real data; a panel whose query FAILED must never fall back to `0` or to a
- * confirmed-empty rendering; and now that LATENCY is wired too, a GROUP within an otherwise
- * successful query that genuinely reported no latency says so per-series (the `latencyFootnote`),
- * never through `ErrorLine` (that mixing is console-ui#325's own fixed anti-pattern) and never by
- * fabricating a shape for it.
+ * Container-level acceptance coverage for the story's own governing principle (Story 4.2 / #300):
+ * a panel with real data shows real data; a panel whose query FAILED must never fall back to `0`
+ * or to a confirmed-empty rendering.
+ *
+ * LATENCY is gone (phase 9.2, 2026-08-30 owner directive — the usage backend's events are
+ * aggregate metric signals with no per-request duration, so that panel could never fill). SPEND BY
+ * MODEL replaces it, for every user rather than admin-only, and follows the exact same real-data/
+ * failed-query honesty contract SPEND already does — covered below alongside it.
  *
  * `useOverviewScreen` is mocked wholesale rather than its own dependencies (refine, the budget
  * RPC client, `queryUsage`) individually — that hook's OWN request/response mapping is already
@@ -53,6 +54,10 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     spendStatus: 'ready',
     spendErrorMessage: undefined,
     spendRetry: vi.fn(),
+    modelSpendSegments: [],
+    modelSpendStatus: 'ready',
+    modelSpendErrorMessage: undefined,
+    modelSpendRetry: vi.fn(),
     budget: { status: 'unwired', caption: 'Budget figures arrive with the budget query wiring.' },
     refillAction: undefined,
     refillErrorMessage: undefined,
@@ -80,7 +85,6 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     // undefined, never a permanently-loading placeholder (see `use-overview-screen.ts`'s own
     // doc comment).
     isAdmin: false,
-    adminLatency: undefined,
     adminPressure: undefined,
     adminHygiene: undefined,
     refillRequestStatus: undefined,
@@ -94,8 +98,6 @@ async function renderCentre(overrides: Partial<OverviewScreenData> = {}) {
   return render(<OverviewCentre />, { wrapper: withNuqsTestingAdapter() });
 }
 
-// Latency left this screen on 2026-08-29 (owner: Overview is a per-USER dashboard; per-bucket p95
-// by model is an operator's metric). `LatencyDashboard`'s own tests still cover the section.
 describe('OverviewCentre', () => {
   /**
    * 15s, not the 5s default, and measured rather than guessed.
@@ -149,6 +151,34 @@ describe('OverviewCentre', () => {
     expect(screen.queryByText('No usage in this range.')).not.toBeInTheDocument();
   });
 
+  // Phase 9.2 — SPEND BY MODEL replaces the deleted LATENCY panel, for every user (never
+  // admin-gated). Renders directly under SPEND BY PROJECT, real data shown as real data.
+  it('renders SPEND BY MODEL with real data for every user, not just an admin', async () => {
+    await renderCentre({
+      isAdmin: false,
+      modelSpendStatus: 'ready',
+      modelSpendSegments: [
+        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', value: 12, formattedValue: '$12.00' },
+        { key: 'claude-sonnet', label: 'claude-sonnet', value: 4, formattedValue: '$4.00' },
+      ],
+    });
+
+    expect(screen.getByText('Spend by model')).toBeInTheDocument();
+    expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument();
+    expect(screen.getByText('claude-sonnet')).toBeInTheDocument();
+  });
+
+  it('a FAILED spend-by-model query renders an error line, never a zero-value or confirmed-empty share bar', async () => {
+    await renderCentre({
+      modelSpendStatus: 'error',
+      modelSpendErrorMessage: 'The usage backend is unreachable right now.',
+      modelSpendSegments: [],
+    });
+
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts.some((el) => el.textContent?.includes('unreachable'))).toBe(true);
+  });
+
   /**
    * The defect this guards: `OverviewCentre` passed NO `formatYTick`/`formatTooltipValue`/
    * `formatLegendValue` to `SpendDashboard` at all, so the chart fell back to its unit-agnostic
@@ -157,9 +187,9 @@ describe('OverviewCentre', () => {
    * currency sign, no magnitude, nothing.
    *
    * Asserted at the container, not the primitive, because the primitive is CORRECT to be
-   * unit-blind (`LatencyDashboard` renders `ms` through the same props). The bug was only ever
-   * "this container forgot to say these numbers are money", and only a container-level render can
-   * see it.
+   * unit-blind (`HistogramChart` renders raw numeric samples through the same kind of props). The
+   * bug was only ever "this container forgot to say these numbers are money", and only a
+   * container-level render can see it.
    */
   it('renders real sub-cent spend as USD, never as the unit-blind default "0"', async () => {
     await renderCentre({
@@ -237,21 +267,21 @@ describe('OverviewCentre', () => {
     expect(screen.queryByRole('button', { name: /Request refill/ })).not.toBeInTheDocument();
   });
 
-  // Phase 4 — one dashboard, parameterised by role. The four admin-only cards must never render
-  // for a non-admin, and must render with real data for an admin — never a permanently-loading
-  // placeholder in between (see `use-overview-screen.ts`'s own doc comment on why these are
-  // `undefined`, not a `status: 'loading'` shape, for a non-admin).
+  // Phase 4 — one dashboard, parameterised by role (LATENCY removed from the block in phase 9.2 —
+  // three admin-only cards remain). They must never render for a non-admin, and must render with
+  // real data for an admin — never a permanently-loading placeholder in between (see
+  // `use-overview-screen.ts`'s own doc comment on why these are `undefined`, not a `status:
+  // 'loading'` shape, for a non-admin).
   describe('the admin-only block', () => {
-    it('renders none of the four admin cards for a non-admin', async () => {
+    it('renders none of the three admin cards for a non-admin', async () => {
       await renderCentre({ isAdmin: false });
 
       expect(screen.queryByText('Budget pressure')).not.toBeInTheDocument();
-      expect(screen.queryByText('Latency')).not.toBeInTheDocument();
       expect(screen.queryByText('Key hygiene')).not.toBeInTheDocument();
       expect(screen.queryByText('Refill requests')).not.toBeInTheDocument();
     });
 
-    it('renders all four admin cards, with real data, for an admin', async () => {
+    it('renders all three admin cards, with real data, for an admin', async () => {
       await renderCentre({
         isAdmin: true,
         adminPressure: {
@@ -260,14 +290,6 @@ describe('OverviewCentre', () => {
           status: 'ready',
           onRetry: vi.fn(),
           note: 'scope note',
-        },
-        adminLatency: {
-          series: [
-            { key: 'gpt-4o-mini', label: 'gpt-4o-mini', values: [210, 240], value: 'peak p95 240 ms' },
-          ],
-          status: 'ready',
-          retry: vi.fn(),
-          footnote: undefined,
         },
         adminHygiene: {
           hygiene: {
@@ -282,7 +304,6 @@ describe('OverviewCentre', () => {
       });
 
       expect(screen.getByText('Budget pressure')).toBeInTheDocument();
-      expect(screen.getByText('Latency')).toBeInTheDocument();
       expect(screen.getByText('Key hygiene')).toBeInTheDocument();
       expect(screen.getByText('Refill requests')).toBeInTheDocument();
       expect(screen.getByText(/2 pending/)).toBeInTheDocument();

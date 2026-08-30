@@ -22,7 +22,7 @@ export interface ShareBarProps {
   /**
    * Line rendered beneath the (still-drawn) empty track when `segments` is empty — the console's
    * empty state is an inline status line over surviving structure, never a centred placard
-   * (console-ui skill "States"). Same contract as `LatencyRidgeline`'s `emptyMessage`.
+   * (console-ui skill "States"). Same contract as `SpendSeriesChart`'s `emptyMessage`.
    */
   emptyMessage?: string;
   className?: string;

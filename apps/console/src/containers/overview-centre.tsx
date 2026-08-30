@@ -3,14 +3,12 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
-import { formatMsAxis } from '@lightbridge/ui-web/src/lib/duration';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
-import { LatencyDashboard } from '@lightbridge/ui-web/src/sections/latency-dashboard';
 import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
@@ -26,20 +24,25 @@ import { useOverviewScreen } from './use-overview-screen';
  * `@rail`/`@scope` slot at any tier — the shell is mounted once by `app/(console)/layout.tsx`.
  *
  * Composition, top to bottom: `PageHeader` (controls + the `Export` action) → the money-first stat
- * row → SPEND OVER TIME → SPEND BY PROJECT → BUDGET, all four real for every signed-in user; then,
- * ADMIN-ONLY and purely additive, BUDGET PRESSURE → LATENCY → KEY HYGIENE → REFILL REQUESTS. The
- * admin block replaces `/admin?section=overview` (deleted this phase) — `/admin` is now the
- * refill-review queue alone, reached from the sidebar's "Refill requests" item or the REFILL
- * REQUESTS card's own `Review` link below.
+ * row → SPEND OVER TIME → SPEND BY PROJECT → SPEND BY MODEL → BUDGET, all five real for every
+ * signed-in user; then, ADMIN-ONLY and purely additive, BUDGET PRESSURE → KEY HYGIENE → REFILL
+ * REQUESTS. The admin block replaces `/admin?section=overview` (deleted this phase) — `/admin` is
+ * now the refill-review queue alone, reached from the sidebar's "Refill requests" item or the
+ * REFILL REQUESTS card's own `Review` link below.
+ *
+ * LATENCY is gone (phase 9.2, 2026-08-30 owner directive): the usage backend's events are
+ * aggregate metric signals with no per-request duration, so that panel could never fill. SPEND BY
+ * MODEL replaces it — reuses `SpendShareSection` verbatim (it hard-codes no project-specific
+ * labelling) over a second, model-grouped consumption query scoped identically to SPEND above
+ * (`use-overview-screen.ts`'s `modelSpendSegments`), for every user, not admin-gated.
  *
  * `Card` wraps every zone below the stat row (phase 4 supersedes the earlier "render uncontained
  * on the floor" reading for these dashboard zones specifically — see `Card`'s own doc comment for
  * the precedent). Several sections already render their own tracked heading (`SpendDashboard`,
- * `SpendShareSection`, `BudgetPanel`, `BudgetPressure`, `LatencyDashboard` all default their own
- * `label`); those `Card`s carry no `title` of their own; only the section's `label` is overridden
- * to the name this composition wants, so each zone has exactly ONE heading, never two stacked.
- * `ApiKeysHygieneNotes` and the Refill requests block have no heading of their own, so their
- * `Card` DOES carry a `title`.
+ * `SpendShareSection`, `BudgetPanel`, `BudgetPressure` all default their own `label`); those
+ * `Card`s carry no `title` of their own; only the section's `label` is overridden to the name this
+ * composition wants, so each zone has exactly ONE heading, never two stacked. `ApiKeysHygieneNotes`
+ * and the Refill requests block have no heading of their own, so their `Card` DOES carry a `title`.
  */
 const formatSpendTooltip = (value: number) => formatUsd(value);
 
@@ -47,6 +50,10 @@ export function OverviewCentre() {
   const screen = useOverviewScreen(<OverviewScopeSlot />);
 
   const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
+  const modelSpendTotal = screen.modelSpendSegments.reduce(
+    (sum, segment) => sum + segment.value,
+    0
+  );
   const subtitle = screen.scopeAccountLabel
     ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel} · ${screen.subline}`
     : undefined;
@@ -110,6 +117,17 @@ export function OverviewCentre() {
       </Card>
 
       <Card>
+        <SpendShareSection
+          label="Spend by model"
+          segments={screen.modelSpendSegments}
+          status={screen.modelSpendStatus}
+          errorMessage={screen.modelSpendErrorMessage}
+          onRetry={screen.modelSpendRetry}
+          total={modelSpendTotal > 0 ? formatUsd(modelSpendTotal) : undefined}
+        />
+      </Card>
+
+      <Card>
         <BudgetPanel
           className="w-full"
           label="Budget"
@@ -143,22 +161,6 @@ export function OverviewCentre() {
             errorMessage={screen.adminPressure.errorMessage}
             onRetry={screen.adminPressure.onRetry}
             note={screen.adminPressure.note}
-          />
-        </Card>
-      ) : null}
-
-      {screen.isAdmin && screen.adminLatency ? (
-        <Card>
-          <LatencyDashboard
-            label="Latency"
-            series={screen.adminLatency.series}
-            status={screen.adminLatency.status}
-            errorMessage={screen.adminLatency.errorMessage}
-            onRetry={screen.adminLatency.retry}
-            footnote={screen.adminLatency.footnote}
-            fallbackWidth={840}
-            height={220}
-            formatXTick={formatMsAxis}
           />
         </Card>
       ) : null}

@@ -62,7 +62,7 @@ function BudgetHeroSkeleton() {
 // `$0.00 of $0.00`.
 //
 // #306 — `'loading'`/`'error'` carry the same distinction `DashboardStatus` already draws for
-// `SpendDashboard`/`LatencyDashboard`: "never queried" (`'unwired'`), "queried, waiting"
+// `SpendDashboard`/`SpendShareSection`: "never queried" (`'unwired'`), "queried, waiting"
 // (`'loading'`), "queried, failed" (`'error'`) and "queried, here's the real number" (`'ready'`,
 // including a real `$0.00`) are four different facts and must never collapse into one rendering.
 // The four branches differ only in what goes INSIDE the stack — which is the whole point of the

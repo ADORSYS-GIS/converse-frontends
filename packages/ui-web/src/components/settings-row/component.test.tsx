@@ -55,4 +55,16 @@ describe('SettingsRow', () => {
       'true'
     );
   });
+
+  it('shows a trailing chevron only on a row that opens something', () => {
+    const { container: clickable } = render(
+      <SettingsRow label="gateway-prod" onClick={vi.fn()} />
+    );
+    expect(clickable.querySelector('.settings-row-value svg.chevron-right')).toBeInTheDocument();
+
+    // A plain value row (`/settings/account`'s Status/Default quota tier rows) has nothing to
+    // open, so it gets none of the click affordance — no chevron, same as no hover/pointer.
+    const { container: plain } = render(<SettingsRow label="Status" value="active" />);
+    expect(plain.querySelector('.settings-row-value svg')).not.toBeInTheDocument();
+  });
 });

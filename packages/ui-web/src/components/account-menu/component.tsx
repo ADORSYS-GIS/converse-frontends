@@ -3,7 +3,9 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { Button } from '../button';
+import { Chevron } from '../chevron';
 import type { AccountMenuProps, AccountMenuTheme } from './types';
+import { RAIL_ICON_COLUMN_CLASS } from '../../lib/rail-grid';
 import { LABEL_CLASS, META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import {
   OVERLAY_CLASS,
@@ -77,14 +79,25 @@ export function AccountMenu({
         aria-label={triggerLabel ?? (label ? `Account menu — ${label}` : 'Account menu')}>
         {sidebar ? (
           <>
-            <span aria-hidden="true" className="avatar-chip">
-              {initials}
+            {/* Icon column + `avatar-chip-sm` (Addition 5, owner screenshot: the identity chip
+                sat at a third x, matching neither the Search row's icon nor the (now-deleted)
+                Theme row's toggle) — the SAME 16px column every nav row's glyph sits in, so the
+                label below starts at the one shared rail label x the whole sidebar shares. */}
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+              <span aria-hidden="true" className="avatar-chip-sm">
+                {initials}
+              </span>
             </span>
-            {/* The email at the shared rail label-x, truncating rather than pushing the row
-                taller — the identity row's email the owner's review found missing entirely.
-                `rail-row-label` is the same truncating flex-1 treatment every other sidebar row
-                label already uses, so this needs no hand-written layout of its own. */}
-            {email ? <span className="rail-row-label text-soft text-[13px]">{email}</span> : null}
+            {/* Name, falling back to email — the SAME `label` this component already computes
+                for its `aria-label` above, not email alone. The identity row used to render a
+                bare initials chip with no text at all (owner review); `rail-row-label` is the
+                same truncating flex-1 treatment every other sidebar row label already uses. */}
+            {label ? <span className="rail-row-label text-soft text-[13px]">{label}</span> : null}
+            {/* Trailing chevron, DOWN — the same "this row opens a menu below it" mark
+                `AccountBadge`'s workspace switcher already carries, not the `direction="right"`
+                "opens a detail sheet" mark `SettingsRow` uses: this row opens a popup, not a
+                navigation. */}
+            <Chevron />
           </>
         ) : (
           <>

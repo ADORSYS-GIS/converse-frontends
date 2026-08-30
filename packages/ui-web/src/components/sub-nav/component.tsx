@@ -64,7 +64,14 @@ function SubNavRow({
       {item.label}
       {/* A trailing numeral, styled — not bare concatenation (phase 9, owner: the "Projects 2"
           stutter). The same `rail-row-count` treatment the vertical rail's own counts use: one
-          step back on the ramp, proper spacing, never a badge (console-ui skill). */}
+          step back on the ramp, never a badge (console-ui skill). The VISUAL gap is
+          `rail-row-count`'s own `margin-left` (theme.css) — the original fix relied on this
+          `{' '}` text node alone for spacing, which at 13px sans renders under 4px wide, visually
+          indistinguishable from no gap (the defect this still-live-on-prod nit is about). The
+          `{' '}` stays for the accessible name ("Projects 24", not "Projects24") — it costs
+          nothing visually because `sub-nav-tab`/`rail-row` are flex containers, and a
+          whitespace-only text node next to flex items generates no box (CSS Flexbox §"Absolutely
+          Positioned Flex Children" / anonymous-flex-item rules). */}
       {item.count !== undefined ? (
         <>
           {' '}

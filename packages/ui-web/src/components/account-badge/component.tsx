@@ -85,8 +85,22 @@ export function AccountBadge({
   className,
 }: AccountBadgeProps) {
   const { display, isFallback } = displayName(name, accountId);
-  const canSwitch = Boolean(onSelectAccount) && (accounts?.length ?? 0) > 1;
   const sidebar = variant === 'sidebar';
+  // `inline`/top-bar keeps the original rule: a menu of one is chrome imitating a control, so it
+  // stays plain text/a copy-only button until there is genuinely something to switch BETWEEN.
+  //
+  // `sidebar` (Addition 6, owner review — the workspace switcher must "read and behave as a real
+  // dropdown"): this backend seats exactly one account per identity in the overwhelming common
+  // case, so gating the switcher's popup behind 2+ accounts left it looking like a dropdown
+  // (chevron aside) that silently did nothing for almost every real sign-in — clicking it fell
+  // straight to the copy-only button branch below, no menu, no chevron. The popup itself already
+  // earns its keep with exactly one account listed: it still shows which account you are in AND
+  // carries the "Copy account id" action neither of the other two branches offers. Account
+  // CREATION is deliberately not added here — the backend seats one account per identity;
+  // `createAccount` conflicts against a second attempt (owner note, Addition 6).
+  const canSwitch = sidebar
+    ? Boolean(accounts?.length) && Boolean(onSelectAccount || onCopyId)
+    : Boolean(onSelectAccount) && (accounts?.length ?? 0) > 1;
   const rowOnlyClass = sidebar ? SIDEBAR_ROW_ONLY_CLASS : ROW_ONLY_CLASS;
   const chipClass = sidebar ? SIDEBAR_CHIP_CLASS : CHIP_CLASS;
 

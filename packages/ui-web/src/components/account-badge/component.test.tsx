@@ -172,5 +172,75 @@ describe('AccountBadge', () => {
       const shortId = screen.getByText('acct_49534505');
       expect(shortId).not.toHaveClass('hidden');
     });
+
+    it('opens the Base UI menu (account list + Copy account id) as a real dropdown', () => {
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          initials="AG"
+          accounts={[
+            { id: ACCOUNT_ID, label: 'adorsys-gis' },
+            { id: 'other-id', label: 'adorsys-labs' },
+          ]}
+          onSelectAccount={() => {}}
+          onCopyId={() => {}}
+        />
+      );
+
+      const trigger = screen.getByRole('button', { name: 'Account adorsys-gis. Switch account.' });
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole('menuitem', { name: 'adorsys-labs' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Copy account id' })).toBeInTheDocument();
+    });
+
+    it('shows a trailing chevron so the row reads as a dropdown', () => {
+      const { container } = render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          accounts={[
+            { id: ACCOUNT_ID, label: 'adorsys-gis' },
+            { id: 'other-id', label: 'adorsys-labs' },
+          ]}
+          onSelectAccount={() => {}}
+        />
+      );
+
+      expect(container.querySelector('svg.chevron-right, svg')).toBeInTheDocument();
+      expect(screen.getByRole('button')).toContainHTML('svg');
+    });
+
+    // Addition 6 regression: this backend seats exactly ONE account per identity in the
+    // overwhelming common case (owner note — no account-creation item, `createAccount` conflicts
+    // on a second attempt). The OLD rule ("a menu of one is not a control") left the sidebar
+    // switcher looking like a dropdown that did nothing for almost every real sign-in — clicking
+    // it fell straight to the copy-only button branch, no menu at all. The sidebar variant now
+    // opens the SAME menu (account list, even a list of one, + Copy account id) whenever there is
+    // at least one known account — the inline/top-bar variant keeps the original 2+ gate
+    // unchanged (verified by the top-level "is NOT a switcher with only one reachable account"
+    // test above, which renders the default `inline` variant).
+    it('opens the menu for a single-account identity too — the common real case', () => {
+      render(
+        <AccountBadge
+          name="adorsys-gis"
+          accountId={ACCOUNT_ID}
+          variant="sidebar"
+          initials="AG"
+          accounts={[{ id: ACCOUNT_ID, label: 'adorsys-gis' }]}
+          onSelectAccount={() => {}}
+          onCopyId={() => {}}
+        />
+      );
+
+      const trigger = screen.getByRole('button', { name: 'Account adorsys-gis. Switch account.' });
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole('menuitem', { name: 'adorsys-gis' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Copy account id' })).toBeInTheDocument();
+    });
   });
 });

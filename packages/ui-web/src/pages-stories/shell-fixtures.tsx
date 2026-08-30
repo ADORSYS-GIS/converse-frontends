@@ -17,7 +17,8 @@ import { AccountMenu } from '../components/account-menu';
 import { ConsoleSidebar } from '../sections/console-sidebar';
 import { ConsoleTopBar } from '../components/console-top-bar';
 import type { NavGroup, NavSpineItem } from '../components/nav-spine';
-import { ThemeToggle } from '../components/theme-toggle';
+import { SearchIcon } from '../lib/icons';
+import { RAIL_ICON_COLUMN_CLASS } from '../lib/rail-grid';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 
 export type StoryRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
@@ -92,16 +93,25 @@ export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] 
   ];
 }
 
-// `ThemeToggle` beside `AccountMenu`, both driven by one shared preference -- mirrors
-// `apps/console/src/client/console-chrome.tsx`'s `ConsoleIdentity`, whose single `useConsoleTheme`
-// instance is what actually keeps the sidebar footer's quick-cycle and the menu's Dark/Light/
-// System entries in sync for real.
+// The sidebar footer stack -- Search, then the identity row -- mirrors
+// `apps/console/src/client/console-chrome.tsx`'s `ConsoleSidebarContent` exactly: Search's icon
+// sits in the same `RAIL_ICON_COLUMN_CLASS` (16px) column `NavSpine`'s rows use, and there is no
+// standalone Theme row any more (Addition 5 dedupe, owner review: the control lived twice, once
+// here and once inside `AccountMenu`'s own popup below -- `theme`/`onThemeChange` feed that one
+// menu now, nothing else).
 function StoryFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
-    <div className="flex items-center justify-between gap-2">
-      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
+    <>
+      <button type="button" className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+          <SearchIcon />
+        </span>
+        <span className="text-subtle font-sans text-[13px]">Search</span>
+        <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
+      </button>
       <AccountMenu
+        variant="sidebar"
         name="Sam Lambou"
         email="sam@adorsys.com"
         initials="SL"
@@ -109,7 +119,7 @@ function StoryFooter() {
         theme={preference}
         onThemeChange={setPreference}
       />
-    </div>
+    </>
   );
 }
 

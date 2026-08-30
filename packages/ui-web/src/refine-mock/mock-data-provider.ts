@@ -31,7 +31,7 @@ import type { RefillRequestRow } from '../sections/review-queue/types';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
 import type { OverviewStatCardData } from '../sections/overview-stat-row/types';
 import { overviewSpendSeries } from '../sections/spend-dashboard/fixtures';
-import { overviewLatencySeries } from '../sections/latency-dashboard/fixtures';
+import { overviewSpendShareByModelSegments } from '../sections/spend-share/fixtures';
 import {
   overviewBudget,
   overviewNeedsAttentionProject,
@@ -42,7 +42,7 @@ import type {
   BudgetRefillRequestStatus,
   BudgetSummary,
 } from '../sections/budget-panel/types';
-import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
+import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 
 /** The CRUD resources the mock provider seeds. `decisions` (phase 6, admin/settings revamp) is
@@ -57,7 +57,8 @@ export type MockAccountRecord = BaseRecord & { id: string; label: string };
 export interface OverviewSnapshot {
   statCards: OverviewStatCardData[];
   spendSeries: SpendSeriesSeries[];
-  latencySeries: LatencyRidgelineSeries[];
+  /** "Spend by model" (phase 9.2) — see `mock-data-provider`'s own import comment. */
+  modelSpendSegments: ShareBarSegment[];
   budget: BudgetSummary;
   needsAttentionProject?: BudgetNeedsAttentionProject;
   refillRequestStatus?: BudgetRefillRequestStatus;
@@ -93,7 +94,7 @@ function seedOverviewSnapshot(): OverviewSnapshot {
   return structuredClone({
     statCards: overviewStatCards,
     spendSeries: overviewSpendSeries,
-    latencySeries: overviewLatencySeries,
+    modelSpendSegments: overviewSpendShareByModelSegments,
     budget: overviewBudget,
     needsAttentionProject: overviewNeedsAttentionProject,
     refillRequestStatus: overviewRefillRequestStatus,

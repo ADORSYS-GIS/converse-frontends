@@ -23,32 +23,32 @@ function makeSpendSeries(
 
 export const overviewSpendSeries: SpendSeriesSeries[] = [
   makeSpendSeries(
-    'gpt-4o-mini',
-    'gpt-4o-mini',
+    'gateway-prod',
+    'gateway-prod',
     [
       92, 96, 88, 101, 118, 132, 128, 140, 155, 149, 162, 171, 168, 178, 184, 190, 186, 195, 201,
       198, 205, 210, 208, 214, 218, 221, 219, 224, 226,
     ]
   ),
   makeSpendSeries(
-    'claude-sonnet',
-    'claude-sonnet',
+    'batch-workers',
+    'batch-workers',
     [
       58, 55, 60, 62, 64, 63, 66, 68, 70, 69, 72, 74, 73, 76, 78, 80, 79, 82, 84, 83, 86, 88, 87,
       89, 91, 90, 92, 93, 94,
     ]
   ),
   makeSpendSeries(
-    'llama-3.1-70b',
-    'llama-3.1-70b',
+    'eval-sandbox',
+    'eval-sandbox',
     [
       30, 32, 31, 33, 35, 34, 36, 38, 37, 39, 41, 40, 42, 44, 43, 45, 47, 46, 48, 50, 49, 51, 53,
       52, 54, 56, 55, 57, 59,
     ]
   ),
   makeSpendSeries(
-    'embed-3',
-    'embed-3',
+    'docs-ingest',
+    'docs-ingest',
     [
       12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23,
       23, 24, 24, 25, 25, 26,
@@ -57,10 +57,10 @@ export const overviewSpendSeries: SpendSeriesSeries[] = [
 ];
 
 const SPEND_LEGEND_VALUES: Record<string, string> = {
-  'gpt-4o-mini': '$61.20',
-  'claude-sonnet': '$44.05',
-  'llama-3.1-70b': '$25.60',
-  'embed-3': '$11.70',
+  'gateway-prod': '$61.20',
+  'batch-workers': '$44.05',
+  'eval-sandbox': '$25.60',
+  'docs-ingest': '$11.70',
 };
 
 export function formatOverviewSpendLegendValue(series: SpendSeriesSeries): string {
@@ -95,16 +95,16 @@ export function formatOverviewSpendTooltipValue(value: number): string {
  */
 export const subCentSpendSeries: SpendSeriesSeries[] = [
   makeSpendSeries(
-    'gpt-4o-mini',
-    'gpt-4o-mini',
+    'gateway-prod',
+    'gateway-prod',
     [
       0.000_21, 0.000_34, 0.000_29, 0.000_41, 0.000_52, 0.000_48, 0.000_63, 0.000_71, 0.000_66,
       0.000_82, 0.000_79, 0.000_94, 0.001_02, 0.000_98,
     ]
   ),
   makeSpendSeries(
-    'claude-sonnet',
-    'claude-sonnet',
+    'batch-workers',
+    'batch-workers',
     [
       0.000_08, 0.000_11, 0.000_09, 0.000_14, 0.000_17, 0.000_16, 0.000_21, 0.000_24, 0.000_22,
       0.000_28, 0.000_27, 0.000_31, 0.000_35, 0.000_33,

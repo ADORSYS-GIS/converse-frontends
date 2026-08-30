@@ -30,6 +30,8 @@ import {
   formatOverviewSpendXTick,
   formatOverviewSpendYTick,
 } from '../sections/spend-dashboard/fixtures';
+import { SpendShareSection } from '../sections/spend-share';
+import { formatUsd } from '../lib/money';
 import type { OverviewSnapshot } from './mock-data-provider';
 import { RefineMockShell } from './shared-chrome';
 
@@ -62,6 +64,11 @@ export function RefineOverviewScreen() {
 
   const status = loading ? 'loading' : isError ? 'error' : 'ready';
   const spendSeries = useMemo(() => snapshot?.spendSeries ?? [], [snapshot]);
+  const modelSpendSegments = useMemo(() => snapshot?.modelSpendSegments ?? [], [snapshot]);
+  const modelSpendTotal = useMemo(
+    () => modelSpendSegments.reduce((sum, segment) => sum + segment.value, 0),
+    [modelSpendSegments]
+  );
 
   return (
     <RefineMockShell active="overview">
@@ -102,10 +109,10 @@ export function RefineOverviewScreen() {
         {/* Phase 4 — matches `apps/console/src/containers/overview-centre.tsx`'s own Card
             treatment: each zone below the stat row sits in a `Card`, with its own tracked
             `label` overridden to the composition's name rather than a second `Card.title`
-            stacked on top of it. LATENCY moved off this per-user screen in shell revamp phase 4
-            (it is now admin-only, gated behind `session.isAdmin` — this mock harness has no
-            session/role concept to drive that gate from, so it is left off here rather than
-            shown unconditionally, which is what the real container refuses to do too). */}
+            stacked on top of it. The admin-only cards (Budget pressure, Key hygiene, Refill
+            requests) are gated behind `session.isAdmin` — this mock harness has no session/role
+            concept to drive that gate from, so they are left off here rather than shown
+            unconditionally, which is what the real container refuses to do too. */}
         <Card>
           <SpendDashboard
             label="Spend over time"
@@ -120,6 +127,21 @@ export function RefineOverviewScreen() {
             formatYTick={formatOverviewSpendYTick}
             formatTooltipValue={formatOverviewSpendTooltipValue}
             formatLegendValue={formatOverviewSpendLegendValue}
+          />
+        </Card>
+
+        {/* Phase 9.2 — "Spend by model" replaces the deleted LATENCY panel, for every user (never
+            admin-gated): a second, model-grouped view of the same period `SpendDashboard` above
+            plots. `SpendShareSection` is reused verbatim (it hard-codes no project-specific
+            labelling). */}
+        <Card>
+          <SpendShareSection
+            label="Spend by model"
+            segments={modelSpendSegments}
+            status={status}
+            errorMessage={errorMessage}
+            onRetry={() => overviewQuery.query.refetch()}
+            total={modelSpendTotal > 0 ? formatUsd(modelSpendTotal) : undefined}
           />
         </Card>
 

@@ -56,11 +56,26 @@ export const Unwired: Story = {
 };
 
 // Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration),
-// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7).
+// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7). 2026-08-30: this
+// button now OPENS `RequestRefillDialog` rather than instant-mutating a fixed amount — see
+// `heroAction`'s own doc comment.
 export const Breached: Story = {
   args: {
     budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' },
     heroAction: <Button size="sm">Request refill</Button>,
+  },
+};
+
+// 2026-08-30 owner round ("budget refill form disappeared"): the standing, always-visible
+// secondary action on the heading row — reachable well before any breach, unlike `heroAction`.
+export const WithStandingRefillAction: Story = {
+  name: 'With the standing "Request refill…" heading action (pre-breach)',
+  args: {
+    actions: (
+      <Button type="button" variant="secondary" size="sm">
+        Request refill…
+      </Button>
+    ),
   },
 };
 

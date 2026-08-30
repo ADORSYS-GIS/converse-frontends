@@ -6,10 +6,19 @@ export interface BottomSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Label shown in the header row, and used as the drawer's accessible title. */
   title?: string;
+  /** A secondary line under the title — an id, a status, a scope. */
+  subtitle?: string;
   /** Drawer content, shown while `open`. */
   children: ReactNode;
-  /** Edge the drawer slides from. Defaults to `bottom`. */
-  direction?: 'bottom' | 'right';
+  /**
+   * A small secondary action in the HEADER row, beside Close — e.g. `Rename` (Addition E,
+   * 2026-08-30 owner round: "primary action (Rename) as a small secondary button IN THE HEADER
+   * row, never a stranded footer button"). Distinct from `footer`, which is for content that
+   * genuinely belongs at the sheet's foot (a decision panel's own Approve/Decline).
+   */
+  headerAction?: ReactNode;
+  /** Sticky bottom row — the sheet's own foot-of-content actions, when it has any. */
+  footer?: ReactNode;
   /** Extra classes for the panel itself — geometry a caller owns, e.g. `ConsoleShell`'s
    * `bottom-14` lifting the sheet above the navigation dock. NOT the place for a tier class. */
   className?: string;
@@ -23,6 +32,8 @@ export interface BottomSheetProps {
    * UI's `InternalBackdrop`, an unclassable `position: fixed; inset: 0` div that exists to absorb
    * outside presses. Hide the backdrop and the panel and that layer stays behind — an invisible,
    * full-screen click-eater over a page that looks perfectly normal. Hiding the portal takes all
-   * three at once. */
+   * three at once — this is the mechanism `projects-centre.tsx`/`admin-centre.tsx` rely on to keep
+   * this sheet out of the DOM's interactive surface entirely at `lg`+, where the inspector rail is
+   * the detail surface instead (`component.tsx`'s own doc comment). */
   portalClassName?: string;
 }

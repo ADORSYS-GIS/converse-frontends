@@ -16,7 +16,7 @@ import { expect, waitFor, within } from 'storybook/test';
 import { Card } from '../components/card';
 import type { LedgerSort } from '../components/ledger-table';
 import { ConsoleShell } from '../components/console-shell';
-import { DetailSheet } from '../components/detail-sheet';
+import { BottomSheet } from '../components/bottom-sheet';
 import { ReviewDetailPanel } from '../components/review-detail-panel';
 import type { ReviewDecision } from '../components/review-detail-panel';
 import { ReviewQueue } from '../sections/review-queue';
@@ -58,8 +58,36 @@ function AdminBudgetReviewScreen({
     }, 300);
   }
 
+  // Owner's final resolution on rail content (2026-08-30, "hide it if empty. Simple."): `/admin`
+  // shows the rail ONLY when a request is selected — no quick-settings fallback (that is `/`'s
+  // job alone) — so an unselected queue renders no rail at all.
+  const rail = selected ? (
+    <div className="flex flex-col gap-4 p-5">
+      <div>
+        <div className="font-sans text-[15px] font-medium text-ink">{selected.project}</div>
+        <div className="text-subtle font-sans text-[12px]">{selected.account}</div>
+      </div>
+      <ReviewDetailPanel
+        key={selected.id}
+        projectLabel={selected.project}
+        accountLabel={selected.account}
+        submittedAt={selected.submittedAgo}
+        requestedAmount={selected.requestedAmount}
+        note={note}
+        onNoteChange={setNote}
+        onDecide={(decision) => handleDecide(decision)}
+        deciding={deciding}
+      />
+    </div>
+  ) : undefined;
+
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+    <ConsoleShell
+      sidebar={storySidebar('admin', { isAdmin: true })}
+      topBar={storyTopBar()}
+      rail={rail}
+      railWidth={280}
+      onRailWidthChange={() => {}}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Budget refill review"
@@ -82,12 +110,15 @@ function AdminBudgetReviewScreen({
         </Card>
       </div>
 
-      <DetailSheet
+      {/* Below `lg` only — at `lg`+ the rail above is the detail surface. */}
+      <BottomSheet
         open={selected !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
-        title={selected?.project ?? ''}>
+        title={selected?.project ?? ''}
+        subtitle={selected?.account}
+        portalClassName="lg:hidden">
         {selected ? (
           <ReviewDetailPanel
             key={selected.id}
@@ -102,7 +133,7 @@ function AdminBudgetReviewScreen({
             deciding={deciding}
           />
         ) : null}
-      </DetailSheet>
+      </BottomSheet>
     </ConsoleShell>
   );
 }

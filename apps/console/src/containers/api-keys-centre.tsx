@@ -4,6 +4,7 @@ import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { CreateApiKeyDialog } from '@lightbridge/ui-web/src/components/create-api-key-dialog';
 import { EmptyState } from '@lightbridge/ui-web/src/components/empty-state';
+import { SecretReveal } from '@lightbridge/ui-web/src/components/secret-reveal';
 import { ApiKeysControls } from '@lightbridge/ui-web/src/sections/api-keys-controls';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { ApiKeysLedger } from '@lightbridge/ui-web/src/sections/api-keys-ledger';
@@ -26,6 +27,15 @@ import { useApiKeysScreen } from './use-api-keys-screen';
  * The ledger's toolbar + table + pager now sit inside ONE `Card` (2026-08-30 revamp brief) — the
  * same `OverviewCentre`/`ProjectsCentre` split, this file supplies the card, `ApiKeysLedger`
  * supplies what is inside it.
+ *
+ * Addition D (2026-08-30 owner round, "a card inside a card?") — CREATE's one-time secret moved
+ * INTO `CreateApiKeyDialog` itself (a second step of the same modal instance,
+ * `screen.createKeyDialog.result`/`onDone`), replacing the floor-level `SecretReveal` this screen
+ * used to render nested inside `ApiKeysLedger`'s own tree — itself nested inside the `Card` below,
+ * i.e. a bordered panel inside a bordered panel. ROTATE has no dialog of its own to fold into, so
+ * its result still renders as `SecretReveal`, but now as a sibling ABOVE the `Card`, never nested
+ * inside it — `screen.secretReveal` is `null` whenever the create dialog owns the display instead
+ * (see `use-api-keys-screen.ts`'s own doc comment on the two never overlapping).
  */
 export function ApiKeysCentre() {
   const screen = useApiKeysScreen();
@@ -66,6 +76,15 @@ export function ApiKeysCentre() {
 
       <CreateApiKeyDialog {...screen.createKeyDialog} />
 
+      {screen.secretReveal ? (
+        <SecretReveal
+          heading={screen.secretReveal.heading}
+          description={screen.secretReveal.description}
+          secret={screen.secretReveal.secret}
+          onDismiss={screen.dismissSecret}
+        />
+      ) : null}
+
       <Card>
         {/* Phase 9 (item 4) — one compact status line above the table, INSIDE its own card, not
             floating on the floor between the header and the ledger. */}
@@ -83,8 +102,6 @@ export function ApiKeysCentre() {
               action={newKeyButton}
             />
           }
-          secretReveal={screen.secretReveal}
-          onDismissSecret={screen.dismissSecret}
           onRotate={screen.rotate}
           onRequestRevoke={screen.requestRevoke}
           revokeTarget={screen.revokeTarget}

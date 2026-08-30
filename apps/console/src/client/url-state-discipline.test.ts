@@ -96,15 +96,29 @@ describe('ADR 0011 discipline', () => {
     //  - `use-create-account-dialog.ts`'s unsent name draft (ADR-0026, lightbridge-authz#564 —
     //    account creation lifted into its own shared, cross-route container): same shape as every
     //    other dialog draft above — `?new-account=true` IS in the URL, the half-typed name is not.
+    //  - Rail-return round (2026-08-30, Addition C): `use-rename-account-dialog.ts` (the RENAME
+    //    half of `AccountNameDialog`, lifted out of `use-account-settings-screen.ts` — which no
+    //    longer carries any local state of its own, and drops off this list), `use-project-rename
+    //    .ts` (the inspector rail's own project-rename dialog, `/projects`) and
+    //    `use-request-refill-dialog.ts` (the refill amount draft) all follow the same shape:
+    //    `?account-name=true` / `?rename=<id>` / `?refill=true` ARE in the URL, the half-typed or
+    //    half-picked contents are not.
+    //  - Addition C.1/C.4 (same day): `use-create-project-dialog.ts`'s unsent name/billing-
+    //    identity/plan draft — the create-project flow lifted into its own shared, cross-route
+    //    container the identical way `use-create-account-dialog.ts` already did, so
+    //    `use-projects-screen.ts` carries no local state of its own any more and drops off this
+    //    list too; `?new-project=true` IS in the URL, the half-typed draft is not.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
-      join('containers', 'use-account-settings-screen.ts'),
       join('containers', 'use-admin-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
       join('containers', 'use-create-account-dialog.ts'),
+      join('containers', 'use-create-project-dialog.ts'),
+      join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
-      join('containers', 'use-projects-screen.ts'),
+      join('containers', 'use-rename-account-dialog.ts'),
+      join('containers', 'use-request-refill-dialog.ts'),
     ]);
   });
 

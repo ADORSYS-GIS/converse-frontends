@@ -14,7 +14,7 @@ import { useCustomMutation, useInvalidate, useOne, useTable } from '@refinedev/c
 
 import { Card } from '../components/card';
 import type { LedgerSort } from '../components/ledger-table';
-import { DetailSheet } from '../components/detail-sheet';
+import { BottomSheet } from '../components/bottom-sheet';
 import { ReviewDetailPanel } from '../components/review-detail-panel';
 import type { ReviewDecision } from '../components/review-detail-panel';
 import { ReviewQueue } from '../sections/review-queue';
@@ -100,7 +100,7 @@ export function RefineAdminBudgetReviewScreen() {
         </Card>
       </div>
 
-      <DetailSheet
+      <BottomSheet portalClassName="lg:hidden"
         open={selectedId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
@@ -120,7 +120,7 @@ export function RefineAdminBudgetReviewScreen() {
             deciding={deciding}
           />
         ) : null}
-      </DetailSheet>
+      </BottomSheet>
     </RefineMockShell>
   );
 }

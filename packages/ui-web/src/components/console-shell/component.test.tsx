@@ -72,6 +72,65 @@ describe('ConsoleShell', () => {
     expect(wrapper).toHaveClass('mx-auto', 'w-full');
   });
 
+  it('renders no rail region at all when the slot is omitted', () => {
+    render(
+      <ConsoleShell sidebar={<div>Sidebar</div>} topBar={<div>Top bar</div>}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    expect(screen.queryByText('Rail')).not.toBeInTheDocument();
+  });
+
+  it('renders the rail slot, visible at lg and hidden below it', () => {
+    render(
+      <ConsoleShell sidebar={<div>Sidebar</div>} topBar={<div>Top bar</div>} rail={<div>Rail</div>}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    const rail = screen.getByText('Rail').closest('div.lg\\:flex');
+    expect(rail).toHaveClass('hidden', 'lg:flex', 'lg:flex-none');
+  });
+
+  it('defaults the rail width to 280px when uncontrolled', () => {
+    render(
+      <ConsoleShell sidebar={<div>Sidebar</div>} topBar={<div>Top bar</div>} rail={<div>Rail</div>}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    const rail = screen.getByText('Rail').closest('div.lg\\:flex') as HTMLElement;
+    expect(rail.style.width).toBe('280px');
+  });
+
+  it('applies a controlled rail width, and renders the resizer only once a width owner is wired', () => {
+    render(
+      <ConsoleShell
+        sidebar={<div>Sidebar</div>}
+        topBar={<div>Top bar</div>}
+        rail={<div>Rail</div>}
+        railWidth={360}
+        onRailWidthChange={() => {}}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    const rail = screen.getByText('Rail').closest('div.lg\\:flex') as HTMLElement;
+    expect(rail.style.width).toBe('360px');
+    expect(screen.getByRole('separator')).toBeInTheDocument();
+  });
+
+  it('renders no resizer when the rail width is uncontrolled', () => {
+    render(
+      <ConsoleShell sidebar={<div>Sidebar</div>} topBar={<div>Top bar</div>} rail={<div>Rail</div>}>
+        <div>Centre</div>
+      </ConsoleShell>
+    );
+
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+  });
+
   it('does not know about nav data — sidebar and top bar are opaque slots', () => {
     // Regression: the old ConsoleShell owned a `nav: NavSpineProps` prop and rendered NavSpine
     // twice itself. That responsibility moved entirely into `ConsoleSidebar` — this component

@@ -89,7 +89,52 @@ const statCard = (label: string, value: string) => (
   </div>
 );
 
-function Shell({ showAdmin, banner }: { showAdmin: boolean; banner?: React.ReactNode }) {
+const quickSettingsRail = (
+  <div className="flex flex-col gap-4 p-5">
+    <span className="font-sans text-[15px] font-medium text-ink">adorsys-gis</span>
+    <div className="settings-list">
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="font-sans text-[13px] text-ink">Account name</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="font-sans text-[13px] text-soft">adorsys-gis</span>
+        </div>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="font-sans text-[13px] text-ink">Account id</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="font-mono text-[13px] text-soft">acct_9f3a2b1c</span>
+        </div>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="font-sans text-[13px] text-ink">Quota tier</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="font-sans text-[13px] text-soft">growth</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+function Shell({
+  showAdmin,
+  banner,
+  rail,
+}: {
+  showAdmin: boolean;
+  banner?: React.ReactNode;
+  rail?: React.ReactNode;
+}) {
+  // Storybook's own controlled-width owner — the real one is `apps/console`'s `use-rail-width.ts`
+  // (a localStorage-backed preference); this stands in for it so the story's rail is actually
+  // draggable/keyboard-resizable rather than frozen at the default.
+  const [railWidth, setRailWidth] = React.useState(280);
+
   return (
     <ConsoleShell
       sidebar={
@@ -103,6 +148,9 @@ function Shell({ showAdmin, banner }: { showAdmin: boolean; banner?: React.React
       topBar={
         <ConsoleTopBar brand={brand} workspaceSwitcher={compactWorkspaceSwitcher} identity={identity} />
       }
+      rail={rail}
+      railWidth={railWidth}
+      onRailWidthChange={setRailWidth}
       banner={banner}>
       <div className="flex flex-col gap-6">
         <div>
@@ -144,6 +192,15 @@ export const FullShellAdmin: Story = {
 export const MobileTopBarAndDock: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <Shell showAdmin={false} />,
+};
+
+// The right INSPECTOR rail (2026-08-30 owner round — "I liked it when the right rail was there").
+// Visible at `lg`+ (1440, the default viewport) only, and never empty by construction: with
+// nothing selected it falls back to the scope quick-settings panel — see
+// `containers/inspector-rail.tsx` (apps/console) for the real resolution logic this story stands
+// in for with static markup.
+export const FullShellWithInspectorRail: Story = {
+  render: () => <Shell showAdmin={false} rail={quickSettingsRail} />,
 };
 
 // converse-frontends#323: the console-wide mutation-failure banner sits at the top of the content

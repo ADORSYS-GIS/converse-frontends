@@ -4,12 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { EmptyState } from '../../components/empty-state';
 import { ApiKeysLedger } from './component';
-import { apiKeysFixture, apiKeysNewSecret } from './fixtures';
+import { apiKeysFixture } from './fixtures';
 import type { ApiKeysLedgerProps } from './types';
 
 const baseProps: ApiKeysLedgerProps = {
   keys: apiKeysFixture,
-  onDismissSecret: vi.fn(),
   onRotate: vi.fn(),
   onRequestRevoke: vi.fn(),
   onConfirmRevoke: vi.fn(),
@@ -28,29 +27,14 @@ describe('ApiKeysLedger', () => {
     expect(screen.getByText('partner-readonly')).toBeInTheDocument();
   });
 
-  it('renders the SecretReveal strip when secretReveal is present, and omits it otherwise', () => {
-    const { rerender } = render(<ApiKeysLedger {...baseProps} secretReveal={null} />);
-    expect(screen.queryByText(apiKeysNewSecret.heading)).not.toBeInTheDocument();
-
-    rerender(<ApiKeysLedger {...baseProps} secretReveal={apiKeysNewSecret} />);
-
-    expect(screen.getByText(apiKeysNewSecret.heading)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(apiKeysNewSecret.secret)).toBeInTheDocument();
-  });
-
-  it('fires onDismissSecret from the strip close control', () => {
-    const onDismissSecret = vi.fn();
-    render(
-      <ApiKeysLedger
-        {...baseProps}
-        secretReveal={apiKeysNewSecret}
-        onDismissSecret={onDismissSecret}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-
-    expect(onDismissSecret).toHaveBeenCalledTimes(1);
+  // Addition D (2026-08-30 owner round, "a card inside a card?") — this section no longer
+  // renders a `SecretReveal` at all: CREATE's own one-time secret moved into
+  // `CreateApiKeyDialog`'s own second step, and ROTATE's is a floor-level `SecretReveal` the
+  // CONTAINER renders as a sibling above the `Card` this section fills, never nested inside it
+  // (`api-keys-centre.tsx`).
+  it('never renders a SecretReveal itself — that concept moved out of this section entirely', () => {
+    const { container } = render(<ApiKeysLedger {...baseProps} />);
+    expect(container.querySelector('.secret-strip')).toBeNull();
   });
 
   it('renders the compact-tier trigger slot in the table toolbar', () => {

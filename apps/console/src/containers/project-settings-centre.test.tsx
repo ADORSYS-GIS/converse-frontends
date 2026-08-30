@@ -31,6 +31,20 @@ vi.mock('./use-project-settings-screen', async (importOriginal) => {
   };
 });
 
+/**
+ * `+ New project` is a shared, cross-route trigger now (Addition C.1/C.4, 2026-08-30 —
+ * `use-create-project-dialog.ts`); its real implementation reads live account/session context
+ * this container-level test does not stand up, so it is mocked the same way `useProjectsScreen`
+ * is in `projects-centre.test.tsx`.
+ */
+vi.mock('./use-create-project-dialog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./use-create-project-dialog')>();
+  return {
+    ...actual,
+    useOpenCreateProjectDialog: () => ({ open: vi.fn(), eligible: true, reason: undefined }),
+  };
+});
+
 const gatewayProd = {
   id: 'proj_7f21',
   name: 'gateway-prod',

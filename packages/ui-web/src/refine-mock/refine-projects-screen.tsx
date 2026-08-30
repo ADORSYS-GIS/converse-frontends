@@ -22,7 +22,7 @@ import { Button } from '../components/button';
 import { Card } from '../components/card';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { CreateProjectDialog } from '../components/create-project-dialog';
-import { DetailSheet } from '../components/detail-sheet';
+import { BottomSheet } from '../components/bottom-sheet';
 import { EmptyState } from '../components/empty-state';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import type { LedgerSort } from '../components/ledger-table';
@@ -246,7 +246,7 @@ export function RefineProjectsScreen() {
         </Card>
       </div>
 
-      <DetailSheet
+      <BottomSheet portalClassName="lg:hidden"
         open={selected !== null}
         onOpenChange={(open) => {
           if (!open) setSelected(null);
@@ -254,7 +254,7 @@ export function RefineProjectsScreen() {
         title={selected?.name ?? ''}
         subtitle={selected?.account}>
         {selected ? <ProjectDetail project={selected} /> : null}
-      </DetailSheet>
+      </BottomSheet>
     </RefineMockShell>
   );
 }

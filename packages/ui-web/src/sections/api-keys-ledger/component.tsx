@@ -6,7 +6,6 @@ import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { Pagination } from '../../components/pagination';
 import { RowActionGroup } from '../../components/row-action-group';
-import { SecretReveal } from '../../components/secret-reveal';
 import { StatusText } from '../../components/status-text';
 import { TypedConfirmDialog } from '../../components/typed-confirm-dialog';
 import type { ApiKeyRow, ApiKeysLedgerProps } from './types';
@@ -15,11 +14,18 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
   status === 'active' ? 'active' : status === 'expiring' ? 'attention' : 'muted';
 
 // Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) — the centre zone of the
-// Api-Keys screen: the one-time secret strip (present only right after a create or rotate), the
-// key ledger (with its compact-tier FILTERS trigger and per-row actions), and the pager, all
-// meant to sit inside ONE `Card` (`api-keys-centre.tsx` supplies it). The revoke and delete gates
-// — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too, since they are
-// the row actions that open them.
+// Api-Keys screen: the key ledger (with its compact-tier FILTERS trigger and per-row actions) and
+// the pager, meant to sit inside ONE `Card` (`api-keys-centre.tsx` supplies it). The revoke and
+// delete gates — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too,
+// since they are the row actions that open them.
+//
+// Addition D (2026-08-30 owner round, "a card inside a card?") — the one-time secret strip used
+// to render here, nested inside this section's own tree and therefore inside the `Card` that
+// wraps it: a bordered `SecretReveal` panel inside an already-bordered `Card`. CREATE's own
+// secret now shows inside `CreateApiKeyDialog` itself, in place, as a second step of the same
+// modal (`components/create-api-key-dialog`'s own doc comment). ROTATE's — which has no dialog
+// of its own to fold into — still renders `SecretReveal`, but `api-keys-centre.tsx` mounts it as
+// a sibling ABOVE this section's `Card` now, not nested inside it.
 //
 // 2026-08-30 revamp brief: `statusSummary` is gone — it duplicated `ApiKeysHygieneNotes`, which
 // mounts above this section in `api-keys-centre.tsx` and stays the ONE status line. A genuine
@@ -43,8 +49,6 @@ export function ApiKeysLedger({
   error,
   onRetry,
   emptyState,
-  secretReveal,
-  onDismissSecret,
   onRotate,
   onRequestRevoke,
   revokeTarget,
@@ -110,15 +114,6 @@ export function ApiKeysLedger({
 
   return (
     <div className={cn('flex flex-col gap-6', className)}>
-      {secretReveal ? (
-        <SecretReveal
-          heading={secretReveal.heading}
-          description={secretReveal.description}
-          secret={secretReveal.secret}
-          onDismiss={onDismissSecret}
-        />
-      ) : null}
-
       {error ? (
         // Ahead of the table toolbar's own compact-tier trigger — a genuine fetch failure takes
         // the whole row.

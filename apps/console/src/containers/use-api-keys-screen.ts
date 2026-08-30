@@ -369,9 +369,13 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
     onSuccess: (_data, variables) => {
       refresh();
+      // Addition D (2026-08-30 owner round, "a card inside a card? why is the form in a modal
+      // and the result not?"): a successful CREATE no longer closes the dialog — it switches, in
+      // the same modal instance, to its own secret step (`createKeyDialog.result` below). Only
+      // `onDone` (the step's own explicit exit) closes it and clears the secret. A ROTATE has no
+      // dialog to keep open, so it has nothing further to do here beyond the refresh above.
       if (variables.kind === 'create') {
         resetDraft();
-        void setView({ createOpen: false }, API_KEYS_SELECTION_OPTIONS);
       }
     },
   });
@@ -451,6 +455,14 @@ export function useApiKeysScreen(): ApiKeysScreen {
       resetDraft();
       void setView({ createOpen: false }, API_KEYS_SELECTION_OPTIONS);
     },
+    // Addition D — while the dialog is open, a populated `secret.data` can only be THIS create's
+    // own result: the dialog is modal, so the background ledger's own Rotate action is unreachable
+    // while it is showing, and `createKey` (below) dismisses any stale outcome before opening.
+    result: view.createOpen ? (secret.data ?? null) : null,
+    onDone: () => {
+      secret.dismiss();
+      void setView({ createOpen: false }, API_KEYS_SELECTION_OPTIONS);
+    },
   };
 
   const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
@@ -464,7 +476,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
     loading: list.query.isLoading,
     errorMessage: list.query.isError ? 'Could not load API keys.' : secret.errorMessage,
     hygiene: apiKeysHygiene(keys, now),
-    secretReveal: secret.data ?? null,
+    // Addition D — the CREATE half of this shared outcome now shows inside `createKeyDialog`
+    // itself while it is open (`result` above), so this floor-level slot is for ROTATE's own
+    // result only: suppressed while the create dialog is showing, so the two surfaces never
+    // display the same secret at once.
+    secretReveal: !view.createOpen && secret.data ? secret.data : null,
     dismissSecret: secret.dismiss,
     revokeTarget: revokeRow ? { row: revokeRow, error: revoke.errorMessage } : null,
     requestRevoke: (row) => {
@@ -512,11 +528,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
     createKey: () => {
       if (!createKeyEligible) return;
-      // Clears a stale error left over from an earlier, unrelated rotate/create attempt so it is
-      // never misattributed to this fresh dialog — guarded the same way `onCancel` is, so a
-      // currently-showing successful secret (`secret.data`) is never touched by opening the
-      // dialog either.
-      if (secret.errorMessage) secret.dismiss();
+      // Clears ANY stale outcome — an error, or a lingering successful secret from an earlier,
+      // unrelated rotate — before opening: Addition D (2026-08-30) makes the dialog display
+      // `secret.data` directly as its own secret step, so a leftover rotate result must never
+      // appear to belong to a freshly-opened create form.
+      if (secret.errorMessage || secret.data) secret.dismiss();
       // Defaults the dialog's own Project field to whatever the toolbar happens to be scoped to
       // — a real head start, never a requirement — falling back to the first project the account
       // can read when the toolbar is at its default "All projects" scope. `createKeyEligible`

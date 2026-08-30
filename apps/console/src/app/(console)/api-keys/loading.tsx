@@ -25,7 +25,6 @@ export default function ApiKeysLoading() {
           keys={[]}
           loading
           loadingRowCount={8}
-          onDismissSecret={noop}
           onRotate={noop}
           onRequestRevoke={noop}
           onConfirmRevoke={noop}

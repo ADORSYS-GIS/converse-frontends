@@ -64,10 +64,6 @@ export interface ApiKeysLedgerProps {
    */
   emptyState?: ReactNode;
 
-  /** Present after create or rotate; both return the same one-time secret contract. */
-  secretReveal?: ApiKeysSecretReveal | null;
-  onDismissSecret: () => void;
-
   onRotate: (row: ApiKeyRow) => void;
   /** Opens the `TypedConfirmDialog` for this row. */
   onRequestRevoke: (row: ApiKeyRow) => void;

@@ -1,7 +1,6 @@
 'use client';
 
-import { createId } from '@lightbridge/authz-rpc';
-import type { ApiKey, AugmentationRequest, Project } from '@lightbridge/authz-rpc';
+import type { ApiKey, Project } from '@lightbridge/authz-rpc';
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
 import { formatUsd } from '@lightbridge/ui-web';
 import type {
@@ -20,7 +19,7 @@ import type {
   SpendSeriesSeries,
 } from '@lightbridge/ui-web';
 import { useList } from '@refinedev/core';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
@@ -44,6 +43,12 @@ import { apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { microsToAmount } from './refill-rows';
 import { useAdminScreen } from './use-admin-screen';
+import {
+  smallestAllowedAmountMicros,
+  useBudgetRefillLadder,
+  useOverviewRefillOutcome,
+} from './use-budget-refill';
+import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
@@ -136,10 +141,6 @@ const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
  *  is crossed, so the control and the visual breach cue always agree. */
 const BUDGET_BREACH_THRESHOLD = 0.9;
 
-/** Module-level so both zones (centre/rail, if the control is ever echoed there) agree on the
- *  shared-mutation identity — same pattern as `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY`. */
-const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
-
 /** Same idiom, for the Export dialog's own mutation (ticket #309's pattern, now shared by `/` and
  *  `/projects`). */
 const REPORT_MUTATION_KEY = ['overview', 'report'] as const;
@@ -165,14 +166,6 @@ export const BUDGET_PRESSURE_SCOPE_NOTE =
   'Each bar is the project’s draw on the account’s single ceiling for this billing period. ' +
   'Projects have no ceiling of their own — a project’s quota is a governance tier, not a ' +
   'currency amount — so this ranks pressure, it does not report per-project headroom.';
-
-/** Ascending-sorts `allowedAmountsMicros` (decimal strings — `BigInt`, never `Number`, since a
- *  micros amount can exceed `Number.MAX_SAFE_INTEGER`) and returns the smallest. `null` when the
- *  policy currently offers nothing. */
-function smallestAllowedAmountMicros(amountsMicros: string[]): string | null {
-  if (amountsMicros.length === 0) return null;
-  return [...amountsMicros].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1))[0];
-}
 
 /** The admin-only "Budget pressure" card's data. */
 export interface AdminPressureCard {
@@ -247,7 +240,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const session = useConsoleSession();
   const [view, setView] = useOverviewParams();
   const budgetClient = useConsoleBudgetClient();
-  const queryClient = useQueryClient();
   const isAdmin = session.isAdmin;
 
   // One resolution, read by both the query and the picker's displayed value — so the calendar can
@@ -425,34 +417,15 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
-  const ladderQuery = useQuery({
-    queryKey: ['budget', 'myRefillLadder', period],
-    queryFn: () => budgetClient.procedures.getMyBudgetRefillLadder({ args: { period } }),
-    enabled: Boolean(accountId),
-    staleTime: 30_000,
-  });
-
-  const refill = useSharedMutation<string, AugmentationRequest>({
-    mutationKey: OVERVIEW_REFILL_MUTATION_KEY,
-    mutationFn: (requestedAmountMicros) =>
-      budgetClient.procedures.requestBudgetRefill({
-        args: {
-          accountId,
-          // One account is one budget account (`authz.cstack`'s own `GetMyBudgetBalanceInput`
-          // doc comment: "budget_account_id is always identical to account_id") — no separate
-          // "list my budget accounts" RPC exists, matching `@lightbridge/hooks/budget.ts`'s own
-          // `RequestBudgetRefillArgs.budgetAccountId` convention.
-          budgetAccountId: accountId,
-          period,
-          idempotencyKey: createId(),
-          requestedAmountMicros,
-        },
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['budget', 'myBalance', accountId, period] });
-      void queryClient.invalidateQueries({ queryKey: ['budget', 'myRefillLadder', period] });
-    },
-  });
+  // The ladder query and the refill mutation itself both moved to `use-budget-refill.ts` (rail-
+  // return round, 2026-08-30) so `RequestRefillDialog` — mounted once in the layout — can drive
+  // the exact same query/mutation this screen only READS from now: `refillErrorMessage` stays
+  // visible here via the shared `MutationCache` (`useOverviewRefillOutcome`) even though the
+  // actual submit happens inside the dialog, the same "two zones, one shared outcome" idiom
+  // `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY` already documents.
+  const ladder = useBudgetRefillLadder();
+  const refillOutcome = useOverviewRefillOutcome();
+  const openRefillDialog = useOpenRequestRefillDialog();
 
   const budget: BudgetSummary = useMemo(() => {
     if (consumptionQuery.isError) {
@@ -500,16 +473,20 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : false;
 
   const smallestAmountMicros = isBreached
-    ? smallestAllowedAmountMicros(ladderQuery.data?.allowedAmountsMicros ?? [])
+    ? smallestAllowedAmountMicros(ladder.allowedAmountsMicros)
     : null;
 
+  // 2026-08-30 (owner: "budget refill form disappeared") — this used to instantly mutate
+  // `smallestAmountMicros` on one click, with no confirmation surface at all. It now opens
+  // `RequestRefillDialog` instead (which independently preselects the smallest allowed amount —
+  // see `use-request-refill-dialog.ts`), so a breach is still one click away from a refill
+  // request, but that click is a real form, not a blind mutate.
   let refillAction: OverviewScreen['refillAction'];
   if (smallestAmountMicros) {
-    const amountMicros = smallestAmountMicros;
     refillAction = {
-      label: `Request refill (+${formatMicros(amountMicros)})`,
-      onClick: () => refill.mutate(amountMicros),
-      pending: refill.isPending,
+      label: 'Request refill',
+      onClick: openRefillDialog,
+      pending: refillOutcome.isPending,
     };
   }
 
@@ -712,7 +689,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     modelSpendRetry: () => void modelUsageQuery.refetch(),
     budget,
     refillAction,
-    refillErrorMessage: refill.errorMessage,
+    refillErrorMessage: refillOutcome.errorMessage,
     report: {
       open: view.reportOpen,
       onOpenChange: (open) => {
@@ -786,18 +763,4 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
           }
         : undefined,
   };
-}
-
-/**
- * The refill CTA's amount, e.g. `Request refill (+$12.00)`.
- *
- * `microsToAmount` handles the unit (budget-domain integer micros arriving as a decimal string —
- * see its own docstring for why a string); `formatUsd` handles the rendering. This used to call
- * `amount.toLocaleString('en-US')` directly, which is a SECOND currency convention: it groups
- * thousands with a comma (`$1,200`) where the whole console groups with a thin space
- * (`$1 200.00`), and it drops the cents the rest of the console always writes. One convention,
- * one function.
- */
-function formatMicros(amountMicros: string): string {
-  return formatUsd(microsToAmount(amountMicros));
 }

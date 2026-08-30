@@ -90,7 +90,6 @@ function PersistentShell() {
             <PageHeader title="Projects" />
             <ApiKeysLedger
               keys={apiKeysFixture}
-              onDismissSecret={() => {}}
               onRotate={() => {}}
               onRequestRevoke={() => {}}
               onConfirmRevoke={() => {}}

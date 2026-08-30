@@ -4,13 +4,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from '../../components/button';
 import { EmptyState } from '../../components/empty-state';
 import { ApiKeysLedger } from './component';
-import { apiKeysFixture, apiKeysNewSecret } from './fixtures';
-import type {
-  ApiKeyRow,
-  ApiKeysDeleteTarget,
-  ApiKeysRevokeTarget,
-  ApiKeysSecretReveal,
-} from './types';
+import { apiKeysFixture } from './fixtures';
+import type { ApiKeyRow, ApiKeysDeleteTarget, ApiKeysRevokeTarget } from './types';
 
 const meta: Meta<typeof ApiKeysLedger> = {
   title: 'Sections/ApiKeysLedger',
@@ -23,7 +18,6 @@ type Story = StoryObj<typeof ApiKeysLedger>;
 
 function Demo({
   keys = apiKeysFixture,
-  secretReveal = null,
   revokeInitial = null,
   deleteInitial = null,
   isAdmin = true,
@@ -32,7 +26,6 @@ function Demo({
   toolbarActions,
 }: {
   keys?: ApiKeyRow[];
-  secretReveal?: ApiKeysSecretReveal | null;
   revokeInitial?: ApiKeysRevokeTarget | null;
   deleteInitial?: ApiKeysDeleteTarget | null;
   isAdmin?: boolean;
@@ -40,7 +33,6 @@ function Demo({
   error?: string;
   toolbarActions?: React.ReactNode;
 }) {
-  const [secret, setSecret] = useState(secretReveal);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
   const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(deleteInitial);
 
@@ -62,8 +54,6 @@ function Demo({
             }
           />
         }
-        secretReveal={secret}
-        onDismissSecret={() => setSecret(null)}
         onRotate={() => {}}
         onRequestRevoke={(row) => setRevokeTarget({ row })}
         revokeTarget={revokeTarget}
@@ -81,9 +71,12 @@ function Demo({
   );
 }
 
-export const Populated: Story = { render: () => <Demo secretReveal={apiKeysNewSecret} /> };
-
-export const WithoutSecretStrip: Story = { render: () => <Demo /> };
+// Addition D (2026-08-30) — this section no longer carries any secret-reveal concept at all: the
+// CREATE one-time secret moved into `CreateApiKeyDialog`'s own second step
+// (`components/create-api-key-dialog`), and ROTATE's stays a floor-level `SecretReveal` rendered
+// by the CONTAINER as a sibling above the `Card` this section fills (`api-keys-centre.tsx`) — the
+// fix for the "card inside a card" bug this section's own `secretReveal` prop used to cause.
+export const Populated: Story = { render: () => <Demo /> };
 
 export const RevokeDialogOpen: Story = {
   render: () => <Demo revokeInitial={{ row: apiKeysFixture[0] }} />,
@@ -134,5 +127,5 @@ export const ErrorState: Story = {
 // scrolls sideways.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
-  render: () => <Demo secretReveal={apiKeysNewSecret} />,
+  render: () => <Demo />,
 };

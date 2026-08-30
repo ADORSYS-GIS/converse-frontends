@@ -50,18 +50,6 @@ function baseScreen(overrides: Partial<AccountSettingsScreenData> = {}): Account
       details: { id: 'auth0|9f3a', status: 'active', defaultQuotaTier: 'growth' },
       onCopyId: vi.fn(),
     },
-    accountNameDialog: {
-      open: false,
-      mode: 'rename',
-      subjectLabel: 'auth0|9f3a',
-      currentlyNamed: true,
-      name: 'Widgets Ltd',
-      onNameChange: vi.fn(),
-      submitting: false,
-      canSubmit: false,
-      onSubmit: vi.fn(),
-      onCancel: vi.fn(),
-    },
     projectCount: 3,
     ...overrides,
   };
@@ -129,26 +117,14 @@ describe('AccountSettingsCentre', () => {
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
 
-  it('mounts the RENAME account dialog on this screen, opened from the URL flag', async () => {
-    await renderCentre({
-      accountNameDialog: {
-        open: true,
-        mode: 'rename',
-        subjectLabel: 'auth0|9f3a',
-        currentlyNamed: true,
-        name: 'Widgets Ltd',
-        onNameChange: vi.fn(),
-        submitting: false,
-        canSubmit: true,
-        onSubmit: vi.fn(),
-        onCancel: vi.fn(),
-      },
-    });
+  it('does not mount the rename dialog itself — it only calls the shared trigger', async () => {
+    // Addition C (rail-return round, 2026-08-30): `AccountNameDialog` (`mode: 'rename'`) moved to
+    // `app/(console)/layout.tsx`, alongside `create`, so the inspector rail's quick-settings panel
+    // can trigger the identical write from every other route. This screen's own `Rename` button
+    // (covered above) just calls `panel.onRename` — no dialog renders here at all.
+    await renderCentre();
 
-    // ADR-0026: `create` mode no longer mounts here at all — `useAccountSettingsScreen`'s own
-    // dialog only ever renames the SCOPED account now. See the "+ New account" tests below for
-    // where `create` actually lives (the shared, layout-level dialog this screen only triggers).
-    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Rename account');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens the shared create-account dialog (`?new-account=`) from the PageHeader action', async () => {

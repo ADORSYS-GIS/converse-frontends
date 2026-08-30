@@ -9,6 +9,19 @@ export type CreateApiKeyPlanOption = {
   limits?: BillingPlanLimits | null;
 };
 
+/**
+ * The dialog's SECOND step (Addition D, 2026-08-30 owner round: "a card inside a card? why is
+ * the form in a modal and the result not?") — the one-time secret a successful create returns,
+ * shown in the SAME modal instance the form just was, never a separate floor-level card. Same
+ * shape `sections/api-keys-ledger`'s own `ApiKeysSecretReveal` carries (structurally, not by
+ * import — this component stays one layer below `sections/`).
+ */
+export type CreateApiKeyResult = {
+  heading: string;
+  description: string;
+  secret: string;
+};
+
 export interface CreateApiKeyDialogProps {
   open: boolean;
 
@@ -55,4 +68,19 @@ export interface CreateApiKeyDialogProps {
   canSubmit: boolean;
   onSubmit: () => void;
   onCancel: () => void;
+
+  /**
+   * Addition D (2026-08-30 owner round) — populated once `onSubmit` succeeds. Its presence, not a
+   * separate `step` prop, is what switches this dialog from the form to the secret step: there is
+   * exactly one thing a successful create result can mean, so a second boolean to keep in sync
+   * with it would only be a way for the two to disagree. `null`/`undefined` renders the form.
+   */
+  result?: CreateApiKeyResult | null;
+  /**
+   * Closes the dialog from the secret step — the ONLY way to dismiss it. Unlike `onCancel` (the
+   * form step's Cancel/Escape/backdrop path), the secret step accepts none of those: losing an
+   * unrecorded one-time secret to a stray Escape or outside click must never be possible, so this
+   * fires only from the step's own explicit "Done" button (see `component.tsx`'s own doc comment).
+   */
+  onDone: () => void;
 }

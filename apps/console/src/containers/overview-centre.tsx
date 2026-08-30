@@ -17,6 +17,7 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
 import Link from 'next/link';
 
 import { OverviewScopeSlot } from './overview-scope-slot';
+import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import { useOverviewScreen } from './use-overview-screen';
 
 /**
@@ -48,6 +49,7 @@ const formatSpendTooltip = (value: number) => formatUsd(value);
 
 export function OverviewCentre() {
   const screen = useOverviewScreen(<OverviewScopeSlot />);
+  const openRefillDialog = useOpenRequestRefillDialog();
 
   const spendTotal = screen.spendSegments.reduce((sum, segment) => sum + segment.value, 0);
   const modelSpendTotal = screen.modelSpendSegments.reduce(
@@ -132,6 +134,11 @@ export function OverviewCentre() {
           className="w-full"
           label="Budget"
           budget={screen.budget}
+          actions={
+            <Button type="button" variant="secondary" size="sm" onClick={openRefillDialog}>
+              Request refill…
+            </Button>
+          }
           heroAction={
             screen.refillAction ? (
               <Button

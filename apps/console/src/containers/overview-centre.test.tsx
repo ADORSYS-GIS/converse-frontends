@@ -261,10 +261,14 @@ describe('OverviewCentre', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('omits the refill control when the screen reports none is available', async () => {
+  it('omits the breach-state refill control when the screen reports none is available, but keeps the standing header action', async () => {
+    // 2026-08-30 owner round ("budget refill form disappeared"): the breach-only inline button
+    // (`heroAction`, beside the numeral) is still conditional on `refillAction`, but the standing
+    // secondary "Request refill…" action on the Budget card's OWN header (`BudgetPanel.actions`)
+    // is unconditional now — reachable well before any breach, not just at/past 90%.
     await renderCentre({ refillAction: undefined });
 
-    expect(screen.queryByRole('button', { name: /Request refill/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Request refill…' })).toBeInTheDocument();
   });
 
   // Phase 4 — one dashboard, parameterised by role (LATENCY removed from the block in phase 9.2 —

@@ -72,7 +72,14 @@ export interface BudgetPanelProps {
   /** Omitted entirely when there is nothing pending. */
   refillRequestStatus?: BudgetRefillRequestStatus;
   onReviewInAdmin?: () => void;
-  /** Compact-tier trigger slot on the heading row (EXPORT lives beside this zone). */
+  /**
+   * The heading row's own trigger slot — today the standing, always-visible "Request refill…"
+   * secondary action (owner, 2026-08-30: "budget refill form disappeared" — the refill control
+   * used to appear ONLY past `BUDGET_BREACH_THRESHOLD`; this is what makes it reachable before
+   * that, opening `RequestRefillDialog`). Distinct from `heroAction`, which stays breach-only and
+   * sits beside the numeral itself (ADR 0008 Decision 7) — the two are not mutually exclusive:
+   * both can open the same dialog instance.
+   */
   actions?: ReactNode;
   className?: string;
 }

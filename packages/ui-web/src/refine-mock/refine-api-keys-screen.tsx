@@ -10,6 +10,7 @@ import { useCreate, useDelete, useTable, useUpdate } from '@refinedev/core';
 import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { EmptyState } from '../components/empty-state';
+import { SecretReveal } from '../components/secret-reveal';
 import type { LedgerSort } from '../components/ledger-table';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
@@ -159,6 +160,21 @@ export function RefineApiKeysScreen() {
           {isAdmin ? 'Demo: acting as admin' : 'Demo: acting as non-admin'}
         </Button>
 
+        {/* Addition D (2026-08-30) — CREATE's own secret would show inside a real
+            `CreateApiKeyDialog`'s own secret step in `apps/console`; this mock's simplified
+            `createKey()` (below) has no dialog to fold it into, so it stays a floor-level
+            `SecretReveal` — but, matching the real fix, as a sibling ABOVE the `Card`, never
+            nested inside `ApiKeysLedger`'s own tree (the "card inside a card" this addition
+            exists to stop). */}
+        {secretReveal ? (
+          <SecretReveal
+            heading={secretReveal.heading}
+            description={secretReveal.description}
+            secret={secretReveal.secret}
+            onDismiss={() => setSecretReveal(null)}
+          />
+        ) : null}
+
         <Card>
           <ApiKeysLedger
             keys={rows}
@@ -178,8 +194,6 @@ export function RefineApiKeysScreen() {
             }
             sort={sort}
             onSortChange={(next) => table.setSorters([{ field: next.key, order: next.direction }])}
-            secretReveal={secretReveal}
-            onDismissSecret={() => setSecretReveal(null)}
             onRotate={(row) => {
               const secret = randomSecret();
               updateMutation.mutate(

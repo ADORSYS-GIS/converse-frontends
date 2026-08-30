@@ -692,10 +692,14 @@
  * ─── The bottom sheet ────────────────────────────────────────────────────────────────────────
  *
  * Base UI's Drawer owns the drawer (ADR 0009 Decision 6, primitive per the owner decision of
- * 2026-08-29); this is its paint. Base UI names the axis by the gesture that dismisses the sheet
- * and puts it on the popup as `data-swipe-direction` — `down` for a bottom sheet, `right` for an
- * edge sheet — so the geometry is a fact the sheet already announces, rather than a ternary the
- * component computes and then has to keep in step with the `direction` prop it passed in.
+ * 2026-08-29); this is its paint.
+ *
+ * BOTTOM ONLY (owner's locked layout contract, restated 2026-08-30: "3 slices: left rail, main
+ * content, right rail... Right rail on large screens, bottom sheet on medium and small. Not from
+ * sides."). This used to also carry a `[data-swipe-direction='right']` branch for a side-docked
+ * edge sheet — DELETED, not merely unused: no side-docked drawer geometry survives anywhere in
+ * the console. `DetailSheet`'s own `detail-sheet-panel` (the fixed-right, always-420px predecessor
+ * to the inspector rail) is gone with it.
  */
 @utility sheet-panel {
   position: fixed;
@@ -704,35 +708,25 @@
   flex-direction: column;
 
   /*
-   * `:where()` around both direction branches is load-bearing, and this is the one place in this
-   * file where it is. A bare `&[data-swipe-direction='down']` is two classes' worth of
-   * specificity, which would outrank a plain utility at the call site — and there IS one:
-   * `ConsoleShell` passes `bottom-14` to lift the drawer above the 56px navigation dock, and it
-   * would have been silently swallowed, dropping the sheet back onto the viewport edge.
-   * `:where()` contributes nothing, so this ties with a plain utility and source order decides,
-   * which is the same rule every other block here relies on. Nothing about the attribute rename
-   * changed that: it is the SELECTOR SHAPE that costs specificity, not which library emits it.
+   * `:where()` is load-bearing, not decorative: it keeps this rule's specificity at ZERO despite
+   * the attribute selector, so a plain utility at the call site (`ConsoleShell`'s `bottom-14`,
+   * lifting the sheet above the 56px navigation dock) reliably overrides `bottom: 0` below —
+   * both land in the same Tailwind utilities layer, where generation order alone would not
+   * otherwise guarantee the call site wins.
    */
   &:where([data-swipe-direction='down']) {
     inset-inline: 0;
     bottom: 0;
-    max-height: 85vh;
-    /* Border doctrine (phase 9): the docking edge gets the same 1px `--color-border` hairline
-       `detail-sheet-panel`'s `border-left` already draws on its own docking edge — a floating
-       panel over the floor gets a boundary, consistently, regardless of which edge it slides
-       from. */
+    /* Content-sized up to this cap, never a fixed minimum height — a short sheet (a handful of
+       rows) must not leave a full-height void below its own content (console-ui skill § States,
+       "an empty frame reads as an empty dataset"; the analogous defect here is a TALL frame
+       reading as one). `dvh`, not `vh`: the dynamic viewport unit accounts for a mobile browser's
+       own collapsing chrome, where a static `vh` overshoots the sheet past what is actually
+       visible. */
+    max-height: 85dvh;
+    /* Border doctrine (phase 9): the docking edge gets a 1px `--color-border` hairline — a
+       floating panel over the floor gets a boundary, consistently. */
     border-top: 1px solid var(--color-border);
-  }
-
-  /* A side sheet stops short of full width: the page behind it stays visible, which is what
-     distinguishes a sheet from a route change. */
-  &:where([data-swipe-direction='right']) {
-    inset-block: 0;
-    right: 0;
-    height: 100%;
-    width: 85vw;
-    max-width: 320px;
-    border-left: 1px solid var(--color-border);
   }
 }
 
@@ -760,9 +754,10 @@
 @utility sheet-header {
   display: flex;
   flex-shrink: 0;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 0.5rem;
 
   /* The dismiss × is a `btn btn-ghost` through `Button`, the same affordance `SecretReveal`'s ×
      uses. The one thing the header adds is that it reads as chrome rather than as an action —
@@ -777,10 +772,36 @@
   }
 }
 
+/* The header's title block (title + optional subtitle) — takes the row's remaining width so the
+ * trailing action cluster never wraps it early. */
+@utility sheet-header-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The header's trailing cluster — Addition E's `headerAction` slot, then Close, grouped so they
+ * move together rather than `justify-between` centring a lone middle child. */
+@utility sheet-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 @utility sheet-body {
   flex: 1;
   overflow-y: auto;
   padding: 0 1rem 1rem;
+}
+
+/* The sheet's own sticky action row — `BottomSheet`'s `footer` slot (e.g. a header-row `Rename`
+ * action's own confirmation surface lives in a separate dialog, but a sheet CAN carry a footer of
+ * its own where the content calls for one). Mirrors `sheet-header`'s padding on the opposite
+ * edge, with the same hairline doctrine one edge over. */
+@utility sheet-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 /*
@@ -816,6 +837,30 @@
   min-width: 0;
   flex: 1 1 0%;
   flex-direction: column;
+}
+
+/**
+ * The inspector rail's drag handle (`RailResizer`) — a few px hit area straddling the rail's
+ * leading edge, `col-resize` cursor. `touch-action: none` stops the browser's own scroll/zoom
+ * gesture recognition from competing with the pointer drag on touch input. Visual feedback is a
+ * `border` fill on hover/focus — no new accent, matching the console's one-signal-colour rule.
+ */
+@utility rail-resizer {
+  position: absolute;
+  inset-block: 0;
+  left: -3px;
+  z-index: 10;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--color-border);
+  }
+  &:focus-visible {
+    outline: none;
+  }
 }
 
 /* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it. */
@@ -1198,6 +1243,21 @@
     margin-top: 0.75rem;
   }
   /* The secret fills the row; the Copy button sizes to its own label. */
+  & input {
+    flex: 1;
+  }
+}
+
+/* The SAME secret input + Copy row geometry `secret-strip`'s own last row draws, extracted so
+ * `CreateApiKeyDialog`'s secret step (Addition D, 2026-08-30) can reuse it without nesting
+ * `SecretReveal`'s own bordered panel inside the dialog's already-bordered popup — see that
+ * component's own doc comment for why the two-step dialog inlines this control rather than
+ * rendering `<SecretReveal>` directly. */
+@utility secret-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
   & input {
     flex: 1;
   }
@@ -2450,49 +2510,6 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 0.75rem;
-}
-
-/* `DetailSheet`'s popup — a fixed right panel, full viewport height, docked to the trailing edge.
-   Base UI's Dialog owns the open/close state and focus trap; this is its paint only. */
-@utility detail-sheet-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  width: 420px;
-  max-width: 100vw;
-  height: 100dvh;
-  overflow-y: auto;
-  background-color: var(--color-base-200);
-  border-left: 1px solid var(--color-border);
-
-  /* The three parts `DetailSheet` renders: a header that never scrolls away from the close
-     control, a body that takes the remaining height, and an optional footer pinned to the
-     bottom edge — the same three-part shape `sheet-header`/`sheet-body` give the bottom sheet,
-     restated here so the right-panel sheet does not reach across families for its own paint. */
-  & .detail-sheet-header {
-    display: flex;
-    flex-shrink: 0;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 1.25rem 1.25rem 1rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  & .detail-sheet-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.25rem;
-  }
-
-  & .detail-sheet-footer {
-    flex-shrink: 0;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--color-border);
-  }
 }
 
 /* `PageHeader` — the title block a screen opens with, and the controls row beside it. */

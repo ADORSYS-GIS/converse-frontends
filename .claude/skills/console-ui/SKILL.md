@@ -29,16 +29,24 @@ The full contracts live in the repo — **read them before writing components**:
 
 ## The one-paragraph mental model
 
-Cards sit on a floor, inside a two-column shell. In dark the floor is `#000` and cards
-(`base-200`) carry stats, charts, tables and forms; in light the floor is grey and cards are
-white. A persistent sidebar (240px, `md`+) carries navigation, a workspace switcher and a footer
-stack; below `md` a 48px top bar plus a bottom nav dock replace it. **There is no right rail at
-any tier.** Every screen opens with `PageHeader` (title, subtitle, inline controls, one action),
-then a stack of `Card`s — one per self-contained zone. Row detail opens `DetailSheet` (a 420px
-Base UI Dialog) over the content column; it is not a persistent column. Sans type (Inter) is the
-default everywhere structural; mono (IBM Plex Mono) is reserved for data values — currency,
-counts, ids, timestamps — never for prose or chrome. A single orange signal appears only when
-something is actionable or needs attention.
+Cards sit on a floor, inside a shell with a persistent LEFT sidebar, a stretching centre column,
+and a SITUATIONAL right inspector rail. In dark the floor is `#000` and cards (`base-200`) carry
+stats, charts, tables and forms; in light the floor is grey and cards are white. The sidebar
+(240px, `md`+) carries navigation, a workspace switcher and a footer stack; below `md` a 48px top
+bar plus a bottom nav dock replace it. **The right rail returned** (owner, 2026-08-30, superseding
+ADR 0012 D1/D7's "no right rail at any tier"/"`DetailSheet` is the one surface for row detail"):
+at `lg`+ (1024px) it shows a selection's detail (`/projects`, `/admin`) or the account
+quick-settings panel (`/`, standing) — resizable by drag (`RailResizer`, 240–480px, default 280,
+persisted per viewer) — and is ABSENT entirely, not an empty placeholder, on any route/state with
+nothing to put in it (owner: "the right rail was empty depending on the situation. Solution: hide
+it if empty"). Below `lg`, the same selection-driven content opens as a `BottomSheet` docked to
+the BOTTOM of the viewport, never from a side (owner's locked layout contract: "Right rail on
+large screens, bottom sheet on medium and small. Not from sides."); `DetailSheet` — the old
+fixed-420px, right-docked surface — is deleted. Every screen opens with `PageHeader` (title,
+subtitle, inline controls, one action), then a stack of `Card`s — one per self-contained zone.
+Sans type (Inter) is the default everywhere structural; mono (IBM Plex Mono) is reserved for data
+values — currency, counts, ids, timestamps — never for prose or chrome. A single orange signal
+appears only when something is actionable or needs attention.
 
 **This reverses two ADR 0008 rules on purpose** (ADR 0012): "centre is never a card" is dead —
 cards are now the default zone container — and "monospace-primary for everything structural" is
@@ -57,7 +65,7 @@ for the Expo surface, `packages/ui` + `apps/self-service`, which stay on Tailwin
 | -------------- | -------------- | ------------------------- | -------------- | -------------------- | --------------------------------------------------------------------------------- |
 | `muted`        | `--floor`      | `--color-base-100`        | `#000000`      | `#EBEBEB`           | Page background. `Card` sits on it, is never confused with it              |
 | `chrome`       | `--chrome`     | `--color-neutral`         | `#111111`      | `#F5F5F5`           | Sidebar/top-bar fill, form-control inset fill, table row hover                     |
-| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `DetailSheet`, dialogs, `StatCard`                                        |
+| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `BottomSheet`, the inspector rail, dialogs, `StatCard`                                        |
 | `raised`       | `--raised`     | `--color-base-300`        | `#202020`      | `#DEDEDE`           | Active nav row, active segmented cell, table hairlines, skeletons                  |
 | `border`       | `--line`       | `--color-border`          | `#3a3a3a`      | `#CFCFCF`           | Control borders, `Card`'s own hairline, chart baseline, group separators           |
 | `subtle`       | `--muted`      | `--color-subtle`          | `#606060`      | `#8A8A8A`           | Labels, placeholders, disabled. Never load-bearing info (~2.9:1 by design) |
@@ -87,9 +95,11 @@ Drawers and bottom sheets are Base UI's `drawer` — one more primitive on the B
 library of its own. **`vaul` is gone** (owner decision 2026-08-29): it is in no `package.json` and
 imported nowhere in the console path. Do not reintroduce it, and do not hand-roll a sheet.
 
-`DetailSheet` (row detail — project detail, refill review) is a fixed-position Base UI **Dialog**,
-not a drawer: it is always the same 420px right panel regardless of viewport, not a tier-specific
-bottom sheet. Reach for `Drawer` only for genuinely tier-specific overlay content.
+`BottomSheet` (row detail — project detail, refill review, below `lg` only) is Base UI's
+**Drawer**, bottom-only (`swipeDirection="down"` always — the side-docked variant is deleted, per
+the owner's locked layout contract: "Not from sides"). `DetailSheet`, the fixed-420px right-panel
+`Dialog` this replaced, is gone; at `lg`+ the inspector rail is the detail surface instead, not a
+dialog of any shape.
 
 **`radix-ui` is not a direct dependency.** It ships transitively under `cmdk` and stays there —
 never `import` from `@radix-ui/*` in `ui-web` source, never add it to a `package.json`.
@@ -169,8 +179,10 @@ decimals.
 - **Mobile-first** (ADR 0009 Decision 6): author base styles for phones and scale up with the
   `md:` (600) / `lg:` (1024) breakpoints defined in `theme.css` (`--breakpoint-md`/`-lg`). Never
   desktop-first overrides.
-- **Two-column shell, no right rail at any tier** (ADR 0012 D1, supersedes ADR 0008 D3's
-  three-column inversion and every "flush rail"/"floating panel" reading of it):
+- **Left sidebar + centre + situational right inspector rail** (owner's locked layout contract,
+  restated 2026-08-30: "3 slices: left rail, main content, right rail... Right rail on large
+  screens, bottom sheet on medium and small" — supersedes ADR 0012 D1's "no right rail at any
+  tier", which itself superseded ADR 0008 D3's three-column inversion):
   - `≥md` (600px+): a persistent 240px `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
     footer stack: `⌘K` · theme · offline · identity), sticky and independently scrollable, beside
     a single fluid content column capped at `max-w-[1120px]` (`CONTENT_MAX_WIDTH_CLASS`,
@@ -179,13 +191,26 @@ decimals.
     trigger, identity) plus the existing bottom navigation dock. `ConsoleSidebar` itself renders
     both the persistent `sidebar` layout and the `bottom-bar` dock from one `groups` prop, so a
     screen never mounts navigation twice — don't build a second nav surface per tier.
+  - `≥lg` (1024px) only: the right inspector rail (`ConsoleShell.rail`, resolved by
+    `apps/console/src/containers/inspector-rail.tsx`) — `chrome` fill, a `raised` hairline facing
+    the centre, drag-resizable (`RailResizer`, `INSPECTOR_RAIL_MIN_WIDTH`–`INSPECTOR_RAIL_MAX_WIDTH`
+    px, default `INSPECTOR_RAIL_DEFAULT_WIDTH`, `lib/shell-grid.ts`; width persisted per viewer in
+    `localStorage` by `apps/console`'s `use-rail-width.ts`, never in the URL — ADR 0011 Decision 6's
+    "a shared URL must not restyle the app for its recipient" reasoning applies to layout
+    preferences too). **Situational, never a placeholder** (owner: "the right rail was empty
+    depending on the situation. Solution: hide it if empty"): `ConsoleShell` renders the whole rail
+    column ONLY when there is real content for it — a selected row's detail on `/projects`/
+    `/admin`, or the account quick-settings panel standing on `/` — and collapses it entirely
+    otherwise (`/api-keys`, `/settings/*`, or `/projects`/`/admin` with nothing selected). The
+    centre column absorbs the freed width either way (`min-w-0 flex-1`).
   - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`
     — `min-w-0` is mandatory, without it a wide table/chart blows the row open into page-level
     horizontal scroll). Anything intrinsically wide scrolls inside its own `overflow-x-auto`
     container instead.
-  - There is no third "compact rail" tier. Screen parameters that used to be "right-rail knobs"
-    are inline in `PageHeader.controls` at every tier; row detail is `DetailSheet`, the same fixed
-    420px Dialog at every viewport size (capped `max-width: 100vw`), not a responsive bottom sheet.
+  - Screen PARAMETERS (range/bucket/group-by, filters, search) stay inline in `PageHeader.controls`
+    at every tier — the rail is for SELECTION-driven detail and standing account settings, never
+    for knobs. Below `lg`, where the rail is absent, that same selection-driven detail opens as a
+    `BottomSheet` instead (bottom-docked, never from a side — see "Primitive stack" above).
 - **`Card` is the default zone container** (ADR 0012 D3, kills ADR 0008's "centre is never a
   card"/"a scalar gets a panel, a distribution gets the floor" boundary): stat rows, charts,
   ledgers (toolbar + table + pager inside **one** `Card`), settings sections and forms all wrap in
@@ -199,19 +224,23 @@ decimals.
   label row IS the role marker. Never resurrect a `ROLE` badge/marker component.
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.
-- **`DetailSheet` is the one surface for row detail** (ADR 0012 D7, replaces the persistent-
-  right-rail retarget mechanic): Base UI `Dialog`, fixed 420px right panel, header (title/
-  subtitle/close) · body · optional footer. It opens on selection and closes when the user is
-  done — it does not reserve a column when nothing is selected. Screen-level parameters
-  (range/bucket/group-by, filters, search) are **never** rail/sheet content — they are inline
-  `PageHeader.controls`.
+- **Row detail is the inspector rail at `lg`+, a `BottomSheet` below it — never a side sheet at
+  any tier.** `DetailSheet` (a fixed-420px right-docked `Dialog`) is deleted. Below `lg`,
+  `BottomSheet` (Base UI `Drawer`, bottom-only) opens on selection: grab handle, header
+  (title/subtitle/optional `headerAction`, e.g. `Rename` — never a stranded footer button for a
+  header-scale action) · body, content-sized up to `max-height: 85dvh` (never a fixed minimum —
+  a short sheet must not leave an empty void below its own content) · optional `footer` for
+  content that genuinely belongs at the sheet's foot (a decision panel's own Approve/Decline).
+  `portalClassName="lg:hidden"` is how a route keeps its sheet out of the DOM's interactive
+  surface at `lg`+, where the rail is the surface instead — never a wrapper class, since the
+  Drawer's portal (and Floating UI's own press-absorbing backdrop layer) render outside the
+  caller's own subtree.
 - **Report export and other "form that used to be a rail panel" surfaces are a `Dialog`**, not a
-  sheet or a rail (ADR 0012 D7): `ReportExportDialog`, reachable from Overview and Projects.
-- **Rail alignment grid** (single source: `packages/ui-web/src/lib/rail-grid.ts`) still backs
-  `NavSpine`/`SubNav`'s own internal row geometry (icon column, label x, active-bar inset) — the
-  module name is historical (it predates the shell revamp) and does not imply a rail UI concept
-  survives; consume it for nav-row alignment only, never to justify adding a rail-shaped surface
-  back.
+  sheet or the rail: `ReportExportDialog`, reachable from Overview and Projects.
+- **`lib/rail-grid.ts`** backs `NavSpine`/`SubNav`'s own internal row geometry (icon column, label
+  x, active-bar inset) — a nav-row alignment grid, unrelated to `lib/shell-grid.ts`'s inspector
+  rail column geometry (`INSPECTOR_RAIL_CLASS`/`-MIN_WIDTH`/`-MAX_WIDTH`/`-DEFAULT_WIDTH`) despite
+  the name overlap; consume each for what it actually owns.
 
 ## Charts
 
@@ -295,7 +324,7 @@ anti-pattern) — **unchanged by the 2026-08-30 shell revamp**:
 - **The shell mounts exactly once, in `apps/console`'s persistent layout** — `ConsoleShell` +
   `ConsoleSidebar`/`ConsoleTopBar` live in a route-group `layout.tsx`. There is no `@rail`/`@scope`
   parallel-route slot any more (deleted with the right rail, ADR 0012) — route pages compose
-  sections and pass `DetailSheet`/`Dialog` state as ordinary props; they never render the shell.
+  sections and pass `BottomSheet`/`Dialog` state as ordinary props; they never render the shell.
   Navigating must not remount the sidebar/top-bar (this is testable: the nav DOM node persists
   across route changes — `shell-persistence.stories.tsx`).
 - **Full-page compositions exist in exactly two places**: (1) Storybook — page-level stories under
@@ -323,7 +352,7 @@ are devDependencies only.
 
 - In `apps/console`, **view state lives in the URL** through nuqs (`useQueryState`/
   `useQueryStates`, typed parsers, defaults kept out of the URL): scope, filters,
-  range/bucket/group-by, selections, active tabs, `DetailSheet`/dialog open state. There is no
+  range/bucket/group-by, selections, active tabs, `BottomSheet`/dialog open state. There is no
   provider/context for this — one route reads its own params directly.
 - **`useState` in view code is a defect unless it is one of the sanctioned exceptions**:
   hover/tooltip tracking, focus management, pre-submit form drafts that must not enter URL or
@@ -337,9 +366,10 @@ are devDependencies only.
 
 ## Never do
 
-Cards on the floor with no `PageHeader`/`Card` structure · a right rail at any tier · borders or
-shadows anywhere except `Card`'s hairline, table hairlines, control borders and the chart baseline
-· a second accent colour · orange as decoration or large fill · green/red deltas · pills/badges ·
+Cards on the floor with no `PageHeader`/`Card` structure · an empty inspector rail column (hide it
+instead) · a side-docked sheet at any tier (bottom sheet below `lg`, the rail at `lg`+) · borders
+or shadows anywhere except `Card`'s hairline, table hairlines, control borders and the chart
+baseline · a second accent colour · orange as decoration or large fill · green/red deltas · pills/badges ·
 rounded-full · spinners · uppercase labels · mono type for non-data prose/chrome ·
 a centered empty-state placard for anything OTHER than a settled, genuinely first-run empty query
 (that's `InlineStatus`'s job) · empty-state copy inside an SVG `<text>` ·

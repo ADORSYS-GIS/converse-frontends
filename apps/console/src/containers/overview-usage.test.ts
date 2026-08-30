@@ -427,15 +427,38 @@ describe('activeApiKeysCountFilters', () => {
   it('always filters to status eq active, so the count excludes revoked keys', () => {
     // Live findings #5 (2026-08-30): the "Active API keys" stat card previously read an
     // unfiltered `useList` total, which counted revoked keys as if they were live.
-    expect(activeApiKeysCountFilters(null)).toEqual([
+    expect(activeApiKeysCountFilters(null, ['proj_1', 'proj_2'])).toEqual([
+      { field: 'projectId', operator: 'in', value: ['proj_1', 'proj_2'] },
       { field: 'status', operator: 'eq', value: 'active' },
     ]);
   });
 
   it('adds a projectId filter only when the scope has a project selected', () => {
-    expect(activeApiKeysCountFilters('proj_7')).toEqual([
+    expect(activeApiKeysCountFilters('proj_7', ['proj_1', 'proj_2', 'proj_7'])).toEqual([
       { field: 'projectId', operator: 'eq', value: 'proj_7' },
       { field: 'status', operator: 'eq', value: 'active' },
     ]);
+  });
+
+  // Phase 2d (account-scoping audit, converse-frontends#368/#392): the stat card used to read
+  // `apiKeys.result.total` scoped by status alone — no project filter at all when the toolbar was
+  // at "All projects" — which counted every key the IDENTITY could see, not just this account's.
+  it('scopes the account-wide count to this account’s own project ids, not every project the identity can see', () => {
+    const accountA = activeApiKeysCountFilters(null, ['proj_a1', 'proj_a2']);
+    const accountB = activeApiKeysCountFilters(null, ['proj_b1']);
+
+    expect(accountA).toEqual([
+      { field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] },
+      { field: 'status', operator: 'eq', value: 'active' },
+    ]);
+    expect(accountB).toEqual([
+      { field: 'projectId', operator: 'in', value: ['proj_b1'] },
+      { field: 'status', operator: 'eq', value: 'active' },
+    ]);
+    expect(accountA).not.toEqual(accountB);
+  });
+
+  it('returns null — never an unfiltered count — when the account has no known project ids yet', () => {
+    expect(activeApiKeysCountFilters(null, [])).toBeNull();
   });
 });

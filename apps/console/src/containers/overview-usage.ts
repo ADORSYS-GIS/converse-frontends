@@ -9,6 +9,7 @@ import type { ShareBarSegment, SpendSeriesSeries } from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
+import { apiKeysAccountFilters, type ApiKeysFilter } from './api-key-rows';
 
 /**
  * Pure request/response adapters between the Overview screen's URL-driven view state and
@@ -276,15 +277,22 @@ export function buildBudgetConsumptionByProjectRequest(
  * query (`pagination: { pageSize: 1 }`, `result.total`) rather than a client-side recount over a
  * page that may not hold every key.
  *
+ * Phase 2d (account-scoping audit, converse-frontends#368/#392) layers the SAME fix
+ * `use-api-keys-screen.ts`'s own ledger got on top of the status filter: `apiKeysAccountFilters`
+ * scopes the count to the account's own projects (`projectId in […]`) whenever no single project
+ * is picked, instead of the identity-wide count the card used to show — `null` when there is no
+ * safe filter to send yet, which the caller must treat as "do not fire this query," not "fire it
+ * unfiltered" (see that function's own doc comment).
+ *
  * A plain array literal, not a hook — pulled out here (rather than left inline in
  * `use-overview-screen.ts`) so the shape itself is covered by a plain unit test, the same split
  * every other request/filter builder in this module uses.
  */
 export function activeApiKeysCountFilters(
-  projectId: string | null
-): Array<{ field: string; operator: 'eq'; value: string }> {
-  const filters: Array<{ field: string; operator: 'eq'; value: string }> = [];
-  if (projectId) filters.push({ field: 'projectId', operator: 'eq', value: projectId });
-  filters.push({ field: 'status', operator: 'eq', value: 'active' });
-  return filters;
+  projectId: string | null,
+  accountProjectIds: readonly string[]
+): Array<ApiKeysFilter | { field: 'status'; operator: 'eq'; value: string }> | null {
+  const accountFilters = apiKeysAccountFilters({ projectId, accountProjectIds });
+  if (accountFilters === null) return null;
+  return [...accountFilters, { field: 'status', operator: 'eq', value: 'active' }];
 }

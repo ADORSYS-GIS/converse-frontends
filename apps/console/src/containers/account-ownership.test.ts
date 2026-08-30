@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SessionResponse } from '../shared/session-response';
-import { isAccountOwner, isOwnedAccountId } from './account-ownership';
+import { isAccountOwner, isHomeAccount, isOwnedAccountId } from './account-ownership';
 
 const SUB = 'auth0|9f3a2c7e41b0';
 
@@ -70,5 +70,28 @@ describe('isOwnedAccountId', () => {
 
   it('is false for an empty scoped id', () => {
     expect(isOwnedAccountId('', allAccounts, session())).toBe(false);
+  });
+});
+
+// Phase 2d (account-scoping audit, converse-frontends#368/#392): `isHomeAccount` is deliberately
+// NARROWER than `isAccountOwner` above — a second owned account passes ownership but must still
+// read `false` here, because that is exactly the distinction the budget domain's self-service
+// procedures (`getMyBudgetBalance`/`getMyBudgetRefillLadder`) draw: they answer for `auth().id`
+// only, never for any other account the same identity happens to own.
+describe('isHomeAccount', () => {
+  it('is the home account — id equals the JWT subject', () => {
+    expect(isHomeAccount(HOME_ACCOUNT.id, session())).toBe(true);
+  });
+
+  it('is NOT the home account for a second, owned account — ownership is not enough', () => {
+    expect(isHomeAccount(SECOND_OWNED_ACCOUNT.id, session())).toBe(false);
+  });
+
+  it('is not the home account for another identity’s account', () => {
+    expect(isHomeAccount(OTHER_IDENTITYS_ACCOUNT.id, session())).toBe(false);
+  });
+
+  it('is false when signed out', () => {
+    expect(isHomeAccount(HOME_ACCOUNT.id, session(null))).toBe(false);
   });
 });

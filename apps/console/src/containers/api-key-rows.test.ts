@@ -7,6 +7,7 @@ import {
   EXPIRY_DAY_OPTIONS,
   MAX_KEY_EXPIRY_DAYS,
   apiKeyStatus,
+  apiKeysAccountFilters,
   apiKeysHygiene,
   apiKeysStatusSummary,
   computeExpiresAtIso,
@@ -190,5 +191,43 @@ describe('computeExpiresAtIso', () => {
       const ninetyDaysOut = computeExpiresAtIso(90, NOW);
       expect(Date.parse(expiresAt)).toBeLessThan(Date.parse(ninetyDaysOut));
     }
+  });
+});
+
+// Phase 2d (account-scoping audit, converse-frontends#368/#392): the owner-observed defect this
+// audit exists to close — `/accounts/A/api-keys` and `/accounts/B/api-keys` rendered the SAME key
+// list, because `ApiKey` carries no `accountId` and the toolbar's "All projects" state sent NO
+// filter at all. `apiKeysAccountFilters` is the fix: `projectId in […]` over the scoped account's
+// own project ids.
+describe('apiKeysAccountFilters', () => {
+  it('scopes an unfiltered ("All projects") toolbar to the account’s own project ids', () => {
+    expect(
+      apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_a1', 'proj_a2'] })
+    ).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] }]);
+  });
+
+  it('two different accounts’ project ids produce two genuinely different filters', () => {
+    const accountA = apiKeysAccountFilters({
+      projectId: null,
+      accountProjectIds: ['proj_a1', 'proj_a2'],
+    });
+    const accountB = apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_b1'] });
+
+    expect(accountA).not.toEqual(accountB);
+    expect(accountA).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] }]);
+    expect(accountB).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_b1'] }]);
+  });
+
+  it('a single chosen project always wins over the broader account-wide "in" filter', () => {
+    expect(
+      apiKeysAccountFilters({ projectId: 'proj_a1', accountProjectIds: ['proj_a1', 'proj_a2'] })
+    ).toEqual([{ field: 'projectId', operator: 'eq', value: 'proj_a1' }]);
+  });
+
+  it('returns null — never an unfiltered "match everything" query — when there is no project id yet', () => {
+    // The account's own project ids have not loaded yet, or the account genuinely has none: both
+    // cases must refuse to fire an unscoped `apiKeys` list rather than silently returning
+    // everything the identity can see. `null` is the caller's signal to disable the query.
+    expect(apiKeysAccountFilters({ projectId: null, accountProjectIds: [] })).toBeNull();
   });
 });

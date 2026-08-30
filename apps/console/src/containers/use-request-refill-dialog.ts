@@ -8,6 +8,7 @@ import { useRequestRefillDialogParams } from '../client/url-state';
 import { useConsoleScope } from '../client/use-console-scope';
 import { accountScopeLabel } from './account-label';
 import {
+  BUDGET_HOME_ACCOUNT_ONLY_NOTE,
   smallestAllowedAmountMicros,
   sortedAllowedAmountsMicros,
   useBudgetRefillLadder,
@@ -80,14 +81,20 @@ export function useRequestRefillDialog(): RequestRefillDialogController {
     dialog: {
       open: params.open,
       accountLabel: activeAccount ? accountScopeLabel(activeAccount) : '—',
-      amountOptions,
-      amountMicros: resolvedAmountMicros,
+      // Phase 2d (account-scoping audit): for a non-home account there is no allowed-amount set to
+      // offer at all (`ladder.unavailable` — `getMyBudgetRefillLadder` cannot answer for it), so
+      // this never falls back to `amountOptions`/`resolvedAmountMicros` computed off an empty
+      // ladder that would otherwise look identical to "the policy currently offers nothing."
+      amountOptions: ladder.unavailable ? [] : amountOptions,
+      amountMicros: ladder.unavailable ? '' : resolvedAmountMicros,
       onAmountChange: setAmountDraft,
       submitting: refill.isPending,
-      error: refill.errorMessage,
-      canSubmit: resolvedAmountMicros !== '' && !refill.isPending,
+      // The honest gap wins over a submit failure — there is nothing to retry until the account
+      // itself changes, unlike a genuine submit error.
+      error: ladder.unavailable ? BUDGET_HOME_ACCOUNT_ONLY_NOTE : refill.errorMessage,
+      canSubmit: !ladder.unavailable && resolvedAmountMicros !== '' && !refill.isPending,
       onSubmit: () => {
-        if (resolvedAmountMicros === '') return;
+        if (ladder.unavailable || resolvedAmountMicros === '') return;
         refill.mutate(resolvedAmountMicros);
       },
       onOpenChange: (open) => {

@@ -13,13 +13,23 @@ import { useConsoleScope } from '../client/use-console-scope';
  * the cross-zone state bus), so a change here is visible everywhere else scope is read without
  * either side knowing the other exists. Unlike `ManageScopeSlot`, Overview has no page number to
  * reset on re-scope — there is nothing paginated on this screen.
+ *
+ * `accounts` is narrowed to the one currently-scoped account, not `scope.accounts` (Phase 2d,
+ * account-scoping audit, converse-frontends#368/#392) — `scope.setValue`'s own doc comment already
+ * states the account half of `ScopeSelect`'s `onChange` is silently ignored under IA v3
+ * (`use-console-scope.ts`: "switching account is the workspace switcher's job now, not this
+ * hook's"), so offering every other account as a selectable option here was a dead affordance:
+ * picking one visibly reset the project field to "All projects" without ever actually switching
+ * account. A single-item list renders the same read-only echo `ScopeSelect`'s Project trigger
+ * already gives a one-project account, and removes the false "you can switch accounts here" cue.
  */
 export function OverviewScopeSlot() {
   const scope = useConsoleScope();
+  const scopedAccount = scope.accounts.find((account) => account.id === scope.value.accountId);
 
   return (
     <ScopeSelect
-      accounts={scope.accounts}
+      accounts={scopedAccount ? [scopedAccount] : []}
       projects={scope.projects}
       value={scope.value}
       onChange={(value) => scope.setValue(value)}

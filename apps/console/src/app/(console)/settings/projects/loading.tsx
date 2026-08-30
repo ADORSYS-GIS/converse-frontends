@@ -28,7 +28,7 @@ export default function SettingsProjectsLoading() {
           loadingRowCount={3}
           search=""
           onSearchChange={noop}
-          onRename={noop}
+          onSelectRow={noop}
         />
       </Card>
     </div>

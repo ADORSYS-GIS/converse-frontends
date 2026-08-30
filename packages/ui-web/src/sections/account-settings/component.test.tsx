@@ -24,9 +24,10 @@ function props(
 }
 
 describe('AccountSettings', () => {
-  it('renders one Card, with Rename in its header and the facts as a definition grid', () => {
-    render(<AccountSettings {...props()} />);
+  it('renders one Card holding a classical settings list — no card title, the tab above already says Account', () => {
+    const { container } = render(<AccountSettings {...props()} />);
 
+    expect(container.querySelector('.console-card > .card-head')).toBeNull();
     expect(screen.getByText('Widgets Ltd')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByText('Account id')).toBeInTheDocument();
@@ -42,7 +43,6 @@ describe('AccountSettings', () => {
   it('renders the status as text, never as a pill or badge element', () => {
     const { container } = render(<AccountSettings {...props()} />);
 
-    expect(screen.getByText('active').tagName).toBe('DD');
     expect(container.querySelector('.badge')).toBeNull();
   });
 
@@ -67,7 +67,7 @@ describe('AccountSettings', () => {
     expect(screen.getAllByText(accountDetailsFixture.id).length).toBeGreaterThan(0);
   });
 
-  it('restyles the no-account prompt as an EmptyState block, with no dead Rename in the header', () => {
+  it('restyles the no-account prompt as an EmptyState block, with no dead Rename', () => {
     render(<AccountSettings {...props({ panel: noAccountPanelFixture, details: null })} />);
 
     expect(screen.getByText('No account yet')).toBeInTheDocument();
@@ -77,19 +77,24 @@ describe('AccountSettings', () => {
     expect(screen.queryByText('Status')).not.toBeInTheDocument();
   });
 
-  it('restyles the never-named prompt as an EmptyState block with the naming CTA', () => {
+  it('renders the unnamed account as an ordinary row list — "Not set" plus a naming action, not a full-card placard', () => {
     render(
       <AccountSettings
         {...props({ panel: unnamedAccountPanelFixture, details: accountDetailsNoQuotaFixture })}
       />
     );
 
-    expect(screen.getByText('Unnamed account')).toBeInTheDocument();
-    expect(
-      screen.getByText('This account has never been named, so it shows as its id across the console.')
-    ).toBeInTheDocument();
+    // Superseded (phase 9, Addition C): the unnamed state used to replace the whole card with an
+    // `EmptyState` headline/explainer. It is now one row among the others — Account id/Status/
+    // Default quota tier stay visible beside it, because an account is still an account before it
+    // has a name.
+    expect(screen.getByText('Account name')).toBeInTheDocument();
+    expect(screen.getByText('Not set')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.getByText('Account id')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText(NO_QUOTA_TIER_LABEL)).toBeInTheDocument();
   });
 
   it('preserves the panel’s three distinct states — loading is not "no account"', () => {
@@ -113,7 +118,7 @@ describe('AccountSettings', () => {
     expect(screen.queryByRole('button', { name: 'Create account' })).not.toBeInTheDocument();
   });
 
-  it('names the region distinctly from the Card’s own "Account" title', () => {
+  it('names the region distinctly, since the card carries no title of its own', () => {
     render(<AccountSettings {...props()} />);
 
     expect(screen.getByRole('region', { name: 'Account settings' })).toBeInTheDocument();

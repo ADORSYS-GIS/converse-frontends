@@ -140,4 +140,33 @@ describe('AccountMenu', () => {
     expect(onThemeChange).toHaveBeenCalledWith('wireframe');
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
+
+  // Phase 9 — the sidebar footer's full-width identity row (owner review: the email the sidebar
+  // footer was missing entirely).
+  describe('variant="sidebar"', () => {
+    it('renders a full-width row, not the compact header chip', () => {
+      renderMenu({ variant: 'sidebar' });
+
+      const trigger = screen.getByRole('button', { name: /Account menu/ });
+      expect(trigger).toHaveClass('sidebar-footer-row');
+      expect(trigger).not.toHaveClass('btn');
+    });
+
+    it('always shows the email — no `hidden md:inline` gate the top bar variant carries', () => {
+      renderMenu({ variant: 'sidebar', email: 'sam@adorsys.com' });
+
+      const email = screen.getByText('sam@adorsys.com');
+      expect(email).not.toHaveClass('hidden');
+    });
+
+    it('still opens the menu and fires onSignOut', async () => {
+      const { onSignOut } = renderMenu({ variant: 'sidebar' });
+
+      fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+      const item = await screen.findByRole('menuitem', { name: 'Sign out' });
+      fireEvent.click(item);
+
+      expect(onSignOut).toHaveBeenCalledTimes(1);
+    });
+  });
 });

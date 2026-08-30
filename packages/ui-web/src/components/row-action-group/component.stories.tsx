@@ -17,7 +17,7 @@ export const KeyLifecycle: Story = {
     actions: [
       { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
       { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-      { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
+      { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted' },
     ],
   },
 };
@@ -27,7 +27,7 @@ export const WithDisabledAction: Story = {
     actions: [
       { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
       { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong', disabled: true },
-      { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
+      { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted' },
     ],
   },
 };
@@ -41,7 +41,7 @@ export const RevealedOnRowHover: Story = {
           actions={[
             { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
             { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-            { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted' },
+            { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted' },
           ]}
         />
       </div>

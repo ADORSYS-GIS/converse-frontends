@@ -2,6 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { LABEL_CLASS } from '../../lib/type-roles';
+import { SortChevronIcon, SortNeutralIcon } from '../../lib/icons';
 import { SKELETON_BLOCK_CLASS, SKELETON_BLOCK_WIDTHS } from '../../lib/skeleton-geometry';
 import { ledgerRowVariants } from './cva';
 import type { LedgerSort, LedgerTableProps } from './types';
@@ -125,7 +126,11 @@ export function LedgerTable<T>({
                         'ledger-sort-caret',
                         sort?.key === column.key && 'ledger-sort-caret-active'
                       )}>
-                      {sort?.key === column.key ? (sort.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                      {sort?.key === column.key ? (
+                        <SortChevronIcon direction={sort.direction} />
+                      ) : (
+                        <SortNeutralIcon />
+                      )}
                     </span>
                   </button>
                 ) : (
@@ -195,6 +200,7 @@ export function LedgerTable<T>({
                     {columns.map((column) => (
                       <td
                         key={column.key}
+                        data-kind={column.kind === 'data' ? 'data' : undefined}
                         className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
                         {column.accessor(row)}
                       </td>
@@ -220,7 +226,10 @@ export function LedgerTable<T>({
                 per-instance to add. */}
             <tr>
               {columns.map((column) => (
-                <td key={column.key} className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
+                <td
+                  key={column.key}
+                  data-kind={column.kind === 'data' ? 'data' : undefined}
+                  className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
                   {totals[column.key]}
                 </td>
               ))}

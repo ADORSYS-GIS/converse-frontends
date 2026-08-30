@@ -15,6 +15,19 @@ import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-ba
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
+import {
+  AdminIcon,
+  KeysIcon,
+  OverviewIcon,
+  ProjectsIcon,
+  SearchIcon,
+  SettingsIcon,
+} from '@lightbridge/ui-web/src/lib/icons';
+import {
+  RAIL_ICON_COLUMN_CLASS,
+  RAIL_ICON_SIZE,
+  RAIL_ICON_STROKE_WIDTH,
+} from '@lightbridge/ui-web/src/lib/rail-grid';
 import { useCommandPaletteShortcut } from '@lightbridge/ui-web/src/lib/use-command-palette-shortcut';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -67,23 +80,16 @@ export function routeFromPathname(pathname: string): ConsoleRoute {
   return 'overview';
 }
 
-/** 10px line glyphs — structural markers, never decoration (console-ui skill). */
-function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'projects' | 'settings' | 'admin' }) {
-  const paths: Record<typeof shape, string> = {
-    overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
-    keys: 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
-    projects: 'M1 2h8M1 5h8M1 8h5',
-    // Two rails with an offset knob on each — deliberately close to `projects`'s three rules but
-    // legibly different at 10px: settings is the same list with something set on it.
-    settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
-    admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
-  };
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-      <path d={paths[shape]} fill="none" stroke="currentColor" strokeWidth="1" />
-    </svg>
-  );
-}
+/** One shared icon per nav destination — `lib/icons.tsx`'s coherent set (phase 9), all drawn in
+ *  the same 16px box at the same 1.5 stroke, replacing the ad hoc 10x10/stroke-1 glyphs this used
+ *  to draw inline (the "odd glyphs" the owner's review flagged). */
+const NAV_ICON: Record<'overview' | 'keys' | 'projects' | 'settings' | 'admin', React.ReactNode> = {
+  overview: <OverviewIcon />,
+  keys: <KeysIcon />,
+  projects: <ProjectsIcon />,
+  settings: <SettingsIcon />,
+  admin: <AdminIcon />,
+};
 
 /**
  * The four fixed destinations plus the role-gated Operator group — shell brief (2026-08-30)
@@ -112,21 +118,21 @@ export function navGroups(
           key: 'overview',
           label: 'Overview',
           href: NAV_HREFS.overview,
-          icon: <NavGlyph shape="overview" />,
+          icon: NAV_ICON.overview,
           active: active === 'overview',
         },
         {
           key: 'projects',
           label: 'Projects',
           href: NAV_HREFS.projects,
-          icon: <NavGlyph shape="projects" />,
+          icon: NAV_ICON.projects,
           active: active === 'projects',
         },
         {
           key: 'api-keys',
           label: 'API keys',
           href: NAV_HREFS['api-keys'],
-          icon: <NavGlyph shape="keys" />,
+          icon: NAV_ICON.keys,
           active: active === 'api-keys',
         },
       ],
@@ -139,7 +145,7 @@ export function navGroups(
           key: 'settings',
           label: 'Settings',
           href: NAV_HREFS.settings,
-          icon: <NavGlyph shape="settings" />,
+          icon: NAV_ICON.settings,
           active: active === 'settings',
         },
       ],
@@ -154,7 +160,7 @@ export function navGroups(
           key: 'admin',
           label: 'Refill requests',
           href: NAV_HREFS.admin,
-          icon: <NavGlyph shape="admin" />,
+          icon: NAV_ICON.admin,
           active: active === 'admin',
           count: refillCount && refillCount > 0 ? refillCount : undefined,
         },
@@ -187,11 +193,21 @@ export function initialsFor(
   return shortAccountId(fallbackId).charAt(0) || '—';
 }
 
+// The brand mark shares `lib/icons.tsx`'s box/stroke contract (phase 9, Addition B — "every icon
+// in the sidebar renders in the SAME 16px box with the same stroke width"), even though it lives
+// outside that module: it is the one glyph in the chrome that is not a navigable destination.
 const BRAND = (
   <>
     <span className="header-logo" aria-hidden="true">
-      <svg width="10" height="10" viewBox="0 0 10 10">
-        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      <svg
+        width={RAIL_ICON_SIZE}
+        height={RAIL_ICON_SIZE}
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={RAIL_ICON_STROKE_WIDTH}
+        strokeLinejoin="round">
+        <path d="M2 14 8 2 14 14Z" />
       </svg>
     </span>
     <span className="header-wordmark">Lightbridge</span>
@@ -342,7 +358,13 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
       linkComponent={Link}
       footer={
         <>
+          {/* Icon column + label at the shared rail label-x (Addition B/the sidebar grid fix) —
+              a magnifier fills the column `NavRow`'s glyph would, so this row's label lines up
+              with every nav row's above it instead of starting flush at the row's own padding. */}
           <button type="button" onClick={onOpenPalette} className="sidebar-footer-row">
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+              <SearchIcon />
+            </span>
             <span className="text-subtle font-sans text-[13px]">Search</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
@@ -355,16 +377,18 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
             </div>
           )}
-          <div className="sidebar-footer-row">
-            <AccountMenu
-              name={session.user?.name}
-              email={identityLabel}
-              initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
-              onSignOut={signOut}
-              theme={preference}
-              onThemeChange={setPreference}
-            />
-          </div>
+          {/* No wrapping `sidebar-footer-row` here — the identity row's own hover/hit-target IS
+              the menu trigger (`variant="sidebar"` renders that class on the trigger itself), so
+              wrapping it a second time would nest two hover surfaces. */}
+          <AccountMenu
+            variant="sidebar"
+            name={session.user?.name}
+            email={identityLabel}
+            initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
+            onSignOut={signOut}
+            theme={preference}
+            onThemeChange={setPreference}
+          />
         </>
       }
     />

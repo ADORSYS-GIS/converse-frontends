@@ -55,6 +55,21 @@ export const RAIL_ICON_COLUMN_WIDTH = 16;
 export const RAIL_LABEL_GAP = 10;
 export const RAIL_ACTIVE_BAR_WIDTH = 2;
 
+/**
+ * The ONE glyph box every icon in the sidebar renders into — nav rows, footer rows, the brand
+ * mark, the workspace switcher's chip glyph (phase 9, owner: "every icon in the sidebar renders
+ * in the SAME 16px box with the same stroke width and the same optical weight"). Equal to
+ * `RAIL_ICON_COLUMN_WIDTH` by construction — the box IS the column a glyph sits in, so the two
+ * cannot drift into two different "16px" that measure differently. `lib/icons.tsx` is the one
+ * place that reads this to size every exported glyph; nothing else should hand-write a `<svg>`
+ * width/height for a sidebar icon.
+ */
+export const RAIL_ICON_SIZE = RAIL_ICON_COLUMN_WIDTH;
+
+/** The single stroke width every sidebar glyph shares, so no icon reads visually heavier or
+ *  lighter than its neighbours regardless of who drew it. */
+export const RAIL_ICON_STROKE_WIDTH = 1.5;
+
 /** Net inset of the active-row fill/active-bar from the row's own left edge — also the sidebar
  * brief's own "inset 8". */
 export const RAIL_ACTIVE_BAR_INSET = RAIL_ROW_BLEED; // 8

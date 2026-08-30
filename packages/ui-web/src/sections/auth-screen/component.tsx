@@ -57,13 +57,16 @@ export function AuthScreen({
             </svg>
           </span>
         )}
-        <span className="font-mono text-xs tracking-[.14em] text-ink">{wordmark}</span>
+        {/* The wordmark — sans, sentence case, matching `header-wordmark`'s own treatment (phase
+            9 consistency pass: this used to be mono/tracked, the pre-revamp header band's face). */}
+        <span className="font-sans text-xs text-ink">{wordmark}</span>
       </div>
 
       <div className="flex flex-1 items-center justify-center py-12">
         <div className="flex w-full max-w-[360px] flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 className="font-mono text-[22px] leading-[1.25] text-ink">Sign in to Lightbridge</h1>
+            {/* A heading — sans, like every other page heading (phase 9 consistency pass). */}
+            <h1 className="font-sans text-[22px] leading-[1.25] text-ink">Sign in to Lightbridge</h1>
             <p className="font-sans text-[11px] leading-[1.45] text-soft">
               Sign-in happens at your identity provider — you&rsquo;ll be redirected there and
               back.

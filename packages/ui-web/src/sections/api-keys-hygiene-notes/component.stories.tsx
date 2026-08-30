@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Card } from '../../components/card';
 import { ApiKeysHygieneNotes } from './component';
 import { apiKeysCleanHygiene, apiKeysHygiene } from './fixtures';
 
@@ -9,12 +10,15 @@ const meta: Meta<typeof ApiKeysHygieneNotes> = {
   component: ApiKeysHygieneNotes,
   parameters: { layout: 'padded' },
   args: { hygiene: apiKeysHygiene },
-  // On the floor, not in a panel — this is an inline status block above the ledger now, not the
-  // rail card it used to be (owner review 2026-08-29).
+  // One compact status LINE inside the ledger's own `Card`, above the table (phase 9, item 4) —
+  // not the rail card it used to be (owner review 2026-08-29), and not a block floating on the
+  // floor between the header and the table either (the shape it had right after that review).
   decorators: [
     (Story) => (
       <div className="bg-muted p-6">
-        <Story />
+        <Card>
+          <Story />
+        </Card>
       </div>
     ),
   ],

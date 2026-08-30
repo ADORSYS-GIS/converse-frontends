@@ -22,8 +22,9 @@ export const DIALOG_BACKDROP_CLASS = OVERLAY_BACKDROP_CLASS;
 /** The centred modal panel itself. */
 export const DIALOG_POPUP_CLASS = `fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 p-6 ${OVERLAY_CLASS}`;
 
-/** Dialog heading — the `panel-title` type role. */
-export const DIALOG_TITLE_CLASS = 'font-mono text-base text-ink';
+/** Dialog heading — the `panel-title` type role. A heading is prose, not data (phase 9
+ *  consistency pass — this was mono). */
+export const DIALOG_TITLE_CLASS = 'font-sans text-base text-ink';
 
 /** The sentence under the title that says what this dialog is about to do. */
 export const DIALOG_DESCRIPTION_CLASS = 'mt-2 font-sans text-[11px] leading-[1.45] text-soft';
@@ -36,9 +37,10 @@ export const DIALOG_HINT_CLASS = 'font-sans text-[11px] leading-[1.45] text-subt
 
 /**
  * A submit failure the caller could not attribute to one field. Kept inline and `signal`
- * coloured; the dialog stays open (console-ui skill § States).
+ * coloured; the dialog stays open (console-ui skill § States). Prose, like `ERROR_TEXT_CLASS`
+ * (phase 9 consistency pass — this was mono).
  */
-export const DIALOG_ERROR_CLASS = 'mt-4 font-mono text-[11px] leading-[1.4] text-primary';
+export const DIALOG_ERROR_CLASS = 'mt-4 font-sans text-[11px] leading-[1.4] text-primary';
 
 /** Right-aligned cancel/confirm row that closes every dialog. */
 export const DIALOG_ACTIONS_CLASS = 'mt-5 flex justify-end gap-3';

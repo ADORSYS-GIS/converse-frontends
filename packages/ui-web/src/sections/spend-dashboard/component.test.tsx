@@ -45,10 +45,15 @@ describe('SpendDashboard', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('scrolls the chart inside its own container so the page never scrolls sideways', () => {
+  // Phase 9, Addition D — superseded: the chart used to carry its own `overflow-x-auto` as a
+  // "second line of defence" beside the `useResizeObserver` measurement already threaded into
+  // its `<svg>` width. It was the defect, not the defence — an owner screenshot showed the card
+  // scrolled sideways mid-render, clipping the series and the legend's first label. A chart
+  // compresses to its measured width now; it never carries a scroll box of its own.
+  it('never wraps the chart in its own horizontal scroll box — it compresses, it does not pan', () => {
     const { container } = render(<SpendDashboard {...base} />);
 
-    expect(container.querySelector('.overflow-x-auto')).toBeInTheDocument();
+    expect(container.querySelector('.overflow-x-auto')).not.toBeInTheDocument();
   });
 
   // Regression for #272: an unwired data source must not render as a queried-and-empty chart.

@@ -64,11 +64,12 @@ export function ApiKeysCentre() {
         action={newKeyButton}
       />
 
-      <ApiKeysHygieneNotes hygiene={screen.hygiene} />
-
       <CreateApiKeyDialog {...screen.createKeyDialog} />
 
       <Card>
+        {/* Phase 9 (item 4) — one compact status line above the table, INSIDE its own card, not
+            floating on the floor between the header and the ledger. */}
+        <ApiKeysHygieneNotes hygiene={screen.hygiene} className="mb-4" />
         <ApiKeysLedger
           keys={screen.rows}
           loading={screen.loading}

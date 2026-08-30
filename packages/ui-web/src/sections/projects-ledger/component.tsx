@@ -67,6 +67,7 @@ export function ProjectsLedger({
       width: '140px',
       align: 'right',
       sortable: true,
+      kind: 'data',
       accessor: (row) => (
         <span className={row.spendMtd === null ? 'text-subtle' : 'text-ink'}>
           {money(row.spendMtd)}

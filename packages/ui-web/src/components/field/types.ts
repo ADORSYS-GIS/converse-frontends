@@ -17,6 +17,12 @@ type FieldCommonProps = {
    * `inline` is unavailable with `multiline` — a label beside a textarea has nothing to align to.
    */
   layout?: 'stacked' | 'inline';
+  /**
+   * Visually hides the label (`sr-only`) while keeping it as the control's real accessible name
+   * (phase 9 — a controls strip's fields self-describe through their own value/placeholder now;
+   * the label stays for screen readers, same idiom `SelectField`/`DateRangeField` share).
+   */
+  hideLabel?: boolean;
 };
 
 export type FieldInputProps = FieldCommonProps &

@@ -63,6 +63,7 @@ export const EXPECTED: Record<string, string | null> = {
   'ledger-table': null, // Base UI ships no table
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
   'review-detail-panel': null, // a composition of other primitives
+  'settings-row': null, // a padded row layout, no behaviour of its own — same shape as `card`
   'share-bar': null, // SVG-ish part-to-whole mark
   'skeleton-metric': null, // daisy `skeleton` paint only
   'skeleton-row': null, // daisy `skeleton` paint only

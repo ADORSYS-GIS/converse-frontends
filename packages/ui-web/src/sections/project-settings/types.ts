@@ -96,15 +96,15 @@ export interface ProjectSettingsProps {
    *  more rows exist with nothing to click. */
   pagination?: ProjectSettingsPagination;
 
-  /** Opens `ProjectNameDialog` for this row. */
-  onRename: (project: ProjectSettingsRow) => void;
   /**
-   * Disables every Rename and states why — the presentation-only mirror of
-   * `model.Project.update`'s `@@allow` gate (owner or project member). The real enforcement is
-   * `lightbridge-authz`'s own RBAC check; this only avoids offering a control that would fail.
+   * Opens `DetailSheet` on this project (phase 9, Addition C — supersedes the old per-row
+   * definition grid: a settings-list ROW is a click target now, the same "row opens the sheet"
+   * contract `ProjectsLedger`'s own `onSelectRow` already uses). Rename lives inside the sheet,
+   * not on the row — see `apps/console`'s `project-settings-centre.tsx`.
    */
-  renameDisabled?: boolean;
-  /** Stated once above the list; `undefined` exactly when renaming is possible. */
-  renameReason?: string;
+  onSelectRow: (project: ProjectSettingsRow) => void;
+  /** The currently open row's id, for the row's own pressed/current styling — mirrors
+   *  `LedgerTableProps.selectedRowKeys`' single-selection case. */
+  selectedProjectId?: string;
   className?: string;
 }

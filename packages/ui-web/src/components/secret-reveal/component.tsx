@@ -89,7 +89,11 @@ export function SecretReveal({
           value={secret}
           aria-label="Secret value"
           onFocus={(event) => event.target.select()}
-          className={fieldControlClassName}
+          // The one raw `<input>` in the library that shows a DATA value in the field control's
+          // clothing (phase 9 — `input`'s own mono went sans-by-default with the rest of the
+          // console's controls; a secret key is data, so it opts back in here, at the call site
+          // that actually renders one).
+          className={cn(fieldControlClassName, 'font-mono')}
         />
         <Button type="button" variant="primary" onClick={handleCopy}>
           {copied ? copiedLabel : 'Copy'}

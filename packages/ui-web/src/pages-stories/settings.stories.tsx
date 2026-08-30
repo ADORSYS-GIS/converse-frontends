@@ -21,8 +21,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { AccountNameDialog } from '../components/account-name-dialog';
+import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
+import { DetailSheet } from '../components/detail-sheet';
 import { ProjectNameDialog } from '../components/project-name-dialog';
 import { SubNav } from '../components/sub-nav';
 import type { SubNavItem } from '../components/sub-nav';
@@ -33,7 +35,7 @@ import {
   accountDetailsNoQuotaFixture,
   namedAccountPanelFixture,
 } from '../sections/account-settings/fixtures';
-import { ProjectSettings } from '../sections/project-settings';
+import { ProjectSettings, ProjectSettingsDetail } from '../sections/project-settings';
 import type { ProjectSettingsRow } from '../sections/project-settings';
 import { projectSettingsFixture } from '../sections/project-settings/fixtures';
 import { PageHeader } from '../sections/page-header';
@@ -52,8 +54,11 @@ interface SettingsScreenProps {
   showAdmin?: boolean;
   /** Opens `AccountNameDialog` on mount, the way `?account-name=true` does for real. */
   initialAccountDialogOpen?: boolean;
-  /** Opens `ProjectNameDialog` on mount, the way `?rename=<project id>` does for real. */
-  initialRenameProjectId?: string | null;
+  /** Opens `DetailSheet` on this project on mount, the way `?row=<project id>` does for real. */
+  initialSelectedProjectId?: string | null;
+  /** Also opens `ProjectNameDialog` on mount, the way `?rename=true` does for real (only
+   *  meaningful alongside `initialSelectedProjectId`). */
+  initialRenameOpen?: boolean;
 }
 
 // The composition `apps/console`'s `(console)` layout + `/settings/account`|`/settings/projects`
@@ -67,15 +72,20 @@ function SettingsScreen({
   error,
   showAdmin = false,
   initialAccountDialogOpen = false,
-  initialRenameProjectId = null,
+  initialSelectedProjectId = null,
+  initialRenameOpen = false,
 }: SettingsScreenProps) {
   // Storybook demo state only — `apps/console`'s real dialog drafts live in each hook's own
   // sanctioned local state.
   const [accountDialogOpen, setAccountDialogOpen] = useState(initialAccountDialogOpen);
   const [accountName, setAccountName] = useState(account?.name ?? '');
-  const [renameProjectId, setRenameProjectId] = useState<string | null>(initialRenameProjectId);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    initialSelectedProjectId
+  );
+  const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
   const [search, setSearch] = useState('');
-  const renameTarget = projects.find((project) => project.id === renameProjectId) ?? null;
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
+  const renameTarget = renameOpen ? selectedProject : null;
   const [projectName, setProjectName] = useState(renameTarget?.name ?? '');
 
   const tabs: SubNavItem[] = [
@@ -134,12 +144,38 @@ function SettingsScreen({
                 search={search}
                 onSearchChange={setSearch}
                 pagination={{ shown: projects.length, total: projects.length, hasPrev: false, hasNext: false }}
-                onRename={(project) => {
-                  setProjectName(project.name);
-                  setRenameProjectId(project.id);
+                selectedProjectId={selectedProjectId ?? undefined}
+                onSelectRow={(project) => {
+                  setSelectedProjectId(project.id);
+                  setRenameOpen(false);
                 }}
               />
             </Card>
+
+            <DetailSheet
+              open={selectedProject !== null}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSelectedProjectId(null);
+                  setRenameOpen(false);
+                }
+              }}
+              title={selectedProject?.name ?? ''}
+              footer={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (!selectedProject) return;
+                    setProjectName(selectedProject.name);
+                    setRenameOpen(true);
+                  }}>
+                  Rename
+                </Button>
+              }>
+              {selectedProject ? <ProjectSettingsDetail project={selectedProject} /> : null}
+            </DetailSheet>
 
             <ProjectNameDialog
               open={renameTarget !== null}
@@ -149,8 +185,8 @@ function SettingsScreen({
               onNameChange={setProjectName}
               submitting={false}
               canSubmit={projectName.trim().length > 0 && projectName.trim() !== renameTarget?.name}
-              onSubmit={() => setRenameProjectId(null)}
-              onCancel={() => setRenameProjectId(null)}
+              onSubmit={() => setRenameOpen(false)}
+              onCancel={() => setRenameOpen(false)}
             />
           </>
         )}
@@ -289,21 +325,40 @@ export const CreateAccountFlow: Story = {
 
 // ── the project rename flow ──────────────────────────────────────────────────────────────────
 
-export const RenameProjectDialogOpen: Story = {
-  name: 'Project — rename dialog open',
-  render: () => <SettingsScreen screen="projects" initialRenameProjectId="proj_b93e1d55" />,
+/** A project row's click opens `DetailSheet` with its full field list (phase 9, Addition C). */
+export const ProjectDetailOpen: Story = {
+  name: 'Project — DetailSheet open',
+  render: () => (
+    <SettingsScreen screen="projects" initialSelectedProjectId="proj_b93e1d55" />
+  ),
 };
 
-/** Driven through the row's own control, which is what makes the per-row targeting real. */
+export const RenameProjectDialogOpen: Story = {
+  name: 'Project — rename dialog open, stacked on the sheet',
+  render: () => (
+    <SettingsScreen
+      screen="projects"
+      initialSelectedProjectId="proj_b93e1d55"
+      initialRenameOpen
+    />
+  ),
+};
+
+/** Driven through the sheet's own footer control, which is what makes the sheet-first targeting
+ *  real: the row opens the sheet, the sheet's Rename button opens the dialog. */
 export const RenameProjectFlow: Story = {
   name: 'Project — rename flow, driven',
   render: () => <SettingsScreen screen="projects" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Rename batch-eval' }));
+    // The row's accessible name is the label AND its status/tier summary run together
+    // ("batch-evalactive · Not assigned") — a regex anchored on the label, not an exact match.
+    await userEvent.click(canvas.getByRole('button', { name: /^batch-eval/ }));
 
-    const dialog = await within(document.body).findByRole('dialog');
-    await expect(dialog).toHaveAccessibleName('Rename project');
+    const sheet = await within(document.body).findByRole('dialog', { name: 'batch-eval' });
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Rename' }));
+
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Rename project' });
     // The dialog opened on the row that was pressed, not on the first project on the page.
     await expect(dialog).toHaveTextContent('proj_b93e1d55');
 
@@ -313,7 +368,7 @@ export const RenameProjectFlow: Story = {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save name' }));
 
     await waitFor(() =>
-      expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument()
+      expect(within(document.body).queryByRole('dialog', { name: 'Rename project' })).not.toBeInTheDocument()
     );
   },
 };

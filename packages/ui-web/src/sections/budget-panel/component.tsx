@@ -53,7 +53,9 @@ export function BudgetPanel({
             <div aria-hidden="true" className={BLOCK_DIVIDER_CLASS} />
             <div className={LABEL_CLASS}>Needs attention</div>
             <div className="mt-3 flex items-baseline justify-between gap-3">
-              <span className="text-ink font-mono text-xs">{needsAttentionProject.name}</span>
+              {/* A project NAME — sans, like every other name in the console (phase 9 consistency
+                  pass: this used to be mono). The figure beside it is data and stays mono. */}
+              <span className="text-ink font-sans text-xs">{needsAttentionProject.name}</span>
               <span className="text-soft font-mono text-[11px]">
                 {formatUsdOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
               </span>
@@ -85,10 +87,12 @@ export function BudgetPanel({
             <p className="text-soft mt-3 font-mono text-[11px]">
               {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
             </p>
+            {/* A link/action label — sans, like every other button (phase 9 consistency pass:
+                this used to be mono). */}
             <button
               type="button"
               onClick={onReviewInAdmin}
-              className="text-soft hover:text-ink mt-1 font-mono text-[11px] underline-offset-2 hover:underline">
+              className="text-soft hover:text-ink mt-1 font-sans text-[11px] underline-offset-2 hover:underline">
               Review in Admin →
             </button>
           </>

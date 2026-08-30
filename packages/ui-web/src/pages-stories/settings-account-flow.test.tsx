@@ -14,10 +14,11 @@ import * as stories from './settings.stories';
  * "verifiable in Storybook" a CI property rather than a manual one.
  *
  * Phase 6 (admin/settings revamp): `AccountSettings` no longer wraps the deleted `AccountPanel` —
- * the account id now renders exactly once (inside the definition grid, Copy beside it), and the
- * unnamed/no-account prompts are `EmptyState` blocks rather than an inline status line with a
- * `data-named` marker. The assertions below were updated to match; the STORIES themselves (real
- * controls, real dialogs) are unchanged in intent.
+ * the account id now renders exactly once (inside the settings list, Copy beside it). Phase 9
+ * (Addition C) changed the unnamed-account shape again: it is an ordinary `SettingsRow` now
+ * ("Not set" + "Name this account"), not a full-card `EmptyState` placard — only "no account at
+ * all" stays an `EmptyState`. The assertions below were updated to match; the STORIES themselves
+ * (real controls, real dialogs) are unchanged in intent.
  */
 const {
   CreateAccountFlow,
@@ -47,15 +48,18 @@ describe('SETTINGS — account flow stories', () => {
     expect(await findByRole('dialog')).toHaveAccessibleName('Create account');
   });
 
-  it('renders an unnamed account as a named absence, restyled as an EmptyState block', () => {
+  it('renders an unnamed account as a named absence, as an ordinary row — not a full-card placard', () => {
     const { getAllByText, getByText, getByRole } = render(<UnnamedAccount />);
 
-    // Twice on this screen: the `PageHeader` subtitle (the scope) and the `EmptyState` headline.
+    // The `PageHeader` subtitle falls back to this label for the scope line — the row itself
+    // reads "Not set", checked separately below.
     expect(getAllByText('Unnamed account').length).toBeGreaterThan(0);
-    expect(
-      getByText('This account has never been named, so it shows as its id across the console.')
-    ).toBeInTheDocument();
+    expect(getByText('Not set')).toBeInTheDocument();
     expect(getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
+    // The rest of the account's facts stay visible beside it — an account is still an account
+    // before it has a name.
+    expect(getByText('Account id')).toBeInTheDocument();
+    expect(getByText('Status')).toBeInTheDocument();
   });
 
   it('says "Name this account" rather than "Rename" for one that never had a name', async () => {

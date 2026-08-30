@@ -80,8 +80,11 @@ describe('the URL param contract', () => {
       ],
       // `account-name` moved off `manage` with the panel that opens it: a core account mutation.
       // `q`/`page` (phase 6, admin/settings revamp): `/settings/projects`' own search + pager,
-      // the unbounded N×7 project dump replaced by search + 10/page `Pagination`.
-      settings: ['account-name', 'page', 'q', 'rename'],
+      // the unbounded N×7 project dump replaced by search + 10/page `Pagination`. `row`/`rename`
+      // (phase 9, Addition C) split what used to be one `rename=<id>` param in two: `row` is the
+      // project `DetailSheet` has open (a selection), `rename` is whether the rename dialog is
+      // stacked on top of it — see `settingsParsers`' own doc comment.
+      settings: ['account-name', 'page', 'q', 'rename', 'row'],
       // Phase 4: `/admin` is now ONE screen (the budget refill review queue) — its dashboard
       // section and every param it mirrored from `/` moved to `/` itself, gated by role. Phase 6
       // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
@@ -141,9 +144,13 @@ describe('the URL param contract', () => {
     const settings = createSerializer(settingsParsers, {
       urlKeys: URL_PARAM_CONTRACT.settings.urlKeys,
     });
-    // The rename target IS the open flag — one param, so the two can never contradict each other.
-    expect(settings({ renameProjectId: 'proj_7' })).toBe('?rename=proj_7');
+    // The selected row and the rename dialog are two separate params now (phase 9, Addition C):
+    // opening a project (a selection) does not imply starting to rename it.
+    expect(settings({ renameProjectId: 'proj_7' })).toBe('?row=proj_7');
     expect(settings({ renameProjectId: '' })).toBe('');
+    expect(settings({ renameProjectId: 'proj_7', projectNameOpen: true })).toBe(
+      '?row=proj_7&rename=true'
+    );
     expect(settings({ accountNameOpen: true })).toBe('?account-name=true');
     expect(settings({ search: 'gateway', page: 2 })).toBe('?q=gateway&page=2');
 
@@ -176,6 +183,7 @@ describe('the URL param contract', () => {
     ).toBe(true);
     expect(isParserBijective(settingsParsers.accountNameOpen, 'true', true)).toBe(true);
     expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
+    expect(isParserBijective(settingsParsers.projectNameOpen, 'true', true)).toBe(true);
     expect(isParserBijective(settingsParsers.search, 'alpha', 'alpha')).toBe(true);
     expect(isParserBijective(settingsParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(adminParsers.sortKey, 'submitted', 'submitted')).toBe(true);

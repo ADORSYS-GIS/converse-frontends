@@ -122,6 +122,9 @@ export type { CheckboxGroupProps, CheckboxProps } from './components/checkbox';
 export { SelectField } from './components/select-field';
 export type { SelectFieldOption, SelectFieldProps } from './components/select-field';
 
+export { SettingsRow } from './components/settings-row';
+export type { SettingsRowProps } from './components/settings-row';
+
 export { ScopeSelect } from './components/scope-select';
 export type {
   ScopeSelectProps,
@@ -202,11 +205,7 @@ export { ConsoleSidebar } from './sections/console-sidebar';
 export type { ConsoleSidebarProps } from './sections/console-sidebar';
 
 export { OverviewStatRow } from './sections/overview-stat-row';
-export type {
-  OverviewStatCardData,
-  OverviewStatCardIcon,
-  OverviewStatRowProps,
-} from './sections/overview-stat-row';
+export type { OverviewStatCardData, OverviewStatRowProps } from './sections/overview-stat-row';
 
 export { SpendDashboard } from './sections/spend-dashboard';
 export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
@@ -300,7 +299,13 @@ export type {
   AccountSettingsProps,
 } from './sections/account-settings';
 
-export { ProjectSettings, NO_PROJECTS_MESSAGE, PROJECT_SETTINGS_LABEL } from './sections/project-settings';
+export {
+  detailRows,
+  NO_PROJECTS_MESSAGE,
+  PROJECT_SETTINGS_LABEL,
+  ProjectSettings,
+  ProjectSettingsDetail,
+} from './sections/project-settings';
 export type {
   ProjectSettingsPagination,
   ProjectSettingsProps,

@@ -26,6 +26,7 @@ export function SelectField({
   options,
   onChange,
   layout = 'stacked',
+  hideLabel,
   className,
 }: SelectFieldProps) {
   const inline = layout === 'inline';
@@ -36,7 +37,7 @@ export function SelectField({
       value={value}
       onValueChange={(next) => next !== null && onChange(next)}>
       <div className={cn(inline ? 'label' : 'fieldset', className)}>
-        <Select.Label className={fieldLabelClassName}>{label}</Select.Label>
+        <Select.Label className={hideLabel ? 'sr-only' : fieldLabelClassName}>{label}</Select.Label>
         <Select.Trigger className={fieldControlClassName}>
           <Select.Value />
           <Select.Icon>

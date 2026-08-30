@@ -73,23 +73,19 @@ export function LatencyDashboard({
     // so a ref mounted only there would leave the loading skeleton at `fallbackWidth` forever.
     <div ref={ref} className={className}>
       <ZoneHeading label={label} actions={actions} />
-      {/* Only the CHART goes in the horizontal scroller — error and loading are prose that wraps
-          to the column, and inside the scroll box they were clipped along with it. */}
+      {/* No horizontal scroller (phase 9, Addition D — see `SpendDashboard`'s equivalent
+          comment): a chart compresses to its measured width, it does not pan. */}
       {status === 'error' ? (
         <div className="mt-4">
           <ErrorLine message={errorMessage ?? 'Failed to load latency data.'} onRetry={onRetry} />
         </div>
       ) : status === 'loading' ? (
         <div className="mt-4 flex flex-col gap-2">
-          <div className="w-full overflow-x-auto overflow-y-clip">
-            <LatencyChartSkeleton width={measuredWidth} height={height} />
-          </div>
+          <LatencyChartSkeleton width={measuredWidth} height={height} />
           <p className={LABEL_CLASS}>Querying usage…</p>
         </div>
       ) : (
-        /* `tabIndex={0}` alone (no `role="region"`) -- see `LedgerTable`. `overflow-y-clip` --
-           `overflow-x-auto` alone also scrolls vertically, see `SpendDashboard`. */
-        <div className="mt-4 w-full overflow-x-auto overflow-y-clip" tabIndex={0}>
+        <div className="mt-4 w-full">
           <LatencyRidgeline
             series={series}
             width={measuredWidth}
@@ -103,7 +99,9 @@ export function LatencyDashboard({
           />
         </div>
       )}
-      {footnote ? <p className="text-subtle mt-2 font-mono text-[10px]">{footnote}</p> : null}
+      {/* A status caveat sentence — sans, like every other status line (phase 9 consistency pass:
+          this used to be mono). */}
+      {footnote ? <p className="text-subtle mt-2 font-sans text-[10px]">{footnote}</p> : null}
     </div>
   );
 }

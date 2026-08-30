@@ -239,21 +239,25 @@ export function navGroups(
 // ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
 
 /**
- * The settings area's seven destinations, in the owner-dictated nav order. Five are live routes
- * this phase (`overview`, `tiers`, `policies`, `refills-queue`, `info`); `roles` and
- * `refill-options` are real, permanent rows that render `disabled` rather than being omitted —
- * omitting them would hide that the destinations exist at all, and a disabled row with a stated
+ * The settings area's seven destinations, in the owner-dictated nav order. Six are live routes as
+ * of IA v3 phase 3 (`overview`, `tiers`, `policies`, `refill-options`, `refills-queue`, `info`);
+ * `roles` alone stays a real, permanent row that renders `disabled` rather than being omitted —
+ * omitting it would hide that the destination exists at all, and a disabled row with a stated
  * reason is the honest middle ground between "not built" and "silently missing" (console-ui
  * skill's "never fabricate" clause extends to navigation: a row that LOOKS live but 404s is its
- * own kind of fabrication).
+ * own kind of fabrication). `refill-options` went live this phase: `procedure.
+ * simulateBudgetPolicy` gives it real content (a policy scratch pad) even though the STORED/
+ * ACTIVE policy is still unreadable — see `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment,
+ * kept below as the honest caption the new page's own omitted blocks cite, not as a disabled-row
+ * reason any more.
  */
 export type SettingsRoute =
   'overview' | 'roles' | 'tiers' | 'policies' | 'refill-options' | 'refills-queue' | 'info';
 
 /**
  * `/settings/<segment>` -> which nav row is active. Every LIVE segment gets its own prefix match;
- * `roles`/`refill-options` have no route to match (they are disabled, `href`-less rows — see
- * `settingsNavGroups`) and so never appear here. The bare `/settings` segment (mid-redirect to
+ * `roles` alone has no route to match (it is the one remaining disabled, `href`-less row — see
+ * `settingsNavGroups`) and so never appears here. The bare `/settings` segment (mid-redirect to
  * `/settings/overview/usage`, `app/(console)/settings/page.tsx`) and anything unrecognised default
  * to `overview`, the same "unmatched reads as the first destination" contract
  * `routeFromPathname` uses for `/`.
@@ -261,6 +265,7 @@ export type SettingsRoute =
 export function settingsRouteFromPathname(pathname: string): SettingsRoute {
   if (pathname.startsWith('/settings/tiers')) return 'tiers';
   if (pathname.startsWith('/settings/policies')) return 'policies';
+  if (pathname.startsWith('/settings/refill-options')) return 'refill-options';
   if (pathname.startsWith('/settings/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/settings/info')) return 'info';
   return 'overview';
@@ -285,12 +290,16 @@ const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
 export const ROLES_DISABLED_REASON =
   'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).';
 
-/** The honest reason `/settings/refill-options` renders disabled — `getBudgetPolicyStatus` reads
- *  only a policy's ACTIVE REVISION ID by `policySetId`, never the rule content itself, and no
- *  procedure lists which policy sets exist to read a status for in the first place. A picker with
- *  nothing to populate it would be exactly the fabricated-nav-row problem this whole scheme exists
- *  to avoid. Tracked under the phase ticket rather than a fourth ad hoc backend issue —
- *  converse-frontends#368. */
+/**
+ * The honest reason `/settings/refill-options` (live as of IA v3 phase 3) still OMITS its
+ * policy-status and stored-rule-data blocks rather than rendering them: `getBudgetPolicyStatus`
+ * reads only a policy's ACTIVE REVISION ID by `policySetId`, never the rule content itself, and
+ * no procedure lists which policy sets exist to read a status for in the first place. A picker
+ * with nothing to populate it would be exactly the fabricated-nav-row problem this whole scheme
+ * exists to avoid. Tracked under the phase ticket rather than a fourth ad hoc backend issue —
+ * converse-frontends#368. The row itself is no longer disabled — `refill-options-centre.tsx`
+ * reuses this same caption inline, on the omitted blocks, instead of on a `disabled` nav row.
+ */
 export const REFILL_OPTIONS_DISABLED_REASON =
   'Refill policy rule content has no read API today — only activation and revision-by-id status exist (converse-frontends#368).';
 
@@ -344,9 +353,9 @@ export function settingsNavGroups(
     {
       key: 'refill-options',
       label: 'Refill options policies',
+      href: '/settings/refill-options',
       icon: SETTINGS_NAV_ICON['refill-options'],
-      disabled: true,
-      reason: REFILL_OPTIONS_DISABLED_REASON,
+      active: active === 'refill-options',
     },
   ];
   if (isAdmin) {

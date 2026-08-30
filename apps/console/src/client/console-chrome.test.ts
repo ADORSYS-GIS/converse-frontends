@@ -95,6 +95,7 @@ describe('settingsRouteFromPathname', () => {
   it('matches each live settings segment by its plain prefix', () => {
     expect(settingsRouteFromPathname('/settings/tiers')).toBe('tiers');
     expect(settingsRouteFromPathname('/settings/policies')).toBe('policies');
+    expect(settingsRouteFromPathname('/settings/refill-options')).toBe('refill-options');
     expect(settingsRouteFromPathname('/settings/refills-queue')).toBe('refills-queue');
     expect(settingsRouteFromPathname('/settings/info')).toBe('info');
   });
@@ -134,17 +135,25 @@ describe('settingsNavGroups', () => {
     ]);
   });
 
-  it('disables roles and refill-options, each with a stated, non-navigable reason', () => {
+  it('disables roles alone, with a stated, non-navigable reason', () => {
     const [group] = settingsNavGroups('overview', true);
     const roles = group.items.find((item) => item.key === 'roles');
-    const refillOptions = group.items.find((item) => item.key === 'refill-options');
 
     expect(roles?.disabled).toBe(true);
     expect(roles?.href).toBeUndefined();
     expect(roles?.reason).toMatch(/lightbridge-authz#571/);
-    expect(refillOptions?.disabled).toBe(true);
-    expect(refillOptions?.href).toBeUndefined();
-    expect(refillOptions?.reason).toMatch(/converse-frontends#368/);
+  });
+
+  // IA v3 phase 3: `simulateBudgetPolicy` gives this row real content, so it navigates like every
+  // other live destination now — see `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment for what
+  // still stays honestly omitted ON the page itself.
+  it('navigates refill-options like any other live destination', () => {
+    const [group] = settingsNavGroups('refill-options', true);
+    const refillOptions = group.items.find((item) => item.key === 'refill-options');
+
+    expect(refillOptions?.disabled).toBeUndefined();
+    expect(refillOptions?.href).toBe('/settings/refill-options');
+    expect(refillOptions?.active).toBe(true);
   });
 
   it('carries the trailing refill count on refills-queue, and marks the active row', () => {

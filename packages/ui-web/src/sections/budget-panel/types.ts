@@ -76,9 +76,10 @@ export interface BudgetPanelProps {
    * The heading row's own trigger slot — today the standing, always-visible "Request refill…"
    * secondary action (owner, 2026-08-30: "budget refill form disappeared" — the refill control
    * used to appear ONLY past `BUDGET_BREACH_THRESHOLD`; this is what makes it reachable before
-   * that, opening `RequestRefillDialog`). Distinct from `heroAction`, which stays breach-only and
-   * sits beside the numeral itself (ADR 0008 Decision 7) — the two are not mutually exclusive:
-   * both can open the same dialog instance.
+   * that). IA v3 phase 3 ("refill as a page") retargets it from a dialog to a navigation, to
+   * `/accounts/<id>/refill` — distinct from `heroAction`, which stays breach-only and sits beside
+   * the numeral itself (ADR 0008 Decision 7) — the two are not mutually exclusive: both navigate
+   * to the same page.
    */
   actions?: ReactNode;
   className?: string;

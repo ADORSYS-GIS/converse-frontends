@@ -56,8 +56,8 @@ export const Unwired: Story = {
 };
 
 // Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration),
-// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7). 2026-08-30: this
-// button now OPENS `RequestRefillDialog` rather than instant-mutating a fixed amount — see
+// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7). IA v3 phase 3:
+// this button navigates to `/accounts/<id>/refill` rather than opening a dialog — see
 // `heroAction`'s own doc comment.
 export const Breached: Story = {
   args: {

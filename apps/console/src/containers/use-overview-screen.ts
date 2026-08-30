@@ -42,15 +42,13 @@ import {
 } from '../client/url-state';
 import { apiKeysAccountFilters, apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
-import { microsToAmount } from './refill-rows';
+import { microsToAmount, refillHref } from './refill-rows';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
 import {
   BUDGET_HOME_ACCOUNT_ONLY_NOTE,
   smallestAllowedAmountMicros,
   useBudgetRefillLadder,
-  useOverviewRefillOutcome,
 } from './use-budget-refill';
-import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
@@ -222,11 +220,14 @@ export interface OverviewScreen {
   modelSpendRetry: () => void;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
+  /** `/accounts/<id>/refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
+   *  the Budget card's standing "Request refill…" action always navigates here. */
+  refillHref: string;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
    *  policy currently offers an amount — `BudgetHero.action`'s own "only present once breached"
-   *  convention (see `budget-hero/types.ts`). */
-  refillAction: { label: string; onClick: () => void; pending: boolean } | undefined;
-  refillErrorMessage: string | undefined;
+   *  convention (see `budget-hero/types.ts`). Navigates to the SAME `refillHref` rather than
+   *  opening a dialog — the actual submit happens on that page. */
+  refillAction: { label: string; href: string } | undefined;
   // ── phase 4: `Export` — `PageHeader.action`, defaults from this screen's own params ──────
   report: ReportExportDialogProps;
   // ── phase 4: role-parameterised — undefined for a non-admin, never a permanently-loading
@@ -440,15 +441,11 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
-  // The ladder query and the refill mutation itself both moved to `use-budget-refill.ts` (rail-
-  // return round, 2026-08-30) so `RequestRefillDialog` — mounted once in the layout — can drive
-  // the exact same query/mutation this screen only READS from now: `refillErrorMessage` stays
-  // visible here via the shared `MutationCache` (`useOverviewRefillOutcome`) even though the
-  // actual submit happens inside the dialog, the same "two zones, one shared outcome" idiom
-  // `use-refills-queue-screen.ts`'s `DECIDE_MUTATION_KEY` already documents.
+  // The ladder query lives in `use-budget-refill.ts`, shared with `/accounts/<id>/refill`
+  // (`use-refill-screen.ts`) — this screen only reads it to decide whether the breach button
+  // should appear at all (IA v3 phase 3: the button now navigates to that page rather than
+  // opening a dialog, so the actual submit, and the mutation that drives it, live there instead).
   const ladder = useBudgetRefillLadder();
-  const refillOutcome = useOverviewRefillOutcome();
-  const openRefillDialog = useOpenRequestRefillDialog();
 
   const budget: BudgetSummary = useMemo(() => {
     // Checked FIRST, before either query's own status: a non-home account never fires
@@ -507,17 +504,19 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     ? smallestAllowedAmountMicros(ladder.allowedAmountsMicros)
     : null;
 
-  // 2026-08-30 (owner: "budget refill form disappeared") — this used to instantly mutate
-  // `smallestAmountMicros` on one click, with no confirmation surface at all. It now opens
-  // `RequestRefillDialog` instead (which independently preselects the smallest allowed amount —
-  // see `use-request-refill-dialog.ts`), so a breach is still one click away from a refill
-  // request, but that click is a real form, not a blind mutate.
+  const accountRefillHref = refillHref(accountId, projectId);
+
+  // IA v3 phase 3 ("refill as a page") — this used to open `RequestRefillDialog` (2026-08-30:
+  // before that, it instantly mutated `smallestAmountMicros` on one click with no confirmation
+  // surface at all). It now navigates to `/accounts/<id>/refill` instead, which independently
+  // preselects the smallest allowed amount (`use-refill-screen.ts`) — a breach is still one click
+  // away from a refill request, and the actual submit is a real, dedicated screen, not a dialog
+  // three separate triggers had to agree on.
   let refillAction: OverviewScreen['refillAction'];
   if (smallestAmountMicros) {
     refillAction = {
       label: 'Request refill',
-      onClick: openRefillDialog,
-      pending: refillOutcome.isPending,
+      href: accountRefillHref,
     };
   }
 
@@ -732,8 +731,8 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : undefined,
     modelSpendRetry: () => void modelUsageQuery.refetch(),
     budget,
+    refillHref: accountRefillHref,
     refillAction,
-    refillErrorMessage: refillOutcome.errorMessage,
     report: {
       open: view.reportOpen,
       onOpenChange: (open) => {

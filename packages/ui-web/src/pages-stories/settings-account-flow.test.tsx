@@ -13,8 +13,11 @@ import * as stories from './settings.stories';
  * mounts the same story the browser would and lets vitest drive it — which is what makes
  * "verifiable in Storybook" a CI property rather than a manual one.
  *
- * Moved here from `manage-account-flow.test.tsx` along with the flow itself: the account
- * mutations now live on `/settings`, not beside the Manage ledger's filters.
+ * Phase 6 (admin/settings revamp): `AccountSettings` no longer wraps the deleted `AccountPanel` —
+ * the account id now renders exactly once (inside the definition grid, Copy beside it), and the
+ * unnamed/no-account prompts are `EmptyState` blocks rather than an inline status line with a
+ * `data-named` marker. The assertions below were updated to match; the STORIES themselves (real
+ * controls, real dialogs) are unchanged in intent.
  */
 const {
   CreateAccountFlow,
@@ -44,14 +47,15 @@ describe('SETTINGS — account flow stories', () => {
     expect(await findByRole('dialog')).toHaveAccessibleName('Create account');
   });
 
-  it('renders an unnamed account as a named absence, not as its id', () => {
-    const { getByText, getAllByText } = render(<UnnamedAccount />);
+  it('renders an unnamed account as a named absence, restyled as an EmptyState block', () => {
+    const { getAllByText, getByText, getByRole } = render(<UnnamedAccount />);
 
-    expect(getByText('Unnamed account')).toBeInTheDocument();
-    // Twice on this screen by design: once under the panel's name slot, and once as the copyable
-    // `Account id` row. Never IN PLACE of the name — that is what `data-named` pins.
-    expect(getAllByText('auth0|1b77de04aa93')).toHaveLength(2);
-    expect(getByText('Unnamed account')).toHaveAttribute('data-named', 'false');
+    // Twice on this screen: the `PageHeader` subtitle (the scope) and the `EmptyState` headline.
+    expect(getAllByText('Unnamed account').length).toBeGreaterThan(0);
+    expect(
+      getByText('This account has never been named, so it shows as its id across the console.')
+    ).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Name this account' })).toBeInTheDocument();
   });
 
   it('says "Name this account" rather than "Rename" for one that never had a name', async () => {

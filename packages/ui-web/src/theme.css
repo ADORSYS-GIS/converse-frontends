@@ -1079,21 +1079,6 @@
   border-block-start: 1px solid var(--color-base-300);
 }
 
-/* A history row inside a rail panel's `table table-xs`. daisy's cell padding is sized for a grid;
-   this table sits in a 280px rail and reads as a list. */
-@utility rail-history-cell {
-  padding: 0.25rem 0;
-  vertical-align: top;
-
-  /* A history row's two lines (label over meta) are ONE unit, not two related blocks, so they sit
-     tighter than the panel's own stack. Stated against the cell rather than as a gap override on
-     the stack inside it: "tighter here" is a property of this cell, and the next row added to the
-     table should inherit it rather than remember it. */
-  & .rail-stack {
-    gap: 0.125rem;
-  }
-}
-
 /*
  * The rail panel's own outermost stack — `ReviewDetailPanel` is the case: a full-height column of
  * `rail-section`s whose LAST child is pinned to the bottom of the rail however short the content
@@ -2055,6 +2040,47 @@
   gap: 0.25rem;
   padding: 0;
   width: auto;
+}
+
+/*
+ * `SubNav`'s HORIZONTAL variant (Settings' Account/Projects row, Attio pattern, 2026-08-30) — a
+ * plain line of text tabs under `PageHeader`, not a rail. Deliberately its own part rather than a
+ * rotated `rail-row`: `rail-row`'s active state is a FULL-WIDTH fill, which reads as a selected
+ * list row; a top-level section switch wants a quieter mark, so the active cell here gets a 2px
+ * `--signal` underline instead, same idiom `tab-active`'s bottom bar uses.
+ */
+@utility sub-nav-tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+}
+
+@utility sub-nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-subtle);
+  transition: color 0.15s ease-out;
+
+  &[aria-current='page'] {
+    color: var(--color-ink);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 2px;
+      background-color: var(--color-primary);
+    }
+  }
+
+  &:not([aria-current='page']):hover {
+    color: var(--color-soft);
+  }
 }
 
 /*

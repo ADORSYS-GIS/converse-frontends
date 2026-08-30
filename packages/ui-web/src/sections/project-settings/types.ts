@@ -60,6 +60,15 @@ export type ProjectSettingsRow = {
   isDefault: boolean;
 };
 
+export type ProjectSettingsPagination = {
+  shown: number;
+  total?: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+};
+
 export interface ProjectSettingsProps {
   projects: ProjectSettingsRow[];
   loading?: boolean;
@@ -70,6 +79,22 @@ export interface ProjectSettingsProps {
   onRetry?: () => void;
   /** Shown as an inline status line above still-rendered structure — never a centred placard. */
   emptyMessage?: ReactNode;
+
+  /**
+   * The section-scoped search box, leading the block — the unbounded N×7 dump this section used
+   * to be became unreadable past a handful of projects, so search + `pagination` (10/page) are
+   * what keep it a settings surface rather than a second, worse ledger. `undefined` search/
+   * `onSearchChange` is not a valid state; both are required the same way `ProjectsLedger`'s are.
+   */
+  search: string;
+  onSearchChange: (value: string) => void;
+  /** A search that narrowed the list down to zero rows — distinct from `emptyMessage`, which is
+   *  "this account has no projects at all". */
+  filteredEmptyMessage?: ReactNode;
+
+  /** Omitted when the source cannot page (or there is only one page) — never a caption claiming
+   *  more rows exist with nothing to click. */
+  pagination?: ProjectSettingsPagination;
 
   /** Opens `ProjectNameDialog` for this row. */
   onRename: (project: ProjectSettingsRow) => void;

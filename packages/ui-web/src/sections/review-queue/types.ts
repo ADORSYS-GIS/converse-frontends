@@ -1,38 +1,43 @@
-import type { ReactNode } from 'react';
+import type { LedgerSort } from '../../components/ledger-table';
 
 export type RefillRequestRow = {
   id: string;
   submittedAgo: string;
+  /** Resolved display names, never a raw id — `Project.name` / `accountScopeLabel(account)`,
+   *  resolved by the container (`use-admin-screen.ts`) the same way Overview resolves its own
+   *  project/account labels. `'—'` when a request carries no `projectId` at all. */
   project: string;
   account: string;
-  /** Null when no consumption query has been made for this request — render `—`, never `$0.00`. */
-  consumed: number | null;
-  /** Null alongside `consumed` — never backfilled with the requested amount. */
-  ceiling: number | null;
   requestedAmount: number;
-  requesterEmail: string;
 };
 
-export type AdminReviewTab = 'pending' | 'decided';
+export interface ReviewQueuePagination {
+  shown: number;
+  hasPrev: boolean;
+  /** Reflects the real `nextCursor` the backend returned — never a fabricated `false`. */
+  hasNext: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+}
 
 export interface ReviewQueueProps {
-  activeTab: AdminReviewTab;
-  onTabChange: (tab: AdminReviewTab) => void;
-  pendingCount: number;
-  decidedCount: number;
-
   pending: RefillRequestRow[];
   loading?: boolean;
   loadingRowCount?: number;
   error?: string;
   onRetry?: () => void;
-  /**
-   * Shown above the queue when it is empty and not loading/erroring — README §6:
-   * "Nothing awaiting a decision. N decided this month."
-   */
-  emptyPendingMessage?: ReactNode;
+
+  /** The `Submitted` column's sort — the queue's only sortable column. Owned by the consumer
+   *  (a URL param, ADR 0011); this section only paints the header and calls `onSortChange`. */
+  sort?: LedgerSort;
+  onSortChange?: (sort: LedgerSort) => void;
 
   selectedRequestId?: string | null;
   onSelectRequest: (row: RefillRequestRow) => void;
+
+  /** Omitted entirely when the source cannot page (or there is only one page) — never a caption
+   *  claiming more rows exist with nothing to click. */
+  pagination?: ReviewQueuePagination;
+
   className?: string;
 }

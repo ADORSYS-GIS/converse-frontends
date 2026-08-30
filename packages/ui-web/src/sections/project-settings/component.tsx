@@ -3,14 +3,11 @@ import React from 'react';
 import { cn } from '../../cn';
 import { Button } from '../../components/button';
 import { ErrorLine } from '../../components/error-line';
+import { Field } from '../../components/field';
 import { InlineStatus } from '../../components/inline-status';
+import { Pagination } from '../../components/pagination';
 import { SkeletonRow } from '../../components/skeleton-row';
-import {
-  DETAIL_GROUP_CLASS,
-  DETAIL_LIST_CLASS,
-  DETAIL_ROW_CLASS,
-  DETAIL_SECTION_CLASS,
-} from '../../lib/detail-row';
+import { DETAIL_GROUP_CLASS, DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
 import { BODY_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { ProjectSettingsProps, ProjectSettingsRow } from './types';
@@ -19,6 +16,9 @@ import type { ProjectSettingsProps, ProjectSettingsRow } from './types';
 export const PROJECT_SETTINGS_LABEL = 'Projects';
 
 export const NO_PROJECTS_MESSAGE = 'No projects in this account yet.';
+
+const GRID_CLASS = 'grid grid-cols-1 gap-5 md:grid-cols-2';
+const ROW_CLASS = 'flex flex-col gap-1';
 
 /**
  * The rows one project owns, in the order they answer questions: who pays, on what plan, under
@@ -41,13 +41,12 @@ function detailRows(project: ProjectSettingsRow): { term: string; value: string 
   ];
 }
 
-// Contract: docs/design/console-redesign/README.md §4 — content on the floor, no card, tonal
-// separation only. Second on `/settings`, under Account, because a project hangs off an account.
-//
-// A stack of per-project blocks rather than a `LedgerTable`: a table is for comparing rows on a
-// shared axis, which is what `/manage` is for. This screen answers "what is this project set to",
-// one project at a time, and seven columns of mostly-categorical ids compared side by side would
-// be a worse version of the ledger next door rather than a settings surface.
+// Contract: console visual revamp (2026-08, admin/settings phase) — one sub-block per project
+// (name + Rename, then a 2-column definition grid at `md`), fronted by a search field + a real
+// `Pagination` (10/page). The unbounded N×7 dump this section used to be — every project's full
+// fact column, one after another, with nothing to page through — died the moment an account holds
+// more than a handful of projects; search + pagination are what keep this a settings surface
+// rather than a second, worse ledger.
 export function ProjectSettings({
   projects,
   loading = false,
@@ -55,21 +54,31 @@ export function ProjectSettings({
   error,
   onRetry,
   emptyMessage = NO_PROJECTS_MESSAGE,
+  search,
+  onSearchChange,
+  filteredEmptyMessage,
+  pagination,
   onRename,
   renameDisabled = false,
   renameReason,
   className,
 }: ProjectSettingsProps) {
-  return (
-    <section aria-label={PROJECT_SETTINGS_LABEL} className={cn(DETAIL_SECTION_CLASS, className)}>
-      {/* The heading stays rendered in every state — an empty or failed list is a line ABOVE
-          still-rendered structure, never a placard that replaces it (console-ui skill § States).
+  const isEmpty = !loading && !error && projects.length === 0;
 
-          The `label` role, NOT `panel-title`: `AccountPanel` heads the section directly above this
-          one with the same role, and two peer sections on one screen whose headings differ by a
-          type step read as a hierarchy that is not there. The page's own heading is `PageHeader`
-          above both. */}
-      <h2 className={LABEL_CLASS}>{PROJECT_SETTINGS_LABEL}</h2>
+  return (
+    <section aria-label={PROJECT_SETTINGS_LABEL} className={cn('flex flex-col gap-4', className)}>
+      {/* The heading stays rendered in every state — an empty or failed list is a line ABOVE
+          still-rendered structure, never a placard that replaces it (console-ui skill § States). */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className={LABEL_CLASS}>{PROJECT_SETTINGS_LABEL}</h2>
+        <Field
+          label="Search"
+          layout="inline"
+          placeholder="Find a project…"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </div>
 
       {renameReason ? <InlineStatus>{renameReason}</InlineStatus> : null}
 
@@ -81,34 +90,48 @@ export function ProjectSettings({
             <SkeletonRow key={index} columnCount={3} />
           ))}
         </div>
-      ) : projects.length === 0 ? (
-        <InlineStatus>{emptyMessage}</InlineStatus>
+      ) : isEmpty ? (
+        <InlineStatus>{search ? (filteredEmptyMessage ?? emptyMessage) : emptyMessage}</InlineStatus>
       ) : (
-        projects.map((project) => (
-          <div key={project.id} className={DETAIL_GROUP_CLASS}>
-            <div className={DETAIL_ROW_CLASS}>
-              <h3 className={SECTION_TITLE_CLASS}>{project.name}</h3>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={renameDisabled}
-                aria-label={`Rename ${project.name}`}
-                onClick={() => onRename(project)}>
-                Rename
-              </Button>
-            </div>
+        <>
+          {projects.map((project) => (
+            <div key={project.id} className={DETAIL_GROUP_CLASS}>
+              <div className={DETAIL_ROW_CLASS}>
+                <h3 className={SECTION_TITLE_CLASS}>{project.name}</h3>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={renameDisabled}
+                  aria-label={`Rename ${project.name}`}
+                  onClick={() => onRename(project)}>
+                  Rename
+                </Button>
+              </div>
 
-            <dl className={DETAIL_LIST_CLASS}>
-              {detailRows(project).map(({ term, value }) => (
-                <div key={term} className={DETAIL_ROW_CLASS}>
-                  <dt className={LABEL_CLASS}>{term}</dt>
-                  <dd className={BODY_CLASS}>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ))
+              <dl className={GRID_CLASS}>
+                {detailRows(project).map(({ term, value }) => (
+                  <div key={term} className={ROW_CLASS}>
+                    <dt className={LABEL_CLASS}>{term}</dt>
+                    <dd className={BODY_CLASS}>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+
+          {pagination ? (
+            <Pagination
+              shown={pagination.shown}
+              total={pagination.total}
+              unit="projects"
+              hasPrev={pagination.hasPrev}
+              hasNext={pagination.hasNext}
+              onPrev={pagination.onPrev}
+              onNext={pagination.onNext}
+            />
+          ) : null}
+        </>
       )}
     </section>
   );

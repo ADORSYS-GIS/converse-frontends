@@ -1,12 +1,20 @@
 // Page-level acceptance story for SETTINGS — sections composed inside `ConsoleShell` with the
 // section fixtures.
 //
-// Storybook-only. Nothing here is exported from `src/index.ts`.
+// Phase 6 (admin/settings revamp — Attio pattern, real routes): `/settings/account` and
+// `/settings/projects` are two real routes now, not two sections stacked under one header. This
+// story simulates both with one component (`screen: 'account' | 'projects'`), the same way
+// `apps/console`'s `AccountSettingsCentre`/`ProjectSettingsCentre` are two containers sharing one
+// `SettingsSubNav`. The horizontal `SubNav` here is built with static items rather than the app's
+// `SettingsSubNav` wrapper (which reads `usePathname()`/`next/link` — `ui-web` stays
+// framework-agnostic and never imports either).
 //
 // SETTINGS has **no right rail**, and that is the point of the screen rather than an omission:
 // nothing on it retargets on a selection (console-ui skill — "before adding a rail to a screen,
 // ask whether its content retargets on selection; if it does not, it is a toolbar"). It also has
-// no filters at all. `/manage` is where you find a project; this is where you change what one is.
+// no filters beyond `ProjectSettings`' own search box.
+//
+// Storybook-only. Nothing here is exported from `src/index.ts`.
 
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -17,24 +25,26 @@ import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { ProjectNameDialog } from '../components/project-name-dialog';
 import { SubNav } from '../components/sub-nav';
+import type { SubNavItem } from '../components/sub-nav';
 import { AccountSettings } from '../sections/account-settings';
-import type { AccountSettingsDetails } from '../sections/account-settings';
+import type { AccountSettingsAccount, AccountSettingsDetails } from '../sections/account-settings';
 import {
   accountDetailsFixture,
   accountDetailsNoQuotaFixture,
   namedAccountPanelFixture,
 } from '../sections/account-settings/fixtures';
-import type { AccountPanelAccount } from '../sections/account-panel';
 import { ProjectSettings } from '../sections/project-settings';
 import type { ProjectSettingsRow } from '../sections/project-settings';
 import { projectSettingsFixture } from '../sections/project-settings/fixtures';
 import { PageHeader } from '../sections/page-header';
-import { settingsSubNavItems, storySidebar, storyTopBar } from './shell-fixtures';
+import { storySidebar, storyTopBar } from './shell-fixtures';
 
 interface SettingsScreenProps {
+  /** Which real route this story simulates — `/settings/account` or `/settings/projects`. */
+  screen?: 'account' | 'projects';
   /** `null` = signed in with no account at all. An account whose own `name` is `null` is the
    *  separate, and far more common, unnamed state. */
-  account?: AccountPanelAccount | null;
+  account?: AccountSettingsAccount | null;
   details?: AccountSettingsDetails | null;
   projects?: ProjectSettingsRow[];
   loading?: boolean;
@@ -46,8 +56,10 @@ interface SettingsScreenProps {
   initialRenameProjectId?: string | null;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/settings` route perform for real.
+// The composition `apps/console`'s `(console)` layout + `/settings/account`|`/settings/projects`
+// routes perform for real.
 function SettingsScreen({
+  screen = 'account',
   account = namedAccountPanelFixture.account,
   details = accountDetailsFixture,
   projects = projectSettingsFixture,
@@ -57,82 +69,92 @@ function SettingsScreen({
   initialAccountDialogOpen = false,
   initialRenameProjectId = null,
 }: SettingsScreenProps) {
-  // Storybook demo state only — `apps/console`'s real dialog drafts live in
-  // `use-settings-screen.ts`'s own sanctioned local state.
+  // Storybook demo state only — `apps/console`'s real dialog drafts live in each hook's own
+  // sanctioned local state.
   const [accountDialogOpen, setAccountDialogOpen] = useState(initialAccountDialogOpen);
   const [accountName, setAccountName] = useState(account?.name ?? '');
   const [renameProjectId, setRenameProjectId] = useState<string | null>(initialRenameProjectId);
+  const [search, setSearch] = useState('');
   const renameTarget = projects.find((project) => project.id === renameProjectId) ?? null;
   const [projectName, setProjectName] = useState(renameTarget?.name ?? '');
 
+  const tabs: SubNavItem[] = [
+    { key: 'account', label: 'Account', href: '/settings/account', active: screen === 'account' },
+    {
+      key: 'projects',
+      label: 'Projects',
+      href: '/settings/projects',
+      count: projects.length,
+      active: screen === 'projects',
+    },
+  ];
+
   return (
     <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <PageHeader
-            title="Settings"
-            subtitle="Account and project configuration. Filtering and browsing live on Manage."
-          />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Settings" subtitle={account ? (account.name ?? 'Unnamed account') : undefined} />
 
-          <AccountSettings
-            panel={{
-              account,
-              loading: false,
-              onCreate: () => setAccountDialogOpen(true),
-              onRename: () => setAccountDialogOpen(true),
-              onRetry: () => {},
-            }}
-            details={details}
-            onCopyId={() => {}}
-          />
+        <SubNav orientation="horizontal" items={tabs} />
 
-          <ProjectSettings
-            projects={projects}
-            loading={loading}
-            error={error}
-            onRetry={() => {}}
-            onRename={(project) => {
-              setProjectName(project.name);
-              setRenameProjectId(project.id);
-            }}
-          />
-        </div>
+        {screen === 'account' ? (
+          <>
+            <AccountSettings
+              panel={{
+                account,
+                loading: false,
+                onCreate: () => setAccountDialogOpen(true),
+                onRename: () => setAccountDialogOpen(true),
+                onRetry: () => {},
+              }}
+              details={details}
+              onCopyId={() => {}}
+            />
 
-        {/* The former `leftSecondary` SETTINGS sub-nav — a plain `Card`, visible from `md` the
-            same tier the old rail persisted at (shell brief 2026-08-30 dropped the shell's own
-            rail slot; there is no sheet-trigger equivalent for this screen, so it simply doesn't
-            render below `md`, same as before). */}
-        <div className="hidden w-[208px] flex-none md:flex">
-          <Card title="Settings" className="w-full">
-            <SubNav items={settingsSubNavItems} />
-          </Card>
-        </div>
+            <AccountNameDialog
+              open={accountDialogOpen}
+              mode={account === null ? 'create' : 'rename'}
+              subjectLabel={account?.id ?? 'auth0|9f3a2c7e41b0'}
+              currentlyNamed={(account?.name ?? null) !== null}
+              name={accountName}
+              onNameChange={setAccountName}
+              submitting={false}
+              canSubmit={account === null || accountName.trim() !== (account.name ?? '')}
+              onSubmit={() => setAccountDialogOpen(false)}
+              onCancel={() => setAccountDialogOpen(false)}
+            />
+          </>
+        ) : (
+          <>
+            <Card>
+              <ProjectSettings
+                projects={projects}
+                loading={loading}
+                error={error}
+                onRetry={() => {}}
+                search={search}
+                onSearchChange={setSearch}
+                pagination={{ shown: projects.length, total: projects.length, hasPrev: false, hasNext: false }}
+                onRename={(project) => {
+                  setProjectName(project.name);
+                  setRenameProjectId(project.id);
+                }}
+              />
+            </Card>
+
+            <ProjectNameDialog
+              open={renameTarget !== null}
+              projectId={renameTarget?.id ?? ''}
+              currentName={renameTarget?.name ?? ''}
+              name={projectName}
+              onNameChange={setProjectName}
+              submitting={false}
+              canSubmit={projectName.trim().length > 0 && projectName.trim() !== renameTarget?.name}
+              onSubmit={() => setRenameProjectId(null)}
+              onCancel={() => setRenameProjectId(null)}
+            />
+          </>
+        )}
       </div>
-
-      <AccountNameDialog
-        open={accountDialogOpen}
-        mode={account === null ? 'create' : 'rename'}
-        subjectLabel={account?.id ?? 'auth0|9f3a2c7e41b0'}
-        currentlyNamed={(account?.name ?? null) !== null}
-        name={accountName}
-        onNameChange={setAccountName}
-        submitting={false}
-        canSubmit={account === null || accountName.trim() !== (account.name ?? '')}
-        onSubmit={() => setAccountDialogOpen(false)}
-        onCancel={() => setAccountDialogOpen(false)}
-      />
-
-      <ProjectNameDialog
-        open={renameTarget !== null}
-        projectId={renameTarget?.id ?? ''}
-        currentName={renameTarget?.name ?? ''}
-        name={projectName}
-        onNameChange={setProjectName}
-        submitting={false}
-        canSubmit={projectName.trim().length > 0 && projectName.trim() !== renameTarget?.name}
-        onSubmit={() => setRenameProjectId(null)}
-        onCancel={() => setRenameProjectId(null)}
-      />
     </ConsoleShell>
   );
 }
@@ -154,15 +176,22 @@ export const PopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-export const Empty: Story = {
-  name: 'No projects yet — an inline line under a rendered heading',
-  render: () => <SettingsScreen projects={[]} />,
+export const ProjectsScreen: Story = {
+  name: 'Projects — /settings/projects',
+  render: () => <SettingsScreen screen="projects" />,
 };
 
-export const Loading: Story = { render: () => <SettingsScreen projects={[]} loading /> };
+export const Empty: Story = {
+  name: 'No projects yet — an inline line under a rendered heading',
+  render: () => <SettingsScreen screen="projects" projects={[]} />,
+};
+
+export const Loading: Story = {
+  render: () => <SettingsScreen screen="projects" projects={[]} loading />,
+};
 
 export const ErrorState: Story = {
-  render: () => <SettingsScreen projects={[]} error="Could not load projects." />,
+  render: () => <SettingsScreen screen="projects" projects={[]} error="Could not load projects." />,
 };
 
 export const AdminNav: Story = {
@@ -180,7 +209,7 @@ export const AdminNav: Story = {
 /**
  * Signed in, no account. Every other screen is empty in this state — there is nothing to scope by
  * — which is what the reported "I cannot create an account on the console" was about. The exit
- * now lives on the screen that owns account identity, first block on the page.
+ * now lives on the screen that owns account identity, restyled as an `EmptyState` block.
  */
 export const NoAccount: Story = {
   name: 'Account — none yet (the reported dead end)',
@@ -198,8 +227,7 @@ export const NoAccountDialogOpen: Story = {
 /**
  * The state most production accounts are in today: `Account.name` shipped nullable with no
  * truthful backfill (lightbridge-authz#551), so an account created before that migration has never
- * been named. The panel names the absence and offers "Name this account"; the rows beneath still
- * carry the id, status and tier, because those are known regardless.
+ * been named. Restyled as an `EmptyState` block with the "Name this account" CTA.
  */
 export const UnnamedAccount: Story = {
   name: 'Account — unnamed (name === null)',
@@ -236,7 +264,7 @@ export const UnnamedAccountDialogOpen: Story = {
 
 /**
  * The whole flow driven through the real controls: press `Create account`, type a name, submit.
- * Interaction rather than a static arg set, because the thing worth pinning is that the panel's
+ * Interaction rather than a static arg set, because the thing worth pinning is that the section's
  * primary actually reaches the dialog.
  */
 export const CreateAccountFlow: Story = {
@@ -263,13 +291,13 @@ export const CreateAccountFlow: Story = {
 
 export const RenameProjectDialogOpen: Story = {
   name: 'Project — rename dialog open',
-  render: () => <SettingsScreen initialRenameProjectId="proj_b93e1d55" />,
+  render: () => <SettingsScreen screen="projects" initialRenameProjectId="proj_b93e1d55" />,
 };
 
 /** Driven through the row's own control, which is what makes the per-row targeting real. */
 export const RenameProjectFlow: Story = {
   name: 'Project — rename flow, driven',
-  render: () => <SettingsScreen />,
+  render: () => <SettingsScreen screen="projects" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Rename batch-eval' }));

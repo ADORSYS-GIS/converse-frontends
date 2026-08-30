@@ -11,6 +11,8 @@ const meta: Meta<typeof ProjectSettings> = {
     projects: projectSettingsFixture,
     onRename: fn(),
     onRetry: fn(),
+    search: '',
+    onSearchChange: fn(),
   },
 };
 
@@ -51,6 +53,18 @@ export const RenameGated: Story = {
     renameDisabled: true,
     renameReason: 'Only the account owner or a project member can rename a project.',
   },
+};
+
+export const WithPagination: Story = {
+  name: '10/page — Pagination row, real Previous/Next',
+  args: {
+    pagination: { shown: 3, total: 24, hasPrev: true, hasNext: true, onPrev: fn(), onNext: fn() },
+  },
+};
+
+export const FilteredEmpty: Story = {
+  name: 'Search narrowed the list to nothing — distinct from an empty account',
+  args: { projects: [], search: 'nonexistent', filteredEmptyMessage: 'No projects match “nonexistent”.' },
 };
 
 export const MobileBaseTier: Story = {

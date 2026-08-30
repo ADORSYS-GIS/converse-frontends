@@ -3,7 +3,7 @@ import { isParserBijective } from 'nuqs/testing';
 import { describe, expect, it } from 'vitest';
 
 import {
-  ADMIN_REVIEW_TABS,
+  ADMIN_SORT_KEYS,
   API_KEY_STATUSES,
   CURRENT_PERIOD,
   MANAGE_BUDGET_STATES,
@@ -78,11 +78,15 @@ describe('the URL param contract', () => {
         'sort',
         'status',
       ],
-      // `account-name` moved off `manage` with the panel that opens it: a core account mutation
-      settings: ['account-name', 'rename'],
+      // `account-name` moved off `manage` with the panel that opens it: a core account mutation.
+      // `q`/`page` (phase 6, admin/settings revamp): `/settings/projects`' own search + pager,
+      // the unbounded N×7 project dump replaced by search + 10/page `Pagination`.
+      settings: ['account-name', 'page', 'q', 'rename'],
       // Phase 4: `/admin` is now ONE screen (the budget refill review queue) — its dashboard
-      // section and every param it mirrored from `/` moved to `/` itself, gated by role.
-      admin: ['request', 'tab'],
+      // section and every param it mirrored from `/` moved to `/` itself, gated by role. Phase 6
+      // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
+      // sort (`sort`/`dir`) and page cursor (`after`).
+      admin: ['after', 'dir', 'request', 'sort'],
     });
   });
 
@@ -141,6 +145,7 @@ describe('the URL param contract', () => {
     expect(settings({ renameProjectId: 'proj_7' })).toBe('?rename=proj_7');
     expect(settings({ renameProjectId: '' })).toBe('');
     expect(settings({ accountNameOpen: true })).toBe('?account-name=true');
+    expect(settings({ search: 'gateway', page: 2 })).toBe('?q=gateway&page=2');
 
     const manage = createSerializer(manageParsers, { urlKeys: URL_PARAM_CONTRACT.manage.urlKeys });
     expect(manage({ search: 'alpha', budgetState: 'no-quota' })).toBe(
@@ -171,8 +176,12 @@ describe('the URL param contract', () => {
     ).toBe(true);
     expect(isParserBijective(settingsParsers.accountNameOpen, 'true', true)).toBe(true);
     expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
-    expect(isParserBijective(adminParsers.tab, 'decided', 'decided')).toBe(true);
+    expect(isParserBijective(settingsParsers.search, 'alpha', 'alpha')).toBe(true);
+    expect(isParserBijective(settingsParsers.page, '3', 3)).toBe(true);
+    expect(isParserBijective(adminParsers.sortKey, 'submitted', 'submitted')).toBe(true);
+    expect(isParserBijective(adminParsers.sortDirection, 'desc', 'desc')).toBe(true);
     expect(isParserBijective(adminParsers.selectedRequestId, 'req_9', 'req_9')).toBe(true);
+    expect(isParserBijective(adminParsers.after, 'cursor_1', 'cursor_1')).toBe(true);
     // Overview's own Export dialog (phase 4) — same parsers as `/manage`'s, checked once here and
     // by instance-identity in the "shared meaning" test above.
     expect(isParserBijective(overviewParsers.reportOpen, 'true', true)).toBe(true);
@@ -185,7 +194,7 @@ describe('the URL param contract', () => {
     // retired. A literal parser returns null for those, which nuqs resolves to the default.
     expect(overviewParsers.range.parse('42y')).toBeNull();
     expect(apiKeysParsers.status.parse('deleted')).toBeNull();
-    expect(adminParsers.tab.parse('everything')).toBeNull();
+    expect(adminParsers.sortKey.parse('everything')).toBeNull();
     expect(manageParsers.page.parse('not-a-number')).toBeNull();
   });
 
@@ -194,7 +203,7 @@ describe('the URL param contract', () => {
     expect(API_KEY_STATUSES).toEqual(['all', 'active', 'revoked']);
     expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);
-    expect(ADMIN_REVIEW_TABS).toEqual(['pending', 'decided']);
+    expect(ADMIN_SORT_KEYS).toEqual(['submitted']);
   });
 
   it('defaults the report period to the current month, resolved once', () => {

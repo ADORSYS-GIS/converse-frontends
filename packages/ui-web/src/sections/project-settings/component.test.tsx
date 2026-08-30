@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
@@ -18,6 +18,8 @@ function props(
     projects: projectSettingsFixture,
     onRename: vi.fn(),
     onRetry: vi.fn(),
+    search: '',
+    onSearchChange: vi.fn(),
     ...overrides,
   };
 }
@@ -127,5 +129,44 @@ describe('ProjectSettings', () => {
 
     expect(container.querySelectorAll('[role="presentation"]')).toHaveLength(4);
     expect(screen.queryByText(NO_PROJECTS_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it('carries a search field that reports typed input through the caller', () => {
+    const onSearchChange = vi.fn();
+    render(<ProjectSettings {...props({ onSearchChange })} />);
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'gateway' } });
+    expect(onSearchChange).toHaveBeenCalledWith('gateway');
+  });
+
+  it('distinguishes a search that narrowed the list to nothing from an empty account', () => {
+    render(
+      <ProjectSettings
+        {...props({ projects: [], search: 'nonexistent', filteredEmptyMessage: 'No projects match “nonexistent”.' })}
+      />
+    );
+
+    expect(screen.getByText('No projects match “nonexistent”.')).toBeInTheDocument();
+    expect(screen.queryByText(NO_PROJECTS_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it('never renders a pagination row with nothing wired', () => {
+    render(<ProjectSettings {...props()} />);
+
+    expect(screen.queryByRole('button', { name: /Next/ })).not.toBeInTheDocument();
+  });
+
+  it('renders a real, clickable pagination row when the container wires a further page', () => {
+    const onNext = vi.fn();
+    render(
+      <ProjectSettings
+        {...props({ pagination: { shown: 3, hasPrev: false, hasNext: true, onNext } })}
+      />
+    );
+
+    const next = screen.getByRole('button', { name: /Next/ });
+    expect(next).toBeEnabled();
+    fireEvent.click(next);
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 });

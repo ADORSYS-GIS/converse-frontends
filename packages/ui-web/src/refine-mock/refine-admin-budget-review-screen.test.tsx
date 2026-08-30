@@ -5,11 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { RefineAdminBudgetReviewScreen } from './refine-admin-budget-review-screen';
 import { RefineMockRoot } from './refine-decorator';
 
-// `gateway-prod` is deliberately reused as a project name by both the `refill-requests` and
-// `decisions` fixtures (docs/design/console-redesign/admin-budget-review.svg's own mock data) —
-// once RECENT DECISIONS also loads, `gateway-prod` legitimately renders twice on the page. These
-// tests key off `ada@adorsys.com` (the pending row's REQUESTER cell) instead, which only the
-// pending queue ever renders, to assert the ledger populated without that ambiguity.
+// Phase 6 (admin/settings revamp) deleted the RECENT DECISIONS ledger below the queue, so
+// `gateway-prod` (the pending row's own project cell) is no longer ambiguous with a second
+// section's fixture data — these tests key off it directly rather than the deleted Requester
+// column's `ada@adorsys.com`.
 describe('RefineAdminBudgetReviewScreen', () => {
   it('adapts useTable loading/data state into the Admin sections’ props: skeleton while loading, then the live pending queue', async () => {
     render(
@@ -18,19 +17,19 @@ describe('RefineAdminBudgetReviewScreen', () => {
       </RefineMockRoot>,
     );
 
-    expect(screen.queryByText('ada@adorsys.com')).not.toBeInTheDocument();
+    expect(screen.queryByText('gateway-prod')).not.toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByText('ada@adorsys.com')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
   });
 
-  it('approving the selected request (useOne detail + useCustomMutation decide) removes it from the pending queue and adds it to decisions', async () => {
+  it('approving the selected request (useOne detail + useCustomMutation decide) removes it from the pending queue', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [5, 10] }}>
         <RefineAdminBudgetReviewScreen />
       </RefineMockRoot>,
     );
 
-    await waitFor(() => expect(screen.getByText('ada@adorsys.com')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());
 
     const rows = screen.getAllByRole('row').slice(1);
     fireEvent.click(rows[0]);
@@ -39,7 +38,7 @@ describe('RefineAdminBudgetReviewScreen', () => {
     fireEvent.click(approveButton);
 
     await waitFor(() => expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByText('ada@adorsys.com')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('gateway-prod')).not.toBeInTheDocument());
   });
 
   it('adapts a getList failure into the Admin sections’ error props (ErrorLine + Retry)', async () => {

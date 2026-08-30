@@ -117,22 +117,23 @@ describe('createMockDataProvider', () => {
       expect((data as { statCards: unknown[] }).statCards.length).toBeGreaterThan(0);
     });
 
-    it('moves an approved refill request out of pending and into decisions', async () => {
+    // Phase 6 (admin/settings revamp): a decided row no longer moves into a `decisions`
+    // resource — `DecisionsLedger` (the section that read it) is deleted, since it was never
+    // backed by a real listing. `refill-requests/decide` simply removes the row now.
+    it('removes an approved refill request from the pending queue', async () => {
       const provider = createMockDataProvider(FAST);
       const before = await provider.getList({ resource: 'refill-requests' });
       expect(before.data.some((row) => row.id === 'gateway-prod')).toBe(true);
 
-      await provider.custom!({
+      const { data: removed } = await provider.custom!({
         url: 'refill-requests/decide',
         method: 'post',
         payload: { id: 'gateway-prod', decision: 'approve', decidedBy: 'sam' },
       });
+      expect((removed as { id: string }).id).toBe('gateway-prod');
 
       const afterPending = await provider.getList({ resource: 'refill-requests' });
       expect(afterPending.data.some((row) => row.id === 'gateway-prod')).toBe(false);
-
-      const decisions = await provider.getList({ resource: 'decisions' });
-      expect(decisions.data[0]).toMatchObject({ project: 'gateway-prod', decision: 'approved', decidedBy: 'sam' });
     });
 
     it('rejects for an unhandled url/method combination', async () => {

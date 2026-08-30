@@ -73,7 +73,7 @@ export type ProjectNameFieldErrors = {
  *
  * The realistic general failures name neither the field nor a value: an authorization refusal
  * (`model.Project.update`'s `@@allow` is owner-or-member, and the console can only *mirror* that
- * gate — see `use-settings-screen.ts`'s `renameEligible`) and cratestack's own "update input must
+ * gate — see `use-project-settings-screen.ts`'s `renameEligible`) and cratestack's own "update input must
  * contain at least one changed column" 422. Both must stay on the general line: attaching
  * "permission denied" to the name input would tell the user to retype a name that was never the
  * problem. Hence the permission check runs BEFORE the `name` substring match, the same ordering

@@ -3,11 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ReviewDetailPanel } from './component';
-import type { ReviewHistoryRow } from './types';
-
-const history: ReviewHistoryRow[] = [
-  { id: '1', label: '2 previous refills', amount: 350, meta: 'last 2026-02-08 · approved by sam' },
-];
 
 function renderPanel(overrides: Partial<React.ComponentProps<typeof ReviewDetailPanel>> = {}) {
   const onDecide = vi.fn();
@@ -15,14 +10,11 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReviewDetail
 
   render(
     <ReviewDetailPanel
-      subject="gateway-prod"
-      requesterEmail="ada@adorsys.com"
+      projectLabel="gateway-prod"
+      accountLabel="adorsys-gis"
       submittedAt="3 days ago"
-      consumedAmount={455.2}
-      ceilingAmount={500}
       requestedAmount={250}
       requesterNote="Q1 catalogue re-index lands this week."
-      history={history}
       note=""
       onNoteChange={onNoteChange}
       onDecide={onDecide}
@@ -34,16 +26,27 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReviewDetail
 }
 
 describe('ReviewDetailPanel', () => {
-  it('renders the subject and requester line', () => {
-    renderPanel();
-    expect(screen.getByText('gateway-prod')).toBeInTheDocument();
-    expect(screen.getByText('ada@adorsys.com · 3 days ago')).toBeInTheDocument();
+  it('renders the requested amount as the visual anchor', () => {
+    renderPanel({ requestedAmount: 1131.8 });
+    expect(screen.getByText('+$1 131.80')).toBeInTheDocument();
   });
 
-  it('formats the consumption line with thin-space thousands and two decimals', () => {
-    renderPanel({ consumedAmount: 1131.8, ceilingAmount: 2250 });
-    expect(screen.getByText('$1 131.80')).toBeInTheDocument();
-    expect(screen.getByText('of $2 250.00')).toBeInTheDocument();
+  it('renders the project, account and submitted-at facts as a definition list, no raw ids', () => {
+    renderPanel();
+    expect(screen.getByText('Project')).toBeInTheDocument();
+    expect(screen.getByText('gateway-prod')).toBeInTheDocument();
+    expect(screen.getByText('Account')).toBeInTheDocument();
+    expect(screen.getByText('adorsys-gis')).toBeInTheDocument();
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
+    expect(screen.getByText('3 days ago')).toBeInTheDocument();
+  });
+
+  it('carries no Consumption meter or History table — both were permanently unavailable upstream', () => {
+    renderPanel();
+    expect(screen.queryByText('Consumption')).not.toBeInTheDocument();
+    expect(screen.queryByText('History')).not.toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('names the requested amount on the Approve button', () => {
@@ -73,36 +76,6 @@ describe('ReviewDetailPanel', () => {
     renderPanel({ requesterNote: undefined, reviewerNote: undefined });
     expect(screen.queryByText('Note from requester')).not.toBeInTheDocument();
     expect(screen.queryByText('Reviewer note')).not.toBeInTheDocument();
-  });
-
-  it('renders history rows', () => {
-    renderPanel();
-    expect(screen.getByText('2 previous refills')).toBeInTheDocument();
-    expect(screen.getByText('+$350.00')).toBeInTheDocument();
-    expect(screen.getByText('last 2026-02-08 · approved by sam')).toBeInTheDocument();
-  });
-
-  it('states history was not loaded, distinct from a confirmed-empty history', () => {
-    renderPanel({ history: null });
-    expect(screen.getByText('History not loaded.')).toBeInTheDocument();
-    expect(screen.queryByText('No previous refills.')).not.toBeInTheDocument();
-  });
-
-  it('states a confirmed-empty history distinctly from "not loaded"', () => {
-    renderPanel({ history: [] });
-    expect(screen.getByText('No previous refills.')).toBeInTheDocument();
-    expect(screen.queryByText('History not loaded.')).not.toBeInTheDocument();
-  });
-
-  it('shows the requested amount and an honest "not available" line, with no meter, when consumption is unknown', () => {
-    renderPanel({ consumedAmount: undefined, ceilingAmount: undefined });
-
-    expect(
-      screen.getByText('Not available — no consumption query for this request yet.')
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-    expect(screen.getByText('Approve +$250.00')).toBeInTheDocument();
   });
 
   it('fires onDecide("approve", note) with the current decision note', () => {

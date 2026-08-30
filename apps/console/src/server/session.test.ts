@@ -83,7 +83,7 @@ describe('sealAuthState / openAuthState', () => {
     const payload = {
       state: 'state-value',
       codeVerifier: 'pkce-code-verifier-value',
-      returnTo: '/manage',
+      returnTo: '/projects',
     };
     const sealed = await sealAuthState(payload, SECRET);
     expect(sealed).not.toContain('pkce-code-verifier-value');

@@ -8,6 +8,7 @@ import type {
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
   CreateApiKeyDialogProps,
+  LedgerSort,
   SelectFieldProps,
   SegmentedOption,
 } from '@lightbridge/ui-web';
@@ -20,6 +21,7 @@ import { useConsoleSession } from '../client/session-context';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import {
   API_KEYS_SELECTION_OPTIONS,
+  API_KEY_SORT_KEYS,
   API_KEY_STATUSES,
   useApiKeysParams,
 } from '../client/url-state';
@@ -29,7 +31,6 @@ import {
   DEFAULT_KEY_EXPIRY_DAYS,
   EXPIRY_DAY_OPTIONS,
   apiKeysHygiene,
-  apiKeysStatusSummary,
   computeExpiresAtIso,
   toApiKeyRows,
 } from './api-key-rows';
@@ -89,6 +90,15 @@ export const STATUS_FILTER_OPTIONS: SegmentedOption<string>[] = API_KEY_STATUSES
   label: STATUS_LABELS[value],
 }));
 
+/** `ApiKeyRow`'s own sortable column keys (`created`/`lastUsed`/`expires`) map onto the real
+ *  `ApiKey` fields the `apiKeys` resource actually sorts by — the ledger's presentation keys are
+ *  not the backend's field names (`created` renders `createdAt`, formatted). */
+const SORT_FIELD_BY_KEY: Record<(typeof API_KEY_SORT_KEYS)[number], string> = {
+  created: 'createdAt',
+  lastUsed: 'lastUsedAt',
+  expires: 'expiresAt',
+};
+
 /**
  * Module-level so every zone agrees on the identity: `+ New key` is pressed in the rail, the
  * secret it returns is rendered by the ledger in the centre.
@@ -125,8 +135,8 @@ export interface ApiKeysScreen {
   rows: ApiKeyRow[];
   loading: boolean;
   errorMessage: string | undefined;
-  statusSummary: string;
-  emptyMessage: string;
+  /** No more `statusSummary` (2026-08-30 revamp brief): it duplicated `ApiKeysHygieneNotes`,
+   *  mounted above the ledger — `hygiene`, below, stays the ONE status line. */
   hygiene: ApiKeysHygiene;
   secretReveal: ApiKeysSecretReveal | null;
   dismissSecret: () => void;
@@ -153,6 +163,8 @@ export interface ApiKeysScreen {
   createKeyDialog: CreateApiKeyDialogProps;
   selectedRowKeys: string[];
   selectRow: (row: ApiKeyRow) => void;
+  sort: LedgerSort;
+  onSortChange: (sort: LedgerSort) => void;
   retry: () => void;
   pagination: {
     shown: number;
@@ -194,7 +206,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
     resource: 'apiKeys',
     pagination: { currentPage: view.page, pageSize: PAGE_SIZE },
     filters,
-    sorters: [{ field: 'createdAt', order: 'desc' }],
+    sorters: [{ field: SORT_FIELD_BY_KEY[view.sortKey], order: view.sortDirection }],
   });
 
   // `mutation` is the underlying react-query `UseMutationResult` — its own `.error`/`.isPending`
@@ -413,10 +425,6 @@ export function useApiKeysScreen(): ApiKeysScreen {
     rows,
     loading: list.query.isLoading,
     errorMessage: list.query.isError ? 'Could not load API keys.' : secret.errorMessage,
-    statusSummary: apiKeysStatusSummary(keys, now),
-    emptyMessage: scope.value.projectId
-      ? 'No API keys in this project yet.'
-      : 'No API keys yet. Pick a project to scope the list.',
     hygiene: apiKeysHygiene(keys, now),
     secretReveal: secret.data ?? null,
     dismissSecret: secret.dismiss,
@@ -479,6 +487,14 @@ export function useApiKeysScreen(): ApiKeysScreen {
     selectedRowKeys: view.selectedKeyId ? [view.selectedKeyId] : [],
     selectRow: (row) => {
       void setView({ selectedKeyId: row.id }, API_KEYS_SELECTION_OPTIONS);
+    },
+    sort: { key: view.sortKey, direction: view.sortDirection },
+    onSortChange: (sort) => {
+      void setView({
+        sortKey: sort.key as (typeof API_KEY_SORT_KEYS)[number],
+        sortDirection: sort.direction,
+        page: 1,
+      });
     },
     retry: refresh,
     pagination: {

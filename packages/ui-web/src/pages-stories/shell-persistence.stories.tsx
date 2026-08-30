@@ -42,8 +42,8 @@ import {
  * centre and the rail, exactly as `children` and the `@rail` slot swap for real — and, exactly as
  * for real, the shell itself is never re-created.
  *
- * The pair is deliberately Overview ↔ Manage rather than Overview ↔ Api-Keys (owner review
- * 2026-08-29): Overview now has NO right rail and Manage does, so navigating between them
+ * The pair is deliberately Overview ↔ Projects rather than Overview ↔ Api-Keys (owner review
+ * 2026-08-29): Overview now has NO right rail and Projects does, so navigating between them
  * mounts and unmounts the entire rail column. That is a strictly harder case for shell
  * persistence than swapping one rail's contents for another's, and it is the case the console
  * actually performs now.
@@ -52,7 +52,7 @@ function PersistentShell() {
   const [route, setRoute] = useState<StoryRoute>('overview');
 
   const navigate = (key: string) => {
-    if (key === 'overview' || key === 'manage') setRoute(key);
+    if (key === 'overview' || key === 'projects') setRoute(key);
   };
 
   // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
@@ -87,7 +87,7 @@ function PersistentShell() {
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="flex min-w-0 flex-1 flex-col gap-6">
-            <PageHeader title="Manage" />
+            <PageHeader title="Projects" />
             <ApiKeysLedger
               keys={apiKeysFixture}
               onDismissSecret={() => {}}
@@ -102,7 +102,7 @@ function PersistentShell() {
             />
           </div>
 
-          {/* Overview supplies no card here; Manage does — content that differs structurally
+          {/* Overview supplies no card here; Projects does — content that differs structurally
               between routes while the chrome (`sidebar`/`topBar`) must not remount, reproduced
               inside `children` now that the shell no longer owns a rail slot of its own (shell
               brief 2026-08-30; owner review 2026-08-29 on why this pair is the harder case). */}
@@ -143,7 +143,7 @@ export const NavigationDoesNotRemountTheChrome: Story = {
 
     await canvas.findByText('Spend this month');
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Manage' })[0]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Projects' })[0]);
     await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument());
 
     const navAfter = document.querySelectorAll('nav[aria-label="Primary"]')[0];

@@ -51,7 +51,7 @@ describe('isUncacheablePath', () => {
   it('leaves the cacheable app shell and static assets alone', () => {
     for (const path of [
       '/',
-      '/manage',
+      '/projects',
       '/api-keys',
       '/admin',
       '/apikeys',
@@ -66,7 +66,7 @@ describe('isUncacheablePath', () => {
   });
 
   it('does not match a prefix that only appears mid-path', () => {
-    expect(isUncacheablePath('/manage/api/rpc')).toBe(false);
+    expect(isUncacheablePath('/projects/api/rpc')).toBe(false);
   });
 });
 

@@ -62,7 +62,12 @@ export { Tooltip, TooltipGroup } from './components/tooltip';
 export type { TooltipAlign, TooltipProps, TooltipSide } from './components/tooltip';
 export { LedgerTable } from './components/ledger-table';
 export { ledgerRowVariants } from './components/ledger-table';
-export type { LedgerColumn, LedgerTableProps } from './components/ledger-table';
+export type {
+  LedgerColumn,
+  LedgerSort,
+  LedgerSortDirection,
+  LedgerTableProps,
+} from './components/ledger-table';
 export { StatusText } from './components/status-text';
 export { statusTextVariants } from './components/status-text';
 export type { StatusTextVariantProps, StatusTextProps } from './components/status-text';
@@ -246,14 +251,13 @@ export type {
   ApiKeysSecretReveal,
 } from './sections/api-keys-ledger';
 
-export { ManageProjectsLedger } from './sections/manage-projects-ledger';
+export { ProjectsLedger } from './sections/projects-ledger';
 export type {
-  ManagePagination,
-  ManageProjectsLedgerProps,
-  ManageTotals,
   ProjectRow,
+  ProjectsLedgerProps,
+  ProjectsPagination,
   ProjectStatus,
-} from './sections/manage-projects-ledger';
+} from './sections/projects-ledger';
 
 export { ReviewQueue } from './sections/review-queue';
 export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './sections/review-queue';
@@ -273,10 +277,11 @@ export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 // Shell revamp phase 3 (right rail out): the console has no persistent right rail anywhere any
 // more. Every screen's parameters and the action that consumes them live in one horizontal strip
 // above the content, always visible, at every breakpoint — see `OverviewControls`'s docstring for
-// the toolbar-vs-rail judgement call, and `ManageControls`'s for how Manage's own former FILTERS
-// rail section made the same move. Selection-driven detail (Manage's picked project, Admin's
-// picked review request) now opens as a `DetailSheet` instead of retargeting a persistent aside —
-// see `manage-centre.tsx`/`admin-centre.tsx` in `apps/console`.
+// the toolbar-vs-rail judgement call, and `ManageControls`'s for how the Projects screen's (née
+// Manage) former FILTERS rail section made the same move — search itself lives in `ProjectsLedger`
+// 's own table toolbar now, not here. Selection-driven detail (a picked project, Admin's picked
+// review request) now opens as a `DetailSheet` instead of retargeting a persistent aside — see
+// `projects-centre.tsx`/`admin-centre.tsx` in `apps/console`.
 
 export { OverviewControls } from './sections/overview-controls';
 export type { OverviewControlsField, OverviewControlsProps } from './sections/overview-controls';
@@ -299,9 +304,10 @@ export {
 export type { AccountPanelAccount, AccountPanelProps } from './sections/account-panel';
 
 // ── selection-driven detail
-// The un-railed content `DetailSheet` hosts once a row is picked (`manage-centre.tsx`'s selected
-// project; `admin-centre.tsx` hosts `ReviewDetailPanel` — from "── forms & actions" above —
-// directly, since it already owned its whole decision surface and needed no section of its own).
+// The un-railed content `DetailSheet` hosts once a row is picked (`projects-centre.tsx`'s
+// selected project; `admin-centre.tsx` hosts `ReviewDetailPanel` — from "── forms & actions"
+// above — directly, since it already owned its whole decision surface and needed no section of
+// its own).
 
 export { ProjectDetail } from './sections/project-detail';
 export type { ProjectDetailProps } from './sections/project-detail';

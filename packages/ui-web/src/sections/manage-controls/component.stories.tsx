@@ -18,8 +18,6 @@ const meta: Meta<typeof ManageControls> = {
     budgetStateValue: 'all',
     budgetStateOptions: manageBudgetStateOptions,
     onBudgetStateChange: () => {},
-    search: '',
-    onSearchChange: () => {},
   },
 };
 
@@ -34,7 +32,7 @@ export const DefaultLight: Story = {
 };
 
 export const Filtered: Story = {
-  args: { statusValue: 'active', budgetStateValue: 'quota-set', search: 'gateway' },
+  args: { statusValue: 'active', budgetStateValue: 'quota-set' },
 };
 
 export const MdTier: Story = {
@@ -55,7 +53,6 @@ export const Interactive: Story = {
     // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
     const [status, setStatus] = useState('all');
     const [budgetState, setBudgetState] = useState('all');
-    const [search, setSearch] = useState('');
     return (
       <ManageControls
         {...args}
@@ -63,8 +60,6 @@ export const Interactive: Story = {
         onStatusChange={setStatus}
         budgetStateValue={budgetState}
         onBudgetStateChange={setBudgetState}
-        search={search}
-        onSearchChange={setSearch}
       />
     );
   },

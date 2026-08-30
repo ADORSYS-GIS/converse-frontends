@@ -1,7 +1,9 @@
 import type { Project } from '@lightbridge/authz-rpc';
+import type { UsageQueryResponse } from '@lightbridge/api-rest';
+import type { ProjectRow } from '@lightbridge/ui-web';
 import { describe, expect, it } from 'vitest';
 
-import { manageTotals, projectStatus, toProjectRow } from './project-rows';
+import { applyProjectSpend, projectStatus, sortProjectRows, toProjectRow } from './project-rows';
 
 function project(overrides: Partial<Project> = {}): Project {
   return {
@@ -83,19 +85,107 @@ describe('toProjectRow', () => {
   });
 });
 
-describe('manageTotals', () => {
-  it('never sums spend into a fabricated $0.00 — it stays null like every row cell', () => {
-    const rows = [toProjectRow(project()), toProjectRow(project({ projectQuota: 'starter' }))];
-    expect(manageTotals(rows, 7)).toEqual({
-      shownLabel: '2 of 7',
-      spendMtd: null,
-    });
+// ── applyProjectSpend — PROOF the per-project consumption query actually reaches ProjectRow ────
+//
+// `use-projects-screen.ts` wires this against the same `buildBudgetConsumptionByProjectRequest` +
+// `queryUsage` pair `use-overview-screen.ts`'s already-shipped admin budget-pressure zone uses
+// (identical request builder, identical response shape) — this file's own convention is to unit
+// test the PURE mapping rather than the hook (see `projects-centre.test.tsx`'s/`overview-centre.
+// test.tsx`'s "hook mocked wholesale, mapping tested here" split), so this is that mapping's test.
+
+function usd(dollars: number): number {
+  return dollars * 1_000_000;
+}
+
+function point(overrides: Partial<UsageQueryResponse['points'][number]>) {
+  return {
+    bucket_start: '2026-08-01T00:00:00.000Z',
+    requests: 1,
+    usage_value: 1,
+    total_cost: usd(1),
+    prompt_tokens: 1,
+    completion_tokens: 1,
+    total_tokens: 2,
+    ...overrides,
+  } as UsageQueryResponse['points'][number];
+}
+
+describe('applyProjectSpend', () => {
+  const rows: ProjectRow[] = [
+    toProjectRow(project({ id: 'gateway-prod', name: 'gateway-prod' })),
+    toProjectRow(project({ id: 'batch-eval', name: 'batch-eval' })),
+  ];
+
+  it('leaves every row null (the em dash) while the query has not resolved', () => {
+    expect(applyProjectSpend(rows, undefined, 'loading')).toEqual(rows);
+    expect(applyProjectSpend(rows, undefined, 'error')).toEqual(rows);
   });
 
-  it('has no ceiling/usedPercent field — quota tiers are categorical and cannot be summed', () => {
-    const rows = [toProjectRow(project())];
-    const totals = manageTotals(rows, 1);
-    expect(totals).not.toHaveProperty('ceiling');
-    expect(totals).not.toHaveProperty('usedPercent');
+  it('leaves rows null on error even if a STALE response object is still sitting in the cache', () => {
+    // Regression: a `useQuery` that has since errored can still hold `data` from a previous,
+    // successful fetch — trusting `response` alone here would print last period's figures under
+    // this period's heading.
+    const stale: UsageQueryResponse = {
+      points: [point({ project_id: 'gateway-prod', total_cost: usd(999) })],
+    };
+    expect(applyProjectSpend(rows, stale, 'error')[0].spendMtd).toBeNull();
+  });
+
+  it('maps a resolved response onto the matching row by project id, summed across points', () => {
+    const response: UsageQueryResponse = {
+      points: [
+        point({ project_id: 'gateway-prod', total_cost: usd(30) }),
+        point({ project_id: 'gateway-prod', total_cost: usd(12.5) }),
+      ],
+    };
+
+    const result = applyProjectSpend(rows, response, 'ready');
+
+    expect(result.find((row) => row.id === 'gateway-prod')?.spendMtd).toBe(42.5);
+  });
+
+  it('resolves a project absent from the response to a real 0, never back to null', () => {
+    // The request is account-wide for the whole period — absence means no usage was recorded,
+    // which is a fact ("$0.00"), not the "we don't know yet" an em dash would misstate it as.
+    const response: UsageQueryResponse = {
+      points: [point({ project_id: 'gateway-prod', total_cost: usd(10) })],
+    };
+
+    const result = applyProjectSpend(rows, response, 'ready');
+
+    expect(result.find((row) => row.id === 'batch-eval')?.spendMtd).toBe(0);
+  });
+});
+
+describe('sortProjectRows', () => {
+  const rows: ProjectRow[] = [
+    { ...toProjectRow(project({ id: 'c', name: 'charlie' })), spendMtd: 10 },
+    { ...toProjectRow(project({ id: 'a', name: 'alpha' })), spendMtd: 30 },
+    { ...toProjectRow(project({ id: 'b', name: 'bravo' })), spendMtd: null },
+  ];
+
+  it('sorts by name, ascending or descending', () => {
+    expect(sortProjectRows(rows, { key: 'name', direction: 'asc' }).map((r) => r.name)).toEqual([
+      'alpha',
+      'bravo',
+      'charlie',
+    ]);
+    expect(sortProjectRows(rows, { key: 'name', direction: 'desc' }).map((r) => r.name)).toEqual([
+      'charlie',
+      'bravo',
+      'alpha',
+    ]);
+  });
+
+  it('sorts by spend, treating a still-loading (null) row as the lowest value', () => {
+    expect(
+      sortProjectRows(rows, { key: 'spendMtd', direction: 'asc' }).map((r) => r.name)
+    ).toEqual(['bravo', 'charlie', 'alpha']);
+  });
+
+  it('does not mutate the input array', () => {
+    const copy = [...rows];
+    sortProjectRows(rows, { key: 'name', direction: 'asc' });
+    expect(rows).toEqual(copy);
   });
 });

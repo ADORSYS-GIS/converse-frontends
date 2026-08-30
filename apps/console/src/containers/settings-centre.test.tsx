@@ -10,7 +10,7 @@ import type { SettingsScreen as SettingsScreenData } from './use-settings-screen
  * cannot modify account core information on the same page we're filtering").
  *
  * `useSettingsScreen` is mocked wholesale, matching the split `overview-centre.test.tsx` and
- * `manage-centre.test.tsx` already use: the hook's own pure mapping is covered cheaply elsewhere
+ * `projects-centre.test.tsx` already use: the hook's own pure mapping is covered cheaply elsewhere
  * (`project-settings-rows.test.ts`, `rpc-field-error.test.ts`, `build-create-account-input.test.ts`),
  * while this file answers the black-box question — given a state, does `/settings` render the
  * corresponding affordance, and is it on THIS screen.

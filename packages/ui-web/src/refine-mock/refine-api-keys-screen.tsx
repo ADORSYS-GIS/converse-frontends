@@ -8,6 +8,9 @@ import type { CrudFilter } from '@refinedev/core';
 import { useCreate, useDelete, useTable, useUpdate } from '@refinedev/core';
 
 import { Button } from '../components/button';
+import { Card } from '../components/card';
+import { EmptyState } from '../components/empty-state';
+import type { LedgerSort } from '../components/ledger-table';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
@@ -32,13 +35,8 @@ function randomSecret(): string {
   return out;
 }
 
-// Counts only — the expiring key is `ApiKeysHygieneNotes`' line. Reporting it here too printed
-// the same fact twice on one screen (owner screenshot 2026-08-29).
-function summarize(rows: ApiKeyRow[]): string {
-  const active = rows.filter((row) => row.status === 'active').length;
-  const revoked = rows.filter((row) => row.status === 'revoked').length;
-  return `${active} active · ${revoked} revoked`;
-}
+// No more `summarize`/`statusSummary` (2026-08-30 revamp brief) — it duplicated
+// `ApiKeysHygieneNotes`'s own line, which stays the ONE status line for this ledger.
 
 const ROTATED_SECRET_COPY =
   'Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.';
@@ -81,6 +79,10 @@ export function RefineApiKeysScreen() {
   const rows = table.result.data;
   const loading = table.tableQuery.isLoading;
   const error = table.tableQuery.isError ? table.tableQuery.error?.message : undefined;
+  const activeSort = table.sorters[0];
+  const sort: LedgerSort | undefined = activeSort
+    ? { key: activeSort.field, direction: activeSort.order }
+    : undefined;
 
   function refetchList() {
     table.tableQuery.refetch();
@@ -157,13 +159,29 @@ export function RefineApiKeysScreen() {
           {isAdmin ? 'Demo: acting as admin' : 'Demo: acting as non-admin'}
         </Button>
 
+        <Card>
         <ApiKeysLedger
           keys={rows}
           loading={loading}
           error={error}
           onRetry={refetchList}
-          statusSummary={summarize(rows)}
-          emptyMessage="No keys in this project yet. Create one from the toolbar above."
+          emptyState={
+            <EmptyState
+              headline="No API keys in this project"
+              explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+              action={
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={project === 'all'}
+                  onClick={project === 'all' ? undefined : createKey}>
+                  + New key
+                </Button>
+              }
+            />
+          }
+          sort={sort}
+          onSortChange={(next) => table.setSorters([{ field: next.key, order: next.direction }])}
           secretReveal={secretReveal}
           onDismissSecret={() => setSecretReveal(null)}
           onRotate={(row) => {
@@ -233,6 +251,7 @@ export function RefineApiKeysScreen() {
             onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
           }}
         />
+        </Card>
       </div>
     </RefineMockShell>
   );

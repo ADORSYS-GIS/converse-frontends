@@ -1,14 +1,17 @@
 // manage-projects.svg — the 12-row ledger shown in the mockup (two suspended rows at the tail).
 // Moved here verbatim from the deleted `pages/manage/fixtures.ts`, then brought in line with the
 // real backend contract (issues #268/#269/#270): `status` is `active | suspended` only, quota
-// tiers are ids from a governance catalog (never currency), MEMBERS/KEYS are gone entirely (the
-// list endpoint never returns them, so they could only ever be a fabricated zero), and spend is
-// `null` throughout — the fixture matches what `apps/console`'s adapter actually produces today,
-// not a hypothetical fully-wired future, since this is the acceptance surface for "the ledger
-// tells the truth."
-import type { ManageTotals, ProjectRow } from './types';
+// tiers are ids from a governance catalog (never currency), and MEMBERS/KEYS are gone entirely
+// (the list endpoint never returns them, so they could only ever be a fabricated zero).
+//
+// `spendMtd` is `null` throughout (2026-08-30 revamp brief: the ACCOUNT column and the totals
+// footer are gone — see `component.tsx`'s own doc comment — but the fixture still models the
+// "still loading/unwired" shape a real screen shows before its spend-by-project query resolves;
+// `component.stories.tsx`'s `SpendWired` story overlays real numbers on top of this same fixture
+// to show the wired state).
+import type { ProjectRow } from './types';
 
-export const manageProjectsFixture: ProjectRow[] = [
+export const projectsFixture: ProjectRow[] = [
   {
     id: 'gateway-prod',
     name: 'gateway-prod',
@@ -119,7 +122,3 @@ export const manageProjectsFixture: ProjectRow[] = [
   },
 ];
 
-export const manageTotals: ManageTotals = {
-  shownLabel: 'TOTAL · 12 SHOWN',
-  spendMtd: null,
-};

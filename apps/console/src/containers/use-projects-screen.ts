@@ -4,8 +4,8 @@ import type { BillingPlanInfo, Project } from '@lightbridge/authz-rpc';
 import { createId } from '@lightbridge/authz-rpc';
 import type {
   CreateProjectDialogProps,
+  LedgerSort,
   ManageControlsProps,
-  ManageTotals,
   ProjectRow,
   ReportExportDialogProps,
   ReportExportParams,
@@ -18,12 +18,14 @@ import type { ReactNode } from 'react';
 
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
+import { queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import {
   MANAGE_BUDGET_STATES,
   MANAGE_REPORT_GROUP_BYS,
   MANAGE_SELECTION_OPTIONS,
   MANAGE_STATUSES,
+  PROJECTS_SORT_KEYS,
   REPORT_FORMATS,
   REPORT_INCLUDE_IDS,
   useManageParams,
@@ -31,42 +33,28 @@ import {
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
+import { buildBudgetConsumptionByProjectRequest } from './overview-usage';
 import { buildCreateProjectInput } from './build-create-project-input';
 import { classifyCreateProjectError } from './rpc-field-error';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
-import { manageTotals, toProjectRows } from './project-rows';
+import { applyProjectSpend, sortProjectRows, toProjectRows } from './project-rows';
 
 /**
- * `/manage` — the screen's data adapter. `ManageCentre` is the one zone that reads it (shell
- * revamp phase 2 deleted the `@rail`/`@scope` parallel-route slots this used to be shared with;
- * phase 3 deleted the right-hand aside those slots had been temporarily replaced by).
+ * `/projects` (renamed from `/manage`, 2026-08-30 revamp brief) — the screen's data adapter.
+ * `ProjectsCentre` is the one zone that reads it (shell revamp phase 2 deleted the `@rail`/
+ * `@scope` parallel-route slots this used to be shared with; phase 3 deleted the right-hand aside
+ * those slots had been temporarily replaced by).
  *
  * View state is the URL (ADR 0011): a configured ledger —
- * `?q=alpha&status=active&budget-state=no-quota&row=proj_7` — is a link.
+ * `?q=alpha&status=active&budget-state=no-quota&row=proj_7&sort=spendMtd&dir=desc` — is a link.
  */
 
 const PAGE_SIZE = 25;
 
-/**
- * An inline status line naming exactly what is missing, rather than a subline that quietly
- * asserts something the screen has never fetched (issue #271 — the old
- * `subline="spend shown month-to-date"` was that claim).
- *
- * Console-ui#326: no "(ADR 0009 follow-ups N)" citation — follow-up 4 (the `apps/console`
- * scaffold) shipped, so citing it here was simply wrong, and an internal ADR follow-up index is
- * not something this self-service console's own customers should have to decode. State the fact
- * plainly instead; see the PR body for the full argument against citing follow-up numbers in
- * user-visible copy.
- *
- * Reworded by #304/#305 (Epic 4, Story 4.2): the usage-backend query client this string used to
- * say didn't exist now does (`apps/console/src/client/usage-client.ts`), and Overview's own SPEND
- * dashboards use it — so "no usage-backend query client yet" would now be a false claim on THIS
- * screen. What remains true, and is now what this string says, is narrower: Manage itself has no
- * query wired to its own per-project spend/quota column. Wiring that is out of this story's scope
- * (Overview's dashboards only) — tracked as its own follow-up, not invented here.
- */
-export const MANAGE_SPEND_PENDING_MESSAGE =
-  'Spend and quota ceiling are not shown here yet: this screen does not query the usage backend. Project status and quota tier below are live.';
+/** Same billing-period window `use-overview-screen.ts`'s budget-pressure zone uses — see
+ *  `overview-usage.ts`'s `currentPeriodRange` for why it is always "this calendar month," never
+ *  the dashboard's own 7d/30d/90d range. */
+const SPEND_QUERY_KEY_PERIOD = new Date().toISOString().slice(0, 7);
 
 const STATUS_LABELS: Record<(typeof MANAGE_STATUSES)[number], string> = {
   all: 'All',
@@ -113,9 +101,9 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
  * `ReportExportDialog` now mounts exactly once (shell revamp phase 3: it used to mount twice, in
  * the persistent rail and the centre's compact-tier sheet, both gone).
  */
-const NEW_PROJECT_MUTATION_KEY = ['manage', 'new-project'];
-const REPORT_MUTATION_KEY = ['manage', 'report'];
-const PROJECT_BILLING_PLANS_QUERY_KEY = ['manage', 'billingPlans'];
+const NEW_PROJECT_MUTATION_KEY = ['projects', 'new-project'];
+const REPORT_MUTATION_KEY = ['projects', 'report'];
+const PROJECT_BILLING_PLANS_QUERY_KEY = ['projects', 'billingPlans'];
 
 type CreateProjectDraft = {
   name: string;
@@ -127,7 +115,7 @@ function emptyProjectDraft(): CreateProjectDraft {
   return { name: '', billingIdentity: '', planId: null };
 }
 
-export interface ManageScreen {
+export interface ProjectsScreen {
   /** The scoped account's display label (`accountScopeLabel`) — for `PageHeader.subtitle`, never
    *  a second, driftable computation at the call site. `undefined` before an account resolves. */
   scopeLabel: string | undefined;
@@ -135,16 +123,14 @@ export interface ManageScreen {
   loading: boolean;
   /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. */
   errorMessage: string | undefined;
-  /** An always-visible inline status line naming exactly what is unwired (issue #271), never
-   *  folded into `ScreenHeading`'s `subline` — the same "name the gap explicitly" pattern
-   *  Overview's own per-section status props (`latencyFootnote`, etc.) follow, though Overview no
-   *  longer carries a single screen-wide `emptyMessage` of its own now that every section there
-   *  is wired. */
-  spendPendingMessage: string;
-  totals: ManageTotals;
   retry: () => void;
   search: string;
   setSearch: (value: string) => void;
+  /** `true` when a search term or a non-default status/budget-state filter is narrowing the
+   *  list — decides which empty state `ProjectsCentre` renders (`EmptyState` vs an inline
+   *  "no matches" line, same "empty collection vs empty result" split `ProjectsLedger`'s own doc
+   *  comment draws). */
+  filtersActive: boolean;
   /** Opens `CreateProjectDialog` — a no-op while `createProjectEligible` is false. */
   newProject: () => void;
   /**
@@ -169,6 +155,8 @@ export interface ManageScreen {
    *  rail's SELECTION section). */
   clearSelection: () => void;
   projectCount: number;
+  sort: LedgerSort;
+  onSortChange: (sort: LedgerSort) => void;
   pagination: {
     shown: number;
     total: number;
@@ -177,9 +165,10 @@ export interface ManageScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  /** `ManageControls` in `PageHeader.controls` — everything but `search`/`onSearchChange`, which
-   *  are their own top-level fields above (same split `ApiKeysScreen.projectField` etc. use). */
-  filters: Omit<ManageControlsProps, 'search' | 'onSearchChange' | 'className'>;
+  /** `ManageControls` — the table-scoped account/status/budget-state filter cluster, rendered in
+   *  `ProjectsLedger`'s own toolbar now (2026-08-30: moved off `PageHeader.controls`, where phase
+   *  3 had put it, alongside the ledger's own search field). */
+  filters: Omit<ManageControlsProps, 'className'>;
   /** `ReportExportDialog` — opened from the `Monthly report` button in `PageHeader.action`
    *  (shell revamp phase 3: replaces the deleted right rail's MONTHLY REPORT section). */
   report: ReportExportDialogProps;
@@ -190,7 +179,7 @@ export interface ManageScreen {
  * the panel does not own account/project scope — a `ScopeSelect` does. Both callers pass the same
  * element.
  */
-export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
+export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   const scope = useConsoleScope();
   const session = useConsoleSession();
   const client = useConsoleAuthzClient();
@@ -210,25 +199,50 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     return active;
   }, [scope.value.accountId, view.status, view.search]);
 
+  // No `sorters` here any more: `name` and `spendMtd` are both sorted CLIENT-SIDE, over this one
+  // page, below — see `sortProjectRows`'s own doc comment for why splitting one backend-sortable
+  // column from one that is not (spend lives in an entirely separate usage-backend query) into
+  // two different sort mechanisms was worse than sorting both the same way.
   const list = useList<Project>({
     resource: 'projects',
     pagination: { currentPage: view.page, pageSize: PAGE_SIZE },
     filters,
-    sorters: [{ field: 'name', order: 'asc' }],
   });
 
   const projects = list.result.data;
   const total = list.result.total ?? projects.length;
+
+  // ── Spend MTD (2026-08-30 revamp brief): the same account-wide, current-billing-period,
+  // per-project consumption query `use-overview-screen.ts`'s admin budget-pressure zone already
+  // ships (`buildBudgetConsumptionByProjectRequest` + `queryUsage`) — reused verbatim rather than
+  // re-derived, so the two screens can never disagree about what "this period's spend" means. ──
+  const accountId = scope.value.accountId;
+  const spendQuery = useQuery({
+    queryKey: ['projects', 'spend-by-project', accountId, SPEND_QUERY_KEY_PERIOD],
+    queryFn: () => queryUsage(buildBudgetConsumptionByProjectRequest(accountId, new Date())),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+  const spendStatus: 'loading' | 'ready' | 'error' = spendQuery.isError
+    ? 'error'
+    : spendQuery.isPending
+      ? 'loading'
+      : 'ready';
 
   // Re-based on whether a governance quota tier is actually assigned (issue #269) — the previous
   // `ceiling !== null` check was always false (every `projectQuota` tier id fails `Number()`), so
   // "Quota set" returned zero rows and "No quota" returned everything, regardless of the real tier.
   const rows = useMemo(() => {
     const mapped = toProjectRows(projects);
-    if (view.budgetState === 'quota-set') return mapped.filter((row) => row.quotaTier !== null);
-    if (view.budgetState === 'no-quota') return mapped.filter((row) => row.quotaTier === null);
-    return mapped;
-  }, [projects, view.budgetState]);
+    const withBudgetFilter =
+      view.budgetState === 'quota-set'
+        ? mapped.filter((row) => row.quotaTier !== null)
+        : view.budgetState === 'no-quota'
+          ? mapped.filter((row) => row.quotaTier === null)
+          : mapped;
+    const withSpend = applyProjectSpend(withBudgetFilter, spendQuery.data, spendStatus);
+    return sortProjectRows(withSpend, { key: view.sortKey, direction: view.sortDirection });
+  }, [projects, view.budgetState, view.sortKey, view.sortDirection, spendQuery.data, spendStatus]);
 
   // Retries the genuine failed fetch AND refreshes the ledger after a real create — declared
   // ahead of the mutations below so their `onSuccess` closures can reference it.
@@ -259,7 +273,7 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   const plans = plansQuery.data ?? [];
   const resolvedPlanId = projectDraft.planId ?? plans[0]?.id ?? null;
 
-  // Owner-only gate mirror — see `ManageScreen.createProjectEligible`'s own doc comment for why
+  // Owner-only gate mirror — see `ProjectsScreen.createProjectEligible`'s own doc comment for why
   // this checks against the signed-in principal rather than a roster.
   let createProjectEligible: boolean;
   let createProjectReason: string | undefined;
@@ -404,7 +418,7 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
   });
 
   // The SELECTION rail's subject is `?row=<id>`, looked up in the loaded page — so a link to a
-  // selected project reopens on that project, and Back deselects instead of leaving `/manage`.
+  // selected project reopens on that project, and Back deselects instead of leaving `/projects`.
   const selectedProject = rows.find((row) => row.id === view.selectedProjectId) ?? null;
 
   const activeAccount = scope.allAccounts.find(
@@ -415,14 +429,17 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
     scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     rows,
     loading: list.query.isLoading,
+    // A failed SPEND query does not fail the whole screen — the projects list itself is fine, and
+    // `applyProjectSpend` already leaves every row's `spendMtd` at its honest `null` (em dash)
+    // when `spendStatus` is `'error'`. Only a genuinely failed PROJECTS fetch replaces the ledger
+    // with `ErrorLine`.
     errorMessage: list.query.isError ? 'Could not load projects.' : undefined,
-    spendPendingMessage: MANAGE_SPEND_PENDING_MESSAGE,
-    totals: manageTotals(rows, total),
     retry: refresh,
     search: view.search,
     setSearch: (search) => {
       void setView({ search, page: 1 });
     },
+    filtersActive: Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
     newProject: () => {
       if (!createProjectEligible) return;
       if (newProjectAction.errorMessage) newProjectAction.dismiss();
@@ -439,6 +456,13 @@ export function useManageScreen(scopeSlot: ReactNode): ManageScreen {
       void setView({ selectedProjectId: '' }, MANAGE_SELECTION_OPTIONS);
     },
     projectCount: total,
+    sort: { key: view.sortKey, direction: view.sortDirection },
+    onSortChange: (sort) => {
+      void setView({
+        sortKey: sort.key as (typeof PROJECTS_SORT_KEYS)[number],
+        sortDirection: sort.direction,
+      });
+    },
     pagination: {
       shown: rows.length,
       total,

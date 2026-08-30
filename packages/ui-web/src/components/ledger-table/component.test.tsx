@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { LedgerTable } from './component';
@@ -186,6 +186,104 @@ describe('LedgerTable', () => {
     expect(cols).toHaveLength(3);
     expect((cols[0] as HTMLElement).style.width).toBe('220px');
     expect((cols[1] as HTMLElement).style.width).toBe('');
+  });
+
+  it('renders a plain header (no button) for a column with sortable not set', () => {
+    render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
+
+    expect(screen.queryByRole('button', { name: 'Name' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).not.toHaveAttribute('aria-sort');
+  });
+
+  it('renders a sortable column as a real button and marks aria-sort="none" until active', () => {
+    const sortableColumns: LedgerColumn<Row>[] = [
+      { ...columns[0], sortable: true },
+      columns[1],
+    ];
+    render(<LedgerTable columns={sortableColumns} data={rows} rowKey={(row) => row.id} />);
+
+    const header = screen.getByRole('columnheader', { name: 'Name' });
+    expect(header).toHaveAttribute('aria-sort', 'none');
+    expect(within(header).getByRole('button', { name: 'Name' })).toBeInTheDocument();
+  });
+
+  it('fires onSortChange with asc on first press, and toggles to desc on the next', () => {
+    const sortableColumns: LedgerColumn<Row>[] = [{ ...columns[0], sortable: true }, columns[1]];
+    const onSortChange = vi.fn();
+    const { rerender } = render(
+      <LedgerTable
+        columns={sortableColumns}
+        data={rows}
+        rowKey={(row) => row.id}
+        onSortChange={onSortChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'name', direction: 'asc' });
+
+    rerender(
+      <LedgerTable
+        columns={sortableColumns}
+        data={rows}
+        rowKey={(row) => row.id}
+        sort={{ key: 'name', direction: 'asc' }}
+        onSortChange={onSortChange}
+      />
+    );
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute(
+      'aria-sort',
+      'ascending'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+    expect(onSortChange).toHaveBeenLastCalledWith({ key: 'name', direction: 'desc' });
+  });
+
+  it('starts a different column at asc, leaving the previous sort behind', () => {
+    const sortableColumns: LedgerColumn<Row>[] = [
+      { ...columns[0], sortable: true },
+      { ...columns[1], sortable: true },
+    ];
+    const onSortChange = vi.fn();
+    render(
+      <LedgerTable
+        columns={sortableColumns}
+        data={rows}
+        rowKey={(row) => row.id}
+        sort={{ key: 'name', direction: 'desc' }}
+        onSortChange={onSortChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Amount' }));
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'amount', direction: 'asc' });
+  });
+
+  it('gets role="grid" only when rows are selectable, making aria-selected valid', () => {
+    const { rerender } = render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
+    expect(screen.getByRole('table')).not.toHaveAttribute('role');
+
+    rerender(
+      <LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} onSelectRow={() => {}} />
+    );
+    expect(screen.getByRole('grid')).toBeInTheDocument();
+  });
+
+  it('renders row actions unconditionally — no reveal-on-hover gate', () => {
+    const { container } = render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        renderRowActions={(row) => <button type="button">Rotate {row.name}</button>}
+      />
+    );
+
+    const cell = container.querySelector('td.row-actions');
+    expect(cell).not.toBeNull();
+    expect(cell).not.toHaveClass('opacity-0');
+    expect(screen.getByRole('button', { name: 'Rotate ci-deploy' })).toBeVisible();
   });
 
   it('renders skeleton rows instead of data when loading', () => {

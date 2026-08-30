@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import type { LedgerSort } from '../../components/ledger-table';
+
 export type ApiKeyStatus = 'active' | 'expiring' | 'revoked';
 
 export type ApiKeyRow = {
@@ -54,12 +56,13 @@ export interface ApiKeysLedgerProps {
   error?: string;
   onRetry?: () => void;
   /**
-   * Composed status summary, e.g. "23 active · 4 revoked · 1 expires in 6 days". Rendered as the
-   * `InlineStatus` line in the table toolbar.
+   * Rendered instead of the table when `keys` is empty and not loading/erroring — an `EmptyState`
+   * with a `+ New key` CTA, same eligibility gating as `PageHeader.action`'s own button
+   * (`api-keys-centre.tsx`). There is no separate composed status summary any more (ticket
+   * 2026-08-30: `statusSummary` duplicated `ApiKeysHygieneNotes`, which stays the ONE status line
+   * for this ledger, mounted above it).
    */
-  statusSummary?: ReactNode;
-  /** Shown instead of `statusSummary` when `keys` is empty and not loading/erroring. */
-  emptyMessage?: ReactNode;
+  emptyState?: ReactNode;
 
   /** Present after create or rotate; both return the same one-time secret contract. */
   secretReveal?: ApiKeysSecretReveal | null;
@@ -87,6 +90,9 @@ export interface ApiKeysLedgerProps {
 
   selectedRowKeys?: string[];
   onSelectRow?: (row: ApiKeyRow) => void;
+
+  sort?: LedgerSort;
+  onSortChange?: (sort: LedgerSort) => void;
 
   pagination?: ApiKeysPagination;
 

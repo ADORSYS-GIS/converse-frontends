@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Loading as AdminLoading } from './admin-budget-review.stories';
 import { Loading as ApiKeysLoading } from './api-keys.stories';
-import { Loading as ManageLoading } from './manage.stories';
+import { Loading as ProjectsLoading } from './projects.stories';
 import { Loading as OverviewLoading } from './overview.stories';
 
 /** Every `role="presentation" aria-hidden="true"` skeleton block the console-ui skill's §states
@@ -49,8 +49,8 @@ describe('console route Loading page-stories (the source `apps/console`\'s loadi
     expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
   });
 
-  it('Manage: renders ledger row skeletons and the real title', () => {
-    const { container } = render(<>{ManageLoading.render!({}, {} as never)}</>);
+  it('Projects: renders ledger row skeletons and the real title', () => {
+    const { container } = render(<>{ProjectsLoading.render!({}, {} as never)}</>);
 
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();

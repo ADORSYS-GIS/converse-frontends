@@ -137,4 +137,29 @@ describe('ProjectSettingsCentre', () => {
 
     expect(screen.queryByText(/Filtering and browsing live on Manage/)).not.toBeInTheDocument();
   });
+
+  /**
+   * Live findings #1 (2026-08-30) — the same false-empty flash `use-projects-screen.ts` had:
+   * `use-project-settings-screen.ts`'s `projectSettings.loading` is now `list.query.isLoading ||
+   * scope.loading`, so a still-resolving account scope keeps this on skeleton rows rather than
+   * flashing "No projects in this account yet." for an account that, moments later, turns out to
+   * have projects.
+   */
+  it('renders skeleton rows, never the empty message, while still loading with zero rows so far', async () => {
+    await renderCentre({
+      projectSettings: { ...baseScreen().projectSettings, projects: [], loading: true },
+    });
+
+    expect(screen.queryByText('No projects in this account yet.')).not.toBeInTheDocument();
+    // The search field renders immediately — only the list body is a skeleton.
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  it('renders the empty message only once the list has genuinely settled with zero rows', async () => {
+    await renderCentre({
+      projectSettings: { ...baseScreen().projectSettings, projects: [], loading: false },
+    });
+
+    expect(screen.getByText('No projects in this account yet.')).toBeInTheDocument();
+  });
 });

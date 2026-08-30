@@ -17,12 +17,19 @@ const EXPIRY_OPTIONS = [
   { value: '89', label: '89 days' },
 ];
 
+const PROJECT_OPTIONS = [
+  { value: 'proj_default', label: 'Default Project' },
+  { value: 'proj_gateway', label: 'gateway-prod' },
+];
+
 const meta: Meta<typeof CreateApiKeyDialog> = {
   title: 'Forms & actions/CreateApiKeyDialog',
   component: CreateApiKeyDialog,
   args: {
     open: true,
-    projectLabel: 'acct_01 / Default Project',
+    projectOptions: PROJECT_OPTIONS,
+    projectId: 'proj_default',
+    onProjectChange: fn(),
     name: '',
     onNameChange: fn(),
     expiryDays: '30',
@@ -56,6 +63,15 @@ export const DefaultLight: Story = {
 export const EnterpriseNoLimits: Story = {
   name: 'Selected plan has no configured limits',
   args: { planId: 'enterprise' },
+};
+
+export const ProjectIneligible: Story = {
+  name: 'Selected project cannot take a new key — reason stated, not a silent disable',
+  args: {
+    projectId: 'proj_gateway',
+    projectReason: 'Only the project owner or a lead can create keys here.',
+    canSubmit: false,
+  },
 };
 
 export const NameRequired: Story = {

@@ -359,3 +359,25 @@ export function buildBudgetConsumptionByProjectRequest(
     group_by: ['project_id'],
   };
 }
+
+/**
+ * The "Active API keys" stat card's count filters (live findings #5, 2026-08-30): the card used
+ * to read `apiKeys.result.total` off an UNFILTERED `useList`, which counts every key regardless
+ * of status — a real production account showed "8" where 6 of those were revoked. Filtering
+ * `status eq active` server-side, the same `status`/`eq` shape `use-api-keys-screen.ts`'s own
+ * ledger status filter already sends against this resource, keeps this a real filtered COUNT
+ * query (`pagination: { pageSize: 1 }`, `result.total`) rather than a client-side recount over a
+ * page that may not hold every key.
+ *
+ * A plain array literal, not a hook — pulled out here (rather than left inline in
+ * `use-overview-screen.ts`) so the shape itself is covered by a plain unit test, the same split
+ * every other request/filter builder in this module uses.
+ */
+export function activeApiKeysCountFilters(
+  projectId: string | null
+): Array<{ field: string; operator: 'eq'; value: string }> {
+  const filters: Array<{ field: string; operator: 'eq'; value: string }> = [];
+  if (projectId) filters.push({ field: 'projectId', operator: 'eq', value: projectId });
+  filters.push({ field: 'status', operator: 'eq', value: 'active' });
+  return filters;
+}

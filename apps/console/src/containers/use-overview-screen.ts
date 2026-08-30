@@ -47,6 +47,7 @@ import { microsToAmount } from './refill-rows';
 import { useAdminScreen } from './use-admin-screen';
 import type { LatencyAdaptation } from './overview-usage';
 import {
+  activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
@@ -291,19 +292,17 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : [],
   });
 
+  // See `activeApiKeysCountFilters`'s own doc comment (live findings #5, 2026-08-30) — this used
+  // to be an unfiltered count and included revoked keys.
   const apiKeys = useList<ApiKey>({
     resource: 'apiKeys',
     pagination: { currentPage: 1, pageSize: 1 },
-    filters: scope.value.projectId
-      ? [{ field: 'projectId', operator: 'eq', value: scope.value.projectId }]
-      : [],
+    filters: activeApiKeysCountFilters(scope.value.projectId),
   });
 
   const scopeProjectLabel =
     scope.projects.find((project) => project.id === scope.value.projectId)?.label ?? 'All projects';
-  const activeAccount = scope.allAccounts.find(
-    (account) => account.id === scope.value.accountId
-  );
+  const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
   const scopeAccountLabel = activeAccount ? accountScopeLabel(activeAccount) : undefined;
 
   const accountId = scope.value.accountId;
@@ -512,7 +511,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       {
         key: 'keys',
         icon: 'keys',
-        label: 'API keys',
+        label: 'Active API keys',
         metric: String(apiKeys.result.total ?? 0),
         // No `sparklineData` — there is no trend series behind a key COUNT, and `OverviewStatRow`
         // renders no sparkline slot at all when it's omitted, rather than an empty/flat

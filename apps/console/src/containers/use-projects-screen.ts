@@ -120,6 +120,9 @@ export interface ProjectsScreen {
    *  a second, driftable computation at the call site. `undefined` before an account resolves. */
   scopeLabel: string | undefined;
   rows: ProjectRow[];
+  /** `list.query.isLoading || scope.loading` — see the hook body's own doc comment (live findings
+   *  #1) for why the account scope's own resolution has to gate this too, not just the ledger's
+   *  own query. */
   loading: boolean;
   /** A genuine failed projects fetch — the only case rendered through `ErrorLine`. */
   errorMessage: string | undefined;
@@ -165,9 +168,11 @@ export interface ProjectsScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  /** `ManageControls` — the table-scoped account/status/budget-state filter cluster, rendered in
+  /** `ManageControls` — the table-scoped status/budget-state filter cluster, rendered in
    *  `ProjectsLedger`'s own toolbar now (2026-08-30: moved off `PageHeader.controls`, where phase
-   *  3 had put it, alongside the ledger's own search field). */
+   *  3 had put it, alongside the ledger's own search field). No longer carries an Account field
+   *  (live findings #6, 2026-08-30) — that duplicated the sidebar workspace switcher, which owns
+   *  account scope exclusively now. */
   filters: Omit<ManageControlsProps, 'className'>;
   /** `ReportExportDialog` — opened from the `Monthly report` button in `PageHeader.action`
    *  (shell revamp phase 3: replaces the deleted right rail's MONTHLY REPORT section). */
@@ -208,6 +213,17 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     pagination: { currentPage: view.page, pageSize: PAGE_SIZE },
     filters,
   });
+
+  // Live findings #1 (2026-08-30) — the false-empty flash: `scope.value.accountId` starts `''`
+  // until `useConsoleScope()`'s own `accounts` list resolves (`use-console-scope.ts`: "the empty
+  // account is resolved, never written"), so on a genuinely fresh load `filters` above is
+  // computed WITHOUT an `accountId` clause for one or more renders — a real, different query from
+  // the correctly-scoped one that follows once `scope.value.accountId` resolves. That first,
+  // wrongly-unscoped fetch can settle (`list.query.isLoading` → `false`) with zero rows before
+  // scope resolves, and `ProjectsCentre` rendered `EmptyState` off that alone. Gating on
+  // `scope.loading` too means the skeleton stays up until the account scope itself is known, so
+  // the ledger only ever reports "settled" once `list` was fetched against the REAL filters.
+  const loading = list.query.isLoading || scope.loading;
 
   const projects = list.result.data;
   const total = list.result.total ?? projects.length;
@@ -421,14 +437,12 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   // selected project reopens on that project, and Back deselects instead of leaving `/projects`.
   const selectedProject = rows.find((row) => row.id === view.selectedProjectId) ?? null;
 
-  const activeAccount = scope.allAccounts.find(
-    (account) => account.id === scope.value.accountId
-  );
+  const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
 
   return {
     scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     rows,
-    loading: list.query.isLoading,
+    loading,
     // A failed SPEND query does not fail the whole screen — the projects list itself is fine, and
     // `applyProjectSpend` already leaves every row's `spendMtd` at its honest `null` (em dash)
     // when `spendStatus` is `'error'`. Only a genuinely failed PROJECTS fetch replaces the ledger
@@ -439,7 +453,8 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     setSearch: (search) => {
       void setView({ search, page: 1 });
     },
-    filtersActive: Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
+    filtersActive:
+      Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
     newProject: () => {
       if (!createProjectEligible) return;
       if (newProjectAction.errorMessage) newProjectAction.dismiss();
@@ -476,16 +491,6 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
       },
     },
     filters: {
-      accountValue: scope.value.accountId,
-      accountOptions: scope.accounts.map((account) => ({
-        value: account.id,
-        label: account.label,
-      })),
-      onAccountChange: (accountId) => {
-        scope.setValue({ accountId, projectId: null });
-        // Same tick as the scope write, so nuqs coalesces both into one history entry.
-        void setView({ page: 1 }, { history: 'push' });
-      },
       statusOptions: STATUS_OPTIONS,
       statusValue: view.status,
       onStatusChange: (status) => {

@@ -8,6 +8,7 @@ import { ErrorLine } from '../error-line';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
 import { SegmentedControl } from '../segmented-control';
+import { SelectField } from '../select-field';
 import type { CreateApiKeyDialogProps } from './types';
 import { Chevron } from '../chevron';
 import { META_CLASS } from '../../lib/type-roles';
@@ -34,18 +35,25 @@ import {
 // Dialog — creating a key is not destructive, so an accidental outside click costs nothing the
 // typed-confirm gate exists to prevent). The panel and the plan picker both come from lib now.
 //
-// Three inputs the schema's CreateApiKeyInput requires, none of which this dialog invents a value
-// for: name (typed by the caller), expiresAt (chosen from presets kept under the operator's
-// documented 90-day ceiling with a one-day margin — see the api-keys screen hook for why 89
-// rather than 90), and billingPlan (chosen from the real listBillingPlans catalogue the caller
-// passes in as plans — this component never hardcodes a plan id). The selected plan's limits
-// render via formatBillingPlanLimits, which is the one place the "absent field means no limit,
-// never 0" contract on BillingPlanInfo.limits gets turned into text.
+// Four inputs the schema's CreateApiKeyInput requires, none of which this dialog invents a value
+// for: projectId (chosen from the real `scope.projects` catalogue the caller passes in as
+// `projectOptions` — live findings #4, 2026-08-30: this dialog used to have no project field of
+// its own at all, only a fixed `projectLabel` echo, which is why `+ New key` used to disable
+// itself whenever the ledger's own toolbar filter was scoped to "All projects"), name (typed by
+// the caller), expiresAt (chosen from presets kept under the operator's documented 90-day ceiling
+// with a one-day margin — see the api-keys screen hook for why 89 rather than 90), and
+// billingPlan (chosen from the real listBillingPlans catalogue the caller passes in as plans —
+// this component never hardcodes a plan id). The selected plan's limits render via
+// formatBillingPlanLimits, which is the one place the "absent field means no limit, never 0"
+// contract on BillingPlanInfo.limits gets turned into text.
 //
 // Both label/control stacks are daisy fieldset: a 1fr grid at the 6px gap the form already used.
 export function CreateApiKeyDialog({
   open,
-  projectLabel,
+  projectOptions,
+  projectId,
+  onProjectChange,
+  projectReason,
   name,
   onNameChange,
   expiryDays,
@@ -85,10 +93,24 @@ export function CreateApiKeyDialog({
         <Dialog.Popup className={DIALOG_POPUP_CLASS}>
           <Dialog.Title className={DIALOG_TITLE_CLASS}>New API key</Dialog.Title>
           <Dialog.Description className={DIALOG_DESCRIPTION_CLASS}>
-            Scoped to {projectLabel}. The secret is shown once, immediately after creation.
+            A key belongs to exactly one project. The secret is shown once, immediately after
+            creation.
           </Dialog.Description>
 
           <div className={DIALOG_BODY_CLASS}>
+            <div className="fieldset">
+              <SelectField
+                label="Project"
+                value={projectId ?? ''}
+                options={projectOptions}
+                onChange={onProjectChange}
+              />
+              {/* Never a silent disable (console-ui skill "States") — the submit gate this caption
+                  explains is `canSubmit`, computed by the container from the SAME ownership/lead
+                  check against whichever project is selected above. */}
+              {projectReason ? <p className={META_CLASS}>{projectReason}</p> : null}
+            </div>
+
             <Field
               label="Name"
               placeholder="e.g. ci-deploy"

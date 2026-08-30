@@ -63,15 +63,26 @@ import {
  * server-side; it is presentation only — see `ApiKeysLedgerProps.isAdmin`'s doc comment for why
  * this is not the security boundary.
  *
- * **Create (tickets #317/#319/#320)**: `+ New key` now opens `CreateApiKeyDialog` (`?create=1`)
- * instead of firing `createApiKey` straight off with an invented name, a hardcoded 90-day expiry
- * and a hardcoded `billingPlan: 'standard'` that does not exist in any real backend's catalogue
- * (the bug that made key creation fail for everyone). The dialog collects a real name and expiry
- * from the caller and a real plan id from `listBillingPlans` — see `api-key-rows.ts` for why the
- * offered expiry presets stay under the documented 90-day ceiling. `createKeyEligible`/
- * `createKeyReason` mirror the backend's lead/owner gate on `createApiKey`
- * (`authz.cstack:520-528`) so a caller who cannot succeed is told so before attempting it, rather
- * than after — presentation only, same disclaimer as `isAdmin` above:
+ * **Create (tickets #317/#319/#320, redesigned live findings #4, 2026-08-30)**: `+ New key` now
+ * opens `CreateApiKeyDialog` (`?create=1`) instead of firing `createApiKey` straight off with an
+ * invented name, a hardcoded 90-day expiry and a hardcoded `billingPlan: 'standard'` that does
+ * not exist in any real backend's catalogue (the bug that made key creation fail for everyone).
+ * The dialog collects a real name, a target PROJECT, and expiry from the caller and a real plan
+ * id from `listBillingPlans` — see `api-key-rows.ts` for why the offered expiry presets stay
+ * under the documented 90-day ceiling.
+ *
+ * The trigger's own gate (`createKeyEligible`/`createKeyReason`, shared by `PageHeader.action`
+ * and the ledger's `EmptyState` CTA) disables `+ New key` ONLY when the account has no project at
+ * all — never merely because the toolbar's `projectField` happens to be scoped to "All projects".
+ * That used to be the gate (`!activeProjectId`), which meant the button was disabled the moment
+ * anyone landed on the screen in its default scope, with no way to proceed short of first
+ * changing an unrelated filter. A key belongs to exactly one project, but which one is the
+ * DIALOG'S question, not the ledger filter's — so the Project field lives inside
+ * `CreateApiKeyDialog` (defaulting to the toolbar's scoped project when one is set, else the
+ * first project the account can read) and `createKeyEligible`/`createKeyReason` mirror
+ * `createApiKey`'s lead/owner gate (`authz.cstack:520-528`) is now evaluated against THAT
+ * selection (`draftProjectId`) as the dialog's own `projectReason` caption, not against the
+ * trigger. Both checks stay presentation only, same disclaimer as `isAdmin` above:
  * `lightbridge-authz`'s hand-written SQL check is the actual enforcement
  * (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role grants).
  */
@@ -118,13 +129,17 @@ type SecretRequest =
   | { kind: 'rotate'; keyId: string; name: string };
 
 type CreateKeyDraft = {
+  /** The dialog's OWN project selection — deliberately separate from the toolbar's
+   *  `scope.value.projectId` filter (live findings #4, 2026-08-30). See the module doc comment's
+   *  "Create" section for why the two used to be, wrongly, the same value. */
+  projectId: string | null;
   name: string;
   expiryDays: string;
   planId: string | null;
 };
 
 function emptyDraft(): CreateKeyDraft {
-  return { name: '', expiryDays: String(DEFAULT_KEY_EXPIRY_DAYS), planId: null };
+  return { projectId: null, name: '', expiryDays: String(DEFAULT_KEY_EXPIRY_DAYS), planId: null };
 }
 
 export interface ApiKeysScreen {
@@ -248,58 +263,76 @@ export function useApiKeysScreen(): ApiKeysScreen {
   // catalogue returns is what a submit without any picker interaction uses — never a guessed id.
   const resolvedPlanId = draft.planId ?? plans[0]?.id ?? null;
 
-  // Ticket #320: a presentation-only mirror of `createApiKey`'s lead/owner gate. `scope.projects`
-  // is the FULL list the caller can read (own + member-of, `authz.cstack:283`'s `@@allow("read",
-  // ...)`), not `ScopeSelect`'s per-account cascade, so this looks the active project up there
-  // rather than assuming the scoped account owns it.
-  const activeProjectId = scope.value.projectId;
-  const activeProject = scope.projects.find((project) => project.id === activeProjectId) ?? null;
+  // Ticket #320, redesigned for live findings #4 (2026-08-30): a presentation-only mirror of
+  // `createApiKey`'s lead/owner gate, evaluated against the DIALOG'S OWN project selection
+  // (`draft.projectId`), never the toolbar's `scope.value.projectId` filter — see the module doc
+  // comment's "Create" section. `scope.projects` is the FULL list the caller can read (own +
+  // member-of, `authz.cstack:283`'s `@@allow("read", ...)`), not `ScopeSelect`'s per-account
+  // cascade, so this looks the selected project up there rather than assuming the scoped account
+  // owns it.
+  const draftProjectId = draft.projectId;
+  const draftProject = scope.projects.find((project) => project.id === draftProjectId) ?? null;
   const isOwner = Boolean(
-    activeProject && scope.value.accountId && activeProject.accountId === scope.value.accountId
+    draftProject && scope.value.accountId && draftProject.accountId === scope.value.accountId
   );
 
   // Only fetched when ownership alone does not already answer the question — an owner never
-  // needs the roster to know they may create a key.
+  // needs the roster to know they may create a key — and only once a project is actually
+  // selected, which in practice means only while the dialog is open (`draft.projectId` is `null`
+  // whenever it's closed; see `emptyDraft`).
   //
   // `errorNotification: false`: this is a soft, presentation-only eligibility check, not a user
-  // action — its own failure is already surfaced honestly and specifically as `createKeyReason`
-  // beside the disabled `+ New key` control below. Letting refine's console-wide notification
-  // provider also pop a generic toast for it would be a second, less precise description of the
-  // exact same event.
+  // action — its own failure is already surfaced honestly and specifically as `projectReason`
+  // inside the dialog. Letting refine's console-wide notification provider also pop a generic
+  // toast for it would be a second, less precise description of the exact same event.
   const membersQuery = useList<ProjectMember>({
     resource: 'projectMembers',
     pagination: { currentPage: 1, pageSize: MEMBERS_PAGE_SIZE },
-    filters: activeProjectId
-      ? [{ field: 'projectId', operator: 'eq' as const, value: activeProjectId }]
+    filters: draftProjectId
+      ? [{ field: 'projectId', operator: 'eq' as const, value: draftProjectId }]
       : [],
-    queryOptions: { enabled: Boolean(activeProjectId) && !isOwner },
+    queryOptions: { enabled: Boolean(draftProjectId) && !isOwner },
     errorNotification: false,
   });
   const isLead = membersQuery.result.data.some(
     (member) =>
-      member.projectId === activeProjectId &&
+      member.projectId === draftProjectId &&
       member.accountId === scope.value.accountId &&
       member.role === 'lead'
   );
 
+  // The `+ New key` TRIGGER's own gate (`PageHeader.action` and the ledger's `EmptyState` CTA
+  // both read it) — disabled ONLY when the account genuinely has no project to put a key in,
+  // never merely because the toolbar happens to be scoped to "All projects" (live findings #4).
   let createKeyEligible: boolean;
   let createKeyReason: string | undefined;
-  if (!activeProjectId) {
+  if (scope.loading) {
     createKeyEligible = false;
-    createKeyReason = 'Select a project to create a key.';
-  } else if (scope.loading || (!isOwner && membersQuery.query.isLoading)) {
+    createKeyReason = 'Loading projects…';
+  } else if (scope.projects.length === 0) {
     createKeyEligible = false;
-    createKeyReason = 'Checking whether you can create keys…';
-  } else if (!isOwner && membersQuery.query.isError) {
-    // Fails safe: an unconfirmable roster never defaults to "eligible".
-    createKeyEligible = false;
-    createKeyReason = "Couldn't confirm you can create keys in this project.";
-  } else if (isOwner || isLead) {
+    createKeyReason = 'Create a project before creating a key.';
+  } else {
     createKeyEligible = true;
     createKeyReason = undefined;
+  }
+
+  // The DIALOG's own per-selection caption — why the CURRENTLY CHOSEN project can't take a new
+  // key right now, rendered under its Project field (console-ui skill "Never do: a disabled
+  // control with no stated reason" — the same fix as `createKeyReason` above, applied where this
+  // particular check now actually happens).
+  let projectReason: string | undefined;
+  if (!draftProjectId) {
+    projectReason = undefined;
+  } else if (!isOwner && membersQuery.query.isLoading) {
+    projectReason = 'Checking whether you can create keys…';
+  } else if (!isOwner && membersQuery.query.isError) {
+    // Fails safe: an unconfirmable roster never defaults to "eligible".
+    projectReason = "Couldn't confirm you can create keys in this project.";
+  } else if (isOwner || isLead) {
+    projectReason = undefined;
   } else {
-    createKeyEligible = false;
-    createKeyReason = 'Only the project owner or a lead can create keys here.';
+    projectReason = 'Only the project owner or a lead can create keys here.';
   }
 
   const secret = useSharedMutation<SecretRequest, ApiKeysSecretReveal>({
@@ -371,6 +404,8 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const deleteErrorMessage = deleteMutation.error?.message;
 
   const canSubmitCreate =
+    draftProjectId !== null &&
+    (isOwner || isLead) &&
     draft.name.trim().length > 0 &&
     resolvedPlanId !== null &&
     !plansQuery.isLoading &&
@@ -378,7 +413,12 @@ export function useApiKeysScreen(): ApiKeysScreen {
 
   const createKeyDialog: CreateApiKeyDialogProps = {
     open: view.createOpen,
-    projectLabel: `${scope.value.accountId || '—'} / ${activeProject?.label ?? '—'}`,
+    // Always non-empty by the time the dialog can open — `createKeyEligible` already refused the
+    // trigger when `scope.projects` is empty.
+    projectOptions: scope.projects.map((project) => ({ value: project.id, label: project.label })),
+    projectId: draftProjectId,
+    onProjectChange: (projectId) => setDraft((prev) => ({ ...prev, projectId })),
+    projectReason,
     name: draft.name,
     onNameChange: (name) => setDraft((prev) => ({ ...prev, name })),
     expiryDays: draft.expiryDays,
@@ -394,10 +434,10 @@ export function useApiKeysScreen(): ApiKeysScreen {
     error: secret.errorMessage,
     canSubmit: canSubmitCreate,
     onSubmit: () => {
-      if (!canSubmitCreate || !activeProjectId || resolvedPlanId === null) return;
+      if (!canSubmitCreate || !draftProjectId || resolvedPlanId === null) return;
       secret.mutate({
         kind: 'create',
-        projectId: activeProjectId,
+        projectId: draftProjectId,
         name: draft.name.trim(),
         expiresAt: computeExpiresAtIso(Number(draft.expiryDays), Date.now()),
         billingPlan: resolvedPlanId,
@@ -413,9 +453,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
   };
 
-  const activeAccount = scope.allAccounts.find(
-    (account) => account.id === scope.value.accountId
-  );
+  const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
 
   return {
     scopeAccountLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
@@ -479,6 +517,14 @@ export function useApiKeysScreen(): ApiKeysScreen {
       // currently-showing successful secret (`secret.data`) is never touched by opening the
       // dialog either.
       if (secret.errorMessage) secret.dismiss();
+      // Defaults the dialog's own Project field to whatever the toolbar happens to be scoped to
+      // — a real head start, never a requirement — falling back to the first project the account
+      // can read when the toolbar is at its default "All projects" scope. `createKeyEligible`
+      // already guarantees `scope.projects` is non-empty here.
+      setDraft((prev) => ({
+        ...prev,
+        projectId: scope.value.projectId ?? scope.projects[0]?.id ?? null,
+      }));
       void setView({ createOpen: true }, API_KEYS_SELECTION_OPTIONS);
     },
     createKeyEligible,

@@ -16,8 +16,8 @@ export function ApiKeysHygieneNotes({ hygiene, className }: ApiKeysHygieneNotesP
     <div className={cn('flex flex-col gap-2', className)}>
       {hygiene.expiringCount > 0 ? (
         <p className="text-primary font-mono text-[11px]">
-          {hygiene.expiringCount} key{hygiene.expiringCount === 1 ? '' : 's'} expires in{' '}
-          {hygiene.expiringInDays} days
+          {hygiene.expiringCount} key{hygiene.expiringCount === 1 ? '' : 's'}{' '}
+          {hygiene.expiringCount === 1 ? 'expires' : 'expire'} in {hygiene.expiringInDays} days
         </p>
       ) : null}
       {hygiene.neverUsedCount > 0 ? (

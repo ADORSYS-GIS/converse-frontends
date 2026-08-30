@@ -8,9 +8,11 @@
 // Shell revamp phase 3 (right rail out): MONTHLY REPORT/SELECTION no longer render inside a
 // right-hand aside — MONTHLY REPORT is a `PageHeader.action` button that opens
 // `ReportExportDialog`, and SELECTION is a `DetailSheet` hosting `ProjectDetail`, exactly matching
-// `apps/console`'s own `projects-centre.tsx`. FILTERS (`ManageControls`, account/status/budget
-// only now) moved again in the 2026-08-30 revamp: off `PageHeader.controls` and into
-// `ProjectsLedger`'s own toolbar, alongside the search field it now owns directly.
+// `apps/console`'s own `projects-centre.tsx`. FILTERS (`ManageControls`, status/budget only) moved
+// again in the 2026-08-30 revamp: off `PageHeader.controls` and into `ProjectsLedger`'s own
+// toolbar, alongside the search field it now owns directly. `ManageControls`'s Account select is
+// gone too (live findings #6, 2026-08-30) — it duplicated the sidebar workspace switcher
+// (`scopeSlot` below), which owns account scope exclusively now.
 
 import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
@@ -28,7 +30,6 @@ import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ManageControls } from '../sections/manage-controls';
 import {
-  manageAccountOptions,
   manageBudgetStateOptions,
   manageStatusOptions,
 } from '../sections/manage-controls/fixtures';
@@ -40,19 +41,15 @@ import { RefineMockShell } from './shared-chrome';
 
 function buildFilters({
   search,
-  accountValue,
   statusValue,
   budgetStateValue,
 }: {
   search: string;
-  accountValue: string;
   statusValue: string;
   budgetStateValue: string;
 }): CrudFilter[] {
   const filters: CrudFilter[] = [];
   if (search.trim()) filters.push({ field: 'name', operator: 'contains', value: search.trim() });
-  if (accountValue !== 'all')
-    filters.push({ field: 'account', operator: 'eq', value: accountValue });
   if (statusValue !== 'all') filters.push({ field: 'status', operator: 'eq', value: statusValue });
   // Real signal, not a numeric-ceiling coercion (issue #269): whether a governance quota tier is
   // assigned at all.
@@ -67,7 +64,6 @@ function buildFilters({
  * filters; row selection opens `DetailSheet` exactly like the fixture-driven story. */
 export function RefineProjectsScreen() {
   const [search, setSearch] = useState('');
-  const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
   const [budgetStateValue, setBudgetStateValue] = useState('all');
   const [selected, setSelected] = useState<ProjectRow | null>(null);
@@ -93,8 +89,8 @@ export function RefineProjectsScreen() {
   ];
 
   const filters = useMemo(
-    () => buildFilters({ search, accountValue, statusValue, budgetStateValue }),
-    [search, accountValue, statusValue, budgetStateValue]
+    () => buildFilters({ search, statusValue, budgetStateValue }),
+    [search, statusValue, budgetStateValue]
   );
 
   const table = useTable<ProjectRow>({
@@ -118,7 +114,8 @@ export function RefineProjectsScreen() {
     ? { key: activeSort.field, direction: activeSort.order }
     : undefined;
 
-  const filtersActive = Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
+  const filtersActive =
+    Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
 
   const scopeSlot = (
     <div className="fieldset">
@@ -215,9 +212,6 @@ export function RefineProjectsScreen() {
             onSearchChange={setSearch}
             filters={
               <ManageControls
-                accountValue={accountValue}
-                accountOptions={manageAccountOptions}
-                onAccountChange={setAccountValue}
                 statusOptions={manageStatusOptions}
                 statusValue={statusValue}
                 onStatusChange={setStatusValue}
@@ -237,9 +231,7 @@ export function RefineProjectsScreen() {
             }
             filteredEmptyMessage={filtersActive ? 'No projects match these filters.' : undefined}
             sort={sort}
-            onSortChange={(next) =>
-              table.setSorters([{ field: next.key, order: next.direction }])
-            }
+            onSortChange={(next) => table.setSorters([{ field: next.key, order: next.direction }])}
             selectedRowKeys={selected ? [selected.id] : []}
             onSelectRow={setSelected}
             pagination={{

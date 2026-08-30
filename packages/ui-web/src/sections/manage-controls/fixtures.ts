@@ -3,6 +3,14 @@
 import type { SegmentedOption } from '../../components/segmented-control';
 import type { ManageOption } from './types';
 
+/**
+ * `ManageControls` no longer has an Account select of its own (live findings #6, 2026-08-30) —
+ * account scope is the sidebar workspace switcher's alone now — but this list survives as the
+ * seed data for `refine-mock/mock-data-provider.ts`'s `accounts` resource (`ScopeSelect` and the
+ * workspace switcher both still need a real account catalogue to pick from in Storybook). Kept
+ * here rather than moved, since it is still "the demo account roster" wherever a section needs
+ * one.
+ */
 export const manageAccountOptions: ManageOption[] = [
   { value: 'all', label: 'All accounts' },
   { value: 'adorsys-gis', label: 'adorsys-gis' },

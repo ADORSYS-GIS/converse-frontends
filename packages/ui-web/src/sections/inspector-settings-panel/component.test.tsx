@@ -30,6 +30,10 @@ describe('InspectorSettingsPanel', () => {
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByText('Account id')).toBeInTheDocument();
     expect(screen.getByText('acct_9f3a2b1c')).toBeInTheDocument();
+    // IA v3 phase 2: this panel is now the one standing place the scoped account's status is
+    // visible, following `AccountSettings`/`/settings/account`'s retirement.
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByText('growth')).toBeInTheDocument();
   });
 
@@ -81,9 +85,7 @@ describe('InspectorSettingsPanel', () => {
     const onNewAccount = vi.fn();
     const onNewProject = vi.fn();
     const onRequestRefill = vi.fn();
-    render(
-      <InspectorSettingsPanel {...props({ onNewAccount, onNewProject, onRequestRefill })} />
-    );
+    render(<InspectorSettingsPanel {...props({ onNewAccount, onNewProject, onRequestRefill })} />);
 
     screen.getByRole('button', { name: '+ New account' }).click();
     expect(onNewAccount).toHaveBeenCalled();

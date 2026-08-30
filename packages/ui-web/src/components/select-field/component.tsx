@@ -50,7 +50,12 @@ export function SelectField({
           <Select.Popup className={OVERLAY_ANCHORED_POPUP_CLASS}>
             <Select.List>
               {options.map((option) => (
-                <Select.Item key={option.value} value={option.value} className={OVERLAY_ITEM_CLASS}>
+                <Select.Item
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.disabled}
+                  title={option.reason}
+                  className={OVERLAY_ITEM_CLASS}>
                   <Select.ItemText>{option.label}</Select.ItemText>
                 </Select.Item>
               ))}

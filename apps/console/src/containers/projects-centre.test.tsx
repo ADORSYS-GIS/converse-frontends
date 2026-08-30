@@ -14,8 +14,9 @@ import type { CreateProjectDialogController } from './use-create-project-dialog'
  * `rpc-field-error.test.ts`), while this file answers the different, black-box question — is this
  * affordance on THIS screen at all.
  *
- * The account flow's own coverage moved to `account-settings-centre.test.tsx` along with the
- * flow (phase 6, admin/settings revamp: `/settings/account`, a real route now). What stays here
+ * The account flow's own coverage moved to `policies-centre.test.tsx` along with the flow (phase
+ * 6, admin/settings revamp: `/settings/account`, a real route then; IA v3 phase 2 folded it into
+ * `/settings/policies`). What stays here
  * is the inverse assertion: Projects is a filtering and browsing screen, so a core account
  * mutation appearing on it again is a regression (owner, 2026-08-29 — "We cannot modify account
  * core information on the same page we're filtering").

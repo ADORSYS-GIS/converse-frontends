@@ -12,9 +12,11 @@ import { chunkCookieName } from './server/cookie-names';
  * is; every OTHER param (`?status=active`, `?row=proj_1`, …) survives verbatim onto the target —
  * this table only ever touches `account`/`next`, nothing a screen's own `url-state.ts` parser
  * owns. `null` return means "not a legacy link this table covers" — including a bare `/` with no
- * `?account=` (already IS the resolver, `app/(console)/page.tsx`) and `/admin`/`/settings/*`
- * (deliberately NOT redirected this phase — Phase 2 moves them; see this table's own two missing
- * rows for `/admin` and `/settings/*` and `middleware.test.ts` for the full row-by-row contract).
+ * `?account=` (already IS the resolver, `app/(console)/page.tsx`).
+ *
+ * IA v3 phase 2 ("the settings area") is what `/admin`/`/settings/account`/`/settings/projects`'s
+ * own redirects (`LEGACY_STATIC_REDIRECT`, below) are for — those three paths never carried an
+ * `?account=` of their own, so they get a simpler table rather than being folded into this one.
  */
 const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'api-keys'> = {
   '/': 'overview',
@@ -22,7 +24,59 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
   '/api-keys': 'api-keys',
 };
 
-export function legacyRedirectTarget(pathname: string, searchParams: URLSearchParams): string | null {
+/**
+ * IA v3 phase 2's three path moves — exact-pathname, query-string-preserved-verbatim redirects,
+ * unlike `LEGACY_ACCOUNT_SCOPED_SEGMENT` above (none of these three ever carried an `?account=`
+ * segment of their own to extract):
+ *
+ *  - `/admin` -> `/settings/refills-queue`: the budget refill review queue moved wholesale
+ *    (`git mv`). `?request=req_9` (the selected row) and every other param survive verbatim —
+ *    `use-refills-queue-screen.ts` reads the identical param names on the new path.
+ *  - `/settings/projects` -> `/settings/policies`: project settings folded into the combined
+ *    account/project policies screen. `?row=`/`?rename=`/`?q=`/`?page=` survive verbatim —
+ *    `use-policies-screen.ts` reads `useSettingsParams()`, the same parser `/settings/projects`
+ *    used.
+ *  - `/settings/account` -> `/?next=overview`: account identity moved into the inspector rail's
+ *    standing quick-settings panel (`/`'s own Overview screen), which has no path-addressable
+ *    equivalent of "look at this specific account's settings" the way `/accounts/<id>/*` does —
+ *    middleware has no account id to route through (it never decrypts the session, see
+ *    `middleware()`'s own doc comment), so this lands on the account resolver instead of a
+ *    specific account. `?account-name=true` (the old rename-dialog trigger) is dropped along with
+ *    everything else the old route owned — the rename dialog opens from the rail now, not a URL
+ *    flag — but any OTHER param survives, same "touch only what this move actually changes" rule
+ *    the account-scoped table above follows.
+ */
+const LEGACY_STATIC_REDIRECT: Record<string, string> = {
+  '/admin': '/settings/refills-queue',
+  '/settings/projects': '/settings/policies',
+  '/settings/account': '/',
+};
+
+function legacyStaticRedirectTarget(
+  pathname: string,
+  searchParams: URLSearchParams
+): string | null {
+  const target = LEGACY_STATIC_REDIRECT[pathname];
+  if (target === undefined) return null;
+
+  if (target === '/') {
+    const remaining = new URLSearchParams(searchParams);
+    remaining.delete('account-name');
+    remaining.set('next', 'overview');
+    return `/?${remaining.toString()}`;
+  }
+
+  const query = searchParams.toString();
+  return `${target}${query ? `?${query}` : ''}`;
+}
+
+export function legacyRedirectTarget(
+  pathname: string,
+  searchParams: URLSearchParams
+): string | null {
+  const staticTarget = legacyStaticRedirectTarget(pathname, searchParams);
+  if (staticTarget) return staticTarget;
+
   const segment = LEGACY_ACCOUNT_SCOPED_SEGMENT[pathname];
   if (segment === undefined) return null;
 

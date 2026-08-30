@@ -189,7 +189,7 @@ export function OverviewCentre() {
             {screen.refillRequestStatus.submittedLabel}
           </p>
           <Link
-            href="/admin"
+            href="/settings/refills-queue"
             className="text-soft hover:text-ink mt-1 inline-block font-sans text-[11px] underline-offset-2 hover:underline">
             Review →
           </Link>

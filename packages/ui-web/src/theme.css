@@ -1713,6 +1713,74 @@
   }
 }
 
+/*
+ * `combobox-chips`/`combobox-chip`/`combobox-chip-remove`/`combobox-input` — the multi-select
+ * combobox's own control chrome (`sections/project-policy-controls`, the `Project.allowedModels`
+ * editor). Not `input` above: that class fixes a 30px single-line height, which a WRAPPING row of
+ * chips-plus-a-text-caret cannot honour once more than a couple of models are selected — this is
+ * the same `chrome`/`border`/radius language at `min-height` instead, so the two read as one
+ * control family without one clipping its own content.
+ *
+ * A chip is a square-cornered (`--radius-selector`, 4px) tag, never a pill (console-ui skill: "no
+ * pills, no `rounded-full`" — the one console surface this rule is easy to reach for `badge` on
+ * and exactly the one place it's banned).
+ */
+@utility combobox-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 30px;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-selector);
+  background-color: var(--color-neutral);
+  border: 1px solid var(--color-border);
+
+  &:focus-within,
+  &[data-popup-open] {
+    border-color: var(--color-primary);
+    outline: none;
+  }
+}
+
+@utility combobox-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-selector);
+  background-color: var(--color-raised);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+@utility combobox-chip-remove {
+  color: var(--color-subtle);
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-ink);
+  }
+}
+
+@utility combobox-input {
+  flex: 1 1 6rem;
+  min-width: 4rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-base-content);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+
+  &::placeholder {
+    color: var(--color-subtle);
+  }
+}
+
 /* `textarea` — the same treatment, keeping daisy's own 5rem min-height, with vertical-only resize
    (the browser default is `both`, and a control that can be dragged wider than its column is a
    horizontal-overflow bug waiting to happen). */
@@ -2213,6 +2281,19 @@
       color: var(--color-ink);
     }
   }
+
+  /* A genuinely non-navigable destination (`NavSpineItem.disabled` — IA v3 phase 2's "Roles"
+     entry). Real `<button disabled>`, so this is the native pseudo-class, not an attribute this
+     component has to set by hand. No hover fill, `subtle` text, and a "not allowed" cursor rather
+     than the pointer every other row wears. */
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--color-subtle);
+    &:hover {
+      background-color: transparent;
+      color: var(--color-subtle);
+    }
+  }
 }
 
 /* The label cell of a rail row: it takes whatever width the icon column and any trailing count
@@ -2383,6 +2464,17 @@
     color: var(--color-subtle);
     &:hover {
       color: var(--color-base-content);
+    }
+  }
+
+  /* Same disabled treatment as `rail-row` above — the dock flattens every group's items,
+     including a disabled one, into one strip (`NavSpine`'s own contract: one `groups` shape,
+     two CSS-hidden layouts), so it needs the identical `:disabled` rule. */
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--color-subtle);
+    &:hover {
+      color: var(--color-subtle);
     }
   }
 }

@@ -16,13 +16,7 @@ import { RAIL_ICON_SIZE, RAIL_ICON_STROKE_WIDTH } from './rail-grid';
 //
 // Structural markers, never decoration (console-ui skill) — every icon is `aria-hidden`, and the
 // row/button it sits in carries the real accessible name.
-function IconBase({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+function IconBase({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <svg
       width={RAIL_ICON_SIZE}
@@ -89,11 +83,64 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
-/** Operator / admin — a shield. */
+/** Operator / admin, and (IA v3 phase 2) the settings area's "Refills queue" entry — a shield. */
 export function AdminIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <path d="M8 2 3 4v4c0 3.5 2.5 5.3 5 6 2.5-.7 5-2.5 5-6V4L8 2Z" />
+    </IconBase>
+  );
+}
+
+/** Settings area — Roles: two people, the roster-and-permissions glyph. */
+export function RolesIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="5.5" cy="5" r="2" />
+      <path d="M2 13.5c0-2.2 1.6-3.5 3.5-3.5s3.5 1.3 3.5 3.5" />
+      <circle cx="11" cy="5.5" r="1.5" />
+      <path d="M10.5 8.3c1.6.2 2.7 1.4 2.7 3.2" />
+    </IconBase>
+  );
+}
+
+/** Settings area — Tier configs: three stacked bars of increasing width. */
+export function TiersIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 3h6M3.5 8h9M2 13h12" />
+    </IconBase>
+  );
+}
+
+/** Settings area — Account/Project policies: a document with a checked line, the governance
+ *  glyph shared by both the account and the project halves of the screen. */
+export function PoliciesIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 2h5.5L12 4.5V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" />
+      <path d="M5.5 8.2 7 9.7 10.5 6.2" />
+    </IconBase>
+  );
+}
+
+/** Settings area — Refill options policies: a gauge, the budget-rule glyph. */
+export function RefillOptionsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 11.5a5 5 0 0 1 10 0" />
+      <path d="M8 11.5 10.3 7" />
+      <circle cx="8" cy="11.5" r="0.75" fill="currentColor" stroke="none" />
+    </IconBase>
+  );
+}
+
+/** Settings area — Info: a lowercase "i" in a circle. */
+export function InfoIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 7.3v4M8 5.2v.1" />
     </IconBase>
   );
 }

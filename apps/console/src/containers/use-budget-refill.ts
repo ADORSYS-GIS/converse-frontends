@@ -21,7 +21,7 @@ import { useSharedMutation, useSharedMutationState } from '../client/use-shared-
  * `useMutationState`/`findAll` (`use-shared-mutation.ts`'s own doc comment), so changing its
  * contents — even just the array's own literal strings — would silently stop `/`'s existing
  * `refillErrorMessage` (still reading this key) from agreeing with a submit made from the dialog.
- * Same idiom `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY` already documents: "two zones mean two
+ * Same idiom `use-refills-queue-screen.ts`'s `DECIDE_MUTATION_KEY` already documents: "two zones mean two
  * `useMutation` instances... reading the outcome from the shared `MutationCache` is what makes one
  * instance's failure visible to the other" — here the two zones are `/`'s own screen and whichever
  * mounts `RequestRefillDialog` (the layout).

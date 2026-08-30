@@ -47,7 +47,7 @@ export function relativeAge(iso: string, now: number): string {
 }
 
 /**
- * `projectLabel`/`accountLabel` are resolved by the caller (`use-admin-screen.ts`, the same way
+ * `projectLabel`/`accountLabel` are resolved by the caller (`use-refills-queue-screen.ts`, the same way
  * `use-overview-screen.ts` resolves its own scope labels from `useConsoleScope()`'s
  * `allProjects`/`allAccounts`) — this module has no data source of its own to resolve an id
  * against, and a raw `projectId`/`accountId` is never an acceptable label

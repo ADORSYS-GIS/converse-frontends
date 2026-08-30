@@ -60,19 +60,28 @@ function NavItemRow({
   const active = Boolean(item.active);
   const Link = linkComponent;
 
+  // A disabled item is always a real `<button disabled>` — never `href`, never `onSelect` — so
+  // there is nothing for `NavigationMenu.Link`'s own click handling to fire even if a caller
+  // passed one by mistake. `title` carries the honest reason (same disabled-button+title idiom
+  // `use-create-project-dialog.ts`'s own trigger uses); `rail-row`/`nav-dock-row`'s own
+  // `&:disabled` rule (`theme.css`) mutes the paint — no extra class needed here.
+  const render = item.disabled ? (
+    <button type="button" disabled title={item.reason}>
+      {children}
+    </button>
+  ) : item.href ? (
+    <Link href={item.href}>{children}</Link>
+  ) : (
+    <button type="button">{children}</button>
+  );
+
   return (
     <NavigationMenu.Item>
       <NavigationMenu.Link
         active={active}
         className={rowClassName}
-        onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
-        render={
-          item.href ? (
-            <Link href={item.href}>{children}</Link>
-          ) : (
-            <button type="button">{children}</button>
-          )
-        }
+        onClick={item.disabled || !item.onSelect ? undefined : () => item.onSelect?.(item.key)}
+        render={render}
       />
     </NavigationMenu.Item>
   );
@@ -118,9 +127,7 @@ function BottomBarRow({
 function SidebarGroup({ group, linkComponent }: { group: NavGroup; linkComponent: LinkComponent }) {
   return (
     <>
-      {group.label ? (
-        <li className="menu-title sidebar-group-label">{group.label}</li>
-      ) : null}
+      {group.label ? <li className="menu-title sidebar-group-label">{group.label}</li> : null}
       {group.items.map((item) => (
         <NavRow key={item.key} item={item} linkComponent={linkComponent} />
       ))}

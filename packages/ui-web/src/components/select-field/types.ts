@@ -1,6 +1,15 @@
 export interface SelectFieldOption {
   value: string;
   label: string;
+  /**
+   * Renders the option non-selectable — `sections/project-policy-controls`' own use: the backend
+   * rejects switching `modelPolicy` to `allowlist` while `allowedModels` is empty with a
+   * `BadRequest` (`setProjectModelPolicy`'s own doc comment, `authz.cstack`), so the option is
+   * disabled rather than offered-then-failing. `reason` is the disabled option's own `title`
+   * tooltip.
+   */
+  disabled?: boolean;
+  reason?: string;
 }
 
 /**

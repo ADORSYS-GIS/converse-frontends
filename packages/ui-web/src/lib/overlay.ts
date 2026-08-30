@@ -46,7 +46,7 @@ export const OVERLAY_BACKDROP_CLASS = 'fixed inset-0 z-50 bg-muted/80';
  * `utilities` while daisy emits into a sublayer of it, so this wins with no `!important`.
  */
 export const OVERLAY_ITEM_CLASS =
-  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft shadow-none outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink data-[selected=true]:bg-raised data-[selected=true]:text-ink';
+  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft shadow-none outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink data-[selected=true]:bg-raised data-[selected=true]:text-ink data-[disabled]:cursor-not-allowed data-[disabled]:text-subtle data-[disabled]:opacity-60 data-[disabled]:hover:bg-transparent';
 
 /** Hairline rule between groups inside an overlay. */
 export const OVERLAY_SEPARATOR_CLASS = 'mx-1 my-1 h-px bg-raised';

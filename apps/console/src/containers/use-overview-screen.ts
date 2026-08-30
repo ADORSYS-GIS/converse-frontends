@@ -42,7 +42,7 @@ import {
 import { apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { microsToAmount } from './refill-rows';
-import { useAdminScreen } from './use-admin-screen';
+import { useRefillsQueueScreen } from './use-refills-queue-screen';
 import {
   smallestAllowedAmountMicros,
   useBudgetRefillLadder,
@@ -77,9 +77,9 @@ import {
  * MODEL, BudgetHero consumption-vs-ceiling, the refill control, and now Export — matches what `/`
  * already did. Layered on top, ADMIN-ONLY and firing NO extra query for a non-admin: the
  * per-project budget-pressure query feeding `adminPressure`, an account-wide API-key listing
- * feeding `adminHygiene`, and the pending-refill queue (`useAdminScreen`, shared by query key with
+ * feeding `adminHygiene`, and the pending-refill queue (`useRefillsQueueScreen`, shared by query key with
  * `/admin`'s own review centre and the sidebar's nav count) feeding `refillRequestStatus`. Every
- * admin-only query below passes its own `enabled: … && isAdmin` (or, for `useAdminScreen`, its own
+ * admin-only query below passes its own `enabled: … && isAdmin` (or, for `useRefillsQueueScreen`, its own
  * `enabled` parameter) rather than relying on the caller never mounting for a non-admin — `/`
  * mounts for everyone.
  *
@@ -422,7 +422,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   // the exact same query/mutation this screen only READS from now: `refillErrorMessage` stays
   // visible here via the shared `MutationCache` (`useOverviewRefillOutcome`) even though the
   // actual submit happens inside the dialog, the same "two zones, one shared outcome" idiom
-  // `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY` already documents.
+  // `use-refills-queue-screen.ts`'s `DECIDE_MUTATION_KEY` already documents.
   const ladder = useBudgetRefillLadder();
   const refillOutcome = useOverviewRefillOutcome();
   const openRefillDialog = useOpenRequestRefillDialog();
@@ -620,9 +620,9 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const adminKeysTotal = adminApiKeys.result.total ?? adminApiKeys.result.data.length;
 
   // ── phase 4, admin-only: pending refill requests — the SAME query `/admin`'s review centre
-  // and the sidebar's nav count read, shared by query key (`use-admin-screen.ts`'s own doc
+  // and the sidebar's nav count read, shared by query key (`use-refills-queue-screen.ts`'s own doc
   // comment), fired only for an admin.
-  const queue = useAdminScreen(isAdmin);
+  const queue = useRefillsQueueScreen(isAdmin);
 
   return {
     scopeAccountLabel,

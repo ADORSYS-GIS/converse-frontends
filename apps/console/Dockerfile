@@ -26,23 +26,22 @@
 # Fully-qualified (docker.io/library/…) so rootless Buildah resolves it without
 # `unqualified-search-registries` configured on the runner (a bare `node:…` short-name fails there
 # with "did not resolve to an alias") — same reasoning as the root Dockerfile.
-FROM docker.io/library/node:22.23.2-alpine3.24
+FROM docker.io/library/node:22.23.2-bookworm-slim
 
 # Update Alpine packages to the latest security patches (mirrors the root Dockerfile).
 #
-# libc6-compat: the CI runner that produces .next/standalone is glibc-based (ubuntu-latest), so any
-# prebuilt native addon Next traced into node_modules (sharp, for /_next/image optimization — the
-# console doesn't use next/image today, but Next still lists sharp as an optional dependency of the
-# `next` package itself and the tracer can pull its glibc-linked binary in regardless) is glibc, not
-# musl. Alpine's musl libc cannot load a glibc-linked .so directly; libc6-compat is Alpine's own
-# compatibility package providing the glibc shared libraries such a binary needs. This is the same
-# fix Next.js's own official Docker deployment example applies, for the same reason.
-RUN apk update && \
-    apk upgrade --no-cache && \
-    apk add --no-cache libc6-compat && \
-    rm -rf /var/cache/apk/*
+# glibc base (2026-08-31, supersedes the libc6-compat/Alpine era): @cratestack/cbor-node ships
+# glibc-only prebuilds (no -musl variant, cratestack#850), and Alpine's musl — even with
+# libc6-compat's shim — cannot load them. Proven in a real linux/amd64 image build: the usage
+# scope guard's codec never initialized, so its slow path fail-closed on every child-account
+# query while every local gate stayed green (the standalone tracer/host runs glibc). bookworm-slim
+# is the smallest official glibc node image; sharp and every other traced native addon load
+# natively on it, ending the compat-shim class entirely.
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-# The base `node:*-alpine` image bundles npm (and npx) as part of the Node distribution —
+# The base `node:*` image bundles npm (and npx) as part of the Node distribution —
 # `/usr/local/lib/node_modules/npm/` plus its own vendored `node_modules/**`, symlinked from
 # `/usr/local/bin/npm` and `/usr/local/bin/npx`. A Next.js `output: 'standalone'` runtime never
 # shells out to npm: `.next/standalone/server.js` is started directly with `node`, and this image

@@ -29,6 +29,7 @@ import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
 import { accountScopeLabel } from './account-label';
+import { isHomeAccount } from './account-ownership';
 import {
   OVERVIEW_BUCKETS,
   OVERVIEW_GROUP_BYS,
@@ -39,11 +40,12 @@ import {
   useOverviewParams,
   type ReportIncludeId,
 } from '../client/url-state';
-import { apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
+import { apiKeysAccountFilters, apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { microsToAmount } from './refill-rows';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
 import {
+  BUDGET_HOME_ACCOUNT_ONLY_NOTE,
   smallestAllowedAmountMicros,
   useBudgetRefillLadder,
   useOverviewRefillOutcome,
@@ -148,9 +150,11 @@ const REPORT_MUTATION_KEY = ['overview', 'report'] as const;
 /**
  * How many API keys the admin hygiene block reads in one page, and how many projects the admin
  * pressure/hygiene zones resolve names against — lifted verbatim from the deleted
- * `use-admin-overview-screen.ts`. See that file's own `KEYS_PAGE_SIZE` doc comment (git history)
- * for why `listApiKeys` has to be paged and matched against the account's own project ids rather
- * than filtered directly: `ApiKey` carries `projectId`, never `accountId`.
+ * `use-admin-overview-screen.ts`. `ApiKey` carries `projectId`, never `accountId`
+ * (`authz.cstack:393-431`), so the account-wide `apiKeys` fetch below is filtered indirectly,
+ * `projectId in [this account's own project ids]` (`apiKeysAccountFilters`, Phase 2d account-
+ * scoping audit) — a real server-side filter, not the identity-wide fetch + client-side
+ * `Set.has` re-filter this used to be.
  */
 const KEYS_PAGE_SIZE = 100;
 const PROJECTS_PAGE_SIZE = 100;
@@ -257,12 +261,24 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : [],
   });
 
-  // See `activeApiKeysCountFilters`'s own doc comment (live findings #5, 2026-08-30) — this used
-  // to be an unfiltered count and included revoked keys.
+  // The account's own project ids — `scope.projects` is already scoped to `scope.value.accountId`
+  // (`use-console-scope.ts`'s Phase 2d fix).
+  const accountProjectIds = useMemo(
+    () => scope.projects.map((project) => project.id),
+    [scope.projects]
+  );
+
+  // See `activeApiKeysCountFilters`'s own doc comment (live findings #5, 2026-08-30; scoped to the
+  // account by Phase 2d) — this used to be an unfiltered count, including revoked keys AND keys
+  // belonging to other accounts the identity can see.
+  const apiKeysCountFilters = activeApiKeysCountFilters(scope.value.projectId, accountProjectIds);
   const apiKeys = useList<ApiKey>({
     resource: 'apiKeys',
     pagination: { currentPage: 1, pageSize: 1 },
-    filters: activeApiKeysCountFilters(scope.value.projectId),
+    filters: apiKeysCountFilters ?? [],
+    // `null` means there is no safe filter to send yet (project ids not loaded, or the account has
+    // none) — never fire this unfiltered; see `apiKeysAccountFilters`'s own doc comment.
+    queryOptions: { enabled: apiKeysCountFilters !== null },
   });
 
   const scopeProjectLabel =
@@ -403,6 +419,13 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   // at most once a session, and this keeps the budget queries' keys stable across re-renders.
   const period = useMemo(() => currentBudgetPeriod(), []);
 
+  // Phase 2d (account-scoping audit): `getMyBudgetBalance` structurally answers for the caller's
+  // HOME account only (see `BUDGET_HOME_ACCOUNT_ONLY_NOTE`'s own doc comment) — computed once here
+  // and threaded through both the balance query's `enabled` guard and the `budget` memo below, so
+  // neither can independently drift into showing the home account's numbers under a different
+  // account's label.
+  const accountIsHome = isHomeAccount(accountId, session);
+
   const consumptionQuery = useQuery({
     queryKey: ['usage', 'budget-consumption', accountId, period],
     queryFn: () => queryUsage(buildBudgetConsumptionRequest(accountId, new Date())),
@@ -413,7 +436,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const balanceQuery = useQuery({
     queryKey: ['budget', 'myBalance', accountId, period],
     queryFn: () => budgetClient.procedures.getMyBudgetBalance({ args: { period } }),
-    enabled: Boolean(accountId),
+    enabled: Boolean(accountId) && accountIsHome,
     staleTime: 30_000,
   });
 
@@ -428,6 +451,13 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const openRefillDialog = useOpenRequestRefillDialog();
 
   const budget: BudgetSummary = useMemo(() => {
+    // Checked FIRST, before either query's own status: a non-home account never fires
+    // `balanceQuery` at all (see its `enabled` guard above), so falling through to the ordinary
+    // `isPending`/`isError` branches below would render it as a permanently-loading card instead
+    // of the honest, explained gap `BudgetSummaryUnwired` is for.
+    if (!accountIsHome) {
+      return { status: 'unwired', caption: BUDGET_HOME_ACCOUNT_ONLY_NOTE };
+    }
     if (consumptionQuery.isError) {
       return {
         status: 'error',
@@ -455,6 +485,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       caption: `account ceiling · ${percent}% used this period`,
     };
   }, [
+    accountIsHome,
     consumptionQuery.isError,
     consumptionQuery.isPending,
     consumptionQuery.data,
@@ -598,21 +629,31 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     queryOptions: { enabled: isAdmin },
   });
 
+  // Phase 2d (account-scoping audit, converse-frontends#368/#392): this used to fetch `apiKeys`
+  // with NO filter at all, then re-filter client-side to `adminProjects`' own ids — a fetch of
+  // (up to) `KEYS_PAGE_SIZE` keys drawn from EVERY account the identity can see, of which only
+  // however many happened to belong to this account survived the client-side filter. Sending
+  // `projectId in […]` server-side instead means the page itself is this account's own keys, not
+  // a truncated slice of a cross-account page.
+  const adminAccountProjectIds = useMemo(
+    () => adminProjects.result.data.map((project) => project.id),
+    [adminProjects.result.data]
+  );
+  const adminApiKeysFilters = apiKeysAccountFilters({
+    projectId: null,
+    accountProjectIds: adminAccountProjectIds,
+  });
+
   const adminApiKeys = useList<ApiKey>({
     resource: 'apiKeys',
     pagination: { currentPage: 1, pageSize: KEYS_PAGE_SIZE },
-    queryOptions: { enabled: isAdmin },
+    filters: adminApiKeysFilters ?? [],
+    // Never fires while `adminProjects` itself is still resolving (or the account genuinely has no
+    // projects, hence no keys) — an unfiltered fetch here is exactly the defect this phase closes.
+    queryOptions: { enabled: isAdmin && adminApiKeysFilters !== null },
   });
 
-  const accountProjectIds = useMemo(
-    () => new Set(adminProjects.result.data.map((project) => project.id)),
-    [adminProjects.result.data]
-  );
-
-  const accountKeys = useMemo(
-    () => adminApiKeys.result.data.filter((key) => accountProjectIds.has(key.projectId)),
-    [adminApiKeys.result.data, accountProjectIds]
-  );
+  const accountKeys = adminApiKeys.result.data;
 
   // The fetch timestamp, not `Date.now()`: reading the clock during render is impure, and an
   // "expires in N days" count is relative to when the listing was read.
@@ -629,7 +670,10 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     scopeProjectLabel,
     subline: `${RANGE_LABELS[view.range]} · UTC`,
     statCards,
-    statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading,
+    // `|| scope.loading`: `apiKeys` is disabled (never "loading") until `accountProjectIds`
+    // resolves — see `apiKeysCountFilters`'s own guard above — so the stat card must not settle on
+    // a false "0 active keys" before scope itself has actually loaded.
+    statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading || scope.loading,
     // `''` is the parser default (absent from the URL); the chart sections speak `null`.
     selectedSeriesKey: view.series || null,
     setSelectedSeriesKey: (series) => {
@@ -743,12 +787,13 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       ? {
           hygiene: apiKeysHygiene(accountKeys, adminKeysReadAt),
           summary: apiKeysStatusSummary(accountKeys, adminKeysReadAt),
-          // Precise about WHAT was truncated: the key LISTING is unfiltered (an `ApiKey` carries
-          // no `accountId` to filter on), so a total above one page means keys belonging to this
-          // account may sit beyond it.
+          // The listing IS now scoped to this account's own projects server-side
+          // (`adminApiKeysFilters`, Phase 2d) — the only remaining truncation is genuine
+          // pagination: an account holding more than `KEYS_PAGE_SIZE` keys has more beyond this
+          // one page.
           caveat:
             adminKeysTotal > adminApiKeys.result.data.length
-              ? `Counted over the first ${adminApiKeys.result.data.length} of ${adminKeysTotal} keys the listing returned — any of this account’s keys beyond that page are not included.`
+              ? `Counted over the first ${adminApiKeys.result.data.length} of ${adminKeysTotal} keys in this account — the rest are beyond this page.`
               : undefined,
         }
       : undefined,

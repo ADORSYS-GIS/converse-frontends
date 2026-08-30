@@ -41,3 +41,25 @@ export function isOwnedAccountId(
   const account = allAccounts.find((candidate) => candidate.id === accountId);
   return isAccountOwner(account, session);
 }
+
+/**
+ * Is `accountId` the signed-in identity's **home** account — the one `federated_identities`
+ * adopted, where `id === subject === userId` (`Account.userId`'s "LOAD-BEARING INVARIANT" comment
+ * in `authz.cstack`)? This is a NARROWER question than `isAccountOwner`/`isOwnedAccountId`: every
+ * account an identity owns (home or a later, minted-id second account) passes ownership, but only
+ * the home account's `id` equals `auth().id`.
+ *
+ * That distinction is load-bearing for the self-service budget domain (Phase 2d account-scoping
+ * audit, converse-frontends#368): `getMyBudgetBalance`/`getMyBudgetRefillLadder`
+ * (`authz.cstack:1291,1471`) take no target account at all — they always answer for `auth().id`,
+ * i.e. the caller's home account, by construction. There is currently no `budget:read-own`-gated
+ * way to ask either question about a second, non-home account (the admin equivalents,
+ * `getBudgetBalance`/`getBudgetPolicyStatus`, need the operator-only `budget:read` permission a
+ * plain second-account owner does not hold) — see lightbridge-authz#577, the backend gap filed
+ * from this audit. Every call site that reads the budget domain for
+ * `scope.value.accountId` must check this first and render an honest gap instead of silently
+ * showing the home account's numbers under a different account's label.
+ */
+export function isHomeAccount(accountId: string, session: SessionResponse): boolean {
+  return session.user != null && accountId === session.user.sub;
+}

@@ -30,9 +30,11 @@ import { accountScopeLabel } from './account-label';
 import {
   DEFAULT_KEY_EXPIRY_DAYS,
   EXPIRY_DAY_OPTIONS,
+  apiKeysAccountFilters,
   apiKeysHygiene,
   computeExpiresAtIso,
   toApiKeyRows,
+  type ApiKeysFilter,
 } from './api-key-rows';
 
 /**
@@ -203,11 +205,24 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const client = useConsoleAuthzClient();
   const [view, setView] = useApiKeysParams();
 
+  // The account's own project ids — `scope.projects` is already scoped to `scope.value.accountId`
+  // (`use-console-scope.ts`'s Phase 2d fix), so mapping it to ids is all `apiKeysAccountFilters`
+  // needs to build the `projectId in […]` filter below.
+  const accountProjectIds = useMemo(() => scope.projects.map((project) => project.id), [
+    scope.projects,
+  ]);
+
+  const accountFilters = useMemo(
+    () => apiKeysAccountFilters({ projectId: scope.value.projectId, accountProjectIds }),
+    [scope.value.projectId, accountProjectIds]
+  );
+
   const filters = useMemo(() => {
-    const active = [];
-    if (scope.value.projectId) {
-      active.push({ field: 'projectId', operator: 'eq' as const, value: scope.value.projectId });
-    }
+    const active: Array<
+      | ApiKeysFilter
+      | { field: 'status'; operator: 'eq'; value: string }
+      | { field: 'name'; operator: 'contains'; value: string }
+    > = [...(accountFilters ?? [])];
     if (view.status !== 'all') {
       active.push({ field: 'status', operator: 'eq' as const, value: view.status });
     }
@@ -215,13 +230,20 @@ export function useApiKeysScreen(): ApiKeysScreen {
       active.push({ field: 'name', operator: 'contains' as const, value: view.search.trim() });
     }
     return active;
-  }, [scope.value.projectId, view.status, view.search]);
+  }, [accountFilters, view.status, view.search]);
 
   const list = useList<ApiKey>({
     resource: 'apiKeys',
     pagination: { currentPage: view.page, pageSize: PAGE_SIZE },
     filters,
     sorters: [{ field: SORT_FIELD_BY_KEY[view.sortKey], order: view.sortDirection }],
+    // Live findings-style guard (Phase 2d): `accountFilters` is `null` exactly when there is no
+    // safe project filter to send yet (the account's own project ids have not loaded, or the
+    // account genuinely has none) — never fire an UNSCOPED `apiKeys` list in either case. This is
+    // the actual fix for the owner-observed defect: `/accounts/A/api-keys` and
+    // `/accounts/B/api-keys` used to render the SAME key list because no filter at all was sent
+    // once `scope.value.projectId` was empty.
+    queryOptions: { enabled: accountFilters !== null },
   });
 
   // `mutation` is the underlying react-query `UseMutationResult` — its own `.error`/`.isPending`
@@ -473,7 +495,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
       scope.projects.find((project) => project.id === scope.value.projectId)?.label ??
       'All projects',
     rows,
-    loading: list.query.isLoading,
+    // `|| scope.loading`: matches `use-projects-screen.ts`'s "live findings #1" fix — while the
+    // account's own project ids are still resolving, `list` is disabled (`accountFilters === null`
+    // above) and settles instantly with zero rows, which must NOT render as a genuine empty
+    // ledger until scope itself has actually resolved.
+    loading: list.query.isLoading || scope.loading,
     errorMessage: list.query.isError ? 'Could not load API keys.' : secret.errorMessage,
     hygiene: apiKeysHygiene(keys, now),
     // Addition D — the CREATE half of this shared outcome now shows inside `createKeyDialog`

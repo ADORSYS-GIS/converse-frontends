@@ -94,6 +94,44 @@ export function apiKeysHygiene(keys: ApiKey[], now: number): ApiKeysHygiene {
   };
 }
 
+/** One `apiKeys` list filter — a plain object, not the cratestack-generated `CrudFilter` type,
+ *  to keep this module dependency-free of refine (same split every other filter/request builder
+ *  in this app follows). */
+export type ApiKeysFilter =
+  | { field: 'projectId'; operator: 'eq'; value: string }
+  | { field: 'projectId'; operator: 'in'; value: string[] };
+
+/**
+ * Every account-scoped `apiKeys` query's own project filter (Phase 2d, account-scoping audit,
+ * converse-frontends#368/#392). `ApiKey` carries `projectId`, never `accountId`
+ * (`authz.cstack:393-431`) — there is no direct "every key under this account" filter field — so
+ * this resolves it the same way every account-scoped apiKeys read in the console now does:
+ * `projectId in [the account's own project ids]`, using cratestack's `in` operator
+ * (`@cratestack/refine`'s `filter-operators.ts` lists it as supported, joined comma-separated on
+ * the wire).
+ *
+ * `projectId` — a caller-picked single project, e.g. the toolbar's own filter — always wins over
+ * the broader account-wide `in`: it is a strict subset of the account anyway, and `eq` keeps the
+ * common case (a project actually chosen) the cheapest query shape.
+ *
+ * Returns `null`, never `{ field: 'projectId', operator: 'in', value: [] }`, when there is no
+ * project to filter by yet (`accountProjectIds` empty and no explicit `projectId`) — an empty
+ * `in` list is genuinely ambiguous on the wire (cratestack's own `filterValue` renders it as the
+ * empty string, `projectId__in=`, which is not a documented "match nothing" contract). Every call
+ * site treats `null` as "do not fire this query at all," never as "fire it unfiltered" — see
+ * `use-api-keys-screen.ts`/`use-overview-screen.ts`'s own `queryOptions.enabled` guards.
+ */
+export function apiKeysAccountFilters(input: {
+  projectId: string | null;
+  accountProjectIds: readonly string[];
+}): ApiKeysFilter[] | null {
+  if (input.projectId) {
+    return [{ field: 'projectId', operator: 'eq', value: input.projectId }];
+  }
+  if (input.accountProjectIds.length === 0) return null;
+  return [{ field: 'projectId', operator: 'in', value: [...input.accountProjectIds] }];
+}
+
 export function apiKeysStatusSummary(keys: ApiKey[], now: number): string {
   const rows = keys.map((key) => apiKeyStatus(key, now));
   const active = rows.filter((status) => status === 'active').length;

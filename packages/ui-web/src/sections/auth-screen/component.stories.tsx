@@ -43,8 +43,10 @@ export const Redirecting: Story = {
   ),
 };
 
-// README §5.5 callback error: ErrorLine under the button with the provider's reason as a
-// sentence + a "Try again" ghost button. Never a raw OIDC error code.
+// Phase 7 polish: the ErrorLine renders ABOVE the primary control (reason before decision), and
+// there is exactly one control -- the primary button relabels itself "Try again" and calls
+// `onRetry` rather than duplicating a second retry button under the ErrorLine. Never a raw OIDC
+// error code.
 export const CallbackError: Story = {
   render: (args) => (
     <div className="min-h-screen w-full bg-muted">
@@ -54,6 +56,17 @@ export const CallbackError: Story = {
         errorMessage={authCallbackErrorMessage}
         onRetry={() => {}}
       />
+    </div>
+  ),
+};
+
+// Phase 7 polish: the subtle docs/support escape hatch under the primary control. Every current
+// caller omits `supportHref` (no docs URL exists in the repo yet) -- this story is the one place
+// proving the link itself renders correctly once a caller has a real URL to pass.
+export const WithSupportLink: Story = {
+  render: (args) => (
+    <div className="min-h-screen w-full bg-muted">
+      <AuthScreen {...args} supportHref="https://docs.example.com/console/sign-in" />
     </div>
   ),
 };
@@ -80,6 +93,19 @@ export const MobileBaseTier: Story = {
   render: (args) => (
     <div className="min-h-screen w-full bg-muted">
       <AuthScreen {...args} />
+    </div>
+  ),
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `CallbackError` -- the state with the
+// most tokens in play (signal-coloured message, primary button), so this is the variant most
+// likely to reveal a dark-only assumption.
+export const CallbackErrorLight: Story = {
+  name: 'Callback error — wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: (args) => (
+    <div className="min-h-screen w-full bg-muted">
+      <AuthScreen {...args} status="error" errorMessage={authCallbackErrorMessage} onRetry={() => {}} />
     </div>
   ),
 };

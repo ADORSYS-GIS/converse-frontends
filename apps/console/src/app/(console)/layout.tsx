@@ -48,7 +48,7 @@ import { useRequestRefillDialog } from '../../containers/use-request-refill-dial
  * layout reads the pathname and the raw selection query params — cheap, no data fetching of its
  * own — to decide only WHETHER to mount `InspectorRail` at all; the component decides WHAT once
  * mounted. This also means `InspectorRail`'s own route-specific screen hooks
- * (`useProjectsScreen`/`useAdminScreen`) never fire on a route where their content would not be
+ * (`useProjectsScreen`/`useRefillsQueueScreen`) never fire on a route where their content would not be
  * shown anyway — no wasted query on `/api-keys`, `/settings/*`, or an unselected `/projects`.
  *
  * The owner's locked layout contract (2026-08-30 restatement): "Right rail shall be there... and
@@ -58,7 +58,7 @@ import { useRequestRefillDialog } from '../../containers/use-request-refill-dial
  *
  * Below `lg`, `ConsoleShell` never renders the rail column at all (`INSPECTOR_RAIL_CLASS`'s own
  * `hidden lg:flex`) — the SAME selection-driven content instead opens as a `BottomSheet` from each
- * route's own centre (`projects-centre.tsx`, `admin-centre.tsx`), and the quick-settings panel has
+ * route's own centre (`projects-centre.tsx`, `refills-queue-centre.tsx`), and the quick-settings panel has
  * no below-`lg` equivalent at all (its actions are reachable via the Budget card, the switcher and
  * `/settings` directly there).
  *
@@ -92,13 +92,21 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
   // file's own doc comment); the typed parsers, and the actual data fetch, live inside the
   // screen hooks `InspectorRail` itself calls once mounted.
   //
-  // `/accounts/<id>/overview|projects` segment matches (IA v3 phase 1) — `/admin` keeps its plain
-  // match, since it isn't moving under `/accounts/*` this phase.
+  // `/accounts/<id>/overview|projects` segment matches (IA v3 phase 1).
+  //
+  // IA v3 phase 2 ("the settings area") adds the FIRST clause: `/settings/*` never shows a rail,
+  // at any tier, on any selection — the deliverable is explicit ("no right rail anywhere in
+  // settings"). This also retires the old `pathname === '/admin' && …'request'` clause outright
+  // rather than translating it to `/settings/refills-queue`: `/admin` itself is gone (moved
+  // wholesale, `git mv … settings/refills-queue`), and its selection-driven review detail is now
+  // ALWAYS a `BottomSheet` — `refills-queue-centre.tsx`'s own doc comment on why its sheet lost
+  // its `lg:hidden` gating: with no rail to hand off to at `lg`+, the sheet is the review surface
+  // at every tier, not only below it.
   const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
   const showRail =
-    accountScopedSegment === 'overview' ||
-    (accountScopedSegment === 'projects' && Boolean(searchParams.get('row'))) ||
-    (pathname === '/admin' && Boolean(searchParams.get('request')));
+    !pathname.startsWith('/settings') &&
+    (accountScopedSegment === 'overview' ||
+      (accountScopedSegment === 'projects' && Boolean(searchParams.get('row'))));
 
   return (
     <>

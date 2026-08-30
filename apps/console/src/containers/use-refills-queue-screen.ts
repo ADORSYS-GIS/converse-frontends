@@ -14,7 +14,7 @@ import { isPending, microsToAmount, toRefillRequestRow } from './refill-rows';
 
 /**
  * `/admin` — the budget refill review queue's data adapter, shared by its centre
- * (`admin-centre.tsx`) and the `DetailSheet` it opens on row pick.
+ * (`refills-queue-centre.tsx`) and the `DetailSheet` it opens on row pick.
  *
  * Unlike the other screens this one is not refine-driven: `listPendingAugmentationRequests`,
  * `approveAugmentationRequest` and `rejectAugmentationRequest` are cratestack **procedures** on
@@ -58,7 +58,7 @@ const QUERY_KEY = ['budget', 'pendingAugmentationRequests', PAGE_SIZE];
  */
 const DECIDE_MUTATION_KEY = ['budget', 'decideAugmentationRequest'];
 
-export interface AdminScreen {
+export interface RefillsQueueScreen {
   pending: RefillRequestRow[];
   pendingCount: number;
   loading: boolean;
@@ -79,13 +79,13 @@ export interface AdminScreen {
 
 /**
  * `enabled` (phase 4) — gates the network fetch only, never the hook's other state. Two more
- * callers share this hook besides `AdminCentre`'s own full queue view: `use-overview-screen.ts`
+ * callers share this hook besides `RefillsQueueCentre`'s own full queue view: `use-overview-screen.ts`
  * derives its "Refill requests" card from the same query, and `console-chrome.tsx`'s sidebar
  * derives the Operator nav row's trailing count from it, both fired only `session.isAdmin ===
  * true` ("fire NO extra query for non-admins" — shell revamp phase 4 brief). Defaults to `true` so
- * `AdminCentre` — already behind the server-side role gate — needs no change.
+ * `RefillsQueueCentre` — already behind the server-side role gate — needs no change.
  */
-export function useAdminScreen(enabled = true): AdminScreen {
+export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
   const scope = useConsoleScope();

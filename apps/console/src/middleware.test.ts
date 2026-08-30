@@ -108,14 +108,35 @@ describe('legacyRedirectTarget', () => {
     expect(legacyRedirectTarget('/api-keys', params(''))).toBe('/?next=api-keys');
   });
 
-  it('/admin is left alone this phase — Phase 2 moves it, not this table', () => {
-    expect(legacyRedirectTarget('/admin', params(''))).toBeNull();
-    expect(legacyRedirectTarget('/admin', params('account=A'))).toBeNull();
+  // IA v3 phase 2 ("the settings area") — the three static path moves, `LEGACY_STATIC_REDIRECT`.
+  it('/admin -> /settings/refills-queue, every param (incl. the selected request) surviving verbatim', () => {
+    expect(legacyRedirectTarget('/admin', params(''))).toBe('/settings/refills-queue');
+    expect(legacyRedirectTarget('/admin', params('request=req_9'))).toBe(
+      '/settings/refills-queue?request=req_9'
+    );
   });
 
-  it('/settings/* is left alone this phase, with or without a stray ?account=', () => {
-    expect(legacyRedirectTarget('/settings/account', params(''))).toBeNull();
-    expect(legacyRedirectTarget('/settings/projects', params('account=A'))).toBeNull();
+  it('/settings/projects -> /settings/policies, params surviving verbatim (same parser, new route)', () => {
+    expect(legacyRedirectTarget('/settings/projects', params(''))).toBe('/settings/policies');
+    expect(legacyRedirectTarget('/settings/projects', params('row=proj_1&q=demo'))).toBe(
+      '/settings/policies?row=proj_1&q=demo'
+    );
+  });
+
+  it('/settings/account -> /?next=overview — no account id for middleware to route through', () => {
+    expect(legacyRedirectTarget('/settings/account', params(''))).toBe('/?next=overview');
+    // The old rename-dialog trigger param is dropped; an unrelated param survives.
+    expect(legacyRedirectTarget('/settings/account', params('account-name=true&q=x'))).toBe(
+      '/?q=x&next=overview'
+    );
+  });
+
+  it('every OTHER /settings/* path is left alone — it is a live route, not a legacy link', () => {
+    expect(legacyRedirectTarget('/settings/policies', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/tiers', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/info', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/overview', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/refills-queue', params(''))).toBeNull();
   });
 
   it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {

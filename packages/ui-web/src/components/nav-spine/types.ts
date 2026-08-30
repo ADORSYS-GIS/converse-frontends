@@ -19,6 +19,16 @@ export interface NavSpineItem {
    * nav rendering on it — show nothing while loading").
    */
   count?: number;
+  /**
+   * Renders the row as a genuinely non-navigable destination (IA v3 phase 2 — `/settings`'
+   * "Roles" entry: the read API it would need does not exist yet). A disabled item never carries
+   * `href`/`onSelect` in practice — the row renders a real `<button disabled>` either way, so
+   * activating it can never navigate or fire a callback regardless of what the caller passes.
+   */
+  disabled?: boolean;
+  /** Shown as the disabled row's `title` tooltip — the honest reason it isn't reachable yet.
+   *  Only meaningful alongside `disabled: true`. */
+  reason?: string;
 }
 
 /**

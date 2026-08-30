@@ -89,11 +89,44 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gates the /admin route server-side on the admin role', () => {
-    const source = read(join(CONSOLE_GROUP, 'admin', 'page.tsx'));
+  it('gates /settings/refills-queue server-side on the admin role (the former /admin)', () => {
+    // IA v3 phase 2: `/admin` moved wholesale to `/settings/refills-queue` (`git mv`, gate kept
+    // verbatim) — `settings-route-gate.test.ts` is the full row-by-row guard for this route; this
+    // is only the same one-line structural smoke check every OTHER test in this file already
+    // gives every other shell-mounting concern.
+    const source = read(join(CONSOLE_GROUP, 'settings', 'refills-queue', 'page.tsx'));
 
-    expect(source, 'admin/page.tsx must read the session server-side').toContain('readSession');
-    expect(source, 'admin/page.tsx must 404 a non-admin').toContain('notFound()');
+    expect(source, 'refills-queue/page.tsx must read the session server-side').toContain(
+      'readSession'
+    );
+    expect(source, 'refills-queue/page.tsx must 404 a non-admin').toContain('notFound()');
+  });
+
+  /**
+   * IA v3 phase 2 ("the settings area") — the settings area's own version of the account-area
+   * check two tests below: `settings/layout.tsx` is a nested layout strictly BELOW the
+   * shell-mounting `(console)/layout.tsx`, so crossing INTO or OUT OF `/settings/*` (a client-side
+   * navigation, same mechanism as an account switch) cannot remount the shell either — there is no
+   * file where a shell mount and this layout coexist for a remount to be possible. Combined with
+   * the very first test in this file (`ConsoleShell` mounts in exactly one place, and it's the
+   * ancestor layout), this is what makes "one shell, two nav surfaces, zero remounts" true by
+   * construction across an area crossing, not only across an account switch.
+   */
+  it('keeps the settings area strictly below the shell-mounting layout, so crossing into it cannot remount the shell', () => {
+    const settingsLayout = join(CONSOLE_GROUP, 'settings', 'layout.tsx');
+    expect(existsSync(settingsLayout), 'settings/layout.tsx must exist').toBe(true);
+
+    const source = read(settingsLayout);
+    expect(
+      SHELL_IMPORT.test(source),
+      'settings/layout.tsx must not mount ConsoleShell — that stays the ancestor ' +
+        "(console)/layout.tsx's job, which is what keeps it from remounting on an area crossing"
+    ).toBe(false);
+    expect(
+      CHROME_MOUNTS.test(source),
+      'settings/layout.tsx must not mount ConsoleSidebarContent/ConsoleTopBarContent either — ' +
+        'it renders {children} only'
+    ).toBe(false);
   });
 
   /**
@@ -122,7 +155,7 @@ describe('console shell mounting', () => {
     expect(
       SHELL_IMPORT.test(source),
       'accounts/[accountId]/layout.tsx must not mount ConsoleShell — that stays the ancestor ' +
-        '(console)/layout.tsx\'s job, which is what keeps it from remounting on account switch'
+        "(console)/layout.tsx's job, which is what keeps it from remounting on account switch"
     ).toBe(false);
   });
 

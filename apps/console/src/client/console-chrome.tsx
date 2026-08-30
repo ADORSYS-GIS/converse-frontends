@@ -16,11 +16,16 @@ import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import {
   AdminIcon,
+  InfoIcon,
   KeysIcon,
   OverviewIcon,
+  PoliciesIcon,
   ProjectsIcon,
+  RefillOptionsIcon,
+  RolesIcon,
   SearchIcon,
   SettingsIcon,
+  TiersIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -32,7 +37,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
-import { useAdminScreen } from '../containers/use-admin-screen';
+import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
 import { useConsoleSession } from './session-context';
@@ -62,10 +67,26 @@ import { useOnlineStatus } from './use-online-status';
 export type ConsoleRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
 
 /**
+ * The chrome's TWO nav surfaces (IA v3 phase 2 — "the settings area"): `account` is the
+ * Workspace/Account/Operator nav `navGroups` below builds; `settings` is `/settings/*`'s OWN nav
+ * (`settingsNavGroups`), which REPLACES it in the same sidebar mount — never a second nav
+ * surface, never a remount of `ConsoleShell` itself (that stays `app/(console)/layout.tsx`'s job,
+ * unchanged by this phase). `ConsoleSidebarContent`/`ConsoleTopBarContent` are what branch on
+ * this; `InspectorRail` and the account-scoped screens never need to know it exists.
+ */
+export type ConsoleArea = 'account' | 'settings';
+
+/** Which of the two nav surfaces a pathname belongs to — the one predicate every chrome branch
+ *  (sidebar, top bar, mobile dock) shares, so "what counts as inside settings" is stated once. */
+export function areaFromPathname(pathname: string): ConsoleArea {
+  return pathname.startsWith('/settings') ? 'settings' : 'account';
+}
+
+/**
  * The three account-scoped destinations' hrefs, built off whichever account id is currently in
  * play — `/accounts/[accountId]/*` (IA v3 phase 1, "account into the path"). `settings`/`admin`
- * carry no account segment this phase (`middleware.test.ts`'s redirect table, `app/(console)/
- * admin/page.tsx` — Phase 2 moves them).
+ * carry no account segment at all — the settings area (IA v3 phase 2, which `admin` now belongs
+ * to as well) is never account-scoped by path (`middleware.test.ts`'s redirect table).
  *
  * An empty `accountId` (accounts not loaded yet, or genuinely none) routes through `/` — the
  * account resolver — rather than minting a broken `/accounts//overview` URL: `?next=` carries the
@@ -74,6 +95,12 @@ export type ConsoleRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | '
  * `/` itself or on `/settings/*`, where there is no path segment to read an account id from at
  * all (`use-console-scope.ts`'s own last-account/first-account fallback is what fills `accountId`
  * in that case).
+ *
+ * `admin` (IA v3 phase 2 — "the settings area") now names `/settings/refills-queue`, not the
+ * deleted `/admin` route: the budget refill review queue moved wholesale into the settings area
+ * (`git mv … settings/refills-queue`, middleware 308s the old path), so every existing caller of
+ * this field — the account-area Operator nav row, the command palette's "Refill requests" item —
+ * follows it there without needing its own change.
  */
 export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
   if (!accountId) {
@@ -82,7 +109,7 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
       'api-keys': '/?next=api-keys',
       projects: '/?next=projects',
       settings: '/settings',
-      admin: '/admin',
+      admin: '/settings/refills-queue',
     };
   }
   return {
@@ -90,7 +117,7 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
     'api-keys': `/accounts/${accountId}/api-keys`,
     projects: `/accounts/${accountId}/projects`,
     settings: '/settings',
-    admin: '/admin',
+    admin: '/settings/refills-queue',
   };
 }
 
@@ -99,8 +126,14 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
  * re-mounts per route, so nothing is left to hand it a route name at mount time.
  *
  * Matches `/accounts/<id>/<segment>` for the three account-scoped destinations (IA v3 phase 1);
- * `/settings/*`/`/admin` keep their plain prefix match, and anything else (including `/`, the
- * account resolver) reads as `overview` — the same default the old bare `/` match gave it.
+ * `/settings/*` keeps its plain prefix match (now also covering the former `/admin`, folded into
+ * `/settings/refills-queue` — IA v3 phase 2), and anything else (including `/`, the account
+ * resolver) reads as `overview` — the same default the old bare `/` match gave it.
+ *
+ * `/admin` itself is gone (middleware 308s it to `/settings/refills-queue` before any app code
+ * runs), so there is no live pathname this function would ever match against `admin` any more —
+ * the value stays in `ConsoleRoute` only because `navGroups`' Operator row still needs a route
+ * name to compare its own `active` flag against, computed the same way every other row's is.
  */
 export function routeFromPathname(pathname: string): ConsoleRoute {
   const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
@@ -108,7 +141,6 @@ export function routeFromPathname(pathname: string): ConsoleRoute {
   if (accountScopedSegment === 'projects') return 'projects';
   if (accountScopedSegment === 'overview') return 'overview';
   if (pathname.startsWith('/settings')) return 'settings';
-  if (pathname.startsWith('/admin')) return 'admin';
   return 'overview';
 }
 
@@ -132,7 +164,7 @@ const NAV_ICON: Record<'overview' | 'keys' | 'projects' | 'settings' | 'admin', 
  * own dashboard section moved to `/` itself (gated by `session.isAdmin`), so `/admin` is now
  * exactly one screen — the budget refill review queue — and the nav item is named after what it
  * actually opens. `refillCount` is the same pending-queue query `use-overview-screen.ts`'s
- * "Refill requests" card and `/admin` itself read (`useAdminScreen`, shared by query key) — a
+ * "Refill requests" card and `/admin` itself read (`useRefillsQueueScreen`, shared by query key) — a
  * plain trailing numeral, never a badge, and omitted (`undefined`) rather than shown as `0` while
  * it is unresolved or genuinely empty.
  */
@@ -202,6 +234,139 @@ export function navGroups(
     });
   }
   return groups;
+}
+
+// ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
+
+/**
+ * The settings area's seven destinations, in the owner-dictated nav order. Five are live routes
+ * this phase (`overview`, `tiers`, `policies`, `refills-queue`, `info`); `roles` and
+ * `refill-options` are real, permanent rows that render `disabled` rather than being omitted —
+ * omitting them would hide that the destinations exist at all, and a disabled row with a stated
+ * reason is the honest middle ground between "not built" and "silently missing" (console-ui
+ * skill's "never fabricate" clause extends to navigation: a row that LOOKS live but 404s is its
+ * own kind of fabrication).
+ */
+export type SettingsRoute =
+  'overview' | 'roles' | 'tiers' | 'policies' | 'refill-options' | 'refills-queue' | 'info';
+
+/**
+ * `/settings/<segment>` -> which nav row is active. Every LIVE segment gets its own prefix match;
+ * `roles`/`refill-options` have no route to match (they are disabled, `href`-less rows — see
+ * `settingsNavGroups`) and so never appear here. The bare `/settings` segment (mid-redirect to
+ * `/settings/overview/usage`, `app/(console)/settings/page.tsx`) and anything unrecognised default
+ * to `overview`, the same "unmatched reads as the first destination" contract
+ * `routeFromPathname` uses for `/`.
+ */
+export function settingsRouteFromPathname(pathname: string): SettingsRoute {
+  if (pathname.startsWith('/settings/tiers')) return 'tiers';
+  if (pathname.startsWith('/settings/policies')) return 'policies';
+  if (pathname.startsWith('/settings/refills-queue')) return 'refills-queue';
+  if (pathname.startsWith('/settings/info')) return 'info';
+  return 'overview';
+}
+
+/** One shared icon per settings destination, the same 16px/1.5-stroke family `NAV_ICON` draws
+ *  from (`lib/icons.tsx`) — never a second, differently-weighted glyph set for the second area. */
+const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
+  overview: <OverviewIcon />,
+  roles: <RolesIcon />,
+  tiers: <TiersIcon />,
+  policies: <PoliciesIcon />,
+  'refill-options': <RefillOptionsIcon />,
+  'refills-queue': <AdminIcon />,
+  info: <InfoIcon />,
+};
+
+/** The honest reason `/settings/roles` renders disabled — no `lightbridge-authz` read API exists
+ *  for role/permission mappings today, so a real screen would have nothing to fetch. Filed as
+ *  lightbridge-authz#571 (converse-frontends#368's IA v3 phase 2 ticket is the source of truth
+ *  for the phase itself). */
+export const ROLES_DISABLED_REASON =
+  'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).';
+
+/** The honest reason `/settings/refill-options` renders disabled — `getBudgetPolicyStatus` reads
+ *  only a policy's ACTIVE REVISION ID by `policySetId`, never the rule content itself, and no
+ *  procedure lists which policy sets exist to read a status for in the first place. A picker with
+ *  nothing to populate it would be exactly the fabricated-nav-row problem this whole scheme exists
+ *  to avoid. Tracked under the phase ticket rather than a fourth ad hoc backend issue —
+ *  converse-frontends#368. */
+export const REFILL_OPTIONS_DISABLED_REASON =
+  'Refill policy rule content has no read API today — only activation and revision-by-id status exist (converse-frontends#368).';
+
+/**
+ * The settings area's nav — REPLACES `navGroups`' Workspace/Account/Operator groups in the same
+ * sidebar mount when `areaFromPathname(pathname) === 'settings'` (`ConsoleSidebarContent`), never
+ * a second nav surface alongside it. One ungrouped list (no group `label`s) — seven destinations
+ * is not enough to need a section heading the way the account area's three groups do, and the
+ * owner's own nav order names it as a flat sequence, not grouped families.
+ *
+ * `isAdmin`/`refillCount` mirror `navGroups`' own params exactly: "Refills queue" is omitted
+ * ENTIRELY for a non-admin (not disabled — an admin-only destination a non-admin can see but not
+ * open is a worse signal than one that simply isn't there, matching the account area's Operator
+ * group's own "included or omitted, never shown-then-denied" contract), and carries the same
+ * `useOperatorRefillCount` trailing numeral, never `0` while it's still loading.
+ */
+export function settingsNavGroups(
+  active: SettingsRoute,
+  isAdmin: boolean,
+  refillCount?: number
+): NavGroup[] {
+  const items: NavGroup['items'] = [
+    {
+      key: 'overview',
+      label: 'Overview',
+      href: '/settings/overview',
+      icon: SETTINGS_NAV_ICON.overview,
+      active: active === 'overview',
+    },
+    {
+      key: 'roles',
+      label: 'Roles',
+      icon: SETTINGS_NAV_ICON.roles,
+      disabled: true,
+      reason: ROLES_DISABLED_REASON,
+    },
+    {
+      key: 'tiers',
+      label: 'Tier configs',
+      href: '/settings/tiers',
+      icon: SETTINGS_NAV_ICON.tiers,
+      active: active === 'tiers',
+    },
+    {
+      key: 'policies',
+      label: 'Account / Project policies',
+      href: '/settings/policies',
+      icon: SETTINGS_NAV_ICON.policies,
+      active: active === 'policies',
+    },
+    {
+      key: 'refill-options',
+      label: 'Refill options policies',
+      icon: SETTINGS_NAV_ICON['refill-options'],
+      disabled: true,
+      reason: REFILL_OPTIONS_DISABLED_REASON,
+    },
+  ];
+  if (isAdmin) {
+    items.push({
+      key: 'refills-queue',
+      label: 'Refills queue',
+      href: '/settings/refills-queue',
+      icon: SETTINGS_NAV_ICON['refills-queue'],
+      active: active === 'refills-queue',
+      count: refillCount && refillCount > 0 ? refillCount : undefined,
+    });
+  }
+  items.push({
+    key: 'info',
+    label: 'Info',
+    href: '/settings/info',
+    icon: SETTINGS_NAV_ICON.info,
+    active: active === 'info',
+  });
+  return [{ key: 'settings', items }];
 }
 
 /**
@@ -371,7 +536,7 @@ export function ConsolePaletteDialog({
  */
 /**
  * The Operator nav row's trailing count — the same pending-refill query `/admin` and `/`'s
- * "Refill requests" card read, shared by query key (`use-admin-screen.ts`'s own doc comment),
+ * "Refill requests" card read, shared by query key (`use-refills-queue-screen.ts`'s own doc comment),
  * fired only for an admin ("fire NO extra query for non-admins" — shell revamp phase 4 brief).
  *
  * `undefined` while the query hasn't resolved (or for a non-admin) rather than `0`: the row must
@@ -379,9 +544,39 @@ export function ConsolePaletteDialog({
  * before the real count is known would be a fabricated figure, not an honest one.
  */
 function useOperatorRefillCount(isAdmin: boolean): number | undefined {
-  const queue = useAdminScreen(isAdmin);
+  const queue = useRefillsQueueScreen(isAdmin);
   if (!isAdmin || queue.loading) return undefined;
   return queue.pendingCount;
+}
+
+/**
+ * The settings area's own workspace-switcher-slot replacement (IA v3 phase 2) — `/settings/*` is
+ * not account-scoped by path (`use-console-scope.ts`'s own fallback resolves a current account
+ * for it anyway, the same last-account/first-account order `/`'s resolver uses), so a workspace
+ * switcher there would suggest scoping settings TO an account the way `/accounts/<id>/*` screens
+ * are, which they are not. This row is the one way back into the account area instead — plain
+ * text, no icon (the "←" IS the icon, matching the literal row the phase brief specifies), always
+ * landing on Overview for whichever account `useConsoleScope()` currently resolves to.
+ */
+function BackToConsoleRow({ accountId }: { accountId: string }) {
+  return (
+    <Link href={navHrefs(accountId).overview} className="sidebar-footer-row">
+      <span className="text-soft font-sans text-[13px]">← Back to console</span>
+    </Link>
+  );
+}
+
+/** `ConsoleTopBar`'s own `workspaceSwitcher` slot is a single inline element in a 48px band
+ *  (`ConsoleTopBar`'s doc comment — a pure layout band, no row chrome of its own), so this is the
+ *  same swap as `BackToConsoleRow` above without that row's block-level padding. */
+function BackToConsoleCompact({ accountId }: { accountId: string }) {
+  return (
+    <Link
+      href={navHrefs(accountId).overview}
+      className="text-soft focus-ring font-sans text-[13px]">
+      ← Back to console
+    </Link>
+  );
 }
 
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
@@ -390,7 +585,9 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
   const online = useOnlineStatus();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
+  const area = areaFromPathname(pathname);
   const route = routeFromPathname(pathname);
+  const settingsRoute = settingsRouteFromPathname(pathname);
   // Fall back to the subject's short account label when the IdP returns no identity claims at
   // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
   // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
@@ -406,18 +603,26 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
     <ConsoleSidebar
       brand={BRAND}
       workspaceSwitcher={
-        <AccountBadge
-          variant="sidebar"
-          accountId={switcher.accountId}
-          name={switcher.name}
-          initials={switcher.initials}
-          accounts={switcher.accounts}
-          onSelectAccount={switcher.onSelectAccount}
-          onCopyId={switcher.onCopyId}
-          onCreateAccount={switcher.onCreateAccount}
-        />
+        area === 'settings' ? (
+          <BackToConsoleRow accountId={switcher.accountId} />
+        ) : (
+          <AccountBadge
+            variant="sidebar"
+            accountId={switcher.accountId}
+            name={switcher.name}
+            initials={switcher.initials}
+            accounts={switcher.accounts}
+            onSelectAccount={switcher.onSelectAccount}
+            onCopyId={switcher.onCopyId}
+            onCreateAccount={switcher.onCreateAccount}
+          />
+        )
       }
-      groups={navGroups(route, session.isAdmin, switcher.accountId, refillCount)}
+      groups={
+        area === 'settings'
+          ? settingsNavGroups(settingsRoute, session.isAdmin, refillCount)
+          : navGroups(route, session.isAdmin, switcher.accountId, refillCount)
+      }
       linkComponent={Link}
       footer={
         <>
@@ -469,9 +674,11 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
  * bottom dock `ConsoleSidebar` renders alongside the persistent sidebar).
  */
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
+  const pathname = usePathname();
   const session = useConsoleSession();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
+  const area = areaFromPathname(pathname);
   // Fall back to the subject's short account label when the IdP returns no identity claims at
   // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
   // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
@@ -486,14 +693,18 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
     <ConsoleTopBar
       brand={BRAND}
       workspaceSwitcher={
-        <AccountBadge
-          accountId={switcher.accountId}
-          name={switcher.name}
-          accounts={switcher.accounts}
-          onSelectAccount={switcher.onSelectAccount}
-          onCopyId={switcher.onCopyId}
-          onCreateAccount={switcher.onCreateAccount}
-        />
+        area === 'settings' ? (
+          <BackToConsoleCompact accountId={switcher.accountId} />
+        ) : (
+          <AccountBadge
+            accountId={switcher.accountId}
+            name={switcher.name}
+            accounts={switcher.accounts}
+            onSelectAccount={switcher.onSelectAccount}
+            onCopyId={switcher.onCopyId}
+            onCreateAccount={switcher.onCreateAccount}
+          />
+        )
       }
       paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}
       identity={

@@ -118,7 +118,7 @@ export function useDismissConsoleNotification(): () => void {
 
 /** Prefer the real underlying cause (`description`, e.g. `err.message`) over refine's own
  * templated `message` ("Error (status code: 500)") when both are present — the same "surface the
- * genuine failure, not a generic fallback" preference `use-admin-screen.ts` applies to
+ * genuine failure, not a generic fallback" preference `use-refills-queue-screen.ts` applies to
  * `decide.errorMessage` (converse-frontends#322). */
 export function notificationText(
   notification: OpenNotificationParams | undefined

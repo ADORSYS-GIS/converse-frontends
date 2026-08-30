@@ -489,7 +489,7 @@ export const SETTINGS_DIALOG_OPTIONS = { history: 'push' as const };
 // ── /admin ───────────────────────────────────────────────────────────────────────────────────
 
 /** The queue's one sortable column — `RefillRequestRow`'s own `submittedAgo`, sorted by the
- *  request's real `createdAt` (`use-admin-screen.ts`). A single-member union rather than a bare
+ *  request's real `createdAt` (`use-refills-queue-screen.ts`). A single-member union rather than a bare
  *  boolean, matching every other ledger's `sortKey`/`sortDirection` pair (`PROJECTS_SORT_KEYS`,
  *  `API_KEY_SORT_KEYS`) so a second sortable column costs no new shape later. */
 export const ADMIN_SORT_KEYS = ['submitted'] as const;
@@ -504,7 +504,7 @@ export const ADMIN_SORT_KEYS = ['submitted'] as const;
  * comment). `/admin` is now ONE screen with no sub-nav param at all.
  *
  * `after` (phase 6) is the pending queue's page cursor — `listPendingAugmentationRequests`'
- * own `after`/`nextCursor` contract, not a page NUMBER: `use-admin-screen.ts` keeps the stack of
+ * own `after`/`nextCursor` contract, not a page NUMBER: `use-refills-queue-screen.ts` keeps the stack of
  * cursors a `Previous` press needs in local state (a browser-history-shaped concept a URL param
  * cannot express on its own), and only the CURRENT page's cursor is ever written here.
  *

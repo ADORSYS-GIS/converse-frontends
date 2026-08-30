@@ -16,11 +16,14 @@ import type { InspectorSettingsPanelProps } from './types';
  * selection, never this panel; `/` shows THIS panel always, since account identity has a real job
  * beside the Budget card there; every other route shows no rail at all).
  *
- * Deliberately lean — a compact echo of `AccountSettings` (`/settings/account`'s own, fuller
- * settings list), not a duplicate of it: no `Status` row, and the standing actions
- * ("+ New account", "+ New project", "Request refill") that a full settings page would spread
- * across a header and a card both collapse into ordinary rows here, because the rail has no
- * header of its own to put them in.
+ * Deliberately lean — the standing actions ("+ New account", "+ New project", "Request refill")
+ * that a full settings page would spread across a header and a card both collapse into ordinary
+ * rows here, because the rail has no header of its own to put them in.
+ *
+ * IA v3 phase 2 ("the settings area") retired `AccountSettings`/`/settings/account` — this panel
+ * is now the one standing place the scoped account's identity, id AND status live, so it carries
+ * a `Status` row (text, never a pill) alongside `Account name`/`Account id`/`Quota tier`, where
+ * it used to omit one deliberately as "AccountSettings' job."
  */
 export function InspectorSettingsPanel({
   account,
@@ -72,6 +75,9 @@ export function InspectorSettingsPanel({
             ) : undefined
           }
         />
+        {/* Text, never a pill (console-ui skill § States) — same treatment `AccountSettings`'
+            own Status row used to give it. */}
+        <SettingsRow label="Status" value={account.status} />
         <SettingsRow label="Quota tier" value={account.quotaTier ?? NO_QUOTA_TIER_LABEL} />
       </div>
     );

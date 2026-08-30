@@ -63,7 +63,7 @@ export interface ProjectSettingsScreen {
  * a single id), so a second rename cannot overlap the first. Exported (rail-return round,
  * 2026-08-30, Addition E) so `use-project-rename.ts` — the inspector rail's own project-rename
  * flow on `/projects` — shares the same identity, the "two zones, one shared outcome" idiom
- * `use-admin-screen.ts`'s `DECIDE_MUTATION_KEY` documents.
+ * `use-refills-queue-screen.ts`'s `DECIDE_MUTATION_KEY` documents.
  */
 export const PROJECT_NAME_MUTATION_KEY = ['settings', 'project-name'];
 

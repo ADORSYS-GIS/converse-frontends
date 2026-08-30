@@ -89,7 +89,7 @@ describe('ADR 0011 discipline', () => {
     //    revamp) split `use-settings-screen.ts` into one hook per real route. Same shape as
     //    ever: `?account-name=true` and `?rename=<project id>` ARE in the URL, the half-typed
     //    names going into either dialog are not,
-    //  - `use-admin-screen.ts`'s page-cursor stack (phase 6) — the trail of cursors a `Previous`
+    //  - `use-refills-queue-screen.ts`'s page-cursor stack (phase 6) — the trail of cursors a `Previous`
     //    press needs is a browser-history-shaped concept, not itself "what am I looking at" the
     //    way its own `?after=` param is, so it stays local rather than a second, redundant URL
     //    param.
@@ -111,12 +111,12 @@ describe('ADR 0011 discipline', () => {
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
-      join('containers', 'use-admin-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
       join('containers', 'use-create-account-dialog.ts'),
       join('containers', 'use-create-project-dialog.ts'),
       join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
+      join('containers', 'use-refills-queue-screen.ts'),
       join('containers', 'use-rename-account-dialog.ts'),
       join('containers', 'use-request-refill-dialog.ts'),
     ]);

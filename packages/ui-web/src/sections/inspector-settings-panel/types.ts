@@ -6,6 +6,15 @@ export interface InspectorSettingsPanelAccount {
    *  the row's action reads "Rename" vs "Name this account" the same way on both surfaces. */
   named: boolean;
   id: string;
+  /**
+   * `Account.status` — text, never a pill (console-ui skill § States). Added IA v3 phase 2 ("the
+   * settings area"): `AccountSettings`' own fuller Status row is gone along with
+   * `/settings/account` (its content folded into `/settings/policies`, which shows OTHER
+   * accounts' settings, not the currently scoped one this panel already covers) — this panel is
+   * now the ONE place the scoped account's status is visible day-to-day, so it can no longer stay
+   * the deliberately status-less "compact echo" its own doc comment used to describe.
+   */
+  status: string;
   quotaTier: string | null;
 }
 

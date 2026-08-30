@@ -241,7 +241,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
    * leak into URLs or history"): the create-key form's typed-but-unsent name/expiry/plan.
    * `createOpen` — WHETHER the dialog is showing — is real view state and lives in the URL
    * (`?create=1`, `url-state.ts`); this is its CONTENTS, which are not, for the same reason the
-   * admin review's rejection-note draft is not (`use-admin-screen.ts`): typed prose ahead of a
+   * admin review's rejection-note draft is not (`use-refills-queue-screen.ts`): typed prose ahead of a
    * submit, discarded either way, and `?create=1&name=ci-deploy` would write every keystroke into
    * browser history and into any link copied from the address bar. The dialog mounts in exactly
    * one zone (the centre, same as `TypedConfirmDialog`), so a per-instance draft cannot
@@ -251,7 +251,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const resetDraft = () => setDraft(emptyDraft());
 
   // Ticket #317: the real billing-plan catalogue, replacing the hardcoded `'standard'` literal.
-  // `listBillingPlans` is a procedure, not a resource — same reason `use-admin-screen.ts` reaches
+  // `listBillingPlans` is a procedure, not a resource — same reason `use-refills-queue-screen.ts` reaches
   // for `useQuery` directly instead of `useList`.
   const plansQuery = useQuery<BillingPlanInfo[]>({
     queryKey: BILLING_PLANS_QUERY_KEY,

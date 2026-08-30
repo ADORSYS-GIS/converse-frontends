@@ -29,7 +29,7 @@ import { useConsoleAuthzClient, useConsoleBudgetClient } from './rpc-clients';
  * no models at all — only the 14 `budget:*` **procedures** — and a refine `DataProvider` has no slot
  * for a procedure, so registering a second named provider there would be a resource map bound to
  * endpoints that 404. The budget client is used directly instead (see
- * `containers/admin-container.tsx`), through the same `QueryClient`.
+ * `containers/use-refills-queue-screen.ts`), through the same `QueryClient`.
  */
 export function ConsoleProviders({ children }: { children: ReactNode }) {
   const authzClient = useConsoleAuthzClient();

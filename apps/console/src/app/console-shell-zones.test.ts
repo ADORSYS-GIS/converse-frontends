@@ -16,7 +16,7 @@ const LAYOUT = readFileSync(join(CONSOLE_GROUP, 'layout.tsx'), 'utf8');
  *
  * What replaced the deleted rail/scope slots, for the two screens that actually needed one
  * (Projects, Admin's refill-review section): phase 2 first gave `containers/projects-centre.tsx` and
- * `containers/admin-centre.tsx` their own right-hand `<aside>`, rendered inline and gated to `lg`,
+ * `containers/refills-queue-centre.tsx` their own right-hand `<aside>`, rendered inline and gated to `lg`,
  * as a temporary placeholder; phase 3 (2026-08-30, right rail out) deleted that aside in favour of
  * a `DetailSheet` that opens on row selection, at every tier — the console has no persistent rail
  * anywhere any more. This file's job is narrower than the old one's: confirm the parallel-route
@@ -56,7 +56,12 @@ describe('console shell zones (shell revamp phase 2)', () => {
       join('accounts', '[accountId]', 'projects', 'page.tsx'),
       join('accounts', '[accountId]', 'api-keys', 'page.tsx'),
       'settings/page.tsx',
-      'admin/page.tsx',
+      join('settings', 'overview', 'page.tsx'),
+      join('settings', 'overview', 'usage', 'page.tsx'),
+      join('settings', 'policies', 'page.tsx'),
+      join('settings', 'tiers', 'page.tsx'),
+      join('settings', 'info', 'page.tsx'),
+      join('settings', 'refills-queue', 'page.tsx'),
     ];
     for (const page of routePages) {
       expect(existsSync(join(CONSOLE_GROUP, page)), `missing ${page}`).toBe(true);
@@ -68,9 +73,16 @@ describe('console shell zones (shell revamp phase 2)', () => {
     expect(existsSync(join(CONSOLE_GROUP, 'api-keys'))).toBe(false);
   });
 
+  it('has no leftover /admin route now that it moved wholesale to /settings/refills-queue (IA v3 phase 2)', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'admin'))).toBe(false);
+  });
+
+  it('has no leftover /settings/account or /settings/projects route now that both folded into /settings/policies', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'settings', 'account'))).toBe(false);
+    expect(existsSync(join(CONSOLE_GROUP, 'settings', 'projects'))).toBe(false);
+  });
+
   it('gives /accounts/[accountId]/* its own guard layout', () => {
-    expect(
-      existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx'))
-    ).toBe(true);
+    expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx'))).toBe(true);
   });
 });

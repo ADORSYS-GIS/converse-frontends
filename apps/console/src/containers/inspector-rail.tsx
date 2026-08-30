@@ -2,7 +2,6 @@
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { ProjectNameDialog } from '@lightbridge/ui-web/src/components/project-name-dialog';
-import { ReviewDetailPanel } from '@lightbridge/ui-web/src/components/review-detail-panel';
 import { InspectorSettingsPanel } from '@lightbridge/ui-web/src/sections/inspector-settings-panel';
 import { ProjectDetail } from '@lightbridge/ui-web/src/sections/project-detail';
 import { usePathname } from 'next/navigation';
@@ -15,7 +14,6 @@ import { useOpenRenameAccountDialog } from './use-rename-account-dialog';
 import { useOpenRequestRefillDialog } from './use-request-refill-dialog';
 import { useProjectRename } from './use-project-rename';
 import { useProjectsScreen } from './use-projects-screen';
-import { useAdminScreen } from './use-admin-screen';
 
 /**
  * `ConsoleShell.rail`'s content resolver — mounted exactly once, from `app/(console)/layout.tsx`,
@@ -29,29 +27,29 @@ import { useAdminScreen } from './use-admin-screen';
  *  - `/accounts/<id>/projects` — the selected project's detail, ONLY while a row is selected. No
  *    selection, no rail (returns `undefined`, which collapses `ConsoleShell`'s rail column
  *    entirely — see its own doc comment).
- *  - `/admin` — the selected request's review panel, ONLY while a request is selected. Same "no
- *    selection, no rail" rule.
  *  - `/accounts/<id>/overview` — the scope quick-settings panel, ALWAYS. This is the one STANDING
  *    case: the owner explicitly wanted account settings visible in the rail, and on the dashboard
  *    it has a real job beside the Budget card (account identity, `+ New account`/`+ New project`,
  *    and `Request refill` — the same dialog the Budget card's own actions open).
  *  - every other route (`/`, `/accounts/<id>/api-keys`, `/settings/*`) — no rail. `/settings/*`
- *    already IS the account/project settings surface as its centre content; echoing it in a rail
- *    beside itself would be pure noise, and `/` (the account resolver, IA v3 phase 1) has no
- *    scoped account settled yet to show one for.
+ *    (IA v3 phase 2, "the settings area") never shows a rail at any tier or on any selection at
+ *    all — the deliverable is explicit ("no right rail anywhere in settings"), which is also why
+ *    `/admin`'s old rail branch is gone outright rather than translated to
+ *    `/settings/refills-queue`: that screen's review detail is now ALWAYS a `BottomSheet`
+ *    (`refills-queue-centre.tsx`), with no `lg:hidden` gate to hand off to a rail that no longer
+ *    exists for it. `/` (the account resolver, IA v3 phase 1) has no scoped account settled yet
+ *    to show one for either.
  *
  * Below `lg`, none of this renders at all — `ConsoleShell` only mounts the `rail` slot inside its
  * `lg:flex` column, so this component's own output is simply never placed on screen there; the
  * SAME selection-driven content instead opens as a `BottomSheet` from each route's own centre
- * (`projects-centre.tsx`, `admin-centre.tsx`).
+ * (`projects-centre.tsx`).
  *
- * Reuses the FULL screen hooks (`useProjectsScreen`, `useAdminScreen`) rather than a narrower
- * selection-only query — the same "two zones, one shared outcome" shape `use-admin-screen.ts`'s
- * own `DECIDE_MUTATION_KEY` doc comment anticipated when it wrote "the rail at `lg`, the centre's
- * selection sheet below it" before this rail existed. Both hooks' underlying `useList`/`useQuery`
- * calls are deduped against the SAME centre's own instance by TanStack Query's cache (identical
- * resource/pagination/filters produce the identical query key), so this costs no extra network
- * traffic — the two React hook instances share one cache entry, not two independent fetches.
+ * Reuses the FULL screen hook (`useProjectsScreen`) rather than a narrower selection-only query —
+ * its underlying `useList` call is deduped against the SAME centre's own instance by TanStack
+ * Query's cache (identical resource/pagination/filters produce the identical query key), so this
+ * costs no extra network traffic — the two React hook instances share one cache entry, not two
+ * independent fetches.
  */
 /** The account-scoped route's own trailing segment (`overview`/`projects`/`api-keys`) — `null`
  *  off `/accounts/[accountId]/*` entirely. Mirrors `console-chrome.tsx`'s identical match, kept
@@ -66,7 +64,6 @@ export function InspectorRail() {
   const segment = accountScopedSegment(pathname);
 
   if (segment === 'projects') return <ProjectsRail />;
-  if (pathname === '/admin') return <AdminRail />;
   if (segment === 'overview') return <OverviewRail />;
   return undefined;
 }
@@ -82,8 +79,8 @@ function ProjectsRail() {
     <div className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="truncate font-sans text-[15px] font-medium text-ink">{project.name}</div>
-          <div className="truncate font-sans text-[12px] text-subtle">
+          <div className="text-ink truncate font-sans text-[15px] font-medium">{project.name}</div>
+          <div className="text-subtle truncate font-sans text-[12px]">
             {project.account} · {project.statusLabel}
           </div>
         </div>
@@ -93,26 +90,6 @@ function ProjectsRail() {
       </div>
       <ProjectDetail project={project} />
       <ProjectNameDialog {...rename.dialog} />
-    </div>
-  );
-}
-
-function AdminRail() {
-  const screen = useAdminScreen();
-
-  if (screen.reviewDetail === null) return undefined;
-
-  return (
-    <div className="flex flex-col gap-4 p-5">
-      <div className="min-w-0">
-        <div className="truncate font-sans text-[15px] font-medium text-ink">
-          {screen.reviewDetail.projectLabel}
-        </div>
-        <div className="truncate font-sans text-[12px] text-subtle">
-          {screen.reviewDetail.accountLabel}
-        </div>
-      </div>
-      <ReviewDetailPanel key={screen.selectedRequestId} {...screen.reviewDetail} />
     </div>
   );
 }
@@ -137,6 +114,7 @@ function OverviewRail() {
               label: accountScopeLabel(scopedAccount),
               named: scopedAccount.name != null,
               id: scopedAccount.id,
+              status: scopedAccount.status,
               quotaTier: scopedAccount.defaultQuota ?? null,
             }
       }

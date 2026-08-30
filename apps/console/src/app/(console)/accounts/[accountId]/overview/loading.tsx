@@ -23,7 +23,8 @@ import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share'
  * not) sees. The admin-only cards below BUDGET are deliberately NOT skeletoned here: this boundary
  * resolves before the session (and therefore `session.isAdmin`) is known client-side, so it can
  * only honestly skeleton the part of the screen that renders unconditionally — the same reasoning
- * `admin/loading.tsx` uses to skeleton `/admin`'s one remaining section rather than guessing.
+ * `settings/refills-queue/loading.tsx` uses to skeleton that route's one section rather than
+ * guessing.
  *
  * Every section below already carries its own `loading`/`status="loading"` skeleton rendering
  * (console-ui skill §states) — this file's only job is to drive those flags with empty data, the

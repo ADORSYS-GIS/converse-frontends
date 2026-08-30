@@ -311,7 +311,10 @@ describe('OverviewCentre', () => {
       expect(screen.getByText('Key hygiene')).toBeInTheDocument();
       expect(screen.getByText('Refill requests')).toBeInTheDocument();
       expect(screen.getByText(/2 pending/)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Review →' })).toHaveAttribute('href', '/admin');
+      expect(screen.getByRole('link', { name: 'Review →' })).toHaveAttribute(
+        'href',
+        '/settings/refills-queue'
+      );
     });
 
     it('omits the Refill requests card when nothing is pending, even for an admin', async () => {

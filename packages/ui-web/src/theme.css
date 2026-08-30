@@ -2106,6 +2106,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* A rail label is ALWAYS left-aligned at the shared label x. Explicit because several rail
+   * rows are daisy `btn` triggers (AccountMenu's sidebar identity row, the workspace switcher)
+   * and `btn` centers its content — the label's box sat at the grid while its text painted
+   * centered inside it (live finding, 2026-08-30). */
+  text-align: left;
 }
 
 /* A count sitting at the trailing edge of a rail row (`SubNav`'s per-section totals). It is plain

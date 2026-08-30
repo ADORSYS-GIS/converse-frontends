@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ApiKeysLedger } from '@lightbridge/ui-web/src/sections/api-keys-ledger';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
@@ -19,20 +20,22 @@ export default function ApiKeysLoading() {
     <div className="flex flex-col gap-6">
       <PageHeader title="API keys" subtitle="loading scope…" />
 
-      <ApiKeysLedger
-        keys={[]}
-        loading
-        loadingRowCount={8}
-        onDismissSecret={noop}
-        onRotate={noop}
-        onRequestRevoke={noop}
-        onConfirmRevoke={noop}
-        onCancelRevoke={noop}
-        isAdmin={false}
-        onRequestDelete={noop}
-        onConfirmDelete={noop}
-        onCancelDelete={noop}
-      />
+      <Card>
+        <ApiKeysLedger
+          keys={[]}
+          loading
+          loadingRowCount={8}
+          onDismissSecret={noop}
+          onRotate={noop}
+          onRequestRevoke={noop}
+          onConfirmRevoke={noop}
+          onCancelRevoke={noop}
+          isAdmin={false}
+          onRequestDelete={noop}
+          onConfirmDelete={noop}
+          onCancelDelete={noop}
+        />
+      </Card>
     </div>
   );
 }

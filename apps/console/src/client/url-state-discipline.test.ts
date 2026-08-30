@@ -92,7 +92,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'auth-view.tsx'),
       join('containers', 'use-admin-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
-      join('containers', 'use-manage-screen.ts'),
+      join('containers', 'use-projects-screen.ts'),
       join('containers', 'use-settings-screen.ts'),
     ]);
   });

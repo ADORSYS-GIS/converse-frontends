@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Button } from '../../components/button';
+import { EmptyState } from '../../components/empty-state';
 import { ApiKeysLedger } from './component';
-import { apiKeysFixture, apiKeysNewSecret, apiKeysStatusSummary } from './fixtures';
+import { apiKeysFixture, apiKeysNewSecret } from './fixtures';
 import type {
   ApiKeyRow,
   ApiKeysDeleteTarget,
@@ -49,7 +51,17 @@ function Demo({
         loading={loading}
         error={error}
         onRetry={() => {}}
-        statusSummary={apiKeysStatusSummary}
+        emptyState={
+          <EmptyState
+            headline="No API keys in this project"
+            explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+            action={
+              <Button type="button" variant="primary">
+                + New key
+              </Button>
+            }
+          />
+        }
         secretReveal={secret}
         onDismissSecret={() => setSecret(null)}
         onRotate={() => {}}
@@ -109,7 +121,7 @@ export const NonAdminNoDeleteAction: Story = {
   render: () => <Demo isAdmin={false} />,
 };
 
-// §6 — the empty ledger still renders its header row; InlineStatus carries the message.
+// A true empty collection replaces the table with `EmptyState` outright.
 export const Empty: Story = { render: () => <Demo keys={[]} /> };
 
 export const Loading: Story = { render: () => <Demo keys={[]} loading /> };

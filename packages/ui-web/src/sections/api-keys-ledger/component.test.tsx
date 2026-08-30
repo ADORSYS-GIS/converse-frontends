@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { EmptyState } from '../../components/empty-state';
 import { ApiKeysLedger } from './component';
 import { apiKeysFixture, apiKeysNewSecret } from './fixtures';
 import type { ApiKeysLedgerProps } from './types';
@@ -227,12 +228,29 @@ describe('ApiKeysLedger', () => {
     });
   });
 
-  it('shows an inline empty status above the still-rendered ledger header when there are no keys', () => {
+  it('renders the given EmptyState instead of the table when there are no keys', () => {
+    render(
+      <ApiKeysLedger
+        {...baseProps}
+        keys={[]}
+        emptyState={
+          <EmptyState
+            headline="No API keys in this project"
+            explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+            action={<button type="button">+ New key</button>}
+          />
+        }
+      />
+    );
+
+    expect(screen.getByText('No API keys in this project')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ New key' })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('still renders the table (structure stays) when there are no keys and no emptyState is given', () => {
     render(<ApiKeysLedger {...baseProps} keys={[]} />);
 
-    expect(
-      screen.getByText('No keys in this project yet. Create one from the right.')
-    ).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
   });
 
@@ -247,18 +265,22 @@ describe('ApiKeysLedger', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('renders a disabled "next" that actually looks disabled', () => {
-    // Regression: `next` carries the emphasised `text-soft`, so `disabled:opacity-60` alone left
-    // it brighter than an enabled `prev` — a dead control that read as live.
+  it('renders the shared Pagination component, disabled Next when there is no next page', () => {
     render(
       <ApiKeysLedger
         {...baseProps}
-        pagination={{ shown: 1, total: 1, hasPrev: false, hasNext: false }}
+        pagination={{
+          shown: 1,
+          total: 1,
+          hasPrev: false,
+          hasNext: false,
+          onPrev: vi.fn(),
+          onNext: vi.fn(),
+        }}
       />
     );
 
-    const next = screen.getByRole('button', { name: 'next \u203a' });
-    expect(next).toBeDisabled();
-    expect(next.className).toContain('disabled:text-subtle');
+    expect(screen.getByText('Showing 1 of 1 keys')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
   });
 });

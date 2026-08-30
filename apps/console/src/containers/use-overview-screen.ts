@@ -133,7 +133,7 @@ const BUDGET_BREACH_THRESHOLD = 0.9;
 const OVERVIEW_REFILL_MUTATION_KEY = ['budget', 'requestRefill', 'overview'] as const;
 
 /** Same idiom, for the Export dialog's own mutation (ticket #309's pattern, now shared by `/` and
- *  `/manage`). */
+ *  `/projects`). */
 const REPORT_MUTATION_KEY = ['overview', 'report'] as const;
 
 /**

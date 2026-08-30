@@ -15,7 +15,7 @@ const LAYOUT = readFileSync(join(CONSOLE_GROUP, 'layout.tsx'), 'utf8');
  * `rail`/`scope` prop at all.
  *
  * What replaced the deleted rail/scope slots, for the two screens that actually needed one
- * (Manage, Admin's refill-review section): phase 2 first gave `containers/manage-centre.tsx` and
+ * (Projects, Admin's refill-review section): phase 2 first gave `containers/projects-centre.tsx` and
  * `containers/admin-centre.tsx` their own right-hand `<aside>`, rendered inline and gated to `lg`,
  * as a temporary placeholder; phase 3 (2026-08-30, right rail out) deleted that aside in favour of
  * a `DetailSheet` that opens on row selection, at every tier — the console has no persistent rail
@@ -48,7 +48,7 @@ describe('console shell zones (shell revamp phase 2)', () => {
   });
 
   it('gives every route in the group a real page, with no leftover rail-only route file', () => {
-    const routePages = ['page.tsx', 'manage/page.tsx', 'api-keys/page.tsx', 'settings/page.tsx', 'admin/page.tsx'];
+    const routePages = ['page.tsx', 'projects/page.tsx', 'api-keys/page.tsx', 'settings/page.tsx', 'admin/page.tsx'];
     for (const page of routePages) {
       expect(existsSync(join(CONSOLE_GROUP, page)), `missing ${page}`).toBe(true);
     }

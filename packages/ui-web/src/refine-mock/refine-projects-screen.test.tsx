@@ -3,14 +3,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { RefineManageScreen } from './refine-manage-screen';
+import { RefineProjectsScreen } from './refine-projects-screen';
 import { RefineMockRoot } from './refine-decorator';
 
-describe('RefineManageScreen', () => {
-  it('adapts useTable loading/data state into the Manage sections’ props: skeleton while loading, then the live ledger', async () => {
+describe('RefineProjectsScreen', () => {
+  it('adapts useTable loading/data state into the Projects sections’ props: skeleton while loading, then the live ledger', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
-        <RefineManageScreen />
+        <RefineProjectsScreen />
       </RefineMockRoot>,
     );
 
@@ -26,7 +26,7 @@ describe('RefineManageScreen', () => {
   it('adapts row selection into a DetailSheet hosting ProjectDetail, driven by useTable result data', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20] }}>
-        <RefineManageScreen />
+        <RefineProjectsScreen />
       </RefineMockRoot>,
     );
 
@@ -40,15 +40,32 @@ describe('RefineManageScreen', () => {
     expect(within(sheet).getByText('adorsys-gis')).toBeInTheDocument();
   });
 
-  it('adapts a getList failure into the Manage sections’ error props (ErrorLine + Retry)', async () => {
+  it('adapts a getList failure into the Projects sections’ error props (ErrorLine + Retry)', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } }}>
-        <RefineManageScreen />
+        <RefineProjectsScreen />
       </RefineMockRoot>,
     );
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects for this account.'), {
       timeout: 3000,
     });
+  });
+
+  it('sorts the ledger by Name when the column header is pressed', async () => {
+    render(
+      <RefineMockRoot providerConfig={{ latencyMs: [10, 20] }}>
+        <RefineProjectsScreen />
+      </RefineMockRoot>,
+    );
+
+    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());
+
+    const nameHeader = screen.getByRole('columnheader', { name: 'Name' });
+    expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Name' }));
+
+    await waitFor(() => expect(nameHeader).toHaveAttribute('aria-sort', 'ascending'));
   });
 });

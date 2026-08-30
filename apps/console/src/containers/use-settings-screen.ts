@@ -41,7 +41,7 @@ import { classifyCreateAccountError, classifyProjectNameError } from './rpc-fiel
  * **Why this screen exists** (owner, 2026-08-29): "We need a settings page, with account x project
  * settings and stuffs. We cannot modify account core information on the same page we're
  * filtering." `AccountPanel` — and with it "Name this account", a core account mutation — used to
- * be mounted in `manage-centre.tsx`, directly above the Manage ledger's own filters. Manage is for
+ * be mounted in `projects-centre.tsx`, directly above the Projects ledger's own filters. Projects is for
  * finding and filtering projects; this screen is for changing what things *are*. The panel, its
  * dialog, its `?account-name=` param and its two procedures all moved here together, unchanged in
  * behaviour.
@@ -50,7 +50,7 @@ import { classifyCreateAccountError, classifyProjectNameError } from './rpc-fiel
 const PAGE_SIZE = 100;
 
 /**
- * Module-level so both zones agree on the identity, exactly as `use-manage-screen.ts` documents.
+ * Module-level so both zones agree on the identity, exactly as `use-projects-screen.ts` documents.
  *
  * One key for both account writes: `createAccount` and `updateAccountName` are never available at
  * once — the signed-in subject either holds an account or does not — so they cannot be in flight
@@ -109,7 +109,7 @@ export function useSettingsScreen(): SettingsScreen {
    * id instead would make the panel silently retarget when a link carries someone else's account.
    * `null` here means "signed in, no account", which is what the panel offers a way out of; it is
    * distinguished from "we do not know yet" by `scope.loading`/`scope.error`, which the panel
-   * renders separately. Carried over verbatim from `use-manage-screen.ts`.
+   * renders separately. Carried over verbatim from `use-projects-screen.ts`.
    */
   const ownAccount: Account | null =
     scope.allAccounts.find((account) => account.id === session.user?.sub) ?? null;
@@ -253,7 +253,7 @@ export function useSettingsScreen(): SettingsScreen {
    * account per signed-in principal (ADR-0006), so the owner half is "the scoped account IS the
    * signed-in subject"; the membership half is not checkable from here, because the projects list
    * endpoint does not return the roster. `false` whenever ownership cannot be confirmed, never
-   * defaulted to `true` — same disclaimer as `use-manage-screen.ts`'s `createProjectEligible`:
+   * defaulted to `true` — same disclaimer as `use-projects-screen.ts`'s `createProjectEligible`:
    * `lightbridge-authz`'s own RBAC check is the enforcement, this only avoids offering a control
    * that would fail.
    */

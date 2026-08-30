@@ -12,15 +12,13 @@ import React, { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { Button } from '../components/button';
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
+import { EmptyState } from '../components/empty-state';
 import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
 import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
-import {
-  apiKeysFixture,
-  apiKeysNewSecret,
-  apiKeysStatusSummary,
-} from '../sections/api-keys-ledger/fixtures';
+import { apiKeysFixture, apiKeysNewSecret } from '../sections/api-keys-ledger/fixtures';
 import type {
   ApiKeyRow,
   ApiKeysDeleteTarget,
@@ -117,29 +115,45 @@ function ApiKeysScreen({
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}
 
-        <ApiKeysLedger
-          keys={keys}
-          loading={loading}
-          error={error}
-          onRetry={() => {}}
-          statusSummary={apiKeysStatusSummary}
-          emptyMessage="No keys in this project yet. Create one from the toolbar above."
-          secretReveal={secret}
-          onDismissSecret={() => setSecret(null)}
-          onRotate={() => {}}
-          onRequestRevoke={(row) => setRevokeTarget({ row })}
-          revokeTarget={revokeTarget}
-          onConfirmRevoke={() => setRevokeTarget(null)}
-          onCancelRevoke={() => setRevokeTarget(null)}
-          isAdmin={showAdmin}
-          onRequestDelete={(row) => setDeleteTarget({ row })}
-          deleteTarget={deleteTarget}
-          onConfirmDelete={() => setDeleteTarget(null)}
-          onCancelDelete={() => setDeleteTarget(null)}
-          selectedRowKeys={selectedRowKeys}
-          onSelectRow={(row) => setSelectedRowKeys([row.id])}
-          pagination={{ shown: keys.length, total: 27, hasPrev: false, hasNext: true }}
-        />
+        <Card>
+          <ApiKeysLedger
+            keys={keys}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            emptyState={
+              <EmptyState
+                headline="No API keys in this project"
+                explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+                action={
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!canCreate}
+                    title={canCreate ? undefined : 'Select a project to create a key.'}
+                    onClick={canCreate ? () => setSecret(apiKeysNewSecret) : undefined}>
+                    + New key
+                  </Button>
+                }
+              />
+            }
+            secretReveal={secret}
+            onDismissSecret={() => setSecret(null)}
+            onRotate={() => {}}
+            onRequestRevoke={(row) => setRevokeTarget({ row })}
+            revokeTarget={revokeTarget}
+            onConfirmRevoke={() => setRevokeTarget(null)}
+            onCancelRevoke={() => setRevokeTarget(null)}
+            isAdmin={showAdmin}
+            onRequestDelete={(row) => setDeleteTarget({ row })}
+            deleteTarget={deleteTarget}
+            onConfirmDelete={() => setDeleteTarget(null)}
+            onCancelDelete={() => setDeleteTarget(null)}
+            selectedRowKeys={selectedRowKeys}
+            onSelectRow={(row) => setSelectedRowKeys([row.id])}
+            pagination={{ shown: keys.length, total: 27, hasPrev: false, hasNext: true }}
+          />
+        </Card>
       </div>
     </ConsoleShell>
   );
@@ -204,7 +218,7 @@ export const NonAdminView: Story = {
   render: () => <ApiKeysScreen />,
 };
 
-// §6 — empty ledger still renders its header row; InlineStatus carries the message.
+// A true empty collection replaces the table with `EmptyState` outright.
 export const Empty: Story = { render: () => <ApiKeysScreen keys={[]} /> };
 
 export const Loading: Story = { render: () => <ApiKeysScreen keys={[]} loading /> };

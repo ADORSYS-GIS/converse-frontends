@@ -74,11 +74,11 @@ export function useScopeParams() {
   return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
 }
 
-// ── report export — shared vocabulary (`/`, `/manage`) ──────────────────────────────────────
+// ── report export — shared vocabulary (`/`, `/projects`) ────────────────────────────────────
 
 /**
  * The report export dialog's format/include vocabulary — shared verbatim by `/`'s and
- * `/manage`'s own `?report=` params (phase 4 gives Overview the same `Export` action Manage's
+ * `/projects`'s own `?report=` params (phase 4 gives Overview the same `Export` action Projects'
  * `Monthly report` button already opens). Declared here, ahead of both routes' own param tables,
  * because a `const` must exist before either object literal below can reference it.
  */
@@ -168,9 +168,21 @@ export function useOverviewParams() {
  *  `MANAGE_SELECTION_OPTIONS`'s `reportOpen` write). */
 export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
+// ── shared: ledger sort ──────────────────────────────────────────────────────────────────────
+
+/** `LedgerTable`'s own `LedgerSortDirection` — a plain string union re-declared rather than
+ *  imported: it is a UI-layer concept (which way the caret points), not a URL-contract one, and
+ *  this module never imports FROM `ui-web` component internals, only shared prop/data types. */
+export const LEDGER_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
 // ── /api-keys ────────────────────────────────────────────────────────────────────────────────
 
 export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
+
+/** The three date columns the Api-Keys ledger can sort by — `ApiKeyRow`'s own `created`/
+ *  `lastUsed`/`expires` keys, reused verbatim as the URL vocabulary so the column key IS the sort
+ *  key (no separate lookup table to drift). */
+export const API_KEY_SORT_KEYS = ['created', 'lastUsed', 'expires'] as const;
 
 /**
  * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
@@ -194,6 +206,10 @@ export const apiKeysParsers = {
   revokeKeyId: parseAsString.withDefault(''),
   deleteKeyId: parseAsString.withDefault(''),
   createOpen: parseAsBoolean.withDefault(false),
+  // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'createdAt', order:
+  // 'desc' }]` (`use-api-keys-screen.ts`) — newest key first, until a header is pressed.
+  sortKey: parseAsStringLiteral(API_KEY_SORT_KEYS).withDefault('created'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('desc'),
 };
 
 const apiKeysUrlKeys = {
@@ -202,6 +218,8 @@ const apiKeysUrlKeys = {
   revokeKeyId: 'revoke',
   deleteKeyId: 'delete',
   createOpen: 'create',
+  sortKey: 'sort',
+  sortDirection: 'dir',
 };
 
 export function useApiKeysParams() {
@@ -211,7 +229,8 @@ export function useApiKeysParams() {
 /** Row selection and the revoke/delete dialogs are navigation-grade; the filters above them are not. */
 export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 
-// ── /manage ──────────────────────────────────────────────────────────────────────────────────
+// ── /projects (params still named 'manage*' internally — the route renamed, this module's own
+// internal identifiers did not) ─────────────────────────────────────────────────────────────
 
 // `active | suspended` are the only two values `Project.status` ever holds (authz.cstack:274-277,
 // 699-700 — mutated only by `disableProject`/`enableProject`). `archived` never existed on the
@@ -220,6 +239,9 @@ export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 export const MANAGE_STATUSES = ['all', 'active', 'suspended'] as const;
 export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
 export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
+/** The two sortable Projects ledger columns (phase 5 revamp brief — Name and the now-wired Spend
+ *  MTD). `ProjectRow`'s own column keys, reused verbatim as the URL vocabulary. */
+export const PROJECTS_SORT_KEYS = ['name', 'spendMtd'] as const;
 // `REPORT_FORMATS`/`REPORT_INCLUDE_IDS`/`ReportIncludeId`/`CURRENT_PERIOD` moved above the
 // "/ (overview)" section (phase 4): both routes' report dialogs now share the same vocabulary,
 // declared once ahead of whichever param table references it first.
@@ -232,7 +254,7 @@ export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
  * `createOpen` (ticket #303) is the same idea `apiKeysParsers.createOpen` (#319) established:
  * the create-project dialog has exactly one possible target (the scoped account), so a bare
  * boolean is the whole contract. Its draft inputs (name/billing identity/plan) are NOT here —
- * `use-manage-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
+ * `use-projects-screen.ts`'s own "SANCTIONED LOCAL STATE" comment explains why.
  *
  * `reportOpen` (`?report=`) is shell revamp phase 3's replacement for the deleted right rail's
  * persistent MONTHLY REPORT section: `Monthly report` is now a `PageHeader.action` button that
@@ -242,7 +264,7 @@ export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
  *
  * What is NO LONGER here: `accountNameOpen` (`?account-name=`). The account naming flow moved to
  * `/settings` along with the panel that opens it, so the param moved with it — see
- * `settingsParsers` below. A `/manage` bookmark carrying `?account-name=true` now simply ignores
+ * `settingsParsers` below. A `/projects` bookmark carrying `?account-name=true` now simply ignores
  * an unknown param rather than opening a dialog on a screen that no longer mounts one.
  */
 export const manageParsers = {
@@ -257,6 +279,10 @@ export const manageParsers = {
   format: reportFormatParser,
   include: reportIncludeParser,
   createOpen: parseAsBoolean.withDefault(false),
+  // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'name', order: 'asc'
+  // }]` (`use-projects-screen.ts`) — alphabetical, until a header is pressed.
+  sortKey: parseAsStringLiteral(PROJECTS_SORT_KEYS).withDefault('name'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('asc'),
 };
 
 const manageUrlKeys = {
@@ -266,6 +292,8 @@ const manageUrlKeys = {
   reportOpen: 'report',
   reportGroupBy: 'report-group',
   createOpen: 'create',
+  sortKey: 'sort',
+  sortDirection: 'dir',
 };
 
 export function useManageParams() {

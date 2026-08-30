@@ -62,10 +62,11 @@ describe('the URL param contract', () => {
         'series',
         'to',
       ],
-      apiKeys: ['create', 'delete', 'key', 'page', 'q', 'revoke', 'status'],
+      apiKeys: ['create', 'delete', 'dir', 'key', 'page', 'q', 'revoke', 'sort', 'status'],
       manage: [
         'budget-state',
         'create',
+        'dir',
         'format',
         'include',
         'page',
@@ -74,6 +75,7 @@ describe('the URL param contract', () => {
         'report',
         'report-group',
         'row',
+        'sort',
         'status',
       ],
       // `account-name` moved off `manage` with the panel that opens it: a core account mutation

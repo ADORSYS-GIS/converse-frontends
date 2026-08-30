@@ -1,12 +1,18 @@
-// Page-level acceptance story for MANAGE — sections composed inside `ConsoleShell` with the
-// section fixtures, 1:1 against docs/design/console-redesign/manage-projects.svg.
+// Page-level acceptance story for PROJECTS (renamed from Manage, 2026-08-30 revamp brief) —
+// sections composed inside `ConsoleShell` with the section fixtures, 1:1 against
+// docs/design/console-redesign/manage-projects.svg.
 //
 // Shell revamp phase 3 (right rail out, owner review 2026-08-29/2026-08-30): the right-hand
-// FILTERS/MONTHLY REPORT/SELECTION aside is gone. FILTERS (account · status · budget state ·
-// search) is `ManageControls` in `PageHeader.controls`; MONTHLY REPORT is a secondary
-// `PageHeader.action` button that opens `ReportExportDialog`; SELECTION is a `DetailSheet` that
-// opens on row pick and hosts `ProjectDetail`, at every tier — there is no separate compact-tier
-// sheet trigger any more, because the sheet is now the ONE way this content is ever reached.
+// FILTERS/MONTHLY REPORT/SELECTION aside is gone. MONTHLY REPORT is a secondary `PageHeader.action`
+// button that opens `ReportExportDialog`; SELECTION is a `DetailSheet` that opens on row pick and
+// hosts `ProjectDetail`, at every tier — there is no separate compact-tier sheet trigger any more,
+// because the sheet is now the ONE way this content is ever reached.
+//
+// 2026-08-30 revamp brief: FILTERS (account/status/budget-state) moved again, off
+// `PageHeader.controls` and into `ProjectsLedger`'s own toolbar, alongside the search field it now
+// owns directly — the toolbar, table and pager all sit inside ONE `Card` now, matching
+// `OverviewCentre`'s own zones. The ACCOUNT column and the permanent em-dash totals footer are
+// gone; SPEND MTD is a real, sortable column.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -15,11 +21,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { Button } from '../components/button';
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { DetailSheet } from '../components/detail-sheet';
-import { InlineStatus } from '../components/inline-status';
+import { EmptyState } from '../components/empty-state';
+import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ScopeSelect } from '../components/scope-select';
@@ -29,9 +37,9 @@ import {
   manageBudgetStateOptions,
   manageStatusOptions,
 } from '../sections/manage-controls/fixtures';
-import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
-import { manageProjectsFixture, manageTotals } from '../sections/manage-projects-ledger/fixtures';
-import type { ProjectRow } from '../sections/manage-projects-ledger';
+import { ProjectsLedger } from '../sections/projects-ledger';
+import { projectsFixture } from '../sections/projects-ledger/fixtures';
+import type { ProjectRow } from '../sections/projects-ledger';
 import { ProjectDetail } from '../sections/project-detail';
 import {
   scopeAccounts,
@@ -41,14 +49,7 @@ import {
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
-/**
- * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
- * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
- */
-const MANAGE_SPEND_PENDING_MESSAGE =
-  'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
-
-interface ManageScreenProps {
+interface ProjectsScreenProps {
   projects?: ProjectRow[];
   loading?: boolean;
   error?: string;
@@ -56,19 +57,20 @@ interface ManageScreenProps {
   showAdmin?: boolean;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/manage` route perform for real.
-function ManageScreen({
-  projects = manageProjectsFixture,
+// The composition `apps/console`'s `(console)` layout + `/projects` route perform for real.
+function ProjectsScreen({
+  projects = projectsFixture,
   loading = false,
   error,
   initialSelection = null,
   showAdmin = false,
-}: ManageScreenProps) {
+}: ProjectsScreenProps) {
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectRow | null>(initialSelection);
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
   const [budgetStateValue, setBudgetStateValue] = useState('all');
+  const [sort, setSort] = useState<LedgerSort | undefined>();
 
   const [reportOpen, setReportOpen] = useState(false);
   const [period, setPeriod] = useState('2026-02');
@@ -81,7 +83,7 @@ function ManageScreen({
   ]);
 
   // Storybook demo state only — `apps/console`'s real dialog draft lives in
-  // `use-manage-screen.ts`'s own sanctioned local state (ticket #303).
+  // `use-projects-screen.ts`'s own sanctioned local state (ticket #303).
   const [createOpen, setCreateOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [billingIdentity, setBillingIdentity] = useState('');
@@ -92,42 +94,32 @@ function ManageScreen({
     { id: 'enterprise', name: 'Enterprise' },
   ];
 
+  const filtersActive = Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
+
+  const newProjectButton = (
+    <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
+      + New project
+    </Button>
+  );
+
   return (
-    <ConsoleShell sidebar={storySidebar('manage', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('projects', { isAdmin: showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"
-          controls={
-            <ManageControls
-              accountValue={accountValue}
-              accountOptions={manageAccountOptions}
-              onAccountChange={setAccountValue}
-              statusOptions={manageStatusOptions}
-              statusValue={statusValue}
-              onStatusChange={setStatusValue}
-              budgetStateValue={budgetStateValue}
-              budgetStateOptions={manageBudgetStateOptions}
-              onBudgetStateChange={setBudgetStateValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             <>
               <Button type="button" variant="secondary" onClick={() => setReportOpen(true)}>
                 Monthly report
               </Button>
-              <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
-                + New project
-              </Button>
+              {newProjectButton}
             </>
           }
         />
 
         {/* The account panel and its naming dialog moved to `/settings` (see
-            `settings.stories.tsx`): Manage is a filtering and browsing screen, and a core account
-            mutation does not belong beside a ledger's filters. */}
-        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
+            `settings.stories.tsx`): Projects is a filtering and browsing screen, and a core
+            account mutation does not belong beside a ledger's filters. */}
 
         <CreateProjectDialog
           open={createOpen}
@@ -180,16 +172,44 @@ function ManageScreen({
           }}
         />
 
-        <ManageProjectsLedger
-          projects={projects}
-          loading={loading}
-          error={error}
-          onRetry={() => {}}
-          totals={projects.length ? manageTotals : undefined}
-          selectedRowKeys={selectedProject ? [selectedProject.id] : []}
-          onSelectRow={setSelectedProject}
-          pagination={{ shown: projects.length, total: 24, hasPrev: false, hasNext: true }}
-        />
+        <Card>
+          <ProjectsLedger
+            projects={projects}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            search={search}
+            onSearchChange={setSearch}
+            filters={
+              <ManageControls
+                accountValue={accountValue}
+                accountOptions={manageAccountOptions}
+                onAccountChange={setAccountValue}
+                statusOptions={manageStatusOptions}
+                statusValue={statusValue}
+                onStatusChange={setStatusValue}
+                budgetStateValue={budgetStateValue}
+                budgetStateOptions={manageBudgetStateOptions}
+                onBudgetStateChange={setBudgetStateValue}
+              />
+            }
+            emptyState={
+              filtersActive ? undefined : (
+                <EmptyState
+                  headline="No projects yet"
+                  explainer="Create a project to start issuing API keys and tracking spend."
+                  action={newProjectButton}
+                />
+              )
+            }
+            filteredEmptyMessage={filtersActive ? 'No projects match these filters.' : undefined}
+            sort={sort}
+            onSortChange={setSort}
+            selectedRowKeys={selectedProject ? [selectedProject.id] : []}
+            onSelectRow={setSelectedProject}
+            pagination={{ shown: projects.length, total: 24, hasPrev: false, hasNext: true }}
+          />
+        </Card>
       </div>
 
       <DetailSheet
@@ -205,28 +225,28 @@ function ManageScreen({
   );
 }
 
-const meta: Meta<typeof ManageScreen> = {
-  title: 'Pages/Manage',
-  component: ManageScreen,
+const meta: Meta<typeof ProjectsScreen> = {
+  title: 'Pages/Projects',
+  component: ProjectsScreen,
   parameters: { layout: 'fullscreen' },
 };
 
 export default meta;
-type Story = StoryObj<typeof ManageScreen>;
+type Story = StoryObj<typeof ProjectsScreen>;
 
 // Full page, populated 1:1 against manage-projects.svg.
-export const Populated: Story = { render: () => <ManageScreen /> };
+export const Populated: Story = { render: () => <ProjectsScreen /> };
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`.
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
-  render: () => <ManageScreen />,
+  render: () => <ProjectsScreen />,
   globals: { theme: 'wireframe' },
 };
 
 // A row selected — `DetailSheet` opens with that project's detail.
 export const RowSelected: Story = {
-  render: () => <ManageScreen initialSelection={manageProjectsFixture[0]} />,
+  render: () => <ProjectsScreen initialSelection={projectsFixture[0]} />,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await waitFor(() =>
@@ -235,30 +255,30 @@ export const RowSelected: Story = {
   },
 };
 
-export const Empty: Story = { render: () => <ManageScreen projects={[]} /> };
+export const Empty: Story = { render: () => <ProjectsScreen projects={[]} /> };
 
-export const Loading: Story = { render: () => <ManageScreen projects={[]} loading /> };
+export const Loading: Story = { render: () => <ProjectsScreen projects={[]} loading /> };
 
 export const ErrorState: Story = {
-  render: () => <ManageScreen projects={[]} error="Failed to load projects for this account." />,
+  render: () => <ProjectsScreen projects={[]} error="Failed to load projects for this account." />,
 };
 
 export const AdminNav: Story = {
   name: 'Nav — admin (Admin group visible)',
-  render: () => <ManageScreen showAdmin />,
+  render: () => <ProjectsScreen showAdmin />,
 };
 
 // `md` tier (600–1024) — controls wrap inline in the title row; MONTHLY REPORT is the same dialog
 // as `lg`, and SELECTION opens the same `DetailSheet` at this tier too.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
-  render: () => <ManageScreen />,
+  render: () => <ProjectsScreen />,
 };
 
 export const MdTierReportDialogOpen: Story = {
   name: 'md tier — Monthly report dialog open',
   globals: { viewport: { value: 'md900' } },
-  render: () => <ManageScreen />,
+  render: () => <ProjectsScreen />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Monthly report' }));
@@ -274,12 +294,12 @@ export const MdTierReportDialogOpen: Story = {
 // the projects ledger scrolls horizontally inside its own container.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
-  render: () => <ManageScreen />,
+  render: () => <ProjectsScreen />,
 };
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `MobileBaseTier`.
 export const MobileBaseTierLight: Story = {
   name: 'Mobile Base Tier — wireframe (light)',
   globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
-  render: () => <ManageScreen />,
+  render: () => <ProjectsScreen />,
 };

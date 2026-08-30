@@ -17,8 +17,6 @@ function makeProps(overrides: Partial<ManageControlsProps> = {}): ManageControls
     budgetStateValue: 'all',
     budgetStateOptions: manageBudgetStateOptions,
     onBudgetStateChange: vi.fn(),
-    search: '',
-    onSearchChange: vi.fn(),
     ...overrides,
   };
 }
@@ -31,13 +29,18 @@ function selectOption(element: HTMLElement) {
 }
 
 describe('ManageControls', () => {
-  it('renders the account, status, budget-state and search fields in one row', () => {
+  it('renders the account, status and budget-state fields in one row', () => {
     render(<ManageControls {...makeProps()} />);
 
     expect(screen.getByLabelText('Account')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Project status' })).toBeInTheDocument();
     expect(screen.getByLabelText('Budget state')).toBeInTheDocument();
-    expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  it('renders no search field of its own — it moved to ProjectsLedger\'s own toolbar', () => {
+    render(<ManageControls {...makeProps()} />);
+
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
   });
 
   it('fires onAccountChange from the account dropdown', async () => {
@@ -67,15 +70,6 @@ describe('ManageControls', () => {
     selectOption(await screen.findByRole('option', { name: 'Quota set' }));
 
     expect(onBudgetStateChange).toHaveBeenCalledWith('quota-set');
-  });
-
-  it('fires onSearchChange from the search field', () => {
-    const onSearchChange = vi.fn();
-    render(<ManageControls {...makeProps({ onSearchChange })} />);
-
-    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'gateway' } });
-
-    expect(onSearchChange).toHaveBeenCalledWith('gateway');
   });
 
   it('is one landmark region, and a horizontal cluster, not a stacked rail', () => {

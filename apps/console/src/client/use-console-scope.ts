@@ -35,9 +35,9 @@ export type ConsoleScope = {
   projects: ScopeProjectOption[];
   /** Every account row as the backend returned it — `ScopeOption` above flattens each to an
    *  `{id, label}` pair, which loses the `name === null` vs `name === '<something>'` distinction
-   *  `AccountPanel` is built around. `use-manage-screen.ts` needs the unflattened rows. */
+   *  `AccountPanel` is built around. `use-projects-screen.ts` needs the unflattened rows. */
   allAccounts: Account[];
-  /** Every project, unfiltered by the selected account — the Manage ledger needs the full set. */
+  /** Every project, unfiltered by the selected account — the Projects ledger needs the full set. */
   allProjects: Project[];
   loading: boolean;
   error: boolean;

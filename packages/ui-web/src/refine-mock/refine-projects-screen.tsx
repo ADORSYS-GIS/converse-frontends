@@ -1,25 +1,29 @@
-// Refine-driven container for the MANAGE screen — console-ui skill "Refine-driven mock screens":
-// `useTable` over the `projects` resource, adapted into the Manage sections' props exactly the
-// way `apps/console` does once it swaps this mock data provider for `@cratestack/refine`'s
-// generated one (docs/adr/0009-nextjs-console-replacement.md Decision 4). The sections stay pure —
-// this container only translates hook state (`isLoading` → skeleton props, `isError` → error
-// props, `result.data` → rows) into their props.
+// Refine-driven container for the PROJECTS screen (renamed from Manage, 2026-08-30 revamp brief)
+// — console-ui skill "Refine-driven mock screens": `useTable` over the `projects` resource,
+// adapted into the Projects sections' props exactly the way `apps/console` does once it swaps this
+// mock data provider for `@cratestack/refine`'s generated one (docs/adr/0009-nextjs-console-
+// replacement.md Decision 4). The sections stay pure — this container only translates hook state
+// (`isLoading` → skeleton props, `isError` → error props, `result.data` → rows) into their props.
 //
-// Shell revamp phase 3 (right rail out): FILTERS/MONTHLY REPORT/SELECTION no longer render inside
-// a right-hand aside — FILTERS is `ManageControls` in `PageHeader.controls`, MONTHLY REPORT is a
-// `PageHeader.action` button that opens `ReportExportDialog`, and SELECTION is a `DetailSheet`
-// hosting `ProjectDetail`, exactly matching `apps/console`'s own `manage-centre.tsx`.
+// Shell revamp phase 3 (right rail out): MONTHLY REPORT/SELECTION no longer render inside a
+// right-hand aside — MONTHLY REPORT is a `PageHeader.action` button that opens
+// `ReportExportDialog`, and SELECTION is a `DetailSheet` hosting `ProjectDetail`, exactly matching
+// `apps/console`'s own `projects-centre.tsx`. FILTERS (`ManageControls`, account/status/budget
+// only now) moved again in the 2026-08-30 revamp: off `PageHeader.controls` and into
+// `ProjectsLedger`'s own toolbar, alongside the search field it now owns directly.
 
 import React, { useMemo, useState } from 'react';
 import type { CrudFilter } from '@refinedev/core';
 import { useTable } from '@refinedev/core';
 
 import { Button } from '../components/button';
+import { Card } from '../components/card';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import { DetailSheet } from '../components/detail-sheet';
+import { EmptyState } from '../components/empty-state';
 import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
-import { InlineStatus } from '../components/inline-status';
+import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ManageControls } from '../sections/manage-controls';
@@ -28,18 +32,11 @@ import {
   manageBudgetStateOptions,
   manageStatusOptions,
 } from '../sections/manage-controls/fixtures';
-import { ManageProjectsLedger } from '../sections/manage-projects-ledger';
-import type { ProjectRow } from '../sections/manage-projects-ledger';
+import { ProjectsLedger } from '../sections/projects-ledger';
+import type { ProjectRow } from '../sections/projects-ledger';
 import { PageHeader } from '../sections/page-header';
 import { ProjectDetail } from '../sections/project-detail';
 import { RefineMockShell } from './shared-chrome';
-
-/**
- * Matches `apps/console`'s `MANAGE_SPEND_PENDING_MESSAGE` (`use-manage-screen.ts`) verbatim —
- * duplicated rather than imported because `packages/ui-web` never depends on `apps/console`.
- */
-const MANAGE_SPEND_PENDING_MESSAGE =
-  'Spend and quota ceiling are unwired: no usage-backend query client yet. Project status and quota tier below are live.';
 
 function buildFilters({
   search,
@@ -66,9 +63,9 @@ function buildFilters({
   return filters;
 }
 
-/** Live-wired Manage screen: `useTable` drives the ledger, pagination and server-side filters;
- * row selection opens `DetailSheet` exactly like the fixture-driven story. */
-export function RefineManageScreen() {
+/** Live-wired Projects screen: `useTable` drives the ledger, pagination, sort and server-side
+ * filters; row selection opens `DetailSheet` exactly like the fixture-driven story. */
+export function RefineProjectsScreen() {
   const [search, setSearch] = useState('');
   const [accountValue, setAccountValue] = useState('all');
   const [statusValue, setStatusValue] = useState('all');
@@ -116,15 +113,12 @@ export function RefineManageScreen() {
   const loading = table.tableQuery.isLoading;
   const error = table.tableQuery.isError ? table.tableQuery.error?.message : undefined;
 
-  // Spend has no live source yet (Epic 4) — every row's SPEND MTD is already `null` in the mock
-  // fixtures, so the honest total is `null` too, never a fabricated sum.
-  const totals =
-    rows.length > 0
-      ? {
-          shownLabel: `TOTAL · ${rows.length} SHOWN`,
-          spendMtd: null,
-        }
-      : undefined;
+  const activeSort = table.sorters[0];
+  const sort: LedgerSort | undefined = activeSort
+    ? { key: activeSort.field, direction: activeSort.order }
+    : undefined;
+
+  const filtersActive = Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
 
   const scopeSlot = (
     <div className="fieldset">
@@ -144,39 +138,26 @@ export function RefineManageScreen() {
     </div>
   );
 
+  const newProjectButton = (
+    <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
+      + New project
+    </Button>
+  );
+
   return (
-    <RefineMockShell active="manage">
+    <RefineMockShell active="projects">
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"
-          controls={
-            <ManageControls
-              accountValue={accountValue}
-              accountOptions={manageAccountOptions}
-              onAccountChange={setAccountValue}
-              statusOptions={manageStatusOptions}
-              statusValue={statusValue}
-              onStatusChange={setStatusValue}
-              budgetStateValue={budgetStateValue}
-              budgetStateOptions={manageBudgetStateOptions}
-              onBudgetStateChange={setBudgetStateValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             <>
               <Button type="button" variant="secondary" onClick={() => setReportOpen(true)}>
                 Monthly report
               </Button>
-              <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
-                + New project
-              </Button>
+              {newProjectButton}
             </>
           }
         />
-
-        <InlineStatus>{MANAGE_SPEND_PENDING_MESSAGE}</InlineStatus>
 
         <CreateProjectDialog
           open={createOpen}
@@ -224,23 +205,53 @@ export function RefineManageScreen() {
           }}
         />
 
-        <ManageProjectsLedger
-          projects={rows}
-          loading={loading}
-          error={error}
-          onRetry={() => table.tableQuery.refetch()}
-          totals={totals}
-          selectedRowKeys={selected ? [selected.id] : []}
-          onSelectRow={setSelected}
-          pagination={{
-            shown: rows.length,
-            total: table.result.total ?? rows.length,
-            hasPrev: table.currentPage > 1,
-            hasNext: table.currentPage < table.pageCount,
-            onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
-            onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
-          }}
-        />
+        <Card>
+          <ProjectsLedger
+            projects={rows}
+            loading={loading}
+            error={error}
+            onRetry={() => table.tableQuery.refetch()}
+            search={search}
+            onSearchChange={setSearch}
+            filters={
+              <ManageControls
+                accountValue={accountValue}
+                accountOptions={manageAccountOptions}
+                onAccountChange={setAccountValue}
+                statusOptions={manageStatusOptions}
+                statusValue={statusValue}
+                onStatusChange={setStatusValue}
+                budgetStateValue={budgetStateValue}
+                budgetStateOptions={manageBudgetStateOptions}
+                onBudgetStateChange={setBudgetStateValue}
+              />
+            }
+            emptyState={
+              filtersActive ? undefined : (
+                <EmptyState
+                  headline="No projects yet"
+                  explainer="Create a project to start issuing API keys and tracking spend."
+                  action={newProjectButton}
+                />
+              )
+            }
+            filteredEmptyMessage={filtersActive ? 'No projects match these filters.' : undefined}
+            sort={sort}
+            onSortChange={(next) =>
+              table.setSorters([{ field: next.key, order: next.direction }])
+            }
+            selectedRowKeys={selected ? [selected.id] : []}
+            onSelectRow={setSelected}
+            pagination={{
+              shown: rows.length,
+              total: table.result.total ?? rows.length,
+              hasPrev: table.currentPage > 1,
+              hasNext: table.currentPage < table.pageCount,
+              onPrev: () => table.setCurrentPage((page) => Math.max(1, page - 1)),
+              onNext: () => table.setCurrentPage((page) => Math.min(table.pageCount, page + 1)),
+            }}
+          />
+        </Card>
       </div>
 
       <DetailSheet

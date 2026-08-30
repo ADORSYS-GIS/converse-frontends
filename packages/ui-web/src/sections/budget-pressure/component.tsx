@@ -20,7 +20,7 @@ import type { BudgetPressureProps } from './types';
 //
 // **What this section deliberately does NOT claim.** There is no per-project budget ceiling
 // anywhere in the authz schema: `Project.projectQuota` is a governance tier id from an
-// operator-configured catalogue (never currency — see `ManageProjectsLedger`'s own divergence
+// operator-configured catalogue (never currency — see `ProjectsLedger`'s own divergence
 // note), and `getBudgetBalance` is keyed by `budgetAccountId`, which "is always identical to
 // account_id". Every meter here is therefore a project's draw on the ONE account ceiling, and
 // `note` is where the caller says that in DOM text — never an SVG `<text>`, which does not wrap

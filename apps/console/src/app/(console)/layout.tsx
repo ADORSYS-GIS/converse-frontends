@@ -29,7 +29,7 @@ import {
  * gating, no `leftSecondary`/`rightRail` slot content. What used to live in the deleted `@rail`
  * and `@scope` parallel-route slots now lives directly inside the affected centres: every screen's
  * parameters are its own `PageHeader.controls`, and phase 3 (2026-08-30, right rail out) replaced
- * `containers/manage-centre.tsx`/`containers/admin-centre.tsx`'s temporary right-hand `<aside>`
+ * `containers/projects-centre.tsx`/`containers/admin-centre.tsx`'s temporary right-hand `<aside>`
  * (their own phase-2 placeholder for the deleted `@rail` slot) with a `DetailSheet` that opens on
  * row selection, at every tier — the console has no persistent rail anywhere any more.
  *

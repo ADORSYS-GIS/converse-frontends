@@ -45,12 +45,12 @@ import { useOnlineStatus } from './use-online-status';
  * re-exports them costs nothing.
  */
 
-export type ConsoleRoute = 'overview' | 'api-keys' | 'manage' | 'settings' | 'admin';
+export type ConsoleRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
 
 const NAV_HREFS: Record<ConsoleRoute, string> = {
   overview: '/',
   'api-keys': '/api-keys',
-  manage: '/manage',
+  projects: '/projects',
   settings: '/settings',
   admin: '/admin',
 };
@@ -61,19 +61,19 @@ const NAV_HREFS: Record<ConsoleRoute, string> = {
  */
 export function routeFromPathname(pathname: string): ConsoleRoute {
   if (pathname.startsWith('/api-keys')) return 'api-keys';
-  if (pathname.startsWith('/manage')) return 'manage';
+  if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/admin')) return 'admin';
   return 'overview';
 }
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
-function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'manage' | 'settings' | 'admin' }) {
+function NavGlyph({ shape }: { shape: 'overview' | 'keys' | 'projects' | 'settings' | 'admin' }) {
   const paths: Record<typeof shape, string> = {
     overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
     keys: 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
-    manage: 'M1 2h8M1 5h8M1 8h5',
-    // Two rails with an offset knob on each — deliberately close to `manage`'s three rules but
+    projects: 'M1 2h8M1 5h8M1 8h5',
+    // Two rails with an offset knob on each — deliberately close to `projects`'s three rules but
     // legibly different at 10px: settings is the same list with something set on it.
     settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
     admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
@@ -116,11 +116,11 @@ export function navGroups(
           active: active === 'overview',
         },
         {
-          key: 'manage',
+          key: 'projects',
           label: 'Projects',
-          href: NAV_HREFS.manage,
-          icon: <NavGlyph shape="manage" />,
-          active: active === 'manage',
+          href: NAV_HREFS.projects,
+          icon: <NavGlyph shape="projects" />,
+          active: active === 'projects',
         },
         {
           key: 'api-keys',
@@ -235,8 +235,8 @@ export function useConsolePalette() {
   const groups: CommandPaletteGroup[] = useMemo(() => {
     const navigate: CommandPaletteItem[] = [
       { key: 'overview', label: 'Overview', onSelect: () => router.push(NAV_HREFS.overview) },
-      { key: 'api-keys', label: 'Api-Keys', onSelect: () => router.push(NAV_HREFS['api-keys']) },
-      { key: 'manage', label: 'Manage', onSelect: () => router.push(NAV_HREFS.manage) },
+      { key: 'api-keys', label: 'API keys', onSelect: () => router.push(NAV_HREFS['api-keys']) },
+      { key: 'projects', label: 'Projects', onSelect: () => router.push(NAV_HREFS.projects) },
       { key: 'settings', label: 'Settings', onSelect: () => router.push(NAV_HREFS.settings) },
     ];
     if (session.isAdmin) {

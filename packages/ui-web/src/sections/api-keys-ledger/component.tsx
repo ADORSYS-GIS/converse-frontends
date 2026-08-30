@@ -2,9 +2,9 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
-import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
+import { Pagination } from '../../components/pagination';
 import { RowActionGroup } from '../../components/row-action-group';
 import { SecretReveal } from '../../components/secret-reveal';
 import { StatusText } from '../../components/status-text';
@@ -15,11 +15,16 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
   status === 'active' ? 'active' : status === 'expiring' ? 'attention' : 'muted';
 
 // Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) — the centre zone of the
-// Api-Keys screen, in the order the mockup stacks it: the one-time secret strip (present only
-// right after a create or rotate), the table toolbar (status/empty/error line plus the compact-
-// tier FILTERS trigger), the key ledger with its per-row actions, and the pager. The revoke and
-// delete gates — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too,
-// since they are the row actions that open them.
+// Api-Keys screen: the one-time secret strip (present only right after a create or rotate), the
+// key ledger (with its compact-tier FILTERS trigger and per-row actions), and the pager, all
+// meant to sit inside ONE `Card` (`api-keys-centre.tsx` supplies it). The revoke and delete gates
+// — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too, since they are
+// the row actions that open them.
+//
+// 2026-08-30 revamp brief: `statusSummary` is gone — it duplicated `ApiKeysHygieneNotes`, which
+// mounts above this section in `api-keys-centre.tsx` and stays the ONE status line. A genuine
+// empty collection now renders `emptyState` (an `EmptyState` with a `+ New key` CTA) in place of
+// the table outright, same "no shape left to teach" call `ProjectsLedger` makes.
 //
 // Delete (ticket #321): the LIFECYCLE rail states delete is "admin only, behind typed
 // confirmation" — `Del` now actually is both. `isAdmin` hides the row action entirely for a
@@ -37,8 +42,7 @@ export function ApiKeysLedger({
   loadingRowCount = 6,
   error,
   onRetry,
-  statusSummary,
-  emptyMessage,
+  emptyState,
   secretReveal,
   onDismissSecret,
   onRotate,
@@ -53,6 +57,8 @@ export function ApiKeysLedger({
   onCancelDelete,
   selectedRowKeys,
   onSelectRow,
+  sort,
+  onSortChange,
   pagination,
   toolbarActions,
   className,
@@ -71,9 +77,30 @@ export function ApiKeysLedger({
       width: '110px',
       accessor: (row) => <StatusText tone={statusTone(row.status)}>{row.statusLabel}</StatusText>,
     },
-    { key: 'created', header: 'Created', width: '110px', align: 'right', accessor: (row) => row.created },
-    { key: 'lastUsed', header: 'Last used', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
-    { key: 'expires', header: 'Expires', width: '110px', align: 'right', accessor: (row) => row.expires },
+    {
+      key: 'created',
+      header: 'Created',
+      width: '110px',
+      align: 'right',
+      sortable: true,
+      accessor: (row) => row.created,
+    },
+    {
+      key: 'lastUsed',
+      header: 'Last used',
+      width: '120px',
+      align: 'right',
+      sortable: true,
+      accessor: (row) => row.lastUsed,
+    },
+    {
+      key: 'expires',
+      header: 'Expires',
+      width: '110px',
+      align: 'right',
+      sortable: true,
+      accessor: (row) => row.expires,
+    },
   ];
 
   const isEmpty = !loading && !error && keys.length === 0;
@@ -89,85 +116,73 @@ export function ApiKeysLedger({
         />
       ) : null}
 
-      {/* Table toolbar row — the FILTERS trigger sits beside the status/error/empty line. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          {error ? (
-            <ErrorLine message={error} onRetry={onRetry} />
-          ) : isEmpty ? (
-            <InlineStatus>
-              {emptyMessage ?? 'No keys in this project yet. Create one from the right.'}
-            </InlineStatus>
-          ) : statusSummary ? (
-            <InlineStatus>{statusSummary}</InlineStatus>
-          ) : null}
-        </div>
-        {toolbarActions}
-      </div>
+      {error ? (
+        // Ahead of the table toolbar's own compact-tier trigger — a genuine fetch failure takes
+        // the whole row.
+        <ErrorLine message={error} onRetry={onRetry} />
+      ) : isEmpty && emptyState ? (
+        // A true empty collection replaces the table outright, same "no shape left to teach" call
+        // `ProjectsLedger` makes for its own empty collection.
+        emptyState
+      ) : (
+        <>
+          {toolbarActions ? <div className="flex justify-end">{toolbarActions}</div> : null}
 
-      <LedgerTable
-        columns={columns}
-        data={keys}
-        rowKey={(row) => row.id}
-        loading={loading}
-        loadingRowCount={loadingRowCount}
-        selectedRowKeys={selectedRowKeys}
-        onSelectRow={onSelectRow}
-        renderRowActions={(row) => (
-          <RowActionGroup
-            aria-label={`${row.name} actions`}
-            actions={[
-              { key: 'rotate', label: 'Rotate', onClick: () => onRotate(row), emphasis: 'default' },
-              {
-                key: 'revoke',
-                label: 'Revoke',
-                onClick: () => onRequestRevoke(row),
-                emphasis: 'strong',
-              },
-              // Omitted (not disabled) for a non-admin — see the file-level contract note above.
-              ...(isAdmin
-                ? [
-                    {
-                      key: 'del',
-                      label: 'Del',
-                      onClick: () => onRequestDelete(row),
-                      emphasis: 'muted' as const,
-                    },
-                  ]
-                : []),
-            ]}
+          <LedgerTable
+            columns={columns}
+            data={keys}
+            rowKey={(row) => row.id}
+            loading={loading}
+            loadingRowCount={loadingRowCount}
+            selectedRowKeys={selectedRowKeys}
+            onSelectRow={onSelectRow}
+            sort={sort}
+            onSortChange={onSortChange}
+            renderRowActions={(row) => (
+              <RowActionGroup
+                aria-label={`${row.name} actions`}
+                actions={[
+                  {
+                    key: 'rotate',
+                    label: 'Rotate',
+                    onClick: () => onRotate(row),
+                    emphasis: 'default',
+                  },
+                  {
+                    key: 'revoke',
+                    label: 'Revoke',
+                    onClick: () => onRequestRevoke(row),
+                    emphasis: 'strong',
+                  },
+                  // Omitted (not disabled) for a non-admin — see the file-level contract note above.
+                  ...(isAdmin
+                    ? [
+                        {
+                          key: 'del',
+                          label: 'Del',
+                          onClick: () => onRequestDelete(row),
+                          emphasis: 'muted' as const,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            )}
           />
-        )}
-      />
 
-      {pagination ? (
-        <div className="flex items-center justify-between font-mono text-[10px] text-subtle">
-          <span>
-            {pagination.shown} of {pagination.total} keys
-          </span>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              disabled={pagination.hasPrev === false}
-              onClick={pagination.onPrev}
-              className="text-subtle transition-colors duration-150 ease-out hover:text-soft disabled:cursor-not-allowed disabled:opacity-60">
-              ‹ prev
-            </button>
-            <button
-              type="button"
-              disabled={pagination.hasNext === false}
-              onClick={pagination.onNext}
-              // `disabled:text-subtle`, not opacity alone: `next` is the emphasised half of the
-              // pager (`text-soft` vs `prev`'s `text-subtle`), so at 60% opacity it still read
-              // BRIGHTER than an enabled `prev` — "1 of 1 keys · next ›" looked like a live
-              // control that did nothing (owner screenshot, 2026-08-29). Dropping to the same
-              // token `prev` uses makes disabled look disabled on both halves.
-              className="text-soft transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:text-subtle disabled:opacity-60">
-              next ›
-            </button>
-          </div>
-        </div>
-      ) : null}
+          {pagination ? (
+            <Pagination
+              shown={pagination.shown}
+              total={pagination.total}
+              unit="keys"
+              hasPrev={pagination.hasPrev ?? false}
+              hasNext={pagination.hasNext ?? false}
+              onPrev={pagination.onPrev}
+              onNext={pagination.onNext}
+            />
+          ) : null}
+        </>
+      )}
 
       {revokeTarget ? (
         <TypedConfirmDialog

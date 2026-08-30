@@ -81,6 +81,39 @@ export const WithRowActions: Story = {
   ),
 };
 
+// Sorting is the CONSUMER's state (typically a URL param) — this story owns a plain useState to
+// stand in for it, exactly as `apps/console`'s screens own a `nuqs` param.
+export const Sortable: Story = {
+  render: () => {
+    const SortableTable = () => {
+      const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>({
+        key: 'created',
+        direction: 'desc',
+      });
+      const sortableColumns: LedgerColumn<ApiKeyRow>[] = columns.map((column) =>
+        column.key === 'name' || column.key === 'created' ? { ...column, sortable: true } : column
+      );
+      const sorted = [...apiKeys].sort((a, b) => {
+        if (!sort) return 0;
+        const direction = sort.direction === 'asc' ? 1 : -1;
+        const av = a[sort.key as keyof ApiKeyRow];
+        const bv = b[sort.key as keyof ApiKeyRow];
+        return av < bv ? -direction : av > bv ? direction : 0;
+      });
+      return (
+        <LedgerTable
+          columns={sortableColumns}
+          data={sorted}
+          rowKey={(row) => row.id}
+          sort={sort}
+          onSortChange={setSort}
+        />
+      );
+    };
+    return <SortableTable />;
+  },
+};
+
 export const Selectable: Story = {
   render: () => {
     const SelectableTable = () => {

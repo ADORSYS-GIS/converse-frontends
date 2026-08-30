@@ -2,42 +2,41 @@ import { render, screen } from '@testing-library/react';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ManageScreen as ManageScreenData } from './use-manage-screen';
+import type { ProjectsScreen as ProjectsScreenData } from './use-projects-screen';
 
 /**
- * Container-level acceptance coverage for what `/manage` mounts — and, since the Settings screen
- * landed, for what it must NOT.
+ * Container-level acceptance coverage for what `/projects` (renamed from `/manage`, 2026-08-30
+ * revamp brief) mounts — and, since the Settings screen landed, for what it must NOT.
  *
- * `useManageScreen` is mocked wholesale, matching `overview-centre.test.tsx`'s established split:
- * the hook's own pure mapping is covered cheaply elsewhere (`project-rows.test.ts`,
+ * `useProjectsScreen` is mocked wholesale, matching `overview-centre.test.tsx`'s established
+ * split: the hook's own pure mapping is covered cheaply elsewhere (`project-rows.test.ts`,
  * `rpc-field-error.test.ts`), while this file answers the different, black-box question — is this
  * affordance on THIS screen at all.
  *
  * The account flow's own coverage moved to `settings-centre.test.tsx` along with the flow. What
- * stays here is the inverse assertion: Manage is a filtering and browsing screen, so a core
+ * stays here is the inverse assertion: Projects is a filtering and browsing screen, so a core
  * account mutation appearing on it again is a regression (owner, 2026-08-29 — "We cannot modify
  * account core information on the same page we're filtering").
  */
-const useManageScreenMock = vi.fn();
-vi.mock('./use-manage-screen', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./use-manage-screen')>();
+const useProjectsScreenMock = vi.fn();
+vi.mock('./use-projects-screen', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./use-projects-screen')>();
   return {
     ...actual,
-    useManageScreen: () => useManageScreenMock(),
+    useProjectsScreen: () => useProjectsScreenMock(),
   };
 });
 
-function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData {
+function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreenData {
   return {
     scopeLabel: 'adorsys-gis',
     rows: [],
     loading: false,
     errorMessage: undefined,
-    spendPendingMessage: 'Spend is not shown here yet.',
-    totals: { shownLabel: '0 of 0', spendMtd: null },
     retry: vi.fn(),
     search: '',
     setSearch: vi.fn(),
+    filtersActive: false,
     newProject: vi.fn(),
     createProjectEligible: true,
     createProjectReason: undefined,
@@ -62,6 +61,8 @@ function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData
     selectRow: vi.fn(),
     clearSelection: vi.fn(),
     projectCount: 0,
+    sort: { key: 'name', direction: 'asc' },
+    onSortChange: vi.fn(),
     pagination: {
       shown: 0,
       total: 0,
@@ -101,13 +102,13 @@ function baseScreen(overrides: Partial<ManageScreenData> = {}): ManageScreenData
   };
 }
 
-async function renderCentre(overrides: Partial<ManageScreenData> = {}) {
-  useManageScreenMock.mockReturnValue(baseScreen(overrides));
-  const { ManageCentre } = await import('./manage-centre');
-  return render(<ManageCentre />, { wrapper: withNuqsTestingAdapter() });
+async function renderCentre(overrides: Partial<ProjectsScreenData> = {}) {
+  useProjectsScreenMock.mockReturnValue(baseScreen(overrides));
+  const { ProjectsCentre } = await import('./projects-centre');
+  return render(<ProjectsCentre />, { wrapper: withNuqsTestingAdapter() });
 }
 
-describe('ManageCentre', () => {
+describe('ProjectsCentre', () => {
   it('does not mount the account panel any more — it moved to /settings', async () => {
     const { container } = await renderCentre();
 
@@ -120,10 +121,45 @@ describe('ManageCentre', () => {
 
   it('still owns the project ledger and its own create-project write', async () => {
     // `+ New project` stays: creating a project IS what this ledger is a list of, and it is the
-    // one write Manage legitimately owns.
-    await renderCentre();
+    // one write Projects legitimately owns.
+    await renderCentre({ rows: [], filtersActive: false });
 
     expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ New project' })).toBeInTheDocument();
+    // Two `+ New project` buttons render while the ledger is a true empty collection: the header
+    // action and the `EmptyState` CTA, both gated identically — see `projects-centre.tsx`.
+    expect(screen.getAllByRole('button', { name: '+ New project' }).length).toBeGreaterThan(0);
+  });
+
+  it('renders no permanent "spend is unwired" banner — Spend MTD is a real column now', async () => {
+    await renderCentre();
+
+    expect(
+      screen.queryByText(/not shown here yet|does not query the usage backend/)
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders EmptyState with a gated CTA for a true empty collection (no active filter)', async () => {
+    await renderCentre({
+      rows: [],
+      filtersActive: false,
+      createProjectEligible: false,
+      createProjectReason: 'Select an account to create a project.',
+    });
+
+    expect(screen.getByText('No projects yet')).toBeInTheDocument();
+    const ctas = screen.getAllByRole('button', { name: '+ New project' });
+    for (const cta of ctas) {
+      expect(cta).toBeDisabled();
+      expect(cta).toHaveAttribute('title', 'Select an account to create a project.');
+    }
+  });
+
+  it('renders an inline "no matches" line, not EmptyState, when a filter empties the list', async () => {
+    await renderCentre({ rows: [], filtersActive: true });
+
+    expect(screen.queryByText('No projects yet')).not.toBeInTheDocument();
+    expect(screen.getByText('No projects match these filters.')).toBeInTheDocument();
+    // Structure stays — the column headers are still on screen.
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
   });
 });

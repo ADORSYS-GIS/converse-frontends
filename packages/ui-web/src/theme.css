@@ -325,16 +325,22 @@
     font-size: 0.75rem;
   }
 
-  /* The row-actions column reveals on hover or keyboard focus. This was `opacity-0` plus two
-     `group-*` variants on the cell, which needed a `group` marker on every row; as a descendant
-     rule the row does not have to be marked at all. */
-  & tbody td.row-actions {
-    opacity: 0;
-    transition: opacity 0.15s ease-out;
+  /* The row-actions column is ALWAYS visible now (2026-08-30 revamp brief) — it used to be
+     `opacity-0` plus two `group-*` variants revealed only on hover/keyboard focus, which hid a
+     row's only way to reach Rotate/Revoke/Del from anyone not currently pointed at that exact
+     row (a11y regression, not a feature). What replaces the reveal is the same "chrome until
+     pointed at" idiom `sheet-header`'s own dismiss control uses (see that utility's doc comment):
+     `subtle` at rest, strengthening to `ink` the moment the row is engaged. Stated here, against
+     the row action buttons themselves, rather than as a colour pair on `RowActionGroup`/
+     `row-action` — this is a fact about the ROW's engagement state, not the action group's own
+     default styling. */
+  & tbody td.row-actions .row-action-group > button {
+    color: var(--color-subtle);
+    transition: color 0.15s ease-out;
   }
-  & tbody tr:hover > td.row-actions,
-  & tbody tr:focus-within > td.row-actions {
-    opacity: 1;
+  & tbody tr:hover > td.row-actions .row-action-group > button,
+  & tbody tr:focus-within > td.row-actions .row-action-group > button {
+    color: var(--color-ink);
   }
 
   & tfoot tr > td {
@@ -344,6 +350,56 @@
     color: var(--color-base-content);
     font-size: 0.75rem;
   }
+}
+
+/*
+ * A sortable `LedgerTable` header — a real `<button>` inside the `th` (accessible name = the
+ * column label), reset back to plain inline text so it disappears into the `label` role the `th`
+ * itself already carries: no button chrome, `font: inherit`/`color: inherit` so it takes the
+ * `th`'s type role rather than the browser's own button font. `justify-end` (applied at the call
+ * site for a right-aligned column) keeps the caret trailing the label rather than the button
+ * itself drifting to the cell's own `text-right`, which a flex child ignores.
+ */
+@utility ledger-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  /* A right-aligned column's caret trails the label at the cell's own trailing edge — a data
+     attribute (`component.tsx` sets it from `column.align`) rather than a second class, so the
+     alignment axis costs no extra hand-written utility (class-budget.test.ts). */
+  &[data-align='right'] {
+    justify-content: flex-end;
+  }
+
+  &:hover {
+    color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* The caret itself: `color: inherit` so it rides the button's own colour — `label` role at rest,
+   `ink` on hover (`ledger-sort-button:hover`, above) — and, once the column is the active sort
+   (`ledger-sort-caret-active`, set at the call site), `ink` unconditionally: an active sort stays
+   legible without the pointer parked on it. */
+@utility ledger-sort-caret {
+  font-size: 0.625rem;
+  color: inherit;
+}
+
+@utility ledger-sort-caret-active {
+  color: var(--color-ink);
 }
 
 /*

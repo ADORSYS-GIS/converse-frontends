@@ -72,7 +72,7 @@ describe('middleware matcher', () => {
 
   it('still matches ordinary app routes, so they stay gated', () => {
     const pattern = matcherPattern();
-    for (const path of ['', 'manage', 'api-keys', 'admin']) {
+    for (const path of ['', 'projects', 'api-keys', 'admin']) {
       expect(pattern.test(path), `${path || '/'} should stay matched (gated)`).toBe(true);
     }
   });

@@ -13,7 +13,5 @@ export interface ManageControlsProps {
   budgetStateValue: string;
   budgetStateOptions: ManageOption[];
   onBudgetStateChange: (value: string) => void;
-  search: string;
-  onSearchChange: (value: string) => void;
   className?: string;
 }

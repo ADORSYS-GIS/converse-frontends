@@ -1,13 +1,38 @@
 // ── foundations
 export { cn } from './cn';
 export { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_SEPARATOR_CLASS } from './lib/overlay';
-export { DASHBOARD_LABEL_CLASS, LABEL_CLASS } from './lib/type-roles';
+export {
+  BODY_CLASS,
+  DATA_CLASS,
+  DATA_INK_CLASS,
+  ERROR_TEXT_CLASS,
+  HERO_CEILING_CLASS,
+  HERO_METRIC_CLASS,
+  LABEL_CLASS,
+  META_CLASS,
+  METRIC_CLASS,
+  PAGE_SUBTITLE_CLASS,
+  PAGE_TITLE_CLASS,
+  SECTION_TITLE_CLASS,
+} from './lib/type-roles';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
 export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
 export { useCommandPaletteShortcut } from './lib/use-command-palette-shortcut';
 export { DefaultAnchor } from './lib/link-component';
 export type { LinkComponent, LinkComponentProps } from './lib/link-component';
+
+// ── revamp primitives
+// The console visual revamp's phase 1 foundation (2026-08): the two-column console's card shell,
+// list chrome and detail sheet. See `lib/type-roles.ts` for the type scale these compose.
+export { Card } from './components/card';
+export type { CardProps } from './components/card';
+export { EmptyState } from './components/empty-state';
+export type { EmptyStateProps } from './components/empty-state';
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
+export { DetailSheet } from './components/detail-sheet';
+export type { DetailSheetProps } from './components/detail-sheet';
 
 // ── shell
 export { ConsoleShell } from './components/console-shell';
@@ -180,6 +205,9 @@ export type { ErrorLineProps } from './components/error-line';
 
 export { ScreenHeading } from './sections/screen-heading';
 export type { ScreenHeadingProps } from './sections/screen-heading';
+
+export { PageHeader } from './sections/page-header';
+export type { PageHeaderProps } from './sections/page-header';
 
 export { OverviewStatRow } from './sections/overview-stat-row';
 export type {

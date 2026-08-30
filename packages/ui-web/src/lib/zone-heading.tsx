@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { DASHBOARD_LABEL_CLASS } from './type-roles';
+import { SECTION_TITLE_CLASS } from './type-roles';
 
 /**
  * The label row at the top of a dashboard zone (console-redesign §5.1): the zone's name, and
@@ -26,7 +26,7 @@ export interface ZoneHeadingProps {
 export function ZoneHeading({ label, actions, trailing }: ZoneHeadingProps) {
   return (
     <div className="zone-heading" data-align={trailing ? 'baseline' : undefined}>
-      <div className={DASHBOARD_LABEL_CLASS}>{label}</div>
+      <div className={SECTION_TITLE_CLASS}>{label}</div>
       {trailing ?? (actions ? <div className="zone-heading-actions">{actions}</div> : null)}
     </div>
   );

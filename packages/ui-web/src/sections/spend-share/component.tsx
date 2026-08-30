@@ -2,14 +2,14 @@ import React from 'react';
 
 import { ErrorLine } from '../../components/error-line';
 import { ShareBar } from '../../components/share-bar';
-import { LABEL_CLASS, SUBJECT_CLASS } from '../../lib/type-roles';
+import { DATA_INK_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
 import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendShareSectionProps } from './types';
 
 // Contract: owner brief 2026-08-24 -- "Spend — share by project," the part-to-whole view of the
 // same per-project series `SpendDashboard` plots over time, placed directly below it. Follows
-// `SpendDashboard`'s heading/status shape (`DASHBOARD_LABEL_CLASS` + `ready`/`loading`/`error`/
+// `SpendDashboard`'s heading/status shape (`SECTION_TITLE_CLASS` + `ready`/`loading`/`error`/
 // `unwired`) so the two dashboards read as one family, uncontained on the floor.
 //
 // The mark is a `ShareBar`, not a donut (owner review 2026-08-29) — see that component's own
@@ -36,7 +36,9 @@ export function SpendShareSection({
       <ZoneHeading
         label={label}
         trailing={
-          total && status === 'ready' ? <span className={SUBJECT_CLASS}>{total}</span> : undefined
+          total && status === 'ready' ? (
+            <span className={DATA_INK_CLASS}>{total}</span>
+          ) : undefined
         }
       />
 

@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { ROW_SIGNAL_CLASS } from '../../lib/type-roles';
+import { ERROR_TEXT_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import type { MutationFailureBannerProps } from './types';
 
@@ -43,7 +43,7 @@ export function MutationFailureBanner({
     // the ninth utility on one line here, and it is a fact about the shell's gutters rather than
     // a decision this component makes.
     <div role="alert" className={cn('chrome-band', className)}>
-      <span className={ROW_SIGNAL_CLASS}>{message}</span>
+      <span className={ERROR_TEXT_CLASS}>{message}</span>
       <Button variant="ghost" size="sm" onClick={onDismiss} aria-label="Dismiss">
         ×
       </Button>

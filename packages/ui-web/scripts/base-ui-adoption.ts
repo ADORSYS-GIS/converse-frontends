@@ -21,6 +21,7 @@ export const EXPECTED: Record<string, string | null> = {
   'create-api-key-dialog': 'dialog',
   'create-project-dialog': 'dialog',
   'date-range-field': 'popover',
+  'detail-sheet': 'dialog',
   field: 'field',
   meter: 'meter',
   'project-name-dialog': 'dialog',
@@ -43,13 +44,16 @@ export const EXPECTED: Record<string, string | null> = {
   // join the ring and this component is a pure host of opaque slots.
 
   // — nothing upstream, with the reason
+  card: null, // a padded panel, no behaviour of its own
   'chart-axis': null, // SVG primitive
   'chart-legend': null, // SVG primitive
   'chart-tooltip': null, // point-anchored: Floating UI virtual element, not a DOM anchor
   chevron: null, // a static path
   'command-palette': null, // cmdk owns the palette (ADR 0010)
   'console-shell': null, // the flush full-height rail contract; daisy `drawer` rejected
+  'empty-state': null, // a static composition of two type roles and a slot
   'error-line': null, // a status line, not a control
+  pagination: null, // composes Button; no behaviour of its own
   'histogram-chart': null, // SVG primitive
   'inline-status': null, // a status line, not a control
   'latency-ridgeline': null, // SVG primitive

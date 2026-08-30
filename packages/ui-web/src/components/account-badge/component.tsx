@@ -12,7 +12,7 @@ import {
   OVERLAY_SEPARATOR_CLASS,
   OVERLAY_SPLIT_ROW_CLASS,
 } from '../../lib/overlay';
-import { LABEL_CLASS, ROW_CLASS, ROW_INK_CLASS } from '../../lib/type-roles';
+import { DATA_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { AccountBadgeProps } from './types';
 import { Chevron } from '../chevron';
 
@@ -81,7 +81,7 @@ export function AccountBadge({
     <>
       {/* A real name reads at full strength; the generated token is not the account's name, so
           it stays one step back. */}
-      <span className={isFallback ? ROW_CLASS : ROW_INK_CLASS}>{display}</span>
+      <span className={isFallback ? DATA_CLASS : SECTION_TITLE_CLASS}>{display}</span>
       {/* The name is the identity; the short id is the disambiguator beside it. When the name IS
           the short id there is nothing to disambiguate, so this second line is suppressed rather
           than repeating it. Hidden on phones, where the header has no room for both. */}

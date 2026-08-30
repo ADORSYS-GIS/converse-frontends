@@ -1,84 +1,44 @@
-// The `label` type role — one definition, consumed everywhere a structural label is rendered.
-// Was re-typed in eight places before this file existed.
+// The console's type roles — one definition per role, consumed everywhere it is rendered.
 //
-// Sentence case, not uppercase (owner review 2026-08-29): twenty all-caps labels on one screen
-// read as twenty things shouting. Dropping `uppercase` also drops the `.09em` tracking that
-// existed to make caps legible, and moves the size up one step (lowercase reads smaller at the
-// same pixel size). Colour stays `subtle` — labels are never load-bearing.
+// Revamp phase 1 (console visual revamp brief, 2026-08 — supersedes this file's earlier
+// mono-everything scale): Inter (`font-sans`) is the UI type — titles, subtitles, section
+// headings, labels, body copy, meta lines, error text. IBM Plex Mono (`font-mono`) is reserved
+// for DATA ONLY — currency, counts, percentages, ids/UUIDs, key prefixes, ISO dates/timestamps,
+// kbd — never for prose or structural chrome. Every data role also carries `data-numeral`
+// (`theme.css`) for tabular figures.
 
-/** Structural label: form-control labels, rail section headings, table column headers. */
-export const LABEL_CLASS = 'font-mono text-[11px] text-subtle';
+/** Page-level heading — the title a screen opens with (`PageHeader`). */
+export const PAGE_TITLE_CLASS = 'font-sans text-[24px] font-semibold leading-[1.2] text-ink';
 
-/** The same role one step up — headings for the dashboard zones on the centre floor. */
-export const DASHBOARD_LABEL_CLASS = 'font-mono text-[12px] text-subtle';
+/** The sentence under a page title — context, not a heading of its own. */
+export const PAGE_SUBTITLE_CLASS = 'font-sans text-[13px] leading-[1.5] text-subtle';
 
-// The rest of the skill's type roles, given the same one-definition treatment `label` already
-// had. Before this, `metric` was re-typed in four components, `row` in five and the two prose
-// steps in three — each an independent chance to drift a pixel or a token. daisyUI ships no type
-// scale of its own (its `text-*` classes are Tailwind's), so these stay hand-written utilities by
-// necessity, not by choice: they are the console's own type contract, declared once.
+/** A zone/card heading one step below the page title — `Card`'s own title, a dashboard zone. */
+export const SECTION_TITLE_CLASS = 'font-sans text-[15px] font-medium text-ink';
 
-/** `panel-title` — 16 mono ink. The heading at the top of a rail section or a panel. */
-export const PANEL_TITLE_CLASS = 'font-mono text-base text-ink';
+/** Structural label: form-control labels, table column headers, rail section headings. */
+export const LABEL_CLASS = 'font-sans text-[12px] text-subtle';
 
-/** `metric` — the 22px key numeral. Right-aligned wherever it sits in a column. */
-export const METRIC_CLASS = 'font-mono text-[22px] leading-[1.2] text-ink';
+/** Sentence-copy body text — the console's one prose role. */
+export const BODY_CLASS = 'font-sans text-[13px] leading-[1.5] text-soft';
 
-/** `metric` at the hero step (26px) — one per screen, the number the page is about. */
-export const HERO_METRIC_CLASS = 'font-mono text-[26px] leading-[1.2] text-ink';
+/** A secondary line under a control or beside a row — captions, non-load-bearing metadata. */
+export const META_CLASS = 'font-sans text-[12px] leading-[1.45] text-subtle';
 
-/**
- * The ceiling beside a hero metric — "of $2,000.00", one step down from the numeral it qualifies
- * and never in the numeral's `ink`, because it is the reference value and not the reading.
- *
- * A step of its own rather than `LABEL_CLASS` (11px), which is what the same pairing uses beside
- * the 22px `METRIC_CLASS` in `ReviewDetailPanel`: an 11px ceiling next to a 26px numeral reads as
- * a footnote rather than the other half of the sentence. `metric-ceiling-row` in `theme.css` owns
- * the baseline alignment the pair shares; the step is what differs, so the step is the role.
- */
-export const HERO_CEILING_CLASS = 'font-mono text-sm text-subtle';
+/** An error line's own text — signal-coloured, never decorative. */
+export const ERROR_TEXT_CLASS = 'font-sans text-[13px] text-primary';
 
-/**
- * `row` with no colour — 12 mono. The only consumer that wants this rather than `ROW_CLASS` is a
- * component whose colour is a variant axis (`StatusText`), so the two never disagree on size.
- */
-export const ROW_BASE_CLASS = 'font-mono text-xs';
+/** A data value at body weight — table cells, list rows: counts, ids, dates, currency. */
+export const DATA_CLASS = 'font-mono data-numeral text-[13px] text-soft';
 
-/** `row` — 12 mono body text: table cells, list rows, inline status lines. */
-export const ROW_CLASS = `${ROW_BASE_CLASS} text-soft`;
+/** The same data role at full strength — the value IS the thing, not a fact about it. */
+export const DATA_INK_CLASS = 'font-mono data-numeral text-[13px] text-ink';
 
-/** `row` in the signal colour — an error line's own text, and nothing decorative. */
-export const ROW_SIGNAL_CLASS = `${ROW_BASE_CLASS} text-primary`;
+/** A key numeral inside a stat card or table footer. */
+export const METRIC_CLASS = 'font-mono data-numeral text-[28px] leading-[1.15] text-ink';
 
-/**
- * `row` at full strength — the same 12 mono, in `ink` rather than `soft`. For a row that IS the
- * thing rather than a fact about it: an account's real name, as against the generated
- * `acct_49534505` token that stands in when there is no name.
- *
- * A third colour of one size, declared beside the other two rather than as a bare `text-ink`
- * beside `ROW_CLASS` at the call site — which is how a role acquires a fourth spelling.
- */
-export const ROW_INK_CLASS = `${ROW_BASE_CLASS} text-ink`;
+/** `METRIC_CLASS` at the hero step — one per screen, the number the page is about. */
+export const HERO_METRIC_CLASS = 'font-mono data-numeral text-[34px] leading-[1.1] text-ink';
 
-/** `prose` — Inter 11, the only sentence-copy role. */
-export const PROSE_CLASS = 'font-sans text-[11px] leading-[1.45] text-soft';
-
-/** `prose` one step down (Inter 10, subtle) — captions and non-load-bearing metadata. */
-export const PROSE_META_CLASS = 'font-sans text-[10px] leading-[1.45] text-subtle';
-
-/**
- * The `meta` role — 11px mono, `subtle`: a secondary line under a control or beside a row.
- * Same size and colour as `label`, but with the leading a wrapping sentence needs; a label is
- * one word above a field, a meta line is a clause that can run to two lines.
- */
-export const META_CLASS = 'font-mono text-[11px] leading-[1.4] text-subtle';
-
-/**
- * The subject line of a fact block — 14 mono `ink`: an account's name above its id, a project's
- * name above its settings rows. Sits between `panel-title` (a zone heading) and `row` (a value):
- * it is the thing the block is ABOUT, not the block's own heading and not one of its values.
- *
- * Already rendered by hand in `AccountPanel` and `ManageSelectionRail` before this existed —
- * declared here so the third and fourth consumers inherit it rather than re-typing it.
- */
-export const SUBJECT_CLASS = 'font-mono text-sm text-ink';
+/** The reference value beside a hero metric ("of $2,000.00") — never in the numeral's `ink`. */
+export const HERO_CEILING_CLASS = 'font-sans text-[13px] text-subtle';

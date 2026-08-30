@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 import { cn } from '../../cn';
 import { formatUsd } from '../../lib/money';
 import {
-  METRIC_CLASS,
-  PANEL_TITLE_CLASS,
-  PROSE_CLASS,
-  PROSE_META_CLASS,
-  ROW_CLASS,
+  BODY_CLASS,
+  DATA_CLASS,
   LABEL_CLASS,
+  META_CLASS,
+  METRIC_CLASS,
+  SECTION_TITLE_CLASS,
 } from '../../lib/type-roles';
 import { Button } from '../button';
 import { Field } from '../field';
@@ -123,8 +123,8 @@ export function ReviewDetailPanel({
     <div className={cn('rail-panel-stack', className)}>
       <div className={STACK_CLASS}>
         <span className={fieldLabelClassName}>Request</span>
-        <h2 className={PANEL_TITLE_CLASS}>{subject}</h2>
-        <p className={PROSE_META_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>{subject}</h2>
+        <p className={META_CLASS}>
           {requesterEmail} · {submittedAt}
         </p>
       </div>
@@ -158,14 +158,14 @@ export function ReviewDetailPanel({
       {requesterNote ? (
         <div className={SECTION_CLASS}>
           <span className={fieldLabelClassName}>Note from requester</span>
-          <p className={PROSE_CLASS}>{requesterNote}</p>
+          <p className={BODY_CLASS}>{requesterNote}</p>
         </div>
       ) : null}
 
       {reviewerNote ? (
         <div className={SECTION_CLASS}>
           <span className={fieldLabelClassName}>Reviewer note</span>
-          <p className={PROSE_CLASS}>{reviewerNote}</p>
+          <p className={BODY_CLASS}>{reviewerNote}</p>
         </div>
       ) : null}
 
@@ -185,12 +185,12 @@ export function ReviewDetailPanel({
                         unit, not two related blocks. The tightening belongs to the cell, so it
                         applies to whatever this cell comes to hold. */}
                     <div className={STACK_CLASS}>
-                      <span className={ROW_CLASS}>{row.label}</span>
+                      <span className={BODY_CLASS}>{row.label}</span>
                       <span className={LABEL_CLASS}>{row.meta}</span>
                     </div>
                   </td>
                   {/* Numerics are right-aligned (console-ui skill, "Type"). */}
-                  <td className={cn(CELL_CLASS, ROW_CLASS, 'text-right')}>
+                  <td className={cn(CELL_CLASS, DATA_CLASS, 'text-right')}>
                     {formatSignedCurrency(row.amount)}
                   </td>
                 </tr>

@@ -5,7 +5,7 @@ import { Button } from '../../components/button';
 import { DETAIL_LIST_CLASS, DETAIL_ROW_CLASS, DETAIL_SECTION_CLASS } from '../../lib/detail-row';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { NO_QUOTA_TIER_LABEL } from '../../lib/quota-tier';
-import { LABEL_CLASS, ROW_CLASS } from '../../lib/type-roles';
+import { BODY_CLASS, DATA_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import { AccountPanel } from '../account-panel';
 import type { AccountSettingsProps } from './types';
 
@@ -49,7 +49,7 @@ export function AccountSettings({ panel, details, onCopyId, className }: Account
           <div className={DETAIL_ROW_CLASS}>
             <dt className={LABEL_CLASS}>Account id</dt>
             <dd className={INLINE_ROW_CLASS}>
-              <span className={ROW_CLASS}>{details.id}</span>
+              <span className={DATA_CLASS}>{details.id}</span>
               {onCopyId ? (
                 <Button
                   type="button"
@@ -66,12 +66,12 @@ export function AccountSettings({ panel, details, onCopyId, className }: Account
           <div className={DETAIL_ROW_CLASS}>
             <dt className={LABEL_CLASS}>Status</dt>
             {/* Text, never a pill (console-ui skill § States). */}
-            <dd className={ROW_CLASS}>{details.status}</dd>
+            <dd className={BODY_CLASS}>{details.status}</dd>
           </div>
 
           <div className={DETAIL_ROW_CLASS}>
             <dt className={LABEL_CLASS}>Default quota tier</dt>
-            <dd className={ROW_CLASS}>{details.defaultQuotaTier ?? NO_QUOTA_TIER_LABEL}</dd>
+            <dd className={BODY_CLASS}>{details.defaultQuotaTier ?? NO_QUOTA_TIER_LABEL}</dd>
           </div>
         </dl>
       ) : null}

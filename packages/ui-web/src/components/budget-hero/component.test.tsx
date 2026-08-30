@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { HERO_METRIC_CLASS } from '../../lib/type-roles';
 import { BudgetHero } from './component';
 
 describe('BudgetHero', () => {
@@ -57,7 +58,7 @@ describe('BudgetHero', () => {
       expect(screen.queryByText(/^\$/)).not.toBeInTheDocument();
       expect(screen.queryByText(/^of \$/)).not.toBeInTheDocument();
       const headline = screen.getByText('Not wired');
-      expect(headline).toHaveClass('text-[26px]', 'text-ink');
+      expect(headline).toHaveClass(...HERO_METRIC_CLASS.split(' '));
     });
 
     it('renders no meter — an unknown ceiling has no percentage to show', () => {

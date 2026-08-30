@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
-import { ROW_SIGNAL_CLASS } from '../../lib/type-roles';
+import { ERROR_TEXT_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import type { ErrorLineProps } from './types';
 
@@ -15,7 +15,7 @@ import type { ErrorLineProps } from './types';
 // now declares no class of its own.
 export function ErrorLine({ message, onRetry, retryLabel = 'Retry', className }: ErrorLineProps) {
   return (
-    <div role="alert" className={cn(INLINE_ROW_CLASS, ROW_SIGNAL_CLASS, className)}>
+    <div role="alert" className={cn(INLINE_ROW_CLASS, ERROR_TEXT_CLASS, className)}>
       <span>{message}</span>
       {onRetry ? (
         <Button type="button" variant="ghost" size="sm" onClick={onRetry}>

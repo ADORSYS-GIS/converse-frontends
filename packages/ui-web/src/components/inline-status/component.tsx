@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
-import { ROW_CLASS } from '../../lib/type-roles';
+import { BODY_CLASS } from '../../lib/type-roles';
 import type { InlineStatusProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §4 (states) / §6 — a single mono line above
@@ -16,7 +16,7 @@ import type { InlineStatusProps } from './types';
 // `row` role. There is nothing left in this component that is only about this component.
 export function InlineStatus({ children, action, className }: InlineStatusProps) {
   return (
-    <div role="status" aria-live="polite" className={cn(INLINE_ROW_CLASS, ROW_CLASS, className)}>
+    <div role="status" aria-live="polite" className={cn(INLINE_ROW_CLASS, BODY_CLASS, className)}>
       <span>{children}</span>
       {action}
     </div>

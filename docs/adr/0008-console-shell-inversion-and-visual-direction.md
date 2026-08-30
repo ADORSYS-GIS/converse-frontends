@@ -2,6 +2,17 @@
 
 ## Status
 
+Accepted — **Decision 3 (shell inversion, the persistent right-rail contract) and the
+monospace-primary half of Decision 5 superseded by
+[ADR 0012](0012-console-visual-revamp.md)** (owner directive 2026-08-30). The three-rail,
+header-band shell is replaced by a two-column shell (240px sidebar + fluid content column); the
+centre is no longer "never a card" — cards are now the default zone container; radius moves from
+2px to 8px (panels) / 4px (controls); and structural type is sans-first, with mono reserved for
+data values only. Everything else this ADR locked — the near-black tonal palette, the single
+`#DA5C2C` signal accent used only for CTA/active/breach, the monochrome chart-series ramp, "status
+as text, never a pill" — is unchanged and still binding; ADR 0012 records exactly which clauses it
+replaces and which it leaves standing.
+
 Accepted — **Decisions 1–2 and 9 superseded by
 [ADR 0009](0009-nextjs-console-replacement.md)** for the Next.js console. Decisions 1–2 (no
 mobile target, landscape forced, ≤600 as an unstyled guard rail) were bound to the Expo app; the

@@ -48,6 +48,19 @@
  * sidesteps both: it's plain `fs`, not module resolution, so no `exports` map or CJS/ESM condition
  * applies.
  *
+ * The exact `@cratestack/cbor-web` version to look for is read from `@cratestack/cbor`'s own
+ * `package.json` (resolved via `packages/authz-rpc/node_modules/@cratestack/cbor`, the one real
+ * dependent) rather than picked by scanning `node_modules/.pnpm` for any directory name matching
+ * the `@cratestack+cbor-web@*` prefix. pnpm's virtual store does not necessarily prune an old
+ * version's directory the moment a bump lands in the lockfile (confirmed directly while bumping
+ * cratestack 0.8.13 -> 0.9.4: both `@cratestack+cbor-web@0.8.13` and `...@0.9.4` existed side by
+ * side under `node_modules/.pnpm` after `pnpm install`) -- `readdirSync(...).find(...)` over that
+ * directory would then return whichever happens to sort first, silently shipping a stale, version-
+ * mismatched `.wasm` binary next to the current JS glue code. Reading the version out of the actual
+ * dependent's `package.json` is exact and immune to whatever else happens to still be sitting in
+ * the store.
+ *
+
  * ## Why this should not exist forever
  *
  * The right fix is upstream, in `@cratestack/cbor-web`: an official Metro/Expo asset-copy story
@@ -63,7 +76,7 @@
  * alongside each one. Fails loudly (non-zero exit, no partial output) if the export output or the
  * wasm source file is missing, so a broken copy never silently ships.
  */
-import { copyFileSync, existsSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -80,14 +93,41 @@ if (!existsSync(distWebDir)) {
   process.exit(1);
 }
 
-const pnpmStoreDir = join(workspaceRoot, 'node_modules', '.pnpm');
-const cborWebStoreDirName = existsSync(pnpmStoreDir)
-  ? readdirSync(pnpmStoreDir).find((name) => name.startsWith('@cratestack+cbor-web@'))
-  : undefined;
-if (!cborWebStoreDirName) {
+const cborPackageJsonPath = join(
+  workspaceRoot,
+  'packages',
+  'authz-rpc',
+  'node_modules',
+  '@cratestack',
+  'cbor',
+  'package.json'
+);
+if (!existsSync(cborPackageJsonPath)) {
   console.error(
-    `copy-cbor-wasm-asset: no "@cratestack+cbor-web@*" directory found under ${pnpmStoreDir} -- ` +
-      'is @cratestack/cbor still a dependency of packages/authz-rpc, and has `pnpm install` run?'
+    `copy-cbor-wasm-asset: ${cborPackageJsonPath} does not exist -- is @cratestack/cbor still a ` +
+      'dependency of packages/authz-rpc, and has `pnpm install` run?'
+  );
+  process.exit(1);
+}
+const cborWebVersion = JSON.parse(readFileSync(cborPackageJsonPath, 'utf8')).dependencies?.[
+  '@cratestack/cbor-web'
+];
+if (!cborWebVersion) {
+  console.error(
+    `copy-cbor-wasm-asset: ${cborPackageJsonPath} has no "@cratestack/cbor-web" dependency entry.`
+  );
+  process.exit(1);
+}
+
+const pnpmStoreDir = join(workspaceRoot, 'node_modules', '.pnpm');
+const cborWebStoreDirName = `@cratestack+cbor-web@${cborWebVersion}`;
+if (
+  !existsSync(pnpmStoreDir) ||
+  !readdirSync(pnpmStoreDir).includes(cborWebStoreDirName)
+) {
+  console.error(
+    `copy-cbor-wasm-asset: "${cborWebStoreDirName}" directory not found under ${pnpmStoreDir} -- ` +
+      'has `pnpm install` run since the last @cratestack/cbor version bump?'
   );
   process.exit(1);
 }

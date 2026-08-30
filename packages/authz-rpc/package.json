@@ -13,13 +13,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cratestack/api": "0.8.13",
-    "@cratestack/cbor": "0.8.13",
+    "@cratestack/api": "0.9.4",
+    "@cratestack/cbor": "0.9.4",
     "@paralleldrive/cuid2": "^3.3.0",
     "decimal.js": "^10.6.0"
   },
   "peerDependencies": {
-    "@cratestack/refine": "0.8.13",
+    "@cratestack/refine": "0.9.4",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
@@ -28,7 +28,7 @@
     }
   },
   "devDependencies": {
-    "@cratestack/cli": "0.8.13",
+    "@cratestack/cli": "0.9.4",
     "vitest": "^3.2.7"
   }
 }

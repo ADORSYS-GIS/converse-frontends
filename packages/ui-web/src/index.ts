@@ -218,6 +218,16 @@ export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dash
 export { SpendShareSection } from './sections/spend-share';
 export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
 
+export { RankedSeriesRows } from './sections/ranked-series-rows';
+export type {
+  RankedSeriesRow,
+  RankedSeriesRowMeter,
+  RankedSeriesRowsProps,
+} from './sections/ranked-series-rows';
+
+export { LatencyStatCards } from './sections/latency-stat-cards';
+export type { LatencyStatCardsProps, LatencyStatRow } from './sections/latency-stat-cards';
+
 export { BudgetPanel } from './sections/budget-panel';
 export type {
   BudgetNeedsAttentionProject,

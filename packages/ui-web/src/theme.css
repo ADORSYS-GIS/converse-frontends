@@ -1444,6 +1444,112 @@
 }
 
 /*
+ * `RankedSeriesRows` — the ranked-list primitive every usage breakdown in IA v3 phase 4 renders
+ * through (`sections/ranked-series-rows`). One grid row per series: rank swatch · label ·
+ * sparkline · share micro-bar (or a percent, once suppressed) · value · delta — six fixed columns
+ * so every column lines up down the list the same way `share-bar`'s percent gutter does.
+ *
+ * `.ranked-row` deliberately does NOT reuse `.series-row`'s flex layout: a legend/share-bar row has
+ * three loose columns, this one has six fixed ones, and forcing the extra columns onto the flex
+ * shape would need as many one-off utilities at the call site as writing the grid once here saves.
+ */
+@utility ranked-series-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+@utility ranked-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  width: 100%;
+  min-height: 28px;
+  padding-inline: 0.25rem;
+  border-radius: var(--radius-field);
+  font-size: 0.75rem;
+  text-align: left;
+
+  /* Same `:disabled`-drives-affordance rule `.series-row` uses — the "Other" row and the zero-
+     value tail are always `disabled` (see `component.tsx`), a read-only list is every row. */
+  &:not(:disabled) {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--color-neutral);
+    }
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  & .ranked-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-base-content);
+  }
+
+  & .ranked-value,
+  & .ranked-delta,
+  & .ranked-percent {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-subtle);
+    text-align: right;
+  }
+
+  /* Fixed tracks so the columns align down the list regardless of value width. */
+  & .ranked-percent {
+    width: 2.5rem;
+  }
+  & .ranked-delta {
+    width: 3.5rem;
+  }
+
+  &[data-emphasized='true'] {
+    & .ranked-label {
+      color: var(--color-ink);
+    }
+    & .ranked-value {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* A sentinel identity (`sentinel-labels.ts`) or a structural row (Other, the zero-value tail) —
+     named honestly, drawn quietly. Never combined with `data-emphasized='true'` in practice. */
+  &[data-subtle='true'] .ranked-label {
+    color: var(--color-subtle);
+  }
+}
+
+/* The per-row share micro-bar — a 3rem/4px track, `currentColor`-filled so the row's own rank/
+   accent colour (set inline by `component.tsx`) drives both the swatch and this bar without a
+   second colour prop. Suppressed entirely (in favour of a plain percentage) once the leading row
+   crosses the dominance threshold — see `component.tsx`'s own `TOP_SHARE_SUPPRESS_BAR_PERCENT`. */
+@utility ranked-share-bar {
+  display: block;
+  width: 3rem;
+  height: 4px;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  overflow: hidden;
+
+  & > span {
+    display: block;
+    height: 100%;
+    background-color: currentColor;
+  }
+}
+
+/* Sizing only — the sparkline's own `<svg width height>` attributes already pin its pixel box;
+   this keeps it from being crushed by the grid's `minmax(0, 1fr)` label column. */
+@utility ranked-sparkline {
+  flex-shrink: 0;
+}
+
+/*
  * `ChartTooltip`'s card. Point-anchored, drawn over a chart, so it is the one overlay that is not
  * `OVERLAY_CLASS`: it carries no hairline (a 1px border on a card that tracks the cursor reads as
  * flicker) and it is never interactive.

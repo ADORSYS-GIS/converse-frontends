@@ -15,6 +15,30 @@ describe('SpendDashboard', () => {
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
+  it('forwards variant/cumulative/ceiling straight through to SpendSeriesChart', () => {
+    const { container } = render(
+      <SpendDashboard {...base} variant="bars" cumulative ceiling={100} />
+    );
+    // bars variant draws <rect> columns, never a <path> line.
+    expect(container.querySelectorAll('g rect').length).toBeGreaterThan(0);
+  });
+
+  it('renders degenerateMessage in place of the chart when ready, keeping the heading', () => {
+    const { container } = render(
+      <SpendDashboard {...base} degenerateMessage="Only one project in this window (proj-a)." />
+    );
+
+    expect(screen.getByText('Spend — by project and model')).toBeInTheDocument();
+    expect(screen.getByText('Only one project in this window (proj-a).')).toBeInTheDocument();
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
+  });
+
+  it('ignores degenerateMessage while loading or errored — only swaps the READY body', () => {
+    render(<SpendDashboard {...base} status="loading" degenerateMessage="Only one project." />);
+    expect(screen.queryByText('Only one project.')).not.toBeInTheDocument();
+    expect(screen.getByText('Querying usage…')).toBeInTheDocument();
+  });
+
   it('renders the compact-tier trigger slot on the heading row', () => {
     render(<SpendDashboard {...base} actions={<button type="button">Open filters</button>} />);
 

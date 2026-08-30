@@ -197,4 +197,90 @@ describe('SpendSeriesChart', () => {
     const svgText = [...container.querySelectorAll('svg text')].map((n) => n.textContent);
     expect(svgText).not.toContain(longMessage);
   });
+
+  // Build brief §2a — the gap-breaking fix. A series that only reports on day 1 and day 3 of a
+  // 3-day domain must draw two disconnected sub-paths, never one continuous line spanning the
+  // missing day.
+  it('breaks the line across a bucket a series has no point for, instead of drawing across it', () => {
+    const base = new Date('2026-02-01').getTime();
+    const sparse: SpendSeriesSeries = {
+      key: 'a',
+      label: 'sparse',
+      points: [
+        { x: new Date(base), y: 10 },
+        // day 2 (2026-02-02) is absent — `b` still reports it, so it stays in the x-domain.
+        { x: new Date(base + 2 * 86_400_000), y: 30 },
+      ],
+    };
+    const dense = series('b', 'dense', [1, 1, 1]);
+
+    const { container } = render(
+      <SpendSeriesChart series={[sparse, dense]} width={400} height={200} />
+    );
+
+    const paths = Array.from(container.querySelectorAll('g path[stroke]'));
+    // `sparse`'s path is the first rendered (index 0) — d3's `.defined()` emits a new `M` for
+    // each contiguous run, so a path broken by a gap has two `M` commands instead of one.
+    const sparseD = paths[0]?.getAttribute('d') ?? '';
+    expect(sparseD.match(/M/g)?.length).toBe(2);
+    // `dense` (no gap) stays one continuous sub-path.
+    const denseD = paths[1]?.getAttribute('d') ?? '';
+    expect(denseD.match(/M/g)?.length).toBe(1);
+  });
+
+  // Build brief §2b — `cumulative` + `ceiling` for the budget burn-down.
+  it('cumulative renders a running total and forward-fills across a day with no spend', () => {
+    const base = new Date('2026-02-01').getTime();
+    const daily: SpendSeriesSeries = {
+      key: 'a',
+      label: 'account',
+      points: [
+        { x: new Date(base), y: 4 },
+        { x: new Date(base + 2 * 86_400_000), y: 6 },
+      ],
+    };
+    const other = series('b', 'other', [0, 0, 0]);
+
+    const { container } = render(
+      <SpendSeriesChart series={[daily, other]} width={400} height={200} cumulative />
+    );
+
+    // Forward-filled and monotonic: never breaks, even though the raw series has a gap on day 2.
+    const paths = Array.from(container.querySelectorAll('g path[stroke]'));
+    const cumulativeD = paths[0]?.getAttribute('d') ?? '';
+    expect(cumulativeD.match(/M/g)?.length).toBe(1);
+  });
+
+  it('draws a dashed ceiling rule and breaches the series that reaches it', () => {
+    const base = new Date('2026-02-01').getTime();
+    const overCeiling: SpendSeriesSeries = {
+      key: 'a',
+      label: 'account',
+      points: [
+        { x: new Date(base), y: 5 },
+        { x: new Date(base + 86_400_000), y: 10 },
+      ],
+    };
+
+    const { container } = render(
+      <SpendSeriesChart
+        series={[overCeiling]}
+        width={400}
+        height={200}
+        cumulative
+        ceiling={12}
+      />
+    );
+
+    // The dashed ceiling rule itself.
+    const dashedLine = container.querySelector('line[stroke-dasharray]');
+    expect(dashedLine).not.toBeNull();
+
+    // The cumulative total (5 + 10 = 15) crosses the ceiling (12), so the series' own path
+    // renders in the SAME accent the `breached` prop already drives — no second colour rule.
+    const accentPaths = Array.from(container.querySelectorAll('path[stroke]')).filter(
+      (el) => el.getAttribute('stroke') === SPEC_ACCENT
+    );
+    expect(accentPaths.length).toBeGreaterThan(0);
+  });
 });

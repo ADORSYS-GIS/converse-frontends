@@ -71,7 +71,7 @@ export function applyProjectSpend(
 ): ProjectRow[] {
   if (status !== 'ready' || !response) return rows;
   const spendByProjectId = new Map(
-    toSpendShareSegments(response, 'project').map((segment) => [segment.key, segment.value])
+    toSpendShareSegments(response, 'project_id').map((segment) => [segment.key, segment.value])
   );
   return rows.map((row) => ({
     ...row,

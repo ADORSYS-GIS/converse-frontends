@@ -674,6 +674,30 @@
   }
 }
 
+/*
+ * Per-theme runtime branding (owner directive 2026-08-31, "White is for dark themes" — an
+ * addendum to issue #368's Phase H). When a deployment configures BOTH `branding.logo` and
+ * `branding.logoLight`, `apps/console`'s `BrandMark` renders BOTH `<img>`s unconditionally (one
+ * `header-logo brand-mark-dark`, one `header-logo brand-mark-light`) and these two utilities are
+ * the entire swap mechanism -- no JS, no theme context read in that component. `[data-theme]`
+ * matches ANY element bearing the attribute, not just `:root` (see the `@theme` block's own long
+ * comment above on why that specific selector shape is what stays correct under Storybook's
+ * per-story wrapper as well as `apps/console`'s real `<html data-theme>`), and ADR 0010 Decision
+ * 5's pre-hydration script always stamps one of the two values on `<html>` before first paint --
+ * so this resolves correctly with zero flash on every request, exactly like every other
+ * `[data-theme]`-redeclared token in this file. */
+@utility brand-mark-dark {
+  [data-theme='wireframe'] & {
+    display: none;
+  }
+}
+
+@utility brand-mark-light {
+  [data-theme='black'] & {
+    display: none;
+  }
+}
+
 /* The wordmark, sentence case, sans (shell brief 2026-08-30 — supersedes the old mono/tracked
    caps treatment the 56px header band wore; mono-everywhere is dead along with that band). */
 @utility header-wordmark {

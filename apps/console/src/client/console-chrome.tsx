@@ -44,7 +44,7 @@ import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
 import { accountScopeLabel } from '../containers/account-label';
-import { useConsoleBrandingLogo } from './branding-context';
+import { useConsoleBranding } from './branding-context';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -501,25 +501,55 @@ export function initialsFor(
 // name that text used to carry now lives on the link itself (`aria-label`), so the mark stays
 // nameable to a screen reader with nothing rendered twice.
 //
-// issue #368 (Phase H, runtime white-label branding): `hasCustomLogo` (from
-// `useConsoleBrandingLogo()`, seeded server-side by the root layout — see `branding-context.tsx`'s
-// own doc comment for why this is a boolean read once rather than an `<img>` that always attempts
-// `/branding/logo` and falls back on a 404) swaps the built-in mark for the operator's own file.
-// Both link/`aria-label`/decorative-icon contract stays byte-identical either way. `theme.css`'s
-// own `header-logo` utility already anticipates exactly this swap ("identical whether it holds
-// the configured image or the fallback mark... the fallback branch is selected structurally
-// (`:not(img)`)") — `header-logo` goes directly on the `<img>` for the configured case, and on
-// the wrapping `<span>` around the SVG for the fallback, never a second class for the image.
-export function BrandMark({ hasCustomLogo }: { hasCustomLogo: boolean }) {
+// issue #368 (Phase H, runtime white-label branding): `hasLogo` (from `useConsoleBranding()`,
+// seeded server-side by the root layout — see `branding-context.tsx`'s own doc comment for why
+// this is booleans read once rather than an `<img>` that always attempts `/branding/logo` and
+// falls back on a 404) swaps the built-in mark for the operator's own file. Both
+// link/`aria-label`/decorative-icon contract stays byte-identical in every case. `theme.css`'s own
+// `header-logo` utility already anticipates exactly this swap ("identical whether it holds the
+// configured image or the fallback mark... the fallback branch is selected structurally
+// (`:not(img)`)") — `header-logo` goes directly on each `<img>` for a configured case, and on the
+// wrapping `<span>` around the SVG for the fallback, never a second class for the image.
+//
+// Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): `hasLogoLight`
+// -- only ever `true` alongside `hasLogo`, see `branding-context.tsx` -- renders BOTH `<img>`s and
+// lets pure CSS pick which one is visible, keyed off `[data-theme]` on `<html>` (`theme.css`'s
+// `brand-mark-dark`/`brand-mark-light` utilities). No JS theme read here on purpose: the
+// pre-hydration script (ADR 0010 Decision 5, `layout.tsx`) always stamps `data-theme` before first
+// paint, so the CSS resolves correctly with zero flash and zero client-side theme awareness in
+// this component -- exactly the same reasoning `theme.css`'s own `[data-theme]`-redeclared colour
+// tokens already rely on. Both images stay `aria-hidden`/`alt=""` (the link carries the one
+// accessible name) -- `display: none` on the hidden one is belt-and-suspenders on top of that, not
+// what makes it unannounced.
+export function BrandMark({ hasLogo, hasLogoLight }: { hasLogo: boolean; hasLogoLight?: boolean }) {
+  const bothConfigured = hasLogo && hasLogoLight;
   return (
     <Link
       href="/"
       aria-label="Lightbridge — go to console home"
       className="header-brand focus-ring">
-      {hasCustomLogo ? (
-        // Plain `<img>`, not `next/image`: a same-origin, operator-mounted runtime file
-        // (`GET /branding/logo`), not a build-time asset `next/image` can optimize.
-        <img src="/branding/logo" alt="" aria-hidden="true" className="header-logo" />
+      {hasLogo ? (
+        bothConfigured ? (
+          <>
+            {/* Plain `<img>`s, not `next/image`: same-origin, operator-mounted runtime files
+                (`GET /branding/logo`, `GET /branding/logo-light`), not build-time assets
+                `next/image` can optimize. */}
+            <img
+              src="/branding/logo"
+              alt=""
+              aria-hidden="true"
+              className="header-logo brand-mark-dark"
+            />
+            <img
+              src="/branding/logo-light"
+              alt=""
+              aria-hidden="true"
+              className="header-logo brand-mark-light"
+            />
+          </>
+        ) : (
+          <img src="/branding/logo" alt="" aria-hidden="true" className="header-logo" />
+        )
       ) : (
         <span className="header-logo" aria-hidden="true">
           <svg
@@ -786,7 +816,7 @@ function BackToConsoleCompact({ accountId }: { accountId: string }) {
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const session = useConsoleSession();
-  const hasCustomLogo = useConsoleBrandingLogo();
+  const branding = useConsoleBranding();
   const online = useOnlineStatus();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
@@ -816,7 +846,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
 
   return (
     <ConsoleSidebar
-      brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
+      brand={<BrandMark hasLogo={branding.hasLogo} hasLogoLight={branding.hasLogoLight} />}
       workspaceSwitcher={
         area === 'settings' || showAdminChrome ? (
           <BackToConsoleRow accountId={switcher.accountId} />
@@ -930,7 +960,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const session = useConsoleSession();
-  const hasCustomLogo = useConsoleBrandingLogo();
+  const branding = useConsoleBranding();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const area = areaFromPathname(pathname);
@@ -941,7 +971,7 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
 
   return (
     <ConsoleTopBar
-      brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
+      brand={<BrandMark hasLogo={branding.hasLogo} hasLogoLight={branding.hasLogoLight} />}
       workspaceSwitcher={
         area === 'settings' || showAdminChrome ? (
           <BackToConsoleCompact accountId={switcher.accountId} />

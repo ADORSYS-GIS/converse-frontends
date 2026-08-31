@@ -123,6 +123,21 @@ console:
         - path: /tmp/branding/logo.png
           subPath: logo.png
           readOnly: true
+    # Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): the
+    # light-theme (`wireframe`) counterpart to `branding-logo` above -- same mechanism, same
+    # single-file-per-ConfigMap constraint, mounted to its own `subPath` in the SAME
+    # `/tmp/branding/` directory. Only meaningful alongside `branding-logo`/`branding.logo` --
+    # `apps/console`'s `env.ts` fails config parsing on `branding.logoLight` without
+    # `branding.logo`, so enabling this without also enabling `branding-logo` produces a deployment
+    # that fails to boot, not a silently-accepted light-only brand.
+    branding-logo-light:
+      enabled: false
+      type: configMap
+      identifier: branding-logo-light
+      globalMounts:
+        - path: /tmp/branding/logo-light.png
+          subPath: logo-light.png
+          readOnly: true
     branding-style:
       enabled: false
       type: configMap
@@ -175,18 +190,27 @@ console:
         config.yaml: ''
 
     # issue #368 (Phase H, runtime white-label branding). Disabled by default, matching
-    # `persistence.branding-logo`/`branding-style` above — each pair (this configMap + its own
-    # persistence entry) flips together. Two separate ConfigMaps, not one — see
+    # `persistence.branding-logo`/`branding-logo-light`/`branding-style` above — each pair (this
+    # configMap + its own persistence entry) flips together. Separate ConfigMaps, not one — see
     # `persistence.branding-logo`'s own comment above for exactly why (app-template's values
     # schema forbids one ConfigMap entry from carrying both `data` and `binaryData`). An operator
     # enabling these also writes a matching `branding:` block into their own
     # `console-config.data["config.yaml"]` (see README.md) pointing at
-    # `/tmp/branding/logo.png` / `/tmp/branding/override.style` — this chart mounts the files, it
-    # does not itself edit the app's config document.
+    # `/tmp/branding/logo.png` / `/tmp/branding/logo-light.png` / `/tmp/branding/override.style` —
+    # this chart mounts the files, it does not itself edit the app's config document.
     branding-logo:
       enabled: false
       binaryData:
         logo.png: ''
+    # Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes") — the
+    # light-theme (`wireframe`) counterpart to `branding-logo` above. See
+    # `persistence.branding-logo-light`'s own comment: only meaningful when `branding-logo` is
+    # ALSO enabled, since `apps/console`'s `env.ts` fails config parsing on a
+    # `branding.logoLight`-without-`branding.logo` document.
+    branding-logo-light:
+      enabled: false
+      binaryData:
+        logo-light.png: ''
     branding-style:
       enabled: false
       data:

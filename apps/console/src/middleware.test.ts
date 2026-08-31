@@ -41,6 +41,7 @@ describe('middleware matcher', () => {
       'serwist/sw.js',
       'serwist/sw.js.map',
       'branding/logo',
+      'branding/logo-light',
       'branding/override.css',
       'manifest.json',
       'icons/icon-192.png',

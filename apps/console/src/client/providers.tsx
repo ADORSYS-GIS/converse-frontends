@@ -69,13 +69,17 @@ const ConsoleProviders = dynamic(
 
 export function Providers({
   session,
-  hasCustomLogo,
+  hasLogo,
+  hasLogoLight,
   children,
 }: {
   session: SessionResponse;
   /** issue #368 (Phase H): whether `config.yaml`'s `branding.logo` is configured on this
    *  deployment — read server-side by the root layout, the only place `serverEnv()` runs. */
-  hasCustomLogo: boolean;
+  hasLogo: boolean;
+  /** Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): whether
+   *  `config.yaml`'s `branding.logoLight` is ALSO configured. */
+  hasLogoLight: boolean;
   children: ReactNode;
 }) {
   return (
@@ -92,7 +96,7 @@ export function Providers({
       register={process.env.NODE_ENV === 'production'}
       reloadOnOnline={false}>
       <SessionProvider value={session}>
-        <BrandingProvider hasCustomLogo={hasCustomLogo}>
+        <BrandingProvider hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
           <ConsoleProviders>{children}</ConsoleProviders>
         </BrandingProvider>
       </SessionProvider>

@@ -119,22 +119,33 @@ publicBaseUrl: 'http://localhost:3000'
 # preserved. This way, we could mount a configmap containing the key logo.png and the other key
 # override.style into /tmp/branding as a volume."
 #
-# Both fields are independently optional -- unlike `usageClientCert` above, `logo` and `style`
-# serve two unrelated routes (`GET /branding/logo`, `GET /branding/override.css`) that each 404
-# honestly when their own field is unset, so there is no "half-configured" failure mode pairing
-# them the way a TLS cert+key pair. Absent block (the default here) means today's behaviour
-# exactly: no `<link>`/`<img>` override anywhere, both routes 404.
+# `logo`/`style` are independently optional -- unlike `usageClientCert` above, they serve two
+# unrelated routes (`GET /branding/logo`, `GET /branding/override.css`) that each 404 honestly when
+# their own field is unset, so there is no "half-configured" failure mode pairing them the way a
+# TLS cert+key pair. Absent block (the default here) means today's behaviour exactly: no
+# `<link>`/`<img>` override anywhere, every branding route 404s.
 #
-# Both paths must be host-absolute (`env.ts` fails fast at config-parse time otherwise) since they
+# `logoLight` (per-theme logos addendum, owner directive 2026-08-31: "White is for dark themes")
+# is the ONE exception to "independently optional": it is a light-theme COUNTERPART to `logo`, not
+# a standalone field. `logo` alone is both the default mark and the dark-theme (`black`) mark;
+# `logoLight`, when also present, is what renders instead under the light theme (`wireframe`) --
+# see `client/console-chrome.tsx`'s `BrandMark` for the pure-CSS `[data-theme]` swap (zero flash,
+# zero JS, same mechanism the pre-hydration script/ADR 0010 already give every other themed value).
+# `logoLight` with no `logo` is a config error, not a silently-accepted "light-only brand": dark is
+# this console's default theme, so a deployment with only a light-theme mark would render NO logo
+# at all on first paint for most visitors -- `env.ts` fails fast at boot instead.
+#
+# Every path must be host-absolute (`env.ts` fails fast at config-parse time otherwise) since they
 # are read straight off disk with `node:fs`, not resolved against the app's own working directory
 # -- a real deployment mounts the ConfigMap described above at exactly these paths (see
 # charts/converse-console's own `branding` values block).
 #
-# `logo`'s extension decides its response `Content-Type` (`env.ts` fails fast on anything other
-# than `.png`/`.svg`/`.jpg`/`.jpeg`/`.webp` -- an operator typo here is a deploy-time config error,
-# not a request-time 500).
+# `logo`/`logoLight`'s extension decides their response `Content-Type` (`env.ts` fails fast on
+# anything other than `.png`/`.svg`/`.jpg`/`.jpeg`/`.webp` -- an operator typo here is a deploy-time
+# config error, not a request-time 500).
 # branding:
 #   logo: /tmp/branding/logo.png
+#   logoLight: /tmp/branding/logo-light.png
 #   style: /tmp/branding/override.style
 
 # ── Permissions (seam only — no engine yet) ───────────────────────────────────────────────────

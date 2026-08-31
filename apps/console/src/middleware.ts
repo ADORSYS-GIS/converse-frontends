@@ -250,10 +250,12 @@ export const config = {
      *                        never be answered with a login redirect. Replaces the old `sw.js` /
      *                        `swe-worker-*` prefixes that matched `@serwist/next`'s webpack-emitted
      *                        `public/sw.js`, which no longer exists.
-     *   branding/*         — issue #368 (Phase H, runtime white-label branding): `/branding/logo`
-     *                        and `/branding/override.css` (`src/app/branding/*`). Both back chrome
-     *                        that must render before/without a session (the root layout's `<link>`
-     *                        and the sidebar/top-bar brand mark), same reasoning as `serwist/*`.
+     *   branding/*         — issue #368 (Phase H, runtime white-label branding): `/branding/logo`,
+     *                        `/branding/logo-light` (per-theme logos addendum) and
+     *                        `/branding/override.css` (`src/app/branding/*`). All three back
+     *                        chrome that must render before/without a session (the root layout's
+     *                        `<link>` and the sidebar/top-bar brand mark), same reasoning as
+     *                        `serwist/*`.
      *   _next/*            — build output
      *   manifest.json, icons/*, favicon.ico            — public static assets
      *   robots.txt, sitemap.xml — Next.js metadata routes (app/robots.ts, app/sitemap.ts);

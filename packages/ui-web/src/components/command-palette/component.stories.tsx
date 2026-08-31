@@ -39,18 +39,41 @@ function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
   ];
 }
 
+/**
+ * Adds a populated `Scope` group between `Navigate` and `Actions` — the account-switch ask
+ * (console-ui#310/#302) `useConsolePalette` wires for real against `useConsoleScope().allAccounts`.
+ * A mix of named and unnamed accounts: an unnamed one renders via the `acct_<first8>` convention
+ * `accountScopeLabel` produces, never a raw 36-character UUID.
+ */
+function exampleGroupsWithScope(onSelect: (key: string) => void): CommandPaletteGroup[] {
+  const [navigate, actions] = exampleGroups(onSelect);
+  const scope: CommandPaletteGroup = {
+    key: 'scope',
+    heading: 'Scope',
+    items: [
+      { key: 'scope-acme', label: 'Acme Corp', onSelect: () => onSelect('scope-acme') },
+      { key: 'scope-globex', label: 'Globex Industries', onSelect: () => onSelect('scope-globex') },
+      // Unnamed account — `accountScopeLabel`'s `acct_<first8>` fallback, not a raw uuid.
+      { key: 'scope-unnamed', label: 'acct_4f21a90c', onSelect: () => onSelect('scope-unnamed') },
+    ],
+  };
+  return [navigate, scope, actions];
+}
+
 function ControlledPalette({
   initialOpen,
   onSelect,
+  groups = exampleGroups,
 }: {
   initialOpen: boolean;
   onSelect: (key: string) => void;
+  groups?: (onSelect: (key: string) => void) => CommandPaletteGroup[];
 }) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
       <CommandPaletteTrigger onClick={() => setOpen(true)} />
-      <CommandPalette open={open} onOpenChange={setOpen} groups={exampleGroups(onSelect)} />
+      <CommandPalette open={open} onOpenChange={setOpen} groups={groups(onSelect)} />
     </>
   );
 }
@@ -96,6 +119,24 @@ export const OpenLight: Story = {
   name: 'Open — wireframe (light)',
   globals: { theme: 'wireframe' },
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+// The palette-scope ask (console-ui#310/#302): Navigate, then a populated Scope group, then
+// Actions — matching the real group order `useConsolePalette` wires.
+export const OpenWithScope: Story = {
+  name: 'Open — Scope group populated',
+  render: () => (
+    <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />
+  ),
+};
+
+// `wireframe` (light) counterpart of `OpenWithScope`.
+export const OpenWithScopeLight: Story = {
+  name: 'Open — Scope group populated, wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => (
+    <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />
+  ),
 };
 
 export const Filtering: Story = {

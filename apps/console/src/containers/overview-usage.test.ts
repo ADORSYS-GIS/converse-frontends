@@ -14,6 +14,7 @@ import {
   degenerateChartMessage,
   isUsageResponseTruncated,
   resolveOverviewWindow,
+  resolveRangeWindow,
   splitUnassignedProjects,
   sumTotalCost,
   toSpendShareSegments,
@@ -476,6 +477,34 @@ describe('buildBudgetConsumptionByProjectRequest', () => {
   });
 });
 
+describe('resolveRangeWindow', () => {
+  it('rolls a fixed-day preset back from now', () => {
+    const now = new Date('2026-08-29T12:00:00.000Z');
+    const { start, end } = resolveRangeWindow('7d', now);
+
+    expect(end).toBe(now);
+    expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it("'mtd' spans the calendar month (UTC start of month -> now), not a rolling 30 days", () => {
+    const now = new Date('2026-08-29T12:00:00.000Z');
+    const { start, end } = resolveRangeWindow('mtd', now);
+
+    expect(start.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+    expect(end).toBe(now);
+  });
+
+  it("'mtd' on the 1st of the month, just after midnight UTC, is a same-day span", () => {
+    const firstOfMonth = new Date('2026-08-01T00:30:00.000Z');
+    const { start, end } = resolveRangeWindow('mtd', firstOfMonth);
+
+    expect(start.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+    expect(end).toBe(firstOfMonth);
+    // Thirty minutes, not a month — the classic off-by-one this boundary case exists to catch.
+    expect(end.getTime() - start.getTime()).toBe(30 * 60_000);
+  });
+});
+
 describe('resolveOverviewWindow', () => {
   const NOW_FIXED = new Date('2026-08-29T12:00:00.000Z');
 
@@ -484,6 +513,20 @@ describe('resolveOverviewWindow', () => {
 
     expect(end).toEqual(NOW_FIXED);
     expect(start.toISOString()).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it("resolves 'mtd' to the calendar-month span when no explicit span is set", () => {
+    const { start, end } = resolveOverviewWindow('mtd', '', '', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+    expect(end).toEqual(NOW_FIXED);
+  });
+
+  it("lets an explicit span win over 'mtd' the same way it wins over a rolling preset", () => {
+    const { start, end } = resolveOverviewWindow('mtd', '2026-08-12', '2026-08-20', NOW_FIXED);
+
+    expect(start.toISOString()).toBe('2026-08-12T00:00:00.000Z');
+    expect(end.toISOString()).toBe('2026-08-20T23:59:59.999Z');
   });
 
   it('lets an explicit span win over the preset still in the URL', () => {

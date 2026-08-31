@@ -7,7 +7,11 @@
 import type { DateRangePreset } from '../../components/date-range-field';
 import type { SelectFieldOption } from '../../components/select-field';
 
+// 'mtd' ("this month") is listed and defaulted to first, matching the real Overview screen's
+// default range (`url-state.ts`'s `OVERVIEW_RANGES`/`overviewParsers.range` — the budget resets
+// monthly, so the dashboard defaults to the billing window, not an arbitrary rolling span).
 export const RANGE_PRESETS: DateRangePreset[] = [
+  { value: 'mtd', label: 'This month', days: 'mtd' },
   { value: '7d', label: 'Last 7 days', days: 7 },
   { value: '30d', label: 'Last 30 days', days: 30 },
   { value: '90d', label: 'Last 90 days', days: 90 },

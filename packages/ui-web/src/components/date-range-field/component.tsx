@@ -24,7 +24,15 @@ export function formatDateRange({ from, to }: DateRangeValue): string {
   return start === end ? start : `${start} – ${end}`;
 }
 
-export function presetRange(days: number, today: Date): DateRangeValue {
+/** `days === 'mtd'` resolves to a calendar-month span (UTC month start through `today`) rather
+ *  than a fixed day count — the same "this month" math `apps/console`'s own
+ *  `resolveRangeWindow`/`currentPeriodRange` use for the real dashboard, reimplemented here (not
+ *  imported — `ui-web` never depends on `apps/console`) purely for this component's own presets
+ *  and stories/demos. */
+export function presetRange(days: number | 'mtd', today: Date): DateRangeValue {
+  if (days === 'mtd') {
+    return { from: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)), to: today };
+  }
   return { from: new Date(today.getTime() - (days - 1) * UTC_DAY), to: today };
 }
 

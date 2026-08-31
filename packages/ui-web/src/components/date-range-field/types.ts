@@ -7,8 +7,10 @@ export interface DateRangePreset {
   /** Stable id, e.g. `'30d'` — what the URL stores when a preset is active. */
   value: string;
   label: string;
-  /** Days back from today, inclusive of today. */
-  days: number;
+  /** Days back from today, inclusive of today — or the literal `'mtd'` sentinel for a
+   *  calendar-month span (UTC month start through today), the "this month" preset. `presetRange`
+   *  is the one place this is turned into an actual `DateRangeValue`. */
+  days: number | 'mtd';
 }
 
 export interface DateRangeFieldProps {

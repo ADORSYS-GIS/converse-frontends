@@ -143,6 +143,13 @@ describe('the URL param contract', () => {
         manageParsers[key]
       );
     }
+
+    // `range` appears on both the account overview (`overviewParsers`) and the four
+    // `/settings/overview/*` analytics lenses (`settingsOverviewParsers`) — deliberately the SAME
+    // vocabulary and default ('mtd', "this month") rather than a divergent range picker, even
+    // though the two are declared as separate objects (each lens has no groupBy/report vocabulary
+    // of its own to share) — see `settingsOverviewParsers`' own doc comment.
+    expect(settingsOverviewParsers.range.defaultValue).toBe(overviewParsers.range.defaultValue);
   });
 
   describe('defaults stay out of the URL', () => {
@@ -161,7 +168,10 @@ describe('the URL param contract', () => {
       urlKeys: URL_PARAM_CONTRACT.overview.urlKeys,
     });
     expect(overview({ range: '7d' })).toBe('?range=7d');
-    expect(overview({ range: '30d' })).toBe('');
+    expect(overview({ range: '30d' })).toBe('?range=30d');
+    // 'mtd' ("this month") is the default (2026-08-31) — a bare shared link with no `?range=`
+    // means "this month" for whoever opens it, not the old 30-day default.
+    expect(overview({ range: 'mtd' })).toBe('');
     expect(overview({ groupBy: 'model' })).toBe('?group-by=model');
 
     const settings = createSerializer(settingsParsers, {
@@ -235,7 +245,10 @@ describe('the URL param contract', () => {
   });
 
   it('keeps every closed vocabulary in step with the type it claims to satisfy', () => {
-    expect(OVERVIEW_RANGES).toEqual(['7d', '30d', '90d']);
+    expect(OVERVIEW_RANGES).toEqual(['mtd', '7d', '30d', '90d']);
+    // 'mtd' ("this month") is the default range — the budget resets monthly, so the dashboard's
+    // default window matches the billing period (2026-08-31 owner directive).
+    expect(overviewParsers.range.defaultValue).toBe('mtd');
     expect(API_KEY_STATUSES).toEqual(['all', 'active', 'revoked']);
     expect(MANAGE_STATUSES).toEqual(['all', 'active', 'suspended']);
     expect(MANAGE_BUDGET_STATES).toEqual(['all', 'quota-set', 'no-quota']);

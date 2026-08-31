@@ -1,54 +1,67 @@
-// Page-level acceptance story for OVERVIEW — console-ui skill "Composition": full-page
+// Page-level acceptance story for OVERVIEW (`/`) — console-ui skill "Composition": full-page
 // compositions exist in exactly two places, Storybook and `apps/console`'s routes. This is the
-// Storybook one: sections composed inside `ConsoleShell` with the section fixtures, 1:1 against
-// docs/design/console-redesign/overview.svg, so a whole screen can be checked without starting
-// the app.
+// Storybook one, rewritten (IA v3 Phase 5) to match the SHIPPED composition
+// (`apps/console/src/containers/overview-centre.tsx`) 1:1 rather than the pre-phase-4 mockup this
+// file used to track:
+//
+//  - `PageHeader` (inline `OverviewControls` + the `Export` action) → the money-first stat row →
+//    SPEND OVER TIME (`SpendDashboard`, line) → SPEND BY PROJECT (`SpendShareSection`) → SPEND BY
+//    MODEL (`RankedSeriesRows`, NOT `SpendShareSection`/`ShareBar` — phase 4 build brief §7) →
+//    BUDGET (`BudgetPanel`, `actions`/`heroAction` — IA v3 phase 3's "refill as a page" shape).
+//  - **NO admin-only zone renders on this page any more.** Budget pressure and key hygiene moved
+//    to `/settings/overview/project` and `/settings/overview/account` respectively — see
+//    `pages-stories/settings-overview.stories.tsx` for those. The old `adminExtras` block (Budget
+//    pressure / Key hygiene / Refill requests cards) is deleted here, not just hidden — rendering
+//    it would misrepresent what `/` actually shows an admin today.
+//  - Default range is **`mtd`** ("This month") — IA v3 phase 5: the budget resets monthly, so the
+//    dashboard defaults to the billing window, not a rolling 30-day span. The old
+//    `subtitle="Last 30 days · UTC"` literal is gone with it.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { presetRange } from '../components/date-range-field';
-import type { SelectFieldProps } from '../components/select-field';
+import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
-import { LABEL_CLASS } from '../lib/type-roles';
-import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
-import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
+import { ReportExportDialog } from '../components/report-export-dialog';
+import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
+import { ScopeSelect } from '../components/scope-select';
+import { scopeAccounts, scopeProjects, scopeSelectValue } from '../components/scope-select/fixtures';
+import type { SelectFieldProps } from '../components/select-field';
+import type { ShareBarSegment } from '../components/share-bar';
+import type { SpendSeriesSeries } from '../components/spend-series-chart';
+import { formatUsd, formatUsdAxis } from '../lib/money';
+import { ZoneHeading } from '../lib/zone-heading';
 import { BudgetPanel } from '../sections/budget-panel';
+import type { BudgetSummary } from '../sections/budget-panel';
 import {
   overviewBudget,
   overviewEmptyBudget,
-  overviewNeedsAttentionProject,
-  overviewRefillRequestStatus,
+  overviewErrorBudget,
+  overviewLoadingBudget,
   overviewUnwiredBudget,
 } from '../sections/budget-panel/fixtures';
-import { BudgetPressure } from '../sections/budget-pressure';
-import type { BudgetPressureProject, BudgetPressureStatus } from '../sections/budget-pressure';
-import {
-  ADMIN_BUDGET_PRESSURE_NOTE,
-  ADMIN_CEILING,
-  ADMIN_SPEND_THIS_PERIOD,
-  adminBudgetPressureProjects,
-} from '../sections/budget-pressure/fixtures';
-import { OverviewStatRow } from '../sections/overview-stat-row';
 import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
-  GROUP_BY_OPTIONS,
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
 } from '../sections/overview-controls/fixtures';
+import { OverviewStatRow } from '../sections/overview-stat-row';
+import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import {
   overviewEmptyStatCards,
   overviewStatCards,
-  overviewUnwiredStatCards,
 } from '../sections/overview-stat-row/fixtures';
 import { PageHeader } from '../sections/page-header';
-import { UNWIRED_CHART_MESSAGE } from '../sections/unwired-chart-message';
+import { RankedSeriesRows } from '../sections/ranked-series-rows';
+import type { RankedSeriesRow } from '../sections/ranked-series-rows';
+import { rankedRowsDominantModel, rankedRowsEmpty } from '../sections/ranked-series-rows/fixtures';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
@@ -59,18 +72,28 @@ import {
   overviewSpendSeries,
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
-import {
-  overviewSpendShareByModelSegments,
-  overviewSpendShareSegments,
-} from '../sections/spend-share/fixtures';
-import { formatUsd } from '../lib/money';
-import type { ShareBarSegment } from '../components/share-bar';
-import type { SpendSeriesSeries } from '../components/spend-series-chart';
-import type { OverviewStatCardData } from '../sections/overview-stat-row';
-import type { BudgetSummary } from '../sections/budget-panel';
+import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
 const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
+
+// Every choice OverviewControls has offered the toolbar since IA v3 phase 4's "By project"/"By
+// model"/"By user"/"By API key" vocabulary widening (`use-overview-screen.ts`'s own
+// `GROUP_BY_OPTIONS`) — mirrored here rather than re-imported since `url-state.ts` is `apps/
+// console`-only.
+const GROUP_BY_OPTIONS: SelectFieldProps['options'] = [
+  { value: 'project_id', label: 'By project' },
+  { value: 'model', label: 'By model' },
+  { value: 'user_id', label: 'By user' },
+  { value: 'api_key_id', label: 'By API key' },
+];
+
+const REPORT_GROUP_BY_OPTIONS: SelectFieldProps['options'] = [
+  { value: 'project_id', label: 'Project' },
+  { value: 'model', label: 'Model' },
+  { value: 'user_id', label: 'User' },
+  { value: 'api_key_id', label: 'API key' },
+];
 
 function useSelectField(
   initial: string,
@@ -81,102 +104,80 @@ function useSelectField(
   return { label, value, options, onChange: setValue };
 }
 
-/**
- * Salvaged verbatim from the deleted `admin-overview.stories.tsx` (shell revamp phase 4, 2026-08-
- * 30 — `/admin?section=overview` merged into `/` itself, gated by `session.isAdmin`; see
- * `apps/console/src/containers/use-overview-screen.ts`'s doc comment for the real adapter this
- * fixture set mirrors). The BUDGET PRESSURE rows and this fixed spend figure are the same period
- * total the STAT ROW and BUDGET hero also show — three renderings of one number, kept in sync here
- * the same way `use-overview-screen.ts` derives all three from the same query.
- */
-const adminPressureProjects = adminBudgetPressureProjects;
-const adminPressureCeiling = ADMIN_CEILING;
-const adminBudgetSummary: BudgetSummary = {
-  value: ADMIN_SPEND_THIS_PERIOD,
-  ceiling: ADMIN_CEILING,
-  caption: `account ceiling · ${Math.round((ADMIN_SPEND_THIS_PERIOD / ADMIN_CEILING) * 100)}% used this period`,
-};
-
 interface OverviewScreenProps {
   showAdmin?: boolean;
-  /**
-   * The three ADMIN-ONLY additive cards (Budget pressure, Key hygiene, Refill requests) — a
-   * separate axis from `showAdmin` (which only toggles the sidebar's Operator nav group): a nav
-   * item being visible and this screen's own role-gated content are two different facts, exactly
-   * as `use-overview-screen.ts`'s `isAdmin` gate is independent of `console-chrome.tsx`'s own.
-   */
-  adminExtras?: boolean;
-  emptyMessage?: string;
   statCards?: OverviewStatCardData[];
   statCardsLoading?: boolean;
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
+  spendErrorMessage?: string;
+  spendDegenerateMessage?: string;
   spendShareSegments?: ShareBarSegment[];
   spendShareStatus?: DashboardStatus;
-  /** "Spend by model" (phase 9.2) — for every user, never admin-gated. Replaces the deleted
-   *  LATENCY panel: the usage backend's events are aggregate metric signals with no per-request
-   *  duration, so that panel could never honestly fill. */
-  spendShareByModelSegments?: ShareBarSegment[];
-  spendShareByModelStatus?: DashboardStatus;
-  spendShareByModelErrorMessage?: string;
+  spendUnassignedCaption?: string;
+  modelSpendRows?: RankedSeriesRow[];
+  modelSpendStatus?: DashboardStatus;
+  modelSpendErrorMessage?: string;
   budget?: BudgetSummary;
-  needsAttention?: typeof overviewNeedsAttentionProject | undefined;
-  refillRequestStatus?: typeof overviewRefillRequestStatus | undefined;
-  pressureProjects?: BudgetPressureProject[];
-  pressureCeiling?: number | null;
-  pressureStatus?: BudgetPressureStatus;
-  hygieneCaveat?: string;
+  /** Only present once the account is breached — mirrors `use-overview-screen.ts`'s own
+   *  `refillAction`, which `BudgetPanel.heroAction` renders beside the numeral (ADR 0008 D7). */
+  refillAction?: { label: string; href: string };
 }
 
-// The composition `apps/console`'s `(console)` layout + `/` route perform for real — the shell
-// once, sections inside it, with the VIEW parameters as a horizontal cluster in
-// `PageHeader.controls` (shell brief 2026-08-30 — the rail is gone; every screen's own knobs move
-// to its `PageHeader`).
+// The composition `apps/console`'s `(console)` layout + `/accounts/[accountId]/overview` route
+// perform for real (`overview-centre.tsx`) — sections inside `ConsoleShell`, view params inline
+// in `PageHeader.controls` (shell revamp — the rail carries no knobs, only selection-driven
+// detail/standing account settings).
 function OverviewScreen({
   showAdmin = false,
-  adminExtras = false,
-  emptyMessage,
   statCards = overviewStatCards,
   statCardsLoading = false,
   spendSeries = overviewSpendSeries,
   spendStatus = 'ready',
+  spendErrorMessage,
+  spendDegenerateMessage,
   spendShareSegments = overviewSpendShareSegments,
   spendShareStatus = 'ready',
-  spendShareByModelSegments = overviewSpendShareByModelSegments,
-  spendShareByModelStatus = 'ready',
-  spendShareByModelErrorMessage,
+  spendUnassignedCaption,
+  modelSpendRows = rankedRowsDominantModel,
+  modelSpendStatus = 'ready',
+  modelSpendErrorMessage,
   budget = overviewBudget,
-  needsAttention = overviewNeedsAttentionProject,
-  refillRequestStatus = overviewRefillRequestStatus,
-  pressureProjects = adminPressureProjects,
-  pressureCeiling = adminPressureCeiling,
-  pressureStatus = 'ready',
-  hygieneCaveat,
+  refillAction,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
-  // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
-  const [rangePreset, setRangePreset] = useState<string | null>('30d');
-  const [range, setRange] = useState(presetRange(30, STORY_TODAY));
+  // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011) — 'mtd'
+  // ("This month") is the real default range (IA v3 phase 5), not the old '30d'.
+  const [rangePreset, setRangePreset] = useState<string | null>('mtd');
+  const [range, setRange] = useState(presetRange('mtd', STORY_TODAY));
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
-  const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
+  const groupByField = useSelectField('project_id', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
 
-  const spendShareTotal = useMemo(
-    () => spendShareSegments.reduce((sum, segment) => sum + segment.value, 0),
-    [spendShareSegments]
-  );
-  const spendShareByModelTotal = useMemo(
-    () => spendShareByModelSegments.reduce((sum, segment) => sum + segment.value, 0),
-    [spendShareByModelSegments]
-  );
+  // The Export dialog's own demo state — mirrors `use-overview-screen.ts`'s `report`, which reuses
+  // the SAME `format`/`include`/`period` parsers `/manage`'s report dialog does (see
+  // `url-state.ts`'s own doc comment on why those three are literally shared instances).
+  const [reportOpen, setReportOpen] = useState(false);
+  const [period, setPeriod] = useState('2026-08');
+  const [reportGroupBy, setReportGroupBy] = useState('project_id');
+  const [format, setFormat] = useState<ReportExportFormat>('csv');
+  const [generating, setGenerating] = useState(false);
+  const [includeToggles, setIncludeToggles] = useState<ReportIncludeToggle[]>([
+    { id: 'totals', label: 'Totals row', checked: true },
+    { id: 'per-model', label: 'Per-model breakdown', checked: false },
+  ]);
+
+  const spendShareTotal = spendShareSegments.reduce((sum, segment) => sum + segment.value, 0);
 
   return (
     <ConsoleShell sidebar={storySidebar('overview', { isAdmin: showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Overview"
-          subtitle="Last 30 days · UTC"
+          subtitle={`adorsys-gis · All projects · ${
+            rangePreset === 'mtd' ? 'This month' : 'Custom range'
+          } · UTC`}
           controls={
             <OverviewControls
               rangeField={{
@@ -202,33 +203,61 @@ function OverviewScreen({
             />
           }
           action={
-            <Button type="button" variant="secondary" onClick={() => {}}>
+            <Button type="button" variant="secondary" onClick={() => setReportOpen(true)}>
               Export
             </Button>
           }
         />
 
-        {emptyMessage ? <InlineStatus>{emptyMessage}</InlineStatus> : null}
-
         <OverviewStatRow cards={statCards} loading={statCardsLoading} />
 
-        {/* Phase 4 — every dashboard zone below the stat row sits in a `Card`; a section that
-            already renders its own tracked heading (`SpendDashboard`, `SpendShareSection`,
-            `BudgetPanel`, `BudgetPressure`) gets its `label` overridden to the name this
-            composition wants and no `Card.title` of its own — one heading per zone, never two
-            stacked. */}
+        <ReportExportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          period={period}
+          onPeriodChange={setPeriod}
+          scopeSlot={
+            <ScopeSelect
+              accounts={scopeAccounts}
+              projects={scopeProjects}
+              value={scopeSelectValue}
+              onChange={() => {}}
+            />
+          }
+          groupByOptions={REPORT_GROUP_BY_OPTIONS}
+          groupBy={reportGroupBy}
+          onGroupByChange={setReportGroupBy}
+          includeToggles={includeToggles}
+          onToggleInclude={(id, checked) =>
+            setIncludeToggles((prev) => prev.map((t) => (t.id === id ? { ...t, checked } : t)))
+          }
+          format={format}
+          onFormatChange={setFormat}
+          generating={generating}
+          onGenerate={() => {
+            setGenerating(true);
+            setTimeout(() => setGenerating(false), 400);
+          }}
+        />
+
+        {/* Every zone below the stat row sits in a `Card` (ADR 0012 D3) — a section that already
+            renders its own tracked heading (`SpendDashboard`, `SpendShareSection`) gets its
+            `label` overridden to the name this composition wants, never a stacked `Card.title`. */}
         <Card>
           <SpendDashboard
             label="Spend over time"
             series={spendSeries}
-            fallbackWidth={872}
-            height={176}
             status={spendStatus}
-            onSelectSeries={setSelectedSeriesKey}
+            errorMessage={spendErrorMessage}
+            onRetry={() => {}}
+            degenerateMessage={spendDegenerateMessage}
+            fallbackWidth={840}
+            height={220}
             formatXTick={formatOverviewSpendXTick}
             formatYTick={formatOverviewSpendYTick}
             formatTooltipValue={formatOverviewSpendTooltipValue}
             formatLegendValue={formatOverviewSpendLegendValue}
+            onSelectSeries={setSelectedSeriesKey}
           />
         </Card>
 
@@ -242,20 +271,42 @@ function OverviewScreen({
             onSelectSegment={setSelectedSeriesKey}
             total={spendShareTotal > 0 ? formatUsd(spendShareTotal) : undefined}
           />
+          {spendUnassignedCaption ? (
+            <InlineStatus className="mt-2">{spendUnassignedCaption}</InlineStatus>
+          ) : null}
         </Card>
 
-        {/* Phase 9.2 — "Spend by model" replaces the deleted LATENCY panel, for every user (never
-            admin-gated): a second, model-grouped view of the same period SPEND above plots.
-            `SpendShareSection` is reused verbatim — it hard-codes no project-specific labelling. */}
+        {/* Phase 4 build brief §7 — SPEND BY MODEL renders through `RankedSeriesRows`, not
+            `SpendShareSection`/`ShareBar`: a single model handling ~all of an account's traffic is
+            the common case, and `ShareBar`'s flat share-of-total reading breaks down exactly there.
+            Replaces the deleted LATENCY panel (phase 9.2 — the usage backend's events are
+            aggregate metric signals with no per-request duration, so that panel could never
+            honestly fill), for every user, never admin-gated. */}
         <Card>
-          <SpendShareSection
-            label="Spend by model"
-            segments={spendShareByModelSegments}
-            status={spendShareByModelStatus}
-            errorMessage={spendShareByModelErrorMessage}
-            onRetry={() => {}}
-            total={spendShareByModelTotal > 0 ? formatUsd(spendShareByModelTotal) : undefined}
-          />
+          <ZoneHeading label="Spend by model" />
+          {modelSpendStatus === 'error' ? (
+            <div className="mt-4">
+              <ErrorLine
+                message={modelSpendErrorMessage ?? 'Failed to load spend by model.'}
+                onRetry={() => {}}
+              />
+            </div>
+          ) : modelSpendStatus === 'loading' ? (
+            <div className="mt-4 flex flex-col gap-1">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="skeleton h-[28px]" />
+              ))}
+            </div>
+          ) : (
+            <RankedSeriesRows
+              className="mt-4"
+              rows={modelSpendRows}
+              selectedKey={selectedSeriesKey}
+              onSelect={setSelectedSeriesKey}
+              otherLabel={(count) => `Other (${count} models)`}
+              emptyMessage="No usage in this range."
+            />
+          )}
         </Card>
 
         <Card>
@@ -263,50 +314,20 @@ function OverviewScreen({
             className="w-full"
             label="Budget"
             budget={budget}
-            needsAttentionProject={needsAttention}
-            onRequestRefill={() => {}}
-            refillRequestStatus={refillRequestStatus}
-            onReviewInAdmin={() => {}}
+            actions={
+              <Button type="button" variant="secondary" size="sm" onClick={() => {}}>
+                Request refill…
+              </Button>
+            }
+            heroAction={
+              refillAction ? (
+                <Button type="button" variant="primary" size="sm" onClick={() => {}}>
+                  {refillAction.label}
+                </Button>
+              ) : undefined
+            }
           />
         </Card>
-
-        {/* ── admin-only, purely additive (`adminExtras`) — mirrors
-            `apps/console/src/containers/overview-centre.tsx`'s own `screen.isAdmin` block. LATENCY
-            used to render here (shell revamp phase 4); phase 9.2 deleted it outright (owner
-            directive — the usage backend's events are aggregate metric signals with no per-request
-            duration, so that panel could never fill) rather than moving it, since "Spend by model"
-            above already answers the "which model is spend concentrated in" question for every
-            user, not just an operator. */}
-        {adminExtras ? (
-          <>
-            <Card>
-              <BudgetPressure
-                label="Budget pressure"
-                projects={pressureProjects}
-                ceiling={pressureCeiling}
-                status={pressureStatus}
-                note={ADMIN_BUDGET_PRESSURE_NOTE}
-              />
-            </Card>
-
-            <Card title="Key hygiene">
-              <InlineStatus>52 active · 7 revoked · 2 expiring within 30 days</InlineStatus>
-              <ApiKeysHygieneNotes className="mt-3" hygiene={apiKeysHygiene} />
-              {hygieneCaveat ? <InlineStatus className="mt-2">{hygieneCaveat}</InlineStatus> : null}
-            </Card>
-
-            {refillRequestStatus ? (
-              <Card title="Refill requests">
-                <p className="text-soft font-mono text-[11px]">
-                  {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
-                </p>
-                <span className="text-soft mt-1 inline-block font-mono text-[11px] underline-offset-2">
-                  Review →
-                </span>
-              </Card>
-            ) : null}
-          </>
-        ) : null}
       </div>
     </ConsoleShell>
   );
@@ -321,68 +342,29 @@ const meta: Meta<typeof OverviewScreen> = {
 export default meta;
 type Story = StoryObj<typeof OverviewScreen>;
 
-// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Visually comparable to
-// docs/design/console-redesign/overview.svg. Fluid (console-ui skill "Fluid always") — the page
-// follows the iframe's real width rather than a fixed 1440 wrapper.
+// `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Fluid (console-ui skill
+// "Fluid always") — the page follows the iframe's real width rather than a fixed 1440 wrapper.
 export const Populated: Story = { render: () => <OverviewScreen /> };
 
-// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures — the
-// page-level acceptance surface for the light theme at the `lg` reference tier.
+// ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures.
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   render: () => <OverviewScreen />,
   globals: { theme: 'wireframe' },
 };
 
-// README §6: axes/structure stay rendered, an InlineStatus banner carries the "nothing yet" copy.
-// A REAL, wired account that genuinely consumed nothing this period — distinct from `Unwired`
-// below, where no query has ever run at all.
+// README §6: axes/structure stay rendered — each section's own empty-state rendering (`No usage
+// in this range.` etc.) carries the "nothing yet" story, never a page-level banner bolted on top.
 export const Empty: Story = {
   render: () => (
     <OverviewScreen
-      emptyMessage="No usage yet. Usage appears here once your first request is billed."
       statCards={overviewEmptyStatCards}
       spendSeries={[]}
       spendShareSegments={[]}
-      spendShareByModelSegments={[]}
+      modelSpendRows={rankedRowsEmpty}
       budget={overviewEmptyBudget}
-      needsAttention={undefined}
-      refillRequestStatus={undefined}
     />
   ),
-};
-
-// #263/#272/#273 — Overview's state BEFORE #304-#307 (Epic 4 Story 4.2): PROJECTS/API KEYS
-// counts were live (via refine), everything usage- and budget-shaped had never been queried (no
-// usage-backend query client existed at all). Every zone rendered `'unwired'` rather than
-// defaulting to `'ready'` with fabricated empty/zero data — the acceptance surface for #272/#273.
-//
-// Kept as a Storybook variant (not deleted) because the `'unwired'` vocabulary itself is still
-// live — `SpendDashboard`'s own `component.stories.tsx` exercises it for real — and this remains
-// the reference for what "the usage-backend query client doesn't exist at all yet" looks like
-// across every zone at once, which is no longer console's actual state.
-export const Unwired: Story = {
-  render: () => (
-    <OverviewScreen
-      emptyMessage="Usage and budget dashboards are unwired: no usage-backend query client yet. Project and key counts below are live."
-      statCards={overviewUnwiredStatCards}
-      spendSeries={[]}
-      spendStatus="unwired"
-      spendShareSegments={[]}
-      spendShareStatus="unwired"
-      spendShareByModelSegments={[]}
-      spendShareByModelStatus="unwired"
-      budget={overviewUnwiredBudget}
-      needsAttention={undefined}
-      refillRequestStatus={undefined}
-    />
-  ),
-};
-
-export const UnwiredLight: Story = {
-  name: 'Unwired — wireframe (light)',
-  render: Unwired.render,
-  globals: { theme: 'wireframe' },
 };
 
 // README §6 loading rules: `raised` skeleton blocks matching final geometry, no spinner/shimmer.
@@ -392,80 +374,53 @@ export const Loading: Story = {
       statCardsLoading
       spendStatus="loading"
       spendShareStatus="loading"
-      spendShareByModelStatus="loading"
+      modelSpendStatus="loading"
+      budget={overviewLoadingBudget}
     />
   ),
 };
 
 // README §6 error rules: section-level ErrorLine + Retry — one dashboard failing must never take
-// its neighbours down. Exercises SPEND BY MODEL's own failure path (phase 9.2's replacement for
-// the deleted LATENCY panel).
+// its neighbours down. Exercises SPEND BY MODEL's own failure path independently of BUDGET's.
 export const DashboardError: Story = {
   render: () => (
     <OverviewScreen
-      spendShareByModelStatus="error"
-      spendShareByModelErrorMessage="Failed to load spend by model."
+      modelSpendStatus="error"
+      modelSpendErrorMessage="Failed to load spend by model."
+      budget={overviewErrorBudget}
     />
   ),
 };
 
-export const MemberNav: Story = {
-  name: 'Nav — member (no Admin group)',
-  render: () => <OverviewScreen showAdmin={false} />,
+// Build brief finish-item §2 — a single-series SPEND chart states the one series by name rather
+// than drawing a flat, misleadingly-singular band.
+export const SpendDegenerate: Story = {
+  name: 'Spend over time — a single series states itself, not a flat band',
+  render: () => (
+    <OverviewScreen
+      spendSeries={overviewSpendSeries.slice(0, 1)}
+      spendDegenerateMessage={`Only one project in this window (${overviewSpendSeries[0].label}).`}
+    />
+  ),
 };
 
+// #306 — the account is past `BUDGET_BREACH_THRESHOLD` (0.9): `BudgetHero`'s own accent kicks in
+// and the inline refill control (`heroAction`) appears beside the numeral (ADR 0008 D7), on top of
+// the always-visible `actions` "Request refill…" the header row already carries.
+export const BudgetBreached: Story = {
+  render: () => (
+    <OverviewScreen
+      budget={{ value: 478.2, ceiling: 500, caption: 'account ceiling · 96% used · resets 01 Sep' }}
+      refillAction={{ label: 'Request refill', href: '/accounts/acct_1/refill' }}
+    />
+  ),
+};
+
+// A signed-in non-admin — `/` renders IDENTICAL content either way (no admin-only zone left on
+// this page, IA v3 phase 4); this only exercises the sidebar's own Operator nav row.
 export const AdminNav: Story = {
-  name: 'Nav — admin (Admin group visible)',
+  name: 'Nav — admin (Operator group visible)',
   render: () => <OverviewScreen showAdmin />,
-};
-
-// ── phase 4: the admin-only additive block — Budget pressure, Key hygiene, Refill requests
-// (LATENCY deleted, phase 9.2). These replace `Pages/AdminOverview` (deleted phase 4): the
-// dashboard it depicted merged into `/` itself, gated by `session.isAdmin` rather than living
-// behind a second route.
-export const AdminExtras: Story = {
-  name: 'Admin — the three additive cards',
-  // Operator-scale BUDGET, matching the account-wide numbers BUDGET PRESSURE below shows — the
-  // same "one figure, three renderings, kept in sync" property `use-overview-screen.ts` gets from
-  // deriving all three off the same query.
-  render: () => <OverviewScreen showAdmin adminExtras budget={adminBudgetSummary} />,
-};
-
-export const AdminExtrasLight: Story = {
-  name: 'Admin — the three additive cards — wireframe (light)',
-  render: () => <OverviewScreen showAdmin adminExtras budget={adminBudgetSummary} />,
-  globals: { theme: 'wireframe' },
-};
-
-// No ceiling could be read: the pressure rows keep their real spend and drop their meters, rather
-// than filling a track against a fabricated ceiling.
-export const AdminExtrasNoCeiling: Story = {
-  name: 'Admin — Budget pressure, no ceiling',
-  render: () => (
-    <OverviewScreen
-      showAdmin
-      adminExtras
-      pressureCeiling={null}
-      budget={{
-        status: 'error',
-        errorMessage: 'Failed to load the account budget ceiling.',
-        onRetry: () => {},
-      }}
-    />
-  ),
-};
-
-// The account holds more keys than one page, so the hygiene counts are partial — and say so,
-// rather than reading as a complete audit.
-export const AdminExtrasPartialKeyCount: Story = {
-  name: 'Admin — Key hygiene, partial count',
-  render: () => (
-    <OverviewScreen
-      showAdmin
-      adminExtras
-      hygieneCaveat="Counted over the first 100 of 214 keys the listing returned — any of this account’s keys beyond that page are not included."
-    />
-  ),
 };
 
 // `md` tier (600–1024): left rail persists inline; Overview has no right rail at any tier — its
@@ -475,8 +430,8 @@ export const MdTier: Story = {
   render: () => <OverviewScreen />,
 };
 
-// Base tier (<600, a designed target): single column, stacked stat cards, nav docked as a fixed
-// bottom navigation bar, `PageHeader.controls` wraps onto its own rows.
+// Base tier (<600): single column, stacked stat cards, nav docked as a fixed bottom navigation
+// bar, `PageHeader.controls` wraps onto its own rows.
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: () => <OverviewScreen />,

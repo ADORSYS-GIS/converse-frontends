@@ -37,6 +37,9 @@ function Rail() {
       <button type="button" onClick={() => void setView({ range: '30d' })}>
         rail: last 30 days
       </button>
+      <button type="button" onClick={() => void setView({ range: 'mtd' })}>
+        rail: this month
+      </button>
       <button
         type="button"
         onClick={() => void setView({ series: 'proj_7' }, OVERVIEW_SELECTION_OPTIONS)}>
@@ -85,7 +88,9 @@ describe('the URL as the cross-zone state bus', () => {
     const user = userEvent.setup();
     render(<Zones />, { wrapper: withNuqsTestingAdapter({ hasMemory: true }) });
 
-    expect(screen.getByTestId('centre-range')).toHaveTextContent('30d');
+    // 'mtd' ("this month") is the default range (IA v3 phase 5) — the budget resets monthly, so
+    // the dashboard defaults to the billing window, not the old rolling '30d'.
+    expect(screen.getByTestId('centre-range')).toHaveTextContent('mtd');
 
     await user.click(screen.getByRole('button', { name: 'rail: last 7 days' }));
 
@@ -117,11 +122,12 @@ describe('the URL as the cross-zone state bus', () => {
       wrapper: withNuqsTestingAdapter({ searchParams: '?range=7d', hasMemory: true, onUrlUpdate }),
     });
 
-    await user.click(screen.getByRole('button', { name: 'rail: last 30 days' }));
+    await user.click(screen.getByRole('button', { name: 'rail: this month' }));
 
-    // `clearOnDefault`: the URL a user shares carries only what they actually changed.
+    // `clearOnDefault`: the URL a user shares carries only what they actually changed. 'mtd' is
+    // the default (IA v3 phase 5), so returning to it clears `?range=` the same way '30d' used to.
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    expect(screen.getByTestId('centre-range')).toHaveTextContent('30d');
+    expect(screen.getByTestId('centre-range')).toHaveTextContent('mtd');
   });
 });
 

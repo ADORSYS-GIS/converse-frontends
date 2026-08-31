@@ -40,6 +40,7 @@ import React, { useMemo, useState } from 'react';
 import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
+import { accountScopeLabel } from '../containers/account-label';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -476,12 +477,14 @@ function useWorkspaceSwitcher() {
  * palette icon both open the SAME instance, so the shortcut listener and the dialog state exist
  * exactly once regardless of which chrome zone is visible at the current tier.
  *
- * Only **Navigate** and **Sign out** are wired — see the git history of this file for the fuller
+ * Three groups are wired: **Navigate**, **Scope** and **Actions** (in that order — orientation
+ * before switching context, actions last). See the git history of this file for the fuller
  * "New key / Generate report / Request refill" candidates this task considered and rejected, each
  * for lacking a wired flow to reuse rather than stub.
  */
 export function useConsolePalette() {
   const router = useRouter();
+  const pathname = usePathname();
   const session = useConsoleSession();
   // Same accountId resolution the sidebar's own hrefs use (`useWorkspaceSwitcher`) — path first,
   // then the last-account/first-account fallback (`use-console-scope.ts`) — so the palette's
@@ -513,15 +516,43 @@ export function useConsolePalette() {
         onSelect: () => router.push(hrefs.admin),
       });
     }
+
+    // Scope group (console-ui#310/#302): switching account from the palette re-uses the exact
+    // same navigation mechanism `useWorkspaceSwitcher.onSelectAccount` already drives for the
+    // sidebar/top-bar workspace switcher — write the last-used account, then push the SAME
+    // route segment (`routeFromPathname`/`navHrefs`) under the new account, so picking an
+    // account here never bounces the caller back to Overview. The currently active account is
+    // excluded rather than rendered as a no-op "switch to where you already are" row.
+    const currentRoute = routeFromPathname(pathname);
+    const scopeItems: CommandPaletteItem[] = scope.allAccounts
+      .filter((account) => account.id !== scope.value.accountId)
+      .map((account) => ({
+        key: `scope-${account.id}`,
+        label: accountScopeLabel(account),
+        keywords: [account.id],
+        onSelect: () => {
+          writeLastAccountId(account.id);
+          router.push(navHrefs(account.id)[currentRoute]);
+        },
+      }));
+
+    // cmdk still renders a Command.Group's heading with nothing beneath it when it has zero
+    // items and the query is empty (its own `hidden` toggle only engages once there is search
+    // text to filter against) — an empty "Scope" heading with no rows under it is exactly the
+    // empty-placeholder pattern the console-ui skill bans for the inspector rail; the palette
+    // gets the same treatment, omit the group entirely rather than render it hollow.
     return [
       { key: 'navigate', heading: 'Navigate', items: navigate },
+      ...(scopeItems.length > 0
+        ? [{ key: 'scope', heading: 'Scope', items: scopeItems }]
+        : []),
       {
         key: 'actions',
         heading: 'Actions',
         items: [{ key: 'sign-out', label: 'Sign out', onSelect: signOut }],
       },
     ];
-  }, [router, session.isAdmin, hrefs]);
+  }, [router, session.isAdmin, hrefs, pathname, scope.allAccounts, scope.value.accountId]);
 
   return { open, setOpen, groups };
 }

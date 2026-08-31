@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { ConsoleTopBar } from './component';
 
 describe('ConsoleTopBar', () => {
-  it('renders the brand, switcher and identity slots', () => {
+  it('renders the brand, switcher and trailing slots', () => {
     render(
       <ConsoleTopBar
         brand={<span>Lightbridge</span>}
         workspaceSwitcher={<span>adorsys-gis</span>}
-        identity={<span>SL</span>}
+        trailing={<span>SL</span>}
       />
     );
 
@@ -25,7 +25,7 @@ describe('ConsoleTopBar', () => {
         brand={<span>Lightbridge</span>}
         workspaceSwitcher={<span>adorsys-gis</span>}
         paletteTrigger={<button type="button">Open command palette</button>}
-        identity={<span>SL</span>}
+        trailing={<span>SL</span>}
       />
     );
 
@@ -37,7 +37,7 @@ describe('ConsoleTopBar', () => {
       <ConsoleTopBar
         brand={<span>Lightbridge</span>}
         workspaceSwitcher={<span>adorsys-gis</span>}
-        identity={<span>SL</span>}
+        trailing={<span>SL</span>}
       />
     );
 
@@ -49,7 +49,7 @@ describe('ConsoleTopBar', () => {
       <ConsoleTopBar
         brand={<span>Lightbridge</span>}
         workspaceSwitcher={<span>adorsys-gis</span>}
-        identity={<span>SL</span>}
+        trailing={<span>SL</span>}
       />
     );
 

@@ -81,7 +81,7 @@ describe('CommandPalette', () => {
         onOpenChange={vi.fn()}
         groups={groups(vi.fn())}
         emptyMessage="Nothing here."
-      />,
+      />
     );
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'zzz-no-match' } });
@@ -109,8 +109,8 @@ describe('CommandPalette', () => {
     await waitFor(() =>
       expect(screen.getByText('Api-Keys').closest('[cmdk-item]')).toHaveAttribute(
         'data-selected',
-        'true',
-      ),
+        'true'
+      )
     );
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
@@ -124,6 +124,77 @@ describe('CommandPalette', () => {
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape', code: 'Escape' });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  // v2 visual pass (owner review 2026-08-31): a row's own icon and shortcut chip, and the
+  // footer's fixed ↑↓ / ↵ / esc hints -- see component.tsx's own docstring for the full brief.
+  it('renders a row icon when the item supplies one, and reserves the column when it does not', () => {
+    render(
+      <CommandPalette
+        open
+        onOpenChange={vi.fn()}
+        groups={[
+          {
+            key: 'navigate',
+            heading: 'Navigate',
+            items: [
+              {
+                key: 'overview',
+                label: 'Overview',
+                icon: <svg data-testid="overview-icon" />,
+                onSelect: vi.fn(),
+              },
+              { key: 'api-keys', label: 'Api-Keys', onSelect: vi.fn() },
+            ],
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId('overview-icon')).toBeInTheDocument();
+    expect(screen.getByText('Api-Keys')).toBeInTheDocument();
+  });
+
+  it("renders a row's shortcut as a kbd chip instead of plain hint text", () => {
+    render(
+      <CommandPalette
+        open
+        onOpenChange={vi.fn()}
+        groups={[
+          {
+            key: 'actions',
+            heading: 'Actions',
+            items: [{ key: 'new-key', label: 'New key', shortcut: 'N', onSelect: vi.fn() }],
+          },
+        ]}
+      />
+    );
+
+    const chip = screen.getByText('N');
+    expect(chip.tagName).toBe('KBD');
+  });
+
+  it('renders the fixed footer hint row', () => {
+    render(<CommandPalette open onOpenChange={vi.fn()} groups={groups(vi.fn())} />);
+
+    // Lower-case, unlike the fixture's own "Navigate" group heading (`groups`, above) -- the
+    // task brief's own casing ("↑↓ navigate · ↵ select · esc"), which also keeps this query from
+    // colliding with the heading text.
+    expect(screen.getByText('navigate')).toBeInTheDocument();
+    expect(screen.getByText('select')).toBeInTheDocument();
+    expect(screen.getAllByText('esc').length).toBeGreaterThan(0);
+  });
+
+  // Owner ruling, 2026-08-31 (issue #368): "10px looks good for the command palette" — the
+  // floating-overlay radius token (`OVERLAY_FLOATING_CLASS`, `lib/overlay.ts`), not the flush 2px
+  // `OVERLAY_CLASS` contract every DOCKED overlay (Dialog, the bottom sheet, Tooltip) still
+  // renders at.
+  it('renders the panel at the floating-overlay radius, not the flush 2px contract', () => {
+    render(<CommandPalette open onOpenChange={vi.fn()} groups={groups(vi.fn())} />);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('rounded-(--radius-overlay-floating)');
+    expect(dialog.className).not.toMatch(/rounded-\[2px\]/);
   });
 });
 

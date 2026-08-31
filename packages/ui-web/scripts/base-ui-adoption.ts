@@ -14,7 +14,6 @@ import { join } from 'node:path';
 export const EXPECTED: Record<string, string | null> = {
   // — delegating correctly
   'account-badge': 'menu',
-  'account-menu': 'menu',
   'account-name-dialog': 'dialog',
   'bottom-sheet': 'drawer',
   checkbox: 'checkbox',
@@ -58,7 +57,7 @@ export const EXPECTED: Record<string, string | null> = {
   // separator + pointer-drag here is the bespoke implementation of that pattern.
   'console-top-bar': null, // REFUSED 2026-08-30, same reasoning `console-header` was refused
   // under before it was deleted: a layout band around opaque slots (AccountBadge, CommandPalette,
-  // AccountMenu) each of which already delegates its own behaviour — there is no primitive to
+  // ThemeToggle) each of which already delegates its own behaviour — there is no primitive to
   // adopt for a band that has none of its own. `sections/console-sidebar` is the same shape, one
   // column over, and carries the identical `null` in ITS OWN doc comment — this audit only walks
   // `components/`, so a `sections/` entry here would never be reachable.
@@ -101,7 +100,7 @@ export function auditAdoption(root: string): AdoptionRow[] {
             .flatMap((f) => [
               ...readFileSync(join(dir, f), 'utf8').matchAll(/@base-ui\/react\/([a-z-]+)/g),
             ])
-            .map((m) => m[1]),
+            .map((m) => m[1])
         ),
       ].sort();
       const expected = EXPECTED[component] ?? null;

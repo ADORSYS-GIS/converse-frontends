@@ -3,7 +3,7 @@
  *
  * Plain functions and constants only -- no React, no `'use client'` -- so this module is safe to
  * import from both the server root layout (for the pre-hydration script's literal source) and
- * client code (`client/use-console-theme.ts`, the `AccountMenu` toggle).
+ * client code (`client/use-console-theme.ts`, the `ThemeToggle` component).
  *
  * Resolution order for a session: stored preference -> `prefers-color-scheme` -> `black`
  * (`black` is always the final fallback, never `wireframe`).

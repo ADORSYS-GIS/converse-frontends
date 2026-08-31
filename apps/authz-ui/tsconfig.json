@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node", "vite/client", "vite-plugin-pwa/client"],
+    "paths": {
+      // `tsc`-only shim for `@lightbridge/ui-web`'s own `"./src/*"` wildcard, exactly as
+      // `apps/console/tsconfig.json` carries it and for the same reason: this app imports
+      // `ui-web` through its subpaths (`src/cn`, `src/lib/theme`) rather than the package
+      // barrel, so a login page never pulls the barrel's `d3`/`cmdk`/`react-day-picker`
+      // re-exports into its bundle. Mirrored in `vite.config.ts` and `vitest.config.ts` —
+      // three tools, one mapping.
+      "@lightbridge/ui-web/src/*": ["../../packages/ui-web/src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"],
+  // `src/sw.ts` needs `lib: WebWorker`, whose `self` typing is irreconcilable with the `DOM` lib
+  // this app needs everywhere else — the same split `apps/console/tsconfig.json` makes. It is
+  // typechecked by `tsconfig.sw.json`, which `build:web` runs first. That config is deliberately
+  // NOT named `tsconfig.json`: CI's typecheck gate discovers by that exact filename at
+  // `-maxdepth 2`, and a *solution-style* `tsconfig.json` (`files: []` + `references`, which is
+  // what the source app used with `tsc -b`) checks ZERO files under `tsc --noEmit -p` and turns
+  // that gate into a silent no-op. Verified: `tsc --noEmit -p` on the source app's own
+  // solution config exits 0 having checked nothing.
+  "exclude": ["node_modules", "dist", "src/sw.ts"]
+}

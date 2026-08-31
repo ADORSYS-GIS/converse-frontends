@@ -23,6 +23,15 @@
 @import 'tailwindcss';
 @source '.'; /* this package's own src -- see note above on why auto-detection isn't trusted */
 @source '../../../apps/console/src';
+/* `apps/authz-ui` (the hosted-login SPA, story #406) deliberately has NO `@source` line here. Its
+   own Vite build roots Tailwind's automatic content detection at the Vite project root
+   (`apps/authz-ui`, which contains `src`), so its class usage is already visible without an
+   explicit directive -- verified with probe files against a real `pnpm --filter authz-ui
+   build:web` (2026-08-31): `min-h-dvh`, used nowhere else in this workspace, showed up in
+   `apps/authz-ui/dist/assets/*.css` with no `@source` line present. Adding one here would only
+   leak authz-ui-only utilities into `apps/console`'s and this package's own Storybook CSS bundles,
+   which was confirmed the same way (removing the once-present line dropped `min-h-dvh` from both).
+   Do not add this line back without re-measuring against a real build first. */
 
 /*
  * ADR 0009 Decision 6 tiers, unchanged from the deleted `tailwind.config.js` `screens.md/lg`:

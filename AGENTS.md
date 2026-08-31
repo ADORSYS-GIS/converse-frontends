@@ -25,7 +25,7 @@ This document is the definitive source of truth for the working method, architec
 
 ## 2. Architecture
 
-1. **App layer (`apps/console/src`)**:
+1. **Console app layer (`apps/console/src`)**:
    - **Routes**: Next.js App Router (`src/app/`) — server components, route handlers, and the
      session-decrypting auth boundary.
    - **Containers**: `src/containers/` — data-fetching/orchestration, wired to refine.dev resources
@@ -33,16 +33,33 @@ This document is the definitive source of truth for the working method, architec
      `@lightbridge/hooks/budget-tiers`). No business logic in routes.
    - **Server**: `src/server/` — cookie-session auth (`session.ts`, `session-store.ts`,
      `tokens.ts`, `oidc.ts`), never exposed to the client bundle.
-2. **UI layer (`packages/ui-web`)**:
+2. **Hosted-login app layer (`apps/authz-ui/src`)**:
+   - A **Vite static SPA** — React 19 + react-router, no Next.js, **no server code of any kind**.
+     Built with Vite `base: "/ui/"` to a plain `dist/`, which `lightbridge-authz`'s `authz-idp`
+     serves same-origin under its `/ui` path prefix (ADR-0021 Decisions 1 and 10). This repo owns
+     the build; that repo owns the serving, the caching headers and the CSP.
+   - It shares **one style pipeline** with the console: its whole CSS entry is
+     `@import '@lightbridge/ui-web/styles.css'`, and `packages/ui-web/src/theme.css` carries an
+     `@source` line for its `src`. Semantic tokens only — same rules, same `console-ui` skill.
+   - **The CSP is load-bearing here in a way it is not for the console**: `authz-idp` serves every
+     `/ui` response with `default-src 'self'; frame-ancestors 'none'` — no `'unsafe-inline'`, no
+     nonce, no hash. No inline `<script>`, no inline `style=`, no `data:` URI will load. The
+     console's pre-hydration theme script therefore has no counterpart here; see that app's
+     README for what replaces it.
+3. **UI layer (`packages/ui-web`)**:
    - DOM component primitives (daisyUI + Base UI + cmdk + Floating UI, per ADR 0010) and screen
-     sections (`src/sections/`). See the `console-ui` skill for the full contract.
-3. **RPC layer**:
+     sections (`src/sections/`). Also the shared theme-resolution module (`src/lib/theme.ts`),
+     promoted here when a second app needed the same `black`-default/`wireframe` contract. See the
+     `console-ui` skill for the full contract.
+4. **RPC layer**:
    - **`packages/authz-rpc`**: cratestack-generated RPC client. **DO NOT HAND-EDIT** `generated/`.
    - **`packages/api-rest`**: Generated REST client for the usage backend (Hey API/OpenAPI). **DO NOT HAND-EDIT.**
-4. **Chart math (`packages/chart-core`)**:
+5. **Chart math (`packages/chart-core`)**:
    - DOM-free d3 scales/bins/colour-ramp math, consumed by `packages/ui-web`'s SVG chart components.
-5. **i18n layer (`packages/i18n`)**:
-   - Centralized translations and configuration via `react-i18next`.
+6. **i18n layer (`packages/i18n`)**:
+   - Centralized translations and configuration via `react-i18next`. Note: `apps/console` imports
+     it nowhere today, so §1's "No Plain Visible Text" rule currently describes an intent rather
+     than the state of the web surface.
 
 `packages/hooks` and `packages/api-native` still exist but carry React-Native-only surface (auth
 session, Keycloak login, native clipboard/haptics) that predates the console and has no current
@@ -68,6 +85,7 @@ skill wins and this file needs fixing.
 ## 4. Coding Conventions
 
 ### TypeScript & Type Safety
+
 - **Strict Mode**: `strict: true` is mandatory; never disable per-file.
 - **No `any`**: Use `unknown` + type guards or **discriminated unions** for state modeling.
 - **Literal Types**: Use `as const` for literals and `satisfies` for type-checked assignments.
@@ -75,12 +93,14 @@ skill wins and this file needs fixing.
 - **Imports**: (1) Node built-ins, (2) External, (3) Internal aliases, (4) Relative. Use **named exports** exclusively.
 
 ### React Patterns
+
 - **Functional Components**: Hooks only. No class components.
 - **No derivations in `useEffect`**: Compute derived values during render.
 - **No API calls in `useEffect`**: Use TanStack Query exclusively.
 - **Optimized Rendering**: Use `React.memo` or `useCallback` only when profiling shows bottlenecks.
 
 ### Error Handling
+
 - **Fail Fast**: Loud failures in dev; graceful in production.
 - **Typed Errors**: Use custom error classes with `code` properties. Never throw strings.
 - **Async**: Always `await` or `.catch()` (no floating promises).
@@ -113,6 +133,7 @@ skill wins and this file needs fixing.
 
 <!-- ai-governance:stanza -->
 <!-- BEGIN: AI Governance stanza (managed by ADORSYS-GIS/ai-governance) -->
+
 ## AI Governance
 
 AI may accelerate the work, but humans own intent, verification, and consequences.

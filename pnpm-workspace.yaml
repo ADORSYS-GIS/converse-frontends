@@ -58,8 +58,13 @@ overrides:
   "react-native-safe-area-context": "~5.7.0"
   "react-native-screens": "~4.26.0"
   "react-native-gesture-handler": "~2.32.0"
-  "react-dom": "19.2.3"
-  react: 19.2.3
+  # Raised from 19.2.3 for story #406: `react-router@8` (apps/authz-ui) declares
+  # `peerDependencies: react >=19.2.7`, and an override wins over any range a workspace
+  # declares -- so pinning 19.2.3 here would leave that peer permanently unmet and make the new
+  # app's own manifest a lie. 19.2.8 is the current 19.2 line; `next@16.3.2`'s peer is `^19.0.0`
+  # and `@lightbridge/ui-web`'s is `>=19.2.3`, so nothing else moves.
+  "react-dom": 19.2.8
+  react: 19.2.8
   react-native: 0.86.2
   # Security: transitive-dependency CVE fixes (Trivy HIGH/CRITICAL)
   shell-quote: "^1.8.4" # CVE-2026-9277 (CRITICAL): command injection

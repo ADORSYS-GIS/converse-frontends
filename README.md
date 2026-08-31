@@ -21,7 +21,8 @@ This repository exists to:
 
 ## Tech Stack
 
-- Next.js (App Router) + React 19, Node runtime
+- Next.js (App Router) + React 19, Node runtime (`apps/console`)
+- Vite + React 19 + react-router, static SPA, no server code (`apps/authz-ui`)
 - Tailwind v4 + daisyUI + Base UI + cmdk + Floating UI (see ADR 0010)
 - refine.dev for CRUD scaffolding against cratestack-generated RPC resources
 - TanStack Query
@@ -33,6 +34,8 @@ This repository exists to:
 ```text
 apps/
   console/             # Next.js console (routes, server auth, containers)
+  authz-ui/            # Vite static SPA — the authz hosted-login page, built with base /ui/
+                       #   and served same-origin by lightbridge-authz's authz-idp (ADR-0021)
 packages/
   ui-web/              # DOM UI primitives + screen sections
   chart-core/          # DOM-free chart math (scales, bins, colour ramp)
@@ -92,6 +95,7 @@ pnpm --dir apps/console dev
 
 ```bash
 pnpm test           # every workspace's vitest suite
+pnpm build          # turbo run build:web across every app
 pnpm exec tsc --noEmit -p apps/console/tsconfig.json   # (typecheck; see .github/workflows/test.yml for the full-workspace loop)
 pnpm lint
 ```

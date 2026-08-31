@@ -1,0 +1,18 @@
+/*
+ * ONE style pipeline (console-ui skill "Composition" — "One style pipeline"), the same shape
+ * `apps/console/src/app/globals.css` has: this file is nothing but the import.
+ * `packages/ui-web/src/styles.css` owns the font imports, the `@import 'tailwindcss'` (via
+ * `theme.css`, ADR 0010 Decision 3), the daisyUI `black`/`wireframe` theme blocks, the token
+ * registrations and the base layer. This app re-declares none of them.
+ *
+ * The source app's own `@import "tailwindcss"; @plugin "daisyui";` pair is deliberately GONE, not
+ * merged: `theme.css` already runs both, and a second `@import 'tailwindcss'` would be a
+ * duplicate utility pass over the same sources.
+ *
+ * Tailwind v4 is CSS-first — there is no `content` glob. This app's class usage is visible to the
+ * single Tailwind pass that compiles `theme.css` via Tailwind v4's automatic content detection,
+ * rooted at this app's own Vite project root (`apps/authz-ui`, which contains `src`) when this
+ * app's own `@tailwindcss/vite` build runs `theme.css` through Tailwind -- `theme.css` needs no
+ * `@source` line for this app (verified against a real build; see that file's comment).
+ */
+@import '@lightbridge/ui-web/styles.css';

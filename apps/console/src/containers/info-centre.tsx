@@ -3,12 +3,12 @@
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SettingsRow } from '@lightbridge/ui-web/src/components/settings-row';
+import { resolveConsoleTheme } from '@lightbridge/ui-web/src/lib/theme';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleTheme } from '../client/use-console-theme';
 import { useOnlineStatus } from '../client/use-online-status';
-import { resolveConsoleTheme } from '../shared/theme';
 
 /**
  * `/settings/info` — the client half: everything that is genuinely client-only state (identity,

@@ -6,7 +6,7 @@ import {
   applyThemePreference,
   readStoredThemePreference,
   type ConsoleThemePreference,
-} from '../shared/theme';
+} from '@lightbridge/ui-web/src/lib/theme';
 
 /**
  * The `ThemeToggle` component's state (ADR 0010 Decision 5), read from `localStorage` via

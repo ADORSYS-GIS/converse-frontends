@@ -9,3 +9,10 @@ apps/console/next-env.d.ts
 apps/console/public/sw.js
 apps/console/public/sw.js.map
 apps/console/public/swe-worker-*.js
+
+# Vite production build output (apps/authz-ui, story #406). Same reasoning as the Next.js block
+# above: `dist/` is generated, gitignored (apps/authz-ui/.gitignore), and its content-hashed
+# JS/CSS bundle plus the built `sw.js` are minified/toolchain-formatted, not authored -- a `pnpm
+# lint` run against a working tree that already has a local `pnpm --filter authz-ui build:web` in
+# it would otherwise report false regressions on files nobody wrote by hand.
+apps/authz-ui/dist/

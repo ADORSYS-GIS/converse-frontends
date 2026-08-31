@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { SPEC_ACCENT, SPEC_GREY_RAMP } from '../../chart-tokens';
@@ -46,7 +46,7 @@ describe('MultiSeriesSpendChart', () => {
     expect(paths[2]).toHaveAttribute('stroke', SPEC_GREY_RAMP[2]);
   });
 
-  it('renders exactly one accent-coloured line when one series is breached', () => {
+  it('renders exactly one accent-coloured visible line when one series is breached', () => {
     const { container } = render(
       <MultiSeriesSpendChart
         series={[THREE_SERIES[0], { ...THREE_SERIES[1], breached: true }, THREE_SERIES[2]]}
@@ -54,9 +54,12 @@ describe('MultiSeriesSpendChart', () => {
         height={200}
       />
     );
-    const accentPaths = Array.from(container.querySelectorAll('path[stroke]')).filter(
-      (el) => el.getAttribute('stroke') === SPEC_ACCENT
-    );
+    // Only the VISIBLE lines carry a real stroke colour — the invisible hover/pin hit paths
+    // layered on top are always `stroke="transparent"`, never the accent, so they must be
+    // excluded here or this assertion would over-count.
+    const accentPaths = Array.from(
+      container.querySelectorAll('path[stroke]:not([stroke="transparent"])')
+    ).filter((el) => el.getAttribute('stroke') === SPEC_ACCENT);
     expect(accentPaths).toHaveLength(1);
   });
 
@@ -122,32 +125,66 @@ describe('MultiSeriesSpendChart', () => {
         <MultiSeriesSpendChart series={[tiny, huge]} width={400} height={200} scale="indexed" />
       );
       const circles = Array.from(container.querySelectorAll('g > g circle'));
-      // Both series' final (peak) point should land at the same y pixel — 100% of each one's own
-      // peak — regardless of their real magnitudes being two orders of magnitude apart.
-      const cyValues = new Set(circles.map((c) => Math.round(Number(c.getAttribute('cy')))));
       // At minimum the two peak points (last circle of each series) coincide.
       const lastCyValues = [circles[2]?.getAttribute('cy'), circles[5]?.getAttribute('cy')];
       expect(lastCyValues[0]).toBe(lastCyValues[1]);
-      expect(cyValues.size).toBeGreaterThan(0);
     });
   });
 
-  describe('legend', () => {
-    it('renders rank-ordered rows with a mono total and a share percentage', () => {
+  describe('no legend list', () => {
+    it('renders no legend rows at all — only the caption sentence and the chart itself', () => {
       render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />);
-      const row = screen.getByRole('button', { name: /model-a/ });
-      expect(within(row).getByText('$150.00')).toBeInTheDocument();
-      // model-a is 150 of a 255 grand total ≈ 59%.
-      expect(within(row).getByText('59%')).toBeInTheDocument();
+      expect(document.querySelector('.multi-series-legend')).toBeNull();
+      expect(screen.queryByRole('button', { name: /^model-a$/ })).not.toBeInTheDocument();
     });
 
-    it('legend totals and shares stay the true dollar figures regardless of scale', () => {
-      render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} scale="log" />);
-      const row = screen.getByRole('button', { name: /model-a/ });
-      expect(within(row).getByText('$150.00')).toBeInTheDocument();
+    it('states the period total and series count in one caption sentence under the board', () => {
+      render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />);
+      // Grand total: 150 + 60 + 45 = 255.
+      expect(screen.getByText('$255.00 across 3 series')).toBeInTheDocument();
     });
 
-    it('clicking a legend row pins the accent to exactly that line and calls onSelectSeries', () => {
+    it('collapses an all-zero series into the caption instead of a flat line or a row', () => {
+      const withZero = [...THREE_SERIES, { key: 'd', label: 'model-d', points: [] }];
+      render(<MultiSeriesSpendChart series={withZero} width={400} height={200} />);
+      expect(screen.getByText('1 more · no spend this period', { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText('model-d')).not.toBeInTheDocument();
+    });
+
+    it('appends a caller-supplied truncation notice to the same caption sentence', () => {
+      render(
+        <MultiSeriesSpendChart
+          series={THREE_SERIES}
+          width={400}
+          height={200}
+          truncationCaption="Showing the top 25 of 61 accounts."
+        />
+      );
+      expect(
+        screen.getByText('Showing the top 25 of 61 accounts.', { exact: false })
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('hover-to-highlight / click-to-pin on the lines themselves', () => {
+    it('hovering a line dims every other line and calls it emphasized via the tooltip colour', () => {
+      const { container } = render(
+        <MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />
+      );
+      const hitPath = container.querySelector('path[aria-label^="model-a"]') as SVGPathElement;
+      expect(hitPath).toBeTruthy();
+      const otherGroup = Array.from(container.querySelectorAll('g[style]')).find((g) =>
+        g.getAttribute('style')?.includes('opacity: 0.35')
+      );
+      expect(otherGroup).toBeUndefined(); // nothing dimmed yet
+      fireEvent.mouseEnter(hitPath);
+      const dimmedGroups = Array.from(container.querySelectorAll('g[style*="opacity: 0.35"]'));
+      expect(dimmedGroups.length).toBeGreaterThan(0);
+      fireEvent.mouseLeave(hitPath);
+      expect(container.querySelectorAll('g[style*="opacity: 0.35"]').length).toBe(0);
+    });
+
+    it('clicking a line pins the accent to exactly that line and calls onSelectSeries', () => {
       let selected: string | null = null;
       const { container } = render(
         <MultiSeriesSpendChart
@@ -159,33 +196,32 @@ describe('MultiSeriesSpendChart', () => {
           }}
         />
       );
-      fireEvent.click(screen.getByRole('button', { name: /model-b/ }));
+      const hitPath = container.querySelector('path[aria-label^="model-b"]') as SVGPathElement;
+      fireEvent.click(hitPath);
       expect(selected).toBe('b');
-      const accentPaths = Array.from(container.querySelectorAll('path[stroke]')).filter(
-        (el) => el.getAttribute('stroke') === SPEC_ACCENT
-      );
+      const accentPaths = Array.from(
+        container.querySelectorAll('path[stroke]:not([stroke="transparent"])')
+      ).filter((el) => el.getAttribute('stroke') === SPEC_ACCENT);
       expect(accentPaths).toHaveLength(1);
+      expect(hitPath).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('hovering a legend row dims every other row', () => {
-      render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />);
-      const rowA = screen.getByRole('button', { name: /model-a/ });
-      const rowB = screen.getByRole('button', { name: /model-b/ });
-      fireEvent.mouseEnter(rowA);
-      expect(rowA).toHaveAttribute('data-dim', 'false');
-      expect(rowB).toHaveAttribute('data-dim', 'true');
-      fireEvent.mouseLeave(rowA);
-      expect(rowB).toHaveAttribute('data-dim', 'false');
-    });
-
-    it('collapses an all-zero series into the zero-spend tail instead of a flat line', () => {
-      const withZero = [...THREE_SERIES, { key: 'd', label: 'model-d', points: [] }];
-      render(<MultiSeriesSpendChart series={withZero} width={400} height={200} />);
-      expect(screen.getByText('1 more · no spend this period')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /model-d/ })).not.toBeInTheDocument();
-
-      fireEvent.click(screen.getByText('1 more · no spend this period'));
-      expect(screen.getByText('model-d')).toBeInTheDocument();
+    it('is keyboard-operable: Enter on a focused line toggles the same pin as a click', () => {
+      let selected: string | null = null;
+      const { container } = render(
+        <MultiSeriesSpendChart
+          series={THREE_SERIES}
+          width={400}
+          height={200}
+          onSelectSeries={(key) => {
+            selected = key;
+          }}
+        />
+      );
+      const hitPath = container.querySelector('path[aria-label^="model-c"]') as SVGPathElement;
+      fireEvent.focus(hitPath);
+      fireEvent.keyDown(hitPath, { key: 'Enter' });
+      expect(selected).toBe('c');
     });
   });
 
@@ -199,6 +235,22 @@ describe('MultiSeriesSpendChart', () => {
     fireEvent.pointerEnter(point, { pointerType: 'mouse' });
     expect(tooltipCard()).toHaveTextContent('model-a');
     expect(tooltipCard()).toHaveTextContent('$40.00');
+  });
+
+  it('the tooltip states each row rank-ordered with the true dollar figure AND the period share', () => {
+    render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />);
+    const point = screen.getByRole('button', { name: '2/1' });
+    fireEvent.pointerEnter(point, { pointerType: 'mouse' });
+    // model-a is 150 of a 255 grand total ≈ 59%; its day-1 value is $40.00.
+    expect(tooltipCard()).toHaveTextContent('model-a');
+    expect(tooltipCard()).toHaveTextContent('$40.00 · 59%');
+  });
+
+  it('tooltip shares stay the true dollar figures regardless of scale', () => {
+    render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} scale="log" />);
+    const point = screen.getByRole('button', { name: '2/1' });
+    fireEvent.pointerEnter(point, { pointerType: 'mouse' });
+    expect(tooltipCard()).toHaveTextContent('59%');
   });
 
   it('tracks the nearest bucket as the pointer moves across timestamps', () => {

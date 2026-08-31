@@ -192,11 +192,37 @@ const WITH_ZERO_SPEND_SERIES: MultiSeriesSpendSeries[] = [
   { key: 'whisper-large', label: 'whisper-large', points: [] },
 ];
 
-/** Two models had genuinely no spend this period — they collapse into one disclosure row
- *  ("2 more · no spend this period") instead of two flat lines at zero. */
+/** Two models had genuinely no spend this period — they collapse into the caption sentence
+ *  ("2 more · no spend this period") instead of two flat lines at zero or two rows in a list. */
 export const ZeroSpendTail: Story = {
-  name: 'Zero-spend tail collapses',
+  name: 'Zero-spend tail collapses into the caption',
   args: { series: WITH_ZERO_SPEND_SERIES, formatXTick: dayTick, scale: 'linear' },
+};
+
+// ─── Truncated fan-out ─────────────────────────────────────────────────────────────────────────
+/** A caller whose own fan-out capped its scope (e.g. the estate lens' `MAX_FANNED_OUT_ACCOUNTS`)
+ *  says so in the same caption sentence, never by presenting a partial result as complete. */
+export const TruncatedFanOut: Story = {
+  name: 'Truncated fan-out — caption states the cap',
+  args: {
+    series: BY_ACCOUNT_SERIES,
+    formatXTick: dayTick,
+    scale: 'linear',
+    truncationCaption: 'Showing the top 25 of 61 accounts.',
+  },
+};
+
+// ─── Hover-to-highlight / click-to-pin on the lines themselves ────────────────────────────────────
+/**
+ * No legend list (owner ruling, 2026-08-31: "why keeping the items as list below it and simply
+ * not besides the mouse on hover using @floating-ui/react") — hover a day column to open the
+ * Floating UI tooltip (rank-ordered, true dollar figure + period share per row); hover or click a
+ * LINE directly to dim the others / pin the accent, exactly what the deleted legend's rows used
+ * to do.
+ */
+export const HoverAndPinOnTheLines: Story = {
+  name: 'Hover the tooltip, hover/click a line to pin',
+  args: { series: DOMINANT_MODEL_SERIES, formatXTick: dayTick, scale: 'log' },
 };
 
 // ─── Mobile ────────────────────────────────────────────────────────────────────────────────────

@@ -156,11 +156,36 @@ export function logAxisTicks(domain: readonly [number, number]): number[] {
   return ticks;
 }
 
-/** The honest share of a total against the grand total across every series — legend/tooltip
- *  percent column, always computed off raw dollars regardless of `scale`. */
+/** The honest share of a total against the grand total across every series — the tooltip's
+ *  percent figure, always computed off raw dollars regardless of `scale`. */
 export function shareOfTotal(total: number, grandTotal: number): number {
   if (grandTotal <= 0) return 0;
   return (Math.max(total, 0) / grandTotal) * 100;
+}
+
+/**
+ * The board's own single caption sentence — everything the deleted legend list used to state as
+ * permanent rows, folded into one line under the chart (the owner's ruling killed the list, not
+ * the information): the period total across every series, the zero-spend tail's count when any
+ * series collapsed into it, and an optional truncation notice from a caller whose own fan-out
+ * capped its scope (`MultiSeriesSpendChartProps.truncationCaption`). A caption is a sentence, not
+ * rows, so the three clauses join with a middle dot rather than rendering as separate lines.
+ */
+export function buildSummaryCaption(
+  grandTotal: number,
+  totalSeriesCount: number,
+  noSpendCount: number,
+  formatValue: (value: number) => string,
+  truncationCaption?: string
+): string {
+  const parts = [`${formatValue(grandTotal)} across ${totalSeriesCount} series`];
+  if (noSpendCount > 0) {
+    parts.push(`${noSpendCount} more · no spend this period`);
+  }
+  if (truncationCaption) {
+    parts.push(truncationCaption);
+  }
+  return parts.join(' · ');
 }
 
 export type { MultiSeriesSpendPoint };

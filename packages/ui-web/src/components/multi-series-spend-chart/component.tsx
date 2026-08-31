@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { area as d3Area, curveMonotoneX, line as d3Line } from 'd3-shape';
 import { scaleLog } from 'd3-scale';
 
@@ -22,6 +23,7 @@ import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { formatUsd, formatUsdAxis } from '../../lib/money';
 import { META_CLASS } from '../../lib/type-roles';
 import {
+  buildSummaryCaption,
   collectTimestamps,
   computeYDomain,
   logAxisTicks,
@@ -37,6 +39,10 @@ const MIN_HIT_WIDTH = 44;
 // fixed margin keeps the plot area from shifting width when a story only changes `scale`.
 const MARGIN = { ...DEFAULT_CHART_MARGIN, left: 60 };
 const DEFAULT_EMPTY_MESSAGE = 'No usage in this range.';
+// Invisible hit-target thickness around a line/point -- wide enough to be a comfortable mouse
+// target over a 2px stroke, narrow enough that two adjacent series rarely fight for the pointer.
+const LINE_HIT_STROKE_WIDTH = 16;
+const POINT_HIT_RADIUS = 12;
 
 const identityFormatDate = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
 
@@ -60,8 +66,9 @@ function formatShare(percent: number): string {
  * A single time-series board with ONE LINE PER SERIES, superposed on shared axes — the owner's
  * replacement for a ranked list of per-row sparklines on the three "Spend by <dimension>" zones
  * ("I want a single board... something like 'Spend over time', but declined to all models... all
- * on the same graph"). Storybook-only design exploration: not wired into `apps/console`, and not
- * a replacement for `RankedSeriesRows` (ADR 0013 D5) until the owner approves a direction here.
+ * on the same graph"). Wired into `apps/console`'s account/estate overviews in place of
+ * `RankedSeriesRows` for these three boards (ADR 0013 D5's default stays `RankedSeriesRows`
+ * everywhere else).
  *
  * The hard problem this component exists to let the owner judge: real usage is one dominant
  * series (~100% share) beside several sub-1%-share series. On a LINEAR axis the small series
@@ -75,17 +82,27 @@ function formatShare(percent: number): string {
  *   - `indexed` — each series normalized to its OWN period max. A shape-only comparison ("did
  *     this model's usage double or halve"), explicitly NOT a magnitude comparison — the axis
  *     caption and the "% of series peak" tick label say so.
- * The legend's totals and share percentages are always the TRUE dollar figures regardless of
+ * The tooltip's totals and share percentages are always the TRUE dollar figures regardless of
  * `scale` — switching the axis transform never changes what the numbers assert.
+ *
+ * **No legend list** (owner ruling, 2026-08-31 verbatim: "When displaying a graph, why keeping
+ * the items as list below it and simply not besides the mouse on hover using @floating-ui/react"
+ * — this superseded the earlier design-review draft's always-visible rank-ordered legend). Every
+ * per-series name/value/share now lives in the SAME Floating-UI `ChartTooltip` the date-hover
+ * crosshair already opens, rank-ordered top to bottom, each row's value carrying both the true
+ * per-day dollar figure (never the scale-transformed one) and the series' period share. What the
+ * legend's rows ALSO did — hover-to-dim, click-to-pin — moves onto the chart's own lines: each
+ * series draws an invisible, generously-thick hit path/circle (`LINE_HIT_STROKE_WIDTH`/
+ * `POINT_HIT_RADIUS`) layered above the date hit-regions, keyboard-reachable via `tabIndex`, so
+ * hovering or clicking the line itself (not a row in a list that no longer exists) drives
+ * `hoveredKey`/`selectedKey` exactly as the legend used to. The only text left outside the
+ * tooltip is one caption sentence under the board — period total, the zero-spend tail's count,
+ * and an optional truncation notice — never a second list.
  *
  * Same visual language as `SpendSeriesChart`: DOM `<svg>`, `chart-core` math, the theme-dependent
  * monochrome rank ramp, `primary` used at most once (the hovered-or-selected series), gap-broken
  * lines (`domain.ts`'s `transformSeries`, the same non-interpolating contract
  * `spend-series-chart/domain.ts`'s `withGapSentinels` established), and a Floating UI tooltip.
- * Diverges deliberately from it in two ways this board's brief specifically asked for: a
- * rank-ordered legend with right-aligned mono totals/share (no per-row sparkline — the very thing
- * the owner rejected) that collapses its zero-spend tail, and hover-to-dim cross-highlighting
- * (`SpendSeriesChart`'s legend only supports click-to-pin).
  */
 export function MultiSeriesSpendChart({
   series,
@@ -97,15 +114,14 @@ export function MultiSeriesSpendChart({
   formatValue = formatUsd,
   onSelectSeries,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
+  truncationCaption,
   className,
 }: MultiSeriesSpendChartProps) {
   // Click-pinned selection (persists) — same contract as `SpendSeriesChart.onSelectSeries`.
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  // Hover preview (temporary, cleared on pointer/focus leave) — sanctioned local state, the same
-  // class as `useHoverActive` below: purely local, gone on remount, never URL-worthy.
+  // Hover preview (temporary, cleared on pointer/focus leave) — sanctioned local state, driven by
+  // the chart's own line/point hit targets now (see the component doc comment).
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  // The zero-spend tail's disclosure toggle — same sanctioned exception `RankedSeriesRows` uses.
-  const [zeroTailExpanded, setZeroTailExpanded] = useState(false);
   const { active: activeIndex, activeInput, getHoverProps } = useHoverActive<number>();
   const [svgElement, setSvgElement] = useState<SVGSVGElement | null>(null);
 
@@ -114,8 +130,8 @@ export function MultiSeriesSpendChart({
     () => transformSeries(series, timestamps, scale),
     [series, timestamps, scale]
   );
-  // Rank order — by TRUE total, descending — drives colour, the legend's reading order and the
-  // tooltip's row order all at once, so the three never disagree about "which series is #1".
+  // Rank order — by TRUE total, descending — drives colour and the tooltip's row order at once,
+  // so neither can disagree about "which series is #1".
   const ranked = useMemo(
     () => [...transformed].sort((a, b) => b.total - a.total),
     [transformed]
@@ -123,8 +139,8 @@ export function MultiSeriesSpendChart({
   // A series with no spend at all this period plots no line (every scale transform already gaps
   // every one of its buckets in `transformSeries` for `log`/`indexed`; `linear` is the one scale
   // where a genuine all-zero series COULD still draw a flat line at the baseline, and this drops
-  // it there too — decluttering the board the same way its legend row collapses into the
-  // zero-spend tail, rather than one surface hiding it and the other not).
+  // it there too — decluttering the board the same way its zero-spend tail collapses into the
+  // caption instead of a flat line at zero).
   const withSpend = useMemo(() => ranked.filter((s) => s.total > 0), [ranked]);
   const noSpend = useMemo(() => ranked.filter((s) => s.total <= 0), [ranked]);
   const grandTotal = useMemo(
@@ -186,6 +202,9 @@ export function MultiSeriesSpendChart({
   }, [scale, yDomain, yScale]);
 
   const activeTimestamp = activeIndex !== null ? timestamps[activeIndex] : null;
+  // Rank-ordered (same order the board colours/ranks by), each row stating the TRUE per-day
+  // dollar figure at the hovered bucket alongside the series' own TRUE period share — the two
+  // figures the deleted legend used to state permanently, now surfaced on hover instead.
   const tooltipRows: ChartTooltipRow[] = useMemo(() => {
     if (!activeTimestamp) return [];
     const time = activeTimestamp.getTime();
@@ -196,10 +215,11 @@ export function MultiSeriesSpendChart({
         const rawSeries = series.find((raw) => raw.key === s.key);
         const rawPoint = rawSeries?.points.find((p) => p.x.getTime() === time);
         if (!rawPoint) return null;
+        const percent = shareOfTotal(s.total, grandTotal);
         return {
           key: s.key,
           label: s.label,
-          value: formatValue(rawPoint.y),
+          value: `${formatValue(rawPoint.y)} · ${formatShare(percent)}`,
           color: specSeriesColor(index, {
             selected: s.key === emphasizedKey,
             breached: s.breached,
@@ -207,7 +227,7 @@ export function MultiSeriesSpendChart({
         };
       })
       .filter((row): row is ChartTooltipRow => row !== null);
-  }, [activeTimestamp, withSpend, series, emphasizedKey, formatValue]);
+  }, [activeTimestamp, withSpend, series, emphasizedKey, formatValue, grandTotal]);
 
   const pinnedPoint = useMemo(() => {
     if (!activeTimestamp) return null;
@@ -227,6 +247,13 @@ export function MultiSeriesSpendChart({
     });
 
   const caption = axisCaption(scale);
+  const summaryCaption = buildSummaryCaption(
+    grandTotal,
+    series.length,
+    noSpend.length,
+    formatValue,
+    truncationCaption
+  );
 
   if (series.length === 0 || timestamps.length === 0) {
     return (
@@ -331,6 +358,80 @@ export function MultiSeriesSpendChart({
             />
           );
         })}
+        {/* Hover-to-highlight / click-to-pin, moved onto the lines themselves now that there is
+            no legend row left to host them (see the component doc comment). Layered ABOVE the
+            date hit-regions above (later in paint order) so a pointer directly over a line/point
+            wins; its own root carries `pointer-events: none` so everywhere ELSE on the plot still
+            falls through to the date hit-regions underneath for the crosshair tooltip. */}
+        <svg
+          width={width}
+          height={height}
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
+            {withSpend.map((s: TransformedSeries) => {
+              const defined = s.points.filter((p) => Number.isFinite(p.y));
+              const percent = shareOfTotal(s.total, grandTotal);
+              const accessibleLabel = `${s.label}, ${formatValue(s.total)}, ${formatShare(percent)} of total`;
+              const pressed = s.key === selectedKey;
+
+              function toggle() {
+                handleSelect(s.key === selectedKey ? null : s.key);
+              }
+
+              function onKeyDown(event: KeyboardEvent) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  toggle();
+                }
+              }
+
+              const sharedProps = {
+                role: 'button' as const,
+                tabIndex: 0,
+                'aria-label': accessibleLabel,
+                'aria-pressed': pressed,
+                onMouseEnter: () => setHoveredKey(s.key),
+                onMouseLeave: () => setHoveredKey(null),
+                onFocus: () => setHoveredKey(s.key),
+                onBlur: () => setHoveredKey(null),
+                onClick: toggle,
+                onKeyDown,
+              };
+
+              if (defined.length > 1) {
+                const lineGen = d3Line<(typeof s.points)[number]>()
+                  .defined((p) => Number.isFinite(p.y))
+                  .x((p) => xScale?.(p.x) ?? 0)
+                  .y((p) => yScale(p.y))
+                  .curve(curveMonotoneX);
+                return (
+                  <path
+                    key={s.key}
+                    d={lineGen(s.points) ?? undefined}
+                    stroke="transparent"
+                    strokeWidth={LINE_HIT_STROKE_WIDTH}
+                    fill="none"
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                    {...sharedProps}
+                  />
+                );
+              }
+              const only = defined[0];
+              if (!only) return null;
+              return (
+                <circle
+                  key={s.key}
+                  cx={xScale?.(only.x) ?? 0}
+                  cy={yScale(only.y)}
+                  r={POINT_HIT_RADIUS}
+                  fill="transparent"
+                  style={{ pointerEvents: 'fill', cursor: 'pointer' }}
+                  {...sharedProps}
+                />
+              );
+            })}
+          </g>
+        </svg>
         <ChartTooltip
           visible={activeIndex !== null}
           title={activeTimestamp ? formatTooltipTitle(activeTimestamp) : undefined}
@@ -340,75 +441,7 @@ export function MultiSeriesSpendChart({
           getFloatingProps={getFloatingProps}
         />
       </div>
-      <div className="multi-series-legend mt-2">
-        {withSpend.map((s, index) => {
-          const emphasized = s.key === emphasizedKey || Boolean(s.breached);
-          // The chart's own lines dim a non-emphasized series via inline `opacity` (see the `<g>`
-          // above) whenever something else is hovered/selected — the legend row for that same
-          // series dims the same way, via the shared `data-dim` hook, so "others dim" reads
-          // identically in both halves of the board.
-          const dim = emphasizedKey !== null && !emphasized;
-          const color = specSeriesColor(index, {
-            selected: s.key === emphasizedKey,
-            breached: s.breached,
-          });
-          const percent = shareOfTotal(s.total, grandTotal);
-          return (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => handleSelect(s.key === selectedKey ? null : s.key)}
-              onMouseEnter={() => setHoveredKey(s.key)}
-              onMouseLeave={() => setHoveredKey(null)}
-              onFocus={() => setHoveredKey(s.key)}
-              onBlur={() => setHoveredKey(null)}
-              aria-pressed={s.key === selectedKey}
-              data-emphasized={emphasized ? 'true' : 'false'}
-              data-dim={dim ? 'true' : 'false'}
-              className="multi-series-legend-row">
-              <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: color }} />
-              <span className="multi-series-legend-label">{s.label}</span>
-              <span className="multi-series-legend-value">{formatValue(s.total)}</span>
-              <span className="multi-series-legend-percent">{formatShare(percent)}</span>
-            </button>
-          );
-        })}
-
-        {noSpend.length > 0 ? (
-          <div>
-            <button
-              type="button"
-              onClick={() => setZeroTailExpanded((expanded) => !expanded)}
-              aria-expanded={zeroTailExpanded}
-              data-emphasized="false"
-              data-dim="true"
-              className="multi-series-legend-row">
-              <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: 'transparent' }} />
-              <span className="multi-series-legend-label">
-                {noSpend.length} more · no spend this period
-              </span>
-              <span aria-hidden="true" />
-              <span aria-hidden="true" />
-            </button>
-            {zeroTailExpanded ? (
-              <div className="multi-series-legend">
-                {noSpend.map((s) => (
-                  <div
-                    key={s.key}
-                    data-emphasized="false"
-                    data-dim="true"
-                    className="multi-series-legend-row">
-                    <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: 'transparent' }} />
-                    <span className="multi-series-legend-label">{s.label}</span>
-                    <span className="multi-series-legend-value">{formatValue(0)}</span>
-                    <span aria-hidden="true" />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      <p className={cn(META_CLASS, 'mt-2')}>{summaryCaption}</p>
     </div>
   );
 }

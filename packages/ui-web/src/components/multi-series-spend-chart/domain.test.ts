@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildSummaryCaption,
   collectTimestamps,
   computeYDomain,
   logAxisTicks,
@@ -125,5 +126,29 @@ describe('shareOfTotal', () => {
 
   it('returns 0 for a non-positive grand total instead of dividing by zero', () => {
     expect(shareOfTotal(0, 0)).toBe(0);
+  });
+});
+
+describe('buildSummaryCaption', () => {
+  const usd = (n: number) => `$${n.toFixed(2)}`;
+
+  it('states the period total across every series as one sentence', () => {
+    expect(buildSummaryCaption(255, 3, 0, usd)).toBe('$255.00 across 3 series');
+  });
+
+  it('appends the zero-spend tail count only when the tail is non-empty', () => {
+    expect(buildSummaryCaption(255, 4, 1, usd)).toBe(
+      '$255.00 across 4 series · 1 more · no spend this period'
+    );
+  });
+
+  it('appends a caller-supplied truncation notice last', () => {
+    expect(buildSummaryCaption(255, 4, 1, usd, 'Showing the top 25 of 61 accounts.')).toBe(
+      '$255.00 across 4 series · 1 more · no spend this period · Showing the top 25 of 61 accounts.'
+    );
+  });
+
+  it('omits the truncation clause entirely when not supplied', () => {
+    expect(buildSummaryCaption(0, 2, 2, usd)).toBe('$0.00 across 2 series · 2 more · no spend this period');
   });
 });

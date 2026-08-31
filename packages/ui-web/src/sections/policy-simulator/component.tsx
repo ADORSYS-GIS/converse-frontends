@@ -7,27 +7,34 @@ import { Field } from '../../components/field';
 import { formatUsd } from '../../lib/money';
 import { DATA_INK_CLASS, LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
+import { RuleSetForm } from '../rule-set-form';
+import { ScenarioForm } from '../refill-scenario-form';
 import type { PolicySimulatorProps } from './types';
 
 /**
- * `/settings/refill-options`'s own "try a policy" card (IA v3 phase 3): `procedure.
- * simulateBudgetPolicy` evaluates a rule set the caller pastes in against a scenario and a
- * requested amount, and returns a `Decision` — it mutates nothing and reads no stored policy, so
- * it is offered to every signed-in user, not gated behind an operator role (the same visibility
- * the "Refill options policies" nav row already carries).
+ * `/settings/refill-options`'s own "try a policy" card (IA v3 phase 3, redesigned Phase G — owner
+ * verdict on the original: "very non-human, json-inputs"): `procedure.simulateBudgetPolicy`
+ * evaluates a rule set the caller authors against a scenario and a requested amount, and returns
+ * a `Decision` — it mutates nothing and reads no stored policy, so it is offered to every
+ * signed-in user, not gated behind an operator role (the same visibility the "Refill options
+ * policies" nav row already carries).
  *
- * Deliberately NOT the stored/active policy: `getBudgetPolicyStatus` and the rule content behind
- * it have no read API today (see `REFILL_OPTIONS_DISABLED_REASON`, `client/console-chrome.tsx`) —
- * this card is a scratch pad over rule JSON the caller supplies, never a view onto what is
- * actually active for any account.
+ * The rule set and scenario are now `RuleSetForm`/`ScenarioForm` — typed fields, not JSON
+ * textareas. Deliberately still NOT the stored/active policy: `getBudgetPolicyStatus` and the
+ * rule content behind it have no read API today (see `REFILL_OPTIONS_DISABLED_REASON`,
+ * `client/console-chrome.tsx`) — this card is a scratch pad over a rule set the caller authors
+ * here, never a view onto what is actually active for any account.
  */
 export function PolicySimulator({
-  ruleDataJson,
-  onRuleDataJsonChange,
-  scenarioJson,
-  onScenarioJsonChange,
+  ruleSet,
+  onRuleSetChange,
+  ruleSetErrors,
+  scenario,
+  onScenarioChange,
+  scenarioErrors,
   requestedAmount,
   onRequestedAmountChange,
+  requestedAmountError,
   submitting,
   error,
   canSubmit,
@@ -39,35 +46,28 @@ export function PolicySimulator({
     <div className={className}>
       <ZoneHeading label="Try a policy" />
       <p className={cn(META_CLASS, 'mt-2')}>
-        Evaluates a rule set you paste in against a scenario and a requested amount — nothing here
-        reads or changes an account&rsquo;s actual, active policy.
+        Evaluates a rule set you author below against a scenario and a requested amount — nothing
+        here reads or changes an account&rsquo;s actual, active policy.
       </p>
-      <div className="mt-4 flex flex-col gap-3">
-        <Field
-          label="Rule data (JSON)"
-          multiline
-          rows={6}
-          value={ruleDataJson}
-          onChange={(event) => onRuleDataJsonChange(event.target.value)}
-        />
-        <Field
-          label="Scenario (JSON)"
-          multiline
-          rows={4}
-          value={scenarioJson}
-          onChange={(event) => onScenarioJsonChange(event.target.value)}
-        />
-        <Field
-          label="Requested amount (USD)"
-          inputMode="decimal"
-          value={requestedAmount}
-          onChange={(event) => onRequestedAmountChange(event.target.value)}
-        />
-        {error ? <ErrorLine message={error} /> : null}
-        <div>
-          <Button type="button" variant="primary" disabled={!canSubmit || submitting} onClick={onSubmit}>
-            {submitting ? 'Simulating…' : 'Simulate'}
-          </Button>
+
+      <div className="mt-4 flex flex-col gap-6">
+        <RuleSetForm value={ruleSet} onChange={onRuleSetChange} errors={ruleSetErrors} />
+        <ScenarioForm value={scenario} onChange={onScenarioChange} errors={scenarioErrors} />
+
+        <div className="flex flex-col gap-3">
+          <Field
+            label="Requested amount (USD)"
+            inputMode="decimal"
+            value={requestedAmount}
+            onChange={(event) => onRequestedAmountChange(event.target.value)}
+            error={requestedAmountError}
+          />
+          {error ? <ErrorLine message={error} /> : null}
+          <div>
+            <Button type="button" variant="primary" disabled={!canSubmit || submitting} onClick={onSubmit}>
+              {submitting ? 'Simulating…' : 'Simulate'}
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -96,6 +96,37 @@ describe('section class budget', () => {
    * `SpendDashboard`'s own loading treatment verbatim (`flex flex-col gap-2`, one inline-sized
    * skeleton block, its status line's `text-subtle font-sans text-[10px]`).
    */
+  /**
+   * Re-measured 2026-08-31 (Phase G — `/settings/refill-options` redesign, owner verdict: "very
+   * non-human, json-inputs"): `policy-simulator` moved 12 -> 13 once its two JSON textareas were
+   * replaced by composing `RuleSetForm`/`ScenarioForm` (one extra `mt-2` on the section's own
+   * intro paragraph — everything else moved into the two new sections below, which is why the
+   * REPLACED component barely grew at all). Four sections are pinned here for the first time:
+   *
+   *  - `rule-set-form` (24) — the typed authoring form for `RuleSet` (ladder rows, the
+   *    starting/floor pair, a rules repeater each carrying its own condition-threshold repeater).
+   *    Real nested-repeater layout (`flex-col`/`grid-cols-2`/`flex-wrap` at three separate levels),
+   *    not fat from anything reusable being hand-rolled twice. The counter also tokenises one of
+   *    this section's own `SelectField` option LABELS ("Auto-approve") as a class because it
+   *    contains a hyphen — `class-budget.ts`'s own docstring already names this exact failure
+   *    mode ("a couple of these are prose, not CSS") rather than it being new debt here. 20 -> 24
+   *    on the same day (mobile verification pass): a real overflow at the `base390` tier —
+   *    `grid-cols-2` rows and a `flex`-row condition line with `min-w-[…]` selects forced
+   *    horizontal scroll on a narrow viewport, confirmed via a Chrome DevTools Protocol screenshot
+   *    (`chrome --screenshot`'s CLI flag races webfont load and cannot be trusted for this kind of
+   *    check) — fixed with `grid-cols-1 sm:grid-cols-2`, a `flex-col sm:flex-row` condition row,
+   *    `sm:min-w-[…]` (never bare `min-w-[…]`), and `min-w-0` alongside every `flex-1` sitting next
+   *    to a `<input>`/`<select>` (their non-negotiable default `min-width: auto` is exactly what
+   *    was overflowing the row).
+   *  - `refill-scenario-form` (8) — the typed `Facts` form (two fields in a `grid-cols-1
+   *    sm:grid-cols-2` row plus two known/unavailable toggle groups); 7 -> 8 for the same
+   *    `sm:grid-cols-2` mobile fix.
+   *  - `refill-policy-manual` (13) — the "how does it work" explainer + lifecycle diagram; the
+   *    diagram's own responsive row (`sm:flex-row`/`sm:items-start`/`sm:gap-2`/`sm:block`) is most
+   *    of this count.
+   *  - `refill-policy-status-strip` (2) — the honest active-policy-set/-revision line; `flex-col
+   *    gap-1` and nothing else of its own.
+   */
   it.each([
     ['spend-share', 6],
     ['spend-dashboard', 7],
@@ -104,9 +135,13 @@ describe('section class budget', () => {
     ['latency-stat-cards', 4],
     ['refill-history', 1],
     ['refill-request-form', 3],
-    ['policy-simulator', 12],
+    ['policy-simulator', 13],
     ['project-policy-controls', 3],
     ['multi-series-spend-board', 7],
+    ['rule-set-form', 24],
+    ['refill-scenario-form', 8],
+    ['refill-policy-manual', 13],
+    ['refill-policy-status-strip', 2],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(

@@ -260,30 +260,22 @@ export function navGroups(
 // ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
 
 /**
- * The settings area's seven destinations, in the owner-dictated nav order. `accounts` was new in
+ * The settings area's six destinations, in the owner-dictated nav order. `accounts` was new in
  * IA v3 phase E ("the settings/accounts move" — owner: "add /settings/accounts... And
  * /settings/accounts/<account-id> would be for account related settings"), placed right after
  * `overview` per that directive. **`refills-queue` moved OUT** (ADR 0013's same-day "the admin
  * area" amendment) — the budget refill review queue lives at `/admin/refills-queue` now, alongside
- * the operator dashboard, not in this flat settings list. Six of the seven are live routes
- * (`overview`, `accounts`, `tiers`, `policies`, `refill-options`, `info`); `roles` alone stays a
- * real, permanent row that renders `disabled` rather than being omitted — omitting it would hide
- * that the destination exists at all, and a disabled row with a stated reason is the honest middle
- * ground between "not built" and "silently missing" (console-ui skill's "never fabricate" clause
- * extends to navigation: a row that LOOKS live but 404s is its own kind of fabrication).
- * `refill-options` went live in phase 3: `procedure.simulateBudgetPolicy` gives it real content (a
- * policy scratch pad) even though the STORED/ACTIVE policy is still unreadable — see
- * `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment, kept below as the honest caption the new
- * page's own omitted blocks cite, not as a disabled-row reason any more.
+ * the operator dashboard, not in this flat settings list. **`refill-options` moved OUT too**
+ * (owner ruling, verbatim: "Refill options are for admins only. Not normal users." —
+ * converse-frontends#368) — it is `/admin/refill-policies` now, alongside the other two admin-only
+ * destinations, not a row every settings visitor sees. Five of the six are live routes
+ * (`overview`, `accounts`, `tiers`, `policies`, `info`); `roles` alone stays a real, permanent row
+ * that renders `disabled` rather than being omitted — omitting it would hide that the destination
+ * exists at all, and a disabled row with a stated reason is the honest middle ground between "not
+ * built" and "silently missing" (console-ui skill's "never fabricate" clause extends to
+ * navigation: a row that LOOKS live but 404s is its own kind of fabrication).
  */
-export type SettingsRoute =
-  | 'overview'
-  | 'accounts'
-  | 'roles'
-  | 'tiers'
-  | 'policies'
-  | 'refill-options'
-  | 'info';
+export type SettingsRoute = 'overview' | 'accounts' | 'roles' | 'tiers' | 'policies' | 'info';
 
 /**
  * `/settings/<segment>` -> which nav row is active. Every LIVE segment gets its own prefix match;
@@ -300,7 +292,6 @@ export function settingsRouteFromPathname(pathname: string): SettingsRoute {
   if (pathname.startsWith('/settings/accounts')) return 'accounts';
   if (pathname.startsWith('/settings/tiers')) return 'tiers';
   if (pathname.startsWith('/settings/policies')) return 'policies';
-  if (pathname.startsWith('/settings/refill-options')) return 'refill-options';
   if (pathname.startsWith('/settings/info')) return 'info';
   return 'overview';
 }
@@ -313,7 +304,6 @@ const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
   roles: <RolesIcon />,
   tiers: <TiersIcon />,
   policies: <PoliciesIcon />,
-  'refill-options': <RefillOptionsIcon />,
   info: <InfoIcon />,
 };
 
@@ -325,29 +315,17 @@ export const ROLES_DISABLED_REASON =
   'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).';
 
 /**
- * The honest reason `/settings/refill-options` (live as of IA v3 phase 3) still OMITS its
- * policy-status and stored-rule-data blocks rather than rendering them: `getBudgetPolicyStatus`
- * reads only a policy's ACTIVE REVISION ID by `policySetId`, never the rule content itself, and
- * no procedure lists which policy sets exist to read a status for in the first place. A picker
- * with nothing to populate it would be exactly the fabricated-nav-row problem this whole scheme
- * exists to avoid. Tracked under the phase ticket rather than a fourth ad hoc backend issue —
- * converse-frontends#368. The row itself is no longer disabled — `refill-options-centre.tsx`
- * reuses this same caption inline, on the omitted blocks, instead of on a `disabled` nav row.
- */
-export const REFILL_OPTIONS_DISABLED_REASON =
-  'Refill policy rule content has no read API today — only activation and revision-by-id status exist (converse-frontends#368).';
-
-/**
  * The settings area's nav — REPLACES `navGroups`' Workspace/Account/Operator groups in the same
  * sidebar mount when `areaFromPathname(pathname) === 'settings'` (`ConsoleSidebarContent`), never
- * a second nav surface alongside it. One ungrouped list (no group `label`s) — seven destinations
+ * a second nav surface alongside it. One ungrouped list (no group `label`s) — six destinations
  * is not enough to need a section heading the way the account area's three groups do, and the
  * owner's own nav order names it as a flat sequence, not grouped families.
  *
  * No `isAdmin`/`refillCount` params any more (ADR 0013's same-day "the admin area" amendment) —
- * this list's one admin-only row, "Refills queue," moved to `/admin/refills-queue` and the
- * admin area's own `adminNavGroups` below; every destination left here is real for every settings
- * visitor, admin or not (`roles` stays the one exception, `disabled` with a stated reason).
+ * this list's two admin-only rows, "Refills queue" and "Refill options policies," moved to
+ * `/admin/refills-queue` and `/admin/refill-policies` and the admin area's own `adminNavGroups`
+ * below; every destination left here is real for every settings visitor, admin or not (`roles`
+ * stays the one exception, `disabled` with a stated reason).
  */
 export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
   const items: NavGroup['items'] = [
@@ -387,13 +365,6 @@ export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
       active: active === 'policies',
     },
     {
-      key: 'refill-options',
-      label: 'Refill options policies',
-      href: '/settings/refill-options',
-      icon: SETTINGS_NAV_ICON['refill-options'],
-      active: active === 'refill-options',
-    },
-    {
       key: 'info',
       label: 'Info',
       href: '/settings/info',
@@ -407,15 +378,18 @@ export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
 // ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
 
 /**
- * The admin area's two destinations, in the same "dashboard first, drill-down after" order the
+ * The admin area's three destinations, in the same "dashboard first, drill-down after" order the
  * account-area Operator row's own `href` now follows: `/admin/overview` (the eight-board operator
- * dashboard) then `/admin/refills-queue` (the budget refill review queue, moved here from
- * `/settings/refills-queue`). Both are real for every visitor who reaches this nav at all — the
- * whole area is gated server-side (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`) and
- * `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
+ * dashboard), `/admin/refills-queue` (the budget refill review queue, moved here from
+ * `/settings/refills-queue`), then `/admin/refill-policies` (the policy authoring/simulation
+ * surface, moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options
+ * are for admins only. Not normal users.", converse-frontends#368). All three are real for every
+ * visitor who reaches this nav at all — the whole area is gated server-side
+ * (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`, `admin/refill-policies/page.tsx`)
+ * and `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
  * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
  */
-export type AdminRoute = 'overview' | 'refills-queue';
+export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
@@ -423,15 +397,18 @@ export type AdminRoute = 'overview' | 'refills-queue';
  *  `routeFromPathname` use for their own bare segments. */
 export function adminRouteFromPathname(pathname: string): AdminRoute {
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
+  if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
   return 'overview';
 }
 
 /** One shared icon per admin destination, the same 16px/1.5-stroke family `NAV_ICON`/
  *  `SETTINGS_NAV_ICON` draw from (`lib/icons.tsx`) — never a third, differently-weighted glyph
- *  set for the third area. */
+ *  set for the third area. `refill-policies` reuses the exact icon the settings row it replaced
+ *  used — the glyph names a CONCEPT (a refill ladder), not the area it lives in. */
 const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
   'refills-queue': <AdminIcon />,
+  'refill-policies': <RefillOptionsIcon />,
 };
 
 /**
@@ -462,6 +439,13 @@ export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGro
           icon: ADMIN_NAV_ICON['refills-queue'],
           active: active === 'refills-queue',
           count: refillCount && refillCount > 0 ? refillCount : undefined,
+        },
+        {
+          key: 'refill-policies',
+          label: 'Refill policies',
+          href: '/admin/refill-policies',
+          icon: ADMIN_NAV_ICON['refill-policies'],
+          active: active === 'refill-policies',
         },
       ],
     },
@@ -636,7 +620,9 @@ export function useConsolePalette() {
       // dashboard (`/admin/overview`), not the refills queue directly, so this gets its own
       // entry rather than the queue's own label — the same "one entry per real destination" split
       // the `accounts`/`settings` pair above already uses. `refills-queue` links straight into the
-      // queue for a reviewer who wants it without the dashboard first.
+      // queue for a reviewer who wants it without the dashboard first. `refill-policies` is the
+      // same shape again, added when the admin-only surface moved off `/settings/refill-options`
+      // (owner ruling, converse-frontends#368).
       navigate.push(
         {
           key: 'admin',
@@ -649,6 +635,12 @@ export function useConsolePalette() {
           label: 'Refill requests',
           hint: 'ROLE',
           onSelect: () => router.push('/admin/refills-queue'),
+        },
+        {
+          key: 'refill-policies',
+          label: 'Refill policies',
+          hint: 'ROLE',
+          onSelect: () => router.push('/admin/refill-policies'),
         }
       );
     }

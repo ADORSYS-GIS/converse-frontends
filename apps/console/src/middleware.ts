@@ -58,11 +58,18 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
  *    `/admin` segment now that it resolves to real content of its own
  *    (`app/(console)/admin/page.tsx`'s own `redirect('/admin/overview')`). `?request=req_9` and
  *    every other param survive verbatim, same as every other row here.
+ *  - `/settings/refill-options` -> `/admin/refill-policies`: a second admin-only move on the same
+ *    day, this time a straight rename rather than a repeat hop — owner ruling, verbatim: "Refill
+ *    options are for admins only. Not normal users." (converse-frontends#368). Every query param
+ *    survives verbatim, same as the row above; the mode params this page owns now
+ *    (`?create=`/`?edit=`/`?simulate=`/`?policy-set=`, `adminRefillPoliciesParsers`) did not exist
+ *    on the old route, so there is nothing shaped differently to translate.
  */
 const LEGACY_STATIC_REDIRECT: Record<string, string> = {
   '/settings/projects': '/settings/policies',
   '/settings/account': '/',
   '/settings/refills-queue': '/admin/refills-queue',
+  '/settings/refill-options': '/admin/refill-policies',
 };
 
 function legacyStaticRedirectTarget(

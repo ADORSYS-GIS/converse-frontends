@@ -112,10 +112,17 @@ describe('ADR 0011 discipline', () => {
     //    `use-refill-screen.ts`, carries the identical draft, but now against a real ROUTE
     //    (`/accounts/<id>/refill`) rather than a `?refill=true` flag, so there is no URL-vs-draft
     //    pair to state here at all; the draft is simply local, the same as every unsent-input
-    //    site on this list. `use-refill-options-screen.ts` (`/settings/refill-options`'s own
-    //    `simulateBudgetPolicy` scratch pad — rule-data JSON, scenario JSON, requested amount) is
-    //    the same shape again: nothing it holds is shareable view state, since a simulation reads
-    //    no stored policy and changes nothing.
+    //    site on this list.
+    //  - `use-refill-policies-screen.ts` (`/admin/refill-policies`, moved off `/settings/
+    //    refill-options` — owner ruling, converse-frontends#368) carries FOUR unsent drafts, one
+    //    per mode's own scratch input, none of them shareable view state on their own: the
+    //    create-mode policy-set-id-being-chosen (same shape as `use-create-account-dialog.ts`'s
+    //    unsent name — `?create=true` IS in the URL, the id being typed for a NOT-YET-real policy
+    //    set is not), the create/edit-mode rule-set draft (`RuleSetValue`, authored fresh either
+    //    way — there is no read API to prefill FROM, `converse-frontends#368`), and the
+    //    simulate-mode rule-set + scenario draft (the same `simulateBudgetPolicy` scratch pad
+    //    `use-refill-options-screen.ts` used to hold: nothing it holds is shareable view state,
+    //    since a simulation reads no stored policy and changes nothing).
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
@@ -124,7 +131,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-create-project-dialog.ts'),
       join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
-      join('containers', 'use-refill-options-screen.ts'),
+      join('containers', 'use-refill-policies-screen.ts'),
       join('containers', 'use-refill-screen.ts'),
       join('containers', 'use-refills-queue-screen.ts'),
       join('containers', 'use-rename-account-dialog.ts'),

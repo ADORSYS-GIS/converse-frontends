@@ -672,6 +672,52 @@ export function useAdminOverviewParams() {
   });
 }
 
+// ── /admin/refill-policies ──────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/refill-policies`'s own mode-split params (owner ruling, verbatim: "/admin/refill-
+ * policies should be for listing them /admin/refill-policies?create=true or /admin/refill-
+ * policies?edit=<id> to create or edit, respectively, /admin/refill-policies?simulate=<id> to
+ * simulate" — and never simulate on the same view as create/edit).
+ *
+ * `policySetId` is the LIST mode's own lookup target, debounced onto the URL the same way the two
+ * ledger search boxes are: there is no procedure that lists which policy sets exist
+ * (`converse-frontends#368`), so "which one am I looking at" is exactly the shareable view state
+ * ADR 0011 puts in the URL, not a component-local search box. `createOpen`/`editPolicySetId`/
+ * `simulatePolicySetId` are the three modes — an id IS the open flag for the two that target an
+ * existing policy set, the same shape `apiKeysParsers.revokeKeyId`/`settingsParsers.
+ * renameProjectId` already use; `createOpen` is a bare boolean, matching `createAccountParsers`/
+ * `createProjectParsers`, since "author a brand-new policy set" has no id yet to carry. All three
+ * mode params write with `push` (`ADMIN_REFILL_POLICIES_MODE_OPTIONS`) — Back must close the
+ * form/simulator rather than leave the screen — while the lookup itself stays the hook's own
+ * default `replace`, the same knob-vs-navigation split `apiKeysParsers`/`API_KEYS_SELECTION_
+ * OPTIONS` already draws.
+ */
+export const adminRefillPoliciesParsers = {
+  policySetId: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  createOpen: parseAsBoolean.withDefault(false),
+  editPolicySetId: parseAsString.withDefault(''),
+  simulatePolicySetId: parseAsString.withDefault(''),
+};
+
+const adminRefillPoliciesUrlKeys = {
+  policySetId: 'policy-set',
+  createOpen: 'create',
+  editPolicySetId: 'edit',
+  simulatePolicySetId: 'simulate',
+};
+
+export function useAdminRefillPoliciesParams() {
+  return useQueryStates(adminRefillPoliciesParsers, {
+    urlKeys: adminRefillPoliciesUrlKeys,
+    history: 'replace',
+  });
+}
+
+/** Switching between list/create/edit/simulate is navigation-grade: Back closes the form/
+ *  simulator rather than leaving the screen. */
+export const ADMIN_REFILL_POLICIES_MODE_OPTIONS = { history: 'push' as const };
+
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 
 /**
@@ -694,4 +740,8 @@ export const URL_PARAM_CONTRACT = {
   settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
   adminOverview: { parsers: adminOverviewParsers, urlKeys: adminOverviewUrlKeys },
+  adminRefillPolicies: {
+    parsers: adminRefillPoliciesParsers,
+    urlKeys: adminRefillPoliciesUrlKeys,
+  },
 } as const;

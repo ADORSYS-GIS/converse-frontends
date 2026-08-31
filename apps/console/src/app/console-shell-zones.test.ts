@@ -63,11 +63,11 @@ describe('console shell zones (shell revamp phase 2)', () => {
       join('settings', 'overview', 'usage', 'page.tsx'),
       join('settings', 'policies', 'page.tsx'),
       join('settings', 'tiers', 'page.tsx'),
-      join('settings', 'refill-options', 'page.tsx'),
       join('settings', 'info', 'page.tsx'),
       join('admin', 'page.tsx'),
       join('admin', 'overview', 'page.tsx'),
       join('admin', 'refills-queue', 'page.tsx'),
+      join('admin', 'refill-policies', 'page.tsx'),
     ];
     for (const page of routePages) {
       expect(existsSync(join(CONSOLE_GROUP, page)), `missing ${page}`).toBe(true);
@@ -84,10 +84,13 @@ describe('console shell zones (shell revamp phase 2)', () => {
   // `/settings/refills-queue`), not the single flat screen IA v3 phase 2 deleted. The one-screen
   // `/admin` this test used to guard against reviving is gone for good; what exists today is a
   // deliberately different shape, and `/settings/refills-queue` no longer exists at all.
-  it('gives /admin a real overview + refills-queue area, not a leftover from the pre-IA-v3 flat route', () => {
+  it('gives /admin a real overview + refills-queue + refill-policies area, not a leftover from the pre-IA-v3 flat route', () => {
     expect(existsSync(join(CONSOLE_GROUP, 'admin', 'overview', 'page.tsx'))).toBe(true);
     expect(existsSync(join(CONSOLE_GROUP, 'admin', 'refills-queue', 'page.tsx'))).toBe(true);
+    expect(existsSync(join(CONSOLE_GROUP, 'admin', 'refill-policies', 'page.tsx'))).toBe(true);
     expect(existsSync(join(CONSOLE_GROUP, 'settings', 'refills-queue'))).toBe(false);
+    // Owner ruling, converse-frontends#368: refill options moved off the settings area entirely.
+    expect(existsSync(join(CONSOLE_GROUP, 'settings', 'refill-options'))).toBe(false);
   });
 
   it('has no leftover /settings/account or /settings/projects route now that both folded into /settings/policies', () => {

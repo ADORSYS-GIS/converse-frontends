@@ -110,7 +110,6 @@ describe('settingsRouteFromPathname', () => {
     expect(settingsRouteFromPathname('/settings/accounts')).toBe('accounts');
     expect(settingsRouteFromPathname('/settings/tiers')).toBe('tiers');
     expect(settingsRouteFromPathname('/settings/policies')).toBe('policies');
-    expect(settingsRouteFromPathname('/settings/refill-options')).toBe('refill-options');
     expect(settingsRouteFromPathname('/settings/info')).toBe('info');
   });
 
@@ -126,13 +125,15 @@ describe('settingsRouteFromPathname', () => {
     expect(settingsRouteFromPathname('/settings/overview/usage')).toBe('overview');
     // The refills queue moved OUT of the settings area (ADR 0013's admin-area amendment) — a
     // stale `/settings/refills-queue` link 308s before this ever runs, but this function itself
-    // no longer recognises the segment, same as any other unrecognised path.
+    // no longer recognises the segment, same as any other unrecognised path. Same for
+    // refill-options, moved out the same day (owner ruling, converse-frontends#368).
     expect(settingsRouteFromPathname('/settings/refills-queue')).toBe('overview');
+    expect(settingsRouteFromPathname('/settings/refill-options')).toBe('overview');
   });
 });
 
 describe('settingsNavGroups', () => {
-  it('lists all seven destinations in the owner-dictated order — no isAdmin/refillCount axis any more', () => {
+  it('lists all six destinations in the owner-dictated order — no isAdmin/refillCount axis any more', () => {
     const [group] = settingsNavGroups('overview');
 
     expect(group.items.map((item) => item.key)).toEqual([
@@ -141,7 +142,6 @@ describe('settingsNavGroups', () => {
       'roles',
       'tiers',
       'policies',
-      'refill-options',
       'info',
     ]);
   });
@@ -165,21 +165,10 @@ describe('settingsNavGroups', () => {
     expect(roles?.reason).toMatch(/lightbridge-authz#571/);
   });
 
-  // IA v3 phase 3: `simulateBudgetPolicy` gives this row real content, so it navigates like every
-  // other live destination now — see `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment for what
-  // still stays honestly omitted ON the page itself.
-  it('navigates refill-options like any other live destination', () => {
-    const [group] = settingsNavGroups('refill-options');
-    const refillOptions = group.items.find((item) => item.key === 'refill-options');
-
-    expect(refillOptions?.disabled).toBeUndefined();
-    expect(refillOptions?.href).toBe('/settings/refill-options');
-    expect(refillOptions?.active).toBe(true);
-  });
-
-  it('no longer lists a refills-queue row at all — it moved to the admin area', () => {
+  it('no longer lists a refills-queue or refill-options row at all — both moved to the admin area', () => {
     const [group] = settingsNavGroups('overview');
     expect(group.items.find((item) => item.key === 'refills-queue')).toBeUndefined();
+    expect(group.items.find((item) => item.key === 'refill-options')).toBeUndefined();
   });
 });
 
@@ -189,6 +178,10 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/refills-queue')).toBe('refills-queue');
   });
 
+  it('matches /admin/refill-policies by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/refill-policies')).toBe('refill-policies');
+  });
+
   it('defaults to overview for the bare /admin segment (mid-redirect) or anything unrecognised', () => {
     expect(adminRouteFromPathname('/admin')).toBe('overview');
     expect(adminRouteFromPathname('/admin/overview')).toBe('overview');
@@ -196,12 +189,17 @@ describe('adminRouteFromPathname', () => {
 });
 
 describe('adminNavGroups', () => {
-  it('lists both admin destinations, dashboard first', () => {
+  it('lists all three admin destinations, dashboard first', () => {
     const [group] = adminNavGroups('overview');
 
-    expect(group.items.map((item) => item.key)).toEqual(['overview', 'refills-queue']);
+    expect(group.items.map((item) => item.key)).toEqual([
+      'overview',
+      'refills-queue',
+      'refill-policies',
+    ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
     expect(group.items[1]?.href).toBe('/admin/refills-queue');
+    expect(group.items[2]?.href).toBe('/admin/refill-policies');
   });
 
   it('marks the active row off the given AdminRoute', () => {
@@ -227,5 +225,13 @@ describe('adminNavGroups', () => {
     const refillsQueue = group.items.find((item) => item.key === 'refills-queue');
 
     expect(refillsQueue?.count).toBeUndefined();
+  });
+
+  it('marks refill-policies active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('refill-policies', 4);
+    const refillPolicies = group.items.find((item) => item.key === 'refill-policies');
+
+    expect(refillPolicies?.active).toBe(true);
+    expect(refillPolicies?.count).toBeUndefined();
   });
 });

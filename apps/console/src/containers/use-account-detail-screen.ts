@@ -38,7 +38,7 @@ import { useOpenRenameAccountDialog } from './use-rename-account-dialog';
  *     both project-scoped). Filed as lightbridge-authz#594 (asking which of two outcomes applies:
  *     a real account-membership feature, or a recorded "intentionally out of scope" decision) —
  *     the block renders disabled-with-reason inline rather than fabricated or silently omitted,
- *     the same honesty doctrine the "Roles" nav row and `/settings/refill-options`' own omitted
+ *     the same honesty doctrine the "Roles" nav row and `/admin/refill-policies`' own omitted
  *     blocks already follow.
  */
 

@@ -122,6 +122,18 @@ describe('legacyRedirectTarget', () => {
     );
   });
 
+  // The same day's second admin-only move (owner ruling, verbatim: "Refill options are for
+  // admins only. Not normal users.", converse-frontends#368) — a straight rename, not a repeat
+  // hop, so every param (there is nothing shaped differently between the two routes) survives.
+  it('/settings/refill-options -> /admin/refill-policies, every param surviving verbatim', () => {
+    expect(legacyRedirectTarget('/settings/refill-options', params(''))).toBe(
+      '/admin/refill-policies'
+    );
+    expect(legacyRedirectTarget('/settings/refill-options', params('edit=budget-refill'))).toBe(
+      '/admin/refill-policies?edit=budget-refill'
+    );
+  });
+
   it('/settings/projects -> /settings/policies, params surviving verbatim (same parser, new route)', () => {
     expect(legacyRedirectTarget('/settings/projects', params(''))).toBe('/settings/policies');
     expect(legacyRedirectTarget('/settings/projects', params('row=proj_1&q=demo'))).toBe(
@@ -170,11 +182,13 @@ describe('legacyRedirectTarget', () => {
     expect(legacyRedirectTarget('/settings/accounts/A/request-refill', params(''))).toBeNull();
   });
 
-  // ADR 0013's "the admin area" amendment — the admin area's own two live routes must never
-  // bounce; only the retired `/settings/refills-queue` path above does.
-  it('/admin/overview and /admin/refills-queue are live routes, never redirected', () => {
+  // ADR 0013's "the admin area" amendment — the admin area's own three live routes must never
+  // bounce; only the retired `/settings/refills-queue` and `/settings/refill-options` paths
+  // above do.
+  it('/admin/overview, /admin/refills-queue and /admin/refill-policies are live routes, never redirected', () => {
     expect(legacyRedirectTarget('/admin/overview', params(''))).toBeNull();
     expect(legacyRedirectTarget('/admin/refills-queue', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/admin/refill-policies', params(''))).toBeNull();
   });
 
   it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {

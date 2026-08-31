@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
-    "build:web": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build && node scripts/verify-service-worker-scope.mjs",
+    "build:web": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build && node scripts/verify-service-worker-scope.mjs && node scripts/verify-css-csp.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json"

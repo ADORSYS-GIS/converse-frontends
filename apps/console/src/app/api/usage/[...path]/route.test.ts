@@ -183,3 +183,60 @@ describe('POST /api/usage/usage/v1/usage/query scope-ownership guard (P1 securit
     expect(proxyRequestMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// ── admin-role wiring (converse-frontends#368) — this route's own contribution to the fix: it is
+// the ONE place `isAdmin(session.user.roles)` is computed and handed to `guardUsageScope`'s admin
+// fast path, so this is the regression net for "the flag really does come from the decrypted
+// session cookie's own role claims, never anything else." `guardUsageScope` itself is mocked
+// here (its own admin-path LOGIC is `usage-scope-guard.test.ts`'s job) — this file only asserts
+// the 5th argument this route passes it.
+describe('POST /api/usage/usage/v1/usage/query admin-role wiring (converse-frontends#368)', () => {
+  it('passes isAdmin: true for a session carrying the lightbridge-admin role', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({
+      tokens: { accessToken: 'tok' },
+      user: { sub: 'acct_operator', roles: ['lightbridge-admin'] },
+    });
+    guardUsageScopeMock.mockResolvedValue({ ok: true });
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    await POST(request, context);
+
+    expect(guardUsageScopeMock).toHaveBeenCalledTimes(1);
+    const call = guardUsageScopeMock.mock.calls[0];
+    expect(call[3]).toBe('acct_operator'); // homeAccountId, unchanged by this wiring
+    expect(call[4]).toBe(true); // isAdmin
+  });
+
+  it('passes isAdmin: false for a session with no admin role', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({
+      tokens: { accessToken: 'tok' },
+      user: { sub: 'acct_regular', roles: ['lightbridge-editor'] },
+    });
+    guardUsageScopeMock.mockResolvedValue({ ok: true });
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    await POST(request, context);
+
+    const call = guardUsageScopeMock.mock.calls[0];
+    expect(call[4]).toBe(false);
+  });
+
+  it('passes isAdmin: false, never throws, for a session with no user at all', async () => {
+    serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
+    readSessionFromRequestMock.mockResolvedValue({ tokens: { accessToken: 'tok' } });
+    guardUsageScopeMock.mockResolvedValue({ ok: true });
+    proxyRequestMock.mockResolvedValue(new Response(null, { status: 200 }));
+    const { POST } = await import('./route');
+    const { request, context } = postRequest(['usage', 'v1', 'usage', 'query']);
+
+    const response = await POST(request, context);
+
+    expect(response.status).not.toBe(500);
+    const call = guardUsageScopeMock.mock.calls[0];
+    expect(call[4]).toBe(false);
+  });
+});

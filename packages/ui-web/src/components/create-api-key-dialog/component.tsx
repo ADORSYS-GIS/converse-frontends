@@ -1,7 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { Field as BaseField } from '@base-ui/react/field';
 import { Input as BaseInput } from '@base-ui/react/input';
-import { Select } from '@base-ui/react/select';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { cn } from '../../cn';
@@ -13,14 +12,7 @@ import { fieldControlClassName, fieldLabelClassName } from '../field/field-class
 import { SegmentedControl } from '../segmented-control';
 import { SelectField } from '../select-field';
 import type { CreateApiKeyDialogProps } from './types';
-import { Chevron } from '../chevron';
 import { META_CLASS } from '../../lib/type-roles';
-import { OVERLAY_ITEM_CLASS } from '../../lib/overlay';
-import {
-  SELECT_POPUP_CLASS,
-  SELECT_POSITIONER_CLASS,
-  SELECT_TRIGGER_CLASS,
-} from '../../lib/select';
 import {
   DIALOG_ACTIONS_CLASS,
   DIALOG_BACKDROP_CLASS,
@@ -96,14 +88,16 @@ export function CreateApiKeyDialog({
   onDone,
 }: CreateApiKeyDialogProps) {
   const selectedPlan = plans.find((plan) => plan.id === planId) ?? null;
-  // A placeholder item carries a null value rather than a Select.Value children-render — the
-  // same idiom ScopeSelect's own "All projects" placeholder uses, so the trigger always has a
-  // real item backing whatever it displays instead of a second, parallel copy of the loading and
-  // empty logic living only in the trigger's render.
-  const planItems: { value: string | null; label: string }[] = plansLoading
-    ? [{ value: null, label: 'Loading plans…' }]
+  // A placeholder item carries the `''` sentinel rather than a Select.Value children-render — the
+  // same idiom `ScopeSelect`'s own "All projects" placeholder uses now that both render through
+  // `SelectField` (unify-select, issue #368), so the trigger always has a real item backing
+  // whatever it displays instead of a second, parallel copy of the loading and empty logic living
+  // only in the trigger's render. The whole control is `disabled` whenever this placeholder is
+  // showing (below), so `''` is never a committable selection.
+  const planItems: { value: string; label: string }[] = plansLoading
+    ? [{ value: '', label: 'Loading plans…' }]
     : plans.length === 0
-      ? [{ value: null, label: 'No plans available' }]
+      ? [{ value: '', label: 'No plans available' }]
       : plans.map((plan) => ({ value: plan.id, label: plan.name }));
 
   const showResult = result != null;
@@ -116,7 +110,10 @@ export function CreateApiKeyDialog({
       disablePointerDismissal={showResult}
       onOpenChange={(nextOpen, eventDetails) => {
         if (nextOpen) return;
-        if (showResult && (eventDetails.reason === 'escape-key' || eventDetails.reason === 'outside-press')) {
+        if (
+          showResult &&
+          (eventDetails.reason === 'escape-key' || eventDetails.reason === 'outside-press')
+        ) {
           // The secret step's own contract: Done is the only way out.
           return;
         }
@@ -182,38 +179,16 @@ export function CreateApiKeyDialog({
                   />
                 </div>
 
-                <Select.Root
-                  items={planItems}
-                  value={planId}
-                  onValueChange={(value) => value !== null && onPlanChange(value)}
-                  disabled={plansLoading || plans.length === 0}>
-                  <div className="fieldset">
-                    <Select.Label className={fieldLabelClassName}>Billing plan</Select.Label>
-                    <Select.Trigger className={SELECT_TRIGGER_CLASS}>
-                      <Select.Value />
-                      <Select.Icon>
-                        <Chevron />
-                      </Select.Icon>
-                    </Select.Trigger>
-                    <p className={META_CLASS}>{formatBillingPlanLimits(selectedPlan?.limits)}</p>
-                  </div>
-                  <Select.Portal>
-                    <Select.Positioner sideOffset={4} className={SELECT_POSITIONER_CLASS}>
-                      <Select.Popup className={SELECT_POPUP_CLASS}>
-                        <Select.List>
-                          {planItems.map((item) => (
-                            <Select.Item
-                              key={item.value ?? ''}
-                              value={item.value}
-                              className={OVERLAY_ITEM_CLASS}>
-                              <Select.ItemText>{item.label}</Select.ItemText>
-                            </Select.Item>
-                          ))}
-                        </Select.List>
-                      </Select.Popup>
-                    </Select.Positioner>
-                  </Select.Portal>
-                </Select.Root>
+                <div className="fieldset">
+                  <SelectField
+                    label="Billing plan"
+                    value={planId ?? ''}
+                    options={planItems}
+                    onChange={(value) => value !== '' && onPlanChange(value)}
+                    disabled={plansLoading || plans.length === 0}
+                  />
+                  <p className={META_CLASS}>{formatBillingPlanLimits(selectedPlan?.limits)}</p>
+                </div>
 
                 {plansError ? (
                   <ErrorLine message={plansError} onRetry={onRetryPlans} retryLabel="Retry" />

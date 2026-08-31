@@ -297,3 +297,107 @@ export function dayPrecisionLastActiveLabel(lastActive: Date | null, today: Date
   if (days === 1) return '1 day ago';
   return `${days} days ago`;
 }
+
+/**
+ * The estate account-id fan-out (owner review finding, converse-frontends#368: "/admin/overview
+ * is overview for ALL account, not just the one the user is bound to. ALL of them.").
+ *
+ * **Investigated and confirmed: `authz.cstack` has no all-accounts enumeration.** `model.Account`
+ * carries exactly one `@@allow` clause (`authz.cstack:244`), `(userId == auth().id) && ...` —
+ * self-family only, no operator/admin bypass anywhere on the model. The only two admin-scoped
+ * cross-tenant reads in the whole schema, `getBudgetBalance`/`listBudgetGrants`
+ * (`authz.cstack:1482`, `:1544`), both REQUIRE an already-known `budgetAccountId` — neither
+ * enumerates accounts either. Filed as `lightbridge-authz#602` ("operator-privileged all-accounts
+ * enumeration for the admin estate").
+ *
+ * Until that ships, this is every account id the console can LEGITIMATELY discover as an
+ * operator, combined:
+ *
+ *  1. **The operator's own account family** (`model.Account.list`, `use-console-scope.ts`'s
+ *     `allAccounts` — real accounts, not a placeholder).
+ *  2. **Every account id surfacing in the global pending refill queue**
+ *     (`listPendingAugmentationRequests({budgetAccountId: null})`, `authz.cstack:1294-1320`'s own
+ *     documented "omitted/null lists the whole cross-account queue" contract) — a real, if
+ *     partial, cross-family signal: an account with a pending refill request is a genuine OTHER
+ *     account, just not the whole estate (only accounts that have ever asked for more budget show
+ *     up here, and only while a request of theirs is still pending).
+ *
+ * Deduplicated, family first (stable, less surprising order across renders), capped at `cap` —
+ * the same `MAX_FANNED_OUT_ACCOUNTS` ceiling `usage-overview-usage.ts` already established, for
+ * the identical reason: never fan out an unbounded number of per-account usage/budget queries in
+ * one page load. `truncated` distinguishes "we found more real candidates than the cap allows"
+ * from "this genuinely is everything discoverable" — the caller (`use-admin-overview-screen.ts`)
+ * turns that into an honest caption, never a silent drop.
+ */
+export interface EstateAccountIdsResult {
+  /** The ids actually fanned out to, capped at `cap`. */
+  ids: string[];
+  /** How many of `ids` came from the operator's own family (always the first `familyCount`). */
+  familyCount: number;
+  /** How many DISTINCT ids were found only via the pending-queue signal, before capping. */
+  queueOnlyCount: number;
+  /** Total distinct candidates found, before capping — compare against `ids.length` for the
+   *  truncation caption's own numbers. */
+  totalCandidates: number;
+  /** `true` when `totalCandidates > cap` — real candidates exist beyond what was fanned out to. */
+  truncated: boolean;
+}
+
+export function estateAccountIds(
+  familyAccountIds: readonly string[],
+  pendingQueueAccountIds: readonly string[],
+  cap: number
+): EstateAccountIdsResult {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const id of familyAccountIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
+  const familyCount = ordered.length;
+  for (const id of pendingQueueAccountIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
+  const totalCandidates = ordered.length;
+  return {
+    ids: ordered.slice(0, cap),
+    familyCount,
+    queueOnlyCount: totalCandidates - familyCount,
+    totalCandidates,
+    truncated: totalCandidates > cap,
+  };
+}
+
+/** The `PageHeader` subtitle's honest replacement for the page story's "Estate-wide" — that
+ *  wording is the design batch's own idealized target (still the approved fixture, per this
+ *  screen's own doc comment), not what the live route can truthfully claim while
+ *  `lightbridge-authz#602` is open. Kept short and dot-segment-shaped to match the story's
+ *  `Operator · X · {range} · UTC` rhythm exactly, just with an honest `X`. */
+export const ESTATE_SUBTITLE_SCOPE = 'Your accounts + refill queue';
+
+/**
+ * The truncation/coverage caption for `/admin/overview` (owner review finding, converse-
+ * frontends#368 — see `estateAccountIds`'s own doc comment for the full investigation). Always
+ * says what the estate covers when there is at least one candidate account, not only when the
+ * cap actually truncated something: even an UN-truncated fan-out here is still "family + pending
+ * refill requesters," never literally every account, so the honest caption is owed either way —
+ * this is a deliberate widening of the old "only caption when truncated" rule, which was fine
+ * when the sole source (`allAccounts`) genuinely was the complete self-service estate.
+ */
+export function estateCoverageCaption(estate: EstateAccountIdsResult): string {
+  const shown = estate.ids.length;
+  const scopeNote =
+    estate.queueOnlyCount > 0
+      ? `${estate.familyCount} in your account family, ${estate.queueOnlyCount} more seen only via a pending refill request`
+      : 'all in your account family';
+  const countNote = estate.truncated
+    ? `Showing ${shown} of ${estate.totalCandidates} discoverable accounts`
+    : `Showing ${shown} account${shown === 1 ? '' : 's'}`;
+  return (
+    `${countNote} (${scopeNote}) — not every account in the system. There is no backend ` +
+    'enumeration of every account yet (lightbridge-authz#602).'
+  );
+}

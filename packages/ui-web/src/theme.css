@@ -720,11 +720,27 @@
 
 /* `SelectField`'s own option row, at the SAME palette-matching 36px rhythm the command palette's
    rows render at (`palette-list`'s `[cmdk-item]`, `RAIL_NAV_ROW_HEIGHT` — owner ask, 2026-08-31:
-   "same overlay language as the palette ... row height"). Scoped to `SelectField` alone, not the
-   shared `OVERLAY_ITEM_CLASS` every other Menu/Select/Combobox popup in the console renders
-   through — a blast radius this design-review batch deliberately did not take on. */
+   "same overlay language as the palette ... row height") — including the SAME selected-row
+   language: `OVERLAY_ITEM_CLASS`'s own `data-[selected]:bg-raised` gives the row its raised fill
+   (lib/overlay.ts — fixed alongside this pass, the selector used to require the literal string
+   `"true"` and never matched Base UI's presence-only attribute), and this adds the 2px `primary`
+   accent bar on top — the identical shape the palette's own `[cmdk-item][data-selected='true']
+   ::before` bar gives ITS selected row, not a full orange fill (unify-select, issue #368).
+   `position: relative` hosts the bar. Scoped to `SelectField` alone, not the shared
+   `OVERLAY_ITEM_CLASS` every other Menu/Select/Combobox popup in the console renders through — a
+   blast radius this design-review batch deliberately did not take on. */
 @utility select-field-item {
+  position: relative;
   min-height: 2.25rem;
+
+  &[data-selected]::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 2px;
+    background-color: var(--color-primary);
+  }
 }
 
 /* The initials square, sized to fit the sidebar footer's 16px icon column exactly

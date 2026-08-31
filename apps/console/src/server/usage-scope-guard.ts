@@ -22,6 +22,33 @@
  * **Fails closed, always.** An unrecognised scope kind, an account whose ownership could not be
  * resolved (network failure, RPC error, `not_found`), and a malformed body all reject the
  * request. There is no code path where "couldn't verify" is treated as "allowed."
+ *
+ * **Admin fast path (converse-frontends#368, "not just the one the user is bound to"):** an
+ * `account`-scoped query from a session carrying `lightbridge-admin` bypasses the ownership
+ * predicate entirely, mirroring `getBudgetBalance`/`listBudgetGrants` — the schema's own admin
+ * budget-read pair (`authz.cstack:1479-1482,1541-1544`), gated purely on the coarse RBAC
+ * permission with NO per-tenant `@@allow` ownership predicate, "since there is no per-tenant
+ * `@@allow` predicate that could express 'budgetAccountId belongs to auth().id' here." The usage
+ * backend has the identical shape of gap: it authenticates the PROXY via mTLS client cert, not
+ * the end caller, so this guard is the entire per-account authorization story for
+ * `scope: 'account'` (see this route's own doc comment) — same as the budget pair, a coarse
+ * role check is the correct (and only available) substitute for a per-tenant predicate that
+ * cannot be expressed here either.
+ *
+ * `isAdmin` MUST be computed server-side from the decrypted session cookie's own
+ * `user.roles` (`tokens.ts`'s `isAdmin(session.user.roles)`, the identical check
+ * `app/(console)/admin/overview/page.tsx` already gates the route itself with) — never from a
+ * client-supplied header or body field. `route.ts` is the only caller and passes exactly that.
+ * Omitted (`undefined`) is treated as `false` — the non-admin path is completely unchanged: it
+ * still resolves and checks real ownership, so a caller who somehow reached this guard without a
+ * verified role claim gets the pre-existing, unmodified behavior.
+ *
+ * Deliberately scoped to `scope: 'account'` only — `scope: 'project'` still resolves through
+ * `resolveProjectAccountId` regardless of role, because `model.Project.read`'s own `@@allow`
+ * (`authz.cstack:345`) has no admin bypass on the backend either: an operator's session cannot
+ * actually read a project outside their own family today, so widening the project path here
+ * would only produce a guard pass immediately followed by a 403/404 from `authz-api` itself —
+ * dishonest, not just redundant.
  */
 
 export type UsageScopeGuardOutcome =
@@ -94,7 +121,8 @@ export async function guardUsageScope(
   rawBody: unknown,
   resolveOwnedAccountIds: ResolveOwnedAccountIds,
   resolveProjectAccountId: ResolveProjectAccountId,
-  homeAccountId?: string
+  homeAccountId?: string,
+  isAdmin?: boolean
 ): Promise<UsageScopeGuardOutcome> {
   const parsed = parseUsageScopeRequest(rawBody);
   if (!parsed) {
@@ -109,6 +137,16 @@ export async function guardUsageScope(
   // still resolve through authz below; a mismatched sub falls through to the slow path, never
   // to a refusal here.
   if (homeAccountId && parsed.scope === 'account' && parsed.scopeId === homeAccountId) {
+    return { ok: true };
+  }
+
+  // ── Admin fast path (converse-frontends#368) — see this function's own doc comment above for
+  // why an account-scoped role bypass, not a wider per-tenant predicate, is the correct mirror of
+  // the backend's own admin budget-read pair. `isAdmin` is trusted here BECAUSE the caller
+  // (`route.ts`) is contractually required to derive it from the decrypted session cookie, never
+  // from request input — this function has no way to re-verify that itself, the same trust
+  // boundary `homeAccountId` above already relies on.
+  if (isAdmin === true && parsed.scope === 'account') {
     return { ok: true };
   }
 

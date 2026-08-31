@@ -53,6 +53,21 @@ describe('parseUsageScopeRequest', () => {
   ])('rejects a malformed body: %s', (_label, body) => {
     expect(parseUsageScopeRequest(body)).toBeNull();
   });
+
+  // `scope: 'all'` (lightbridge-authz#605) is the one scope kind whose `scope_id` is
+  // required-but-IGNORED on the wire — an empty string is the documented, expected shape, not a
+  // malformed body.
+  it('accepts an empty scope_id for scope=all — the documented ignored shape', () => {
+    expect(parseUsageScopeRequest({ scope: 'all', scope_id: '' })).toEqual({
+      scope: 'all',
+      scopeId: '',
+    });
+  });
+
+  it('still requires scope_id to be a string for scope=all, even though its value is ignored', () => {
+    expect(parseUsageScopeRequest({ scope: 'all' })).toBeNull();
+    expect(parseUsageScopeRequest({ scope: 'all', scope_id: 1 })).toBeNull();
+  });
 });
 
 describe('isScopeOwned', () => {
@@ -87,6 +102,14 @@ describe('isScopeOwned', () => {
     expect(isScopeOwned('user', 'acct_1', owned, undefined)).toBe(false);
     expect(isScopeOwned('api_key', 'key_1', owned, undefined)).toBe(false);
     expect(isScopeOwned('bogus', 'acct_1', owned, undefined)).toBe(false);
+  });
+
+  // `'all'` (lightbridge-authz#605) has no per-account ownership predicate at all, by
+  // definition — the pure predicate has no arm for it and falls through to the same fail-closed
+  // default as `'user'`/`'api_key'`. Only `guardUsageScope`'s own admin fast path (tested below)
+  // ever allows it.
+  it('scope=all fails closed here too — only the admin fast path in guardUsageScope allows it', () => {
+    expect(isScopeOwned('all', '', owned, undefined)).toBe(false);
   });
 });
 
@@ -313,5 +336,64 @@ describe('admin fast path', () => {
       true
     );
     expect(outcome).toEqual({ ok: true });
+  });
+});
+
+// ── scope=all admin fast path (lightbridge-authz#605, the `/admin/overview` estate data path) —
+// an admin session's estate-wide usage query (`scope: 'all', scope_id: ''`) is approved from the
+// role check alone, mirroring the `scope: 'account'` admin fast path above; a non-admin session
+// gets the pre-existing generic fail-closed behavior, unchanged. The backend independently
+// enforces `usage:read-all` too (lightbridge-authz#605) — this guard is defense-in-depth for this
+// scope, not the sole gate. ──────────────────────────────────────────────────────────────────
+describe('admin scope=all fast path', () => {
+  const neverResolve = () => {
+    throw new Error('resolver must not be called on the scope=all admin fast path');
+  };
+
+  it('an admin session queries scope=all with an empty scope_id without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'all', scope_id: '' },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('a non-admin scope=all request 403s — the generic fallthrough, resolver still runs', async () => {
+    let resolverCalled = false;
+    const outcome = await guardUsageScope(
+      { scope: 'all', scope_id: '' },
+      async () => {
+        resolverCalled = true;
+        return new Set(['acct-owned']);
+      },
+      async () => null,
+      undefined,
+      false
+    );
+    expect(resolverCalled).toBe(true);
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('isAdmin omitted (undefined) refuses scope=all — the existing five-arg call sites are unaffected', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'all', scope_id: '' },
+      async () => new Set(['acct-owned']),
+      async () => null
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('an admin body still 400s on a malformed scope=all request (non-string scope_id)', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'all', scope_id: 1 },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: false, status: 400, error: 'invalid_body' });
   });
 });

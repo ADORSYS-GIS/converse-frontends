@@ -184,6 +184,11 @@ components:
           $ref: '#/components/schemas/UsageScope'
         scope_id:
           type: string
+          description: >-
+            The ID value for `scope`. Required as a wire field for every scope, but IGNORED for
+            `scope: all` (an estate-wide query has no single id it is "about") — callers send
+            `""`. For `scope: user`, must equal the caller's own validated token subject
+            (self-ownership) or the request is refused.
         start_time:
           type: string
           format: date-time
@@ -198,11 +203,24 @@ components:
             $ref: '#/components/schemas/UsageSeriesPoint'
     UsageScope:
       type: string
+      description: >-
+        Primary scoping dimension for a usage query, and its own authorization rule
+        (lightbridge-authz#605, composing on #603). `account`/`project` require the bearer
+        token's subject to own the account, or own/roster-member the project (`authz-opa`'s
+        `authorize_usage_scope`). `user` is allowed ONLY when `scope_id` equals the caller's own
+        validated token subject (self-ownership, checked from the token directly, no remote
+        call) — any other subject is refused. `api_key` has no resolvable ownership authority at
+        all and is refused unconditionally. `all` is estate-wide — no `account_id`/`project_id`/
+        `user_id`/`api_key_id` filter is added at all — and requires the bearer token to hold the
+        `usage:read-all` permission (granted to `lightbridge-admin` by default,
+        `oauth2.rbac.role_permissions` elsewhere); `scope_id` is ignored for this scope and
+        should be sent as `""`.
       enum:
         - user
         - api_key
         - project
         - account
+        - all
     UsageSeriesPoint:
       type: object
       required:

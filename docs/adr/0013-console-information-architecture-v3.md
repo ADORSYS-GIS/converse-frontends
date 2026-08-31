@@ -903,3 +903,113 @@ AdminRefillPoliciesCreate`); `overview.stories.tsx` drops `BudgetPanel`'s `actio
   and its own `AdminNav` story (the account-area rail no longer differs by role); `shell-fixtures.
 tsx`'s `storyNavGroups` fixture follows the same shape — no separate "Operator" group, an "Admin"
   item appended to the flat list only for the settings/admin-area stories.
+
+## Amendment (2026-08-31, later still): `/admin/overview` becomes one real `scope: 'all'` query per board — the estate-wide chain closes
+
+The final link in the chain the previous amendment left open: *"Once it ships, `estateAccountIds`'s
+pending-queue half becomes unnecessary and the fan-out can call the real enumeration directly —
+tracked there, not here."* `lightbridge-authz#602` asked for an account-ENUMERATION endpoint;
+what actually shipped, `lightbridge-authz#605` (`PR #605`, composing on `#603`), is a different but
+sufficient mechanism for this page's purpose — a genuine estate-wide USAGE query (`scope: 'all'`,
+no `account_id`/`project_id`/`user_id`/`api_key_id` filter at all), gated server-side on a new
+coarse RBAC permission, `usage:read-all`, granted to `lightbridge-admin` by that role's default `*`
+grant. `#605` also fixed `scope: 'user'`, unconditionally `403` since `#603`: allowed now iff
+`scope_id` equals the caller's own validated token subject (self-ownership) — closing the gap
+`#570` originally left for `/settings/overview/user`.
+
+Owner ruling this amendment implements, verbatim: *"/admin/overview is overview for ALL account,
+not just the one the user is bound to. ALL of them."* + *"Just not mention you're fetching for a
+specific account."* The same finding the account-enumeration-honesty amendment above answered
+partially (family∪pending-queue, honestly captioned as partial) is now answered for real: every
+board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, varying only the
+`group_by` dimension it needs, instead of fanning out to a pre-enumerated account-id list at all.
+
+**What changed, concretely:**
+
+- **`openapi/usage.backend.yaml`** gains `all` in `UsageScope`'s enum, and a `description` on both
+  `UsageScope` and `UsageQueryRequest.scope_id` stating the wire contract `#605`'s merged Rust
+  documents: `scope_id` is required-but-IGNORED for `scope: all` (send `""`); `scope: user` is
+  allowed only for the caller's own subject. `packages/api-rest`'s generated client (`pnpm --filter
+  @lightbridge/api-rest codegen`, gitignored `src/client/`) picks up `'all'` in the `UsageScope`
+  union from this regeneration.
+- **`admin-overview-usage.ts`** loses `estateAccountIds`/`estateCoverageCaption`/
+  `ESTATE_SUBTITLE_SCOPE` (the family∪pending-queue id-harvesting this amendment replaces) and
+  gains: `buildEstateModelRequest`/`buildEstatePreviousRequest`/`buildEstateProjectActivityRequest`/
+  `buildEstateMtdRequest` (the four `scope: 'all'` request shapes the boards below use);
+  `splitResponseByAccount` (turns ONE multi-account response back into the same
+  `AccountUsageResponse[]` shape the pre-`#605` fan-out produced, so every per-account adapter —
+  `combineAccountModelResponses`, `combineModelDaySeries`, `activeAccountsPerDay`,
+  `summarizeMtdUsage`, all reused verbatim from `usage-overview-usage.ts`/this same file — needed
+  no change beyond how its input is assembled); `estateAccountLabel`/`estateProjectLabel` (real name
+  for a family account/project, a short non-UUID sentinel — never the raw id — for a foreign one
+  discovered only via `scope: 'all'`); `budgetPressureAccountIds`/`budgetPressureTruncationCaption`
+  (the one board that still fans out per-account, see below); `ADOPTION_ESTATE_LIMITS_CAPTION` (the
+  always-on caveat for the two limits `scope: 'all'` still cannot answer, see below).
+- **`use-admin-overview-screen.ts`** replaces every `useQueries` per-account fan-out with a single
+  `useQuery` per board family (five total: model, previous, project-activity, MTD, previous-MTD).
+  The subtitle drops `ESTATE_SUBTITLE_SCOPE` for the now-literally-true "All accounts with usage
+  this period." Dashboard 7 (latency) is UNCHANGED — still a single-account `scope: 'account'`
+  query against the estate's busiest account by MTD spend, deliberately, since per-account
+  percentiles cannot be validly combined into one estate figure regardless of how the usage query
+  API's scoping widens.
+- **Dashboard 4's budget-pressure zone is the one board `#605` does not reach**: `getBudgetBalance`
+  is an RPC, not a usage query, so it still fans out per-account. `budgetPressureAccountIds` sources
+  its candidate set from the estate MTD response's own `account_id` groups (real spend this period)
+  union the operator's family, concurrency-capped at the pre-existing `MAX_FANNED_OUT_ACCOUNTS`
+  ceiling — the SAME shape the deleted `estateAccountIds` used, narrowed to the one board that still
+  needs it. `budgetPressureTruncationCaption` renders under `PageHeader` only when that cap actually
+  drops a real candidate (`truncationCaption` on the screen interface, same slot the old
+  `estateCoverageCaption` occupied, now conditional rather than always-on since an un-truncated
+  estate-wide usage query genuinely covers everything, unlike the old partial fan-out).
+- **`server/usage-scope-guard.ts`** gains a `scope: 'all'` admin fast path — mirroring the existing
+  `scope: 'account'` one, accepted only when `isAdmin === true` (computed server-side from the
+  decrypted session, never client input); `parseUsageScopeRequest` now accepts an empty `scope_id`
+  for `scope: 'all'` (the documented ignored shape) without treating it as a malformed body. A
+  non-admin `scope: 'all'` request is refused by the pre-existing generic fallthrough — `isScopeOwned`
+  has no arm for `'all'`, so it fails closed exactly like `'user'`/`'api_key'` already do. This guard
+  is genuinely defense-in-depth for this one scope, unlike `scope: 'account'`: the backend now
+  independently enforces `usage:read-all` too (`#605`), where the usage backend's only OTHER
+  authentication is the mTLS-authenticated proxy for every other scope.
+- **Two real, residual limits remain, captioned rather than silently dropped**
+  (`ADOPTION_ESTATE_LIMITS_CAPTION`, rendered unconditionally under dashboard 8, the adoption zone):
+  a usage-EVENTS query still cannot enumerate accounts with literally zero spend — an account that
+  drew nothing in either compared window never appears as an `account_id` group at all, so "gone
+  quiet" and "active accounts" only ever count accounts with SOME usage in the compared windows;
+  and account creation dates remain resolvable only for the operator's own family (`scope.
+  allAccounts`), since usage events carry no creation-date field for anyone. Both are structural
+  properties of what a usage-events query can answer, not something a wider scope removes.
+- **`/settings/overview/user`** (the self-service user lens, `use-settings-overview-screen.ts:224`)
+  already sends `scope_id: session.user?.sub ?? ''` for `lens === 'user'` — exactly `#605`'s
+  self-ownership rule (`scope_id` must equal the caller's own token subject). No code change was
+  needed there; verified, not assumed.
+
+This is the SAME shape of correction every amendment in this document's admin-area chain already
+establishes (a real backend gap, captioned honestly rather than fabricated or silently widened past
+what is actually true) — applied here to the one gap in that chain that has now genuinely closed.
+
+### Consequences (the estate-wide `scope: 'all'` query)
+
+- `openapi/usage.backend.yaml`: `UsageScope` enum gains `all`; `scope`/`scope_id` gain
+  authorization-note `description`s. `packages/api-rest/src/client/` (gitignored, regenerated via
+  `pnpm install`'s `postinstall` → `codegen:all`) picks up `UsageScope = 'user' | 'api_key' |
+  'project' | 'account' | 'all'`.
+- `apps/console/src/containers/admin-overview-usage.ts` / `admin-overview-usage.test.ts`: see the
+  function list above; `estateAccountIds`/`estateCoverageCaption`/`ESTATE_SUBTITLE_SCOPE` and their
+  tests are deleted, not deprecated.
+- `apps/console/src/containers/use-admin-overview-screen.ts`: five `useQuery` calls replace five
+  `useQueries` fan-outs (plus the budget-balance fan-out, narrowed to `budgetPressureAccountIds`'
+  candidate set); the pending-queue account-id scan (`pendingQueueAccountsQuery`,
+  `PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) is deleted — `useRefillsQueueScreen`'s own UI-paginated queue
+  query is unaffected, it never fed account-id harvesting.
+- `apps/console/src/server/usage-scope-guard.ts` / `usage-scope-guard.test.ts`: `parseUsageScopeRequest`
+  accepts an empty `scope_id` for `scope: 'all'` only; `guardUsageScope` gains a `scope: 'all'` admin
+  fast path, tested in its own `describe` block mirroring the existing `scope: 'account'` one.
+- `packages/ui-web/src/pages-stories/admin-overview.stories.tsx`: subtitle updated to "All accounts
+  with usage this period"; the page-level `InlineStatus` under `PageHeader` becomes the conditional
+  budget-pressure truncation caption's shape; a new always-on `InlineStatus` under dashboard 8
+  states the two residual limits.
+- No change needed to `use-settings-overview-screen.ts` (`/settings/overview/user` already sends
+  the caller's own subject as `scope_id`) or to `usage-overview-usage.ts` (the sibling
+  `/settings/overview/usage` estate lens keeps its own family-only fan-out — this amendment scopes
+  strictly to `/admin/overview`, not a second estate surface).
+- Backend source of truth: `lightbridge-authz` PR `#605` (composes on `#603`), merged `a9bf3ed`.

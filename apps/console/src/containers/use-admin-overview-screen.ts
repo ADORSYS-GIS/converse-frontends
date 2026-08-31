@@ -1,7 +1,6 @@
 'use client';
 
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
-import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web';
 import type {
   DashboardStatus,
   DateRangeFieldProps,
@@ -23,15 +22,7 @@ import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import { OVERVIEW_RANGES, useAdminOverviewParams } from '../client/url-state';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
-import { accountScopeLabel } from './account-label';
-import {
-  currentPeriodRange,
-  isUsageResponseTruncated,
-  RANGE_DAYS,
-  resolveOverviewWindow,
-  safeCost,
-  toUrlDate,
-} from './overview-usage';
+import { currentPeriodRange, RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { buildLensDayRequest, toAggregateDaySeries, toLatencyRows } from './settings-overview-usage';
 import type { LensLatencyRow } from './settings-overview-usage';
 import {
@@ -46,14 +37,21 @@ import {
 import {
   activeAccountsPerDay,
   activeProjectsPerDay,
+  ADOPTION_ESTATE_LIMITS_CAPTION,
   adoptionOverTimeSeries,
+  budgetPressureAccountIds,
+  budgetPressureTruncationCaption,
+  buildEstateMtdRequest,
+  buildEstateModelRequest,
+  buildEstatePreviousRequest,
+  buildEstateProjectActivityRequest,
   combineModelDaySeries,
   dayPrecisionLastActiveLabel,
-  ESTATE_SUBTITLE_SCOPE,
-  estateAccountIds,
-  estateCoverageCaption,
+  estateAccountLabel,
+  estateProjectLabel,
   requestVolumeSeries,
   spendDelta,
+  splitResponseByAccount,
   summarizeMtdUsage,
 } from './admin-overview-usage';
 
@@ -63,64 +61,61 @@ import {
  * `claude/sb-admin-dashboards`@aaf3fe6) lays them out; this hook supplies the real queries the
  * story's fixtures stood in for.
  *
- * **2026-08-31 correction (owner review finding, verbatim): "/admin/overview is overview for ALL
- * account, not just the one the user is bound to. ALL of them."** Before this correction, the
- * fan-out below enumerated ONLY the operator's own account family (`scope.allAccounts`,
- * `model.Account.list`'s `@@allow("read", userId == auth().id)` — self-ownership, unconditional,
- * `authz.cstack:244`) — the exact defect the finding names, because that listing was the only
- * account enumeration the console had any RPC path to. Investigated exhaustively: `authz.cstack`
- * has NO all-accounts enumeration anywhere — no admin accounts resource, no operator flag on
- * `Account`'s `@@allow`, no pagination param that transcends family scope. The only two
- * cross-tenant admin reads in the schema (`getBudgetBalance`/`listBudgetGrants`,
- * `authz.cstack:1482`/`:1544`) both require an ALREADY-KNOWN `budgetAccountId` — neither
- * enumerates. Filed as `lightbridge-authz#602`. Until it ships, `estateAccountIds`
- * (`admin-overview-usage.ts`) fans out to the union of the operator's own family AND every
- * account id surfacing in the global pending refill queue (`listPendingAugmentationRequests`
- * with `budgetAccountId: null` — a real, if partial, cross-family signal: an account with a
- * pending refill request is a genuine OTHER account) — captioned honestly (`truncationCaption`
- * below) rather than silently continuing to claim "estate-wide" for a family-only view. The
- * usage-scope-guard (`server/usage-scope-guard.ts`) was widened in lockstep: an admin-role
- * session's account-scoped usage query no longer needs to resolve against the family-only owned-
- * accounts set, so the queue-derived ids above are actually queryable, not merely discoverable.
+ * **2026-08-31 estate-wide rewrite (lightbridge-authz#605, owner ruling verbatim: "/admin/overview
+ * is overview for ALL account, not just the one the user is bound to. ALL of them." + "Just not
+ * mention you're fetching for a specific account.").** The 2026-08-31 correction below this one
+ * widened the fan-out to family∪pending-queue accounts, captioned as a real but partial estate.
+ * #605 replaces that fan-out entirely: the usage query API now has a genuine estate-wide scope
+ * (`scope: 'all', scope_id: ''`, no entity filter at all, gated server-side on the
+ * `usage:read-all` permission — granted to `lightbridge-admin`), so every query family below fires
+ * exactly ONE request instead of one PER discoverable account. `admin-overview-usage.ts`'s own
+ * top-of-file doc comment has the full before/after and the real, residual limits this still
+ * carries (no account creation dates outside the operator's own family; a genuinely zero-usage
+ * account is invisible to "gone quiet"/"active accounts," since it never appears as an
+ * `account_id` group in a usage-events query at all) — both captioned inline
+ * (`ADOPTION_ESTATE_LIMITS_CAPTION`) rather than silently dropped. The one board that still fans
+ * out per-account is dashboard 4's `getBudgetBalance` half (an RPC, not a usage query, so #605
+ * does not touch it) — `budgetPressureAccountIds` sources ITS candidate set from the estate MTD
+ * response's own `account_id` groups union the operator's family, concurrency-capped exactly like
+ * the pre-#605 fan-out was, with its own honest truncation caption when the cap actually bites.
  *
- * **Query families** (all fanned out to `MAX_FANNED_OUT_ACCOUNTS` accounts, the same real-not-
- * ranked selection and honest truncation caption `usage-overview-usage.ts` already establishes —
- * `lightbridge-authz#578` is the filed gap behind both the account cap and the latency board's own
- * single-account scope below):
+ * **Query families** (each now ONE `scope: 'all'` request, varying only the `group_by` it needs —
+ * see `admin-overview-usage.ts`'s own `buildEstate*Request` doc comments):
  *
- *  1. **Range-scoped, `group_by: model`** — dashboards 1 (estate total + per-account spend), 2
- *     (model mix, both the `ShareBar` and the over-time board), 6 (request volume), and 8 (active
- *     accounts per day, from the same per-account day totals dashboard 1 already computes).
+ *  1. **Range-scoped, `group_by: [account_id, model]`** — dashboards 1 (estate total + per-account
+ *     spend), 2 (model mix, both the `ShareBar` and the over-time board), 6 (request volume), and
+ *     8 (active accounts per day, from the same per-account day totals dashboard 1 already
+ *     computes). `splitResponseByAccount` turns the one response back into per-account slices for
+ *     the adapters (`combineAccountModelResponses`, `activeAccountsPerDay`) that need one.
  *  2. **Range-scoped, ungrouped, PREVIOUS window** — dashboard 1's dashed previous-period line
- *     only (mirrors `use-usage-overview-screen.ts`'s own previous-period fan-out exactly).
- *  3. **Range-scoped, `group_by: project_id`** — dashboard 8's active-projects-per-day half.
- *  4. **Billing-period (MTD), `group_by: project_id`, current AND previous** — dashboard 3 (top
- *     spenders: account + project totals, last-active day, delta) and dashboard 4's spend side
- *     (always the billing period, never the page's own range picker — the same
- *     "budget is this billing period" rule `overview-usage.ts`'s `buildBudgetConsumptionRequest`
- *     states).
- *  5. **`getBudgetBalance` per account** (RPC, not a usage query) — dashboard 4's ceiling side.
- *     This is the operator-only `budget:read` procedure, NOT `getMyBudgetBalance` — unlike the
- *     self-service budget domain's home-account-only gap (`lightbridge-authz#577`,
- *     `use-budget-refill.ts`'s `BUDGET_HOME_ACCOUNT_ONLY_NOTE`), that ticket explicitly rules
- *     admin (`budget:read`) behavior OUT of scope: an operator genuinely can read any account's
- *     `effectiveBudgetMicros` today, so this dashboard has no equivalent gap to caption.
+ *     only; the estate's own summed total needs no account breakdown.
+ *  3. **Range-scoped, `group_by: [project_id]`** — dashboard 8's active-projects-per-day half.
+ *  4. **Billing-period (MTD), `group_by: [account_id, project_id]`, current AND previous** —
+ *     dashboard 3 (top spenders: account + project totals, last-active day, delta) and dashboard
+ *     4's spend side (always the billing period, never the page's own range picker).
+ *  5. **`getBudgetBalance` per account** (RPC, not a usage query) — dashboard 4's ceiling side,
+ *     fanned out to `budgetPressureAccountIds`' union of the MTD response's own account ids and
+ *     the operator's family, capped at `MAX_FANNED_OUT_ACCOUNTS` for the same "never fan out
+ *     unboundedly" reason the pre-#605 fan-out already established. This is the operator-only
+ *     `budget:read` procedure, NOT `getMyBudgetBalance` — an operator genuinely can read any
+ *     account's `effectiveBudgetMicros` today, so this has no self-service-domain gap to caption.
  *
- * **Two honest omissions, both captioned inline rather than fabricated (ADR 0012 D8):**
+ * **Honest omissions, captioned inline rather than fabricated (ADR 0012 D8):**
  *
  *  - Dashboard 5 (refill operations) has no "decisions over time" board and no median-time-to-
  *    decision card: `listPendingAugmentationRequests` is a PENDING-only read path (see
- *    `use-refills-queue-screen.ts`'s own doc comment — the identical reason Phase 6 deleted the
- *    fabricated Decided tab), and there is no procedure anywhere that lists DECIDED requests or
- *    their decision timestamps. Filed as `lightbridge-authz#556` ("List decided augmentation
- *    requests"). Only queue depth (`useRefillsQueueScreen`'s own `pendingCount`) is real.
+ *    `use-refills-queue-screen.ts`'s own doc comment), and there is no procedure anywhere that
+ *    lists DECIDED requests or their decision timestamps. Filed as `lightbridge-authz#556`.
  *  - Dashboard 6 has no error-rate line: `UsageSeriesPoint` carries no error/status field at all
  *    (`openapi/usage.backend.yaml`) — filed as `lightbridge-authz#597`.
  *  - Dashboard 7 (latency) cannot honestly combine per-account percentiles into one estate figure
  *    — percentiles do not average — so it scopes `LatencyStatCards` to the single busiest account
  *    (by MTD spend) rather than fabricating a cross-account blend, captioned and citing
- *    `lightbridge-authz#578` (the same "no multi-account/bulk usage query" gap the account cap
- *    already cites).
+ *    `lightbridge-authz#578`. Deliberately still a single-account `scope: 'account'` query, not
+ *    `scope: 'all'`: this board is scoped to one account BY DESIGN, not by a gap #605 closes.
+ *  - Dashboard 8's "new accounts this period" stat and the adoption zone's "gone quiet"/"active"
+ *    figures carry the two real, structural limits `ADOPTION_ESTATE_LIMITS_CAPTION` states —
+ *    see `admin-overview-usage.ts`'s own doc comment for why no query shape can remove them.
  */
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
@@ -137,12 +132,6 @@ const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
 
 const TOP_MODEL_COUNT = 5;
 const GONE_QUIET_DAYS = 14;
-/** How many pending refill requests the global-queue account-id scan reads (oldest-first,
- *  `listPendingAugmentationRequests({budgetAccountId: null})`) purely to discover DISTINCT
- *  account ids beyond the operator's own family — see `estateAccountIds`'s own doc comment. Not
- *  the queue depth stat (`useRefillsQueueScreen`'s own smaller, UI-paginated fetch covers that);
- *  this is a wider, one-shot scan whose only output is a set of account ids. */
-const PENDING_QUEUE_ACCOUNT_SCAN_LIMIT = 100;
 
 export const REFILL_DECISIONS_UNAVAILABLE_CAPTION =
   'Decision history and median time to decision are not available — the budget service only ' +
@@ -163,6 +152,7 @@ export interface AdminOverviewScreen {
   subtitle: string;
   rangeField: Omit<DateRangeFieldProps, 'layout'>;
   truncationCaption: string | undefined;
+  adoptionLimitsCaption: string;
 
   estateTotalSeries: MultiSeriesSpendSeries[];
   estateTotalStatus: DashboardStatus;
@@ -229,136 +219,70 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
 
   const allAccounts = scope.allAccounts;
 
-  // A one-shot scan of the GLOBAL pending refill queue, purely to discover account ids beyond
-  // the operator's own family (`estateAccountIds`'s own doc comment) — deliberately a separate
-  // query from `useRefillsQueueScreen`'s own `pendingQuery` above: that one is UI-paginated
-  // (`PAGE_SIZE = 25`, tied to `?after=`) for the queue SCREEN's own cursor, while this is a
-  // wider, fixed-limit read whose only output is a `Set` of account ids.
-  const pendingQueueAccountsQuery = useQuery({
-    queryKey: ['admin-overview', 'pending-queue-account-scan', PENDING_QUEUE_ACCOUNT_SCAN_LIMIT],
-    queryFn: () =>
-      budgetClient.procedures.listPendingAugmentationRequests({
-        args: { limit: PENDING_QUEUE_ACCOUNT_SCAN_LIMIT },
-      }),
-    staleTime: 30_000,
-  });
-  const pendingQueueAccountIds = useMemo(
-    () => Array.from(new Set((pendingQueueAccountsQuery.data?.entries ?? []).map((r) => r.accountId))),
-    [pendingQueueAccountsQuery.data]
-  );
-
-  const estate = useMemo(
-    () =>
-      estateAccountIds(
-        allAccounts.map((a) => a.id),
-        pendingQueueAccountIds,
-        MAX_FANNED_OUT_ACCOUNTS
-      ),
-    [allAccounts, pendingQueueAccountIds]
-  );
-  const includedIds = estate.ids;
-
   const labelForAccount = useMemo(
-    () => (accountId: string) => {
-      const account = allAccounts.find((a) => a.id === accountId);
-      return account ? accountScopeLabel(account) : accountId;
-    },
+    () => (accountId: string) => estateAccountLabel(accountId, allAccounts),
     [allAccounts]
   );
+  const labelForProject = useMemo(
+    () => (projectId: string) => estateProjectLabel(projectId, scope.allProjects),
+    [scope.allProjects]
+  );
 
-  // ── set 1: range-scoped, group_by=model ──────────────────────────────────────────────────
-  const modelQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'model', accountId, view.range, view.from, view.to],
-      queryFn: () => queryUsage(buildLensDayRequest({ scope: 'account', scopeId: accountId }, window, 'model')),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
+  // ── set 1: range-scoped, group_by=[account_id, model] — ONE estate-wide query ───────────────
+  const modelQuery = useQuery({
+    queryKey: ['admin-overview', 'model', view.range, view.from, view.to],
+    queryFn: () => queryUsage(buildEstateModelRequest(window)),
+    staleTime: 30_000,
   });
 
   // ── set 2: range-scoped, ungrouped, previous window ──────────────────────────────────────
-  const previousQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'previous', accountId, view.range, view.from, view.to],
-      queryFn: () => queryUsage(buildLensDayRequest({ scope: 'account', scopeId: accountId }, prevWindow)),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
+  const previousQuery = useQuery({
+    queryKey: ['admin-overview', 'previous', view.range, view.from, view.to],
+    queryFn: () => queryUsage(buildEstatePreviousRequest(prevWindow)),
+    staleTime: 30_000,
   });
 
-  // ── set 3: range-scoped, group_by=project_id ─────────────────────────────────────────────
-  const projectActivityQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'project-activity', accountId, view.range, view.from, view.to],
-      queryFn: () =>
-        queryUsage(buildLensDayRequest({ scope: 'account', scopeId: accountId }, window, 'project_id')),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
+  // ── set 3: range-scoped, group_by=[project_id] ───────────────────────────────────────────
+  const projectActivityQuery = useQuery({
+    queryKey: ['admin-overview', 'project-activity', view.range, view.from, view.to],
+    queryFn: () => queryUsage(buildEstateProjectActivityRequest(window)),
+    staleTime: 30_000,
   });
 
-  // ── set 4: billing-period (MTD), group_by=project_id, current + previous ────────────────
-  const mtdQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'mtd', accountId, period],
-      queryFn: () =>
-        queryUsage(buildLensDayRequest({ scope: 'account', scopeId: accountId }, mtdWindow, 'project_id')),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
+  // ── set 4: billing-period (MTD), group_by=[account_id, project_id], current + previous ─────
+  const mtdQuery = useQuery({
+    queryKey: ['admin-overview', 'mtd', period],
+    queryFn: () => queryUsage(buildEstateMtdRequest(mtdWindow)),
+    staleTime: 30_000,
   });
-  const prevMtdQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'prev-mtd', accountId, period],
-      queryFn: () =>
-        queryUsage(buildLensDayRequest({ scope: 'account', scopeId: accountId }, prevMtdWindow, 'project_id')),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
+  const prevMtdQuery = useQuery({
+    queryKey: ['admin-overview', 'prev-mtd', period],
+    queryFn: () => queryUsage(buildEstateMtdRequest(prevMtdWindow)),
+    staleTime: 30_000,
   });
 
-  // ── set 5: per-account budget balance (RPC) ──────────────────────────────────────────────
-  const balanceQueries = useQueries({
-    queries: includedIds.map((accountId) => ({
-      queryKey: ['admin-overview', 'balance', accountId, period],
-      queryFn: () =>
-        budgetClient.procedures.getBudgetBalance({ args: { budgetAccountId: accountId, period } }),
-      enabled: Boolean(accountId),
-      staleTime: 30_000,
-    })),
-  });
-
-  const isPending =
-    modelQueries.some((q) => q.isPending) || previousQueries.some((q) => q.isPending);
-  const isError = modelQueries.some((q) => q.isError) || previousQueries.some((q) => q.isError);
-  const status: DashboardStatus =
-    includedIds.length === 0 ? 'ready' : isError ? 'error' : isPending ? 'loading' : 'ready';
+  const isPending = modelQuery.isPending || previousQuery.isPending;
+  const isError = modelQuery.isError || previousQuery.isError;
+  const status: DashboardStatus = isError ? 'error' : isPending ? 'loading' : 'ready';
   const errorMessage = isError
-    ? getUsageErrorMessage(
-        modelQueries.find((q) => q.isError)?.error ?? previousQueries.find((q) => q.isError)?.error
-      )
+    ? getUsageErrorMessage(modelQuery.error ?? previousQuery.error)
     : undefined;
 
   const modelResponses: AccountUsageResponse[] = useMemo(
-    () =>
-      modelQueries
-        .map((q, i) => ({ accountId: includedIds[i], response: q.data }))
-        .filter((r): r is AccountUsageResponse => Boolean(r.response)),
-    [modelQueries, includedIds]
-  );
-  const previousResponses: AccountUsageResponse[] = useMemo(
-    () =>
-      previousQueries
-        .map((q, i) => ({ accountId: includedIds[i], response: q.data }))
-        .filter((r): r is AccountUsageResponse => Boolean(r.response)),
-    [previousQueries, includedIds]
+    () => (modelQuery.data ? splitResponseByAccount(modelQuery.data) : []),
+    [modelQuery.data]
   );
   const projectActivityResponses: AccountUsageResponse[] = useMemo(
-    () =>
-      projectActivityQueries
-        .map((q, i) => ({ accountId: includedIds[i], response: q.data }))
-        .filter((r): r is AccountUsageResponse => Boolean(r.response)),
-    [projectActivityQueries, includedIds]
+    () => (projectActivityQuery.data ? splitResponseByAccount(projectActivityQuery.data) : []),
+    [projectActivityQuery.data]
+  );
+  const mtdResponses: AccountUsageResponse[] = useMemo(
+    () => (mtdQuery.data ? splitResponseByAccount(mtdQuery.data) : []),
+    [mtdQuery.data]
+  );
+  const prevMtdResponses: AccountUsageResponse[] = useMemo(
+    () => (prevMtdQuery.data ? splitResponseByAccount(prevMtdQuery.data) : []),
+    [prevMtdQuery.data]
   );
 
   // ── dashboard 1 ───────────────────────────────────────────────────────────────────────────
@@ -368,8 +292,11 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   );
   const spanMs = window.end.getTime() - window.start.getTime();
   const previousSeries = useMemo(
-    () => toPreviousPeriodSeries(previousResponses, spanMs),
-    [previousResponses, spanMs]
+    () =>
+      previousQuery.data
+        ? toPreviousPeriodSeries([{ accountId: '', response: previousQuery.data }], spanMs)
+        : { key: 'previous-period', label: 'Previous period', points: [] },
+    [previousQuery.data, spanMs]
   );
   const estateTotalSeries = useMemo<MultiSeriesSpendSeries[]>(
     () =>
@@ -398,36 +325,17 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   );
 
   // ── dashboard 3: top spenders ─────────────────────────────────────────────────────────────
-  const mtdResponses = useMemo(
-    () =>
-      mtdQueries
-        .map((q, i) => ({ accountId: includedIds[i], response: q.data }))
-        .filter((r): r is AccountUsageResponse => Boolean(r.response)),
-    [mtdQueries, includedIds]
-  );
-  const prevMtdResponses = useMemo(
-    () =>
-      prevMtdQueries
-        .map((q, i) => ({ accountId: includedIds[i], response: q.data }))
-        .filter((r): r is AccountUsageResponse => Boolean(r.response)),
-    [prevMtdQueries, includedIds]
-  );
-  const topSpendersLoading = mtdQueries.some((q) => q.isPending) || prevMtdQueries.some((q) => q.isPending);
-  const topSpendersIsError = mtdQueries.some((q) => q.isError) || prevMtdQueries.some((q) => q.isError);
+  const topSpendersLoading = mtdQuery.isPending || prevMtdQuery.isPending;
+  const topSpendersIsError = mtdQuery.isError || prevMtdQuery.isError;
   const topSpendersError = topSpendersIsError
-    ? getUsageErrorMessage(mtdQueries.find((q) => q.isError)?.error ?? prevMtdQueries.find((q) => q.isError)?.error)
+    ? getUsageErrorMessage(mtdQuery.error ?? prevMtdQuery.error)
     : undefined;
-  // The latest of every included fan-out's own `dataUpdatedAt` — never `Date.now()` (impure at
+  // The latest of the two MTD queries' own `dataUpdatedAt` — never `Date.now()` (impure at
   // render time), matching every other "ago" label in this console.
   const mtdReadAt = useMemo(() => {
-    const timestamps = mtdQueries.map((q) => q.dataUpdatedAt).filter((t) => t > 0);
+    const timestamps = [mtdQuery.dataUpdatedAt, prevMtdQuery.dataUpdatedAt].filter((t) => t > 0);
     return timestamps.length > 0 ? new Date(Math.max(...timestamps)) : new Date();
-  }, [mtdQueries]);
-
-  const labelForProject = useMemo(
-    () => (projectId: string) => scope.allProjects.find((p) => p.id === projectId)?.name ?? projectId,
-    [scope.allProjects]
-  );
+  }, [mtdQuery.dataUpdatedAt, prevMtdQuery.dataUpdatedAt]);
 
   const topSpenders = useMemo<TopSpenderRow[]>(() => {
     if (topSpendersLoading || mtdResponses.length === 0) return [];
@@ -465,6 +373,31 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   }, [topSpendersLoading, mtdResponses, prevMtdResponses, labelForAccount, labelForProject, mtdReadAt]);
 
   // ── dashboard 4: budget pressure ─────────────────────────────────────────────────────────
+  // The one board that still fans out per-account (`getBudgetBalance` is an RPC, not a usage
+  // query, so #605's scope=all widening does not reach it) — candidate ids are the estate MTD
+  // response's own account_id groups (real spend this period) union the operator's family
+  // (surfaces a family account's ceiling even before it has drawn anything), concurrency-capped.
+  const budgetPressureIds = useMemo(
+    () =>
+      budgetPressureAccountIds(
+        mtdResponses.map((r) => r.accountId),
+        allAccounts.map((a) => a.id),
+        MAX_FANNED_OUT_ACCOUNTS
+      ),
+    [mtdResponses, allAccounts]
+  );
+  const includedIds = budgetPressureIds.ids;
+
+  const balanceQueries = useQueries({
+    queries: includedIds.map((accountId) => ({
+      queryKey: ['admin-overview', 'balance', accountId, period],
+      queryFn: () =>
+        budgetClient.procedures.getBudgetBalance({ args: { budgetAccountId: accountId, period } }),
+      enabled: Boolean(accountId),
+      staleTime: 30_000,
+    })),
+  });
+
   const balanceByAccount = useMemo(
     () => new Map(balanceQueries.map((q, i) => [includedIds[i], q.data])),
     [balanceQueries, includedIds]
@@ -473,18 +406,16 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
     () => new Map(mtdResponses.map((r) => [r.accountId, r.response])),
     [mtdResponses]
   );
-  const budgetPressureLoading =
-    mtdQueries.some((q) => q.isPending) || balanceQueries.some((q) => q.isPending);
+  const budgetPressureLoading = mtdQuery.isPending || balanceQueries.some((q) => q.isPending);
   const budgetPressureIsError =
-    (mtdQueries.every((q) => q.isError) && includedIds.length > 0) ||
-    (balanceQueries.every((q) => q.isError) && includedIds.length > 0);
+    mtdQuery.isError || (balanceQueries.every((q) => q.isError) && includedIds.length > 0);
   const budgetPressureStatus: EstateBudgetPressureStatus = budgetPressureLoading
     ? 'loading'
     : budgetPressureIsError
       ? 'error'
       : 'ready';
   const budgetPressureError = budgetPressureIsError
-    ? getUsageErrorMessage(mtdQueries.find((q) => q.isError)?.error)
+    ? getUsageErrorMessage(mtdQuery.error)
     : undefined;
 
   const budgetPressureAccounts = useMemo<EstateBudgetPressureAccount[]>(() => {
@@ -534,6 +465,9 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   );
 
   // ── dashboard 7: latency, scoped to the estate's single busiest account ─────────────────
+  // Deliberately still `scope: 'account'`, not `scope: 'all'` — this board is single-account BY
+  // DESIGN (percentiles cannot be validly combined across accounts), not a gap #605 closes; see
+  // this hook's own top-of-file doc comment.
   const busiestAccountId = useMemo(() => {
     if (mtdResponses.length === 0) return null;
     let best: { accountId: string; spend: number } | null = null;
@@ -578,6 +512,8 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
     [activeAccountsByDay, activeProjectsByDay]
   );
 
+  // "New accounts this period" stays family-only (`ADOPTION_ESTATE_LIMITS_CAPTION` states why:
+  // usage events carry no account creation-date field for anyone, family or not).
   const newAccountsThisPeriod = useMemo(
     () => allAccounts.filter((a) => new Date(a.createdAt).getTime() >= window.start.getTime()).length,
     [allAccounts, window]
@@ -639,11 +575,10 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
     [newAccountsThisPeriod, newAccountsPreviousPeriod, goneQuietCount, activeAccountsToday]
   );
 
-  const truncationCaption =
-    estate.totalCandidates > 0 ? estateCoverageCaption(estate) : undefined;
+  const truncationCaption = budgetPressureTruncationCaption(budgetPressureIds);
 
   return {
-    subtitle: `Operator · ${ESTATE_SUBTITLE_SCOPE} · ${RANGE_LABELS[view.range]} · UTC`,
+    subtitle: `Operator · All accounts with usage this period · ${RANGE_LABELS[view.range]} · UTC`,
     rangeField: {
       label: 'Range',
       presets: RANGE_PRESETS,
@@ -657,6 +592,7 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
       },
     },
     truncationCaption,
+    adoptionLimitsCaption: ADOPTION_ESTATE_LIMITS_CAPTION,
 
     estateTotalSeries,
     estateTotalStatus: status,
@@ -676,15 +612,15 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
     topSpendersLoading,
     topSpendersError,
     onRetryTopSpenders: () => {
-      for (const q of mtdQueries) void q.refetch();
-      for (const q of prevMtdQueries) void q.refetch();
+      void mtdQuery.refetch();
+      void prevMtdQuery.refetch();
     },
 
     budgetPressureAccounts,
     budgetPressureStatus,
     budgetPressureError,
     onRetryBudgetPressure: () => {
-      for (const q of mtdQueries) void q.refetch();
+      void mtdQuery.refetch();
       for (const q of balanceQueries) void q.refetch();
     },
     worstBudgetPressureAccount,
@@ -710,13 +646,12 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
     status,
     errorMessage,
     onRetry: () => {
-      for (const q of modelQueries) void q.refetch();
-      for (const q of previousQueries) void q.refetch();
-      for (const q of projectActivityQueries) void q.refetch();
-      for (const q of mtdQueries) void q.refetch();
-      for (const q of prevMtdQueries) void q.refetch();
+      void modelQuery.refetch();
+      void previousQuery.refetch();
+      void projectActivityQuery.refetch();
+      void mtdQuery.refetch();
+      void prevMtdQuery.refetch();
       for (const q of balanceQueries) void q.refetch();
-      void pendingQueueAccountsQuery.refetch();
       queue.retry();
     },
   };

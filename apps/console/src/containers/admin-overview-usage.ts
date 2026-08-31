@@ -1,8 +1,10 @@
-import type { UsageQueryResponse } from '@lightbridge/api-rest';
+import type { UsageQueryRequest, UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
+import { shortAccountId } from '@lightbridge/ui-web';
 import type { MultiSeriesSpendSeries } from '@lightbridge/ui-web';
 import type { StatCardDelta } from '@lightbridge/ui-web/src/components/stat-card';
 
-import { safeCost, UNASSIGNED_KEY } from './overview-usage';
+import { accountScopeLabel } from './account-label';
+import { safeCost, UNASSIGNED_KEY, USAGE_QUERY_LIMIT } from './overview-usage';
 import type { AccountUsageResponse } from './usage-overview-usage';
 
 /**
@@ -17,9 +19,160 @@ import type { AccountUsageResponse } from './usage-overview-usage';
  * (dashboard 8), request-count day series (dashboard 6), and the MTD account/project summaries
  * behind the top-spenders ledger (dashboard 3) and budget-pressure spend side (dashboard 4).
  *
+ * **2026-08-31 estate-wide rewrite (lightbridge-authz#605, owner ruling verbatim: "/admin/overview
+ * is overview for ALL account, not just the one the user is bound to. ALL of them." + "Just not
+ * mention you're fetching for a specific account.").** Every board below used to be built from a
+ * per-account FAN-OUT (`useQueries` over `estateAccountIds`' family∪pending-queue union, capped at
+ * `MAX_FANNED_OUT_ACCOUNTS`) — the console's only account enumeration path before #605 shipped.
+ * `use-admin-overview-screen.ts` now fires exactly ONE `scope: 'all', scope_id: ''` usage query per
+ * board family (the backend adds no entity filter at all for that scope, gated server-side on
+ * `usage:read-all` — granted to `lightbridge-admin`) and reads every account/project id straight
+ * off the response's own `account_id`/`project_id` group-by dimensions, rather than having to
+ * already know them. `estateAccountIds`/`estateCoverageCaption`/`ESTATE_SUBTITLE_SCOPE` (the
+ * family∪queue id-harvesting and its honest-but-limited caption) are gone with the fan-out they
+ * described — the header now truthfully says "All accounts with usage this period"
+ * (`use-admin-overview-screen.ts`'s `subtitle`).
+ *
+ * `splitResponseByAccount` below is what makes this a small change rather than a rewrite of every
+ * adapter: it turns ONE multi-account response (grouped by `account_id` plus whatever second
+ * dimension a board needs) back into the SAME `AccountUsageResponse[]` shape the pre-#605
+ * fan-out produced, so `combineAccountModelResponses`/`combineModelDaySeries`/`requestVolumeSeries`/
+ * `activeAccountsPerDay`/`summarizeMtdUsage` below are unchanged from before this rewrite — only
+ * how their input is ASSEMBLED changed, not how it is read.
+ *
+ * **Real, residual limits (kept honest, not silently dropped — see `use-admin-overview-screen.ts`'s
+ * own adoption-zone caption):** the usage API still has no account-ENUMERATION endpoint, only a
+ * usage-events query — so an account with genuinely zero spend in a queried window never appears
+ * as an `account_id` group at all, and "gone quiet"/"active accounts" can only ever count accounts
+ * that had usage in at least one of the compared windows. Account creation dates and "new accounts
+ * this period" remain resolvable ONLY for the operator's own family (`scope.allAccounts` — usage
+ * events carry no creation-date field for anyone else). A foreign (non-family) account or project
+ * discovered via `scope: 'all'` has no resolvable NAME either — `estateAccountLabel`/
+ * `estateProjectLabel` below fall back to a short, non-UUID sentinel rather than a raw id.
+ *
  * Kept dependency-free of React/refine/TanStack Query, the same split every other usage adapter
  * module in this directory uses.
  */
+
+/**
+ * Splits one multi-account `scope: 'all'` response back into per-account slices, in the SAME
+ * `AccountUsageResponse[]` shape the pre-#605 per-account fan-out produced — this is the one
+ * function that lets every OTHER adapter in this module (`combineAccountModelResponses`,
+ * `combineModelDaySeries`, `requestVolumeSeries`, `activeAccountsPerDay`, `summarizeMtdUsage`,
+ * all below/imported) stay unchanged: they only ever cared about "which points belong to which
+ * account," never about how that grouping was assembled.
+ *
+ * A point with no `account_id` at all cannot happen for a `group_by: ['account_id', ...]` request
+ * in practice (the backend groups BY that field, so every returned point carries it) — dropped
+ * defensively rather than folded into a fabricated pseudo-account, since there is no honest label
+ * for "usage with no account" the way `UNASSIGNED_KEY` exists for model/project.
+ */
+export function splitResponseByAccount(response: UsageQueryResponse): AccountUsageResponse[] {
+  const byAccount = new Map<string, UsageSeriesPoint[]>();
+  for (const point of response.points) {
+    const accountId = point.account_id;
+    if (typeof accountId !== 'string' || accountId.length === 0) continue;
+    const points = byAccount.get(accountId);
+    if (points) {
+      points.push(point);
+    } else {
+      byAccount.set(accountId, [point]);
+    }
+  }
+  return Array.from(byAccount.entries()).map(([accountId, points]) => ({
+    accountId,
+    response: { points },
+  }));
+}
+
+/**
+ * An account's display label, real name for the operator's own family (`accountScopeLabel`, the
+ * same label every other account-facing surface in this console uses) and a short, non-UUID
+ * sentinel otherwise — a foreign account discovered only via `scope: 'all'` has no name the
+ * console can resolve (no RPC reaches outside the operator's own family), so the fallback must
+ * never be the raw id (console-ui skill: no raw UUID as a visible label) but also must not
+ * fabricate a name that isn't real.
+ */
+export function estateAccountLabel(
+  accountId: string,
+  familyAccounts: readonly { id: string; name?: string | null }[]
+): string {
+  const account = familyAccounts.find((a) => a.id === accountId);
+  return account ? accountScopeLabel(account) : shortAccountId(accountId);
+}
+
+/** How many leading characters of a project id survive `estateProjectLabel`'s sentinel form —
+ *  mirrors `shortAccountId`'s own `SHORT_ID_LENGTH` (a v4 UUID's first hex block). */
+const SHORT_PROJECT_ID_LENGTH = 8;
+
+/**
+ * A project's display label — sibling of `estateAccountLabel` above for the same reason: a
+ * project belonging to a foreign (non-family) account has no name the console can resolve either.
+ * `shortAccountId` itself is account-specific (`acct_` prefix) so is not reused verbatim here —
+ * this states the identical short-non-UUID idea under a `proj_` prefix instead.
+ */
+export function estateProjectLabel(
+  projectId: string,
+  familyProjects: readonly { id: string; name?: string | null }[]
+): string {
+  const project = familyProjects.find((p) => p.id === projectId);
+  if (project?.name) return project.name;
+  if (!projectId) return '—';
+  const head = projectId.replace(/-/g, '').slice(0, SHORT_PROJECT_ID_LENGTH);
+  return `proj_${head}`;
+}
+
+/** The fixed day bucket every estate-wide request below uses — same "no bucket toolbar of its
+ *  own" reasoning `settings-overview-usage.ts`'s own `DAY_BUCKET` states for the account/project/
+ *  user lenses; this screen's range picker controls the WINDOW, never the bucket width. */
+const DAY_BUCKET = '1 day';
+
+/** The one `{scope: 'all', scope_id: ''}` shape every board-level estate request below builds
+ *  from (lightbridge-authz#605) — `groupBy` is the only thing that varies per board. */
+function estateRequest(
+  window: { start: Date; end: Date },
+  groupBy: UsageQueryRequest['group_by']
+): UsageQueryRequest {
+  return {
+    scope: 'all',
+    scope_id: '',
+    start_time: window.start.toISOString(),
+    end_time: window.end.toISOString(),
+    bucket: DAY_BUCKET,
+    group_by: groupBy,
+    limit: USAGE_QUERY_LIMIT,
+  };
+}
+
+/** Dashboards 1 (estate total + spend by account), 2 (model mix), 6 (request volume), 8a (active
+ *  accounts per day) — every board that needs BOTH which account and which model a point of
+ *  spend belongs to. `splitResponseByAccount` turns the single response this returns back into
+ *  per-account slices for the adapters below that need one. */
+export function buildEstateModelRequest(window: { start: Date; end: Date }): UsageQueryRequest {
+  return estateRequest(window, ['account_id', 'model']);
+}
+
+/** Dashboard 1's dashed previous-period line — ungrouped: the estate's own single day-bucketed
+ *  total is exactly what a comparison line needs, no per-account breakdown. */
+export function buildEstatePreviousRequest(window: { start: Date; end: Date }): UsageQueryRequest {
+  return estateRequest(window, undefined);
+}
+
+/** Dashboard 8b (active projects per day) — `project_id` alone: counting DISTINCT active
+ *  projects across the whole estate needs no account dimension. */
+export function buildEstateProjectActivityRequest(
+  window: { start: Date; end: Date }
+): UsageQueryRequest {
+  return estateRequest(window, ['project_id']);
+}
+
+/** Dashboard 3 (top spenders) and dashboard 4's spend side — both account AND project, since top
+ *  spenders ranks accounts AND their own project breakdown from the same response. Always the
+ *  billing period (`mtdWindow`/`prevMtdWindow`), never the page's own range picker — same
+ *  "budget is this billing period" rule every other MTD request in this console follows. */
+export function buildEstateMtdRequest(window: { start: Date; end: Date }): UsageQueryRequest {
+  return estateRequest(window, ['account_id', 'project_id']);
+}
 
 /** A finite, non-negative request count — mirrors `overview-usage.ts`'s `safeCost` guard for the
  *  sibling field (`settings-overview-usage.ts` declares an identical private copy; this one is
@@ -299,105 +452,90 @@ export function dayPrecisionLastActiveLabel(lastActive: Date | null, today: Date
 }
 
 /**
- * The estate account-id fan-out (owner review finding, converse-frontends#368: "/admin/overview
- * is overview for ALL account, not just the one the user is bound to. ALL of them.").
+ * The account-id set dashboard 4's (budget pressure) `getBudgetBalance` fan-out queries — an RPC,
+ * not a usage query, so it cannot itself be folded into the single `scope: 'all'` usage request
+ * the spend side of that dashboard now uses (lightbridge-authz#605 only widened the USAGE query
+ * API; `getBudgetBalance` is unaffected, still one call per account).
  *
- * **Investigated and confirmed: `authz.cstack` has no all-accounts enumeration.** `model.Account`
- * carries exactly one `@@allow` clause (`authz.cstack:244`), `(userId == auth().id) && ...` —
- * self-family only, no operator/admin bypass anywhere on the model. The only two admin-scoped
- * cross-tenant reads in the whole schema, `getBudgetBalance`/`listBudgetGrants`
- * (`authz.cstack:1482`, `:1544`), both REQUIRE an already-known `budgetAccountId` — neither
- * enumerates accounts either. Filed as `lightbridge-authz#602` ("operator-privileged all-accounts
- * enumeration for the admin estate").
- *
- * Until that ships, this is every account id the console can LEGITIMATELY discover as an
- * operator, combined:
- *
- *  1. **The operator's own account family** (`model.Account.list`, `use-console-scope.ts`'s
- *     `allAccounts` — real accounts, not a placeholder).
- *  2. **Every account id surfacing in the global pending refill queue**
- *     (`listPendingAugmentationRequests({budgetAccountId: null})`, `authz.cstack:1294-1320`'s own
- *     documented "omitted/null lists the whole cross-account queue" contract) — a real, if
- *     partial, cross-family signal: an account with a pending refill request is a genuine OTHER
- *     account, just not the whole estate (only accounts that have ever asked for more budget show
- *     up here, and only while a request of theirs is still pending).
- *
- * Deduplicated, family first (stable, less surprising order across renders), capped at `cap` —
- * the same `MAX_FANNED_OUT_ACCOUNTS` ceiling `usage-overview-usage.ts` already established, for
- * the identical reason: never fan out an unbounded number of per-account usage/budget queries in
- * one page load. `truncated` distinguishes "we found more real candidates than the cap allows"
- * from "this genuinely is everything discoverable" — the caller (`use-admin-overview-screen.ts`)
- * turns that into an honest caption, never a silent drop.
+ * The candidate set is the union of every account id the estate-wide MTD usage response actually
+ * named (`usageAccountIds` — real spend this billing period, the accounts budget pressure is
+ * actually ABOUT) and the operator's own family (`familyAccountIds` — surfaces a family account's
+ * ceiling even in a period it has not drawn against yet). Deduplicated, usage-named ids first
+ * (the more relevant set for THIS board), capped at `cap` so a real deployment with many accounts
+ * never fans out an unbounded number of budget-balance RPCs from one page load — the same
+ * `MAX_FANNED_OUT_ACCOUNTS` ceiling this console already uses for the sibling settings-area
+ * estate overview (`usage-overview-usage.ts`). `truncated` distinguishes "more candidates existed
+ * than the cap allowed" from "this is genuinely everything" so the caller can caption honestly
+ * rather than silently dropping accounts.
  */
-export interface EstateAccountIdsResult {
-  /** The ids actually fanned out to, capped at `cap`. */
+export interface BudgetPressureAccountIdsResult {
+  /** The ids actually fanned out to `getBudgetBalance`, capped at `cap`. */
   ids: string[];
-  /** How many of `ids` came from the operator's own family (always the first `familyCount`). */
-  familyCount: number;
-  /** How many DISTINCT ids were found only via the pending-queue signal, before capping. */
-  queueOnlyCount: number;
-  /** Total distinct candidates found, before capping — compare against `ids.length` for the
-   *  truncation caption's own numbers. */
+  /** Total distinct candidates found, before capping. */
   totalCandidates: number;
-  /** `true` when `totalCandidates > cap` — real candidates exist beyond what was fanned out to. */
+  /** `true` when `totalCandidates > cap` — real candidates exist beyond what was queried. */
   truncated: boolean;
 }
 
-export function estateAccountIds(
+export function budgetPressureAccountIds(
+  usageAccountIds: readonly string[],
   familyAccountIds: readonly string[],
-  pendingQueueAccountIds: readonly string[],
   cap: number
-): EstateAccountIdsResult {
+): BudgetPressureAccountIdsResult {
   const seen = new Set<string>();
   const ordered: string[] = [];
+  for (const id of usageAccountIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
   for (const id of familyAccountIds) {
     if (seen.has(id)) continue;
     seen.add(id);
     ordered.push(id);
   }
-  const familyCount = ordered.length;
-  for (const id of pendingQueueAccountIds) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    ordered.push(id);
-  }
-  const totalCandidates = ordered.length;
   return {
     ids: ordered.slice(0, cap),
-    familyCount,
-    queueOnlyCount: totalCandidates - familyCount,
-    totalCandidates,
-    truncated: totalCandidates > cap,
+    totalCandidates: ordered.length,
+    truncated: ordered.length > cap,
   };
 }
 
-/** The `PageHeader` subtitle's honest replacement for the page story's "Estate-wide" — that
- *  wording is the design batch's own idealized target (still the approved fixture, per this
- *  screen's own doc comment), not what the live route can truthfully claim while
- *  `lightbridge-authz#602` is open. Kept short and dot-segment-shaped to match the story's
- *  `Operator · X · {range} · UTC` rhythm exactly, just with an honest `X`. */
-export const ESTATE_SUBTITLE_SCOPE = 'Your accounts + refill queue';
-
-/**
- * The truncation/coverage caption for `/admin/overview` (owner review finding, converse-
- * frontends#368 — see `estateAccountIds`'s own doc comment for the full investigation). Always
- * says what the estate covers when there is at least one candidate account, not only when the
- * cap actually truncated something: even an UN-truncated fan-out here is still "family + pending
- * refill requesters," never literally every account, so the honest caption is owed either way —
- * this is a deliberate widening of the old "only caption when truncated" rule, which was fine
- * when the sole source (`allAccounts`) genuinely was the complete self-service estate.
- */
-export function estateCoverageCaption(estate: EstateAccountIdsResult): string {
-  const shown = estate.ids.length;
-  const scopeNote =
-    estate.queueOnlyCount > 0
-      ? `${estate.familyCount} in your account family, ${estate.queueOnlyCount} more seen only via a pending refill request`
-      : 'all in your account family';
-  const countNote = estate.truncated
-    ? `Showing ${shown} of ${estate.totalCandidates} discoverable accounts`
-    : `Showing ${shown} account${shown === 1 ? '' : 's'}`;
+/** The page-level honesty caption for `/admin/overview`'s budget-pressure zone — only rendered
+ *  when the concurrency cap on `getBudgetBalance` (`budgetPressureAccountIds` above) actually
+ *  dropped real candidates, unlike the always-on adoption-zone caveat below (that one describes a
+ *  structural limit, not a count that can be zero). `undefined` when nothing was truncated. */
+export function budgetPressureTruncationCaption(
+  estate: BudgetPressureAccountIdsResult
+): string | undefined {
+  if (!estate.truncated) return undefined;
   return (
-    `${countNote} (${scopeNote}) — not every account in the system. There is no backend ` +
-    'enumeration of every account yet (lightbridge-authz#602).'
+    `Showing budget pressure for ${estate.ids.length} of ${estate.totalCandidates} accounts ` +
+    'with usage this period or in your account family.'
   );
 }
+
+/**
+ * The always-on adoption-zone caveat (lightbridge-authz#605 rewrite — see this module's own
+ * top-of-file doc comment for the full before/after). Unlike `budgetPressureTruncationCaption`
+ * above, this is not conditional on any count: it states two STRUCTURAL limits of a usage-EVENTS
+ * query that no cap or wider fan-out could ever remove —
+ *
+ *  - An account with genuinely zero spend in every queried window never appears as an
+ *    `account_id` group in a `scope: 'all'` response at all (there is no row for it to group),
+ *    so "gone quiet" and "active accounts" can only ever count accounts that DREW something in at
+ *    least one of the compared windows — a long-dormant account is invisible to both, not counted
+ *    as "gone quiet."
+ *  - Usage events carry no account creation-date field for anyone — "new accounts this period"
+ *    stays resolvable only for the operator's own family (`scope.allAccounts`, the one account
+ *    listing this console can call), same limit the pre-#605 fan-out already had.
+ *
+ * Mirrors `REFILL_DECISIONS_UNAVAILABLE_CAPTION`/`REQUEST_ERROR_RATE_UNAVAILABLE_CAPTION`'s own
+ * always-rendered shape in `use-admin-overview-screen.ts` — a real backend-shape gap, captioned
+ * inline rather than hidden (ADR 0012 D8).
+ */
+export const ADOPTION_ESTATE_LIMITS_CAPTION =
+  '"New accounts this period" only counts your own account family — usage events carry no ' +
+  'account creation date for any account. "Gone quiet" and "active accounts" only count ' +
+  'accounts with usage in the compared windows; a long-dormant account with zero usage never ' +
+  'appears in an estate-wide usage query at all.';

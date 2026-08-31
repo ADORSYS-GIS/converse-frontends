@@ -349,7 +349,7 @@ function AdminOverviewScreen() {
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Overview"
-          subtitle="Operator · Your accounts + refill queue · This month · UTC"
+          subtitle="Operator · All accounts with usage this period · This month · UTC"
           controls={
             <DateRangeField
               label="Range"
@@ -373,18 +373,19 @@ function AdminOverviewScreen() {
         />
 
         {/* Owner review finding (converse-frontends#368, 2026-08-31): "/admin/overview is
-             overview for ALL account, not just the one the user is bound to. ALL of them." The
-             design batch's original "Estate-wide" subtitle overclaimed what the backend can
-             back — `authz.cstack` has no all-accounts enumeration (`lightbridge-authz#602`,
-             filed by that investigation). The subtitle above and this caption are what the live
-             route now honestly renders: `use-admin-overview-screen.ts`'s `ESTATE_SUBTITLE_SCOPE`
-             and `estateCoverageCaption`, fed by real family + pending-refill-queue account ids
-             (`admin-overview-usage.ts`'s `estateAccountIds`), never a fabricated full-estate
-             claim. */}
+             overview for ALL account, not just the one the user is bound to. ALL of them." — and
+             the 2026-08-31 follow-up (lightbridge-authz#605) that actually delivers it: the usage
+             query API gained a real `scope: 'all'` (no entity filter at all, gated on
+             `usage:read-all`), so the subtitle above is now literally true rather than the
+             family-plus-pending-queue approximation the design batch originally shipped with. The
+             one board that still fans out per-account (`getBudgetBalance`, dashboard 4 — an RPC
+             #605 does not touch) keeps its own honest, CONDITIONAL truncation caption
+             (`use-admin-overview-screen.ts`'s `truncationCaption`, only rendered when the
+             concurrency cap on that fan-out actually drops a real candidate) — shown here to
+             demonstrate the shape. */}
         <InlineStatus>
-          Showing 12 accounts (8 in your account family, 4 more seen only via a pending refill
-          request) — not every account in the system. There is no backend enumeration of every
-          account yet (lightbridge-authz#602).
+          Showing budget pressure for 18 of 23 accounts with usage this period or in your account
+          family.
         </InlineStatus>
 
         {/* ── 1. Estate spend over time ── */}
@@ -495,6 +496,17 @@ function AdminOverviewScreen() {
 
         {/* ── 8. Adoption ── */}
         <OverviewStatRow cards={ADOPTION_STAT_CARDS} />
+        {/* Always-on, not conditional (lightbridge-authz#605) — a structural limit of a
+             usage-EVENTS query, not a count that can be zero: an account with genuinely no spend
+             in either compared window never appears as an `account_id` group at all, and account
+             creation dates stay resolvable only for the operator's own family. Mirrors
+             `admin-overview-usage.ts`'s `ADOPTION_ESTATE_LIMITS_CAPTION`. */}
+        <InlineStatus>
+          &quot;New accounts this period&quot; only counts your own account family — usage events
+          carry no account creation date for any account. &quot;Gone quiet&quot; and &quot;active
+          accounts&quot; only count accounts with usage in the compared windows; a long-dormant
+          account with zero usage never appears in an estate-wide usage query at all.
+        </InlineStatus>
         <Card>
           <MultiSeriesSpendBoard
             label="Active accounts & projects per day"

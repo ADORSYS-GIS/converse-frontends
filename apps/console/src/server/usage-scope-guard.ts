@@ -43,6 +43,18 @@
  * still resolves and checks real ownership, so a caller who somehow reached this guard without a
  * verified role claim gets the pre-existing, unmodified behavior.
  *
+ * **`scope: 'all'` (lightbridge-authz#605, the `/admin/overview` estate data path):** accepted
+ * ONLY alongside `isAdmin === true`, via its own fast path below — mirroring the `scope: 'account'`
+ * admin fast path, since "all" has no per-account ownership predicate to check even in principle.
+ * A non-admin `scope: 'all'` request is refused by the existing generic `isScopeOwned` fallthrough
+ * (no arm exists for `'all'`, so it fails closed exactly like an unrecognised scope kind). Unlike
+ * every other scope this guard reasons about, the BACKEND now independently enforces this one too
+ * — `Permission::UsageReadAll` (`usage:read-all`), read directly off the bearer token, granted to
+ * `lightbridge-admin` by that role's default `*` grant — so this client-side check is genuinely
+ * defense-in-depth here, not the sole authorization story the way it is for `scope: 'account'`
+ * (whose backend authority is only the mTLS-authenticated proxy, per the admin-fast-path note
+ * above).
+ *
  * Deliberately scoped to `scope: 'account'` only — `scope: 'project'` still resolves through
  * `resolveProjectAccountId` regardless of role, because `model.Project.read`'s own `@@allow`
  * (`authz.cstack:345`) has no admin bypass on the backend either: an operator's session cannot
@@ -69,7 +81,13 @@ export function parseUsageScopeRequest(rawBody: unknown): ParsedUsageScopeReques
   if (typeof rawBody !== 'object' || rawBody === null) return null;
   const { scope, scope_id: scopeId } = rawBody as Record<string, unknown>;
   if (typeof scope !== 'string' || scope.length === 0) return null;
-  if (typeof scopeId !== 'string' || scopeId.length === 0) return null;
+  if (typeof scopeId !== 'string') return null;
+  // `scope: 'all'` is the one scope kind whose `scope_id` is required-but-IGNORED on the wire
+  // (`openapi/usage.backend.yaml`'s own `UsageScope`/`scope_id` descriptions, mirroring
+  // lightbridge-authz#605): an estate-wide query has no single id it is "about," so the console
+  // sends `""` for it, same as the backend documents — that must not be rejected here as
+  // malformed. Every other scope keeps requiring a genuinely non-empty `scope_id`.
+  if (scope !== 'all' && scopeId.length === 0) return null;
   return { scope, scopeId };
 }
 
@@ -147,6 +165,20 @@ export async function guardUsageScope(
   // from request input — this function has no way to re-verify that itself, the same trust
   // boundary `homeAccountId` above already relies on.
   if (isAdmin === true && parsed.scope === 'account') {
+    return { ok: true };
+  }
+
+  // ── Admin scope=all fast path (lightbridge-authz#605, the /admin/overview estate data path) —
+  // `scope: 'all'` is the backend's own estate-wide query kind: no entity filter at all, so there
+  // is no per-account ownership predicate to check for it, by definition — same reasoning as the
+  // `scope: 'account'` admin fast path immediately above, applied to the one scope where even a
+  // per-tenant predicate could never exist. The backend now independently enforces this too
+  // (`Permission::UsageReadAll`/`usage:read-all`, granted to `lightbridge-admin`) — this guard is
+  // defense-in-depth, not the sole gate, matching `usage-scope-guard.ts`'s own doc comment: this
+  // module closes a gap in what `proxyRequest` forwards, and the backend is the actual authority.
+  // A non-admin `scope: 'all'` request falls through unchanged to `isScopeOwned` below, which has
+  // no arm for `'all'` and fails closed exactly like `'user'`/`'api_key'` already do.
+  if (isAdmin === true && parsed.scope === 'all') {
     return { ok: true };
   }
 

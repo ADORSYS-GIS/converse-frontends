@@ -7,15 +7,22 @@ import type { AccountUsageResponse } from './usage-overview-usage';
 import {
   activeAccountsPerDay,
   activeProjectsPerDay,
+  ADOPTION_ESTATE_LIMITS_CAPTION,
   adoptionOverTimeSeries,
+  budgetPressureAccountIds,
+  budgetPressureTruncationCaption,
+  buildEstateMtdRequest,
+  buildEstateModelRequest,
+  buildEstatePreviousRequest,
+  buildEstateProjectActivityRequest,
   combineModelDaySeries,
   dayPrecisionLastActiveLabel,
-  ESTATE_SUBTITLE_SCOPE,
-  estateAccountIds,
-  estateCoverageCaption,
+  estateAccountLabel,
+  estateProjectLabel,
   requestVolumeSeries,
   safeRequests,
   spendDelta,
+  splitResponseByAccount,
   summarizeMtdUsage,
 } from './admin-overview-usage';
 
@@ -232,99 +239,157 @@ describe('combineModelDaySeries — unassigned relabeling', () => {
   });
 });
 
-// ── estateAccountIds / estateCoverageCaption (owner review finding, converse-frontends#368:
-// "/admin/overview is overview for ALL account, not just the one the user is bound to. ALL of
-// them.") — the fan-out used to be `allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS)` alone (the
-// operator's own account family, nothing else); these two functions are what replaced it, so
-// this is the regression net for BOTH the widened enumeration source and the honesty of what it
-// tells the operator it covers. ──────────────────────────────────────────────────────────────
-describe('estateAccountIds', () => {
-  it('unions family and pending-queue ids, family first, with no duplicates', () => {
-    const result = estateAccountIds(['acct_1', 'acct_2'], ['acct_2', 'acct_9'], 10);
+// ── estate request builders (lightbridge-authz#605) — each board fires exactly ONE
+// `scope: 'all', scope_id: ''` request, varying only the group-by dimension it needs. ──────────
+describe('estate request builders', () => {
+  const window = { start: new Date('2026-08-01T00:00:00.000Z'), end: new Date('2026-08-31T00:00:00.000Z') };
+
+  it('buildEstateModelRequest groups by account_id and model', () => {
+    const request = buildEstateModelRequest(window);
+    expect(request.scope).toBe('all');
+    expect(request.scope_id).toBe('');
+    expect(request.group_by).toEqual(['account_id', 'model']);
+    expect(request.bucket).toBe('1 day');
+    expect(request.start_time).toBe(window.start.toISOString());
+    expect(request.end_time).toBe(window.end.toISOString());
+  });
+
+  it('buildEstatePreviousRequest is ungrouped', () => {
+    const request = buildEstatePreviousRequest(window);
+    expect(request.scope).toBe('all');
+    expect(request.scope_id).toBe('');
+    expect(request.group_by).toBeUndefined();
+  });
+
+  it('buildEstateProjectActivityRequest groups by project_id only', () => {
+    expect(buildEstateProjectActivityRequest(window).group_by).toEqual(['project_id']);
+  });
+
+  it('buildEstateMtdRequest groups by account_id and project_id', () => {
+    const request = buildEstateMtdRequest(window);
+    expect(request.scope).toBe('all');
+    expect(request.scope_id).toBe('');
+    expect(request.group_by).toEqual(['account_id', 'project_id']);
+  });
+});
+
+// ── splitResponseByAccount (lightbridge-authz#605 rewrite) — the one function that lets every
+// per-account adapter above keep reading an `AccountUsageResponse[]`, now assembled from a
+// single `scope: 'all'` response instead of a per-account fan-out. ─────────────────────────────
+describe('splitResponseByAccount', () => {
+  it('groups points by account_id into the same AccountUsageResponse[] shape the old fan-out produced', () => {
+    const response: UsageQueryResponse = {
+      points: [
+        point({ account_id: 'acct_1', model: 'gpt-4o', total_cost: 1_000_000 }),
+        point({ account_id: 'acct_2', model: 'claude', total_cost: 2_000_000 }),
+        point({ account_id: 'acct_1', model: 'mini', total_cost: 500_000 }),
+      ],
+    };
+    const split = splitResponseByAccount(response);
+    expect(split).toHaveLength(2);
+    const acct1 = split.find((r) => r.accountId === 'acct_1');
+    expect(acct1?.response.points).toHaveLength(2);
+    const acct2 = split.find((r) => r.accountId === 'acct_2');
+    expect(acct2?.response.points).toHaveLength(1);
+  });
+
+  it('drops a point with no account_id — cannot happen for a group_by: [account_id, …] request, defensive only', () => {
+    const response: UsageQueryResponse = {
+      points: [
+        point({ account_id: 'acct_1', total_cost: 1_000_000 }),
+        point({ account_id: null, total_cost: 5_000_000 }),
+        point({ total_cost: 5_000_000 }),
+      ],
+    };
+    const split = splitResponseByAccount(response);
+    expect(split).toEqual([{ accountId: 'acct_1', response: { points: [split[0].response.points[0]] } }]);
+  });
+
+  it('an empty response splits to an empty array', () => {
+    expect(splitResponseByAccount({ points: [] })).toEqual([]);
+  });
+});
+
+describe('estateAccountLabel', () => {
+  const family = [
+    { id: 'acct_1', name: 'Brightline' },
+    { id: 'acct_2', name: null },
+  ];
+
+  it('uses the real name for a family account', () => {
+    expect(estateAccountLabel('acct_1', family)).toBe('Brightline');
+  });
+
+  it('falls back to accountScopeLabel’s own short-id form for an unnamed family account', () => {
+    expect(estateAccountLabel('acct_2', family)).toBe('acct_acct_2');
+  });
+
+  it('never leaks the raw id for a foreign account — short sentinel form instead', () => {
+    const label = estateAccountLabel('a1b2c3d4-e5f6-7890-aaaa-bbbbccccdddd', family);
+    expect(label).toBe('acct_a1b2c3d4');
+    expect(label).not.toContain('-');
+  });
+});
+
+describe('estateProjectLabel', () => {
+  const family = [{ id: 'proj_1', name: 'Payments' }];
+
+  it('uses the real name for a family project', () => {
+    expect(estateProjectLabel('proj_1', family)).toBe('Payments');
+  });
+
+  it('never leaks the raw id for a foreign project — short sentinel form instead', () => {
+    const label = estateProjectLabel('f1e2d3c4-b5a6-7890-aaaa-bbbbccccdddd', family);
+    expect(label).toBe('proj_f1e2d3c4');
+    expect(label).not.toContain('-');
+  });
+});
+
+// ── budgetPressureAccountIds / budgetPressureTruncationCaption (lightbridge-authz#605 rewrite) —
+// replaces the old family∪pending-queue `estateAccountIds` for the ONE board that still fans out
+// per-account (`getBudgetBalance`, an RPC the usage scope=all widening does not touch). ─────────
+describe('budgetPressureAccountIds', () => {
+  it('unions usage-named ids and family ids, usage-named first, with no duplicates', () => {
+    const result = budgetPressureAccountIds(['acct_1', 'acct_2'], ['acct_2', 'acct_9'], 10);
     expect(result.ids).toEqual(['acct_1', 'acct_2', 'acct_9']);
-    expect(result.familyCount).toBe(2);
-    expect(result.queueOnlyCount).toBe(1);
     expect(result.totalCandidates).toBe(3);
     expect(result.truncated).toBe(false);
   });
 
-  it('a family-only estate (no pending-queue signal) is not truncated and has zero queue-only ids', () => {
-    const result = estateAccountIds(['acct_1', 'acct_2'], [], 25);
-    expect(result.ids).toEqual(['acct_1', 'acct_2']);
-    expect(result.queueOnlyCount).toBe(0);
-    expect(result.truncated).toBe(false);
-  });
-
-  it('caps the union at `cap`, family accounts winning the cap before queue-derived ones', () => {
-    const result = estateAccountIds(['acct_1', 'acct_2', 'acct_3'], ['acct_4', 'acct_5'], 4);
+  it('caps the union at `cap`, usage-named accounts winning the cap before family-only ones', () => {
+    const result = budgetPressureAccountIds(['acct_1', 'acct_2', 'acct_3'], ['acct_4', 'acct_5'], 4);
     expect(result.ids).toEqual(['acct_1', 'acct_2', 'acct_3', 'acct_4']);
-    expect(result.familyCount).toBe(3);
-    expect(result.queueOnlyCount).toBe(2);
     expect(result.totalCandidates).toBe(5);
     expect(result.truncated).toBe(true);
   });
 
-  it('a queue-derived id that duplicates a family id is not double-counted', () => {
-    const result = estateAccountIds(['acct_1'], ['acct_1', 'acct_1', 'acct_2'], 10);
-    expect(result.ids).toEqual(['acct_1', 'acct_2']);
-    expect(result.familyCount).toBe(1);
-    expect(result.queueOnlyCount).toBe(1);
+  it('both sources empty yields an empty, non-truncated result', () => {
+    const result = budgetPressureAccountIds([], [], 10);
+    expect(result).toEqual({ ids: [], totalCandidates: 0, truncated: false });
+  });
+});
+
+describe('budgetPressureTruncationCaption', () => {
+  it('is undefined when nothing was truncated', () => {
+    expect(
+      budgetPressureTruncationCaption({ ids: ['acct_1'], totalCandidates: 1, truncated: false })
+    ).toBeUndefined();
   });
 
-  it('an empty family with a real pending-queue signal still surfaces those accounts', () => {
-    const result = estateAccountIds([], ['acct_9'], 10);
-    expect(result.ids).toEqual(['acct_9']);
-    expect(result.familyCount).toBe(0);
-    expect(result.queueOnlyCount).toBe(1);
-  });
-
-  it('both sources empty yields an empty, non-truncated estate', () => {
-    const result = estateAccountIds([], [], 10);
-    expect(result).toEqual({
-      ids: [],
-      familyCount: 0,
-      queueOnlyCount: 0,
-      totalCandidates: 0,
-      truncated: false,
+  it('states the real candidate total when truncated', () => {
+    const caption = budgetPressureTruncationCaption({
+      ids: ['acct_1', 'acct_2'],
+      totalCandidates: 5,
+      truncated: true,
     });
+    expect(caption).toContain('Showing budget pressure for 2 of 5 accounts');
   });
 });
 
-describe('estateCoverageCaption', () => {
-  it('names the backend gap issue and both real sources when the queue contributed accounts', () => {
-    const estate = estateAccountIds(['acct_1', 'acct_2'], ['acct_9'], 25);
-    const caption = estateCoverageCaption(estate);
-    expect(caption).toContain('Showing 3 accounts');
-    expect(caption).toContain('2 in your account family');
-    expect(caption).toContain('1 more seen only via a pending refill request');
-    expect(caption).toContain('not every account in the system');
-    expect(caption).toContain('lightbridge-authz#602');
-  });
-
-  it('still discloses "not every account" even when nothing was truncated and the queue added nothing', () => {
-    const estate = estateAccountIds(['acct_1'], [], 25);
-    const caption = estateCoverageCaption(estate);
-    expect(caption).toContain('Showing 1 account (all in your account family)');
-    expect(caption).toContain('not every account in the system');
-    expect(caption).not.toMatch(/Showing 1 of/);
-  });
-
-  it('states the real discoverable total when the cap truncated the union', () => {
-    const estate = estateAccountIds(['acct_1', 'acct_2', 'acct_3'], ['acct_4', 'acct_5'], 4);
-    const caption = estateCoverageCaption(estate);
-    expect(caption).toContain('Showing 4 of 5 discoverable accounts');
-  });
-
-  it('never claims a false plural for exactly one account shown', () => {
-    const estate = estateAccountIds(['acct_1'], [], 25);
-    expect(estateCoverageCaption(estate)).toContain('Showing 1 account (');
-    expect(estateCoverageCaption(estate)).not.toContain('1 accounts');
-  });
-});
-
-describe('ESTATE_SUBTITLE_SCOPE', () => {
-  it('is honest, non-empty wording — never the old fabricated "Estate-wide" claim', () => {
-    expect(ESTATE_SUBTITLE_SCOPE.length).toBeGreaterThan(0);
-    expect(ESTATE_SUBTITLE_SCOPE.toLowerCase()).not.toBe('estate-wide');
+describe('ADOPTION_ESTATE_LIMITS_CAPTION', () => {
+  it('is honest, non-empty wording naming both structural limits', () => {
+    expect(ADOPTION_ESTATE_LIMITS_CAPTION.length).toBeGreaterThan(0);
+    expect(ADOPTION_ESTATE_LIMITS_CAPTION).toContain('New accounts this period');
+    expect(ADOPTION_ESTATE_LIMITS_CAPTION).toContain('Gone quiet');
   });
 });

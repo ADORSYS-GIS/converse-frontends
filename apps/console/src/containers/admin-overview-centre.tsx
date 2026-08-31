@@ -223,6 +223,7 @@ export function AdminOverviewCentre() {
 
       {/* ── 8. Adoption ── */}
       <OverviewStatRow cards={screen.adoptionStatCards} loading={screen.adoptionStatCardsLoading} />
+      <InlineStatus>{screen.adoptionLimitsCaption}</InlineStatus>
       <Card>
         <MultiSeriesSpendBoard
           label="Active accounts & projects per day"

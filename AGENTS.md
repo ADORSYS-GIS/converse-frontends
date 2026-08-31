@@ -33,19 +33,35 @@ This document is the definitive source of truth for the working method, architec
      `@lightbridge/hooks/budget-tiers`). No business logic in routes.
    - **Server**: `src/server/` — cookie-session auth (`session.ts`, `session-store.ts`,
      `tokens.ts`, `oidc.ts`), never exposed to the client bundle.
-2. **Hosted-login app layer (`apps/authz-ui/src`)**:
+2. **Hosted-login app layer (`apps/authz-ui/src`)** — the human plane of `lightbridge-authz`'s
+   `authz-idp`, rendering its live RFC 8628 device-pairing flow (`lightbridge-authz` #478,
+   converse-frontends#409), not a placeholder:
    - A **Vite static SPA** — React 19 + react-router, no Next.js, **no server code of any kind**.
      Built with Vite `base: "/ui/"` to a plain `dist/`, which `lightbridge-authz`'s `authz-idp`
      serves same-origin under its `/ui` path prefix (ADR-0021 Decisions 1 and 10). This repo owns
      the build; that repo owns the serving, the caching headers and the CSP.
+   - **The route set is declared once**, in `src/routes/route-table.ts` (`/`, `/device`,
+     `/device/invalid`, `/device/confirm`, `/device/success`, `/error` — no catch-all). The Vite
+     build emits `dist/routes.json` from that table; `authz-idp` reads it at startup as the `/ui`
+     route allowlist and 404s everything else (lightbridge-authz#598). Adding or renaming a route
+     is therefore a **two-repo change**: edit the table (+ a `pages-stories/` story, which lands
+     _before_ the route) here, merge, get a new published digest, then bump the pin (and any
+     Rust-side redirect) in `lightbridge-authz` in the same review pass. `vite dev` has no
+     allowlist, so a route can work locally and still 404 in production if the manifest drifts.
    - It shares **one style pipeline** with the console: its whole CSS entry is
-     `@import '@lightbridge/ui-web/styles.css'`, and `packages/ui-web/src/theme.css` carries an
-     `@source` line for its `src`. Semantic tokens only — same rules, same `console-ui` skill.
+     `@import '@lightbridge/ui-web/styles.css'`. Unlike the console, `packages/ui-web/src/theme.css`
+     carries **no** `@source` line for this app's `src` — Vite-root automatic content detection
+     already covers it (see `theme.css`'s own comment and `apps/authz-ui/README.md`'s "Stack"
+     section for why one was tried and removed as redundant). Semantic tokens only — same rules,
+     same `console-ui` skill.
    - **The CSP is load-bearing here in a way it is not for the console**: `authz-idp` serves every
      `/ui` response with `default-src 'self'; frame-ancestors 'none'` — no `'unsafe-inline'`, no
-     nonce, no hash. No inline `<script>`, no inline `style=`, no `data:` URI will load. The
-     console's pre-hydration theme script therefore has no counterpart here; see that app's
-     README for what replaces it.
+     nonce, no hash, and (owner decision, converse-frontends#407) no `data:` carve-out. No inline
+     `<script>`, no inline `style=`, no daisyUI component class (or a `ui-web` component that
+     renders one) will load. Five source/DOM/build-output gates enforce this — see the
+     `console-ui` skill's CSP-safe-sections note and `apps/authz-ui/README.md`'s "CSP posture" for
+     the full list. The console's pre-hydration theme script therefore has no counterpart here;
+     see that app's README for what replaces it.
 3. **UI layer (`packages/ui-web`)**:
    - DOM component primitives (daisyUI + Base UI + cmdk + Floating UI, per ADR 0010) and screen
      sections (`src/sections/`). Also the shared theme-resolution module (`src/lib/theme.ts`),

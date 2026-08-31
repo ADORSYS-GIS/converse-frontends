@@ -420,8 +420,14 @@ the container image tag. Both are driven by ArgoCD reconciling against the `home
   - `ghcr.io/adorsys-gis/converse-frontends` — the legacy self-service/Expo image (no longer built here)
   - `ghcr.io/adorsys-gis/converse-frontends/console` — `docker-image.yml`
   - `ghcr.io/adorsys-gis/converse-frontends/authz-ui` — `authz-ui-image.yml`; an **assets-only**
-    `FROM scratch` image whose entire contents are `apps/authz-ui/dist/` at `/dist`. It is never
-    deployed as a workload; `lightbridge-authz` pulls it at container-build time at a digest pin.
+    `FROM scratch` image whose entire contents are `apps/authz-ui/dist/` at `/dist`
+    (`index.html`, content-hashed `assets/*.{js,css}`, `sw.js`, and `routes.json` — the `/ui`
+    route allowlist `lightbridge-authz`'s `authz-idp` reads at startup, lightbridge-authz#598). The
+    workflow asserts all four exist twice: once against the local build ("Assert content-hashed
+    output", before any push) and once against the pushed image itself, pulled back by digest and
+    inspected layer-by-layer ("Verify the pushed image contains the bundle") — a bundle that only
+    existed on the runner's disk fails the second check. It is never deployed as a workload;
+    `lightbridge-authz` pulls it at container-build time at a digest pin.
 - **Image tags** generated per build:
   - `branch-name` — for branch pushes (in practice, only `main` and the dead branch above)
   - `v*` — for version tags (semver)

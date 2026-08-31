@@ -31,3 +31,10 @@
 FROM scratch
 
 COPY apps/authz-ui/dist/ /dist/
+
+# This image is never run -- it has no shell, no entrypoint, and its consumer only ever
+# `COPY --from`s it as a build stage. The USER below is therefore pure config metadata with no
+# runtime effect; it exists to satisfy Trivy's DS-0002 misconfig check (the repo-wide Security
+# Audit scans every *file* named like a Dockerfile, and cannot know this one is an envelope).
+# 65534 is the conventional nobody uid/gid.
+USER 65534:65534

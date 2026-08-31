@@ -206,7 +206,14 @@ const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_I
 
 // ── / (overview) ─────────────────────────────────────────────────────────────────────────────
 
-export const OVERVIEW_RANGES = ['7d', '30d', '90d'] as const;
+/**
+ * `mtd` ("this month") is the default (2026-08-31 owner directive): the budget resets monthly, so
+ * the dashboard's default window matches the billing period rather than an arbitrary rolling span.
+ * It resolves to a CALENDAR-MONTH span (UTC month start -> now), not a rolling 30-day window — see
+ * `overview-usage.ts`'s `resolveRangeWindow`. It is listed first so it reads as the natural
+ * default in any UI that renders these in order (the range select, `RANGE_PRESETS`).
+ */
+export const OVERVIEW_RANGES = ['mtd', '7d', '30d', '90d'] as const;
 export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
 
 /**
@@ -256,7 +263,7 @@ export const OVERVIEW_GROUP_BYS = [
  * dashboard is currently grouped by (see `use-overview-screen.ts`).
  */
 export const overviewParsers = {
-  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
   bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
@@ -313,7 +320,7 @@ export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 export const SETTINGS_OVERVIEW_ACCOUNT_SORTS = ['value', 'delta'] as const;
 
 export const settingsOverviewParsers = {
-  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
   bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),

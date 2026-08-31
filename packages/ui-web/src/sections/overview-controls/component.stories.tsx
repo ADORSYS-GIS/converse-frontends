@@ -23,9 +23,9 @@ const meta: Meta<typeof OverviewControls> = {
   args: {
     rangeField: {
       label: 'Range',
-      preset: '30d',
+      preset: 'mtd',
       presets: RANGE_PRESETS,
-      value: presetRange(30, TODAY),
+      value: presetRange('mtd', TODAY),
       today: TODAY,
       onPresetChange: () => {},
       onRangeChange: () => {},

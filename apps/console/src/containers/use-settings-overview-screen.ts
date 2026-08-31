@@ -71,6 +71,7 @@ import { sentinelLabel } from './sentinel-labels';
 export type SettingsOverviewLens = 'account' | 'project' | 'user';
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
+  mtd: 'This month',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
   '90d': 'Last 90 days',
@@ -78,7 +79,9 @@ const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
 const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
   value,
   label: RANGE_LABELS[value],
-  days: RANGE_DAYS[value],
+  // 'mtd' has no fixed day count — it is a calendar-month span (`DateRangePreset.days`' own doc
+  // comment, `presetRange`'s `'mtd'` branch); every other preset keeps its rolling `RANGE_DAYS` count.
+  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
 }));
 
 const LENS_LABEL: Record<SettingsOverviewLens, string> = {

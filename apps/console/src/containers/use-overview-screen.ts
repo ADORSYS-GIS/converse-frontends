@@ -89,6 +89,7 @@ import { toRankedSeriesRows } from './settings-overview-usage';
  */
 
 const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
+  mtd: 'This month',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
   '90d': 'Last 90 days',
@@ -135,7 +136,9 @@ const REPORT_INCLUDE_LABELS: Record<ReportIncludeId, string> = {
 const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
   value,
   label: RANGE_LABELS[value],
-  days: RANGE_DAYS[value],
+  // 'mtd' has no fixed day count — it is a calendar-month span (`DateRangePreset.days`' own doc
+  // comment, `presetRange`'s `'mtd'` branch); every other preset keeps its rolling `RANGE_DAYS` count.
+  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
 }));
 /** `hour` is only offered when the resolved window is <=2 days (build brief §5): an hourly bucket
  *  over a 90-day range would ask the usage backend for ~2,160 buckets, far past anything a chart

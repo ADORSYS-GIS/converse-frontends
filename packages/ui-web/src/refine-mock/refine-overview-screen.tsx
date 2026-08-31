@@ -61,8 +61,10 @@ function useSelectField(
 export function RefineOverviewScreen() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
 
-  const [rangePreset, setRangePreset] = useState<string | null>('30d');
-  const [range, setRange] = useState(presetRange(30, MOCK_TODAY));
+  // 'mtd' ("this month") mirrors the real Overview screen's default range — the budget resets
+  // monthly, so the dashboard defaults to the billing window (`url-state.ts`'s `OVERVIEW_RANGES`).
+  const [rangePreset, setRangePreset] = useState<string | null>('mtd');
+  const [range, setRange] = useState(presetRange('mtd', MOCK_TODAY));
   const bucketField = useSelectField('daily', BUCKET_OPTIONS, 'Bucket');
   const groupByField = useSelectField('project-model', GROUP_BY_OPTIONS, 'Group by');
   const projectField = useSelectField('all', PROJECT_FILTER_OPTIONS, 'Project');
@@ -83,7 +85,7 @@ export function RefineOverviewScreen() {
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Overview"
-          subtitle="Last 30 days · UTC"
+          subtitle="This month · UTC"
           controls={
             <OverviewControls
               rangeField={{

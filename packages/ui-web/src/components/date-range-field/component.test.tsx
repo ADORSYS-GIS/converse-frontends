@@ -33,6 +33,21 @@ describe('presetRange', () => {
       to: TODAY,
     });
   });
+
+  it("spans the calendar month for 'mtd', not a rolling window", () => {
+    expect(presetRange('mtd', TODAY)).toEqual({
+      from: new Date(Date.UTC(2026, 7, 1)),
+      to: TODAY,
+    });
+  });
+
+  it("'mtd' on the 1st of the month is a same-day span, not the prior month", () => {
+    const firstOfMonth = new Date(Date.UTC(2026, 7, 1, 0, 30));
+    expect(presetRange('mtd', firstOfMonth)).toEqual({
+      from: new Date(Date.UTC(2026, 7, 1)),
+      to: firstOfMonth,
+    });
+  });
 });
 
 describe('formatDateRange', () => {

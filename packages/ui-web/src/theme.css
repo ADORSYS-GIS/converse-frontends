@@ -500,9 +500,18 @@
     padding: 1.5rem 0.75rem;
     text-align: center;
   }
+  /* 2.25rem (36px) matches `RAIL_NAV_ROW_HEIGHT`/`RAIL_NAV_ROW_HEIGHT_CLASS` (lib/rail-grid.ts) —
+     the sidebar's own nav row rhythm — rather than the shorter row `OVERLAY_ITEM_CLASS`'s
+     `py-1.5` alone produces (~28px). `min-height`, not `height`: a row still grows for a hint
+     that wraps rather than clipping it. No icon-column gutter is reserved here on purpose:
+     `CommandPaletteItem` (types.ts) has no icon field, and every row today is plain text —
+     reserving a blank 16px+10px gutter for a glyph that never renders would be exactly the
+     "dormant, prepared-for-later" scaffolding this codebase avoids. Revisit if/when an icon
+     field is added. */
   & [cmdk-item] {
     justify-content: space-between;
     border-radius: var(--radius-field);
+    min-height: 2.25rem;
   }
   /* The trailing hint on a row (a route, a shortcut) — last child, and only when the row has a
      label in front of it, so a hintless row is untouched. */

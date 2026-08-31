@@ -18,7 +18,29 @@ export type OverviewRange = (typeof OVERVIEW_RANGES)[number];
 export type OverviewBucket = (typeof OVERVIEW_BUCKETS)[number];
 export type OverviewGroupBy = (typeof OVERVIEW_GROUP_BYS)[number];
 
-export const RANGE_DAYS: Record<OverviewRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
+/** The three ROLLING presets' fixed day counts. `mtd` is deliberately excluded — it is a
+ *  calendar-month span, not a fixed day count, and has no entry here (see `resolveRangeWindow`). */
+export const RANGE_DAYS: Record<Exclude<OverviewRange, 'mtd'>, number> = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+};
+
+/**
+ * A bare `range` preset -> one UTC window, with no `from`/`to` involved — the piece
+ * `resolveOverviewWindow` below falls back to once it has ruled out an explicit span.
+ *
+ * `mtd` resolves to a CALENDAR-MONTH span (UTC month start -> `now`), matching the billing period
+ * the budget itself resets on (2026-08-31 owner directive: "the budget resets monthly, so the
+ * dashboard default matches the billing window") — NOT a rolling 30-day window, which is what
+ * `'30d'` is for. This is the exact same math `currentPeriodRange` below already uses for
+ * BudgetHero's consumption query; reused here (not re-derived) so "this month" means the same UTC
+ * span everywhere it appears. The three rolling presets stay `now` minus N whole days.
+ */
+export function resolveRangeWindow(range: OverviewRange, now: Date): { start: Date; end: Date } {
+  if (range === 'mtd') return currentPeriodRange(now);
+  return { start: new Date(now.getTime() - RANGE_DAYS[range] * 86_400_000), end: now };
+}
 
 /**
  * `range` + optional explicit `from`/`to` -> one UTC window.
@@ -39,7 +61,7 @@ export function resolveOverviewWindow(
     start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start <= end;
 
   if (usable) return { start, end };
-  return { start: new Date(now.getTime() - RANGE_DAYS[range] * 86_400_000), end: now };
+  return resolveRangeWindow(range, now);
 }
 
 /** `YYYY-MM-DD` in UTC — the form `from`/`to` take in the URL. */
@@ -325,8 +347,12 @@ export function degenerateChartMessage(
 }
 
 /** `[start of this calendar month (UTC), now]` — the budget domain's own period boundary
- *  (`authz.cstack`'s `'YYYY-MM'` `Period`), independent of the dashboard's own 7d/30d/90d range
- *  selector: budget consumption is always "this billing period," not "whatever range is picked." */
+ *  (`authz.cstack`'s `'YYYY-MM'` `Period`), independent of whatever the dashboard's own range
+ *  picker is currently set to: budget consumption is always "this billing period," not "whatever
+ *  range is picked" — even though that range picker's OWN default (`mtd`) now resolves to this
+ *  exact same span via `resolveRangeWindow` above, the two stay independently computed rather than
+ *  one reading the other, because a viewer who picks `7d`/`30d`/`90d` must not silently move
+ *  BudgetHero's own period along with it. */
 export function currentPeriodRange(now: Date): { start: Date; end: Date } {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   return { start, end: now };

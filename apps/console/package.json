@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cratestack/api": "0.9.4",
-    "@cratestack/link-logger": "0.9.4",
-    "@cratestack/refine": "0.9.4",
+    "@cratestack/api": "0.10.0",
+    "@cratestack/link-logger": "0.10.0",
+    "@cratestack/refine": "0.10.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@lightbridge/api-rest": "workspace:*",

@@ -42,6 +42,15 @@ export interface MultiSeriesSpendChartProps {
   /** Formats a true dollar amount — the tooltip's per-series rows and the caption's period total.
    *  Always the RAW value, independent of `scale`. Defaults to `formatUsd`. */
   formatValue?: (value: number) => string;
+  /**
+   * Formats the `linear`/`log` y-axis tick labels. Defaults to `formatUsdAxis` — this component
+   * started as a SPEND chart and every existing caller plots dollars, so the default stays money.
+   * A non-money caller (a per-day COUNT board — refill decisions, request volume) overrides this
+   * rather than living with a fabricated `$` prefix on a count; `formatValue` alone was not
+   * enough to fix that, since it only reaches the tooltip/caption, never the axis. Has no effect
+   * on `scale="indexed"`, whose ticks are always a `%` of series peak regardless of unit.
+   */
+  formatYTick?: (value: number) => string;
   /** Fires when a line/point is clicked (pinned selection) — mirrors `SpendSeriesChart`'s own
    *  `onSelectSeries` contract. */
   onSelectSeries?: (key: string | null) => void;

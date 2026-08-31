@@ -44,6 +44,7 @@ export function MultiSeriesSpendBoard({
   formatXTick,
   formatTooltipTitle,
   formatValue,
+  formatYTick,
   emptyMessage,
   truncationCaption,
   className,
@@ -81,6 +82,7 @@ export function MultiSeriesSpendBoard({
             formatXTick={formatXTick}
             formatTooltipTitle={formatTooltipTitle}
             formatValue={formatValue}
+            formatYTick={formatYTick}
             onSelectSeries={onSelectSeries}
             emptyMessage={emptyMessage}
             truncationCaption={truncationCaption}

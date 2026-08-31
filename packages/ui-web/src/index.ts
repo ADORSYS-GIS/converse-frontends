@@ -255,6 +255,16 @@ export type {
   BudgetPressureStatus,
 } from './sections/budget-pressure';
 
+// The operator overview's estate-wide sibling of `BudgetPressure` (admin-overview design batch,
+// dashboard 4) — accounts ranked by their OWN consumption ratio rather than projects sharing one
+// account's ceiling.
+export { EstateBudgetPressure } from './sections/estate-budget-pressure';
+export type {
+  EstateBudgetPressureAccount,
+  EstateBudgetPressureProps,
+  EstateBudgetPressureStatus,
+} from './sections/estate-budget-pressure';
+
 export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,
@@ -305,6 +315,15 @@ export type { PolicySimulationResult, PolicySimulatorProps } from './sections/po
 
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
+
+// The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
+// dashboard 3) — accounts and projects on one ranking.
+export { TopSpendersLedger } from './sections/top-spenders-ledger';
+export type {
+  TopSpenderRow,
+  TopSpenderScope,
+  TopSpendersLedgerProps,
+} from './sections/top-spenders-ledger';
 
 // ── toolbar sections
 // Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,

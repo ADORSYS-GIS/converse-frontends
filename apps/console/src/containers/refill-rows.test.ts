@@ -152,12 +152,14 @@ describe('toRefillHistoryRow', () => {
 
 describe('refillHref', () => {
   it('builds the bare account-scoped path when no project is scoped', () => {
-    expect(refillHref('acct_1', undefined)).toBe('/accounts/acct_1/refill');
-    expect(refillHref('acct_1', null)).toBe('/accounts/acct_1/refill');
-    expect(refillHref('acct_1', '')).toBe('/accounts/acct_1/refill');
+    expect(refillHref('acct_1', undefined)).toBe('/settings/accounts/acct_1/request-refill');
+    expect(refillHref('acct_1', null)).toBe('/settings/accounts/acct_1/request-refill');
+    expect(refillHref('acct_1', '')).toBe('/settings/accounts/acct_1/request-refill');
   });
 
   it('carries ?project= when a project is scoped', () => {
-    expect(refillHref('acct_1', 'proj_7')).toBe('/accounts/acct_1/refill?project=proj_7');
+    expect(refillHref('acct_1', 'proj_7')).toBe(
+      '/settings/accounts/acct_1/request-refill?project=proj_7'
+    );
   });
 });

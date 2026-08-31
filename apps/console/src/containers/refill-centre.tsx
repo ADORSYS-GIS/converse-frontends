@@ -5,14 +5,21 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { RefillHistory } from '@lightbridge/ui-web/src/sections/refill-history';
 import { RefillRequestForm } from '@lightbridge/ui-web/src/sections/refill-request-form';
 
+import { AccountDetailSubNav } from './account-detail-sub-nav';
 import { useRefillScreen } from './use-refill-screen';
 
 /**
- * `/accounts/<id>/refill` — IA v3 phase 3 ("refill as a page"). Replaces `RequestRefillDialog`
- * (deleted): every refill trigger across the console — the Budget card's standing action and its
- * breach button (`/`), the old inspector rail row (its whole panel is deleted this phase too) —
- * now navigates here instead of opening a shared dialog instance three separate triggers had to
- * agree on.
+ * `/settings/accounts/<id>/request-refill` — IA v3 phase 3 ("refill as a page"), moved off
+ * `/accounts/<id>/refill` by IA v3 phase E (the old path 308s here verbatim, `?project=`
+ * included). Replaces `RequestRefillDialog` (deleted): every refill trigger across the console —
+ * the Budget card's standing action and its breach button (`/`), the account detail screen's own
+ * `Request refill…` action — now navigates here instead of opening a shared dialog instance
+ * several separate triggers had to agree on.
+ *
+ * Refill is account-scoped by construction now (task directive): the account detail sub-nav
+ * (`AccountDetailSubNav`) sits right under the header, the same tab row `/settings/accounts/<id>`
+ * and its `/projects` sibling both render, so moving between the three needs no back-and-forth
+ * through the settings nav.
  *
  * Two cards, top to bottom:
  *
@@ -37,6 +44,8 @@ export function RefillCentre() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Request a budget refill" subtitle={subtitle} />
+
+      <AccountDetailSubNav accountId={screen.accountId} />
 
       <Card>
         <RefillRequestForm state={screen.form} />

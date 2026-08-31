@@ -16,7 +16,7 @@ import {
 } from './use-budget-refill';
 
 /** `/settings/refill-options`'s Card A — a read-only echo of the caller's own ladder, never a
- *  submit surface (that is `/accounts/<id>/refill`'s whole job). Mirrors `RefillRequestFormState`
+ *  submit surface (that is `/settings/accounts/<id>/request-refill`'s whole job). Mirrors `RefillRequestFormState`
  *  minus the submit-only branches, since there is nothing to submit here. */
 export type RefillOptionsLadderState =
   | { status: 'ready'; amounts: string[] }

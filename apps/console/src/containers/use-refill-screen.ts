@@ -21,12 +21,14 @@ import {
   useRequestBudgetRefillMutation,
 } from './use-budget-refill';
 
-/** How many of the caller's own past requests `/accounts/<id>/refill` shows — a recent-history
+/** How many of the caller's own past requests `/settings/accounts/<id>/request-refill` shows — a recent-history
  *  card, not a paginated ledger; the admin review queue (`ReviewQueue`) is where a full,
  *  paginated listing belongs. */
 const HISTORY_PAGE_SIZE = 10;
 
 export interface RefillScreen {
+  /** The path account id — `AccountDetailSubNav`'s own tab hrefs (IA v3 phase E). */
+  accountId: string;
   /** `PageHeader.title`'s own subtitle ingredients — the account label, the current billing
    *  period, and the scoped project's name when `?project=` is present (absent = account-wide,
    *  per `use-console-scope.ts`'s own "empty project means every project" contract). */
@@ -62,7 +64,7 @@ export function useRefillScreen(): RefillScreen {
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
    * leak into URLs or history"): the selected-but-unsubmitted amount. The refill PAGE itself
-   * (`/accounts/<id>/refill`) is real view state — the URL a trigger navigates to — but which of
+   * (`/settings/accounts/<id>/request-refill`) is real view state — the URL a trigger navigates to — but which of
    * the policy's allowed amounts is currently highlighted is not, the same shape the deleted
    * `RequestRefillDialog`'s own draft followed. An empty string resolves to the smallest allowed
    * amount below, so the page opens with a sensible default without a separate "preselect"
@@ -149,6 +151,7 @@ export function useRefillScreen(): RefillScreen {
   }
 
   return {
+    accountId,
     accountLabel,
     periodLabel: period,
     projectLabel,

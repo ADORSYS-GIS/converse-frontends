@@ -35,15 +35,16 @@ describe('initialsFor', () => {
   });
 });
 
-/** IA v3 phase 1 ("account into the path") — the three account-scoped destinations move under
+/** IA v3 phase 1 ("account into the path") — the account-scoped destinations move under
  *  `/accounts/[accountId]/*`; `settings` stays put. IA v3 phase 2 ("the settings area") folds
- *  `admin` into `/settings/refills-queue` — the deleted `/admin` route's replacement. */
+ *  `admin` into `/settings/refills-queue` — the deleted `/admin` route's replacement. IA v3 phase E
+ *  ("the settings/accounts move") narrows the account-scoped table to `overview`/`api-keys` —
+ *  `projects`/`refill` both moved to `/settings/accounts/<id>/*`. */
 describe('navHrefs', () => {
-  it('builds /accounts/<id>/<segment> for the three account-scoped destinations', () => {
+  it('builds /accounts/<id>/<segment> for the two account-scoped destinations left', () => {
     expect(navHrefs('acct_1')).toEqual({
       overview: '/accounts/acct_1/overview',
       'api-keys': '/accounts/acct_1/api-keys',
-      projects: '/accounts/acct_1/projects',
       settings: '/settings',
       admin: '/settings/refills-queue',
     });
@@ -53,7 +54,6 @@ describe('navHrefs', () => {
     expect(navHrefs('')).toEqual({
       overview: '/',
       'api-keys': '/?next=api-keys',
-      projects: '/?next=projects',
       settings: '/settings',
       admin: '/settings/refills-queue',
     });
@@ -63,8 +63,11 @@ describe('navHrefs', () => {
 describe('routeFromPathname', () => {
   it('reads the account-scoped segment out of /accounts/<id>/<segment>', () => {
     expect(routeFromPathname('/accounts/acct_1/overview')).toBe('overview');
-    expect(routeFromPathname('/accounts/acct_1/projects')).toBe('projects');
     expect(routeFromPathname('/accounts/acct_1/api-keys')).toBe('api-keys');
+  });
+
+  it('reads the moved /settings/accounts/<id>/projects tree as settings, not a stale "projects" route', () => {
+    expect(routeFromPathname('/settings/accounts/acct_1/projects')).toBe('settings');
   });
 
   it('matches /settings/* by its plain prefix — including the former /admin, now /settings/refills-queue', () => {
@@ -93,11 +96,18 @@ describe('areaFromPathname', () => {
 
 describe('settingsRouteFromPathname', () => {
   it('matches each live settings segment by its plain prefix', () => {
+    expect(settingsRouteFromPathname('/settings/accounts')).toBe('accounts');
     expect(settingsRouteFromPathname('/settings/tiers')).toBe('tiers');
     expect(settingsRouteFromPathname('/settings/policies')).toBe('policies');
     expect(settingsRouteFromPathname('/settings/refill-options')).toBe('refill-options');
     expect(settingsRouteFromPathname('/settings/refills-queue')).toBe('refills-queue');
     expect(settingsRouteFromPathname('/settings/info')).toBe('info');
+  });
+
+  it('matches the whole /settings/accounts/<id>/* subtree as one destination', () => {
+    expect(settingsRouteFromPathname('/settings/accounts/acct_1')).toBe('accounts');
+    expect(settingsRouteFromPathname('/settings/accounts/acct_1/projects')).toBe('accounts');
+    expect(settingsRouteFromPathname('/settings/accounts/acct_1/request-refill')).toBe('accounts');
   });
 
   it('defaults to overview for a bare /settings (mid-redirect) or anything unrecognised', () => {
@@ -108,11 +118,12 @@ describe('settingsRouteFromPathname', () => {
 });
 
 describe('settingsNavGroups', () => {
-  it('lists all seven destinations in the owner-dictated order, for an admin', () => {
+  it('lists all eight destinations in the owner-dictated order, for an admin', () => {
     const [group] = settingsNavGroups('overview', true, 3);
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
+      'accounts',
       'roles',
       'tiers',
       'policies',
@@ -127,12 +138,23 @@ describe('settingsNavGroups', () => {
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
+      'accounts',
       'roles',
       'tiers',
       'policies',
       'refill-options',
       'info',
     ]);
+  });
+
+  it('places Accounts right after Overview, and navigates to /settings/accounts', () => {
+    const [group] = settingsNavGroups('accounts', true);
+    const accounts = group.items.find((item) => item.key === 'accounts');
+
+    expect(group.items[1]?.key).toBe('accounts');
+    expect(accounts?.href).toBe('/settings/accounts');
+    expect(accounts?.active).toBe(true);
+    expect(accounts?.disabled).toBeUndefined();
   });
 
   it('disables roles alone, with a stated, non-navigable reason', () => {

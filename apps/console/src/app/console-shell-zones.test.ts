@@ -53,10 +53,12 @@ describe('console shell zones (shell revamp phase 2)', () => {
     const routePages = [
       'page.tsx',
       join('accounts', '[accountId]', 'overview', 'page.tsx'),
-      join('accounts', '[accountId]', 'projects', 'page.tsx'),
       join('accounts', '[accountId]', 'api-keys', 'page.tsx'),
-      join('accounts', '[accountId]', 'refill', 'page.tsx'),
       'settings/page.tsx',
+      join('settings', 'accounts', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'projects', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'request-refill', 'page.tsx'),
       join('settings', 'overview', 'page.tsx'),
       join('settings', 'overview', 'usage', 'page.tsx'),
       join('settings', 'policies', 'page.tsx'),
@@ -86,5 +88,18 @@ describe('console shell zones (shell revamp phase 2)', () => {
 
   it('gives /accounts/[accountId]/* its own guard layout', () => {
     expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx'))).toBe(true);
+  });
+
+  // IA v3 phase E ("the settings/accounts move") — projects/refill moved wholesale off the
+  // account area, the same "no leftover route file" guard the phase 1/2 moves above already get.
+  it('has no leftover /accounts/[accountId]/projects or /refill route now that both moved to /settings/accounts/[accountId]/*', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'projects'))).toBe(false);
+    expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'refill'))).toBe(false);
+  });
+
+  it('gives /settings/accounts/[accountId]/* its own guard layout too', () => {
+    expect(
+      existsSync(join(CONSOLE_GROUP, 'settings', 'accounts', '[accountId]', 'layout.tsx'))
+    ).toBe(true);
   });
 });

@@ -15,7 +15,7 @@ import { isHomeAccount } from './account-ownership';
 /**
  * The budget-refill ladder query and the `requestBudgetRefill` mutation — shared by `/`'s own
  * Budget card (the breach button, which now only NAVIGATES — see `use-overview-screen.ts`'s
- * `refillAction`) and `/accounts/<id>/refill` (IA v3 phase 3), the one screen that actually
+ * `refillAction`) and `/settings/accounts/<id>/request-refill` (IA v3 phase 3), the one screen that actually
  * SUBMITS a refill request now that `RequestRefillDialog` is deleted (owner: "refill deserves its
  * own page, not a dialog three triggers all had to agree on").
  *
@@ -41,7 +41,7 @@ export const REFILL_MUTATION_KEY = ['budget', 'requestRefill'] as const;
  * the backend gap filed from this audit. Showing the home account's own numbers under a DIFFERENT
  * account's label would be the exact class of bug this audit exists to kill, so every
  * budget-domain surface renders this instead. Exported so every reader of this gap (`/`'s Budget
- * card, `/accounts/<id>/refill`'s two cards) shares the identical wording rather than
+ * card, `/settings/accounts/<id>/request-refill`'s two cards) shares the identical wording rather than
  * independently-drifting captions for the same gap.
  */
 export const BUDGET_HOME_ACCOUNT_ONLY_NOTE =
@@ -118,7 +118,7 @@ export function useBudgetRefillLadder(): BudgetRefillLadder {
 }
 
 /**
- * The mutation itself — `/accounts/<id>/refill`'s own submit (`use-refill-screen.ts`). Reads
+ * The mutation itself — `/settings/accounts/<id>/request-refill`'s own submit (`use-refill-screen.ts`). Reads
  * `scope.value.projectId` the same way every other scope-aware container does: an empty string
  * (the parser's own default, "every project in this account") becomes `undefined` on the wire,
  * so a refill requested off the account-wide page carries no `projectId` at all, exactly what

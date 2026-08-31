@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ProjectsScreen as ProjectsScreenData } from './use-projects-screen';
 import type { CreateProjectDialogController } from './use-create-project-dialog';
+import type { ProjectRenameController } from './use-project-rename';
 
 /**
  * Container-level acceptance coverage for what `/projects` (renamed from `/manage`, 2026-08-30
@@ -47,6 +48,39 @@ vi.mock('./use-create-project-dialog', async (importOriginal) => {
   };
 });
 
+/**
+ * `useProjectRename` (IA v3 phase E — the FULL rename controller, mounted directly here now that
+ * the rail/sheet split is gone, see `use-project-rename.ts`'s own doc comment) constructs a real
+ * RPC client, which needs the codec-init this container-level test does not stand up — mocked the
+ * same way `useProjectsScreen`/`useOpenCreateProjectDialog` above are.
+ */
+const useProjectRenameMock = vi.fn();
+vi.mock('./use-project-rename', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./use-project-rename')>();
+  return {
+    ...actual,
+    useProjectRename: () => useProjectRenameMock(),
+  };
+});
+
+function baseRename(overrides: Partial<ProjectRenameController> = {}): ProjectRenameController {
+  return {
+    open: vi.fn(),
+    dialog: {
+      open: false,
+      projectId: '',
+      currentName: '',
+      name: '',
+      onNameChange: vi.fn(),
+      submitting: false,
+      canSubmit: false,
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+    },
+    ...overrides,
+  };
+}
+
 function baseCreateProject(
   overrides: Partial<Omit<CreateProjectDialogController, 'dialog'>> = {}
 ): Omit<CreateProjectDialogController, 'dialog'> {
@@ -60,6 +94,7 @@ function baseCreateProject(
 
 function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreenData {
   return {
+    accountId: 'acct_1',
     scopeLabel: 'adorsys-gis',
     rows: [],
     loading: false,
@@ -116,6 +151,7 @@ async function renderCentre(
 ) {
   useProjectsScreenMock.mockReturnValue(baseScreen(overrides));
   useOpenCreateProjectDialogMock.mockReturnValue(baseCreateProject(createProjectOverrides));
+  useProjectRenameMock.mockReturnValue(baseRename());
   const { ProjectsCentre } = await import('./projects-centre');
   return render(<ProjectsCentre />, { wrapper: withNuqsTestingAdapter() });
 }

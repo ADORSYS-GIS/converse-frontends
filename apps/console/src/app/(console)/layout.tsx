@@ -4,7 +4,6 @@ import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-na
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
 import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
 import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
-import { usePathname, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import {
@@ -18,8 +17,6 @@ import {
   useConsoleNotification,
   useDismissConsoleNotification,
 } from '../../client/console-notifications';
-import { useRailWidth } from '../../client/use-rail-width';
-import { InspectorRail } from '../../containers/inspector-rail';
 import { useCreateAccountDialog } from '../../containers/use-create-account-dialog';
 import { useCreateProjectDialog } from '../../containers/use-create-project-dialog';
 import { useRenameAccountDialog } from '../../containers/use-rename-account-dialog';
@@ -34,31 +31,21 @@ import { useRenameAccountDialog } from '../../containers/use-rename-account-dial
  * `sidebar`/`topBar` are fully self-contained (`ConsoleSidebarContent`/`ConsoleTopBarContent` in
  * `client/console-chrome.tsx` read the session, the scope and the pathname themselves).
  *
- * **The rail returned** (2026-08-30 owner round: "I liked it when the right rail was there... We
- * could display settings there"), and the owner's SAME-DAY follow-up fixed its content policy:
- * "the right rail was empty depending on the situation. Solution: hide it if empty. Simple." —
- * `containers/inspector-rail.tsx` resolves what goes in it (a selected project's detail on
- * `/projects`, nothing everywhere else — IA v3 phase 3 deletes the standing quick-settings panel
- * that used to be `/accounts/<id>/overview`'s own "otherwise" content, owner: "account
- * mutations/creation/refill on the Overview rail makes no sense"), but WHETHER to mount it at all
- * is decided HERE, not inside that component: `ConsoleShell` collapses its rail column when `rail`
- * is falsy, and a React element is always truthy regardless of what it renders internally — so
- * `<InspectorRail />` itself can never be the value passed to `rail`, or the column would show
- * (chrome, border, resizer) even on a route with nothing to put in it. This layout reads the
- * pathname and the raw selection query params — cheap, no data fetching of its own — to decide
- * only WHETHER to mount `InspectorRail` at all; the component decides WHAT once mounted. This also
- * means `InspectorRail`'s own route-specific screen hooks (`useProjectsScreen`) never fire on a
- * route where their content would not be shown anyway — no wasted query on `/`, `/api-keys`,
- * `/settings/*`, or an unselected `/projects`.
- *
- * The owner's locked layout contract (2026-08-30 restatement): "Right rail shall be there... and
- * be resizable by drag" — `railWidth`/`onRailWidthChange` (`use-rail-width.ts`, a per-viewer
- * `localStorage` preference) is the persistence half; `RailResizer` (inside `ConsoleShell`) is the
- * drag/keyboard affordance.
- *
- * Below `lg`, `ConsoleShell` never renders the rail column at all (`INSPECTOR_RAIL_CLASS`'s own
- * `hidden lg:flex`) — the SAME selection-driven content instead opens as a `BottomSheet` from each
- * route's own centre (`projects-centre.tsx`).
+ * **The rail is gone from this app entirely, IA v3 phase E** (the `/settings/accounts` move):
+ * `ConsoleShell`'s `rail`/`railWidth`/`onRailWidthChange` props still exist on the primitive
+ * itself (a reusable shell shape `packages/ui-web`'s own stories still exercise), but nothing in
+ * `apps/console` feeds them any more. The rail's own contract was always narrower than "a right
+ * column" — ADR 0013 D2/D3 pinned it to exactly ONE case, `/accounts/<id>/projects` with a row
+ * selected, everywhere else collapsed rather than shown empty. That one case moved wholesale to
+ * `/settings/accounts/<id>/projects` (this phase), which — like every `/settings/*` route — has
+ * no right rail at any tier by construction (ADR 0013 D2: "no right rail in settings, at any
+ * tier"). With its one live case gone, the rail has no remaining destination to resolve content
+ * for, so the resolver (`containers/inspector-rail.tsx`), its `showRail` pathname/selection check,
+ * and the persisted-width hook (`client/use-rail-width.ts`) are deleted outright rather than kept
+ * as dead branches that would always evaluate to "no rail" — the same "hide it if empty" instinct
+ * this layout already applied to the rail's CONTENT, now applied to whether it is wired at all.
+ * `/settings/accounts/<id>/projects`' own selection detail is `BottomSheet` at every tier instead
+ * — the same surface `/settings/refills-queue` already uses for the identical reason.
  *
  * Four dialogs mount here, alongside the shell, for the identical reason each time: two or more
  * structurally separate subtrees need to open the SAME instance, which only a layout-level mount
@@ -66,7 +53,8 @@ import { useRenameAccountDialog } from '../../containers/use-rename-account-dial
  * `use-rename-account-dialog.ts` and `use-create-project-dialog.ts` follow it for their own verbs
  * — account rename and project creation, each reachable from more than one screen). Budget refill
  * is NOT a fifth: IA v3 phase 3 deletes `RequestRefillDialog` outright — every refill trigger now
- * navigates to its own page, `/accounts/<id>/refill`, rather than opening a shared dialog instance.
+ * navigates to its own page, `/settings/accounts/<id>/request-refill`, rather than opening a
+ * shared dialog instance.
  *
  * Auth routes live OUTSIDE this group (`app/auth/*`) and get no shell at all — that is the whole
  * reason the group exists.
@@ -76,36 +64,16 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
   const createAccount = useCreateAccountDialog();
   const createProject = useCreateProjectDialog();
   const renameAccount = useRenameAccountDialog();
-  const railWidth = useRailWidth();
   // converse-frontends#323: the console-wide default visibility path for a failed refine
   // mutation — see `console-notifications.ts`'s own module doc comment for the full mechanism.
   const notification = useConsoleNotification();
   const dismissNotification = useDismissConsoleNotification();
-
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  // Raw query-param reads, not `useManageParams`/`useAdminParams` — this layout only needs to
-  // know WHETHER a selection exists to decide whether to mount `InspectorRail` at all (see this
-  // file's own doc comment); the typed parsers, and the actual data fetch, live inside the
-  // screen hooks `InspectorRail` itself calls once mounted.
-  //
-  // `/accounts/<id>/projects` selection match (IA v3 phase 1). IA v3 phase 3 removes the
-  // `overview` clause that used to stand the quick-settings panel on `/accounts/<id>/overview` at
-  // all times — that panel (`InspectorSettingsPanel`) is deleted outright (owner: "account
-  // mutations/creation/refill on the Overview rail makes no sense"), so the rail is now ONLY ever
-  // a selected project's detail, the same "selection-driven, never a standing default" rule
-  // `/settings/*` already followed.
-  const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
-  const showRail = accountScopedSegment === 'projects' && Boolean(searchParams.get('row'));
 
   return (
     <>
       <ConsoleShell
         sidebar={<ConsoleSidebarContent onOpenPalette={() => palette.setOpen(true)} />}
         topBar={<ConsoleTopBarContent onOpenPalette={() => palette.setOpen(true)} />}
-        rail={showRail ? <InspectorRail /> : undefined}
-        railWidth={railWidth.value}
-        onRailWidthChange={railWidth.setValue}
         banner={
           <MutationFailureBanner
             message={notificationText(notification)}

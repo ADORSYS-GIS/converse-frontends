@@ -17,6 +17,11 @@ import { chunkCookieName } from './server/cookie-names';
  * IA v3 phase 2 ("the settings area") is what `/admin`/`/settings/account`/`/settings/projects`'s
  * own redirects (`LEGACY_STATIC_REDIRECT`, below) are for — those three paths never carried an
  * `?account=` of their own, so they get a simpler table rather than being folded into this one.
+ *
+ * IA v3 phase E ("the settings/accounts move") is what `/accounts/<id>/{projects,refill}`'s own
+ * redirect (`ACCOUNT_SCOPED_PATH_MOVE`, below) is for — a third shape again: the account id is
+ * already IN the old path (this table's own job is extracting it OUT of `?account=`), so it needs
+ * its own regex-captured table rather than folding into either of the other two.
  */
 const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'api-keys'> = {
   '/': 'overview',
@@ -70,12 +75,56 @@ function legacyStaticRedirectTarget(
   return `${target}${query ? `?${query}` : ''}`;
 }
 
+/**
+ * IA v3 phase E ("the settings/accounts move") — two more path moves, distinct from BOTH tables
+ * above: the account id is already IN the old path (unlike `LEGACY_ACCOUNT_SCOPED_SEGMENT`, which
+ * extracts it out of `?account=`), and the target keeps that same id (unlike
+ * `LEGACY_STATIC_REDIRECT`, which is exact-pathname, no captured segment). Query strings survive
+ * verbatim onto the target, same rule as every other row in this file — this is what keeps
+ * `/accounts/A/refill?project=proj_1` landing on `/settings/accounts/A/request-refill?project=
+ * proj_1`, the exact param `use-console-scope.ts`'s `projectScopeParsers` already owns on the new
+ * path too.
+ *
+ *  - `/accounts/<id>/projects` -> `/settings/accounts/<id>/projects`: the projects ledger moved
+ *    wholesale (owner: "We will move /projects to /settings/accounts/<account-id>/projects too").
+ *  - `/accounts/<id>/refill` -> `/settings/accounts/<id>/request-refill`: the refill request flow
+ *    moved with it (owner: "refill must be account scoped" — it already was; this just relocates
+ *    it under the new account-settings tree alongside its sibling).
+ */
+const ACCOUNT_SCOPED_PATH_MOVE: { pattern: RegExp; target: (accountId: string) => string }[] = [
+  {
+    pattern: /^\/accounts\/([^/]+)\/projects$/,
+    target: (accountId) => `/settings/accounts/${accountId}/projects`,
+  },
+  {
+    pattern: /^\/accounts\/([^/]+)\/refill$/,
+    target: (accountId) => `/settings/accounts/${accountId}/request-refill`,
+  },
+];
+
+function legacyAccountScopedPathMoveTarget(
+  pathname: string,
+  searchParams: URLSearchParams
+): string | null {
+  for (const { pattern, target } of ACCOUNT_SCOPED_PATH_MOVE) {
+    const match = pathname.match(pattern);
+    if (match) {
+      const query = searchParams.toString();
+      return `${target(match[1])}${query ? `?${query}` : ''}`;
+    }
+  }
+  return null;
+}
+
 export function legacyRedirectTarget(
   pathname: string,
   searchParams: URLSearchParams
 ): string | null {
   const staticTarget = legacyStaticRedirectTarget(pathname, searchParams);
   if (staticTarget) return staticTarget;
+
+  const pathMoveTarget = legacyAccountScopedPathMoveTarget(pathname, searchParams);
+  if (pathMoveTarget) return pathMoveTarget;
 
   const segment = LEGACY_ACCOUNT_SCOPED_SEGMENT[pathname];
   if (segment === undefined) return null;

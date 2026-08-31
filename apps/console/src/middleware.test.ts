@@ -133,12 +133,38 @@ describe('legacyRedirectTarget', () => {
     );
   });
 
+  // IA v3 phase E ("the settings/accounts move") — the two account-scoped path moves, the id
+  // already in the old path (unlike the `LEGACY_ACCOUNT_SCOPED_SEGMENT` table above, which
+  // extracts it out of `?account=`) and kept in the target.
+  it('/accounts/A/projects -> /settings/accounts/A/projects, every param surviving verbatim', () => {
+    expect(legacyRedirectTarget('/accounts/A/projects', params(''))).toBe(
+      '/settings/accounts/A/projects'
+    );
+    expect(legacyRedirectTarget('/accounts/A/projects', params('status=active&row=proj_1'))).toBe(
+      '/settings/accounts/A/projects?status=active&row=proj_1'
+    );
+  });
+
+  it('/accounts/A/refill -> /settings/accounts/A/request-refill, ?project= surviving verbatim', () => {
+    expect(legacyRedirectTarget('/accounts/A/refill', params(''))).toBe(
+      '/settings/accounts/A/request-refill'
+    );
+    expect(legacyRedirectTarget('/accounts/A/refill', params('project=proj_7'))).toBe(
+      '/settings/accounts/A/request-refill?project=proj_7'
+    );
+  });
+
   it('every OTHER /settings/* path is left alone — it is a live route, not a legacy link', () => {
     expect(legacyRedirectTarget('/settings/policies', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/tiers', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/info', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/overview', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/refills-queue', params(''))).toBeNull();
+    // IA v3 phase E — the NEW routes themselves must never bounce, only the OLD paths that moved.
+    expect(legacyRedirectTarget('/settings/accounts', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A/projects', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A/request-refill', params(''))).toBeNull();
   });
 
   it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {

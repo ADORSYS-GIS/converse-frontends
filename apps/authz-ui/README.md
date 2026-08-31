@@ -11,7 +11,36 @@ for why `/ui` specifically (`GET /` stays `authz-idp`'s own API-welcome-JSON rou
 collide).
 
 Lives in `converse-frontends` as `apps/authz-ui`; consumed by `lightbridge-authz`'s `authz-idp` as
-a built `dist/` under `/ui`.
+a built `dist/` served under `/ui`.
+
+## Published artifact (the cross-repo contract)
+
+`.github/workflows/authz-ui-image.yml` publishes this app's `dist/` as an **assets-only** OCI image:
+
+|                                  |                                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| Package                          | `ghcr.io/adorsys-gis/converse-frontends/authz-ui`                                        |
+| Base                             | `scratch` — no shell, no runtime, nothing but the bundle (`apps/authz-ui/Containerfile`) |
+| **Bundle path inside the image** | **`/dist`** — `/dist/index.html`, `/dist/assets/*-<hash>.{js,css}`, `/dist/sw.js`        |
+| Tags                             | `sha-<gitsha>` (every build), `<branch>` (branch pushes), `latest` (default branch only) |
+| Platform                         | `linux/amd64`, single-arch                                                               |
+
+`lightbridge-authz` consumes it as a build stage at a **digest pin** (never `latest`):
+
+```dockerfile
+ARG AUTHZ_UI_REF=ghcr.io/adorsys-gis/converse-frontends/authz-ui@sha256:...
+FROM --platform=linux/amd64 ${AUTHZ_UI_REF} AS frontend
+COPY --from=frontend /dist /app/static
+```
+
+`/dist` is therefore a contract, not an implementation detail — see `apps/authz-ui/Containerfile`.
+Changing it breaks `lightbridge-authz`'s container build. The pin lives in that repo's `Dockerfile`
+and is bumped there (ADORSYS-GIS/lightbridge-authz#591); publishing an image here never changes
+what that repo deploys.
+
+**Feature branches publish images on purpose.** Pushing to a branch matching `feat/authz-ui-**`
+produces a real `sha-<gitsha>` image, so a cross-repo consumer change can be verified before either
+side merges. `latest` is never produced off a feature branch.
 
 ## Stack
 

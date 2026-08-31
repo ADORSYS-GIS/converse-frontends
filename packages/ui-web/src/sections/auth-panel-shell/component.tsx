@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { cn } from '../../cn';
 import { BODY_CLASS, PAGE_TITLE_CLASS } from '../../lib/type-roles';
 import type { AuthPanelShellProps } from './types';

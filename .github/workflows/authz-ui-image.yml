@@ -30,9 +30,12 @@ on:
       - 'feat/authz-ui-**'
     paths:
       - 'apps/authz-ui/**'
-      # ui-web is authz-ui's ONLY styling/component dependency and its theme.css carries the
-      # `@source '../../../apps/authz-ui/src'` line that makes this app's classes visible to the
-      # single Tailwind pass — a change there really does change this bundle's bytes.
+      # ui-web is authz-ui's ONLY styling/component dependency. Its theme.css does NOT carry an
+      # authz-ui `@source` line (deliberately — see theme.css's own comment on why one must not be
+      # added); this app's classes reach the built CSS via Vite-root automatic content detection
+      # instead. The filter is still correct: theme.css's `@source '.'` compiles ui-web's OWN
+      # classes (including the CSP-safe auth sections this bundle renders) into every consumer's
+      # Tailwind pass, so a change under packages/ui-web/** really does change this bundle's bytes.
       - 'packages/ui-web/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -110,6 +113,10 @@ jobs:
           fi
           if [ ! -f "$dist/sw.js" ]; then
             echo "::error::$dist/sw.js is missing — the service-worker-scope verifier had nothing to verify"
+            exit 1
+          fi
+          if [ ! -f "$dist/routes.json" ]; then
+            echo "::error::$dist/routes.json is missing — authz-idp's /ui allowlist would fail closed to '/' alone and every device page would 404 (lightbridge-authz#598)"
             exit 1
           fi
           if ! grep -q '/ui/assets/' "$dist/index.html"; then
@@ -236,6 +243,8 @@ jobs:
             || { echo "::error::no content-hashed ${BUNDLE_PATH}/assets/*.js in the pushed image"; fail=1; }
           grep -qx 'dist/sw.js' "$listing" \
             || { echo "::error::${BUNDLE_PATH}/sw.js is NOT in the pushed image"; fail=1; }
+          grep -qx 'dist/routes.json' "$listing" \
+            || { echo "::error::${BUNDLE_PATH}/routes.json is NOT in the pushed image"; fail=1; }
           [ "$fail" -eq 0 ] || exit 1
 
           {
@@ -249,6 +258,6 @@ jobs:
             echo "Pin this exact reference in lightbridge-authz's \`Dockerfile\` (\`ARG AUTHZ_UI_REF=\`)."
             echo
             echo '```'
-            grep -E '^dist/(index\.html|sw\.js|assets/)' "$listing" | sort -u
+            grep -E '^dist/(index\.html|sw\.js|routes\.json|assets/)' "$listing" | sort -u
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

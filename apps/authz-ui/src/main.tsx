@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router';
 import { applyThemePreference, readStoredThemePreference } from '@lightbridge/ui-web/src/lib/theme';
 
 import { App } from './app';
+import { ROUTER_BASENAME } from './routes/route-table';
 import './index.css';
 
 // Theme bootstrap, FIRST — before React, before anything renders (ADR 0010 Decision 5's
@@ -30,7 +31,11 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename is MANDATORY, not cosmetic: this app is served under authz-idp's /ui prefix, so
+        `location.pathname` is `/ui/device`, and a router with no basename would match none of
+        `route-table.ts`'s prefix-free paths. Before real routes existed this was masked by
+        app.tsx's `<Route path="*">` catch-all, which rendered the placeholder for everything. */}
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <App />
     </BrowserRouter>
   </StrictMode>

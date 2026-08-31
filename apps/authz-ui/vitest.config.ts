@@ -22,6 +22,13 @@ export default defineConfig({
         find: /^@lightbridge\/ui-web\/src\/(.*)$/,
         replacement: path.resolve(currentDir, '../../packages/ui-web/src/$1'),
       },
+      // `src/main.tsx` imports vite-plugin-pwa's build-time-only virtual module. This project
+      // runs no `VitePWA` plugin (see vite.config.ts's own comment), so nothing else here can
+      // resolve that specifier -- see src/test/virtual-pwa-register-stub.ts's own comment.
+      {
+        find: 'virtual:pwa-register',
+        replacement: path.resolve(currentDir, 'src/test/virtual-pwa-register-stub.ts'),
+      },
     ],
   },
   test: {

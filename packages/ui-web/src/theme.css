@@ -709,12 +709,47 @@
  * edge sheet — DELETED, not merely unused: no side-docked drawer geometry survives anywhere in
  * the console. `DetailSheet`'s own `detail-sheet-panel` (the fixed-right, always-420px predecessor
  * to the inspector rail) is gone with it.
+ *
+ * ANIMATION (owner finding, 2026-08-31: "The drawer appear with NO ANIMATION"). The vaul->Base UI
+ * migration above swapped the drawer PRIMITIVE but never carried over an actual open/close
+ * transition: Base UI's Drawer is headless about motion by design — it stamps `data-starting-
+ * style`/`data-ending-style` for the open/close boundary and otherwise does nothing, the same
+ * contract its Dialog and Popover share (see the `DrawerPopupDataAttributes` enum in
+ * `@base-ui/react`). With no CSS keyed off those attributes the popup simply snapped between
+ * mounted/unmounted with no visible motion at all — not a vaul misconfiguration (vaul is gone, per
+ * the note above) and not a missing library, just an un-authored transition.
+ *
+ * The ENTER half is a real CSS `@starting-style` block, not `&[data-starting-style]` — confirmed
+ * the hard way, instrumenting `transitionrun`/`transitionend` against the live popup, which never
+ * fired at all against the attribute selector. `DrawerPopup` flips `data-starting-style` off via
+ * `useIsoLayoutEffect` (its own import list), which runs BEFORE the browser's first paint of the
+ * newly-mounted element — so a plain attribute selector never gets a chance to be visually
+ * distinct from the end state; there is no earlier paint for a later reflow to transition FROM.
+ * `@starting-style` is the one mechanism that captures "before this element's first paint"
+ * natively, independent of any JS timing race — which is exactly why Base UI names the attribute
+ * `data-starting-style` after it in the first place, even though the attribute itself cannot carry
+ * the same guarantee under a React layout effect. The EXIT half stays a plain `&[data-ending-
+ * style]` selector: closing starts from an element that has ALREADY painted in its open state, so
+ * the later reflow when `data-ending-style` is added is a genuine, transitionable style change —
+ * and `useOpenChangeComplete` (the hook that actually unmounts the popup after a close) waits for
+ * THIS transition's `transitionend`, so without it the sheet was also unmounting a frame early on
+ * top of not animating.
  */
 @utility sheet-panel {
   position: fixed;
   z-index: 50;
   display: flex;
   flex-direction: column;
+  transform: translateY(0%);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+
+  @starting-style {
+    transform: translateY(100%);
+  }
+
+  &[data-ending-style] {
+    transform: translateY(100%);
+  }
 
   /*
    * `:where()` is load-bearing, not decorative: it keeps this rule's specificity at ZERO despite
@@ -894,9 +929,11 @@
 /* Owner rework (2026-08-30, "you really find this modern and beautiful?"): the header block
    used to run brand(52) -> switcher(48, its own top/bottom padding both doing gap duty) with no
    stated gap between the two rows. `h-12`/`h-9` are now literal — brand is the ONE row in the
-   sidebar that isn't nav-row-scaled (it is the wordmark, not a destination), the switcher IS a
-   standard rail row in every other respect (see `avatar-chip-md`/`ROW_LABEL_CLASS` at its call
-   site) and reads as one at this height. The 8px gap between them is stated as the switcher row's
+   sidebar that isn't nav-row-scaled: it holds a single logo mark now (owner finding, 2026-08-31 —
+   the mark is `Link`-wrapped and IS a destination, `/`, but it is not a `NavRow` and carries no
+   label to line up with the nav column below it), the switcher IS a standard rail row in every
+   other respect (see `avatar-chip-md`/`ROW_LABEL_CLASS` at its call site) and reads as one at this
+   height. The 8px gap between them is stated as the switcher row's
    own top margin rather than baked into either row's padding, so it cannot silently drift back
    into "whatever the padding leaves" the way the old 52/48 pair did. */
 @utility sidebar-brand-row {
@@ -934,11 +971,14 @@
   padding: 0.5rem;
 }
 
-/* One row of the footer stack (search, offline, identity — the standalone Theme row is gone,
-   Addition 5 dedupe: theme lives only inside `AccountMenu`'s own popup now) — a 36px hit target
-   with a hover fill, label at the leading edge and a trailing control/marker. Not every row is
-   interactive (the offline line is a status, not a button), so this is a layout/paint utility,
-   not a `<button>` contract — `SidebarFooterRow`'s call sites choose the element. */
+/* One row of the footer stack (search, theme, offline, identity — the standalone Theme row is
+   back, owner finding 2026-08-31: "I don't see the usage, for the theme to be hidden behind the
+   account dropdown. Please put it outside" — reversing Addition 5's dedupe, which had folded it
+   into `AccountMenu`'s own popup; `AccountMenu` takes no `theme`/`onThemeChange` pair any more) —
+   a 36px hit target with a hover fill, label at the leading edge and a trailing control/marker.
+   Not every row is interactive (the offline line is a status, not a button), so this is a
+   layout/paint utility, not a `<button>` contract — `SidebarFooterRow`'s call sites choose the
+   element. */
 /* `RAIL_ROW_PADDING_X` (12px), matched here as a literal rem rather than imported — this is CSS,
    the constant is TypeScript, and the two are asserted to agree by `rail-grid.test.ts` /
    `component.test.tsx` rendering both row kinds side by side. Every row in the sidebar (nav rows,
@@ -2398,10 +2438,12 @@
   }
 
   /* A genuinely non-navigable destination (`NavSpineItem.disabled` — IA v3 phase 2's "Roles"
-     entry). Real `<button disabled>`, so this is the native pseudo-class, not an attribute this
-     component has to set by hand. No hover fill, `subtle` text, and a "not allowed" cursor rather
-     than the pointer every other row wears. */
-  &:disabled {
+     entry). `[aria-disabled='true']`, not the native `:disabled` pseudo-class (owner finding,
+     2026-08-31: a real `disabled` button does not reliably fire the hover/focus events the row's
+     reason tooltip needs — `nav-spine/component.tsx`'s own doc comment has the full mechanism).
+     No hover fill, `subtle` text, and a "not allowed" cursor rather than the pointer every other
+     row wears. */
+  &[aria-disabled='true'] {
     cursor: not-allowed;
     color: var(--color-subtle);
     &:hover {
@@ -2584,8 +2626,9 @@
 
   /* Same disabled treatment as `rail-row` above — the dock flattens every group's items,
      including a disabled one, into one strip (`NavSpine`'s own contract: one `groups` shape,
-     two CSS-hidden layouts), so it needs the identical `:disabled` rule. */
-  &:disabled {
+     two CSS-hidden layouts), so it needs the identical `[aria-disabled='true']` rule (owner
+     finding, 2026-08-31 — see `rail-row`'s own comment for why this moved off `:disabled`). */
+  &[aria-disabled='true'] {
     cursor: not-allowed;
     color: var(--color-subtle);
     &:hover {

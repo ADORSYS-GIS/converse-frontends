@@ -13,6 +13,7 @@ import type {
 } from '@lightbridge/ui-web/src/components/command-palette';
 import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import {
   AdminIcon,
@@ -404,9 +405,19 @@ export function initialsFor(
 
 // The brand mark shares `lib/icons.tsx`'s box/stroke contract (phase 9, Addition B — "every icon
 // in the sidebar renders in the SAME 16px box with the same stroke width"), even though it lives
-// outside that module: it is the one glyph in the chrome that is not a navigable destination.
-const BRAND = (
-  <>
+// outside that module.
+//
+// Owner review, 2026-08-31: two findings on this one mark. (1) "When I click on the main logo, I
+// should be redirected to the '/'. Current behaviour: not clickable" — it used to render as inert
+// spans; now it IS the one navigable destination in the chrome that isn't a `NavGroup` row, so it
+// is `next/link`'s `Link` (router-aware, matching every other in-shell link — a plain `<a>` would
+// force a full document reload) rather than a `NavRow`. `/` is the last-account resolver (ADR
+// 0013 D1), which is exactly the "take me home" behaviour a logo click means. (2) "If there's a
+// logo, the name 'Lightbridge' should scram" — the `header-wordmark` span is gone; the accessible
+// name that text used to carry now lives on the link itself (`aria-label`), so the mark stays
+// nameable to a screen reader with nothing rendered twice.
+export const BRAND = (
+  <Link href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
     <span className="header-logo" aria-hidden="true">
       <svg
         width={RAIL_ICON_SIZE}
@@ -419,8 +430,7 @@ const BRAND = (
         <path d="M2 14 8 2 14 14Z" />
       </svg>
     </span>
-    <span className="header-wordmark">Lightbridge</span>
-  </>
+  </Link>
 );
 
 /**
@@ -543,9 +553,7 @@ export function useConsolePalette() {
     // gets the same treatment, omit the group entirely rather than render it hollow.
     return [
       { key: 'navigate', heading: 'Navigate', items: navigate },
-      ...(scopeItems.length > 0
-        ? [{ key: 'scope', heading: 'Scope', items: scopeItems }]
-        : []),
+      ...(scopeItems.length > 0 ? [{ key: 'scope', heading: 'Scope', items: scopeItems }] : []),
       {
         key: 'actions',
         heading: 'Actions',
@@ -676,11 +684,26 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <span className="text-subtle font-sans text-[13px]">Search</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
-          {/* Standalone Theme row DELETED (Addition 5 dedupe, owner review): the theme
-              control already lives inside `AccountMenu`'s own popup below (`theme`/
-              `onThemeChange`, passed through unchanged) — a second, separate Theme row in the
-              footer duplicated the same control. `preference`/`setPreference` stay in scope only
-              to feed that one AccountMenu prop pair now. */}
+          {/* Standalone Theme row IS BACK (owner finding, 2026-08-31: "I don't see the usage,
+              for the theme to be hidden behind the account dropdown. Please put it outside") —
+              reversing "Addition 5 dedupe" (2026-08-30), which had folded this row into
+              `AccountMenu`'s own popup on the theory that a second control duplicated the first.
+              The owner's read is the opposite: buried behind the account trigger, the control
+              was undiscoverable, not merely duplicated. `AccountMenu` no longer takes a
+              `theme`/`onThemeChange` pair at all — this is the one place preference lives now.
+              Not a `<button className="sidebar-footer-row">` wrapper like Search: `ThemeToggle`
+              is already its own interactive control (`ml-auto` trailing it, same slot Search's
+              `kbd` hint sits in), so wrapping it in a second clickable row would nest two hit
+              targets the way the identity row below is careful not to. */}
+          <div className="sidebar-footer-row">
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+            <span className="text-subtle font-sans text-[13px]">Theme</span>
+            <ThemeToggle
+              preference={preference}
+              onPreferenceChange={setPreference}
+              className="ml-auto"
+            />
+          </div>
           {online ? null : (
             <div className="sidebar-footer-row">
               {/* Empty icon-column spacer (rail-grid.ts rule 3) — an iconless row still reserves
@@ -699,8 +722,6 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             email={identityLabel}
             initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
             onSignOut={signOut}
-            theme={preference}
-            onThemeChange={setPreference}
           />
         </>
       }
@@ -748,14 +769,20 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
       }
       paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}
       identity={
-        <AccountMenu
-          name={session.user?.name}
-          email={identityLabel}
-          initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
-          onSignOut={signOut}
-          theme={preference}
-          onThemeChange={setPreference}
-        />
+        <>
+          {/* Owner finding, 2026-08-31: "I don't see the usage, for the theme to be hidden
+              behind the account dropdown. Please put it outside" — the header's own right
+              cluster (`ConsoleTopBar`'s `paletteTrigger`/`identity` row) is exactly that visible
+              spot, right next to the two controls it already sat beside per this component's own
+              contract comment. `AccountMenu` no longer takes a `theme`/`onThemeChange` pair. */}
+          <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
+          <AccountMenu
+            name={session.user?.name}
+            email={identityLabel}
+            initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
+            onSignOut={signOut}
+          />
+        </>
       }
     />
   );

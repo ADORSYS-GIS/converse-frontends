@@ -16,7 +16,7 @@ const meta: Meta<typeof AccountMenu> = {
   },
   decorators: [
     (Story) => (
-      <div className="flex h-14 items-center bg-chrome px-5">
+      <div className="bg-chrome flex h-14 items-center px-5">
         <Story />
       </div>
     ),
@@ -29,17 +29,6 @@ type Story = StoryObj<typeof AccountMenu>;
 export const Closed: Story = {};
 
 export const Open: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
-  },
-};
-
-/** The theme section (ADR 0010 Decision 5) only renders when both `theme` and `onThemeChange`
- * are supplied -- the consumer (`apps/console`) owns persistence. */
-export const OpenWithThemeToggle: Story = {
-  name: 'Open — theme toggle (wireframe active)',
-  args: { theme: 'wireframe', onThemeChange: fn() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
@@ -71,7 +60,7 @@ export const Mobile: Story = {
  *  `avatar-chip-sm` sits in the same 16px `RAIL_ICON_COLUMN_CLASS` those rows' own icons do. */
 export const SidebarVariant: Story = {
   name: 'Sidebar footer — identity row',
-  args: { variant: 'sidebar', theme: 'black', onThemeChange: fn() },
+  args: { variant: 'sidebar' },
   decorators: [
     (Story) => (
       <div className="bg-chrome w-60 p-2">
@@ -83,7 +72,7 @@ export const SidebarVariant: Story = {
 
 export const SidebarVariantOpen: Story = {
   name: 'Sidebar footer — identity row, open',
-  args: { variant: 'sidebar', theme: 'black', onThemeChange: fn() },
+  args: { variant: 'sidebar' },
   decorators: SidebarVariant.decorators,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -94,7 +83,7 @@ export const SidebarVariantOpen: Story = {
 // ADR 0010 phase 4: the `wireframe` (light) counterpart.
 export const SidebarVariantLight: Story = {
   name: 'Sidebar footer — identity row, wireframe (light)',
-  args: { variant: 'sidebar', theme: 'wireframe', onThemeChange: fn() },
+  args: { variant: 'sidebar' },
   decorators: SidebarVariant.decorators,
   globals: { theme: 'wireframe' },
 };

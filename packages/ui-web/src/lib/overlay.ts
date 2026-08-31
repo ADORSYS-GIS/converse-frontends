@@ -31,8 +31,23 @@ export const OVERLAY_ANCHORED_POPUP_CLASS = `min-w-(--anchor-width) py-1 ${OVERL
  *
  * `z-50` matches the popup that sits on it: both render into the same portal, in document order
  * backdrop-then-popup, so the popup wins the tie without a second z index step.
+ *
+ * Fades the scrim in/out on the two Base UI primitives that stamp open/close state (Dialog,
+ * Drawer) — same fix as `sheet-panel`'s slide in `theme.css` (owner finding, 2026-08-31: the
+ * bottom sheet "appear with NO ANIMATION" — the scrim popped instantly right along with the
+ * panel, since neither had a transition keyed off those attributes). The enter half is Tailwind's
+ * `starting:` variant (compiles to the real CSS `@starting-style` at-rule), not `data-[starting-
+ * style]:` — confirmed against the live popup that the attribute selector never actually fires:
+ * Base UI flips `data-starting-style` off via a React layout effect that runs BEFORE the
+ * browser's first paint of the newly-mounted backdrop, so a plain attribute selector never gets a
+ * chance to be visually distinct from the end state (`sheet-panel`'s own comment in `theme.css`
+ * has the full mechanism). The exit half stays `data-[ending-style]:opacity-0` — closing starts
+ * from an already-painted element, so that later reflow is a genuine, transitionable change.
+ * cmdk's own backdrop (`CommandPalette`) never sets any of these, so both rules are a no-op there
+ * and it keeps its existing instant show/hide.
  */
-export const OVERLAY_BACKDROP_CLASS = 'fixed inset-0 z-50 bg-muted/80';
+export const OVERLAY_BACKDROP_CLASS =
+  'fixed inset-0 z-50 bg-muted/80 opacity-100 transition-opacity duration-200 ease-out starting:opacity-0 data-[ending-style]:opacity-0';
 
 /**
  * Highlighted row inside an overlay list.

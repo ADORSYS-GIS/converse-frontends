@@ -33,20 +33,26 @@ function navGroups(showAdmin: boolean): NavGroup[] {
     },
   ];
   if (showAdmin) {
-    groups.push({ key: 'operator', label: 'Operator', items: [{ key: 'admin', label: 'Admin', icon: <Glyph /> }] });
+    groups.push({
+      key: 'operator',
+      label: 'Operator',
+      items: [{ key: 'admin', label: 'Admin', icon: <Glyph /> }],
+    });
   }
   return groups;
 }
 
+// Same mark `console-chrome.tsx`'s real `BRAND` renders (owner findings, 2026-08-31: the logo is
+// a link to `/`, and once a logo renders the `Lightbridge` wordmark text is dropped — an
+// `aria-label` on the link carries the accessible name instead).
 const brand = (
-  <>
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
     <span className="header-logo" aria-hidden="true">
       <svg width="10" height="10" viewBox="0 0 10 10">
         <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
       </svg>
     </span>
-    <span className="header-wordmark">Lightbridge</span>
-  </>
+  </a>
 );
 
 const workspaceSwitcher = (
@@ -54,11 +60,13 @@ const workspaceSwitcher = (
     <span aria-hidden="true" className="avatar-chip">
       AG
     </span>
-    <span className="truncate font-sans text-[13px] text-ink">adorsys-gis</span>
+    <span className="text-ink truncate font-sans text-[13px]">adorsys-gis</span>
   </button>
 );
 
-const compactWorkspaceSwitcher = <span className="font-sans text-[13px] text-ink">adorsys-gis</span>;
+const compactWorkspaceSwitcher = (
+  <span className="text-ink font-sans text-[13px]">adorsys-gis</span>
+);
 
 const identity = (
   <span aria-hidden="true" className="avatar-chip">
@@ -69,52 +77,52 @@ const identity = (
 const footer = (
   <>
     <button type="button" className="sidebar-footer-row">
-      <span className="font-sans text-[13px] text-subtle">Search</span>
+      <span className="text-subtle font-sans text-[13px]">Search</span>
       <span className="kbd kbd-sm ml-auto">⌘K</span>
     </button>
     <div className="sidebar-footer-row">
-      <span className="font-sans text-[13px] text-subtle">Theme</span>
+      <span className="text-subtle font-sans text-[13px]">Theme</span>
     </div>
     <div className="sidebar-footer-row">
       {identity}
-      <span className="truncate font-sans text-[12px] text-subtle">sam@adorsys.com</span>
+      <span className="text-subtle truncate font-sans text-[12px]">sam@adorsys.com</span>
     </div>
   </>
 );
 
 const statCard = (label: string, value: string) => (
   <div className="console-card w-full shrink-0 md:w-[209px]">
-    <div className="font-sans text-[12px] text-subtle mb-4">{label}</div>
+    <div className="text-subtle mb-4 font-sans text-[12px]">{label}</div>
     <div className="text-ink font-mono text-2xl">{value}</div>
   </div>
 );
 
 const quickSettingsRail = (
   <div className="flex flex-col gap-4 p-5">
-    <span className="font-sans text-[15px] font-medium text-ink">adorsys-gis</span>
+    <span className="text-ink font-sans text-[15px] font-medium">adorsys-gis</span>
     <div className="settings-list">
       <div className="settings-row">
         <div className="settings-row-main">
-          <span className="font-sans text-[13px] text-ink">Account name</span>
+          <span className="text-ink font-sans text-[13px]">Account name</span>
         </div>
         <div className="settings-row-value">
-          <span className="font-sans text-[13px] text-soft">adorsys-gis</span>
+          <span className="text-soft font-sans text-[13px]">adorsys-gis</span>
         </div>
       </div>
       <div className="settings-row">
         <div className="settings-row-main">
-          <span className="font-sans text-[13px] text-ink">Account id</span>
+          <span className="text-ink font-sans text-[13px]">Account id</span>
         </div>
         <div className="settings-row-value">
-          <span className="font-mono text-[13px] text-soft">acct_9f3a2b1c</span>
+          <span className="text-soft font-mono text-[13px]">acct_9f3a2b1c</span>
         </div>
       </div>
       <div className="settings-row">
         <div className="settings-row-main">
-          <span className="font-sans text-[13px] text-ink">Quota tier</span>
+          <span className="text-ink font-sans text-[13px]">Quota tier</span>
         </div>
         <div className="settings-row-value">
-          <span className="font-sans text-[13px] text-soft">growth</span>
+          <span className="text-soft font-sans text-[13px]">growth</span>
         </div>
       </div>
     </div>
@@ -146,7 +154,11 @@ function Shell({
         />
       }
       topBar={
-        <ConsoleTopBar brand={brand} workspaceSwitcher={compactWorkspaceSwitcher} identity={identity} />
+        <ConsoleTopBar
+          brand={brand}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          identity={identity}
+        />
       }
       rail={rail}
       railWidth={railWidth}
@@ -154,8 +166,10 @@ function Shell({
       banner={banner}>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="font-sans text-[24px] font-semibold text-ink">Overview</h1>
-          <p className="font-sans text-[13px] text-subtle">adorsys-gis · all projects · last 30 days · UTC</p>
+          <h1 className="text-ink font-sans text-[24px] font-semibold">Overview</h1>
+          <p className="text-subtle font-sans text-[13px]">
+            adorsys-gis · all projects · last 30 days · UTC
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:flex">
           {statCard('Spend this month', '$142.55')}

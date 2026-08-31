@@ -4,30 +4,16 @@ import React from 'react';
 import { cn } from '../../cn';
 import { Button } from '../button';
 import { Chevron } from '../chevron';
-import type { AccountMenuProps, AccountMenuTheme } from './types';
+import type { AccountMenuProps } from './types';
 import { RAIL_ICON_COLUMN_CLASS } from '../../lib/rail-grid';
-import { LABEL_CLASS, META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import {
   OVERLAY_CLASS,
-  OVERLAY_CURRENT_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
   OVERLAY_SECTION_CLASS,
   OVERLAY_SEPARATOR_CLASS,
 } from '../../lib/overlay';
-
-const THEME_OPTIONS: { value: AccountMenuTheme; label: string }[] = [
-  { value: 'black', label: 'Dark' },
-  { value: 'wireframe', label: 'Light' },
-  { value: 'system', label: 'System' },
-];
-
-// The three theme choices read as one row of words, not three menu rows: they are a single
-// setting with three states, and stacking them would make a two-line menu into a five-line one.
-// So they keep menuitem semantics (Base UI still owns arrow-key traversal) but not the full-row
-// paint that OVERLAY_ITEM_CLASS gives the actions -- `theme-choice` (theme.css) is that
-// narrower treatment.
-const THEME_ITEM_CLASS = cn(META_CLASS, 'theme-choice');
 
 // Contract: shell revamp phase 2 (2026-08-30) — the sidebar footer / top bar "account menu" +
 // console-ui skill (ADR 0010 Decision 2: Base UI owns behaviour — Menu here, never a hand-written
@@ -60,8 +46,6 @@ export function AccountMenu({
   onSignOut,
   triggerLabel,
   className,
-  theme,
-  onThemeChange,
   variant = 'inline',
 }: AccountMenuProps) {
   const label = name ?? email;
@@ -80,9 +64,9 @@ export function AccountMenu({
         {sidebar ? (
           <>
             {/* Icon column + `avatar-chip-sm` (Addition 5, owner screenshot: the identity chip
-                sat at a third x, matching neither the Search row's icon nor the (now-deleted)
-                Theme row's toggle) — the SAME 16px column every nav row's glyph sits in, so the
-                label below starts at the one shared rail label x the whole sidebar shares. */}
+                sat at a third x, matching neither the Search row's icon nor the Theme row's own
+                toggle) — the SAME 16px column every nav row's glyph sits in, so the label below
+                starts at the one shared rail label x the whole sidebar shares. */}
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
               <span aria-hidden="true" className="avatar-chip-sm">
                 {initials}
@@ -131,30 +115,12 @@ export function AccountMenu({
               </li>
             ) : null}
 
-            {theme && onThemeChange ? (
-              <>
-                <Menu.Separator render={<li />} className={OVERLAY_SEPARATOR_CLASS} />
-                <li role="none">
-                  <div role="presentation" className={OVERLAY_SECTION_CLASS}>
-                    <span className={LABEL_CLASS}>Theme</span>
-                    <div className="theme-choice-row">
-                      {THEME_OPTIONS.map((option) => (
-                        <Menu.Item
-                          key={option.value}
-                          className={cn(
-                            THEME_ITEM_CLASS,
-                            option.value === theme && OVERLAY_CURRENT_CLASS
-                          )}
-                          closeOnClick={false}
-                          onClick={() => onThemeChange(option.value)}>
-                          {option.value === theme ? `[${option.label}]` : option.label}
-                        </Menu.Item>
-                      ))}
-                    </div>
-                  </div>
-                </li>
-              </>
-            ) : null}
+            {/* Theme section REMOVED (owner finding, 2026-08-31: "I don't see the usage, for
+                the theme to be hidden behind the account dropdown. Please put it outside") — it
+                now lives as its own visible `ThemeToggle` icon button beside this menu's trigger
+                (the header's right cluster / the sidebar footer's own Theme row), not inside the
+                popup a click has to discover first. `AccountMenu` takes no `theme`/
+                `onThemeChange` props any more. */}
 
             <Menu.Separator render={<li />} className={OVERLAY_SEPARATOR_CLASS} />
 

@@ -1,8 +1,10 @@
 /**
  * The three preferences the console theme can hold (ADR 0010 Decision 5) -- `'system'` means "no
- * stored preference, follow `prefers-color-scheme`". Named to match `AccountMenuTheme`
- * (`../account-menu/types.ts`), which this type has no import relationship with on purpose: each
- * component is a pure, independently typed slot (console-ui skill "Component conventions").
+ * stored preference, follow `prefers-color-scheme`". `AccountMenu` used to hold the equivalent
+ * `AccountMenuTheme` type for its own now-removed theme section (owner finding, 2026-08-31: the
+ * toggle moved out of the account dropdown entirely -- `ThemeToggle` is the only place this
+ * preference is edited now); this type has no import relationship with `AccountMenu` on purpose,
+ * each component is a pure, independently typed slot (console-ui skill "Component conventions").
  */
 export type ThemeTogglePreference = 'black' | 'wireframe' | 'system';
 

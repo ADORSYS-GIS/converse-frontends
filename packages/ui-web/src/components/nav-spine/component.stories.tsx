@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent, within } from 'storybook/test';
 
 import { NavSpine } from './component';
 import type { NavGroup } from './types';
@@ -65,7 +66,11 @@ export const AsLinks: Story = {
     groups: [
       {
         ...workspaceGroup,
-        items: workspaceGroup.items.map((item) => ({ ...item, href: `/${item.key}`, onSelect: undefined })),
+        items: workspaceGroup.items.map((item) => ({
+          ...item,
+          href: `/${item.key}`,
+          onSelect: undefined,
+        })),
       },
     ],
     layout: 'sidebar',
@@ -79,9 +84,52 @@ export const BottomBar: Story = {
   args: { groups: [workspaceGroup, accountGroup, operatorGroup], layout: 'bottom-bar' },
   decorators: [
     (Story) => (
-      <div className="flex h-14 w-[390px] bg-chrome">
+      <div className="bg-chrome flex h-14 w-[390px]">
         <Story />
       </div>
     ),
   ],
+};
+
+// Owner finding, 2026-08-31 (issue #368) — "I have the role lightbridge-admin and yet I can't see
+// roles": the real `/settings` "Roles" row (`apps/console/src/client/console-chrome.tsx`'s
+// `ROLES_DISABLED_REASON`). The label stays at its normal position, "Unavailable" is a small
+// always-visible trailing annotation (no interaction needed to see THAT it's unavailable), and
+// the `play` function focuses the row so Storybook's default snapshot shows the reason tooltip
+// actually open — proving it surfaces, not just that the row renders.
+const disabledGroup: NavGroup = {
+  key: 'settings',
+  items: [
+    { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
+    {
+      key: 'roles',
+      label: 'Roles',
+      icon: <Glyph />,
+      disabled: true,
+      reason:
+        'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).',
+    },
+    { key: 'tiers', label: 'Tier configs', icon: <Glyph /> },
+  ],
+};
+
+export const DisabledWithReason: Story = {
+  name: 'Disabled row — reason tooltip open',
+  args: { groups: [disabledGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.tab(); // focuses Overview first (natural tab order)
+    await userEvent.tab(); // ...then Roles, the disabled row
+    void canvas; // the tooltip portals outside canvasElement — nothing further to query here
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart.
+export const DisabledWithReasonLight: Story = {
+  name: 'Disabled row — reason tooltip open, wireframe (light)',
+  args: { groups: [disabledGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
+  globals: { theme: 'wireframe' },
+  play: DisabledWithReason.play,
 };

@@ -657,15 +657,19 @@
   gap: 0.75rem;
 }
 
-/* 20px square at the contract radius, identical whether it holds the configured image or the
-   fallback mark, so swapping one for the other never nudges the row. The fallback branch is
-   selected structurally (`:not(img)`) rather than by a second class. */
+/* 20px TALL at the contract radius. A configured image keeps its natural aspect ratio
+   (owner finding 2026-08-31: the 630x107 adorsys wordmark was crushed into the old 20px
+   square — "Only height is enough. No need for width there"), so only `height` is pinned for
+   the `img` branch. The FALLBACK mark stays the 20px square — it is a glyph box, not a
+   wordmark, and the square is what keeps the row from nudging when no image is configured.
+   The fallback branch is selected structurally (`:not(img)`) rather than by a second class. */
 @utility header-logo {
   height: 1.25rem;
-  width: 1.25rem;
+  width: auto;
   border-radius: var(--radius-field);
 
   &:not(img) {
+    width: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;

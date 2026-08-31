@@ -42,6 +42,7 @@ import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
 import { accountScopeLabel } from '../containers/account-label';
+import { useConsoleBrandingLogo } from './branding-context';
 import { useConsoleSession } from './session-context';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
@@ -416,22 +417,43 @@ export function initialsFor(
 // logo, the name 'Lightbridge' should scram" — the `header-wordmark` span is gone; the accessible
 // name that text used to carry now lives on the link itself (`aria-label`), so the mark stays
 // nameable to a screen reader with nothing rendered twice.
-export const BRAND = (
-  <Link href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
-    <span className="header-logo" aria-hidden="true">
-      <svg
-        width={RAIL_ICON_SIZE}
-        height={RAIL_ICON_SIZE}
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={RAIL_ICON_STROKE_WIDTH}
-        strokeLinejoin="round">
-        <path d="M2 14 8 2 14 14Z" />
-      </svg>
-    </span>
-  </Link>
-);
+//
+// issue #368 (Phase H, runtime white-label branding): `hasCustomLogo` (from
+// `useConsoleBrandingLogo()`, seeded server-side by the root layout — see `branding-context.tsx`'s
+// own doc comment for why this is a boolean read once rather than an `<img>` that always attempts
+// `/branding/logo` and falls back on a 404) swaps the built-in mark for the operator's own file.
+// Both link/`aria-label`/decorative-icon contract stays byte-identical either way. `theme.css`'s
+// own `header-logo` utility already anticipates exactly this swap ("identical whether it holds
+// the configured image or the fallback mark... the fallback branch is selected structurally
+// (`:not(img)`)") — `header-logo` goes directly on the `<img>` for the configured case, and on
+// the wrapping `<span>` around the SVG for the fallback, never a second class for the image.
+export function BrandMark({ hasCustomLogo }: { hasCustomLogo: boolean }) {
+  return (
+    <Link
+      href="/"
+      aria-label="Lightbridge — go to console home"
+      className="header-brand focus-ring">
+      {hasCustomLogo ? (
+        // Plain `<img>`, not `next/image`: a same-origin, operator-mounted runtime file
+        // (`GET /branding/logo`), not a build-time asset `next/image` can optimize.
+        <img src="/branding/logo" alt="" aria-hidden="true" className="header-logo" />
+      ) : (
+        <span className="header-logo" aria-hidden="true">
+          <svg
+            width={RAIL_ICON_SIZE}
+            height={RAIL_ICON_SIZE}
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={RAIL_ICON_STROKE_WIDTH}
+            strokeLinejoin="round">
+            <path d="M2 14 8 2 14 14Z" />
+          </svg>
+        </span>
+      )}
+    </Link>
+  );
+}
 
 /**
  * The workspace switcher's data — shared by the sidebar's full-width row and the top bar's
@@ -630,6 +652,7 @@ function BackToConsoleCompact({ accountId }: { accountId: string }) {
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const session = useConsoleSession();
+  const hasCustomLogo = useConsoleBrandingLogo();
   const online = useOnlineStatus();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
@@ -649,7 +672,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
 
   return (
     <ConsoleSidebar
-      brand={BRAND}
+      brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
       workspaceSwitcher={
         area === 'settings' ? (
           <BackToConsoleRow accountId={switcher.accountId} />
@@ -737,6 +760,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
   const session = useConsoleSession();
+  const hasCustomLogo = useConsoleBrandingLogo();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const area = areaFromPathname(pathname);
@@ -752,7 +776,7 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
 
   return (
     <ConsoleTopBar
-      brand={BRAND}
+      brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
       workspaceSwitcher={
         area === 'settings' ? (
           <BackToConsoleCompact accountId={switcher.accountId} />

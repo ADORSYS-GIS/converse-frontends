@@ -79,6 +79,42 @@
                 }
               },
               "required": ["data"]
+            },
+            "branding-logo": {
+              "description": "issue #368 (Phase H, runtime white-label branding). Optional -- disabled (console.configMaps.branding-logo.enabled: false) by default, unlike console-config. Holds the operator's logo file as base64 binaryData (app-template's own values schema forbids a ConfigMap entry from carrying both data and binaryData in one resource, hence a separate configMap from branding-style below -- see values.yaml's own comment on persistence.branding-logo).",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo.png": {
+                      "description": "Base64-encoded logo file, mounted at /tmp/branding/logo.png (console.persistence.branding-logo). Despite the literal key name, any of the extensions apps/console's env.ts accepts (.png/.svg/.jpg/.jpeg/.webp) may be supplied here -- the key is the ConfigMap's, not a format constraint; config.yaml's own branding.logo path decides the actual served Content-Type.",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "branding-style": {
+              "description": "issue #368 (Phase H). Optional -- disabled by default, matching branding-logo above. Holds the operator's daisyUI custom-property override stylesheet as plain text (GET /branding/override.css filters it server-side -- see apps/console/src/server/branding-css-filter.ts).",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "data": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "override.style": {
+                      "description": "CSS custom-property overrides (:root / [data-theme=\"...\"] blocks only), mounted at /tmp/branding/override.style (console.persistence.branding-style).",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
             }
           },
           "required": ["console-config"]

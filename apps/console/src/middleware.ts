@@ -155,6 +155,10 @@ export const config = {
      *                        never be answered with a login redirect. Replaces the old `sw.js` /
      *                        `swe-worker-*` prefixes that matched `@serwist/next`'s webpack-emitted
      *                        `public/sw.js`, which no longer exists.
+     *   branding/*         — issue #368 (Phase H, runtime white-label branding): `/branding/logo`
+     *                        and `/branding/override.css` (`src/app/branding/*`). Both back chrome
+     *                        that must render before/without a session (the root layout's `<link>`
+     *                        and the sidebar/top-bar brand mark), same reasoning as `serwist/*`.
      *   _next/*            — build output
      *   manifest.json, icons/*, favicon.ico            — public static assets
      *   robots.txt, sitemap.xml — Next.js metadata routes (app/robots.ts, app/sitemap.ts);
@@ -162,6 +166,6 @@ export const config = {
      *                              the documents that say so must themselves be servable to an
      *                              unauthenticated crawler, not gated behind a login redirect
      */
-    '/((?!api/|auth/|\\.well-known/|_next/|serwist/|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
+    '/((?!api/|auth/|\\.well-known/|_next/|serwist/|branding/|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

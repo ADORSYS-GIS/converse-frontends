@@ -89,6 +89,24 @@ console:
   # configMaps.console-config.data, not per-field env overrides. (`persistence` is a top-level
   # app-template key, a sibling of `controllers` — not nested under it — even though it's only
   # ever mounted into the one `main` controller here.)
+  # issue #368 (Phase H, runtime white-label branding) — optional, disabled by default (`enabled:
+  # false`): app-template's own `bjw-s.common.lib.pod.field.volumes` helper skips a persistence
+  # entry entirely when its `enabled` is false, the same mechanism `configMaps.branding-logo`/
+  # `branding-style` below rely on for their own resources, so an operator who never touches this
+  # block gets no extra volume, no extra mount, and no behaviour change at all — today's shape
+  # exactly.
+  #
+  # TWO persistence entries, not one, and each `subPath`-mounted like `console-config` above —
+  # a deliberate divergence from the owner's verbatim design ("a configmap containing the key
+  # logo.png and the other key override.style"). App-template's own values schema
+  # (charts/app-template/values.schema.json, `configMaps.<id>` `oneOf: [required: [data]],
+  # [required: [binaryData]]`) forbids a single ConfigMap entry from carrying both `data` (text —
+  # `override.style`) and `binaryData` (base64 — `logo.png`, since a PNG/JPEG/WebP logo is binary
+  # and YAML `data:` cannot hold it safely). Two Kubernetes ConfigMap objects, each `subPath`-
+  # mounted to its own file under `/tmp/branding/`, produce the IDENTICAL end state the owner's
+  # design describes (both files present in that one directory) — this is a Helm-library
+  # constraint, not a change to the mount shape or to `apps/console`'s own config contract, which
+  # still points at plain `/tmp/branding/logo.png` / `/tmp/branding/override.style`.
   persistence:
     console-config:
       type: configMap
@@ -96,6 +114,22 @@ console:
       globalMounts:
         - path: /config/console/config.yaml
           subPath: config.yaml
+          readOnly: true
+    branding-logo:
+      enabled: false
+      type: configMap
+      identifier: branding-logo
+      globalMounts:
+        - path: /tmp/branding/logo.png
+          subPath: logo.png
+          readOnly: true
+    branding-style:
+      enabled: false
+      type: configMap
+      identifier: branding-style
+      globalMounts:
+        - path: /tmp/branding/override.style
+          subPath: override.style
           readOnly: true
 
   service:
@@ -139,3 +173,21 @@ console:
       enabled: true
       data:
         config.yaml: ''
+
+    # issue #368 (Phase H, runtime white-label branding). Disabled by default, matching
+    # `persistence.branding-logo`/`branding-style` above — each pair (this configMap + its own
+    # persistence entry) flips together. Two separate ConfigMaps, not one — see
+    # `persistence.branding-logo`'s own comment above for exactly why (app-template's values
+    # schema forbids one ConfigMap entry from carrying both `data` and `binaryData`). An operator
+    # enabling these also writes a matching `branding:` block into their own
+    # `console-config.data["config.yaml"]` (see README.md) pointing at
+    # `/tmp/branding/logo.png` / `/tmp/branding/override.style` — this chart mounts the files, it
+    # does not itself edit the app's config document.
+    branding-logo:
+      enabled: false
+      binaryData:
+        logo.png: ''
+    branding-style:
+      enabled: false
+      data:
+        override.style: ''

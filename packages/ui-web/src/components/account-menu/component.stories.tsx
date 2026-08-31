@@ -87,3 +87,37 @@ export const SidebarVariantLight: Story = {
   decorators: SidebarVariant.decorators,
   globals: { theme: 'wireframe' },
 };
+
+/*
+ * ─── Corner-radius comparison (owner review, 2026-08-31) ─────────────────────────────────────
+ *
+ * The Menu counterpart to `CommandPalette`'s own three radius stories — same brief, same
+ * mechanism: `popupClassName` overrides only THIS popup's corner radius via `cn()`/
+ * `tailwind-merge`, leaving the shared `OVERLAY_CLASS` contract every dialog/tooltip/select in
+ * the console still renders through untouched.
+ */
+export const RadiusComparison2px: Story = {
+  name: 'Radius comparison — 2px (current contract, unchanged)',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
+  },
+};
+
+export const RadiusComparison6px: Story = {
+  name: 'Radius comparison — 6px',
+  args: { popupClassName: 'rounded-[6px]' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
+  },
+};
+
+export const RadiusComparison10px: Story = {
+  name: 'Radius comparison — 10px',
+  args: { popupClassName: 'rounded-[10px]' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Account menu/ }));
+  },
+};

@@ -189,4 +189,17 @@ describe('AccountMenu', () => {
       expect(onSignOut).toHaveBeenCalledTimes(1);
     });
   });
+
+  // Storybook-only design-review escape hatch (owner ask, 2026-08-31): an extra class merged
+  // onto the popup, so a story can compare corner radii without touching the shared
+  // `OVERLAY_CLASS` contract every other overlay in the console still renders at.
+  it('merges popupClassName onto the popup without disturbing the default contract', async () => {
+    renderMenu({ popupClassName: 'rounded-[10px]' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
+    const menu = await screen.findByRole('menu');
+
+    expect(menu).toHaveClass('rounded-[10px]');
+    expect(menu.className).not.toMatch(/rounded-\[2px\]/);
+  });
 });

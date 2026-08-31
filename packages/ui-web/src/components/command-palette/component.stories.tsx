@@ -4,25 +4,57 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { CommandPalette, CommandPaletteTrigger } from './component';
 import type { CommandPaletteGroup } from './types';
+import { AdminIcon, KeysIcon, OverviewIcon, ProjectsIcon } from '../../lib/icons';
 
-/** Mirrors the real groups the console-ui skill's palette contract names: Navigate then Actions. */
+/**
+ * Mirrors the real groups the console-ui skill's palette contract names: Navigate then Actions.
+ * Navigate rows carry the same glyph their matching nav row does (`lib/icons.tsx`) -- a
+ * deliberate mix of icon and no-icon rows (Actions has none) is included on purpose, since a real
+ * palette will mix the two and the icon COLUMN has to stay aligned either way.
+ */
 function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
   return [
     {
       key: 'navigate',
       heading: 'Navigate',
       items: [
-        { key: 'overview', label: 'Overview', onSelect: () => onSelect('overview') },
-        { key: 'api-keys', label: 'Api-Keys', onSelect: () => onSelect('api-keys') },
-        { key: 'manage', label: 'Manage', onSelect: () => onSelect('manage') },
-        { key: 'admin', label: 'Admin', onSelect: () => onSelect('admin'), hint: 'Role' },
+        {
+          key: 'overview',
+          label: 'Overview',
+          icon: <OverviewIcon />,
+          onSelect: () => onSelect('overview'),
+        },
+        {
+          key: 'api-keys',
+          label: 'Api-Keys',
+          icon: <KeysIcon />,
+          onSelect: () => onSelect('api-keys'),
+        },
+        {
+          key: 'manage',
+          label: 'Manage',
+          icon: <ProjectsIcon />,
+          onSelect: () => onSelect('manage'),
+        },
+        {
+          key: 'admin',
+          label: 'Admin',
+          icon: <AdminIcon />,
+          onSelect: () => onSelect('admin'),
+          hint: 'Role',
+        },
       ],
     },
     {
       key: 'actions',
       heading: 'Actions',
       items: [
-        { key: 'new-key', label: 'New key', onSelect: () => onSelect('new-key') },
+        {
+          key: 'new-key',
+          label: 'New key',
+          shortcut: 'N',
+          onSelect: () => onSelect('new-key'),
+        },
         {
           key: 'generate-report',
           label: 'Generate report',
@@ -64,16 +96,23 @@ function ControlledPalette({
   initialOpen,
   onSelect,
   groups = exampleGroups,
+  panelClassName,
 }: {
   initialOpen: boolean;
   onSelect: (key: string) => void;
   groups?: (onSelect: (key: string) => void) => CommandPaletteGroup[];
+  panelClassName?: string;
 }) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
       <CommandPaletteTrigger onClick={() => setOpen(true)} />
-      <CommandPalette open={open} onOpenChange={setOpen} groups={groups(onSelect)} />
+      <CommandPalette
+        open={open}
+        onOpenChange={setOpen}
+        groups={groups(onSelect)}
+        panelClassName={panelClassName}
+      />
     </>
   );
 }
@@ -118,6 +157,15 @@ export const Open: Story = {
 export const OpenLight: Story = {
   name: 'Open — wireframe (light)',
   globals: { theme: 'wireframe' },
+  render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+/** Base tier (<600, `CONSOLE_VIEWPORTS.base390`) — the palette owner ask named explicitly: it
+ *  still opens as a centred overlay (never a bottom sheet; a command palette is not row detail),
+ *  just narrower, so the footer's three hints and a shortcut-bearing row both stay legible. */
+export const Mobile: Story = {
+  name: 'Open — base tier (390px)',
+  globals: { viewport: { value: 'base390' } },
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
 };
 
@@ -201,4 +249,32 @@ export const EscapeCloses: Story = {
       ).not.toBeInTheDocument()
     );
   },
+};
+
+/*
+ * ─── Corner-radius comparison (owner review, 2026-08-31) ─────────────────────────────────────
+ *
+ * "The command palette is uglier even, and the corners are still sharp, breaking with the rest of
+ * the app... Do the storybook first and let me approve the screenshot before you wire in." The
+ * shared `OVERLAY_CLASS` contract (`rounded-[2px]`, `lib/overlay.ts`) is untouched by this batch —
+ * it is the SAME constant every dialog, tooltip, menu and select in the console renders through,
+ * so changing it here would silently restyle all of them, not just the palette under review. These
+ * three stories instead pass `panelClassName`, a story-only escape hatch
+ * (`CommandPaletteProps.panelClassName`) that overrides just THIS panel's own corner radius via
+ * `cn()`/`tailwind-merge`, so the owner can pick a value from three otherwise-identical
+ * screenshots before anything is decided for real.
+ */
+export const RadiusComparison2px: Story = {
+  name: 'Radius comparison — 2px (current contract, unchanged)',
+  render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+export const RadiusComparison6px: Story = {
+  name: 'Radius comparison — 6px',
+  render: () => <ControlledPalette initialOpen onSelect={fn()} panelClassName="rounded-[6px]" />,
+};
+
+export const RadiusComparison10px: Story = {
+  name: 'Radius comparison — 10px',
+  render: () => <ControlledPalette initialOpen onSelect={fn()} panelClassName="rounded-[10px]" />,
 };

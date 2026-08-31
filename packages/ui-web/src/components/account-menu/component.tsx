@@ -47,6 +47,7 @@ export function AccountMenu({
   triggerLabel,
   className,
   variant = 'inline',
+  popupClassName,
 }: AccountMenuProps) {
   const label = name ?? email;
   const sidebar = variant === 'sidebar';
@@ -97,7 +98,7 @@ export function AccountMenu({
         <Menu.Positioner align="end" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
           <Menu.Popup
             render={<ul />}
-            className={cn('menu menu-sm account-menu-popup', OVERLAY_CLASS)}>
+            className={cn('menu menu-sm account-menu-popup', OVERLAY_CLASS, popupClassName)}>
             {name || email ? (
               <li role="none">
                 <div role="presentation" className={OVERLAY_SECTION_CLASS}>
@@ -125,7 +126,13 @@ export function AccountMenu({
             <Menu.Separator render={<li />} className={OVERLAY_SEPARATOR_CLASS} />
 
             <li role="none">
-              <Menu.Item className={OVERLAY_ITEM_CLASS} onClick={onSignOut}>
+              {/* `account-menu-row` (theme.css): the palette-matching 36px row rhythm (owner ask,
+                  2026-08-31 — "same overlay language as the palette: ... row height"), scoped to
+                  THIS popup's own row rather than the shared `OVERLAY_ITEM_CLASS` every other
+                  Menu/Select/Combobox popup in the console also renders through. */}
+              <Menu.Item
+                className={cn(OVERLAY_ITEM_CLASS, 'account-menu-row')}
+                onClick={onSignOut}>
                 Sign out
               </Menu.Item>
             </li>

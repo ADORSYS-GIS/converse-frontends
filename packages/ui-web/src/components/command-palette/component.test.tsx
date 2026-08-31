@@ -125,6 +125,83 @@ describe('CommandPalette', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  // v2 visual pass (owner review 2026-08-31): a row's own icon and shortcut chip, and the
+  // footer's fixed ↑↓ / ↵ / esc hints -- see component.tsx's own docstring for the full brief.
+  it('renders a row icon when the item supplies one, and reserves the column when it does not', () => {
+    render(
+      <CommandPalette
+        open
+        onOpenChange={vi.fn()}
+        groups={[
+          {
+            key: 'navigate',
+            heading: 'Navigate',
+            items: [
+              {
+                key: 'overview',
+                label: 'Overview',
+                icon: <svg data-testid="overview-icon" />,
+                onSelect: vi.fn(),
+              },
+              { key: 'api-keys', label: 'Api-Keys', onSelect: vi.fn() },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId('overview-icon')).toBeInTheDocument();
+    expect(screen.getByText('Api-Keys')).toBeInTheDocument();
+  });
+
+  it("renders a row's shortcut as a kbd chip instead of plain hint text", () => {
+    render(
+      <CommandPalette
+        open
+        onOpenChange={vi.fn()}
+        groups={[
+          {
+            key: 'actions',
+            heading: 'Actions',
+            items: [{ key: 'new-key', label: 'New key', shortcut: 'N', onSelect: vi.fn() }],
+          },
+        ]}
+      />,
+    );
+
+    const chip = screen.getByText('N');
+    expect(chip.tagName).toBe('KBD');
+  });
+
+  it('renders the fixed footer hint row', () => {
+    render(<CommandPalette open onOpenChange={vi.fn()} groups={groups(vi.fn())} />);
+
+    // Lower-case, unlike the fixture's own "Navigate" group heading (`groups`, above) -- the
+    // task brief's own casing ("↑↓ navigate · ↵ select · esc"), which also keeps this query from
+    // colliding with the heading text.
+    expect(screen.getByText('navigate')).toBeInTheDocument();
+    expect(screen.getByText('select')).toBeInTheDocument();
+    expect(screen.getAllByText('esc').length).toBeGreaterThan(0);
+  });
+
+  // Storybook-only design-review escape hatch (owner ask, 2026-08-31): an extra class merged
+  // onto the popup panel, so a story can compare corner radii without touching the shared
+  // `OVERLAY_CLASS` contract every other overlay in the console still renders at.
+  it('merges panelClassName onto the popup without disturbing the default contract', () => {
+    render(
+      <CommandPalette
+        open
+        onOpenChange={vi.fn()}
+        groups={groups(vi.fn())}
+        panelClassName="rounded-[6px]"
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('rounded-[6px]');
+    expect(dialog.className).not.toMatch(/rounded-\[2px\]/);
+  });
 });
 
 describe('CommandPaletteTrigger', () => {

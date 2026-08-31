@@ -21,4 +21,13 @@ export interface AccountMenuProps {
    * hide it from — see `AccountBadge`'s identical `sidebar` variant for the precedent).
    */
   variant?: 'inline' | 'sidebar';
+  /**
+   * Storybook-only escape hatch for the design-review radius comparison (owner ask, 2026-08-31:
+   * "ship 2/6/10px corner variants so I can pick from a screenshot") -- an extra class merged
+   * onto the popup ONLY, so a story can override its corner radius without touching the shared
+   * `OVERLAY_CLASS` contract every other overlay in the console still renders at (`CommandPalette`
+   * carries the identical seam as `panelClassName`, same reasoning). Left unset, the popup
+   * renders at today's contract radius exactly as before. Not read by `apps/console`.
+   */
+  popupClassName?: string;
 }

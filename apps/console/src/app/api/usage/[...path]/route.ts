@@ -5,6 +5,7 @@ import { serverEnv } from '../../../../server/env';
 import { proxyRequest } from '../../../../server/proxy';
 import { usageTargetUrl } from '../../../../server/proxy-target';
 import { readSessionFromRequest } from '../../../../server/session-store';
+import { isAdmin } from '../../../../server/tokens';
 import { usageDispatcher } from '../../../../server/usage-dispatcher';
 import { guardUsageScope } from '../../../../server/usage-scope-guard';
 
@@ -43,6 +44,13 @@ function isUsageQueryPath(path: string[]): boolean {
  * still needs to read the ORIGINAL body (as raw bytes, to forward verbatim) after this function
  * returns, and a `Request`/`NextRequest` body can only be consumed once. Cloning tees the
  * underlying stream so both reads succeed independently.
+ *
+ * `isAdmin(session.user?.roles ?? [])` (converse-frontends#368) is the SAME role check
+ * `app/(console)/admin/overview/page.tsx` already gates the route itself with — read from the
+ * decrypted session cookie, never from anything the browser could set on this request. Passed
+ * through to `guardUsageScope`'s own admin fast path (see that function's doc comment); a
+ * non-admin session always computes `false` here and the guard's existing ownership check runs
+ * completely unchanged.
  */
 async function guardUsageQueryRequest(request: NextRequest) {
   const session = await readSessionFromRequest(request);
@@ -62,7 +70,8 @@ async function guardUsageQueryRequest(request: NextRequest) {
     (projectId) => resolveProjectAccountId(accessToken, projectId),
     // Optional chaining, not an invariant: test/session shapes without a user still take the
     // resolver path — the fast-path is an optimization, never a requirement.
-    session.user?.sub
+    session.user?.sub,
+    isAdmin(session.user?.roles ?? [])
   );
 }
 

@@ -347,7 +347,7 @@ function AdminOverviewScreen() {
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Overview"
-          subtitle="Operator · Estate-wide · This month · UTC"
+          subtitle="Operator · Your accounts + refill queue · This month · UTC"
           controls={
             <DateRangeField
               label="Range"
@@ -369,6 +369,21 @@ function AdminOverviewScreen() {
             />
           }
         />
+
+        {/* Owner review finding (converse-frontends#368, 2026-08-31): "/admin/overview is
+             overview for ALL account, not just the one the user is bound to. ALL of them." The
+             design batch's original "Estate-wide" subtitle overclaimed what the backend can
+             back — `authz.cstack` has no all-accounts enumeration (`lightbridge-authz#602`,
+             filed by that investigation). The subtitle above and this caption are what the live
+             route now honestly renders: `use-admin-overview-screen.ts`'s `ESTATE_SUBTITLE_SCOPE`
+             and `estateCoverageCaption`, fed by real family + pending-refill-queue account ids
+             (`admin-overview-usage.ts`'s `estateAccountIds`), never a fabricated full-estate
+             claim. */}
+        <InlineStatus>
+          Showing 12 accounts (8 in your account family, 4 more seen only via a pending refill
+          request) — not every account in the system. There is no backend enumeration of every
+          account yet (lightbridge-authz#602).
+        </InlineStatus>
 
         {/* ── 1. Estate spend over time — floor-mounted, no Card: the admin-overview batch's
              own "charts and tables render on the floor, not in cards" ruling. Every reused

@@ -434,6 +434,27 @@ itself gets wrapped.
   entries are debt) and `base-ui-adoption.test.ts` (`KNOWN_GAPS` — entries may only shrink, never
   grow; `section-class-audit.test.ts` extends the same discipline to `sections/`).
 
+## authz-ui — the strict-CSP surface (no daisy, ever)
+
+`apps/authz-ui` (`lightbridge-authz`'s hosted device-pairing UI) is served under `default-src
+'self'; frame-ancestors 'none'` — no `'unsafe-inline'`, no nonce/hash, and (converse-frontends#407)
+no `data:` carve-out. Every daisyUI component class sets a `data:` background, so **every daisy
+component class, and every `ui-web` component that renders one (`Button`, `Checkbox`, any
+menu-based primitive), is banned on this surface** — native elements plus semantic tokens only.
+
+The CSP-safe set is exactly four sections — `auth-panel-shell`, `device-code-entry`,
+`device-confirmation`, `auth-error-panel` — which import only `lib/`, `cn`, their own files, or a
+sibling in that set, never `components/`. Five gates hold this mechanically:
+`no-daisy-component-classes.test.ts` (authz-ui `src/**/*.tsx`), `csp-safe-sections.test.ts` +
+`section-class-audit.test.ts` pins (these four sections), `csp-safe-render.test.tsx` (DOM-level,
+catches a class contributed only at render time), `verify-css-csp.mjs` (built CSS `data:` count
+pinned). Full table: `apps/authz-ui/README.md`'s "CSP posture".
+
+These sections take submission targets as props (`device-code-entry`/`device-confirmation` take
+the form `action`/continue URL — never import `authz-idp` paths themselves). Pages-first applies
+with extra weight: `src/pages-stories/auth-device.stories.tsx` / `auth-error.stories.tsx` are the
+acceptance surface and land **before** the matching `apps/authz-ui` route (owner directive).
+
 ## Composition — sections in the library, the shell mounted once, pages only in stories
 
 **The library exports sections, never full pages** (owner correction 2026-08-25 — monolithic

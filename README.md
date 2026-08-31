@@ -34,8 +34,10 @@ This repository exists to:
 ```text
 apps/
   console/             # Next.js console (routes, server auth, containers)
-  authz-ui/            # Vite static SPA — the authz hosted-login page, built with base /ui/
-                       #   and served same-origin by lightbridge-authz's authz-idp (ADR-0021)
+  authz-ui/            # Vite static SPA — renders lightbridge-authz's live RFC 8628
+                       #   device-pairing flow (routes/manifest, forms post to authz-idp
+                       #   endpoints), built with base /ui/ and served same-origin by
+                       #   lightbridge-authz's authz-idp (ADR-0021)
 packages/
   ui-web/              # DOM UI primitives + screen sections
   chart-core/          # DOM-free chart math (scales, bins, colour ramp)

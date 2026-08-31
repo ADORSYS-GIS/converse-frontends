@@ -55,6 +55,35 @@ const brand = (
   </a>
 );
 
+// Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): the
+// `BrandMark` shape `apps/console`'s `console-chrome.tsx` renders when BOTH `branding.logo` and
+// `branding.logoLight` are configured -- two `<img>`s, `header-logo` plus theme.css's
+// `brand-mark-dark`/`brand-mark-light` deciding which one is visible via `[data-theme]`. Tiny
+// inline SVG data URIs stand in for the operator's real files (a white triangle for the dark
+// mark, a near-black triangle for the light one) so the swap is visible without a real branding
+// deployment.
+const DARK_THEME_LOGO_DATA_URI =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgMTQgOCAyIDE0IDE0WiIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==';
+const LIGHT_THEME_LOGO_DATA_URI =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgMTQgOCAyIDE0IDE0WiIgZmlsbD0iIzExMTExMSIvPjwvc3ZnPg==';
+
+const brandedBothThemes = (
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
+    <img
+      src={DARK_THEME_LOGO_DATA_URI}
+      alt=""
+      aria-hidden="true"
+      className="header-logo brand-mark-dark"
+    />
+    <img
+      src={LIGHT_THEME_LOGO_DATA_URI}
+      alt=""
+      aria-hidden="true"
+      className="header-logo brand-mark-light"
+    />
+  </a>
+);
+
 const workspaceSwitcher = (
   <button type="button" className="workspace-switcher-row">
     <span aria-hidden="true" className="avatar-chip-md">
@@ -231,5 +260,38 @@ export const WithMutationFailureBanner: Story = {
         />
       }
     />
+  ),
+};
+
+// Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): when a
+// deployment configures BOTH `branding.logo` and `branding.logoLight`, `apps/console`'s
+// `BrandMark` renders both `<img>`s unconditionally and `theme.css`'s `brand-mark-dark`/
+// `brand-mark-light` utilities pick which one is visible, purely by CSS keyed off `[data-theme]`.
+// Two `ConsoleTopBar`s side by side, one wrapped `data-theme="black"` and the other
+// `data-theme="wireframe"` (the SAME `brandedBothThemes` markup in both -- proving the swap is
+// CSS-only, not a per-story prop), demonstrates the mechanism directly: the white-triangle fixture
+// shows on the dark side, the near-black one on the light side, with nothing re-rendered between
+// them. See `theme.css`'s own `@theme` block comment for why a nested `data-theme` wrapper (rather
+// than only `<html data-theme>`) resolves every token correctly here, `bg-chrome` included.
+export const BrandedBothThemes: Story = {
+  name: 'Branded, both themes (per-theme logos)',
+  parameters: { layout: 'padded' },
+  render: () => (
+    <div className="flex flex-col gap-4 md:flex-row">
+      <div data-theme="black" className="bg-chrome flex-1 rounded-lg">
+        <ConsoleTopBar
+          brand={brandedBothThemes}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          trailing={identity}
+        />
+      </div>
+      <div data-theme="wireframe" className="bg-chrome flex-1 rounded-lg">
+        <ConsoleTopBar
+          brand={brandedBothThemes}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          trailing={identity}
+        />
+      </div>
+    </div>
   ),
 };

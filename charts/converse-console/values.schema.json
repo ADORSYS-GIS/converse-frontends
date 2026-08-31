@@ -98,6 +98,24 @@
                 }
               }
             },
+            "branding-logo-light": {
+              "description": "Per-theme logos addendum (owner directive 2026-08-31, \"White is for dark themes\"). Optional -- disabled by default, matching branding-logo above. Holds the operator's light-theme (wireframe) logo file as base64 binaryData, the light-theme counterpart to branding-logo (config.yaml's branding.logo doubles as both the default AND dark-theme mark). Only meaningful when branding-logo is ALSO enabled -- apps/console's env.ts fails config parsing on a branding.logoLight-without-branding.logo document.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo-light.png": {
+                      "description": "Base64-encoded light-theme logo file, mounted at /tmp/branding/logo-light.png (console.persistence.branding-logo-light). Despite the literal key name, any of the extensions apps/console's env.ts accepts (.png/.svg/.jpg/.jpeg/.webp) may be supplied here -- the key is the ConfigMap's, not a format constraint; config.yaml's own branding.logoLight path decides the actual served Content-Type.",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
             "branding-style": {
               "description": "issue #368 (Phase H). Optional -- disabled by default, matching branding-logo above. Holds the operator's daisyUI custom-property override stylesheet as plain text (GET /branding/override.css filters it server-side -- see apps/console/src/server/branding-css-filter.ts).",
               "type": "object",

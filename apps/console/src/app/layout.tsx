@@ -55,11 +55,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     : ANONYMOUS_SESSION;
 
-  // issue #368 (Phase H, runtime white-label branding): both reads are cheap (`serverEnv()` is
-  // cached for the process lifetime after its first call) and decide, once per request, whether
-  // this deployment's chrome has anything to override at all.
+  // issue #368 (Phase H, runtime white-label branding; per-theme logos addendum, owner directive
+  // 2026-08-31 "White is for dark themes"): these reads are cheap (`serverEnv()` is cached for the
+  // process lifetime after its first call) and decide, once per request, whether this
+  // deployment's chrome has anything to override at all.
   const branding = serverEnv().branding;
-  const hasCustomLogo = Boolean(branding?.logoPath);
+  const hasLogo = Boolean(branding?.logoPath);
+  const hasLogoLight = Boolean(branding?.logoLightPath);
   const hasCustomStyle = Boolean(branding?.stylePath);
 
   return (
@@ -99,7 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `ssr: false`-dynamic, so the query string is readable on the server render too. It is
             not a store: the URL is the state, this only wires the reads and writes to it. */}
         <NuqsAdapter>
-          <Providers session={sessionResponse} hasCustomLogo={hasCustomLogo}>
+          <Providers session={sessionResponse} hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
             {children}
           </Providers>
         </NuqsAdapter>

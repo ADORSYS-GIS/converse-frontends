@@ -144,6 +144,84 @@ describe('buildConsoleEnv', () => {
     ).toThrow(/"branding\.logo" must end in one of/);
   });
 
+  /**
+   * Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"):
+   * `branding.logoLight` — the light-theme (`wireframe`) counterpart to `logo`. Deliberately NOT
+   * independently optional the way `logo`/`style` are — see `buildBrandingConfig`'s own doc
+   * comment.
+   */
+  it('reads a logo + logoLight branding block, deriving Content-Type for each independently', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: { logo: '/tmp/branding/logo.png', logoLight: '/tmp/branding/logo-light.svg' },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.png',
+      logoContentType: 'image/png',
+      logoLightPath: '/tmp/branding/logo-light.svg',
+      logoLightContentType: 'image/svg+xml',
+    });
+  });
+
+  it('reads a complete branding block including logoLight and style', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: {
+          logo: '/tmp/branding/logo.svg',
+          logoLight: '/tmp/branding/logo-light.png',
+          style: '/tmp/branding/override.style',
+        },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.svg',
+      logoContentType: 'image/svg+xml',
+      logoLightPath: '/tmp/branding/logo-light.png',
+      logoLightContentType: 'image/png',
+      stylePath: '/tmp/branding/override.style',
+    });
+  });
+
+  it('fails fast on branding.logoLight without branding.logo', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, branding: { logoLight: '/tmp/branding/logo-light.png' } })
+      )
+    ).toThrow(/"branding\.logoLight" requires "branding\.logo" to also be set/);
+  });
+
+  it('fails fast on a relative branding.logoLight path', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          branding: { logo: '/tmp/branding/logo.png', logoLight: 'branding/logo-light.png' },
+        })
+      )
+    ).toThrow(/"branding\.logoLight" must be a host-absolute path/);
+  });
+
+  it('fails fast on an unsupported branding.logoLight extension', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          branding: { logo: '/tmp/branding/logo.png', logoLight: '/tmp/branding/logo-light.gif' },
+        })
+      )
+    ).toThrow(/"branding\.logoLight" must end in one of/);
+  });
+
+  it('leaves branding undefined when only a blank logoLight is present', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '   ', logoLight: '   ', style: '' } })
+    );
+    expect(env.branding).toBeUndefined();
+  });
+
   it('builds a full ConsoleEnv from a minimal valid document, applying every default', () => {
     const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
     expect(env).toEqual({

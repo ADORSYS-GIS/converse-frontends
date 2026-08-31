@@ -169,6 +169,63 @@ helm upgrade --install -n ai console ./charts/converse-console \
 (`logo.b64` is the logo file already base64-encoded — `base64 -i logo.png -o logo.b64` — since
 `binaryData` values are base64 strings, not raw bytes.)
 
+### Per-theme logos
+
+Owner directive, 2026-08-31: "White is for dark themes" — a deployment can also supply a
+**light-theme (`wireframe`) counterpart** to the logo above. `apps/console`'s `config.yaml` gains
+a `branding.logoLight` field alongside `branding.logo` (same host-absolute-path/extension-allow-
+list contract, see `src/server/env.ts`), served back to the browser by
+`GET /branding/logo-light`. `logo` doubles as both the default mark AND the dark-theme (`black`)
+mark; `logoLight`, when present, is what renders instead under the light theme. The console's
+`BrandMark` picks between the two purely by CSS keyed off `[data-theme]` — no extra request, no
+flash, no JS theme read (`packages/ui-web/src/theme.css`'s `brand-mark-dark`/`brand-mark-light`
+utilities).
+
+**`logoLight` is NOT independently optional** the way `logo`/`style` are: it is a counterpart to
+`logo`, not a standalone field. A deployment that sets `branding.logoLight` without
+`branding.logo` fails `apps/console`'s config parsing at boot — a light-only brand would render no
+mark at all under `black`, this console's default theme.
+
+A third ConfigMap, `branding-logo-light`, mirrors `branding-logo` exactly (same
+binary-vs-`data`-only schema constraint, same mount pattern) and is likewise `enabled: false` by
+default:
+
+```yaml
+console:
+  configMaps:
+    console-config:
+      data:
+        config.yaml: |
+          # ...your usual config.yaml fields...
+          branding:
+            logo: /tmp/branding/logo.png
+            logoLight: /tmp/branding/logo-light.png
+            style: /tmp/branding/override.style
+    branding-logo:
+      enabled: true
+      binaryData:
+        logo.png: <base64-encoded PNG/SVG/JPEG/WebP — the dark-theme mark>
+    branding-logo-light:
+      enabled: true
+      binaryData:
+        logo-light.png: <base64-encoded PNG/SVG/JPEG/WebP — the light-theme mark>
+  persistence:
+    branding-logo:
+      enabled: true
+    branding-logo-light:
+      enabled: true
+```
+
+```bash
+helm upgrade --install -n ai console ./charts/converse-console \
+  --set console.configMaps.branding-logo.enabled=true \
+  --set console.persistence.branding-logo.enabled=true \
+  --set-file console.configMaps.branding-logo.binaryData.logo\\.png=./logo.b64 \
+  --set console.configMaps.branding-logo-light.enabled=true \
+  --set console.persistence.branding-logo-light.enabled=true \
+  --set-file console.configMaps.branding-logo-light.binaryData.logo-light\\.png=./logo-light.b64
+```
+
 `override.style` is filtered server-side before it is ever served to a browser (only
 `:root`/`[data-theme="…"]` custom-property declarations survive — anything else, including a
 whole other selector, is dropped and logged): a typo here can recolour the console, never break

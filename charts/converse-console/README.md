@@ -104,6 +104,76 @@ helm upgrade --install -n ai console ./charts/converse-console \
   --set-file console.configMaps.console-config.data.config\\.yaml=./my-config.yaml
 ```
 
+## Runtime white-label branding (optional)
+
+Owner design (issue #368): a deployment can override the built-in logo and/or a handful of
+daisyUI colour custom properties (`--color-primary`, …) without a rebuild — `apps/console`'s
+`config.yaml` gains an optional `branding:` block (`logo`/`style`, both host-absolute paths;
+see that file's own comment and `src/server/env.ts`), served back to the browser by
+`GET /branding/logo` and `GET /branding/override.css`. This chart's job is only to get the two
+files onto disk at those paths — it does not itself edit `console-config`'s `config.yaml`.
+
+Disabled by default: `console.configMaps.branding-logo`/`branding-style` and
+`console.persistence.branding-logo`/`branding-style` are all `enabled: false` out of the box, so
+an operator who does nothing here gets no extra ConfigMap, no extra volume, and no behaviour
+change at all.
+
+**Two separate ConfigMaps, not one**, even though the owner's design describes a single mounted
+directory: app-template's own values schema forbids one ConfigMap entry from carrying both
+`data` (text) and `binaryData` (base64) — see `values.yaml`'s own comment on
+`persistence.branding-logo` for the exact schema clause. `logo.png` (binary) goes in
+`branding-logo`'s `binaryData`; `override.style` (plain CSS text) goes in `branding-style`'s
+`data`. Both mount into the SAME `/tmp/branding/` directory via their own `subPath`, so the end
+state on disk is identical to what the owner described — two files in one directory.
+
+```yaml
+console:
+  configMaps:
+    console-config:
+      data:
+        config.yaml: |
+          # ...your usual config.yaml fields...
+          branding:
+            logo: /tmp/branding/logo.png
+            style: /tmp/branding/override.style
+    branding-logo:
+      enabled: true
+      binaryData:
+        logo.png: <base64-encoded PNG/SVG/JPEG/WebP>
+    branding-style:
+      enabled: true
+      data:
+        override.style: |
+          [data-theme="black"] {
+            --color-primary: #ff6600;
+          }
+  persistence:
+    branding-logo:
+      enabled: true
+    branding-style:
+      enabled: true
+```
+
+`--set-file` works here too, the same way it does for `console-config`'s own `config.yaml`:
+
+```bash
+helm upgrade --install -n ai console ./charts/converse-console \
+  --set console.configMaps.branding-logo.enabled=true \
+  --set console.persistence.branding-logo.enabled=true \
+  --set-file console.configMaps.branding-logo.binaryData.logo\\.png=./logo.b64 \
+  --set console.configMaps.branding-style.enabled=true \
+  --set console.persistence.branding-style.enabled=true \
+  --set-file console.configMaps.branding-style.data.override\\.style=./override.style
+```
+
+(`logo.b64` is the logo file already base64-encoded — `base64 -i logo.png -o logo.b64` — since
+`binaryData` values are base64 strings, not raw bytes.)
+
+`override.style` is filtered server-side before it is ever served to a browser (only
+`:root`/`[data-theme="…"]` custom-property declarations survive — anything else, including a
+whole other selector, is dropped and logged): a typo here can recolour the console, never break
+its layout.
+
 ## Ingress
 
 This chart deliberately ships with `console.ingress.frontend.enabled: false` and no host. The

@@ -52,6 +52,19 @@ export type ConsoleEnv = {
   sessionSecret: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
   publicBaseUrl?: string;
+  /**
+   * Runtime white-label branding (issue #368, Phase H), read straight off disk by
+   * `GET /branding/logo` / `GET /branding/override.css`. Both fields are independently optional;
+   * absent means today's behaviour exactly (the built-in mark, no override stylesheet link).
+   */
+  branding?: {
+    /** Host-absolute path to the logo file. Extension decides the served `Content-Type`. */
+    logoPath?: string;
+    /** The extension `logoPath` was validated against — avoids re-deriving it per request. */
+    logoContentType?: string;
+    /** Host-absolute path to a CSS file holding daisyUI custom-property overrides only. */
+    stylePath?: string;
+  };
 };
 
 type RawKeycloakConfig = {
@@ -73,6 +86,7 @@ type RawConsoleConfig = {
   usageUrl?: unknown;
   usageClientCert?: { certPath?: unknown; keyPath?: unknown };
   publicBaseUrl?: unknown;
+  branding?: { logo?: unknown; style?: unknown };
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
   // for the future authz-style permission model (see config.yaml's comment); wiring it up before
   // there's an engine to consume it would be dormant code.
@@ -137,6 +151,70 @@ function parseAudienceList(value: unknown): string[] {
   return [];
 }
 
+/**
+ * `branding.logo`'s extension -> the `Content-Type` `GET /branding/logo` serves it with.
+ * Deliberately narrow (issue #368): only formats a `<img>`/`<link rel="icon">`-shaped logo
+ * realistically ships as. Anything else fails config parsing rather than surfacing as a
+ * request-time 500 or an honest-looking image response with the wrong MIME type.
+ */
+const BRANDING_LOGO_CONTENT_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+};
+
+/**
+ * Validates and resolves `branding.logo`/`branding.style` (both independently optional — see
+ * `config.yaml`'s own comment on why there is no both-or-neither pairing here, unlike
+ * `usageClientCert`). Each configured path must be host-absolute: these are read straight off
+ * disk by `GET /branding/logo`/`GET /branding/override.css`, not resolved against the app's own
+ * working directory, so a relative path is always a config mistake, not a valid deployment
+ * shape — fail fast at boot rather than 404ing on every request forever.
+ */
+function buildBrandingConfig(
+  raw: { logo?: unknown; style?: unknown } | undefined,
+  parsed: ParsedConfigFile
+): ConsoleEnv['branding'] {
+  const logoPath = asOptionalString(raw?.logo)?.trim() || undefined;
+  const stylePath = asOptionalString(raw?.style)?.trim() || undefined;
+
+  if (!logoPath && !stylePath) return undefined;
+
+  let logoContentType: string | undefined;
+  if (logoPath) {
+    if (!logoPath.startsWith('/')) {
+      throw new Error(
+        `[console] config.yaml key "branding.logo" must be a host-absolute path, got ` +
+          `"${logoPath}" (${parsed.absolutePath})`
+      );
+    }
+    const extensionMatch = logoPath.match(/\.[^./\\]+$/);
+    const extension = extensionMatch?.[0].toLowerCase();
+    logoContentType = extension ? BRANDING_LOGO_CONTENT_TYPES[extension] : undefined;
+    if (!logoContentType) {
+      throw new Error(
+        `[console] config.yaml key "branding.logo" must end in one of ` +
+          `${Object.keys(BRANDING_LOGO_CONTENT_TYPES).join(', ')} (got "${logoPath}"), ` +
+          `(${parsed.absolutePath})`
+      );
+    }
+  }
+
+  if (stylePath && !stylePath.startsWith('/')) {
+    throw new Error(
+      `[console] config.yaml key "branding.style" must be a host-absolute path, got ` +
+        `"${stylePath}" (${parsed.absolutePath})`
+    );
+  }
+
+  return {
+    ...(logoPath ? { logoPath, logoContentType } : {}),
+    ...(stylePath ? { stylePath } : {}),
+  };
+}
+
 /** Strips a single trailing slash so `${base}${path}` never doubles up. */
 export function trimTrailingSlash(value: string): string {
   return value.endsWith('/') ? value.slice(0, -1) : value;
@@ -198,6 +276,7 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,
+    branding: buildBrandingConfig(raw.branding, parsed),
   };
 }
 

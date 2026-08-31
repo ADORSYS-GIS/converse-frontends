@@ -38,12 +38,15 @@ module.exports = defineConfig([
     // apps/authz-ui/tsconfig.json` passing clean. `eslint-import-resolver-typescript` does not
     // replicate that resolution (it resolves per-file, not through a full `tsc` program, so a
     // `types`-only ambient declaration never reaching `include` is invisible to it), so
-    // `import/no-unresolved` reports a false positive here. Same shape as this file's own
-    // `import/ignore` entry for react-native's Flow-typed main module just above -- a specifier
-    // family that is real and correct but that no static resolver can walk to.
+    // `import/no-unresolved` reports a false positive here. Same shape as the `import/ignore`
+    // entry `eslint-config-expo/flat` itself carries for react-native's Flow-typed main module
+    // (its utils/core.js) -- a specifier that is real and correct but that no static resolver
+    // can walk to. Verified live at HEAD: removing this block makes
+    // `eslint apps/authz-ui/**/*.{ts,tsx}` report `Unable to resolve path to module
+    // 'virtual:pwa-register'`, so this is a working suppression, not residue.
     files: ['apps/authz-ui/**/*.{ts,tsx}'],
     rules: {
-      'import/no-unresolved': ['error', { ignore: ['^virtual:'] }],
+      'import/no-unresolved': ['error', { ignore: ['^virtual:pwa-register$'] }],
     },
   },
 ]);

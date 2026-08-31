@@ -1,192 +1,147 @@
-# Development Setup — Converse-frontends
+# Development Setup — converse-frontends
 
-> Sources: `GETTING_STARTED.md`, `package.json`, `apps/self-service/package.json`, `compose.yml`, `Dockerfile`
+> Verified against `main@c9b4aa6` (2026-08-31) by reading the root and per-package `package.json`
+> scripts, `compose.yml`, and `apps/console/config.yaml`. The previous version of this file
+> described the deleted Expo app (`pnpm ios`/`pnpm android`, `EXPO_PUBLIC_*` config, an
+> `expo export` build, and a Playwright test suite that has never existed here).
 
 ---
 
 ## Prerequisites
 
-| Tool | Minimum Version | Notes |
-|------|----------------|-------|
-| Node.js | 22.x | Matches `node:22-alpine` base image in Dockerfile |
-| pnpm | Latest via corepack | Enabled with `corepack enable` |
-| Docker | 24.x+ | Required for local service stack |
-| Git | 2.40+ | Standard |
-| Expo CLI | Bundled via `expo` package | No global install needed |
+| Tool    | Version    | Notes                                                                                |
+| ------- | ---------- | ------------------------------------------------------------------------------------ |
+| Node.js | **22.x**   | What CI uses and what the console's runtime image is built on                        |
+| pnpm    | **11.5.2** | Pinned by `packageManager` in the root `package.json`; get it with `corepack enable` |
+| Docker  | 24+        | Only for the local Keycloak/WireMock stack                                           |
+| Git     | 2.40+      | —                                                                                    |
+
+No global framework CLI is needed: Next.js, Vite and the codegen tools are all workspace
+dependencies.
 
 ---
 
-## Environment Setup
-
-### 1. Clone the Repository
+## First run
 
 ```bash
 git clone https://github.com/adorsys-gis/converse-frontends.git
 cd converse-frontends
-```
-
-### 2. Install Dependencies
-
-```bash
-# Enable corepack (ships Node.js 16.9+)
 corepack enable
-
-# Install all workspace dependencies and run postinstall codegen
 pnpm install
 ```
 
-> `postinstall` automatically runs `pnpm codegen:all`, which regenerates both generated clients: `@lightbridge/api-rest` from the OpenAPI specs in `openapi/`, and `@lightbridge/authz-rpc` from `packages/authz-rpc/schema/authz.cstack`. Both are gitignored build artifacts, and this must succeed before you can start the app.
->
-> The AuthZ generator (`@cratestack/cli`) is an ordinary `devDependency`, so no manually installed tooling is required — but its postinstall downloads a binary from GitHub Releases, so the first install needs network access to `github.com`.
+`pnpm install` runs `postinstall` → `codegen:all`, which regenerates **both** generated clients:
+`@lightbridge/api-rest` from `openapi/usage.backend.yaml`, and `@lightbridge/authz-rpc` from
+`packages/authz-rpc/schema/authz.cstack`. Both outputs are gitignored build artifacts and must
+generate successfully before anything will build.
 
-### 3. Configure Environment Variables
+> `@cratestack/cli`'s own postinstall downloads a matching Rust binary from GitHub Releases, so the
+> first install needs network access to `github.com`. It is allowlisted under `allowBuilds` in
+> `pnpm-workspace.yaml`; pnpm does not run dependency build scripts otherwise.
 
-The app reads runtime config from `config.json` (injected at container start by `entrypoint.sh`). For local development, the Expo app reads from environment variables directly.
+---
 
-The following `EXPO_PUBLIC_*` variables must be set:
+## Running things
 
-| Variable | Required | Description | Local Example |
-|----------|----------|-------------|---------------|
-| `EXPO_PUBLIC_BACKEND_URL` | **Yes** | LightBridge AuthZ API base URL | `http://localhost:18888` (WireMock) |
-| `EXPO_PUBLIC_USAGE_URL` | **Yes** | LightBridge Usage API base URL | `http://localhost:18888` (WireMock) |
-| `EXPO_PUBLIC_GATEWAY_URL` | No | Converse AI gateway base URL (display only) | `http://localhost:18888` |
-| `EXPO_PUBLIC_ANALYTICS_URL` | No | Analytics endpoint | `http://localhost:18888` |
-| `EXPO_PUBLIC_KEYCLOAK_ISSUER` | **Yes** | Keycloak realm issuer URL | `http://localhost:13444/realms/master` |
-| `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID` | **Yes** | Keycloak OAuth2 client ID | `converse-frontend` |
-| `EXPO_PUBLIC_KEYCLOAK_SCHEME` | No | URI scheme for redirect (default `https`) | `http` |
+| What                 | Command                                | URL                       |
+| -------------------- | -------------------------------------- | ------------------------- |
+| Console (Next.js)    | `pnpm --filter console dev`            | http://localhost:3000     |
+| Console over HTTPS   | `pnpm --filter console dev:https`      | https://localhost:3000    |
+| authz-ui (Vite SPA)  | `pnpm --filter authz-ui dev`           | http://localhost:5173/ui/ |
+| Storybook (`ui-web`) | `pnpm --dir packages/ui-web storybook` | http://localhost:6007     |
 
-### 4. Start Local Services
+The same three servers are declared in `.claude/launch.json`.
 
-The `compose.yml` defines two local backing services:
+**authz-ui's dev server serves at `/ui/`** because the app is built with Vite `base: '/ui/'` to match
+where `authz-idp` mounts it; Vite redirects `/` there for you. Note that `vite dev` has **no route
+allowlist** — in production `authz-idp` serves only the routes published in `dist/routes.json`, so a
+route that works in dev can still 404 in production if it was not added to
+`src/routes/route-table.ts`. See `apps/authz-ui/README.md`.
+
+### Local backing services
 
 ```bash
 docker compose up -d
 ```
 
-| Service | Image | Port | Purpose |
-|---------|-------|------|---------|
-| `keycloak-26` | `quay.io/keycloak/keycloak:26.4.0` | `13444` | OAuth2/OIDC provider (dev mode, imports realm from `.docker/keycloak-config/`) |
-| `wiremock` | `wiremock/wiremock:3.13.2` | `18888` | Mock LightBridge backend (stubs in `wiremock/`) |
+| Service       | Image                              | Port  | Purpose                                                          |
+| ------------- | ---------------------------------- | ----- | ---------------------------------------------------------------- |
+| `keycloak-26` | `quay.io/keycloak/keycloak:26.4.0` | 13444 | OIDC provider; imports its realm from `.docker/keycloak-config/` |
+| `wiremock`    | `wiremock/wiremock:3.13.2`         | 18888 | Stubbed backend, so the console runs with no Rust/Postgres stack |
 
-> WireMock runs with `--enable-stub-cors` and `--global-response-templating`. All API stubs live in `wiremock/`.
-
----
-
-## Running Locally
-
-### Web (browser)
-
-```bash
-pnpm web
-# or
-pnpm --filter self-service web
-```
-
-App available at: `http://localhost:8081`
-
-### iOS (requires macOS + Xcode)
-
-```bash
-pnpm ios
-```
-
-### Android (requires Android Studio / emulator)
-
-```bash
-pnpm android
-```
-
-### Native dev server (Expo Go / dev client)
-
-```bash
-pnpm dev
-# or
-pnpm --filter self-service start
-```
-
-> All `pre*` scripts automatically re-run codegen before starting. If you update an OpenAPI spec, restart the dev server and codegen will re-run.
+For the console against a **real** local `lightbridge-authz` stack instead of WireMock, point it at
+`config.local-authz.yaml` (see below); that repo's `docs/local-testing.md` covers bringing the
+backend up.
 
 ---
 
-## Running Tests
+## Configuration (console)
 
-Tests use **Playwright** (E2E only — no unit test runner is configured at the root):
+The console is **YAML-first, not env-first**. `apps/console/config.yaml` is the primary document;
+`{env:VAR}` placeholders in it are resolved at load time, and only secrets come from the
+environment. Alternate documents ship for the two common local modes:
+`config.wiremock.yaml` and `config.local-authz.yaml`.
 
-```bash
-# Run Playwright tests (requires app to be running)
-pnpx playwright test
-```
+| Variable            | Required | Purpose                                                           |
+| ------------------- | -------- | ----------------------------------------------------------------- |
+| `SESSION_SECRET`    | **yes**  | ≥32 chars; the session cookie's encryption key is derived from it |
+| `IDP_CLIENT_SECRET` | no       | Only for a confidential Keycloak client                           |
+| `CONSOLE_CONFIG`    | no       | Path to a different config document (e.g. `config.wiremock.yaml`) |
 
----
+Start from `apps/console/.env.example`. Full key-by-key reference: `console-configuration.md`.
+**There are no `NEXT_PUBLIC_*` variables** — no backend URL or secret ever reaches the browser
+(ADR 0009 D3).
 
-## Linting and Formatting
-
-```bash
-# Check only (no writes)
-pnpm lint
-
-# Fix and format
-pnpm format
-```
-
-Both commands run ESLint + Prettier across all `*.{js,jsx,ts,tsx,json,css,md}` files.
+`apps/authz-ui` needs no configuration at all: it is a static bundle with no server and no runtime
+config.
 
 ---
 
-## API Client Codegen
-
-The `packages/api-rest` client is **auto-generated** from OpenAPI specs. Never hand-edit files in `packages/api-rest/src/`.
+## Quality gates
 
 ```bash
-# Regenerate the REST client only (packages/api-rest, from openapi/)
-pnpm codegen
-
-# Regenerate every package that has a `codegen` script — api-rest *and*
-# authz-rpc. This is what `postinstall` runs.
-pnpm codegen:all
+pnpm test          # every workspace's vitest suite
+pnpm build         # turbo run build:web — both apps
+pnpm lint          # eslint + prettier --check, repo-wide
+pnpm format        # eslint --fix + prettier --write
 ```
 
-`pnpm codegen:all` is triggered automatically on `pnpm install` (via `postinstall`). Note that
-`pnpm codegen` is the narrower of the two: it covers `api-rest` only, and is what the
-`apps/self-service` `pre*` scripts re-run before each dev-server start.
+Per-workspace: `pnpm --filter <name> test` / `typecheck` / `build:web`.
+
+`pnpm --filter authz-ui build:web` also runs three verifier scripts that fail the build:
+service-worker scope, CSS/CSP compliance, and the routes manifest. They are gates, not
+formalities — read the error before working around one.
+
+> **Known state of `pnpm lint`:** it reports pre-existing findings on `main` (ESLint errors plus a
+> large Prettier drift), and no CI job runs it — so the gate is currently dead. Capture the count
+> before your change and compare after, rather than assuming you broke something. `ci-cd.md` §3
+> documents the measurement; issue
+> [#412](https://github.com/ADORSYS-GIS/converse-frontends/issues/412) tracks restoring the gate.
 
 ---
 
-## Building for Production
+## Building for production
 
 ```bash
-# Export web bundle (Expo static export)
-pnpm --dir apps/self-service exec expo export --platform web --output-dir dist
-
-# Build Docker image
-docker build -t converse-frontend .
+pnpm --filter console build:web    # .next/standalone — the console's Node server bundle
+pnpm --filter authz-ui build:web   # dist/ — static assets + routes.json
 ```
 
-The multi-stage Dockerfile:
-1. **Build stage** (`node:22-alpine`): runs codegen, then `expo export --platform web`
-2. **Runtime stage** (`nginx:1.27-alpine-slim`): serves the static bundle; `entrypoint.sh` generates `config.json` from environment variables at container start
-
----
-
-## Deployment
-
-| Environment | Trigger | Image Tag | Registry |
-|-------------|---------|-----------|----------|
-| Any branch | Push to `main` or tagged branch | `branch-name`, `sha-<short>`, `latest` (main only) | `ghcr.io/adorsys-gis/converse-frontends` |
-| Production | Push `v*` tag | Semver tag + `sha-<short>` | `ghcr.io/adorsys-gis/converse-frontends` |
-
-Images are built for `linux/amd64` and `linux/arm64` (multi-platform).
-
-Deployment to Kubernetes uses the Helm chart in `charts/converse-frontend/`. See `infrastructure.md` for Helm deployment details.
+Container images are built in CI, not from a root Dockerfile: `apps/console/Dockerfile` produces the
+console's runtime image (glibc base — the CBOR native package publishes no musl build), and
+`apps/authz-ui/Containerfile` produces an assets-only `FROM scratch` image that `lightbridge-authz`
+pins by digest. Details and the deployment matrix: `ci-cd.md`, `infrastructure.md`.
 
 ---
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| `IDBDatabase.transaction: 'keyval' is not a known object store name` | Clear browser IndexedDB for `localhost`. The app uses `lightbridge-web-storage` / `auth` store; a stale `keyval-store` can conflict. |
-| Codegen fails on install | Ensure the OpenAPI spec files in `openapi/` are valid YAML and `packages/api-rest/openapi-ts.config.ts` references them correctly. |
-| Keycloak login redirects fail | Verify `EXPO_PUBLIC_KEYCLOAK_ISSUER` is reachable and the redirect URI `http://localhost:8081/auth` is registered in the Keycloak client. |
-| WireMock returns 404 | Check that a matching stub exists in `wiremock/mappings/`. Restart with `docker compose restart wiremock` after adding stubs. |
-| `pnpm install` hangs | The `.pnpm-store` is large; first install may take time. Subsequent installs use the local cache. |
+| Symptom                                                                      | Cause / fix                                                                                                                                                      |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codegen fails on `pnpm install`                                              | No network to `github.com` (the cratestack CLI's binary download), or an invalid `openapi/usage.backend.yaml`                                                    |
+| Console starts then 500s on any page                                         | `SESSION_SECRET` missing or under 32 characters                                                                                                                  |
+| Keycloak login loops or rejects the redirect                                 | The redirect URI is not registered on the Keycloak client, or `idp.issuer` in the config document is unreachable from the browser                                |
+| WireMock 404s a call the UI makes                                            | No matching stub in `wiremock/mappings/`; `docker compose restart wiremock` after adding one                                                                     |
+| A new authz-ui route 404s in a real deployment but works in `vite dev`       | It was added to `app.tsx` without `route-table.ts`, so it never reached `dist/routes.json`                                                                       |
+| An authz-ui style silently does nothing, or the browser logs a CSP violation | A daisyUI component class reached that surface; use the CSP-safe sections (`apps/authz-ui/README.md`)                                                            |
+| Storybook shows a component but the console does not                         | The barrel export is missing, or the app imports a deep subpath that does not resolve — check all three resolution sites (tsconfig paths, bundler, Vitest alias) |

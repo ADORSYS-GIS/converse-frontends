@@ -30,6 +30,23 @@ describe('SpendShareSection', () => {
     expect(screen.getByText(formatOverviewSpendShareTotal(), exact)).toBeInTheDocument();
   });
 
+  // 2026-08-31 owner-round parity fix #3 — the degenerate-breakdown suppression moved OFF the
+  // account overview's time-series chart and onto this SHARE component (the same contract
+  // `SpendDashboard`'s own `degenerateMessage` prop already implements).
+  it('renders degenerateMessage in place of the bar when ready, keeping the heading', () => {
+    render(<SpendShareSection {...base} degenerateMessage="Only one project in this window (proj-a)." />);
+
+    expect(screen.getByText('Spend — share by project')).toBeInTheDocument();
+    expect(screen.getByText('Only one project in this window (proj-a).')).toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('ignores degenerateMessage while loading or errored — only swaps the READY body', () => {
+    render(<SpendShareSection {...base} status="loading" degenerateMessage="Only one project." />);
+    expect(screen.queryByText('Only one project.')).not.toBeInTheDocument();
+    expect(screen.getByText('Querying usage…')).toBeInTheDocument();
+  });
+
   it('replaces the bar with matching skeleton geometry and a status line while loading', () => {
     render(<SpendShareSection {...base} status="loading" />);
 

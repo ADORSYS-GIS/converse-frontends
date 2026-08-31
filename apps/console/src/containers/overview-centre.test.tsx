@@ -50,12 +50,16 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     groupByField: { label: 'Group by', value: 'project', options: [], onChange: vi.fn() },
     projectField: { label: 'Project', value: '', options: [], onChange: vi.fn() },
     spendSeries: [],
-    spendSegments: [],
-    spendUnassignedCaption: undefined,
-    spendDegenerateMessage: undefined,
     spendStatus: 'ready',
     spendErrorMessage: undefined,
     spendRetry: vi.fn(),
+    spendTruncated: false,
+    spendSegments: [],
+    spendUnassignedCaption: undefined,
+    spendShareStatus: 'ready',
+    spendShareErrorMessage: undefined,
+    spendShareRetry: vi.fn(),
+    spendDegenerateMessage: undefined,
     modelSpendRows: [],
     modelSpendStatus: 'ready',
     modelSpendErrorMessage: undefined,
@@ -132,19 +136,31 @@ describe('OverviewCentre', () => {
     FULL_DASHBOARD_RENDER_TIMEOUT_MS
   );
 
-  // Build brief finish-item §2: a degenerate (<=1 distinct series) SPEND chart renders an inline
-  // status in the chart's own place, instead of a single flat band.
-  it('renders spendDegenerateMessage in place of the SPEND chart when the screen reports one', async () => {
-    await renderCentre({
+  // 2026-08-31 owner-round parity fix #3: the degenerate (<=1 distinct segment) suppression moved
+  // OFF the SPEND chart (a single-series TIME SERIES is still a meaningful "spend over time"
+  // reading now that it plots the account TOTAL, never a per-project split) and onto SPEND BY
+  // PROJECT's own `SpendShareSection` instead — a single-segment BREAKDOWN is the one that
+  // asserts a distribution the data doesn't have.
+  it('renders spendDegenerateMessage in place of SPEND BY PROJECT, never the SPEND chart, when the screen reports one', async () => {
+    const { container } = await renderCentre({
       spendStatus: 'ready',
-      spendSeries: [{ key: 'proj_a', label: 'proj_a', points: [{ x: new Date('2026-08-01'), y: 42 }] }],
+      spendSeries: [
+        { key: 'account-total', label: 'This period', points: [{ x: new Date('2026-08-01'), y: 42 }] },
+        { key: 'previous-period', label: 'Previous period', points: [{ x: new Date('2026-08-01'), y: 30 }] },
+      ],
+      spendShareStatus: 'ready',
+      spendSegments: [{ key: 'proj_a', label: 'proj_a', value: 42, formattedValue: '$42.00' }],
       spendDegenerateMessage: 'Only one project in this window (proj_a).',
     });
 
     expect(screen.getByText('Only one project in this window (proj_a).')).toBeInTheDocument();
+    // The chart itself keeps drawing — its own real two-series legend still renders.
+    expect(screen.getByText('This period')).toBeInTheDocument();
+    expect(screen.getByText('Previous period')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('a FAILED spend query renders an error line, never a zero-value or confirmed-empty chart', async () => {
+  it('a FAILED spend (chart) query renders an error line, never a zero-value or confirmed-empty chart', async () => {
     await renderCentre({
       spendStatus: 'error',
       spendErrorMessage: 'The usage backend is unreachable right now.',
@@ -155,10 +171,22 @@ describe('OverviewCentre', () => {
     expect(alerts.some((el) => el.textContent?.includes('unreachable'))).toBe(true);
     // `SpendDashboard`'s own `status === 'error'` branch renders `ErrorLine` INSTEAD of
     // `SpendSeriesChart` (mutually exclusive ternary) -- so the chart's "confirmed empty" message
-    // is structurally unreachable here, never merely absent by coincidence. Exactly TWO alerts
-    // fire: the chart's own and SPEND BY PROJECT's `SpendShareSection` (same failed query, same
-    // `spendStatus`) -- every other zone in this default fixture stays `'ready'`.
-    expect(alerts).toHaveLength(2);
+    // is structurally unreachable here, never merely absent by coincidence. Exactly ONE alert
+    // fires now that the chart and SPEND BY PROJECT are independently-queried zones with their
+    // own statuses (`spendStatus` vs `spendShareStatus`) -- `spendShareStatus` stays `'ready'` in
+    // this fixture, so `SpendShareSection` renders no `ErrorLine` of its own.
+    expect(alerts).toHaveLength(1);
+  });
+
+  it('a FAILED spend-share query renders SPEND BY PROJECT’s own error line, independent of the chart', async () => {
+    await renderCentre({
+      spendShareStatus: 'error',
+      spendShareErrorMessage: 'The usage backend is unreachable right now.',
+      spendSegments: [],
+    });
+
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts.some((el) => el.textContent?.includes('unreachable'))).toBe(true);
   });
 
   // Phase 9.2 — SPEND BY MODEL replaces the deleted LATENCY panel, for every user (never

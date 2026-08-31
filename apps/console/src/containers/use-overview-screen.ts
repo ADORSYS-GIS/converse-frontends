@@ -49,10 +49,9 @@ import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
-  capSeriesWithOther,
   degenerateChartMessage,
+  isUsageResponseTruncated,
   sumTotalCost,
-  toSpendSeries,
   resolveOverviewWindow,
   splitUnassignedProjects,
   UNASSIGNED_KEY,
@@ -61,7 +60,8 @@ import {
   type SeriesLabeller,
   RANGE_DAYS,
 } from './overview-usage';
-import { toRankedSeriesRows } from './settings-overview-usage';
+import { toAggregateDaySeries, toRankedSeriesRows } from './settings-overview-usage';
+import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
 
 /**
  * `/` — the account-scoped user dashboard (IA v3 phase 4, build brief §7: "`/` becomes purely the
@@ -180,25 +180,54 @@ export interface OverviewScreen {
   bucketField: Omit<SelectFieldProps, 'layout'>;
   groupByField: Omit<SelectFieldProps, 'layout'>;
   projectField: Omit<SelectFieldProps, 'layout'>;
-  // ── #305: SPEND / SPEND SHARE ────────────────────────────────────────────────────────────
+  // ── #305 / 2026-08-31 owner-round parity fix: SPEND (the account TOTAL over time) / SPEND
+  // SHARE (the per-project/model/user/api-key breakdown) — now two independently-queried zones,
+  // not one grouped query feeding both. ───────────────────────────────────────────────────────
+  /**
+   * The account's TOTAL spend over time — UNGROUPED, summing every project/model/user/api-key
+   * (including unattributed spend) exactly the way the estate overview's own chart does
+   * (`usage-overview-usage.ts`'s `combineAccountModelResponses`/`toAggregateDaySeries`), so `/`
+   * and `/settings/overview/usage` draw the SAME curve for the same account — the owner's own
+   * finding, 2026-08-31: "the graphs are literally completely different... They should normally
+   * be exactly the same, right?" They were different because this chart used to plot one line PER
+   * PROJECT while silently dropping every unassigned-spend point (often 88-99% of it); the
+   * per-project/model split is no longer this chart's job — `spendSegments` below (the share bar)
+   * still carries that. Index 0 is the current window's total; index 1 is the dashed
+   * previous-period comparison, its own timestamps re-based forward by one window span so it
+   * OVERLAYS the current window rather than extending the chart's x-domain a whole period further
+   * back (`usage-overview-usage.ts`'s `shiftSeriesForward`).
+   */
   spendSeries: SpendSeriesSeries[];
+  spendStatus: DashboardStatus;
+  spendErrorMessage?: string;
+  spendRetry: () => void;
+  /** Set when the current- or previous-period total response alone hit `USAGE_QUERY_LIMIT` —
+   *  never silently understating the real total the way an un-flagged truncation would. */
+  spendTruncated: boolean;
+  /** The `groupByField`-driven breakdown feeding the SHARE bar — its own query (`usageQuery`), own
+   *  status, independent of the TOTAL chart above (they used to be the same query). */
   spendSegments: ShareBarSegment[];
   /** Set only when the current breakdown is BY PROJECT and some spend genuinely had none — the
    *  excluded share, stated in words (build brief §7: "drop unassigned from any project
    *  breakdown, caption instead"). `undefined` for every other `groupBy`, and for a project
    *  breakdown with nothing unassigned to report. */
   spendUnassignedCaption: string | undefined;
+  spendShareStatus: DashboardStatus;
+  spendShareErrorMessage?: string;
+  spendShareRetry: () => void;
   /**
-   * Set once `spendStatus === 'ready'` when the CURRENT dimension's response resolves to <=1
-   * distinct series — a single-band chart asserts a shape ("here is how this varies") the data
-   * does not have. Passed straight through to `SpendDashboard.degenerateMessage`, which renders
-   * an inline status line in the chart's own place. `undefined` for 0 series (the chart's own
-   * built-in "No usage in this range." empty state already covers that honestly) and for >=2.
+   * Set once `spendShareStatus === 'ready'` when the CURRENT dimension's response resolves to <=1
+   * distinct series — a single-band BREAKDOWN asserts a distribution ("here is how spend splits
+   * across these") the data does not have. Passed straight through to
+   * `SpendShareSection.degenerateMessage`, which renders an inline status line in the share bar's
+   * own place. `undefined` for 0 segments (the share bar's own built-in "No spend in this range."
+   * empty state already covers that honestly) and for >=2.
+   *
+   * **No longer applies to the TOTAL chart above** (2026-08-31 fix #3): a single-series TIME
+   * SERIES is still a meaningful "spend over time" reading — degenerate suppression is a SHARE-view
+   * concept only.
    */
   spendDegenerateMessage: string | undefined;
-  spendStatus: DashboardStatus;
-  spendErrorMessage?: string;
-  spendRetry: () => void;
   // ── phase 9.2: SPEND BY MODEL — a second aggregate view of the SAME scope/period as SPEND
   // above (never a separately-scoped query, so the two cards can never disagree), grouped by
   // model rather than whatever the toolbar's own `groupByField` currently holds. Replaces the
@@ -272,11 +301,106 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   const accountId = scope.value.accountId;
   const projectId = scope.value.projectId;
 
-  // ── #305: SPEND / SPEND SHARE ──────────────────────────────────────────────────────────────
+  // ── #305 / 2026-08-31 owner-round parity fix: SPEND — the account's TOTAL over time,
+  // UNGROUPED, so it draws the SAME curve as the estate overview's own chart for the same
+  // account (`OverviewScreen.spendSeries`'s own doc comment has the full owner-finding context).
+  // Two queries: the current window's total, and the previous window's, for the dashed
+  // comparison line — the SAME pair-of-queries shape the estate overview's fan-out already uses
+  // per account, just for exactly one account here. ─────────────────────────────────────────────
+  const prevWindow = useMemo(() => previousWindow(usageWindow), [usageWindow]);
+  // The current window's own span — re-bases the previous-period series forward so it OVERLAYS
+  // the current window instead of doubling the chart's x-domain (fix #2; see
+  // `usage-overview-usage.ts`'s `shiftSeriesForward` for the full mechanism).
+  const spanMs = usageWindow.end.getTime() - usageWindow.start.getTime();
+
+  const totalUsageQuery = useQuery({
+    queryKey: [
+      'usage',
+      'overview-total',
+      accountId,
+      projectId,
+      view.range,
+      view.bucket,
+      view.model,
+      view.from,
+      view.to,
+    ],
+    queryFn: () =>
+      queryUsage(
+        buildOverviewUsageRequest({
+          accountId,
+          projectId,
+          window: usageWindow,
+          bucket: view.bucket,
+          model: view.model,
+        })
+      ),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const previousUsageQuery = useQuery({
+    queryKey: [
+      'usage',
+      'overview-total-previous',
+      accountId,
+      projectId,
+      view.range,
+      view.bucket,
+      view.model,
+      view.from,
+      view.to,
+    ],
+    queryFn: () =>
+      queryUsage(
+        buildOverviewUsageRequest({
+          accountId,
+          projectId,
+          window: prevWindow,
+          bucket: view.bucket,
+          model: view.model,
+        })
+      ),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+  });
+
+  const spendStatus: DashboardStatus =
+    totalUsageQuery.isError || previousUsageQuery.isError
+      ? 'error'
+      : totalUsageQuery.isPending || previousUsageQuery.isPending
+        ? 'loading'
+        : 'ready';
+
+  // `toAggregateDaySeries` (`settings-overview-usage.ts`) is the SAME ungrouped-sum adapter the
+  // estate/lens screens already share for this shape — reused, not re-derived, so "account total"
+  // means the same math everywhere it appears. Index 0: current period. Index 1: the dashed
+  // previous-period comparison, re-based forward by `spanMs` — see fix #2's own doc comment.
+  const spendSeries = useMemo(() => {
+    if (spendStatus !== 'ready' || !totalUsageQuery.data || !previousUsageQuery.data) return [];
+    const current = toAggregateDaySeries(totalUsageQuery.data, 'This period');
+    const previous = shiftSeriesForward(
+      toAggregateDaySeries(previousUsageQuery.data, 'Previous period'),
+      spanMs
+    );
+    return [current, previous];
+  }, [spendStatus, totalUsageQuery.data, previousUsageQuery.data, spanMs]);
+
+  // Build brief finish-item §4: neither this hook nor the estate's own used to call
+  // `isUsageResponseTruncated` at all — a response that alone hit `USAGE_QUERY_LIMIT` understated
+  // the real total with no indication anything was cut off.
+  const spendTruncated =
+    (totalUsageQuery.data ? isUsageResponseTruncated(totalUsageQuery.data) : false) ||
+    (previousUsageQuery.data ? isUsageResponseTruncated(previousUsageQuery.data) : false);
+
+  // ── SPEND SHARE — the `groupByField`-driven per-project/model/user/api-key breakdown feeding
+  // the share bar. Its OWN query now (used to be the same grouped query the chart above read
+  // from) — the chart is ungrouped and the share bar is grouped, so they can no longer share one
+  // response. ─────────────────────────────────────────────────────────────────────────────────
   const usageQuery = useQuery({
     queryKey: [
       'usage',
-      'overview',
+      'overview-share',
       accountId,
       projectId,
       view.range,
@@ -301,7 +425,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
-  const spendStatus: DashboardStatus = usageQuery.isError
+  const spendShareStatus: DashboardStatus = usageQuery.isError
     ? 'error'
     : usageQuery.isPending
       ? 'loading'
@@ -309,15 +433,10 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
 
   // The usage backend groups by `project_id`, so every series comes back keyed by an opaque id.
   // The console already knows the names — `scope.allProjects` is loaded for the project picker —
-  // so resolve them here rather than printing `zezxvt21irmoi0kzm22el7gu` on the chart legend and
-  // the share list (owner, 2026-08-29). Model keys are already human-readable, so they pass
-  // through; an id with no matching project does too, which is the honest fallback for a project
-  // deleted since the usage was recorded.
-  //
-  // `labelForProject` resolves a project id regardless of the dashboard's own `groupBy` — the
-  // admin-only pressure zone below is always grouped by project, independent of what the user's
-  // own SPEND chart is currently grouped by, so it needs the unconditional mapping rather than
-  // `labelForSeries`'s groupBy-gated one.
+  // so resolve them here rather than printing `zezxvt21irmoi0kzm22el7gu` on the share list (owner,
+  // 2026-08-29). Model keys are already human-readable, so they pass through; an id with no
+  // matching project does too, which is the honest fallback for a project deleted since the usage
+  // was recorded.
   const namesById = useMemo(
     () => new Map(scope.allProjects.map((project) => [project.id, project.name])),
     [scope.allProjects]
@@ -338,16 +457,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     []
   );
 
-  // Capped to 4 real series + one summed "Other" at the CONSUMER (build brief §2c) — the chart
-  // itself draws whatever it is given; a series explosion (a project breakdown with 30 projects)
-  // is this container's problem to bound, not the chart's. The chart's own unassigned LINE is
-  // dropped for a project breakdown too, same rule as the share segments below.
-  const spendSeries = useMemo(() => {
-    if (!usageQuery.data) return [];
-    const raw = toSpendSeries(usageQuery.data, view.groupBy, labelForSeries);
-    const kept = view.groupBy === 'project_id' ? raw.filter((s) => s.key !== UNASSIGNED_KEY) : raw;
-    return capSeriesWithOther(kept);
-  }, [usageQuery.data, view.groupBy, labelForSeries]);
   const rawSpendSegments = useMemo(
     () =>
       usageQuery.data ? toSpendShareSegments(usageQuery.data, view.groupBy, labelForSeries) : [],
@@ -364,10 +473,12 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     [view.groupBy, rawSpendSegments]
   );
 
-  // <=1 distinct series in the CURRENT dimension's own response is a degenerate chart, not a
+  // <=1 distinct series in the CURRENT dimension's own response is a degenerate BREAKDOWN, not a
   // genuinely empty one (build brief finish-item §2) — `degenerateChartMessage` (`overview-
   // usage.ts`) is the one shared decision, computed off `spendSegments`/`spendUnassignedCaption`
-  // this hook already has. No extra query.
+  // this hook already has. No extra query. Fix #3 (2026-08-31): this now gates the SHARE bar only
+  // (`SpendShareSection.degenerateMessage`) — the TOTAL chart above always draws, a single-series
+  // time series being a meaningful reading on its own.
   const spendDegenerateMessage = useMemo(
     () => degenerateChartMessage(spendSegments, DIMENSION_NOUN[view.groupBy], spendUnassignedCaption),
     [spendSegments, view.groupBy, spendUnassignedCaption]
@@ -657,12 +768,23 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
         scope.setValue({ accountId: scope.value.accountId, projectId: projectId || null }),
     },
     spendSeries,
+    spendStatus,
+    spendErrorMessage: totalUsageQuery.isError
+      ? getUsageErrorMessage(totalUsageQuery.error)
+      : previousUsageQuery.isError
+        ? getUsageErrorMessage(previousUsageQuery.error)
+        : undefined,
+    spendRetry: () => {
+      void totalUsageQuery.refetch();
+      void previousUsageQuery.refetch();
+    },
+    spendTruncated,
     spendSegments,
     spendUnassignedCaption: spendUnassignedCaption ?? undefined,
+    spendShareStatus,
+    spendShareErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
+    spendShareRetry: () => void usageQuery.refetch(),
     spendDegenerateMessage,
-    spendStatus,
-    spendErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
-    spendRetry: () => void usageQuery.refetch(),
     modelSpendRows,
     modelSpendStatus,
     modelSpendErrorMessage: modelUsageQuery.isError

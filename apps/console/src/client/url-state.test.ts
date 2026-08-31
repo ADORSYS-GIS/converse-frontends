@@ -110,9 +110,11 @@ describe('the URL param contract', () => {
       // sort (`sort`/`dir`) and page cursor (`after`).
       admin: ['after', 'dir', 'request', 'sort'],
       // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
-      // `project`/`user`) share this one range/bucket/selection vocabulary. `accountSort` is the
+      // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
+      // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the
+      // param parsed into nothing any request builder or control ever read). `accountSort` is the
       // estate overview's own by-account sort toggle, remapped to kebab-case on the wire.
-      settingsOverview: ['account-sort', 'bucket', 'from', 'range', 'series', 'to'],
+      settingsOverview: ['account-sort', 'from', 'range', 'series', 'to'],
     });
   });
 
@@ -230,7 +232,6 @@ describe('the URL param contract', () => {
     expect(isParserBijective(overviewParsers.format, 'pdf', 'pdf')).toBe(true);
     expect(isParserBijective(createProjectParsers.open, 'true', true)).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.range, '7d', '7d')).toBe(true);
-    expect(isParserBijective(settingsOverviewParsers.bucket, 'hour', 'hour')).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.series, 'acct_7', 'acct_7')).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.accountSort, 'delta', 'delta')).toBe(true);
   });

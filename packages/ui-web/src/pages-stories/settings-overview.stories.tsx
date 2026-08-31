@@ -520,6 +520,10 @@ interface UsageOverviewScreenProps {
   accountRowsStatus?: DashboardStatus;
   modelSegments?: ShareBarSegment[];
   truncationCaption?: string;
+  /** Build brief finish-item §4 (2026-08-31 owner-round parity fix) — a fanned-out account's own
+   *  response alone hitting the usage backend's query limit, independent of `truncationCaption`
+   *  above (which is about how many ACCOUNTS were queried, not how many POINTS came back). */
+  spendTruncated?: boolean;
 }
 
 const USAGE_MODEL_SEGMENTS: ShareBarSegment[] = [
@@ -572,6 +576,7 @@ function UsageOverviewScreen({
   accountRowsStatus = 'ready',
   modelSegments = USAGE_MODEL_SEGMENTS,
   truncationCaption,
+  spendTruncated = false,
 }: UsageOverviewScreenProps) {
   const resolvedSpendSeries = spendSeries ?? usageEstateSpendSeries();
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
@@ -621,19 +626,27 @@ function UsageOverviewScreen({
               onRetry={() => {}}
             />
           ) : (
-            <SpendDashboard
-              label="Spend over time"
-              series={resolvedSpendSeries}
-              status={spendStatus}
-              fallbackWidth={840}
-              height={220}
-              formatYTick={formatUsdAxis}
-              formatTooltipValue={formatUsd}
-              formatLegendValue={(series) =>
-                formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
-              }
-              onSelectSeries={setSelectedSeriesKey}
-            />
+            <>
+              <SpendDashboard
+                label="Spend over time"
+                series={resolvedSpendSeries}
+                status={spendStatus}
+                fallbackWidth={840}
+                height={220}
+                formatYTick={formatUsdAxis}
+                formatTooltipValue={formatUsd}
+                formatLegendValue={(series) =>
+                  formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
+                }
+                onSelectSeries={setSelectedSeriesKey}
+              />
+              {spendTruncated ? (
+                <InlineStatus className="mt-2">
+                  This range returned more points than one query can carry — showing the first
+                  2,000.
+                </InlineStatus>
+              ) : null}
+            </>
           )}
         </Card>
 
@@ -950,6 +963,14 @@ export const UsageEstateSentinelIdentities: Story = {
 export const UsageTruncated: Story = {
   name: 'Usage — truncated to the top accounts',
   render: () => <UsageOverviewScreen truncationCaption="Showing the top 25 of 61 accounts." />,
+};
+
+// Build brief finish-item §4 (2026-08-31 owner-round parity fix) — distinct from `UsageTruncated`
+// above: THIS caption is about a fanned-out account's own response hitting the usage backend's
+// query limit, not about how many accounts were queried.
+export const UsageSpendTruncated: Story = {
+  name: 'Usage — a fanned-out response hit the query limit',
+  render: () => <UsageOverviewScreen spendTruncated />,
 };
 
 export const UsageEmpty: Story = {

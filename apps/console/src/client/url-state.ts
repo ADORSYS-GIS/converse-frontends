@@ -316,6 +316,13 @@ export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
  * in this console already uses (`apiKeysParsers.sortKey`, `manageParsers.sortKey`, …): a knob, not
  * a selection, so it writes with `replace` like the rest of this table rather than costing a Back
  * press per toggle.
+ *
+ * **No `bucket` here** (removed 2026-08-31, owner round finding #5): these lenses have no bucket
+ * toolbar of their own — every spend chart under `/settings/overview/*` is a FIXED day bucket
+ * (`settings-overview-usage.ts`'s `DAY_BUCKET`, `buildLensDayRequest` hardcodes `'1 day'`) — so a
+ * `?bucket=` param used to parse into `view.bucket` and then go completely unread: no request
+ * builder consumed it, no control rendered it. A dormant knob, deleted rather than left wired to
+ * nothing.
  */
 export const SETTINGS_OVERVIEW_ACCOUNT_SORTS = ['value', 'delta'] as const;
 
@@ -323,7 +330,6 @@ export const settingsOverviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
-  bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
   series: parseAsString.withDefault(''),
   accountSort: parseAsStringLiteral(SETTINGS_OVERVIEW_ACCOUNT_SORTS).withDefault('value'),
 };

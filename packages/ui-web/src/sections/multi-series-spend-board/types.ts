@@ -26,6 +26,10 @@ export interface MultiSeriesSpendBoardProps {
   formatXTick?: (date: Date) => string;
   formatTooltipTitle?: (date: Date) => string;
   formatValue?: (value: number) => string;
+  /** Passed straight through to `MultiSeriesSpendChartProps.formatYTick` — override for a
+   *  non-money board (a per-day COUNT, e.g. refill decisions or request volume) so its axis
+   *  doesn't carry a fabricated `$` prefix. Defaults to `formatUsdAxis`. */
+  formatYTick?: (value: number) => string;
   emptyMessage?: string;
   /** Appended to the chart's own caption sentence — passed straight through to
    *  `MultiSeriesSpendChartProps.truncationCaption`. */

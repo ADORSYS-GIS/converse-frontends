@@ -73,8 +73,9 @@ import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
  * hook used to compute directly, gated `enabled: … && isAdmin` — MOVED to
  * `use-settings-overview-screen.ts`, onto the project lens and the account lens respectively
  * (`/settings/overview/project`, `/settings/overview/account`); the pending-refill count
- * (`refillRequestStatus`) is gone outright, not moved — it already lives in the settings nav's own
- * numeral (`use-refills-queue-screen.ts`, shared by query key with `/settings/refills-queue`).
+ * (`refillRequestStatus`) is gone outright, not moved — it already lives in the account-area
+ * Operator row's and the admin area's own nav numeral (`use-refills-queue-screen.ts`, shared by
+ * query key with `/admin/refills-queue`, ADR 0013's same-day "the admin area" amendment).
  * This hook fires no `enabled: isAdmin` query of any kind: every query below runs the same way for
  * every signed-in user, admin or not.
  *

@@ -112,6 +112,7 @@ export function MultiSeriesSpendChart({
   formatXTick = identityFormatDate,
   formatTooltipTitle = formatXTick,
   formatValue = formatUsd,
+  formatYTick = formatUsdAxis,
   onSelectSeries,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   truncationCaption,
@@ -193,13 +194,13 @@ export function MultiSeriesSpendChart({
     if (scale === 'log') {
       return logAxisTicks(yDomain).map((value) => ({
         position: MARGIN.top + yScale(value),
-        label: formatUsdAxis(value),
+        label: formatYTick(value),
       }));
     }
     return yScale
       .ticks(4)
-      .map((value) => ({ position: MARGIN.top + yScale(value), label: formatUsdAxis(value) }));
-  }, [scale, yDomain, yScale]);
+      .map((value) => ({ position: MARGIN.top + yScale(value), label: formatYTick(value) }));
+  }, [scale, yDomain, yScale, formatYTick]);
 
   const activeTimestamp = activeIndex !== null ? timestamps[activeIndex] : null;
   // Rank-ordered (same order the board colours/ranks by), each row stating the TRUE per-day

@@ -45,7 +45,7 @@ import { useRenameAccountDialog } from '../../containers/use-rename-account-dial
  * as dead branches that would always evaluate to "no rail" — the same "hide it if empty" instinct
  * this layout already applied to the rail's CONTENT, now applied to whether it is wired at all.
  * `/settings/accounts/<id>/projects`' own selection detail is `BottomSheet` at every tier instead
- * — the same surface `/settings/refills-queue` already uses for the identical reason.
+ * — the same surface `/admin/refills-queue` already uses for the identical reason.
  *
  * Four dialogs mount here, alongside the shell, for the identical reason each time: two or more
  * structurally separate subtrees need to open the SAME instance, which only a layout-level mount

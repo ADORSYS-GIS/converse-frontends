@@ -34,9 +34,6 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
  * unlike `LEGACY_ACCOUNT_SCOPED_SEGMENT` above (none of these three ever carried an `?account=`
  * segment of their own to extract):
  *
- *  - `/admin` -> `/settings/refills-queue`: the budget refill review queue moved wholesale
- *    (`git mv`). `?request=req_9` (the selected row) and every other param survive verbatim —
- *    `use-refills-queue-screen.ts` reads the identical param names on the new path.
  *  - `/settings/projects` -> `/settings/policies`: project settings folded into the combined
  *    account/project policies screen. `?row=`/`?rename=`/`?q=`/`?page=` survive verbatim —
  *    `use-policies-screen.ts` reads `useSettingsParams()`, the same parser `/settings/projects`
@@ -50,11 +47,22 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
  *    everything else the old route owned — the rename dialog opens from the rail now, not a URL
  *    flag — but any OTHER param survives, same "touch only what this move actually changes" rule
  *    the account-scoped table above follows.
+ *
+ * ADR 0013's same-day "the admin area" amendment adds a fourth, of the identical shape:
+ *
+ *  - `/settings/refills-queue` -> `/admin/refills-queue`: the budget refill review queue moved a
+ *    SECOND time — `/admin` (pre-IA-v3) -> `/settings/refills-queue` (IA v3 phase 2, the row
+ *    above until this amendment) -> `/admin/refills-queue` (here). `/admin` itself is a LIVE route
+ *    again (the operator dashboard, `/admin/overview`), so the old `/admin` -> `/settings/
+ *    refills-queue` row is retired rather than updated — nothing should still 308 off the bare
+ *    `/admin` segment now that it resolves to real content of its own
+ *    (`app/(console)/admin/page.tsx`'s own `redirect('/admin/overview')`). `?request=req_9` and
+ *    every other param survive verbatim, same as every other row here.
  */
 const LEGACY_STATIC_REDIRECT: Record<string, string> = {
-  '/admin': '/settings/refills-queue',
   '/settings/projects': '/settings/policies',
   '/settings/account': '/',
+  '/settings/refills-queue': '/admin/refills-queue',
 };
 
 function legacyStaticRedirectTarget(

@@ -9,11 +9,13 @@ import type { ReactNode } from 'react';
  * (`loading.tsx`, this directory) and a `dynamic` export across every route beneath it, the same
  * job `accounts/[accountId]/layout.tsx` does for its own segment — not to add a second shell.
  *
- * `force-dynamic` here (rather than on each of the five settings routes individually) is what
- * lets `settings/overview/usage/page.tsx`, `settings/policies/page.tsx`, `settings/tiers/page.tsx`
- * `settings/info/page.tsx` and `settings/refills-queue/page.tsx` each read the session cookie or
+ * `force-dynamic` here (rather than on each settings route individually) is what lets
+ * `settings/overview/usage/page.tsx`, `settings/policies/page.tsx`, `settings/tiers/page.tsx`,
+ * `settings/info/page.tsx` and the `settings/accounts/*` subtree each read the session cookie or
  * live scope state without every one of them repeating the export — Next.js `dynamic` is
- * inherited by every segment nested under the layout that declares it.
+ * inherited by every segment nested under the layout that declares it. (`settings/refills-queue`
+ * moved out entirely, to `/admin/refills-queue` — ADR 0013's same-day "the admin area" amendment
+ * — so it no longer counts among this layout's own descendants.)
  *
  * `console-shell-mount.test.ts` regression-guards this file's own shape: it must import neither
  * the shell primitive nor the persistent nav primitive, the same guard `accounts/[accountId]/

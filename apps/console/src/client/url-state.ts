@@ -624,6 +624,54 @@ export function useAdminParams() {
   return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });
 }
 
+// ── /admin/overview ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/overview`'s own params (converse-frontends#368, the admin-area build) — the operator
+ * dashboard's date range plus one axis-transform knob per `MultiSeriesSpendBoard` on the page
+ * (`use-admin-overview-screen.ts`). Same `range`/`from`/`to` shape `overviewParsers`/
+ * `settingsOverviewParsers` already declare (the explicit-span-wins-over-preset rule,
+ * `resolveOverviewWindow` reused verbatim) rather than a fourth divergent range picker.
+ *
+ * Six scale knobs, one per board, rather than one shared value: the approved page story
+ * (`Pages/AdminOverview`) gives each board its own default (`modelMixScale` defaults to `log` —
+ * the same one-dominant-model shape `overviewParsers.modelScale` defaults to `log` for;
+ * `requestVolumeScale` defaults to `indexed` — request COUNT and (when it ships) an error metric
+ * cannot share a linear axis, the same reasoning `MultiSeriesSpendChart`'s own doc comment gives
+ * for `indexed`; every other board defaults to the honest raw `linear` reading), so a single
+ * shared param would either lose those defaults or force every board to agree on one axis
+ * transform, which the story never asked for. All `replace`-written knobs (ADR 0011 rule 2) —
+ * dragging a segmented control must not cost a Back press per click, the same idiom
+ * `overviewParsers.modelScale`/`settingsOverviewParsers.accountScale` already use.
+ */
+export const adminOverviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  estateTotalScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  estateAccountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  modelMixScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
+  refillDecisionsScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  requestVolumeScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('indexed'),
+  adoptionScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+};
+
+const adminOverviewUrlKeys = {
+  estateTotalScale: 'estate-total-scale',
+  estateAccountScale: 'estate-account-scale',
+  modelMixScale: 'model-mix-scale',
+  refillDecisionsScale: 'refill-decisions-scale',
+  requestVolumeScale: 'request-volume-scale',
+  adoptionScale: 'adoption-scale',
+};
+
+export function useAdminOverviewParams() {
+  return useQueryStates(adminOverviewParsers, {
+    urlKeys: adminOverviewUrlKeys,
+    history: 'replace',
+  });
+}
+
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 
 /**
@@ -645,4 +693,5 @@ export const URL_PARAM_CONTRACT = {
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },
   settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
+  adminOverview: { parsers: adminOverviewParsers, urlKeys: adminOverviewUrlKeys },
 } as const;

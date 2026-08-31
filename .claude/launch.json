@@ -20,6 +20,18 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "ui-web-storybook-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "6100",
+        "--directory",
+        "packages/ui-web/storybook-static"
+      ],
+      "port": 6100
     }
   ]
 }

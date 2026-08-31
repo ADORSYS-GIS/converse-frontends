@@ -5,8 +5,8 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
 /**
- * `/settings/refills-queue` centre loading skeleton — see `settings/loading.tsx`'s docstring for
- * the area-wide fallback this route-specific one takes priority over. The route itself is
+ * `/admin/refills-queue` centre loading skeleton (moved here from `/settings/refills-queue` — see
+ * `admin/refills-queue/page.tsx`'s own doc comment for the route's two moves). The route itself is
  * `async` (`readSession()` before the role gate), so this boundary also covers that real
  * server-side latency, not just the client chunk fetch.
  *

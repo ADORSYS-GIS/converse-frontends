@@ -26,7 +26,7 @@ import { useProjectsScreen } from './use-projects-screen';
  *
  * **No right rail — ever.** `/settings/*` has no inspector rail at any tier (ADR 0013 D2), so the
  * selected project's detail is `BottomSheet` at EVERY tier now, not only below `lg` — the same
- * surface `/settings/refills-queue`'s own `ReviewDetailPanel` uses, for the identical reason.
+ * surface `/admin/refills-queue`'s own `ReviewDetailPanel` uses, for the identical reason.
  * `useProjectRename(project)` — the FULL controller, dialog and mutation both — mounts directly
  * here rather than splitting across a rail-and-sheet pair the way `/accounts/<id>/projects` used
  * to (see `use-project-rename.ts`'s own doc comment for the "one detail surface now, not two"

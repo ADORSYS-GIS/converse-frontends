@@ -26,7 +26,7 @@ const KBD_HINT_CLASS = 'kbd kbd-sm';
 // The palette's own panel: overlay chrome at the floating radius (owner ruling, 2026-08-31, issue
 // #368: "10px looks good for the command palette" — `OVERLAY_FLOATING_CLASS`, `lib/overlay.ts`),
 // plus the geometry `palette-popup` carries.
-const PALETTE_POPUP_CLASS = cn('palette-popup', OVERLAY_FLOATING_CLASS);
+const PALETTE_POPUP_CLASS = cn('palette-popup', 'overlay-pop', OVERLAY_FLOATING_CLASS);
 
 /**
  * The ⌘K command palette (ADR 0010 Decision 6, the command-palette row of

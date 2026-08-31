@@ -19,8 +19,9 @@ import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from './overlay';
 /** Scrim behind a modal dialog. */
 export const DIALOG_BACKDROP_CLASS = OVERLAY_BACKDROP_CLASS;
 
-/** The centred modal panel itself. */
-export const DIALOG_POPUP_CLASS = `fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 p-6 ${OVERLAY_CLASS}`;
+/** The centred modal panel itself. `overlay-pop` (theme.css) owns the enter/exit motion —
+ *  its comment holds the `@starting-style` mechanism. */
+export const DIALOG_POPUP_CLASS = `fixed top-1/2 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 p-6 overlay-pop ${OVERLAY_CLASS}`;
 
 /** Dialog heading — the `panel-title` type role. A heading is prose, not data (phase 9
  *  consistency pass — this was mono). */

@@ -818,6 +818,35 @@
  * THIS transition's `transitionend`, so without it the sheet was also unmounting a frame early on
  * top of not animating.
  */
+/*
+ * Pop-in/out for CENTRED overlays — the modal dialogs (Base UI Dialog/AlertDialog popups) and the
+ * command palette panel. Same mechanism as `sheet-panel` directly above (read its comment for why
+ * the enter half MUST be `@starting-style` and a plain `&[data-starting-style]` selector can
+ * never fire): a 150ms fade + 0.98 scale, restrained per the skill — no bounce, no slide.
+ * `scale`/`opacity` only, so it composes with any positioning transform/translate the consumer
+ * carries. The exit half keys off `data-ending-style` — Base UI keeps the popup mounted through
+ * its exit transition, so it paints; cmdk's palette (Radix underneath) unmounts instantly on
+ * close, so for it only the enter half can ever run and the exit rule is inert, not dead code
+ * shared consumers would miss.
+ */
+@utility overlay-pop {
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity 0.15s ease-out,
+    scale 0.15s ease-out;
+
+  @starting-style {
+    opacity: 0;
+    scale: 0.98;
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
 @utility sheet-panel {
   position: fixed;
   z-index: 50;

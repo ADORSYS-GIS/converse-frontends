@@ -1559,6 +1559,83 @@
 }
 
 /*
+ * `MultiSeriesSpendChart`'s own legend (Storybook-only design exploration, 2026-08-31 — the
+ * owner rejected per-row sparklines for "Spend by model"/"by project"/"by account" and asked for
+ * one superposed board instead). Four fixed columns — rank swatch · label · total · share —
+ * deliberately NOT `.ranked-row`'s six: this legend states no sparkline (the very thing rejected)
+ * and no delta, and its data columns read in the opposite order from `.ranked-row`'s own
+ * (`value` before `percent` — "amount, then the share it represents" — vs. that row's
+ * percent-then-value slots), so reusing that grid would either misorder the columns or waste two
+ * empty ones for every row.
+ */
+@utility multi-series-legend {
+  display: flex;
+  flex-direction: column;
+}
+
+@utility multi-series-legend-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  width: 100%;
+  min-height: 28px;
+  padding-inline: 0.25rem;
+  border-radius: var(--radius-field);
+  font-size: 0.75rem;
+  text-align: left;
+
+  /* Same `:disabled`-drives-affordance rule `.series-row`/`.ranked-row` use. */
+  &:not(:disabled) {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--color-neutral);
+    }
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  & .multi-series-legend-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-base-content);
+  }
+
+  & .multi-series-legend-value,
+  & .multi-series-legend-percent {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-subtle);
+    text-align: right;
+  }
+
+  /* A fixed track so the share column aligns down the list regardless of value width. */
+  & .multi-series-legend-percent {
+    width: 3rem;
+  }
+
+  &[data-emphasized='true'] {
+    & .multi-series-legend-label {
+      color: var(--color-ink);
+    }
+    & .multi-series-legend-value {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* Two jobs share this hook: a hovered/selected OTHER row dims as a whole (the chart's own lines
+     dim the same way, via inline `opacity` — see `component.tsx`), and the zero-spend tail's
+     summary/expanded rows are permanently drawn this quiet regardless of hover state. */
+  &[data-dim='true'] {
+    opacity: 0.5;
+  }
+}
+
+/*
  * `ChartTooltip`'s card. Point-anchored, drawn over a chart, so it is the one overlay that is not
  * `OVERLAY_CLASS`: it carries no hairline (a 1px border on a card that tracks the cursor reads as
  * flicker) and it is never interactive.

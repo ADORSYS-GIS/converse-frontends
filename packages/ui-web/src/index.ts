@@ -103,6 +103,13 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { ShareBar } from './components/share-bar';
 export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
+export { MultiSeriesSpendChart } from './components/multi-series-spend-chart';
+export type {
+  MultiSeriesSpendChartProps,
+  MultiSeriesSpendPoint,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from './components/multi-series-spend-chart';
 
 // ── forms & actions
 export { Button } from './components/button';

@@ -1,19 +1,11 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { Select } from '@base-ui/react/select';
 import React from 'react';
 
 import { Button } from '../button';
 import { ErrorLine } from '../error-line';
 import { Field } from '../field';
-import { fieldLabelClassName } from '../field/field-classes';
+import { SelectField } from '../select-field';
 import type { CreateProjectDialogProps } from './types';
-import { Chevron } from '../chevron';
-import { OVERLAY_ITEM_CLASS } from '../../lib/overlay';
-import {
-  SELECT_POPUP_CLASS,
-  SELECT_POSITIONER_CLASS,
-  SELECT_TRIGGER_CLASS,
-} from '../../lib/select';
 import {
   DIALOG_ACTIONS_CLASS,
   DIALOG_BACKDROP_CLASS,
@@ -28,7 +20,9 @@ import {
 // primary's target on the Manage screen (manage-projects.svg). No dedicated component is named in
 // the inventory for this one (ticket #303 — this form did not exist before), so it follows
 // CreateApiKeyDialog's established shape one row over. Both now render the same panel and the
-// same plan picker from lib/dialog.ts and lib/select.ts rather than two byte-identical copies.
+// same plan picker via `SelectField` (unify-select, issue #368 — `lib/select.ts`'s own hand-rolled
+// Select tree, which both dialogs used to share instead, is deleted) rather than two byte-identical
+// copies of anything.
 //
 // The real CreateProjectInput (authz.cstack lines 187-282) is much wider than what this dialog
 // collects — allowedModels, modelPolicy, projectQuota, isDefault and status are all readonly on
@@ -60,12 +54,14 @@ export function CreateProjectDialog({
   onSubmit,
   onCancel,
 }: CreateProjectDialogProps) {
-  // A placeholder item carries a null value — same idiom CreateApiKeyDialog's own plan picker
-  // uses, so the trigger always has a real item backing whatever it displays.
-  const planItems: { value: string | null; label: string }[] = plansLoading
-    ? [{ value: null, label: 'Loading plans…' }]
+  // A placeholder item carries the `''` sentinel — same idiom `CreateApiKeyDialog`'s own plan
+  // picker uses, so the trigger always has a real item backing whatever it displays. The whole
+  // control is `disabled` whenever this placeholder is showing (below), so `''` is never a
+  // committable selection.
+  const planItems: { value: string; label: string }[] = plansLoading
+    ? [{ value: '', label: 'Loading plans…' }]
     : plans.length === 0
-      ? [{ value: null, label: 'No plans available' }]
+      ? [{ value: '', label: 'No plans available' }]
       : plans.map((plan) => ({ value: plan.id, label: plan.name }));
 
   return (
@@ -101,37 +97,13 @@ export function CreateProjectDialog({
               autoComplete="off"
             />
 
-            <Select.Root
-              items={planItems}
-              value={planId}
-              onValueChange={(value) => value !== null && onPlanChange(value)}
-              disabled={plansLoading || plans.length === 0}>
-              <div className="fieldset">
-                <Select.Label className={fieldLabelClassName}>Billing plan</Select.Label>
-                <Select.Trigger className={SELECT_TRIGGER_CLASS}>
-                  <Select.Value />
-                  <Select.Icon>
-                    <Chevron />
-                  </Select.Icon>
-                </Select.Trigger>
-              </div>
-              <Select.Portal>
-                <Select.Positioner sideOffset={4} className={SELECT_POSITIONER_CLASS}>
-                  <Select.Popup className={SELECT_POPUP_CLASS}>
-                    <Select.List>
-                      {planItems.map((item) => (
-                        <Select.Item
-                          key={item.value ?? ''}
-                          value={item.value}
-                          className={OVERLAY_ITEM_CLASS}>
-                          <Select.ItemText>{item.label}</Select.ItemText>
-                        </Select.Item>
-                      ))}
-                    </Select.List>
-                  </Select.Popup>
-                </Select.Positioner>
-              </Select.Portal>
-            </Select.Root>
+            <SelectField
+              label="Billing plan"
+              value={planId ?? ''}
+              options={planItems}
+              onChange={(value) => value !== '' && onPlanChange(value)}
+              disabled={plansLoading || plans.length === 0}
+            />
 
             {plansError ? (
               <ErrorLine message={plansError} onRetry={onRetryPlans} retryLabel="Retry" />

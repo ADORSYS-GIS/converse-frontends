@@ -24,10 +24,10 @@ import type { CreateProjectPlanOption } from '../components/create-project-dialo
 import { CreateProjectDialog } from '../components/create-project-dialog';
 import { BottomSheet } from '../components/bottom-sheet';
 import { EmptyState } from '../components/empty-state';
-import { fieldControlClassName, fieldLabelClassName } from '../components/field/field-classes';
 import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
+import { SelectField } from '../components/select-field';
 import { ManageControls } from '../sections/manage-controls';
 import {
   manageBudgetStateOptions,
@@ -117,22 +117,17 @@ export function RefineProjectsScreen() {
   const filtersActive =
     Boolean(search.trim()) || statusValue !== 'all' || budgetStateValue !== 'all';
 
+  // Was a raw native `<select>` with a single static option — the console-ui skill bans a native
+  // select outright, and unify-select (issue #368) is exactly the pass that closes a deferred
+  // "not this change's scope" note rather than leaving it dormant. `SelectField` renders the same
+  // single-account echo through the console's one Select primitive.
   const scopeSlot = (
-    <div className="fieldset">
-      <span className={fieldLabelClassName}>Scope</span>
-      {/* daisy's `input` forces `appearance: none`, which is right for a text input but strips the
-          native disclosure arrow off this one raw `<select>`, leaving a select that looks like a
-          text box. Restored at the call site rather than in the shared class, so the shared class
-          stays safe on any control. (The proper fix is for this Storybook-only mock to use
-          `SelectField` — the console-ui skill bans a native select outright — but that is not this
-          change's scope.) */}
-      <select
-        value="account:adorsys-gis"
-        onChange={() => {}}
-        className={`${fieldControlClassName} appearance-auto`}>
-        <option value="account:adorsys-gis">Account · adorsys-gis</option>
-      </select>
-    </div>
+    <SelectField
+      label="Scope"
+      value="account:adorsys-gis"
+      options={[{ value: 'account:adorsys-gis', label: 'Account · adorsys-gis' }]}
+      onChange={() => {}}
+    />
   );
 
   const newProjectButton = (
@@ -249,7 +244,8 @@ export function RefineProjectsScreen() {
         </Card>
       </div>
 
-      <BottomSheet portalClassName="lg:hidden"
+      <BottomSheet
+        portalClassName="lg:hidden"
         open={selected !== null}
         onOpenChange={(open) => {
           if (!open) setSelected(null);

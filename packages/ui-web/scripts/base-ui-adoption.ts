@@ -25,7 +25,6 @@ export const EXPECTED: Record<string, string | null> = {
   'project-name-dialog': 'dialog',
   'report-export-dialog': 'dialog',
   'report-export-panel': 'switch',
-  'scope-select': 'select',
   'segmented-control': 'toggle-group',
   'select-field': 'select',
   tooltip: 'tooltip',
@@ -69,6 +68,13 @@ export const EXPECTED: Record<string, string | null> = {
   'ledger-table': null, // Base UI ships no table
   'mutation-failure-banner': null, // deliberately NOT a toast: persistent, in-flow (ADR 0008)
   'review-detail-panel': null, // a composition of other primitives
+  'scope-select': null, // unify-select (issue #368): used to hold its own `Select.Root`-to-
+  // `Select.Popup` tree (a near-copy of `select-field`'s own) so it scored `'select'` here on its
+  // own imports. It composes `SelectField` now — the account/project cascade (filtering, the
+  // reset-on-account-change) is this component's only remaining behaviour, and that is not
+  // upstream in Base UI either; `select-field`'s own `EXPECTED: 'select'` entry is where the real
+  // Base UI Select import is asserted. Same shape as `budget-hero`'s entry above: composing an
+  // already-delegating component is not a gap.
   'settings-row': null, // a padded row layout, no behaviour of its own — same shape as `card`
   'share-bar': null, // SVG-ish part-to-whole mark
   'skeleton-metric': null, // daisy `skeleton` paint only

@@ -78,18 +78,27 @@ export const OVERLAY_BACKDROP_CLASS =
   'fixed inset-0 z-50 bg-muted/80 opacity-100 transition-opacity duration-200 ease-out starting:opacity-0 data-[ending-style]:opacity-0';
 
 /**
- * Highlighted row inside an overlay list.
+ * Highlighted row inside an overlay list — Base UI Menu.Item/Select.Item, the only two
+ * primitives that render through this class (cmdk styles its own `[cmdk-item]` rows directly in
+ * `theme.css`'s command-palette block, never through this constant).
  *
- * Covers all three primitives that render one: Base UI marks the active row `data-highlighted`
- * (Menu.Item, Select.Item), cmdk marks it `data-selected` — same visual state, two vocabularies,
- * so the class answers to both instead of each consumer re-deriving it.
+ * Base UI marks BOTH states as bare-presence data attributes — `data-highlighted` (pointer/
+ * keyboard focus) and `data-selected` (this row IS the control's current value) are added when
+ * true and removed entirely when false, never stringified to `="true"`/`="false"` (confirmed
+ * against the rendered DOM, unify-select audit, issue #368: a `Select.Item`'s selected row prints
+ * `data-selected=""`, not `data-selected="true"`). This class used to spell the selected rule
+ * `data-[selected=true]:...`, a selector that requires the LITERAL string value `"true"` — it
+ * never matched a real Base UI item, so every Select/Menu/Combobox popup in the console rendered
+ * its currently-chosen row with NO visual distinction from an unselected one unless that row also
+ * happened to be keyboard-highlighted. `data-[selected]` (bare presence, matching `data-highlighted`'s
+ * own idiom two lines up) is the fix.
  *
  * `shadow-none` is load-bearing under daisy's `menu`: daisy paints a 1%-alpha inset box shadow on
  * item hover, and ADR 0008 bans box shadows outright. Tailwind utilities are unlayered inside
  * `utilities` while daisy emits into a sublayer of it, so this wins with no `!important`.
  */
 export const OVERLAY_ITEM_CLASS =
-  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft shadow-none outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink data-[selected=true]:bg-raised data-[selected=true]:text-ink data-[disabled]:cursor-not-allowed data-[disabled]:text-subtle data-[disabled]:opacity-60 data-[disabled]:hover:bg-transparent';
+  'flex cursor-pointer items-center gap-3 px-3 py-1.5 text-xs text-soft shadow-none outline-hidden data-[highlighted]:bg-raised data-[highlighted]:text-ink data-[selected]:bg-raised data-[selected]:text-ink data-[disabled]:cursor-not-allowed data-[disabled]:text-subtle data-[disabled]:opacity-60 data-[disabled]:hover:bg-transparent';
 
 /** Hairline rule between groups inside an overlay. */
 export const OVERLAY_SEPARATOR_CLASS = 'mx-1 my-1 h-px bg-raised';

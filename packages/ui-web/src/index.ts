@@ -307,11 +307,45 @@ export type {
   RefillHistoryState,
 } from './sections/refill-history';
 
-// `/settings/refill-options` (IA v3 phase 3 — the nav row goes live): a policy scratch pad over
+// `/settings/refill-options` (IA v3 phase 3, redesigned Phase G — the JSON-textarea version the
+// owner flagged as "very non-human" is gone): a policy scratch pad over
 // `procedure.simulateBudgetPolicy`, never the stored/active policy (no read API exists for that —
-// see `REFILL_OPTIONS_DISABLED_REASON`).
+// see `REFILL_OPTIONS_DISABLED_REASON`). `RuleSetForm`/`ScenarioForm` are the typed authoring
+// forms `PolicySimulator` composes; `RefillPolicyManual` is the "how does it work" explainer +
+// lifecycle diagram; `RefillPolicyStatusStrip` is the honest active-policy-set/-revision line.
 export { PolicySimulator } from './sections/policy-simulator';
 export type { PolicySimulationResult, PolicySimulatorProps } from './sections/policy-simulator';
+
+export { RuleSetForm, toRuleDataJson, validateRuleSet } from './sections/rule-set-form';
+export type {
+  ComparisonOperator,
+  RuleConditionValue,
+  RuleEffect,
+  RuleErrors,
+  RuleSetErrors,
+  RuleSetFormProps,
+  RuleSetValue,
+  RuleValue,
+  ThresholdConditionValue,
+  ThresholdErrors,
+  ThresholdField,
+} from './sections/rule-set-form';
+
+export { ScenarioForm, toScenarioJson, validateScenario } from './sections/refill-scenario-form';
+export type {
+  ScenarioErrors,
+  ScenarioFormProps,
+  ScenarioValue,
+} from './sections/refill-scenario-form';
+
+export { RefillPolicyManual } from './sections/refill-policy-manual';
+export type { RefillPolicyManualProps } from './sections/refill-policy-manual';
+
+export { RefillPolicyStatusStrip } from './sections/refill-policy-status-strip';
+export type {
+  RefillPolicyStatusState,
+  RefillPolicyStatusStripProps,
+} from './sections/refill-policy-status-strip';
 
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';

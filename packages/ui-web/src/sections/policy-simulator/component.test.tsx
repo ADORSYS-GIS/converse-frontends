@@ -6,6 +6,17 @@ import { PolicySimulator } from './component';
 import { policySimulatorBase, policySimulatorError, policySimulatorResult } from './fixtures';
 
 describe('PolicySimulator', () => {
+  it('renders no textarea anywhere — the whole point of the redesign', () => {
+    render(<PolicySimulator {...policySimulatorBase} />);
+    expect(document.querySelectorAll('textarea')).toHaveLength(0);
+  });
+
+  it('composes RuleSetForm and ScenarioForm, both editable', () => {
+    render(<PolicySimulator {...policySimulatorBase} />);
+    expect(screen.getByLabelText('Policy revision')).toBeInTheDocument();
+    expect(screen.getByLabelText('Effective balance (USD)')).toBeInTheDocument();
+  });
+
   it('fires onSubmit from the Simulate action', () => {
     const onSubmit = vi.fn();
     render(<PolicySimulator {...policySimulatorBase} onSubmit={onSubmit} />);
@@ -25,27 +36,44 @@ describe('PolicySimulator', () => {
     render(<PolicySimulator {...policySimulatorResult} />);
 
     expect(screen.getByText('Decision')).toBeInTheDocument();
-    expect(screen.getByText('allow')).toBeInTheDocument();
+    expect(screen.getByText('auto_approve')).toBeInTheDocument();
     expect(screen.getByText('$25.00')).toBeInTheDocument();
     expect(screen.getByText('$50.00')).toBeInTheDocument();
-    expect(screen.getByText('rev_3')).toBeInTheDocument();
-    expect(screen.getByText(/within_limit/)).toBeInTheDocument();
+    expect(screen.getByText('budget-policy-v1')).toBeInTheDocument();
+    expect(screen.getByText(/within_unaided_allowance/)).toBeInTheDocument();
   });
 
-  it('surfaces a submit-time error (e.g. malformed JSON) inline', () => {
+  it('surfaces a submit-time error inline', () => {
     render(<PolicySimulator {...policySimulatorError} />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Rule data is not valid JSON.');
+    expect(screen.getByRole('alert')).toHaveTextContent('The simulation call failed — try again.');
   });
 
-  it('propagates edits to the rule-data and scenario textareas', () => {
-    const onRuleDataJsonChange = vi.fn();
-    render(<PolicySimulator {...policySimulatorBase} onRuleDataJsonChange={onRuleDataJsonChange} />);
+  it('propagates edits from RuleSetForm up through onRuleSetChange', () => {
+    const onRuleSetChange = vi.fn();
+    render(<PolicySimulator {...policySimulatorBase} onRuleSetChange={onRuleSetChange} />);
 
-    fireEvent.change(screen.getByLabelText('Rule data (JSON)'), {
-      target: { value: '{"rules":[{"id":"r1"}]}' },
+    fireEvent.change(screen.getByLabelText('Policy revision'), {
+      target: { value: 'budget-policy-v2' },
     });
 
-    expect(onRuleDataJsonChange).toHaveBeenCalledWith('{"rules":[{"id":"r1"}]}');
+    expect(onRuleSetChange).toHaveBeenCalledWith({
+      ...policySimulatorBase.ruleSet,
+      policyRevision: 'budget-policy-v2',
+    });
+  });
+
+  it('propagates edits from ScenarioForm up through onScenarioChange', () => {
+    const onScenarioChange = vi.fn();
+    render(<PolicySimulator {...policySimulatorBase} onScenarioChange={onScenarioChange} />);
+
+    fireEvent.change(screen.getByLabelText('Effective balance (USD)'), {
+      target: { value: '99' },
+    });
+
+    expect(onScenarioChange).toHaveBeenCalledWith({
+      ...policySimulatorBase.scenario,
+      effectiveBalance: '99',
+    });
   });
 });

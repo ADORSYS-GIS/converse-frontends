@@ -1,12 +1,14 @@
+import { ruleSetFormPopulated } from '../rule-set-form/fixtures';
+import { scenarioFormPopulated } from '../refill-scenario-form/fixtures';
 import type { PolicySimulatorProps } from './types';
 
 const noop = () => undefined;
 
 export const policySimulatorBase: PolicySimulatorProps = {
-  ruleDataJson: '{"rules":[]}',
-  onRuleDataJsonChange: noop,
-  scenarioJson: '{}',
-  onScenarioJsonChange: noop,
+  ruleSet: ruleSetFormPopulated,
+  onRuleSetChange: noop,
+  scenario: scenarioFormPopulated,
+  onScenarioChange: noop,
   requestedAmount: '25.00',
   onRequestedAmountChange: noop,
   submitting: false,
@@ -17,12 +19,12 @@ export const policySimulatorBase: PolicySimulatorProps = {
 export const policySimulatorResult: PolicySimulatorProps = {
   ...policySimulatorBase,
   result: {
-    effect: 'allow',
+    effect: 'auto_approve',
     approvedAmount: 25,
     maximumAmount: 50,
-    reasonCodes: ['within_limit'],
-    matchedRuleIds: ['rule_1'],
-    policyRevision: 'rev_3',
+    reasonCodes: ['within_unaided_allowance'],
+    matchedRuleIds: ['within-unaided-allowance'],
+    policyRevision: 'budget-policy-v1',
     requiredApproverRole: null,
   },
 };
@@ -35,5 +37,5 @@ export const policySimulatorSubmitting: PolicySimulatorProps = {
 
 export const policySimulatorError: PolicySimulatorProps = {
   ...policySimulatorBase,
-  error: 'Rule data is not valid JSON.',
+  error: 'The simulation call failed — try again.',
 };

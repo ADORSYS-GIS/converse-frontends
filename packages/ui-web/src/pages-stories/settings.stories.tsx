@@ -1,18 +1,22 @@
-// Page-level acceptance story for SETTINGS — sections composed inside `ConsoleShell` with the
-// section fixtures.
+// Page-level acceptance story for `/settings/policies` — "Project policies" — sections composed
+// inside `ConsoleShell` with the section fixtures.
 //
-// Phase 6 (admin/settings revamp — Attio pattern, real routes): `/settings/account` and
-// `/settings/projects` are two real routes now, not two sections stacked under one header. This
-// story simulates both with one component (`screen: 'account' | 'projects'`), the same way
-// `apps/console`'s `AccountSettingsCentre`/`ProjectSettingsCentre` are two containers sharing one
-// `SettingsSubNav`. The horizontal `SubNav` here is built with static items rather than the app's
-// `SettingsSubNav` wrapper (which reads `usePathname()`/`next/link` — `ui-web` stays
-// framework-agnostic and never imports either).
+// IA v3 phase E ("the settings/accounts move", converse-frontends#368) narrowed this screen down
+// to exactly what its owner directive keeps: "there's no sense in having account or project
+// creation" here. `AccountSettings` (rename + id/status/tier facts) moved to
+// `settings-accounts.stories.tsx` (`/settings/accounts/<id>`); `+ New account`/`+ New project`
+// both moved off this page's `PageHeader` entirely. What survives is the searchable project
+// ledger — still needed as the PICKER `ProjectPolicyControls` acts on — plus the model-policy
+// controls themselves, appended inside the SAME detail sheet below `ProjectSettingsDetail`'s
+// read-only field list.
+//
+// No `SubNav`/tab row any more either: the old Account/Projects toggle this file used to render
+// is gone along with the second screen it switched to — this page is now the ONE screen its own
+// nav row (`settingsNavGroups`'s "Project policies") points at, one level up in the shell.
 //
 // SETTINGS has **no right rail**, and that is the point of the screen rather than an omission:
 // nothing on it retargets on a selection (console-ui skill — "before adding a rail to a screen,
-// ask whether its content retargets on selection; if it does not, it is a toolbar"). It also has
-// no filters beyond `ProjectSettings`' own search box.
+// ask whether its content retargets on selection; if it does not, it is a toolbar").
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -20,40 +24,25 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
-import { AccountNameDialog } from '../components/account-name-dialog';
 import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { BottomSheet } from '../components/bottom-sheet';
 import { ProjectNameDialog } from '../components/project-name-dialog';
-import { SubNav } from '../components/sub-nav';
-import type { SubNavItem } from '../components/sub-nav';
-import { AccountSettings } from '../sections/account-settings';
-import type { AccountSettingsAccount, AccountSettingsDetails } from '../sections/account-settings';
-import {
-  accountDetailsFixture,
-  accountDetailsNoQuotaFixture,
-  namedAccountPanelFixture,
-} from '../sections/account-settings/fixtures';
 import { ProjectSettings, ProjectSettingsDetail } from '../sections/project-settings';
 import type { ProjectSettingsRow } from '../sections/project-settings';
 import { projectSettingsFixture } from '../sections/project-settings/fixtures';
+import { ProjectPolicyControls } from '../sections/project-policy-controls';
+import { modelCatalogFixture } from '../sections/project-policy-controls/fixtures';
+import type { ModelPolicy } from '../sections/project-policy-controls';
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
 interface SettingsScreenProps {
-  /** Which real route this story simulates — `/settings/account` or `/settings/projects`. */
-  screen?: 'account' | 'projects';
-  /** `null` = signed in with no account at all. An account whose own `name` is `null` is the
-   *  separate, and far more common, unnamed state. */
-  account?: AccountSettingsAccount | null;
-  details?: AccountSettingsDetails | null;
   projects?: ProjectSettingsRow[];
   loading?: boolean;
   error?: string;
   showAdmin?: boolean;
-  /** Opens `AccountNameDialog` on mount, the way `?account-name=true` does for real. */
-  initialAccountDialogOpen?: boolean;
   /** Opens `DetailSheet` on this project on mount, the way `?row=<project id>` does for real. */
   initialSelectedProjectId?: string | null;
   /** Also opens `ProjectNameDialog` on mount, the way `?rename=true` does for real (only
@@ -61,24 +50,17 @@ interface SettingsScreenProps {
   initialRenameOpen?: boolean;
 }
 
-// The composition `apps/console`'s `(console)` layout + `/settings/account`|`/settings/projects`
-// routes perform for real.
+// The composition `apps/console`'s `(console)` layout + `/settings/policies` perform for real.
 function SettingsScreen({
-  screen = 'account',
-  account = namedAccountPanelFixture.account,
-  details = accountDetailsFixture,
   projects = projectSettingsFixture,
   loading = false,
   error,
   showAdmin = false,
-  initialAccountDialogOpen = false,
   initialSelectedProjectId = null,
   initialRenameOpen = false,
 }: SettingsScreenProps) {
-  // Storybook demo state only — `apps/console`'s real dialog drafts live in each hook's own
-  // sanctioned local state.
-  const [accountDialogOpen, setAccountDialogOpen] = useState(initialAccountDialogOpen);
-  const [accountName, setAccountName] = useState(account?.name ?? '');
+  // Storybook demo state only — `apps/console`'s real drafts live in each hook's own sanctioned
+  // local state.
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     initialSelectedProjectId
   );
@@ -88,115 +70,89 @@ function SettingsScreen({
   const renameTarget = renameOpen ? selectedProject : null;
   const [projectName, setProjectName] = useState(renameTarget?.name ?? '');
 
-  const tabs: SubNavItem[] = [
-    { key: 'account', label: 'Account', href: '/settings/account', active: screen === 'account' },
-    {
-      key: 'projects',
-      label: 'Projects',
-      href: '/settings/projects',
-      count: projects.length,
-      active: screen === 'projects',
-    },
-  ];
+  // The project's OWN model-policy draft — a real, per-project write, not a fixture prop.
+  const [modelPolicy, setModelPolicy] = useState<string>('allow_all');
+  const [allowedModels, setAllowedModels] = useState<string[]>([]);
 
   return (
     <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
-        <PageHeader title="Settings" subtitle={account ? (account.name ?? 'Unnamed account') : undefined} />
+        <PageHeader title="Project policies" subtitle="adorsys-gis" />
 
-        <SubNav orientation="horizontal" items={tabs} />
+        <Card>
+          <ProjectSettings
+            projects={projects}
+            loading={loading}
+            error={error}
+            onRetry={() => {}}
+            search={search}
+            onSearchChange={setSearch}
+            pagination={{ shown: projects.length, total: projects.length, hasPrev: false, hasNext: false }}
+            selectedProjectId={selectedProjectId ?? undefined}
+            onSelectRow={(project) => {
+              setSelectedProjectId(project.id);
+              setRenameOpen(false);
+              setModelPolicy(project.modelPolicy);
+              setAllowedModels([]);
+            }}
+          />
+        </Card>
 
-        {screen === 'account' ? (
-          <>
-            <AccountSettings
-              panel={{
-                account,
-                loading: false,
-                onCreate: () => setAccountDialogOpen(true),
-                onRename: () => setAccountDialogOpen(true),
-                onRetry: () => {},
-              }}
-              details={details}
-              onCopyId={() => {}}
-            />
-
-            <AccountNameDialog
-              open={accountDialogOpen}
-              mode={account === null ? 'create' : 'rename'}
-              subjectLabel={account?.id ?? 'auth0|9f3a2c7e41b0'}
-              currentlyNamed={(account?.name ?? null) !== null}
-              name={accountName}
-              onNameChange={setAccountName}
-              submitting={false}
-              canSubmit={account === null || accountName.trim() !== (account.name ?? '')}
-              onSubmit={() => setAccountDialogOpen(false)}
-              onCancel={() => setAccountDialogOpen(false)}
-            />
-          </>
-        ) : (
-          <>
-            <Card>
-              <ProjectSettings
-                projects={projects}
-                loading={loading}
-                error={error}
-                onRetry={() => {}}
-                search={search}
-                onSearchChange={setSearch}
-                pagination={{ shown: projects.length, total: projects.length, hasPrev: false, hasNext: false }}
-                selectedProjectId={selectedProjectId ?? undefined}
-                onSelectRow={(project) => {
-                  setSelectedProjectId(project.id);
-                  setRenameOpen(false);
-                }}
+        <BottomSheet
+          open={selectedProject !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedProjectId(null);
+              setRenameOpen(false);
+            }
+          }}
+          title={selectedProject?.name ?? ''}
+          subtitle={selectedProject?.status}
+          headerAction={
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (!selectedProject) return;
+                setProjectName(selectedProject.name);
+                setRenameOpen(true);
+              }}>
+              Rename
+            </Button>
+          }>
+          {selectedProject ? (
+            <div className="flex flex-col gap-6">
+              <ProjectSettingsDetail project={selectedProject} />
+              <ProjectPolicyControls
+                modelPolicy={modelPolicy}
+                onModelPolicyChange={(value: ModelPolicy) => setModelPolicy(value)}
+                allowedModels={allowedModels}
+                onAllowedModelsChange={setAllowedModels}
+                catalog={modelCatalogFixture}
               />
-            </Card>
+            </div>
+          ) : null}
+        </BottomSheet>
 
-            <BottomSheet
-              open={selectedProject !== null}
-              onOpenChange={(open) => {
-                if (!open) {
-                  setSelectedProjectId(null);
-                  setRenameOpen(false);
-                }
-              }}
-              title={selectedProject?.name ?? ''}
-              footer={
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (!selectedProject) return;
-                    setProjectName(selectedProject.name);
-                    setRenameOpen(true);
-                  }}>
-                  Rename
-                </Button>
-              }>
-              {selectedProject ? <ProjectSettingsDetail project={selectedProject} /> : null}
-            </BottomSheet>
-
-            <ProjectNameDialog
-              open={renameTarget !== null}
-              projectId={renameTarget?.id ?? ''}
-              currentName={renameTarget?.name ?? ''}
-              name={projectName}
-              onNameChange={setProjectName}
-              submitting={false}
-              canSubmit={projectName.trim().length > 0 && projectName.trim() !== renameTarget?.name}
-              onSubmit={() => setRenameOpen(false)}
-              onCancel={() => setRenameOpen(false)}
-            />
-          </>
-        )}
+        <ProjectNameDialog
+          open={renameTarget !== null}
+          projectId={renameTarget?.id ?? ''}
+          currentName={renameTarget?.name ?? ''}
+          name={projectName}
+          onNameChange={setProjectName}
+          submitting={false}
+          canSubmit={projectName.trim().length > 0 && projectName.trim() !== renameTarget?.name}
+          onSubmit={() => setRenameOpen(false)}
+          onCancel={() => setRenameOpen(false)}
+        />
       </div>
     </ConsoleShell>
   );
 }
 
 const meta: Meta<typeof SettingsScreen> = {
-  title: 'Pages/Settings',
+  title: 'Pages/Settings/ProjectPolicies',
   component: SettingsScreen,
   parameters: { layout: 'fullscreen' },
 };
@@ -212,143 +168,43 @@ export const PopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-export const ProjectsScreen: Story = {
-  name: 'Projects — /settings/projects',
-  render: () => <SettingsScreen screen="projects" />,
-};
-
 export const Empty: Story = {
   name: 'No projects yet — an inline line under a rendered heading',
-  render: () => <SettingsScreen screen="projects" projects={[]} />,
+  render: () => <SettingsScreen projects={[]} />,
 };
 
 export const Loading: Story = {
-  render: () => <SettingsScreen screen="projects" projects={[]} loading />,
+  render: () => <SettingsScreen projects={[]} loading />,
 };
 
 export const ErrorState: Story = {
-  render: () => <SettingsScreen screen="projects" projects={[]} error="Could not load projects." />,
+  render: () => <SettingsScreen projects={[]} error="Could not load projects." />,
 };
 
 export const AdminNav: Story = {
-  name: 'Nav — admin (Admin group visible)',
+  name: 'Nav — admin (Refills queue row visible)',
   render: () => <SettingsScreen showAdmin />,
 };
 
-// ── the account flow (converse-frontends#365, moved here from MANAGE) ────────────────────────
-//
-// It lived on `/manage` because that was the only governance surface the console had. Now that
-// there is a Settings screen, a core account mutation sitting beside a ledger's filters is exactly
-// the defect this screen exists to fix (owner: "We cannot modify account core information on the
-// same page we're filtering").
+// ── the project rename + policy flow ─────────────────────────────────────────────────────────
 
-/**
- * Signed in, no account. Every other screen is empty in this state — there is nothing to scope by
- * — which is what the reported "I cannot create an account on the console" was about. The exit
- * now lives on the screen that owns account identity, restyled as an `EmptyState` block.
- */
-export const NoAccount: Story = {
-  name: 'Account — none yet (the reported dead end)',
-  render: () => <SettingsScreen account={null} details={null} projects={[]} />,
-};
-
-/** Same state with the create dialog open, which is what `?account-name=true` produces. */
-export const NoAccountDialogOpen: Story = {
-  name: 'Account — create dialog open',
-  render: () => (
-    <SettingsScreen account={null} details={null} projects={[]} initialAccountDialogOpen />
-  ),
-};
-
-/**
- * The state most production accounts are in today: `Account.name` shipped nullable with no
- * truthful backfill (lightbridge-authz#551), so an account created before that migration has never
- * been named. Restyled as an `EmptyState` block with the "Name this account" CTA.
- */
-export const UnnamedAccount: Story = {
-  name: 'Account — unnamed (name === null)',
-  render: () => (
-    <SettingsScreen
-      account={{ id: 'auth0|1b77de04aa93', name: null }}
-      details={accountDetailsNoQuotaFixture}
-    />
-  ),
-};
-
-export const UnnamedAccountLight: Story = {
-  name: 'Account — unnamed, wireframe (light)',
-  render: () => (
-    <SettingsScreen
-      account={{ id: 'auth0|1b77de04aa93', name: null }}
-      details={accountDetailsNoQuotaFixture}
-    />
-  ),
-  globals: { theme: 'wireframe' },
-};
-
-/** Opening the naming dialog from an unnamed account: the verb is "Name", not "Rename". */
-export const UnnamedAccountDialogOpen: Story = {
-  name: 'Account — naming an unnamed account',
-  render: () => (
-    <SettingsScreen
-      account={{ id: 'auth0|1b77de04aa93', name: null }}
-      details={accountDetailsNoQuotaFixture}
-      initialAccountDialogOpen
-    />
-  ),
-};
-
-/**
- * The whole flow driven through the real controls: press `Create account`, type a name, submit.
- * Interaction rather than a static arg set, because the thing worth pinning is that the section's
- * primary actually reaches the dialog.
- */
-export const CreateAccountFlow: Story = {
-  name: 'Account — create flow, driven',
-  render: () => <SettingsScreen account={null} details={null} projects={[]} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }));
-
-    // The dialog portals to `document.body`, outside `canvasElement`.
-    const dialog = await within(document.body).findByRole('dialog');
-    await expect(dialog).toHaveAccessibleName('Create account');
-
-    await userEvent.type(within(dialog).getByLabelText('Account name'), 'Widgets Ltd');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Create account' }));
-
-    await waitFor(() =>
-      expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument()
-    );
-  },
-};
-
-// ── the project rename flow ──────────────────────────────────────────────────────────────────
-
-/** A project row's click opens `DetailSheet` with its full field list (phase 9, Addition C). */
+/** A project row's click opens `DetailSheet` with its full field list AND the model-policy
+ *  controls below it — the WHOLE point of this page now. */
 export const ProjectDetailOpen: Story = {
-  name: 'Project — DetailSheet open',
-  render: () => (
-    <SettingsScreen screen="projects" initialSelectedProjectId="proj_b93e1d55" />
-  ),
+  name: 'Project — detail sheet open, policy controls included',
+  render: () => <SettingsScreen initialSelectedProjectId="proj_b93e1d55" />,
 };
 
 export const RenameProjectDialogOpen: Story = {
   name: 'Project — rename dialog open, stacked on the sheet',
-  render: () => (
-    <SettingsScreen
-      screen="projects"
-      initialSelectedProjectId="proj_b93e1d55"
-      initialRenameOpen
-    />
-  ),
+  render: () => <SettingsScreen initialSelectedProjectId="proj_b93e1d55" initialRenameOpen />,
 };
 
 /** Driven through the sheet's own footer control, which is what makes the sheet-first targeting
  *  real: the row opens the sheet, the sheet's Rename button opens the dialog. */
 export const RenameProjectFlow: Story = {
   name: 'Project — rename flow, driven',
-  render: () => <SettingsScreen screen="projects" />,
+  render: () => <SettingsScreen />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The row's accessible name is the label AND its status/tier summary run together
@@ -373,8 +229,20 @@ export const RenameProjectFlow: Story = {
   },
 };
 
+/** The model-policy controls render inside the SAME sheet, below the read-only field list — not
+ *  a second sheet, not a separate route. */
+export const ModelPolicyFlow: Story = {
+  name: 'Project — model policy controls, driven',
+  render: () => <SettingsScreen initialSelectedProjectId="proj_b93e1d55" />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const region = await body.findByRole('region', { name: 'Model access policy' });
+    expect(region).toBeInTheDocument();
+  },
+};
+
 // `md` tier (600–1024): the persistent left rail returns; there is no right rail to dock, and no
-// sheet triggers, because this screen has no rail sections at all.
+// sheet triggers beyond the ledger's own rows, because this screen has no other rail sections.
 export const MdTier: Story = {
   globals: { viewport: { value: 'md900' } },
   render: () => <SettingsScreen />,

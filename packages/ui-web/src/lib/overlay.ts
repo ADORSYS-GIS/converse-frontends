@@ -1,12 +1,32 @@
+import { cn } from '../cn';
+
 // Shared chrome for every floating overlay: Base UI popups and drawers, cmdk's palette.
 //
 // EDGE CASE against the skill's "no borders on panels": overlays get a `border-border` hairline,
 // docked panels do not. A panel separates tonally from a neighbour whose colour is known at
-// design time; an overlay floats over arbitrary content — the account menu spans the header AND
-// the floor at once — so tonal separation alone left its edge indistinct (owner screenshot,
+// design time; an overlay floats over arbitrary content — the account switcher spans the header
+// AND the floor at once — so tonal separation alone left its edge indistinct (owner screenshot,
 // 2026-08-29).
 
 export const OVERLAY_CLASS = 'rounded-[2px] border border-border bg-surface outline-hidden';
+
+/**
+ * `OVERLAY_CLASS` at the floating-overlay radius (`--radius-overlay-floating`, theme.css: 10px —
+ * owner ruling, 2026-08-31, issue #368: "10px looks good for the command palette"). Apply to
+ * every anchored popup that points at a trigger from an arbitrary screen position: Menu popups
+ * (the account switcher, and any other Base UI Menu), Select/Combobox popups, Popovers, and the
+ * command palette panel (`CommandPalette` composes the token directly since cmdk owns its own
+ * root class, not `OVERLAY_CLASS`). NEVER apply to a docked overlay — Dialog, the bottom sheet
+ * Drawer, Tooltip — which stay at the flush 2px contract (`OVERLAY_CLASS` unwrapped).
+ *
+ * `rounded-(--radius-overlay-floating)` (the CSS-variable arbitrary-value syntax, not a named
+ * `rounded-overlay-floating` utility) is deliberate: `cn()`'s `tailwind-merge` recognises the
+ * bracket/paren arbitrary-value form as the same "rounded" conflict group `OVERLAY_CLASS`'s own
+ * `rounded-[2px]` belongs to regardless of the value inside, and evicts it cleanly. A custom
+ * named utility is not in `tailwind-merge`'s built-in class list, so the two classes would both
+ * survive the merge and the cascade would decide by CSS source order instead of intent.
+ */
+export const OVERLAY_FLOATING_CLASS = cn(OVERLAY_CLASS, 'rounded-(--radius-overlay-floating)');
 
 /**
  * Base UI's positioner — the element Floating UI moves, not the one that gets painted. It sits
@@ -22,6 +42,14 @@ export const OVERLAY_POSITIONER_CLASS = 'z-50 outline-hidden select-none';
  * than a narrow rail select still reads in full rather than truncating to the trigger's width.
  */
 export const OVERLAY_ANCHORED_POPUP_CLASS = `min-w-(--anchor-width) py-1 ${OVERLAY_CLASS}`;
+
+/** `OVERLAY_ANCHORED_POPUP_CLASS` at the floating-overlay radius — the Select/Combobox counterpart
+ *  to `OVERLAY_FLOATING_CLASS`'s Menu/Popover coverage. See that constant's own doc comment for
+ *  the full contract; `cn()` here evicts the embedded `rounded-[2px]` the same way. */
+export const OVERLAY_ANCHORED_POPUP_FLOATING_CLASS = cn(
+  OVERLAY_ANCHORED_POPUP_CLASS,
+  'rounded-(--radius-overlay-floating)'
+);
 
 /** Highlighted row inside an overlay list (Menu.Item, Select.Item, cmdk item). */
 

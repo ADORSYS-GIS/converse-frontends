@@ -13,8 +13,8 @@ import { accountScopeLabel } from './account-label';
 import { isPending, microsToAmount, toRefillRequestRow } from './refill-rows';
 
 /**
- * `/admin` — the budget refill review queue's data adapter, shared by its centre
- * (`refills-queue-centre.tsx`) and the `DetailSheet` it opens on row pick.
+ * `/admin/refills-queue` — the budget refill review queue's data adapter, shared by its centre
+ * (`refills-queue-centre.tsx`) and the `BottomSheet` it opens on row pick.
  *
  * Unlike the other screens this one is not refine-driven: `listPendingAugmentationRequests`,
  * `approveAugmentationRequest` and `rejectAugmentationRequest` are cratestack **procedures** on
@@ -26,10 +26,10 @@ import { isPending, microsToAmount, toRefillRequestRow } from './refill-rows';
  * queue, so a request under discussion can be pasted into a thread and Back walks the reviewer
  * out of it. `sort`/`dir` are the Submitted column's own state; `after` is the page cursor.
  *
- * Access is gated **server-side** in `app/(console)/admin/page.tsx` (404s a non-admin) — the one
- * route segment this screen renders behind (see `admin-route-gate.test.ts`). The nav gating is
- * only cosmetic, and the backend refuses every one of these procedures without `budget:review`
- * regardless.
+ * Access is gated **server-side** in `app/(console)/admin/refills-queue/page.tsx` (404s a
+ * non-admin) — the one route segment this screen renders behind (see
+ * `admin-refills-queue-route-gate.test.ts`). The nav gating is only cosmetic, and the backend
+ * refuses every one of these procedures without `budget:review` regardless.
  *
  * Phase 6 (admin/settings revamp) deletes the Pending/Decided tab and everything it fed:
  * `listPendingAugmentationRequests` is, by its own name and doc comment (`authz.cstack:1073-1092`),

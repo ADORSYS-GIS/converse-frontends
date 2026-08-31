@@ -37,12 +37,27 @@
  * ADR 0009 Decision 6 tiers, unchanged from the deleted `tailwind.config.js` `screens.md/lg`:
  * base = phone, `md` = 600 (persistent left rail returns), `lg` = 1024 (full three-panel shell).
  * `sm`/`xl`/`2xl` keep Tailwind's defaults.
+ *
+ * `--radius-overlay-floating`: the ONE corner-radius exception to the console-ui skill's flush
+ * 2px overlay contract (`lib/overlay.ts`'s `OVERLAY_CLASS`) — owner ruling, 2026-08-31 (issue
+ * #368, `claude/sb-overlay-restyle`'s design-review batch): "10px looks good for the command
+ * palette." Scoped to FLOATING overlays only — an anchored popup that points at a trigger from an
+ * arbitrary screen position: the command palette panel, Menu popups (the account switcher and any
+ * other Base UI Menu), Select/Combobox popups, Popovers. Docked overlays (Dialog, the bottom
+ * sheet Drawer, Tooltip) stay at the flush 2px contract — they anchor to a screen edge or centre
+ * over the whole viewport rather than pointing at one element, so the "floating" read this radius
+ * answers does not apply. One value, theme-independent (geometry, not colour), which is why it
+ * sits beside the breakpoints/fonts above rather than inside either daisy theme block. Consumed
+ * via `rounded-(--radius-overlay-floating)`, never restated as a literal `rounded-[10px]` at a
+ * call site — see `OVERLAY_FLOATING_CLASS`/`OVERLAY_ANCHORED_POPUP_FLOATING_CLASS` (`lib/
+ * overlay.ts`), the one place this token is applied.
  */
 @theme {
   --breakpoint-md: 600px;
   --breakpoint-lg: 1024px;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   --font-sans: Inter, system-ui, sans-serif;
+  --radius-overlay-floating: 0.625rem;
 }
 
 /*
@@ -465,6 +480,14 @@
  * parts are addressed through the `cmdk-*` attributes cmdk itself puts on them — its documented
  * styling seam — rather than through a class per part, which is why the component below reads as
  * markup with one class on the list.
+ *
+ * v2 visual pass (owner review 2026-08-31, Storybook-only design batch — see
+ * `command-palette/component.tsx`'s own docstring and the batch's report for the full brief).
+ * `palette-popup` is now a column flex box (search row, scrolling list, pinned footer) instead of
+ * a bare positioned box, so the footer hint row stays put while the list scrolls under it. Radius
+ * stays the shared `OVERLAY_CLASS` contract (`rounded-[2px]`, untouched here) — the three corner
+ * variants under review are a story-level `panelClassName` override, never a change to that
+ * shared constant (see `CommandPaletteProps.panelClassName`'s own doc comment for why).
  */
 @utility palette-popup {
   position: fixed;
@@ -475,26 +498,38 @@
   translate: -50% 0;
   z-index: 50;
   width: 92vw;
-  max-width: 560px;
+  max-width: 600px;
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
 }
 
 @utility palette-search-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding-inline-end: 0.75rem;
+  gap: 0.625rem;
+  padding-inline: 0.75rem;
+  flex-shrink: 0;
   border-block-end: 1px solid var(--color-base-300);
 
-  /* The field takes the row and the `esc` chip keeps its size. daisy's own `kbd` already pins
-     `flex-shrink: 0`, so this only has to say the growing half — and it says it here because it
-     is what the ROW is, not a decision the palette makes when it renders the input. */
+  /* The field takes the row; the leading glyph keeps its own box (`palette-search-icon`). */
   & .input {
     flex: 1 1 0%;
+    padding-inline-start: 0;
   }
 }
 
+/* The search row's own leading glyph — the same 16px box every rail icon renders into
+   (`RAIL_ICON_SIZE`), just outside the icon COLUMN's grid (`rail-grid.ts`) since this row is not
+   a rail row. `subtle`, like every other chrome glyph that is not itself the active signal. */
+@utility palette-search-icon {
+  flex-shrink: 0;
+  color: var(--color-subtle);
+}
+
 @utility palette-list {
-  max-height: 60vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 0.25rem;
 
@@ -505,29 +540,101 @@
     display: block;
     padding: 0.25rem 0.5rem 0.375rem;
   }
-  & [cmdk-empty] {
-    padding: 1.5rem 0.75rem;
-    text-align: center;
-  }
   /* 2.25rem (36px) matches `RAIL_NAV_ROW_HEIGHT`/`RAIL_NAV_ROW_HEIGHT_CLASS` (lib/rail-grid.ts) —
      the sidebar's own nav row rhythm — rather than the shorter row `OVERLAY_ITEM_CLASS`'s
      `py-1.5` alone produces (~28px). `min-height`, not `height`: a row still grows for a hint
-     that wraps rather than clipping it. No icon-column gutter is reserved here on purpose:
-     `CommandPaletteItem` (types.ts) has no icon field, and every row today is plain text —
-     reserving a blank 16px+10px gutter for a glyph that never renders would be exactly the
-     "dormant, prepared-for-later" scaffolding this codebase avoids. Revisit if/when an icon
-     field is added. */
+     that wraps rather than clipping it. `position: relative` hosts the selected-row accent bar
+     below — a 2px `primary` bar, not a full fill (owner ask: "raised fill + accent bar, not a
+     full orange fill"), the same shape `RAIL_ACTIVE_BAR_CLASS` gives an active nav row. */
   & [cmdk-item] {
+    position: relative;
     justify-content: space-between;
     border-radius: var(--radius-field);
     min-height: 2.25rem;
+
+    &[data-selected='true']::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      left: 0;
+      width: 2px;
+      background-color: var(--color-primary);
+    }
   }
-  /* The trailing hint on a row (a route, a shortcut) — last child, and only when the row has a
-     label in front of it, so a hintless row is untouched. */
-  & [cmdk-item] > span:last-child:not(:only-child) {
+  /* The trailing hint on a row (a route or a shortcut `kbd`) — last child, and only when the row
+     has its lead group in front of it, so a hintless row is untouched. `*`, not `span`, because
+     the trailing element is a `kbd` for a shortcut and a `span` for plain hint text. */
+  & [cmdk-item] > *:last-child:not(:only-child) {
     margin-inline-start: 0.75rem;
     flex-shrink: 0;
   }
+}
+
+/* A row's own leading group — icon column then label, grouped so `[cmdk-item]`'s
+   `justify-content: space-between` still splits exactly two things (this group, and the trailing
+   hint) regardless of whether the row carries an icon. 0.625rem is `RAIL_LABEL_GAP` — the same
+   icon-to-label gap every rail row already uses. */
+@utility palette-item-lead {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/*
+ * The group heading, upper-cased. A DELIBERATE departure from the console-ui skill's "sentence
+ * case everywhere — no all-caps labels anywhere in the console" (task brief, 2026-08-31: "grouped
+ * sections with uppercase label headers") — flagged in the batch's report for the owner to keep
+ * or veto; not applied to `NavGroup`/`SubNav` labels or anywhere else the skill still governs.
+ */
+@utility palette-group-heading {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+}
+
+/*
+ * The empty-query line, in `font-mono`. A SECOND deliberate departure from the skill (mono is
+ * "data only... never for prose or chrome") — same brief line as above ("empty state as an inline
+ * mono line"), same flagged status. `text-align: left` and no `[cmdk-empty]` block padding of its
+ * own beyond the list's: an INLINE line beside the rows it replaces, not the centred placard
+ * `EmptyState` renders for a first-run zero-row query — this is a filtered-to-nothing search
+ * result, `InlineStatus`'s job everywhere else in the console.
+ */
+@utility palette-empty {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-subtle);
+}
+
+/* The footer hint row — ↑↓ navigate · ↵ select · esc close. Pinned under the scrolling list by
+   `palette-popup`'s own column-flex layout; the top hairline is the SAME `base-300` rule the
+   search row draws under itself, so the panel reads as one search field flanked by two matching
+   dividers rather than a divider style per edge. */
+@utility palette-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-block-start: 1px solid var(--color-base-300);
+}
+
+/* One hint inside the footer — its own `kbd` chip plus the word it explains, sans (a footer hint
+   is UI chrome, not data — `font-mono` stays reserved for the empty line's search-result voice
+   above and the console's genuine data roles elsewhere). */
+@utility palette-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  color: var(--color-subtle);
 }
 
 /*
@@ -611,43 +718,20 @@
   padding-block: 0.25rem;
 }
 
-/* The sibling account overlay — `AccountMenu`'s popup, hanging off the header identity block
-   rather than off the badge. It is a hair narrower than `account-popup` (220 vs 240) because it
-   holds one email line and two actions rather than a list of accounts; the widths are stated as
-   two utilities rather than one shared class precisely so that difference stays deliberate and
-   visible instead of being averaged away. Both are account NAMES and menu actions, not data, so
-   neither carries a mono face any more (phase 9 consistency pass). */
-@utility account-menu-popup {
-  width: 220px;
+/* `SelectField`'s own option row, at the SAME palette-matching 36px rhythm the command palette's
+   rows render at (`palette-list`'s `[cmdk-item]`, `RAIL_NAV_ROW_HEIGHT` — owner ask, 2026-08-31:
+   "same overlay language as the palette ... row height"). Scoped to `SelectField` alone, not the
+   shared `OVERLAY_ITEM_CLASS` every other Menu/Select/Combobox popup in the console renders
+   through — a blast radius this design-review batch deliberately did not take on. */
+@utility select-field-item {
+  min-height: 2.25rem;
 }
 
-/* The three theme choices as ONE row of words. `theme-choice` below is each word; this is the row
-   that holds them, which the component had been spelling out as flex utilities beside it. */
-@utility theme-choice-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* The initials square in the account menu's trigger. A square at the contract radius, never a
-   circle: the console has no pills and no round avatars. */
-@utility avatar-chip {
-  display: flex;
-  height: 26px;
-  width: 26px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-field);
-  background-color: var(--color-base-300);
-  color: var(--color-base-content);
-  font-size: 0.625rem;
-}
-
-/* The SAME initials square, sized to fit the sidebar footer's 16px icon column exactly
-   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — `AccountMenu`'s `variant="sidebar"` identity row
-   (Addition 5, owner screenshot: the identity chip sat at a THIRD x, neither the Search icon's
-   nor the old Theme row's). */
+/* The initials square, sized to fit the sidebar footer's 16px icon column exactly
+   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — the left rail's own identity row (Addition 5, owner
+   screenshot: the identity chip sat at a THIRD x, neither the Search icon's nor the old Theme
+   row's). A square at the contract radius, never a circle: the console has no pills and no round
+   avatars. */
 @utility avatar-chip-sm {
   display: flex;
   height: 16px;
@@ -663,13 +747,12 @@
 
 /* The SAME initials square again, at the workspace switcher's own step — owner rework,
    2026-08-30: "the switcher IS a standard rail row" retires the older "one-off header-weight
-   row keeps the full 26px avatar-chip" call (superseded — that read as one of the type-scale
-   inflations the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s
-   `sidebar` variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN
-   size, and the switcher chip is not inside that column — it leads the row the way the footer's
-   26px chip used to) and not the full 26px `avatar-chip` either — 20px sits between the two,
-   matching the row's own `h-9` (36px) the way a chip two-thirds the row height reads as sized
-   FOR the row rather than dropped into it. */
+   row keeps a full 26px chip" call (superseded — that read as one of the type-scale inflations
+   the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s `sidebar`
+   variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN size, and
+   the switcher chip is not inside that column — it leads the row) and not a full 26px chip
+   either — 20px sits between the two, matching the row's own `h-9` (36px) the way a chip
+   two-thirds the row height reads as sized FOR the row rather than dropped into it. */
 @utility avatar-chip-md {
   display: flex;
   height: 20px;
@@ -744,6 +827,35 @@
  * THIS transition's `transitionend`, so without it the sheet was also unmounting a frame early on
  * top of not animating.
  */
+/*
+ * Pop-in/out for CENTRED overlays — the modal dialogs (Base UI Dialog/AlertDialog popups) and the
+ * command palette panel. Same mechanism as `sheet-panel` directly above (read its comment for why
+ * the enter half MUST be `@starting-style` and a plain `&[data-starting-style]` selector can
+ * never fire): a 150ms fade + 0.98 scale, restrained per the skill — no bounce, no slide.
+ * `scale`/`opacity` only, so it composes with any positioning transform/translate the consumer
+ * carries. The exit half keys off `data-ending-style` — Base UI keeps the popup mounted through
+ * its exit transition, so it paints; cmdk's palette (Radix underneath) unmounts instantly on
+ * close, so for it only the enter half can ever run and the exit rule is inert, not dead code
+ * shared consumers would miss.
+ */
+@utility overlay-pop {
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity 0.15s ease-out,
+    scale 0.15s ease-out;
+
+  @starting-style {
+    opacity: 0;
+    scale: 0.98;
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
 @utility sheet-panel {
   position: fixed;
   z-index: 50;
@@ -983,8 +1095,9 @@
 /* One row of the footer stack (search, theme, offline, identity — the standalone Theme row is
    back, owner finding 2026-08-31: "I don't see the usage, for the theme to be hidden behind the
    account dropdown. Please put it outside" — reversing Addition 5's dedupe, which had folded it
-   into `AccountMenu`'s own popup; `AccountMenu` takes no `theme`/`onThemeChange` pair any more) —
-   a 36px hit target with a hover fill, label at the leading edge and a trailing control/marker.
+   into `AccountMenu`'s own popup; `AccountMenu` is deleted outright, issue #368, and `ThemeToggle`
+   is the only place the preference is edited now) — a 36px hit target with a hover fill, label at
+   the leading edge and a trailing control/marker.
    Not every row is interactive (the offline line is a status, not a button), so this is a
    layout/paint utility, not a `<button>` contract — `SidebarFooterRow`'s call sites choose the
    element. */
@@ -998,7 +1111,7 @@
    `gap` is `RAIL_LABEL_GAP` (10px), matched as a literal here for the same TS/CSS reason as the
    padding above — NOT the 8px this used to carry (Addition 5, owner screenshot: Search's icon,
    the old Theme row's toggle, and the identity chip each landed at a different label x). Every
-   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or `AccountMenu`'s
+   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or the identity row's own
    `avatar-chip-sm` in that same column) is now exactly the nav rows' own 16px column, so
    `padding(12) + column(16) + gap(10) = 38px` is one number the whole sidebar shares top to
    bottom, not a per-row guess. */
@@ -2472,9 +2585,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   /* A rail label is ALWAYS left-aligned at the shared label x. Explicit because several rail
-   * rows are daisy `btn` triggers (AccountMenu's sidebar identity row, the workspace switcher)
-   * and `btn` centers its content — the label's box sat at the grid while its text painted
-   * centered inside it (live finding, 2026-08-30). */
+   * rows are daisy `btn` triggers (the Search row, the workspace switcher) and `btn` centers its
+   * content — the label's box sat at the grid while its text painted centered inside it (live
+   * finding, 2026-08-30). */
   text-align: left;
 }
 

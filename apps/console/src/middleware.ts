@@ -17,6 +17,11 @@ import { chunkCookieName } from './server/cookie-names';
  * IA v3 phase 2 ("the settings area") is what `/admin`/`/settings/account`/`/settings/projects`'s
  * own redirects (`LEGACY_STATIC_REDIRECT`, below) are for — those three paths never carried an
  * `?account=` of their own, so they get a simpler table rather than being folded into this one.
+ *
+ * IA v3 phase E ("the settings/accounts move") is what `/accounts/<id>/{projects,refill}`'s own
+ * redirect (`ACCOUNT_SCOPED_PATH_MOVE`, below) is for — a third shape again: the account id is
+ * already IN the old path (this table's own job is extracting it OUT of `?account=`), so it needs
+ * its own regex-captured table rather than folding into either of the other two.
  */
 const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'api-keys'> = {
   '/': 'overview',
@@ -29,9 +34,6 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
  * unlike `LEGACY_ACCOUNT_SCOPED_SEGMENT` above (none of these three ever carried an `?account=`
  * segment of their own to extract):
  *
- *  - `/admin` -> `/settings/refills-queue`: the budget refill review queue moved wholesale
- *    (`git mv`). `?request=req_9` (the selected row) and every other param survive verbatim —
- *    `use-refills-queue-screen.ts` reads the identical param names on the new path.
  *  - `/settings/projects` -> `/settings/policies`: project settings folded into the combined
  *    account/project policies screen. `?row=`/`?rename=`/`?q=`/`?page=` survive verbatim —
  *    `use-policies-screen.ts` reads `useSettingsParams()`, the same parser `/settings/projects`
@@ -45,11 +47,22 @@ const LEGACY_ACCOUNT_SCOPED_SEGMENT: Record<string, 'overview' | 'projects' | 'a
  *    everything else the old route owned — the rename dialog opens from the rail now, not a URL
  *    flag — but any OTHER param survives, same "touch only what this move actually changes" rule
  *    the account-scoped table above follows.
+ *
+ * ADR 0013's same-day "the admin area" amendment adds a fourth, of the identical shape:
+ *
+ *  - `/settings/refills-queue` -> `/admin/refills-queue`: the budget refill review queue moved a
+ *    SECOND time — `/admin` (pre-IA-v3) -> `/settings/refills-queue` (IA v3 phase 2, the row
+ *    above until this amendment) -> `/admin/refills-queue` (here). `/admin` itself is a LIVE route
+ *    again (the operator dashboard, `/admin/overview`), so the old `/admin` -> `/settings/
+ *    refills-queue` row is retired rather than updated — nothing should still 308 off the bare
+ *    `/admin` segment now that it resolves to real content of its own
+ *    (`app/(console)/admin/page.tsx`'s own `redirect('/admin/overview')`). `?request=req_9` and
+ *    every other param survive verbatim, same as every other row here.
  */
 const LEGACY_STATIC_REDIRECT: Record<string, string> = {
-  '/admin': '/settings/refills-queue',
   '/settings/projects': '/settings/policies',
   '/settings/account': '/',
+  '/settings/refills-queue': '/admin/refills-queue',
 };
 
 function legacyStaticRedirectTarget(
@@ -70,12 +83,56 @@ function legacyStaticRedirectTarget(
   return `${target}${query ? `?${query}` : ''}`;
 }
 
+/**
+ * IA v3 phase E ("the settings/accounts move") — two more path moves, distinct from BOTH tables
+ * above: the account id is already IN the old path (unlike `LEGACY_ACCOUNT_SCOPED_SEGMENT`, which
+ * extracts it out of `?account=`), and the target keeps that same id (unlike
+ * `LEGACY_STATIC_REDIRECT`, which is exact-pathname, no captured segment). Query strings survive
+ * verbatim onto the target, same rule as every other row in this file — this is what keeps
+ * `/accounts/A/refill?project=proj_1` landing on `/settings/accounts/A/request-refill?project=
+ * proj_1`, the exact param `use-console-scope.ts`'s `projectScopeParsers` already owns on the new
+ * path too.
+ *
+ *  - `/accounts/<id>/projects` -> `/settings/accounts/<id>/projects`: the projects ledger moved
+ *    wholesale (owner: "We will move /projects to /settings/accounts/<account-id>/projects too").
+ *  - `/accounts/<id>/refill` -> `/settings/accounts/<id>/request-refill`: the refill request flow
+ *    moved with it (owner: "refill must be account scoped" — it already was; this just relocates
+ *    it under the new account-settings tree alongside its sibling).
+ */
+const ACCOUNT_SCOPED_PATH_MOVE: { pattern: RegExp; target: (accountId: string) => string }[] = [
+  {
+    pattern: /^\/accounts\/([^/]+)\/projects$/,
+    target: (accountId) => `/settings/accounts/${accountId}/projects`,
+  },
+  {
+    pattern: /^\/accounts\/([^/]+)\/refill$/,
+    target: (accountId) => `/settings/accounts/${accountId}/request-refill`,
+  },
+];
+
+function legacyAccountScopedPathMoveTarget(
+  pathname: string,
+  searchParams: URLSearchParams
+): string | null {
+  for (const { pattern, target } of ACCOUNT_SCOPED_PATH_MOVE) {
+    const match = pathname.match(pattern);
+    if (match) {
+      const query = searchParams.toString();
+      return `${target(match[1])}${query ? `?${query}` : ''}`;
+    }
+  }
+  return null;
+}
+
 export function legacyRedirectTarget(
   pathname: string,
   searchParams: URLSearchParams
 ): string | null {
   const staticTarget = legacyStaticRedirectTarget(pathname, searchParams);
   if (staticTarget) return staticTarget;
+
+  const pathMoveTarget = legacyAccountScopedPathMoveTarget(pathname, searchParams);
+  if (pathMoveTarget) return pathMoveTarget;
 
   const segment = LEGACY_ACCOUNT_SCOPED_SEGMENT[pathname];
   if (segment === undefined) return null;
@@ -155,6 +212,10 @@ export const config = {
      *                        never be answered with a login redirect. Replaces the old `sw.js` /
      *                        `swe-worker-*` prefixes that matched `@serwist/next`'s webpack-emitted
      *                        `public/sw.js`, which no longer exists.
+     *   branding/*         — issue #368 (Phase H, runtime white-label branding): `/branding/logo`
+     *                        and `/branding/override.css` (`src/app/branding/*`). Both back chrome
+     *                        that must render before/without a session (the root layout's `<link>`
+     *                        and the sidebar/top-bar brand mark), same reasoning as `serwist/*`.
      *   _next/*            — build output
      *   manifest.json, icons/*, favicon.ico            — public static assets
      *   robots.txt, sitemap.xml — Next.js metadata routes (app/robots.ts, app/sitemap.ts);
@@ -162,6 +223,6 @@ export const config = {
      *                              the documents that say so must themselves be servable to an
      *                              unauthenticated crawler, not gated behind a login redirect
      */
-    '/((?!api/|auth/|\\.well-known/|_next/|serwist/|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
+    '/((?!api/|auth/|\\.well-known/|_next/|serwist/|branding/|manifest\\.json|icons/|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

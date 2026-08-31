@@ -10,7 +10,8 @@ import type {
   OverviewStatCardData,
   DateRangeFieldProps,
   DateRangePreset,
-  RankedSeriesRow,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
   ReportExportDialogProps,
   ReportExportParams,
   SelectFieldProps,
@@ -60,7 +61,7 @@ import {
   type SeriesLabeller,
   RANGE_DAYS,
 } from './overview-usage';
-import { toAggregateDaySeries, toRankedSeriesRows } from './settings-overview-usage';
+import { toAggregateDaySeries, toMultiSeriesSpend } from './settings-overview-usage';
 import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
 
 /**
@@ -72,8 +73,9 @@ import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
  * hook used to compute directly, gated `enabled: … && isAdmin` — MOVED to
  * `use-settings-overview-screen.ts`, onto the project lens and the account lens respectively
  * (`/settings/overview/project`, `/settings/overview/account`); the pending-refill count
- * (`refillRequestStatus`) is gone outright, not moved — it already lives in the settings nav's own
- * numeral (`use-refills-queue-screen.ts`, shared by query key with `/settings/refills-queue`).
+ * (`refillRequestStatus`) is gone outright, not moved — it already lives in the account-area
+ * Operator row's and the admin area's own nav numeral (`use-refills-queue-screen.ts`, shared by
+ * query key with `/admin/refills-queue`, ADR 0013's same-day "the admin area" amendment).
  * This hook fires no `enabled: isAdmin` query of any kind: every query below runs the same way for
  * every signed-in user, admin or not.
  *
@@ -231,16 +233,23 @@ export interface OverviewScreen {
   // ── phase 9.2: SPEND BY MODEL — a second aggregate view of the SAME scope/period as SPEND
   // above (never a separately-scoped query, so the two cards can never disagree), grouped by
   // model rather than whatever the toolbar's own `groupByField` currently holds. Replaces the
-  // deleted LATENCY panel (see this module's own doc comment). Renders through
-  // `RankedSeriesRows` now (build brief §7 — replaces the `ShareBar`-based `SpendShareSection`
-  // this card used to render through), so it carries rows, not segments. ────────────────────
-  modelSpendRows: RankedSeriesRow[];
+  // deleted LATENCY panel (see this module's own doc comment).
+  //
+  // **Renders through `MultiSeriesSpendChart` now** (2026-08-31, owner ruling — see that
+  // component's own doc comment): one line per model on shared axes, replacing the
+  // `RankedSeriesRows` board build brief §7 originally gave it (which itself had replaced the
+  // `ShareBar`-based `SpendShareSection` this card used to render through) — so it carries real
+  // per-day series, not rows or segments. `modelSpendScale` is the board's own axis-transform
+  // knob (`linear`/`log`/`indexed`), URL-first like every other view param this hook owns. ────
+  modelSpendSeries: MultiSeriesSpendSeries[];
+  modelSpendScale: MultiSeriesSpendScale;
+  setModelSpendScale: (scale: MultiSeriesSpendScale) => void;
   modelSpendStatus: DashboardStatus;
   modelSpendErrorMessage?: string;
   modelSpendRetry: () => void;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
-  /** `/accounts/<id>/refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
+  /** `/settings/accounts/<id>/request-refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
    *  the Budget card's standing "Request refill…" action always navigates here. */
   refillHref: string;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
@@ -523,12 +532,11 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       ? 'loading'
       : 'ready';
 
-  // Renders through `RankedSeriesRows` now (build brief §7 — replaces the `ShareBar`-based
-  // `SpendShareSection` this card used to render through), which needs a per-model day-bucketed
-  // trend for its sparkline column, not just a summed total — `toRankedSeriesRows`
-  // (`settings-overview-usage.ts`) already does exactly that from a grouped response.
-  const modelSpendRows = useMemo(
-    () => (modelUsageQuery.data ? toRankedSeriesRows(modelUsageQuery.data, 'model', labelForModel) : []),
+  // Renders through `MultiSeriesSpendChart` now (2026-08-31 owner ruling) — one line per model,
+  // real per-day points rather than a summed total — `toMultiSeriesSpend`
+  // (`settings-overview-usage.ts`) maps a grouped response straight into that shape.
+  const modelSpendSeries = useMemo(
+    () => (modelUsageQuery.data ? toMultiSeriesSpend(modelUsageQuery.data, 'model', labelForModel) : []),
     [modelUsageQuery.data, labelForModel]
   );
 
@@ -560,7 +568,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
-  // The ladder query lives in `use-budget-refill.ts`, shared with `/accounts/<id>/refill`
+  // The ladder query lives in `use-budget-refill.ts`, shared with `/settings/accounts/<id>/request-refill`
   // (`use-refill-screen.ts`) — this screen only reads it to decide whether the breach button
   // should appear at all (IA v3 phase 3: the button now navigates to that page rather than
   // opening a dialog, so the actual submit, and the mutation that drives it, live there instead).
@@ -627,7 +635,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
 
   // IA v3 phase 3 ("refill as a page") — this used to open `RequestRefillDialog` (2026-08-30:
   // before that, it instantly mutated `smallestAmountMicros` on one click with no confirmation
-  // surface at all). It now navigates to `/accounts/<id>/refill` instead, which independently
+  // surface at all). It now navigates to `/settings/accounts/<id>/request-refill` instead, which independently
   // preselects the smallest allowed amount (`use-refill-screen.ts`) — a breach is still one click
   // away from a refill request, and the actual submit is a real, dedicated screen, not a dialog
   // three separate triggers had to agree on.
@@ -785,7 +793,11 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     spendShareErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
     spendShareRetry: () => void usageQuery.refetch(),
     spendDegenerateMessage,
-    modelSpendRows,
+    modelSpendSeries,
+    modelSpendScale: view.modelScale,
+    setModelSpendScale: (scale) => {
+      void setView({ modelScale: scale });
+    },
     modelSpendStatus,
     modelSpendErrorMessage: modelUsageQuery.isError
       ? getUsageErrorMessage(modelUsageQuery.error)

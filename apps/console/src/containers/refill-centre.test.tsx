@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { RefillScreen } from './use-refill-screen';
 
 /**
- * Container-level acceptance coverage for `/accounts/<id>/refill` (IA v3 phase 3 — refill moved
+ * Container-level acceptance coverage for `/settings/accounts/<id>/request-refill` (IA v3 phase 3 — refill moved
  * from `RequestRefillDialog` to its own page). `useRefillScreen` is mocked wholesale, matching
  * every other `*-centre.test.tsx` in this app.
  */
@@ -20,6 +20,7 @@ vi.mock('./use-refill-screen', async (importOriginal) => {
 
 function baseScreen(overrides: Partial<RefillScreen> = {}): RefillScreen {
   return {
+    accountId: 'acct_1',
     accountLabel: 'adorsys-gis',
     periodLabel: '2026-08',
     projectLabel: undefined,

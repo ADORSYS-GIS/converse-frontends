@@ -141,8 +141,11 @@ export function RefineProjectsScreen() {
     </Button>
   );
 
+  // IA v3 phase E: Projects moved to `/settings/accounts/<id>/projects` — `active="settings"`
+  // matches where this screen's nav row actually lives now (`StoryRoute` no longer carries a
+  // `'projects'` value at all, see `shell-fixtures.tsx`).
   return (
-    <RefineMockShell active="projects">
+    <RefineMockShell active="settings">
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"

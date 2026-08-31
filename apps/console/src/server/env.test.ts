@@ -49,13 +49,99 @@ describe('buildConsoleEnv', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        usageClientCert: { certPath: '/etc/lightbridge/tls/tls.crt', keyPath: '/etc/lightbridge/tls/tls.key' },
+        usageClientCert: {
+          certPath: '/etc/lightbridge/tls/tls.crt',
+          keyPath: '/etc/lightbridge/tls/tls.key',
+        },
       })
     );
     expect(env.usageClientCert).toEqual({
       certPath: '/etc/lightbridge/tls/tls.crt',
       keyPath: '/etc/lightbridge/tls/tls.key',
     });
+  });
+
+  /**
+   * Issue #368 (Phase H, runtime white-label branding). Unlike `usageClientCert` above, `logo`
+   * and `style` are independently optional — they back two unrelated routes that each 404 on
+   * their own when unset, so there is no half-configured failure mode pairing them.
+   */
+  it('leaves branding undefined when the block is absent', () => {
+    const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+    expect(env.branding).toBeUndefined();
+  });
+
+  it('leaves branding undefined when the block is present but both fields are blank', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '   ', style: '' } })
+    );
+    expect(env.branding).toBeUndefined();
+  });
+
+  it('reads a logo-only branding block, deriving Content-Type from the extension', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo.png' } })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.png',
+      logoContentType: 'image/png',
+    });
+  });
+
+  it('reads a style-only branding block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { style: '/tmp/branding/override.style' } })
+    );
+    expect(env.branding).toEqual({ stylePath: '/tmp/branding/override.style' });
+  });
+
+  it('reads a complete branding block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: { logo: '/tmp/branding/logo.svg', style: '/tmp/branding/override.style' },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.svg',
+      logoContentType: 'image/svg+xml',
+      stylePath: '/tmp/branding/override.style',
+    });
+  });
+
+  it.each([
+    ['jpg', '/tmp/branding/logo.jpg', 'image/jpeg'],
+    ['jpeg', '/tmp/branding/logo.jpeg', 'image/jpeg'],
+    ['webp', '/tmp/branding/logo.webp', 'image/webp'],
+  ])('derives %s as %s', (_label, logo, contentType) => {
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo } }));
+    expect(env.branding?.logoContentType).toBe(contentType);
+  });
+
+  it('fails fast on a relative branding.logo path', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: 'branding/logo.png' } }))
+    ).toThrow(/"branding\.logo" must be a host-absolute path/);
+  });
+
+  it('fails fast on a relative branding.style path', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, branding: { style: 'branding/override.style' } })
+      )
+    ).toThrow(/"branding\.style" must be a host-absolute path/);
+  });
+
+  it('fails fast on an unsupported branding.logo extension', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo.gif' } }))
+    ).toThrow(/"branding\.logo" must end in one of/);
+  });
+
+  it('fails fast on a branding.logo path with no extension at all', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo' } }))
+    ).toThrow(/"branding\.logo" must end in one of/);
   });
 
   it('builds a full ConsoleEnv from a minimal valid document, applying every default', () => {

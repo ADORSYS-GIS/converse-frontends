@@ -13,23 +13,22 @@
 import React, { useState } from 'react';
 
 import { AccountBadge } from '../components/account-badge';
-import { AccountMenu } from '../components/account-menu';
+import { Button } from '../components/button';
 import { ConsoleSidebar } from '../sections/console-sidebar';
 import { ConsoleTopBar } from '../components/console-top-bar';
 import type { NavGroup, NavSpineItem } from '../components/nav-spine';
-import { SearchIcon } from '../lib/icons';
+import { SearchIcon, SignOutIcon } from '../lib/icons';
 import { RAIL_ICON_COLUMN_CLASS } from '../lib/rail-grid';
 import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 
-export type StoryRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
+export type StoryRoute = 'overview' | 'api-keys' | 'settings' | 'admin';
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
 function NavGlyph({ shape }: { shape: StoryRoute }) {
   const paths: Record<StoryRoute, string> = {
     overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
     'api-keys': 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
-    projects: 'M1 2h8M1 5h8M1 8h5',
     // Two rails with an offset knob on each — the settings glyph, same 10px line vocabulary.
     settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
     admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
@@ -41,6 +40,9 @@ function NavGlyph({ shape }: { shape: StoryRoute }) {
   );
 }
 
+/** IA v3 phase E ("the settings/accounts move"): the Workspace group narrows to Overview/API
+ *  keys — Projects moved to `/settings/accounts/<id>/projects`, off the account area entirely
+ *  (`console-chrome.tsx`'s own `navGroups`). */
 function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
   return [
     {
@@ -54,12 +56,6 @@ function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
       label: 'API keys',
       icon: <NavGlyph shape="api-keys" />,
       active: active === 'api-keys',
-    },
-    {
-      key: 'projects',
-      label: 'Projects',
-      icon: <NavGlyph shape="projects" />,
-      active: active === 'projects',
     },
     {
       key: 'settings',
@@ -98,8 +94,12 @@ export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] 
 // `apps/console/src/client/console-chrome.tsx`'s `ConsoleSidebarContent` exactly: Search's icon
 // sits in the same `RAIL_ICON_COLUMN_CLASS` (16px) column `NavSpine`'s rows use. The standalone
 // Theme row is back (owner finding, 2026-08-31: "I don't see the usage, for the theme to be
-// hidden behind the account dropdown. Please put it outside") -- `AccountMenu` no longer takes a
-// `theme`/`onThemeChange` pair at all, `ThemeToggle` is the only place the preference is edited.
+// hidden behind the account dropdown. Please put it outside") -- `ThemeToggle` is the only place
+// the preference is edited. The identity row below no longer opens a menu at all (owner ruling,
+// 2026-08-31, issue #368: "We don't need a drop down for the connected user, since it's in the
+// left rail" -- `AccountMenu` is deleted outright): it is the SAME icon-column/label/trailing-
+// control shape as the Theme row above it, with a plain trailing `Button` for the one row-scoped
+// action (sign out) instead of a click-to-discover popup.
 function StoryFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
@@ -120,29 +120,28 @@ function StoryFooter() {
           className="ml-auto"
         />
       </div>
-      <AccountMenu
-        variant="sidebar"
-        name="Sam Lambou"
-        email="sam@adorsys.com"
-        initials="SL"
-        onSignOut={() => {}}
-      />
+      <div className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+          <span aria-hidden="true" className="avatar-chip-sm">
+            SL
+          </span>
+        </span>
+        <span className="rail-row-label text-soft text-[13px]">Sam Lambou</span>
+        <Button variant="ghost" size="icon" aria-label="Sign out" className="ml-auto">
+          <SignOutIcon />
+        </Button>
+      </div>
     </>
   );
 }
 
-// The compact `ConsoleTopBar` equivalent of `StoryFooter` — same identity, plus the SAME
-// `ThemeToggle` instance sitting beside it in the header's right cluster (owner finding,
-// 2026-08-31 — the mobile/tablet band is exactly where the finding's own suggested location,
-// "an icon button in the header's right cluster," lives).
-function StoryTopBarIdentity() {
+// The compact `ConsoleTopBar` equivalent of `StoryFooter`'s Theme row — real `apps/console`
+// (`ConsoleTopBarContent`) renders exactly `ThemeToggle` alone here now, no identity avatar at
+// all: the `AccountMenu` `inline` variant that used to sit beside it is deleted (same ruling as
+// `StoryFooter`'s comment above). Sign out stays reachable below `md` via the `⌘K` palette.
+function StoryTopBarTrailing() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
-  return (
-    <>
-      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-      <AccountMenu name="Sam Lambou" email="sam@adorsys.com" initials="SL" onSignOut={() => {}} />
-    </>
-  );
+  return <ThemeToggle preference={preference} onPreferenceChange={setPreference} />;
 }
 
 // The sidebar/top-bar's ONLY rendering of "which account am I in" (owner review 2026-08-29) —
@@ -229,7 +228,7 @@ export function storyTopBar({ unnamed = false }: { unnamed?: boolean } = {}) {
       workspaceSwitcher={
         unnamed ? storyTopBarWorkspaceSwitcherUnnamed : storyTopBarWorkspaceSwitcher
       }
-      identity={<StoryTopBarIdentity />}
+      trailing={<StoryTopBarTrailing />}
     />
   );
 }

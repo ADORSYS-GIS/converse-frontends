@@ -26,35 +26,49 @@ The full contracts live in the repo — **read them before writing components**:
 - `docs/adr/0010-ui-primitive-stack-and-theming.md` — the primitive stack (daisyUI · Base UI ·
   cmdk · Floating UI), Tailwind v4, and the two-theme model. Read with
   `docs/design/console-redesign/PRIMITIVES.md`, the per-component migration map.
-- The page stories in `packages/ui-web/src/pages-stories/` (`overview`, `api-keys`, `projects`,
-  `admin-budget-review` — now the refills-queue review screen, `settings`,
+- The page stories in `packages/ui-web/src/pages-stories/` (`overview`, `api-keys`,
+  `admin-budget-review` — now the refills-queue review screen, `settings` — `/settings/policies`
+  alone since phase E, `settings-accounts` — the new `/settings/accounts` list and
+  `/settings/accounts/<id>` detail, `settings-accounts-projects` — `/settings/accounts/<id>/
+  projects` (renamed from `projects.stories.tsx`, phase E — the route it fixtures moved),
   `settings-overview` — the estate/analytics lenses, `shell-persistence`) are the rendered ground
-  truth — match them. There is no story yet for `/accounts/<id>/refill`, the newest route. There
-  are no SVG mockups any more; a stale mockup was judged worse than none and deleted.
+  truth — match them. There is no story yet for `/settings/accounts/<id>/request-refill`
+  specifically (it reuses `RefillCentre` unchanged from the pre-phase-E `/accounts/<id>/refill`,
+  which likewise has none). There are no SVG mockups any more; a stale mockup was judged worse
+  than none and deleted.
 
 ## The one-paragraph mental model
 
-Cards sit on a floor, inside a shell with a persistent LEFT sidebar, a stretching centre column,
-and a SITUATIONAL right inspector rail. In dark the floor is `#000` and cards (`base-200`) carry
-stats, charts, tables and forms; in light the floor is grey and cards are white. The sidebar
-(240px, `md`+) carries navigation, a workspace switcher and a footer stack; below `md` a 48px top
-bar plus a bottom nav dock replace it. **Every real screen is account-scoped by path**
-(`/accounts/[accountId]/{overview,projects,api-keys,refill}`, ADR 0013 D1) — the account is a URL
-segment, not a query param; `/` is a last-account resolver, not a screen. **`/settings/*` is a
-second navigable area** (ADR 0013 D2) sharing the SAME shell mount but its OWN flat left-nav
-content (`areaFromPathname`), swapped in place of the account area's Workspace/Account/Operator
-groups — never a second `ConsoleShell`. **The right rail is narrow, one case only**: at `lg`+
-(1024px) it shows a selected row's detail on `/accounts/<id>/projects` alone — resizable by drag
-(`RailResizer`, 240–480px, default 280, persisted per viewer) — and is collapsed entirely, not an
-empty placeholder, everywhere else, including every `/settings/*` route (there is no right rail in
-settings, at any tier — ADR 0013 D2). There is no more standing rail content anywhere (the old
-Overview quick-settings panel is deleted outright — every mutation it hosted now has a better
-home: the switcher's own `+ New account`, `/projects`' `+ New project`, the Budget card's link to
-`/accounts/<id>/refill`, `/settings/policies`' rename). Below `lg`, the same selection-driven
-content opens as a `BottomSheet` docked to the BOTTOM of the viewport, never from a side; on
-`/settings/refills-queue` specifically, `BottomSheet` is the review surface at EVERY tier, since
-settings has no rail to promote it into at `lg`+. Every screen opens with `PageHeader` (title,
-subtitle, inline controls, one action), then a stack of `Card`s — one per self-contained zone.
+Cards sit on a floor, inside a shell with a persistent LEFT sidebar and a stretching centre column.
+In dark the floor is `#000` and cards (`base-200`) carry stats, charts, tables and forms; in light
+the floor is grey and cards are white. The sidebar (240px, `md`+) carries navigation, a workspace
+switcher and a footer stack; below `md` a 48px top bar plus a bottom nav dock replace it. **Every
+real screen is account-scoped by path** (`/accounts/[accountId]/{overview,api-keys}`, ADR 0013
+D1, narrowed by ADR 0013's phase E amendment — `projects`/`refill` moved to
+`/settings/accounts/<id>/{projects,request-refill}`) — the account is a URL segment, not a query
+param; `/` is a last-account resolver, not a screen. **`/settings/*` is a second navigable area**
+(ADR 0013 D2) sharing the SAME shell mount but its OWN flat left-nav content (`areaFromPathname`),
+swapped in place of the account area's Workspace/Account/Operator groups — never a second
+`ConsoleShell`. `/settings/accounts` (phase E) is a THIRD sub-area within it: a list of the
+identity's accounts plus creation, drilling into `/settings/accounts/<id>` (rename, honest
+budget/tier facts, Members) and its own two tabs, `.../projects` and `.../request-refill` — tied
+together by a horizontal `AccountDetailSubNav`. **The right rail has no live case left anywhere in
+the console** (phase E moved its one remaining case, a selected row's detail on the account-area's
+own `/projects`, into the settings area, which has no right rail at any tier — ADR 0013 D2): the
+primitive itself (`ConsoleShell.rail`, drag-resizable via `RailResizer`, 240–480px, default 280,
+persisted per viewer) still exists in `packages/ui-web` as a real, still-exercised-by-its-own-
+stories capability, `apps/console` simply feeds it nothing any more — never mount it "just in
+case," and never rebuild the deleted `containers/inspector-rail.tsx`/`client/use-rail-width.ts`
+wiring without a genuine new selection-detail case to justify it. There is no more standing rail
+content anywhere either way (the old Overview quick-settings panel is deleted outright — every
+mutation it hosted now has a better home: the switcher's own `+ New account`, `/settings/accounts`'
+`+ New account`, `/settings/accounts/<id>/projects`' `+ New project`, the Budget card's link to
+`/settings/accounts/<id>/request-refill`, `/settings/accounts/<id>`'s own rename). EVERY
+selection-driven detail across the whole console — the projects ledger's row, the refills queue's
+review — opens as a `BottomSheet` docked to the BOTTOM of the viewport, never from a side, at
+every tier including `lg`+, since there is no rail anywhere left to hand it off to. Every screen
+opens with `PageHeader` (title, subtitle, inline controls, one action), then a stack of `Card`s —
+one per self-contained zone.
 Sans type (Inter) is the default everywhere structural; mono (IBM Plex Mono) is reserved for data
 values — currency, counts, ids, timestamps — never for prose or chrome. A single orange signal
 appears only when something is actionable or needs attention.
@@ -74,17 +88,17 @@ as their own Tailwind v3 source — was removed, #368; `theme.css` is now the re
 source, full stop.)
 
 | Tailwind token | Spec name      | daisy variable            | Dark (`black`) | Light (`wireframe`) | Role                                                                       |
-| -------------- | -------------- | ------------------------- | -------------- | -------------------- | --------------------------------------------------------------------------------- |
+| -------------- | -------------- | ------------------------- | -------------- | ------------------- | -------------------------------------------------------------------------- |
 | `muted`        | `--floor`      | `--color-base-100`        | `#000000`      | `#EBEBEB`           | Page background. `Card` sits on it, is never confused with it              |
-| `chrome`       | `--chrome`     | `--color-neutral`         | `#111111`      | `#F5F5F5`           | Sidebar/top-bar fill, form-control inset fill, table row hover                     |
-| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `BottomSheet`, the inspector rail, dialogs, `StatCard`                                        |
-| `raised`       | `--raised`     | `--color-base-300`        | `#202020`      | `#DEDEDE`           | Active nav row, active segmented cell, table hairlines, skeletons                  |
-| `border`       | `--line`       | `--color-border`          | `#3a3a3a`      | `#CFCFCF`           | Control borders, `Card`'s own hairline, chart baseline, group separators           |
+| `chrome`       | `--chrome`     | `--color-neutral`         | `#111111`      | `#F5F5F5`           | Sidebar/top-bar fill, form-control inset fill, table row hover             |
+| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `BottomSheet`, the inspector rail, dialogs, `StatCard`             |
+| `raised`       | `--raised`     | `--color-base-300`        | `#202020`      | `#DEDEDE`           | Active nav row, active segmented cell, table hairlines, skeletons          |
+| `border`       | `--line`       | `--color-border`          | `#3a3a3a`      | `#CFCFCF`           | Control borders, `Card`'s own hairline, chart baseline, group separators   |
 | `subtle`       | `--muted`      | `--color-subtle`          | `#606060`      | `#8A8A8A`           | Labels, placeholders, disabled. Never load-bearing info (~2.9:1 by design) |
-| `soft`         | `--body`       | `--color-base-content`    | `#b4b4b4`      | `#4D4D4D`           | Body text, meter fills, rank-1 chart series                                        |
-| `ink`          | `--strong`     | `--color-ink`             | `#eeeeee`      | `#1A1A1A`           | Headings, key numerals                                                            |
-| `primary`      | `--signal`     | `--color-primary`         | `#DA5C2C`      | `#B4441C`           | CTA · active · breach. Never decoration, never a large fill                       |
-| —              | text on signal | `--color-primary-content` | `#0d0d0d`      | `#FFFFFF`           | Label inside a `primary` fill                                                     |
+| `soft`         | `--body`       | `--color-base-content`    | `#b4b4b4`      | `#4D4D4D`           | Body text, meter fills, rank-1 chart series                                |
+| `ink`          | `--strong`     | `--color-ink`             | `#eeeeee`      | `#1A1A1A`           | Headings, key numerals                                                     |
+| `primary`      | `--signal`     | `--color-primary`         | `#DA5C2C`      | `#B4441C`           | CTA · active · breach. Never decoration, never a large fill                |
+| —              | text on signal | `--color-primary-content` | `#0d0d0d`      | `#FFFFFF`           | Label inside a `primary` fill                                              |
 
 Write `bg-surface text-soft border-border`, not hex. If a needed step is missing, add it to
 `theme.css` **in both theme blocks** — never inline a hex value.
@@ -96,22 +110,24 @@ AA); `#0d0d0d` is 5.1:1.
 
 Four libraries, four non-overlapping jobs (ADR 0010 Decision 2). Never solve one need with two.
 
-| Reach for                      | When                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **daisyUI 5 class**            | A visual component class exists: `btn`, `input`, `textarea`, `select`, `table`, `menu`, `tabs`, `toggle`, `checkbox`, `radio`, `skeleton`, `fieldset`/`label`, `join`, `kbd`, `validator`. Add Tailwind utilities for whatever daisy does not cover                                                                                          |
+| Reach for                      | When                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **daisyUI 5 class**            | A visual component class exists: `btn`, `input`, `textarea`, `select`, `table`, `menu`, `tabs`, `toggle`, `checkbox`, `radio`, `skeleton`, `fieldset`/`label`, `join`, `kbd`, `validator`. Add Tailwind utilities for whatever daisy does not cover                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **Base UI (`@base-ui/react`)** | **Every** control with _behaviour_ — never a native `<select>`, never a hand-rolled popup. As of 2026-08-29 the adoption gap is closed to one deliberate refusal (`row-action-group` — see `base-ui-adoption.test.ts`'s `KNOWN_GAPS`, which may only shrink); a new primitive that reimplements Base UI behaviour is a defect. Specifically: Dialog, Alert Dialog, Menu, Select, Combobox, Popover, Tooltip, Navigation Menu, Toggle Group, Field/Fieldset/Form, Switch, Checkbox, Radio, Number Field, Scroll Area, Toast, Drawer, Meter. Style its parts with daisy classes + token utilities via `className` (which also accepts a function of component state) and `data-*` variants |
-| **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                            |
-| **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                             |
+| **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Drawers and bottom sheets are Base UI's `drawer` — one more primitive on the Base UI row, not a
 library of its own. **`vaul` is gone** (owner decision 2026-08-29): it is in no `package.json` and
 imported nowhere in the console path. Do not reintroduce it, and do not hand-roll a sheet.
 
-`BottomSheet` (row detail — project detail, refill review, below `lg` only) is Base UI's
-**Drawer**, bottom-only (`swipeDirection="down"` always — the side-docked variant is deleted, per
-the owner's locked layout contract: "Not from sides"). `DetailSheet`, the fixed-420px right-panel
-`Dialog` this replaced, is gone; at `lg`+ the inspector rail is the detail surface instead, not a
-dialog of any shape.
+`BottomSheet` (row detail — project detail, refill review) is Base UI's **Drawer**, bottom-only
+(`swipeDirection="down"` always — the side-docked variant is deleted, per the owner's locked
+layout contract: "Not from sides"). `DetailSheet`, the fixed-420px right-panel `Dialog` this
+replaced, is gone. It opens at EVERY tier now, not just below `lg` — ADR 0013's phase E amendment
+moved the right rail's one live case (a selected project's detail) off the account area entirely,
+so there is no tier left where a rail is the detail surface instead; `BottomSheet` is it,
+everywhere.
 
 **`radix-ui` is not a direct dependency.** It ships transitively under `cmdk` and stays there —
 never `import` from `@radix-ui/*` in `ui-web` source, never add it to a `package.json`.
@@ -161,21 +177,26 @@ carries `data-numeral` (tabular figures, right-aligned in ledgers).
 One definition per role, `packages/ui-web/src/lib/type-roles.ts` — import the constant, never
 re-declare the class string:
 
-| Constant | Size / weight | Family | Used for |
-| --- | --- | --- | --- |
-| `PAGE_TITLE_CLASS` | 24px / semibold | sans | `PageHeader`'s `title`, one per screen |
-| `PAGE_SUBTITLE_CLASS` | 13px | sans | The scope/context line under a page title |
-| `SECTION_TITLE_CLASS` | 15px / medium | sans | `Card`'s own title, a dashboard zone heading |
-| `LABEL_CLASS` | 12px | sans | Field labels, table column headers, section labels |
-| `BODY_CLASS` | 13px | sans | Sentence-copy prose |
-| `META_CLASS` | 12px | sans | Captions, non-load-bearing metadata |
-| `ERROR_TEXT_CLASS` | 13px | sans | `ErrorLine`'s own text |
-| `DATA_CLASS` / `DATA_INK_CLASS` | 13px | mono, `data-numeral` | Table cells: counts, ids, dates, currency |
-| `METRIC_CLASS` | 28px | mono, `data-numeral` | Stat-card values, table footers |
-| `HERO_METRIC_CLASS` | 34px | mono, `data-numeral` | The one number a screen is about |
-| `HERO_CEILING_CLASS` | 13px | sans | The reference value beside a hero metric ("of $2,000.00") |
+| Constant                        | Size / weight   | Family               | Used for                                                  |
+| ------------------------------- | --------------- | -------------------- | --------------------------------------------------------- |
+| `PAGE_TITLE_CLASS`              | 24px / semibold | sans                 | `PageHeader`'s `title`, one per screen                    |
+| `PAGE_SUBTITLE_CLASS`           | 13px            | sans                 | The scope/context line under a page title                 |
+| `SECTION_TITLE_CLASS`           | 15px / medium   | sans                 | `Card`'s own title, a dashboard zone heading              |
+| `LABEL_CLASS`                   | 12px            | sans                 | Field labels, table column headers, section labels        |
+| `BODY_CLASS`                    | 13px            | sans                 | Sentence-copy prose                                       |
+| `META_CLASS`                    | 12px            | sans                 | Captions, non-load-bearing metadata                       |
+| `ERROR_TEXT_CLASS`              | 13px            | sans                 | `ErrorLine`'s own text                                    |
+| `DATA_CLASS` / `DATA_INK_CLASS` | 13px            | mono, `data-numeral` | Table cells: counts, ids, dates, currency                 |
+| `METRIC_CLASS`                  | 28px            | mono, `data-numeral` | Stat-card values, table footers                           |
+| `HERO_METRIC_CLASS`             | 34px            | mono, `data-numeral` | The one number a screen is about                          |
+| `HERO_CEILING_CLASS`            | 13px            | sans                 | The reference value beside a hero metric ("of $2,000.00") |
 
-Sentence case everywhere — no all-caps labels anywhere in the console.
+Sentence case everywhere — no all-caps labels anywhere in the console. **One narrow, owner-
+approved exception** (2026-08-31, issue #368): `CommandPalette`'s own group headings render
+upper-cased (`palette-group-heading`, theme.css) and its empty-query line renders in `font-mono`
+rather than sans (`palette-empty`) — both scoped to that one component alone, reviewed and kept
+deliberately rather than extended anywhere else in the console. Do not generalize either exception
+to a new component without the same owner review this one had.
 Numeric columns are right-aligned; thousands use thin space (`$1 131.80`); currency always two
 decimals.
 
@@ -183,7 +204,17 @@ decimals.
 
 - **Radius** — `--radius-box: 0.5rem` (8px) for `Card`/panels/dialogs; `--radius-selector`/
   `-field: 0.25rem` (4px) for controls (ADR 0012 D4, supersedes the flush 2px pin). No pills, no
-  `rounded-full`.
+  `rounded-full`. **Floating overlays get one further exception** (owner ruling, 2026-08-31, issue
+  #368: "10px looks good for the command palette"): an anchored popup that points at a trigger
+  from an arbitrary screen position — the command palette panel, Menu popups (the account
+  switcher, and any other Base UI Menu), Select/Combobox popups, Popovers — renders at a 10px
+  corner radius (`--radius-overlay-floating`, theme.css; `OVERLAY_FLOATING_CLASS`/
+  `OVERLAY_ANCHORED_POPUP_FLOATING_CLASS`, `lib/overlay.ts`) instead of the flush 2px overlay
+  contract. DOCKED overlays — Dialog, the bottom sheet Drawer, Tooltip — are NOT floating and stay
+  at the flush 2px contract (`OVERLAY_CLASS` unwrapped): they anchor to a screen edge or centre
+  over the whole viewport rather than pointing at one trigger element, so the "floating" read this
+  exception answers does not apply. `Card`/panels keep their own separate `--radius-box` (8px)
+  regardless — this exception is about overlays only, never about panels.
 - No `box-shadow` anywhere. `Card` gets a 1px `border` hairline — its one departure from the
   "no borders on panels" rule, since a card needs a visible edge against the floor it sits on;
   table hairlines and the chart baseline get their own strokes as before.
@@ -191,10 +222,13 @@ decimals.
 - **Mobile-first** (ADR 0009 Decision 6): author base styles for phones and scale up with the
   `md:` (600) / `lg:` (1024) breakpoints defined in `theme.css` (`--breakpoint-md`/`-lg`). Never
   desktop-first overrides.
-- **Left sidebar + centre + situational right inspector rail** (owner's locked layout contract,
+- **Left sidebar + centre, no right rail live anywhere** (owner's locked layout contract,
   restated 2026-08-30: "3 slices: left rail, main content, right rail... Right rail on large
-  screens, bottom sheet on medium and small" — supersedes ADR 0012 D1's "no right rail at any
-  tier", which itself superseded ADR 0008 D3's three-column inversion):
+  screens, bottom sheet on medium and small" — the CAPABILITY the contract describes still exists
+  in `ConsoleShell`, but ADR 0013's phase E amendment moved the rail's one remaining live case,
+  `/accounts/<id>/projects` with a row selected, into the settings area, which has never had a
+  right rail at any tier (ADR 0013 D2) — so no route in the console feeds `ConsoleShell.rail`
+  anything any more; see that ADR's phase E amendment for the full move):
   - `≥md` (600px+): a persistent 240px `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
     footer stack: `⌘K` · theme · offline · identity), sticky and independently scrollable, beside
     a single fluid content column capped at `max-w-[1120px]` (`CONTENT_MAX_WIDTH_CLASS`,
@@ -203,31 +237,24 @@ decimals.
     trigger, identity) plus the existing bottom navigation dock. `ConsoleSidebar` itself renders
     both the persistent `sidebar` layout and the `bottom-bar` dock from one `groups` prop, so a
     screen never mounts navigation twice — don't build a second nav surface per tier.
-  - `≥lg` (1024px) only: the right inspector rail (`ConsoleShell.rail`, resolved by
-    `apps/console/src/containers/inspector-rail.tsx`) — `chrome` fill, a `raised` hairline facing
-    the centre, drag-resizable (`RailResizer`, `INSPECTOR_RAIL_MIN_WIDTH`–`INSPECTOR_RAIL_MAX_WIDTH`
-    px, default `INSPECTOR_RAIL_DEFAULT_WIDTH`, `lib/shell-grid.ts`; width persisted per viewer in
-    `localStorage` by `apps/console`'s `use-rail-width.ts`, never in the URL — ADR 0011 Decision 6's
-    "a shared URL must not restyle the app for its recipient" reasoning applies to layout
-    preferences too). **Situational, never a placeholder, and narrowed further by ADR 0013 D2/D3**
-    (IA v3 phase 3 deleted the rail's one STANDING case outright): `ConsoleShell` renders the whole
-    rail column for exactly ONE route/state — `/accounts/<id>/projects` with a row selected — and
-    collapses it entirely everywhere else, with NO exception: not `/accounts/<id>/overview` (its
-    old quick-settings panel is deleted — every mutation it hosted has a better home now: the
-    switcher's `+ New account`, `/projects`' `+ New project`, the Budget card's link to
-    `/accounts/<id>/refill`, `/settings/policies`' rename), not `/accounts/<id>/api-keys`, and not
-    ANY `/settings/*` route (settings has no right rail at any tier — its own row-selection screen,
-    `/settings/refills-queue`, uses `BottomSheet` at every tier instead, since there is no rail to
-    promote it into at `lg`+). The centre column absorbs the freed width either way
-    (`min-w-0 flex-1`).
+  - The right inspector rail primitive (`ConsoleShell.rail`) still exists — `chrome` fill, a
+    `raised` hairline facing the centre, drag-resizable (`RailResizer`,
+    `INSPECTOR_RAIL_MIN_WIDTH`–`INSPECTOR_RAIL_MAX_WIDTH` px, default
+    `INSPECTOR_RAIL_DEFAULT_WIDTH`, `lib/shell-grid.ts`), and `packages/ui-web`'s own
+    `console-shell/component.stories.tsx` still exercises it directly. `apps/console` deleted its
+    OWN wiring (`containers/inspector-rail.tsx`, `client/use-rail-width.ts`,
+    `(console)/layout.tsx`'s `rail`/`railWidth` props) rather than keep code that would always
+    resolve to "no rail" — do not rebuild that wiring or re-add a `rail`/`railWidth` prop pass in
+    `apps/console`'s own layout without a genuine new selection-detail case to justify it; the
+    right answer for any new selection-driven detail is `BottomSheet`, at every tier, the same
+    surface `/settings/refills-queue` and `/settings/accounts/<id>/projects` both use.
   - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`
     — `min-w-0` is mandatory, without it a wide table/chart blows the row open into page-level
     horizontal scroll). Anything intrinsically wide scrolls inside its own `overflow-x-auto`
     container instead.
   - Screen PARAMETERS (range/bucket/group-by, filters, search) stay inline in `PageHeader.controls`
-    at every tier — the rail is for SELECTION-driven detail only now, never for knobs and never
-    for standing account settings. Below `lg`, where the rail is absent, that same selection-driven
-    detail opens as a `BottomSheet` instead (bottom-docked, never from a side — see "Primitive
+    at every tier. Every SELECTION-driven detail across the console opens as a `BottomSheet`
+    instead (bottom-docked, never from a side — see "Primitive
     stack" above).
 - **`Card` is the default zone container** (ADR 0012 D3, kills ADR 0008's "centre is never a
   card"/"a scalar gets a panel, a distribution gets the floor" boundary): stat rows, charts,
@@ -237,10 +264,12 @@ decimals.
   `Card` also wraps the row they sit in.
 - **Two nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
   `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`): the **account area**'s
-  `navGroups` — `Workspace` (Overview, Projects, API keys, hrefs built off the path account),
+  `navGroups` — `Workspace` (Overview, API keys only, hrefs built off the path account — phase E
+  narrowed this from three items to two, Projects moved to `/settings/accounts/<id>/projects`),
   `Account` (Settings), `Operator` (Refill requests → `/settings/refills-queue`, included only for
   `session.isAdmin`) — versus the **settings area**'s `settingsNavGroups`, a flat, ungrouped list
-  of seven (Overview, Roles [disabled], Tier configs, Account/Project policies, Refill options
+  of eight (Overview, Accounts [phase E, NEW], Roles [disabled], Tier configs, Project policies
+  [renamed from "Account / Project policies" once the account half moved out], Refill options
   policies, Refills queue [admin only], Info), with a `← Back to console` row replacing the
   workspace switcher. Both are role-gated by inclusion, not by a marker prop — no
   `adminItems`/`showAdmin`/`roleLabel` axis; a gated row/group's own label IS the role marker.
@@ -249,21 +278,22 @@ decimals.
   extends to navigation — a row that looks live but 404s is its own kind of fabrication.
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.
-- **Row detail is the inspector rail at `lg`+ (one case only — `/accounts/<id>/projects` — see
-  above), a `BottomSheet` below it — never a side sheet at any tier.** `DetailSheet` (a fixed-420px
-  right-docked `Dialog`) is deleted. `/settings/refills-queue`'s own row detail uses `BottomSheet`
-  at every tier, not just below `lg` — settings has no rail to promote it into. Below `lg`,
+- **Row detail is `BottomSheet`, at every tier, everywhere — never a side sheet, and never the
+  right rail** (ADR 0013's phase E amendment: the rail's one live case moved off the account area
+  entirely). `DetailSheet` (a fixed-420px right-docked `Dialog`) is deleted, same as before.
+  `/settings/refills-queue`'s and `/settings/accounts/<id>/projects`' own row detail both use
+  `BottomSheet` at every tier — settings has no rail to promote either into, at any tier.
   `BottomSheet` (Base UI `Drawer`, bottom-only) opens on selection: grab handle, header
   (title/subtitle/optional `headerAction`, e.g. `Rename` — never a stranded footer button for a
   header-scale action) · body, content-sized up to `max-height: 85dvh` (never a fixed minimum —
   a short sheet must not leave an empty void below its own content) · optional `footer` for
-  content that genuinely belongs at the sheet's foot (a decision panel's own Approve/Decline).
-  `portalClassName="lg:hidden"` is how a route keeps its sheet out of the DOM's interactive
-  surface at `lg`+, where the rail is the surface instead — never a wrapper class, since the
-  Drawer's portal (and Floating UI's own press-absorbing backdrop layer) render outside the
-  caller's own subtree.
+  content that genuinely belongs at the sheet's foot (a decision panel's own Approve/Decline). No
+  `portalClassName="lg:hidden"` gate any more on either of the two screens above — that gate
+  existed only to keep a rail-plus-sheet pair from being simultaneously interactive at `lg`+, and
+  neither screen has a rail counterpart to guard against any more.
 - **Report export and other "form that used to be a rail panel" surfaces are a `Dialog`**, not a
-  sheet or the rail: `ReportExportDialog`, reachable from Overview and Projects.
+  sheet or the rail: `ReportExportDialog`, reachable from Overview and
+  `/settings/accounts/<id>/projects`.
 - **`lib/rail-grid.ts`** backs `NavSpine`/`SubNav`'s own internal row geometry (icon column, label
   x, active-bar inset) — a nav-row alignment grid, unrelated to `lib/shell-grid.ts`'s inspector
   rail column geometry (`INSPECTOR_RAIL_CLASS`/`-MIN_WIDTH`/`-MAX_WIDTH`/`-DEFAULT_WIDTH`) despite
@@ -338,7 +368,7 @@ from what reads honestly against that shape, not house taste.
 
 - **`EmptyState`** — first-run emptiness only (no API keys yet in this project, no projects yet in
   this account): a centred column inside a `Card` (headline, explainer, CTA, usually the screen's
-  own `+ New …` action reused verbatim). Gate strictly on a *settled* query returning zero rows —
+  own `+ New …` action reused verbatim). Gate strictly on a _settled_ query returning zero rows —
   never while loading (that's `SkeletonRow`/`SkeletonMetric`) or errored (that's `ErrorLine`).
 - **`InlineStatus`** — a filtered-to-nothing result (pair with a `Reset filters` ghost button) or
   an unavailable/not-yet-queried state. One line above **still-rendered structure** — table

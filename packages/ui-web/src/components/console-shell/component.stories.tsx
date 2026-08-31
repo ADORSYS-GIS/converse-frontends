@@ -57,7 +57,7 @@ const brand = (
 
 const workspaceSwitcher = (
   <button type="button" className="workspace-switcher-row">
-    <span aria-hidden="true" className="avatar-chip">
+    <span aria-hidden="true" className="avatar-chip-md">
       AG
     </span>
     <span className="text-ink truncate font-sans text-[13px]">adorsys-gis</span>
@@ -69,7 +69,7 @@ const compactWorkspaceSwitcher = (
 );
 
 const identity = (
-  <span aria-hidden="true" className="avatar-chip">
+  <span aria-hidden="true" className="avatar-chip-md">
     SL
   </span>
 );
@@ -157,7 +157,7 @@ function Shell({
         <ConsoleTopBar
           brand={brand}
           workspaceSwitcher={compactWorkspaceSwitcher}
-          identity={identity}
+          trailing={identity}
         />
       }
       rail={rail}

@@ -182,7 +182,7 @@ use the unified `radix-ui` package for that one primitive. Do not add a fourth p
 > directive named `vaul`. Owner decision of 2026-08-29: use `@base-ui/react/drawer`. `vaul` is
 > removed from `packages/ui-web/package.json` and imported nowhere; `BottomSheet` — and through it
 > `SectionSheet` and `SelectionSheet` — is `Drawer.Root/Portal/Backdrop/Viewport/Popup/Content/
-> Title/Description/Close`. Two consequences worth recording, both read off a live browser rather
+Title/Description/Close`. Two consequences worth recording, both read off a live browser rather
 > than inferred:
 >
 > - **Radix now ships under `cmdk` alone.** The "two transitive Radix consumers" below is one.
@@ -408,6 +408,26 @@ switch account/project scope, and run the scoped actions the right rail owns. It
 `surface` panel at radius 2, mono type, `kbd` classes for the shortcut hints, and no shadow.
 cmdk brings `@radix-ui/react-dialog` transitively — that is the whole of Radix's presence in the
 palette and it stays transitive (Decision 2).
+
+> **Status amendment, 2026-08-31 (#368):** "radius 2" above no longer holds for this panel. Owner
+> review of a Storybook-only restyle batch (`claude/sb-overlay-restyle`) ruled "10px looks good for
+> the command palette" — wired in as the live default (`claude/wire-overlay-restyle`), and extended
+> to every primitive in the same visual family rather than the palette alone: Menu popups (the
+> account switcher, and any other Base UI Menu), Select/Combobox popups, and Popovers all now
+> render at a 10px corner radius too (`--radius-overlay-floating`, `theme.css`;
+> `OVERLAY_FLOATING_CLASS`/`OVERLAY_ANCHORED_POPUP_FLOATING_CLASS`, `lib/overlay.ts`), since they
+> already share this exact `surface`/hairline/no-shadow chrome and a palette-only radius would have
+> read as an inconsistency, not a decision. The exception is scoped to FLOATING overlays only —
+> an anchored popup pointing at a trigger from an arbitrary screen position. Every DOCKED overlay
+> (Dialog, the bottom sheet Drawer, Tooltip) is unaffected and stays at the flush 2px contract:
+> they anchor to a screen edge or centre over the whole viewport rather than pointing at one
+> element, so the "floating" read this exception answers does not apply. See the console-ui
+> skill's "Shape and layout" section for the full, current statement of this rule.
+>
+> Two further, narrower departures shipped in the same batch, reviewed and kept deliberately
+> rather than extended anywhere else: `CommandPalette`'s own group headings render upper-cased
+> (against this ADR's/ADR 0012's sentence-case rule) and its empty-query line renders in
+> `font-mono` (against the "mono is data only" rule) — both scoped to that one component alone.
 
 **Floating UI** replaces the arithmetic in `chart-tooltip`. Two documented pieces do the work:
 

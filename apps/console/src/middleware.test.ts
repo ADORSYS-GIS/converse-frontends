@@ -40,6 +40,8 @@ describe('middleware matcher', () => {
       '_next/static/chunk.js',
       'serwist/sw.js',
       'serwist/sw.js.map',
+      'branding/logo',
+      'branding/override.css',
       'manifest.json',
       'icons/icon-192.png',
       'favicon.ico',
@@ -108,11 +110,15 @@ describe('legacyRedirectTarget', () => {
     expect(legacyRedirectTarget('/api-keys', params(''))).toBe('/?next=api-keys');
   });
 
-  // IA v3 phase 2 ("the settings area") — the three static path moves, `LEGACY_STATIC_REDIRECT`.
-  it('/admin -> /settings/refills-queue, every param (incl. the selected request) surviving verbatim', () => {
-    expect(legacyRedirectTarget('/admin', params(''))).toBe('/settings/refills-queue');
-    expect(legacyRedirectTarget('/admin', params('request=req_9'))).toBe(
-      '/settings/refills-queue?request=req_9'
+  // IA v3 phase 2 ("the settings area") — the static path moves, `LEGACY_STATIC_REDIRECT`.
+  // ADR 0013's "the admin area" amendment retires the old `/admin -> /settings/refills-queue`
+  // row (`/admin` is a live route again) and replaces it with the refills-queue's SECOND move.
+  it('/settings/refills-queue -> /admin/refills-queue, every param (incl. the selected request) surviving verbatim', () => {
+    expect(legacyRedirectTarget('/settings/refills-queue', params(''))).toBe(
+      '/admin/refills-queue'
+    );
+    expect(legacyRedirectTarget('/settings/refills-queue', params('request=req_9'))).toBe(
+      '/admin/refills-queue?request=req_9'
     );
   });
 
@@ -131,12 +137,44 @@ describe('legacyRedirectTarget', () => {
     );
   });
 
+  // IA v3 phase E ("the settings/accounts move") — the two account-scoped path moves, the id
+  // already in the old path (unlike the `LEGACY_ACCOUNT_SCOPED_SEGMENT` table above, which
+  // extracts it out of `?account=`) and kept in the target.
+  it('/accounts/A/projects -> /settings/accounts/A/projects, every param surviving verbatim', () => {
+    expect(legacyRedirectTarget('/accounts/A/projects', params(''))).toBe(
+      '/settings/accounts/A/projects'
+    );
+    expect(legacyRedirectTarget('/accounts/A/projects', params('status=active&row=proj_1'))).toBe(
+      '/settings/accounts/A/projects?status=active&row=proj_1'
+    );
+  });
+
+  it('/accounts/A/refill -> /settings/accounts/A/request-refill, ?project= surviving verbatim', () => {
+    expect(legacyRedirectTarget('/accounts/A/refill', params(''))).toBe(
+      '/settings/accounts/A/request-refill'
+    );
+    expect(legacyRedirectTarget('/accounts/A/refill', params('project=proj_7'))).toBe(
+      '/settings/accounts/A/request-refill?project=proj_7'
+    );
+  });
+
   it('every OTHER /settings/* path is left alone — it is a live route, not a legacy link', () => {
     expect(legacyRedirectTarget('/settings/policies', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/tiers', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/info', params(''))).toBeNull();
     expect(legacyRedirectTarget('/settings/overview', params(''))).toBeNull();
-    expect(legacyRedirectTarget('/settings/refills-queue', params(''))).toBeNull();
+    // IA v3 phase E — the NEW routes themselves must never bounce, only the OLD paths that moved.
+    expect(legacyRedirectTarget('/settings/accounts', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A/projects', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/settings/accounts/A/request-refill', params(''))).toBeNull();
+  });
+
+  // ADR 0013's "the admin area" amendment — the admin area's own two live routes must never
+  // bounce; only the retired `/settings/refills-queue` path above does.
+  it('/admin/overview and /admin/refills-queue are live routes, never redirected', () => {
+    expect(legacyRedirectTarget('/admin/overview', params(''))).toBeNull();
+    expect(legacyRedirectTarget('/admin/refills-queue', params(''))).toBeNull();
   });
 
   it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {

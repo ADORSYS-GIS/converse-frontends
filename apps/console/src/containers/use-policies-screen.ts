@@ -8,19 +8,27 @@ import { useQuery } from '@tanstack/react-query';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleScope } from '../client/use-console-scope';
 import { useSharedMutation } from '../client/use-shared-mutation';
-import type { AccountSettingsScreen } from './use-account-settings-screen';
-import { useAccountSettingsScreen } from './use-account-settings-screen';
 import type { ProjectSettingsScreen } from './use-project-settings-screen';
 import { useProjectSettingsScreen } from './use-project-settings-screen';
 
 /**
- * `/settings/policies` — composes the RETAINED `use-account-settings-screen.ts`/
- * `use-project-settings-screen.ts` adapters (IA v3 phase 2: their own routes,
- * `/settings/account`/`/settings/projects`, are deleted, but the data adapters and the sections
- * they feed — `AccountSettings`/`ProjectSettings` — are not; this screen is where both now live)
- * PLUS the new project-governance controls this phase adds: `setProjectModelPolicy` and
+ * `/settings/policies` — "Project policies" (IA v3 phase 2, narrowed by IA v3 phase E — owner:
+ * "there's no sense in having account or project creation" on this page). Composes the RETAINED
+ * `use-project-settings-screen.ts` adapter (its own route, `/settings/projects`, was deleted in
+ * phase 2, but the data adapter and the section it feeds — `ProjectSettings` — are not) PLUS the
+ * project-governance controls this page's whole job now is: `setProjectModelPolicy` and
  * `setProjectAllowedModels`, both dedicated write paths on `Project` (see
  * `sections/project-policy-controls`' own doc comment for the full backend contract).
+ *
+ * **IA v3 phase E moves TWO things off this screen, not one.** `AccountSettings` (rename +
+ * id/status/tier facts) moved to `/settings/accounts/<id>` — a core account mutation has no more
+ * business sitting above a project-policy picker than it did above the old Projects ledger's own
+ * filters (owner, 2026-08-29: "We cannot modify account core information on the same page we're
+ * filtering" — the same reasoning, one level over). And BOTH `+ New account`/`+ New project`
+ * creation triggers are gone from this page's `PageHeader` — account creation lives at
+ * `/settings/accounts`, project creation at `/settings/accounts/<id>/projects?create=true`. What
+ * remains is exactly "project policy editing": browse projects (still needed as the picker this
+ * page's own governance controls act on), open one, edit its model policy.
  *
  * `procedure.listModelCatalog` is fetched once here, shared by every project's policy controls —
  * the catalogue is account-independent (`config.models`, operator-wide), so there is exactly one
@@ -41,19 +49,16 @@ const ALLOWED_MODELS_MUTATION_KEY = ['settings', 'project-allowed-models'];
 
 export interface PoliciesScreen {
   scopeLabel: string | undefined;
-  accountSettings: AccountSettingsScreen['accountSettings'];
   projectSettings: ProjectSettingsScreen['projectSettings'];
   projectDetail: ProjectSettingsScreen['projectDetail'];
   projectNameDialog: ProjectSettingsScreen['projectNameDialog'];
   projectCount: number;
-  onCopyId: (accountId: string) => void;
   /** `null` whenever there is no selected project to show controls for — `policies-centre.tsx`
    *  renders the section only inside the project detail sheet, which is itself selection-gated. */
   policyControls: ProjectPolicyControlsProps | null;
 }
 
 export function usePoliciesScreen(): PoliciesScreen {
-  const accountScreen = useAccountSettingsScreen();
   const projectScreen = useProjectSettingsScreen();
   const client = useConsoleAuthzClient();
   const scope = useConsoleScope();
@@ -121,15 +126,11 @@ export function usePoliciesScreen(): PoliciesScreen {
     : null;
 
   return {
-    scopeLabel: accountScreen.scopeLabel,
-    accountSettings: accountScreen.accountSettings,
+    scopeLabel: projectScreen.scopeLabel,
     projectSettings: projectScreen.projectSettings,
     projectDetail: projectScreen.projectDetail,
     projectNameDialog: projectScreen.projectNameDialog,
     projectCount: projectScreen.projectCount,
-    onCopyId: (accountId: string) => {
-      void navigator.clipboard?.writeText?.(accountId).catch(() => undefined);
-    },
     policyControls,
   };
 }

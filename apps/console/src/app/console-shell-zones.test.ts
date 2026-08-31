@@ -53,17 +53,21 @@ describe('console shell zones (shell revamp phase 2)', () => {
     const routePages = [
       'page.tsx',
       join('accounts', '[accountId]', 'overview', 'page.tsx'),
-      join('accounts', '[accountId]', 'projects', 'page.tsx'),
       join('accounts', '[accountId]', 'api-keys', 'page.tsx'),
-      join('accounts', '[accountId]', 'refill', 'page.tsx'),
       'settings/page.tsx',
+      join('settings', 'accounts', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'projects', 'page.tsx'),
+      join('settings', 'accounts', '[accountId]', 'request-refill', 'page.tsx'),
       join('settings', 'overview', 'page.tsx'),
       join('settings', 'overview', 'usage', 'page.tsx'),
       join('settings', 'policies', 'page.tsx'),
       join('settings', 'tiers', 'page.tsx'),
       join('settings', 'refill-options', 'page.tsx'),
       join('settings', 'info', 'page.tsx'),
-      join('settings', 'refills-queue', 'page.tsx'),
+      join('admin', 'page.tsx'),
+      join('admin', 'overview', 'page.tsx'),
+      join('admin', 'refills-queue', 'page.tsx'),
     ];
     for (const page of routePages) {
       expect(existsSync(join(CONSOLE_GROUP, page)), `missing ${page}`).toBe(true);
@@ -75,8 +79,15 @@ describe('console shell zones (shell revamp phase 2)', () => {
     expect(existsSync(join(CONSOLE_GROUP, 'api-keys'))).toBe(false);
   });
 
-  it('has no leftover /admin route now that it moved wholesale to /settings/refills-queue (IA v3 phase 2)', () => {
-    expect(existsSync(join(CONSOLE_GROUP, 'admin'))).toBe(false);
+  // ADR 0013's same-day "the admin area" amendment: `/admin` is a real route AGAIN, now an area
+  // (`/admin/overview`, `/admin/refills-queue` — the latter moved a second time, out of
+  // `/settings/refills-queue`), not the single flat screen IA v3 phase 2 deleted. The one-screen
+  // `/admin` this test used to guard against reviving is gone for good; what exists today is a
+  // deliberately different shape, and `/settings/refills-queue` no longer exists at all.
+  it('gives /admin a real overview + refills-queue area, not a leftover from the pre-IA-v3 flat route', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'admin', 'overview', 'page.tsx'))).toBe(true);
+    expect(existsSync(join(CONSOLE_GROUP, 'admin', 'refills-queue', 'page.tsx'))).toBe(true);
+    expect(existsSync(join(CONSOLE_GROUP, 'settings', 'refills-queue'))).toBe(false);
   });
 
   it('has no leftover /settings/account or /settings/projects route now that both folded into /settings/policies', () => {
@@ -86,5 +97,18 @@ describe('console shell zones (shell revamp phase 2)', () => {
 
   it('gives /accounts/[accountId]/* its own guard layout', () => {
     expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx'))).toBe(true);
+  });
+
+  // IA v3 phase E ("the settings/accounts move") — projects/refill moved wholesale off the
+  // account area, the same "no leftover route file" guard the phase 1/2 moves above already get.
+  it('has no leftover /accounts/[accountId]/projects or /refill route now that both moved to /settings/accounts/[accountId]/*', () => {
+    expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'projects'))).toBe(false);
+    expect(existsSync(join(CONSOLE_GROUP, 'accounts', '[accountId]', 'refill'))).toBe(false);
+  });
+
+  it('gives /settings/accounts/[accountId]/* its own guard layout too', () => {
+    expect(
+      existsSync(join(CONSOLE_GROUP, 'settings', 'accounts', '[accountId]', 'layout.tsx'))
+    ).toBe(true);
   });
 });

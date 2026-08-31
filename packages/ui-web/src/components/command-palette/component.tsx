@@ -4,8 +4,14 @@ import React from 'react';
 import { cn } from '../../cn';
 import { Button } from '../button';
 import type { CommandPaletteProps, CommandPaletteTriggerProps } from './types';
-import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
-import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS, OVERLAY_ITEM_CLASS } from '../../lib/overlay';
+import { SearchIcon } from '../../lib/icons';
+import { RAIL_ICON_COLUMN_CLASS } from '../../lib/rail-grid';
+import { META_CLASS } from '../../lib/type-roles';
+import {
+  OVERLAY_BACKDROP_CLASS,
+  OVERLAY_FLOATING_CLASS,
+  OVERLAY_ITEM_CLASS,
+} from '../../lib/overlay';
 
 const DEFAULT_PLACEHOLDER = 'Jump to a page or run an action…';
 const DEFAULT_EMPTY_MESSAGE = 'No matches.';
@@ -13,11 +19,14 @@ const DEFAULT_LABEL = 'Command palette';
 
 // A shortcut chip, on daisy kbd. The three places daisy's defaults contradict the console (its
 // panel-coloured fill, its body-coloured glyph, its tinted hairline) are corrected once in
-// theme.css's `@utility kbd`, so both chips the palette renders are the same chip by construction.
+// theme.css's `@utility kbd`, so every chip the palette renders — a row's own shortcut and the
+// three footer hints — is the same chip by construction.
 const KBD_HINT_CLASS = 'kbd kbd-sm';
 
-// The palette's own panel: overlay chrome, plus the geometry `palette-popup` carries.
-const PALETTE_POPUP_CLASS = cn('palette-popup', OVERLAY_CLASS);
+// The palette's own panel: overlay chrome at the floating radius (owner ruling, 2026-08-31, issue
+// #368: "10px looks good for the command palette" — `OVERLAY_FLOATING_CLASS`, `lib/overlay.ts`),
+// plus the geometry `palette-popup` carries.
+const PALETTE_POPUP_CLASS = cn('palette-popup', 'overlay-pop', OVERLAY_FLOATING_CLASS);
 
 /**
  * The ⌘K command palette (ADR 0010 Decision 6, the command-palette row of
@@ -30,10 +39,25 @@ const PALETTE_POPUP_CLASS = cn('palette-popup', OVERLAY_CLASS);
  * nothing about the console's routes or its screens' data hooks — no routing inside ui-web
  * (console-ui skill "Composition").
  *
+ * v2 visual pass (owner review 2026-08-31 — "uglier even, and the corners are still sharp,
+ * breaking with the rest of the app"; approved and now the live component, issue #368): a leading
+ * search glyph on the input row, an icon column per row (`item.icon`, the same
+ * `RAIL_ICON_COLUMN_CLASS` box every nav row uses), a right-aligned `kbd` chip for a row's own
+ * shortcut, a 2px `primary` accent bar on the highlighted row instead of a full fill
+ * (`palette-list`'s `[cmdk-item][data-selected='true']::before`, theme.css), a footer hint row
+ * (↑↓ · ↵ · esc) that replaced the old inline `esc` chip beside the search field, and the panel's
+ * own 10px corner radius (`OVERLAY_FLOATING_CLASS` above — "10px looks good for the command
+ * palette", extended to every Menu/Select/Combobox/Popover popup in the console, console-ui
+ * skill's "Shape and layout"). Two DELIBERATE, owner-approved departures from the console-ui
+ * skill's own "sentence case everywhere" and "mono is data only" rules, scoped to this component
+ * alone and NOT extended anywhere else in the console: the group headings render upper-cased
+ * (`palette-group-heading`) and the empty-query line renders in `font-mono` (`palette-empty`)
+ * rather than the sans `META_CLASS` every other caption uses.
+ *
  * Paint is daisy plus the shared overlay vocabulary. The search line is daisy input at
  * input-ghost, the library's name for an input with no chrome of its own; the places daisy
  * contradicts the contract there are corrected in theme.css against daisy's own class, not as a
- * row of ! utilities here. Rows, the scrim and the hairline come from lib/overlay.ts, so the
+ * row of ! utilities here. The scrim and the row highlight come from lib/overlay.ts, so the
  * palette highlights exactly like a Menu or a Select popup -- cmdk marks the active row
  * data-selected where Base UI marks it data-highlighted, and that shared class answers to both.
  *
@@ -59,20 +83,15 @@ export function CommandPalette({
       overlayClassName={OVERLAY_BACKDROP_CLASS}
       contentClassName={PALETTE_POPUP_CLASS}>
       <div className="palette-search-row">
-        <Command.Input
-          autoFocus
-          placeholder={placeholder}
-          className="input input-ghost"
-        />
-        {/* daisy's own kbd already pins flex-shrink to 0, so the row cannot squeeze this. */}
-        <kbd className={KBD_HINT_CLASS}>esc</kbd>
+        <SearchIcon className="palette-search-icon" />
+        <Command.Input autoFocus placeholder={placeholder} className="input input-ghost" />
       </div>
       <Command.List className="palette-list">
-        <Command.Empty className={META_CLASS}>{emptyMessage}</Command.Empty>
+        <Command.Empty className="palette-empty">{emptyMessage}</Command.Empty>
         {groups.map((group) => (
           <Command.Group
             key={group.key}
-            heading={<span className={LABEL_CLASS}>{group.heading}</span>}>
+            heading={<span className="palette-group-heading">{group.heading}</span>}>
             {group.items.map((item) => (
               <Command.Item
                 key={item.key}
@@ -82,13 +101,33 @@ export function CommandPalette({
                   item.onSelect();
                 }}
                 className={OVERLAY_ITEM_CLASS}>
-                <span className="truncate">{item.label}</span>
-                {item.hint ? <span className={META_CLASS}>{item.hint}</span> : null}
+                <span className="palette-item-lead">
+                  <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+                    {item.icon}
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </span>
+                {item.shortcut ? (
+                  <kbd className={KBD_HINT_CLASS}>{item.shortcut}</kbd>
+                ) : item.hint ? (
+                  <span className={META_CLASS}>{item.hint}</span>
+                ) : null}
               </Command.Item>
             ))}
           </Command.Group>
         ))}
       </Command.List>
+      <div className="palette-footer">
+        <span className="palette-footer-hint">
+          <kbd className={KBD_HINT_CLASS}>↑↓</kbd> navigate
+        </span>
+        <span className="palette-footer-hint">
+          <kbd className={KBD_HINT_CLASS}>↵</kbd> select
+        </span>
+        <span className="palette-footer-hint">
+          <kbd className={KBD_HINT_CLASS}>esc</kbd>
+        </span>
+      </div>
     </Command.Dialog>
   );
 }

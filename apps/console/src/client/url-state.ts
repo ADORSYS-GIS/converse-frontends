@@ -216,6 +216,12 @@ const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_I
 export const OVERVIEW_RANGES = ['mtd', '7d', '30d', '90d'] as const;
 export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
 
+/** `MultiSeriesSpendChart`'s own `scale` union (`@lightbridge/ui-web`), restated here rather than
+ *  imported so this module's own literal-union assertions (`RESOLVER_TARGETS` etc.) stay
+ *  self-contained — shared by `overviewParsers.modelScale` (`/`'s "Spend by model") and
+ *  `settingsOverviewParsers.accountScale` (`/settings/overview/usage`'s "Spend by account"). */
+export const MULTI_SERIES_SPEND_SCALES = ['linear', 'log', 'indexed'] as const;
+
 /**
  * `console-ui#312`, closed: this used to be a UI-facing pair (`'project' | 'model'`) that
  * `overview-usage.ts`'s own `OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY` bridged onto the real
@@ -261,6 +267,12 @@ export const OVERVIEW_GROUP_BYS = [
  * `reportGroupBy` reuses `OVERVIEW_GROUP_BYS` rather than declaring its own union: the report's
  * grouping and the dashboard's are the same vocabulary, and `Export` defaults to whatever the
  * dashboard is currently grouped by (see `use-overview-screen.ts`).
+ *
+ * `modelScale` (2026-08-31, `MultiSeriesSpendChart` wiring — that component's own doc comment)
+ * is SPEND BY MODEL's axis transform, a knob like `bucket`/`groupBy` above (`replace`, not
+ * `push` — dragging the segmented control must not cost a Back press per click). Defaults to
+ * `log`: the owner's real account data is one ~100%-share model beside several sub-1%-share ones,
+ * and `log` was the reviewed recommendation for that shape, unchallenged.
  */
 export const overviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
@@ -270,6 +282,7 @@ export const overviewParsers = {
   groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
   model: parseAsString.withDefault('all'),
   series: parseAsString.withDefault(''),
+  modelScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
   reportOpen: parseAsBoolean.withDefault(false),
   period: reportPeriodParser,
   reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
@@ -279,6 +292,7 @@ export const overviewParsers = {
 
 const overviewUrlKeys = {
   groupBy: 'group-by',
+  modelScale: 'model-scale',
   reportOpen: 'report',
   reportGroupBy: 'report-group',
 };
@@ -311,11 +325,18 @@ export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
  * the same "URL is the cross-zone state bus" way `overviewParsers.series` already is, `push`-
  * written via `SETTINGS_OVERVIEW_SELECTION_OPTIONS` below.
  *
- * `accountSort` (`/settings/overview/usage` only — build brief §4's "value|delta sort toggle" on
- * the by-account `RankedSeriesRows`) follows the same ledger-sort idiom every other browsable list
- * in this console already uses (`apiKeysParsers.sortKey`, `manageParsers.sortKey`, …): a knob, not
- * a selection, so it writes with `replace` like the rest of this table rather than costing a Back
- * press per toggle.
+ * `accountScale` (2026-08-31, `MultiSeriesSpendChart` wiring) is SPEND BY ACCOUNT's axis
+ * transform — the same `replace`-written knob idiom `overviewParsers.modelScale` uses. Defaults
+ * to `linear` (unlike that one's `log` default): the estate's own account mix has no single
+ * measured "one dominant, several near-zero" shape the way one account's own model mix does, so
+ * this starts at the honest raw-dollar reading.
+ *
+ * **`accountSort` is gone** (2026-08-31, hard cutover alongside the scale param above): the
+ * by-account board is a superposed line chart now, not a ranked row list — a chart's rank/colour
+ * order is always by total descending (`MultiSeriesSpendChart/domain.ts`'s own `ranked` sort, not
+ * caller-controlled), so "sort by change" has no surface to render into any more. Deleted rather
+ * than left wired to a control that no longer exists — the same "a dormant knob is a defect" rule
+ * that took `bucket` out of this table below.
  *
  * **No `bucket` here** (removed 2026-08-31, owner round finding #5): these lenses have no bucket
  * toolbar of their own — every spend chart under `/settings/overview/*` is a FIXED day bucket
@@ -324,17 +345,15 @@ export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
  * builder consumed it, no control rendered it. A dormant knob, deleted rather than left wired to
  * nothing.
  */
-export const SETTINGS_OVERVIEW_ACCOUNT_SORTS = ['value', 'delta'] as const;
-
 export const settingsOverviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
   series: parseAsString.withDefault(''),
-  accountSort: parseAsStringLiteral(SETTINGS_OVERVIEW_ACCOUNT_SORTS).withDefault('value'),
+  accountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
 };
 
-const settingsOverviewUrlKeys = { accountSort: 'account-sort' };
+const settingsOverviewUrlKeys = { accountScale: 'account-scale' };
 
 export function useSettingsOverviewParams() {
   return useQueryStates(settingsOverviewParsers, {
@@ -476,6 +495,26 @@ export function useManageParams() {
 /** Picking a project row retargets the SELECTION rail — a view change worth a Back press. */
 export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
 
+/**
+ * `?create=true` — `/settings/accounts/<id>/projects`' own entry flag (task directive: "project
+ * creation would be inside /settings/accounts/<account-id>/projects?create=true"). Distinct from
+ * `createProjectParsers.open` (`?new-project=`, the SHARED cross-route dialog-open flag every
+ * trigger writes): this one is a one-shot LANDING intent, not itself the dialog's open state —
+ * `ProjectsCentre` reads it once on mount, calls the shared trigger
+ * (`useOpenCreateProjectDialog().open()`, which sets `?new-project=true`) and immediately clears
+ * this flag (`history: 'replace'`, so the landing hop never costs a Back press), leaving
+ * `?new-project=` as the one param that actually governs the dialog's open/close state from then
+ * on — the same "?new-account=true IS in the URL, its typed contents are not" split every other
+ * dialog flag in this module follows, one level up (this flag names INTENT, not even a draft).
+ */
+export const projectsEntryParsers = {
+  create: parseAsBoolean.withDefault(false),
+};
+
+export function useProjectsEntryParams() {
+  return useQueryStates(projectsEntryParsers, { history: 'replace' });
+}
+
 // ── /settings ─────────────────────────────────────────────────────────────────
 
 /**
@@ -585,6 +624,54 @@ export function useAdminParams() {
   return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });
 }
 
+// ── /admin/overview ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/overview`'s own params (converse-frontends#368, the admin-area build) — the operator
+ * dashboard's date range plus one axis-transform knob per `MultiSeriesSpendBoard` on the page
+ * (`use-admin-overview-screen.ts`). Same `range`/`from`/`to` shape `overviewParsers`/
+ * `settingsOverviewParsers` already declare (the explicit-span-wins-over-preset rule,
+ * `resolveOverviewWindow` reused verbatim) rather than a fourth divergent range picker.
+ *
+ * Six scale knobs, one per board, rather than one shared value: the approved page story
+ * (`Pages/AdminOverview`) gives each board its own default (`modelMixScale` defaults to `log` —
+ * the same one-dominant-model shape `overviewParsers.modelScale` defaults to `log` for;
+ * `requestVolumeScale` defaults to `indexed` — request COUNT and (when it ships) an error metric
+ * cannot share a linear axis, the same reasoning `MultiSeriesSpendChart`'s own doc comment gives
+ * for `indexed`; every other board defaults to the honest raw `linear` reading), so a single
+ * shared param would either lose those defaults or force every board to agree on one axis
+ * transform, which the story never asked for. All `replace`-written knobs (ADR 0011 rule 2) —
+ * dragging a segmented control must not cost a Back press per click, the same idiom
+ * `overviewParsers.modelScale`/`settingsOverviewParsers.accountScale` already use.
+ */
+export const adminOverviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  estateTotalScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  estateAccountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  modelMixScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
+  refillDecisionsScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  requestVolumeScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('indexed'),
+  adoptionScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+};
+
+const adminOverviewUrlKeys = {
+  estateTotalScale: 'estate-total-scale',
+  estateAccountScale: 'estate-account-scale',
+  modelMixScale: 'model-mix-scale',
+  refillDecisionsScale: 'refill-decisions-scale',
+  requestVolumeScale: 'request-volume-scale',
+  adoptionScale: 'adoption-scale',
+};
+
+export function useAdminOverviewParams() {
+  return useQueryStates(adminOverviewParsers, {
+    urlKeys: adminOverviewUrlKeys,
+    history: 'replace',
+  });
+}
+
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 
 /**
@@ -606,4 +693,5 @@ export const URL_PARAM_CONTRACT = {
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },
   settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
+  adminOverview: { parsers: adminOverviewParsers, urlKeys: adminOverviewUrlKeys },
 } as const;

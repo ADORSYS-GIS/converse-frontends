@@ -35,6 +35,7 @@ import { SerwistProvider } from '@serwist/turbopack/react';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 
+import { BrandingProvider } from './branding-context';
 import { SessionProvider } from './session-context';
 import type { SessionResponse } from '../shared/session-response';
 
@@ -68,9 +69,13 @@ const ConsoleProviders = dynamic(
 
 export function Providers({
   session,
+  hasCustomLogo,
   children,
 }: {
   session: SessionResponse;
+  /** issue #368 (Phase H): whether `config.yaml`'s `branding.logo` is configured on this
+   *  deployment — read server-side by the root layout, the only place `serverEnv()` runs. */
+  hasCustomLogo: boolean;
   children: ReactNode;
 }) {
   return (
@@ -87,7 +92,9 @@ export function Providers({
       register={process.env.NODE_ENV === 'production'}
       reloadOnOnline={false}>
       <SessionProvider value={session}>
-        <ConsoleProviders>{children}</ConsoleProviders>
+        <BrandingProvider hasCustomLogo={hasCustomLogo}>
+          <ConsoleProviders>{children}</ConsoleProviders>
+        </BrandingProvider>
       </SessionProvider>
     </SerwistProvider>
   );

@@ -9,6 +9,7 @@ import {
   lensTotals,
   toAggregateDaySeries,
   toLatencyRows,
+  toMultiSeriesSpend,
   toRankedSeriesRows,
   wholeWindowBucket,
 } from './settings-overview-usage';
@@ -149,6 +150,39 @@ describe('toRankedSeriesRows', () => {
     );
 
     expect(rows[0]).toMatchObject({ key: 'proj_a', label: 'gateway-prod' });
+  });
+});
+
+describe('toMultiSeriesSpend', () => {
+  it('builds one series per key with real dated points, oldest first', () => {
+    const response: UsageQueryResponse = {
+      points: [
+        point({ model: 'gpt-4o', bucket_start: '2026-08-02T00:00:00.000Z', total_cost: 5_000_000 }),
+        point({ model: 'gpt-4o', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 3_000_000 }),
+      ],
+    };
+
+    const series = toMultiSeriesSpend(response, 'model');
+
+    expect(series).toHaveLength(1);
+    expect(series[0].key).toBe('gpt-4o');
+    expect(series[0].points.map((p) => p.x.toISOString())).toEqual([
+      '2026-08-01T00:00:00.000Z',
+      '2026-08-02T00:00:00.000Z',
+    ]);
+    expect(series[0].points.map((p) => p.y)).toEqual([3, 5]);
+  });
+
+  it('resolves labels through the given labeller while keeping the id as the key', () => {
+    const response: UsageQueryResponse = {
+      points: [point({ project_id: 'proj_a', total_cost: 1_000_000 })],
+    };
+
+    const series = toMultiSeriesSpend(response, 'project_id', (key) =>
+      key === 'proj_a' ? 'gateway-prod' : key
+    );
+
+    expect(series[0]).toMatchObject({ key: 'proj_a', label: 'gateway-prod' });
   });
 });
 

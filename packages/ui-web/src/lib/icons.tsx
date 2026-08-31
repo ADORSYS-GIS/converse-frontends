@@ -83,6 +83,18 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+/** Settings area — Accounts (IA v3 phase E): two overlapping cards, the "account family" glyph
+ *  (ADR-0026 — one identity may own several accounts), distinct from `RolesIcon`'s people and
+ *  `ProjectsIcon`'s single folder. */
+export function AccountsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="2" y="4.5" width="9" height="7" rx="1" />
+      <path d="M5 4.5V3a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1.5" />
+    </IconBase>
+  );
+}
+
 /** Operator / admin, and (IA v3 phase 2) the settings area's "Refills queue" entry — a shield. */
 export function AdminIcon(props: IconProps) {
   return (
@@ -113,8 +125,8 @@ export function TiersIcon(props: IconProps) {
   );
 }
 
-/** Settings area — Account/Project policies: a document with a checked line, the governance
- *  glyph shared by both the account and the project halves of the screen. */
+/** Settings area — Project policies: a document with a checked line, the governance glyph for
+ *  the project model-policy/allowed-models controls the screen edits. */
 export function PoliciesIcon(props: IconProps) {
   return (
     <IconBase {...props}>
@@ -173,6 +185,18 @@ export function SortNeutralIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <path d="M4 6.5 8 3 12 6.5M4 9.5 8 13 12 9.5" />
+    </IconBase>
+  );
+}
+
+/** Sign out — a door frame with an arrow exiting through it. The left rail identity row's own
+ *  trailing action (owner ruling, 2026-08-31, issue #368: sign-out is a row-scoped action, not a
+ *  menu item behind a dropdown any more — `AccountMenu` is deleted). */
+export function SignOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9.5 2.5h-4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4" />
+      <path d="M6.5 8h6.5M13.5 8 11 5.5M13.5 8 11 10.5" />
     </IconBase>
   );
 }

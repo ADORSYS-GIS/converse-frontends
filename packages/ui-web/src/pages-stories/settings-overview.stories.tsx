@@ -12,8 +12,11 @@
 //    admin cards are OMITTED (not empty-stated) for a non-admin viewer or the wrong lens.
 //  - `usage` (`apps/console/src/containers/usage-overview-centre.tsx`) is the cross-account estate
 //    overview: `PageHeader` (range only) → stat row → SPEND OVER TIME (`line`, with the dashed
-//    previous-period comparison) → SPEND BY ACCOUNT (`RankedSeriesRows`, with the value/delta sort
-//    toggle) → SPEND BY MODEL (`ShareBar` — the one place this primitive still appears).
+//    previous-period comparison) → SPEND BY ACCOUNT (`MultiSeriesSpendBoard`/`MultiSeriesSpendChart`,
+//    one line per account, `linear` scale by default — 2026-08-31 owner ruling, see that
+//    component's own doc comment; it had briefly rendered through `RankedSeriesRows` with a
+//    value/delta sort toggle before that) → SPEND BY MODEL (`ShareBar` — the one place this
+//    primitive still appears).
 //
 // Every lens' `DateRangeField` defaults to the `'mtd'` ("This month") preset — IA v3 phase 5's
 // default-range change — not the old rolling `'30d'`. The `account`/`project`/`user` lenses'
@@ -34,7 +37,7 @@ import { ConsoleShell } from '../components/console-shell';
 import { DateRangeField, presetRange } from '../components/date-range-field';
 import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
-import { SegmentedControl } from '../components/segmented-control';
+import type { MultiSeriesSpendScale, MultiSeriesSpendSeries } from '../components/multi-series-spend-chart';
 import { SelectField } from '../components/select-field';
 import type { SelectFieldOption } from '../components/select-field';
 import { ShareBar } from '../components/share-bar';
@@ -55,6 +58,7 @@ import {
 import { LatencyStatCards } from '../sections/latency-stat-cards';
 import type { LatencyStatRow } from '../sections/latency-stat-cards';
 import { latencyStatRows } from '../sections/latency-stat-cards/fixtures';
+import { MultiSeriesSpendBoard } from '../sections/multi-series-spend-board';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
@@ -64,8 +68,6 @@ import type { RankedSeriesRow } from '../sections/ranked-series-rows';
 import {
   rankedRowsDominantModel,
   rankedRowsEmpty,
-  rankedRowsEstateAccounts,
-  rankedRowsSentinelUsers,
   rankedRowsSparseAccount,
 } from '../sections/ranked-series-rows/fixtures';
 import { SpendDashboard } from '../sections/spend-dashboard';
@@ -516,8 +518,8 @@ interface UsageOverviewScreenProps {
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
   errorMessage?: string;
-  accountRows?: RankedSeriesRow[];
-  accountRowsStatus?: DashboardStatus;
+  accountSeries?: MultiSeriesSpendSeries[];
+  accountsStatus?: DashboardStatus;
   modelSegments?: ShareBarSegment[];
   truncationCaption?: string;
   /** Build brief finish-item §4 (2026-08-31 owner-round parity fix) — a fanned-out account's own
@@ -560,9 +562,62 @@ function usageEstateSpendSeries(): SpendSeriesSeries[] {
 }
 
 /**
+ * SPEND BY ACCOUNT's real default shape (2026-08-31 owner ruling) — real per-day points per
+ * account, one clearly larger account beside several smaller ones (the estate's own mix has no
+ * single measured "one dominant, several near-zero" shape the way one account's own model mix
+ * does — `url-state.ts`'s own `accountScale` doc comment — so this is illustrative variety, not
+ * ADR 0013 D5's measured production ratio).
+ */
+function usageEstateAccountSeries(): MultiSeriesSpendSeries[] {
+  const days = daysFrom(new Date(Date.UTC(2026, 7, 1)), 29);
+  const series: [string, string, number, number][] = [
+    ['acct_49534505', 'acct_49534505', 300, 12],
+    ['acme-labs', 'acme-labs', 90, 4],
+    ['northwind-ai', 'northwind-ai', 60, 3],
+    ['nova-labs', 'nova-labs', 35, 2],
+    ['acct_71a2c9e0', 'acct_71a2c9e0', 15, 1],
+  ];
+  return series.map(([key, label, base, wobble]) => ({
+    key,
+    label,
+    points: days.map((x, i) => ({ x, y: Math.max(0, base + Math.sin(i / 2) * wobble + i * (base / 90)) })),
+  }));
+}
+
+/**
+ * Sentinel-identity series on the SAME "Spend by account" board. Judgment call (see this file's
+ * final report): neither `use-settings-overview-screen.ts` nor `use-usage-overview-screen.ts`
+ * renders a genuinely USER-keyed breakdown anywhere today — the `user` lens has no secondary
+ * breakdown at all (`SECONDARY_GROUP_BY.user === undefined`) — so this estate "Spend by account"
+ * board is the closest in shape/semantics to demonstrate the de-emphasized "Unidentified —
+ * Keycloak"/"Unidentified — GitHub" label treatment, captioned as illustrative rather than as a
+ * literal per-account listing.
+ */
+function usageEstateSentinelSeries(): MultiSeriesSpendSeries[] {
+  const days = daysFrom(new Date(Date.UTC(2026, 7, 1)), 29);
+  return [
+    {
+      key: 'acct_49534505',
+      label: 'acct_49534505',
+      points: days.map((x, i) => ({ x, y: 300 + i * 2 })),
+    },
+    {
+      key: 'missing:keycloak:preferred_username',
+      label: 'Unidentified — Keycloak',
+      points: days.map((x, i) => ({ x, y: 20 + Math.sin(i / 3) * 5 })),
+    },
+    {
+      key: 'missing:github:preferred_username',
+      label: 'Unidentified — GitHub',
+      points: days.map((x, i) => ({ x, y: 8 + Math.sin(i / 4) * 2 })),
+    },
+  ];
+}
+
+/**
  * `/settings/overview/usage` — mirrors `apps/console/src/containers/usage-overview-centre.tsx`
  * 1:1: `PageHeader` (range only, no picker) → stat row → SPEND OVER TIME (line + dashed previous
- * period) → SPEND BY ACCOUNT (`RankedSeriesRows`, value/delta sort toggle) → SPEND BY MODEL
+ * period) → SPEND BY ACCOUNT (`MultiSeriesSpendBoard`, `linear` scale by default) → SPEND BY MODEL
  * (`ShareBar`).
  */
 function UsageOverviewScreen({
@@ -572,20 +627,23 @@ function UsageOverviewScreen({
   spendSeries,
   spendStatus = 'ready',
   errorMessage,
-  accountRows = rankedRowsEstateAccounts,
-  accountRowsStatus = 'ready',
+  accountSeries,
+  accountsStatus = 'ready',
   modelSegments = USAGE_MODEL_SEGMENTS,
   truncationCaption,
   spendTruncated = false,
 }: UsageOverviewScreenProps) {
   const resolvedSpendSeries = spendSeries ?? usageEstateSpendSeries();
+  const resolvedAccountSeries = accountSeries ?? usageEstateAccountSeries();
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
-  const [accountSort, setAccountSort] = useState<'value' | 'delta'>('value');
+  // Storybook-only local state standing in for `use-usage-overview-screen.ts`'s own
+  // `accountScale` URL param — defaults to `linear`, the real screen's own default.
+  const [accountScale, setAccountScale] = useState<MultiSeriesSpendScale>('linear');
   const [rangePreset, setRangePreset] = useState<string | null>('mtd');
   const [range, setRange] = useState(presetRange('mtd', STORY_TODAY));
 
   const modelTotal = modelSegments.reduce((sum, segment) => sum + segment.value, 0);
-  const isError = spendStatus === 'error' || accountRowsStatus === 'error';
+  const isError = spendStatus === 'error' || accountsStatus === 'error';
 
   return (
     <ConsoleShell sidebar={storySidebar('settings', { isAdmin })} topBar={storyTopBar()}>
@@ -651,40 +709,19 @@ function UsageOverviewScreen({
         </Card>
 
         <Card>
-          <ZoneHeading
+          <MultiSeriesSpendBoard
             label="Spend by account"
-            actions={
-              <SegmentedControl
-                aria-label="Sort accounts by"
-                options={[
-                  { value: 'value', label: 'By spend' },
-                  { value: 'delta', label: 'By change' },
-                ]}
-                value={accountSort}
-                onChange={setAccountSort}
-              />
-            }
+            series={resolvedAccountSeries}
+            scale={accountScale}
+            onScaleChange={setAccountScale}
+            fallbackWidth={840}
+            height={220}
+            status={isError ? 'error' : accountsStatus}
+            errorMessage={errorMessage ?? 'Failed to load spend by account.'}
+            onRetry={() => {}}
+            onSelectSeries={setSelectedSeriesKey}
+            emptyMessage="No usage in this range."
           />
-          {isError ? (
-            <div className="mt-4">
-              <ErrorLine
-                message={errorMessage ?? 'Failed to load spend by account.'}
-                onRetry={() => {}}
-              />
-            </div>
-          ) : accountRowsStatus === 'loading' ? (
-            skeletonRows(4)
-          ) : (
-            <RankedSeriesRows
-              className="mt-4"
-              rows={accountRows}
-              sortMode={accountSort}
-              selectedKey={selectedSeriesKey}
-              onSelect={setSelectedSeriesKey}
-              otherLabel={(count) => `Other (${count} accounts)`}
-              emptyMessage="No usage in this range."
-            />
-          )}
         </Card>
 
         <Card>
@@ -928,11 +965,8 @@ export const UserMobileBaseTierLight: Story = {
 
 // ── usage lens (the cross-account estate overview) ───────────────────────────────────────────
 
-// The task brief's explicit "estate overlay with 8+Other rows" ask: `rankedRowsEstateAccounts`
-// holds 10 accounts against `RankedSeriesRows`' default `topN` of 8, so 8 individual rows plus one
-// folded "Other (2 accounts)" row render with zero extra config.
 export const UsageEstatePopulated: Story = {
-  name: 'Usage — estate overview (8+Other accounts)',
+  name: 'Usage — estate overview (Spend by account)',
   render: () => <UsageOverviewScreen />,
 };
 
@@ -942,22 +976,11 @@ export const UsageEstatePopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-/**
- * Sentinel-identity rows on the SAME "Spend by account" `RankedSeriesRows` instance. Judgment
- * call (see this file's final report): neither `use-settings-overview-screen.ts` nor
- * `use-usage-overview-screen.ts` renders a genuinely USER-keyed `RankedSeriesRows` breakdown
- * anywhere today — the `user` lens has no secondary breakdown at all
- * (`SECONDARY_GROUP_BY.user === undefined`), and every other `RankedSeriesRows` instance is
- * project-, API-key-, model- or (here) account-keyed. This estate "Spend by account" list is the
- * closest in shape/semantics — same identity-ranked-list contract, same sparkline/delta columns,
- * the SAME component `sentinelLabel`-resolved rows are designed to flow into — so
- * `rankedRowsSentinelUsers` demonstrates the de-emphasized "Unidentified — Keycloak"/"Unidentified
- * — GitHub" (`subtle`) row treatment here, captioned as illustrative rather than as a literal
- * per-account listing.
- */
+// See `usageEstateSentinelSeries`'s own doc comment for why this board is the illustrative demo
+// site for the de-emphasized "Unidentified — Keycloak"/"Unidentified — GitHub" label treatment.
 export const UsageEstateSentinelIdentities: Story = {
   name: 'Usage — Spend by account, sentinel identities (demo)',
-  render: () => <UsageOverviewScreen accountRows={rankedRowsSentinelUsers} />,
+  render: () => <UsageOverviewScreen accountSeries={usageEstateSentinelSeries()} />,
 };
 
 export const UsageTruncated: Story = {
@@ -983,7 +1006,7 @@ export const UsageEmpty: Story = {
         { key: 'cost', label: 'Cost', metric: '$0.00' },
       ]}
       spendSeries={[]}
-      accountRows={rankedRowsEmpty}
+      accountSeries={[]}
       modelSegments={[]}
     />
   ),
@@ -992,7 +1015,7 @@ export const UsageEmpty: Story = {
 export const UsageLoading: Story = {
   name: 'Usage — loading',
   render: () => (
-    <UsageOverviewScreen statCardsLoading spendStatus="loading" accountRowsStatus="loading" />
+    <UsageOverviewScreen statCardsLoading spendStatus="loading" accountsStatus="loading" />
   ),
 };
 
@@ -1001,7 +1024,7 @@ export const UsageError: Story = {
   render: () => (
     <UsageOverviewScreen
       spendStatus="error"
-      accountRowsStatus="error"
+      accountsStatus="error"
       errorMessage="Failed to load the estate overview."
     />
   ),

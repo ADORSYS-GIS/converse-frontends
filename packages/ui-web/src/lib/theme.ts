@@ -6,8 +6,8 @@
  *
  * Plain functions and constants only -- no React, no `'use client'` -- so this module is safe to
  * import from a Next server component (`apps/console/src/app/layout.tsx`, for the pre-hydration
- * script's literal source), from client code (`client/use-console-theme.ts`), and from a Vite
- * SPA's entry module (`apps/authz-ui/src/main.tsx`).
+ * script's literal source), from client code (`client/use-console-theme.ts`, the `ThemeToggle`
+ * component), and from a Vite SPA's entry module (`apps/authz-ui/src/main.tsx`).
  *
  * Resolution order for a session: stored preference -> `prefers-color-scheme` -> `black`
  * (`black` is always the final fallback, never `wireframe`).

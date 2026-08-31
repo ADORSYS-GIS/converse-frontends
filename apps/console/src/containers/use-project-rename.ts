@@ -12,37 +12,31 @@ import { PROJECT_NAME_MUTATION_KEY } from './use-project-settings-screen';
 import { classifyProjectNameError } from './rpc-field-error';
 
 /**
- * The inspector rail's own `Rename` flow for the project it is showing (`/projects` with a row
- * selected — see `containers/inspector-rail.tsx`). A SEPARATE, lightweight instance of the same
- * rename flow `/settings/projects` owns in full (`use-project-settings-screen.ts`), not a shared
- * cross-route controller: unlike account rename or refill, there is no simultaneous-render risk to
- * solve BETWEEN routes here, because the two routes never mount at once. There IS one WITHIN
- * `/projects` itself, though: `projects-centre.tsx`'s own `BottomSheet` (below `lg`) and
- * `containers/inspector-rail.tsx` (at `lg`+) are both always mounted at once (only one is visually
- * hidden by CSS at a time), and both show a `Rename` trigger for the same selected project — so
- * this follows the exact "one full controller, one lightweight trigger" split
- * `use-create-account-dialog.ts` established:
+ * `/settings/accounts/<id>/projects`' own `Rename` flow for the project its `BottomSheet` is
+ * showing. A SEPARATE, lightweight instance of the same rename flow `/settings/policies` owns in
+ * full (`use-project-settings-screen.ts`), not a shared cross-route controller: unlike account
+ * rename or refill, there is no simultaneous-render risk to solve between routes here, because
+ * the two routes never mount at once.
  *
- *  - `useProjectRename(project)` — the FULL controller: dialog props AND the mutation. Call this
- *    exactly ONCE, from `containers/inspector-rail.tsx`, which renders the one `ProjectNameDialog`
- *    this flow ever mounts. `ProjectNameDialog` is a centred MODAL (Base UI `Dialog`, portalled to
- *    `document.body`), not part of the rail's own visual real estate — an ancestor `hidden` class
- *    on the rail's ~280px column does not hide a portalled descendant, so this keeps working
- *    correctly even while the rail itself is CSS-hidden below `lg`.
- *  - `useOpenProjectRename()` — just the trigger, for `projects-centre.tsx`'s `BottomSheet`
- *    `headerAction`. It only flips the shared `?rename=true` flag; the rail's own controller reacts
- *    to it regardless of which viewport tier is currently showing which surface.
+ * IA v3 phase E ("the settings/accounts move"): this used to be a two-piece "full controller in
+ * the inspector rail, lightweight trigger in the `BottomSheet`" split — the rail was the `lg`+
+ * detail surface while the sheet covered everything below it, so BOTH were mounted at once (only
+ * one CSS-hidden at a time) and needed to agree on one shared `?rename=true` flag without
+ * double-mounting `ProjectNameDialog`. That rail case is gone: `/settings/accounts/<id>/projects`
+ * lives in the settings area, which has no right rail at any tier (ADR 0013 D2), so the
+ * `BottomSheet` is now this screen's ONLY detail surface, at every tier — one mount, one
+ * controller, same as `/admin/refills-queue`'s own `ReviewDetailPanel`. `ProjectsCentre` calls
+ * this directly and renders the one `ProjectNameDialog` it returns.
  *
- * Reusing `PROJECT_NAME_MUTATION_KEY` keeps this in step with `/settings/projects`' own instance
+ * Reusing `PROJECT_NAME_MUTATION_KEY` keeps this in step with `/settings/policies`' own instance
  * of this exact rename (`use-shared-mutation.ts`'s "two zones, one shared outcome" idiom) in the
  * one case that DOES matter: a pending/failed rename fired from one screen stays visible if a link
  * somehow lands on the other mid-flight.
  *
  * `?rename=true` (`settingsParsers.projectNameOpen`) is reused verbatim rather than a new param:
  * it is already exactly "is the project-rename dialog open", and this hook never touches
- * `renameProjectId` (`?row=`) at all — the TARGET here is whichever project `/projects`' own
- * `?row=` selection already names (`manageParsers.selectedProjectId`, passed in as `project`), not
- * a second, redundant id param.
+ * `renameProjectId` (`?row=`) at all — the TARGET here is whichever project the ledger's own
+ * `?row=` selection already names (passed in as `project`), not a second, redundant id param.
  */
 export interface ProjectRenameController {
   dialog: ProjectNameDialogProps;
@@ -109,14 +103,5 @@ export function useProjectRename(
         void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
       },
     },
-  };
-}
-
-/** The `Rename` trigger for `projects-centre.tsx`'s `BottomSheet` — see this module's own doc
- *  comment for why the actual dialog lives in `containers/inspector-rail.tsx` instead. */
-export function useOpenProjectRename(): () => void {
-  const [, setView] = useSettingsParams();
-  return () => {
-    void setView({ projectNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
   };
 }

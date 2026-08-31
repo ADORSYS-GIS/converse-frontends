@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '../../cn';
 import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
 import {
-  OVERLAY_ANCHORED_POPUP_CLASS,
+  OVERLAY_ANCHORED_POPUP_FLOATING_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
@@ -47,7 +47,7 @@ export function SelectField({
       </div>
       <Select.Portal>
         <Select.Positioner sideOffset={4} className={OVERLAY_POSITIONER_CLASS}>
-          <Select.Popup className={OVERLAY_ANCHORED_POPUP_CLASS}>
+          <Select.Popup className={OVERLAY_ANCHORED_POPUP_FLOATING_CLASS}>
             <Select.List>
               {options.map((option) => (
                 <Select.Item
@@ -55,7 +55,11 @@ export function SelectField({
                   value={option.value}
                   disabled={option.disabled}
                   title={option.reason}
-                  className={OVERLAY_ITEM_CLASS}>
+                  // `select-field-item` (theme.css): the palette-matching 36px row rhythm (owner
+                  // ask, 2026-08-31 — "same overlay language as the palette ... row height"),
+                  // scoped to THIS popup's own row rather than the shared `OVERLAY_ITEM_CLASS`
+                  // every other Menu/Select/Combobox popup in the console also renders through.
+                  className={cn(OVERLAY_ITEM_CLASS, 'select-field-item')}>
                   <Select.ItemText>{option.label}</Select.ItemText>
                 </Select.Item>
               ))}

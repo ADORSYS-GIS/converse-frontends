@@ -58,7 +58,7 @@ export function Tooltip({
         // Chrome draws in the viewer's OS accent colour with `outline-style: auto`'s rounded
         // corners — verified on a machine whose accent is orange: a `rgb(229,151,0)` pill around a
         // ledger cell, off-palette and off-shape. So the trigger takes the console's own focus
-        // treatment, the same one `Button` and `AccountMenu` use. Base UI merges this with the
+        // treatment, the same one `Button` uses. Base UI merges this with the
         // child's own `className`, and a child that already carries this ring just gets it twice
         // to the same effect.
         className="focus-ring"

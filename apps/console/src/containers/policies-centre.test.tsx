@@ -1,17 +1,14 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
+import { render, screen } from '@testing-library/react';
+import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PoliciesScreen } from './use-policies-screen';
 
 /**
- * Container-level acceptance coverage for `/settings/policies` — IA v3 phase 2's merge of the
- * deleted `/settings/account` and `/settings/projects` routes (`account-settings-centre.test.tsx`/
- * `project-settings-centre.test.tsx`'s own coverage, folded into this one file the same way the
- * two routes folded into this one screen), PLUS the new project-governance controls
- * (`sections/project-policy-controls`) this phase adds inside the project detail sheet.
+ * Container-level acceptance coverage for `/settings/policies` — "Project policies" (IA v3 phase
+ * 2's merge of the deleted `/settings/account` and `/settings/projects` routes, narrowed by IA v3
+ * phase E: owner — "there's no sense in having account or project creation" on this page).
  *
  * `usePoliciesScreen` is mocked wholesale, matching every other `*-centre.test.tsx` in this app.
  */
@@ -21,19 +18,6 @@ vi.mock('./use-policies-screen', async (importOriginal) => {
   return {
     ...actual,
     usePoliciesScreen: () => usePoliciesScreenMock(),
-  };
-});
-
-/**
- * `+ New project` is a shared, cross-route trigger whose real implementation reads live
- * account/session context this container-level test does not stand up — same mock
- * `project-settings-centre.test.tsx` used to carry.
- */
-vi.mock('./use-create-project-dialog', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./use-create-project-dialog')>();
-  return {
-    ...actual,
-    useOpenCreateProjectDialog: () => ({ open: vi.fn(), eligible: true, reason: undefined }),
   };
 });
 
@@ -51,16 +35,6 @@ const gatewayProd = {
 function baseScreen(overrides: Partial<PoliciesScreen> = {}): PoliciesScreen {
   return {
     scopeLabel: 'Widgets Ltd',
-    accountSettings: {
-      panel: {
-        account: { id: 'auth0|9f3a', name: 'Widgets Ltd' },
-        loading: false,
-        onCreate: vi.fn(),
-        onRename: vi.fn(),
-        onRetry: vi.fn(),
-      },
-      details: { id: 'auth0|9f3a', status: 'active', defaultQuotaTier: 'growth' },
-    },
     projectSettings: {
       projects: [gatewayProd],
       loading: false,
@@ -89,41 +63,38 @@ function baseScreen(overrides: Partial<PoliciesScreen> = {}): PoliciesScreen {
       onCancel: vi.fn(),
     },
     projectCount: 1,
-    onCopyId: vi.fn(),
     policyControls: null,
     ...overrides,
   };
 }
 
-async function renderCentre(
-  overrides: Partial<PoliciesScreen> = {},
-  onUrlUpdate?: (event: UrlUpdateEvent) => void
-) {
+async function renderCentre(overrides: Partial<PoliciesScreen> = {}) {
   usePoliciesScreenMock.mockReturnValue(baseScreen(overrides));
   const { PoliciesCentre } = await import('./policies-centre');
-  return render(<PoliciesCentre />, {
-    wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }),
-  });
+  return render(<PoliciesCentre />, { wrapper: withNuqsTestingAdapter() });
 }
 
 describe('PoliciesCentre', () => {
-  it('renders the account identity rows (name, id, status, default quota tier)', async () => {
+  it('no longer renders the account settings block — it moved to /settings/accounts/<id>', async () => {
     await renderCentre();
 
-    const account = screen.getByRole('region', { name: 'Account settings' });
-    expect(within(account).getByText('Widgets Ltd')).toBeInTheDocument();
-    expect(within(account).getByText('Status')).toBeInTheDocument();
-    expect(within(account).getByText('growth')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Account settings' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Name this account' })).not.toBeInTheDocument();
   });
 
-  it('opens the shared create-account dialog (`?new-account=`) from the PageHeader action', async () => {
-    const user = userEvent.setup();
-    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
-    await renderCentre({}, onUrlUpdate);
+  it('no longer renders account or project creation — both moved off this page', async () => {
+    await renderCentre();
 
-    await user.click(screen.getByRole('button', { name: '+ New account' }));
+    expect(screen.queryByRole('button', { name: '+ New account' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ New project' })).not.toBeInTheDocument();
+  });
 
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
+  it('titles the page "Project policies", not the old "Account / Project policies"', async () => {
+    await renderCentre();
+
+    expect(screen.getByRole('heading', { name: 'Project policies' })).toBeInTheDocument();
+    expect(screen.queryByText('Account / Project policies')).not.toBeInTheDocument();
   });
 
   it('renders one summary row per project — name and a status/tier line', async () => {
@@ -151,7 +122,7 @@ describe('PoliciesCentre', () => {
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
 
-  it('renders the new model-policy controls inside the project detail sheet when supplied', async () => {
+  it('renders the model-policy controls inside the project detail sheet when supplied', async () => {
     await renderCentre({
       projectDetail: {
         open: true,
@@ -184,18 +155,5 @@ describe('PoliciesCentre', () => {
     await renderCentre();
 
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
-  });
-
-  it('no longer renders the old Account/Projects tab row — the settings area nav replaced it', async () => {
-    await renderCentre();
-
-    expect(screen.queryByRole('link', { name: /^Account$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^Projects/ })).not.toBeInTheDocument();
-  });
-
-  it('scopes the page subtitle to the account label only — no stale IA-explainer sentence', async () => {
-    await renderCentre();
-
-    expect(screen.queryByText(/Filtering and browsing live on Manage/)).not.toBeInTheDocument();
   });
 });

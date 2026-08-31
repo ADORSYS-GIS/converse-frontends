@@ -1,9 +1,24 @@
+import type { ReactNode } from 'react';
+
 export interface CommandPaletteItem {
   /** Stable identity, used for React reconciliation only -- cmdk's own filter matches display text (see `component.tsx`). */
   key: string;
   label: string;
-  /** Right-aligned secondary text, e.g. a keyboard shortcut or a route hint. Rendered, not filtered on. */
+  /**
+   * Leading glyph, rendered into the same 16px icon column every rail row uses
+   * (`RAIL_ICON_COLUMN_CLASS`, `lib/rail-grid.ts`) -- one of `lib/icons.tsx`'s set, so a palette
+   * row and its matching nav row share one glyph by construction. Optional: a row with no icon
+   * still reserves the column, so icon and no-icon rows stay aligned on the same label x.
+   */
+  icon?: ReactNode;
+  /** Right-aligned secondary text -- a route hint or short status. Rendered, not filtered on. */
   hint?: string;
+  /**
+   * A keyboard shortcut, rendered as a `kbd` chip at the row's trailing edge instead of plain
+   * text -- distinct from `hint`, which is prose. A row never carries both; `shortcut` wins if
+   * both are supplied.
+   */
+  shortcut?: string;
   /** Extra terms cmdk's fuzzy filter should also match, beyond `label` (e.g. synonyms, a route path). */
   keywords?: string[];
   onSelect: () => void;

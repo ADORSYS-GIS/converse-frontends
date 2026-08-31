@@ -87,6 +87,14 @@ describe('section class budget', () => {
    * measures today — `ranked-series-rows` and `latency-stat-cards` (D5's analytics doctrine,
    * ADR 0013) and the four settings-area/refill sections (`policy-simulator`,
    * `project-policy-controls`, `refill-history`, `refill-request-form`).
+   *
+   * `multi-series-spend-board` added 2026-08-31 — the `ZoneHeading` + fluid-width + scale-toggle
+   * wrapper `MultiSeriesSpendChart`'s two real callers share (`OverviewCentre`'s "Spend by
+   * model", `UsageOverviewCentre`'s "Spend by account"; owner ruling — the legend list dies, the
+   * hover tooltip carries per-series data instead, see that component's own doc comment). Pinned
+   * at the number it measured coming in: the resize-observed wrapper's own `mt-4 w-full`, plus
+   * `SpendDashboard`'s own loading treatment verbatim (`flex flex-col gap-2`, one inline-sized
+   * skeleton block, its status line's `text-subtle font-sans text-[10px]`).
    */
   it.each([
     ['spend-share', 6],
@@ -98,6 +106,7 @@ describe('section class budget', () => {
     ['refill-request-form', 3],
     ['policy-simulator', 12],
     ['project-policy-controls', 3],
+    ['multi-series-spend-board', 7],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(

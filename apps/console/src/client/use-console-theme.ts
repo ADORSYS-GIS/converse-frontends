@@ -9,7 +9,7 @@ import {
 } from '@lightbridge/ui-web/src/lib/theme';
 
 /**
- * The `AccountMenu` theme toggle's state (ADR 0010 Decision 5), read from `localStorage` via
+ * The `ThemeToggle` component's state (ADR 0010 Decision 5), read from `localStorage` via
  * `useSyncExternalStore` rather than an effect + local `useState` -- `localStorage` and
  * `prefers-color-scheme` are both external stores, which is exactly what the hook exists for
  * (calling `setState` synchronously inside an effect body is the anti-pattern it replaces:

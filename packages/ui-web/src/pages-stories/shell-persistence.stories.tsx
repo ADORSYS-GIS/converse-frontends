@@ -39,20 +39,24 @@ import {
 
 /**
  * One shell, two routes. `route` stands in for the App Router's pathname: changing it swaps the
- * centre and the rail, exactly as `children` and the `@rail` slot swap for real — and, exactly as
- * for real, the shell itself is never re-created.
+ * centre, exactly as `children` swaps for real — and, exactly as for real, the shell itself is
+ * never re-created.
  *
- * The pair is deliberately Overview ↔ Projects rather than Overview ↔ Api-Keys (owner review
- * 2026-08-29): Overview now has NO right rail and Projects does, so navigating between them
- * mounts and unmounts the entire rail column. That is a strictly harder case for shell
- * persistence than swapping one rail's contents for another's, and it is the case the console
- * actually performs now.
+ * The pair is Overview ↔ API keys — the only two destinations left in the account area's
+ * Workspace group (IA v3 phase E, "the settings/accounts move": Projects moved off `/accounts/
+ * [accountId]/*` entirely, to `/settings/accounts/<id>/projects`, taking the rail's own one-and-
+ * only live case with it — see `settings-accounts-projects.stories.tsx`'s own doc comment). There
+ * is no right rail ANYWHERE left in the console (`ConsoleShell`'s `rail` prop is still a real
+ * primitive capability — `component.stories.tsx` exercises it directly — but nothing in
+ * `apps/console` feeds it any more), so this story no longer reproduces one: the content that
+ * differs structurally between the two routes (a stat row vs. a table) is enough on its own to
+ * prove the SAME property — chrome persists, content swaps — without a rail case to stand in for.
  */
 function PersistentShell() {
   const [route, setRoute] = useState<StoryRoute>('overview');
 
   const navigate = (key: string) => {
-    if (key === 'overview' || key === 'projects') setRoute(key);
+    if (key === 'overview' || key === 'api-keys') setRoute(key);
   };
 
   // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
@@ -76,7 +80,7 @@ function PersistentShell() {
         <ConsoleTopBar
           brand={storyBrand}
           workspaceSwitcher={storyTopBarWorkspaceSwitcher}
-          identity={<span />}
+          trailing={<span />}
         />
       }>
       {route === 'overview' ? (
@@ -85,31 +89,22 @@ function PersistentShell() {
           <OverviewStatRow cards={overviewStatCards} />
         </div>
       ) : (
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex min-w-0 flex-1 flex-col gap-6">
-            <PageHeader title="Projects" />
-            <ApiKeysLedger
-              keys={apiKeysFixture}
-              onRotate={() => {}}
-              onRequestRevoke={() => {}}
-              onConfirmRevoke={() => {}}
-              onCancelRevoke={() => {}}
-              isAdmin
-              onRequestDelete={() => {}}
-              onConfirmDelete={() => {}}
-              onCancelDelete={() => {}}
-            />
-          </div>
-
-          {/* Overview supplies no card here; Projects does — content that differs structurally
-              between routes while the chrome (`sidebar`/`topBar`) must not remount, reproduced
-              inside `children` now that the shell no longer owns a rail slot of its own (shell
-              brief 2026-08-30; owner review 2026-08-29 on why this pair is the harder case). */}
-          <div className="w-full lg:w-[280px] lg:flex-none">
-            <Card title="Key hygiene">
-              <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
-            </Card>
-          </div>
+        <div className="flex flex-col gap-6">
+          <PageHeader title="API keys" />
+          <ApiKeysLedger
+            keys={apiKeysFixture}
+            onRotate={() => {}}
+            onRequestRevoke={() => {}}
+            onConfirmRevoke={() => {}}
+            onCancelRevoke={() => {}}
+            isAdmin
+            onRequestDelete={() => {}}
+            onConfirmDelete={() => {}}
+            onCancelDelete={() => {}}
+          />
+          <Card title="Key hygiene">
+            <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
+          </Card>
         </div>
       )}
     </ConsoleShell>
@@ -142,7 +137,7 @@ export const NavigationDoesNotRemountTheChrome: Story = {
 
     await canvas.findByText('Spend this month');
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Projects' })[0]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'API keys' })[0]);
     await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument());
 
     const navAfter = document.querySelectorAll('nav[aria-label="Primary"]')[0];

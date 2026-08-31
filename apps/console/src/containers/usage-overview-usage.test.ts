@@ -63,13 +63,14 @@ describe('combineAccountModelResponses', () => {
     expect(aggregateSeries.points.map((p) => p.y)).toEqual([9, 2]);
   });
 
-  it('builds one ranked row per account, summing across models within that account', () => {
-    const { accountRows } = combineAccountModelResponses(perAccount, labelFor);
-    const a = accountRows.find((r) => r.key === 'acct_a');
-    const b = accountRows.find((r) => r.key === 'acct_b');
-    expect(a?.value).toBeCloseTo(6); // 3+1+2
+  it('builds one per-account day series, summing across models within that account', () => {
+    const { accountSeries } = combineAccountModelResponses(perAccount, labelFor);
+    const a = accountSeries.find((s) => s.key === 'acct_a');
+    const b = accountSeries.find((s) => s.key === 'acct_b');
+    // acct_a: day 1 = 3(gpt-4o)+1(claude) = 4, day 2 = 2(gpt-4o).
+    expect(a?.points.map((p) => p.y)).toEqual([4, 2]);
     expect(a?.label).toBe('nova-labs');
-    expect(b?.value).toBeCloseTo(5);
+    expect(b?.points.map((p) => p.y)).toEqual([5]);
     expect(b?.label).toBe('acct_b');
   });
 

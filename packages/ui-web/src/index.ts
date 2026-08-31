@@ -54,8 +54,6 @@ export { ConsoleTopBar } from './components/console-top-bar';
 export type { ConsoleTopBarProps } from './components/console-top-bar';
 export { AccountBadge, shortAccountId } from './components/account-badge';
 export type { AccountBadgeOption, AccountBadgeProps } from './components/account-badge';
-export { AccountMenu } from './components/account-menu';
-export type { AccountMenuProps } from './components/account-menu';
 export { ThemeToggle } from './components/theme-toggle';
 export type { ThemeToggleProps, ThemeTogglePreference } from './components/theme-toggle';
 export { NavSpine } from './components/nav-spine';
@@ -111,6 +109,13 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { ShareBar } from './components/share-bar';
 export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
+export { MultiSeriesSpendChart } from './components/multi-series-spend-chart';
+export type {
+  MultiSeriesSpendChartProps,
+  MultiSeriesSpendPoint,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from './components/multi-series-spend-chart';
 
 // ── forms & actions
 export { Button } from './components/button';
@@ -223,6 +228,9 @@ export type { OverviewStatCardData, OverviewStatRowProps } from './sections/over
 export { SpendDashboard } from './sections/spend-dashboard';
 export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
 
+export { MultiSeriesSpendBoard } from './sections/multi-series-spend-board';
+export type { MultiSeriesSpendBoardProps } from './sections/multi-series-spend-board';
+
 export { SpendShareSection } from './sections/spend-share';
 export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
 
@@ -254,6 +262,16 @@ export type {
   BudgetPressureProps,
   BudgetPressureStatus,
 } from './sections/budget-pressure';
+
+// The operator overview's estate-wide sibling of `BudgetPressure` (admin-overview design batch,
+// dashboard 4) — accounts ranked by their OWN consumption ratio rather than projects sharing one
+// account's ceiling.
+export { EstateBudgetPressure } from './sections/estate-budget-pressure';
+export type {
+  EstateBudgetPressureAccount,
+  EstateBudgetPressureProps,
+  EstateBudgetPressureStatus,
+} from './sections/estate-budget-pressure';
 
 export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
@@ -306,6 +324,15 @@ export type { PolicySimulationResult, PolicySimulatorProps } from './sections/po
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
+// The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
+// dashboard 3) — accounts and projects on one ranking.
+export { TopSpendersLedger } from './sections/top-spenders-ledger';
+export type {
+  TopSpenderRow,
+  TopSpenderScope,
+  TopSpendersLedgerProps,
+} from './sections/top-spenders-ledger';
+
 // ── toolbar sections
 // Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,
 // filters, search — in one horizontal strip above the content, always visible, at every
@@ -339,6 +366,9 @@ export type {
   AccountSettingsPanel,
   AccountSettingsProps,
 } from './sections/account-settings';
+
+export { ACCOUNT_DIRECTORY_REGION_LABEL, AccountDirectory, NO_ACCOUNTS_MESSAGE } from './sections/account-directory';
+export type { AccountDirectoryProps, AccountDirectoryRow } from './sections/account-directory';
 
 export {
   detailRows,

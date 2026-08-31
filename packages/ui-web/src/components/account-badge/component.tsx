@@ -3,8 +3,8 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import {
-  OVERLAY_CLASS,
   OVERLAY_CURRENT_CLASS,
+  OVERLAY_FLOATING_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_MARKER_CLASS,
   OVERLAY_POSITIONER_CLASS,
@@ -168,7 +168,7 @@ export function AccountBadge({
 
         <Menu.Portal>
           <Menu.Positioner align="start" sideOffset={6} className={OVERLAY_POSITIONER_CLASS}>
-            <Menu.Popup className={cn(OVERLAY_CLASS, 'account-popup')}>
+            <Menu.Popup className={cn(OVERLAY_FLOATING_CLASS, 'account-popup')}>
               <div role="presentation" className={OVERLAY_SECTION_CLASS}>
                 <span className={LABEL_CLASS}>Account</span>
               </div>

@@ -4,6 +4,13 @@
 
 Accepted
 
+> **Status amendment, 2026-08-31 (#368):** Follow-up 7's source-level cutover landed —
+> `apps/self-service` and `packages/ui` are deleted from this repo. `packages/hooks`' RN-only
+> auth/query surface, the nginx/envsubst delivery chain's remaining infra (`charts/converse-frontend`),
+> and the currently-running production deployment are unchanged by that PR and remain a separate,
+> later concern (tracked outside this ADR). The Context and Decision sections below describe the
+> tree as it stood on 2026-08-24 and are left as written for history.
+
 ## Context
 
 ADR 0008 locked the console's visual direction (Axiom-derived dark shell inversion, nav spine,

@@ -4,48 +4,64 @@ This document is the definitive source of truth for the working method, architec
 
 ---
 
+> **2026-08-31 (#368):** the Expo/React-Native surface this document originally described
+> (`apps/self-service`, `packages/ui`) was removed in a hard cutover — see ADR 0009 for why and
+> ADR 0009's status amendment for what landed. Sections 1–3 below are rewritten for the surface
+> that replaced it: the Next.js console (`apps/console`) and its DOM component package
+> (`packages/ui-web`). Detailed UI/component rules now live in the `console-ui` skill
+> (`.claude/skills/console-ui/SKILL.md`) — this document stays high-level and defers to it rather
+> than duplicating it.
+
 ## 1. Guiding Principles
 
 - **Monorepo-first**: All code lives in `apps/` or `packages/`. Root contains only workspace tooling.
-- **UI Primitives Only**: App screens/views may NOT import from `react-native` directly. Use components from `@lightbridge/ui`.
-- **Strict Styling**: Tailwind classes live ONLY in `@lightbridge/ui` via `cva` + `cn`. App pages pass **variants**, never raw `className` strings.
-- **Theme Tokens**: Never use hardcoded colors (e.g., `bg-white`, `bg-[#...]`). Use semantic tokens (primary, secondary, ink, surface, etc.) from the Tailwind theme.
+- **UI Primitives Only**: `apps/console` screens/containers may NOT hand-roll DOM markup for anything a `packages/ui-web` primitive already covers. Use components from `packages/ui-web`.
+- **Strict Styling**: Tailwind classes live ONLY in `packages/ui-web` via `cva` + `cn`. App pages pass **variants**, never raw `className` strings. Colour is Tailwind semantic tokens only — see the `console-ui` skill's token table; never a hex literal outside `packages/ui-web/src/theme.css`.
 - **No Plain Visible Text**: All user-visible text must come from `i18n` using `t('key')`. Literal strings are for logs/internal labels only.
 - **Kebab-case Filenames**: All new files and folders must be `kebab-case` (e.g., `api-keys-view.tsx`).
 - **Security**: Never commit secrets or credentials. Follow OWASP guidelines. All public APIs must have input validation.
 
 ---
 
-## 2. Architecture: 4-Layer MVC
+## 2. Architecture
 
-1. **View Layer (`apps/self-service/src`)**:
-   - **Routes/Layouts**: Expo Router (`app/`).
-   - **Screens/Views**: UI assembly (`screens/`, `views/`). Calls hooks for data. No business logic.
-2. **Service Layer (`packages/hooks`)**:
-   - Uses **TanStack Query** for caching, mutations, and optimistic updates.
-   - Owns TanStack DB collections and backend synchronization.
-3. **API Layer**:
-   - **`packages/api-rest`**: Generated REST client via Hey API (OpenAPI). **DO NOT HAND-EDIT.**
-   - **`packages/api-native`**: Native device/system capabilities (Clipboard, Linking).
-4. **i18n Layer (`packages/i18n`)**:
+1. **App layer (`apps/console/src`)**:
+   - **Routes**: Next.js App Router (`src/app/`) — server components, route handlers, and the
+     session-decrypting auth boundary.
+   - **Containers**: `src/containers/` — data-fetching/orchestration, wired to refine.dev resources
+     and `@lightbridge/hooks`' dependency-free subpath exports (e.g. `@lightbridge/hooks/api-error`,
+     `@lightbridge/hooks/budget-tiers`). No business logic in routes.
+   - **Server**: `src/server/` — cookie-session auth (`session.ts`, `session-store.ts`,
+     `tokens.ts`, `oidc.ts`), never exposed to the client bundle.
+2. **UI layer (`packages/ui-web`)**:
+   - DOM component primitives (daisyUI + Base UI + cmdk + Floating UI, per ADR 0010) and screen
+     sections (`src/sections/`). See the `console-ui` skill for the full contract.
+3. **RPC layer**:
+   - **`packages/authz-rpc`**: cratestack-generated RPC client. **DO NOT HAND-EDIT** `generated/`.
+   - **`packages/api-rest`**: Generated REST client for the usage backend (Hey API/OpenAPI). **DO NOT HAND-EDIT.**
+4. **Chart math (`packages/chart-core`)**:
+   - DOM-free d3 scales/bins/colour-ramp math, consumed by `packages/ui-web`'s SVG chart components.
+5. **i18n layer (`packages/i18n`)**:
    - Centralized translations and configuration via `react-i18next`.
+
+`packages/hooks` and `packages/api-native` still exist but carry React-Native-only surface (auth
+session, Keycloak login, native clipboard/haptics) that predates the console and has no current
+importer — see the orphan-audit note left on PR #368 before adding new code there; check whether
+it's still the right home first.
 
 ---
 
 ## 3. UI and Navigation Rules
 
-### Component Design
-Each UI component in `@lightbridge/ui` must follow this folder structure:
-- `cva.tsx`: Define all variants and tailwind classes.
-- `types.tsx`: Define props and types.
-- `component.tsx`: Implementation (uses `cn()` to merge variants and logic).
-- `index.tsx`: Clean exports.
+Component structure, the daisyUI/Base UI primitive stack, the two-theme (`black`/`wireframe`)
+model, and screen-section conventions are owned by the `console-ui` skill
+(`.claude/skills/console-ui/SKILL.md`) — read it before touching anything in `packages/ui-web` or
+`apps/console`. Do not re-derive these rules here; if the skill and this file ever disagree, the
+skill wins and this file needs fixing.
 
-### Navigation (Expo Router)
-- Tabs live in `app/(tabs)` and use `Tabs` with `ResponsiveTabBar`.
-- Auth routes live in `app/(auth)`.
-- Use `Stack`, `Tabs`, `router`, `Link`, and `useLocalSearchParams`.
-- Screen titles and tab labels must be translated.
+- Routes live under `apps/console/src/app/`, Next.js App Router conventions (`layout.tsx`,
+  `page.tsx`, `loading.tsx`, route groups).
+- Screen titles and labels must be translated.
 
 ---
 
@@ -73,8 +89,8 @@ Each UI component in `@lightbridge/ui` must follow this folder structure:
 
 ## 5. Persistence & Configuration
 
-- **Auth Persistence**: `expo-secure-store` on native and IndexedDB on web (`packages/hooks/src/auth/auth-storage.ts`).
-- **Runtime Config (Web)**: Web reads `/config.json` at runtime; native/dev use `EXPO_PUBLIC_*`.
+- **Auth Persistence**: server-side, HTTP-only session cookie — see `apps/console/src/server/session.ts` and `session-store.ts`. No token ever reaches the client bundle. See ADR 0009 Decision 2.
+- **Runtime Config**: `apps/console`'s own server-side config loader (`apps/console/src/server/config-loader.ts` / `env.ts`) — not the old `/config.json` runtime-fetch or `EXPO_PUBLIC_*` mechanism.
 - **TanStack DB**: `localOnlyCollectionOptions` are in-memory. `queryCollectionOptions` wire to backend but do not auto-persist. Explicitly wire persistence if required.
 
 ---

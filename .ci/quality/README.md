@@ -69,8 +69,8 @@ pnpm exec eslint "**/*.{js,jsx,ts,tsx}" --format json
 # TypeScript — this monorepo has no root tsconfig.json, only per-workspace
 # ones. Run each explicitly; bare `tsc --noEmit` at the root just prints
 # the CLI help text and exits 1 (looks like "found issues" but checked nothing).
-pnpm exec tsc --noEmit -p apps/self-service/tsconfig.json
-pnpm exec tsc --noEmit -p packages/ui/tsconfig.json
+pnpm exec tsc --noEmit -p apps/console/tsconfig.json
+pnpm exec tsc --noEmit -p packages/ui-web/tsconfig.json
 
 # Prettier
 pnpm exec prettier "**/*.{js,jsx,ts,tsx,json,css,md}" --check

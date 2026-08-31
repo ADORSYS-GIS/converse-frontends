@@ -10,7 +10,8 @@ import type {
   OverviewStatCardData,
   DateRangeFieldProps,
   DateRangePreset,
-  RankedSeriesRow,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
   ReportExportDialogProps,
   ReportExportParams,
   SelectFieldProps,
@@ -60,7 +61,7 @@ import {
   type SeriesLabeller,
   RANGE_DAYS,
 } from './overview-usage';
-import { toAggregateDaySeries, toRankedSeriesRows } from './settings-overview-usage';
+import { toAggregateDaySeries, toMultiSeriesSpend } from './settings-overview-usage';
 import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
 
 /**
@@ -231,10 +232,17 @@ export interface OverviewScreen {
   // ── phase 9.2: SPEND BY MODEL — a second aggregate view of the SAME scope/period as SPEND
   // above (never a separately-scoped query, so the two cards can never disagree), grouped by
   // model rather than whatever the toolbar's own `groupByField` currently holds. Replaces the
-  // deleted LATENCY panel (see this module's own doc comment). Renders through
-  // `RankedSeriesRows` now (build brief §7 — replaces the `ShareBar`-based `SpendShareSection`
-  // this card used to render through), so it carries rows, not segments. ────────────────────
-  modelSpendRows: RankedSeriesRow[];
+  // deleted LATENCY panel (see this module's own doc comment).
+  //
+  // **Renders through `MultiSeriesSpendChart` now** (2026-08-31, owner ruling — see that
+  // component's own doc comment): one line per model on shared axes, replacing the
+  // `RankedSeriesRows` board build brief §7 originally gave it (which itself had replaced the
+  // `ShareBar`-based `SpendShareSection` this card used to render through) — so it carries real
+  // per-day series, not rows or segments. `modelSpendScale` is the board's own axis-transform
+  // knob (`linear`/`log`/`indexed`), URL-first like every other view param this hook owns. ────
+  modelSpendSeries: MultiSeriesSpendSeries[];
+  modelSpendScale: MultiSeriesSpendScale;
+  setModelSpendScale: (scale: MultiSeriesSpendScale) => void;
   modelSpendStatus: DashboardStatus;
   modelSpendErrorMessage?: string;
   modelSpendRetry: () => void;
@@ -523,12 +531,11 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       ? 'loading'
       : 'ready';
 
-  // Renders through `RankedSeriesRows` now (build brief §7 — replaces the `ShareBar`-based
-  // `SpendShareSection` this card used to render through), which needs a per-model day-bucketed
-  // trend for its sparkline column, not just a summed total — `toRankedSeriesRows`
-  // (`settings-overview-usage.ts`) already does exactly that from a grouped response.
-  const modelSpendRows = useMemo(
-    () => (modelUsageQuery.data ? toRankedSeriesRows(modelUsageQuery.data, 'model', labelForModel) : []),
+  // Renders through `MultiSeriesSpendChart` now (2026-08-31 owner ruling) — one line per model,
+  // real per-day points rather than a summed total — `toMultiSeriesSpend`
+  // (`settings-overview-usage.ts`) maps a grouped response straight into that shape.
+  const modelSpendSeries = useMemo(
+    () => (modelUsageQuery.data ? toMultiSeriesSpend(modelUsageQuery.data, 'model', labelForModel) : []),
     [modelUsageQuery.data, labelForModel]
   );
 
@@ -785,7 +792,11 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     spendShareErrorMessage: usageQuery.isError ? getUsageErrorMessage(usageQuery.error) : undefined,
     spendShareRetry: () => void usageQuery.refetch(),
     spendDegenerateMessage,
-    modelSpendRows,
+    modelSpendSeries,
+    modelSpendScale: view.modelScale,
+    setModelSpendScale: (scale) => {
+      void setView({ modelScale: scale });
+    },
     modelSpendStatus,
     modelSpendErrorMessage: modelUsageQuery.isError
       ? getUsageErrorMessage(modelUsageQuery.error)

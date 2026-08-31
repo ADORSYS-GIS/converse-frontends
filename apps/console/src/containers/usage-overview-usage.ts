@@ -1,6 +1,10 @@
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 import { formatUsd } from '@lightbridge/ui-web';
-import type { RankedSeriesRow, ShareBarSegment, SpendSeriesSeries } from '@lightbridge/ui-web';
+import type {
+  MultiSeriesSpendSeries,
+  ShareBarSegment,
+  SpendSeriesSeries,
+} from '@lightbridge/ui-web';
 
 import { safeCost, UNASSIGNED_KEY } from './overview-usage';
 
@@ -46,19 +50,30 @@ export interface AccountUsageResponse {
 /**
  * Combines one CURRENT-period, `group_by: ['model']`, day-bucketed response per account into the
  * three things the estate overview draws from a single fan-out round: the estate's own aggregate
- * spend-over-time line, the by-account ranked rows, and the global by-model share.
+ * spend-over-time line, one per-account day series (`MultiSeriesSpendChart`'s "Spend by account"
+ * board — one line per account, summed across every model within it), and the global by-model
+ * share.
+ *
+ * **`accountSeries` replaced `accountRows`/`RankedSeriesRow[]`** (2026-08-31, owner ruling —
+ * `MultiSeriesSpendChart`'s own doc comment): the by-account board is a superposed line chart now,
+ * not a ranked row list, so it needs real per-day `{x: Date, y: cost}` points per account rather
+ * than a value-only sparkline. The value/delta sort toggle the row list used to offer died with
+ * it — a chart's rank/colour order is always by total descending (`domain.ts`'s own `ranked`
+ * sort), and "sort by change" has no expression on an unordered superposed board — so this no
+ * longer computes a per-account delta at all; see `use-usage-overview-screen.ts`'s own doc
+ * comment for the URL-param and hook-surface side of that cutover.
  */
 export function combineAccountModelResponses(
   perAccount: readonly AccountUsageResponse[],
   labelForAccount: (accountId: string) => string
 ): {
   aggregateSeries: SpendSeriesSeries;
-  accountRows: RankedSeriesRow[];
+  accountSeries: MultiSeriesSpendSeries[];
   modelTotals: Map<string, number>;
 } {
   const dayTotals = new Map<number, number>();
   const modelTotals = new Map<string, number>();
-  const accountRows: RankedSeriesRow[] = [];
+  const accountSeries: MultiSeriesSpendSeries[] = [];
 
   for (const { accountId, response } of perAccount) {
     const accountDayTotals = new Map<number, number>();
@@ -76,13 +91,10 @@ export function combineAccountModelResponses(
       modelTotals.set(modelKey, (modelTotals.get(modelKey) ?? 0) + cost);
     }
     const ordered = Array.from(accountDayTotals.entries()).sort(([a], [b]) => a - b);
-    const value = ordered.reduce((sum, [, y]) => sum + y, 0);
-    accountRows.push({
+    accountSeries.push({
       key: accountId,
       label: labelForAccount(accountId),
-      value,
-      formattedValue: formatUsd(value),
-      sparklinePoints: ordered.map(([, y]) => y),
+      points: ordered.map(([t, y]) => ({ x: new Date(t), y })),
     });
   }
 
@@ -92,7 +104,7 @@ export function combineAccountModelResponses(
 
   return {
     aggregateSeries: { key: 'estate-total', label: 'Estate total', points: aggregatePoints },
-    accountRows,
+    accountSeries,
     modelTotals,
   };
 }
@@ -134,33 +146,6 @@ export function toPreviousPeriodSeries(
     .sort(([a], [b]) => a - b)
     .map(([t, y]) => ({ x: new Date(t), y }));
   return shiftSeriesForward({ key: 'previous-period', label: 'Previous period', points }, spanMs);
-}
-
-/** Sums each account's previous-period response into one total per account id — the raw input
- *  `withAccountDeltas` below turns into each row's signed `delta`. */
-export function perAccountTotals(perAccount: readonly AccountUsageResponse[]): Map<string, number> {
-  const totals = new Map<string, number>();
-  for (const { accountId, response } of perAccount) {
-    let sum = 0;
-    for (const point of response.points) sum += safeCost(point);
-    totals.set(accountId, (totals.get(accountId) ?? 0) + sum);
-  }
-  return totals;
-}
-
-/** Attaches a signed `delta` (current − previous) to each row — a row with no previous-period
- *  data at all (a genuinely new account) gets no `delta`, never a fabricated `-$0.00` implying it
- *  was measured and came back zero. */
-export function withAccountDeltas(
-  rows: readonly RankedSeriesRow[],
-  previousTotals: Map<string, number>
-): RankedSeriesRow[] {
-  return rows.map((row) => {
-    const previous = previousTotals.get(row.key);
-    if (previous === undefined) return row;
-    const delta = row.value - previous;
-    return { ...row, delta, formattedDelta: formatUsd(Math.abs(delta)) };
-  });
 }
 
 /** Truncates a share list to its `topN` largest segments + one "Other" segment summing the rest —

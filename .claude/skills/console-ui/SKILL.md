@@ -1,6 +1,6 @@
 ---
 name: console-ui
-description: UI structure contract for the Next.js console and packages/ui-web components. Use whenever building, reviewing, or restyling anything in packages/ui-web or apps/console — shell layout, cards, tables, charts, forms, stat cards, empty/loading/error states. Encodes the ADR 0008/0009/0012 visual direction, the ADR 0010 primitive stack (daisyUI, Base UI, cmdk, Floating UI) and two-theme model, and the docs/design/console-redesign spec.
+description: UI structure contract for the Next.js console and packages/ui-web components. Use whenever building, reviewing, or restyling anything in packages/ui-web or apps/console — shell layout, cards, tables, charts, forms, stat cards, empty/loading/error states. Encodes the ADR 0008/0009/0012 visual direction, the ADR 0013 information architecture (account-scoped paths, the settings area, the analytics/chart-choice doctrine), the ADR 0010 primitive stack (daisyUI, Base UI, cmdk, Floating UI) and two-theme model, and the docs/design/console-redesign spec.
 ---
 
 # Console UI structure
@@ -13,9 +13,12 @@ The full contracts live in the repo — **read them before writing components**:
 
 - `docs/design/console-redesign/README.md` — token sheet, shell grid, component inventory with
   per-component contracts, screen specs, interaction contracts. This is the primary spec.
-- `docs/adr/0012-console-visual-revamp.md` — the current shell/type/card decisions and their
-  reference lock (Anthropic Console, fal.ai, Cartesia, Attio). **Read this one first** — it
-  supersedes the shell-shape and type-hierarchy parts of the two ADRs below.
+- `docs/adr/0013-console-information-architecture-v3.md` — account-scoped paths, the settings
+  area, phase 2d's account-scoping audit, refill as a page, and the analytics/chart-choice
+  doctrine. **Read this one too** — it narrows ADR 0012's nav-shape and rail clauses (below).
+- `docs/adr/0012-console-visual-revamp.md` — the shell/type/card decisions and their reference lock
+  (Anthropic Console, fal.ai, Cartesia, Attio). Supersedes the shell-shape and type-hierarchy parts
+  of the two ADRs below; its own nav-shape/rail clauses are further narrowed by ADR 0013 above.
 - `docs/adr/0008-console-shell-inversion-and-visual-direction.md` — palette, chart-colour rule,
   status-as-text; its shell-inversion and mono-primary clauses carry a status-note amendment
   pointing at ADR 0012.
@@ -24,8 +27,10 @@ The full contracts live in the repo — **read them before writing components**:
   cmdk · Floating UI), Tailwind v4, and the two-theme model. Read with
   `docs/design/console-redesign/PRIMITIVES.md`, the per-component migration map.
 - The page stories in `packages/ui-web/src/pages-stories/` (`overview`, `api-keys`, `projects`,
-  `admin-budget-review`, `settings`, `shell-persistence`) are the rendered ground truth — match
-  them. There are no SVG mockups any more; a stale mockup was judged worse than none and deleted.
+  `admin-budget-review` — now the refills-queue review screen, `settings`,
+  `settings-overview` — the estate/analytics lenses, `shell-persistence`) are the rendered ground
+  truth — match them. There is no story yet for `/accounts/<id>/refill`, the newest route. There
+  are no SVG mockups any more; a stale mockup was judged worse than none and deleted.
 
 ## The one-paragraph mental model
 
@@ -33,16 +38,22 @@ Cards sit on a floor, inside a shell with a persistent LEFT sidebar, a stretchin
 and a SITUATIONAL right inspector rail. In dark the floor is `#000` and cards (`base-200`) carry
 stats, charts, tables and forms; in light the floor is grey and cards are white. The sidebar
 (240px, `md`+) carries navigation, a workspace switcher and a footer stack; below `md` a 48px top
-bar plus a bottom nav dock replace it. **The right rail returned** (owner, 2026-08-30, superseding
-ADR 0012 D1/D7's "no right rail at any tier"/"`DetailSheet` is the one surface for row detail"):
-at `lg`+ (1024px) it shows a selection's detail (`/projects`, `/admin`) or the account
-quick-settings panel (`/`, standing) — resizable by drag (`RailResizer`, 240–480px, default 280,
-persisted per viewer) — and is ABSENT entirely, not an empty placeholder, on any route/state with
-nothing to put in it (owner: "the right rail was empty depending on the situation. Solution: hide
-it if empty"). Below `lg`, the same selection-driven content opens as a `BottomSheet` docked to
-the BOTTOM of the viewport, never from a side (owner's locked layout contract: "Right rail on
-large screens, bottom sheet on medium and small. Not from sides."); `DetailSheet` — the old
-fixed-420px, right-docked surface — is deleted. Every screen opens with `PageHeader` (title,
+bar plus a bottom nav dock replace it. **Every real screen is account-scoped by path**
+(`/accounts/[accountId]/{overview,projects,api-keys,refill}`, ADR 0013 D1) — the account is a URL
+segment, not a query param; `/` is a last-account resolver, not a screen. **`/settings/*` is a
+second navigable area** (ADR 0013 D2) sharing the SAME shell mount but its OWN flat left-nav
+content (`areaFromPathname`), swapped in place of the account area's Workspace/Account/Operator
+groups — never a second `ConsoleShell`. **The right rail is narrow, one case only**: at `lg`+
+(1024px) it shows a selected row's detail on `/accounts/<id>/projects` alone — resizable by drag
+(`RailResizer`, 240–480px, default 280, persisted per viewer) — and is collapsed entirely, not an
+empty placeholder, everywhere else, including every `/settings/*` route (there is no right rail in
+settings, at any tier — ADR 0013 D2). There is no more standing rail content anywhere (the old
+Overview quick-settings panel is deleted outright — every mutation it hosted now has a better
+home: the switcher's own `+ New account`, `/projects`' `+ New project`, the Budget card's link to
+`/accounts/<id>/refill`, `/settings/policies`' rename). Below `lg`, the same selection-driven
+content opens as a `BottomSheet` docked to the BOTTOM of the viewport, never from a side; on
+`/settings/refills-queue` specifically, `BottomSheet` is the review surface at EVERY tier, since
+settings has no rail to promote it into at `lg`+. Every screen opens with `PageHeader` (title,
 subtitle, inline controls, one action), then a stack of `Card`s — one per self-contained zone.
 Sans type (Inter) is the default everywhere structural; mono (IBM Plex Mono) is reserved for data
 values — currency, counts, ids, timestamps — never for prose or chrome. A single orange signal
@@ -197,35 +208,50 @@ decimals.
     px, default `INSPECTOR_RAIL_DEFAULT_WIDTH`, `lib/shell-grid.ts`; width persisted per viewer in
     `localStorage` by `apps/console`'s `use-rail-width.ts`, never in the URL — ADR 0011 Decision 6's
     "a shared URL must not restyle the app for its recipient" reasoning applies to layout
-    preferences too). **Situational, never a placeholder** (owner: "the right rail was empty
-    depending on the situation. Solution: hide it if empty"): `ConsoleShell` renders the whole rail
-    column ONLY when there is real content for it — a selected row's detail on `/projects`/
-    `/admin`, or the account quick-settings panel standing on `/` — and collapses it entirely
-    otherwise (`/api-keys`, `/settings/*`, or `/projects`/`/admin` with nothing selected). The
-    centre column absorbs the freed width either way (`min-w-0 flex-1`).
+    preferences too). **Situational, never a placeholder, and narrowed further by ADR 0013 D2/D3**
+    (IA v3 phase 3 deleted the rail's one STANDING case outright): `ConsoleShell` renders the whole
+    rail column for exactly ONE route/state — `/accounts/<id>/projects` with a row selected — and
+    collapses it entirely everywhere else, with NO exception: not `/accounts/<id>/overview` (its
+    old quick-settings panel is deleted — every mutation it hosted has a better home now: the
+    switcher's `+ New account`, `/projects`' `+ New project`, the Budget card's link to
+    `/accounts/<id>/refill`, `/settings/policies`' rename), not `/accounts/<id>/api-keys`, and not
+    ANY `/settings/*` route (settings has no right rail at any tier — its own row-selection screen,
+    `/settings/refills-queue`, uses `BottomSheet` at every tier instead, since there is no rail to
+    promote it into at `lg`+). The centre column absorbs the freed width either way
+    (`min-w-0 flex-1`).
   - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`
     — `min-w-0` is mandatory, without it a wide table/chart blows the row open into page-level
     horizontal scroll). Anything intrinsically wide scrolls inside its own `overflow-x-auto`
     container instead.
   - Screen PARAMETERS (range/bucket/group-by, filters, search) stay inline in `PageHeader.controls`
-    at every tier — the rail is for SELECTION-driven detail and standing account settings, never
-    for knobs. Below `lg`, where the rail is absent, that same selection-driven detail opens as a
-    `BottomSheet` instead (bottom-docked, never from a side — see "Primitive stack" above).
+    at every tier — the rail is for SELECTION-driven detail only now, never for knobs and never
+    for standing account settings. Below `lg`, where the rail is absent, that same selection-driven
+    detail opens as a `BottomSheet` instead (bottom-docked, never from a side — see "Primitive
+    stack" above).
 - **`Card` is the default zone container** (ADR 0012 D3, kills ADR 0008's "centre is never a
   card"/"a scalar gets a panel, a distribution gets the floor" boundary): stat rows, charts,
   ledgers (toolbar + table + pager inside **one** `Card`), settings sections and forms all wrap in
   `Card`. `PageHeader` and a bare `InlineStatus`/`ErrorLine` are the only things that sit directly
   on the floor. `StatCard`/`BudgetHero` stay self-panelled (their own `surface` fill) even when a
   `Card` also wraps the row they sit in.
-- **Nav groups are role-gated by inclusion, not by a marker prop**
-  (`apps/console/src/client/console-chrome.tsx`'s `navGroups`): `Workspace` (Overview, Projects,
-  API keys), `Account` (Settings), and `Operator` (Refill requests) included in the array only for
-  `session.isAdmin`. There is no `adminItems`/`showAdmin`/`roleLabel` axis — a gated group's own
-  label row IS the role marker. Never resurrect a `ROLE` badge/marker component.
+- **Two nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
+  `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`): the **account area**'s
+  `navGroups` — `Workspace` (Overview, Projects, API keys, hrefs built off the path account),
+  `Account` (Settings), `Operator` (Refill requests → `/settings/refills-queue`, included only for
+  `session.isAdmin`) — versus the **settings area**'s `settingsNavGroups`, a flat, ungrouped list
+  of seven (Overview, Roles [disabled], Tier configs, Account/Project policies, Refill options
+  policies, Refills queue [admin only], Info), with a `← Back to console` row replacing the
+  workspace switcher. Both are role-gated by inclusion, not by a marker prop — no
+  `adminItems`/`showAdmin`/`roleLabel` axis; a gated row/group's own label IS the role marker.
+  Never resurrect a `ROLE` badge/marker component. A nav row may ship `disabled` with a stated
+  reason (Roles — `lightbridge-authz#571`) rather than being omitted: the honesty doctrine (below)
+  extends to navigation — a row that looks live but 404s is its own kind of fabrication.
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.
-- **Row detail is the inspector rail at `lg`+, a `BottomSheet` below it — never a side sheet at
-  any tier.** `DetailSheet` (a fixed-420px right-docked `Dialog`) is deleted. Below `lg`,
+- **Row detail is the inspector rail at `lg`+ (one case only — `/accounts/<id>/projects` — see
+  above), a `BottomSheet` below it — never a side sheet at any tier.** `DetailSheet` (a fixed-420px
+  right-docked `Dialog`) is deleted. `/settings/refills-queue`'s own row detail uses `BottomSheet`
+  at every tier, not just below `lg` — settings has no rail to promote it into. Below `lg`,
   `BottomSheet` (Base UI `Drawer`, bottom-only) opens on selection: grab handle, header
   (title/subtitle/optional `headerAction`, e.g. `Rename` — never a stranded footer button for a
   header-scale action) · body, content-sized up to `max-height: 85dvh` (never a fixed minimum —
@@ -266,6 +292,43 @@ a component.
 
 Chart tooltips are positioned by **Floating UI** (virtual element + `useClientPoint`, with the
 chart `<svg>` as `contextElement`), never by hand-computed `left`/`top` arithmetic.
+
+## Analytics doctrine — chart choice for usage/spend breakdowns
+
+**ADR 0013 D5**, grounded in a 726k-prod-usage-row measurement: the common shape is one series
+dominating the rest (top-1 ≥95% share for roughly half of accounts), so every choice below follows
+from what reads honestly against that shape, not house taste.
+
+- **Default breakdown: `RankedSeriesRows`** (rank swatch, label, value, a share micro-bar, a
+  per-row sparkline, optional `Meter`/delta) — for every per-key breakdown (accounts, projects,
+  models, users, api keys). The share micro-bar **suppresses itself above 95% top-1 share** in
+  favour of plain percentage text; a bar whose leading segment is a wall and whose rest are
+  hairlines communicates nothing a number doesn't say better.
+- **`ShareBar` survives in exactly one place**: a genuine "how does this whole add up" question
+  with no per-row ranking involved (today: the estate overview's global model mix,
+  `/settings/overview/usage`). Everywhere else, reach for `RankedSeriesRows` — never a donut, ever.
+- **Never build a stacked bar or an area fill for a usage/spend breakdown.** Tried against the same
+  sample and rejected for three measured reasons (ADR 0013 D5): top-1 dominance collapses
+  non-leading bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage
+  backend buckets by day, not continuously, so an area fill implies a slope between real gaps that
+  isn't there; and a stacked/layered chart needs a legend that scales with series count, which the
+  same measurement shows routinely running past a dozen entries.
+- **Columns (a plain stat grid), not a time series, for a sparse single metric** — `LatencyStatCards`
+  is the shipped instance: per-model p50/p95/n (p99 only past a minimum sample count), because the
+  usage backend's percentiles are whole-window aggregates that cannot be validly combined across
+  days into a trend line. Revisit only if the backend starts emitting per-bucket percentiles with
+  real history depth — not by building the time series speculatively now.
+- **Sentinel identities are labelled, never dropped or fabricated** (`sentinelLabel` —
+  `missing:keycloak:preferred_username`, `missing:github:preferred_username`, and repo-slug-shaped
+  ids all get a de-emphasized real label, never an invented name, never silent exclusion from a
+  ranking).
+- **Explicit limits, and truncation says so.** Every usage request sets `limit` explicitly; a
+  fan-out that caps its own scope (e.g. the estate overview's `MAX_FANNED_OUT_ACCOUNTS = 25`) says
+  so in its own caption rather than presenting a partial result as complete.
+- **`mtd` ("This month") is the default range** on every billing-denominated dashboard (account
+  Overview, the estate/lens screens) — a real calendar-month span, not a rolling 30 days, because
+  the account's own budget ceiling and refill cadence are billing-window-denominated. Every other
+  preset in the same picker stays a plain rolling window.
 
 ## States — `EmptyState` for first-run, `InlineStatus` for filtered/unavailable
 
@@ -321,12 +384,20 @@ anti-pattern) — **unchanged by the 2026-08-30 shell revamp**:
   presentational only: **data via typed props, no fetching, no refine hooks, no routing**;
   callbacks are props. Each ships `fixtures.ts`, stories, and tests. Barrel region:
   `// ── sections`.
-- **The shell mounts exactly once, in `apps/console`'s persistent layout** — `ConsoleShell` +
-  `ConsoleSidebar`/`ConsoleTopBar` live in a route-group `layout.tsx`. There is no `@rail`/`@scope`
-  parallel-route slot any more (deleted with the right rail, ADR 0012) — route pages compose
-  sections and pass `BottomSheet`/`Dialog` state as ordinary props; they never render the shell.
-  Navigating must not remount the sidebar/top-bar (this is testable: the nav DOM node persists
-  across route changes — `shell-persistence.stories.tsx`).
+- **The shell mounts exactly once, in `apps/console`'s persistent layout — for BOTH areas** (ADR
+  0013 D2). `ConsoleShell` + `ConsoleSidebar`/`ConsoleTopBar` live in ONE route-group
+  `layout.tsx` (`app/(console)/layout.tsx`), covering every route under it: the account-scoped
+  tree (`accounts/[accountId]/*`, account id read from the path — ADR 0013 D1) and the settings
+  tree (`settings/*`) alike. Both `accounts/[accountId]/layout.tsx` and `settings/layout.tsx` are
+  **guard/Suspense layouts only** — `console-shell-mount.test.ts` asserts neither imports the
+  shell or a nav primitive — so a future PR cannot reintroduce a second shell mount by building
+  what looks like the natural per-area layout. Which nav content renders (`navGroups` vs
+  `settingsNavGroups`) is a runtime branch on `usePathname()` (`areaFromPathname`), not a second
+  mount. There is no `@rail`/`@scope` parallel-route slot any more (deleted with the old
+  always-on right rail, ADR 0012) — route pages compose sections and pass `BottomSheet`/`Dialog`
+  state as ordinary props; they never render the shell. Navigating must not remount the
+  sidebar/top-bar, whether within an area or across the account↔settings boundary (this is
+  testable: the nav DOM node persists across route changes — `shell-persistence.stories.tsx`).
 - **Full-page compositions exist in exactly two places**: (1) Storybook — page-level stories under
   `src/pages-stories/` that compose sections inside the shell with mock fixtures; these remain the
   e2e acceptance surface (populated/empty/loading/error/role/mobile variants, `addon-a11y`-clean)
@@ -348,12 +419,16 @@ list→selection→edit/decide flows. Rules: the sections stay pure (containers 
 to props); the mock provider is never exported from the package barrel; deps on `@refinedev/*`
 are devDependencies only.
 
-## State — URL-first via nuqs (ADR 0011)
+## State — URL-first via nuqs (ADR 0011), account via path (ADR 0013)
 
-- In `apps/console`, **view state lives in the URL** through nuqs (`useQueryState`/
-  `useQueryStates`, typed parsers, defaults kept out of the URL): scope, filters,
+- In `apps/console`, **view state lives in the URL** — the account HALF as a `[accountId]` PATH
+  segment (ADR 0013 D1: bookmark stability, never written back into a query param), everything
+  else through nuqs (`useQueryState`/`useQueryStates`, typed parsers, defaults kept out of the
+  URL): `?project=` (absent means every project in the account — a query param, not a path
+  segment, precisely because "absent means all" has no path vocabulary), filters,
   range/bucket/group-by, selections, active tabs, `BottomSheet`/dialog open state. There is no
-  provider/context for this — one route reads its own params directly.
+  provider/context for either half — a route reads `useParams()` for the account and its own nuqs
+  params for everything else.
 - **`useState` in view code is a defect unless it is one of the sanctioned exceptions**:
   hover/tooltip tracking, focus management, pre-submit form drafts that must not enter URL or
   history (typed-confirm text, decision notes), animation/measurement state. Every surviving
@@ -376,10 +451,16 @@ a centered empty-state placard for anything OTHER than a settled, genuinely firs
 a native `<select>` (use `SelectField`) · a floating overlay without the shared overlay class ·
 a hand-drawn chevron (use `Chevron`) ·
 re-declaring a type-role class instead of importing its `type-roles.ts` constant · a raw account
-UUID as a visible label · pie/donut charts (use `ShareBar`) · hex colours in components ·
+UUID as a visible label · pie/donut charts, or a NEW `ShareBar` use site for a per-row ranking
+(use `RankedSeriesRows` — `ShareBar` stays pinned to its one screen, ADR 0013 D5) · a stacked bar
+or area fill for a usage/spend breakdown (ADR 0013 D5's three rejected-for-cause reasons) ·
+a per-request latency time series (columns/`LatencyStatCards` until the backend can honestly trend
+it) · hex colours in components ·
 React Native imports · a chart framework dependency · `dark:` variants or a `.dark` class ·
 `tailwind.config.js` in `ui-web` or `apps/console` (Tailwind v4 is CSS-first) ·
 importing `@radix-ui/*` directly · `vaul`, anywhere · hand-written focus traps or roving
 `tabIndex` · a `cva.ts` that only encodes boolean state · pagers rendered with no `onPrev`/
 `onNext` wired · a fabricated or permanently-null figure where an em dash or an omitted block
-(plus a filed backend issue) is the honest answer.
+(plus a filed backend issue) is the honest answer · a nav row silently omitted instead of shipped
+`disabled` with a stated reason · a second `ConsoleShell`/sidebar mount for the settings area ·
+the account id read from a query param instead of the `[accountId]` path segment.

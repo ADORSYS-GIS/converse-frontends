@@ -40,6 +40,12 @@ export const EXPECTED: Record<string, string | null> = {
   'sub-nav': 'navigation-menu',
 
   // — nothing upstream, with the reason
+  'budget-hero': null, // composition of Meter + numerals; nothing daisy/Base UI adds directly —
+  // its own behaviour (the meter fill, the warning threshold) is already delegated, through
+  // `Meter` (PRIMITIVES.md's `budget-hero` row: "NO UPSTREAM"). Added 2026-08-31 (IA v3 phase 6):
+  // this directory existed before but had no EXPECTED entry, so it silently scored 'ok' by the
+  // `?? null` default rather than by a recorded reason — the exact "unexamined null" failure mode
+  // this file's own doc comment warns about.
   card: null, // a padded panel, no behaviour of its own
   'chart-axis': null, // SVG primitive
   'chart-legend': null, // SVG primitive

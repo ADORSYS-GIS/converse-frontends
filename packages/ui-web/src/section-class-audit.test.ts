@@ -79,11 +79,25 @@ describe('section class budget', () => {
    * `latency-dashboard` is gone (phase 9.2, 2026-08-30 owner directive — the usage backend has no
    * per-request duration, so the panel could never fill; "Spend by model" replaces it). Its pin is
    * removed, not zeroed, since the section itself no longer exists to measure.
+   *
+   * Re-measured 2026-08-31 (IA v3 Phase 6, closing docs/ratchets pass): `spend-dashboard` came in
+   * a point under its own pin (7, not 8) once the phase-4 chart wiring settled — tightened to
+   * match. `budget-panel`/`spend-share` are unchanged at their existing pins. Six new sections
+   * from IA v3 phases 2-5 are pinned here for the first time, each at the number it actually
+   * measures today — `ranked-series-rows` and `latency-stat-cards` (D5's analytics doctrine,
+   * ADR 0013) and the four settings-area/refill sections (`policy-simulator`,
+   * `project-policy-controls`, `refill-history`, `refill-request-form`).
    */
   it.each([
     ['spend-share', 6],
-    ['spend-dashboard', 8],
+    ['spend-dashboard', 7],
     ['budget-panel', 23],
+    ['ranked-series-rows', 1],
+    ['latency-stat-cards', 4],
+    ['refill-history', 1],
+    ['refill-request-form', 3],
+    ['policy-simulator', 12],
+    ['project-policy-controls', 3],
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(

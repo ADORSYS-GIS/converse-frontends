@@ -4,6 +4,15 @@
 
 Accepted
 
+> **Amended by [ADR 0013](0013-console-information-architecture-v3.md) (IA v3, 2026-08-31).**
+> Decision 1's nav-shape clause (three fixed destinations, one flat `/admin`) and Decision 7's rail
+> clause (the rail returned, one paragraph, no further detail) are superseded, in part, by ADR
+> 0013 D1-D4: the account moved into the path, `/admin` is now `/settings/refills-queue` inside a
+> second navigable settings area with its own nav, and the rail narrowed further to exactly one
+> case (`/accounts/<id>/projects` with a row selected — no standing case anywhere). Everything
+> else below — the two-column shell shape itself, sans-first type, cards as the default zone,
+> radius 8/4, the empty-state doctrine, the honesty contract — is unchanged.
+
 Records the owner directive of 2026-08-30 — *"The full UI is shit... Revamp it... keep base-ui
 AND daisyui as base tho"* — and the eight decisions that followed it across epic
 [#368](https://github.com/ADORSYS-GIS/converse-frontends/issues/368) and PRs #371–#378 (phases

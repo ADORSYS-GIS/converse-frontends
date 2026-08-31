@@ -11,7 +11,9 @@ import { PolicySimulator } from '@lightbridge/ui-web/src/sections/policy-simulat
 import { RefillPolicyLookup } from '@lightbridge/ui-web/src/sections/refill-policy-lookup';
 import { RefillPolicyManual } from '@lightbridge/ui-web/src/sections/refill-policy-manual';
 import { RuleSetForm } from '@lightbridge/ui-web/src/sections/rule-set-form';
+import Link from 'next/link';
 
+import type { AdminRefillPoliciesFormScreen } from './use-refill-policies-screen';
 import { useRefillPoliciesScreen } from './use-refill-policies-screen';
 
 const EDIT_NO_PREFILL_NOTE =
@@ -20,15 +22,19 @@ const EDIT_NO_PREFILL_NOTE =
 
 /**
  * `/admin/refill-policies` — admin-only (owner ruling, verbatim: "Refill options are for admins
- * only. Not normal users."), mode-split by nuqs params (`?create=true`/`?edit=<id>`/
- * `?simulate=<id>`, never composed together — see `use-refill-policies-screen.ts`'s own doc
- * comment for the full ruling and the write paths each mode wires).
+ * only. Not normal users."), mode-split by nuqs params (`?edit=<id>`/`?simulate=<id>`, never
+ * composed together — see `use-refill-policies-screen.ts`'s own doc comment for the full ruling
+ * and the write paths each mode wires). **`create` is no longer one of this dispatcher's modes**
+ * (owner review round 2, 2026-08-31, converse-frontends#368 finding #4) — it moved to its own
+ * route, `/admin/refill-policies/create` (`admin-refill-policy-create-centre.tsx`), which reuses
+ * `RefillPolicyFormView` below (exported for exactly that reuse) fed by its own sibling hook,
+ * `use-refill-policy-create-screen.ts`.
  */
 export function AdminRefillPoliciesCentre() {
   const screen = useRefillPoliciesScreen();
 
-  if (screen.mode === 'create' || screen.mode === 'edit') {
-    return <RefillPolicyFormView screen={screen} />;
+  if (screen.mode === 'edit') {
+    return <RefillPolicyFormView form={screen.form} />;
   }
   if (screen.mode === 'simulate') {
     return <RefillPolicySimulateView screen={screen} />;
@@ -43,7 +49,12 @@ function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillP
         title="Refill policies"
         subtitle={screen.scopeLabel}
         action={
-          <Button type="button" variant="primary" size="sm" onClick={screen.onNewPolicy}>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/admin/refill-policies/create" />}>
             + New policy
           </Button>
         }
@@ -84,8 +95,16 @@ function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillP
   );
 }
 
-function RefillPolicyFormView({ screen }: { screen: ReturnType<typeof useRefillPoliciesScreen> }) {
-  const { form } = screen;
+/**
+ * The create/edit form — shared by TWO different routes now (owner review round 2, 2026-08-31,
+ * converse-frontends#368 finding #4): `/admin/refill-policies`'s own `edit` mode
+ * (`AdminRefillPoliciesCentre` above, fed by `useRefillPoliciesScreen().form`) and the standalone
+ * `/admin/refill-policies/create` route (`admin-refill-policy-create-centre.tsx`, fed by
+ * `useRefillPolicyCreateScreen()`) — hence taking `form` directly rather than the whole
+ * mode-dispatch `AdminRefillPoliciesScreen`, which only the list route's own hook produces.
+ * Exported for that second caller.
+ */
+export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormScreen }) {
   const title =
     form.mode === 'edit'
       ? `Author a replacement revision for ${form.policySetId}`

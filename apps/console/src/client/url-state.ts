@@ -675,34 +675,38 @@ export function useAdminOverviewParams() {
 // ── /admin/refill-policies ──────────────────────────────────────────────────────────────────
 
 /**
- * `/admin/refill-policies`'s own mode-split params (owner ruling, verbatim: "/admin/refill-
- * policies should be for listing them /admin/refill-policies?create=true or /admin/refill-
- * policies?edit=<id> to create or edit, respectively, /admin/refill-policies?simulate=<id> to
- * simulate" — and never simulate on the same view as create/edit).
+ * `/admin/refill-policies`'s own mode-split params — TWO modes now, not three (owner review round
+ * 2, 2026-08-31, converse-frontends#368 finding #4, verbatim): "You made out of
+ * /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But it's
+ * fine. Just move it to a page /admin/refill-policies/create." Create moved OFF this query-param
+ * table to its own route segment, `/admin/refill-policies/create`
+ * (`use-refill-policy-create-screen.ts`) — there is no `create`/`createOpen` param left here at
+ * all; a bookmarked `?create=true` still works via `middleware.ts`'s own redirect. `edit`/
+ * `simulate` are unchanged (the owner named only create) — the original ruling that put all three
+ * behind query params (verbatim: "/admin/refill-policies should be for listing them
+ * /admin/refill-policies?create=true or /admin/refill-policies?edit=<id> to create or edit,
+ * respectively, /admin/refill-policies?simulate=<id> to simulate" — and never simulate on the same
+ * view as create/edit) still governs the two that remain.
  *
  * `policySetId` is the LIST mode's own lookup target, debounced onto the URL the same way the two
  * ledger search boxes are: there is no procedure that lists which policy sets exist
  * (`converse-frontends#368`), so "which one am I looking at" is exactly the shareable view state
- * ADR 0011 puts in the URL, not a component-local search box. `createOpen`/`editPolicySetId`/
- * `simulatePolicySetId` are the three modes — an id IS the open flag for the two that target an
- * existing policy set, the same shape `apiKeysParsers.revokeKeyId`/`settingsParsers.
- * renameProjectId` already use; `createOpen` is a bare boolean, matching `createAccountParsers`/
- * `createProjectParsers`, since "author a brand-new policy set" has no id yet to carry. All three
- * mode params write with `push` (`ADMIN_REFILL_POLICIES_MODE_OPTIONS`) — Back must close the
- * form/simulator rather than leave the screen — while the lookup itself stays the hook's own
- * default `replace`, the same knob-vs-navigation split `apiKeysParsers`/`API_KEYS_SELECTION_
- * OPTIONS` already draws.
+ * ADR 0011 puts in the URL, not a component-local search box. `editPolicySetId`/
+ * `simulatePolicySetId` are the two remaining modes — an id IS the open flag for the target
+ * policy set, the same shape `apiKeysParsers.revokeKeyId`/`settingsParsers.renameProjectId`
+ * already use. Both mode params write with `push` (`ADMIN_REFILL_POLICIES_MODE_OPTIONS`) — Back
+ * must close the form/simulator rather than leave the screen — while the lookup itself stays the
+ * hook's own default `replace`, the same knob-vs-navigation split `apiKeysParsers`/
+ * `API_KEYS_SELECTION_OPTIONS` already draws.
  */
 export const adminRefillPoliciesParsers = {
   policySetId: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
-  createOpen: parseAsBoolean.withDefault(false),
   editPolicySetId: parseAsString.withDefault(''),
   simulatePolicySetId: parseAsString.withDefault(''),
 };
 
 const adminRefillPoliciesUrlKeys = {
   policySetId: 'policy-set',
-  createOpen: 'create',
   editPolicySetId: 'edit',
   simulatePolicySetId: 'simulate',
 };

@@ -200,3 +200,21 @@ export function SignOutIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+/** Back — a plain leftward arrow, the `settings`/`admin` areas' own "Back to console" row
+ *  (`apps/console/src/client/console-chrome.tsx`'s `BackToConsoleRow`/`BackToConsoleCompact`).
+ *  Owner review round 2 (2026-08-31, converse-frontends#368 finding #2, verbatim): "'Back to
+ *  console' is coupled to the arrow left icon. It should have the same distance as the other menu
+ *  items. I mean, technically it's also a menu item right?" — the row used to draw its "←" as a
+ *  literal character INSIDE the label text, so nothing reserved the icon column every nav/footer
+ *  row's glyph sits in and the label started flush against the row's own padding instead of the
+ *  shared label x. This glyph is what now sits in that column instead, mirror-imaged off
+ *  `SignOutIcon`'s own exit arrow (same door-adjacent vocabulary, opposite direction — leaving
+ *  the row's own affordance is "in", this row's is "out, back to console"). */
+export function BackIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 8h9.5M6 4.5 2.5 8 6 11.5" />
+    </IconBase>
+  );
+}

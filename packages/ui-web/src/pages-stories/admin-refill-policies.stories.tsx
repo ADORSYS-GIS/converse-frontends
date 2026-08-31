@@ -1,20 +1,22 @@
 // Page-level acceptance story for `/admin/refill-policies` — moved off `/settings/refill-options`
-// and split into three URL modes (owner ruling, verbatim: "Refill options are for admins only.
-// Not normal users. And we don't 'Simulate' them on the same page where we create them.
-// /admin/refill-policies should be for listing them /admin/refill-policies?create=true or
-// /admin/refill-policies?edit=<id> to create or edit, respectively,
-// /admin/refill-policies?simulate=<id> to simulate." — converse-frontends#368).
+// (owner ruling, verbatim: "Refill options are for admins only. Not normal users. And we don't
+// 'Simulate' them on the same page where we create them. /admin/refill-policies should be for
+// listing them /admin/refill-policies?create=true or /admin/refill-policies?edit=<id> to create or
+// edit, respectively, /admin/refill-policies?simulate=<id> to simulate." — converse-frontends#368).
 //
-// Four views, one per real mode, never composed together:
+// **Two views now, one per real mode on THIS route, never composed together** (owner review round
+// 2, 2026-08-31, converse-frontends#368 finding #4, verbatim: "You made out of
+// /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But it's
+// fine. Just move it to a page /admin/refill-policies/create" — CREATE moved to its own page story,
+// `admin-refill-policies-create.stories.tsx`, mirroring the real route split):
 //  - LIST — `RefillPolicyLookup` (the honest "which policy set do I look at" zone — there is no
 //    procedure that lists which policy sets exist), "Your current ladder", and the
-//    `RefillPolicyManual` explainer.
-//  - CREATE — `RuleSetForm` authoring a brand-new policy set, with BOTH real write actions wired
-//    (`activateBudgetPolicy`/`createBudgetPolicyRevision` in the real container).
-//  - EDIT — the identical form, honestly labelled "author a replacement revision for <id>", with
-//    the no-read-API caption stated inline rather than a fake prefill.
+//    `RefillPolicyManual` explainer. Its own "+ New policy" action is a plain link to
+//    `/admin/refill-policies/create` now, not a mode switch.
+//  - EDIT — the identical form CREATE uses, honestly labelled "author a replacement revision for
+//    <id>", with the no-read-API caption stated inline rather than a fake prefill.
 //  - SIMULATE — `PolicySimulator` (rule set + scenario + decision readout), never rendered
-//    alongside create/edit.
+//    alongside edit.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -36,11 +38,7 @@ import { RefillPolicyManual } from '../sections/refill-policy-manual';
 import { NO_POLICY_SET_ID_CAPTION } from '../sections/refill-policy-status-strip';
 import type { RefillPolicyStatusState } from '../sections/refill-policy-status-strip';
 import { createBlankRuleSet, RuleSetForm } from '../sections/rule-set-form';
-import {
-  ruleSetFormErrors,
-  ruleSetFormPopulated,
-  ruleSetFormWithErrors,
-} from '../sections/rule-set-form/fixtures';
+import { ruleSetFormPopulated } from '../sections/rule-set-form/fixtures';
 import type { RuleSetErrors, RuleSetValue } from '../sections/rule-set-form';
 import { createBlankScenario } from '../sections/refill-scenario-form';
 import { scenarioFormPopulated } from '../sections/refill-scenario-form/fixtures';
@@ -70,7 +68,7 @@ const EDIT_NO_PREFILL_NOTE =
   'This starts from a blank draft, not a copy of the current revision — there is no read API ' +
   'for stored rule content today (converse-frontends#368).';
 
-type Mode = 'list' | 'create' | 'edit' | 'simulate';
+type Mode = 'list' | 'edit' | 'simulate';
 
 interface AdminRefillPoliciesScreenProps {
   mode?: Mode;
@@ -81,45 +79,39 @@ interface AdminRefillPoliciesScreenProps {
   formPolicySetId?: string;
   formRuleSetInitial?: RuleSetValue;
   formRuleSetErrors?: RuleSetErrors;
-  savedRevision?: { revisionId: string; policyRevision: string };
   showResult?: boolean;
   showAdmin?: boolean;
 }
 
 // The composition `apps/console`'s `(console)` layout + `admin-refill-policies-centre.tsx` would
-// perform for real — one function per mode, the top level renders exactly one.
+// perform for real — one function per mode, the top level renders exactly one. `create` moved to
+// its own page story (`admin-refill-policies-create.stories.tsx`) — this component only models
+// what `/admin/refill-policies` itself still renders (owner review round 2, finding #4, above).
 function AdminRefillPoliciesScreen({
   mode = 'list',
   lookupValue = 'budget-refill',
   status = READY_STATUS,
   ladderState = READY_LADDER,
   manualInitiallyOpen = false,
-  formPolicySetId = 'new-policy-set',
+  formPolicySetId = 'budget-refill',
   formRuleSetInitial = ruleSetFormPopulated,
   formRuleSetErrors,
-  savedRevision,
   showResult = false,
   showAdmin = true,
 }: AdminRefillPoliciesScreenProps) {
   const [lookup, setLookup] = useState(lookupValue);
   const [manualOpen, setManualOpen] = useState(manualInitiallyOpen);
-  const [formPolicySetIdDraft, setFormPolicySetIdDraft] = useState(formPolicySetId);
   const [ruleSet, setRuleSet] = useState(formRuleSetInitial);
   const [simulateRuleSet, setSimulateRuleSet] = useState<RuleSetValue>(createBlankRuleSet());
   const [scenario, setScenario] = useState<ScenarioValue>(scenarioFormPopulated);
   const [requestedAmount, setRequestedAmount] = useState('25.00');
 
   const body = (() => {
-    if (mode === 'create' || mode === 'edit') {
-      const title =
-        mode === 'edit'
-          ? `Author a replacement revision for ${formPolicySetId}`
-          : 'New refill policy';
+    if (mode === 'edit') {
       return (
         <div className="flex flex-col gap-6">
           <PageHeader
-            title={title}
-            subtitle={mode === 'edit' ? undefined : 'Author a brand-new policy set from scratch.'}
+            title={`Author a replacement revision for ${formPolicySetId}`}
             action={
               <Button type="button" variant="ghost" size="sm">
                 Cancel
@@ -127,14 +119,14 @@ function AdminRefillPoliciesScreen({
             }
           />
 
-          {mode === 'edit' ? <InlineStatus>{EDIT_NO_PREFILL_NOTE}</InlineStatus> : null}
+          <InlineStatus>{EDIT_NO_PREFILL_NOTE}</InlineStatus>
 
           <Card>
             <Field
               label="Policy set id"
-              value={mode === 'edit' ? formPolicySetId : formPolicySetIdDraft}
-              onChange={(event) => setFormPolicySetIdDraft(event.target.value)}
-              disabled={mode === 'edit'}
+              value={formPolicySetId}
+              onChange={() => {}}
+              disabled
               containerClassName="max-w-xs"
             />
 
@@ -144,12 +136,6 @@ function AdminRefillPoliciesScreen({
               errors={formRuleSetErrors}
               className="mt-6"
             />
-
-            {savedRevision ? (
-              <InlineStatus className="mt-4">
-                {`Revision ${savedRevision.revisionId} created (policy revision "${savedRevision.policyRevision}") — not yet active.`}
-              </InlineStatus>
-            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
               <Button type="button" variant="primary">
@@ -273,35 +259,6 @@ export const ListMobile: Story = {
   name: 'List — mobile',
   globals: { viewport: { value: 'base390' } },
   render: () => <AdminRefillPoliciesScreen />,
-};
-
-export const Create: Story = { render: () => <AdminRefillPoliciesScreen mode="create" /> };
-
-export const CreateLight: Story = {
-  name: 'Create — wireframe (light)',
-  render: () => <AdminRefillPoliciesScreen mode="create" />,
-  globals: { theme: 'wireframe' },
-};
-
-export const CreateValidationErrors: Story = {
-  name: 'Create — every field-level error at once',
-  render: () => (
-    <AdminRefillPoliciesScreen
-      mode="create"
-      formRuleSetInitial={ruleSetFormWithErrors}
-      formRuleSetErrors={ruleSetFormErrors}
-    />
-  ),
-};
-
-export const CreateSavedRevisionOnly: Story = {
-  name: 'Create — "Save as revision only" succeeded, not yet active',
-  render: () => (
-    <AdminRefillPoliciesScreen
-      mode="create"
-      savedRevision={{ revisionId: 'rev_9f2c', policyRevision: 'budget-policy-v2' }}
-    />
-  ),
 };
 
 export const EditHonest: Story = {

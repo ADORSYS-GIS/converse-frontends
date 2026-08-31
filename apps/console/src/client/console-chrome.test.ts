@@ -5,6 +5,7 @@ import {
   adminRouteFromPathname,
   areaFromPathname,
   initialsFor,
+  navGroups,
   navHrefs,
   routeFromPathname,
   settingsNavGroups,
@@ -133,8 +134,8 @@ describe('settingsRouteFromPathname', () => {
 });
 
 describe('settingsNavGroups', () => {
-  it('lists all six destinations in the owner-dictated order — no isAdmin/refillCount axis any more', () => {
-    const [group] = settingsNavGroups('overview');
+  it('lists all six real destinations in the owner-dictated order for a non-admin — no gated Admin row', () => {
+    const [group] = settingsNavGroups('overview', false);
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
@@ -147,7 +148,7 @@ describe('settingsNavGroups', () => {
   });
 
   it('places Accounts right after Overview, and navigates to /settings/accounts', () => {
-    const [group] = settingsNavGroups('accounts');
+    const [group] = settingsNavGroups('accounts', false);
     const accounts = group.items.find((item) => item.key === 'accounts');
 
     expect(group.items[1]?.key).toBe('accounts');
@@ -157,7 +158,7 @@ describe('settingsNavGroups', () => {
   });
 
   it('disables roles alone, with a stated, non-navigable reason', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', false);
     const roles = group.items.find((item) => item.key === 'roles');
 
     expect(roles?.disabled).toBe(true);
@@ -166,9 +167,70 @@ describe('settingsNavGroups', () => {
   });
 
   it('no longer lists a refills-queue or refill-options row at all — both moved to the admin area', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', false);
     expect(group.items.find((item) => item.key === 'refills-queue')).toBeUndefined();
     expect(group.items.find((item) => item.key === 'refill-options')).toBeUndefined();
+  });
+
+  // Owner review round 2 (2026-08-31, converse-frontends#368 finding #1, verbatim): "Instead,
+  // inside of the settings, place a permission gated button 'Admin' that leads to admin." — the
+  // ONE way an admin now reaches `/admin` from the chrome (the account-area rail's Operator row
+  // that used to shortcut there directly is deleted outright, `navGroups`' own tests below).
+  it('appends a gated Admin row LAST, linking to /admin/overview, only for an admin', () => {
+    const [group] = settingsNavGroups('overview', true);
+
+    expect(group.items.map((item) => item.key)).toEqual([
+      'overview',
+      'accounts',
+      'roles',
+      'tiers',
+      'policies',
+      'info',
+      'admin',
+    ]);
+    const admin = group.items.find((item) => item.key === 'admin');
+    expect(admin?.href).toBe('/admin/overview');
+    expect(admin?.disabled).toBeUndefined();
+  });
+
+  it('omits the Admin row entirely for a non-admin, never a disabled placeholder', () => {
+    const [group] = settingsNavGroups('overview', false);
+    expect(group.items.find((item) => item.key === 'admin')).toBeUndefined();
+  });
+});
+
+// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1, verbatim): "Which button
+// leads to the admin pages? Oh wait, it's the button 'Refill queue' that leads to 'admin'? Please
+// remove that." — the account-area rail's Operator group is deleted outright, not relabelled or
+// re-gated: `navGroups` now takes no `isAdmin`/`refillCount` params at all, since nothing here
+// reads a role or a count any more.
+describe('navGroups', () => {
+  it('lists exactly the two fixed groups, Workspace and Account — no Operator group, ever', () => {
+    const groups = navGroups('overview', 'acct_1');
+
+    expect(groups.map((group) => group.key)).toEqual(['workspace', 'account']);
+    expect(groups.flatMap((group) => group.items).map((item) => item.key)).toEqual([
+      'overview',
+      'api-keys',
+      'settings',
+    ]);
+  });
+
+  it('marks the active row off the given ConsoleRoute', () => {
+    const groups = navGroups('api-keys', 'acct_1');
+    const items = groups.flatMap((group) => group.items);
+
+    expect(items.find((item) => item.key === 'api-keys')?.active).toBe(true);
+    expect(items.find((item) => item.key === 'overview')?.active).toBe(false);
+  });
+
+  it('builds every href off the given account id', () => {
+    const groups = navGroups('overview', 'acct_1');
+    const items = groups.flatMap((group) => group.items);
+
+    expect(items.find((item) => item.key === 'overview')?.href).toBe('/accounts/acct_1/overview');
+    expect(items.find((item) => item.key === 'api-keys')?.href).toBe('/accounts/acct_1/api-keys');
+    expect(items.find((item) => item.key === 'settings')?.href).toBe('/settings');
   });
 });
 

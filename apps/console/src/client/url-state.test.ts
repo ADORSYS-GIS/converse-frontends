@@ -125,12 +125,12 @@ describe('the URL param contract', () => {
         'request-volume-scale',
         'to',
       ],
-      // Owner ruling (converse-frontends#368, verbatim in `adminRefillPoliciesParsers`' own doc
-      // comment): list at the bare path, three mode params (`create`/`edit`/`simulate`), plus the
-      // list mode's own lookup target (`policy-set`) — there is no procedure that lists which
-      // policy sets exist, so "which one am I looking at" has to be a URL param, not a
-      // component-local search box.
-      adminRefillPolicies: ['create', 'edit', 'policy-set', 'simulate'],
+      // Owner review round 2 (2026-08-31, converse-frontends#368 finding #4): list at the bare
+      // path, TWO mode params now (`edit`/`simulate` — `create` moved off this table to its own
+      // route, `/admin/refill-policies/create`), plus the list mode's own lookup target
+      // (`policy-set`) — there is no procedure that lists which policy sets exist, so "which one
+      // am I looking at" has to be a URL param, not a component-local search box.
+      adminRefillPolicies: ['edit', 'policy-set', 'simulate'],
       // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
       // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
       // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the
@@ -252,9 +252,12 @@ describe('the URL param contract', () => {
     expect(
       isParserBijective(adminRefillPoliciesParsers.policySetId, 'budget-refill', 'budget-refill')
     ).toBe(true);
-    expect(isParserBijective(adminRefillPoliciesParsers.createOpen, 'true', true)).toBe(true);
     expect(
-      isParserBijective(adminRefillPoliciesParsers.editPolicySetId, 'budget-refill', 'budget-refill')
+      isParserBijective(
+        adminRefillPoliciesParsers.editPolicySetId,
+        'budget-refill',
+        'budget-refill'
+      )
     ).toBe(true);
     expect(
       isParserBijective(

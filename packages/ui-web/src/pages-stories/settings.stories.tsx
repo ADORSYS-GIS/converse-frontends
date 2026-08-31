@@ -87,7 +87,12 @@ function SettingsScreen({
             onRetry={() => {}}
             search={search}
             onSearchChange={setSearch}
-            pagination={{ shown: projects.length, total: projects.length, hasPrev: false, hasNext: false }}
+            pagination={{
+              shown: projects.length,
+              total: projects.length,
+              hasPrev: false,
+              hasNext: false,
+            }}
             selectedProjectId={selectedProjectId ?? undefined}
             onSelectRow={(project) => {
               setSelectedProjectId(project.id);
@@ -181,8 +186,12 @@ export const ErrorState: Story = {
   render: () => <SettingsScreen projects={[]} error="Could not load projects." />,
 };
 
+// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
+// isAdmin-gated "Admin" row (`settingsNavGroups`, linking to `/admin/overview`) — the ONE way an
+// admin now reaches the admin area from the chrome, replacing the account-area rail's deleted
+// Operator row.
 export const AdminNav: Story = {
-  name: 'Nav — admin (Refills queue row visible)',
+  name: 'Nav — admin (Admin row visible)',
   render: () => <SettingsScreen showAdmin />,
 };
 
@@ -224,7 +233,9 @@ export const RenameProjectFlow: Story = {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save name' }));
 
     await waitFor(() =>
-      expect(within(document.body).queryByRole('dialog', { name: 'Rename project' })).not.toBeInTheDocument()
+      expect(
+        within(document.body).queryByRole('dialog', { name: 'Rename project' })
+      ).not.toBeInTheDocument()
     );
   },
 };

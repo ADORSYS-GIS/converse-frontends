@@ -43,26 +43,32 @@ import {
  * /admin/refill-policies should be for listing them /admin/refill-policies?create=true or
  * /admin/refill-policies?edit=<id> to create or edit, respectively, /admin/refill-
  * policies?simulate=<id> to simulate." — converse-frontends#368) — the mode-split screen data
- * adapter. Four modes off one route, never composed together:
+ * adapter. **Two modes off this route now, never composed together** (owner review round 2,
+ * 2026-08-31, converse-frontends#368 finding #4, verbatim: "You made out of
+ * /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But it's
+ * fine. Just move it to a page /admin/refill-policies/create" — create moved to its OWN route,
+ * `/admin/refill-policies/create` (`use-refill-policy-create-screen.ts`, a sibling hook with its
+ * own local state and no nuqs mode param to derive from — there is nothing left to compose
+ * against on that route). `edit`/`simulate` are unchanged, the owner having named only create):
  *
  *  - `list` (bare path) — the honestly listable facts: a policy set's status
  *    (`getBudgetPolicyStatus`, behind `RefillPolicyLookup`'s own id lookup — there is no
  *    procedure that lists which policy sets exist), the caller's own current refill ladder
  *    (`useBudgetRefillLadder`, unchanged from the old `/settings/refill-options`), and the
- *    `RefillPolicyManual` explainer.
- *  - `create` (`?create=true`) — `RuleSetForm` authoring a brand-new policy set. Two real write
- *    paths, both wired: `activateBudgetPolicy` (create AND go live in one step) and
- *    `createBudgetPolicyRevision` (create only, still inert until a separate activation).
- *  - `edit` (`?edit=<id>`) — the identical form, honestly labelled "author a replacement revision
- *    for <id>": the current revision's CONTENT cannot be loaded (no read API,
+ *    `RefillPolicyManual` explainer. Its own "+ New policy" action is a plain `Link` to
+ *    `/admin/refill-policies/create` now, not a mode switch (`admin-refill-policies-centre.tsx`).
+ *  - `edit` (`?edit=<id>`) — `RefillPolicyFormView`, honestly labelled "author a replacement
+ *    revision for <id>": the current revision's CONTENT cannot be loaded (no read API,
  *    `converse-frontends#368`), so this always starts from a blank draft, never a fake prefill.
+ *    Shares `RefillPolicyFormView` with the create route (`admin-refill-policies-centre.tsx`
+ *    exports it) — same form, two different screen-data adapters feeding it.
  *  - `simulate` (`?simulate=<id>`) — `PolicySimulator` (`RuleSetForm` + `ScenarioForm` + decision
  *    readout via `simulateBudgetPolicy`, stateless — the procedure takes no `policySetId` at all,
- *    so `<id>` is display context only). Never rendered alongside `create`/`edit` — the owner's
- *    whole point in splitting this into three URL modes.
+ *    so `<id>` is display context only). Never rendered alongside `edit` — the owner's whole point
+ *    in splitting this into separate URL modes/routes.
  */
 
-export type AdminRefillPoliciesMode = 'list' | 'create' | 'edit' | 'simulate';
+export type AdminRefillPoliciesMode = 'list' | 'edit' | 'simulate';
 
 export type RefillLadderState =
   | { status: 'ready'; amounts: string[] }
@@ -123,7 +129,6 @@ export interface AdminRefillPoliciesSimulateScreen {
 export interface AdminRefillPoliciesScreen {
   mode: AdminRefillPoliciesMode;
   scopeLabel: string | undefined;
-  onNewPolicy: () => void;
   list: AdminRefillPoliciesListScreen;
   form: AdminRefillPoliciesFormScreen;
   simulate: AdminRefillPoliciesSimulateScreen;
@@ -138,13 +143,8 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
   const scopeLabel = activeAccount ? accountScopeLabel(activeAccount) : undefined;
 
-  const mode: AdminRefillPoliciesMode = view.createOpen
-    ? 'create'
-    : view.editPolicySetId !== ''
-      ? 'edit'
-      : view.simulatePolicySetId !== ''
-        ? 'simulate'
-        : 'list';
+  const mode: AdminRefillPoliciesMode =
+    view.editPolicySetId !== '' ? 'edit' : view.simulatePolicySetId !== '' ? 'simulate' : 'list';
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — an ephemeral interaction). The "how does it
@@ -156,14 +156,13 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — pre-submit form drafts that must never reach a
    * URL or history, the same shape `use-create-account-dialog.ts`'s unsent name draft already
-   * uses): `createPolicySetIdDraft` is the id being typed for a policy set that does not exist
-   * yet — `?create=true` IS in the URL, the half-typed id is not. `formRuleSet` is the create/edit
-   * form's own `RuleSetForm` draft — always authored fresh, since there is no read API to prefill
-   * an edit FROM (`converse-frontends#368`). The remaining five track the two real write calls
-   * this form fires (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — outcomes only THIS
-   * view renders, so a plain local mutation state, not `useSharedMutation`'s cross-zone cache.
+   * uses): `formRuleSet` is the edit form's own `RuleSetForm` draft — always authored fresh, since
+   * there is no read API to prefill an edit FROM (`converse-frontends#368`). (Create moved to its
+   * own route and its own sibling hook, `use-refill-policy-create-screen.ts` — its identical draft
+   * lives there now, not here.) The remaining five track the two real write calls this form fires
+   * (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — outcomes only THIS view renders, so a
+   * plain local mutation state, not `useSharedMutation`'s cross-zone cache.
    */
-  const [createPolicySetIdDraft, setCreatePolicySetIdDraft] = useState('');
   const [formRuleSet, setFormRuleSet] = useState<RuleSetValue>(createBlankRuleSet());
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState<string | undefined>(undefined);
@@ -194,25 +193,12 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   const goList = (lookupPolicySetId?: string) =>
     void setView(
       {
-        createOpen: false,
         editPolicySetId: '',
         simulatePolicySetId: '',
         ...(lookupPolicySetId !== undefined ? { policySetId: lookupPolicySetId } : {}),
       },
       ADMIN_REFILL_POLICIES_MODE_OPTIONS
     );
-
-  const onNewPolicy = () => {
-    setCreatePolicySetIdDraft('');
-    setFormRuleSet(createBlankRuleSet());
-    setActivateError(undefined);
-    setSaveRevisionError(undefined);
-    setSavedRevision(undefined);
-    void setView(
-      { createOpen: true, editPolicySetId: '', simulatePolicySetId: '' },
-      ADMIN_REFILL_POLICIES_MODE_OPTIONS
-    );
-  };
 
   const onEditRevision = () => {
     const targetId = view.policySetId.trim();
@@ -222,7 +208,7 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
     setSaveRevisionError(undefined);
     setSavedRevision(undefined);
     void setView(
-      { createOpen: false, editPolicySetId: targetId, simulatePolicySetId: '' },
+      { editPolicySetId: targetId, simulatePolicySetId: '' },
       ADMIN_REFILL_POLICIES_MODE_OPTIONS
     );
   };
@@ -236,7 +222,7 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
     setSimulateResult(undefined);
     setSimulateError(undefined);
     void setView(
-      { createOpen: false, editPolicySetId: '', simulatePolicySetId: targetId },
+      { editPolicySetId: '', simulatePolicySetId: targetId },
       ADMIN_REFILL_POLICIES_MODE_OPTIONS
     );
   };
@@ -298,9 +284,9 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
     };
   }
 
-  // ── create/edit mode ──────────────────────────────────────────────────────────────────────
+  // ── edit mode ─────────────────────────────────────────────────────────────────────────────
 
-  const formPolicySetId = mode === 'edit' ? view.editPolicySetId : createPolicySetIdDraft;
+  const formPolicySetId = view.editPolicySetId;
   const ruleSetErrors = validateRuleSet(formRuleSet);
   const formCanSubmit =
     formPolicySetId.trim() !== '' && ruleSetErrors === undefined && !activating && !savingRevision;
@@ -393,7 +379,6 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   return {
     mode,
     scopeLabel,
-    onNewPolicy,
     list: {
       policySetId: view.policySetId,
       onPolicySetIdChange: (value) => void setView({ policySetId: value }),
@@ -405,10 +390,10 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
       onManualOpenChange: setManualOpen,
     },
     form: {
-      mode: mode === 'edit' ? 'edit' : 'create',
+      mode: 'edit',
       policySetId: formPolicySetId,
-      onPolicySetIdChange: mode === 'edit' ? undefined : setCreatePolicySetIdDraft,
-      policySetIdReadOnly: mode === 'edit',
+      onPolicySetIdChange: undefined,
+      policySetIdReadOnly: true,
       ruleSet: formRuleSet,
       onRuleSetChange: (value) => {
         setFormRuleSet(value);

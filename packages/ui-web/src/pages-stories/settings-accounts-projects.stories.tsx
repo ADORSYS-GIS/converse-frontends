@@ -58,7 +58,12 @@ const ACCOUNT_ID = 'acct_49534505';
 
 function accountDetailTabs(active: 'overview' | 'projects' | 'request-refill'): SubNavItem[] {
   return [
-    { key: 'overview', label: 'Overview', href: `/settings/accounts/${ACCOUNT_ID}`, active: active === 'overview' },
+    {
+      key: 'overview',
+      label: 'Overview',
+      href: `/settings/accounts/${ACCOUNT_ID}`,
+      active: active === 'overview',
+    },
     {
       key: 'projects',
       label: 'Projects',
@@ -248,7 +253,11 @@ function ProjectsScreen({
           if (!open) setSelectedProject(null);
         }}
         title={selectedProject?.name ?? ''}
-        subtitle={selectedProject ? `${selectedProject.account} · ${selectedProject.statusLabel}` : undefined}
+        subtitle={
+          selectedProject
+            ? `${selectedProject.account} · ${selectedProject.statusLabel}`
+            : undefined
+        }
         headerAction={
           <Button type="button" variant="secondary" size="sm" onClick={() => {}}>
             Rename
@@ -327,8 +336,11 @@ export const ErrorState: Story = {
   render: () => <ProjectsScreen projects={[]} error="Failed to load projects for this account." />,
 };
 
+// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
+// isAdmin-gated "Admin" row (`settingsNavGroups`), not an "Operator group" any more — that group
+// is deleted outright from the account-area rail (`console-chrome.tsx`'s `navGroups`).
 export const AdminNav: Story = {
-  name: 'Nav — admin (Operator group visible)',
+  name: 'Nav — admin (Admin row visible)',
   render: () => <ProjectsScreen showAdmin />,
 };
 

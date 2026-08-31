@@ -114,15 +114,23 @@ describe('ADR 0011 discipline', () => {
     //    pair to state here at all; the draft is simply local, the same as every unsent-input
     //    site on this list.
     //  - `use-refill-policies-screen.ts` (`/admin/refill-policies`, moved off `/settings/
-    //    refill-options` — owner ruling, converse-frontends#368) carries FOUR unsent drafts, one
-    //    per mode's own scratch input, none of them shareable view state on their own: the
-    //    create-mode policy-set-id-being-chosen (same shape as `use-create-account-dialog.ts`'s
-    //    unsent name — `?create=true` IS in the URL, the id being typed for a NOT-YET-real policy
-    //    set is not), the create/edit-mode rule-set draft (`RuleSetValue`, authored fresh either
-    //    way — there is no read API to prefill FROM, `converse-frontends#368`), and the
-    //    simulate-mode rule-set + scenario draft (the same `simulateBudgetPolicy` scratch pad
-    //    `use-refill-options-screen.ts` used to hold: nothing it holds is shareable view state,
-    //    since a simulation reads no stored policy and changes nothing).
+    //    refill-options` — owner ruling, converse-frontends#368) carries THREE unsent drafts, one
+    //    per remaining mode's own scratch input, none of them shareable view state on their own:
+    //    the edit-mode rule-set draft (`RuleSetValue`, authored fresh either way — there is no
+    //    read API to prefill FROM, `converse-frontends#368`), and the simulate-mode rule-set +
+    //    scenario draft (the same `simulateBudgetPolicy` scratch pad `use-refill-options-
+    //    screen.ts` used to hold: nothing it holds is shareable view state, since a simulation
+    //    reads no stored policy and changes nothing). (It used to also carry a FOURTH, the
+    //    create-mode policy-set-id-being-chosen — owner review round 2, 2026-08-31,
+    //    converse-frontends#368 finding #4, moved that draft to its own route/hook below.)
+    //  - `use-refill-policy-create-screen.ts` (`/admin/refill-policies/create`, split off the
+    //    hook above by the same finding #4) carries the identical create-mode draft that used to
+    //    live there: the policy-set-id-being-chosen (same shape as `use-create-account-dialog.ts`'s
+    //    unsent name — there is no `?create=` URL flag left at all on this route, the id being
+    //    typed for a NOT-YET-real policy set was never shareable view state either way) and the
+    //    same rule-set draft, plus the two write-call outcome trackers
+    //    (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — none of it `useSharedMutation`'s
+    //    cross-zone cache, since only this one view ever renders it.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
@@ -132,6 +140,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
       join('containers', 'use-refill-policies-screen.ts'),
+      join('containers', 'use-refill-policy-create-screen.ts'),
       join('containers', 'use-refill-screen.ts'),
       join('containers', 'use-refills-queue-screen.ts'),
       join('containers', 'use-rename-account-dialog.ts'),

@@ -12,7 +12,6 @@ import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
-import Link from 'next/link';
 
 import { USAGE_QUERY_LIMIT } from './overview-usage';
 import { OverviewScopeSlot } from './overview-scope-slot';
@@ -67,23 +66,28 @@ import { useOverviewScreen } from './use-overview-screen';
  * `SpendShareSection`, `BudgetPanel`, `MultiSeriesSpendBoard` all default their own `label`); those
  * `Card`s carry no `title` of their own; only the section's `label` is overridden to the name this
  * composition wants, so each zone has exactly ONE heading, never two stacked.
+ *
+ * **BUDGET carries no refill entry point of any kind here any more** (owner review round 2,
+ * 2026-08-31, converse-frontends#368 finding #3, verbatim): "Remove the 'request refill' from
+ * overview at /accounts/<account-id>/overview and keep it ONLY inside
+ * /settings/accounts/<account-id>." Both the standing header "Request refill…" action
+ * (`BudgetPanel.actions`) and the breach-only inline CTA beside the numeral
+ * (`BudgetPanel.heroAction`) are gone — `BudgetPanel` renders with `budget` alone. The one
+ * remaining entry point is `/settings/accounts/<id>/request-refill`
+ * (`settings-accounts.stories.tsx`/`account-detail-centre.tsx`), which already had it. Everything
+ * that only existed to compute an href/CTA for this screen (`refillHref`, `refillAction`, the
+ * breach ladder lookup) is deleted from `use-overview-screen.ts` along with it — see that module's
+ * own doc comment.
  */
 const formatSpendTooltip = (value: number) => formatUsd(value);
 
 export function OverviewCentre() {
   const screen = useOverviewScreen(<OverviewScopeSlot />);
 
-  const spendTotal = screen.spendSegments.reduce(
-    (sum: number, segment) => sum + segment.value,
-    0
-  );
+  const spendTotal = screen.spendSegments.reduce((sum: number, segment) => sum + segment.value, 0);
   const subtitle = screen.scopeAccountLabel
     ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel} · ${screen.subline}`
     : undefined;
-  // Narrowed to a local so the `render` prop below doesn't lose `screen.refillAction`'s
-  // definedness across the closure boundary (TypeScript's property-access narrowing does not
-  // survive into a nested function).
-  const refillAction = screen.refillAction;
 
   return (
     <div className="flex flex-col gap-8">
@@ -169,31 +173,7 @@ export function OverviewCentre() {
       </Card>
 
       <Card>
-        <BudgetPanel
-          className="w-full"
-          label="Budget"
-          budget={screen.budget}
-          actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              nativeButton={false}
-              render={<Link href={screen.refillHref} />}>
-              Request refill…
-            </Button>
-          }
-          heroAction={
-            refillAction ? (
-              <Button
-                variant="primary"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={refillAction.href} />}>
-                {refillAction.label}
-              </Button>
-            ) : undefined
-          }
-        />
+        <BudgetPanel className="w-full" label="Budget" budget={screen.budget} />
       </Card>
     </div>
   );

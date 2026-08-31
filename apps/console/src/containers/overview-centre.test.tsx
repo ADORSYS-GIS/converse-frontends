@@ -73,8 +73,6 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     modelSpendErrorMessage: undefined,
     modelSpendRetry: vi.fn(),
     budget: { status: 'unwired', caption: 'Budget figures arrive with the budget query wiring.' },
-    refillHref: '/accounts/acct_1/refill',
-    refillAction: undefined,
     report: {
       open: false,
       onOpenChange: vi.fn(),
@@ -153,8 +151,16 @@ describe('OverviewCentre', () => {
     const { container } = await renderCentre({
       spendStatus: 'ready',
       spendSeries: [
-        { key: 'account-total', label: 'This period', points: [{ x: new Date('2026-08-01'), y: 42 }] },
-        { key: 'previous-period', label: 'Previous period', points: [{ x: new Date('2026-08-01'), y: 30 }] },
+        {
+          key: 'account-total',
+          label: 'This period',
+          points: [{ x: new Date('2026-08-01'), y: 42 }],
+        },
+        {
+          key: 'previous-period',
+          label: 'Previous period',
+          points: [{ x: new Date('2026-08-01'), y: 30 }],
+        },
       ],
       spendShareStatus: 'ready',
       spendSegments: [{ key: 'proj_a', label: 'proj_a', value: 42, formattedValue: '$42.00' }],
@@ -309,28 +315,16 @@ describe('OverviewCentre', () => {
     expect(screen.getByText('of $500.00')).toBeInTheDocument();
   });
 
-  it('shows the account-level refill control only when the screen reports one is available, navigating to its href', async () => {
-    await renderCentre({
-      budget: { value: 478.4, ceiling: 500, caption: '96% used' },
-      refillAction: { label: 'Request refill (+$30)', href: '/accounts/acct_1/refill' },
-    });
+  // Owner review round 2 (2026-08-31, converse-frontends#368 finding #3, verbatim): "Remove the
+  // 'request refill' from overview at /accounts/<account-id>/overview and keep it ONLY inside
+  // /settings/accounts/<account-id>." Neither the standing header action nor the breach-only
+  // inline CTA renders here any more, at any budget state — the one remaining entry point is
+  // `/settings/accounts/<id>/request-refill` (`settings-accounts.stories.tsx`).
+  it('renders no refill control at all on this screen, even when the budget is breached', async () => {
+    await renderCentre({ budget: { value: 478.4, ceiling: 500, caption: '96% used' } });
 
-    const link = screen.getByRole('button', { name: 'Request refill (+$30)' });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/accounts/acct_1/refill');
-  });
-
-  it('omits the breach-state refill control when the screen reports none is available, but keeps the standing header action navigating to refillHref', async () => {
-    // 2026-08-30 owner round ("budget refill form disappeared"): the breach-only inline button
-    // (`heroAction`, beside the numeral) is still conditional on `refillAction`, but the standing
-    // secondary "Request refill…" action on the Budget card's OWN header (`BudgetPanel.actions`)
-    // is unconditional now — reachable well before any breach, not just at/past 90%. IA v3 phase
-    // 3: both navigate to `/accounts/<id>/refill` rather than opening a dialog.
-    await renderCentre({ refillAction: undefined, refillHref: '/accounts/acct_1/refill' });
-
-    const link = screen.getByRole('button', { name: 'Request refill…' });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/accounts/acct_1/refill');
+    expect(screen.queryByRole('button', { name: /Request refill/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Request refill/ })).not.toBeInTheDocument();
   });
 
   // IA v3 phase 4 (build brief §7): `/` renders NO admin-only zone any more — BUDGET PRESSURE and

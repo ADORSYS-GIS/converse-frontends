@@ -66,28 +66,28 @@ function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
   ];
 }
 
-function storyAdminItems(active: StoryRoute): NavSpineItem[] {
-  return [
-    {
+/**
+ * The nav items every page story's `ConsoleSidebar` renders — ONE flat group, no separate
+ * "Operator" group any more (owner review round 2, 2026-08-31, converse-frontends#368 finding #1,
+ * verbatim: "Which button leads to the admin pages? ... Please remove that. Instead, inside of
+ * the settings, place a permission gated button 'Admin' that leads to admin."). The gated "Admin"
+ * row is appended to the flat item list — matching `settingsNavGroups`' own real shape, which is
+ * one ungrouped list with "Admin" as its own last, isAdmin-gated row, not a labelled group — and
+ * only when `active` is `'settings'` or `'admin'`: the account area's own rail (`'overview'`/
+ * `'api-keys'`) never shows it at all any more, gated role or not, since the real `navGroups` no
+ * longer has anywhere for it to go there (see `console-chrome.tsx`'s own doc comment).
+ */
+export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] {
+  const items = storyPrimaryItems(active);
+  if (isAdmin && (active === 'settings' || active === 'admin')) {
+    items.push({
       key: 'admin',
       label: 'Admin',
       icon: <NavGlyph shape="admin" />,
       active: active === 'admin',
-    },
-  ];
-}
-
-/**
- * The nav groups every page story's `ConsoleSidebar` renders. Gating the Admin group is now just
- * whether it is included in this array at all (shell brief 2026-08-30 — `adminItems`/`showAdmin`/
- * `roleLabel` are gone from `NavSpineProps`; a caller that wants a gated group includes or omits
- * it from `groups`).
- */
-export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] {
-  return [
-    { key: 'primary', items: storyPrimaryItems(active) },
-    ...(isAdmin ? [{ key: 'admin', label: 'Operator', items: storyAdminItems(active) }] : []),
-  ];
+    });
+  }
+  return [{ key: 'primary', items }];
 }
 
 // The sidebar footer stack -- Search, Theme, then the identity row -- mirrors

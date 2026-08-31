@@ -13,10 +13,12 @@ export interface SelectFieldOption {
 }
 
 /**
- * One dropdown — a controlled native `<select>` styled to the `Field` control treatment.
- * README §4 lists no dedicated "Select" primitive; `ScopeSelect` follows the same
- * native-select-plus-styling pattern for its own two dropdowns, and this is that pattern
- * extracted so every consumer shares one control instead of near-identical local copies.
+ * The console's ONE dropdown primitive — a Base UI `Select` (never a native `<select>`, never a
+ * hand-rolled `Select.Root` tree at the call site) styled to the `Field` control treatment.
+ * README §4's component inventory names `SelectField` explicitly; every single-value picker in
+ * the console renders this component — `ScopeSelect`'s two cascaded pickers included, which
+ * compose `SelectField` rather than re-declaring the same trigger/popup/item markup a second
+ * time (unify-select, issue #368).
  *
  * Named `SelectField`, not `RailSelect`, since the console's read-only screens now put these in a
  * horizontal toolbar rather than a rail (owner review 2026-08-29) — the old name described one
@@ -39,5 +41,18 @@ export interface SelectFieldProps {
    * beside it too is the "Group by Project Project All projects" stutter the owner flagged).
    */
   hideLabel?: boolean;
+  /**
+   * Disables the whole control — e.g. while the option catalogue it lists is still loading, or
+   * empty. The one capability that was missing here and drove `CreateApiKeyDialog`/
+   * `CreateProjectDialog` to hand-roll their own billing-plan `Select.Root` instead of using this
+   * component (unify-select, issue #368) — both now pass this instead.
+   */
+  disabled?: boolean;
+  /**
+   * When set, the trigger's border switches to `primary` and this text renders as a `meta` error
+   * line beneath it — the identical contract `Field`'s own `error?: string` prop carries, so a
+   * `SelectField` in an error state reads as a `Field` sibling, not a control with its own rule.
+   */
+  error?: string;
   className?: string;
 }

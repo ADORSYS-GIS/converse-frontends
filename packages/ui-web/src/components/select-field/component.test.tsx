@@ -67,4 +67,61 @@ describe('SelectField', () => {
     expect(trigger().parentElement).toHaveClass('label');
     expect(container.querySelector('select')).toBeNull();
   });
+
+  // `disabled` — the one capability that was missing here and drove `CreateApiKeyDialog`/
+  // `CreateProjectDialog` to hand-roll their own `Select.Root` instead of this component
+  // (unify-select, issue #368).
+  it('disables the trigger via the whole-control disabled prop', () => {
+    render(
+      <SelectField
+        label="Billing plan"
+        value="last-30"
+        options={options}
+        onChange={() => {}}
+        disabled
+      />
+    );
+
+    expect(screen.getByLabelText('Billing plan')).toBeDisabled();
+  });
+
+  // `error` — the identical contract `Field`'s own `error` prop carries.
+  it('marks the trigger invalid and renders the error line, wired by aria-describedby', () => {
+    render(
+      <SelectField
+        label="Billing plan"
+        value="last-30"
+        options={options}
+        onChange={() => {}}
+        error="Choose a plan before continuing."
+      />
+    );
+
+    const trigger = screen.getByLabelText('Billing plan');
+    expect(trigger).toHaveAttribute('aria-invalid', 'true');
+    const message = screen.getByText('Choose a plan before continuing.');
+    expect(trigger.getAttribute('aria-describedby')).toBe(message.id);
+  });
+
+  // Regression coverage for the audit's own finding (issue #368): `OVERLAY_ITEM_CLASS` used to
+  // gate the selected-row treatment on `data-[selected=true]`, a selector requiring the literal
+  // string `"true"` that Base UI's `Select.Item` never sets — it renders bare `data-selected=""`,
+  // exactly like its sibling `data-highlighted`. Moving the keyboard highlight off the already-
+  // selected row must leave `data-selected` on the ORIGINAL row and `data-highlighted` on the
+  // new one — two independent attributes on two different rows, not one state standing in for
+  // both.
+  it('keeps the selected marker on its own row after the keyboard highlight moves elsewhere', async () => {
+    render(<SelectField label="Range" value="last-30" options={options} onChange={() => {}} />);
+
+    fireEvent.click(screen.getByLabelText('Range'));
+    const selected = await screen.findByRole('option', { name: 'Last 30 days' });
+    const other = screen.getByRole('option', { name: 'Last 7 days' });
+    expect(selected).toHaveAttribute('data-selected', '');
+
+    fireEvent.keyDown(screen.getByLabelText('Range'), { key: 'ArrowUp' });
+
+    expect(selected).toHaveAttribute('data-selected', '');
+    expect(other).toHaveAttribute('data-highlighted', '');
+    expect(selected).not.toHaveAttribute('data-highlighted');
+  });
 });

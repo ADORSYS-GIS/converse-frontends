@@ -1,5 +1,5 @@
 import { Select } from '@base-ui/react/select';
-import React from 'react';
+import React, { useId } from 'react';
 
 import { cn } from '../../cn';
 import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
@@ -8,6 +8,7 @@ import {
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import { Chevron } from '../chevron';
 import type { SelectFieldProps } from './types';
 
@@ -20,6 +21,16 @@ import type { SelectFieldProps } from './types';
 // by hand. `theme.css` gives a `button.input` the pointer cursor and the space-between row its
 // chevron needs, and `.label > button.input` the content width the inline layout wants — so the
 // two layouts here are a wrapper class each and nothing else.
+//
+// THE canonical select primitive (issue #368, unify-select): every single-value picker in the
+// console — a toolbar range/bucket/group-by control, a dialog's plan picker, `ScopeSelect`'s two
+// cascaded pickers — renders THIS component, never a second hand-rolled `Select.Root` tree. Two
+// call sites (`CreateApiKeyDialog`, `CreateProjectDialog`) used to hand-roll their own billing-
+// plan `Select.Root` because the ONLY thing this component lacked was a way to disable the whole
+// control while its catalogue loads — `disabled` below is that missing piece, not a reason to
+// keep a second implementation. `error` mirrors `Field`'s own `error?: string` contract (border to
+// `primary`, a `meta` line underneath) so a `SelectField` reads as a `Field` sibling rather than a
+// control with its own rules.
 export function SelectField({
   label,
   value,
@@ -27,23 +38,36 @@ export function SelectField({
   onChange,
   layout = 'stacked',
   hideLabel,
+  disabled,
+  error,
   className,
 }: SelectFieldProps) {
   const inline = layout === 'inline';
+  const generatedId = useId();
+  const errorId = error ? `${generatedId}-error` : undefined;
 
   return (
     <Select.Root
       items={options}
       value={value}
+      disabled={disabled}
       onValueChange={(next) => next !== null && onChange(next)}>
       <div className={cn(inline ? 'label' : 'fieldset', className)}>
         <Select.Label className={hideLabel ? 'sr-only' : fieldLabelClassName}>{label}</Select.Label>
-        <Select.Trigger className={fieldControlClassName}>
+        <Select.Trigger
+          className={fieldControlClassName}
+          aria-invalid={Boolean(error)}
+          aria-describedby={errorId}>
           <Select.Value />
           <Select.Icon>
             <Chevron />
           </Select.Icon>
         </Select.Trigger>
+        {error ? (
+          <p id={errorId} className={cn(LABEL_CLASS, 'text-primary')}>
+            {error}
+          </p>
+        ) : null}
       </div>
       <Select.Portal>
         <Select.Positioner sideOffset={4} className={OVERLAY_POSITIONER_CLASS}>

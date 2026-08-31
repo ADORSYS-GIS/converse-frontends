@@ -1,6 +1,6 @@
 import type { UsageQueryRequest, UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import { formatUsd } from '@lightbridge/ui-web';
-import type { ShareBarSegment, SpendSeriesSeries } from '@lightbridge/ui-web';
+import type { ShareBarSegment } from '@lightbridge/ui-web';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
@@ -98,7 +98,13 @@ export interface OverviewUsageQueryInput {
    *  so this builder never has to know whether the user picked a preset or a calendar span. */
   window: { start: Date; end: Date };
   bucket: OverviewBucket;
-  groupBy: OverviewGroupBy;
+  /**
+   * `undefined` builds the UNGROUPED (account-total) request — the account overview's own "Spend
+   * over time" chart's shape since the 2026-08-31 owner finding ("the graphs are literally
+   * completely different"; see `use-overview-screen.ts`'s `totalUsageQuery`). A real dimension
+   * still drives the SHARE bar's own (separately queried) breakdown.
+   */
+  groupBy?: OverviewGroupBy;
   /** `'all'` (the rail's own sentinel — see `use-overview-screen.ts`'s `MODEL_OPTIONS`) omits the filter. */
   model: string;
 }
@@ -123,7 +129,10 @@ export function isUsageResponseTruncated(
 }
 
 /** Builds the `UsageQueryRequest` for the SPEND/SPEND SHARE dashboards from the Overview's own
- *  URL-driven view state (range/bucket/group-by/model) plus the console scope (account/project). */
+ *  URL-driven view state (range/bucket/group-by/model) plus the console scope (account/project).
+ *  Omitting `groupBy` builds the UNGROUPED request — one point per bucket, summed across every
+ *  project/model/user/api-key (including unattributed spend), the shape the account TOTAL chart
+ *  now uses. */
 export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): UsageQueryRequest {
   const { start: startTime, end: endTime } = input.window;
   const scoped = Boolean(input.projectId);
@@ -134,7 +143,7 @@ export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): Usage
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
     bucket: USAGE_BUCKET_INTERVAL[input.bucket],
-    group_by: [input.groupBy],
+    group_by: input.groupBy ? [input.groupBy] : undefined,
     filters: input.model !== 'all' ? { model: input.model } : undefined,
     limit: USAGE_QUERY_LIMIT,
   };
@@ -185,86 +194,34 @@ function groupKey(point: UsageSeriesPoint, groupBy: OverviewGroupBy): string {
  *
  * The usage backend groups by `project_id`, so every series arrives keyed by an opaque id
  * (`zezxvt21irmoi0kzm22el7gu`). Until now each adapter did `label: key`, which put those ids
- * straight onto the chart legend and the share list — the console's most visible papercut, and a
- * gap the old `toSpendSeries` docstring already admitted to.
+ * straight onto the share list — the console's most visible papercut.
  *
- * `key` stays the id: it is the identity the chart, the share bar and the `?series=` URL param all
- * match on. Only the LABEL changes.
+ * `key` stays the id: it is the identity the share bar and the `?series=` URL param both match
+ * on. Only the LABEL changes.
  */
 export type SeriesLabeller = (key: string) => string;
 
 const identityLabel: SeriesLabeller = (key) => key;
 
-/** Maps `UsageQueryResponse.points` into `SpendSeriesSeries[]` for `SpendDashboard`, one series
- *  per distinct value of the request's own `group_by` dimension, oldest-first within each series.
- *  `labelFor` resolves each key to a human-readable name; the key itself stays the id. */
-export function toSpendSeries(
-  response: UsageQueryResponse,
-  groupBy: OverviewGroupBy,
-  labelFor: SeriesLabeller = identityLabel
-): SpendSeriesSeries[] {
-  const seriesByKey = new Map<string, SpendSeriesSeries>();
-
-  for (const point of response.points) {
-    const key = groupKey(point, groupBy);
-    let series = seriesByKey.get(key);
-    if (!series) {
-      series = { key, label: labelFor(key), points: [] };
-      seriesByKey.set(key, series);
-    }
-    series.points.push({ x: new Date(point.bucket_start), y: safeCost(point) });
-  }
-
-  for (const series of seriesByKey.values()) {
-    series.points.sort((a, b) => a.x.getTime() - b.x.getTime());
-  }
-
-  return Array.from(seriesByKey.values());
-}
-
 /**
- * Caps a `SpendSeriesChart` series list to `capN` (default 4) real series plus one summed
- * "Other" — enforced HERE, at the consumer, per the build brief's own instruction (§2c): the chart
- * component itself draws whatever `series` it is given, so the cap has to be a fact about the
- * request/response boundary, not the chart. Ranked by total spend across the whole range, largest
- * first — the same "rank is a value concept" the chart's own monochrome ramp already assumes.
+ * Maps the same response into `ShareBarSegment[]` for `SpendShareSection` — one segment per
+ * group-by dimension value, summed across the whole range.
  *
- * A no-op when `series.length <= capN` (no "Other" row for a real, already-short list).
- */
-export function capSeriesWithOther(
-  series: readonly SpendSeriesSeries[],
-  capN = 4,
-  otherLabel: (count: number) => string = (count) => `Other (${count})`
-): SpendSeriesSeries[] {
-  if (series.length <= capN) return [...series];
-
-  const byTotal = [...series].sort(
-    (a, b) => b.points.reduce((s, p) => s + p.y, 0) - a.points.reduce((s, p) => s + p.y, 0)
-  );
-  const visible = byTotal.slice(0, capN);
-  const overflow = byTotal.slice(capN);
-
-  const otherByTime = new Map<number, number>();
-  for (const s of overflow) {
-    for (const p of s.points) {
-      const t = p.x.getTime();
-      otherByTime.set(t, (otherByTime.get(t) ?? 0) + p.y);
-    }
-  }
-  const otherPoints = Array.from(otherByTime.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([t, y]) => ({ x: new Date(t), y }));
-
-  return [...visible, { key: '__other__', label: otherLabel(overflow.length), points: otherPoints }];
-}
-
-/** Maps the same response into `ShareBarSegment[]` for `SpendShareSection` — one segment per
- *  group-by dimension value, summed across the whole range, in the same key order `toSpendSeries`
- *  uses so the chart and the share bar share one series identity for selection syncing.
+ * **`toSpendSeries` (the per-group-by TIME SERIES this fed alongside, one line per dimension
+ * value) is gone (2026-08-31 owner-round parity fix, finding #1)** — it fed the account overview's
+ * own "Spend over time" chart a per-project/model/user/api-key split that silently DROPPED every
+ * unassigned-spend point (often 88-99% of real spend) for a project breakdown, drawing a
+ * completely different curve from the estate overview's own summed total for the same account
+ * (the owner's own finding: "the graphs are literally completely different... They should
+ * normally be exactly the same, right?"). That chart now plots the UNGROUPED account total
+ * instead (`use-overview-screen.ts`'s `totalUsageQuery`, via `settings-overview-usage.ts`'s
+ * `toAggregateDaySeries` — the SAME summing semantics the estate already uses). The per-project/
+ * model split is still real, just SHARE-only now — this function, feeding `spendSegments` alone.
+ * `capSeriesWithOther` (the chart's own >4-series capping) went with it, having no caller left.
  *
- *  Segments arrive sorted by value, descending: `ShareBar` colours by ARRAY INDEX (rank), so an
- *  unsorted list would hand rank 1's lightest grey to whichever key the response happened to
- *  mention first rather than to the largest share. */
+ * Segments arrive sorted by value, descending: `ShareBar` colours by ARRAY INDEX (rank), so an
+ * unsorted list would hand rank 1's lightest grey to whichever key the response happened to
+ * mention first rather than to the largest share. */
 export function toSpendShareSegments(
   response: UsageQueryResponse,
   groupBy: OverviewGroupBy,

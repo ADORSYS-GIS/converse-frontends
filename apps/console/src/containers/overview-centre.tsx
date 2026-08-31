@@ -16,6 +16,7 @@ import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
 import Link from 'next/link';
 
+import { USAGE_QUERY_LIMIT } from './overview-usage';
 import { OverviewScopeSlot } from './overview-scope-slot';
 import { useOverviewScreen } from './use-overview-screen';
 
@@ -26,7 +27,17 @@ import { useOverviewScreen } from './use-overview-screen';
  *
  * Composition, top to bottom: `PageHeader` (controls + the `Export` action) → the money-first stat
  * row → SPEND OVER TIME → SPEND BY PROJECT → SPEND BY MODEL → BUDGET — real for every signed-in
- * user, admin or not. **No admin-only zone renders here any more**: BUDGET PRESSURE moved to
+ * user, admin or not.
+ *
+ * **SPEND OVER TIME plots the account's UNGROUPED total** (2026-08-31 owner-round parity fix,
+ * finding #1 — "why is the 'Spend over time' in the settings and on the home page different?...
+ * They should normally be exactly the same, right?"): it used to plot one line PER PROJECT while
+ * silently dropping every unassigned-spend point (often 88-99% of real spend), drawing a
+ * completely different curve than the estate overview's own summed total for the same account.
+ * `screen.spendSeries` is now `[account total, dashed previous period]` — the SAME summing
+ * semantics `/settings/overview/usage` already uses — and the per-project/model split lives on in
+ * SPEND BY PROJECT alone (`screen.spendSegments`, its own independently-queried `spendShareStatus`
+ * now that chart and share bar no longer share one grouped query). **No admin-only zone renders here any more**: BUDGET PRESSURE moved to
  * `/settings/overview/project` and KEY HYGIENE to `/settings/overview/account`
  * (`settings-overview-centre.tsx`, `use-settings-overview-screen.ts`'s own `adminPressure`/
  * `adminHygiene`) — the pending-refill count that used to sit beside them is gone outright, not
@@ -104,7 +115,6 @@ export function OverviewCentre() {
           status={screen.spendStatus}
           errorMessage={screen.spendErrorMessage}
           onRetry={screen.spendRetry}
-          degenerateMessage={screen.spendDegenerateMessage}
           fallbackWidth={840}
           height={220}
           formatYTick={formatUsdAxis}
@@ -114,18 +124,24 @@ export function OverviewCentre() {
           }
           onSelectSeries={screen.setSelectedSeriesKey}
         />
+        {screen.spendTruncated ? (
+          <InlineStatus className="mt-2">
+            {`This range returned more points than one query can carry — showing the first ${USAGE_QUERY_LIMIT.toLocaleString()}.`}
+          </InlineStatus>
+        ) : null}
       </Card>
 
       <Card>
         <SpendShareSection
           label="Spend by project"
           segments={screen.spendSegments}
-          status={screen.spendStatus}
-          errorMessage={screen.spendErrorMessage}
-          onRetry={screen.spendRetry}
+          status={screen.spendShareStatus}
+          errorMessage={screen.spendShareErrorMessage}
+          onRetry={screen.spendShareRetry}
           selectedKey={screen.selectedSeriesKey}
           onSelectSegment={screen.setSelectedSeriesKey}
           total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
+          degenerateMessage={screen.spendDegenerateMessage}
         />
         {screen.spendUnassignedCaption ? (
           <InlineStatus className="mt-2">{screen.spendUnassignedCaption}</InlineStatus>

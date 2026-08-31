@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
-import type { SpendSeriesSeries } from '@lightbridge/ui-web';
 
 import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
@@ -9,16 +8,15 @@ import {
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
   buildOverviewUsageRequest,
-  capSeriesWithOther,
   currentPeriodRange,
   degenerateChartMessage,
   isUsageResponseTruncated,
   resolveOverviewWindow,
   resolveRangeWindow,
+  safeCost,
   splitUnassignedProjects,
   sumTotalCost,
   toSpendShareSegments,
-  toSpendSeries,
   UNASSIGNED_KEY,
   USAGE_QUERY_LIMIT,
 } from './overview-usage';
@@ -162,6 +160,20 @@ describe('buildOverviewUsageRequest', () => {
     });
     expect(oneModel.filters).toEqual({ model: 'gpt-4o-mini' });
   });
+
+  // 2026-08-31 owner finding fix: the account overview's own "Spend over time" chart now queries
+  // the UNGROUPED total (same summing semantics as the estate overview), built by omitting
+  // `groupBy` entirely rather than passing a dimension through.
+  it('omits group_by entirely when no dimension is given — the ungrouped account-total request', () => {
+    const request = buildOverviewUsageRequest({
+      accountId: 'acct_1',
+      window: WINDOW_30D,
+      bucket: 'day',
+      model: 'all',
+    });
+
+    expect(request.group_by).toBeUndefined();
+  });
 });
 
 /** Dollars -> the micro-USD the usage backend actually sends
@@ -185,98 +197,21 @@ function point(overrides: Partial<UsageQueryResponse['points'][number]>) {
   } as UsageQueryResponse['points'][number];
 }
 
-describe('toSpendSeries', () => {
-  it('groups points by the requested dimension and sorts each series oldest-first', () => {
-    const response: UsageQueryResponse = {
-      points: [
-        point({
-          project_id: 'proj_a',
-          bucket_start: '2026-08-02T00:00:00.000Z',
-          total_cost: usd(5),
-        }),
-        point({
-          project_id: 'proj_b',
-          bucket_start: '2026-08-01T00:00:00.000Z',
-          total_cost: usd(2),
-        }),
-        point({
-          project_id: 'proj_a',
-          bucket_start: '2026-08-01T00:00:00.000Z',
-          total_cost: usd(3),
-        }),
-      ],
-    };
-
-    const series = toSpendSeries(response, 'project_id');
-
-    expect(series).toHaveLength(2);
-    const projA = series.find((s) => s.key === 'proj_a');
-    expect(projA?.points.map((p) => p.y)).toEqual([3, 5]);
-    expect(projA?.points[0].x.getTime()).toBeLessThan(projA!.points[1].x.getTime());
+// `toSpendSeries`/`capSeriesWithOther` (the per-project/model TIME SERIES this hook used to feed
+// the account overview's "Spend over time" chart, plus the >4-series capping that fed it) are
+// gone — 2026-08-31 owner-round parity fix, finding #1: that chart now plots the UNGROUPED
+// account total (`use-overview-screen.ts`'s `totalUsageQuery`, via `settings-overview-usage.ts`'s
+// `toAggregateDaySeries`), the same summing semantics the estate overview's own chart already
+// uses. `safeCost`'s malformed-value clamp — previously covered only via `toSpendSeries` — gets
+// its own direct coverage below since that describe block is gone with it.
+describe('safeCost', () => {
+  it('clamps a malformed or negative total_cost to 0 rather than crashing or returning NaN', () => {
+    expect(safeCost(point({ total_cost: Number.NaN }))).toBe(0);
+    expect(safeCost(point({ total_cost: -10 }))).toBe(0);
   });
 
-  it('falls back to "unassigned" when the dimension field is null (never drops the point)', () => {
-    const response: UsageQueryResponse = {
-      points: [point({ project_id: null, total_cost: usd(4) })],
-    };
-
-    const series = toSpendSeries(response, 'project_id');
-
-    expect(series).toEqual([
-      { key: 'unassigned', label: 'unassigned', points: [{ x: expect.any(Date), y: 4 }] },
-    ]);
-  });
-
-  it('clamps a malformed total_cost to 0 rather than crashing or plotting NaN', () => {
-    const response: UsageQueryResponse = {
-      points: [
-        point({ project_id: 'proj_a', total_cost: Number.NaN }),
-        point({ project_id: 'proj_a', total_cost: -10 }),
-      ],
-    };
-
-    const series = toSpendSeries(response, 'project_id');
-
-    expect(series[0].points.every((p) => p.y === 0)).toBe(true);
-  });
-
-  it('returns no series for an empty response (a real, queried, zero result — not fabricated)', () => {
-    expect(toSpendSeries({ points: [] }, 'project_id')).toEqual([]);
-  });
-});
-
-describe('capSeriesWithOther', () => {
-  function series(key: string, total: number): SpendSeriesSeries {
-    return { key, label: key, points: [{ x: new Date('2026-08-01'), y: total }] };
-  }
-
-  it('is a no-op when the series list is already at or under the cap', () => {
-    const input = [series('a', 5), series('b', 3)];
-    expect(capSeriesWithOther(input, 4)).toEqual(input);
-  });
-
-  it('keeps the largest capN series and sums the rest into one Other series', () => {
-    const input = [series('a', 1), series('b', 9), series('c', 5), series('d', 3), series('e', 2)];
-    const result = capSeriesWithOther(input, 4);
-
-    expect(result.map((s) => s.key)).toEqual(['b', 'c', 'd', 'e', '__other__']);
-    expect(result[4].points[0].y).toBeCloseTo(1); // just 'a', the one overflow series
-  });
-
-  it('sums overflow series sharing a timestamp into one point, not one per series', () => {
-    const t = new Date('2026-08-01');
-    const input = [
-      series('a', 10),
-      series('b', 8),
-      series('c', 6),
-      series('d', 4),
-      { key: 'e', label: 'e', points: [{ x: t, y: 1 }] },
-      { key: 'f', label: 'f', points: [{ x: t, y: 2 }] },
-    ];
-    const result = capSeriesWithOther(input, 4);
-    const other = result.find((s) => s.key === '__other__');
-    expect(other?.points).toHaveLength(1);
-    expect(other?.points[0].y).toBeCloseTo(3);
+  it('converts a real micro-USD total_cost to dollars', () => {
+    expect(safeCost(point({ total_cost: usd(5) }))).toBeCloseTo(5);
   });
 });
 
@@ -565,25 +500,18 @@ describe('series labelling', () => {
   const labelFor = (key: string) =>
     key === 'zezxvt21irmoi0kzm22el7gu' ? 'gateway-prod' : key === 'unassigned' ? 'Unassigned' : key;
 
-  it('labels spend series with the resolved name while keeping the id as the key', () => {
-    const series = toSpendSeries(response, 'project_id', labelFor);
-
-    const named = series.find((s) => s.key === 'zezxvt21irmoi0kzm22el7gu');
-    expect(named?.label).toBe('gateway-prod');
-    // The key stays the id — the chart, the share bar and `?series=` all match on it.
-    expect(named?.key).toBe('zezxvt21irmoi0kzm22el7gu');
-  });
-
-  it('labels share segments the same way', () => {
+  it('labels share segments with the resolved name while keeping the id as the key', () => {
     const segments = toSpendShareSegments(response, 'project_id', labelFor);
 
     expect(segments.map((s) => s.label).sort()).toEqual(['Unassigned', 'gateway-prod']);
+    // The key stays the id — the share bar and `?series=` both match on it.
+    expect(segments.find((s) => s.label === 'gateway-prod')?.key).toBe('zezxvt21irmoi0kzm22el7gu');
   });
 
   it('falls back to the raw key when nothing resolves it — e.g. a since-deleted project', () => {
-    const series = toSpendSeries(response, 'project_id', (key) => key);
+    const segments = toSpendShareSegments(response, 'project_id', (key) => key);
 
-    expect(series.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
+    expect(segments.some((s) => s.label === 'zezxvt21irmoi0kzm22el7gu')).toBe(true);
   });
 
   it('defaults to identity, so an un-labelled caller still gets working output', () => {

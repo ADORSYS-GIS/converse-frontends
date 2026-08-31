@@ -102,3 +102,16 @@ export const ErrorState: Story = {
   name: 'Error',
   args: { status: 'error', errorMessage: 'Failed to load spend share.' },
 };
+
+// 2026-08-31 owner-round parity fix #3 — a single-segment breakdown states itself rather than
+// drawing a flat, misleadingly-singular bar. Moved here from the account overview's own time-
+// series chart (`SpendDashboard`'s equivalent `SpendDegenerate` story) — a single-series TIME
+// SERIES stays a meaningful reading; a single-segment SHARE breakdown is the one that asserts a
+// distribution the data doesn't have.
+export const Degenerate: Story = {
+  name: 'Spend by project — a single segment states itself, not a flat bar',
+  args: {
+    segments: overviewSpendShareSegments.slice(0, 1),
+    degenerateMessage: `Only one project in this window (${overviewSpendShareSegments[0].label}).`,
+  },
+};

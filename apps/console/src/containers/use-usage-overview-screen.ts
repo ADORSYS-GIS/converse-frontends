@@ -17,7 +17,7 @@ import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import { OVERVIEW_RANGES, useSettingsOverviewParams } from '../client/url-state';
 import { accountScopeLabel } from './account-label';
-import { RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { isUsageResponseTruncated, RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { buildLensDayRequest, lensTotals } from './settings-overview-usage';
 import {
   combineAccountModelResponses,
@@ -72,6 +72,12 @@ export interface UsageOverviewScreen {
   setSelectedSeriesKey: (key: string | null) => void;
   /** e.g. "Showing the top 25 of 61 accounts." — omitted when nothing was truncated. */
   truncationCaption: string | undefined;
+  /** Set when ANY fanned-out account's own current- or previous-period response alone hit
+   *  `USAGE_QUERY_LIMIT` — ORed across the whole fan-out (build brief finish-item §4), never
+   *  silently understating the real total the way an un-flagged truncation would. Independent of
+   *  `truncationCaption` above, which is about how many ACCOUNTS were queried, not how many POINTS
+   *  came back for the ones that were. */
+  spendTruncated: boolean;
 }
 
 export function useUsageOverviewScreen(): UsageOverviewScreen {
@@ -142,7 +148,14 @@ export function useUsageOverviewScreen(): UsageOverviewScreen {
     () => combineAccountModelResponses(currentResponses, labelForAccount),
     [currentResponses, labelForAccount]
   );
-  const previousSeries = useMemo(() => toPreviousPeriodSeries(previousResponses), [previousResponses]);
+  // The current window's own span — re-bases the previous-period series forward so it OVERLAYS
+  // the current window instead of doubling the chart's x-domain (2026-08-31 owner finding fix #2;
+  // see `toPreviousPeriodSeries`'s own doc comment).
+  const spanMs = window.end.getTime() - window.start.getTime();
+  const previousSeries = useMemo(
+    () => toPreviousPeriodSeries(previousResponses, spanMs),
+    [previousResponses, spanMs]
+  );
   const accountRowsWithDelta = useMemo(
     () => withAccountDeltas(combined.accountRows, perAccountTotals(previousResponses)),
     [combined.accountRows, previousResponses]
@@ -187,6 +200,14 @@ export function useUsageOverviewScreen(): UsageOverviewScreen {
       ? `Showing the top ${MAX_FANNED_OUT_ACCOUNTS} of ${allAccounts.length} accounts.`
       : undefined;
 
+  // Build brief finish-item §4: neither this screen nor the account overview's own hook used to
+  // call `isUsageResponseTruncated` at all — a fanned-out account whose own response alone hit
+  // `USAGE_QUERY_LIMIT` silently understated its contribution to every total above. ORed across
+  // BOTH the current- and previous-period fan-outs, since either can independently truncate.
+  const spendTruncated =
+    currentQueries.some((q) => q.data && isUsageResponseTruncated(q.data)) ||
+    previousQueries.some((q) => q.data && isUsageResponseTruncated(q.data));
+
   return {
     subtitle: `${RANGE_LABELS[view.range]} · UTC`,
     rangeField: {
@@ -218,5 +239,6 @@ export function useUsageOverviewScreen(): UsageOverviewScreen {
     selectedSeriesKey: view.series || null,
     setSelectedSeriesKey: (series) => void setView({ series: series ?? '' }),
     truncationCaption,
+    spendTruncated,
   };
 }

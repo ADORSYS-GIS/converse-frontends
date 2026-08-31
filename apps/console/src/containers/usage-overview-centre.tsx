@@ -14,6 +14,7 @@ import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard
 import { RankedSeriesRows } from '@lightbridge/ui-web/src/sections/ranked-series-rows';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 
+import { USAGE_QUERY_LIMIT } from './overview-usage';
 import { useUsageOverviewScreen } from './use-usage-overview-screen';
 
 /**
@@ -66,6 +67,11 @@ export function UsageOverviewCentre() {
             onSelectSeries={screen.setSelectedSeriesKey}
           />
         )}
+        {screen.spendTruncated ? (
+          <InlineStatus className="mt-2">
+            {`This range returned more points than one query can carry — showing the first ${USAGE_QUERY_LIMIT.toLocaleString()}.`}
+          </InlineStatus>
+        ) : null}
       </Card>
 
       <Card>

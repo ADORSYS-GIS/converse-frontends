@@ -23,5 +23,16 @@ export interface SpendShareSectionProps {
   selectedKey?: string | null;
   onSelectSegment?: (key: string | null) => void;
   formatPercent?: (percent: number) => string;
+  /**
+   * Set (instead of rendering `segments`) once this breakdown resolves to <=1 distinct value — a
+   * single-band SHARE bar asserts a distribution ("here is how this splits") the data does not
+   * have. Renders an inline status line in the bar's own place, heading kept above — the SAME
+   * `status === 'ready' && degenerateMessage` contract `SpendDashboard`'s own prop already uses
+   * (console-ui skill analytics doctrine; 2026-08-31 owner-round parity fix #3 moved this
+   * suppression OFF the account overview's time-series chart and onto this component instead — a
+   * single-series TIME SERIES is still a meaningful reading, a single-segment BREAKDOWN is the one
+   * that asserts a shape the data doesn't have). Ignored while `loading`/`error`.
+   */
+  degenerateMessage?: string;
   className?: string;
 }

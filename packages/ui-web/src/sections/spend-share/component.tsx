@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { ErrorLine } from '../../components/error-line';
+import { InlineStatus } from '../../components/inline-status';
 import { ShareBar } from '../../components/share-bar';
 import { DATA_INK_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
@@ -26,6 +27,7 @@ export function SpendShareSection({
   selectedKey,
   onSelectSegment,
   formatPercent,
+  degenerateMessage,
   className,
 }: SpendShareSectionProps) {
   return (
@@ -60,6 +62,11 @@ export function SpendShareSection({
           </div>
           <p className={LABEL_CLASS}>Querying usage…</p>
         </div>
+      ) : status === 'ready' && degenerateMessage ? (
+        // A single-band share bar asserts a distribution the data doesn't have — an inline status
+        // line replaces the bar itself (heading stays, above), the same contract `SpendDashboard`
+        // already applies to its own chart body.
+        <InlineStatus className="mt-4">{degenerateMessage}</InlineStatus>
       ) : (
         <ShareBar
           className="mt-4"

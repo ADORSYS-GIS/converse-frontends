@@ -16,6 +16,14 @@
 //  - Default range is **`mtd`** ("This month") — IA v3 phase 5: the budget resets monthly, so the
 //    dashboard defaults to the billing window, not a rolling 30-day span. The old
 //    `subtitle="Last 30 days · UTC"` literal is gone with it.
+//  - **SPEND OVER TIME plots the account's UNGROUPED total, not a per-project split** (2026-08-31
+//    owner-round parity fix, finding #1 — "the graphs are literally completely different" between
+//    this page and `/settings/overview/usage`; see `settings-overview.stories.tsx`'s own
+//    `usageEstateSpendSeries` for the estate's matching shape). `spendSeries` defaults to
+//    `accountTotalSpendSeries()` below: `[account total, dashed previous period]`, its dashed
+//    series' timestamps already re-based to overlay the current window (`shiftSeriesForward`'s own
+//    contract in `apps/console`). `spendDegenerateMessage` moved from the chart onto SPEND BY
+//    PROJECT's own `SpendShareSection` — see `SpendDegenerate` below.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -65,17 +73,52 @@ import { rankedRowsDominantModel, rankedRowsEmpty } from '../sections/ranked-ser
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
-  formatOverviewSpendLegendValue,
   formatOverviewSpendTooltipValue,
   formatOverviewSpendXTick,
   formatOverviewSpendYTick,
-  overviewSpendSeries,
 } from '../sections/spend-dashboard/fixtures';
 import { SpendShareSection } from '../sections/spend-share';
 import { overviewSpendShareSegments } from '../sections/spend-share/fixtures';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
 const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
+
+function daysFrom(base: Date, count: number): Date[] {
+  return Array.from({ length: count }, (_, i) => new Date(base.getTime() + i * 86_400_000));
+}
+
+/**
+ * SPEND OVER TIME's real default shape (2026-08-31 owner-round parity fix, finding #1): the
+ * account's UNGROUPED total, not a per-project split — see this file's own header comment for the
+ * owner finding this fixes. Mirrors `settings-overview.stories.tsx`'s own `usageEstateSpendSeries`
+ * 1:1 (same "current solid rank-1, previous dashed rank-2, SAME calendar days" shape): the dashed
+ * previous-period series is plotted over the identical `days` array as the current one, standing
+ * in for `apps/console`'s own `shiftSeriesForward` re-basing its real timestamps to overlay the
+ * current window rather than double the chart's x-domain.
+ */
+function accountTotalSpendSeries(): SpendSeriesSeries[] {
+  const days = daysFrom(new Date(Date.UTC(2026, 7, 1)), 29);
+  const current = [
+    38, 41, 39, 44, 52, 58, 56, 61, 68, 65, 71, 75, 73, 78, 81, 84, 82, 87, 90, 88, 93, 96, 94,
+    99, 103, 100, 106, 109, 112,
+  ];
+  const previous = [
+    30, 33, 31, 35, 42, 47, 45, 49, 55, 52, 57, 61, 59, 63, 66, 68, 66, 70, 73, 71, 75, 78, 76,
+    80, 83, 81, 86, 88, 91,
+  ];
+  return [
+    { key: 'account-total', label: 'This period', points: days.map((x, i) => ({ x, y: current[i] })) },
+    {
+      key: 'previous-period',
+      label: 'Previous period',
+      points: days.map((x, i) => ({ x, y: previous[i] })),
+    },
+  ];
+}
+
+// Computed once at module scope (not inline as a default-parameter call) so every render of the
+// default story shares one stable array identity — the same idiom `overviewStatCards` etc. use.
+const ACCOUNT_TOTAL_SPEND_SERIES = accountTotalSpendSeries();
 
 // Every choice OverviewControls has offered the toolbar since IA v3 phase 4's "By project"/"By
 // model"/"By user"/"By API key" vocabulary widening (`use-overview-screen.ts`'s own
@@ -111,9 +154,12 @@ interface OverviewScreenProps {
   spendSeries?: SpendSeriesSeries[];
   spendStatus?: DashboardStatus;
   spendErrorMessage?: string;
-  spendDegenerateMessage?: string;
+  spendTruncated?: boolean;
   spendShareSegments?: ShareBarSegment[];
   spendShareStatus?: DashboardStatus;
+  /** Gates SPEND BY PROJECT's own `SpendShareSection`, not the SPEND chart above (2026-08-31
+   *  owner-round parity fix #3 — a single-series TIME SERIES is still a meaningful reading). */
+  spendDegenerateMessage?: string;
   spendUnassignedCaption?: string;
   modelSpendRows?: RankedSeriesRow[];
   modelSpendStatus?: DashboardStatus;
@@ -132,12 +178,13 @@ function OverviewScreen({
   showAdmin = false,
   statCards = overviewStatCards,
   statCardsLoading = false,
-  spendSeries = overviewSpendSeries,
+  spendSeries = ACCOUNT_TOTAL_SPEND_SERIES,
   spendStatus = 'ready',
   spendErrorMessage,
-  spendDegenerateMessage,
+  spendTruncated = false,
   spendShareSegments = overviewSpendShareSegments,
   spendShareStatus = 'ready',
+  spendDegenerateMessage,
   spendUnassignedCaption,
   modelSpendRows = rankedRowsDominantModel,
   modelSpendStatus = 'ready',
@@ -250,15 +297,21 @@ function OverviewScreen({
             status={spendStatus}
             errorMessage={spendErrorMessage}
             onRetry={() => {}}
-            degenerateMessage={spendDegenerateMessage}
             fallbackWidth={840}
             height={220}
             formatXTick={formatOverviewSpendXTick}
             formatYTick={formatOverviewSpendYTick}
             formatTooltipValue={formatOverviewSpendTooltipValue}
-            formatLegendValue={formatOverviewSpendLegendValue}
+            formatLegendValue={(series) =>
+              formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
+            }
             onSelectSeries={setSelectedSeriesKey}
           />
+          {spendTruncated ? (
+            <InlineStatus className="mt-2">
+              This range returned more points than one query can carry — showing the first 2,000.
+            </InlineStatus>
+          ) : null}
         </Card>
 
         <Card>
@@ -270,6 +323,7 @@ function OverviewScreen({
             selectedKey={selectedSeriesKey}
             onSelectSegment={setSelectedSeriesKey}
             total={spendShareTotal > 0 ? formatUsd(spendShareTotal) : undefined}
+            degenerateMessage={spendDegenerateMessage}
           />
           {spendUnassignedCaption ? (
             <InlineStatus className="mt-2">{spendUnassignedCaption}</InlineStatus>
@@ -392,14 +446,17 @@ export const DashboardError: Story = {
   ),
 };
 
-// Build brief finish-item §2 — a single-series SPEND chart states the one series by name rather
-// than drawing a flat, misleadingly-singular band.
+// Build brief finish-item §2 / 2026-08-31 owner-round parity fix #3 — a single-segment BREAKDOWN
+// states itself rather than drawing a flat, misleadingly-singular bar. This now gates SPEND BY
+// PROJECT's own `SpendShareSection`, not the chart above: the SPEND chart plots the account TOTAL
+// now (see this file's own header comment), and a single-series TIME SERIES is still a
+// meaningful "spend over time" reading, unlike a single-segment share breakdown.
 export const SpendDegenerate: Story = {
-  name: 'Spend over time — a single series states itself, not a flat band',
+  name: 'Spend by project — a single segment states itself, not a flat bar',
   render: () => (
     <OverviewScreen
-      spendSeries={overviewSpendSeries.slice(0, 1)}
-      spendDegenerateMessage={`Only one project in this window (${overviewSpendSeries[0].label}).`}
+      spendShareSegments={overviewSpendShareSegments.slice(0, 1)}
+      spendDegenerateMessage={`Only one project in this window (${overviewSpendShareSegments[0].label}).`}
     />
   ),
 };
@@ -407,6 +464,13 @@ export const SpendDegenerate: Story = {
 // #306 — the account is past `BUDGET_BREACH_THRESHOLD` (0.9): `BudgetHero`'s own accent kicks in
 // and the inline refill control (`heroAction`) appears beside the numeral (ADR 0008 D7), on top of
 // the always-visible `actions` "Request refill…" the header row already carries.
+// Build brief finish-item §4 (2026-08-31 owner-round parity fix) — a chart response that alone
+// hit the usage backend's own query limit says so, rather than silently understating the total.
+export const SpendTruncated: Story = {
+  name: 'Spend over time — truncated response',
+  render: () => <OverviewScreen spendTruncated />,
+};
+
 export const BudgetBreached: Story = {
   render: () => (
     <OverviewScreen

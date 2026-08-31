@@ -340,6 +340,9 @@ export type {
   AccountSettingsProps,
 } from './sections/account-settings';
 
+export { ACCOUNT_DIRECTORY_REGION_LABEL, AccountDirectory, NO_ACCOUNTS_MESSAGE } from './sections/account-directory';
+export type { AccountDirectoryProps, AccountDirectoryRow } from './sections/account-directory';
+
 export {
   detailRows,
   NO_PROJECTS_MESSAGE,

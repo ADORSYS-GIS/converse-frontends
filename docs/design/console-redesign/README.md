@@ -18,11 +18,16 @@ SVG mockups (`overview.svg`, `api-keys.svg`, `manage-projects.svg`, `admin-budge
 dimension that matters — column count, radius, type family, card usage. A wrong mockup is worse
 than none, so they are **deleted** rather than redrawn. The equivalent, always-current reference is
 `packages/ui-web/src/pages-stories/`: `overview.stories.tsx`, `api-keys.stories.tsx`,
-`projects.stories.tsx`, `admin-budget-review.stories.tsx` (now the refills-queue review screen,
-§5.5), `settings.stories.tsx`, `settings-overview.stories.tsx` (the estate/analytics lenses, §5.5),
-and `shell-persistence.stories.tsx` for the responsive tiers. Run Storybook (or read the story
-files directly) to see a screen instead of reading a static image of one. There is no story file
-yet for `/accounts/<id>/refill` (§5.4), the newest route.
+`admin-budget-review.stories.tsx` (now the refills-queue review screen, §5.5),
+`settings.stories.tsx` (`/settings/policies` alone, since phase E), `settings-accounts.stories.tsx`
+(the new `/settings/accounts` list and `/settings/accounts/<id>` detail, §5.5),
+`settings-accounts-projects.stories.tsx` (`/settings/accounts/<id>/projects`, renamed from
+`projects.stories.tsx` when phase E moved the route it fixtures, §5.3),
+`settings-overview.stories.tsx` (the estate/analytics lenses, §5.5), and
+`shell-persistence.stories.tsx` for the responsive tiers. Run Storybook (or read the story files
+directly) to see a screen instead of reading a static image of one. There is no story file yet for
+`/settings/accounts/<id>/request-refill` (§5.4) specifically — it reuses `RefillCentre` unchanged
+from the pre-phase-E `/accounts/<id>/refill`, which likewise never had one.
 
 ---
 
@@ -180,15 +185,15 @@ the settings area) — `apps/console/src/client/console-chrome.tsx`.
 │ ACCOUNT AREA (/accounts/<id>/*, /)     │  SETTINGS AREA (/settings/*)                 │
 │ ─ brand row                            │  ─ brand row                                 │
 │ ─ workspace switcher (AccountBadge)    │  ─ "← Back to console" row                   │
-│ ─ Workspace: Overview·Projects·Keys    │  ─ flat nav: Overview·Roles(disabled)·        │
-│ ─ Account: Settings                    │    Tiers·Policies·Refill options·             │
-│ ─ Operator: Refill requests (admin)    │    Refills queue(admin)·Info                  │
+│ ─ Workspace: Overview·API keys         │  ─ flat nav: Overview·Accounts·               │
+│ ─ Account: Settings                    │    Roles(disabled)·Tiers·Project policies·    │
+│ ─ Operator: Refill requests (admin)    │    Refill options·Refills queue(admin)·Info   │
 │ ─ footer (⌘K · theme · offline · id)   │  ─ footer (⌘K · theme · offline · id)        │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│  CONTENT COLUMN — fluid, max-w-1120, floor          │  RIGHT RAIL — lg+ only,          │
-│  PageHeader (title · subtitle · controls · action)  │  240–480px, resizable            │
-│  Card  Card  Card  …  (every self-contained zone)   │  ONE case only: a selected        │
-│  <lg: selection opens BottomSheet from the bottom    │  row's detail on                 │
+│  CONTENT COLUMN — fluid, max-w-1120, floor — the ONLY column; no right rail anywhere  │
+│  PageHeader (title · subtitle · controls · action)                                    │
+│  Card  Card  Card  …  (every self-contained zone)                                     │
+│  Selection opens BottomSheet, at EVERY tier — the right rail has no live case left    │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -209,17 +214,22 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
   `min-w-0` is mandatory so a wide table or chart cannot blow the row open into horizontal page
   scroll.
 - **Account-area nav groups, exactly three, role-gated by inclusion, not by a marker prop**
-  (`navGroups`): `Workspace` (Overview, Projects, API keys — hrefs built off the path account,
-  `navHrefs(accountId)`), `Account` (Settings), `Operator` (Refill requests →
-  `/settings/refills-queue`, included only when `session.isAdmin`).
-- **Settings-area nav is a flat, ungrouped list of seven** (`settingsNavGroups`): Overview, Roles
-  (disabled, `ROLES_DISABLED_REASON` — `lightbridge-authz#571`), Tier configs, Account / Project
-  policies, Refill options policies, Refills queue (admin only), Info. See §5.5.
-- **The right rail is narrow and situational, never a placeholder**: `lg+` only, and only for
-  `/accounts/<id>/projects` with a row selected — collapsed entirely everywhere else, including
-  every `/settings/*` route (ADR 0013 D2). Below `lg`, the same selection opens `BottomSheet`
-  instead. Every screen parameter (range, bucket, group-by, filters, search) lives inline in
-  `PageHeader.controls` regardless of tier — the rail is never for knobs.
+  (`navGroups`): `Workspace` (Overview, API keys — hrefs built off the path account,
+  `navHrefs(accountId)`; narrowed from three items to two in ADR 0013's phase E amendment, which
+  moved Projects to `/settings/accounts/<id>/projects`), `Account` (Settings), `Operator` (Refill
+  requests → `/settings/refills-queue`, included only when `session.isAdmin`).
+- **Settings-area nav is a flat, ungrouped list of eight** (`settingsNavGroups`): Overview,
+  Accounts (phase E, new), Roles (disabled, `ROLES_DISABLED_REASON` — `lightbridge-authz#571`),
+  Tier configs, Project policies (renamed from "Account / Project policies" in phase E), Refill
+  options policies, Refills queue (admin only), Info. See §5.5.
+- **The right rail has no live case left, anywhere in the console** (ADR 0013 phase E): its one
+  remaining case, `/accounts/<id>/projects` with a row selected, moved into the settings area
+  along with the route itself — and settings has never had a right rail, at any tier (ADR 0013
+  D2). The `ConsoleShell.rail` primitive still exists (`packages/ui-web`'s own stories exercise
+  it), `apps/console` simply mounts nothing into it any more. Every selection opens `BottomSheet`
+  instead, at every tier. Every screen parameter (range, bucket, group-by, filters, search) lives
+  inline in `PageHeader.controls` regardless of tier — the rail was never for knobs, and no
+  screen has one to put them in now regardless.
 - **`Card` is the default zone container** (ADR 0012 D3): stat rows, charts, ledgers (toolbar +
   table + pager inside one `Card`), and settings sections all wrap in `Card`. The page header and a
   bare `InlineStatus`/`ErrorLine` are the only elements that sit directly on the floor.
@@ -229,18 +239,19 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 | Nav item | Group / area | Route |
 | --- | --- | --- |
 | Overview | Workspace | `/accounts/<id>/overview` |
-| Projects | Workspace | `/accounts/<id>/projects` |
 | API keys | Workspace | `/accounts/<id>/api-keys` |
-| Refill | *(no nav row — reached from the Budget card / palette / a stale `?request=` link)* | `/accounts/<id>/refill` |
 | Settings | Account | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
 | Refill requests | Operator (admin only) | `/settings/refills-queue` |
 | — Settings: Overview | Settings area | `/settings/overview` → lens picker (§5.5) |
+| — Settings: Accounts | Settings area | `/settings/accounts` → `/settings/accounts/<id>` |
 | — Settings: Roles | Settings area | *(disabled, no route)* |
 | — Settings: Tier configs | Settings area | `/settings/tiers` |
-| — Settings: Account / Project policies | Settings area | `/settings/policies` |
+| — Settings: Project policies | Settings area | `/settings/policies` |
 | — Settings: Refill options policies | Settings area | `/settings/refill-options` |
 | — Settings: Refills queue | Settings area (admin only) | `/settings/refills-queue` |
 | — Settings: Info | Settings area | `/settings/info` |
+| Projects (per account) | *(reached via the Accounts nav row → account detail's own tab, not a top-level row)* | `/settings/accounts/<id>/projects` |
+| Request refill (per account) | *(reached via the Budget card / palette / account detail's own tab)* | `/settings/accounts/<id>/request-refill` |
 
 `/` is the account resolver (ADR 0013 D1), not a nav destination in its own right — every nav href
 above degrades to it (`?next=<segment>`) when no account is yet known.
@@ -299,16 +310,18 @@ list.
 | `InlineStatus` | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay |
 | `ErrorLine` | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line |
 | `SkeletonRow` / `SkeletonMetric` | `raised` blocks matched to final geometry — no shimmer, no spinner |
-| `BottomSheet` | Base UI `Drawer`, bottom-docked only (never from a side). Below `lg`, hosts a selected row's detail — the same content the right rail shows at `lg`+ (ADR 0013 D2 narrowed this to `/accounts/<id>/projects` alone; `DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted) |
-| `RailResizer` | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` |
+| `BottomSheet` | Base UI `Drawer`, bottom-docked only (never from a side). Hosts a selected row's detail **at every tier** — ADR 0013's phase E amendment moved the right rail's one live case off the account area entirely, so `BottomSheet` is the ONE detail surface left anywhere in the console, not a below-`lg` fallback for a rail (`DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted) |
+| `RailResizer` | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` — still a real `ConsoleShell` capability (`packages/ui-web`'s own stories exercise it), but `apps/console` has no live route feeding the rail any more (phase E) |
+| `AccountDirectory` | `/settings/accounts`'s own list section — one row per account (name/label, status/tier summary), each a link into its detail page; `EmptyState` for the genuine zero-accounts case |
+| `AccountDetailSubNav` | The three-tab horizontal `SubNav` row shared by `/settings/accounts/<id>`, `.../projects` and `.../request-refill` (Overview · Projects · Request refill) |
 | `Button` | `primary` = `signal` fill; `secondary` = `border` outline; `ghost` = text only |
 | `Field` / `SelectField` / `DateRangeField` | Base UI `Field`/`Select` wearing daisy classes |
 | `SegmentedControl` | Base UI Toggle Group + daisy `tabs` |
 | `ScopeSelect` | Account → project cascade (used where a screen still needs a project *parameter*, distinct from the sidebar's account *identity* switcher) |
 | `SecretReveal` | One-time secret strip: heading, read-only mono field, `Copy` primary, dismissed only by explicit `×` |
 | `TypedConfirmDialog` | Destructive gate: names the object, requires the object name typed exactly |
-| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV|PDF` segmented · one `Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and Projects |
-| `ReviewDetailPanel` | The content `/settings/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (settings has no right rail at any tier — ADR 0013 D2 — so this is the one screen where `BottomSheet` is the review surface even at `lg`+, not just `<lg`): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline` |
+| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV|PDF` segmented · one `Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and `/settings/accounts/<id>/projects` |
+| `ReviewDetailPanel` | The content `/settings/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (settings has no right rail at any tier — ADR 0013 D2 — one of two screens, alongside `/settings/accounts/<id>/projects`, where `BottomSheet` is the review surface even at `lg`+): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline` |
 
 ---
 
@@ -332,11 +345,11 @@ opening `ReportExportDialog`) → the money-first stat row (`OverviewStatRow`, s
 `StatCard`s) → `Card` "Spend over time" (`SpendDashboard`) → `Card` "Spend by project"
 (`SpendShareSection`, `RankedSeriesRows` under the hood — ADR 0013 D5) → `Card` "Spend by model"
 (`RankedSeriesRows`) → `Card` "Budget" (`BudgetPanel` + inline `Request refill`, linking to
-`/accounts/<id>/refill` — §5.4).
+`/settings/accounts/<id>/request-refill` — §5.4).
 
 - Deltas are `▲ 18% vs prev period` in `body`, `— no change` in `muted`. **Never green or red.**
-- The right rail never renders on this route (ADR 0013 D2) — there is nothing selection-driven
-  here.
+- The right rail never renders on this route — there is nothing selection-driven here, and (ADR
+  0013 phase E) no route in the console mounts one any more regardless.
 
 ### 5.2 API keys — `/accounts/<id>/api-keys` (`api-keys.stories.tsx`)
 
@@ -356,43 +369,40 @@ opening `ReportExportDialog`) → the money-first stat row (`OverviewStatRow`, s
 - `ApiKeysHygieneNotes` is an inline-status block above the table: expiring keys in `signal`,
   never-used in `body`, retained-revoked in `muted`.
 
-### 5.3 Projects — `/accounts/<id>/projects` (`projects.stories.tsx`)
+### 5.3 Projects — moved to `/settings/accounts/<id>/projects` (ADR 0013 phase E)
 
-- Purely a filtering/browsing surface. Account-core mutations (`AccountSettings`,
-  `AccountNameDialog`) live in `/settings/policies` — "we cannot modify account core information
-  on the same page we're filtering" (owner, 2026-08-29).
-- `PageHeader.action` is `+ New project`. `PageHeader.controls` carries `ManageControls` (status ·
-  budget-state segmented/select).
-- The table's toolbar (search left, filter cluster right) + table + pager + totals footer sit
-  inside **one `Card`** (`ProjectsLedger`). Columns: `NAME · SPEND MTD · QUOTA TIER · STATUS` —
-  the owning account is no longer a ledger column (redundant with the account scope every row is
-  already filtered to) but still carries on the row for the detail surface's subtitle.
-- **Selection has no trigger of its own, and this is the only screen with a right rail** (ADR
-  0013 D2): picking a row opens the rail at `lg`+ (`InspectorRail` → `ProjectDetail`) or
-  `BottomSheet` below it — subject, then `ProjectDetail`'s facts not already shown in the header.
-  No other account-scoped or settings screen ever mounts the rail.
-- Report export (`ReportExportDialog`) is reachable from this screen too, same `Dialog` contract
-  as Overview.
+**No longer an account-area route.** IA v3 phase E ("the settings/accounts move") relocated this
+screen wholesale off `/accounts/<id>/projects` into the new Accounts subtree inside settings — see
+§5.5's own "Accounts" subsection below for the current spec (`settings-accounts-projects.stories.tsx`).
+The old path 308s to the new one, every query param surviving (`middleware.ts`'s
+`ACCOUNT_SCOPED_PATH_MOVE`). One structural consequence worth stating here explicitly: this screen
+was the right rail's ONLY live case (ADR 0013 D2/D3); moving it into settings, which has no right
+rail at any tier, means **the right rail has no live case left anywhere in the console** — the
+primitive (`ConsoleShell.rail`) still exists in `packages/ui-web`, `apps/console` simply feeds it
+nothing any more (its own `containers/inspector-rail.tsx`/`client/use-rail-width.ts` wiring is
+deleted). Selection now opens `BottomSheet` at every tier, the same surface
+`/settings/refills-queue` already used.
 
-### 5.4 Refill — `/accounts/<id>/refill`
+### 5.4 Refill — moved to `/settings/accounts/<id>/request-refill` (ADR 0013 phase E)
 
-**New route (ADR 0013 D4, IA v3 phase 3) — replaces `RequestRefillDialog` outright.** Every refill
-trigger across the console (the Budget card's action and its breach button on Overview, the
-command palette, a stale `?request=` deep link) navigates here instead of opening a shared dialog
-three separate call sites had to agree on. Two `Card`s, top to bottom:
+**No longer an account-area route.** Originally added at `/accounts/<id>/refill` (ADR 0013 D4, IA
+v3 phase 3 — replacing `RequestRefillDialog` outright), IA v3 phase E relocated it into the same
+Accounts subtree as Projects above, account-scoped by construction either way. The old path 308s
+to the new one, `?project=` included. The screen's own two `Card`s are unchanged:
 
 1. `RefillRequestForm` — the amount choice, over the account's active refill policy ladder
    (`useBudgetRefillLadder`, shared verbatim with Overview's own breach button, so the two can
    never disagree about what amounts are offerable).
 2. `RefillHistory` — the caller's own past requests (`procedure.listMyAugmentationRequests`).
 
-No page story exists for this route yet (it is the newest of the six account-scoped/refill
-routes) — treat the container itself as ground truth until one is added.
+No page story exists for this specific route (it reuses `RefillCentre` unchanged from before the
+move, which likewise never had one) — treat the container itself as ground truth until one is
+added.
 
 ### 5.5 Settings — `/settings/*` (`settings.stories.tsx`)
 
 A second navigable area (ADR 0013 D2), not a route dangling off the account shell: its own flat,
-seven-row left nav (§3 "Nav destinations") replaces the account area's Workspace/Account/Operator
+eight-row left nav (§3 "Nav destinations") replaces the account area's Workspace/Account/Operator
 groups in the same sidebar mount, and a `← Back to console` row replaces the workspace switcher.
 `/settings` itself has no centre of its own — it redirects to `/settings/overview`, which redirects
 to `/settings/overview/usage`, the designated landing lens.
@@ -416,6 +426,21 @@ to `/settings/overview/usage`, the designated landing lens.
   linked from any nav element** — reachable only by direct URL. That is a real, honestly-recorded
   gap (no in-app entry point shipped for them this phase), not an oversight to paper over.
 
+**Accounts** — `/settings/accounts` and `/settings/accounts/<id>/*` (ADR 0013 phase E, "the
+settings/accounts move" — new this phase, `settings-accounts.stories.tsx`):
+
+- `/settings/accounts` (`AccountsCentre`) — the identity's account family, the SAME data the
+  workspace switcher lists (`AccountDirectory`), each row linking to its own detail page. `+ New
+  account` is the `PageHeader` action, moved here off `/settings/policies`.
+- `/settings/accounts/<id>` (`AccountDetailCentre`) — three `Card`s: `AccountSettings` (rename +
+  id/status/tier facts, also moved off `/settings/policies` verbatim), `Budget` (the honest
+  budget-ceiling fact, home-account-gated exactly like `/`'s own Budget card — Phase 2d's
+  `isHomeAccount`/`BUDGET_HOME_ACCOUNT_ONLY_NOTE`), and `Members` (disabled with a stated reason —
+  `Account` has no membership concept today, `lightbridge-authz#594`).
+- A horizontal `AccountDetailSubNav` (`SubNav orientation="horizontal"`) ties this screen to its
+  two siblings, `/settings/accounts/<id>/projects` (§5.3) and `/settings/accounts/<id>/request-refill`
+  (§5.4) — the SAME three-tab row renders on all three.
+
 **Roles** — a real, permanent, `href`-less nav row rendered `disabled`, not omitted: no read API
 for role/permission mappings exists (`ROLES_DISABLED_REASON`, `lightbridge-authz#571`). ADR 0013
 D2's honesty-doctrine extension to navigation — a row that looks live but 404s is its own kind of
@@ -425,11 +450,12 @@ fabrication; a disabled row with a stated reason is the honest middle ground.
 `ZoneHeading` directly on the floor above one `Card` *per plan* (never nested inside a wrapping
 `Card`); "Assigned quota tiers" is the ordinary single-`Card`-of-rows treatment.
 
-**Account / Project policies** — `/settings/policies`: composes, in reading order, `AccountSettings`
-(retained from the deleted `/settings/account` route — identity, name/id/status/default quota
-tier; also what `/`'s own zero-accounts first-run state reuses, ADR 0013 D1), `ProjectSettings`
-(retained from the deleted `/settings/projects` route — the searchable project ledger), and
-`ProjectPolicyControls`.
+**Project policies** — `/settings/policies` (renamed from "Account / Project policies" this phase
+— ADR 0013 phase E: owner, "there's no sense in having account or project creation" here). Narrowed
+to exactly two things: `ProjectSettings` (the searchable project ledger — still needed as the
+picker `ProjectPolicyControls` acts on) and `ProjectPolicyControls`, appended inside the SAME
+detail sheet below `ProjectSettingsDetail`'s read-only field list. `AccountSettings` and both
+`+ New account`/`+ New project` creation triggers moved to the new Accounts subtree above.
 
 **Refill options policies** — `/settings/refill-options` (live since phase 3): "Your current
 ladder" (a read-only echo of the same `useBudgetRefillLadder()` the refill page uses) above "Try a
@@ -533,10 +559,10 @@ load. No parallax, no reveal-on-scroll.
 | **<`md`** | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageHeader.controls` wraps; ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
 
 There is no third, "compact rail" tier — the old three-tier (full/compact/guard-rail) breakpoint
-table described a right rail with a different contract than today's. The current rail (ADR 0013
-D2) is `lg`+ only, situational (one case: `/accounts/<id>/projects` with a row selected), and
-never rendered below `lg` — the same selection instead opens `BottomSheet`, bottom-docked, at
-every viewport under `lg` (and, on `/settings/refills-queue`, at every viewport — see §5.5).
+table described a right rail with a different contract than today's, and ADR 0013's phase E
+amendment removed the rail's last live case entirely (it moved into the settings area, which has
+never had a right rail at any tier — D2). Every selection across the whole console opens
+`BottomSheet`, bottom-docked, at every viewport — not a below-`lg` fallback for anything.
 
 `shell-persistence.stories.tsx` demonstrates that navigating between routes does not remount the
 sidebar/top-bar (the nav DOM node persists across route changes) — this is the shell's own
@@ -594,8 +620,10 @@ stateDiagram-v2
 
 ### 8.2 Budget refill: request → review → decision
 
-**Updated for ADR 0013 D4 (refill as a page)** — the pre-revamp diagram opened a shared
-`RequestRefillDialog`; refill is now its own route, and the review surface moved from `/admin` to
+**Updated for ADR 0013 D4 (refill as a page) and phase E (moved under `/settings/accounts`)** —
+the pre-revamp diagram opened a shared `RequestRefillDialog`; refill is now its own route, moved
+from `/accounts/<id>/refill` to `/settings/accounts/<id>/request-refill` by the phase E amendment
+(the old path 308s here verbatim), and the review surface moved from `/admin` to
 `/settings/refills-queue`, opening `BottomSheet` at every tier rather than a rail-adjacent sheet
 (§5.5 — settings has no right rail at any tier).
 
@@ -604,7 +632,7 @@ sequenceDiagram
     autonumber
     actor M as Project member
     participant O as Overview · Budget card
-    participant RP as /accounts/<id>/refill (page)
+    participant RP as /settings/accounts/<id>/request-refill (page)
     actor A as lightbridge-admin
     participant Q as /settings/refills-queue (Card)
     participant BS as BottomSheet -> ReviewDetailPanel
@@ -749,9 +777,13 @@ persistent mount), and the `maxContentWidth` token's meaning (resolved: it is
 [ADR 0013](../../adr/0013-console-information-architecture-v3.md) resolved one more: whether
 "the rail is gone" (ADR 0012 D1/D7's original wording) or "the rail is back" (the owner's
 2026-08-30 same-day reversal, recorded loosely in ADR 0012's own text) is the operative rule —
-neither, precisely: the rail exists, narrowed to exactly one route/state
-(`/accounts/<id>/projects` with a row selected), and this document and the console-ui skill now
-state that single case rather than either broader claim.
+neither, precisely, as of that ADR's original merge: the rail existed, narrowed to exactly one
+route/state (`/accounts/<id>/projects` with a row selected). ADR 0013's own **phase E amendment**
+(2026-08-31) resolved it a final time: that one case moved into the settings area, which never had
+a right rail at any tier, so the rail primitive survives in `packages/ui-web` (its own stories
+still exercise it) with **zero live cases** anywhere `apps/console` mounts a route. This document
+and the console-ui skill state that outcome now, rather than either the "gone" or "one case"
+claims that preceded it.
 
 Two tensions from the original ADR 0008 spec were never shell-shaped and remain open:
 

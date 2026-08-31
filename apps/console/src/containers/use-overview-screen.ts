@@ -248,7 +248,7 @@ export interface OverviewScreen {
   modelSpendRetry: () => void;
   // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
   budget: BudgetSummary;
-  /** `/accounts/<id>/refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
+  /** `/settings/accounts/<id>/request-refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
    *  the Budget card's standing "Request refill…" action always navigates here. */
   refillHref: string;
   /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
@@ -567,7 +567,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
-  // The ladder query lives in `use-budget-refill.ts`, shared with `/accounts/<id>/refill`
+  // The ladder query lives in `use-budget-refill.ts`, shared with `/settings/accounts/<id>/request-refill`
   // (`use-refill-screen.ts`) — this screen only reads it to decide whether the breach button
   // should appear at all (IA v3 phase 3: the button now navigates to that page rather than
   // opening a dialog, so the actual submit, and the mutation that drives it, live there instead).
@@ -634,7 +634,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
 
   // IA v3 phase 3 ("refill as a page") — this used to open `RequestRefillDialog` (2026-08-30:
   // before that, it instantly mutated `smallestAmountMicros` on one click with no confirmation
-  // surface at all). It now navigates to `/accounts/<id>/refill` instead, which independently
+  // surface at all). It now navigates to `/settings/accounts/<id>/request-refill` instead, which independently
   // preselects the smallest allowed amount (`use-refill-screen.ts`) — a breach is still one click
   // away from a refill request, and the actual submit is a real, dedicated screen, not a dialog
   // three separate triggers had to agree on.

@@ -16,12 +16,12 @@ import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import {
+  AccountsIcon,
   AdminIcon,
   InfoIcon,
   KeysIcon,
   OverviewIcon,
   PoliciesIcon,
-  ProjectsIcon,
   RefillOptionsIcon,
   RolesIcon,
   SearchIcon,
@@ -69,7 +69,7 @@ import { useOnlineStatus } from './use-online-status';
  * re-exports them costs nothing.
  */
 
-export type ConsoleRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
+export type ConsoleRoute = 'overview' | 'api-keys' | 'settings' | 'admin';
 
 /**
  * The chrome's TWO nav surfaces (IA v3 phase 2 — "the settings area"): `account` is the
@@ -88,18 +88,25 @@ export function areaFromPathname(pathname: string): ConsoleArea {
 }
 
 /**
- * The three account-scoped destinations' hrefs, built off whichever account id is currently in
+ * The two account-scoped destinations' hrefs, built off whichever account id is currently in
  * play — `/accounts/[accountId]/*` (IA v3 phase 1, "account into the path"). `settings`/`admin`
  * carry no account segment at all — the settings area (IA v3 phase 2, which `admin` now belongs
  * to as well) is never account-scoped by path (`middleware.test.ts`'s redirect table).
  *
+ * **IA v3 phase E ("the settings/accounts move") drops `projects`/`refill` from this table.**
+ * `/accounts/[accountId]/*` now owns exactly `overview`/`api-keys` — the projects ledger and the
+ * refill request flow both moved to `/settings/accounts/<id>/{projects,request-refill}`, reached
+ * from the settings area's own "Accounts" nav entry, not from this account-area table. A stale
+ * link to either old path still works (`middleware.ts`'s 308 table), it just no longer has a nav
+ * row or a palette entry pointing at it directly.
+ *
  * An empty `accountId` (accounts not loaded yet, or genuinely none) routes through `/` — the
  * account resolver — rather than minting a broken `/accounts//overview` URL: `?next=` carries the
- * intended destination through the resolution hop for `api-keys`/`projects` (`overview` needs no
- * `?next=` — it is the resolver's own default). This is what keeps the nav "never dead" even on
- * `/` itself or on `/settings/*`, where there is no path segment to read an account id from at
- * all (`use-console-scope.ts`'s own last-account/first-account fallback is what fills `accountId`
- * in that case).
+ * intended destination through the resolution hop for `api-keys` (`overview` needs no `?next=` —
+ * it is the resolver's own default). This is what keeps the nav "never dead" even on `/` itself or
+ * on `/settings/*`, where there is no path segment to read an account id from at all
+ * (`use-console-scope.ts`'s own last-account/first-account fallback is what fills `accountId` in
+ * that case).
  *
  * `admin` (IA v3 phase 2 — "the settings area") now names `/settings/refills-queue`, not the
  * deleted `/admin` route: the budget refill review queue moved wholesale into the settings area
@@ -112,7 +119,6 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
     return {
       overview: '/',
       'api-keys': '/?next=api-keys',
-      projects: '/?next=projects',
       settings: '/settings',
       admin: '/settings/refills-queue',
     };
@@ -120,7 +126,6 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
   return {
     overview: `/accounts/${accountId}/overview`,
     'api-keys': `/accounts/${accountId}/api-keys`,
-    projects: `/accounts/${accountId}/projects`,
     settings: '/settings',
     admin: '/settings/refills-queue',
   };
@@ -130,10 +135,12 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
  * Nav active state comes from the pathname, not from a per-route prop — the shell no longer
  * re-mounts per route, so nothing is left to hand it a route name at mount time.
  *
- * Matches `/accounts/<id>/<segment>` for the three account-scoped destinations (IA v3 phase 1);
- * `/settings/*` keeps its plain prefix match (now also covering the former `/admin`, folded into
- * `/settings/refills-queue` — IA v3 phase 2), and anything else (including `/`, the account
- * resolver) reads as `overview` — the same default the old bare `/` match gave it.
+ * Matches `/accounts/<id>/<segment>` for the two account-scoped destinations left (IA v3 phase 1,
+ * narrowed by phase E — `projects` moved to `/settings/accounts/<id>/projects`, which already
+ * matches the `/settings` prefix clause below); `/settings/*` keeps its plain prefix match (now
+ * also covering the former `/admin`, folded into `/settings/refills-queue` — IA v3 phase 2), and
+ * anything else (including `/`, the account resolver) reads as `overview` — the same default the
+ * old bare `/` match gave it.
  *
  * `/admin` itself is gone (middleware 308s it to `/settings/refills-queue` before any app code
  * runs), so there is no live pathname this function would ever match against `admin` any more —
@@ -143,7 +150,6 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
 export function routeFromPathname(pathname: string): ConsoleRoute {
   const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
   if (accountScopedSegment === 'api-keys') return 'api-keys';
-  if (accountScopedSegment === 'projects') return 'projects';
   if (accountScopedSegment === 'overview') return 'overview';
   if (pathname.startsWith('/settings')) return 'settings';
   return 'overview';
@@ -152,18 +158,24 @@ export function routeFromPathname(pathname: string): ConsoleRoute {
 /** One shared icon per nav destination — `lib/icons.tsx`'s coherent set (phase 9), all drawn in
  *  the same 16px box at the same 1.5 stroke, replacing the ad hoc 10x10/stroke-1 glyphs this used
  *  to draw inline (the "odd glyphs" the owner's review flagged). */
-const NAV_ICON: Record<'overview' | 'keys' | 'projects' | 'settings' | 'admin', React.ReactNode> = {
+const NAV_ICON: Record<'overview' | 'keys' | 'settings' | 'admin', React.ReactNode> = {
   overview: <OverviewIcon />,
   keys: <KeysIcon />,
-  projects: <ProjectsIcon />,
   settings: <SettingsIcon />,
   admin: <AdminIcon />,
 };
 
 /**
- * The four fixed destinations plus the role-gated Operator group — shell brief (2026-08-30)
+ * The fixed destinations plus the role-gated Operator group — shell brief (2026-08-30)
  * "Nav groups". There is no more `adminItems`/`showAdmin`/`roleLabel` axis: a gated group is
  * simply included or omitted from the array, and its own label row IS the role marker.
+ *
+ * **IA v3 phase E ("the settings/accounts move") narrows Workspace to Overview/API keys.** The
+ * Projects row (and the unrouted refill destination) both moved to
+ * `/settings/accounts/<id>/{projects,request-refill}`, reached through the settings area's own
+ * "Accounts" nav entry — `/accounts/[accountId]/*` itself now owns exactly `overview`/`api-keys`,
+ * and this group is honest about that rather than keeping a row for a segment the account area no
+ * longer serves.
  *
  * `/admin` reads "Refill requests", not "Admin" (shell revamp phase 4, 2026-08-30): the route's
  * own dashboard section moved to `/` itself (gated by `session.isAdmin`), so `/admin` is now
@@ -191,13 +203,6 @@ export function navGroups(
           href: hrefs.overview,
           icon: NAV_ICON.overview,
           active: active === 'overview',
-        },
-        {
-          key: 'projects',
-          label: 'Projects',
-          href: hrefs.projects,
-          icon: NAV_ICON.projects,
-          active: active === 'projects',
         },
         {
           key: 'api-keys',
@@ -244,20 +249,29 @@ export function navGroups(
 // ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
 
 /**
- * The settings area's seven destinations, in the owner-dictated nav order. Six are live routes as
- * of IA v3 phase 3 (`overview`, `tiers`, `policies`, `refill-options`, `refills-queue`, `info`);
- * `roles` alone stays a real, permanent row that renders `disabled` rather than being omitted —
- * omitting it would hide that the destination exists at all, and a disabled row with a stated
- * reason is the honest middle ground between "not built" and "silently missing" (console-ui
- * skill's "never fabricate" clause extends to navigation: a row that LOOKS live but 404s is its
- * own kind of fabrication). `refill-options` went live this phase: `procedure.
- * simulateBudgetPolicy` gives it real content (a policy scratch pad) even though the STORED/
- * ACTIVE policy is still unreadable — see `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment,
- * kept below as the honest caption the new page's own omitted blocks cite, not as a disabled-row
- * reason any more.
+ * The settings area's eight destinations, in the owner-dictated nav order. `accounts` is new this
+ * phase (IA v3 phase E, "the settings/accounts move" — owner: "add /settings/accounts... And
+ * /settings/accounts/<account-id> would be for account related settings"), placed right after
+ * `overview` per the same directive. Seven of the eight are live routes (`overview`, `accounts`,
+ * `tiers`, `policies`, `refill-options`, `refills-queue`, `info`); `roles` alone stays a real,
+ * permanent row that renders `disabled` rather than being omitted — omitting it would hide that
+ * the destination exists at all, and a disabled row with a stated reason is the honest middle
+ * ground between "not built" and "silently missing" (console-ui skill's "never fabricate" clause
+ * extends to navigation: a row that LOOKS live but 404s is its own kind of fabrication).
+ * `refill-options` went live in phase 3: `procedure.simulateBudgetPolicy` gives it real content (a
+ * policy scratch pad) even though the STORED/ACTIVE policy is still unreadable — see
+ * `REFILL_OPTIONS_DISABLED_REASON`'s own doc comment, kept below as the honest caption the new
+ * page's own omitted blocks cite, not as a disabled-row reason any more.
  */
 export type SettingsRoute =
-  'overview' | 'roles' | 'tiers' | 'policies' | 'refill-options' | 'refills-queue' | 'info';
+  | 'overview'
+  | 'accounts'
+  | 'roles'
+  | 'tiers'
+  | 'policies'
+  | 'refill-options'
+  | 'refills-queue'
+  | 'info';
 
 /**
  * `/settings/<segment>` -> which nav row is active. Every LIVE segment gets its own prefix match;
@@ -265,9 +279,13 @@ export type SettingsRoute =
  * `settingsNavGroups`) and so never appears here. The bare `/settings` segment (mid-redirect to
  * `/settings/overview/usage`, `app/(console)/settings/page.tsx`) and anything unrecognised default
  * to `overview`, the same "unmatched reads as the first destination" contract
- * `routeFromPathname` uses for `/`.
+ * `routeFromPathname` uses for `/`. `accounts` matches the WHOLE
+ * `/settings/accounts/<id>/{projects,request-refill}` subtree too, not only the bare list — all
+ * three screens are the one "Accounts" nav destination's own drill-down, the same way every
+ * `/accounts/<id>/<segment>` screen answers to one `routeFromPathname` match.
  */
 export function settingsRouteFromPathname(pathname: string): SettingsRoute {
+  if (pathname.startsWith('/settings/accounts')) return 'accounts';
   if (pathname.startsWith('/settings/tiers')) return 'tiers';
   if (pathname.startsWith('/settings/policies')) return 'policies';
   if (pathname.startsWith('/settings/refill-options')) return 'refill-options';
@@ -280,6 +298,7 @@ export function settingsRouteFromPathname(pathname: string): SettingsRoute {
  *  from (`lib/icons.tsx`) — never a second, differently-weighted glyph set for the second area. */
 const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
+  accounts: <AccountsIcon />,
   roles: <RolesIcon />,
   tiers: <TiersIcon />,
   policies: <PoliciesIcon />,
@@ -311,7 +330,7 @@ export const REFILL_OPTIONS_DISABLED_REASON =
 /**
  * The settings area's nav — REPLACES `navGroups`' Workspace/Account/Operator groups in the same
  * sidebar mount when `areaFromPathname(pathname) === 'settings'` (`ConsoleSidebarContent`), never
- * a second nav surface alongside it. One ungrouped list (no group `label`s) — seven destinations
+ * a second nav surface alongside it. One ungrouped list (no group `label`s) — eight destinations
  * is not enough to need a section heading the way the account area's three groups do, and the
  * owner's own nav order names it as a flat sequence, not grouped families.
  *
@@ -335,6 +354,13 @@ export function settingsNavGroups(
       active: active === 'overview',
     },
     {
+      key: 'accounts',
+      label: 'Accounts',
+      href: '/settings/accounts',
+      icon: SETTINGS_NAV_ICON.accounts,
+      active: active === 'accounts',
+    },
+    {
       key: 'roles',
       label: 'Roles',
       icon: SETTINGS_NAV_ICON.roles,
@@ -350,7 +376,7 @@ export function settingsNavGroups(
     },
     {
       key: 'policies',
-      label: 'Account / Project policies',
+      label: 'Project policies',
       href: '/settings/policies',
       icon: SETTINGS_NAV_ICON.policies,
       active: active === 'policies',
@@ -540,7 +566,10 @@ export function useConsolePalette() {
     const navigate: CommandPaletteItem[] = [
       { key: 'overview', label: 'Overview', onSelect: () => router.push(hrefs.overview) },
       { key: 'api-keys', label: 'API keys', onSelect: () => router.push(hrefs['api-keys']) },
-      { key: 'projects', label: 'Projects', onSelect: () => router.push(hrefs.projects) },
+      // IA v3 phase E: Projects moved to `/settings/accounts/<id>/projects` — not account-scoped
+      // by this table any more (see `navHrefs`'s own doc comment), so the palette entry points at
+      // the settings area's own "Accounts" list instead of a per-account projects href.
+      { key: 'accounts', label: 'Accounts', onSelect: () => router.push('/settings/accounts') },
       { key: 'settings', label: 'Settings', onSelect: () => router.push(hrefs.settings) },
     ];
     if (session.isAdmin) {

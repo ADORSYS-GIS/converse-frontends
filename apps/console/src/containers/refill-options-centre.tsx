@@ -15,7 +15,7 @@ import { useRefillOptionsScreen } from './use-refill-options-screen';
  * Two cards:
  *
  *  1. **Your current ladder** — a read-only echo of `useBudgetRefillLadder()` (shared with
- *     `/accounts/<id>/refill`, never forked): the amounts the caller's own home account could
+ *     `/settings/accounts/<id>/request-refill`, never forked): the amounts the caller's own home account could
  *     request right now. No submit control here — that is the refill page's whole job.
  *  2. **Try a policy** — `PolicySimulator`, over `procedure.simulateBudgetPolicy`. A scratch pad,
  *     not a view onto any account's actual active policy.

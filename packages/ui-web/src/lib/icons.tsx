@@ -83,6 +83,18 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+/** Settings area — Accounts (IA v3 phase E): two overlapping cards, the "account family" glyph
+ *  (ADR-0026 — one identity may own several accounts), distinct from `RolesIcon`'s people and
+ *  `ProjectsIcon`'s single folder. */
+export function AccountsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="2" y="4.5" width="9" height="7" rx="1" />
+      <path d="M5 4.5V3a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1.5" />
+    </IconBase>
+  );
+}
+
 /** Operator / admin, and (IA v3 phase 2) the settings area's "Refills queue" entry — a shield. */
 export function AdminIcon(props: IconProps) {
   return (
@@ -113,8 +125,8 @@ export function TiersIcon(props: IconProps) {
   );
 }
 
-/** Settings area — Account/Project policies: a document with a checked line, the governance
- *  glyph shared by both the account and the project halves of the screen. */
+/** Settings area — Project policies: a document with a checked line, the governance glyph for
+ *  the project model-policy/allowed-models controls the screen edits. */
 export function PoliciesIcon(props: IconProps) {
   return (
     <IconBase {...props}>

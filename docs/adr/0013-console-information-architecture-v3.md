@@ -10,7 +10,11 @@ page rather than a dialog, and a chart-choice doctrine for every usage/spend bre
 [issue #368](https://github.com/ADORSYS-GIS/converse-frontends/issues/368)'s IA v3 phases 1
 ("account into the path"), 2 ("the settings area"), 2d (the account-scoping audit), 3 (refill as a
 page, the rail narrowed), and 4 (the analytics screens). Every decision below is **implemented and
-merged**; this ADR is the record, not the proposal.
+merged**; this ADR is the record, not the proposal. A later, dated amendment (below, "phase E — the
+settings/accounts move") records a further owner directive that relocates projects/refill under a
+new `/settings/accounts` subtree and narrows `/settings/policies` and the account area's own nav —
+narrower in scope than a full ADR revision, so it is recorded as an amendment rather than a new
+document.
 
 Supersedes, in part: [ADR 0012](0012-console-visual-revamp.md) Decision 1's nav-shape clause (the
 three fixed nav destinations) and Decision 7's rail clause (the rail returned, then narrowed to
@@ -426,4 +430,158 @@ sequenceDiagram
 None outstanding for this ADR's own scope — IA v3 phases 1-5 and 2d (issue #368) are merged. Filed
 and tracked elsewhere, not by this ADR: `lightbridge-authz#571` (Roles read API),
 `lightbridge-authz#577` (home-account-only surfaces), `lightbridge-authz#578` (bulk
-list-accounts-by-period-spend), `cratestack#850` (musl build for `@cratestack/cbor-node`).
+list-accounts-by-period-spend), `cratestack#850` (musl build for `@cratestack/cbor-node`),
+`lightbridge-authz#594` (no account-membership concept exists — the phase E amendment below).
+
+## Amendment (2026-08-31): phase E — the settings/accounts move
+
+A further owner directive, verbatim, on top of D2/D4 above:
+
+> "On the page /settings/policies, there's no sense in having account or project creation. The
+> page is '/settings/policies'. Instead remove that and add /settings/accounts, and project
+> creation would be inside /settings/accounts/\<account-id\>/projects?create=true. We will move
+> /projects to /settings/accounts/\<account-id\>/projects too. And /settings/accounts/\<account-id\>
+> would be for account related settings like e.g members."
+>
+> "I don't see a clear place to request a refill... So we'll add it under
+> /settings/accounts/\<account-id\>/request-refill instead. Refill must be account scoped."
+
+This does not reopen D1's account-scoped-path decision or D2's settings-area decision — it
+relocates two whole screens (projects, refill) that D1 originally placed under
+`/accounts/[accountId]/*` into the settings area's own new "Accounts" subtree, and moves account
+identity/creation (which D2's phase 2 had put on `/settings/policies`, alongside project policy
+editing) to a dedicated per-account settings screen. Concretely:
+
+- **`/settings/accounts`** (`AccountsCentre`) — the identity's account family (the SAME data the
+  workspace switcher already lists, `AccountDirectory`), each row linking to its own detail page,
+  plus `+ New account` — moved here verbatim off `/settings/policies`'s own `PageHeader` action.
+- **`/settings/accounts/<id>`** (`AccountDetailCentre`) — account-scoped settings: `AccountSettings`
+  (rename + id/status/tier facts, also moved off `/settings/policies` verbatim), a `Budget` card
+  (the honest budget-ceiling fact, home-account-gated exactly like `/`'s Budget card and the
+  refill screen — Phase 2d's `isHomeAccount`/`BUDGET_HOME_ACCOUNT_ONLY_NOTE`), and a `Members`
+  card. **Members ships disabled with a stated reason, not fabricated or omitted**: `Account`
+  carries no membership concept at all today (`authz.cstack`'s own NOTE on the model — "per
+  ADR-0006 there is no more membership/role concept... one account is one person"; only
+  `ProjectMember`/`listProjectRoster` exist, both project-scoped). Filed as
+  `lightbridge-authz#594`, asking which of two outcomes applies: a real account-membership feature
+  (a new `AccountMember`-shaped model + procedure, mirroring `ProjectMember`), or a recorded
+  "intentionally out of scope" decision — either answer lets the console's caption become a
+  permanent fact instead of an open question.
+- **`/settings/accounts/<id>/projects`** — the projects ledger (`ProjectsCentre`, unchanged
+  internally), moved wholesale off `/accounts/<id>/projects` — the old path 308s here verbatim,
+  every query param surviving (`middleware.ts`'s new `ACCOUNT_SCOPED_PATH_MOVE` table, a THIRD
+  legacy-redirect shape alongside D1's `LEGACY_ACCOUNT_SCOPED_SEGMENT` and D2's
+  `LEGACY_STATIC_REDIRECT`: the account id is already IN the old path here, unlike either existing
+  table). `?create=true` opens the create-project dialog on load (`useProjectsEntryParams`, a
+  one-shot landing flag distinct from the dialog's own shared `?new-project=` open state) and
+  clears itself immediately, per the owner's own URL shape.
+- **`/settings/accounts/<id>/request-refill`** — the refill request flow (`RefillCentre`,
+  unchanged internally), moved off `/accounts/<id>/refill` the same way, `?project=` included —
+  "refill must be account scoped" was already true (D4), this only relocates where that
+  account-scoped screen lives.
+- **A new three-tab sub-nav** (`AccountDetailSubNav`, plain `SubNav orientation="horizontal"`) ties
+  the three screens above together — mounted on all three, computing its own `active` tab off
+  `usePathname()`.
+- **`/settings/policies` narrows to exactly "project policy editing"**: `AccountSettings` and both
+  creation triggers are gone; what remains is the searchable project ledger (still needed as the
+  picker `ProjectPolicyControls` acts on) plus the model-policy controls themselves. Renamed
+  "Project policies" in the nav (was "Account / Project policies") — the old name became inaccurate
+  once the account half moved out.
+- **The account area's Workspace group narrows to Overview/API keys.** `navHrefs`/`navGroups`
+  (`console-chrome.tsx`) drop `projects`/`refill` entirely — `ConsoleRoute` no longer carries a
+  `'projects'` value. `/accounts/[accountId]/*` now owns exactly what D1's own guard layout
+  protects: `overview`, `api-keys`.
+- **The right rail loses its one remaining live case.** ADR 0013 D2/D3 had already narrowed the
+  rail to exactly ONE route/state (`/accounts/<id>/projects` with a row selected); moving that
+  route into the settings area — which has no right rail at any tier, D2 — removes that case
+  without leaving another. `apps/console` deletes the rail's whole wiring (`containers/
+  inspector-rail.tsx`, `client/use-rail-width.ts`, and `(console)/layout.tsx`'s `rail`/`railWidth`
+  props) rather than keeping code that would always resolve to "no rail" — `ConsoleShell`'s
+  `rail`/`railWidth` props remain a real primitive capability in `packages/ui-web` (its own
+  stories still exercise them directly), they simply have no live caller left in `apps/console`.
+  `/settings/accounts/<id>/projects`' own row-selection detail is `BottomSheet` at every tier
+  instead — the same surface `/settings/refills-queue` already used for the identical reason.
+
+### Diagrams (phase E)
+
+Where the two moved routes land, and what `/settings/policies` sheds:
+
+```mermaid
+stateDiagram-v2
+    [*] --> AccountArea: /accounts/<id>/*
+
+    state "Account area (D1)" as AccountArea {
+        Overview
+        ApiKeys: API keys
+        [*] --> Overview
+    }
+
+    state "Settings — Accounts subtree (phase E, NEW)" as AccountsSettings {
+        [*] --> AccountsList: /settings/accounts
+        AccountsList --> AccountDetail: select a row
+        AccountDetail --> AccountProjects: tab — Projects
+        AccountDetail --> AccountRefill: tab — Request refill
+        AccountProjects --> AccountDetail: tab — Overview
+        AccountRefill --> AccountDetail: tab — Overview
+        AccountProjects --> AccountProjects: ?create=true → CreateProjectDialog opens, flag clears
+    }
+
+    state "Settings — Policies (phase E, NARROWED)" as Policies {
+        ProjectPicker: ProjectSettings ledger
+        PolicyControls: ProjectPolicyControls (in the SAME sheet)
+        [*] --> ProjectPicker
+        ProjectPicker --> PolicyControls: select a project
+    }
+
+    AccountArea --> AccountsSettings: OLD /accounts/<id>/projects\n308 → /settings/accounts/<id>/projects
+    AccountArea --> AccountsSettings: OLD /accounts/<id>/refill\n308 → /settings/accounts/<id>/request-refill
+
+    note right of Policies
+      AccountSettings (rename) and
+      both creation triggers moved
+      OUT to AccountsSettings —
+      this state keeps only what
+      genuinely edits a POLICY.
+    end note
+```
+
+`middleware.ts`'s `ACCOUNT_SCOPED_PATH_MOVE` is the redirect table backing the two 308 edges above;
+`AccountDetailSubNav` (`apps/console/src/containers/account-detail-sub-nav.tsx`) is the three-way
+tab loop inside `AccountsSettings`.
+
+### Consequences (phase E)
+
+- `docs/design/console-redesign/README.md` §3 (nav destinations table, shell diagram) and §5
+  (screen specs) are updated for the narrowed Workspace group, the new `/settings/accounts/*`
+  screens, and `/settings/policies`'s narrowed scope.
+- `packages/ui-web/src/pages-stories/projects.stories.tsx` is renamed
+  `settings-accounts-projects.stories.tsx` (`git mv`, `Pages/Settings/AccountProjects`) and loses
+  its rail entirely — `BottomSheet` at every tier, no `portalClassName="lg:hidden"` gate. A new
+  `settings-accounts.stories.tsx` (`Pages/Settings/Accounts`) covers both the list and the detail
+  screen; `settings.stories.tsx` narrows to `/settings/policies` alone. `shell-persistence.stories.tsx`
+  swaps its Overview↔Projects pair (the old "harder case: a rail mounts/unmounts") for
+  Overview↔API-keys, since no route anywhere carries a rail case any more.
+- `apps/console/src/containers/use-project-rename.ts` collapses from a two-piece full/lightweight
+  split (a full controller in the deleted inspector rail, a lightweight trigger in the
+  `BottomSheet`) to one full controller, mounted directly in `projects-centre.tsx` — there is only
+  one detail surface left to mount it from.
+- `RequestRefillDialog`'s replacement, `RefillCentre`, and `ProjectsCentre` are both `git mv`d
+  intact (containers, hooks, tests) — their own internal logic is unchanged; only their route path
+  and the `refillHref`/entry-flag plumbing pointing at that path change.
+
+### Alternatives considered (phase E)
+
+- **Keep account creation on `/settings/policies`, alongside project policy editing.** Rejected —
+  the owner's own reasoning: a governance-controls page has no more business hosting entity
+  creation than the old Projects ledger had hosting account rename (D2's own precedent, "We cannot
+  modify account core information on the same page we're filtering," applied one level over).
+- **A fourth path segment for refill under the account area instead of settings**
+  (`/accounts/<id>/refill`, left in place). Rejected — the owner's directive was explicit ("We will
+  move /projects to /settings/accounts/\<account-id\>/projects too... Refill must be account
+  scoped [under /settings/accounts]"), and keeping refill account-area-scoped while projects moved
+  would have split one account's settings across two nav surfaces for no reason.
+- **Fabricate an account membership list from `ProjectMember` roster de-duplication.** Rejected —
+  aggregating every project's roster and presenting it as "this account's members" would silently
+  conflate project-level access with account-level access, the exact kind of invented fact the
+  console-ui skill's honesty doctrine (ADR 0012 D8) exists to prevent. `lightbridge-authz#594` asks
+  the real question instead.

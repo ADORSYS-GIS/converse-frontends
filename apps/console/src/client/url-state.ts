@@ -495,6 +495,26 @@ export function useManageParams() {
 /** Picking a project row retargets the SELECTION rail — a view change worth a Back press. */
 export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
 
+/**
+ * `?create=true` — `/settings/accounts/<id>/projects`' own entry flag (task directive: "project
+ * creation would be inside /settings/accounts/<account-id>/projects?create=true"). Distinct from
+ * `createProjectParsers.open` (`?new-project=`, the SHARED cross-route dialog-open flag every
+ * trigger writes): this one is a one-shot LANDING intent, not itself the dialog's open state —
+ * `ProjectsCentre` reads it once on mount, calls the shared trigger
+ * (`useOpenCreateProjectDialog().open()`, which sets `?new-project=true`) and immediately clears
+ * this flag (`history: 'replace'`, so the landing hop never costs a Back press), leaving
+ * `?new-project=` as the one param that actually governs the dialog's open/close state from then
+ * on — the same "?new-account=true IS in the URL, its typed contents are not" split every other
+ * dialog flag in this module follows, one level up (this flag names INTENT, not even a draft).
+ */
+export const projectsEntryParsers = {
+  create: parseAsBoolean.withDefault(false),
+};
+
+export function useProjectsEntryParams() {
+  return useQueryStates(projectsEntryParsers, { history: 'replace' });
+}
+
 // ── /settings ─────────────────────────────────────────────────────────────────
 
 /**

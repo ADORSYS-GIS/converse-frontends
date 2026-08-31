@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Loading as AdminLoading } from './admin-budget-review.stories';
 import { Loading as ApiKeysLoading } from './api-keys.stories';
-import { Loading as ProjectsLoading } from './projects.stories';
+import { Loading as ProjectsLoading } from './settings-accounts-projects.stories';
 import { Loading as OverviewLoading } from './overview.stories';
 
 /** Every `role="presentation" aria-hidden="true"` skeleton block the console-ui skill's §states

@@ -88,7 +88,7 @@ export function refillStatusLabel(status: string): string {
   return AUGMENTATION_STATUS_LABEL[status] ?? status;
 }
 
-/** `/accounts/<id>/refill`'s own history card (`use-refill-screen.ts`) — the caller's own past
+/** `/settings/accounts/<id>/request-refill`'s own history card (`use-refill-screen.ts`) — the caller's own past
  *  requests need no project/account label the queue's row carries (`toRefillRequestRow` above):
  *  every row here already belongs to the one account the page is scoped to. */
 export function toRefillHistoryRow(request: AugmentationRequest, now: number): RefillHistoryRow {
@@ -101,13 +101,14 @@ export function toRefillHistoryRow(request: AugmentationRequest, now: number): R
 }
 
 /**
- * `/accounts/<id>/refill`'s own URL — the destination every refill trigger now navigates to (IA
- * v3 phase 3) instead of opening `RequestRefillDialog` (deleted). Carries `?project=` — the same
- * wire key `use-console-scope.ts`'s `projectScopeParsers` already owns — only when a project is
- * actually scoped; account-wide stays a bare path, matching `projectScopeParsers`' own "absent
- * means every project in this account" contract.
+ * `/settings/accounts/<id>/request-refill`'s own URL — the destination every refill trigger now
+ * navigates to (IA v3 phase 3, moved off `/accounts/<id>/refill` by IA v3 phase E — the old path
+ * 308s here verbatim, `middleware.ts`) instead of opening `RequestRefillDialog` (deleted). Carries
+ * `?project=` — the same wire key `use-console-scope.ts`'s `projectScopeParsers` already owns —
+ * only when a project is actually scoped; account-wide stays a bare path, matching
+ * `projectScopeParsers`' own "absent means every project in this account" contract.
  */
 export function refillHref(accountId: string, projectId: string | null | undefined): string {
-  const base = `/accounts/${accountId}/refill`;
+  const base = `/settings/accounts/${accountId}/request-refill`;
   return projectId ? `${base}?project=${encodeURIComponent(projectId)}` : base;
 }

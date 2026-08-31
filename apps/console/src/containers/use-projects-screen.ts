@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 import { queryUsage } from '../client/usage-client';
+import { useAccountId } from '../client/use-account-id';
 import { useConsoleScope } from '../client/use-console-scope';
 import {
   MANAGE_BUDGET_STATES,
@@ -34,10 +35,12 @@ import { downloadBlob, filenameFromContentDisposition } from './download-file';
 import { applyProjectSpend, sortProjectRows, toProjectRows } from './project-rows';
 
 /**
- * `/projects` (renamed from `/manage`, 2026-08-30 revamp brief) — the screen's data adapter.
- * `ProjectsCentre` is the one zone that reads it (shell revamp phase 2 deleted the `@rail`/
- * `@scope` parallel-route slots this used to be shared with; phase 3 deleted the right-hand aside
- * those slots had been temporarily replaced by).
+ * `/settings/accounts/<id>/projects` (renamed from `/manage`, 2026-08-30 revamp brief; moved from
+ * `/accounts/<id>/projects` to its current path by IA v3 phase E, "the settings/accounts move" —
+ * the old path 308s here verbatim) — the screen's data adapter. `ProjectsCentre` is the one zone
+ * that reads it (shell revamp phase 2 deleted the `@rail`/`@scope` parallel-route slots this used
+ * to be shared with; phase 3 deleted the right-hand aside those slots had been temporarily
+ * replaced by).
  *
  * View state is the URL (ADR 0011): a configured ledger —
  * `?q=alpha&status=active&budget-state=no-quota&row=proj_7&sort=spendMtd&dir=desc` — is a link.
@@ -47,8 +50,11 @@ import { applyProjectSpend, sortProjectRows, toProjectRows } from './project-row
  * settings?"): it is a shared, cross-route dialog now (`use-create-project-dialog.ts`, mounted
  * once in `app/(console)/layout.tsx`), the same lift `use-create-account-dialog.ts` already
  * established. `ProjectsCentre` calls `useOpenCreateProjectDialog()` directly for its own
- * `PageHeader` action, the same way it already calls `useOpenProjectRename()` directly rather than
- * through this hook.
+ * `PageHeader` action, the same way it already calls `useProjectRename()` directly rather than
+ * through this hook — IA v3 phase E collapses that from a two-piece full/lightweight split (the
+ * old `/accounts/<id>/projects`' own inspector rail + `BottomSheet` pair) down to one mount, since
+ * the `BottomSheet` is now this screen's only detail surface at every tier (see
+ * `use-project-rename.ts`'s own doc comment).
  */
 
 const PAGE_SIZE = 25;
@@ -106,6 +112,8 @@ const GROUP_BY_OPTIONS: SegmentedOption<string>[] = MANAGE_REPORT_GROUP_BYS.map(
 const REPORT_MUTATION_KEY = ['projects', 'report'];
 
 export interface ProjectsScreen {
+  /** The path account id — `AccountDetailSubNav`'s own tab hrefs (IA v3 phase E). */
+  accountId: string;
   /** The scoped account's display label (`accountScopeLabel`) — for `PageHeader.subtitle`, never
    *  a second, driftable computation at the call site. `undefined` before an account resolves. */
   scopeLabel: string | undefined;
@@ -156,6 +164,7 @@ export interface ProjectsScreen {
  * element.
  */
 export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
+  const accountId = useAccountId();
   const scope = useConsoleScope();
   const [view, setView] = useManageParams();
 
@@ -200,8 +209,10 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   // ── Spend MTD (2026-08-30 revamp brief): the same account-wide, current-billing-period,
   // per-project consumption query `use-overview-screen.ts`'s admin budget-pressure zone already
   // ships (`buildBudgetConsumptionByProjectRequest` + `queryUsage`) — reused verbatim rather than
-  // re-derived, so the two screens can never disagree about what "this period's spend" means. ──
-  const accountId = scope.value.accountId;
+  // re-derived, so the two screens can never disagree about what "this period's spend" means.
+  // `accountId` is the outer `useAccountId()` (the path segment, guaranteed non-empty under this
+  // route) — no longer a separate `scope.value.accountId` read, now that the two can never
+  // disagree under `/settings/accounts/[accountId]/projects` (IA v3 phase E). ──────────────────
   const spendQuery = useQuery({
     queryKey: ['projects', 'spend-by-project', accountId, SPEND_QUERY_KEY_PERIOD],
     queryFn: () => queryUsage(buildBudgetConsumptionByProjectRequest(accountId, new Date())),
@@ -285,6 +296,7 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
   const activeAccount = scope.allAccounts.find((account) => account.id === scope.value.accountId);
 
   return {
+    accountId,
     scopeLabel: activeAccount ? accountScopeLabel(activeAccount) : undefined,
     rows,
     loading,

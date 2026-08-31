@@ -186,7 +186,15 @@ jobs:
           done <<<"$TAGS"
           digest="$(cat "$digest_file")"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-          echo "pinned-ref=${REGISTRY}/${IMAGE_NAME}@${digest}" >> "$GITHUB_OUTPUT"
+          # Derive the repository from the first metadata-action tag, NOT from $IMAGE_NAME:
+          # `github.repository` carries the org's real casing (ADORSYS-GIS), metadata-action
+          # lowercases it for the tags it emits, and OCI repository names must be lowercase —
+          # skopeo hard-fails on `ghcr.io/ADORSYS-GIS/...` ("repository name must be lowercase").
+          # Found on this workflow's first real run; the tag-derived form cannot drift from what
+          # was actually pushed.
+          repo="$(head -n1 <<<"$TAGS")"
+          repo="${repo%%:*}"
+          echo "pinned-ref=${repo}@${digest}" >> "$GITHUB_OUTPUT"
 
       # THE FALSIFIABLE CHECK (issue #408's own "Test Expectations"). Everything above proves things
       # about a local directory and a local tarball. This step proves them about the artifact that

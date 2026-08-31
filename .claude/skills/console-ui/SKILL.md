@@ -380,6 +380,20 @@ from what reads honestly against that shape, not house taste.
 
 ## States — `EmptyState` for first-run, `InlineStatus` for filtered/unavailable
 
+**2026-08-31 note (owner ruling, verbatim: "How come we're using cards almost everywhere, but not
+in the admin pages?"):** the `/admin/overview` batch (`claude/sb-admin-dashboards`@aaf3fe6) had
+shipped one page-specific carve-out — "charts and tables render on the floor, not in cards" — that
+narrowed ADR 0012 D3's general "`Card` is the default zone container" rule below for that page
+alone. That carve-out is gone: **`Card` is the zone treatment console-wide, no exceptions by
+page.** `/admin/overview`, `/admin/refill-policies` and `/admin/refills-queue` all wrap their zones
+in `Card` now, at the same granularity `overview-centre.tsx` established (one `Card` per rendered
+board/section; `PageHeader`, a bare page-level `InlineStatus` not tied to one board, and
+`OverviewStatRow`'s self-panelled stat cards stay on the floor, same as everywhere else). The
+"floor" language that survives elsewhere in this doc (e.g. "Cards sit on a floor") is about the
+_page background_ a `Card` sits on, and — per the analytics doctrine above — about what renders
+_inside_ a chart's own body (`<svg>` on the floor of its own `Card`), never about whether a zone
+itself gets wrapped.
+
 **ADR 0012 D6** — two components, two jobs, never interchanged:
 
 - **`EmptyState`** — first-run emptiness only (no API keys yet in this project, no projects yet in

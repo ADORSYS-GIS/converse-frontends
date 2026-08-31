@@ -33,20 +33,36 @@ walked back anywhere else in this repo's docs:
 
 ## Trigger Matrix
 
-| Workflow | `pull_request` → `main` | `push` (any branch) | `push` → `main` only | Tag `v*` | Schedule | `workflow_dispatch` |
-|---|---|---|---|---|---|---|
-| `test.yml` | ✅ | ✅ | — | — | — | — |
-| `quality.yml` | ✅ | ✅ | — | — | ✅ weekly (Sun 02:00 UTC) | ✅ |
-| `security.yml` | ✅ | ✅ | — | — | — | — |
-| `governance.yml` | ✅ (opened/edited/synchronize/reopened) | — | — | — | — | — |
-| `opencode.yml` | ✅ (opened/synchronize)¹ | — | — | — | — | — |
-| `docker-image.yml` | ❌ **never** | — | ✅ | ✅ | — | ✅ |
-| `publish-charts-oci.yml` | — | — | ✅ (paths: `charts/**`) | — | — | ✅ |
-| `storybook-pages.yml` | — | — | ✅ (paths: `packages/ui/**`) | — | — | ✅ |
+| Workflow                 | `pull_request` → `main`                 | `push` (any branch) | `push` → `main` only                                                                                                                           | Tag `v*`       | Schedule                  | `workflow_dispatch` |
+| ------------------------ | --------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------- | ------------------- |
+| `test.yml`               | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `quality.yml`            | ✅                                      | ✅                  | —                                                                                                                                              | —              | ✅ weekly (Sun 02:00 UTC) | ✅                  |
+| `security.yml`           | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `governance.yml`         | ✅ (opened/edited/synchronize/reopened) | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `opencode.yml`           | ✅ (opened/synchronize)¹                | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `docker-image.yml`       | ❌ **never**                            | —                   | ✅                                                                                                                                             | ✅             | —                         | ✅                  |
+| `authz-ui-image.yml`     | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
+| `publish-charts-oci.yml` | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
+| `storybook-pages.yml`    | —                                       | —                   | ✅ (paths: `packages/ui/**`)                                                                                                                   | —              | —                         | ✅                  |
 
 ¹ `opencode.yml` also runs on `issue_comment` and `pull_request_review_comment` (for the
 `/oc` slash-command path), and is a no-op unless the `OPENCODE_GATEWAY_AUDIENCE` repo/org
 variable is set.
+
+² `authz-ui-image.yml` is the **one** workflow here that publishes an image from a feature branch,
+and that is deliberate rather than an oversight in the "no per-branch preview image" rule below.
+Its output is consumed by a _different repository_ at a digest pin
+(`ADORSYS-GIS/lightbridge-authz#591` replaces that repo's entire `frontend` build stage with a pull
+of this image), so the cutover has to be provable before either side merges. A push to a branch
+matching `feat/authz-ui-**` publishes `sha-<gitsha>` and `<branch-slug>`; `latest` stays gated on
+`{{is_default_branch}}` and can never be produced off a feature branch.
+
+³ No `v*` tag trigger, unlike `docker-image.yml`. A `push:` block applies its `paths:` filter to tag
+pushes as well, and GitHub evaluates that filter against the tagged commit's own diff — so a release
+tag cut on a commit that did not touch `apps/authz-ui/` would silently produce no image. Since this
+bundle is consumed by digest (never by semver) and every commit that changes it already gets a
+`sha-` image on `main`, the tag trigger would buy nothing and cost a silent gap.
+`workflow_dispatch` is the manual escape hatch.
 
 ```mermaid
 flowchart LR
@@ -82,6 +98,11 @@ flowchart LR
 
     TAG --> DOCKER
     SCHED --> QUALITY
+
+    PUSHFEAT["Push → feat/authz-ui-**"]
+    AUTHZUI["authz-ui-image.yml<br/>turbo build:web --filter=authz-ui<br/>+ Buildah scratch + GHCR push"]
+    PUSHMAIN --> AUTHZUI
+    PUSHFEAT --> AUTHZUI
 ```
 
 The dashed edge is the load-bearing line in this diagram: **no event a PR can raise ever
@@ -121,11 +142,11 @@ someone else's unrelated change. This is exactly what happened: a broken web exp
 `tsconfig.json` (`apps/self-service`, `packages/ui`, etc.) via `pnpm exec tsc --noEmit -p
 <cfg>`. But nothing in the pipeline turns a `tsc` finding into a failed PR check today:
 
-- `.ci/quality/gate.sh` is deliberately designed to fail *only* on a scanner
+- `.ci/quality/gate.sh` is deliberately designed to fail _only_ on a scanner
   crashing/misconfiguring — it explicitly never fails on the number of findings in the
   merged SARIF (`.ci/quality/gate.sh:6-17`), by design, so it doesn't fail every PR on the
   pre-existing backlog.
-- The one mechanism meant to fail a PR on a *new* `error`-level finding is reviewdog
+- The one mechanism meant to fail a PR on a _new_ `error`-level finding is reviewdog
   (`-filter-mode added -fail-level=error`, `.github/workflows/quality.yml:101-105`). On the
   current `ubuntu-latest` runner it is not installed (see Gap 4 below) — the step prints
   `reviewdog not found in PATH; skipping PR check` and exits `0` unconditionally, on PR runs
@@ -395,7 +416,12 @@ the container image tag. Both are driven by ArgoCD reconciling against the `home
 
 ## Artifacts & Releases
 
-- **Container images** are pushed to GitHub Container Registry (GHCR): `ghcr.io/adorsys-gis/converse-frontends`
+- **Container images** are pushed to GitHub Container Registry (GHCR), in three distinct packages:
+  - `ghcr.io/adorsys-gis/converse-frontends` — the legacy self-service/Expo image (no longer built here)
+  - `ghcr.io/adorsys-gis/converse-frontends/console` — `docker-image.yml`
+  - `ghcr.io/adorsys-gis/converse-frontends/authz-ui` — `authz-ui-image.yml`; an **assets-only**
+    `FROM scratch` image whose entire contents are `apps/authz-ui/dist/` at `/dist`. It is never
+    deployed as a workload; `lightbridge-authz` pulls it at container-build time at a digest pin.
 - **Image tags** generated per build:
   - `branch-name` — for branch pushes (in practice, only `main` and the dead branch above)
   - `v*` — for version tags (semver)
@@ -409,14 +435,19 @@ the container image tag. Both are driven by ArgoCD reconciling against the `home
 
 ## Environments & Promotion
 
-| Environment | Trigger | Image Used |
-|-------------|---------|-----------|
-| Production | Push to `main`, or push of a `v*` tag | `ghcr.io/...:latest` / `ghcr.io/...:v<semver>` |
+| Environment | Trigger                               | Image Used                                     |
+| ----------- | ------------------------------------- | ---------------------------------------------- |
+| Production  | Push to `main`, or push of a `v*` tag | `ghcr.io/...:latest` / `ghcr.io/...:v<semver>` |
 
 There is no per-branch preview image: `docker-image.yml` only triggers on `main` and on
 tags (Gap 1), so a feature branch never gets a `ghcr.io/...:<branch-name>` image built for
 it despite the tag pattern (`type=ref,event=branch`) existing in the metadata step —
 that pattern only ever fires for the branches the workflow actually triggers on.
+
+The one exception is `authz-ui-image.yml`, which publishes from `feat/authz-ui-**` on purpose
+(footnote ² above). It has no ArgoCD Application and no `argocd-image-updater` watch — the artifact
+is a build-time input to another repo, not a deployable workload — so a feature-branch image there
+cannot reach any cluster.
 
 Deployment to Kubernetes is driven by a separate GitOps process (ArgoCD in the `ai-helm`
 repo, targeting the `home-os` cluster) — see [Build-and-Deploy Chain](#build-and-deploy-chain)

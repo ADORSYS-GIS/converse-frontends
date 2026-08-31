@@ -222,6 +222,9 @@ export type { OverviewStatCardData, OverviewStatRowProps } from './sections/over
 export { SpendDashboard } from './sections/spend-dashboard';
 export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
 
+export { MultiSeriesSpendBoard } from './sections/multi-series-spend-board';
+export type { MultiSeriesSpendBoardProps } from './sections/multi-series-spend-board';
+
 export { SpendShareSection } from './sections/spend-share';
 export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
 

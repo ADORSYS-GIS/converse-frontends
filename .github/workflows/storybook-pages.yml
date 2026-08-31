@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "packages/ui/**"
+      - "packages/ui-web/**"
       - ".github/workflows/storybook-pages.yml"
   workflow_dispatch:
 
@@ -46,7 +46,7 @@ jobs:
       - name: Upload Storybook artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: packages/ui/storybook-static
+          path: packages/ui-web/storybook-static
 
   deploy:
     name: Deploy to GitHub Pages

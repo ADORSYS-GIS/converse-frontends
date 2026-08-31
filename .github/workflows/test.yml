@@ -63,8 +63,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Discover every workspace's tsconfig.json rather than hardcoding
-      # `apps/self-service` + `packages/ui` (the two that exist today) — this
+      # Discover every workspace's tsconfig.json rather than hardcoding a fixed
+      # list of workspace names — this
       # mirrors the discovery already used by .ci/quality/run.sh, so a workspace
       # that gains a tsconfig.json later is picked up automatically instead of
       # becoming a second stale hardcoded list.

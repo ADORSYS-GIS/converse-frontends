@@ -2,16 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "self-service-web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "apps/self-service",
-        "web"
-      ],
-      "port": 8081
-    },
-    {
       "name": "ui-web-storybook",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

@@ -332,6 +332,12 @@ has a boundary:**
   `chart-core`'s DOM-free _math_ (`seriesColor`'s accent/rank decision) still comes from
   `@lightbridge/ui` verbatim, exactly as ADR 0009 Decision 5 requires.
 
+> **Status amendment, 2026-08-31 (#368):** the Expo surface named throughout this section —
+> `packages/ui` and `apps/self-service` — was removed in the cutover this section anticipated. The
+> preset single-source rule is therefore whole again, per the last bullet above: `theme.css` is now
+> the repo's only palette source. The body above is left as written for history; it is no longer
+> current.
+
 ### 4. Component-shrink policy
 
 For every **new** and every **rewritten** component in `packages/ui-web`, in this order:

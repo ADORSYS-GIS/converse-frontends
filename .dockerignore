@@ -5,21 +5,11 @@
 .docker/keycloak-config
 node_modules
 **/node_modules
-# NOTE: apps/self-service/dist is intentionally NOT ignored — the web bundle is
-# built on the CI runner (turbo run build:web) and COPYed into the runtime image.
-# Metro mirrors node_modules paths into dist/assets/__node_modules/... for any
-# asset (e.g. vector-icon fonts) that resolves from inside a package's own
-# node_modules (pnpm's virtual store nests a real `node_modules` dir there).
-# The blanket rules above would otherwise strip those shipped assets from the
-# build context, so un-ignore anything under dist/.
-!apps/self-service/dist/**/node_modules
-!apps/self-service/dist/**/node_modules/**
 
 # apps/console/.next/standalone is `next build`'s traced runtime bundle (ticket #287,
 # next.config.mjs `output: 'standalone'`) — it embeds its own node_modules (a hoisted pnpm store
 # plus per-workspace-package symlinks into it), which the blanket rules above would otherwise
-# strip from apps/console/Dockerfile's build context. Same reasoning as the self-service carve-out
-# above.
+# strip from apps/console/Dockerfile's build context.
 !apps/console/.next/standalone/**
 !apps/console/.next/standalone/**/node_modules
 !apps/console/.next/standalone/**/node_modules/**
@@ -38,8 +28,6 @@ node_modules
 !apps/console/.docker-stage/**
 !apps/console/.docker-stage/**/node_modules
 !apps/console/.docker-stage/**/node_modules/**
-.expo
-**/.expo
 .DS_Store
 **/.turbo
 **/.cache

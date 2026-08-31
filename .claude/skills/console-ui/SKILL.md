@@ -69,8 +69,9 @@ chart-colour rule, status-as-text) is unchanged.
 Single source for the web surface is **`packages/ui-web/src/theme.css`** — the daisyUI
 `black`/`wireframe` theme blocks plus our extra token registrations (ADR 0010 Decision 3). It is
 the only file in `packages/ui-web` / `apps/console` allowed to contain a colour literal.
-(`packages/ui/tailwind-preset.js` is **no longer** ui-web's source — it remains the single source
-for the Expo surface, `packages/ui` + `apps/self-service`, which stay on Tailwind v3.)
+(The Expo surface — `packages/ui` + `apps/self-service`, which held `packages/ui/tailwind-preset.js`
+as their own Tailwind v3 source — was removed, #368; `theme.css` is now the repo's only palette
+source, full stop.)
 
 | Tailwind token | Spec name      | daisy variable            | Dark (`black`) | Light (`wireframe`) | Role                                                                       |
 | -------------- | -------------- | ------------------------- | -------------- | -------------------- | --------------------------------------------------------------------------------- |
@@ -271,7 +272,8 @@ decimals.
 ## Charts
 
 DOM `<svg>` only — no chart framework. Math comes verbatim from
-`@lightbridge/ui/src/components/chart-core` (scales, bins, `seriesColor`, ramp constants).
+`@lightbridge/chart-core` (scales, bins, `seriesColor`, ramp constants) — its own workspace
+package (`packages/chart-core`), not part of `packages/ui-web`.
 Monochrome ramp by series rank; orange at most once per chart, only for the selected/breached
 series. Gridlines `raised`, baseline `border`, tick labels 9px `subtle`. Meters: 4px `raised`
 track, `soft` fill, `primary` only past the warning threshold.

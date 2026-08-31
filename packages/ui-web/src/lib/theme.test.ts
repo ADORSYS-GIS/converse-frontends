@@ -48,11 +48,6 @@ describe('resolveConsoleTheme', () => {
     stubPrefersLight(false);
     expect(resolveConsoleTheme('system')).toBe('black');
   });
-
-  it('never resolves to wireframe by default — black is the final fallback', () => {
-    stubPrefersLight(false);
-    expect(resolveConsoleTheme('system')).toBe('black');
-  });
 });
 
 describe('readStoredThemePreference', () => {
@@ -68,6 +63,16 @@ describe('readStoredThemePreference', () => {
   it('treats an unrecognised stored value as unset rather than trusting it', () => {
     window.localStorage.setItem(CONSOLE_THEME_STORAGE_KEY, 'solarized');
     expect(readStoredThemePreference()).toBeNull();
+  });
+
+  it('returns null when localStorage.getItem throws (private mode, quota, disabled)', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+
+    expect(readStoredThemePreference()).toBeNull();
+
+    getItem.mockRestore();
   });
 });
 
@@ -104,13 +109,44 @@ describe('applyThemePreference', () => {
 });
 
 describe('CONSOLE_THEME_NO_FLASH_SCRIPT', () => {
-  it('embeds the real storage key rather than a hard-coded duplicate', () => {
-    expect(CONSOLE_THEME_NO_FLASH_SCRIPT).toContain(JSON.stringify(CONSOLE_THEME_STORAGE_KEY));
+  /**
+   * Executes the actual script source the way `apps/console`'s root layout does -- as a raw,
+   * parsed `<script>` body, not a call into any exported function. A string-containment test
+   * ("does the source text mention 'black'") can pass while the script itself is behaviorally
+   * broken (e.g. wrong operator, dead branch); running it for real against a real `document` is
+   * what the console's own inline script actually does at runtime.
+   */
+  function runNoFlashScript(): void {
+    new Function(CONSOLE_THEME_NO_FLASH_SCRIPT)();
+  }
+
+  it('sets data-theme to black when nothing is stored and the OS prefers dark', () => {
+    stubPrefersLight(false);
+
+    runNoFlashScript();
+
+    expect(document.documentElement.dataset.theme).toBe('black');
   });
 
-  it('falls back to black inside its own catch, never wireframe', () => {
-    expect(CONSOLE_THEME_NO_FLASH_SCRIPT).toContain(
-      "catch(e){document.documentElement.dataset.theme='black';}"
-    );
+  it("applies a stored 'wireframe' preference without consulting the OS", () => {
+    window.localStorage.setItem(CONSOLE_THEME_STORAGE_KEY, 'wireframe');
+    stubPrefersLight(false);
+
+    runNoFlashScript();
+
+    expect(document.documentElement.dataset.theme).toBe('wireframe');
+  });
+
+  it('falls back to black inside its own catch when localStorage.getItem throws', () => {
+    stubPrefersLight(false);
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+
+    runNoFlashScript();
+
+    expect(document.documentElement.dataset.theme).toBe('black');
+
+    getItem.mockRestore();
   });
 });

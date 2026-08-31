@@ -17,10 +17,14 @@ import { ScopeDisclosure } from '../components/scope-disclosure';
 // is story #409's call to make, not this one's.
 //
 // `min-h-dvh` and `place-items-center` are used by NO other file in `packages/ui-web/src` or
-// `apps/console/src` (verified by grep). That is deliberate: it makes the `@source
-// '../../../apps/authz-ui/src'` line in `packages/ui-web/src/theme.css` falsifiable -- remove it
-// and these two utilities vanish from the built CSS, where `bg-surface` (used in `ui-web` too)
-// would not. Do not "tidy" them into classes another tree already uses.
+// `apps/console/src` (verified by grep). That is deliberate: their presence in a real
+// `apps/authz-ui/dist/assets/*.css` (checked manually as part of this app's build verification --
+// `bg-surface`, used in `ui-web` too, couldn't tell apart auto-detection from a stale cache) is
+// what proves this app's classes are compiled by `ui-web`'s single Tailwind pass via Vite-root
+// automatic content detection -- NOT via any `@source` line in `packages/ui-web/src/theme.css`,
+// which carries none for this app (see that file's comment; a probe once here proved the line was
+// redundant). `placeholder-page.test.tsx` additionally asserts both classNames render on the
+// element itself. Do not "tidy" them into classes another tree already uses.
 export function PlaceholderPage() {
   return (
     <main className="grid min-h-dvh place-items-center p-8">

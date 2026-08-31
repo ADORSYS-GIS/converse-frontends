@@ -19,13 +19,16 @@ a built `dist/` under `/ui`.
   (`src/app.tsx`) -- exactly one real page today, no invented `/login`/`/authorize`/`/callback`
   routes (those belong to `lightbridge-authz` #424/#425/#441/#443).
 - **One style pipeline**: this app's entire CSS entry (`src/index.css`) is a single
-  `@import '@lightbridge/ui-web/styles.css'`. `packages/ui-web/src/theme.css`'s
-  `@source '../../../apps/authz-ui/src'` is what makes this app's class usage visible to that one
-  Tailwind pass -- there is no second `content`/`@source` configuration to keep in sync. Token
-  utilities only (`bg-surface`, `text-soft`, `border-border`, ...), never a daisyUI component
-  class -- see "Known cost" below and `src/components/notice-panel.tsx`'s own comment for why.
-  Headless UI, `cva`, `clsx`, and `tailwind-merge` are dropped in favour of ADR 0010's primitive
-  stack (Base UI + daisyUI + cmdk + Floating UI) and `@lightbridge/ui-web`'s own `cn()`.
+  `@import '@lightbridge/ui-web/styles.css'`. `packages/ui-web/src/theme.css` carries no `@source`
+  line for this app -- Tailwind v4's automatic content detection, rooted at this app's own Vite
+  project root (which contains `src`), already makes this app's class usage visible to that one
+  Tailwind pass when this app's own build runs it (verified against a real build; probed
+  2026-08-31 -- see `theme.css`'s comment). There is no second `content`/`@source` configuration to
+  keep in sync. Token utilities only (`bg-surface`, `text-soft`, `border-border`, ...), never a
+  daisyUI component class -- see "Known cost" below and `src/components/notice-panel.tsx`'s own
+  comment for why. Headless UI, `cva`, `clsx`, and `tailwind-merge` are dropped in favour of ADR
+  0010's primitive stack (Base UI + daisyUI + cmdk + Floating UI) and `@lightbridge/ui-web`'s own
+  `cn()`.
 - **`vite-plugin-pwa`**, `injectManifest` strategy with a hand-written `src/sw.ts` -- see that
   file's own doc comment for the full reasoning. Short version: this page is served from the
   issuer origin, so a service worker here controls `/oauth2/*`, `/.well-known/*`, `/authorize`,
@@ -86,12 +89,18 @@ mean precaching `index.html` and directly contradicting Decision 10's `no-cache`
 
 ## Known cost
 
-`packages/ui-web/src/theme.css` carries an `@source` line for both `apps/console/src` and
-`apps/authz-ui/src`, because it is the single Tailwind generator for both trees (console-ui skill
-"One style pipeline"). That means this app's built CSS also includes every console utility it
-never uses -- the price of "one import, one generator" instead of a per-consumer content list. The
-measured `dist/assets/*.css` size is recorded in this story's PR description. Scoping each
-consumer's `@source` to only what it needs is a follow-up, out of scope here.
+`packages/ui-web/src/theme.css`'s Tailwind pass also auto-detects `packages/ui-web/src` itself and
+carries an explicit `@source` line for `apps/console/src` (neither build's automatic detection
+reaches those, for reasons documented in `theme.css`'s own comment). This app has no analogous
+line and does not need one -- see "One style pipeline" above -- but this app's build is still the
+single Tailwind generator that also emits `ui-web`'s own utilities into its output, since it
+imports `theme.css` directly. That means this app's built CSS includes utilities it never uses --
+the price of "one import, one generator" instead of a per-consumer content list. A prior revision
+of this file also carried an `@source '../../../apps/authz-ui/src'` line; a probe (2026-08-31)
+proved it redundant for this app's own build and it was removed -- its only observable effect had
+been leaking authz-ui-only utilities (e.g. `min-h-dvh`) into the console's and `ui-web`'s Storybook
+CSS bundles, not helping this app's own compilation. The measured `dist/assets/*.css` size is
+recorded in this story's PR description.
 
 ## Scope
 

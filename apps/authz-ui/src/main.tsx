@@ -2,6 +2,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
+
 import { applyThemePreference, readStoredThemePreference } from '@lightbridge/ui-web/src/lib/theme';
 
 import { App } from './app';

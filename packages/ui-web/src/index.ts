@@ -377,6 +377,24 @@ export type { RefillPolicyLookupProps } from './sections/refill-policy-lookup';
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
+// authz-idp's human plane (lightbridge-authz#478, converse-frontends#409). CSP-SAFE SECTIONS:
+// these render into apps/authz-ui, which authz-idp serves under `default-src 'self'` with no
+// `data:` allowance. They use native elements + token utilities ONLY — never `Button`,
+// `ErrorLine` with `onRetry`, or any daisy component class, every one of which pulls in
+// daisy's `--fx-noise` `data:` background and is CSP-blocked at runtime. Enforced by
+// `csp-safe-sections.test.ts`; do not "tidy" them onto the shared components.
+export { AuthPanelShell } from './sections/auth-panel-shell';
+export type { AuthPanelShellProps } from './sections/auth-panel-shell';
+export { DeviceCodeEntry } from './sections/device-code-entry';
+export type { DeviceCodeEntryProps } from './sections/device-code-entry';
+export { DeviceConfirmation } from './sections/device-confirmation';
+export type {
+  DeviceConfirmationProps,
+  DeviceConfirmationStatus,
+} from './sections/device-confirmation';
+export { AuthErrorPanel } from './sections/auth-error-panel';
+export type { AuthErrorPanelProps } from './sections/auth-error-panel';
+
 // The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
 // dashboard 3) — accounts and projects on one ranking.
 export { TopSpendersLedger } from './sections/top-spenders-ledger';
@@ -420,7 +438,11 @@ export type {
   AccountSettingsProps,
 } from './sections/account-settings';
 
-export { ACCOUNT_DIRECTORY_REGION_LABEL, AccountDirectory, NO_ACCOUNTS_MESSAGE } from './sections/account-directory';
+export {
+  ACCOUNT_DIRECTORY_REGION_LABEL,
+  AccountDirectory,
+  NO_ACCOUNTS_MESSAGE,
+} from './sections/account-directory';
 export type { AccountDirectoryProps, AccountDirectoryRow } from './sections/account-directory';
 
 export {

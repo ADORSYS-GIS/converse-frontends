@@ -27,7 +27,7 @@ describe('section class budget', () => {
   it('budget-pressure hand-writes only what daisy and lib/ cannot supply', () => {
     const { utils, daisy } = auditComponent(
       join(import.meta.dirname, 'sections', 'budget-pressure'),
-      THEME,
+      THEME
     );
 
     // Measured at 9 utilities / 3 daisy classes when this test was written. The whole
@@ -155,4 +155,54 @@ describe('section class budget', () => {
     // the closest existing example of one that nearly does.
     expect(DEFAULT_BUDGET).toBe(3);
   });
+
+  /**
+   * The four CSP-safe device-pairing sections (lightbridge-authz#478, converse-frontends#409,
+   * plan D6) — pinned at the counts MEASURED when this PR landed, per this file's own docstring
+   * rule ("Do not guess these numbers. Run the test once, read the failure's actual count, pin
+   * that.").
+   *
+   * `auth-panel-shell` measures ZERO daisy tokens — the real invariant every one of these four
+   * sections holds: no daisy component class is ever *applied* to a rendered element. That is
+   * mechanically enforced (not merely measured here) by `csp-safe-sections.test.ts`'s
+   * attribute-aware className scan, which all four sections pass with zero violations.
+   *
+   * `device-code-entry`, `device-confirmation`, and `auth-error-panel` each measure daisy=1 here
+   * — but it is NOT an applied daisy class. It is this counter's own known over-reporting failure
+   * mode (`class-budget.ts`'s docstring already catalogues several categories of it): the counter
+   * tokenises EVERY quoted string in `component.tsx` with no attribute-name awareness, so a native
+   * `role="alert"` ARIA attribute's VALUE string reads identically to daisy's `.alert` component
+   * class. This is not new debt introduced by these sections — the identical artifact already
+   * exists, unflagged, for `components/inline-status` (`role="status"`, daisy=1 under this same
+   * counter) and `components/error-line` (`role="alert"`, daisy=1); it has simply never been
+   * pinned by a test before now, since no earlier section used a bare `role=` attribute directly
+   * rather than going through those two components. `csp-safe-sections.test.ts`, not this raw
+   * string counter, is the authority on whether these sections are CSP-safe.
+   *
+   * Measured 2026-08-31: auth-panel-shell 17 utils / 0 daisy; device-code-entry 16 utils / 1 daisy
+   * (`role="alert"` only); device-confirmation 18 utils / 1 daisy (`role="alert"` only);
+   * auth-error-panel 2 utils / 1 daisy (`role="alert"` only).
+   */
+  it.each([
+    ['auth-panel-shell', 17, 0],
+    ['device-code-entry', 16, 1],
+    ['device-confirmation', 18, 1],
+    ['auth-error-panel', 2, 1],
+  ])(
+    '%s stays at or under %d utilities / %d daisy tokens (daisy tokens are the role= counter artifact above)',
+    (section, utilsBudget, daisyBudget) => {
+      const { utils, daisy } = auditComponent(
+        join(import.meta.dirname, 'sections', section),
+        THEME
+      );
+      expect(
+        utils,
+        `${section} carries ${utils} hand-written utilities (pinned at ${utilsBudget})`
+      ).toBeLessThanOrEqual(utilsBudget);
+      expect(
+        daisy,
+        `${section} carries ${daisy} daisy-set tokens (pinned at ${daisyBudget}) -- see this block's own comment on the role= counter artifact before assuming a regression`
+      ).toBe(daisyBudget);
+    }
+  );
 });

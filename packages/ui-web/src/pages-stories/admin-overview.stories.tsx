@@ -13,14 +13,15 @@
 // ONE shared account ceiling, but an estate view genuinely has one real ceiling PER ACCOUNT, so
 // the sort key and the meter's `ceiling` both had to move per-row).
 //
-// NO `Card` anywhere on this page — this batch's own explicit ruling is "charts and tables render
-// on the floor, not in cards," which narrows this page specifically past ADR 0012 D3's general
-// "Card is the default zone container." Every section reused here already renders uncontained by
-// design (each one's own doc comment says panelling is the caller's decision, e.g.
-// `top-spenders-ledger/component.tsx`'s "renders uncontained on the floor"); this page is simply
-// the one caller on this batch that chooses none. `StatCard` (via `OverviewStatRow`) and each
-// `LatencyStatCards` row stay self-panelled regardless — they carry their own `surface` fill by
-// contract and were never wrapped in an outer `Card` here to begin with.
+// `Card` wraps every zone (2026-08-31, owner ruling, verbatim: "How come we're using cards almost
+// everywhere, but not in the admin pages?") — this page's original "charts and tables render on
+// the floor, not in cards" ruling is overturned; it was always a narrower carve-out against ADR
+// 0012 D3's general "Card is the default zone container," now closed for consistency with every
+// other page. One `Card` per rendered board/section, the same granularity `overview.stories.tsx`
+// uses: sections reused here keep whatever heading they already render (`ZoneHeading`, or a
+// section's own `label`) rather than being promoted into `Card`'s own `title`. `StatCard` (via
+// `OverviewStatRow`) stays self-panelled regardless — its own `surface` fill, never wrapped in an
+// outer `Card` — matching every other stat row in the console.
 //
 // Two more divergences from the assignment brief, both from the console-ui skill's own
 // "NO static per-series legend lists under any chart" ruling: dashboard 1's "total + dashed
@@ -57,6 +58,7 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { DateRangeField, presetRange } from '../components/date-range-field';
 import { InlineStatus } from '../components/inline-status';
@@ -385,84 +387,91 @@ function AdminOverviewScreen() {
           account yet (lightbridge-authz#602).
         </InlineStatus>
 
-        {/* ── 1. Estate spend over time — floor-mounted, no Card: the admin-overview batch's
-             own "charts and tables render on the floor, not in cards" ruling. Every reused
-             section here (`MultiSeriesSpendBoard`, `TopSpendersLedger`, `LatencyStatCards`,
-             `EstateBudgetPressure`) is already built to render uncontained — panelling is
-             always the CALLER's choice (each section's own doc comment says so), and this page
-             chooses none. ── */}
-        <MultiSeriesSpendBoard
-          label="Total spend vs previous period"
-          series={ESTATE_TOTAL_SPEND_SERIES}
-          scale={estateTotalScale}
-          onScaleChange={setEstateTotalScale}
-          fallbackWidth={1120}
-          height={200}
-          emptyMessage="No usage in this range."
-        />
-        <MultiSeriesSpendBoard
-          label="Spend by account"
-          series={ESTATE_ACCOUNT_SPEND_SERIES}
-          scale={estateAccountScale}
-          onScaleChange={setEstateAccountScale}
-          fallbackWidth={1120}
-          height={220}
-          emptyMessage="No usage in this range."
-        />
+        {/* ── 1. Estate spend over time ── */}
+        <Card>
+          <MultiSeriesSpendBoard
+            label="Total spend vs previous period"
+            series={ESTATE_TOTAL_SPEND_SERIES}
+            scale={estateTotalScale}
+            onScaleChange={setEstateTotalScale}
+            fallbackWidth={1120}
+            height={200}
+            emptyMessage="No usage in this range."
+          />
+        </Card>
+        <Card>
+          <MultiSeriesSpendBoard
+            label="Spend by account"
+            series={ESTATE_ACCOUNT_SPEND_SERIES}
+            scale={estateAccountScale}
+            onScaleChange={setEstateAccountScale}
+            fallbackWidth={1120}
+            height={220}
+            emptyMessage="No usage in this range."
+          />
+        </Card>
 
         {/* ── 2. Model mix ── */}
-        <div>
+        <Card>
           <ZoneHeading
             label="Spend by model — estate share"
             trailing={<span className={DATA_INK_CLASS}>{formatUsd(modelMixTotal)}</span>}
           />
           <ShareBar className="mt-4" segments={MODEL_MIX_SEGMENTS} />
-        </div>
-        <MultiSeriesSpendBoard
-          label="Spend by model over time"
-          series={MODEL_MIX_OVER_TIME_SERIES}
-          scale={modelMixScale}
-          onScaleChange={setModelMixScale}
-          fallbackWidth={1120}
-          height={220}
-          emptyMessage="No usage in this range."
-        />
+        </Card>
+        <Card>
+          <MultiSeriesSpendBoard
+            label="Spend by model over time"
+            series={MODEL_MIX_OVER_TIME_SERIES}
+            scale={modelMixScale}
+            onScaleChange={setModelMixScale}
+            fallbackWidth={1120}
+            height={220}
+            emptyMessage="No usage in this range."
+          />
+        </Card>
 
         {/* ── 3. Top spenders ── */}
-        <div>
+        <Card>
           <ZoneHeading label="Top spenders" />
           <TopSpendersLedger className="mt-4" rows={topSpendersFixture} />
-        </div>
+        </Card>
 
         {/* ── 4. Budget pressure ── */}
-        <EstateBudgetPressure accounts={estateBudgetPressureAccounts} />
-        <SpendDashboard
-          label={`Budget burn-down — ${worstEstateBudgetPressureAccount.name}`}
-          series={WORST_ACCOUNT_BURN_DOWN_SERIES}
-          cumulative
-          ceiling={worstEstateBudgetPressureAccount.ceiling}
-          fallbackWidth={1120}
-          height={200}
-          formatYTick={formatUsdAxis}
-          formatTooltipValue={formatUsd}
-        />
+        <Card>
+          <EstateBudgetPressure accounts={estateBudgetPressureAccounts} />
+        </Card>
+        <Card>
+          <SpendDashboard
+            label={`Budget burn-down — ${worstEstateBudgetPressureAccount.name}`}
+            series={WORST_ACCOUNT_BURN_DOWN_SERIES}
+            cumulative
+            ceiling={worstEstateBudgetPressureAccount.ceiling}
+            fallbackWidth={1120}
+            height={200}
+            formatYTick={formatUsdAxis}
+            formatTooltipValue={formatUsd}
+          />
+        </Card>
 
         {/* ── 5. Refill operations ── */}
         <OverviewStatRow cards={REFILL_STAT_CARDS} />
-        <MultiSeriesSpendBoard
-          label="Refill decisions over time"
-          series={REFILL_DECISIONS_SERIES}
-          scale={refillDecisionsScale}
-          onScaleChange={setRefillDecisionsScale}
-          fallbackWidth={1120}
-          height={200}
-          formatValue={formatCount}
-          formatYTick={formatCount}
-          emptyMessage="No refill decisions in this range."
-        />
+        <Card>
+          <MultiSeriesSpendBoard
+            label="Refill decisions over time"
+            series={REFILL_DECISIONS_SERIES}
+            scale={refillDecisionsScale}
+            onScaleChange={setRefillDecisionsScale}
+            fallbackWidth={1120}
+            height={200}
+            formatValue={formatCount}
+            formatYTick={formatCount}
+            emptyMessage="No refill decisions in this range."
+          />
+        </Card>
 
         {/* ── 6. Request volume & error rate ── */}
-        <div>
+        <Card>
           <MultiSeriesSpendBoard
             label="Request volume & errors"
             series={REQUEST_VOLUME_ERROR.series}
@@ -475,28 +484,30 @@ function AdminOverviewScreen() {
             emptyMessage="No requests in this range."
           />
           <InlineStatus className="mt-2">{REQUEST_ERROR_RATE_CAPTION}</InlineStatus>
-        </div>
+        </Card>
 
         {/* ── 7. Latency board — LatencyStatCards reused verbatim, no trend line (see file
              header: a per-request latency time series is explicitly banned). ── */}
-        <div>
+        <Card>
           <ZoneHeading label="Latency by model" />
           <LatencyStatCards className="mt-4" rows={latencyStatRows} />
-        </div>
+        </Card>
 
         {/* ── 8. Adoption ── */}
         <OverviewStatRow cards={ADOPTION_STAT_CARDS} />
-        <MultiSeriesSpendBoard
-          label="Active accounts & projects per day"
-          series={ADOPTION_OVER_TIME_SERIES}
-          scale={adoptionScale}
-          onScaleChange={setAdoptionScale}
-          fallbackWidth={1120}
-          height={200}
-          formatValue={formatCount}
-          formatYTick={formatCount}
-          emptyMessage="No activity in this range."
-        />
+        <Card>
+          <MultiSeriesSpendBoard
+            label="Active accounts & projects per day"
+            series={ADOPTION_OVER_TIME_SERIES}
+            scale={adoptionScale}
+            onScaleChange={setAdoptionScale}
+            fallbackWidth={1120}
+            height={200}
+            formatValue={formatCount}
+            formatYTick={formatCount}
+            emptyMessage="No activity in this range."
+          />
+        </Card>
       </div>
     </ConsoleShell>
   );

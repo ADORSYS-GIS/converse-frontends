@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@lightbridge/ui-web/src/components/card';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ShareBar } from '@lightbridge/ui-web/src/components/share-bar';
@@ -45,14 +46,26 @@ function skeletonRows(count: number) {
  * The centre column, and the whole of this route. The shell is NOT here — it is mounted once by
  * `app/(console)/layout.tsx`.
  *
- * Composition matches the approved page story verbatim (`Pages/AdminOverview`,
- * `claude/sb-admin-dashboards`@aaf3fe6, "Approved, build the /admin area."): no `Card` anywhere on
- * this page — that batch's own explicit ruling is "charts and tables render on the floor, not in
- * cards," each section here already renders uncontained by design. `use-admin-overview-screen.ts`
- * supplies the real data the story's fixtures stood in for, including two honest divergences from
- * the story's own drawn shape (dashboard 5 has no decisions-over-time board or median-time-to-
- * decision card; dashboard 6 has no error-rate line) — both are real backend gaps, captioned
- * inline rather than fabricated, per that hook's own doc comment.
+ * Composition matches the approved page story (`Pages/AdminOverview`), updated 2026-08-31 (owner
+ * ruling, verbatim: "How come we're using cards almost everywhere, but not in the admin pages?").
+ * The original `claude/sb-admin-dashboards`@aaf3fe6 batch's "charts and tables render on the
+ * floor, not in cards" ruling for this page is overturned — it was always a narrower carve-out
+ * against ADR 0012 D3's general "`Card` is the default zone container," and the owner has now
+ * closed that carve-out for consistency with every other page in the console (`overview-centre.tsx`
+ * wraps its own zones the identical way — see that file's own doc comment for the precedent this
+ * one follows). Every zone below sits in its own `Card`, matching `overview-centre.tsx`'s
+ * granularity: one `Card` per rendered board/section, sections keep whatever heading they already
+ * render (`ZoneHeading`, or a section's own `label`) rather than being promoted into `Card`'s own
+ * `title`, and a caption that describes one specific board lives inside that board's `Card`, not
+ * beside it. Two things stay on the floor, per that same precedent: `PageHeader`, and any bare
+ * page-level `InlineStatus` not tied to one specific board (the truncation caption) — plus
+ * `OverviewStatRow`'s stat cards, which stay self-panelled (their own `surface` fill) whether or
+ * not a `Card` also wraps the row they sit in (console-ui skill, "Shape and layout").
+ * `use-admin-overview-screen.ts` supplies the real data the story's fixtures stood in for,
+ * including two honest divergences from the story's own drawn shape (dashboard 5 has no
+ * decisions-over-time board or median-time-to-decision card; dashboard 6 has no error-rate line)
+ * — both are real backend gaps, captioned inline rather than fabricated, per that hook's own doc
+ * comment.
  */
 export function AdminOverviewCentre() {
   const screen = useAdminOverviewScreen();
@@ -70,33 +83,37 @@ export function AdminOverviewCentre() {
       {screen.truncationCaption ? <InlineStatus>{screen.truncationCaption}</InlineStatus> : null}
 
       {/* ── 1. Estate spend over time ── */}
-      <MultiSeriesSpendBoard
-        label="Total spend vs previous period"
-        series={screen.estateTotalSeries}
-        scale={screen.estateTotalScale}
-        onScaleChange={screen.setEstateTotalScale}
-        status={screen.estateTotalStatus}
-        errorMessage={screen.errorMessage}
-        onRetry={screen.onRetry}
-        fallbackWidth={1120}
-        height={200}
-        emptyMessage="No usage in this range."
-      />
-      <MultiSeriesSpendBoard
-        label="Spend by account"
-        series={screen.estateAccountSeries}
-        scale={screen.estateAccountScale}
-        onScaleChange={screen.setEstateAccountScale}
-        status={screen.estateTotalStatus}
-        errorMessage={screen.errorMessage}
-        onRetry={screen.onRetry}
-        fallbackWidth={1120}
-        height={220}
-        emptyMessage="No usage in this range."
-      />
+      <Card>
+        <MultiSeriesSpendBoard
+          label="Total spend vs previous period"
+          series={screen.estateTotalSeries}
+          scale={screen.estateTotalScale}
+          onScaleChange={screen.setEstateTotalScale}
+          status={screen.estateTotalStatus}
+          errorMessage={screen.errorMessage}
+          onRetry={screen.onRetry}
+          fallbackWidth={1120}
+          height={200}
+          emptyMessage="No usage in this range."
+        />
+      </Card>
+      <Card>
+        <MultiSeriesSpendBoard
+          label="Spend by account"
+          series={screen.estateAccountSeries}
+          scale={screen.estateAccountScale}
+          onScaleChange={screen.setEstateAccountScale}
+          status={screen.estateTotalStatus}
+          errorMessage={screen.errorMessage}
+          onRetry={screen.onRetry}
+          fallbackWidth={1120}
+          height={220}
+          emptyMessage="No usage in this range."
+        />
+      </Card>
 
       {/* ── 2. Model mix ── */}
-      <div>
+      <Card>
         <ZoneHeading
           label="Spend by model — estate share"
           trailing={
@@ -106,22 +123,24 @@ export function AdminOverviewCentre() {
           }
         />
         <ShareBar className="mt-4" segments={screen.modelSegments} />
-      </div>
-      <MultiSeriesSpendBoard
-        label="Spend by model over time"
-        series={screen.modelMixSeries}
-        scale={screen.modelMixScale}
-        onScaleChange={screen.setModelMixScale}
-        status={screen.estateTotalStatus}
-        errorMessage={screen.errorMessage}
-        onRetry={screen.onRetry}
-        fallbackWidth={1120}
-        height={220}
-        emptyMessage="No usage in this range."
-      />
+      </Card>
+      <Card>
+        <MultiSeriesSpendBoard
+          label="Spend by model over time"
+          series={screen.modelMixSeries}
+          scale={screen.modelMixScale}
+          onScaleChange={screen.setModelMixScale}
+          status={screen.estateTotalStatus}
+          errorMessage={screen.errorMessage}
+          onRetry={screen.onRetry}
+          fallbackWidth={1120}
+          height={220}
+          emptyMessage="No usage in this range."
+        />
+      </Card>
 
       {/* ── 3. Top spenders ── */}
-      <div>
+      <Card>
         <ZoneHeading label="Top spenders" />
         <TopSpendersLedger
           className="mt-4"
@@ -131,39 +150,43 @@ export function AdminOverviewCentre() {
           error={screen.topSpendersError}
           onRetry={screen.onRetryTopSpenders}
         />
-      </div>
+      </Card>
 
       {/* ── 4. Budget pressure ── */}
-      <EstateBudgetPressure
-        accounts={screen.budgetPressureAccounts}
-        status={screen.budgetPressureStatus}
-        errorMessage={screen.budgetPressureError}
-        onRetry={screen.onRetryBudgetPressure}
-      />
-      {screen.worstBudgetPressureAccount ? (
-        <SpendDashboard
-          label={`Budget burn-down — ${screen.worstBudgetPressureAccount.name}`}
-          series={screen.worstAccountBurnDown}
-          cumulative
-          ceiling={screen.worstBudgetPressureAccount.ceiling}
-          status={screen.budgetPressureStatus === 'error' ? 'error' : 'ready'}
+      <Card>
+        <EstateBudgetPressure
+          accounts={screen.budgetPressureAccounts}
+          status={screen.budgetPressureStatus}
           errorMessage={screen.budgetPressureError}
           onRetry={screen.onRetryBudgetPressure}
-          fallbackWidth={1120}
-          height={200}
-          formatYTick={formatUsdAxis}
-          formatTooltipValue={formatUsd}
         />
-      ) : screen.budgetPressureStatus === 'ready' ? (
-        <InlineStatus>No account with a readable budget ceiling drew anything this period.</InlineStatus>
-      ) : null}
+      </Card>
+      <Card>
+        {screen.worstBudgetPressureAccount ? (
+          <SpendDashboard
+            label={`Budget burn-down — ${screen.worstBudgetPressureAccount.name}`}
+            series={screen.worstAccountBurnDown}
+            cumulative
+            ceiling={screen.worstBudgetPressureAccount.ceiling}
+            status={screen.budgetPressureStatus === 'error' ? 'error' : 'ready'}
+            errorMessage={screen.budgetPressureError}
+            onRetry={screen.onRetryBudgetPressure}
+            fallbackWidth={1120}
+            height={200}
+            formatYTick={formatUsdAxis}
+            formatTooltipValue={formatUsd}
+          />
+        ) : screen.budgetPressureStatus === 'ready' ? (
+          <InlineStatus>No account with a readable budget ceiling drew anything this period.</InlineStatus>
+        ) : null}
+      </Card>
 
       {/* ── 5. Refill operations ── */}
       <OverviewStatRow cards={screen.refillStatCards} loading={screen.refillStatCardsLoading} />
       <InlineStatus>{REFILL_DECISIONS_UNAVAILABLE_CAPTION}</InlineStatus>
 
       {/* ── 6. Request volume & errors ── */}
-      <div>
+      <Card>
         <MultiSeriesSpendBoard
           label="Request volume"
           series={screen.requestVolumeSeries}
@@ -179,12 +202,12 @@ export function AdminOverviewCentre() {
           emptyMessage="No requests in this range."
         />
         <InlineStatus className="mt-2">{REQUEST_ERROR_RATE_UNAVAILABLE_CAPTION}</InlineStatus>
-      </div>
+      </Card>
 
       {/* ── 7. Latency board — scoped to the estate's single busiest account (see
            `use-admin-overview-screen.ts`'s own doc comment for why an estate-wide blend of
            per-account percentiles is not honestly computable). ── */}
-      <div>
+      <Card>
         <ZoneHeading label="Latency by model" />
         {screen.latencyStatus === 'error' ? (
           <InlineStatus className="mt-4">Failed to load latency for this account.</InlineStatus>
@@ -196,24 +219,26 @@ export function AdminOverviewCentre() {
         {screen.latencyCaption ? (
           <InlineStatus className="mt-2">{screen.latencyCaption}</InlineStatus>
         ) : null}
-      </div>
+      </Card>
 
       {/* ── 8. Adoption ── */}
       <OverviewStatRow cards={screen.adoptionStatCards} loading={screen.adoptionStatCardsLoading} />
-      <MultiSeriesSpendBoard
-        label="Active accounts & projects per day"
-        series={screen.adoptionOverTimeSeries}
-        scale={screen.adoptionScale}
-        onScaleChange={screen.setAdoptionScale}
-        status={screen.estateTotalStatus}
-        errorMessage={screen.errorMessage}
-        onRetry={screen.onRetry}
-        fallbackWidth={1120}
-        height={200}
-        formatValue={formatCount}
-        formatYTick={formatCount}
-        emptyMessage="No activity in this range."
-      />
+      <Card>
+        <MultiSeriesSpendBoard
+          label="Active accounts & projects per day"
+          series={screen.adoptionOverTimeSeries}
+          scale={screen.adoptionScale}
+          onScaleChange={screen.setAdoptionScale}
+          status={screen.estateTotalStatus}
+          errorMessage={screen.errorMessage}
+          onRetry={screen.onRetry}
+          fallbackWidth={1120}
+          height={200}
+          formatValue={formatCount}
+          formatYTick={formatCount}
+          emptyMessage="No activity in this range."
+        />
+      </Card>
     </div>
   );
 }

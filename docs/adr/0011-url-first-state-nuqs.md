@@ -4,6 +4,13 @@
 
 Accepted
 
+> **Amended by [ADR 0013](0013-console-information-architecture-v3.md) (IA v3, 2026-08-31).**
+> The account half of scope moved out of the URL **query** and into the URL **path**
+> (`/accounts/[accountId]/*`) — see ADR 0013 D1. The project half is unaffected: `?project=`
+> stays exactly the query-state pattern this ADR describes, including `clearOnDefault` for the
+> "all projects" default. Everything else here — the URL-as-cross-zone-state-bus principle, the
+> sanctioned local-state exceptions, `packages/ui-web` staying nuqs-free — is unchanged.
+
 ## Context
 
 The console's view state (scope, filters, range/bucket/group-by, row/series selections, active

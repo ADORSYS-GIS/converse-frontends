@@ -55,6 +55,34 @@ Symptoms of "wrong identity", in the order people notice them:
 Resolution: sign out (full sign-out — the idp keeps its own browser session) and sign in with
 the intended IdP button.
 
+## Account-scoped URLs
+
+Since [ADR 0013](adr/0013-console-information-architecture-v3.md) D1 (IA v3 phase 1), every screen
+lives under `/accounts/[accountId]/*` — the account is a **URL path segment**, not just a query
+parameter. This changes what a deep link carries and what has to be checked before honouring it:
+
+- **A deep link carries the tenant.** `/accounts/acct_1/api-keys` names a specific account
+  directly, the same way it would in any other multi-tenant path-scoped app — sharing that URL
+  with a colleague, or bookmarking it, points at that one account regardless of which account the
+  recipient's browser last had active.
+- **`/` is the resolver, not a screen.** A bare visit (no account in the path yet) resolves
+  `lightbridge.last-account` — a per-*identity* preference, meaningless across the identity switch
+  this page describes — falling back to the first account the acting identity's own
+  `model.Account.list` returns, and redirects into `/accounts/<that id>/overview`.
+- **The "not your account" guard.** `accounts/[accountId]/layout.tsx` checks the path's account id
+  against the acting identity's own settled `allAccounts` list before rendering anything under it.
+  A bookmarked or hand-edited URL naming an account the current identity cannot see — including,
+  per this page's whole scenario, an account that belongs to the *other* federated identity of the
+  same human — renders **"This account isn't available to you," with a link back to `/`** (the
+  resolver), never the other identity's data and never a raw 403/404. The check is gated on the
+  accounts query having genuinely *settled*; while it is loading, the screen renders normally
+  rather than flashing a false "not available" during the brief window before the list arrives.
+
+This is exactly the failure mode a wrong-identity sign-in produces on a bookmarked link: the
+account id in the URL is real, but not visible to whichever subject is currently signed in — the
+guard's message is what a person actually sees, distinct from the empty-dashboard symptom this
+page opens with (which is what happens when no account id is in play yet at all, i.e. on `/`).
+
 ## Consequences for features
 
 - "All accounts" anywhere in the console (the workspace switcher, `/settings/overview/*`

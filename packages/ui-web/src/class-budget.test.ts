@@ -23,8 +23,16 @@ import type { ClassAudit } from '../scripts/class-budget';
  *
  * Re-measured 2026-08-30 (Phase 8, console visual revamp docs/ratchet pass): the two-column shell
  * landing (`ConsoleTopBar`, `ConsoleSidebar` folding the old rail/header components) moved the
- * count to **33 hand-written utilities across 50 components, none over 3**, beside 54 daisyUI
- * classes and 78 named `@utility` parts — still zero `BUDGET` entries.
+ * count to 33 hand-written utilities across 50 components, none over 3, beside 54 daisyUI
+ * classes and 78 named `@utility` parts.
+ *
+ * Re-measured 2026-08-31 (IA v3 Phase 6, closing docs/ratchets pass): the component count is
+ * unchanged at 50 (IA v3's new screens — `ranked-series-rows`, `latency-stat-cards`, refill and
+ * policy sections — live under `sections/`, which this file does not audit; see
+ * `section-class-audit.test.ts`), but several existing components (the rail/shell/dialog work of
+ * IA v3 phases 1-3) grew real per-viewer geometry — the count moved to **43 hand-written
+ * utilities across 50 components, none over 3**, beside 54 daisyUI classes and 86 named
+ * `@utility` parts — still zero `BUDGET` entries.
  */
 const BUDGET: Record<string, number> = {
   // EMPTY — the bar is met. Every one of the 49 components sits at or under DEFAULT_BUDGET (3).

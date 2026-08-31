@@ -1,3 +1,4 @@
+import { NO_POLICY_SET_ID_CAPTION } from './component';
 import type { RefillPolicyStatusStripProps } from './types';
 
 export const refillPolicyStatusReady: RefillPolicyStatusStripProps = {
@@ -13,9 +14,5 @@ export const refillPolicyStatusError: RefillPolicyStatusStripProps = {
 };
 
 export const refillPolicyStatusUnavailable: RefillPolicyStatusStripProps = {
-  state: {
-    status: 'unavailable',
-    caption:
-      'No known policy set id to check yet — there is no discovery procedure for one today (converse-frontends#368).',
-  },
+  state: { status: 'unavailable', caption: NO_POLICY_SET_ID_CAPTION },
 };

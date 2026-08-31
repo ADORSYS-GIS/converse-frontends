@@ -673,3 +673,86 @@ dashboard is the first screen in this console to actually call that procedure.
 - `containers/refills-queue-centre.tsx` and its own screen hook are `git mv`d intact from
   `settings/refills-queue/` to `admin/refills-queue/` — internal logic unchanged, only the route
   segment moves.
+
+## Amendment (2026-08-31, later still): refill policies move to the admin area, and split into three URL modes
+
+A third same-day owner ruling, this time on `/settings/refill-options` (the Phase G human-form
+redesign, `claude/sb-refill-options-human`@745a895) rather than the refills queue, but the
+identical shape of correction as both amendments above — verbatim: *"Refill options are for admins
+only. Not normal users. And we don't 'Simulate' them on the same page where we create them.
+/admin/refill-policies should be for listing them /admin/refill-policies?create=true or
+/admin/refill-policies?edit=<id> to create or edit, respectively,
+/admin/refill-policies?simulate=<id> to simulate."*
+
+This does not reopen D1, D2 or the admin-area amendment above — it is the admin area's THIRD
+destination, gated the identical `isAdmin(session.user.roles)` + `notFound()` way as its two
+siblings, and it moves `/settings/refill-options` off the settings area entirely: `settingsNavGroups`
+drops the row (five real destinations left, `roles` still the one disabled exception), and
+`/settings/refill-options` 308s to `/admin/refill-policies` (`middleware.ts`'s
+`LEGACY_STATIC_REDIRECT`, the same mechanism the refills-queue move already established).
+
+**The second half of the ruling — never simulate on the same view as create/edit — is new
+information this ADR had not yet stated anywhere**: the Phase G design batch built `RuleSetForm`,
+`ScenarioForm`, `PolicySimulator` (composing both), `RefillPolicyManual` and
+`RefillPolicyStatusStrip`, but shipped them all on ONE `/settings/refill-options` page — a "your
+current ladder" card next to a "try a policy" card that itself mixed rule-set authoring with
+scenario simulation in one form. The owner's correction splits authoring from simulation into
+mutually-exclusive URL modes on the new route, matching the `?create=true` precedent the
+settings/accounts work already established (Amendment, phase E, above) rather than inventing a
+fourth param shape:
+
+- **List** (bare path) — what is honestly listable with no discovery procedure for which policy
+  sets exist (`converse-frontends#368`, unchanged limitation): a new `RefillPolicyLookup` section
+  (an id field an admin types, `RefillPolicyStatusStrip` for whatever `getBudgetPolicyStatus` says
+  about it, and `Edit`/`Simulate` actions once ready), "Your current ladder" (unchanged, reused
+  verbatim from the old page), and the `RefillPolicyManual` explainer.
+- **`?create=true`** — `RuleSetForm` alone (no `ScenarioForm` beside it any more), authoring a
+  brand-new policy set. This amendment also wires the real write path Phase G's own PR body had
+  deliberately left unwired (*"packages/ui-web only — no apps/console wiring in this batch"*): the
+  generated contract carries TWO real mutations for this, both genuine and both wired rather than
+  picking one — `activateBudgetPolicy` (new rule data, live immediately) as the primary action, and
+  `createBudgetPolicyRevision` (new rule data, inert until a separate activation) as a secondary
+  one. Neither is a rollback UI (`activateBudgetPolicy`'s OTHER argument shape, `{ revisionId }`) —
+  that is a distinct, unrequested feature this amendment does not build speculatively.
+- **`?edit=<id>`** — the identical form, honestly labelled "author a replacement revision for
+  `<id>`": the current revision's CONTENT still has no read API (`converse-frontends#368`,
+  unchanged), so this always starts from `createBlankRuleSet()`, stated inline rather than
+  pretended away — never a fake prefill.
+- **`?simulate=<id>`** — `PolicySimulator`, unchanged internally (`RuleSetForm` + `ScenarioForm` +
+  a `simulateBudgetPolicy` decision readout), just relocated to its own mode. `<id>` is display
+  context only — `simulateBudgetPolicy` itself takes no `policySetId` at all (it is stateless,
+  reads no stored policy, ADR-0007's own contract), a fact the page states in its own subtitle.
+
+`policySetId` (the list mode's own lookup target) is a fourth URL param on the same route
+(`?policy-set=`, debounced onto the URL the same way `apiKeysParsers.search`/`manageParsers.search`
+already are) rather than component-local state: which policy set an admin is looking at is exactly
+the shareable "what am I looking at" ADR 0011 puts in the URL, not a search box scoped to one
+render.
+
+### Consequences (refill policies as an admin surface)
+
+- `app/(console)/admin/refill-policies/page.tsx` is the third admin route segment, gated
+  server-side identically to its two siblings; `app/(console)/settings/refill-options/` is deleted
+  outright (`git rm`, not `git mv` — the container underneath changed shape too much for a clean
+  move, see below).
+- `containers/admin-refill-policies-centre.tsx` (the mode-routing presentational container) and
+  `containers/use-refill-policies-screen.ts` (the data adapter — list lookup query,
+  `useBudgetRefillLadder` reused verbatim, the two create/edit mutations, the simulate scratch pad)
+  replace `refill-options-centre.tsx`/`use-refill-options-screen.ts` outright.
+- `client/console-chrome.tsx`'s `adminNavGroups` gains a third row ("Refill policies" →
+  `/admin/refill-policies`, `AdminRoute` gains `'refill-policies'`); `settingsNavGroups` loses its
+  "Refill options policies" row and `SettingsRoute` drops `'refill-options'`. The command palette's
+  admin-only `Actions`/`Navigate` group gains a matching "Refill policies" entry.
+- `client/url-state.ts` gains `adminRefillPoliciesParsers` (`policy-set`/`create`/`edit`/
+  `simulate`) and `ADMIN_REFILL_POLICIES_MODE_OPTIONS` (the three mode params write with `push`;
+  the lookup stays the hook's own default `replace`).
+- `middleware.ts`'s `LEGACY_STATIC_REDIRECT` gains `/settings/refill-options` →
+  `/admin/refill-policies`, query params surviving verbatim (same shape the refills-queue row
+  already established).
+- `packages/ui-web`: a new `sections/refill-policy-lookup` (the list mode's id-lookup + status +
+  actions zone); `rule-set-form`/`refill-scenario-form` each gain a real `createBlankRuleSet()`/
+  `createBlankScenario()` runtime export (the create/edit/simulate containers' actual starting
+  drafts — never importing a `fixtures.ts` file into production code);
+  `refill-policy-status-strip` exports its `unavailable` caption as `NO_POLICY_SET_ID_CAPTION` so
+  the real container and its own `fixtures.ts` state the identical sentence. The page story moves
+  from `Pages/RefillOptions` to `Pages/AdminRefillPolicies`, with a story per mode.

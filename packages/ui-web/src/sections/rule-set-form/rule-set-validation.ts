@@ -195,3 +195,20 @@ export function validateRuleSet(value: RuleSetValue): RuleSetErrors | undefined 
 export function generateRowKey(): string {
   return crypto.randomUUID();
 }
+
+/** A blank first-run `RuleSetValue` — the real starting draft `apps/console`'s create/edit/
+ *  simulate containers mount `RuleSetForm` against (never the fixtures under `fixtures.ts`, which
+ *  are Storybook/test-only). One empty ladder step, no rules, matching `fixtures.ts`'s own
+ *  `ruleSetFormEmpty` shape byte-for-byte — kept as a separate runtime export rather than
+ *  importing the fixture into production code. */
+export function createBlankRuleSet(): RuleSetValue {
+  return {
+    policyRevision: '',
+    rules: [],
+    defaultEffect: 'manual_review',
+    defaultReasonCode: '',
+    allowedAmounts: [''],
+    startingAmount: '',
+    failClosedFloorAmount: '',
+  };
+}

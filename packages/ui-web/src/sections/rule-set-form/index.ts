@@ -1,6 +1,7 @@
 export { RuleSetForm } from './component';
 export {
   createBlankRule,
+  createBlankRuleSet,
   createBlankThreshold,
   generateRowKey,
   isMoneyField,

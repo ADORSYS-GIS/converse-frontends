@@ -42,3 +42,17 @@ export function validateScenario(value: ScenarioValue): ScenarioErrors | undefin
 
   return Object.keys(errors).length > 0 ? errors : undefined;
 }
+
+/** A blank first-run `ScenarioValue` — the real starting draft `apps/console`'s simulate
+ *  container mounts `ScenarioForm` against (never `fixtures.ts`'s `scenarioFormEmpty`, which is
+ *  Storybook/test-only), matching that fixture's shape byte-for-byte. */
+export function createBlankScenario(): ScenarioValue {
+  return {
+    effectiveBalance: '',
+    selfServiceGrantCount: '',
+    spendThisPeriodKnown: false,
+    spendThisPeriod: '',
+    spendLastPeriodKnown: false,
+    spendLastPeriod: '',
+  };
+}

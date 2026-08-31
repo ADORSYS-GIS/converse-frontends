@@ -13,6 +13,7 @@ import {
   RESOLVER_TARGETS,
   URL_PARAM_CONTRACT,
   adminParsers,
+  adminRefillPoliciesParsers,
   apiKeysParsers,
   createProjectParsers,
   manageParsers,
@@ -124,6 +125,12 @@ describe('the URL param contract', () => {
         'request-volume-scale',
         'to',
       ],
+      // Owner ruling (converse-frontends#368, verbatim in `adminRefillPoliciesParsers`' own doc
+      // comment): list at the bare path, three mode params (`create`/`edit`/`simulate`), plus the
+      // list mode's own lookup target (`policy-set`) — there is no procedure that lists which
+      // policy sets exist, so "which one am I looking at" has to be a URL param, not a
+      // component-local search box.
+      adminRefillPolicies: ['create', 'edit', 'policy-set', 'simulate'],
       // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
       // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
       // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the
@@ -242,6 +249,20 @@ describe('the URL param contract', () => {
     expect(isParserBijective(adminParsers.sortDirection, 'desc', 'desc')).toBe(true);
     expect(isParserBijective(adminParsers.selectedRequestId, 'req_9', 'req_9')).toBe(true);
     expect(isParserBijective(adminParsers.after, 'cursor_1', 'cursor_1')).toBe(true);
+    expect(
+      isParserBijective(adminRefillPoliciesParsers.policySetId, 'budget-refill', 'budget-refill')
+    ).toBe(true);
+    expect(isParserBijective(adminRefillPoliciesParsers.createOpen, 'true', true)).toBe(true);
+    expect(
+      isParserBijective(adminRefillPoliciesParsers.editPolicySetId, 'budget-refill', 'budget-refill')
+    ).toBe(true);
+    expect(
+      isParserBijective(
+        adminRefillPoliciesParsers.simulatePolicySetId,
+        'budget-refill',
+        'budget-refill'
+      )
+    ).toBe(true);
     // Overview's own Export dialog (phase 4) — same parsers as `/manage`'s, checked once here and
     // by instance-identity in the "shared meaning" test above.
     expect(isParserBijective(overviewParsers.reportOpen, 'true', true)).toBe(true);

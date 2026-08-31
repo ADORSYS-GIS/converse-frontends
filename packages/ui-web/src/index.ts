@@ -58,6 +58,7 @@ export type { BottomSheetProps } from './components/bottom-sheet';
 // ── data display
 export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
 export { formatMs, formatMsAxis } from './lib/duration';
+export { dollarsToMicros, microsToDollars, parseNonNegativeInt } from './lib/parse-amount';
 export { StatCard } from './components/stat-card';
 export type { StatCardDelta, StatCardProps } from './components/stat-card';
 export { Sparkline } from './components/sparkline';
@@ -307,16 +308,23 @@ export type {
   RefillHistoryState,
 } from './sections/refill-history';
 
-// `/settings/refill-options` (IA v3 phase 3, redesigned Phase G — the JSON-textarea version the
-// owner flagged as "very non-human" is gone): a policy scratch pad over
-// `procedure.simulateBudgetPolicy`, never the stored/active policy (no read API exists for that —
-// see `REFILL_OPTIONS_DISABLED_REASON`). `RuleSetForm`/`ScenarioForm` are the typed authoring
-// forms `PolicySimulator` composes; `RefillPolicyManual` is the "how does it work" explainer +
-// lifecycle diagram; `RefillPolicyStatusStrip` is the honest active-policy-set/-revision line.
+// `/admin/refill-policies` (an admin-only surface — owner ruling, converse-frontends#368: list at
+// the bare path, `?create=true`/`?edit=<id>`/`?simulate=<id>` as mode-split modes, simulate never
+// on the same view as create/edit). `RuleSetForm`/`ScenarioForm` are the typed authoring forms
+// (the JSON-textarea version the owner flagged as "very non-human" is gone); `PolicySimulator`
+// composes both for the simulate mode; `RefillPolicyManual` is the "how does it work" explainer +
+// lifecycle diagram; `RefillPolicyStatusStrip` is the honest active-policy-set/-revision line, and
+// `RefillPolicyLookup` is the list mode's own "which policy set do I look at" zone, since no
+// procedure lists which policy sets exist.
 export { PolicySimulator } from './sections/policy-simulator';
 export type { PolicySimulationResult, PolicySimulatorProps } from './sections/policy-simulator';
 
-export { RuleSetForm, toRuleDataJson, validateRuleSet } from './sections/rule-set-form';
+export {
+  createBlankRuleSet,
+  RuleSetForm,
+  toRuleDataJson,
+  validateRuleSet,
+} from './sections/rule-set-form';
 export type {
   ComparisonOperator,
   RuleConditionValue,
@@ -331,7 +339,12 @@ export type {
   ThresholdField,
 } from './sections/rule-set-form';
 
-export { ScenarioForm, toScenarioJson, validateScenario } from './sections/refill-scenario-form';
+export {
+  createBlankScenario,
+  ScenarioForm,
+  toScenarioJson,
+  validateScenario,
+} from './sections/refill-scenario-form';
 export type {
   ScenarioErrors,
   ScenarioFormProps,
@@ -341,11 +354,17 @@ export type {
 export { RefillPolicyManual } from './sections/refill-policy-manual';
 export type { RefillPolicyManualProps } from './sections/refill-policy-manual';
 
-export { RefillPolicyStatusStrip } from './sections/refill-policy-status-strip';
+export {
+  NO_POLICY_SET_ID_CAPTION,
+  RefillPolicyStatusStrip,
+} from './sections/refill-policy-status-strip';
 export type {
   RefillPolicyStatusState,
   RefillPolicyStatusStripProps,
 } from './sections/refill-policy-status-strip';
+
+export { RefillPolicyLookup } from './sections/refill-policy-lookup';
+export type { RefillPolicyLookupProps } from './sections/refill-policy-lookup';
 
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';

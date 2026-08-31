@@ -80,6 +80,26 @@ A route hand-added to `app.tsx` alone works in `vite dev` (no allowlist there) a
 production the moment `authz-idp` reads a manifest that never heard about it -- that drift is
 exactly what generating `dist/routes.json` from `route-table.ts` prevents.
 
+The whole supply chain, from the one source of truth to what a browser is served:
+
+```mermaid
+flowchart LR
+    subgraph CF["converse-frontends"]
+        RT["src/routes/route-table.ts<br/>THE route set"] --> APP["app.tsx routes<br/>(typed ELEMENTS map)"]
+        RT --> BASE["main.tsx<br/>basename='/ui'"]
+        RT --> EMIT["vite closeBundle →<br/>dist/routes.json"]
+        APP & EMIT --> GATES["build:web gates:<br/>SW scope · CSS/CSP ·<br/>routes manifest"]
+        GATES --> WF["authz-ui-image.yml<br/>build · Trivy · push ·<br/>pull-back verify"]
+    end
+    WF --> IMG[("ghcr.io/…/authz-ui<br/>@sha256:digest<br/>/dist incl. routes.json")]
+    subgraph LB["lightbridge-authz"]
+        PIN["Dockerfile<br/>ARG AUTHZ_UI_REF=@digest<br/>(reviewed bump = the deploy)"] --> STATIC["/app/static"]
+        STATIC --> SERVE["static_assets.rs:<br/>allowlist from routes.json,<br/>unknown /ui paths → 404"]
+        RP["relying_party.rs<br/>303s into the routes,<br/>zero HTML"] --> SERVE
+    end
+    IMG --> PIN
+```
+
 ## Server-contract constants
 
 `src/routes/paths.ts` holds `authz-idp`'s **origin-root** protocol endpoints -- deliberately NOT

@@ -10,11 +10,12 @@ page rather than a dialog, and a chart-choice doctrine for every usage/spend bre
 [issue #368](https://github.com/ADORSYS-GIS/converse-frontends/issues/368)'s IA v3 phases 1
 ("account into the path"), 2 ("the settings area"), 2d (the account-scoping audit), 3 (refill as a
 page, the rail narrowed), and 4 (the analytics screens). Every decision below is **implemented and
-merged**; this ADR is the record, not the proposal. A later, dated amendment (below, "phase E — the
-settings/accounts move") records a further owner directive that relocates projects/refill under a
-new `/settings/accounts` subtree and narrows `/settings/policies` and the account area's own nav —
-narrower in scope than a full ADR revision, so it is recorded as an amendment rather than a new
-document.
+merged**; this ADR is the record, not the proposal. Two later, dated amendments (below) record
+further owner directives narrower in scope than a full ADR revision: "phase E — the settings/accounts
+move" relocates projects/refill under a new `/settings/accounts` subtree and narrows
+`/settings/policies` and the account area's own nav; "the admin area" (same day, later still) ships
+the operator dashboard approved on `claude/sb-admin-dashboards` as `/admin/overview` and moves the
+budget refill review queue a second time, to `/admin/refills-queue`.
 
 Supersedes, in part: [ADR 0012](0012-console-visual-revamp.md) Decision 1's nav-shape clause (the
 three fixed nav destinations) and Decision 7's rail clause (the rail returned, then narrowed to
@@ -401,8 +402,10 @@ sequenceDiagram
   and `section-class-audit` pins added for the six sections D5/D2/D4 introduced
   (`ranked-series-rows`, `latency-stat-cards`, `refill-history`, `refill-request-form`,
   `policy-simulator`, `project-policy-controls`).
-- `RequestRefillDialog`, `InspectorSettingsPanel`, and the standalone `/admin` route are deleted
-  outright, not deprecated in place, per house style.
+- `RequestRefillDialog` and `InspectorSettingsPanel` are deleted outright, not deprecated in place,
+  per house style. The standalone `/admin` route followed them at merge time (D2); D8's same-day
+  amendment above reopens the path as a real admin AREA (`/admin/overview`, `/admin/refills-queue`)
+  rather than reviving the old one-screen route.
 
 ## Alternatives considered
 
@@ -429,9 +432,15 @@ sequenceDiagram
 
 None outstanding for this ADR's own scope — IA v3 phases 1-5 and 2d (issue #368) are merged. Filed
 and tracked elsewhere, not by this ADR: `lightbridge-authz#571` (Roles read API),
-`lightbridge-authz#577` (home-account-only surfaces), `lightbridge-authz#578` (bulk
-list-accounts-by-period-spend), `cratestack#850` (musl build for `@cratestack/cbor-node`),
-`lightbridge-authz#594` (no account-membership concept exists — the phase E amendment below).
+`lightbridge-authz#577` (home-account-only surfaces for a plain, non-admin second-account owner —
+explicitly does NOT cover the admin `budget:read` path the admin-area amendment's dashboard 4
+uses), `lightbridge-authz#578` (bulk list-accounts-by-period-spend — also the gap behind that
+amendment's own single-account-scoped latency board), `cratestack#850` (musl build for
+`@cratestack/cbor-node`), `lightbridge-authz#594` (no account-membership concept exists — the
+phase E amendment below). The admin-area amendment (further below) adds two more: `lightbridge-authz#556`
+(no listing of decided augmentation requests) and `lightbridge-authz#597` (no error/status signal
+on `UsageSeriesPoint`) — both real backend gaps that amendment's live route captions rather than
+papering over.
 
 ## Amendment (2026-08-31): phase E — the settings/accounts move
 
@@ -585,3 +594,82 @@ tab loop inside `AccountsSettings`.
   conflate project-level access with account-level access, the exact kind of invented fact the
   console-ui skill's honesty doctrine (ADR 0012 D8) exists to prevent. `lightbridge-authz#594` asks
   the real question instead.
+
+## Amendment (2026-08-31, later): the admin area
+
+A further owner directive, on top of the original ask that opened issue #368 ("Since I'm an admin,
+I should also have a block /admin for admin stuffs...") and the design batch it produced: eight
+operator dashboards, built as a Storybook-only page story (`Pages/AdminOverview`,
+`claude/sb-admin-dashboards`@aaf3fe6) and approved verbatim — *"Approved, build the /admin area."*
+
+This does not reopen D1 or D2 — it adds **a third navigable area** (`ConsoleArea = 'account' |
+'settings' | 'admin'`, `areaFromPathname`), sharing D2's same single shell mount rather than a
+fourth `ConsoleShell` (the mechanism D2 established for "settings replaces the account area's nav
+in place" repeats verbatim for "admin replaces it too"). `/admin` itself resolves to
+`/admin/overview`, the same bare-segment-redirects shape `/settings` already uses. The area holds
+two destinations:
+
+- **`/admin/overview`** — the eight-board operator dashboard, gated server-side by the identical
+  `isAdmin(session.user.roles)` + `notFound()` mechanism D2 already uses for the refills queue.
+- **`/admin/refills-queue`** — the budget refill review queue, moved a SECOND time (`/admin` →
+  `/settings/refills-queue` under D2 → `/admin/refills-queue` here), `git mv`d with its server-side
+  gate kept byte-for-byte, same as every prior move of this one screen. It reads better as a
+  sibling of the dashboard that already surfaces its own "Queue depth" stat than as one more
+  settings row once an admin area exists to hold it. `/settings/refills-queue` 308s to the new path
+  (`middleware.ts`'s `LEGACY_STATIC_REDIRECT`), and `settingsNavGroups` drops the row —
+  `/settings/*` genuinely has nothing admin-only left in it after this move.
+
+**The account area's Operator group now names its one row "Refill requests" but links into
+`/admin/overview`, not straight into the queue** — an operator opening the account-scoped nav
+lands on the dashboard first, with the queue one click away (dashboard 5's own "Queue depth" stat
+and the admin area's own "Refills queue" nav row both reach it). The settings area's flat nav list
+loses its "Refills queue" row entirely (moved out, not disabled).
+
+**Two planned siblings are recorded here and built nowhere**: `/admin/ide-usage` and
+`/admin/copilot-usage`, both named by the owner as future admin-area destinations. Nothing for
+either exists yet — no route, no nav row (not even a `disabled` one, since a `disabled` row still
+promises a stated backend gap this amendment has not investigated), no container, no hook. This
+paragraph is the whole of what this amendment commits to for them: a place they will eventually
+go, not a shape they will take.
+
+**The live route diverges from the approved page story in two places, both real backend gaps
+rather than a design change** — the story's own fixtures are unchanged and stay the approved
+ground truth for what this dashboard is FOR; only the wiring had to degrade honestly where the
+backend cannot back the fixture:
+
+- Dashboard 5 (refill operations) ships queue depth only — no decisions-over-time board, no
+  median-time-to-decision card. `listPendingAugmentationRequests` is a PENDING-only read path (the
+  same reason D2's own Decided-tab deletion cites); there is no procedure anywhere that lists
+  DECIDED requests or carries a decision timestamp. Filed as `lightbridge-authz#556`.
+- Dashboard 6 (request volume & errors) ships the request-count line only. `UsageSeriesPoint`
+  (`openapi/usage.backend.yaml`) carries no error/status field at all — filed as
+  `lightbridge-authz#597`.
+- Dashboard 7 (latency) scopes `LatencyStatCards` to the estate's single busiest account rather
+  than an estate-wide blend: per-account percentiles cannot be validly averaged into one honest
+  estate figure, and the usage API has no bulk multi-account query to compute a true combined
+  percentile server-side either — the same `lightbridge-authz#578` gap D5's own account cap
+  already cites, not a new one.
+
+**Dashboard 4 (budget pressure) needed no gap caption at all**, despite reading every account's own
+budget ceiling: `getBudgetBalance(budgetAccountId, period)` is the operator-only `budget:read`
+equivalent of `getMyBudgetBalance`, and `lightbridge-authz#577` (the self-service, non-admin
+budget-domain gap this ADR already cites above) explicitly rules admin `budget:read` behavior OUT
+of its own scope. An operator genuinely can read any account's `effectiveBudgetMicros` today; this
+dashboard is the first screen in this console to actually call that procedure.
+
+### Consequences (the admin area)
+
+- `app/(console)/admin/{overview,refills-queue}/page.tsx` are the two real route segments;
+  `app/(console)/admin/page.tsx` redirects to `/admin/overview`.
+- `apps/console/src/containers/admin-overview-usage.ts` (pure adapters, unit-tested),
+  `use-admin-overview-screen.ts` (the fan-out hook) and `admin-overview-centre.tsx` (the
+  container) supply the eight boards' real data.
+- `client/console-chrome.tsx` gains `adminNavGroups` (mirroring `settingsNavGroups`'s shape) and a
+  `BackToConsoleRow`-style row back into the account area; `navHrefs.admin` now points at
+  `/admin/overview`.
+- `middleware.ts`'s `LEGACY_STATIC_REDIRECT` drops the now-inapplicable `/admin` → `/settings/
+  refills-queue` row (`/admin` is a live route again) and gains `/settings/refills-queue` →
+  `/admin/refills-queue`.
+- `containers/refills-queue-centre.tsx` and its own screen hook are `git mv`d intact from
+  `settings/refills-queue/` to `admin/refills-queue/` — internal logic unchanged, only the route
+  segment moves.

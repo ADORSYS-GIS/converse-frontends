@@ -110,6 +110,20 @@ describe('the URL param contract', () => {
       // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
       // sort (`sort`/`dir`) and page cursor (`after`).
       admin: ['after', 'dir', 'request', 'sort'],
+      // D8 (2026-08-31, same-day ADR 0013 amendment — the admin area): `/admin/overview`'s own
+      // range + six per-board axis-transform knobs (`use-admin-overview-screen.ts`'s own doc
+      // comment covers why each board keeps its own scale param rather than sharing one).
+      adminOverview: [
+        'adoption-scale',
+        'estate-account-scale',
+        'estate-total-scale',
+        'from',
+        'model-mix-scale',
+        'range',
+        'refill-decisions-scale',
+        'request-volume-scale',
+        'to',
+      ],
       // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
       // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
       // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the

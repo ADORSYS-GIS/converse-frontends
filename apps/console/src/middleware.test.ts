@@ -191,6 +191,31 @@ describe('legacyRedirectTarget', () => {
     expect(legacyRedirectTarget('/admin/refill-policies', params(''))).toBeNull();
   });
 
+  // Owner review round 2 (2026-08-31, converse-frontends#368 finding #4, verbatim): "You made out
+  // of /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But
+  // it's fine. Just move it to a page /admin/refill-policies/create." A bookmarked/linked
+  // `?create=true` still lands on the new route; every OTHER param survives verbatim, and `edit`/
+  // `simulate` (untouched by this finding) never bounce.
+  it('/admin/refill-policies?create=true -> /admin/refill-policies/create, other params surviving verbatim', () => {
+    expect(legacyRedirectTarget('/admin/refill-policies', params('create=true'))).toBe(
+      '/admin/refill-policies/create'
+    );
+    expect(
+      legacyRedirectTarget('/admin/refill-policies', params('create=true&policy-set=budget-refill'))
+    ).toBe('/admin/refill-policies/create?policy-set=budget-refill');
+  });
+
+  it('leaves /admin/refill-policies?edit=<id> and ?simulate=<id> alone — the owner named only create', () => {
+    expect(legacyRedirectTarget('/admin/refill-policies', params('edit=budget-refill'))).toBeNull();
+    expect(
+      legacyRedirectTarget('/admin/refill-policies', params('simulate=budget-refill'))
+    ).toBeNull();
+  });
+
+  it('/admin/refill-policies/create is itself a live route, never redirected', () => {
+    expect(legacyRedirectTarget('/admin/refill-policies/create', params(''))).toBeNull();
+  });
+
   it('a bare / with no ?account= is already the resolver — nothing to redirect', () => {
     expect(legacyRedirectTarget('/', params(''))).toBeNull();
   });

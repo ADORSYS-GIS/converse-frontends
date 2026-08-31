@@ -57,9 +57,12 @@ const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value 
 
 // The composition `apps/console`'s `(console)` layout + the `/accounts/[accountId]/api-keys` route perform for real.
 //
-// `showAdmin` doubles as the ledger's `isAdmin` (ticket #321): the same `lightbridge-admin` grant
-// that reveals the NavSpine's Admin group is what the console-side container reads to decide
-// whether `Del` renders at all, so one story flag drives both consistently.
+// `showAdmin` is the ledger's own `isAdmin` (ticket #321): the console-side container reads the
+// same `lightbridge-admin` grant to decide whether `Del` renders at all. It no longer changes
+// anything about the sidebar (owner review round 2, 2026-08-31, converse-frontends#368 finding
+// #1) — the account-area rail's Operator/Admin group is deleted outright, not role-gated any
+// more, so `storySidebar('api-keys', { isAdmin: showAdmin })` renders identical nav content
+// either way; only the ledger's own `Del` column differs now.
 function ApiKeysScreen({
   keys = apiKeysFixture,
   initialResult = null,
@@ -278,10 +281,10 @@ export const DeleteDialogOpenLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
-// A signed-in non-admin: NavSpine's Admin group and the ledger's `Del` action are both absent —
-// same grant, same story flag.
+// A signed-in non-admin: the ledger's `Del` action is absent. The sidebar renders identically to
+// the admin case now (finding #1, above) — there is no nav difference left to show here.
 export const NonAdminView: Story = {
-  name: 'Non-admin — Del omitted, Admin nav hidden',
+  name: 'Non-admin — Del omitted',
   render: () => <ApiKeysScreen />,
 };
 
@@ -292,11 +295,6 @@ export const Loading: Story = { render: () => <ApiKeysScreen keys={[]} loading /
 
 export const ErrorState: Story = {
   render: () => <ApiKeysScreen keys={[]} error="Failed to load keys for this project." />,
-};
-
-export const AdminNav: Story = {
-  name: 'Nav — admin (Admin group visible)',
-  render: () => <ApiKeysScreen showAdmin />,
 };
 
 // `md` tier (600–1024): left rail persists inline; the toolbar wraps. No sheet, no trigger — the

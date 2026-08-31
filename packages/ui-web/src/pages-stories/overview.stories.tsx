@@ -9,7 +9,9 @@
 //    MODEL (`MultiSeriesSpendBoard`/`MultiSeriesSpendChart`, one line per model, log scale by
 //    default — 2026-08-31 owner ruling, see that component's own doc comment; it had briefly
 //    rendered through `RankedSeriesRows` before that, phase 4 build brief §7) →
-//    BUDGET (`BudgetPanel`, `actions`/`heroAction` — IA v3 phase 3's "refill as a page" shape).
+//    BUDGET (`BudgetPanel`, `budget` alone — no `actions`/`heroAction` any more, owner review
+//    round 2, 2026-08-31, converse-frontends#368 finding #3: the refill entry point this screen
+//    used to carry moved OUT, to `/settings/accounts/<id>/request-refill` exclusively).
 //  - **NO admin-only zone renders on this page any more.** Budget pressure and key hygiene moved
 //    to `/settings/overview/project` and `/settings/overview/account` respectively — see
 //    `pages-stories/settings-overview.stories.tsx` for those. The old `adminExtras` block (Budget
@@ -37,11 +39,18 @@ import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { presetRange } from '../components/date-range-field';
 import { InlineStatus } from '../components/inline-status';
-import type { MultiSeriesSpendScale, MultiSeriesSpendSeries } from '../components/multi-series-spend-chart';
+import type {
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from '../components/multi-series-spend-chart';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ScopeSelect } from '../components/scope-select';
-import { scopeAccounts, scopeProjects, scopeSelectValue } from '../components/scope-select/fixtures';
+import {
+  scopeAccounts,
+  scopeProjects,
+  scopeSelectValue,
+} from '../components/scope-select/fixtures';
 import type { SelectFieldProps } from '../components/select-field';
 import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
@@ -64,10 +73,7 @@ import {
 } from '../sections/overview-controls/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
-import {
-  overviewEmptyStatCards,
-  overviewStatCards,
-} from '../sections/overview-stat-row/fixtures';
+import { overviewEmptyStatCards, overviewStatCards } from '../sections/overview-stat-row/fixtures';
 import { PageHeader } from '../sections/page-header';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
@@ -98,15 +104,19 @@ function daysFrom(base: Date, count: number): Date[] {
 function accountTotalSpendSeries(): SpendSeriesSeries[] {
   const days = daysFrom(new Date(Date.UTC(2026, 7, 1)), 29);
   const current = [
-    38, 41, 39, 44, 52, 58, 56, 61, 68, 65, 71, 75, 73, 78, 81, 84, 82, 87, 90, 88, 93, 96, 94,
-    99, 103, 100, 106, 109, 112,
+    38, 41, 39, 44, 52, 58, 56, 61, 68, 65, 71, 75, 73, 78, 81, 84, 82, 87, 90, 88, 93, 96, 94, 99,
+    103, 100, 106, 109, 112,
   ];
   const previous = [
-    30, 33, 31, 35, 42, 47, 45, 49, 55, 52, 57, 61, 59, 63, 66, 68, 66, 70, 73, 71, 75, 78, 76,
-    80, 83, 81, 86, 88, 91,
+    30, 33, 31, 35, 42, 47, 45, 49, 55, 52, 57, 61, 59, 63, 66, 68, 66, 70, 73, 71, 75, 78, 76, 80,
+    83, 81, 86, 88, 91,
   ];
   return [
-    { key: 'account-total', label: 'This period', points: days.map((x, i) => ({ x, y: current[i] })) },
+    {
+      key: 'account-total',
+      label: 'This period',
+      points: days.map((x, i) => ({ x, y: current[i] })),
+    },
     {
       key: 'previous-period',
       label: 'Previous period',
@@ -180,7 +190,6 @@ function useSelectField(
 }
 
 interface OverviewScreenProps {
-  showAdmin?: boolean;
   statCards?: OverviewStatCardData[];
   statCardsLoading?: boolean;
   spendSeries?: SpendSeriesSeries[];
@@ -197,9 +206,6 @@ interface OverviewScreenProps {
   modelSpendStatus?: DashboardStatus;
   modelSpendErrorMessage?: string;
   budget?: BudgetSummary;
-  /** Only present once the account is breached — mirrors `use-overview-screen.ts`'s own
-   *  `refillAction`, which `BudgetPanel.heroAction` renders beside the numeral (ADR 0008 D7). */
-  refillAction?: { label: string; href: string };
 }
 
 // The composition `apps/console`'s `(console)` layout + `/accounts/[accountId]/overview` route
@@ -207,7 +213,6 @@ interface OverviewScreenProps {
 // in `PageHeader.controls` (shell revamp — the rail carries no knobs, only selection-driven
 // detail/standing account settings).
 function OverviewScreen({
-  showAdmin = false,
   statCards = overviewStatCards,
   statCardsLoading = false,
   spendSeries = ACCOUNT_TOTAL_SPEND_SERIES,
@@ -222,7 +227,6 @@ function OverviewScreen({
   modelSpendStatus = 'ready',
   modelSpendErrorMessage,
   budget = overviewBudget,
-  refillAction,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
   // Storybook-only local state standing in for `use-overview-screen.ts`'s own `modelSpendScale`
@@ -253,7 +257,7 @@ function OverviewScreen({
   const spendShareTotal = spendShareSegments.reduce((sum, segment) => sum + segment.value, 0);
 
   return (
-    <ConsoleShell sidebar={storySidebar('overview', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('overview')} topBar={storyTopBar()}>
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Overview"
@@ -389,23 +393,7 @@ function OverviewScreen({
         </Card>
 
         <Card>
-          <BudgetPanel
-            className="w-full"
-            label="Budget"
-            budget={budget}
-            actions={
-              <Button type="button" variant="secondary" size="sm" onClick={() => {}}>
-                Request refill…
-              </Button>
-            }
-            heroAction={
-              refillAction ? (
-                <Button type="button" variant="primary" size="sm" onClick={() => {}}>
-                  {refillAction.label}
-                </Button>
-              ) : undefined
-            }
-          />
+          <BudgetPanel className="w-full" label="Budget" budget={budget} />
         </Card>
       </div>
     </ConsoleShell>
@@ -486,9 +474,6 @@ export const SpendDegenerate: Story = {
   ),
 };
 
-// #306 — the account is past `BUDGET_BREACH_THRESHOLD` (0.9): `BudgetHero`'s own accent kicks in
-// and the inline refill control (`heroAction`) appears beside the numeral (ADR 0008 D7), on top of
-// the always-visible `actions` "Request refill…" the header row already carries.
 // Build brief finish-item §4 (2026-08-31 owner-round parity fix) — a chart response that alone
 // hit the usage backend's own query limit says so, rather than silently understating the total.
 export const SpendTruncated: Story = {
@@ -496,20 +481,17 @@ export const SpendTruncated: Story = {
   render: () => <OverviewScreen spendTruncated />,
 };
 
+// #306 — the account is past `BUDGET_BREACH_THRESHOLD` (0.9): `BudgetHero`'s own accent still
+// kicks in on the meter. No refill CTA renders alongside it any more (owner review round 2,
+// 2026-08-31, converse-frontends#368 finding #3: the entry point lives only in
+// `/settings/accounts/<id>/request-refill` now) — this story exists purely to show the breach
+// visual state, not a control.
 export const BudgetBreached: Story = {
   render: () => (
     <OverviewScreen
       budget={{ value: 478.2, ceiling: 500, caption: 'account ceiling · 96% used · resets 01 Sep' }}
-      refillAction={{ label: 'Request refill', href: '/accounts/acct_1/refill' }}
     />
   ),
-};
-
-// A signed-in non-admin — `/` renders IDENTICAL content either way (no admin-only zone left on
-// this page, IA v3 phase 4); this only exercises the sidebar's own Operator nav row.
-export const AdminNav: Story = {
-  name: 'Nav — admin (Operator group visible)',
-  render: () => <OverviewScreen showAdmin />,
 };
 
 // `md` tier (600–1024): left rail persists inline; Overview has no right rail at any tier — its

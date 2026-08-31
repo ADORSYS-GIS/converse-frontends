@@ -7,11 +7,15 @@ import { createBlankRuleSet, createBlankScenario } from '@lightbridge/ui-web';
 import type { AdminRefillPoliciesScreen } from './use-refill-policies-screen';
 
 /**
- * Container-level acceptance coverage for `/admin/refill-policies` — mode routing (list/create/
- * edit/simulate, never composed together), the honest edit caption, and basic validation-gated
- * submit wiring. `useRefillPoliciesScreen` is mocked wholesale, matching every other
- * `*-centre.test.tsx` in this app (see the deleted `refill-options-centre.test.tsx` this file
- * replaces for the same pattern).
+ * Container-level acceptance coverage for `/admin/refill-policies` — mode routing (list/edit/
+ * simulate, never composed together), the honest edit caption, and basic validation-gated submit
+ * wiring. `useRefillPoliciesScreen` is mocked wholesale, matching every other `*-centre.test.tsx`
+ * in this app (see the deleted `refill-options-centre.test.tsx` this file replaces for the same
+ * pattern).
+ *
+ * **`create` is no longer one of this route's modes** (owner review round 2, 2026-08-31,
+ * converse-frontends#368 finding #4) — it moved to `/admin/refill-policies/create`, covered by
+ * `admin-refill-policy-create-centre.test.tsx` instead.
  */
 const useRefillPoliciesScreenMock = vi.fn();
 vi.mock('./use-refill-policies-screen', async (importOriginal) => {
@@ -27,7 +31,6 @@ function baseScreen(overrides: Partial<AdminRefillPoliciesScreen> = {}): AdminRe
   return {
     mode: 'list',
     scopeLabel: 'adorsys-gis',
-    onNewPolicy: vi.fn(),
     ...rest,
     list: {
       policySetId: '',
@@ -43,10 +46,10 @@ function baseScreen(overrides: Partial<AdminRefillPoliciesScreen> = {}): AdminRe
       ...list,
     },
     form: {
-      mode: 'create',
-      policySetId: '',
-      onPolicySetIdChange: vi.fn(),
-      policySetIdReadOnly: false,
+      mode: 'edit',
+      policySetId: 'budget-refill',
+      onPolicySetIdChange: undefined,
+      policySetIdReadOnly: true,
       ruleSet: createBlankRuleSet(),
       onRuleSetChange: vi.fn(),
       canSubmit: false,
@@ -99,36 +102,15 @@ describe('AdminRefillPoliciesCentre', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('list mode: offers + New policy, wired to onNewPolicy', async () => {
-    const onNewPolicy = vi.fn();
-    await renderCentre({ onNewPolicy });
+  // Owner review round 2 (2026-08-31, converse-frontends#368 finding #4): a real link to the
+  // new dedicated route, not a mode-switch callback — there is no `onNewPolicy` on the screen
+  // shape any more.
+  it('list mode: offers + New policy as a real link to /admin/refill-policies/create', async () => {
+    await renderCentre();
 
-    screen.getByRole('button', { name: '+ New policy' }).click();
-    expect(onNewPolicy).toHaveBeenCalledTimes(1);
-  });
-
-  it('create mode: renders the rule-set-form, never the simulator or the edit caption', async () => {
-    await renderCentre({ mode: 'create' });
-
-    expect(screen.getByText('Policy rule set')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create & activate' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save as revision only' })).toBeInTheDocument();
-    expect(screen.queryByText(/starts from a blank draft/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Simulate' })).not.toBeInTheDocument();
-  });
-
-  it('create mode: disables both submit actions while the draft fails validation', async () => {
-    await renderCentre({ mode: 'create', form: { canSubmit: false } as never });
-
-    expect(screen.getByRole('button', { name: 'Create & activate' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Save as revision only' })).toBeDisabled();
-  });
-
-  it('create mode: enables both submit actions once the draft is valid', async () => {
-    await renderCentre({ mode: 'create', form: { canSubmit: true } as never });
-
-    expect(screen.getByRole('button', { name: 'Create & activate' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Save as revision only' })).toBeEnabled();
+    const link = screen.getByRole('button', { name: '+ New policy' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/admin/refill-policies/create');
   });
 
   it('edit mode: honestly labels the target and states the no-prefill gap — never a fake prefill', async () => {

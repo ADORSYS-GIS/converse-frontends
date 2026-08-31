@@ -55,16 +55,18 @@ describe('the /admin/refill-policies role gate', () => {
     ).toBe(false);
   });
 
-  it('never renders create/edit and simulate on the same view — the owner-dictated split', () => {
+  it('never renders edit and simulate on the same view — the owner-dictated split', () => {
     const centre = readFileSync(
       join(process.cwd(), 'src', 'containers', 'admin-refill-policies-centre.tsx'),
       'utf8'
     );
 
     // Three distinct view functions, one per mode family. The dispatcher itself — everything
-    // between its own declaration and the next top-level `function` — picks exactly one: three
+    // between its own declaration and the next top-level `function` — picks exactly one: two
     // early `return <...>` statements and no JSX fragment/array that could combine two of them
-    // into one tree.
+    // into one tree. `create` is no longer one of this dispatcher's modes at all (owner review
+    // round 2, 2026-08-31, converse-frontends#368 finding #4) — it moved to its own route,
+    // `admin-refill-policy-create-route-gate.test.ts` covers that one.
     expect(centre).toContain('function RefillPolicyListView');
     expect(centre).toContain('function RefillPolicyFormView');
     expect(centre).toContain('function RefillPolicySimulateView');
@@ -73,8 +75,9 @@ describe('the /admin/refill-policies role gate', () => {
     const dispatcherEnd = centre.indexOf('function RefillPolicyListView');
     const dispatcher = centre.slice(dispatcherStart, dispatcherEnd);
 
-    expect(dispatcher).toContain("if (screen.mode === 'create' || screen.mode === 'edit')");
+    expect(dispatcher).toContain("if (screen.mode === 'edit')");
     expect(dispatcher).toContain("if (screen.mode === 'simulate')");
+    expect(dispatcher).not.toContain("screen.mode === 'create'");
     expect((dispatcher.match(/return </g) ?? []).length).toBe(3);
     expect(dispatcher).not.toMatch(/<>/);
     expect(dispatcher).not.toMatch(/return \[/);

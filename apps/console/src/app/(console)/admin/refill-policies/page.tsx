@@ -23,8 +23,10 @@ export const dynamic = 'force-dynamic';
  * (`budget:policy-read`/`-write`/`-activate`/`-simulate`), so a forged session could at most render
  * an empty/degraded screen.
  *
- * `AdminRefillPoliciesCentre` renders all four modes (list/create/edit/simulate) inline off nuqs
- * params — never a sibling route segment that could bypass this gate.
+ * `AdminRefillPoliciesCentre` renders list/edit/simulate inline off nuqs params. **`create` moved
+ * OFF this route entirely** (owner review round 2, 2026-08-31, converse-frontends#368 finding #4)
+ * — it is its own sibling route segment now, `admin/refill-policies/create/page.tsx`, gated the
+ * identical server-side way.
  */
 export default async function AdminRefillPoliciesRoute() {
   const session = await readSession();

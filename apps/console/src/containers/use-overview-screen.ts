@@ -40,12 +40,8 @@ import {
   type ReportIncludeId,
 } from '../client/url-state';
 import { downloadBlob, filenameFromContentDisposition } from './download-file';
-import { microsToAmount, refillHref } from './refill-rows';
-import {
-  BUDGET_HOME_ACCOUNT_ONLY_NOTE,
-  smallestAllowedAmountMicros,
-  useBudgetRefillLadder,
-} from './use-budget-refill';
+import { microsToAmount } from './refill-rows';
+import { BUDGET_HOME_ACCOUNT_ONLY_NOTE } from './use-budget-refill';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionRequest,
@@ -73,14 +69,16 @@ import { previousWindow, shiftSeriesForward } from './usage-overview-usage';
  * hook used to compute directly, gated `enabled: … && isAdmin` — MOVED to
  * `use-settings-overview-screen.ts`, onto the project lens and the account lens respectively
  * (`/settings/overview/project`, `/settings/overview/account`); the pending-refill count
- * (`refillRequestStatus`) is gone outright, not moved — it already lives in the account-area
- * Operator row's and the admin area's own nav numeral (`use-refills-queue-screen.ts`, shared by
- * query key with `/admin/refills-queue`, ADR 0013's same-day "the admin area" amendment).
+ * (`refillRequestStatus`) is gone outright, not moved — it already lives in the admin area's own
+ * nav numeral (`use-refills-queue-screen.ts`, shared by query key with `/admin/refills-queue`, ADR
+ * 0013's same-day "the admin area" amendment).
  * This hook fires no `enabled: isAdmin` query of any kind: every query below runs the same way for
  * every signed-in user, admin or not.
  *
- * **What is real here.** Project/API-key counts, SPEND/SPEND SHARE/SPEND BY MODEL, BudgetHero
- * consumption-vs-ceiling, the refill control, and Export.
+ * **What is real here.** Project/API-key counts, SPEND/SPEND SHARE/SPEND BY MODEL, and BudgetHero
+ * consumption-vs-ceiling — no refill control any more (owner review round 2, 2026-08-31,
+ * converse-frontends#368 finding #3: the entry point lives only in
+ * `/settings/accounts/<id>/request-refill` now) — and Export.
  *
  * **LATENCY is gone (phase 9.2, 2026-08-30 owner directive).** The usage backend's events are
  * aggregate metric signals with no per-request duration — `toLatencySeries`'s own per-series
@@ -148,9 +146,9 @@ const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
 const HOUR_BUCKET_MAX_DAYS = 2;
 
 function bucketOptions(windowSpanDays: number) {
-  return OVERVIEW_BUCKETS.filter((value) => value !== 'hour' || windowSpanDays <= HOUR_BUCKET_MAX_DAYS).map(
-    (value) => ({ value, label: BUCKET_LABELS[value] })
-  );
+  return OVERVIEW_BUCKETS.filter(
+    (value) => value !== 'hour' || windowSpanDays <= HOUR_BUCKET_MAX_DAYS
+  ).map((value) => ({ value, label: BUCKET_LABELS[value] }));
 }
 const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
   value,
@@ -158,8 +156,9 @@ const GROUP_BY_OPTIONS = OVERVIEW_GROUP_BYS.map((value) => ({
 }));
 
 /** Matches `Meter`'s own default (`packages/ui-web/src/components/meter/component.tsx`) — the
- *  account-level refill control only appears once the SAME ratio that turns the meter `--signal`
- *  is crossed, so the control and the visual breach cue always agree. */
+ *  hero meter turns `--signal` at this ratio. (It used to also gate the breach-only refill CTA
+ *  beside the numeral; that control is gone from this screen — owner review round 2, 2026-08-31,
+ *  converse-frontends#368 finding #3 — but the meter's own visual threshold is unchanged.) */
 const BUDGET_BREACH_THRESHOLD = 0.9;
 
 /** Same idiom, for the Export dialog's own mutation (ticket #309's pattern, now shared by `/` and
@@ -247,16 +246,13 @@ export interface OverviewScreen {
   modelSpendStatus: DashboardStatus;
   modelSpendErrorMessage?: string;
   modelSpendRetry: () => void;
-  // ── #306: BudgetHero consumption vs ceiling + the inline refill control ─────────────────
+  // ── #306: BudgetHero consumption vs ceiling ──────────────────────────────────────────────
+  // No refill href/action here any more (owner review round 2, 2026-08-31,
+  // converse-frontends#368 finding #3, verbatim: "Remove the 'request refill' from overview at
+  // /accounts/<account-id>/overview and keep it ONLY inside /settings/accounts/<account-id>") —
+  // `BudgetPanel` renders with `budget` alone on this screen; the one remaining refill entry
+  // point is `/settings/accounts/<id>/request-refill`, which already had it.
   budget: BudgetSummary;
-  /** `/settings/accounts/<id>/request-refill` (IA v3 phase 3), carrying `?project=` when a project is scoped —
-   *  the Budget card's standing "Request refill…" action always navigates here. */
-  refillHref: string;
-  /** Only defined once the account itself is breached (`BUDGET_BREACH_THRESHOLD`) AND the active
-   *  policy currently offers an amount — `BudgetHero.action`'s own "only present once breached"
-   *  convention (see `budget-hero/types.ts`). Navigates to the SAME `refillHref` rather than
-   *  opening a dialog — the actual submit happens on that page. */
-  refillAction: { label: string; href: string } | undefined;
   // ── phase 4: `Export` — `PageHeader.action`, defaults from this screen's own params ──────
   report: ReportExportDialogProps;
 }
@@ -489,7 +485,8 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   // (`SpendShareSection.degenerateMessage`) — the TOTAL chart above always draws, a single-series
   // time series being a meaningful reading on its own.
   const spendDegenerateMessage = useMemo(
-    () => degenerateChartMessage(spendSegments, DIMENSION_NOUN[view.groupBy], spendUnassignedCaption),
+    () =>
+      degenerateChartMessage(spendSegments, DIMENSION_NOUN[view.groupBy], spendUnassignedCaption),
     [spendSegments, view.groupBy, spendUnassignedCaption]
   );
 
@@ -536,7 +533,8 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
   // real per-day points rather than a summed total — `toMultiSeriesSpend`
   // (`settings-overview-usage.ts`) maps a grouped response straight into that shape.
   const modelSpendSeries = useMemo(
-    () => (modelUsageQuery.data ? toMultiSeriesSpend(modelUsageQuery.data, 'model', labelForModel) : []),
+    () =>
+      modelUsageQuery.data ? toMultiSeriesSpend(modelUsageQuery.data, 'model', labelForModel) : [],
     [modelUsageQuery.data, labelForModel]
   );
 
@@ -567,12 +565,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     enabled: Boolean(accountId) && accountIsHome,
     staleTime: 30_000,
   });
-
-  // The ladder query lives in `use-budget-refill.ts`, shared with `/settings/accounts/<id>/request-refill`
-  // (`use-refill-screen.ts`) — this screen only reads it to decide whether the breach button
-  // should appear at all (IA v3 phase 3: the button now navigates to that page rather than
-  // opening a dialog, so the actual submit, and the mutation that drives it, live there instead).
-  const ladder = useBudgetRefillLadder();
 
   const budget: BudgetSummary = useMemo(() => {
     // Checked FIRST, before either query's own status: a non-home account never fires
@@ -619,33 +611,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     balanceQuery.data,
     balanceQuery.error,
   ]);
-
-  // `'value' in budget` narrows to the `'ready'` branch (the only one carrying `value`/`ceiling`)
-  // without a `status` comparison the compiler can't fully discriminate on here.
-  const isBreached =
-    'value' in budget && 'ceiling' in budget && budget.ceiling > 0
-      ? budget.value / budget.ceiling >= BUDGET_BREACH_THRESHOLD
-      : false;
-
-  const smallestAmountMicros = isBreached
-    ? smallestAllowedAmountMicros(ladder.allowedAmountsMicros)
-    : null;
-
-  const accountRefillHref = refillHref(accountId, projectId);
-
-  // IA v3 phase 3 ("refill as a page") — this used to open `RequestRefillDialog` (2026-08-30:
-  // before that, it instantly mutated `smallestAmountMicros` on one click with no confirmation
-  // surface at all). It now navigates to `/settings/accounts/<id>/request-refill` instead, which independently
-  // preselects the smallest allowed amount (`use-refill-screen.ts`) — a breach is still one click
-  // away from a refill request, and the actual submit is a real, dedicated screen, not a dialog
-  // three separate triggers had to agree on.
-  let refillAction: OverviewScreen['refillAction'];
-  if (smallestAmountMicros) {
-    refillAction = {
-      label: 'Request refill',
-      href: accountRefillHref,
-    };
-  }
 
   // ── phase 4: money-first stat row — spend leads, budget remaining next (omitted while no
   // ceiling can be read), then the existing counts. Never a fabricated figure: SPEND is an em
@@ -804,8 +769,6 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : undefined,
     modelSpendRetry: () => void modelUsageQuery.refetch(),
     budget,
-    refillHref: accountRefillHref,
-    refillAction,
     report: {
       open: view.reportOpen,
       onOpenChange: (open) => {

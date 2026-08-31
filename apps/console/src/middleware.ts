@@ -131,6 +131,34 @@ function legacyAccountScopedPathMoveTarget(
   return null;
 }
 
+/**
+ * `/admin/refill-policies?create=true` -> `/admin/refill-policies/create` (owner review round 2,
+ * 2026-08-31, converse-frontends#368 finding #4, verbatim): "You made out of
+ * /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But it's
+ * fine. Just move it to a page /admin/refill-policies/create." A fourth shape again, distinct from
+ * every table above: same PATHNAME as the live route (unlike `LEGACY_STATIC_REDIRECT`'s retired
+ * paths), gated on one SPECIFIC query param rather than the pathname alone (unlike every other row
+ * in this file) — `create` is stripped, every other param survives verbatim onto the target, same
+ * rule as everywhere else here. `?edit=<id>`/`?simulate=<id>` are untouched — the owner named only
+ * create, and both stay live query-param modes on the bare path (`adminRefillPoliciesParsers`,
+ * `url-state.ts`).
+ */
+const ADMIN_REFILL_POLICIES_CREATE_PATH = '/admin/refill-policies';
+const ADMIN_REFILL_POLICIES_CREATE_TARGET = '/admin/refill-policies/create';
+
+function legacyRefillPoliciesCreateTarget(
+  pathname: string,
+  searchParams: URLSearchParams
+): string | null {
+  if (pathname !== ADMIN_REFILL_POLICIES_CREATE_PATH) return null;
+  if (searchParams.get('create') !== 'true') return null;
+
+  const remaining = new URLSearchParams(searchParams);
+  remaining.delete('create');
+  const query = remaining.toString();
+  return `${ADMIN_REFILL_POLICIES_CREATE_TARGET}${query ? `?${query}` : ''}`;
+}
+
 export function legacyRedirectTarget(
   pathname: string,
   searchParams: URLSearchParams
@@ -140,6 +168,9 @@ export function legacyRedirectTarget(
 
   const pathMoveTarget = legacyAccountScopedPathMoveTarget(pathname, searchParams);
   if (pathMoveTarget) return pathMoveTarget;
+
+  const refillPoliciesCreateTarget = legacyRefillPoliciesCreateTarget(pathname, searchParams);
+  if (refillPoliciesCreateTarget) return refillPoliciesCreateTarget;
 
   const segment = LEGACY_ACCOUNT_SCOPED_SEGMENT[pathname];
   if (segment === undefined) return null;

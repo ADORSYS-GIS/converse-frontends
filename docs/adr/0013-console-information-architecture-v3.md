@@ -112,7 +112,7 @@ primitives at all, precisely so a future PR cannot reintroduce a second mount by
 inspector-rail.tsx`) resolves content for exactly one case — `/accounts/<id>/projects` with a row
 selected — and `undefined` (which collapses `ConsoleShell`'s rail column entirely) everywhere
 else, including every `/settings/*` route. This is narrower than ADR 0012's own "rail returned"
-amendment: phase 3 deleted the rail's one *standing* case, the `/accounts/<id>/overview`
+amendment: phase 3 deleted the rail's one _standing_ case, the `/accounts/<id>/overview`
 quick-settings panel (`InspectorSettingsPanel`) — the owner's reasoning was that "account
 mutations/creation/refill on the Overview rail makes no sense" once the switcher itself carries
 `+ New account`, `/projects` carries `+ New project`, the Budget card links to
@@ -134,7 +134,7 @@ suggest it is; the row is the one way back into the account area instead.
 navigation.** `/settings/roles` renders as a real, permanent, `href`-less row
 (`ROLES_DISABLED_REASON`: "Role and permission mapping is operator config today; no read API
 exists (lightbridge-authz#571)") rather than being omitted. Omitting it would hide that the
-destination exists at all; a row that *looks* live but 404s is its own kind of fabrication — a
+destination exists at all; a row that _looks_ live but 404s is its own kind of fabrication — a
 disabled row with a stated reason is the honest middle ground between "not built" and "silently
 missing," extending ADR 0012 D8's "never fabricate" clause from data to navigation itself. Roles
 is the one entry still disabled this way; `/settings/refill-options` shipped live in phase 3 (its
@@ -148,7 +148,7 @@ picker and the api-keys/overview toolbar's project `<select>` offered projects f
 the identity owns, not just the one in the path. `ConsoleScope.projects` now filters to
 `value.accountId` — the path account — via `scopeProjectsForAccount(allProjects, accountId)`
 (`apps/console/src/client/use-console-scope.ts`); the old identity-wide list survives only as
-`ConsoleScope.allProjects`, documented as safe for an id→row *lookup* against an already-scoped id
+`ConsoleScope.allProjects`, documented as safe for an id→row _lookup_ against an already-scoped id
 (e.g. resolving a cross-account admin queue's own `projectId`) and never as a selectable option
 list.
 
@@ -158,7 +158,7 @@ The same audit closed two more classes of leak:
   constructed only once that account id is resolved — never fired identity-wide "just in case,"
   never left permanently loading for want of a filter it should already have.
 - **Honest unwired captions for home-account-only backend surfaces.** Some `lightbridge-authz`
-  endpoints (issue #577) only ever answer for an identity's *home* account, not an arbitrary
+  endpoints (issue #577) only ever answer for an identity's _home_ account, not an arbitrary
   account it owns — a distinction invisible from the console's own account-scoped URL. Rather than
   silently returning another account's data or crashing, the affected surfaces render their
   ADR 0012 D8 honest-gap treatment (an omitted block with a stated reason) when the path account
@@ -182,7 +182,7 @@ that back into a first-class URL and let the dialog concept shrink back to what 
 
 The phase 4 usage/spend screens are grounded in a **measured prod distribution**, not house taste:
 scanning 726k prod usage rows, the dominant shape across accounts is one series overwhelming the
-rest — "top-1 ≥95% of an account's spend" is the *common* case, not an edge case. Every choice
+rest — "top-1 ≥95% of an account's spend" is the _common_ case, not an edge case. Every choice
 below follows from what actually reads honestly against that shape, re-derivable from the same
 data:
 
@@ -201,7 +201,7 @@ data:
   2026-08-29: a monochrome ramp reads badly as adjacent arcs, and a real 99/1/0.4 split produced
   sub-pixel donut slivers) — is right exactly once, when the question genuinely is "how does this
   whole add up," not "which of these rows matters." Every per-row breakdown elsewhere uses
-  `RankedSeriesRows` instead, specifically *because* of the measured top-1-dominance shape: a
+  `RankedSeriesRows` instead, specifically _because_ of the measured top-1-dominance shape: a
   ranked list survives a 95/5/0.4 split by showing the 95% as a number and the 5%/0.4% as smaller
   numbers underneath it; a part-to-whole bar shows the same split as one full-width segment and
   two slivers, repeating the exact donut failure `ShareBar` itself was built to fix, one level up.
@@ -215,8 +215,8 @@ data:
   there; (3) **a stacked or layered chart needs a legend that scales with the number of series**,
   and the same measurement that grounds the ranked-row default (many low-share tail entries per
   account) means that legend would routinely run to a dozen-plus entries — exactly the
-  `ChartLegend`/`RankedSeriesRows` "Other (N)" collapse already solves for a *list*, and does not
-  solve for a *chart* at all.
+  `ChartLegend`/`RankedSeriesRows` "Other (N)" collapse already solves for a _list_, and does not
+  solve for a _chart_ at all.
 - **Latency is stat cards until history depth justifies a series.** `LatencyStatCards`
   (`packages/ui-web/src/sections/latency-stat-cards/`) renders per-model p50/p95/sample-count (p99
   only past `MIN_SAMPLES_FOR_P99` samples) as a row of self-panelled cards, explicitly **not** a
@@ -277,7 +277,7 @@ served from **`/serwist/sw.js`**, generated on demand (dev) or at static-generat
 Moving production onto Turbopack surfaced a real build panic that is now recorded rather than
 worked around silently: `outputFileTracingIncludes`, the mechanism `next.config.mjs` used to pull
 `@cratestack/cbor`'s native N-API packages into the standalone output, crashes Turbopack's NFT-JSON
-emitter outright whenever a glob resolves through a pnpm-store symlink to a *directory* (verified:
+emitter outright whenever a glob resolves through a pnpm-store symlink to a _directory_ (verified:
 narrowing the glob to only the cbor packages still panicked, on a different package; there is no
 safe glob to write). The fix moved the concern out of `next.config.mjs` entirely — getting the
 actual `@cratestack/cbor*` package files into the image is now `apps/console/Dockerfile`'s job (a
@@ -293,7 +293,7 @@ glibc candidate and skips them all when it's true — genuinely true on Alpine r
 `gcompat`/`libc6-compat` shim already installed for `.node` file `dlopen` compatibility. Net
 effect on `linux/amd64` (the real deployment target): `import('@cratestack/cbor')` rejects with
 "Cannot find native binding" server-side, which the usage-scope guard's own `loadRpc` fails
-*closed* on rather than crashing the route. This predates the Turbopack migration (same base image,
+_closed_ on rather than crashing the route. This predates the Turbopack migration (same base image,
 same cratestack pin, since the Dockerfile's first commit); fixing it — a musl build from cratestack
 upstream, or moving off Alpine — is `cratestack#850`, a separate, larger decision than a bundler
 swap.
@@ -426,7 +426,7 @@ sequenceDiagram
 - **A rolling 30-day default range for every dashboard, settings included.** Rejected for the
   billing-denominated screens (D6) — a rolling window drifts across the calendar-month boundary
   the account's own budget and refill cadence are measured against; kept as the default for every
-  *other* preset, where nothing else on the screen is billing-period-denominated.
+  _other_ preset, where nothing else on the screen is billing-period-denominated.
 
 ## Follow-ups
 
@@ -504,7 +504,7 @@ editing) to a dedicated per-account settings screen. Concretely:
   rail to exactly ONE route/state (`/accounts/<id>/projects` with a row selected); moving that
   route into the settings area — which has no right rail at any tier, D2 — removes that case
   without leaving another. `apps/console` deletes the rail's whole wiring (`containers/
-  inspector-rail.tsx`, `client/use-rail-width.ts`, and `(console)/layout.tsx`'s `rail`/`railWidth`
+inspector-rail.tsx`, `client/use-rail-width.ts`, and `(console)/layout.tsx`'s `rail`/`railWidth`
   props) rather than keeping code that would always resolve to "no rail" — `ConsoleShell`'s
   `rail`/`railWidth` props remain a real primitive capability in `packages/ui-web` (its own
   stories still exercise them directly), they simply have no live caller left in `apps/console`.
@@ -600,7 +600,7 @@ tab loop inside `AccountsSettings`.
 A further owner directive, on top of the original ask that opened issue #368 ("Since I'm an admin,
 I should also have a block /admin for admin stuffs...") and the design batch it produced: eight
 operator dashboards, built as a Storybook-only page story (`Pages/AdminOverview`,
-`claude/sb-admin-dashboards`@aaf3fe6) and approved verbatim — *"Approved, build the /admin area."*
+`claude/sb-admin-dashboards`@aaf3fe6) and approved verbatim — _"Approved, build the /admin area."_
 
 This does not reopen D1 or D2 — it adds **a third navigable area** (`ConsoleArea = 'account' |
 'settings' | 'admin'`, `areaFromPathname`), sharing D2's same single shell mount rather than a
@@ -668,7 +668,7 @@ dashboard is the first screen in this console to actually call that procedure.
   `BackToConsoleRow`-style row back into the account area; `navHrefs.admin` now points at
   `/admin/overview`.
 - `middleware.ts`'s `LEGACY_STATIC_REDIRECT` drops the now-inapplicable `/admin` → `/settings/
-  refills-queue` row (`/admin` is a live route again) and gains `/settings/refills-queue` →
+refills-queue` row (`/admin` is a live route again) and gains `/settings/refills-queue` →
   `/admin/refills-queue`.
 - `containers/refills-queue-centre.tsx` and its own screen hook are `git mv`d intact from
   `settings/refills-queue/` to `admin/refills-queue/` — internal logic unchanged, only the route
@@ -678,11 +678,11 @@ dashboard is the first screen in this console to actually call that procedure.
 
 A third same-day owner ruling, this time on `/settings/refill-options` (the Phase G human-form
 redesign, `claude/sb-refill-options-human`@745a895) rather than the refills queue, but the
-identical shape of correction as both amendments above — verbatim: *"Refill options are for admins
+identical shape of correction as both amendments above — verbatim: _"Refill options are for admins
 only. Not normal users. And we don't 'Simulate' them on the same page where we create them.
 /admin/refill-policies should be for listing them /admin/refill-policies?create=true or
 /admin/refill-policies?edit=<id> to create or edit, respectively,
-/admin/refill-policies?simulate=<id> to simulate."*
+/admin/refill-policies?simulate=<id> to simulate."_
 
 This does not reopen D1, D2 or the admin-area amendment above — it is the admin area's THIRD
 destination, gated the identical `isAdmin(session.user.roles)` + `notFound()` way as its two
@@ -708,7 +708,7 @@ fourth param shape:
   verbatim from the old page), and the `RefillPolicyManual` explainer.
 - **`?create=true`** — `RuleSetForm` alone (no `ScenarioForm` beside it any more), authoring a
   brand-new policy set. This amendment also wires the real write path Phase G's own PR body had
-  deliberately left unwired (*"packages/ui-web only — no apps/console wiring in this batch"*): the
+  deliberately left unwired (_"packages/ui-web only — no apps/console wiring in this batch"_): the
   generated contract carries TWO real mutations for this, both genuine and both wired rather than
   picking one — `activateBudgetPolicy` (new rule data, live immediately) as the primary action, and
   `createBudgetPolicyRevision` (new rule data, inert until a separate activation) as a secondary
@@ -756,3 +756,72 @@ render.
   `refill-policy-status-strip` exports its `unavailable` caption as `NO_POLICY_SET_ID_CAPTION` so
   the real container and its own `fixtures.ts` state the identical sentence. The page story moves
   from `Pages/RefillOptions` to `Pages/AdminRefillPolicies`, with a story per mode.
+
+## Amendment (2026-08-31, owner review round 2): the account-area rail's admin shortcut moves into settings, and refill-policy creation moves off a query param onto its own route
+
+A second owner review pass on the same day as the two amendments above, issue #368, findings #1
+and #4 verbatim, addressed together here because both are "an entry point moved off where this ADR
+last put it, onto a plainer surface":
+
+**Finding #1 — "Which button leads to the admin pages? Oh wait, it's the button 'Refill queue'
+that leads to 'admin'? Please remove that. Instead, inside of the settings, place a permission
+gated button 'Admin' that leads to admin."** The account area's Operator group (added by the "the
+admin area" amendment above, one row, "Refill requests," linking to `/admin/overview`) is deleted
+outright, not relabelled or re-routed — `navGroups` (`client/console-chrome.tsx`) now builds
+exactly the two groups D1/D2 originally gave it (Workspace, Account) and takes no `isAdmin`/
+`refillCount` params at all, there being nothing left in it to gate. The replacement lives one
+level in: `settingsNavGroups` gains an `isAdmin`-gated "Admin" row, appended LAST after the six
+real settings destinations, linking to `/admin/overview` — the included-or-omitted contract every
+other gated row in this file already follows (never a `disabled` placeholder; an admin who is
+signed in but not currently in the settings area simply does not see the row, the same as any
+other settings-only content). The account-area rail (`/accounts/<id>/{overview,api-keys}`) now
+renders byte-identical nav content for an admin and a non-admin — there is no role-gated content
+left on it at all. The pending-refill count this row used to carry stays visible for admins the
+same honest way the admin area itself already shows it: `adminNavGroups`'s own "Refills queue" row
+numeral (`useOperatorRefillCount`, unchanged) — nothing new needed to be built for it.
+
+**Finding #4 — "You made out of /admin/refill-policies?create=true a full page. Instead, I was
+thinking of a modal. But it's fine. Just move it to a page /admin/refill-policies/create."** The
+prior amendment's own three-URL-mode split (list/`?create=true`/`?edit=<id>`/`?simulate=<id>`) drops
+to two remaining query-param modes on the bare path: create becomes its own route segment,
+`app/(console)/admin/refill-policies/create/page.tsx`, gated server-side the identical way its
+sibling is. `?create=true` middleware-redirects (308) to the new path with every other param
+surviving verbatim, the same shape every other query-param-to-route move in this document already
+uses. `edit`/`simulate` are untouched — the owner named only create, so `adminRefillPoliciesParsers`
+loses `createOpen` alone; `editPolicySetId`/`simulatePolicySetId` and their `push`-history
+`ADMIN_REFILL_POLICIES_MODE_OPTIONS` contract are unchanged. The create route reuses
+`RefillPolicyFormView` (exported from `admin-refill-policies-centre.tsx` for exactly this), fed by
+a new sibling hook, `use-refill-policy-create-screen.ts`, carrying the identical create-mode draft
+state `use-refill-policies-screen.ts` used to hold — there is no nuqs param left on the new route
+to derive a mode from, so the hook navigates with `next/navigation`'s `useRouter` instead of a
+`setView` call.
+
+**Open consistency question left for the owner, not resolved by this amendment:** `edit` still
+shares the exact full-page-under-query-param shape the owner just moved create OFF of
+(`?edit=<id>` on the list route, rather than `/admin/refill-policies/edit/<id>`). Finding #4 named
+only create; this amendment does not extend the same move to edit speculatively. If the owner's
+underlying preference is "authoring surfaces are routes, not query-param modes" rather than
+"create specifically," `edit` is the next candidate.
+
+### Consequences (owner review round 2 — the admin shortcut and the create route)
+
+- `client/console-chrome.tsx`: `navGroups` drops its `isAdmin`/`refillCount` params and its
+  Operator group entirely; `settingsNavGroups` gains an `isAdmin` param and a conditional "Admin"
+  row; `NAV_ICON` drops its now-unused `admin` key, `SETTINGS_NAV_ICON` gains one.
+- `app/(console)/admin/refill-policies/create/{page,loading}.tsx` are new; `containers/
+admin-refill-policy-create-centre.tsx` and `containers/use-refill-policy-create-screen.ts` are
+  new; `containers/use-refill-policies-screen.ts`'s `AdminRefillPoliciesMode` drops `'create'` and
+  its `onNewPolicy` field/local state; `containers/admin-refill-policies-centre.tsx`'s "+ New
+  policy" action becomes a plain `Link` to the new route and its `RefillPolicyFormView` is exported
+  for the new route to reuse.
+- `client/url-state.ts`'s `adminRefillPoliciesParsers`/`adminRefillPoliciesUrlKeys` drop
+  `createOpen`/`create`.
+- `middleware.ts` gains a fourth redirect shape (same pathname as a live route, gated on one
+  specific query param rather than the whole pathname): `/admin/refill-policies?create=true` →
+  `/admin/refill-policies/create`.
+- `packages/ui-web/src/pages-stories`: `admin-refill-policies.stories.tsx` drops its `create`-mode
+  stories (moved to the new `admin-refill-policies-create.stories.tsx`, `Pages/
+AdminRefillPoliciesCreate`); `overview.stories.tsx` drops `BudgetPanel`'s `actions`/`heroAction`
+  and its own `AdminNav` story (the account-area rail no longer differs by role); `shell-fixtures.
+tsx`'s `storyNavGroups` fixture follows the same shape — no separate "Operator" group, an "Admin"
+  item appended to the flat list only for the settings/admin-area stories.

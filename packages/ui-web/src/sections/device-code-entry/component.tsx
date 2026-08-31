@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { cn } from '../../cn';
 import { DATA_INK_CLASS, ERROR_TEXT_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import type { DeviceCodeEntryProps } from './types';

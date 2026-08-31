@@ -1,9 +1,12 @@
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+import { ROUTE_PATHS, ROUTER_BASENAME } from './src/routes/route-table';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,5 +67,21 @@ export default defineConfig({
         enabled: false,
       },
     }),
+    // Emits the route allowlist authz-idp reads at startup (lightbridge-authz#598, ADR-0029's
+    // artifact contract). GENERATED from route-table.ts, never hand-listed: a hand-listed
+    // manifest is a second source of truth, and its drift mode is "the route works in vite dev
+    // and 404s in production" — the exact risk #598's own Risks section names.
+    // dist/routes.json is inside turbo's `build:web` outputs (`dist/**`), so it is cache-covered.
+    // Last in `plugins`, after VitePWA(...), so it cannot race the SW emit.
+    {
+      name: 'authz-ui-routes-manifest',
+      apply: 'build',
+      closeBundle() {
+        writeFileSync(
+          path.resolve(currentDir, 'dist/routes.json'),
+          `${JSON.stringify({ version: 1, basename: ROUTER_BASENAME, routes: [...ROUTE_PATHS] }, null, 2)}\n`
+        );
+      },
+    },
   ],
 });

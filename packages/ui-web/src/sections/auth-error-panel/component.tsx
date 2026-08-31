@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { cn } from '../../cn';
 import { ERROR_TEXT_CLASS, ROW_LABEL_CLASS } from '../../lib/type-roles';
 import type { AuthErrorPanelProps } from './types';

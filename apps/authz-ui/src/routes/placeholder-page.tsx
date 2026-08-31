@@ -1,14 +1,16 @@
 import { NoticePanel } from '../components/notice-panel';
 import { ScopeDisclosure } from '../components/scope-disclosure';
 
-// PLACEHOLDER PAGE -- this app scaffolds the static build + serving infrastructure, the
-// styling/PWA/router plumbing, and this page's shell only. It deliberately does not implement, in
-// `ADORSYS-GIS/lightbridge-authz`:
-//   - the RP leg to Keycloak (#424)
-//   - GET /authorize (#425)
-//   - session creation / the __Host- cookie (#441, #443)
-// Nothing on this page calls any of those endpoints yet. Rendered for every route this SPA owns
-// today (there is exactly one) -- see src/app.tsx's router setup.
+// PLACEHOLDER PAGE -- the SPA's `/` route (plan D2: kept, not redirected -- a visitor who isn't
+// mid device-pairing must not be dropped into a device flow, and `idp_it.py` plus
+// `ui_bare_and_trailing_slash_both_serve_index_html` both require `GET /ui/` to stay 200 HTML).
+// This app now implements the RFC 8628 device-pairing human plane for
+// `ADORSYS-GIS/lightbridge-authz` (#478, converse-frontends#409) -- see src/app.tsx's route
+// table: `/device`, `/device/invalid`, `/device/confirm`, `/device/success`, and `/error`. It
+// still deliberately does not implement:
+//   - GET /authorize / the full interactive login form (#425)
+//   - session creation / the __Host- cookie for that leg (#441, #443)
+// Sign-in is not implemented yet -- device pairing is. This page's own copy says so.
 //
 // The visual direction for this surface has not been decided. The classes below are
 // `packages/ui-web` semantic tokens (console-ui skill "Tokens") rather than the source app's raw
@@ -33,7 +35,9 @@ export function PlaceholderPage() {
           <p className="text-ink font-semibold">authz-idp hosted login -- placeholder</p>
           <p className="mt-2">
             This page is served by authz-idp itself, same-origin, exactly as ADR-0021 requires.
-            Sign-in is not implemented yet.
+            Sign-in is not implemented yet, but device pairing is -- a code from the RFC 8628 device
+            flow lands on <code>/device</code>, is confirmed on <code>/device/confirm</code>, and
+            finishes on <code>/device/success</code>; a failed attempt lands on <code>/error</code>.
           </p>
         </NoticePanel>
         <ScopeDisclosure />

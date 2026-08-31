@@ -1,5 +1,13 @@
 // ── foundations
 export { cn } from './cn';
+export {
+  applyThemePreference,
+  CONSOLE_THEME_NO_FLASH_SCRIPT,
+  CONSOLE_THEME_STORAGE_KEY,
+  readStoredThemePreference,
+  resolveConsoleTheme,
+} from './lib/theme';
+export type { ConsoleTheme, ConsoleThemePreference } from './lib/theme';
 export { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_SEPARATOR_CLASS } from './lib/overlay';
 export {
   BODY_CLASS,

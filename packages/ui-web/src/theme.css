@@ -23,6 +23,17 @@
 @import 'tailwindcss';
 @source '.'; /* this package's own src -- see note above on why auto-detection isn't trusted */
 @source '../../../apps/console/src';
+/* `apps/authz-ui` (the hosted-login SPA, story #406) imports `@lightbridge/ui-web/styles.css` as
+   its ONE stylesheet, exactly as `apps/console/src/app/globals.css` does. Same reasoning as the
+   line above, and the same explicit-over-automatic choice: whichever build runs this file's
+   Tailwind pass -- the console's Next build, this package's Storybook/vitest, or authz-ui's
+   `@tailwindcss/vite` pass -- must see BOTH apps' sources, because it is the single generator of
+   utilities for all of them. Paths here resolve relative to THIS file, not to the importer, and
+   Vite/webpack both realpath through the pnpm workspace symlink before Tailwind sees it, so
+   `../../../` lands on the repo root either way.
+   Known cost, accepted: each app's build therefore also scans the other's source and emits
+   utilities it does not use. */
+@source '../../../apps/authz-ui/src';
 
 /*
  * ADR 0009 Decision 6 tiers, unchanged from the deleted `tailwind.config.js` `screens.md/lg`:

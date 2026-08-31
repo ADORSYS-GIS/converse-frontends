@@ -20,6 +20,16 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "authz-ui-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "apps/authz-ui",
+        "dev"
+      ],
+      "port": 5173
     }
   ]
 }

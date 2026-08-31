@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
+import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme';
+
 import { Providers } from '../client/providers';
 import { readSession } from '../server/session-store';
 import { isAdmin } from '../server/tokens';
 import { ANONYMOUS_SESSION, type SessionResponse } from '../shared/session-response';
-import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '../shared/theme';
 
 import './globals.css';
 

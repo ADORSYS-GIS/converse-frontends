@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  `data-theme="black"` is set STATICALLY here, not by an inline script.
+  `crates/lightbridge-authz-rest/src/static_assets.rs` serves every response under `/ui` with
+  `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'` — no `script-src`, so
+  scripts fall back to `default-src 'self'`, which permits no inline script and carries no nonce
+  or hash. The console's `CONSOLE_THEME_NO_FLASH_SCRIPT` (injected via Next's
+  dangerouslySetInnerHTML) therefore cannot be ported to this surface as-is.
+
+  `black` is the default theme, so putting it in the markup means the common case has no flash at
+  all. `src/main.tsx` resolves a stored `wireframe`/system preference as its very first statement,
+  before React mounts — the module script is deferred, so that one non-default case can still show
+  a black frame briefly. Closing that gap needs a CSP `script-src` hash coordinated with the Rust
+  side; that is cross-repo and out of this story's scope.
+-->
+<html lang="en" data-theme="black">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Sign in</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

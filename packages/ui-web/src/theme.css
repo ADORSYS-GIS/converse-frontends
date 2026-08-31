@@ -28,12 +28,27 @@
  * ADR 0009 Decision 6 tiers, unchanged from the deleted `tailwind.config.js` `screens.md/lg`:
  * base = phone, `md` = 600 (persistent left rail returns), `lg` = 1024 (full three-panel shell).
  * `sm`/`xl`/`2xl` keep Tailwind's defaults.
+ *
+ * `--radius-overlay-floating`: the ONE corner-radius exception to the console-ui skill's flush
+ * 2px overlay contract (`lib/overlay.ts`'s `OVERLAY_CLASS`) — owner ruling, 2026-08-31 (issue
+ * #368, `claude/sb-overlay-restyle`'s design-review batch): "10px looks good for the command
+ * palette." Scoped to FLOATING overlays only — an anchored popup that points at a trigger from an
+ * arbitrary screen position: the command palette panel, Menu popups (the account switcher and any
+ * other Base UI Menu), Select/Combobox popups, Popovers. Docked overlays (Dialog, the bottom
+ * sheet Drawer, Tooltip) stay at the flush 2px contract — they anchor to a screen edge or centre
+ * over the whole viewport rather than pointing at one element, so the "floating" read this radius
+ * answers does not apply. One value, theme-independent (geometry, not colour), which is why it
+ * sits beside the breakpoints/fonts above rather than inside either daisy theme block. Consumed
+ * via `rounded-(--radius-overlay-floating)`, never restated as a literal `rounded-[10px]` at a
+ * call site — see `OVERLAY_FLOATING_CLASS`/`OVERLAY_ANCHORED_POPUP_FLOATING_CLASS` (`lib/
+ * overlay.ts`), the one place this token is applied.
  */
 @theme {
   --breakpoint-md: 600px;
   --breakpoint-lg: 1024px;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   --font-sans: Inter, system-ui, sans-serif;
+  --radius-overlay-floating: 0.625rem;
 }
 
 /*
@@ -694,59 +709,20 @@
   padding-block: 0.25rem;
 }
 
-/* The sibling account overlay — `AccountMenu`'s popup, hanging off the header identity block
-   rather than off the badge. It is a hair narrower than `account-popup` (220 vs 240) because it
-   holds one email line and two actions rather than a list of accounts; the widths are stated as
-   two utilities rather than one shared class precisely so that difference stays deliberate and
-   visible instead of being averaged away. Both are account NAMES and menu actions, not data, so
-   neither carries a mono face any more (phase 9 consistency pass). */
-@utility account-menu-popup {
-  width: 220px;
-}
-
-/* The popup's own action row (Sign out), lifted to the SAME 36px rhythm the command palette's
+/* `SelectField`'s own option row, at the SAME palette-matching 36px rhythm the command palette's
    rows render at (`palette-list`'s `[cmdk-item]`, `RAIL_NAV_ROW_HEIGHT` — owner ask, 2026-08-31:
-   "same overlay language as the palette ... row height"). Scoped to `AccountMenu` alone, not the
+   "same overlay language as the palette ... row height"). Scoped to `SelectField` alone, not the
    shared `OVERLAY_ITEM_CLASS` every other Menu/Select/Combobox popup in the console renders
    through — a blast radius this design-review batch deliberately did not take on. */
-@utility account-menu-row {
-  min-height: 2.25rem;
-}
-
-/* `SelectField`'s own option row, at the SAME palette-matching 36px rhythm as `account-menu-row`
-   above — the "select" half of the owner's "same overlay language as the palette: consistent
-   padding, row height" ask, 2026-08-31. Scoped to `SelectField` alone for the same reason. */
 @utility select-field-item {
   min-height: 2.25rem;
 }
 
-/* The three theme choices as ONE row of words. `theme-choice` below is each word; this is the row
-   that holds them, which the component had been spelling out as flex utilities beside it. */
-@utility theme-choice-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* The initials square in the account menu's trigger. A square at the contract radius, never a
-   circle: the console has no pills and no round avatars. */
-@utility avatar-chip {
-  display: flex;
-  height: 26px;
-  width: 26px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-field);
-  background-color: var(--color-base-300);
-  color: var(--color-base-content);
-  font-size: 0.625rem;
-}
-
-/* The SAME initials square, sized to fit the sidebar footer's 16px icon column exactly
-   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — `AccountMenu`'s `variant="sidebar"` identity row
-   (Addition 5, owner screenshot: the identity chip sat at a THIRD x, neither the Search icon's
-   nor the old Theme row's). */
+/* The initials square, sized to fit the sidebar footer's 16px icon column exactly
+   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — the left rail's own identity row (Addition 5, owner
+   screenshot: the identity chip sat at a THIRD x, neither the Search icon's nor the old Theme
+   row's). A square at the contract radius, never a circle: the console has no pills and no round
+   avatars. */
 @utility avatar-chip-sm {
   display: flex;
   height: 16px;
@@ -762,13 +738,12 @@
 
 /* The SAME initials square again, at the workspace switcher's own step — owner rework,
    2026-08-30: "the switcher IS a standard rail row" retires the older "one-off header-weight
-   row keeps the full 26px avatar-chip" call (superseded — that read as one of the type-scale
-   inflations the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s
-   `sidebar` variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN
-   size, and the switcher chip is not inside that column — it leads the row the way the footer's
-   26px chip used to) and not the full 26px `avatar-chip` either — 20px sits between the two,
-   matching the row's own `h-9` (36px) the way a chip two-thirds the row height reads as sized
-   FOR the row rather than dropped into it. */
+   row keeps a full 26px chip" call (superseded — that read as one of the type-scale inflations
+   the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s `sidebar`
+   variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN size, and
+   the switcher chip is not inside that column — it leads the row) and not a full 26px chip
+   either — 20px sits between the two, matching the row's own `h-9` (36px) the way a chip
+   two-thirds the row height reads as sized FOR the row rather than dropped into it. */
 @utility avatar-chip-md {
   display: flex;
   height: 20px;
@@ -1082,8 +1057,9 @@
 /* One row of the footer stack (search, theme, offline, identity — the standalone Theme row is
    back, owner finding 2026-08-31: "I don't see the usage, for the theme to be hidden behind the
    account dropdown. Please put it outside" — reversing Addition 5's dedupe, which had folded it
-   into `AccountMenu`'s own popup; `AccountMenu` takes no `theme`/`onThemeChange` pair any more) —
-   a 36px hit target with a hover fill, label at the leading edge and a trailing control/marker.
+   into `AccountMenu`'s own popup; `AccountMenu` is deleted outright, issue #368, and `ThemeToggle`
+   is the only place the preference is edited now) — a 36px hit target with a hover fill, label at
+   the leading edge and a trailing control/marker.
    Not every row is interactive (the offline line is a status, not a button), so this is a
    layout/paint utility, not a `<button>` contract — `SidebarFooterRow`'s call sites choose the
    element. */
@@ -1097,7 +1073,7 @@
    `gap` is `RAIL_LABEL_GAP` (10px), matched as a literal here for the same TS/CSS reason as the
    padding above — NOT the 8px this used to carry (Addition 5, owner screenshot: Search's icon,
    the old Theme row's toggle, and the identity chip each landed at a different label x). Every
-   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or `AccountMenu`'s
+   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or the identity row's own
    `avatar-chip-sm` in that same column) is now exactly the nav rows' own 16px column, so
    `padding(12) + column(16) + gap(10) = 38px` is one number the whole sidebar shares top to
    bottom, not a per-row guess. */
@@ -2571,9 +2547,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   /* A rail label is ALWAYS left-aligned at the shared label x. Explicit because several rail
-   * rows are daisy `btn` triggers (AccountMenu's sidebar identity row, the workspace switcher)
-   * and `btn` centers its content — the label's box sat at the grid while its text painted
-   * centered inside it (live finding, 2026-08-30). */
+   * rows are daisy `btn` triggers (the Search row, the workspace switcher) and `btn` centers its
+   * content — the label's box sat at the grid while its text painted centered inside it (live
+   * finding, 2026-08-30). */
   text-align: left;
 }
 

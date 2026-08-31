@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
 import { AccountBadge } from '../../components/account-badge';
-import { AccountMenu } from '../../components/account-menu';
+import { Button } from '../../components/button';
 import type { NavGroup } from '../../components/nav-spine';
 import { ThemeToggle } from '../../components/theme-toggle';
 import {
@@ -13,6 +13,7 @@ import {
   ProjectsIcon,
   SearchIcon,
   SettingsIcon,
+  SignOutIcon,
 } from '../../lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -22,8 +23,8 @@ import {
 import { ConsoleSidebar } from './component';
 
 // This fixture now composes the SAME parts `apps/console/src/client/console-chrome.tsx` does —
-// the real `AccountBadge`/`AccountMenu` components and the real `lib/icons.tsx` glyph set, not a
-// hand-rolled stand-in for either (owner rework, 2026-08-30: a previous pass of this story drew
+// the real `AccountBadge` component and the real `lib/icons.tsx` glyph set, not a hand-rolled
+// stand-in for either (owner rework, 2026-08-30: a previous pass of this story drew
 // its own 10x10 `Glyph` placeholder and its own inline workspace-switcher button, which happened
 // to already read at the CORRECT 13px/26px-vs-20px mix of sizes — so this story kept passing
 // visual review while the real `AccountBadge` rendered its name at `SECTION_TITLE_CLASS` (15px)
@@ -103,11 +104,14 @@ const workspaceSwitcher = (
 );
 
 // The standalone Theme row is BACK (owner finding, 2026-08-31: "I don't see the usage, for the
-// theme to be hidden behind the account dropdown. Please put it outside") — `AccountMenu` no
-// longer takes a `theme`/`onThemeChange` pair at all. Search's icon, the Theme row's spacer and
-// the identity chip all sit in the SAME `w-4` (16px) column `NavSpine`'s own rows use
-// (`RAIL_ICON_COLUMN_CLASS` in the real chrome), so this fixture mirrors that instead of drifting
-// back to a hand-picked x.
+// theme to be hidden behind the account dropdown. Please put it outside") — `ThemeToggle` is the
+// only place the preference is edited. Search's icon, the Theme row's spacer and the identity
+// chip all sit in the SAME `w-4` (16px) column `NavSpine`'s own rows use (`RAIL_ICON_COLUMN_CLASS`
+// in the real chrome), so this fixture mirrors that instead of drifting back to a hand-picked x.
+// The identity row no longer opens a menu (owner ruling, 2026-08-31, issue #368: "We don't need a
+// drop down for the connected user, since it's in the left rail" — `AccountMenu` is deleted
+// outright): it is the SAME shape as the Theme row above it, with a plain trailing `Button` for
+// the one row-scoped action (sign out) instead of a click-to-discover popup.
 const footer = (
   <>
     <button type="button" className="sidebar-footer-row">
@@ -122,13 +126,17 @@ const footer = (
       <span className="text-subtle font-sans text-[13px]">Theme</span>
       <ThemeToggle preference="black" onPreferenceChange={fn()} className="ml-auto" />
     </div>
-    <AccountMenu
-      variant="sidebar"
-      name="Sam Lambou"
-      email="sam@adorsys.com"
-      initials="SL"
-      onSignOut={fn()}
-    />
+    <div className="sidebar-footer-row">
+      <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+        <span aria-hidden="true" className="avatar-chip-sm">
+          SL
+        </span>
+      </span>
+      <span className="rail-row-label text-soft text-[13px]">Sam Lambou</span>
+      <Button variant="ghost" size="icon" aria-label="Sign out" onClick={fn()} className="ml-auto">
+        <SignOutIcon />
+      </Button>
+    </div>
   </>
 );
 

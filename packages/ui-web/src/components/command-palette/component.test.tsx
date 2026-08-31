@@ -81,7 +81,7 @@ describe('CommandPalette', () => {
         onOpenChange={vi.fn()}
         groups={groups(vi.fn())}
         emptyMessage="Nothing here."
-      />,
+      />
     );
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'zzz-no-match' } });
@@ -109,8 +109,8 @@ describe('CommandPalette', () => {
     await waitFor(() =>
       expect(screen.getByText('Api-Keys').closest('[cmdk-item]')).toHaveAttribute(
         'data-selected',
-        'true',
-      ),
+        'true'
+      )
     );
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
@@ -148,7 +148,7 @@ describe('CommandPalette', () => {
             ],
           },
         ]}
-      />,
+      />
     );
 
     expect(screen.getByTestId('overview-icon')).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe('CommandPalette', () => {
             items: [{ key: 'new-key', label: 'New key', shortcut: 'N', onSelect: vi.fn() }],
           },
         ]}
-      />,
+      />
     );
 
     const chip = screen.getByText('N');
@@ -185,21 +185,15 @@ describe('CommandPalette', () => {
     expect(screen.getAllByText('esc').length).toBeGreaterThan(0);
   });
 
-  // Storybook-only design-review escape hatch (owner ask, 2026-08-31): an extra class merged
-  // onto the popup panel, so a story can compare corner radii without touching the shared
-  // `OVERLAY_CLASS` contract every other overlay in the console still renders at.
-  it('merges panelClassName onto the popup without disturbing the default contract', () => {
-    render(
-      <CommandPalette
-        open
-        onOpenChange={vi.fn()}
-        groups={groups(vi.fn())}
-        panelClassName="rounded-[6px]"
-      />,
-    );
+  // Owner ruling, 2026-08-31 (issue #368): "10px looks good for the command palette" — the
+  // floating-overlay radius token (`OVERLAY_FLOATING_CLASS`, `lib/overlay.ts`), not the flush 2px
+  // `OVERLAY_CLASS` contract every DOCKED overlay (Dialog, the bottom sheet, Tooltip) still
+  // renders at.
+  it('renders the panel at the floating-overlay radius, not the flush 2px contract', () => {
+    render(<CommandPalette open onOpenChange={vi.fn()} groups={groups(vi.fn())} />);
 
     const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveClass('rounded-[6px]');
+    expect(dialog).toHaveClass('rounded-(--radius-overlay-floating)');
     expect(dialog.className).not.toMatch(/rounded-\[2px\]/);
   });
 });

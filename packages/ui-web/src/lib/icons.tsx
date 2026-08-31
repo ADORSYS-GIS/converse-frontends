@@ -176,3 +176,15 @@ export function SortNeutralIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+/** Sign out — a door frame with an arrow exiting through it. The left rail identity row's own
+ *  trailing action (owner ruling, 2026-08-31, issue #368: sign-out is a row-scoped action, not a
+ *  menu item behind a dropdown any more — `AccountMenu` is deleted). */
+export function SignOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9.5 2.5h-4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4" />
+      <path d="M6.5 8h6.5M13.5 8 11 5.5M13.5 8 11 10.5" />
+    </IconBase>
+  );
+}

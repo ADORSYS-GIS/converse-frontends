@@ -2,7 +2,7 @@
 
 import type { NavGroup } from '@lightbridge/ui-web';
 import { AccountBadge, shortAccountId } from '@lightbridge/ui-web/src/components/account-badge';
-import { AccountMenu } from '@lightbridge/ui-web/src/components/account-menu';
+import { Button } from '@lightbridge/ui-web/src/components/button';
 import {
   CommandPalette,
   CommandPaletteTrigger,
@@ -26,6 +26,7 @@ import {
   RolesIcon,
   SearchIcon,
   SettingsIcon,
+  SignOutIcon,
   TiersIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
@@ -55,8 +56,9 @@ import { useOnlineStatus } from './use-online-status';
  *
  * All of it is mounted **once**, by `app/(console)/layout.tsx` — never by a route (console-ui
  * skill "Composition"). Nothing here re-implements a `ui-web` primitive: it composes
- * `ConsoleSidebar`, `ConsoleTopBar`, `NavGroup`, `AccountBadge`, `AccountMenu` and
- * `InlineStatus`, and supplies the app-specific data (routes, identity, connectivity).
+ * `ConsoleSidebar`, `ConsoleTopBar`, `NavGroup`, `AccountBadge`, `Button`/`SignOutIcon` (the
+ * left rail's own identity row) and `InlineStatus`, and supplies the app-specific data (routes,
+ * identity, connectivity).
  *
  * Subpath imports (`@lightbridge/ui-web/src/components/*`) rather than the package barrel are
  * deliberate: a barrel import here would pull `index.ts`'s entire re-export graph — including the
@@ -383,8 +385,9 @@ export function settingsNavGroups(
 
 /**
  * The one deterministic rule for every initials chip in the chrome (the sidebar workspace
- * switcher's `avatar-chip` and `AccountMenu`'s identity avatar): a real name or email yields a
- * two-letter monogram; with neither, fall back to the account's own short label
+ * switcher's `avatar-chip` and the sidebar footer's own identity row `avatar-chip-sm`): a real
+ * name or email yields a two-letter monogram; with neither, fall back to the account's own short
+ * label
  * (`shortAccountId` — `acct_<first8>`) rather than a placeholder glyph. Both chips used to render
  * `'··'` for an unnamed account with no email on file (live findings #7, 2026-08-30) — a glyph
  * that carries no information and reads as a rendering bug, not a real fallback.
@@ -712,12 +715,12 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               reversing "Addition 5 dedupe" (2026-08-30), which had folded this row into
               `AccountMenu`'s own popup on the theory that a second control duplicated the first.
               The owner's read is the opposite: buried behind the account trigger, the control
-              was undiscoverable, not merely duplicated. `AccountMenu` no longer takes a
-              `theme`/`onThemeChange` pair at all — this is the one place preference lives now.
-              Not a `<button className="sidebar-footer-row">` wrapper like Search: `ThemeToggle`
-              is already its own interactive control (`ml-auto` trailing it, same slot Search's
-              `kbd` hint sits in), so wrapping it in a second clickable row would nest two hit
-              targets the way the identity row below is careful not to. */}
+              was undiscoverable, not merely duplicated. This is the one place preference lives
+              now. Not a `<button className="sidebar-footer-row">` wrapper like Search:
+              `ThemeToggle` is already its own interactive control (`ml-auto` trailing it, same
+              slot Search's `kbd` hint sits in), so wrapping it in a second clickable row would
+              nest two hit targets, the same reason the identity row below stays a plain `div`
+              too. */}
           <div className="sidebar-footer-row">
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
             <span className="text-subtle font-sans text-[13px]">Theme</span>
@@ -736,16 +739,34 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
             </div>
           )}
-          {/* No wrapping `sidebar-footer-row` here — the identity row's own hover/hit-target IS
-              the menu trigger (`variant="sidebar"` renders that class on the trigger itself), so
-              wrapping it a second time would nest two hover surfaces. */}
-          <AccountMenu
-            variant="sidebar"
-            name={session.user?.name}
-            email={identityLabel}
-            initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
-            onSignOut={signOut}
-          />
+          {/* The identity row — owner ruling, 2026-08-31 (issue #368, `claude/sb-overlay-
+              restyle`): "We don't need a drop down for the connected user, since it's in the left
+              rail." `AccountMenu` is deleted outright; this row no longer opens a menu at all —
+              it is the SAME icon-column/label/trailing-control shape the Theme row above uses,
+              with sign out as a plain trailing icon button (per the rail grid's "the action that
+              belongs to a row lives in that row" idiom) instead of one click deep behind a
+              trigger only this row used to have. */}
+          <div className="sidebar-footer-row">
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+              <span aria-hidden="true" className="avatar-chip-sm">
+                {initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
+              </span>
+            </span>
+            {(session.user?.name ?? identityLabel) ? (
+              <span className="rail-row-label text-soft text-[13px]">
+                {session.user?.name ?? identityLabel}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Sign out"
+              onClick={signOut}
+              className="ml-auto">
+              <SignOutIcon />
+            </Button>
+          </div>
         </>
       }
     />
@@ -754,25 +775,21 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
 
 /**
  * The mobile/tablet top bar's content — brand, a compact workspace switcher, the palette trigger
- * and the identity avatar. Below `md`, this replaces the sidebar entirely (nav lives in the
- * bottom dock `ConsoleSidebar` renders alongside the persistent sidebar).
+ * and the theme toggle. Below `md`, this replaces the sidebar entirely (nav lives in the bottom
+ * dock `ConsoleSidebar` renders alongside the persistent sidebar).
+ *
+ * NO identity avatar renders here any more (owner ruling, 2026-08-31, issue #368: "We don't need
+ * a drop down for the connected user, since it's in the left rail" — `AccountMenu`'s `inline`
+ * variant is deleted outright). Below `md` there is no left rail either, so this band carries no
+ * identity affordance of its own at all; sign out stays reachable everywhere, including here, via
+ * the `⌘K` command palette's own "Sign out" action (`useConsolePalette`'s `actions` group, below).
  */
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
-  const session = useConsoleSession();
   const hasCustomLogo = useConsoleBrandingLogo();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const area = areaFromPathname(pathname);
-  // Fall back to the subject's short account label when the IdP returns no identity claims at
-  // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
-  // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
-  // outside this repo). A naked avatar chip with no text reads as a rendering bug.
-  const identityLabel =
-    session.user?.email ??
-    session.user?.preferredUsername ??
-    session.user?.name ??
-    (session.user ? shortAccountId(session.user.sub) : undefined);
 
   return (
     <ConsoleTopBar
@@ -792,22 +809,7 @@ export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => v
         )
       }
       paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}
-      identity={
-        <>
-          {/* Owner finding, 2026-08-31: "I don't see the usage, for the theme to be hidden
-              behind the account dropdown. Please put it outside" — the header's own right
-              cluster (`ConsoleTopBar`'s `paletteTrigger`/`identity` row) is exactly that visible
-              spot, right next to the two controls it already sat beside per this component's own
-              contract comment. `AccountMenu` no longer takes a `theme`/`onThemeChange` pair. */}
-          <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-          <AccountMenu
-            name={session.user?.name}
-            email={identityLabel}
-            initials={initialsFor(session.user?.name, identityLabel, session.user?.sub ?? '')}
-            onSignOut={signOut}
-          />
-        </>
-      }
+      trailing={<ThemeToggle preference={preference} onPreferenceChange={setPreference} />}
     />
   );
 }

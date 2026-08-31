@@ -34,8 +34,8 @@ export const Default: Story = { render: () => <Demo /> };
 
 /**
  * Popup open — the "select" half of the overlay-restyle design review (owner ask, 2026-08-31):
- * same row rhythm and separator/kbd vocabulary as `CommandPalette`/`AccountMenu` now share
- * (`select-field-item`, `OVERLAY_*`, theme.css).
+ * same row rhythm and floating-overlay radius `CommandPalette` and every other Menu/Select/
+ * Combobox/Popover popup now share (`select-field-item`, `OVERLAY_*`, theme.css).
  */
 export const Open: Story = {
   render: () => <Demo />,

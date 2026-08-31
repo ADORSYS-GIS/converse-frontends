@@ -76,7 +76,7 @@ function PersistentShell() {
         <ConsoleTopBar
           brand={storyBrand}
           workspaceSwitcher={storyTopBarWorkspaceSwitcher}
-          identity={<span />}
+          trailing={<span />}
         />
       }>
       {route === 'overview' ? (

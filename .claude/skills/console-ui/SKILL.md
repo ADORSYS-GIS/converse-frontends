@@ -74,17 +74,17 @@ as their own Tailwind v3 source — was removed, #368; `theme.css` is now the re
 source, full stop.)
 
 | Tailwind token | Spec name      | daisy variable            | Dark (`black`) | Light (`wireframe`) | Role                                                                       |
-| -------------- | -------------- | ------------------------- | -------------- | -------------------- | --------------------------------------------------------------------------------- |
+| -------------- | -------------- | ------------------------- | -------------- | ------------------- | -------------------------------------------------------------------------- |
 | `muted`        | `--floor`      | `--color-base-100`        | `#000000`      | `#EBEBEB`           | Page background. `Card` sits on it, is never confused with it              |
-| `chrome`       | `--chrome`     | `--color-neutral`         | `#111111`      | `#F5F5F5`           | Sidebar/top-bar fill, form-control inset fill, table row hover                     |
-| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `BottomSheet`, the inspector rail, dialogs, `StatCard`                                        |
-| `raised`       | `--raised`     | `--color-base-300`        | `#202020`      | `#DEDEDE`           | Active nav row, active segmented cell, table hairlines, skeletons                  |
-| `border`       | `--line`       | `--color-border`          | `#3a3a3a`      | `#CFCFCF`           | Control borders, `Card`'s own hairline, chart baseline, group separators           |
+| `chrome`       | `--chrome`     | `--color-neutral`         | `#111111`      | `#F5F5F5`           | Sidebar/top-bar fill, form-control inset fill, table row hover             |
+| `surface`      | `--panel`      | `--color-base-200`        | `#191919`      | `#FFFFFF`           | `Card`, `BottomSheet`, the inspector rail, dialogs, `StatCard`             |
+| `raised`       | `--raised`     | `--color-base-300`        | `#202020`      | `#DEDEDE`           | Active nav row, active segmented cell, table hairlines, skeletons          |
+| `border`       | `--line`       | `--color-border`          | `#3a3a3a`      | `#CFCFCF`           | Control borders, `Card`'s own hairline, chart baseline, group separators   |
 | `subtle`       | `--muted`      | `--color-subtle`          | `#606060`      | `#8A8A8A`           | Labels, placeholders, disabled. Never load-bearing info (~2.9:1 by design) |
-| `soft`         | `--body`       | `--color-base-content`    | `#b4b4b4`      | `#4D4D4D`           | Body text, meter fills, rank-1 chart series                                        |
-| `ink`          | `--strong`     | `--color-ink`             | `#eeeeee`      | `#1A1A1A`           | Headings, key numerals                                                            |
-| `primary`      | `--signal`     | `--color-primary`         | `#DA5C2C`      | `#B4441C`           | CTA · active · breach. Never decoration, never a large fill                       |
-| —              | text on signal | `--color-primary-content` | `#0d0d0d`      | `#FFFFFF`           | Label inside a `primary` fill                                                     |
+| `soft`         | `--body`       | `--color-base-content`    | `#b4b4b4`      | `#4D4D4D`           | Body text, meter fills, rank-1 chart series                                |
+| `ink`          | `--strong`     | `--color-ink`             | `#eeeeee`      | `#1A1A1A`           | Headings, key numerals                                                     |
+| `primary`      | `--signal`     | `--color-primary`         | `#DA5C2C`      | `#B4441C`           | CTA · active · breach. Never decoration, never a large fill                |
+| —              | text on signal | `--color-primary-content` | `#0d0d0d`      | `#FFFFFF`           | Label inside a `primary` fill                                              |
 
 Write `bg-surface text-soft border-border`, not hex. If a needed step is missing, add it to
 `theme.css` **in both theme blocks** — never inline a hex value.
@@ -96,12 +96,12 @@ AA); `#0d0d0d` is 5.1:1.
 
 Four libraries, four non-overlapping jobs (ADR 0010 Decision 2). Never solve one need with two.
 
-| Reach for                      | When                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **daisyUI 5 class**            | A visual component class exists: `btn`, `input`, `textarea`, `select`, `table`, `menu`, `tabs`, `toggle`, `checkbox`, `radio`, `skeleton`, `fieldset`/`label`, `join`, `kbd`, `validator`. Add Tailwind utilities for whatever daisy does not cover                                                                                          |
+| Reach for                      | When                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **daisyUI 5 class**            | A visual component class exists: `btn`, `input`, `textarea`, `select`, `table`, `menu`, `tabs`, `toggle`, `checkbox`, `radio`, `skeleton`, `fieldset`/`label`, `join`, `kbd`, `validator`. Add Tailwind utilities for whatever daisy does not cover                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **Base UI (`@base-ui/react`)** | **Every** control with _behaviour_ — never a native `<select>`, never a hand-rolled popup. As of 2026-08-29 the adoption gap is closed to one deliberate refusal (`row-action-group` — see `base-ui-adoption.test.ts`'s `KNOWN_GAPS`, which may only shrink); a new primitive that reimplements Base UI behaviour is a defect. Specifically: Dialog, Alert Dialog, Menu, Select, Combobox, Popover, Tooltip, Navigation Menu, Toggle Group, Field/Fieldset/Form, Switch, Checkbox, Radio, Number Field, Scroll Area, Toast, Drawer, Meter. Style its parts with daisy classes + token utilities via `className` (which also accepts a function of component state) and `data-*` variants |
-| **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                            |
-| **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                             |
+| **cmdk**                       | The command palette. Nothing else                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Floating UI**                | Positioning anchored to a _point_ rather than an element — chart tooltips over `<svg>`, via a virtual element + `useClientPoint`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Drawers and bottom sheets are Base UI's `drawer` — one more primitive on the Base UI row, not a
 library of its own. **`vaul` is gone** (owner decision 2026-08-29): it is in no `package.json` and
@@ -161,21 +161,26 @@ carries `data-numeral` (tabular figures, right-aligned in ledgers).
 One definition per role, `packages/ui-web/src/lib/type-roles.ts` — import the constant, never
 re-declare the class string:
 
-| Constant | Size / weight | Family | Used for |
-| --- | --- | --- | --- |
-| `PAGE_TITLE_CLASS` | 24px / semibold | sans | `PageHeader`'s `title`, one per screen |
-| `PAGE_SUBTITLE_CLASS` | 13px | sans | The scope/context line under a page title |
-| `SECTION_TITLE_CLASS` | 15px / medium | sans | `Card`'s own title, a dashboard zone heading |
-| `LABEL_CLASS` | 12px | sans | Field labels, table column headers, section labels |
-| `BODY_CLASS` | 13px | sans | Sentence-copy prose |
-| `META_CLASS` | 12px | sans | Captions, non-load-bearing metadata |
-| `ERROR_TEXT_CLASS` | 13px | sans | `ErrorLine`'s own text |
-| `DATA_CLASS` / `DATA_INK_CLASS` | 13px | mono, `data-numeral` | Table cells: counts, ids, dates, currency |
-| `METRIC_CLASS` | 28px | mono, `data-numeral` | Stat-card values, table footers |
-| `HERO_METRIC_CLASS` | 34px | mono, `data-numeral` | The one number a screen is about |
-| `HERO_CEILING_CLASS` | 13px | sans | The reference value beside a hero metric ("of $2,000.00") |
+| Constant                        | Size / weight   | Family               | Used for                                                  |
+| ------------------------------- | --------------- | -------------------- | --------------------------------------------------------- |
+| `PAGE_TITLE_CLASS`              | 24px / semibold | sans                 | `PageHeader`'s `title`, one per screen                    |
+| `PAGE_SUBTITLE_CLASS`           | 13px            | sans                 | The scope/context line under a page title                 |
+| `SECTION_TITLE_CLASS`           | 15px / medium   | sans                 | `Card`'s own title, a dashboard zone heading              |
+| `LABEL_CLASS`                   | 12px            | sans                 | Field labels, table column headers, section labels        |
+| `BODY_CLASS`                    | 13px            | sans                 | Sentence-copy prose                                       |
+| `META_CLASS`                    | 12px            | sans                 | Captions, non-load-bearing metadata                       |
+| `ERROR_TEXT_CLASS`              | 13px            | sans                 | `ErrorLine`'s own text                                    |
+| `DATA_CLASS` / `DATA_INK_CLASS` | 13px            | mono, `data-numeral` | Table cells: counts, ids, dates, currency                 |
+| `METRIC_CLASS`                  | 28px            | mono, `data-numeral` | Stat-card values, table footers                           |
+| `HERO_METRIC_CLASS`             | 34px            | mono, `data-numeral` | The one number a screen is about                          |
+| `HERO_CEILING_CLASS`            | 13px            | sans                 | The reference value beside a hero metric ("of $2,000.00") |
 
-Sentence case everywhere — no all-caps labels anywhere in the console.
+Sentence case everywhere — no all-caps labels anywhere in the console. **One narrow, owner-
+approved exception** (2026-08-31, issue #368): `CommandPalette`'s own group headings render
+upper-cased (`palette-group-heading`, theme.css) and its empty-query line renders in `font-mono`
+rather than sans (`palette-empty`) — both scoped to that one component alone, reviewed and kept
+deliberately rather than extended anywhere else in the console. Do not generalize either exception
+to a new component without the same owner review this one had.
 Numeric columns are right-aligned; thousands use thin space (`$1 131.80`); currency always two
 decimals.
 
@@ -183,7 +188,17 @@ decimals.
 
 - **Radius** — `--radius-box: 0.5rem` (8px) for `Card`/panels/dialogs; `--radius-selector`/
   `-field: 0.25rem` (4px) for controls (ADR 0012 D4, supersedes the flush 2px pin). No pills, no
-  `rounded-full`.
+  `rounded-full`. **Floating overlays get one further exception** (owner ruling, 2026-08-31, issue
+  #368: "10px looks good for the command palette"): an anchored popup that points at a trigger
+  from an arbitrary screen position — the command palette panel, Menu popups (the account
+  switcher, and any other Base UI Menu), Select/Combobox popups, Popovers — renders at a 10px
+  corner radius (`--radius-overlay-floating`, theme.css; `OVERLAY_FLOATING_CLASS`/
+  `OVERLAY_ANCHORED_POPUP_FLOATING_CLASS`, `lib/overlay.ts`) instead of the flush 2px overlay
+  contract. DOCKED overlays — Dialog, the bottom sheet Drawer, Tooltip — are NOT floating and stay
+  at the flush 2px contract (`OVERLAY_CLASS` unwrapped): they anchor to a screen edge or centre
+  over the whole viewport rather than pointing at one trigger element, so the "floating" read this
+  exception answers does not apply. `Card`/panels keep their own separate `--radius-box` (8px)
+  regardless — this exception is about overlays only, never about panels.
 - No `box-shadow` anywhere. `Card` gets a 1px `border` hairline — its one departure from the
   "no borders on panels" rule, since a card needs a visible edge against the floor it sits on;
   table hairlines and the chart baseline get their own strokes as before.
@@ -338,7 +353,7 @@ from what reads honestly against that shape, not house taste.
 
 - **`EmptyState`** — first-run emptiness only (no API keys yet in this project, no projects yet in
   this account): a centred column inside a `Card` (headline, explainer, CTA, usually the screen's
-  own `+ New …` action reused verbatim). Gate strictly on a *settled* query returning zero rows —
+  own `+ New …` action reused verbatim). Gate strictly on a _settled_ query returning zero rows —
   never while loading (that's `SkeletonRow`/`SkeletonMetric`) or errored (that's `ErrorLine`).
 - **`InlineStatus`** — a filtered-to-nothing result (pair with a `Reset filters` ghost button) or
   an unavailable/not-yet-queried state. One line above **still-rendered structure** — table

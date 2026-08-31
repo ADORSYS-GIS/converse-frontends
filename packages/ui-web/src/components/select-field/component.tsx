@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '../../cn';
 import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
 import {
-  OVERLAY_ANCHORED_POPUP_CLASS,
+  OVERLAY_ANCHORED_POPUP_FLOATING_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
@@ -47,7 +47,7 @@ export function SelectField({
       </div>
       <Select.Portal>
         <Select.Positioner sideOffset={4} className={OVERLAY_POSITIONER_CLASS}>
-          <Select.Popup className={OVERLAY_ANCHORED_POPUP_CLASS}>
+          <Select.Popup className={OVERLAY_ANCHORED_POPUP_FLOATING_CLASS}>
             <Select.List>
               {options.map((option) => (
                 <Select.Item

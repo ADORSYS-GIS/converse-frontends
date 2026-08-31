@@ -46,8 +46,6 @@ export { ConsoleTopBar } from './components/console-top-bar';
 export type { ConsoleTopBarProps } from './components/console-top-bar';
 export { AccountBadge, shortAccountId } from './components/account-badge';
 export type { AccountBadgeOption, AccountBadgeProps } from './components/account-badge';
-export { AccountMenu } from './components/account-menu';
-export type { AccountMenuProps } from './components/account-menu';
 export { ThemeToggle } from './components/theme-toggle';
 export type { ThemeToggleProps, ThemeTogglePreference } from './components/theme-toggle';
 export { NavSpine } from './components/nav-spine';

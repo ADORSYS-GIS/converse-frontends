@@ -40,15 +40,6 @@ export interface CommandPaletteProps {
   emptyMessage?: string;
   /** Accessible label for the dialog and its listbox. Not shown visibly. */
   label?: string;
-  /**
-   * Storybook-only escape hatch for the design-review radius comparison (owner ask, 2026-08-31:
-   * "ship 2/6/10px corner variants so I can pick from a screenshot") -- an extra class merged
-   * onto the popup panel ONLY, so a story can override its corner radius without touching the
-   * shared `OVERLAY_CLASS` contract every other overlay in the console still renders at. Left
-   * unset, the panel renders at today's contract radius exactly as before. Not read by
-   * `apps/console`.
-   */
-  panelClassName?: string;
 }
 
 export interface CommandPaletteTriggerProps {

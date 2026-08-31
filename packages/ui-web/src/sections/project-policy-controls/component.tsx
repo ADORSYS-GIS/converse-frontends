@@ -9,7 +9,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { SelectField } from '../../components/select-field';
 import type { SelectFieldOption } from '../../components/select-field';
 import {
-  OVERLAY_ANCHORED_POPUP_CLASS,
+  OVERLAY_ANCHORED_POPUP_FLOATING_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
@@ -134,7 +134,7 @@ export function ProjectPolicyControls({
             </Field.Root>
             <Combobox.Portal>
               <Combobox.Positioner sideOffset={4} className={OVERLAY_POSITIONER_CLASS}>
-                <Combobox.Popup className={OVERLAY_ANCHORED_POPUP_CLASS}>
+                <Combobox.Popup className={OVERLAY_ANCHORED_POPUP_FLOATING_CLASS}>
                   <Combobox.Empty className={OVERLAY_ITEM_CLASS}>No models match.</Combobox.Empty>
                   <Combobox.List>
                     {(option: { value: string; label: string }) => (

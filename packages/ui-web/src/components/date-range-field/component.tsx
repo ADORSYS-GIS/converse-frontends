@@ -4,7 +4,11 @@ import { DayPicker, getDefaultClassNames } from 'react-day-picker';
 
 import { cn } from '../../cn';
 import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
-import { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_POSITIONER_CLASS } from '../../lib/overlay';
+import {
+  OVERLAY_FLOATING_CLASS,
+  OVERLAY_ITEM_CLASS,
+  OVERLAY_POSITIONER_CLASS,
+} from '../../lib/overlay';
 import { LABEL_CLASS } from '../../lib/type-roles';
 import { Chevron } from '../chevron';
 import type { DateRangeFieldProps, DateRangeValue } from './types';
@@ -103,7 +107,9 @@ export function DateRangeField({
           {/* Base UI's Popover popup is a `role="dialog"`, and an unnamed dialog is an axe
               violation (pre-existing, surfaced while auditing the daisy adoption). The field's
               own label names it, the way the trigger is named. */}
-          <Popover.Popup aria-label={label} className={cn('date-range-popup', OVERLAY_CLASS)}>
+          <Popover.Popup
+            aria-label={label}
+            className={cn('date-range-popup', OVERLAY_FLOATING_CLASS)}>
             <div className="date-range-presets">
               {presets.map((option) => (
                 <button

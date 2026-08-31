@@ -5,7 +5,7 @@ import { cn } from '../../cn';
 import { fieldControlClassName, fieldLabelClassName } from '../field/field-classes';
 import type { ScopeSelectProps } from './types';
 import {
-  OVERLAY_ANCHORED_POPUP_CLASS,
+  OVERLAY_ANCHORED_POPUP_FLOATING_CLASS,
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
@@ -47,7 +47,7 @@ function ScopeSelectField<V extends string | null>({
       </div>
       <Select.Portal>
         <Select.Positioner sideOffset={4} className={OVERLAY_POSITIONER_CLASS}>
-          <Select.Popup className={OVERLAY_ANCHORED_POPUP_CLASS}>
+          <Select.Popup className={OVERLAY_ANCHORED_POPUP_FLOATING_CLASS}>
             <Select.List>
               {items.map((item) => (
                 <Select.Item

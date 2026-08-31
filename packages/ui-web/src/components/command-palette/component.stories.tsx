@@ -96,23 +96,16 @@ function ControlledPalette({
   initialOpen,
   onSelect,
   groups = exampleGroups,
-  panelClassName,
 }: {
   initialOpen: boolean;
   onSelect: (key: string) => void;
   groups?: (onSelect: (key: string) => void) => CommandPaletteGroup[];
-  panelClassName?: string;
 }) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
       <CommandPaletteTrigger onClick={() => setOpen(true)} />
-      <CommandPalette
-        open={open}
-        onOpenChange={setOpen}
-        groups={groups(onSelect)}
-        panelClassName={panelClassName}
-      />
+      <CommandPalette open={open} onOpenChange={setOpen} groups={groups(onSelect)} />
     </>
   );
 }
@@ -173,18 +166,14 @@ export const Mobile: Story = {
 // Actions — matching the real group order `useConsolePalette` wires.
 export const OpenWithScope: Story = {
   name: 'Open — Scope group populated',
-  render: () => (
-    <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />
-  ),
+  render: () => <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />,
 };
 
 // `wireframe` (light) counterpart of `OpenWithScope`.
 export const OpenWithScopeLight: Story = {
   name: 'Open — Scope group populated, wireframe (light)',
   globals: { theme: 'wireframe' },
-  render: () => (
-    <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />
-  ),
+  render: () => <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />,
 };
 
 export const Filtering: Story = {
@@ -249,32 +238,4 @@ export const EscapeCloses: Story = {
       ).not.toBeInTheDocument()
     );
   },
-};
-
-/*
- * ─── Corner-radius comparison (owner review, 2026-08-31) ─────────────────────────────────────
- *
- * "The command palette is uglier even, and the corners are still sharp, breaking with the rest of
- * the app... Do the storybook first and let me approve the screenshot before you wire in." The
- * shared `OVERLAY_CLASS` contract (`rounded-[2px]`, `lib/overlay.ts`) is untouched by this batch —
- * it is the SAME constant every dialog, tooltip, menu and select in the console renders through,
- * so changing it here would silently restyle all of them, not just the palette under review. These
- * three stories instead pass `panelClassName`, a story-only escape hatch
- * (`CommandPaletteProps.panelClassName`) that overrides just THIS panel's own corner radius via
- * `cn()`/`tailwind-merge`, so the owner can pick a value from three otherwise-identical
- * screenshots before anything is decided for real.
- */
-export const RadiusComparison2px: Story = {
-  name: 'Radius comparison — 2px (current contract, unchanged)',
-  render: () => <ControlledPalette initialOpen onSelect={fn()} />,
-};
-
-export const RadiusComparison6px: Story = {
-  name: 'Radius comparison — 6px',
-  render: () => <ControlledPalette initialOpen onSelect={fn()} panelClassName="rounded-[6px]" />,
-};
-
-export const RadiusComparison10px: Story = {
-  name: 'Radius comparison — 10px',
-  render: () => <ControlledPalette initialOpen onSelect={fn()} panelClassName="rounded-[10px]" />,
 };

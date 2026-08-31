@@ -4,20 +4,22 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CommandPaletteTrigger } from '../command-palette';
 import { ConsoleTopBar } from './component';
 
+// Same mark `console-chrome.tsx`'s real `BRAND` renders (owner findings, 2026-08-31: the logo is
+// a link to `/`, and once a logo renders the `Lightbridge` wordmark text is dropped — an
+// `aria-label` on the link carries the accessible name instead).
 const brand = (
-  <>
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
     <span className="header-logo" aria-hidden="true">
       <svg width="10" height="10" viewBox="0 0 10 10">
         <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
       </svg>
     </span>
-    <span className="header-wordmark">Lightbridge</span>
-  </>
+  </a>
 );
 
 const workspaceSwitcher = (
   <span className="identity-row">
-    <span className="section-title font-sans text-[13px] text-ink">adorsys-gis</span>
+    <span className="section-title text-ink font-sans text-[13px]">adorsys-gis</span>
   </span>
 );
 

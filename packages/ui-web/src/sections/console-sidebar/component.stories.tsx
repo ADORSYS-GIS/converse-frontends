@@ -5,6 +5,7 @@ import { fn } from 'storybook/test';
 import { AccountBadge } from '../../components/account-badge';
 import { AccountMenu } from '../../components/account-menu';
 import type { NavGroup } from '../../components/nav-spine';
+import { ThemeToggle } from '../../components/theme-toggle';
 import {
   AdminIcon,
   KeysIcon,
@@ -13,7 +14,11 @@ import {
   SearchIcon,
   SettingsIcon,
 } from '../../lib/icons';
-import { RAIL_ICON_COLUMN_CLASS, RAIL_ICON_SIZE, RAIL_ICON_STROKE_WIDTH } from '../../lib/rail-grid';
+import {
+  RAIL_ICON_COLUMN_CLASS,
+  RAIL_ICON_SIZE,
+  RAIL_ICON_STROKE_WIDTH,
+} from '../../lib/rail-grid';
 import { ConsoleSidebar } from './component';
 
 // This fixture now composes the SAME parts `apps/console/src/client/console-chrome.tsx` does —
@@ -61,8 +66,11 @@ const operatorGroup: NavGroup = {
 // The brand mark — same 16px box / 1.5 stroke contract as every nav glyph (`lib/rail-grid.ts`'s
 // `RAIL_ICON_SIZE`/`RAIL_ICON_STROKE_WIDTH`), same triangle path `console-chrome.tsx`'s `BRAND`
 // draws, so a story reviewer sees the exact mark the app ships rather than a stand-in silhouette.
+// Owner findings, 2026-08-31: the logo is a link to `/` now, and once a logo renders the
+// `Lightbridge` wordmark text is dropped — an `aria-label` on the link carries the accessible
+// name instead, exactly as `console-chrome.tsx`'s `BRAND` does.
 const brand = (
-  <>
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
     <span className="header-logo" aria-hidden="true">
       <svg
         width={RAIL_ICON_SIZE}
@@ -75,8 +83,7 @@ const brand = (
         <path d="M2 14 8 2 14 14Z" />
       </svg>
     </span>
-    <span className="header-wordmark">Lightbridge</span>
-  </>
+  </a>
 );
 
 const workspaceSwitcher = (
@@ -95,27 +102,32 @@ const workspaceSwitcher = (
   />
 );
 
-// Addition 5 (owner review): the standalone Theme row is gone — theme lives only inside
-// `AccountMenu`'s own popup now, one control instead of two. Search's icon and the identity
-// chip both sit in the SAME `w-4` (16px) column `NavSpine`'s own rows use (`RAIL_ICON_COLUMN_CLASS`
-// in the real chrome), so this fixture mirrors that instead of drifting back to a hand-picked x.
+// The standalone Theme row is BACK (owner finding, 2026-08-31: "I don't see the usage, for the
+// theme to be hidden behind the account dropdown. Please put it outside") — `AccountMenu` no
+// longer takes a `theme`/`onThemeChange` pair at all. Search's icon, the Theme row's spacer and
+// the identity chip all sit in the SAME `w-4` (16px) column `NavSpine`'s own rows use
+// (`RAIL_ICON_COLUMN_CLASS` in the real chrome), so this fixture mirrors that instead of drifting
+// back to a hand-picked x.
 const footer = (
   <>
     <button type="button" className="sidebar-footer-row">
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
         <SearchIcon />
       </span>
-      <span className="font-sans text-[13px] text-subtle">Search</span>
+      <span className="text-subtle font-sans text-[13px]">Search</span>
       <span className="kbd kbd-sm ml-auto">⌘K</span>
     </button>
+    <div className="sidebar-footer-row">
+      <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+      <span className="text-subtle font-sans text-[13px]">Theme</span>
+      <ThemeToggle preference="black" onPreferenceChange={fn()} className="ml-auto" />
+    </div>
     <AccountMenu
       variant="sidebar"
       name="Sam Lambou"
       email="sam@adorsys.com"
       initials="SL"
       onSignOut={fn()}
-      theme="black"
-      onThemeChange={fn()}
     />
   </>
 );

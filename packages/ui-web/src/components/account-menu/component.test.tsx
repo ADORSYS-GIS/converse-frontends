@@ -106,39 +106,24 @@ describe('AccountMenu', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders no theme section when theme/onThemeChange are omitted', async () => {
+  // Owner finding, 2026-08-31 (issue #368): "I don't see the usage, for the theme to be hidden
+  // behind the account dropdown. Please put it outside." `AccountMenu` used to render a Dark /
+  // Light / System section of its own (props `theme`/`onThemeChange`, both now gone from
+  // `AccountMenuProps`) -- the control lives only in `ThemeToggle` now (its own component,
+  // wired outside this dropdown in `apps/console/src/client/console-chrome.tsx`), so the popup
+  // never has a theme section to render, with no props able to bring it back.
+  it('never renders a theme section — the control lives in ThemeToggle now, outside this dropdown', async () => {
     renderMenu();
 
     fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
-    await screen.findByRole('menu');
+    const menu = await screen.findByRole('menu');
 
+    expect(screen.queryByText('Theme')).not.toBeInTheDocument();
     expect(screen.queryByText('Dark')).not.toBeInTheDocument();
+    expect(screen.queryByText('Light')).not.toBeInTheDocument();
     expect(screen.queryByText('System')).not.toBeInTheDocument();
-  });
-
-  it('renders the theme section, marking the active preference, when both props are supplied', async () => {
-    const onThemeChange = vi.fn();
-    renderMenu({ theme: 'wireframe', onThemeChange });
-
-    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
-    const menu = await screen.findByRole('menu');
-
-    expect(within(menu).getByRole('menuitem', { name: '[Light]' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: 'Dark' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: 'System' })).toBeInTheDocument();
-  });
-
-  it('fires onThemeChange with the selected value and does not close the menu', async () => {
-    const onThemeChange = vi.fn();
-    renderMenu({ theme: 'black', onThemeChange });
-
-    fireEvent.click(screen.getByRole('button', { name: /Account menu/ }));
-    const menu = await screen.findByRole('menu');
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Light' }));
-
-    expect(onThemeChange).toHaveBeenCalledTimes(1);
-    expect(onThemeChange).toHaveBeenCalledWith('wireframe');
-    expect(screen.getByRole('menu')).toBeInTheDocument();
+    // The identity block and Sign out are still the only two sections.
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(1);
   });
 
   // Phase 9 — the sidebar footer's full-width identity row (owner review: the email the sidebar
@@ -179,7 +164,7 @@ describe('AccountMenu', () => {
     });
 
     // Addition 5 — the identity chip used to sit at a THIRD x, matching neither the Search row's
-    // icon nor the (now-deleted) Theme row's toggle: `avatar-chip-sm` inside the shared 16px
+    // icon nor the Theme row's own toggle: `avatar-chip-sm` inside the shared 16px
     // `RAIL_ICON_COLUMN_CLASS` puts it on the exact same grid as every other footer/nav row.
     it('renders the avatar inside the shared 16px icon column, not the full-size chip', () => {
       const { container } = renderMenu({ variant: 'sidebar' });

@@ -19,6 +19,7 @@ import { ConsoleTopBar } from '../components/console-top-bar';
 import type { NavGroup, NavSpineItem } from '../components/nav-spine';
 import { SearchIcon } from '../lib/icons';
 import { RAIL_ICON_COLUMN_CLASS } from '../lib/rail-grid';
+import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 
 export type StoryRoute = 'overview' | 'api-keys' | 'projects' | 'settings' | 'admin';
@@ -93,12 +94,12 @@ export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] 
   ];
 }
 
-// The sidebar footer stack -- Search, then the identity row -- mirrors
+// The sidebar footer stack -- Search, Theme, then the identity row -- mirrors
 // `apps/console/src/client/console-chrome.tsx`'s `ConsoleSidebarContent` exactly: Search's icon
-// sits in the same `RAIL_ICON_COLUMN_CLASS` (16px) column `NavSpine`'s rows use, and there is no
-// standalone Theme row any more (Addition 5 dedupe, owner review: the control lived twice, once
-// here and once inside `AccountMenu`'s own popup below -- `theme`/`onThemeChange` feed that one
-// menu now, nothing else).
+// sits in the same `RAIL_ICON_COLUMN_CLASS` (16px) column `NavSpine`'s rows use. The standalone
+// Theme row is back (owner finding, 2026-08-31: "I don't see the usage, for the theme to be
+// hidden behind the account dropdown. Please put it outside") -- `AccountMenu` no longer takes a
+// `theme`/`onThemeChange` pair at all, `ThemeToggle` is the only place the preference is edited.
 function StoryFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
@@ -110,32 +111,37 @@ function StoryFooter() {
         <span className="text-subtle font-sans text-[13px]">Search</span>
         <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
       </button>
+      <div className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+        <span className="text-subtle font-sans text-[13px]">Theme</span>
+        <ThemeToggle
+          preference={preference}
+          onPreferenceChange={setPreference}
+          className="ml-auto"
+        />
+      </div>
       <AccountMenu
         variant="sidebar"
         name="Sam Lambou"
         email="sam@adorsys.com"
         initials="SL"
         onSignOut={() => {}}
-        theme={preference}
-        onThemeChange={setPreference}
       />
     </>
   );
 }
 
-// The compact `ConsoleTopBar` equivalent of `StoryFooter` — same identity, no theme toggle (the
-// mobile/tablet band has no room for one; the sidebar footer is the one place it lives).
+// The compact `ConsoleTopBar` equivalent of `StoryFooter` — same identity, plus the SAME
+// `ThemeToggle` instance sitting beside it in the header's right cluster (owner finding,
+// 2026-08-31 — the mobile/tablet band is exactly where the finding's own suggested location,
+// "an icon button in the header's right cluster," lives).
 function StoryTopBarIdentity() {
-  const [theme, setTheme] = useState<ThemeTogglePreference>('black');
+  const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
-    <AccountMenu
-      name="Sam Lambou"
-      email="sam@adorsys.com"
-      initials="SL"
-      onSignOut={() => {}}
-      theme={theme}
-      onThemeChange={setTheme}
-    />
+    <>
+      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
+      <AccountMenu name="Sam Lambou" email="sam@adorsys.com" initials="SL" onSignOut={() => {}} />
+    </>
   );
 }
 
@@ -147,16 +153,19 @@ export const STORY_ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
 
 // A tiny brand fixture standing in for `ConsoleSidebar`/`ConsoleTopBar`'s real `BRAND` constant
 // (`apps/console/src/client/console-chrome.tsx`) — these are Storybook fixtures, not production
-// chrome, so a plain marker plus a wordmark string is enough. Sans, sentence case (phase 9
-// consistency pass: this used to be mono/uppercase/tracked, the pre-revamp header band's face,
-// which the console-ui skill's "no uppercase labels" rule already ruled out for real chrome).
+// chrome, so a plain marker is enough; it does not need the real mark's exact path. It DOES need
+// to match the real mark's two owner-mandated behaviours (2026-08-31, issue #368) since a page
+// story is the acceptance surface for what a screen renders: a link to `/`, and no visible
+// "Lightbridge" wordmark now that a logo renders (the accessible name moves to the link's own
+// `aria-label` instead).
 export const storyBrand = (
-  <span className="text-ink inline-flex items-center gap-2 font-sans text-xs">
-    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-      <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
-    </svg>
-    Lightbridge
-  </span>
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
+    <span aria-hidden="true" className="text-ink inline-flex items-center">
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      </svg>
+    </span>
+  </a>
 );
 
 export const storyWorkspaceSwitcher = (

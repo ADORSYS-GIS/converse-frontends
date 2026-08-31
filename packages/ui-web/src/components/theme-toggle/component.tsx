@@ -53,12 +53,15 @@ function ThemeGlyph({ preference }: { preference: ThemeTogglePreference }) {
   );
 }
 
-// Contract: shell revamp phase 2 (2026-08-30) — the toggle lives in the sidebar footer / top bar now (ADR 0010 Decision 5 superseded) --
-// the `AccountMenu` Dark/Light/System entries stay (explicit selection), but they are buried
-// behind the account trigger; this is the visible quick-cycle in the header's right cluster
-// beside `CommandPaletteTrigger`/`AccountMenu`. A single click advances the SAME preference state
-// `AccountMenu` reads (both driven by the one `useConsoleTheme` instance in `apps/console`), so
-// the two can never disagree.
+// Contract: owner finding, 2026-08-31 (issue #368) — "I don't see the usage, for the theme to be
+// hidden behind the account dropdown. Please put it outside." This component already existed
+// (shell revamp phase 2, 2026-08-30) but was never wired into `apps/console`; the toggle had
+// stayed inside `AccountMenu`'s own popup instead (ADR 0010 Decision 5), which is exactly what
+// the finding is about. It is now the ONLY place the preference is edited: the visible
+// quick-cycle in `ConsoleTopBar`'s right cluster beside `CommandPaletteTrigger`/`AccountMenu`
+// (`<md`), and its own row in `ConsoleSidebar`'s footer stack (`md`+, where there is no
+// horizontal header row to share). Both instances read/write the SAME preference via the one
+// `useConsoleTheme` instance in `apps/console`, so they can never disagree.
 //
 // Controlled, per the skill's "pure, callback-driven components" rule: no `localStorage`/DOM
 // write happens in `ui-web` itself.

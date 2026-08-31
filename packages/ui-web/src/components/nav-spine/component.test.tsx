@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NavSpine } from './component';
@@ -34,7 +34,10 @@ describe('NavSpine', () => {
   });
 
   it('renders no label row for a group with none', () => {
-    const unlabelled: NavGroup = { key: 'account', items: [{ key: 'settings', label: 'Settings' }] };
+    const unlabelled: NavGroup = {
+      key: 'account',
+      items: [{ key: 'settings', label: 'Settings' }],
+    };
     render(<NavSpine groups={[unlabelled]} layout="sidebar" />);
 
     expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
@@ -60,7 +63,9 @@ describe('NavSpine', () => {
   // The invariant that decided the Base UI adoption. See the component's own doc comment for the
   // measured proof this guards.
   it('leaves every destination in the natural tab order — no roving tab stop', () => {
-    const { container } = render(<NavSpine groups={[workspaceGroup, operatorGroup]} layout="sidebar" />);
+    const { container } = render(
+      <NavSpine groups={[workspaceGroup, operatorGroup]} layout="sidebar" />
+    );
 
     const rows = [...container.querySelectorAll('li > a, li > button')];
     expect(rows).toHaveLength(3);
@@ -123,7 +128,10 @@ describe('NavSpine', () => {
     render(
       <NavSpine
         groups={[
-          { key: 'g', items: [{ key: 'overview', label: 'Overview', href: '/overview', active: true }] },
+          {
+            key: 'g',
+            items: [{ key: 'overview', label: 'Overview', href: '/overview', active: true }],
+          },
         ]}
         layout="sidebar"
         linkComponent={CustomLink}
@@ -174,6 +182,75 @@ describe('NavSpine', () => {
 
     render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
     expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  // Owner finding, 2026-08-31 (issue #368): "I have the role lightbridge-admin and yet I can't
+  // see roles" — the row existed the whole time, `disabled` with the reason only in a native
+  // `title` attribute a real `disabled` button does not reliably surface at all. See
+  // `component.tsx`'s own doc comment for the full mechanism.
+  describe('disabled item with a reason', () => {
+    const disabledGroup: NavGroup = {
+      key: 'settings',
+      items: [{ key: 'roles', label: 'Roles', disabled: true, reason: 'No read API exists yet.' }],
+    };
+
+    it('renders aria-disabled, never the native disabled attribute — the row stays focusable', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      expect(row).toHaveAttribute('aria-disabled', 'true');
+      expect(row).not.toHaveAttribute('disabled');
+      row.focus();
+      expect(row).toHaveFocus();
+    });
+
+    it('shows an always-visible "Unavailable" annotation, with the label at its normal position', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      expect(row).toHaveTextContent('Roles');
+      expect(row).toHaveTextContent('Unavailable');
+    });
+
+    it('surfaces the full reason as an accessible tooltip on focus, on the sidebar layout', async () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      fireEvent.focus(row);
+
+      const tooltip = await screen.findByRole('tooltip');
+      expect(tooltip).toHaveTextContent('No read API exists yet.');
+      expect(row).toHaveAttribute('aria-describedby', tooltip.id);
+    });
+
+    it('never fires onSelect, even if a caller mistakenly passes one', () => {
+      const onSelect = vi.fn();
+      render(
+        <NavSpine
+          groups={[
+            {
+              key: 'settings',
+              items: [{ key: 'roles', label: 'Roles', disabled: true, onSelect }],
+            },
+          ]}
+          layout="sidebar"
+        />
+      );
+
+      screen.getByRole('button', { name: /Roles/ }).click();
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('skips the tooltip on the bottom-bar dock — no room for a hover popup on a touch strip', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="bottom-bar" />);
+
+      const row = screen.getByRole('button', { name: 'Roles' });
+      fireEvent.focus(row);
+
+      expect(row).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
   });
 
   describe('bottom-bar layout', () => {

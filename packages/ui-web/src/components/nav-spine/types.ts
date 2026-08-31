@@ -22,12 +22,21 @@ export interface NavSpineItem {
   /**
    * Renders the row as a genuinely non-navigable destination (IA v3 phase 2 — `/settings`'
    * "Roles" entry: the read API it would need does not exist yet). A disabled item never carries
-   * `href`/`onSelect` in practice — the row renders a real `<button disabled>` either way, so
-   * activating it can never navigate or fire a callback regardless of what the caller passes.
+   * `href`/`onSelect` in practice — the row renders a real `<button aria-disabled="true">`
+   * either way, so activating it can never navigate or fire a callback regardless of what the
+   * caller passes. `aria-disabled`, not the native `disabled` attribute (owner finding,
+   * 2026-08-31: a truly `disabled` control does not reliably fire the hover/focus events its
+   * reason tooltip needs to open) — the row stays focusable and hoverable, it just does nothing.
    */
   disabled?: boolean;
-  /** Shown as the disabled row's `title` tooltip — the honest reason it isn't reachable yet.
-   *  Only meaningful alongside `disabled: true`. */
+  /**
+   * The honest reason a disabled row isn't reachable yet. Surfaces two ways at once, per the
+   * console-ui skill's "never fabricate" navigation clause (owner finding, 2026-08-31 — a reason
+   * only a hover reveals is a reason nobody finds): a small always-visible "Unavailable" trailing
+   * annotation (`NavRow`), plus the full text in an accessible tooltip on the sidebar layout
+   * (`bottom-bar` skips the tooltip — no room for a hover popup on a touch-first 56px strip).
+   * Only meaningful alongside `disabled: true`.
+   */
   reason?: string;
 }
 

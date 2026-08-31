@@ -72,19 +72,25 @@ import { useOnlineStatus } from './use-online-status';
 export type ConsoleRoute = 'overview' | 'api-keys' | 'settings' | 'admin';
 
 /**
- * The chrome's TWO nav surfaces (IA v3 phase 2 — "the settings area"): `account` is the
- * Workspace/Account/Operator nav `navGroups` below builds; `settings` is `/settings/*`'s OWN nav
- * (`settingsNavGroups`), which REPLACES it in the same sidebar mount — never a second nav
- * surface, never a remount of `ConsoleShell` itself (that stays `app/(console)/layout.tsx`'s job,
- * unchanged by this phase). `ConsoleSidebarContent`/`ConsoleTopBarContent` are what branch on
- * this; `InspectorRail` and the account-scoped screens never need to know it exists.
+ * The chrome's THREE nav surfaces (IA v3 phase 2 — "the settings area"; ADR 0013's same-day "the
+ * admin area" amendment adds the third): `account` is the Workspace/Account/Operator nav
+ * `navGroups` below builds; `settings` is `/settings/*`'s OWN nav (`settingsNavGroups`); `admin`
+ * is `/admin/*`'s own nav (`adminNavGroups`). Each REPLACES the others in the same sidebar mount
+ * — never a second nav surface, never a remount of `ConsoleShell` itself (that stays
+ * `app/(console)/layout.tsx`'s job, unchanged by either phase). `ConsoleSidebarContent`/
+ * `ConsoleTopBarContent` are what branch on this; the account-scoped screens never need to know
+ * it exists.
  */
-export type ConsoleArea = 'account' | 'settings';
+export type ConsoleArea = 'account' | 'settings' | 'admin';
 
-/** Which of the two nav surfaces a pathname belongs to — the one predicate every chrome branch
- *  (sidebar, top bar, mobile dock) shares, so "what counts as inside settings" is stated once. */
+/** Which of the three nav surfaces a pathname belongs to — the one predicate every chrome branch
+ *  (sidebar, top bar, mobile dock) shares, so "what counts as inside settings/admin" is stated
+ *  once. `/admin` is checked before `/settings` only because the two prefixes are disjoint, not
+ *  because order matters here. */
 export function areaFromPathname(pathname: string): ConsoleArea {
-  return pathname.startsWith('/settings') ? 'settings' : 'account';
+  if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/settings')) return 'settings';
+  return 'account';
 }
 
 /**
@@ -108,11 +114,13 @@ export function areaFromPathname(pathname: string): ConsoleArea {
  * (`use-console-scope.ts`'s own last-account/first-account fallback is what fills `accountId` in
  * that case).
  *
- * `admin` (IA v3 phase 2 — "the settings area") now names `/settings/refills-queue`, not the
- * deleted `/admin` route: the budget refill review queue moved wholesale into the settings area
- * (`git mv … settings/refills-queue`, middleware 308s the old path), so every existing caller of
- * this field — the account-area Operator nav row, the command palette's "Refill requests" item —
- * follows it there without needing its own change.
+ * `admin` (ADR 0013's same-day "the admin area" amendment) now names `/admin/overview` — the
+ * operator dashboard, the admin area's own landing destination — not the budget refill review
+ * queue directly. The queue moved a second time alongside it, to `/admin/refills-queue`, reached
+ * one click further in (dashboard 5's own "Queue depth" stat, or the admin area's own "Refills
+ * queue" nav row) rather than through this field. Every existing caller of this field — the
+ * account-area Operator nav row, the command palette's "Admin overview" item — follows the new
+ * target without needing its own change.
  */
 export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
   if (!accountId) {
@@ -120,14 +128,14 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
       overview: '/',
       'api-keys': '/?next=api-keys',
       settings: '/settings',
-      admin: '/settings/refills-queue',
+      admin: '/admin/overview',
     };
   }
   return {
     overview: `/accounts/${accountId}/overview`,
     'api-keys': `/accounts/${accountId}/api-keys`,
     settings: '/settings',
-    admin: '/settings/refills-queue',
+    admin: '/admin/overview',
   };
 }
 
@@ -137,20 +145,21 @@ export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
  *
  * Matches `/accounts/<id>/<segment>` for the two account-scoped destinations left (IA v3 phase 1,
  * narrowed by phase E — `projects` moved to `/settings/accounts/<id>/projects`, which already
- * matches the `/settings` prefix clause below); `/settings/*` keeps its plain prefix match (now
- * also covering the former `/admin`, folded into `/settings/refills-queue` — IA v3 phase 2), and
- * anything else (including `/`, the account resolver) reads as `overview` — the same default the
- * old bare `/` match gave it.
+ * matches the `/settings` prefix clause below); `/admin/*` and `/settings/*` each keep their own
+ * plain prefix match; anything else (including `/`, the account resolver) reads as `overview` —
+ * the same default the old bare `/` match gave it.
  *
- * `/admin` itself is gone (middleware 308s it to `/settings/refills-queue` before any app code
- * runs), so there is no live pathname this function would ever match against `admin` any more —
- * the value stays in `ConsoleRoute` only because `navGroups`' Operator row still needs a route
- * name to compare its own `active` flag against, computed the same way every other row's is.
+ * ADR 0013's same-day "the admin area" amendment makes `admin` a live match again — `/admin/*`
+ * genuinely exists now (`/admin/overview`, `/admin/refills-queue`), unlike the interval between
+ * IA v3 phase 2 (which folded the old `/admin` into `/settings/refills-queue`) and this amendment,
+ * when the value stayed in `ConsoleRoute` only so `navGroups`' Operator row had a name to compare
+ * its own `active` flag against.
  */
 export function routeFromPathname(pathname: string): ConsoleRoute {
   const accountScopedSegment = pathname.match(/^\/accounts\/[^/]+\/([^/]+)/)?.[1];
   if (accountScopedSegment === 'api-keys') return 'api-keys';
   if (accountScopedSegment === 'overview') return 'overview';
+  if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/settings')) return 'settings';
   return 'overview';
 }
@@ -177,13 +186,15 @@ const NAV_ICON: Record<'overview' | 'keys' | 'settings' | 'admin', React.ReactNo
  * and this group is honest about that rather than keeping a row for a segment the account area no
  * longer serves.
  *
- * `/admin` reads "Refill requests", not "Admin" (shell revamp phase 4, 2026-08-30): the route's
- * own dashboard section moved to `/` itself (gated by `session.isAdmin`), so `/admin` is now
- * exactly one screen — the budget refill review queue — and the nav item is named after what it
- * actually opens. `refillCount` is the same pending-queue query `use-overview-screen.ts`'s
- * "Refill requests" card and `/admin` itself read (`useRefillsQueueScreen`, shared by query key) — a
- * plain trailing numeral, never a badge, and omitted (`undefined`) rather than shown as `0` while
- * it is unresolved or genuinely empty.
+ * The Operator row still reads "Refill requests" (shell revamp phase 4, 2026-08-30), even though
+ * its `href` now lands on `/admin/overview` — the eight-board operator dashboard — rather than the
+ * queue directly (ADR 0013's same-day "the admin area" amendment). The label describes what an
+ * operator is there FOR (reviewing refill requests is the one action this row exists to reach),
+ * not the exact first screen they land on; the dashboard's own "Queue depth" stat and the admin
+ * area's own "Refills queue" nav row both get them the rest of the way in one more click.
+ * `refillCount` is the same pending-queue query `use-overview-screen.ts`'s "Refill requests" card
+ * reads (`useRefillsQueueScreen`, shared by query key) — a plain trailing numeral, never a badge,
+ * and omitted (`undefined`) rather than shown as `0` while it is unresolved or genuinely empty.
  */
 export function navGroups(
   active: ConsoleRoute,
@@ -249,13 +260,15 @@ export function navGroups(
 // ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
 
 /**
- * The settings area's eight destinations, in the owner-dictated nav order. `accounts` is new this
- * phase (IA v3 phase E, "the settings/accounts move" — owner: "add /settings/accounts... And
+ * The settings area's seven destinations, in the owner-dictated nav order. `accounts` was new in
+ * IA v3 phase E ("the settings/accounts move" — owner: "add /settings/accounts... And
  * /settings/accounts/<account-id> would be for account related settings"), placed right after
- * `overview` per the same directive. Seven of the eight are live routes (`overview`, `accounts`,
- * `tiers`, `policies`, `refill-options`, `refills-queue`, `info`); `roles` alone stays a real,
- * permanent row that renders `disabled` rather than being omitted — omitting it would hide that
- * the destination exists at all, and a disabled row with a stated reason is the honest middle
+ * `overview` per that directive. **`refills-queue` moved OUT** (ADR 0013's same-day "the admin
+ * area" amendment) — the budget refill review queue lives at `/admin/refills-queue` now, alongside
+ * the operator dashboard, not in this flat settings list. Six of the seven are live routes
+ * (`overview`, `accounts`, `tiers`, `policies`, `refill-options`, `info`); `roles` alone stays a
+ * real, permanent row that renders `disabled` rather than being omitted — omitting it would hide
+ * that the destination exists at all, and a disabled row with a stated reason is the honest middle
  * ground between "not built" and "silently missing" (console-ui skill's "never fabricate" clause
  * extends to navigation: a row that LOOKS live but 404s is its own kind of fabrication).
  * `refill-options` went live in phase 3: `procedure.simulateBudgetPolicy` gives it real content (a
@@ -270,7 +283,6 @@ export type SettingsRoute =
   | 'tiers'
   | 'policies'
   | 'refill-options'
-  | 'refills-queue'
   | 'info';
 
 /**
@@ -289,7 +301,6 @@ export function settingsRouteFromPathname(pathname: string): SettingsRoute {
   if (pathname.startsWith('/settings/tiers')) return 'tiers';
   if (pathname.startsWith('/settings/policies')) return 'policies';
   if (pathname.startsWith('/settings/refill-options')) return 'refill-options';
-  if (pathname.startsWith('/settings/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/settings/info')) return 'info';
   return 'overview';
 }
@@ -303,7 +314,6 @@ const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
   tiers: <TiersIcon />,
   policies: <PoliciesIcon />,
   'refill-options': <RefillOptionsIcon />,
-  'refills-queue': <AdminIcon />,
   info: <InfoIcon />,
 };
 
@@ -330,21 +340,16 @@ export const REFILL_OPTIONS_DISABLED_REASON =
 /**
  * The settings area's nav — REPLACES `navGroups`' Workspace/Account/Operator groups in the same
  * sidebar mount when `areaFromPathname(pathname) === 'settings'` (`ConsoleSidebarContent`), never
- * a second nav surface alongside it. One ungrouped list (no group `label`s) — eight destinations
+ * a second nav surface alongside it. One ungrouped list (no group `label`s) — seven destinations
  * is not enough to need a section heading the way the account area's three groups do, and the
  * owner's own nav order names it as a flat sequence, not grouped families.
  *
- * `isAdmin`/`refillCount` mirror `navGroups`' own params exactly: "Refills queue" is omitted
- * ENTIRELY for a non-admin (not disabled — an admin-only destination a non-admin can see but not
- * open is a worse signal than one that simply isn't there, matching the account area's Operator
- * group's own "included or omitted, never shown-then-denied" contract), and carries the same
- * `useOperatorRefillCount` trailing numeral, never `0` while it's still loading.
+ * No `isAdmin`/`refillCount` params any more (ADR 0013's same-day "the admin area" amendment) —
+ * this list's one admin-only row, "Refills queue," moved to `/admin/refills-queue` and the
+ * admin area's own `adminNavGroups` below; every destination left here is real for every settings
+ * visitor, admin or not (`roles` stays the one exception, `disabled` with a stated reason).
  */
-export function settingsNavGroups(
-  active: SettingsRoute,
-  isAdmin: boolean,
-  refillCount?: number
-): NavGroup[] {
+export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
   const items: NavGroup['items'] = [
     {
       key: 'overview',
@@ -388,25 +393,79 @@ export function settingsNavGroups(
       icon: SETTINGS_NAV_ICON['refill-options'],
       active: active === 'refill-options',
     },
+    {
+      key: 'info',
+      label: 'Info',
+      href: '/settings/info',
+      icon: SETTINGS_NAV_ICON.info,
+      active: active === 'info',
+    },
   ];
-  if (isAdmin) {
-    items.push({
-      key: 'refills-queue',
-      label: 'Refills queue',
-      href: '/settings/refills-queue',
-      icon: SETTINGS_NAV_ICON['refills-queue'],
-      active: active === 'refills-queue',
-      count: refillCount && refillCount > 0 ? refillCount : undefined,
-    });
-  }
-  items.push({
-    key: 'info',
-    label: 'Info',
-    href: '/settings/info',
-    icon: SETTINGS_NAV_ICON.info,
-    active: active === 'info',
-  });
   return [{ key: 'settings', items }];
+}
+
+// ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
+
+/**
+ * The admin area's two destinations, in the same "dashboard first, drill-down after" order the
+ * account-area Operator row's own `href` now follows: `/admin/overview` (the eight-board operator
+ * dashboard) then `/admin/refills-queue` (the budget refill review queue, moved here from
+ * `/settings/refills-queue`). Both are real for every visitor who reaches this nav at all — the
+ * whole area is gated server-side (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`) and
+ * `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
+ * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
+ */
+export type AdminRoute = 'overview' | 'refills-queue';
+
+/** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
+ *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
+ *  "unmatched reads as the first destination" contract `settingsRouteFromPathname`/
+ *  `routeFromPathname` use for their own bare segments. */
+export function adminRouteFromPathname(pathname: string): AdminRoute {
+  if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
+  return 'overview';
+}
+
+/** One shared icon per admin destination, the same 16px/1.5-stroke family `NAV_ICON`/
+ *  `SETTINGS_NAV_ICON` draw from (`lib/icons.tsx`) — never a third, differently-weighted glyph
+ *  set for the third area. */
+const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
+  overview: <OverviewIcon />,
+  'refills-queue': <AdminIcon />,
+};
+
+/**
+ * The admin area's nav — REPLACES `navGroups`'/`settingsNavGroups`' content in the same sidebar
+ * mount when `ConsoleSidebarContent` has already confirmed `session.isAdmin` (see that
+ * component's own doc comment for why the check lives there, not here): this function itself
+ * takes no `isAdmin` param because it is never called for a non-admin at all — there is no
+ * disabled-row case to model, unlike `settingsNavGroups`' `roles`. `refillCount` is the identical
+ * `useOperatorRefillCount` trailing numeral `navGroups`' own Operator row and the (former)
+ * settings "Refills queue" row used, never `0` while it's still loading.
+ */
+export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGroup[] {
+  return [
+    {
+      key: 'admin',
+      items: [
+        {
+          key: 'overview',
+          label: 'Overview',
+          href: '/admin/overview',
+          icon: ADMIN_NAV_ICON.overview,
+          active: active === 'overview',
+        },
+        {
+          key: 'refills-queue',
+          label: 'Refills queue',
+          href: '/admin/refills-queue',
+          icon: ADMIN_NAV_ICON['refills-queue'],
+          active: active === 'refills-queue',
+          count: refillCount && refillCount > 0 ? refillCount : undefined,
+        },
+      ],
+    },
+  ];
 }
 
 /**
@@ -573,12 +632,25 @@ export function useConsolePalette() {
       { key: 'settings', label: 'Settings', onSelect: () => router.push(hrefs.settings) },
     ];
     if (session.isAdmin) {
-      navigate.push({
-        key: 'admin',
-        label: 'Refill requests',
-        hint: 'ROLE',
-        onSelect: () => router.push(hrefs.admin),
-      });
+      // ADR 0013's same-day "the admin area" amendment: `hrefs.admin` now names the operator
+      // dashboard (`/admin/overview`), not the refills queue directly, so this gets its own
+      // entry rather than the queue's own label — the same "one entry per real destination" split
+      // the `accounts`/`settings` pair above already uses. `refills-queue` links straight into the
+      // queue for a reviewer who wants it without the dashboard first.
+      navigate.push(
+        {
+          key: 'admin',
+          label: 'Admin overview',
+          hint: 'ROLE',
+          onSelect: () => router.push(hrefs.admin),
+        },
+        {
+          key: 'refills-queue',
+          label: 'Refill requests',
+          hint: 'ROLE',
+          onSelect: () => router.push('/admin/refills-queue'),
+        }
+      );
     }
 
     // Scope group (console-ui#310/#302): switching account from the palette re-uses the exact
@@ -637,9 +709,10 @@ export function ConsolePaletteDialog({
  * renders both this and the mobile bottom-nav dock from the same `groups`.
  */
 /**
- * The Operator nav row's trailing count — the same pending-refill query `/admin` and `/`'s
- * "Refill requests" card read, shared by query key (`use-refills-queue-screen.ts`'s own doc comment),
- * fired only for an admin ("fire NO extra query for non-admins" — shell revamp phase 4 brief).
+ * The Operator nav row's trailing count — the same pending-refill query `/admin/refills-queue`
+ * and `/`'s "Refill requests" card read, shared by query key (`use-refills-queue-screen.ts`'s own
+ * doc comment), fired only for an admin ("fire NO extra query for non-admins" — shell revamp
+ * phase 4 brief). Also feeds `adminNavGroups`' own "Refills queue" row count.
  *
  * `undefined` while the query hasn't resolved (or for a non-admin) rather than `0`: the row must
  * "not block nav rendering on it — show nothing while loading" (shell brief), and a `0` shown
@@ -691,6 +764,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
   const area = areaFromPathname(pathname);
   const route = routeFromPathname(pathname);
   const settingsRoute = settingsRouteFromPathname(pathname);
+  const adminRoute = adminRouteFromPathname(pathname);
   // Fall back to the subject's short account label when the IdP returns no identity claims at
   // all (observed live 2026-08-30: the brokered CDigital login carries neither name, nor
   // preferred_username, nor email in the token or /userinfo — a Keycloak mapper gap, tracked
@@ -701,12 +775,21 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
     session.user?.name ??
     (session.user ? shortAccountId(session.user.sub) : undefined);
   const refillCount = useOperatorRefillCount(session.isAdmin);
+  // `session.isAdmin` gates the admin nav content itself, not only its own routes' server-side
+  // gate: a non-admin who hand-navigates to `/admin/*` still gets `notFound()` from the route
+  // (`admin/overview/page.tsx`), but the CHROME is mounted regardless (`app/(console)/layout.tsx`
+  // wraps every route, 404s included) and reads its nav content off the pathname alone
+  // (`areaFromPathname`) — so without this check, a non-admin visiting that dead URL would see
+  // real admin-shaped nav rows around their own 404. Falls back to the ordinary account-area nav,
+  // the same "never shown, not disabled" contract every other admin-only nav row in this file
+  // already follows.
+  const showAdminChrome = area === 'admin' && session.isAdmin;
 
   return (
     <ConsoleSidebar
       brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
       workspaceSwitcher={
-        area === 'settings' ? (
+        area === 'settings' || showAdminChrome ? (
           <BackToConsoleRow accountId={switcher.accountId} />
         ) : (
           <AccountBadge
@@ -722,9 +805,11 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
         )
       }
       groups={
-        area === 'settings'
-          ? settingsNavGroups(settingsRoute, session.isAdmin, refillCount)
-          : navGroups(route, session.isAdmin, switcher.accountId, refillCount)
+        showAdminChrome
+          ? adminNavGroups(adminRoute, refillCount)
+          : area === 'settings'
+            ? settingsNavGroups(settingsRoute)
+            : navGroups(route, session.isAdmin, switcher.accountId, refillCount)
       }
       linkComponent={Link}
       footer={
@@ -815,16 +900,21 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
  */
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
+  const session = useConsoleSession();
   const hasCustomLogo = useConsoleBrandingLogo();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const area = areaFromPathname(pathname);
+  // Same fallback `ConsoleSidebarContent` applies to its own workspace-switcher slot — see that
+  // component's own doc comment for why a non-admin's dead `/admin/*` visit must never show
+  // admin-shaped chrome around its 404.
+  const showAdminChrome = area === 'admin' && session.isAdmin;
 
   return (
     <ConsoleTopBar
       brand={<BrandMark hasCustomLogo={hasCustomLogo} />}
       workspaceSwitcher={
-        area === 'settings' ? (
+        area === 'settings' || showAdminChrome ? (
           <BackToConsoleCompact accountId={switcher.accountId} />
         ) : (
           <AccountBadge

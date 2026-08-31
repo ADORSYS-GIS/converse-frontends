@@ -89,17 +89,29 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gates /settings/refills-queue server-side on the admin role (the former /admin)', () => {
-    // IA v3 phase 2: `/admin` moved wholesale to `/settings/refills-queue` (`git mv`, gate kept
-    // verbatim) — `settings-route-gate.test.ts` is the full row-by-row guard for this route; this
-    // is only the same one-line structural smoke check every OTHER test in this file already
-    // gives every other shell-mounting concern.
-    const source = read(join(CONSOLE_GROUP, 'settings', 'refills-queue', 'page.tsx'));
+  it('gates /admin/refills-queue server-side on the admin role', () => {
+    // This route has moved twice: `/admin` (pre-IA-v3) -> `/settings/refills-queue` (IA v3
+    // phase 2, `git mv`, gate kept verbatim) -> `/admin/refills-queue` (ADR 0013's same-day "the
+    // admin area" amendment, another `git mv`) — `admin-refills-queue-route-gate.test.ts` is the
+    // full row-by-row guard for this route; this is only the same one-line structural smoke check
+    // every OTHER test in this file already gives every other shell-mounting concern.
+    const source = read(join(CONSOLE_GROUP, 'admin', 'refills-queue', 'page.tsx'));
 
     expect(source, 'refills-queue/page.tsx must read the session server-side').toContain(
       'readSession'
     );
     expect(source, 'refills-queue/page.tsx must 404 a non-admin').toContain('notFound()');
+  });
+
+  it('gates /admin/overview server-side on the admin role', () => {
+    // The admin area's other real route (ADR 0013's same-day "the admin area" amendment) —
+    // `admin-overview-route-gate.test.ts` is the full guard; same smoke-check shape as above.
+    const source = read(join(CONSOLE_GROUP, 'admin', 'overview', 'page.tsx'));
+
+    expect(source, 'admin/overview/page.tsx must read the session server-side').toContain(
+      'readSession'
+    );
+    expect(source, 'admin/overview/page.tsx must 404 a non-admin').toContain('notFound()');
   });
 
   /**

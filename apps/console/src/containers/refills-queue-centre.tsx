@@ -9,14 +9,15 @@ import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
 
 /**
- * `/settings/refills-queue` — the centre column, and the WHOLE of this route: the budget refill
- * review queue, reached from the account-area Operator group's "Refill requests" item, the
- * settings area's own "Refills queue" nav entry, or the Overview REFILL REQUESTS card's own
- * `Review` link.
+ * `/admin/refills-queue` — the centre column, and the WHOLE of this route: the budget refill
+ * review queue, reached from the account-area Operator group's "Refill requests" item (into
+ * `/admin/overview`, one click from here), the admin area's own "Refills queue" nav entry, or the
+ * Overview REFILL REQUESTS card's own `Review` link.
  *
- * IA v3 phase 2 ("the settings area"): `git mv`d wholesale from `/admin` — same component, same
- * data adapter (`use-refills-queue-screen.ts`), same server-side role gate
- * (`settings/refills-queue/page.tsx`) — only the route (and this file's own name) changed.
+ * This screen has moved twice: `/admin` (pre-IA-v3) -> `/settings/refills-queue` (IA v3 phase 2,
+ * `git mv`) -> `/admin/refills-queue` here (ADR 0013's same-day "the admin area" amendment,
+ * another `git mv`) — same component, same data adapter (`use-refills-queue-screen.ts`), same
+ * server-side role gate (`admin/refills-queue/page.tsx`) across both moves.
  *
  * The shell is NOT here — it is mounted once by `app/(console)/layout.tsx`.
  *
@@ -30,14 +31,11 @@ import { useRefillsQueueScreen } from './use-refills-queue-screen';
  * Picking a pending request shows `ReviewDetailPanel` — it already owns its whole decision
  * surface (including its own Approve/Decline actions, which stay in ITS internal foot, not a
  * sheet chrome footer — Addition E's carve-out for content that genuinely belongs there), so it
- * needs no rail section of its own. `BottomSheet` is now the review surface at EVERY tier, not
- * only below `lg` — no viewport-gated portal class any more. `/settings/*` has no right rail at
- * all (this phase's own deliverable: "no right rail anywhere in settings" —
- * `containers/inspector-rail.tsx`'s own doc comment records why, and `app/(console)/layout.tsx`'s
- * `showRail` refuses the rail column outright for any `/settings/*` pathname), so there is no
- * `lg`+ surface left to hand this off to. The former `/admin` route had one (the inspector rail),
- * which is exactly why its sheet used to gate itself out at `lg`+ — that surface is gone along
- * with the route it belonged to.
+ * needs no rail section of its own. `BottomSheet` is the review surface at EVERY tier, not only
+ * below `lg` — no viewport-gated portal class: neither `/admin/*` nor `/settings/*` carries a
+ * right rail at any tier (ADR 0013 D2/phase E deleted the console's whole rail wiring —
+ * `containers/inspector-rail.tsx` and `client/use-rail-width.ts` are gone, not merely unused), so
+ * there is no `lg`+ surface left to hand this off to.
  */
 export function RefillsQueueCentre() {
   const screen = useRefillsQueueScreen();

@@ -25,7 +25,7 @@ import { classifyProjectNameError } from './rpc-field-error';
  * double-mounting `ProjectNameDialog`. That rail case is gone: `/settings/accounts/<id>/projects`
  * lives in the settings area, which has no right rail at any tier (ADR 0013 D2), so the
  * `BottomSheet` is now this screen's ONLY detail surface, at every tier — one mount, one
- * controller, same as `/settings/refills-queue`'s own `ReviewDetailPanel`. `ProjectsCentre` calls
+ * controller, same as `/admin/refills-queue`'s own `ReviewDetailPanel`. `ProjectsCentre` calls
  * this directly and renders the one `ProjectNameDialog` it returns.
  *
  * Reusing `PROJECT_NAME_MUTATION_KEY` keeps this in step with `/settings/policies`' own instance

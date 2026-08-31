@@ -5,8 +5,9 @@ import type {
   DashboardStatus,
   DateRangeFieldProps,
   DateRangePreset,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
   OverviewStatCardData,
-  RankedSeriesRow,
   ShareBarSegment,
   SpendSeriesSeries,
 } from '@lightbridge/ui-web';
@@ -23,11 +24,9 @@ import {
   combineAccountModelResponses,
   MAX_FANNED_OUT_ACCOUNTS,
   modelTotalsToSegments,
-  perAccountTotals,
   previousWindow,
   toPreviousPeriodSeries,
   truncateShareSegments,
-  withAccountDeltas,
   type AccountUsageResponse,
 } from './usage-overview-usage';
 
@@ -61,9 +60,14 @@ export interface UsageOverviewScreen {
   statCardsLoading: boolean;
   spendSeries: SpendSeriesSeries[];
   spendStatus: DashboardStatus;
-  accountRows: RankedSeriesRow[];
-  accountRowsSortMode: 'value' | 'delta';
-  setAccountRowsSortMode: (mode: 'value' | 'delta') => void;
+  /** One line per account, real per-day points — `MultiSeriesSpendChart`'s "Spend by account"
+   *  board (2026-08-31, owner ruling — see that component's own doc comment). Replaced
+   *  `accountRows`/`RankedSeriesRow[]`; the value/delta sort toggle that used to sit beside the
+   *  ranked-row list is gone with it — a chart's rank/colour order is always by total descending,
+   *  never caller-sortable, so "sort by change" has no surface left to render into. */
+  accountSeries: MultiSeriesSpendSeries[];
+  accountScale: MultiSeriesSpendScale;
+  setAccountScale: (scale: MultiSeriesSpendScale) => void;
   modelSegments: ShareBarSegment[];
   status: DashboardStatus;
   errorMessage?: string;
@@ -156,10 +160,6 @@ export function useUsageOverviewScreen(): UsageOverviewScreen {
     () => toPreviousPeriodSeries(previousResponses, spanMs),
     [previousResponses, spanMs]
   );
-  const accountRowsWithDelta = useMemo(
-    () => withAccountDeltas(combined.accountRows, perAccountTotals(previousResponses)),
-    [combined.accountRows, previousResponses]
-  );
 
   // Estate total (solid, rank-1) first, previous period (dashed, rank-2) second — ORDER is what
   // makes `SpendSeriesChart` render the second one dashed at the second grey step
@@ -226,9 +226,11 @@ export function useUsageOverviewScreen(): UsageOverviewScreen {
     statCardsLoading: status === 'loading',
     spendSeries,
     spendStatus: status,
-    accountRows: status === 'ready' ? accountRowsWithDelta : [],
-    accountRowsSortMode: view.accountSort,
-    setAccountRowsSortMode: (mode) => void setView({ accountSort: mode }),
+    accountSeries: status === 'ready' ? combined.accountSeries : [],
+    accountScale: view.accountScale,
+    setAccountScale: (scale) => {
+      void setView({ accountScale: scale });
+    },
     modelSegments: status === 'ready' ? modelSegments : [],
     status,
     errorMessage,

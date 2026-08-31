@@ -5,7 +5,7 @@ import type {
   UsageSeriesPoint,
 } from '@lightbridge/api-rest';
 import { formatUsd } from '@lightbridge/ui-web';
-import type { RankedSeriesRow, SpendSeriesSeries } from '@lightbridge/ui-web';
+import type { MultiSeriesSpendSeries, RankedSeriesRow, SpendSeriesSeries } from '@lightbridge/ui-web';
 
 import {
   currentPeriodRange,
@@ -208,6 +208,42 @@ export function toRankedSeriesRows(
       value,
       formattedValue: formatUsd(value),
       sparklinePoints: ordered.map(([, y]) => y),
+    };
+  });
+}
+
+/**
+ * Maps a day-bucketed, grouped response into `MultiSeriesSpendChart`'s own series shape — one
+ * series per key, real per-day `{x: Date, y: cost}` points (never just a value list). Sibling of
+ * `toRankedSeriesRows` above (same `byKey`/`byDay` grouping): kept as its own function rather than
+ * derived from that one's output because the two callers need different point shapes — a row's
+ * sparkline only ever needs the VALUES (oldest first), the chart needs the DATES too, for its own
+ * date-hover crosshair to state a genuine per-day figure.
+ */
+export function toMultiSeriesSpend(
+  response: UsageQueryResponse,
+  groupBy: OverviewGroupBy,
+  labelFor: SeriesLabeller = (key) => key
+): MultiSeriesSpendSeries[] {
+  const byKey = new Map<string, Map<number, number>>();
+
+  for (const point of response.points) {
+    const key = groupKey(point, groupBy);
+    const t = new Date(point.bucket_start).getTime();
+    let byDay = byKey.get(key);
+    if (!byDay) {
+      byDay = new Map();
+      byKey.set(key, byDay);
+    }
+    byDay.set(t, (byDay.get(t) ?? 0) + safeCost(point));
+  }
+
+  return Array.from(byKey.entries()).map(([key, byDay]) => {
+    const ordered = Array.from(byDay.entries()).sort(([a], [b]) => a - b);
+    return {
+      key,
+      label: labelFor(key),
+      points: ordered.map(([t, y]) => ({ x: new Date(t), y })),
     };
   });
 }

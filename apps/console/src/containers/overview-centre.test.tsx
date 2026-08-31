@@ -60,7 +60,15 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     spendShareErrorMessage: undefined,
     spendShareRetry: vi.fn(),
     spendDegenerateMessage: undefined,
-    modelSpendRows: [],
+    modelSpendSeries: [],
+    // `'linear'` (not the real screen's own `'log'` default) purely to keep this fixture's empty
+    // SPEND BY MODEL board's y-axis off `MultiSeriesSpendChart`'s log-scale "nothing positive to
+    // plot" fallback domain (`domain.ts`'s `computeYDomain`, `[0.01, 1]`) — that fallback's own
+    // `$0.01` tick label collided with SPEND/BudgetHero's unrelated "never renders `$0.01`"
+    // assertions below, which have nothing to do with this board. Tests that DO care about the
+    // board's scale override it explicitly.
+    modelSpendScale: 'linear',
+    setModelSpendScale: vi.fn(),
     modelSpendStatus: 'ready',
     modelSpendErrorMessage: undefined,
     modelSpendRetry: vi.fn(),
@@ -191,25 +199,41 @@ describe('OverviewCentre', () => {
 
   // Phase 9.2 — SPEND BY MODEL replaces the deleted LATENCY panel, for every user (never
   // admin-gated). Renders directly under SPEND BY PROJECT, real data shown as real data.
+  //
+  // 2026-08-31 owner ruling: this board is `MultiSeriesSpendChart` now, not a ranked row list —
+  // per-series names/values no longer render as visible DOM text (that lived in the deleted
+  // legend); they live in the hover tooltip and in each line's own `aria-label` instead. "Real
+  // data shown as real data" is asserted here via the board's own caption sentence (the true
+  // period total the deleted legend used to state as a row) and the accessible hit-path labels.
   it('renders SPEND BY MODEL with real data for every user, not just an admin', async () => {
     await renderCentre({
       modelSpendStatus: 'ready',
-      modelSpendRows: [
-        { key: 'gpt-4o-mini', label: 'gpt-4o-mini', value: 12, formattedValue: '$12.00' },
-        { key: 'claude-sonnet', label: 'claude-sonnet', value: 4, formattedValue: '$4.00' },
+      modelSpendSeries: [
+        {
+          key: 'gpt-4o-mini',
+          label: 'gpt-4o-mini',
+          points: [{ x: new Date('2026-08-01'), y: 12 }],
+        },
+        {
+          key: 'claude-sonnet',
+          label: 'claude-sonnet',
+          points: [{ x: new Date('2026-08-01'), y: 4 }],
+        },
       ],
     });
 
     expect(screen.getByText('Spend by model')).toBeInTheDocument();
-    expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument();
-    expect(screen.getByText('claude-sonnet')).toBeInTheDocument();
+    // The caption states the true period total across both real series (12 + 4 = 16).
+    expect(screen.getByText('$16.00 across 2 series')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /gpt-4o-mini/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /claude-sonnet/ })).toBeInTheDocument();
   });
 
-  it('a FAILED spend-by-model query renders an error line, never a zero-value or confirmed-empty ranked list', async () => {
+  it('a FAILED spend-by-model query renders an error line, never a zero-value or confirmed-empty chart', async () => {
     await renderCentre({
       modelSpendStatus: 'error',
       modelSpendErrorMessage: 'The usage backend is unreachable right now.',
-      modelSpendRows: [],
+      modelSpendSeries: [],
     });
 
     const alerts = screen.getAllByRole('alert');

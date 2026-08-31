@@ -6,7 +6,9 @@
 //
 //  - `PageHeader` (inline `OverviewControls` + the `Export` action) → the money-first stat row →
 //    SPEND OVER TIME (`SpendDashboard`, line) → SPEND BY PROJECT (`SpendShareSection`) → SPEND BY
-//    MODEL (`RankedSeriesRows`, NOT `SpendShareSection`/`ShareBar` — phase 4 build brief §7) →
+//    MODEL (`MultiSeriesSpendBoard`/`MultiSeriesSpendChart`, one line per model, log scale by
+//    default — 2026-08-31 owner ruling, see that component's own doc comment; it had briefly
+//    rendered through `RankedSeriesRows` before that, phase 4 build brief §7) →
 //    BUDGET (`BudgetPanel`, `actions`/`heroAction` — IA v3 phase 3's "refill as a page" shape).
 //  - **NO admin-only zone renders on this page any more.** Budget pressure and key hygiene moved
 //    to `/settings/overview/project` and `/settings/overview/account` respectively — see
@@ -34,8 +36,8 @@ import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { presetRange } from '../components/date-range-field';
-import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
+import type { MultiSeriesSpendScale, MultiSeriesSpendSeries } from '../components/multi-series-spend-chart';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
 import { ScopeSelect } from '../components/scope-select';
@@ -44,7 +46,6 @@ import type { SelectFieldProps } from '../components/select-field';
 import type { ShareBarSegment } from '../components/share-bar';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 import { formatUsd, formatUsdAxis } from '../lib/money';
-import { ZoneHeading } from '../lib/zone-heading';
 import { BudgetPanel } from '../sections/budget-panel';
 import type { BudgetSummary } from '../sections/budget-panel';
 import {
@@ -54,6 +55,7 @@ import {
   overviewLoadingBudget,
   overviewUnwiredBudget,
 } from '../sections/budget-panel/fixtures';
+import { MultiSeriesSpendBoard } from '../sections/multi-series-spend-board';
 import { OverviewControls } from '../sections/overview-controls';
 import {
   BUCKET_OPTIONS,
@@ -67,9 +69,6 @@ import {
   overviewStatCards,
 } from '../sections/overview-stat-row/fixtures';
 import { PageHeader } from '../sections/page-header';
-import { RankedSeriesRows } from '../sections/ranked-series-rows';
-import type { RankedSeriesRow } from '../sections/ranked-series-rows';
-import { rankedRowsDominantModel, rankedRowsEmpty } from '../sections/ranked-series-rows/fixtures';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
 import {
@@ -120,6 +119,39 @@ function accountTotalSpendSeries(): SpendSeriesSeries[] {
 // default story shares one stable array identity — the same idiom `overviewStatCards` etc. use.
 const ACCOUNT_TOTAL_SPEND_SERIES = accountTotalSpendSeries();
 
+/**
+ * SPEND BY MODEL's real default shape (2026-08-31 owner ruling — `MultiSeriesSpendChart`'s own
+ * doc comment): one dominant model beside several sub-1%-share ones, the ADR 0013 D5 measured
+ * production shape — the exact reason `modelSpendScale` defaults to `log` rather than `linear`.
+ */
+function modelSpendSeries(): MultiSeriesSpendSeries[] {
+  const days = daysFrom(new Date(Date.UTC(2026, 7, 1)), 29);
+  return [
+    {
+      key: 'deepseek-v4-flash-0731',
+      label: 'deepseek-v4-flash-0731',
+      points: days.map((x, i) => ({ x, y: 0.06 + i * 0.003 })),
+    },
+    {
+      key: 'adorsys-researcher',
+      label: 'adorsys-researcher',
+      points: [days[4], days[14], days[23]].map((x) => ({ x, y: 0.0018 })),
+    },
+    {
+      key: 'adorsys-coder',
+      label: 'adorsys-coder',
+      points: [days[8], days[19]].map((x) => ({ x, y: 0.00013 })),
+    },
+    {
+      key: 'qwen3-5-2b-local',
+      label: 'qwen3-5-2b-local',
+      points: [{ x: days[11], y: 0.00015 }],
+    },
+  ];
+}
+
+const MODEL_SPEND_SERIES = modelSpendSeries();
+
 // Every choice OverviewControls has offered the toolbar since IA v3 phase 4's "By project"/"By
 // model"/"By user"/"By API key" vocabulary widening (`use-overview-screen.ts`'s own
 // `GROUP_BY_OPTIONS`) — mirrored here rather than re-imported since `url-state.ts` is `apps/
@@ -161,7 +193,7 @@ interface OverviewScreenProps {
    *  owner-round parity fix #3 — a single-series TIME SERIES is still a meaningful reading). */
   spendDegenerateMessage?: string;
   spendUnassignedCaption?: string;
-  modelSpendRows?: RankedSeriesRow[];
+  modelSpendSeries?: MultiSeriesSpendSeries[];
   modelSpendStatus?: DashboardStatus;
   modelSpendErrorMessage?: string;
   budget?: BudgetSummary;
@@ -186,13 +218,16 @@ function OverviewScreen({
   spendShareStatus = 'ready',
   spendDegenerateMessage,
   spendUnassignedCaption,
-  modelSpendRows = rankedRowsDominantModel,
+  modelSpendSeries = MODEL_SPEND_SERIES,
   modelSpendStatus = 'ready',
   modelSpendErrorMessage,
   budget = overviewBudget,
   refillAction,
 }: OverviewScreenProps) {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
+  // Storybook-only local state standing in for `use-overview-screen.ts`'s own `modelSpendScale`
+  // URL param — defaults to `log`, the real screen's own default.
+  const [modelSpendScale, setModelSpendScale] = useState<MultiSeriesSpendScale>('log');
 
   // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011) — 'mtd'
   // ("This month") is the real default range (IA v3 phase 5), not the old '30d'.
@@ -330,37 +365,27 @@ function OverviewScreen({
           ) : null}
         </Card>
 
-        {/* Phase 4 build brief §7 — SPEND BY MODEL renders through `RankedSeriesRows`, not
-            `SpendShareSection`/`ShareBar`: a single model handling ~all of an account's traffic is
-            the common case, and `ShareBar`'s flat share-of-total reading breaks down exactly there.
-            Replaces the deleted LATENCY panel (phase 9.2 — the usage backend's events are
-            aggregate metric signals with no per-request duration, so that panel could never
-            honestly fill), for every user, never admin-gated. */}
+        {/* 2026-08-31 owner ruling — SPEND BY MODEL renders through `MultiSeriesSpendBoard`/
+            `MultiSeriesSpendChart` (one line per model, `log` scale by default): a single model
+            handling ~all of an account's traffic is the common case, and every series stays
+            visibly plotted at any order of magnitude instead of a flat share-of-total bar
+            collapsing to a sliver. Replaces the deleted LATENCY panel (phase 9.2 — the usage
+            backend's events are aggregate metric signals with no per-request duration, so that
+            panel could never honestly fill), for every user, never admin-gated. */}
         <Card>
-          <ZoneHeading label="Spend by model" />
-          {modelSpendStatus === 'error' ? (
-            <div className="mt-4">
-              <ErrorLine
-                message={modelSpendErrorMessage ?? 'Failed to load spend by model.'}
-                onRetry={() => {}}
-              />
-            </div>
-          ) : modelSpendStatus === 'loading' ? (
-            <div className="mt-4 flex flex-col gap-1">
-              {[0, 1, 2].map((row) => (
-                <div key={row} className="skeleton h-[28px]" />
-              ))}
-            </div>
-          ) : (
-            <RankedSeriesRows
-              className="mt-4"
-              rows={modelSpendRows}
-              selectedKey={selectedSeriesKey}
-              onSelect={setSelectedSeriesKey}
-              otherLabel={(count) => `Other (${count} models)`}
-              emptyMessage="No usage in this range."
-            />
-          )}
+          <MultiSeriesSpendBoard
+            label="Spend by model"
+            series={modelSpendSeries}
+            scale={modelSpendScale}
+            onScaleChange={setModelSpendScale}
+            fallbackWidth={840}
+            height={220}
+            status={modelSpendStatus}
+            errorMessage={modelSpendErrorMessage}
+            onRetry={() => {}}
+            onSelectSeries={setSelectedSeriesKey}
+            emptyMessage="No usage in this range."
+          />
         </Card>
 
         <Card>
@@ -415,7 +440,7 @@ export const Empty: Story = {
       statCards={overviewEmptyStatCards}
       spendSeries={[]}
       spendShareSegments={[]}
-      modelSpendRows={rankedRowsEmpty}
+      modelSpendSeries={[]}
       budget={overviewEmptyBudget}
     />
   ),

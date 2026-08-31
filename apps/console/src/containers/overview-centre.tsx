@@ -6,14 +6,12 @@ import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
+import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
 import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import { RankedSeriesRows } from '@lightbridge/ui-web/src/sections/ranked-series-rows';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
-import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
-import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
 import Link from 'next/link';
 
 import { USAGE_QUERY_LIMIT } from './overview-usage';
@@ -47,22 +45,28 @@ import { useOverviewScreen } from './use-overview-screen';
  * LATENCY is gone (phase 9.2, 2026-08-30 owner directive): the usage backend's events are
  * aggregate metric signals with no per-request duration, so that panel could never fill. SPEND BY
  * MODEL replaces it — a second, model-grouped consumption query scoped identically to SPEND above
- * (`use-overview-screen.ts`'s `modelSpendRows`), for every user, not admin-gated.
+ * (`use-overview-screen.ts`'s `modelSpendSeries`), for every user, not admin-gated.
  *
- * IA v3 phase 4 (build brief §7): SPEND BY MODEL renders through `RankedSeriesRows`, not
- * `SpendShareSection`/`ShareBar` — the phase's own measurement found `ShareBar`'s flat
- * share-of-total reading breaks down the moment one series dominates (a single model handling
- * ~all of an account's traffic is the common case), which `RankedSeriesRows` handles by
- * suppressing the share bar past a dominance threshold. SPEND BY PROJECT keeps `SpendShareSection`
- * (a project split reads fine as a flat share) and drops any NULL-project bucket in favour of
- * `spendUnassignedCaption` rather than rendering an "Unassigned" segment.
+ * **SPEND BY MODEL renders through `MultiSeriesSpendBoard`/`MultiSeriesSpendChart` now**
+ * (2026-08-31, owner ruling — see that component's own doc comment): one line per model,
+ * superposed on shared axes, defaulting to a LOG scale (`screen.modelSpendScale`'s own default —
+ * the owner's real account data is one ~100%-share model beside several sub-1%-share ones, and log
+ * was the reviewed recommendation for that shape). It had briefly rendered through
+ * `RankedSeriesRows` (IA v3 phase 4, build brief §7) before that, replacing `SpendShareSection`/
+ * `ShareBar`'s flat share-of-total reading, which the phase's own measurement found breaks down
+ * the moment one series dominates — `RankedSeriesRows`'s dominance-threshold share-bar suppression
+ * addressed the same problem `MultiSeriesSpendChart`'s `log`/`indexed` scales now address more
+ * directly, by keeping every series visibly plotted rather than suppressing a bar. SPEND BY
+ * PROJECT keeps `SpendShareSection` (a project split reads fine as a flat share) and drops any
+ * NULL-project bucket in favour of `spendUnassignedCaption` rather than rendering an "Unassigned"
+ * segment.
  *
  * `Card` wraps every zone below the stat row (phase 4 supersedes the earlier "render uncontained
  * on the floor" reading for these dashboard zones specifically — see `Card`'s own doc comment for
  * the precedent). Several sections already render their own tracked heading (`SpendDashboard`,
- * `SpendShareSection`, `BudgetPanel` all default their own `label`); those `Card`s carry no
- * `title` of their own; only the section's `label` is overridden to the name this composition
- * wants, so each zone has exactly ONE heading, never two stacked.
+ * `SpendShareSection`, `BudgetPanel`, `MultiSeriesSpendBoard` all default their own `label`); those
+ * `Card`s carry no `title` of their own; only the section's `label` is overridden to the name this
+ * composition wants, so each zone has exactly ONE heading, never two stacked.
  */
 const formatSpendTooltip = (value: number) => formatUsd(value);
 
@@ -149,30 +153,19 @@ export function OverviewCentre() {
       </Card>
 
       <Card>
-        <ZoneHeading label="Spend by model" />
-        {screen.modelSpendStatus === 'error' ? (
-          <div className="mt-4">
-            <ErrorLine
-              message={screen.modelSpendErrorMessage ?? 'Failed to load spend by model.'}
-              onRetry={screen.modelSpendRetry}
-            />
-          </div>
-        ) : screen.modelSpendStatus === 'loading' ? (
-          <div className="mt-4 flex flex-col gap-1">
-            {[0, 1, 2].map((row) => (
-              <div key={row} className="skeleton h-[28px]" />
-            ))}
-          </div>
-        ) : (
-          <RankedSeriesRows
-            className="mt-4"
-            rows={screen.modelSpendRows}
-            selectedKey={screen.selectedSeriesKey}
-            onSelect={screen.setSelectedSeriesKey}
-            otherLabel={(count) => `Other (${count} models)`}
-            emptyMessage="No usage in this range."
-          />
-        )}
+        <MultiSeriesSpendBoard
+          label="Spend by model"
+          series={screen.modelSpendSeries}
+          scale={screen.modelSpendScale}
+          onScaleChange={screen.setModelSpendScale}
+          fallbackWidth={840}
+          height={220}
+          status={screen.modelSpendStatus}
+          errorMessage={screen.modelSpendErrorMessage}
+          onRetry={screen.modelSpendRetry}
+          onSelectSeries={screen.setSelectedSeriesKey}
+          emptyMessage="No usage in this range."
+        />
       </Card>
 
       <Card>

@@ -4,14 +4,13 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { SegmentedControl } from '@lightbridge/ui-web/src/components/segmented-control';
 import { ShareBar } from '@lightbridge/ui-web/src/components/share-bar';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { DATA_INK_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
+import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { RankedSeriesRows } from '@lightbridge/ui-web/src/sections/ranked-series-rows';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 
 import { USAGE_QUERY_LIMIT } from './overview-usage';
@@ -25,9 +24,17 @@ import { useUsageOverviewScreen } from './use-usage-overview-screen';
  * Zone order: `PageHeader` (range only — this screen has no project/user picker, it IS the
  * cross-account view) → stat row → SPEND OVER TIME (a `line` chart — dense, estate-wide data is
  * the one place a line reads honestly, per build brief §4) with the dashed previous-period
- * comparison → SPEND BY ACCOUNT (`RankedSeriesRows`, with the value/delta sort toggle) → SPEND BY
- * MODEL (`ShareBar` — the one place this primitive stays, per build brief §4: "the global split
- * 58/11/9/8/4 reads").
+ * comparison → SPEND BY ACCOUNT → SPEND BY MODEL (`ShareBar` — the one place this primitive
+ * stays, per build brief §4: "the global split 58/11/9/8/4 reads").
+ *
+ * **SPEND BY ACCOUNT renders through `MultiSeriesSpendBoard`/`MultiSeriesSpendChart` now**
+ * (2026-08-31, owner ruling — see that component's own doc comment): one line per account, real
+ * per-day points (`combineAccountModelResponses`'s own `accountSeries`, not just each account's
+ * summed total), defaulting to a LINEAR scale. It had briefly rendered through `RankedSeriesRows`
+ * with a value/delta sort toggle before that; the toggle is gone with it — a chart's rank/colour
+ * order is always by total descending, never caller-sortable, so "sort by change" has no surface
+ * left to render into. The board's own scale toggle (`linear`/`log`/`indexed`) replaced it on the
+ * same heading row.
  */
 export function UsageOverviewCentre() {
   const screen = useUsageOverviewScreen();
@@ -75,44 +82,19 @@ export function UsageOverviewCentre() {
       </Card>
 
       <Card>
-        <ZoneHeading
+        <MultiSeriesSpendBoard
           label="Spend by account"
-          actions={
-            <SegmentedControl
-              aria-label="Sort accounts by"
-              options={[
-                { value: 'value', label: 'By spend' },
-                { value: 'delta', label: 'By change' },
-              ]}
-              value={screen.accountRowsSortMode}
-              onChange={screen.setAccountRowsSortMode}
-            />
-          }
+          series={screen.accountSeries}
+          scale={screen.accountScale}
+          onScaleChange={screen.setAccountScale}
+          fallbackWidth={840}
+          height={220}
+          status={screen.status}
+          errorMessage={screen.errorMessage ?? 'Failed to load spend by account.'}
+          onRetry={screen.onRetry}
+          onSelectSeries={screen.setSelectedSeriesKey}
+          emptyMessage="No usage in this range."
         />
-        {screen.status === 'error' ? (
-          <div className="mt-4">
-            <ErrorLine
-              message={screen.errorMessage ?? 'Failed to load spend by account.'}
-              onRetry={screen.onRetry}
-            />
-          </div>
-        ) : screen.status === 'loading' ? (
-          <div className="mt-4 flex flex-col gap-1">
-            {[0, 1, 2, 3].map((row) => (
-              <div key={row} className="skeleton h-[28px]" />
-            ))}
-          </div>
-        ) : (
-          <RankedSeriesRows
-            className="mt-4"
-            rows={screen.accountRows}
-            sortMode={screen.accountRowsSortMode}
-            selectedKey={screen.selectedSeriesKey}
-            onSelect={screen.setSelectedSeriesKey}
-            otherLabel={(count) => `Other (${count} accounts)`}
-            emptyMessage="No usage in this range."
-          />
-        )}
       </Card>
 
       <Card>

@@ -10,6 +10,9 @@ import {
   adoptionOverTimeSeries,
   combineModelDaySeries,
   dayPrecisionLastActiveLabel,
+  ESTATE_SUBTITLE_SCOPE,
+  estateAccountIds,
+  estateCoverageCaption,
   requestVolumeSeries,
   safeRequests,
   spendDelta,
@@ -226,5 +229,102 @@ describe('combineModelDaySeries — unassigned relabeling', () => {
     expect(series).toHaveLength(1);
     expect(series[0].key).toBe(UNASSIGNED_KEY);
     expect(series[0].label).toBe('Unassigned');
+  });
+});
+
+// ── estateAccountIds / estateCoverageCaption (owner review finding, converse-frontends#368:
+// "/admin/overview is overview for ALL account, not just the one the user is bound to. ALL of
+// them.") — the fan-out used to be `allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS)` alone (the
+// operator's own account family, nothing else); these two functions are what replaced it, so
+// this is the regression net for BOTH the widened enumeration source and the honesty of what it
+// tells the operator it covers. ──────────────────────────────────────────────────────────────
+describe('estateAccountIds', () => {
+  it('unions family and pending-queue ids, family first, with no duplicates', () => {
+    const result = estateAccountIds(['acct_1', 'acct_2'], ['acct_2', 'acct_9'], 10);
+    expect(result.ids).toEqual(['acct_1', 'acct_2', 'acct_9']);
+    expect(result.familyCount).toBe(2);
+    expect(result.queueOnlyCount).toBe(1);
+    expect(result.totalCandidates).toBe(3);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('a family-only estate (no pending-queue signal) is not truncated and has zero queue-only ids', () => {
+    const result = estateAccountIds(['acct_1', 'acct_2'], [], 25);
+    expect(result.ids).toEqual(['acct_1', 'acct_2']);
+    expect(result.queueOnlyCount).toBe(0);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('caps the union at `cap`, family accounts winning the cap before queue-derived ones', () => {
+    const result = estateAccountIds(['acct_1', 'acct_2', 'acct_3'], ['acct_4', 'acct_5'], 4);
+    expect(result.ids).toEqual(['acct_1', 'acct_2', 'acct_3', 'acct_4']);
+    expect(result.familyCount).toBe(3);
+    expect(result.queueOnlyCount).toBe(2);
+    expect(result.totalCandidates).toBe(5);
+    expect(result.truncated).toBe(true);
+  });
+
+  it('a queue-derived id that duplicates a family id is not double-counted', () => {
+    const result = estateAccountIds(['acct_1'], ['acct_1', 'acct_1', 'acct_2'], 10);
+    expect(result.ids).toEqual(['acct_1', 'acct_2']);
+    expect(result.familyCount).toBe(1);
+    expect(result.queueOnlyCount).toBe(1);
+  });
+
+  it('an empty family with a real pending-queue signal still surfaces those accounts', () => {
+    const result = estateAccountIds([], ['acct_9'], 10);
+    expect(result.ids).toEqual(['acct_9']);
+    expect(result.familyCount).toBe(0);
+    expect(result.queueOnlyCount).toBe(1);
+  });
+
+  it('both sources empty yields an empty, non-truncated estate', () => {
+    const result = estateAccountIds([], [], 10);
+    expect(result).toEqual({
+      ids: [],
+      familyCount: 0,
+      queueOnlyCount: 0,
+      totalCandidates: 0,
+      truncated: false,
+    });
+  });
+});
+
+describe('estateCoverageCaption', () => {
+  it('names the backend gap issue and both real sources when the queue contributed accounts', () => {
+    const estate = estateAccountIds(['acct_1', 'acct_2'], ['acct_9'], 25);
+    const caption = estateCoverageCaption(estate);
+    expect(caption).toContain('Showing 3 accounts');
+    expect(caption).toContain('2 in your account family');
+    expect(caption).toContain('1 more seen only via a pending refill request');
+    expect(caption).toContain('not every account in the system');
+    expect(caption).toContain('lightbridge-authz#602');
+  });
+
+  it('still discloses "not every account" even when nothing was truncated and the queue added nothing', () => {
+    const estate = estateAccountIds(['acct_1'], [], 25);
+    const caption = estateCoverageCaption(estate);
+    expect(caption).toContain('Showing 1 account (all in your account family)');
+    expect(caption).toContain('not every account in the system');
+    expect(caption).not.toMatch(/Showing 1 of/);
+  });
+
+  it('states the real discoverable total when the cap truncated the union', () => {
+    const estate = estateAccountIds(['acct_1', 'acct_2', 'acct_3'], ['acct_4', 'acct_5'], 4);
+    const caption = estateCoverageCaption(estate);
+    expect(caption).toContain('Showing 4 of 5 discoverable accounts');
+  });
+
+  it('never claims a false plural for exactly one account shown', () => {
+    const estate = estateAccountIds(['acct_1'], [], 25);
+    expect(estateCoverageCaption(estate)).toContain('Showing 1 account (');
+    expect(estateCoverageCaption(estate)).not.toContain('1 accounts');
+  });
+});
+
+describe('ESTATE_SUBTITLE_SCOPE', () => {
+  it('is honest, non-empty wording — never the old fabricated "Estate-wide" claim', () => {
+    expect(ESTATE_SUBTITLE_SCOPE.length).toBeGreaterThan(0);
+    expect(ESTATE_SUBTITLE_SCOPE.toLowerCase()).not.toBe('estate-wide');
   });
 });

@@ -10,12 +10,16 @@ page rather than a dialog, and a chart-choice doctrine for every usage/spend bre
 [issue #368](https://github.com/ADORSYS-GIS/converse-frontends/issues/368)'s IA v3 phases 1
 ("account into the path"), 2 ("the settings area"), 2d (the account-scoping audit), 3 (refill as a
 page, the rail narrowed), and 4 (the analytics screens). Every decision below is **implemented and
-merged**; this ADR is the record, not the proposal. Two later, dated amendments (below) record
+merged**; this ADR is the record, not the proposal. Several later, dated amendments (below) record
 further owner directives narrower in scope than a full ADR revision: "phase E — the settings/accounts
 move" relocates projects/refill under a new `/settings/accounts` subtree and narrows
 `/settings/policies` and the account area's own nav; "the admin area" (same day, later still) ships
 the operator dashboard approved on `claude/sb-admin-dashboards` as `/admin/overview` and moves the
-budget refill review queue a second time, to `/admin/refills-queue`.
+budget refill review queue a second time, to `/admin/refills-queue`; "refill policies move to the
+admin area" moves a third admin-only screen and splits it into three URL modes; and "`/admin/
+overview`'s account enumeration is honest, not estate-wide" corrects that dashboard's own
+account-coverage claim after a direct owner review finding, having confirmed by exhaustive schema
+inspection that no all-accounts enumeration exists on the backend to back it.
 
 Supersedes, in part: [ADR 0012](0012-console-visual-revamp.md) Decision 1's nav-shape clause (the
 three fixed nav destinations) and Decision 7's rail clause (the rail returned, then narrowed to
@@ -440,7 +444,9 @@ amendment's own single-account-scoped latency board), `cratestack#850` (musl bui
 phase E amendment below). The admin-area amendment (further below) adds two more: `lightbridge-authz#556`
 (no listing of decided augmentation requests) and `lightbridge-authz#597` (no error/status signal
 on `UsageSeriesPoint`) — both real backend gaps that amendment's live route captions rather than
-papering over.
+papering over. The account-enumeration-honesty amendment (last, below) adds `lightbridge-authz#602`
+(operator-privileged all-accounts enumeration — confirmed absent from `authz.cstack` by exhaustive
+inspection, not merely undiscovered).
 
 ## Amendment (2026-08-31): phase E — the settings/accounts move
 
@@ -756,3 +762,75 @@ render.
   `refill-policy-status-strip` exports its `unavailable` caption as `NO_POLICY_SET_ID_CAPTION` so
   the real container and its own `fixtures.ts` state the identical sentence. The page story moves
   from `Pages/RefillOptions` to `Pages/AdminRefillPolicies`, with a story per mode.
+
+## Amendment (2026-08-31, later still): `/admin/overview`'s account enumeration is honest, not estate-wide
+
+A direct owner review finding on the admin-area amendment above, verbatim: *"/admin/overview is
+overview for ALL account, not just the one the user is bound to. ALL of them."* The dashboard's own
+subtitle already claimed "Estate-wide"; the fan-out behind it (`use-admin-overview-screen.ts`)
+enumerated only the operator's own account family (`scope.allAccounts`, `model.Account.list`) —
+because that listing was the only account enumeration the console had any RPC path to. The
+subtitle was fabricating coverage the wiring never had.
+
+Investigated before writing a single line of frontend code: `schema/authz.cstack` was
+exhaustively grepped for any operator-privileged account enumeration — a list-all-accounts
+procedure, an admin accounts resource, pagination transcending family scope, an operator flag on
+`Account`'s `@@allow`. **None exists.** `model.Account` carries exactly one `@@allow` clause
+(`(userId == auth().id) && auth().rpcScope == "crud" && auth().permAccountRead == true`,
+`authz.cstack:244`) — self-family only. The schema's only two cross-tenant admin reads,
+`getBudgetBalance`/`listBudgetGrants` (`authz.cstack:1482`, `:1544`), both require an
+ALREADY-KNOWN `budgetAccountId` and enumerate nothing. Filed as `lightbridge-authz#602`
+("operator-privileged all-accounts enumeration for the admin estate").
+
+Per this ADR's own no-fabrication doctrine (D8, inherited from ADR 0012), the fix ships in two
+parts rather than leaving the false claim in place until the backend ticket lands:
+
+- **The fan-out widens to every account id the console can legitimately discover as an
+  operator**, not just family: `admin-overview-usage.ts`'s `estateAccountIds` unions
+  `scope.allAccounts` with every account id surfacing in the GLOBAL pending refill queue
+  (`listPendingAugmentationRequests({budgetAccountId: null})`, a real, if partial, cross-family
+  signal — an account with a pending refill request is a genuine OTHER account, just not the whole
+  estate). Deduplicated, capped at the pre-existing `MAX_FANNED_OUT_ACCOUNTS` ceiling.
+- **The usage-scope-guard gained a role-verified admin bypass**, or the widened family+queue ids
+  above would be discoverable but not actually queryable: `server/usage-scope-guard.ts`'s
+  `guardUsageScope` now accepts an `isAdmin` flag that, for `scope: 'account'` only, skips the
+  per-tenant ownership resolution entirely — mirroring `getBudgetBalance`/`listBudgetGrants`'s own
+  shape (a coarse RBAC permission gate standing in for a per-tenant predicate the schema has no
+  way to express for the admin case either). `isAdmin` is computed exactly once, server-side, in
+  `app/api/usage/[...path]/route.ts`, from `isAdmin(session.user.roles)` — the decrypted session
+  cookie's own role claims, the IDENTICAL check `app/(console)/admin/overview/page.tsx` already
+  gates the route itself with — never a client-supplied field. The non-admin path (ownership
+  resolution, the home-account fast path) is unchanged; `scope: 'project'` gets no bypass, admin or
+  not, because `model.Project.read`'s own `@@allow` has no admin bypass on the backend either.
+- **The subtitle and a new, always-shown coverage caption say the truth.** `PageHeader`'s subtitle
+  drops "Estate-wide" for `ESTATE_SUBTITLE_SCOPE` ("Your accounts + refill queue");
+  `estateCoverageCaption` renders under it whenever there is at least one candidate account — not
+  only when the cap actually truncated something, since even an un-truncated fan-out here is
+  still "family + pending refill requesters," never literally every account. States the real
+  family/queue split and cites `lightbridge-authz#602` by number.
+
+This is the SAME shape of correction the admin-area amendment above already establishes for
+dashboards 5/6/7 (a real backend gap, captioned rather than fabricated) — not a new pattern, one
+more application of it, this time to the page's own header rather than one dashboard.
+
+### Consequences (account-enumeration honesty)
+
+- `apps/console/src/containers/admin-overview-usage.ts` gains `estateAccountIds`,
+  `estateCoverageCaption`, `ESTATE_SUBTITLE_SCOPE` (all pure, unit-tested in
+  `admin-overview-usage.test.ts`).
+- `apps/console/src/containers/use-admin-overview-screen.ts`'s fan-out source changes from
+  `allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS)` to `estateAccountIds(allAccounts, pendingQueue
+  AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugmentationRequests
+  ({budgetAccountId: null})` scan (`PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) separate from
+  `useRefillsQueueScreen`'s own UI-paginated queue-screen query.
+- `apps/console/src/server/usage-scope-guard.ts`'s `guardUsageScope` gains an optional 5th
+  parameter, `isAdmin?: boolean`, defaulting to non-admin behavior when omitted — every pre-
+  existing call site is unaffected; `apps/console/src/app/api/usage/[...path]/route.ts` is the
+  one call site that now passes it, computed from `isAdmin(session.user?.roles ?? [])`.
+- `packages/ui-web/src/pages-stories/admin-overview.stories.tsx`'s subtitle and a new
+  `InlineStatus` caption directly under `PageHeader` are updated to match — the design batch's
+  original "Estate-wide" wording was the idealized pre-investigation target, not something the
+  live route can honestly claim while `lightbridge-authz#602` is open.
+- Backend follow-up filed: `lightbridge-authz#602`. Once it ships, `estateAccountIds`'s
+  pending-queue half becomes unnecessary and the fan-out can call the real enumeration directly —
+  tracked there, not here.

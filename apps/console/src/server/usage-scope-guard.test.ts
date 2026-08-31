@@ -233,3 +233,85 @@ describe('home-account fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 });
+
+// ── Admin fast path (converse-frontends#368, owner review finding: "/admin/overview is overview
+// for ALL account, not just the one the user is bound to. ALL of them.") — the operator-role
+// bypass this widening added to close the gap between what `/admin/overview`'s fan-out can
+// legitimately DISCOVER (family + refill-queue account ids, `estateAccountIds`) and what this
+// guard would actually let it QUERY. Every case here also asserts the resolver is never called
+// on the admin path, and that the non-admin path is untouched by `isAdmin`'s mere presence. ────
+describe('admin fast path', () => {
+  const neverResolve = () => {
+    throw new Error('resolver must not be called on the admin fast path');
+  };
+
+  it('an admin session queries an account scope_id outside its own family without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'acct-not-in-any-owned-set' },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('isAdmin: false behaves exactly like the pre-existing signature — resolver still runs, foreign scope still 403s', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'acct-foreign' },
+      async () => new Set(['acct-owned']),
+      async () => null,
+      undefined,
+      false
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('isAdmin omitted (undefined) is treated as non-admin — the existing five-arg call sites are unaffected', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'acct-foreign' },
+      async () => new Set(['acct-owned']),
+      async () => null
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('does NOT bypass a project scope even for an admin — resolver still runs, foreign project still 403s', async () => {
+    let resolverCalled = false;
+    const outcome = await guardUsageScope(
+      { scope: 'project', scope_id: 'proj-foreign' },
+      async () => new Set(['acct-owned']),
+      async (projectId) => {
+        resolverCalled = true;
+        expect(projectId).toBe('proj-foreign');
+        return 'acct-foreign';
+      },
+      undefined,
+      true
+    );
+    expect(resolverCalled).toBe(true);
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('an admin body still 400s on a malformed request, before isAdmin is ever consulted', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account' },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: false, status: 400, error: 'invalid_body' });
+  });
+
+  it('the home-account fast path and the admin fast path agree — either alone is sufficient', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'account', scope_id: 'home-1' },
+      neverResolve as never,
+      neverResolve as never,
+      'home-1',
+      true
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+});

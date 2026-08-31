@@ -49,6 +49,9 @@ import {
   adoptionOverTimeSeries,
   combineModelDaySeries,
   dayPrecisionLastActiveLabel,
+  ESTATE_SUBTITLE_SCOPE,
+  estateAccountIds,
+  estateCoverageCaption,
   requestVolumeSeries,
   spendDelta,
   summarizeMtdUsage,
@@ -59,6 +62,26 @@ import {
  * Eight boards, composed exactly as the approved page story (`Pages/AdminOverview`,
  * `claude/sb-admin-dashboards`@aaf3fe6) lays them out; this hook supplies the real queries the
  * story's fixtures stood in for.
+ *
+ * **2026-08-31 correction (owner review finding, verbatim): "/admin/overview is overview for ALL
+ * account, not just the one the user is bound to. ALL of them."** Before this correction, the
+ * fan-out below enumerated ONLY the operator's own account family (`scope.allAccounts`,
+ * `model.Account.list`'s `@@allow("read", userId == auth().id)` — self-ownership, unconditional,
+ * `authz.cstack:244`) — the exact defect the finding names, because that listing was the only
+ * account enumeration the console had any RPC path to. Investigated exhaustively: `authz.cstack`
+ * has NO all-accounts enumeration anywhere — no admin accounts resource, no operator flag on
+ * `Account`'s `@@allow`, no pagination param that transcends family scope. The only two
+ * cross-tenant admin reads in the schema (`getBudgetBalance`/`listBudgetGrants`,
+ * `authz.cstack:1482`/`:1544`) both require an ALREADY-KNOWN `budgetAccountId` — neither
+ * enumerates. Filed as `lightbridge-authz#602`. Until it ships, `estateAccountIds`
+ * (`admin-overview-usage.ts`) fans out to the union of the operator's own family AND every
+ * account id surfacing in the global pending refill queue (`listPendingAugmentationRequests`
+ * with `budgetAccountId: null` — a real, if partial, cross-family signal: an account with a
+ * pending refill request is a genuine OTHER account) — captioned honestly (`truncationCaption`
+ * below) rather than silently continuing to claim "estate-wide" for a family-only view. The
+ * usage-scope-guard (`server/usage-scope-guard.ts`) was widened in lockstep: an admin-role
+ * session's account-scoped usage query no longer needs to resolve against the family-only owned-
+ * accounts set, so the queue-derived ids above are actually queryable, not merely discoverable.
  *
  * **Query families** (all fanned out to `MAX_FANNED_OUT_ACCOUNTS` accounts, the same real-not-
  * ranked selection and honest truncation caption `usage-overview-usage.ts` already establishes —
@@ -114,6 +137,12 @@ const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
 
 const TOP_MODEL_COUNT = 5;
 const GONE_QUIET_DAYS = 14;
+/** How many pending refill requests the global-queue account-id scan reads (oldest-first,
+ *  `listPendingAugmentationRequests({budgetAccountId: null})`) purely to discover DISTINCT
+ *  account ids beyond the operator's own family — see `estateAccountIds`'s own doc comment. Not
+ *  the queue depth stat (`useRefillsQueueScreen`'s own smaller, UI-paginated fetch covers that);
+ *  this is a wider, one-shot scan whose only output is a set of account ids. */
+const PENDING_QUEUE_ACCOUNT_SCAN_LIMIT = 100;
 
 export const REFILL_DECISIONS_UNAVAILABLE_CAPTION =
   'Decision history and median time to decision are not available — the budget service only ' +
@@ -199,8 +228,35 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   const period = useMemo(() => currentBudgetPeriod(), []);
 
   const allAccounts = scope.allAccounts;
-  const included = useMemo(() => allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS), [allAccounts]);
-  const includedIds = useMemo(() => included.map((a) => a.id), [included]);
+
+  // A one-shot scan of the GLOBAL pending refill queue, purely to discover account ids beyond
+  // the operator's own family (`estateAccountIds`'s own doc comment) — deliberately a separate
+  // query from `useRefillsQueueScreen`'s own `pendingQuery` above: that one is UI-paginated
+  // (`PAGE_SIZE = 25`, tied to `?after=`) for the queue SCREEN's own cursor, while this is a
+  // wider, fixed-limit read whose only output is a `Set` of account ids.
+  const pendingQueueAccountsQuery = useQuery({
+    queryKey: ['admin-overview', 'pending-queue-account-scan', PENDING_QUEUE_ACCOUNT_SCAN_LIMIT],
+    queryFn: () =>
+      budgetClient.procedures.listPendingAugmentationRequests({
+        args: { limit: PENDING_QUEUE_ACCOUNT_SCAN_LIMIT },
+      }),
+    staleTime: 30_000,
+  });
+  const pendingQueueAccountIds = useMemo(
+    () => Array.from(new Set((pendingQueueAccountsQuery.data?.entries ?? []).map((r) => r.accountId))),
+    [pendingQueueAccountsQuery.data]
+  );
+
+  const estate = useMemo(
+    () =>
+      estateAccountIds(
+        allAccounts.map((a) => a.id),
+        pendingQueueAccountIds,
+        MAX_FANNED_OUT_ACCOUNTS
+      ),
+    [allAccounts, pendingQueueAccountIds]
+  );
+  const includedIds = estate.ids;
 
   const labelForAccount = useMemo(
     () => (accountId: string) => {
@@ -584,12 +640,10 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
   );
 
   const truncationCaption =
-    allAccounts.length > MAX_FANNED_OUT_ACCOUNTS
-      ? `Showing the top ${MAX_FANNED_OUT_ACCOUNTS} of ${allAccounts.length} accounts.`
-      : undefined;
+    estate.totalCandidates > 0 ? estateCoverageCaption(estate) : undefined;
 
   return {
-    subtitle: `Operator · Estate-wide · ${RANGE_LABELS[view.range]} · UTC`,
+    subtitle: `Operator · ${ESTATE_SUBTITLE_SCOPE} · ${RANGE_LABELS[view.range]} · UTC`,
     rangeField: {
       label: 'Range',
       presets: RANGE_PRESETS,
@@ -662,6 +716,7 @@ export function useAdminOverviewScreen(): AdminOverviewScreen {
       for (const q of mtdQueries) void q.refetch();
       for (const q of prevMtdQueries) void q.refetch();
       for (const q of balanceQueries) void q.refetch();
+      void pendingQueueAccountsQuery.refetch();
       queue.retry();
     },
   };

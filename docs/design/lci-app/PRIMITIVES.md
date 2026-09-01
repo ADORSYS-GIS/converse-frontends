@@ -62,7 +62,7 @@ Legend, same as the console's table:
 
 | LCI component (`apps/web/components/repos/graph/`) | Outcome | Notes |
 | --- | --- | --- |
-| `code-graph-canvas.tsx`, `code-graph-panel.tsx`, `layout.ts`, `node-inspector.tsx`, `use-code-graph.ts` | **app-local** | Node-link graph rendering (`@xyflow/react` + `dagre`), not a design-system primitive — see [ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md) for the full decision. Ported into `apps/lci` with [lightbridge-code-intelligence#635](https://github.com/ADORSYS-GIS/lightbridge-code-intelligence/issues/635)'s fixed-node-size bug fixed as part of the port, not carried forward. Zero rows of this table apply to it — it does not become a `ui-web` primitive, and no `ui-web` primitive (including `chart-core`) currently has anything to offer a node-link graph. |
+| `code-graph-canvas.tsx`, `code-graph-panel.tsx`, `layout.ts`, `node-inspector.tsx`, `use-code-graph.ts` | **app-local** | Node-link graph rendering (`@xyflow/react` + `dagre`), not a design-system primitive — see [ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md) for the full decision. Ports as-is; the label-overflow rendering defect this screen previously had is already fixed and merged upstream (label clips with an ellipsis, full name on hover), so nothing needs fixing as part of the port. Zero rows of this table apply to it — it does not become a `ui-web` primitive, and no `ui-web` primitive (including `chart-core`) currently has anything to offer a node-link graph. |
 
 ## External embeds — app-local, not a gap
 

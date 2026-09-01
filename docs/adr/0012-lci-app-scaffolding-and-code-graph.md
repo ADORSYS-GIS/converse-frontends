@@ -36,15 +36,13 @@ without re-litigating them. Two things are not yet decided anywhere:
 
 2. **How the code graph gets built.** LCI's current code graph
    (`apps/web/components/repos/graph/`) is not a design-system concern — it is `@xyflow/react` +
-   `dagre` layout logic, and it currently has an open, confirmed bug:
-   [lightbridge-code-intelligence#635](https://github.com/ADORSYS-GIS/lightbridge-code-intelligence/issues/635).
-   `layout.ts` feeds `dagre` a **fixed** `NODE_WIDTH = 200` / `NODE_HEIGHT = 44` for every node
-   regardless of actual label length, so long Rust symbol paths (e.g. fully-qualified `impl`
-   method names) overflow their node boxes, and dagre's spacing — computed from that same wrong
-   assumption — can let an oversized card overlap an adjacent rank, making a correctly-resolved
-   edge look like it terminates in empty space. Neither `packages/ui-web` nor `packages/chart-core`
-   has any node-link graph primitive; `chart-core` is scales/bins/color-ramps for time-series and
-   histogram charts only.
+   `dagre` layout logic. It shipped with a label-overflow rendering defect (long, unbroken Rust
+   symbol paths bleeding past their node box and visually overlapping neighbouring nodes/edges),
+   which `lightbridge-code-intelligence` has since fixed and merged to its own `main` — the label
+   now clips to its node with an ellipsis, and the full name is available via a hover tooltip.
+   That fix is upstream and stable by the time this app ports the screen; nothing about it needs
+   deciding here. Neither `packages/ui-web` nor `packages/chart-core` has any node-link graph
+   primitive; `chart-core` is scales/bins/color-ramps for time-series and histogram charts only.
 
 ## Decision
 
@@ -61,17 +59,14 @@ LCI's backend. `ai-helm/charts/apps/values.yaml` gains an `lci-web.yaml` entry a
 `converse-ui.yaml` and the existing `lightbridge-code-intelligence.yaml`; it does not replace or
 rename either.
 
-### Code graph: port, then fix, inside this epic
+### Code graph: port as-is
 
-The code graph is ported into `apps/lci` largely as-is (`@xyflow/react` + `dagre`, the same
-`code-graph-canvas.tsx` / `layout.ts` / `node-inspector.tsx` / `use-code-graph.ts` shape), but
-**#635's fix is absorbed into the port rather than carried forward as a known bug**: `layout.ts`
-must size each dagre node from its actual rendered label (measured, not assumed at a fixed 200×44)
-before this screen is considered done.
-
-Rejected alternative — fixing #635 upstream in `lightbridge-code-intelligence` first, then porting
-the corrected version — is not taken because it adds a cross-repo scheduling dependency this
-epic's sprint does not control, for a fix that is small enough to do once during the port itself.
+The code graph is ported into `apps/lci` largely unchanged (`@xyflow/react` + `dagre`, the same
+`code-graph-canvas.tsx` / `layout.ts` / `node-inspector.tsx` / `use-code-graph.ts` shape),
+**including the already-merged label-clipping fix** (`overflow: hidden` / `text-overflow:
+ellipsis` / `white-space: nowrap` on the node style, plus the full label surfaced via
+`domAttributes.title` for hover). There is no known rendering defect to carry forward or absorb
+into this epic's scope — the port inherits a screen that already renders correctly.
 
 No graph-visualization library beyond what LCI already uses (`@xyflow/react` + `dagre`) is
 introduced by this decision. If the design pass (`docs/design/lci-app/README.md`) surfaces a
@@ -82,12 +77,9 @@ package, sibling to `chart-core`) is a separate, later decision — not assumed 
 
 - Good, because the chart/app naming collision with LCI's existing backend chart is avoided
   before anyone writes a Helm manifest, rather than discovered at deploy time.
-- Good, because the code-graph screen ships without a known, user-visible rendering bug, instead
-  of porting #635 forward into a second repo.
-- Bad, because absorbing #635's fix into this epic's phase 3 (`apps/lci`'s implementation, #331)
-  adds scope that wasn't in the epic's original 23pt estimate — the epic's own risk section
-  already flagged this as the most likely reason it overruns, and this decision confirms rather
-  than avoids that risk.
+- Good, because the code-graph screen ports with no known rendering defect and no extra scope
+  absorbed into this epic's phase 3 (`apps/lci`'s implementation, #331) — the upstream fix already
+  landed on its own schedule, in its own repo, before this port needed it.
 - Neutral, because if a second graph-visualization surface turns up during the design pass, the
   "extract a `graph-core` package" question is deferred to when there are two consumers, not one —
   consistent with how `chart-core` itself was only extracted once the console needed to share chart
@@ -106,16 +98,13 @@ harder to read (two entries with the same base name, differing only in a namespa
 reviewer has to open the file to see) and invites exactly the collision this ADR exists to avoid
 if a namespace override is ever forgotten. Rejected.
 
-**Fix #635 upstream first, port after** — see Decision above; rejected for the cross-repo
-scheduling dependency it introduces against a sprint this epic does not control.
-
 ## References
 
 - Epic: [converse-frontends#328](https://github.com/ADORSYS-GIS/converse-frontends/issues/328)
 - [converse-frontends#287](https://github.com/ADORSYS-GIS/converse-frontends/issues/287) — Helm
   chart and image workflow pattern this app's deployment copies
-- [lightbridge-code-intelligence#635](https://github.com/ADORSYS-GIS/lightbridge-code-intelligence/issues/635) —
-  the code-graph layout bug this ADR's port decision absorbs
+- [lightbridge-code-intelligence#640](https://github.com/ADORSYS-GIS/lightbridge-code-intelligence/pull/640) —
+  the upstream fix this port inherits (label clipping + hover tooltip)
 - [`docs/design/lci-app/README.md`](../design/lci-app/README.md),
   [`docs/design/lci-app/PRIMITIVES.md`](../design/lci-app/PRIMITIVES.md) — the design spec and gap
   list this ADR is a companion to

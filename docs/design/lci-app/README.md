@@ -87,15 +87,15 @@ see `PRIMITIVES.md` §"Rows requiring a decision"). The `Overview` tab shown is 
 (files indexed, last run, open findings) directly on the floor, matching the console's own
 Overview shape rather than LCI's current bordered cards.
 
-### `code-graph.svg` — the code-graph screen, with #635's fix drawn in
+### `code-graph.svg` — the code-graph screen
 
 Shows the node-link canvas with `node-inspector.tsx` as a right-rail panel (persistent at `lg`,
-matching the console's right-rail contract — never an overlay). The key difference from LCI's
-*current* implementation, drawn deliberately: **node boxes are sized to their label**, not the
-fixed 200×44 box `layout.ts` uses today — this wireframe is also the visual spec for
-[ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md)'s "fix #635 as part of the port"
-decision, showing a long, fully-qualified Rust symbol path (the exact shape #635 reports)
-correctly contained in its box, and both ends of every edge visibly anchored.
+matching the console's right-rail contract — never an overlay), including the label-clipping
+behaviour LCI's own screen already ships: a long, fully-qualified Rust symbol path truncates to
+one line with an ellipsis inside its fixed-size node box, with the full name available via a
+hover tooltip. That behaviour is already correct upstream — see
+[ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md) — so this wireframe documents
+what the port inherits, not a change this app needs to make.
 
 ### `runs.svg` — list + review-result detail
 

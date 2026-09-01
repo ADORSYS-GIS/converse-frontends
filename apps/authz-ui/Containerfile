@@ -1,0 +1,40 @@
+# Assets-only OCI image for apps/authz-ui — converse-frontends #408.
+#
+# There is no runtime in here on purpose: `FROM scratch` plus exactly one COPY. The consumer
+# (lightbridge-authz's `authz-idp`, ADORSYS-GIS/lightbridge-authz#591) never RUNs this image — it
+# uses it as a build stage:
+#
+#     FROM --platform=linux/amd64 ghcr.io/adorsys-gis/converse-frontends/authz-ui@sha256:... AS frontend
+#     COPY --from=frontend /dist /app/static
+#
+# so the image is a delivery envelope for the Vite build output and nothing else. Staying at
+# `scratch` keeps Trivy's surface at literally zero OS packages, which means a HIGH/CRITICAL
+# finding on this image can only ever come from the bundle itself — that is the whole point of
+# the scan, not a formality.
+#
+# THE BUILD CONTEXT IS THE REPO ROOT, never apps/authz-ui/:
+#
+#     buildah build --format docker --platform linux/amd64 \
+#       -f apps/authz-ui/Containerfile -t authz-ui:local .
+#
+# The bundle must ALREADY EXIST when this file is built. It is produced on the runner by
+# `pnpm turbo run build:web --filter=authz-ui` (which also runs the tsc gates and
+# scripts/verify-service-worker-scope.mjs — see apps/authz-ui/package.json). This file runs no
+# pnpm, no node, no npm; it is the exact same "artifact produced on the runner, COPYed in here"
+# posture apps/console/Dockerfile already documents for the standalone Next bundle.
+#
+# `/dist` IS A CROSS-REPO CONTRACT, NOT AN IMPLEMENTATION DETAIL.
+# lightbridge-authz pins this image by digest and copies `/dist` into `/app/static`, which is what
+# `server.idp.static_dir` points at. Moving, renaming or nesting this path breaks that repo's
+# container build with a bare "not found" and nothing else. Any change here needs a coordinated
+# change there, in the same review pass.
+FROM scratch
+
+COPY apps/authz-ui/dist/ /dist/
+
+# This image is never run -- it has no shell, no entrypoint, and its consumer only ever
+# `COPY --from`s it as a build stage. The USER below is therefore pure config metadata with no
+# runtime effect; it exists to satisfy Trivy's DS-0002 misconfig check (the repo-wide Security
+# Audit scans every *file* named like a Dockerfile, and cannot know this one is an envelope).
+# 65534 is the conventional nobody uid/gid.
+USER 65534:65534

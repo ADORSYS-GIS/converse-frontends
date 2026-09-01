@@ -18,7 +18,7 @@ import { parse as parseYaml } from 'yaml';
  *    only when unset), `${VAR:-default}` (default when unset OR empty). This loader supports only
  *    `{env:VAR}` — no inline default-value operator at all. A value that wants a dev-safe default
  *    with no environment override is simply written as a plain YAML literal instead of a
- *    placeholder (see `config.yaml`'s `keycloak.issuer`/`backendUrl`/etc — not secrets, so they're
+ *    placeholder (see `config.yaml`'s `idp.issuer`/`backendUrl`/etc — not secrets, so they're
  *    literals); a value that must always come from the environment (a real secret, e.g.
  *    `session.secret`) is written as a bare `{env:VAR}` and nothing else. A real deployment that
  *    needs a *different* literal (a different Keycloak issuer, say) ships its own `config.yaml` and
@@ -129,7 +129,7 @@ export function parseConfigFile(
   return { raw, resolved: resolveConfigEnv(raw), absolutePath };
 }
 
-/** Reads a dotted path (`['keycloak', 'issuer']`) out of a parsed config value. */
+/** Reads a dotted path (`['idp', 'issuer']`) out of a parsed config value. */
 export function getConfigPath(value: unknown, path: readonly string[]): unknown {
   return path.reduce<unknown>((current, key) => {
     if (current === null || typeof current !== 'object') return undefined;

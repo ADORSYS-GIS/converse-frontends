@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
+import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme';
+
 import { Providers } from '../client/providers';
+import { serverEnv } from '../server/env';
 import { readSession } from '../server/session-store';
 import { isAdmin } from '../server/tokens';
 import { ANONYMOUS_SESSION, type SessionResponse } from '../shared/session-response';
-import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '../shared/theme';
 
 import './globals.css';
 
@@ -53,6 +55,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     : ANONYMOUS_SESSION;
 
+  // issue #368 (Phase H, runtime white-label branding; per-theme logos addendum, owner directive
+  // 2026-08-31 "White is for dark themes"): these reads are cheap (`serverEnv()` is cached for the
+  // process lifetime after its first call) and decide, once per request, whether this
+  // deployment's chrome has anything to override at all.
+  const branding = serverEnv().branding;
+  const hasLogo = Boolean(branding?.logoPath);
+  const hasLogoLight = Boolean(branding?.logoLightPath);
+  const hasCustomStyle = Boolean(branding?.stylePath);
+
   return (
     // suppressHydrationWarning is scoped to this element's ATTRIBUTES only (children still
     // warn): browser extensions inject attributes like `data-google-analytics-opt-out` on <html>
@@ -64,9 +75,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `data-theme` is already correct by the time the stylesheet's `[data-theme]` rules
             apply -- no dark<->light flash (ADR 0010 Decision 5). */}
         <script dangerouslySetInnerHTML={{ __html: CONSOLE_THEME_NO_FLASH_SCRIPT }} />
+        {/* issue #368 (Phase H): the operator's own daisyUI custom-property overrides
+            (`GET /branding/override.css` -- already filtered server-side, see that route's own
+            doc comment) as the LAST stylesheet `<head>` renders, after `globals.css`'s import
+            (which Next hoists ahead of any author-written `<head>` content) and after this
+            layout's own JSX, so the cascade's normal "later wins" rule -- not specificity -- is
+            what lets it override `theme.css`'s own variable values for the SAME theme name. No
+            `precedence` prop: that would opt this sheet into React's stylesheet-dedup ordering,
+            which reorders by precedence-group rather than document position -- the opposite of
+            what "after the app's own styles" needs here. */}
+        {hasCustomStyle ? <link rel="stylesheet" href="/branding/override.css" /> : null}
       </head>
-      {/* `@serwist/next` injects the service-worker registration itself, and only in a production
-          build (`disable` in next.config.mjs) — no registration component belongs here. */}
+      {/* Service-worker registration is `SerwistProvider`, mounted inside `Providers`
+          (`../client/providers.tsx`) — it needs `'use client'`, and this layout is a server
+          component, so it cannot be rendered directly here. */}
       {/* No `bg-muted font-mono text-soft` here any more: the package stylesheet's own base layer
           already sets exactly that on `body`, and `globals.css` now imports it (console-ui skill
           "One style pipeline"). Repeating it in the app was the second declaration of the same
@@ -79,7 +101,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `ssr: false`-dynamic, so the query string is readable on the server render too. It is
             not a store: the URL is the state, this only wires the reads and writes to it. */}
         <NuqsAdapter>
-          <Providers session={sessionResponse}>{children}</Providers>
+          <Providers session={sessionResponse} hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
+            {children}
+          </Providers>
         </NuqsAdapter>
       </body>
     </html>

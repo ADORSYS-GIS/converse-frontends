@@ -21,7 +21,18 @@ export interface AuthScreenProps {
   signedOutMessage?: string;
   /** Provider's failure reason as a sentence (README §5.5: "never a raw OIDC error code"). */
   errorMessage?: string;
-  /** Present only when `status` is `'error'` -- the "Try again" ghost button. */
+  /**
+   * The error-state retry action. There is exactly one control in the `'error'` state -- the
+   * primary button relabels itself "Try again" and calls this (falling back to `onSignIn` when
+   * unset) rather than rendering a second, `ErrorLine`-owned retry button beside it.
+   */
   onRetry?: () => void;
+  /**
+   * A subtle escape-hatch link under the primary control, e.g. a docs/support URL. Omitted by
+   * every current caller (no such URL exists in the repo yet), and the link self-omits when unset
+   * -- this is not a feature flag, it is the same "renders nothing until a caller has a real
+   * value" contract `signedOutMessage`/`errorMessage` already follow.
+   */
+  supportHref?: string;
   className?: string;
 }

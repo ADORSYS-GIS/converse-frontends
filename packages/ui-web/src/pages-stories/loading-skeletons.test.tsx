@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Loading as AdminLoading } from './admin-budget-review.stories';
 import { Loading as ApiKeysLoading } from './api-keys.stories';
-import { Loading as ManageLoading } from './manage.stories';
+import { Loading as ProjectsLoading } from './settings-accounts-projects.stories';
 import { Loading as OverviewLoading } from './overview.stories';
 
 /** Every `role="presentation" aria-hidden="true"` skeleton block the console-ui skill's §states
@@ -34,20 +34,24 @@ describe('console route Loading page-stories (the source `apps/console`\'s loadi
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
     // The chart zones keep their heading row even while loading — geometry stays, only the plot
-    // area is a skeleton (console-ui skill: "axes/structure stay rendered").
-    expect(screen.getByText('SPEND — BY PROJECT AND MODEL')).toBeInTheDocument();
-    expect(screen.getByText('LATENCY DISTRIBUTION — p95 BY MODEL')).toBeInTheDocument();
+    // area is a skeleton (console-ui skill: "axes/structure stay rendered"). SPEND BY MODEL
+    // (phase 9.2, replaces the deleted LATENCY panel) is part of this skeleton because, unlike
+    // LATENCY was, it is role-agnostic — every signed-in user sees it, so a route-transition
+    // loading boundary CAN honestly render it before the session resolves client-side — see
+    // `apps/console/src/app/(console)/loading.tsx`'s own doc comment.
+    expect(screen.getByText('Spend over time')).toBeInTheDocument();
+    expect(screen.getByText('Spend by model')).toBeInTheDocument();
   });
 
   it('Api-Keys: renders ledger row skeletons and the real title', () => {
     const { container } = render(<>{ApiKeysLoading.render!({}, {} as never)}</>);
 
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Api-Keys' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
   });
 
-  it('Manage: renders ledger row skeletons and the real title', () => {
-    const { container } = render(<>{ManageLoading.render!({}, {} as never)}</>);
+  it('Projects: renders ledger row skeletons and the real title', () => {
+    const { container } = render(<>{ProjectsLoading.render!({}, {} as never)}</>);
 
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();

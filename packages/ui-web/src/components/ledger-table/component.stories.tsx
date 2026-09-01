@@ -38,17 +38,17 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
   status === 'active' ? 'active' : status === 'expiring' ? 'attention' : 'muted';
 
 const columns: LedgerColumn<ApiKeyRow>[] = [
-  { key: 'name', header: 'NAME', width: '220px', accessor: (row) => <span className="text-ink">{row.name}</span> },
-  { key: 'prefix', header: 'PREFIX', width: '160px', accessor: (row) => row.prefix },
+  { key: 'name', header: 'Name', width: '220px', accessor: (row) => <span className="text-ink">{row.name}</span> },
+  { key: 'prefix', header: 'Prefix', width: '160px', accessor: (row) => row.prefix },
   {
     key: 'status',
-    header: 'STATUS',
+    header: 'Status',
     width: '110px',
     accessor: (row) => <StatusText tone={statusTone(row.status)}>{row.statusLabel}</StatusText>,
   },
-  { key: 'created', header: 'CREATED', width: '110px', align: 'right', accessor: (row) => row.created },
-  { key: 'lastUsed', header: 'LAST USED', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
-  { key: 'expires', header: 'EXPIRES', width: '110px', align: 'right', accessor: (row) => row.expires },
+  { key: 'created', header: 'Created', width: '110px', align: 'right', accessor: (row) => row.created },
+  { key: 'lastUsed', header: 'Last used', width: '120px', align: 'right', accessor: (row) => row.lastUsed },
+  { key: 'expires', header: 'Expires', width: '110px', align: 'right', accessor: (row) => row.expires },
 ];
 
 const meta: Meta<typeof LedgerTable> = {
@@ -73,12 +73,45 @@ export const WithRowActions: Story = {
           actions={[
             { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },
             { key: 'revoke', label: 'Revoke', onClick: () => {}, emphasis: 'strong' },
-            { key: 'del', label: 'Del', onClick: () => {}, emphasis: 'muted', disabled: row.status === 'revoked' },
+            { key: 'del', label: 'Delete', onClick: () => {}, emphasis: 'muted', disabled: row.status === 'revoked' },
           ]}
         />
       )}
     />
   ),
+};
+
+// Sorting is the CONSUMER's state (typically a URL param) — this story owns a plain useState to
+// stand in for it, exactly as `apps/console`'s screens own a `nuqs` param.
+export const Sortable: Story = {
+  render: () => {
+    const SortableTable = () => {
+      const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>({
+        key: 'created',
+        direction: 'desc',
+      });
+      const sortableColumns: LedgerColumn<ApiKeyRow>[] = columns.map((column) =>
+        column.key === 'name' || column.key === 'created' ? { ...column, sortable: true } : column
+      );
+      const sorted = [...apiKeys].sort((a, b) => {
+        if (!sort) return 0;
+        const direction = sort.direction === 'asc' ? 1 : -1;
+        const av = a[sort.key as keyof ApiKeyRow];
+        const bv = b[sort.key as keyof ApiKeyRow];
+        return av < bv ? -direction : av > bv ? direction : 0;
+      });
+      return (
+        <LedgerTable
+          columns={sortableColumns}
+          data={sorted}
+          rowKey={(row) => row.id}
+          sort={sort}
+          onSortChange={setSort}
+        />
+      );
+    };
+    return <SortableTable />;
+  },
 };
 
 export const Selectable: Story = {

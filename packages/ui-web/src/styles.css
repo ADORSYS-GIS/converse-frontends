@@ -28,7 +28,10 @@
     @apply bg-muted;
   }
 
+  /* Revamp phase 1: Inter (`font-sans`) is the UI type; IBM Plex Mono is reserved for data
+     (currency, counts, percentages, ids, timestamps) via the `DATA_*`/`METRIC_*` type roles and
+     `font-mono` at call sites that render data directly — it is no longer the document default. */
   body {
-    @apply text-soft font-mono antialiased;
+    @apply text-soft font-sans antialiased;
   }
 }

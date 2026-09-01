@@ -23,7 +23,7 @@ import { type ParsedConfigFile, getConfigPath, parseConfigFile } from './config-
  */
 
 export type ConsoleEnv = {
-  keycloak: {
+  idp: {
     issuer: string;
     clientId: string;
     /** Unset for a public client (the dev realm's `self-service` client is public + PKCE). */
@@ -42,9 +42,39 @@ export type ConsoleEnv = {
   apiBasePath: string;
   budgetUrl: string;
   usageUrl?: string;
+  /**
+   * Client certificate for the usage backend's query listener, which requires mTLS
+   * (lightbridge-authz#347/#361) and has no bearer-token auth of its own. Unset on any deployment
+   * that has no usage backend wired up; `usage-dispatcher.ts` then yields no dispatcher and the
+   * usage routes answer their honest 503.
+   */
+  usageClientCert?: { certPath: string; keyPath: string };
   sessionSecret: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
   publicBaseUrl?: string;
+  /**
+   * Runtime white-label branding (issue #368, Phase H; per-theme logos addendum, owner directive
+   * 2026-08-31 "White is for dark themes"), read straight off disk by `GET /branding/logo` /
+   * `GET /branding/logo-light` / `GET /branding/override.css`. `logo`/`style` are independently
+   * optional; absent means today's behaviour exactly (the built-in mark, no override stylesheet
+   * link). `logoLight` is NOT independently optional — see `buildBrandingConfig`'s own doc
+   * comment: it is a light-theme (`wireframe`) counterpart to `logo` (the default AND dark-theme
+   * mark), and fails config parsing when present without `logo`.
+   */
+  branding?: {
+    /** Host-absolute path to the logo file. Extension decides the served `Content-Type`. Also
+     *  the dark-theme (`black`) mark when `logoLightPath` is present. */
+    logoPath?: string;
+    /** The extension `logoPath` was validated against — avoids re-deriving it per request. */
+    logoContentType?: string;
+    /** Host-absolute path to the light-theme (`wireframe`) counterpart logo. Only ever set
+     *  alongside `logoPath` — see `buildBrandingConfig`. */
+    logoLightPath?: string;
+    /** The extension `logoLightPath` was validated against. */
+    logoLightContentType?: string;
+    /** Host-absolute path to a CSS file holding daisyUI custom-property overrides only. */
+    stylePath?: string;
+  };
 };
 
 type RawKeycloakConfig = {
@@ -59,12 +89,14 @@ type RawKeycloakConfig = {
 
 type RawConsoleConfig = {
   session?: { secret?: unknown };
-  keycloak?: RawKeycloakConfig;
+  idp?: RawKeycloakConfig;
   backendUrl?: unknown;
   apiBasePath?: unknown;
   budgetUrl?: unknown;
   usageUrl?: unknown;
+  usageClientCert?: { certPath?: unknown; keyPath?: unknown };
   publicBaseUrl?: unknown;
+  branding?: { logo?: unknown; logoLight?: unknown; style?: unknown };
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
   // for the future authz-style permission model (see config.yaml's comment); wiring it up before
   // there's an engine to consume it would be dormant code.
@@ -129,6 +161,106 @@ function parseAudienceList(value: unknown): string[] {
   return [];
 }
 
+/**
+ * `branding.logo`'s extension -> the `Content-Type` `GET /branding/logo` serves it with.
+ * Deliberately narrow (issue #368): only formats a `<img>`/`<link rel="icon">`-shaped logo
+ * realistically ships as. Anything else fails config parsing rather than surfacing as a
+ * request-time 500 or an honest-looking image response with the wrong MIME type.
+ */
+const BRANDING_LOGO_CONTENT_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+};
+
+/**
+ * Validates one logo path — shared by `branding.logo` and `branding.logoLight` (per-theme logos
+ * addendum), which carry the identical host-absolute-path + extension-allow-list contract, just
+ * against two different config keys. `fieldLabel` is the fully-qualified key name, used verbatim
+ * in both error messages so a failure names exactly the YAML key an operator needs to fix.
+ */
+function validateBrandingLogoPath(
+  fieldLabel: string,
+  logoPath: string,
+  parsed: ParsedConfigFile
+): string {
+  if (!logoPath.startsWith('/')) {
+    throw new Error(
+      `[console] config.yaml key "${fieldLabel}" must be a host-absolute path, got ` +
+        `"${logoPath}" (${parsed.absolutePath})`
+    );
+  }
+  const extensionMatch = logoPath.match(/\.[^./\\]+$/);
+  const extension = extensionMatch?.[0].toLowerCase();
+  const contentType = extension ? BRANDING_LOGO_CONTENT_TYPES[extension] : undefined;
+  if (!contentType) {
+    throw new Error(
+      `[console] config.yaml key "${fieldLabel}" must end in one of ` +
+        `${Object.keys(BRANDING_LOGO_CONTENT_TYPES).join(', ')} (got "${logoPath}"), ` +
+        `(${parsed.absolutePath})`
+    );
+  }
+  return contentType;
+}
+
+/**
+ * Validates and resolves `branding.logo`/`branding.logoLight`/`branding.style`. `logo` and
+ * `style` are independently optional — see `config.yaml`'s own comment on why there is no
+ * both-or-neither pairing here, unlike `usageClientCert`. Each configured path must be
+ * host-absolute: these are read straight off disk by `GET /branding/logo`/
+ * `GET /branding/logo-light`/`GET /branding/override.css`, not resolved against the app's own
+ * working directory, so a relative path is always a config mistake, not a valid deployment
+ * shape — fail fast at boot rather than 404ing on every request forever.
+ *
+ * `logoLight` (per-theme logos addendum, owner directive 2026-08-31 "White is for dark themes")
+ * is deliberately NOT independently optional like `logo`/`style` are: it is a light-theme
+ * (`wireframe`) COUNTERPART to `logo` (which doubles as both the default mark and the dark-theme
+ * mark, per `config.yaml`'s own comment) — a `logoLight`-without-`logo` deployment would render no
+ * logo at all under `black`, this console's default theme, which is never what an operator setting
+ * `logoLight` actually wants. Fails fast at boot, the same "config error, not a 404" reasoning as
+ * the host-absolute-path/extension checks above.
+ */
+function buildBrandingConfig(
+  raw: { logo?: unknown; logoLight?: unknown; style?: unknown } | undefined,
+  parsed: ParsedConfigFile
+): ConsoleEnv['branding'] {
+  const logoPath = asOptionalString(raw?.logo)?.trim() || undefined;
+  const logoLightPath = asOptionalString(raw?.logoLight)?.trim() || undefined;
+  const stylePath = asOptionalString(raw?.style)?.trim() || undefined;
+
+  if (!logoPath && !logoLightPath && !stylePath) return undefined;
+
+  if (logoLightPath && !logoPath) {
+    throw new Error(
+      `[console] config.yaml key "branding.logoLight" requires "branding.logo" to also be set ` +
+        `— a light-theme-only brand has no mark for "black", the default theme ` +
+        `(${parsed.absolutePath})`
+    );
+  }
+
+  const logoContentType = logoPath
+    ? validateBrandingLogoPath('branding.logo', logoPath, parsed)
+    : undefined;
+  const logoLightContentType = logoLightPath
+    ? validateBrandingLogoPath('branding.logoLight', logoLightPath, parsed)
+    : undefined;
+
+  if (stylePath && !stylePath.startsWith('/')) {
+    throw new Error(
+      `[console] config.yaml key "branding.style" must be a host-absolute path, got ` +
+        `"${stylePath}" (${parsed.absolutePath})`
+    );
+  }
+
+  return {
+    ...(logoPath ? { logoPath, logoContentType } : {}),
+    ...(logoLightPath ? { logoLightPath, logoLightContentType } : {}),
+    ...(stylePath ? { stylePath } : {}),
+  };
+}
+
 /** Strips a single trailing slash so `${base}${path}` never doubles up. */
 export function trimTrailingSlash(value: string): string {
   return value.endsWith('/') ? value.slice(0, -1) : value;
@@ -155,27 +287,42 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     );
   }
 
-  const keycloak = raw.keycloak ?? {};
+  const idp = raw.idp ?? {};
   const usageUrl = asOptionalString(raw.usageUrl);
+  // Both halves or neither: a cert without a key (or vice versa) cannot produce a working TLS
+  // identity, so treating a half-configured block as "configured" would turn a config typo into a
+  // per-request handshake failure instead of the same honest 503 an unconfigured deployment gets.
+  // Trimmed, unlike `asOptionalString`'s plain `!== ''` check: these are FILE PATHS resolved from
+  // a mounted volume, and a `{env:VAR}` placeholder that resolves to whitespace is a realistic
+  // config accident. Untrimmed, `'   '` counts as configured and the failure surfaces later as a
+  // `readFileSync` error logged on every boot; trimmed, it is simply unconfigured and the usage
+  // routes give their honest 503. Kept local rather than changed inside `asOptionalString`, whose
+  // other callers are URLs and secrets with their own validation.
+  const usageCertPath = asOptionalString(raw.usageClientCert?.certPath)?.trim() || undefined;
+  const usageKeyPath = asOptionalString(raw.usageClientCert?.keyPath)?.trim() || undefined;
+  const usageClientCert =
+    usageCertPath && usageKeyPath ? { certPath: usageCertPath, keyPath: usageKeyPath } : undefined;
 
   return {
-    keycloak: {
-      issuer: trimTrailingSlash(requiredField(parsed, ['keycloak', 'issuer'])),
-      clientId: requiredField(parsed, ['keycloak', 'clientId']),
-      clientSecret: asOptionalString(keycloak.clientSecret),
-      scopes: asStringWithFallback(keycloak.scopes, 'openid profile email offline_access'),
-      expectedAudiences: parseAudienceList(keycloak.expectedAudiences),
-      audienceRequired: parseBoolean(keycloak.audienceRequired, true),
-      rolesClaim: asStringWithFallback(keycloak.rolesClaim, 'lightbridge_api_roles'),
+    idp: {
+      issuer: trimTrailingSlash(requiredField(parsed, ['idp', 'issuer'])),
+      clientId: requiredField(parsed, ['idp', 'clientId']),
+      clientSecret: asOptionalString(idp.clientSecret),
+      scopes: asStringWithFallback(idp.scopes, 'openid profile email offline_access'),
+      expectedAudiences: parseAudienceList(idp.expectedAudiences),
+      audienceRequired: parseBoolean(idp.audienceRequired, true),
+      rolesClaim: asStringWithFallback(idp.rolesClaim, 'lightbridge_api_roles'),
     },
     backendUrl,
     apiBasePath: normalizeBasePath(asStringWithFallback(raw.apiBasePath, '/api')),
     budgetUrl: trimTrailingSlash(asStringWithFallback(raw.budgetUrl, backendUrl)),
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
+    usageClientCert,
     sessionSecret,
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,
+    branding: buildBrandingConfig(raw.branding, parsed),
   };
 }
 

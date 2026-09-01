@@ -7,7 +7,7 @@
  * `@import "tailwindcss"` lives HERE, not in `styles.css`: this file is the one Tailwind v4 entry
  * point for both trees.
  *
- * BOTH `@source` directives below are explicit, not left to automatic content detection —
+ * The `@source` directives below are explicit, not left to automatic content detection —
  * verified against a real build (this phase's stated gate): when `apps/console`'s Next/webpack
  * build resolves `@lightbridge/ui-web/styles.css`, PostCSS sees the import through the pnpm
  * workspace symlink (`node_modules/@lightbridge/ui-web/...`). Tailwind v4's automatic detection
@@ -18,22 +18,52 @@
  * despite `theme.css` living right next to the file that uses it. `ui-web`'s own Storybook/vitest
  * pass (which reaches this file directly, not through node_modules) was unaffected, which is why
  * the gap only showed up in the console build. Explicit `@source` sidesteps the symlink question
- * entirely for both trees.
+ * entirely for every tree.
+ *
+ * `apps/lci` (epic #328) resolves this same stylesheet the identical way — a Next/Turbopack build
+ * through the pnpm workspace symlink — so it needs the same explicit line `apps/console` does;
+ * `apps/authz-ui`'s comment below is the one exception, and the reasoning there does not apply
+ * here.
  */
 @import 'tailwindcss';
 @source '.'; /* this package's own src -- see note above on why auto-detection isn't trusted */
 @source '../../../apps/console/src';
+@source '../../../apps/lci/src';
+/* `apps/authz-ui` (the hosted-login SPA, story #406) deliberately has NO `@source` line here. Its
+   own Vite build roots Tailwind's automatic content detection at the Vite project root
+   (`apps/authz-ui`, which contains `src`), so its class usage is already visible without an
+   explicit directive -- verified with probe files against a real `pnpm --filter authz-ui
+   build:web` (2026-08-31): `min-h-dvh`, used nowhere else in this workspace, showed up in
+   `apps/authz-ui/dist/assets/*.css` with no `@source` line present. Adding one here would only
+   leak authz-ui-only utilities into `apps/console`'s and this package's own Storybook CSS bundles,
+   which was confirmed the same way (removing the once-present line dropped `min-h-dvh` from both).
+   Do not add this line back without re-measuring against a real build first. */
 
 /*
  * ADR 0009 Decision 6 tiers, unchanged from the deleted `tailwind.config.js` `screens.md/lg`:
  * base = phone, `md` = 600 (persistent left rail returns), `lg` = 1024 (full three-panel shell).
  * `sm`/`xl`/`2xl` keep Tailwind's defaults.
+ *
+ * `--radius-overlay-floating`: the ONE corner-radius exception to the console-ui skill's flush
+ * 2px overlay contract (`lib/overlay.ts`'s `OVERLAY_CLASS`) — owner ruling, 2026-08-31 (issue
+ * #368, `claude/sb-overlay-restyle`'s design-review batch): "10px looks good for the command
+ * palette." Scoped to FLOATING overlays only — an anchored popup that points at a trigger from an
+ * arbitrary screen position: the command palette panel, Menu popups (the account switcher and any
+ * other Base UI Menu), Select/Combobox popups, Popovers. Docked overlays (Dialog, the bottom
+ * sheet Drawer, Tooltip) stay at the flush 2px contract — they anchor to a screen edge or centre
+ * over the whole viewport rather than pointing at one element, so the "floating" read this radius
+ * answers does not apply. One value, theme-independent (geometry, not colour), which is why it
+ * sits beside the breakpoints/fonts above rather than inside either daisy theme block. Consumed
+ * via `rounded-(--radius-overlay-floating)`, never restated as a literal `rounded-[10px]` at a
+ * call site — see `OVERLAY_FLOATING_CLASS`/`OVERLAY_ANCHORED_POPUP_FLOATING_CLASS` (`lib/
+ * overlay.ts`), the one place this token is applied.
  */
 @theme {
   --breakpoint-md: 600px;
   --breakpoint-lg: 1024px;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   --font-sans: Inter, system-ui, sans-serif;
+  --radius-overlay-floating: 0.625rem;
 }
 
 /*
@@ -103,9 +133,12 @@
   --color-raised: var(--color-base-300);
   --color-soft: var(--color-base-content);
 
-  --radius-selector: 0.125rem;
-  --radius-field: 0.125rem;
-  --radius-box: 0.125rem;
+  /* Revamp phase 1 (console visual revamp brief, supersedes ADR 0008's 2px pin): a card/field
+     radius step, not the flush 2px rule the two-column card shell replaces. `--depth`/`--noise`
+     stay 0 -- no shadows, no grain, that part of ADR 0008 still holds. */
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -151,9 +184,10 @@
   --color-raised: var(--color-base-300);
   --color-soft: var(--color-base-content);
 
-  --radius-selector: 0.125rem;
-  --radius-field: 0.125rem;
-  --radius-box: 0.125rem;
+  /* Revamp phase 1 -- same radius step as `black`, see that block's comment. */
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -209,4 +243,2850 @@
   --color-border: #3a3a3a;
   --color-subtle: #606060;
   --color-ink: #eeeeee;
+}
+
+/*
+ * daisyUI `skeleton`, de-shimmered — once, centrally (PRIMITIVES.md § `skeleton-row` /
+ * `skeleton-metric`; ADR 0008 bans shimmer and spinners; console-ui skill § States: "skeleton
+ * blocks (`raised`) matching final geometry … its animation suppressed centrally").
+ *
+ * `@utility` is daisy 5's documented "change a component in CSS" mechanism, and it works for a
+ * concrete cascade reason rather than by luck: daisy emits its components into a SUBLAYER of
+ * `utilities` (`@layer utilities { @layer daisyui.l1.l2.l3 { .skeleton { … } } }`), while
+ * Tailwind emits an `@utility` unlayered inside `utilities` — and unlayered rules within a layer
+ * outrank that layer's own sublayers. No `!important`, no specificity war.
+ *
+ * PRIMITIVES.md prescribes `animation: none` and nothing else. That alone is NOT sufficient, and
+ * the gap only shows once the class is actually used (it never was before now, which is why the
+ * no-shimmer rule has so far held only by accident): daisy PAINTS the shimmer with a
+ * `background-image` gradient — transparent → `--color-base-100` → transparent, at
+ * `background-size: 200%` offset `background-position-x: -50%` — and the animation merely SLIDES
+ * it. Stopping the animation therefore freezes a static light band across every loading block
+ * instead of removing it. `background-image: none` is the declaration that actually restores the
+ * flat `--raised` block the contract asks for. `will-change` goes with it: it exists only to hint
+ * the (now absent) background-position animation, and a ledger's worth of loading rows should not
+ * each ask for their own compositor layer.
+ *
+ * What is deliberately NOT overridden: `border-radius: var(--radius-box)` and
+ * `background-color: var(--color-base-300)`. Both themes pin `--radius-box: 0.125rem` and
+ * `--color-base-300` IS `raised`, so daisy already lands exactly on the contract in `black` and
+ * `wireframe` alike — that is the whole point of adopting the class instead of re-declaring it.
+ */
+@utility skeleton {
+  animation: none;
+  background-image: none;
+  will-change: auto;
+}
+
+/*
+ * A loading ROW built out of those blocks — `SkeletonRow`'s own box, as opposed to the block
+ * inside it. daisy ships no placeholder-row vocabulary at all (`skeleton` is a single shape), so
+ * there is nothing to adopt here and nothing to correct; this is a part the console owns outright.
+ *
+ * It is stated as CSS rather than as a `cva` base string for the reason the ledger's own row
+ * contract already is: a loading row's whole job is to be geometrically indistinguishable from the
+ * loaded row it stands in for, and the two hairline/gap decisions below are the same decisions
+ * `console-table` makes for the real row. The one thing that genuinely varies — how tall — stays a
+ * variant, and shares its two literals with the real row through `lib/row-density.ts`.
+ *
+ * The columns themselves are an inline `grid-template-columns`, not a class: the caller passes the
+ * real table's track list so the placeholder lines up with it column for column.
+ */
+@utility skeleton-row {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-raised);
+}
+
+/*
+ * The console's own table contract, expressed once against daisyUI `table`.
+ *
+ * Adopting daisy `table` on its own MOVED cost rather than removing it: the component ended up
+ * carrying five arbitrary-variant overrides (`[&_tr>*:first-child]:pl-0`, `[&>td]:border-b`, …)
+ * to undo daisy's outer cell padding and re-point its hairlines, and its hand-written utility
+ * count went UP (52 → 66). That is the opposite of the bar. These are not component decisions —
+ * they are the ledger contract — so they belong here, next to `skeleton`, using the same
+ * `@utility` mechanism and the same cascade guarantee.
+ *
+ * Two things daisy does that the contract has to undo:
+ *  - `table-xs` pads every cell `.5rem`. That reproduces our old 16px inter-column gap exactly,
+ *    but it also pads the OUTER edges, and the ledger sits flush on the floor.
+ *  - daisy sets `border-collapse: separate`, and the separated border model never paints a `<tr>`
+ *    border — so row hairlines have to live on the cells.
+ */
+@utility console-table {
+  /* The ledger renders uncontained on the floor and scrolls horizontally inside its own box, so
+     it keeps its natural (unshrunk) width rather than wrapping cells to fit. The head rule is the
+     table's top edge; every other rule is a cell border, below. */
+  min-width: max-content;
+  border-block-start: 1px solid var(--color-raised);
+
+  & tr > *:first-child {
+    padding-inline-start: 0;
+  }
+  & tr > *:last-child {
+    padding-inline-end: 0;
+  }
+
+  /* daisy sizes `thead` at 14px/600. The console's column header is the `label` type role, which
+     the component still applies from `type-roles.ts` (size and colour); only the weight and the
+     rule under the header row are the TABLE's business rather than the label's. */
+  & thead th {
+    padding-block: 0.5rem;
+    font-weight: 400;
+    border-block-end: 1px solid var(--color-raised);
+  }
+
+  /* Row hover is `chrome` (README §4 "Midday treatment"), and focus-within paints the same fill
+     so a keyboard user reaching a row's actions sees the row they are in. */
+  & tbody tr {
+    transition: background-color 0.15s ease-out;
+    &:hover,
+    &:focus-within {
+      background-color: var(--color-neutral);
+    }
+  }
+
+  & tbody tr > td {
+    border-block-end: 1px solid var(--color-raised);
+    color: var(--color-base-content);
+    font-size: 0.75rem;
+  }
+
+  /* Consistency pass (2026-08-30, phase 9): the table's own type is sans by default now — a Name
+     cell is a name, a Status cell is a word, and both are UI text, not data. A column opts INTO
+     mono by carrying `kind: 'data'` (`LedgerColumn`, `component.tsx`), which lands here as
+     `data-kind="data"` on the cell — the same "attribute, not a second class" idiom
+     `ledger-sort-button`'s `data-align` already uses, so the mono-vs-sans axis costs no extra
+     hand-written utility at any call site (`class-budget.test.ts`). Currency, counts, ids, key
+     prefixes and timestamps are the data columns; names, statuses and tiers are not. */
+  & tbody td[data-kind='data'],
+  & tfoot td[data-kind='data'] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The row-actions column is ALWAYS visible now (2026-08-30 revamp brief) — it used to be
+     `opacity-0` plus two `group-*` variants revealed only on hover/keyboard focus, which hid a
+     row's only way to reach Rotate/Revoke/Delete from anyone not currently pointed at that exact
+     row (a11y regression, not a feature). What replaces the reveal is the same "chrome until
+     pointed at" idiom `sheet-header`'s own dismiss control uses (see that utility's doc comment):
+     `subtle` at rest, strengthening to `ink` the moment the row is engaged. Stated here, against
+     the row action buttons themselves, rather than as a colour pair on `RowActionGroup`/
+     `row-action` — this is a fact about the ROW's engagement state, not the action group's own
+     default styling. */
+  & tbody td.row-actions .row-action-group > button {
+    color: var(--color-subtle);
+    transition: color 0.15s ease-out;
+  }
+  & tbody tr:hover > td.row-actions .row-action-group > button,
+  & tbody tr:focus-within > td.row-actions .row-action-group > button {
+    color: var(--color-ink);
+  }
+
+  & tfoot tr > td {
+    border-block-start: 0;
+    border-block-end: 1px solid var(--color-border);
+    padding-block: 0.5rem;
+    color: var(--color-base-content);
+    font-size: 0.75rem;
+  }
+}
+
+/*
+ * A sortable `LedgerTable` header — a real `<button>` inside the `th` (accessible name = the
+ * column label), reset back to plain inline text so it disappears into the `label` role the `th`
+ * itself already carries: no button chrome, `font: inherit`/`color: inherit` so it takes the
+ * `th`'s type role rather than the browser's own button font. `justify-end` (applied at the call
+ * site for a right-aligned column) keeps the caret trailing the label rather than the button
+ * itself drifting to the cell's own `text-right`, which a flex child ignores.
+ */
+@utility ledger-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  /* A right-aligned column's caret trails the label at the cell's own trailing edge — a data
+     attribute (`component.tsx` sets it from `column.align`) rather than a second class, so the
+     alignment axis costs no extra hand-written utility (class-budget.test.ts). */
+  &[data-align='right'] {
+    justify-content: flex-end;
+  }
+
+  &:hover {
+    color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* The caret itself: `color: inherit` so it rides the button's own colour — `label` role at rest,
+   `ink` on hover (`ledger-sort-button:hover`, above) — and, once the column is the active sort
+   (`ledger-sort-caret-active`, set at the call site), `ink` unconditionally: an active sort stays
+   legible without the pointer parked on it.
+   `lib/icons.tsx`'s `SortChevronIcon`/`SortNeutralIcon` (phase 9 — supersedes the `▲`/`▼`/`⇅`
+   text glyphs, one glyph family with every other icon now) render at the rail grid's 16px box;
+   a table header caret sits at a much smaller scale, so the CSS size below — not the rail
+   grid's constant — is what actually wins (a CSS `width`/`height` beats the SVG's own attributes). */
+@utility ledger-sort-caret {
+  display: inline-flex;
+  color: inherit;
+
+  & svg {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+}
+
+@utility ledger-sort-caret-active {
+  color: var(--color-ink);
+}
+
+/*
+ * The ledger's scroll box (console-ui skill "No overflow, ever": the container scrolls, the page
+ * never does). `overflow-y: clip` is load-bearing, NOT redundant — `overflow-x: auto` alone
+ * computes `overflow-y` to `auto` too, which makes this box a vertical scroll container and
+ * swallows the wheel.
+ */
+@utility ledger-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: clip;
+}
+
+/*
+ * `kbd` — the shortcut chip. daisy fills it with `base-200`, which IS the panel a palette floats
+ * on (so a stock chip is invisible against it) and colours the glyph `base-content`, where a
+ * shortcut hint is metadata. Its hairline is a 20% tint of the body colour rather than the
+ * console's `--line` token. Three corrections, stated once, so both chips the palette renders —
+ * `esc` inside the dialog and the open shortcut on the trigger — are the same chip by
+ * construction rather than by a shared constant someone has to remember to import.
+ */
+@utility kbd {
+  background-color: var(--color-base-300);
+  color: var(--color-subtle);
+  border-color: var(--color-border);
+}
+
+/*
+ * ─── The command palette ─────────────────────────────────────────────────────────────────────
+ *
+ * cmdk owns the primitive (fuzzy filtering, traversal, the focus trap it brings via Radix). Its
+ * parts are addressed through the `cmdk-*` attributes cmdk itself puts on them — its documented
+ * styling seam — rather than through a class per part, which is why the component below reads as
+ * markup with one class on the list.
+ *
+ * v2 visual pass (owner review 2026-08-31, Storybook-only design batch — see
+ * `command-palette/component.tsx`'s own docstring and the batch's report for the full brief).
+ * `palette-popup` is now a column flex box (search row, scrolling list, pinned footer) instead of
+ * a bare positioned box, so the footer hint row stays put while the list scrolls under it. Radius
+ * stays the shared `OVERLAY_CLASS` contract (`rounded-[2px]`, untouched here) — the three corner
+ * variants under review are a story-level `panelClassName` override, never a change to that
+ * shared constant (see `CommandPaletteProps.panelClassName`'s own doc comment for why).
+ */
+@utility palette-popup {
+  position: fixed;
+  /* Anchored near the top rather than centred, so the list grows downward into empty space
+     instead of pushing itself off both edges as it fills. */
+  top: 18vh;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 50;
+  width: 92vw;
+  max-width: 600px;
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@utility palette-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-inline: 0.75rem;
+  flex-shrink: 0;
+  border-block-end: 1px solid var(--color-base-300);
+
+  /* The field takes the row; the leading glyph keeps its own box (`palette-search-icon`). */
+  & .input {
+    flex: 1 1 0%;
+    padding-inline-start: 0;
+  }
+}
+
+/* The search row's own leading glyph — the same 16px box every rail icon renders into
+   (`RAIL_ICON_SIZE`), just outside the icon COLUMN's grid (`rail-grid.ts`) since this row is not
+   a rail row. `subtle`, like every other chrome glyph that is not itself the active signal. */
+@utility palette-search-icon {
+  flex-shrink: 0;
+  color: var(--color-subtle);
+}
+
+@utility palette-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.25rem;
+
+  & [cmdk-group] {
+    padding: 0.375rem 0.25rem;
+  }
+  & [cmdk-group-heading] {
+    display: block;
+    padding: 0.25rem 0.5rem 0.375rem;
+  }
+  /* 2.25rem (36px) matches `RAIL_NAV_ROW_HEIGHT`/`RAIL_NAV_ROW_HEIGHT_CLASS` (lib/rail-grid.ts) —
+     the sidebar's own nav row rhythm — rather than the shorter row `OVERLAY_ITEM_CLASS`'s
+     `py-1.5` alone produces (~28px). `min-height`, not `height`: a row still grows for a hint
+     that wraps rather than clipping it. `position: relative` hosts the selected-row accent bar
+     below — a 2px `primary` bar, not a full fill (owner ask: "raised fill + accent bar, not a
+     full orange fill"), the same shape `RAIL_ACTIVE_BAR_CLASS` gives an active nav row. */
+  & [cmdk-item] {
+    position: relative;
+    justify-content: space-between;
+    border-radius: var(--radius-field);
+    min-height: 2.25rem;
+
+    &[data-selected='true']::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      left: 0;
+      width: 2px;
+      background-color: var(--color-primary);
+    }
+  }
+  /* The trailing hint on a row (a route or a shortcut `kbd`) — last child, and only when the row
+     has its lead group in front of it, so a hintless row is untouched. `*`, not `span`, because
+     the trailing element is a `kbd` for a shortcut and a `span` for plain hint text. */
+  & [cmdk-item] > *:last-child:not(:only-child) {
+    margin-inline-start: 0.75rem;
+    flex-shrink: 0;
+  }
+}
+
+/* A row's own leading group — icon column then label, grouped so `[cmdk-item]`'s
+   `justify-content: space-between` still splits exactly two things (this group, and the trailing
+   hint) regardless of whether the row carries an icon. 0.625rem is `RAIL_LABEL_GAP` — the same
+   icon-to-label gap every rail row already uses. */
+@utility palette-item-lead {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/*
+ * The group heading, upper-cased. A DELIBERATE departure from the console-ui skill's "sentence
+ * case everywhere — no all-caps labels anywhere in the console" (task brief, 2026-08-31: "grouped
+ * sections with uppercase label headers") — flagged in the batch's report for the owner to keep
+ * or veto; not applied to `NavGroup`/`SubNav` labels or anywhere else the skill still governs.
+ */
+@utility palette-group-heading {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+}
+
+/*
+ * The empty-query line, in `font-mono`. A SECOND deliberate departure from the skill (mono is
+ * "data only... never for prose or chrome") — same brief line as above ("empty state as an inline
+ * mono line"), same flagged status. `text-align: left` and no `[cmdk-empty]` block padding of its
+ * own beyond the list's: an INLINE line beside the rows it replaces, not the centred placard
+ * `EmptyState` renders for a first-run zero-row query — this is a filtered-to-nothing search
+ * result, `InlineStatus`'s job everywhere else in the console.
+ */
+@utility palette-empty {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-subtle);
+}
+
+/* The footer hint row — ↑↓ navigate · ↵ select · esc close. Pinned under the scrolling list by
+   `palette-popup`'s own column-flex layout; the top hairline is the SAME `base-300` rule the
+   search row draws under itself, so the panel reads as one search field flanked by two matching
+   dividers rather than a divider style per edge. */
+@utility palette-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-block-start: 1px solid var(--color-base-300);
+}
+
+/* One hint inside the footer — its own `kbd` chip plus the word it explains, sans (a footer hint
+   is UI chrome, not data — `font-mono` stays reserved for the empty line's search-result voice
+   above and the console's genuine data roles elsewhere). */
+@utility palette-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  color: var(--color-subtle);
+}
+
+/*
+ * ─── The sidebar/top-bar brand and identity affordances ──────────────────────────────────────
+ *
+ * Revamp phase 2 (shell brief, 2026-08): the 56px header band (`console-header`) is dead — the
+ * shell is a sidebar plus a mobile top bar now, and both carry the SAME brand mark. `header-brand`
+ * / `header-logo` survive under their old names (they were never about the band itself, only
+ * about the logo unit), `header-wordmark` moves from the header's mono/tracked treatment to the
+ * sidebar brief's own "13px sans medium ink, sentence case" (mono-everywhere is dead along with
+ * the band it lived in), and `header-rule` is gone — the brand and the workspace switcher are two
+ * stacked rows now, not two items either side of a vertical divider.
+ */
+
+/* Logo and wordmark, one unit. 12px apart — a step wider than `identity-row`'s 8px, because this
+   pair is a mark and its name rather than two related strings. */
+@utility header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* 20px TALL at the contract radius. A configured image keeps its natural aspect ratio
+   (owner finding 2026-08-31: the 630x107 adorsys wordmark was crushed into the old 20px
+   square — "Only height is enough. No need for width there"), so only `height` is pinned for
+   the `img` branch. The FALLBACK mark stays the 20px square — it is a glyph box, not a
+   wordmark, and the square is what keeps the row from nudging when no image is configured.
+   The fallback branch is selected structurally (`:not(img)`) rather than by a second class. */
+@utility header-logo {
+  height: 1.25rem;
+  width: auto;
+  border-radius: var(--radius-field);
+
+  &:not(img) {
+    width: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-base-300);
+    color: var(--color-subtle);
+  }
+}
+
+/*
+ * Per-theme runtime branding (owner directive 2026-08-31, "White is for dark themes" — an
+ * addendum to issue #368's Phase H). When a deployment configures BOTH `branding.logo` and
+ * `branding.logoLight`, `apps/console`'s `BrandMark` renders BOTH `<img>`s unconditionally (one
+ * `header-logo brand-mark-dark`, one `header-logo brand-mark-light`) and these two utilities are
+ * the entire swap mechanism -- no JS, no theme context read in that component. `[data-theme]`
+ * matches ANY element bearing the attribute, not just `:root` (see the `@theme` block's own long
+ * comment above on why that specific selector shape is what stays correct under Storybook's
+ * per-story wrapper as well as `apps/console`'s real `<html data-theme>`), and ADR 0010 Decision
+ * 5's pre-hydration script always stamps one of the two values on `<html>` before first paint --
+ * so this resolves correctly with zero flash on every request, exactly like every other
+ * `[data-theme]`-redeclared token in this file. */
+@utility brand-mark-dark {
+  [data-theme='wireframe'] & {
+    display: none;
+  }
+}
+
+@utility brand-mark-light {
+  [data-theme='black'] & {
+    display: none;
+  }
+}
+
+/* The wordmark, sentence case, sans (shell brief 2026-08-30 — supersedes the old mono/tracked
+   caps treatment the 56px header band wore; mono-everywhere is dead along with that band). */
+@utility header-wordmark {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* The identity line — a name, then the short id beside it. Worn plain when the badge is only a
+   label, and with `account-chip` when it is also a control. */
+@utility identity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The identity line WHEN IT IS A CONTROL (a switcher trigger or a copy button): a hit target with
+   a hover fill. One class for both affordances, so the badge cannot look like two different chips
+   depending on which one it has.
+
+   A chip IS an identity row, so it carries that layout itself rather than requiring the call site
+   to wear both names: `AccountBadge` wrote `identity-row account-chip` at both of its control call
+   sites, which is one part under two names and one more thing for the next call site to forget.
+   The three declarations are repeated rather than composed (this file does not use `@apply`), and
+   they are the cheapest half of the pair — the focus ring, which is the expensive half, stays the
+   shared `focus-ring` utility at the call site precisely so it keeps having ONE definition. */
+@utility account-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.375rem;
+  transition: background-color 0.15s ease-out;
+
+  &:hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+@utility account-popup {
+  width: 240px;
+  padding-block: 0.25rem;
+}
+
+/* `SelectField`'s own option row, at the SAME palette-matching 36px rhythm the command palette's
+   rows render at (`palette-list`'s `[cmdk-item]`, `RAIL_NAV_ROW_HEIGHT` — owner ask, 2026-08-31:
+   "same overlay language as the palette ... row height") — including the SAME selected-row
+   language: `OVERLAY_ITEM_CLASS`'s own `data-[selected]:bg-raised` gives the row its raised fill
+   (lib/overlay.ts — fixed alongside this pass, the selector used to require the literal string
+   `"true"` and never matched Base UI's presence-only attribute), and this adds the 2px `primary`
+   accent bar on top — the identical shape the palette's own `[cmdk-item][data-selected='true']
+   ::before` bar gives ITS selected row, not a full orange fill (unify-select, issue #368).
+   `position: relative` hosts the bar. Scoped to `SelectField` alone, not the shared
+   `OVERLAY_ITEM_CLASS` every other Menu/Select/Combobox popup in the console renders through — a
+   blast radius this design-review batch deliberately did not take on. */
+@utility select-field-item {
+  position: relative;
+  min-height: 2.25rem;
+
+  &[data-selected]::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 2px;
+    background-color: var(--color-primary);
+  }
+}
+
+/* The initials square, sized to fit the sidebar footer's 16px icon column exactly
+   (`RAIL_ICON_COLUMN_WIDTH`, rail-grid.ts) — the left rail's own identity row (Addition 5, owner
+   screenshot: the identity chip sat at a THIRD x, neither the Search icon's nor the old Theme
+   row's). A square at the contract radius, never a circle: the console has no pills and no round
+   avatars. */
+@utility avatar-chip-sm {
+  display: flex;
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.5rem;
+}
+
+/* The SAME initials square again, at the workspace switcher's own step — owner rework,
+   2026-08-30: "the switcher IS a standard rail row" retires the older "one-off header-weight
+   row keeps a full 26px chip" call (superseded — that read as one of the type-scale inflations
+   the owner flagged, the switcher outsizing the nav rows below it). `AccountBadge`'s `sidebar`
+   variant is the one call site; not `avatar-chip-sm`'s 16px (that is the icon-COLUMN size, and
+   the switcher chip is not inside that column — it leads the row) and not a full 26px chip
+   either — 20px sits between the two, matching the row's own `h-9` (36px) the way a chip
+   two-thirds the row height reads as sized FOR the row rather than dropped into it. */
+@utility avatar-chip-md {
+  display: flex;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.5625rem;
+}
+
+/* The three theme choices read as one row of words rather than three menu rows — they are a
+   single setting with three states, and stacking them would turn a two-line menu into a five-line
+   one. So they keep menuitem semantics (Base UI still owns arrow-key traversal) without the
+   full-row paint `OVERLAY_ITEM_CLASS` gives the actions. */
+@utility theme-choice {
+  cursor: pointer;
+  outline: none;
+  transition: color 0.15s ease-out;
+
+  &[data-highlighted] {
+    color: var(--color-ink);
+  }
+}
+
+/* The element-anchored tooltip's popup. It takes `OVERLAY_CLASS`'s hairline like every other
+   overlay; this is the type and the measure. */
+@utility tooltip-popup {
+  max-width: 280px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-base-content);
+}
+
+/*
+ * ─── The bottom sheet ────────────────────────────────────────────────────────────────────────
+ *
+ * Base UI's Drawer owns the drawer (ADR 0009 Decision 6, primitive per the owner decision of
+ * 2026-08-29); this is its paint.
+ *
+ * BOTTOM ONLY (owner's locked layout contract, restated 2026-08-30: "3 slices: left rail, main
+ * content, right rail... Right rail on large screens, bottom sheet on medium and small. Not from
+ * sides."). This used to also carry a `[data-swipe-direction='right']` branch for a side-docked
+ * edge sheet — DELETED, not merely unused: no side-docked drawer geometry survives anywhere in
+ * the console. `DetailSheet`'s own `detail-sheet-panel` (the fixed-right, always-420px predecessor
+ * to the inspector rail) is gone with it.
+ *
+ * ANIMATION (owner finding, 2026-08-31: "The drawer appear with NO ANIMATION"). The vaul->Base UI
+ * migration above swapped the drawer PRIMITIVE but never carried over an actual open/close
+ * transition: Base UI's Drawer is headless about motion by design — it stamps `data-starting-
+ * style`/`data-ending-style` for the open/close boundary and otherwise does nothing, the same
+ * contract its Dialog and Popover share (see the `DrawerPopupDataAttributes` enum in
+ * `@base-ui/react`). With no CSS keyed off those attributes the popup simply snapped between
+ * mounted/unmounted with no visible motion at all — not a vaul misconfiguration (vaul is gone, per
+ * the note above) and not a missing library, just an un-authored transition.
+ *
+ * The ENTER half is a real CSS `@starting-style` block, not `&[data-starting-style]` — confirmed
+ * the hard way, instrumenting `transitionrun`/`transitionend` against the live popup, which never
+ * fired at all against the attribute selector. `DrawerPopup` flips `data-starting-style` off via
+ * `useIsoLayoutEffect` (its own import list), which runs BEFORE the browser's first paint of the
+ * newly-mounted element — so a plain attribute selector never gets a chance to be visually
+ * distinct from the end state; there is no earlier paint for a later reflow to transition FROM.
+ * `@starting-style` is the one mechanism that captures "before this element's first paint"
+ * natively, independent of any JS timing race — which is exactly why Base UI names the attribute
+ * `data-starting-style` after it in the first place, even though the attribute itself cannot carry
+ * the same guarantee under a React layout effect. The EXIT half stays a plain `&[data-ending-
+ * style]` selector: closing starts from an element that has ALREADY painted in its open state, so
+ * the later reflow when `data-ending-style` is added is a genuine, transitionable style change —
+ * and `useOpenChangeComplete` (the hook that actually unmounts the popup after a close) waits for
+ * THIS transition's `transitionend`, so without it the sheet was also unmounting a frame early on
+ * top of not animating.
+ */
+/*
+ * Pop-in/out for CENTRED overlays — the modal dialogs (Base UI Dialog/AlertDialog popups) and the
+ * command palette panel. Same mechanism as `sheet-panel` directly above (read its comment for why
+ * the enter half MUST be `@starting-style` and a plain `&[data-starting-style]` selector can
+ * never fire): a 150ms fade + 0.98 scale, restrained per the skill — no bounce, no slide.
+ * `scale`/`opacity` only, so it composes with any positioning transform/translate the consumer
+ * carries. The exit half keys off `data-ending-style` — Base UI keeps the popup mounted through
+ * its exit transition, so it paints; cmdk's palette (Radix underneath) unmounts instantly on
+ * close, so for it only the enter half can ever run and the exit rule is inert, not dead code
+ * shared consumers would miss.
+ */
+@utility overlay-pop {
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity 0.15s ease-out,
+    scale 0.15s ease-out;
+
+  @starting-style {
+    opacity: 0;
+    scale: 0.98;
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@utility sheet-panel {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(0%);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+
+  @starting-style {
+    transform: translateY(100%);
+  }
+
+  &[data-ending-style] {
+    transform: translateY(100%);
+  }
+
+  /*
+   * `:where()` is load-bearing, not decorative: it keeps this rule's specificity at ZERO despite
+   * the attribute selector, so a plain utility at the call site (`ConsoleShell`'s `bottom-14`,
+   * lifting the sheet above the 56px navigation dock) reliably overrides `bottom: 0` below —
+   * both land in the same Tailwind utilities layer, where generation order alone would not
+   * otherwise guarantee the call site wins.
+   */
+  &:where([data-swipe-direction='down']) {
+    inset-inline: 0;
+    bottom: 0;
+    /* Content-sized up to this cap, never a fixed minimum height — a short sheet (a handful of
+       rows) must not leave a full-height void below its own content (console-ui skill § States,
+       "an empty frame reads as an empty dataset"; the analogous defect here is a TALL frame
+       reading as one). `dvh`, not `vh`: the dynamic viewport unit accounts for a mobile browser's
+       own collapsing chrome, where a static `vh` overshoots the sheet past what is actually
+       visible. */
+    max-height: 85dvh;
+    /* Border doctrine (phase 9): the docking edge gets a 1px `--color-border` hairline — a
+       floating panel over the floor gets a boundary, consistently. */
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/*
+ * The grab bar, and the end of a two-week bug. vaul shipped its own handle and injected the paint
+ * for it through a plain runtime `<style>`, which is UNLAYERED and therefore outranked every
+ * layered rule we could write — so the console's 3px `raised` bar never applied and the computed
+ * handle stayed vaul's hardcoded 5px #e2e2e4 pill, against both the no-pills rule and the
+ * no-hex-outside-this-file rule. Four `!important`s were holding that back.
+ *
+ * Base UI ships no grab-bar part at all (`Drawer.Handle` is the imperative handle object for
+ * detached triggers), so the element is ours, there is no competing stylesheet, and every one of
+ * those `!important`s is gone. Width and centring are stated here for the same reason: they used
+ * to be inherited from vaul's own rule and now have no other source.
+ */
+@utility sheet-handle {
+  margin: 0.5rem auto 0;
+  flex-shrink: 0;
+  height: 3px;
+  width: 2rem;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+}
+
+@utility sheet-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 0.5rem;
+
+  /* The dismiss × is a `btn btn-ghost` through `Button`, the same affordance `SecretReveal`'s ×
+     uses. The one thing the header adds is that it reads as chrome rather than as an action —
+     `subtle` until pointed at. That is a fact about the header's trailing control, not a prop of
+     the button, so it is stated here rather than as a colour pair at the call site. */
+  & button {
+    color: var(--color-subtle);
+
+    &:hover {
+      color: var(--color-ink);
+    }
+  }
+}
+
+/* The header's title block (title + optional subtitle) — takes the row's remaining width so the
+ * trailing action cluster never wraps it early. */
+@utility sheet-header-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The header's trailing cluster — Addition E's `headerAction` slot, then Close, grouped so they
+ * move together rather than `justify-between` centring a lone middle child. */
+@utility sheet-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@utility sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1rem 1rem;
+}
+
+/* The sheet's own sticky action row — `BottomSheet`'s `footer` slot (e.g. a header-row `Rename`
+ * action's own confirmation surface lives in a separate dialog, but a sheet CAN carry a footer of
+ * its own where the content calls for one). Mirrors `sheet-header`'s padding on the opposite
+ * edge, with the same hairline doctrine one edge over. */
+@utility sheet-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/*
+ * ─── The shell's chrome ──────────────────────────────────────────────────────────────────────
+ *
+ * `console-shell`'s own boxes. Revamp phase 2 (shell brief, 2026-08): the three-rail, header-band
+ * shell is dead. The shape is now two columns — a persistent `ConsoleSidebar` at `md`+, a single
+ * stretching content column — with a mobile-only top bar and the existing bottom navigation dock
+ * replacing the sidebar below `md`. NO UPSTREAM by construction (PRIMITIVES.md rejects daisy
+ * `drawer`: a CSS-grid sidebar cannot be sticky, independently scrollable and flush at once), so
+ * these are the console's geometry with nothing to inherit. The zone-level grid (sidebar width,
+ * top-bar height, centre padding) stays in `lib/shell-grid.ts` beside `rail-grid.ts` — this is
+ * the chrome that wraps those zones.
+ */
+@utility shell-root {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  background-color: var(--color-base-100);
+
+  /* Side by side at `md`+, where the sidebar is visible; stacked below it, where the top bar and
+     the content column are the only two blocks (the sidebar renders `hidden` at this tier, not
+     absent — see `SIDEBAR_CLASS` — so the row/column choice only matters once it is visible). */
+  @media (width >= theme(--breakpoint-md)) {
+    flex-direction: row;
+  }
+}
+
+/* The content column: top bar (mobile-only), then the centre's own padded main, stacked. Owns no
+   width itself — `SHELL_CENTRE_CLASS` on `<main>` is the only place `flex-1 min-w-0` is stated. */
+@utility shell-content-column {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+}
+
+/**
+ * The inspector rail's drag handle (`RailResizer`) — a few px hit area straddling the rail's
+ * leading edge, `col-resize` cursor. `touch-action: none` stops the browser's own scroll/zoom
+ * gesture recognition from competing with the pointer drag on touch input. Visual feedback is a
+ * `border` fill on hover/focus — no new accent, matching the console's one-signal-colour rule.
+ */
+@utility rail-resizer {
+  position: absolute;
+  inset-block: 0;
+  left: -3px;
+  z-index: 10;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--color-border);
+  }
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+/* The bottom navigation dock's own band — nav, not knobs, so the rail rules do not apply to it. */
+@utility shell-dock-band {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  height: 3.5rem;
+  background-color: var(--color-chrome);
+  border-top: 1px solid var(--color-raised);
+}
+
+/*
+ * ─── ConsoleSidebar's own rows ───────────────────────────────────────────────────────────────
+ *
+ * `ConsoleSidebar` (sections/console-sidebar) is a flat container — `SIDEBAR_CLASS`
+ * (lib/shell-grid.ts) owns the column itself (width/fill/edge/scroll); these five parts are its
+ * internal rows, top to bottom: brand, workspace switcher, the nav list (`NavSpine`'s own
+ * business, not styled here), a spacer, and the footer stack.
+ */
+/* Owner rework (2026-08-30, "you really find this modern and beautiful?"): the header block
+   used to run brand(52) -> switcher(48, its own top/bottom padding both doing gap duty) with no
+   stated gap between the two rows. `h-12`/`h-9` are now literal — brand is the ONE row in the
+   sidebar that isn't nav-row-scaled: it holds a single logo mark now (owner finding, 2026-08-31 —
+   the mark is `Link`-wrapped and IS a destination, `/`, but it is not a `NavRow` and carries no
+   label to line up with the nav column below it), the switcher IS a standard rail row in every
+   other respect (see `avatar-chip-md`/`ROW_LABEL_CLASS` at its call site) and reads as one at this
+   height. The 8px gap between them is stated as the switcher row's
+   own top margin rather than baked into either row's padding, so it cannot silently drift back
+   into "whatever the padding leaves" the way the old 52/48 pair did. */
+@utility sidebar-brand-row {
+  display: flex;
+  height: 3rem; /* 48px, h-12 */
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 1rem;
+}
+
+@utility sidebar-switcher-row {
+  flex-shrink: 0;
+  margin-block-start: 0.5rem; /* 8px gap from the brand row above — stated once, not padding */
+  padding-inline: 0.5rem;
+}
+
+/* The nav list's own scroller — everything between the switcher and the footer. 8px padding on
+   every side is the sidebar's own bleed grid (`RAIL_ROW_BLEED`, rail-grid.ts) — combined with
+   `sidebar-group-label`'s own first-child margin below, it is what puts a stated 16px between the
+   switcher and the first group label rather than an incidental one. */
+@utility sidebar-nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+@utility sidebar-footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  border-block-start: 1px solid var(--color-raised);
+  padding: 0.5rem;
+}
+
+/* One row of the footer stack (search, theme, offline, identity — the standalone Theme row is
+   back, owner finding 2026-08-31: "I don't see the usage, for the theme to be hidden behind the
+   account dropdown. Please put it outside" — reversing Addition 5's dedupe, which had folded it
+   into `AccountMenu`'s own popup; `AccountMenu` is deleted outright, issue #368, and `ThemeToggle`
+   is the only place the preference is edited now) — a 36px hit target with a hover fill, label at
+   the leading edge and a trailing control/marker.
+   Not every row is interactive (the offline line is a status, not a button), so this is a
+   layout/paint utility, not a `<button>` contract — `SidebarFooterRow`'s call sites choose the
+   element. */
+/* `RAIL_ROW_PADDING_X` (12px), matched here as a literal rem rather than imported — this is CSS,
+   the constant is TypeScript, and the two are asserted to agree by `rail-grid.test.ts` /
+   `component.test.tsx` rendering both row kinds side by side. Every row in the sidebar (nav rows,
+   footer rows, the switcher, group labels) starts its own padding at this one x, which is the fix
+   for the owner-reported "group labels render larger and centred" bug: they were flush at daisy
+   `menu-title`'s own inset (12px) while nav rows START THEIR ICON at 12px and their LABEL 26px
+   further in — two different left edges wearing the same visual column.
+   `gap` is `RAIL_LABEL_GAP` (10px), matched as a literal here for the same TS/CSS reason as the
+   padding above — NOT the 8px this used to carry (Addition 5, owner screenshot: Search's icon,
+   the old Theme row's toggle, and the identity chip each landed at a different label x). Every
+   footer row's leading element (an icon in `RAIL_ICON_COLUMN_CLASS`, or the identity row's own
+   `avatar-chip-sm` in that same column) is now exactly the nav rows' own 16px column, so
+   `padding(12) + column(16) + gap(10) = 38px` is one number the whole sidebar shares top to
+   bottom, not a per-row guess. */
+@utility sidebar-footer-row {
+  display: flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border-radius: var(--radius-field);
+  padding-inline: 0.75rem;
+  transition: background-color 0.15s ease-out;
+
+  &:where(button, a):hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+/* The workspace switcher itself — `AccountBadge`'s `variant="sidebar"` — a full-width row with
+   the same 36px/hover contract as the footer rows, so every interactive row in the sidebar reads
+   as one family. */
+@utility workspace-switcher-row {
+  display: flex;
+  height: 2.25rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-field);
+  padding-inline: 0.75rem;
+  transition: background-color 0.15s ease-out;
+
+  &:hover {
+    background-color: var(--color-base-300);
+  }
+}
+
+/*
+ * A nav group's own label row — sentence case, sans, `subtle`, ONE STEP SMALLER than a 13px nav
+ * row (the shell brief's own contract) and left-aligned at the same LABEL x every nav row's text
+ * starts at (icon column + gap, `RAIL_ICON_COLUMN_WIDTH` + `RAIL_LABEL_GAP` past the row's own
+ * padding — `rail-grid.ts`), not at the row's own padding edge the way daisy's `menu-title` sits.
+ *
+ * Bug, found by inspecting the compiled stylesheet rather than assumed: daisy's `.menu-title`
+ * (`daisyui/components/menu.css`) sets `font-size: .875rem` (14px) and `font-weight: 600` and a
+ * 40%-mix colour of its own — none of which this block used to override, so every group label
+ * rendered a full step LARGER and BOLDER than the 13px/400 nav rows below it, the "renders larger"
+ * half of the owner's report. `menu-title` stays on the element (daisy's own `li:not(.menu-title)`
+ * selectors need it to leave this row alone) — every property daisy sets for it is simply
+ * overridden here, the same unlayered-utility-beats-daisy-sublayer mechanism `rail-row` above
+ * already relies on.
+ *
+ * Group separation is vertical rhythm now, not a full-width hairline — a heavier rule than a
+ * 28px label warranted, and the shell brief's own "group label IS the role marker" already gives
+ * each group a visible boundary with no line needed.
+ */
+@utility sidebar-group-label {
+  display: flex;
+  /* `row` is LOAD-BEARING, not the default it looks like: daisy's `menu li` contributes
+   * `flex-direction: column`, which silently turns the `align-items: center` below (meant as
+   * VERTICAL centering in the 28px row) into HORIZONTAL centering of the label text — the
+   * "centered group labels" the owner rejected twice (2026-08-30). Box left, padding, font-size
+   * and text-align all measured correct while the text painted centered: text-align does not
+   * position flex children. */
+  flex-direction: row;
+  align-items: center;
+  height: 1.75rem; /* 28px — the shell brief's own "group-label height 28" */
+  padding-inline-start: 2.375rem; /* 38px = 12 (row padding) + 16 (icon column) + 10 (label gap) */
+  padding-inline-end: 0.75rem;
+  color: var(--color-subtle);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  /* Tracking (owner rework, 2026-08-30): a step above 0 so the 11px label reads as a deliberately
+     smaller CAPS-ADJACENT marker rather than as body text that shrank — sentence case stays, this
+     is spacing only. Within the 0.02-0.05em band the brief asked for. */
+  letter-spacing: 0.03em;
+
+  /* Vertical rhythm (owner rework, 2026-08-30 — the live gap between groups measured ~45px+
+     against a stated 20-24px target): a group's own boundary is two stated halves, not one
+     lump margin. `margin-block-end` (4px) plus `rail-list`'s own 4px item `gap` puts 8px between
+     THIS label and its first row; `margin-block-start` puts ~16px between the PREVIOUS group's
+     last row and this one (12px here + the same 4px `gap`) — 8 + 16 = the stated 20-24px total,
+     with the label's own 28px height living outside that count as content, not gap. The
+     first-of-list label gets a smaller start margin because it sits under the switcher, not a
+     nav row — `sidebar-switcher-row`'s 8px margin plus `sidebar-nav`'s 8px padding already
+     account for half the 16px there, so only 8px more is this label's own to add. */
+  margin-block-end: 0.25rem;
+
+  &:first-child {
+    margin-block-start: 0.5rem;
+  }
+
+  &:not(:first-child) {
+    margin-block-start: 0.75rem;
+  }
+}
+
+/*
+ * A full-bleed message band, sticky at the top of the content column — today
+ * `MutationFailureBanner`, which was nine hand-written utilities on a single line and the largest
+ * single wall in the chrome set. daisy `alert` stays REJECTED for it (PRIMITIVES.md §
+ * "not adopted": bordered, iconed, rounded); this is a band, not a box, so there was no daisy
+ * class to adopt and the wall had to become a named part instead.
+ *
+ * Every clause is a fact about the BAND rather than about any one message:
+ *  - `chrome` fill, never `surface` and never a `primary` one. The band sits in the shell's own
+ *    chrome rather than floating as a panel, and ADR 0008 has no large signal fills.
+ *  - A `raised` hairline on the leading edge only — the same rule that separates any two chrome
+ *    sections, never a full border.
+ *  - Gutters that TRACK THE CENTRE COLUMN's, so a message lines up with the content it is about.
+ *    That is `lib/shell-grid.ts`'s `px-4 md:px-8`, and the tier step is why this is shared CSS: a
+ *    breakpoint variant restated per banner is a second, driftable copy of the shell's gutter.
+ */
+@utility chrome-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--color-raised);
+  padding: 0.5rem 1rem;
+  background-color: var(--color-chrome);
+
+  @media (width >= theme(--breakpoint-md)) {
+    padding-inline: 2rem;
+  }
+}
+
+/*
+ * ─── Measurement ─────────────────────────────────────────────────────────────────────────────
+ *
+ * `meter` — the 4px consumption bar (README §4/§2.4): a `raised` track, `body` fill, `signal`
+ * only at or past the threshold. Base UI's Meter owns the semantics (role, clamped
+ * `aria-valuenow`, the referenced label); this is the whole of its paint.
+ *
+ * daisy `progress`/`radial-progress` stay REJECTED (PRIMITIVES.md § "not adopted"): both are
+ * rounded and animated, which is the opposite of a square 4px rule that does not move.
+ *
+ * The breach is read off `data-breached` on the root, so the fill colour is one rule here rather
+ * than a ternary between two background utilities at the call site.
+ *
+ * SURVIVING MONO (phase 9 consistency pass): the caption is `formatUsdOf`'s "$X of $Y" — two
+ * currency figures, always paired with this fill (README §4/§2.4) — a data value, not prose.
+ */
+@utility meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-base-content);
+
+  & .meter-track {
+    height: 0.25rem;
+    width: 100%;
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-300);
+  }
+  /* Base UI's Indicator is the track's only child, and it is the element whose width Base UI
+     computes — so it needs no class of its own. */
+  & .meter-track > * {
+    height: 100%;
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-content);
+  }
+  &[data-breached='true'] .meter-track > * {
+    background-color: var(--color-primary);
+  }
+}
+
+/* A key numeral beside the ceiling it is measured against, on one baseline so the two read as one
+   line and wrap together rather than the ceiling dropping half a line below it. `BudgetHero` and
+   `ReviewDetailPanel` both render this pairing; only the ceiling's type step differs, which is why
+   that stays a role at the call site. */
+@utility metric-ceiling-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+/*
+ * `BudgetHero` — one stack, four status branches. Every status renders into the same box so the
+ * zone never changes height or alignment as it resolves; that is the reason the stack is stated
+ * once here rather than at each of the four returns.
+ *
+ * The loading branch's two blocks are the geometry of the ready branch below them (26px numeral,
+ * 4px meter track), matched exactly — console-ui skill: "skeleton blocks matching final
+ * geometry", no spinner, no shimmer. daisy `skeleton` supplies the raised fill and the 2px
+ * radius, and its shimmer is already killed by the `@utility skeleton` override above; only the
+ * two heights are this component's, and they are facts about the branch beneath them rather than
+ * anything the call site chooses. Width needs no statement at all — a stretch-aligned flex column
+ * already gives both blocks the full column.
+ */
+@utility budget-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  & [role='presentation'] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  & [role='presentation'] > .skeleton:first-child {
+    height: 26px;
+    width: 8rem;
+  }
+  & [role='presentation'] > .skeleton:last-child {
+    height: 0.25rem;
+  }
+}
+
+/*
+ * ─── Self-panelling blocks ───────────────────────────────────────────────────────────────────
+ *
+ * `StatCard` and `SecretReveal` are the two components allowed to draw their own panel
+ * (console-ui skill) — everything else renders uncontained and lets the consumer decide. Both are
+ * NO UPSTREAM: PRIMITIVES.md rejects daisy `stat`/`stats` (its own padding, its own dividers, a
+ * horizontal grouping model) against a card that is mockup-locked at a tighter geometry.
+ *
+ * BORDER DOCTRINE (owner, phase 9: "I hate it when some items have borders and some don't,
+ * without any reason"): every floor-sitting panel gets the SAME 1px `--color-border` container
+ * hairline `Card` (`console-card`) draws — a self-panelling block is still a panel on the floor,
+ * so it is not exempt. Only `chart-tooltip-card` stays borderless, and that is a stated, narrow
+ * exception (its own doc comment: a border on a box that tracks the cursor reads as flicker).
+ */
+@utility stat-card {
+  background-color: var(--color-base-200);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  padding: 1rem;
+
+  & .stat-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  /* Glyph over label, as one column. */
+  & .stat-card-head > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  /* The glyph is pinned to 12px whatever viewBox the caller's SVG carries — an unsized inline
+     `<svg>` otherwise falls back to the browser's replaced-element default box. */
+  & .stat-card-icon {
+    color: var(--color-subtle);
+    & > svg {
+      width: 0.75rem;
+      height: 0.75rem;
+    }
+  }
+  & .stat-card-spark {
+    flex-shrink: 0;
+    padding-top: 0.25rem;
+  }
+  & .stat-card-metric {
+    margin-top: 0.75rem;
+  }
+  /* Deltas are direction plus wording in greys, never green/red (ADR 0008); the tone itself is
+     the component's one variant map. SURVIVING MONO (phase 9): the glyph plus a signed numeral
+     ("+12% vs last period") is numeral-led, matching `METRIC_CLASS` above it in the same card. */
+  & .stat-card-delta {
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+  }
+}
+
+/*
+ * The one-time secret strip (api-keys.svg). Three rows: heading + dismiss, the caption, then the
+ * readonly `<input>` beside its Copy button. Each row is selected structurally rather than
+ * carrying a class, because the strip has exactly this shape and no other.
+ */
+@utility secret-strip {
+  background-color: var(--color-base-200);
+  /* Border doctrine (phase 9, see `stat-card`'s own comment above): a floor-sitting panel is
+     bordered like every other one. */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  padding: 1.25rem;
+
+  & > div:first-child {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  & h2 {
+    color: var(--color-ink);
+    font-size: 0.875rem;
+  }
+  & > p {
+    margin-top: 0.25rem;
+  }
+  & > div:last-child {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  /* The secret fills the row; the Copy button sizes to its own label. */
+  & input {
+    flex: 1;
+  }
+}
+
+/* The SAME secret input + Copy row geometry `secret-strip`'s own last row draws, extracted so
+ * `CreateApiKeyDialog`'s secret step (Addition D, 2026-08-30) can reuse it without nesting
+ * `SecretReveal`'s own bordered panel inside the dialog's already-bordered popup — see that
+ * component's own doc comment for why the two-step dialog inlines this control rather than
+ * rendering `<SecretReveal>` directly. */
+@utility secret-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  & input {
+    flex: 1;
+  }
+}
+
+/* `Toggle` — a Base UI `Switch.Root` beside its own label, same row geometry as
+   `secret-field-row` at a tighter gap (a switch + one word of label, not a control + a button). */
+@utility toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* `CommandSnippet` — a read-only shell command with a copy button, same bordered-strip family as
+   `secret-strip` (paint: `base-200` fill, `border` hairline, `--radius-field` corners) but a
+   single row rather than a three-row stack, since a command has no heading/description of its
+   own — only the optional caption `CommandSnippet`'s `label` prop renders above it. */
+@utility command-snippet {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  background-color: var(--color-base-200);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  padding: 0.375rem 0.625rem;
+
+  & code {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/*
+ * ─── Rail panel content ──────────────────────────────────────────────────────────────────────
+ *
+ * A vertical stack of related lines, and the same stack preceded by a hairline. `rail-section`'s
+ * rule is `raised`, not `border`: inside a rail, section separation is a `raised` hairline
+ * (console-ui skill, "Rails are flush…"), which is what the rail COLUMN uses between its own
+ * sections — a `border` rule here drew a panel's inner divisions heavier than the divisions
+ * between whole rail sections, i.e. exactly backwards.
+ */
+@utility rail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@utility rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--color-base-300);
+}
+
+/*
+ * The rail panel's own outermost stack — `ReviewDetailPanel` is the case: a full-height column of
+ * `rail-section`s whose LAST child is pinned to the bottom of the rail however short the content
+ * above it is.
+ *
+ * The pin is the reason this is one class rather than a `rail-stack` plus three utilities. The
+ * height, the wider section rhythm and the auto top margin are three halves of a single idea — "a
+ * decision panel fills its rail and puts its actions at the foot" — and written separately, the
+ * `mt-auto` in particular reads as a property of the actions block when it is really a property of
+ * being last in this column.
+ */
+@utility rail-panel-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1.25rem;
+
+  & > :last-child {
+    margin-block-start: auto;
+    gap: 0.75rem;
+  }
+}
+
+/*
+ * ─── Ranked series lists ─────────────────────────────────────────────────────────────────────
+ *
+ * `ChartLegend` and `ShareBar` render the same row — swatch, name, value — and they are the two
+ * places the console names a series. NO UPSTREAM, by construction: daisy ships no legend, and its
+ * `badge`/`progress` (the two classes an author reaches for here by reflex) are both in
+ * PRIMITIVES.md's not-adopted list, `progress` because its rounded, animated track is the
+ * opposite of the console's square one.
+ *
+ * Emphasis — a selected or ceiling-breached series — is a step UP the grey ramp, never a second
+ * colour (ADR 0008). It reads `data-emphasized` on the row, so the ramp is stated once here
+ * instead of as four ternaries between two components that must agree.
+ */
+@utility series-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@utility series-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* 28px is the minimum comfortable hit target for a rail-width list; the inline padding keeps a
+     hover fill from cropping the swatch. */
+  min-height: 28px;
+  padding-inline: 0.25rem;
+  border-radius: var(--radius-field);
+  font-size: 0.75rem;
+
+  /* Both components render every row as a `<button>` — one markup, one set of tests — and mark
+     the non-interactive case `disabled`. So the affordance follows `:disabled` rather than a pair
+     of cursor utilities chosen at the call site. */
+  &:not(:disabled) {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--color-neutral);
+    }
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  & .series-label {
+    min-width: 0;
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-base-content);
+  }
+
+  /* The name is a series name — sans, like every other name in the console. The value/percent
+     are the data half of the row (phase 9 consistency pass: this used to be mono end to end). */
+  & .series-value,
+  & .series-percent {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-subtle);
+  }
+
+  /* A fixed track so the percent column aligns down the list regardless of value width;
+     numerics are right-aligned (console-ui skill "Type"). */
+  & .series-percent {
+    width: 2.5rem;
+    text-align: right;
+  }
+
+  &[data-emphasized='true'] {
+    & .series-label {
+      color: var(--color-ink);
+    }
+    & .series-value,
+    & .series-percent {
+      color: var(--color-base-content);
+    }
+  }
+}
+
+/* The rank swatch: a 10x2 rule, matching between the legend and the share bar, never a dot and
+   never a pill. Its colour is the series colour, so it stays an inline style. */
+@utility series-swatch {
+  height: 2px;
+  width: 10px;
+  flex-shrink: 0;
+}
+
+/*
+ * `ShareBar` — the track, and the two things its rows do differently from `ChartLegend`'s.
+ *
+ * Both components render `lib/series-row.tsx`'s markup verbatim; the ONLY difference is that a
+ * share bar's rows fill a column (so the percent gutter lines up down the list) and sit one gap
+ * step wider, while a legend wraps inline. That difference is a fact about the CONTEXT, not about
+ * the row, so it is stated here — contextually, once — instead of as two utilities passed in at
+ * the call site to a component that would then need a variant prop to forward them.
+ */
+@utility share-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  /* The ranked list. No gap of its own — the rows already carry a 28px minimum height, and a
+     second gap between them would read as a gapped table rather than one list. */
+  & ul {
+    display: flex;
+    flex-direction: column;
+  }
+
+  & .series-row {
+    width: 100%;
+    gap: 0.75rem;
+  }
+}
+
+/* The track — an 8px bar whose segments are parted by a hairline gap, clipped to the console's
+   2px radius. Nothing to show is still a bar at the empty tone, never a collapsed zero-height
+   gap, so the empty fill is a rule here rather than two utilities on a conditional span. */
+@utility share-track {
+  display: flex;
+  height: 0.5rem;
+  width: 100%;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--radius-field);
+
+  & .share-track-empty {
+    flex: 1;
+    background-color: var(--color-base-300);
+  }
+}
+
+/*
+ * `RankedSeriesRows` — the ranked-list primitive every usage breakdown in IA v3 phase 4 renders
+ * through (`sections/ranked-series-rows`). One grid row per series: rank swatch · label ·
+ * sparkline · share micro-bar (or a percent, once suppressed) · value · delta — six fixed columns
+ * so every column lines up down the list the same way `share-bar`'s percent gutter does.
+ *
+ * `.ranked-row` deliberately does NOT reuse `.series-row`'s flex layout: a legend/share-bar row has
+ * three loose columns, this one has six fixed ones, and forcing the extra columns onto the flex
+ * shape would need as many one-off utilities at the call site as writing the grid once here saves.
+ */
+@utility ranked-series-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+@utility ranked-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  width: 100%;
+  min-height: 28px;
+  padding-inline: 0.25rem;
+  border-radius: var(--radius-field);
+  font-size: 0.75rem;
+  text-align: left;
+
+  /* Same `:disabled`-drives-affordance rule `.series-row` uses — the "Other" row and the zero-
+     value tail are always `disabled` (see `component.tsx`), a read-only list is every row. */
+  &:not(:disabled) {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--color-neutral);
+    }
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  & .ranked-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-base-content);
+  }
+
+  & .ranked-value,
+  & .ranked-delta,
+  & .ranked-percent {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-subtle);
+    text-align: right;
+  }
+
+  /* Fixed tracks so the columns align down the list regardless of value width. */
+  & .ranked-percent {
+    width: 2.5rem;
+  }
+  & .ranked-delta {
+    width: 3.5rem;
+  }
+
+  &[data-emphasized='true'] {
+    & .ranked-label {
+      color: var(--color-ink);
+    }
+    & .ranked-value {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* A sentinel identity (`sentinel-labels.ts`) or a structural row (Other, the zero-value tail) —
+     named honestly, drawn quietly. Never combined with `data-emphasized='true'` in practice. */
+  &[data-subtle='true'] .ranked-label {
+    color: var(--color-subtle);
+  }
+}
+
+/* The per-row share micro-bar — a 3rem/4px track, `currentColor`-filled so the row's own rank/
+   accent colour (set inline by `component.tsx`) drives both the swatch and this bar without a
+   second colour prop. Suppressed entirely (in favour of a plain percentage) once the leading row
+   crosses the dominance threshold — see `component.tsx`'s own `TOP_SHARE_SUPPRESS_BAR_PERCENT`. */
+@utility ranked-share-bar {
+  display: block;
+  width: 3rem;
+  height: 4px;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-300);
+  overflow: hidden;
+
+  & > span {
+    display: block;
+    height: 100%;
+    background-color: currentColor;
+  }
+}
+
+/* Sizing only — the sparkline's own `<svg width height>` attributes already pin its pixel box;
+   this keeps it from being crushed by the grid's `minmax(0, 1fr)` label column. */
+@utility ranked-sparkline {
+  flex-shrink: 0;
+}
+
+/*
+ * `ChartTooltip`'s card. Point-anchored, drawn over a chart, so it is the one overlay that is not
+ * `OVERLAY_CLASS`: it carries no hairline (a 1px border on a card that tracks the cursor reads as
+ * flicker) and it is never interactive.
+ *
+ * Every part inside the card is positional rather than its own class name. The card's rows are
+ * `<div>`s, so the optional title is the card's ONLY direct `<span>` child; inside a row the value
+ * is the last child and the label the one before it, with or without a swatch in front.
+ */
+@utility chart-tooltip-card {
+  display: flex;
+  max-width: 240px;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-200);
+  padding: 0.5rem 0.625rem;
+
+  /* The title. Rows are `<div class="chart-tooltip-row">`, so this cannot collide with one. */
+  & > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    color: var(--color-subtle);
+  }
+}
+
+@utility chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  & > span:not(.chart-tooltip-dot) {
+    font-size: 0.75rem;
+    color: var(--color-ink);
+  }
+  /* The label — second to last, so the rule holds whether or not the row has a swatch. */
+  & > span:not(.chart-tooltip-dot):nth-last-child(2) {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* The value — the row's data half (phase 9 consistency pass: the whole card used to be mono;
+     the title/label are chart chrome text, sans now, and only the value stays mono). */
+  & > span:last-child {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility chart-tooltip-dot {
+  height: 0.5rem;
+  width: 0.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-field);
+}
+
+/*
+ * ─── Chart chrome shared by every plot ───────────────────────────────────────────────────────
+ *
+ * `SpendSeriesChart` and `HistogramChart` each draw a different plot, but they sit inside the SAME
+ * frame: an `<svg>` under a layer of transparent hit targets, with an inline status line taking
+ * the plot's place when there is nothing to draw. Those two frame parts were written out
+ * repeatedly, byte for byte, before this block existed — `LatencyRidgeline` was a third such
+ * caller until phase 9.2 deleted it (owner directive: the usage backend has no per-request
+ * duration, so its panel could never fill).
+ *
+ * NO UPSTREAM (ADR 0009 bans a chart framework; daisy ships no chart vocabulary at all), so the
+ * win here is that the frame is declared ONCE, not that it was inherited from somewhere.
+ * `lib/chart-hit-region.tsx` and `lib/chart-empty-message.tsx` own the matching markup.
+ */
+
+/*
+ * The transparent button laid over the plot so a pointer, a tap or a keyboard focus has a real
+ * element to land on. It must be a `<button>` — the plot itself is `<path>`/`<rect>` inside an
+ * `aria-hidden` canvas, so this is the only thing in the chart a screen reader or the Tab key can
+ * reach, and Floating UI's reference props are bound to it. Its box is per-datum arithmetic and
+ * stays an inline style; everything else about it is identical in all three charts.
+ */
+@utility chart-hit-region {
+  position: absolute;
+  cursor: pointer;
+  background-color: transparent;
+  padding: 0;
+}
+
+/*
+ * The "nothing to plot" line, inset to the plot area and centred on it.
+ *
+ * DOM text, never an SVG `<text>` — owner-reported production bug, 2026-08-29: SVG text does not
+ * wrap, so a message longer than the plot is wide spills off BOTH ends at once. The latency zone
+ * shipped exactly that ("…isn't available: the usage API doesn't report latency or percentile
+ * data yet. Spend, budget an…", clipped head and tail). A `<p>` inset to the plot and left to
+ * wrap is also what the console-ui skill asks for — "an inline mono status line above still-
+ * rendered structure (headers/axes stay)" — rather than the centred placard it forbids.
+ *
+ * `left`/`right`/`top` are the caller's margins and plot height, so they stay inline; the
+ * half-height correction that turns `top` into a true centre belongs to the class.
+ */
+@utility chart-empty-message {
+  position: absolute;
+  transform: translateY(-50%);
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: var(--color-subtle);
+}
+
+/*
+ * `row-action-group` / `row-action` — the lifecycle actions at the trailing edge of a ledger row
+ * (ADR 0001: borderless actions parted by a DIAGONAL hairline, e.g. Rotate ╱ Revoke ╱ Del).
+ *
+ * daisy `join`/`join-item` is rejected here on evidence, and the evidence is in the shipped CSS
+ * rather than in the docs: `.join-item` declares `border-style: solid` with a
+ * `var(--border, 1px)` width, and `--border` is `1px` in both of our theme blocks, so it draws a
+ * real border on every item and collapses them into one bordered strip. That is the opposite of
+ * borderless actions parted by a tick.
+ *
+ * The hairline is a pseudo-element on every button after the first, so it is a rule about the
+ * GROUP rather than a class each button has to be told to wear at the right index. It is
+ * deliberately not Base UI `Separator` and not daisy `divider` (a full-width rule with its own
+ * margins and a text slot).
+ *
+ * The Separator half of that was re-checked against Base UI 1.7.0's shipped source on 2026-08-29,
+ * because a rejection taken before a primitive existed is not a rejection of the primitive that
+ * now ships. It still holds, and for a sharper reason than the first pass gave: Separator's whole
+ * contribution is the announced `role="separator"`, this group renders once per ledger ROW, and
+ * 1.7.0 exposes no decorative flag to silence it — only `orientation`. Adopting it would announce
+ * roughly a hundred separators across a fifty-key ledger to describe a 1px tick. See the docstring
+ * in `components/row-action-group/component.tsx` for the full re-take.
+ */
+@utility row-action-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  /* Centred in the group's own 16px gap, hence the 8px offset. `pointer-events: none` keeps the
+     1px tick out of the neighbouring button's hit target. */
+  & > button + button::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    left: -0.5rem;
+    top: 50%;
+    height: 0.875rem;
+    width: 1px;
+    translate: 0 -50%;
+    rotate: 20deg;
+    background-color: var(--color-border);
+  }
+}
+
+@utility row-action {
+  position: relative;
+  font-size: 0.6875rem;
+  transition: color 0.15s ease-out;
+
+  &:hover {
+    color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+  }
+  &:disabled {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+}
+
+/* A ledger row that is itself the control (`onSelectRow`). The outline is INSET because the row
+   spans the full scroll box, and an outward one is clipped on both edges. */
+@utility ledger-row-selectable {
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+    outline-offset: calc(var(--border) * -1);
+  }
+}
+
+/*
+ * ─── The console's form-control layer ────────────────────────────────────────────────────────
+ *
+ * Owner bar, 2026-08-29: "Tiny css classes per component (max 3, and cva adds max 2 per variant).
+ * All components use daisyUI x Base UI." Base UI owns behaviour; daisyUI owns paint. Where daisy's
+ * default paint contradicts a locked ADR 0008 rule, the correction belongs HERE — once, against
+ * daisy's own class — not re-typed as a wall of `!` utilities in every component that renders a
+ * control. Before this block, Field, SelectField, ScopeSelect and DateRangeField each carried
+ * their own copy of the same 13-declaration control treatment, and they had already drifted (three
+ * spelled focus as a border move, one still shipped daisy's outline).
+ *
+ * The mechanism is the one `skeleton` above already relies on and explains: daisy emits its
+ * components into a SUBLAYER of `utilities` (`@layer utilities { @layer daisyui.l1.l2.l3 { … } }`)
+ * while Tailwind emits an `@utility` UNLAYERED inside `utilities`, and unlayered rules within a
+ * layer outrank that layer's own sublayers. No `!important`, no specificity war — which is why
+ * every `!` that used to hang off these classes is gone.
+ *
+ * Two consequences worth stating, because they are load-bearing:
+ *  1. A plain Tailwind utility (`w-auto`, `bg-raised`) is ALSO unlayered, so it TIES with these
+ *     rules and the winner is source order. Nothing here relies on beating a plain utility at
+ *     equal specificity: where a component would still need to override, the rule below is
+ *     written with a descendant/element part (`.label > button.input`) so specificity decides.
+ *  2. An `!important` utility still beats everything here, so the components that legitimately
+ *     carry a one-off (the rail nav rows' `bg-raised!`) keep working untouched.
+ */
+
+/*
+ * `input` — THE control treatment, and the only one. 30px tall, `chrome` inset fill, `--line`
+ * border, sans/14 `body` text (phase 9 — a typed value is UI text; SecretReveal's read-only strip
+ * is the one consumer that then wants mono, and it says so at its own call site, not here),
+ * `muted` placeholder; focus moves the BORDER to `--signal` and
+ * removes daisy's 2px outline rather than recolouring it (README §4 — the "no ring" half of the
+ * contract). Worn by Field's text input, by SelectField/ScopeSelect's Base UI Select triggers, by
+ * DateRangeField's Popover trigger, and by SecretReveal's read-only strip.
+ */
+@utility input {
+  /* daisy fills with `base-100` — the FLOOR. The console insets a control with `chrome`. */
+  background-color: var(--color-neutral);
+  /* daisy caps a control at `clamp(3rem, 20rem, 100%)`; a console control fills its column. */
+  width: 100%;
+  /* daisy sizes to `--size-field` x 10 = 40px; the console's control height is 30. */
+  height: 30px;
+  color: var(--color-base-content);
+  /* `--input-color` is daisy's own border variable — and also what its focus outline paints with,
+     which is why moving the border to `--signal` below is one declaration rather than a border
+     override plus an outline suppression, per state. */
+  --input-color: var(--color-border);
+
+  &::placeholder {
+    color: var(--color-subtle);
+    opacity: 1;
+  }
+
+  /* One border-moves-to-signal rule for all three ways a console control becomes "live": keyboard
+     focus, an open Base UI popup behind a Select/Popover trigger, and an invalid Field
+     (`aria-invalid` is what Base UI Field sets, so there is no JS-toggled class to hang this on).
+     daisy's `validator` path stays unused: error reuses the signal, and a second accent colour is
+     banned (ADR 0008), so a `--color-error` token would only ever alias `primary`. */
+  &:focus,
+  &:focus-within,
+  &[data-popup-open],
+  &[aria-invalid='true'] {
+    --input-color: var(--color-primary);
+    outline: none;
+  }
+
+  /* A control rendered as a `<button>` is a select/popover trigger: it points rather than carets,
+     and its chevron sits at the far end of the row daisy already lays out. */
+  &:where(button) {
+    cursor: pointer;
+    justify-content: space-between;
+  }
+
+  /* daisy repaints a disabled control in `base-200` — the PANEL fill, so a disabled control reads
+     as a floating panel. Every disabled control in the console is the same control at 60%. */
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--color-neutral);
+    border-color: var(--color-border);
+    color: var(--color-base-content);
+  }
+}
+
+/*
+ * `combobox-chips`/`combobox-chip`/`combobox-chip-remove`/`combobox-input` — the multi-select
+ * combobox's own control chrome (`sections/project-policy-controls`, the `Project.allowedModels`
+ * editor). Not `input` above: that class fixes a 30px single-line height, which a WRAPPING row of
+ * chips-plus-a-text-caret cannot honour once more than a couple of models are selected — this is
+ * the same `chrome`/`border`/radius language at `min-height` instead, so the two read as one
+ * control family without one clipping its own content.
+ *
+ * A chip is a square-cornered (`--radius-selector`, 4px) tag, never a pill (console-ui skill: "no
+ * pills, no `rounded-full`" — the one console surface this rule is easy to reach for `badge` on
+ * and exactly the one place it's banned).
+ */
+@utility combobox-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 30px;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-selector);
+  background-color: var(--color-neutral);
+  border: 1px solid var(--color-border);
+
+  &:focus-within,
+  &[data-popup-open] {
+    border-color: var(--color-primary);
+    outline: none;
+  }
+}
+
+@utility combobox-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-selector);
+  background-color: var(--color-raised);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+@utility combobox-chip-remove {
+  color: var(--color-subtle);
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-ink);
+  }
+}
+
+@utility combobox-input {
+  flex: 1 1 6rem;
+  min-width: 4rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-base-content);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+
+  &::placeholder {
+    color: var(--color-subtle);
+  }
+}
+
+/* `textarea` — the same treatment, keeping daisy's own 5rem min-height, with vertical-only resize
+   (the browser default is `both`, and a control that can be dragged wider than its column is a
+   horizontal-overflow bug waiting to happen). */
+/*
+ * `input-ghost` — daisy's name for a control with no chrome of its own. The command palette's
+ * search line is its only consumer: inside a popup that IS the panel, a second inset fill and a
+ * border would draw a box around a box.
+ *
+ * Two of daisy's own declarations contradict that, both read out of `daisyui/components/input.css`
+ * rather than assumed. `.input-ghost` zeroes the fill, but `.input-ghost:focus` REPAINTS it with
+ * `base-100` — the FLOOR, which in `black` is #000 and in `wireframe` is grey, either way a
+ * rectangle appearing under the caret the moment you type. And the text you are typing inherits
+ * `base-content` (body), where the palette's query is the most load-bearing string on screen and
+ * belongs on `ink`.
+ *
+ * Order is load-bearing: this sits immediately after `input` because both land unlayered, so the
+ * transparent fill has to be declared AFTER `input`'s `chrome` one to win the tie.
+ */
+@utility input-ghost {
+  color: var(--color-ink);
+  background-color: transparent;
+
+  &:focus,
+  &:focus-within {
+    background-color: transparent;
+    color: var(--color-ink);
+  }
+}
+
+@utility textarea {
+  background-color: var(--color-neutral);
+  width: 100%;
+  resize: vertical;
+  color: var(--color-base-content);
+  --input-color: var(--color-border);
+
+  &::placeholder {
+    color: var(--color-subtle);
+    opacity: 1;
+  }
+
+  &:focus,
+  &:focus-within,
+  &[aria-invalid='true'] {
+    --input-color: var(--color-primary);
+    outline: none;
+  }
+
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--color-neutral);
+    border-color: var(--color-border);
+    color: var(--color-base-content);
+  }
+}
+
+/*
+ * `fieldset` / `label` — the two field LAYOUTS, which is all a labelled control ever needs:
+ * `fieldset` stacks the label above a full-width control (a rail column), `label` sets the two
+ * side by side (a toolbar row, or a box/switch beside its text). Both are daisy's own vocabulary
+ * for exactly this; the components now name a layout instead of re-deriving one out of
+ * `flex`/`flex-col`/`gap`/`items-center` four times over.
+ */
+@utility fieldset {
+  /* daisy pads the stack 4px block and forces 12px type on everything inside it. The console's
+     spacing comes from the panel, and every child here carries its own type role. */
+  padding-block: 0;
+  font-size: inherit;
+}
+
+@utility label {
+  /* daisy dims label content to 60% of currentColor. Console labels carry their own token
+     (`subtle` for the `label` role, `body` for a control's own text); dimming on top of that
+     lands them outside the ramp entirely. */
+  color: var(--color-base-content);
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  /* daisy points the cursor whenever a `.label` contains an `<input>`. Base UI's Checkbox and
+     Switch each render a hidden `<input>` for form submission, so that fires correctly for them —
+     but a Field in `inline` layout also contains a real text input, and a row of label text
+     offering a pointer cursor over a text box is a lie. Narrow it to the two controls whose whole
+     row genuinely toggles. */
+  cursor: default;
+  &:has([role='checkbox'], [role='switch']) {
+    cursor: pointer;
+  }
+  /* In an inline row a TRIGGER sizes to its own content (a toolbar of six full-width selects is
+     six columns of wasted width) while a text input still fills the row it was given. This is the
+     one place a component would otherwise still need a width utility, and it is a fact about the
+     row, not about the control. */
+  & > button.input {
+    width: auto;
+  }
+}
+
+/*
+ * `checkbox` — daisy's box on Base UI's `Checkbox.Root`: the `<Switch.Root className="toggle">`
+ * pairing generalised. daisy's `.checkbox` matches `:checked` OR `[aria-checked=true]`, and
+ * `[aria-checked]` is what Base UI's `role="checkbox"` element sets, so the tick, the fill and the
+ * transition all come from daisy untouched.
+ *
+ * Three of daisy's own selectors CANNOT match, because `Checkbox.Root` renders a `<span>` (with a
+ * hidden `<input>` beside it): `.checkbox:indeterminate` and `.checkbox:disabled` are pseudo-
+ * classes only a real form control can match, and `.checkbox:focus-visible`'s outline falls back
+ * to `currentColor`, which is the MARK colour and vanishes against the panel once ticked. Each is
+ * re-pointed at the `data-*` attribute Base UI does set. Everything else daisy draws is left alone.
+ *
+ * `checkbox-primary` is deliberately NOT used, and this is the reason to remember before reaching
+ * for it: it sets `--input-color` unconditionally, and daisy reads `--input-color` for the BORDER
+ * in every state — so an untouched box would sit there wearing an orange outline. Orange marks the
+ * ticked state only.
+ */
+@utility checkbox {
+  /* daisy's own `checkbox-sm` geometry, taken as the console's only size. */
+  --size: calc(var(--size-selector, 0.25rem) * 5);
+  padding: 0.1875rem;
+  /* Unticked, the box is a control border like every other control's; daisy's default is a 20%
+     tint of the body colour, which is not a token we have. */
+  --input-color: var(--color-border);
+  /* daisy paints the mark with `currentColor`, over an `--input-color` fill. */
+  color: var(--color-primary-content);
+
+  &[data-checked],
+  &[data-indeterminate] {
+    --input-color: var(--color-primary);
+  }
+
+  /* daisy's `:indeterminate` bar, re-pointed: the same fill, clip-path, rotation and offset it
+     applies to a native input, because the shape is daisy's to own — only the selector is ours. */
+  &[data-indeterminate] {
+    background-color: var(--input-color);
+    &::before {
+      opacity: 1;
+      rotate: 0deg;
+      translate: 0 -35%;
+      clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 80%, 80% 80%, 80% 100%);
+    }
+  }
+
+  &:focus-visible {
+    outline-color: var(--color-primary);
+  }
+
+  /* 60% is the opacity every other disabled control here uses, not daisy's 20% mix. */
+  &[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/*
+ * `btn` — daisy already reads `--radius-field` (2px) and zeroes its shadow/inset/noise through
+ * `--depth: 0`/`--noise: 0`, and `btn-primary` resolves straight to `--color-primary` /
+ * `--color-primary-content` (the AA-corrected pairing, ADR 0010 Decision 3b). What is left is the
+ * console's own type and focus treatment, plus two heights daisy has no step for.
+ */
+@utility btn {
+  /* daisy sets 600. Console buttons are sans 400 (phase 9 — a button label is UI text, not
+     data; mono is reserved for data values now, not "every structural string"). */
+  font-weight: 400;
+
+  &:focus-visible {
+    /* daisy draws a 2px outline in the button's own colour. The console's focus ring is `--signal`
+       with a 1px floor-coloured gap — the exact pair of shadows Tailwind's
+       `ring-1 ring-primary ring-offset-1 ring-offset-muted` compiled to before this moved here.
+       (ADR 0008 bans elevation shadows; a focus ring has always been drawn this way.) */
+    outline: none;
+    box-shadow:
+      0 0 0 1px var(--color-muted),
+      0 0 0 2px var(--color-primary);
+  }
+
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/* daisy's `btn-sm`/`btn-md` are 32/40px; the console's are 30/34 (README §4). Only the height
+   differs — daisy's own `--fontsize` (12/14) and `--btn-p` (12/16) already match the contract. */
+@utility btn-sm {
+  --size: 30px;
+}
+
+@utility btn-md {
+  --size: 34px;
+}
+
+/*
+ * `btn-secondary` — transparent fill, `--line` border, `body` text (README §4). daisy's stock
+ * `btn-secondary` fills with `--color-secondary`, and its `btn-outline` borrows `base-content` for
+ * the border rather than our `--line` token; both are re-pointed here through daisy's OWN button
+ * variables, which is what lets the variant map in Button be a bare class name again instead of
+ * four `!` overrides.
+ */
+@utility btn-secondary {
+  --btn-bg: transparent;
+  --btn-border: var(--color-border);
+  --btn-fg: var(--color-base-content);
+  color: var(--color-base-content);
+
+  &:hover {
+    --btn-bg: var(--color-neutral);
+    --btn-border: var(--color-border);
+  }
+}
+
+/*
+ * `CommandPaletteTrigger` — the `Search…` button in the header, on `btn btn-secondary`.
+ *
+ * Two of the secondary button's decisions disagree with the console for this one button: its label
+ * reads at full body colour and at the button's own size, but this is a placeholder-ish affordance
+ * sitting in chrome, so it reads `subtle` and one step down at 11px. Those were `text-subtle!
+ * text-[11px]!` at the call site, and the `!` was doing real work.
+ *
+ * WHY THE COMPOUND SELECTOR, because a plain `@utility palette-trigger` is a silent no-op for half
+ * of it. The rule it has to beat is not daisy's — it is `btn-secondary` directly above, one of OUR
+ * OWN `@utility` blocks, which sets `color` as well. Two `@utility` rules are both unlayered and
+ * both single-class, so neither outranks the other by layer OR by specificity, and the tie falls to
+ * emitted order — which is Tailwind's to choose, not this file's: moving this block from beside
+ * `palette-popup` to here, immediately after `btn-secondary`, did not change the emitted order at
+ * all (measured: `.palette-trigger` still came out ~1.1kB BEFORE `.btn-secondary`). So the colour
+ * lost while the font-size — which `btn-secondary` says nothing about, so nothing contested it —
+ * won. `&.btn` makes the selector `.palette-trigger.btn`, which beats any single-class rule on
+ * specificity and therefore does not depend on order at all.
+ *
+ * Found by reading the trigger's computed `color` in Storybook (`#b4b4b4`, i.e. `--btn-fg`, rather
+ * than `--color-subtle`'s `#606060`) — never from the class list, where it looked correct. The
+ * trigger is always a `btn`: it renders through `Button`, which is where the class comes from.
+ */
+@utility palette-trigger {
+  &.btn {
+    color: var(--color-subtle);
+    font-size: 11px;
+  }
+}
+
+/* `btn-square` is the console's icon button (always ghost, always an explicit `aria-label`).
+   Its glyph is pinned to 16px: an inline `<svg>` carrying only a `viewBox` and no width/height
+   otherwise falls back to the browser's replaced-element default box, far larger than the 30x30
+   button — the "icon-button glyphs too big" bug, fixed once here rather than per icon usage. */
+@utility btn-square {
+  & svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/*
+ * `tabs`/`tab`/`tab-active` — the SEGMENTED CONTROL's paint (README §4: equal-width cells, `--line`
+ * dividers, active cell = `--raised` fill + a 2px `--signal` bottom bar). daisy's tab vocabulary is
+ * its one-of-N switch, and `.tab` already brings the height variable, the 12px inline padding, the
+ * centring, `position: relative` and the `.tab-active` hook; the divider geometry and the two state
+ * paints are what the console adds.
+ *
+ * Why this and not `join`/`join-item`: `join` supplies shared-border geometry but no cell of its
+ * own, so every cell would still need `btn` plus a hand-written pressed state, and `join-item` is
+ * already earmarked for the inline row actions. Why it is safe to specialise `tabs` this far: the
+ * segmented control is its only consumer. `sub-nav` — the other component PRIMITIVES.md pencilled
+ * in for `tabs` — deliberately took `menu` instead, because it is a list of route links rather than
+ * a switch, and it records that decision in its own docstring.
+ */
+@utility tabs {
+  --tab-height: 30px;
+  /* daisy wraps tabs onto a second line; a segmented control is one strip or it is nothing. */
+  flex-wrap: nowrap;
+  /* 2px outer corners with square inner ones — the cells themselves stay unrounded. */
+  border-radius: var(--radius-field);
+  overflow: hidden;
+}
+
+@utility tab {
+  font-size: 0.75rem;
+  /* daisy's own variable is `--tab-p` (NOT `--tab-padding`; read `daisyui/components/tab.css`
+     rather than guessing), and it is declared on `.tab` ITSELF — setting it on the `.tabs` parent
+     is shadowed by daisy's own declaration and does nothing. At its `.75rem` default a three-cell
+     strip measures ~189px, which does not fit the 176px content box of a 208px rail: the last
+     cell was clipped by `tabs`' `overflow: hidden`, so "Revoked" rendered as "Revokec" (owner
+     screenshot, live 2026-08-29). */
+  --tab-p: 0.375rem;
+  /* `1 1 auto`, NOT `1 1 0%`: with a zero basis every cell wants zero width and only grows into
+     LEFTOVER space, so in a content-sized container (a toolbar row, as opposed to the full-width
+     rail this was first written for) the cells collapse onto each other and the labels overlap
+     (owner screenshot, 2026-08-29). `auto` starts each cell at its own content width and still
+     shares whatever is left. */
+  flex: 1 1 auto;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out;
+  /* daisy leaves `.tab` borderless. The console's cells share a `--line` hairline: a full border
+     per cell, with adjacent ones pulled onto each other so a divider is one line, not two. */
+  border: var(--border) solid var(--color-border);
+  &:not(:first-child) {
+    margin-inline-start: calc(var(--border) * -1);
+  }
+
+  /* Written as `:not(.tab-active)` rather than a bare `.tab` declaration on purpose: both classes
+     land unlayered, so a plain `.tab { … }` / `.tab-active { … }` pair would be decided by source
+     order. Mutually exclusive selectors cannot be. */
+  &:not(.tab-active) {
+    background-color: var(--color-neutral);
+    color: var(--color-subtle);
+    &:hover {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* Inset, because `.tabs` clips — and `--signal`, not daisy's `currentColor`. */
+  &:focus-visible {
+    outline: var(--border) solid var(--color-primary);
+    outline-offset: calc(var(--border) * -2);
+  }
+}
+
+@utility tab-active {
+  background-color: var(--color-base-300);
+  color: var(--color-ink);
+
+  /* The 2px `--signal` bottom bar. It used to be an absolutely-positioned `<span>` inside every
+     active cell; `.tab` is already `position: relative`, so it becomes a pseudo-element and the
+     component stops rendering decoration as DOM. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--color-primary);
+  }
+}
+
+/*
+ * `react-day-picker` — daisy 5.7 ships a full `.react-day-picker`/`.rdp-*` block written against
+ * its own variables, so the calendar already resolves `--radius-field: 0.125rem`, `--depth: 0` and
+ * `--noise: 0` from the theme blocks above. Adding the class to the DayPicker root is what
+ * activates it (the class is not one of react-day-picker's own defaults — its root is `rdp-root`).
+ *
+ * These are the places daisy's default paint contradicts a console rule. They used to live in a
+ * `classNames` map inside the component, each entry spread over `getDefaultClassNames()` because
+ * react-day-picker REPLACES a part's class rather than merging it — as CSS they need neither the
+ * spread nor the map.
+ */
+@utility react-day-picker {
+  /* daisy paints the calendar as its own card: a `base-100` fill (the FLOOR, #000 in dark) inside
+     a `base-200` frame. It already sits inside the popover popup, which IS the panel — left alone
+     this drops a floor-coloured rectangle and a second, wrong-toned border inside it. */
+  background-color: transparent;
+  border: 0;
+
+  /* daisy gaps the two months by 2rem. 16 is on our spacing scale, and it keeps two months plus
+     the presets column inside a popover width a narrow viewport can still take. */
+  & .rdp-months {
+    gap: 1rem;
+  }
+
+  /* The weekday header is the `label` type role, which has exactly one definition and is applied
+     from `type-roles.ts` at the call site. daisy's own treatment is a different role (`opacity:
+     .6`, `font-size: smaller`, weight 500); only the two declarations the role does not itself
+     carry are unset here. */
+  & .rdp-weekday {
+    font-weight: 400;
+    opacity: 1;
+  }
+
+  /* The month name is a heading, so it is `ink`; daisy leaves it at the inherited body colour. */
+  & .rdp-caption_label {
+    color: var(--color-ink);
+  }
+
+  /* daisy tints the span between the two endpoints with `base-200` — exactly the popup's own fill,
+     so the selected span would be invisible. `raised` is the token defined as the step toward
+     greater contrast against the panel it marks, and it measures that way: against a `surface`
+     popup it separates 1.079:1 in dark and 1.345:1 in light, where `chrome` — the other candidate
+     — matches it in dark (1.074) but nearly vanishes in light (1.09). */
+  & .rdp-range_middle {
+    background-color: var(--color-base-300);
+  }
+
+  /* …and daisy ALSO paints every day between them as a selected endpoint. Its own
+     `.rdp-range_middle .rdp-day_button` rule tries to clear that, but the two selectors tie on
+     specificity and lose to source order once the stylesheet is flattened — so the whole span
+     renders as one solid `base-content` block instead of the `raised` tint above with the two
+     endpoints marked. (Pre-existing, from the day the daisy calendar was adopted; found by
+     reading computed styles while moving these corrections out of the component. The docstring
+     there described the intended behaviour, not the shipped one.) A large light fill is exactly
+     what "separation is tonal" rules out, so the clear is restated at a weight that holds. */
+  & .rdp-range_middle:not(.rdp-range_start, .rdp-range_end) .rdp-day_button {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+/*
+ * ─── The console's own component layer ───────────────────────────────────────────────────────
+ *
+ * Everything above corrects a daisyUI class. Everything below DECLARES one, for a part the
+ * console owns outright and daisy has no vocabulary for — a rail nav row, a ledger's action cell,
+ * a chart legend entry.
+ *
+ * Same file, same mechanism, and the same reason: the owner's bar is "tiny css classes per
+ * component (max 3)". A part whose paint is fifteen declarations either spends fifteen utilities
+ * at every call site, or it is a named class here. It is only worth naming when the alternative
+ * is a wall — a one-line treatment stays a utility at the call site, where it is readable.
+ *
+ * These are written as plain CSS against the theme's variables, never `@apply`: `@apply` would
+ * only relocate the same wall, and the point is to say WHAT the part is (a mono row that fills
+ * when it is the current route) rather than to re-list the utilities that add up to it.
+ *
+ * Cascade position is the one `skeleton` documents: an `@utility` lands UNLAYERED inside
+ * `utilities` and daisy's components land in a sublayer of it, so these beat daisy with no
+ * `!important` — which is what lets `rail-row` below drop the five `!` overrides `SubNav` needed
+ * to get past `menu`'s row paint. A plain Tailwind utility is ALSO unlayered and therefore ties
+ * on the layer, so where a component still carries a one-off (a `gap-3` that differs from the
+ * shared row's `gap-2`) source order decides and the call site wins, exactly as before.
+ */
+
+/*
+ * `focus-ring` — the console's focus treatment, once. ADR 0008 bans elevation shadows; a focus
+ * ring has always been the exception, drawn as two flat shadows: a 1px gap in the colour of the
+ * surface BEHIND the control, then the `--signal` ring. `btn` above carries the identical pair
+ * (against `--color-muted`, the floor a button sits on) and predates this; four other components
+ * had re-typed it as five `focus-visible:ring-*` utilities each, and they had already drifted —
+ * `Tooltip`'s trigger shipped the ring with no gap at all.
+ *
+ * The gap colour is a fact about the BAND, not about the control, so it reads a variable the band
+ * sets. Default `surface` (a panel, where most focusable chrome lives); the sidebar and the top
+ * bar (`SIDEBAR_CLASS`/`TOP_BAR_CLASS`, lib/shell-grid.ts) each set `--focus-gap` to `chrome` for
+ * their own zone, which is what a lone `ring-offset-chrome` used to say at the one call site that
+ * remembered to say it.
+ */
+@utility focus-ring {
+  /* The ring is a box-shadow, so it traces the element's OWN radius — declared here rather than
+     only under `:focus-visible`, or the corners would pop square-to-rounded on focus. 2px is the
+     contract radius (ADR 0008), which is why every call site that used to carry this ring also
+     carried a `rounded-[2px]` beside it. */
+  border-radius: var(--radius-field);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 1px var(--focus-gap, var(--color-base-200)),
+      0 0 0 2px var(--color-primary);
+  }
+}
+
+/*
+ * ─── Rail navigation ─────────────────────────────────────────────────────────────────────────
+ *
+ * `NavSpine` (rail layout) and `SubNav` render the SAME row — that is the contract
+ * (docs/design/console-redesign/README.md §4: identical active treatment, 34px vs 28px the only
+ * difference) — and before this they said so twice, in two dialects. `SubNav` spelled the active
+ * state as four `!important` utilities, because daisy `menu`'s own row-hover rule outranks a
+ * plain one; `NavSpine` spelled it as `data-[active=…]:` variants. Neither survived a reader
+ * comparing them.
+ *
+ * Active state is read off `aria-current="page"`, which both components already set and which is
+ * the accessible truth rather than a second, parallel flag. daisy's `menu-active` stays on the
+ * active row: daisy's hover rule excludes that class, and the exclusion is the only reason the
+ * `[aria-current]` fill (two classes) is not repainted by daisy's hover (two classes plus an
+ * element) on the way past.
+ *
+ * The GRID — bleed, row padding, icon column, label gap, row height — deliberately does NOT move
+ * here. It stays in `lib/rail-grid.ts`, a numeric model this and `NavSpine`'s sidebar layout both
+ * build from; splitting it across two languages is how it drifted the first time.
+ *
+ * Type: sans, 13px (shell brief 2026-08-30 — supersedes the earlier mono treatment; nav/sub-nav
+ * rows are UI chrome, not data, and mono-everywhere is dead).
+ */
+@utility rail-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out;
+
+  /* Width is the row's own, not the call site's. daisy's `menu` makes each `li` a stretch-aligned
+     flex column, so the row already fills its `li` — `NavSpine` carried a `w-full` that measured
+     as a no-op against that, while `SubNav` (the same row, by contract) carried none. Stated once
+     here so the two cannot disagree again. */
+  width: 100%;
+
+  &[aria-current='page'] {
+    background-color: var(--color-base-300);
+    color: var(--color-ink);
+  }
+
+  &:not([aria-current='page']) {
+    color: var(--color-base-content);
+    &:hover {
+      background-color: var(--color-neutral);
+      color: var(--color-ink);
+    }
+  }
+
+  /* A genuinely non-navigable destination (`NavSpineItem.disabled` — IA v3 phase 2's "Roles"
+     entry). `[aria-disabled='true']`, not the native `:disabled` pseudo-class (owner finding,
+     2026-08-31: a real `disabled` button does not reliably fire the hover/focus events the row's
+     reason tooltip needs — `nav-spine/component.tsx`'s own doc comment has the full mechanism).
+     No hover fill, `subtle` text, and a "not allowed" cursor rather than the pointer every other
+     row wears. */
+  &[aria-disabled='true'] {
+    cursor: not-allowed;
+    color: var(--color-subtle);
+    &:hover {
+      background-color: transparent;
+      color: var(--color-subtle);
+    }
+  }
+}
+
+/* The label cell of a rail row: it takes whatever width the icon column and any trailing count
+   leave, and truncates rather than wrapping — a rail row is one line by contract (README §4), and
+   a 176px column will meet a section name too long for it sooner or later. */
+@utility rail-row-label {
+  min-width: 0;
+  flex: 1 1 0%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* A rail label is ALWAYS left-aligned at the shared label x. Explicit because several rail
+   * rows are daisy `btn` triggers (the Search row, the workspace switcher) and `btn` centers its
+   * content — the label's box sat at the grid while its text painted centered inside it (live
+   * finding, 2026-08-30). */
+  text-align: left;
+}
+
+/* A count sitting at the trailing edge of a rail row (`SubNav`'s per-section totals). It is plain
+   trailing text, never a badge — daisy `badge` is in PRIMITIVES.md's not-adopted list for exactly
+   the reason this rule encodes: a count is one step DOWN the ramp from its label, not a pill.
+   `margin-left` is the real gap (phase 9 nit — the "Projects2" stutter): the previous fix relied
+   on a bare `{' '}` text node between label and count, which at 13px sans renders under 4px wide —
+   visually indistinguishable from no gap at all. A stated 8px margin is legible regardless of the
+   label's own font size or the count's, and it's the one place the gap is declared. */
+@utility rail-row-count {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-subtle);
+}
+
+/* The row list. daisy `menu` brings the list semantics and the row radius; its own gutters are
+   neutralised because the rail grid, not daisy, owns every x-offset here.
+
+   Width is `auto`, and it belongs here rather than at the two call sites — which had drifted into
+   saying two different things about one contract. daisy ships `width: fit-content`, so a bled list
+   must override it either way. `NavSpine` said `w-auto`, with a comment deriving why: `auto` lets
+   the used width absorb BOTH halves of the `-mx-2` bleed, so the active fill bleeds the same 8px
+   at each end. `SubNav` said `w-full` — and `width: 100%` resolves against the containing block
+   and is THEN shifted left by the bleed, which is precisely the defect `NavSpine`'s comment
+   describes: flush at the left, 8px short at the right. Both lists carry the same bleed, so both
+   want the same answer; stating it once fixes `SubNav`'s edge and removes a utility from each. */
+@utility rail-list {
+  gap: 0.25rem;
+  padding: 0;
+  width: auto;
+}
+
+/*
+ * `SubNav`'s HORIZONTAL variant (Settings' Account/Projects row, Attio pattern, 2026-08-30) — a
+ * plain line of text tabs under `PageHeader`, not a rail. Deliberately its own part rather than a
+ * rotated `rail-row`: `rail-row`'s active state is a FULL-WIDTH fill, which reads as a selected
+ * list row; a top-level section switch wants a quieter mark, so the active cell here gets a 2px
+ * `--signal` underline instead, same idiom `tab-active`'s bottom bar uses.
+ */
+@utility sub-nav-tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+}
+
+@utility sub-nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-subtle);
+  transition: color 0.15s ease-out;
+
+  &[aria-current='page'] {
+    color: var(--color-ink);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 2px;
+      background-color: var(--color-primary);
+    }
+  }
+
+  &:not([aria-current='page']):hover {
+    color: var(--color-soft);
+  }
+}
+
+/*
+ * The mobile-first (<600) bottom navigation dock — the rail rotated onto the bottom edge
+ * (console-ui skill "Shape and layout"): icon above a 10px label, active = `primary` text and a
+ * 2px `signal` bar on the TOP edge, the left bar rotated the same way the sheet direction is.
+ *
+ * Its focus ring is INSET rather than offset: the dock is 56px tall and flush to the viewport
+ * edge, so an outward ring is clipped by that edge on one side and by the neighbouring cell on
+ * the other. That is why it does not simply take `focus-ring`.
+ */
+/*
+ * `nav-dock` sits on the dock's `<nav>` ROOT and describes the whole part, list and cells
+ * included. It used to sit on the `<ul>`, which left the root and the cells to say the rest of
+ * one idea at the call site — `h-full w-full` on the root purely so this element's own `100%`
+ * had something to resolve against, and `flex-1` on every `<li>`. Neither was a decision the
+ * component was making; they are what "a dock fills its band and its cells share it equally"
+ * means, so they are stated here once.
+ */
+@utility nav-dock {
+  display: block;
+  height: 100%;
+  width: 100%;
+
+  /* daisy `menu menu-horizontal` paints the list; these are the dock's disagreements with it. */
+  & > .menu {
+    height: 100%;
+    width: 100%;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  /* Equal cells: the dock is a fixed strip of 3-5 destinations, never a scrolling list, so every
+     cell takes the same share of the width regardless of how long its label is. */
+  & > .menu > li {
+    flex: 1 1 0%;
+  }
+}
+
+@utility nav-dock-row {
+  position: relative;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  transition: color 0.15s ease-out;
+
+  /* The dock's glyphs are 18px — larger than the rail's 16px icon column, because a thumb aims at
+     the icon here and at the whole row there. */
+  & svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+  }
+
+  &[aria-current='page'] {
+    color: var(--color-primary);
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      top: 0;
+      height: 2px;
+      background-color: var(--color-primary);
+    }
+  }
+
+  &:not([aria-current='page']) {
+    color: var(--color-subtle);
+    &:hover {
+      color: var(--color-base-content);
+    }
+  }
+
+  /* Same disabled treatment as `rail-row` above — the dock flattens every group's items,
+     including a disabled one, into one strip (`NavSpine`'s own contract: one `groups` shape,
+     two CSS-hidden layouts), so it needs the identical `[aria-disabled='true']` rule (owner
+     finding, 2026-08-31 — see `rail-row`'s own comment for why this moved off `:disabled`). */
+  &[aria-disabled='true'] {
+    cursor: not-allowed;
+    color: var(--color-subtle);
+    &:hover {
+      color: var(--color-subtle);
+    }
+  }
+}
+
+/*
+ * `zone-heading` — the label row at the top of a dashboard zone, with whatever the zone puts at
+ * its trailing edge.
+ *
+ * `SpendDashboard`, `LatencyDashboard` and `BudgetPanel` wrote this out byte for byte, and
+ * `SpendShareSection` wrote out the baseline-aligned variant. `lib/zone-heading.tsx` owns the
+ * matching markup. NO UPSTREAM: daisy's nearest offer is `card-title`/`stat-title`, and `card` and
+ * `stat` are both on PRIMITIVES.md's not-adopted list.
+ *
+ * Alignment follows what the zone puts on the right, which is why it is not a prop the caller
+ * chooses: buttons are a cluster and centre against the label, while a figure is the other half
+ * of the label's own sentence and has to sit on its baseline.
+ */
+@utility zone-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  & .zone-heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  &[data-align='baseline'] {
+    align-items: baseline;
+    gap: 0.75rem;
+
+    /* A trailing figure is a numeral — it aligns down the zone stack like every other. */
+    & > :last-child {
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+/*
+ * `DateRangeField`'s popover — the frame around the calendar, and the preset column beside it.
+ *
+ * The calendar itself is daisy's (`react-day-picker` above, in the corrections half); everything
+ * here is the console's own furniture around it, which daisy has no vocabulary for. It was twelve
+ * utilities across four call sites inside one popup, three of which only existed to re-state what
+ * `OVERLAY_ITEM_CLASS` already says about a selected row in an overlay list.
+ */
+@utility date-range-popup {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+/*
+ * The presets column: a fixed 132px so the calendar's own width decides the popup's, parted from
+ * it by the same `raised` hairline every in-overlay divider uses.
+ *
+ * Its rows ARE options in an overlay, so they wear `OVERLAY_ITEM_CLASS` and mark the current one
+ * `data-selected` — the attribute that class already paints for cmdk, and which the call site was
+ * re-stating as `bg-raised text-ink`. Only the hover on the rows that are NOT current is left to
+ * say, and it is said here, contextually, rather than as a ternary's else-branch at the call site.
+ */
+@utility date-range-presets {
+  display: flex;
+  width: 132px;
+  flex-direction: column;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--color-base-300);
+
+  & > button:not([data-selected]):hover {
+    background-color: var(--color-neutral);
+  }
+
+  /* The trailing hint, indented onto the rows' own left edge. */
+  & > span:last-child {
+    margin-top: 0.5rem;
+    padding-inline: 0.75rem;
+  }
+}
+
+/*
+ * ─── Revamp phase 1 primitives ───────────────────────────────────────────────────────────────
+ *
+ * The console visual revamp brief (2026-08 — supersedes the console-ui skill's "never a card"
+ * rule and the ADR 0008 2px radius for the parts listed below): a two-column console modelled on
+ * Anthropic Console / fal.ai / Attio, where cards carry stats/charts/tables/forms. These five
+ * utilities are the foundation phase's paint; the components that consume them (`Card`,
+ * `EmptyState`, `Pagination`, `DetailSheet`, `PageHeader`) live in `components/`/`sections/`.
+ */
+
+/* `Card` — the console's one generic panel: a surface fill, a hairline border at the new
+   `--radius-box` step, and a padded interior. `.card-head` is the optional title/actions row a
+   card renders above its body. */
+@utility console-card {
+  background-color: var(--color-base-200);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-box);
+  padding: 1.25rem;
+
+  & .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+}
+
+/* `EmptyState` — a centred column inside a card (or standing alone): headline, optional
+   explainer, optional action, capped to a comfortable reading measure. */
+@utility empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 380px;
+  margin-inline: auto;
+  padding-block: 2.5rem;
+  text-align: center;
+}
+
+/* `Pagination`'s own row — caption on the left, Previous/Next on the right. */
+@utility pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
+/* `PageHeader` — the title block a screen opens with, and the controls row beside it. */
+@utility page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  & .page-header-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* `data-numeral` — tabular figures for any inline numeral outside the `DATA_*` type roles
+   themselves (e.g. a numeral composed into a larger hand-written string). */
+@utility data-numeral {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * ─── Settings rows ────────────────────────────────────────────────────────────────────────────
+ *
+ * Phase 9 (owner: "The settings pages do NOT look like a settings page. Why not do the classical
+ * list-like setting page?") — the familiar macOS/Stripe/Linear settings-list pattern: a `Card`
+ * containing a stack of ROWS, each parted from its neighbour by a hairline. `SettingsRow`
+ * (components/settings-row) renders the row; `settings-list` is the stack that holds them.
+ *
+ * The divider is `--color-raised`, never `--color-border` — border doctrine (phase 9): hairlines
+ * INSIDE a card (table rows, settings rows) are `raised`, exactly like `console-table`'s own row
+ * rule; `--color-border` is reserved for a container's own boundary (the card itself already
+ * carries that, via `console-card`).
+ */
+@utility settings-list {
+  display: flex;
+  flex-direction: column;
+
+  & > * + * {
+    border-block-start: 1px solid var(--color-raised);
+  }
+}
+
+@utility settings-row {
+  display: flex;
+  /* Content-driven, not a breakpoint: `.settings-row-value` (data + action, `flex-shrink: 0`)
+     drops to its own line the moment the row is too narrow to hold both halves — phase 9,
+     Addition F. A real production account/project id at 375px blew the ROW open (443px content
+     in a 301px box, confirmed live) before this, which cascaded into page-level horizontal
+     scroll. `flex-wrap` alone is the fix: at any width with room for one line, `justify-content:
+     space-between` still lands the value at the far edge exactly as before; only when the two
+     halves genuinely do not fit does the value wrap under the label, which is the same "narrow
+     column, stack instead of clip" idiom `PageHeader`'s own title/controls row already uses. */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  min-height: 3rem;
+  padding-block: 0.625rem;
+
+  /* Label + optional one-line description, stacked, truncating rather than wrapping the row
+     taller than its neighbours. */
+  & .settings-row-main {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  & .settings-row-main > * {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Value + action — this half never SPLITS from itself (the data and its action stay on one
+     line together); the ROW around it is what wraps, per the comment above. `max-width: 100%`
+     plus a break fallback on the value text is the last-resort floor under that: a single value
+     pathological enough to exceed the viewport on its own (a raw id longer than 375px allows)
+     breaks rather than pushing `.settings-row` itself past the card's edge. */
+  & .settings-row-value {
+    display: flex;
+    max-width: 100%;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+
+    & > span {
+      overflow-wrap: anywhere;
+    }
+  }
+
+  /* A row that is also a click target (`ProjectSettings`' rows opening `DetailSheet`) — the same
+     "chrome until pointed at" hover every other interactive list row in the console uses
+     (`console-table`'s `tbody tr:hover`, `rail-row`'s own hover), stated once so a settings row
+     reads as the same kind of thing. */
+  &:where(button) {
+    width: 100%;
+    cursor: pointer;
+    text-align: start;
+    transition: background-color 0.15s ease-out;
+
+    &:hover,
+    &:focus-visible {
+      background-color: var(--color-neutral);
+    }
+    &:focus-visible {
+      outline: none;
+    }
+  }
+
+  /* The current selection (`SettingsRow`'s `current` prop) — the row `DetailSheet` has open. Same
+     `neutral` fill a table row's hover uses, so a settings row and a table row read as the same
+     kind of "engaged" list item. */
+  &[data-current='true'] {
+    background-color: var(--color-neutral);
+  }
+}
+
+/* `Chevron`'s `direction="right"` — the console's one disclosure glyph, rotated into a "this row
+   opens something" mark rather than a second hand-drawn icon (phase 9 nit: `SettingsRow`'s
+   clickable rows had no click affordance at all beyond the hover fill). */
+@utility chevron-right {
+  transform: rotate(-90deg);
 }

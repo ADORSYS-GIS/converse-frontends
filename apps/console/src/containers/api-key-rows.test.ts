@@ -2,10 +2,15 @@ import type { ApiKey } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_KEY_EXPIRY_DAYS,
   EXPIRING_SOON_DAYS,
+  EXPIRY_DAY_OPTIONS,
+  MAX_KEY_EXPIRY_DAYS,
   apiKeyStatus,
+  apiKeysAccountFilters,
   apiKeysHygiene,
   apiKeysStatusSummary,
+  computeExpiresAtIso,
   daysUntil,
   formatDay,
   toApiKeyRow,
@@ -153,5 +158,76 @@ describe('apiKeysStatusSummary', () => {
     expect(apiKeysStatusSummary([apiKey({ expiresAt: '2026-03-05T00:00:00.000Z' })], NOW)).toBe(
       `0 active · 0 revoked · 1 expiring within ${EXPIRING_SOON_DAYS} days`
     );
+  });
+});
+
+describe('MAX_KEY_EXPIRY_DAYS / EXPIRY_DAY_OPTIONS (ticket #319)', () => {
+  it('stays under the documented 90-day server ceiling, with margin for clock skew', () => {
+    // The exact bug this ticket fixes: the old code requested precisely the documented default
+    // (90 days) with zero margin. Every offered preset — including the largest — must be
+    // strictly less than that default.
+    expect(MAX_KEY_EXPIRY_DAYS).toBeLessThan(90);
+    for (const option of EXPIRY_DAY_OPTIONS) {
+      expect(Number(option.value)).toBeLessThan(90);
+      expect(Number(option.value)).toBeLessThanOrEqual(MAX_KEY_EXPIRY_DAYS);
+    }
+  });
+
+  it('offers the default as one of the presets', () => {
+    expect(EXPIRY_DAY_OPTIONS.map((option) => option.value)).toContain(
+      String(DEFAULT_KEY_EXPIRY_DAYS)
+    );
+  });
+});
+
+describe('computeExpiresAtIso', () => {
+  it('adds whole days to the given timestamp', () => {
+    expect(computeExpiresAtIso(30, NOW)).toBe('2026-03-31T00:00:00.000Z');
+  });
+
+  it('never reaches the documented 90-day ceiling for any offered preset', () => {
+    for (const option of EXPIRY_DAY_OPTIONS) {
+      const expiresAt = computeExpiresAtIso(Number(option.value), NOW);
+      const ninetyDaysOut = computeExpiresAtIso(90, NOW);
+      expect(Date.parse(expiresAt)).toBeLessThan(Date.parse(ninetyDaysOut));
+    }
+  });
+});
+
+// Phase 2d (account-scoping audit, converse-frontends#368/#392): the owner-observed defect this
+// audit exists to close — `/accounts/A/api-keys` and `/accounts/B/api-keys` rendered the SAME key
+// list, because `ApiKey` carries no `accountId` and the toolbar's "All projects" state sent NO
+// filter at all. `apiKeysAccountFilters` is the fix: `projectId in […]` over the scoped account's
+// own project ids.
+describe('apiKeysAccountFilters', () => {
+  it('scopes an unfiltered ("All projects") toolbar to the account’s own project ids', () => {
+    expect(
+      apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_a1', 'proj_a2'] })
+    ).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] }]);
+  });
+
+  it('two different accounts’ project ids produce two genuinely different filters', () => {
+    const accountA = apiKeysAccountFilters({
+      projectId: null,
+      accountProjectIds: ['proj_a1', 'proj_a2'],
+    });
+    const accountB = apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_b1'] });
+
+    expect(accountA).not.toEqual(accountB);
+    expect(accountA).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] }]);
+    expect(accountB).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_b1'] }]);
+  });
+
+  it('a single chosen project always wins over the broader account-wide "in" filter', () => {
+    expect(
+      apiKeysAccountFilters({ projectId: 'proj_a1', accountProjectIds: ['proj_a1', 'proj_a2'] })
+    ).toEqual([{ field: 'projectId', operator: 'eq', value: 'proj_a1' }]);
+  });
+
+  it('returns null — never an unfiltered "match everything" query — when there is no project id yet', () => {
+    // The account's own project ids have not loaded yet, or the account genuinely has none: both
+    // cases must refuse to fire an unscoped `apiKeys` list rather than silently returning
+    // everything the identity can see. `null` is the caller's signal to disable the query.
+    expect(apiKeysAccountFilters({ projectId: null, accountProjectIds: [] })).toBeNull();
   });
 });

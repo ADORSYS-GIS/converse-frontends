@@ -30,7 +30,8 @@ src/
   client/                   'use client': refine root, cratestack clients, shell chrome, view state
   containers/               per-route `use-*-screen` adapters (refine hooks -> section props) and
                             the thin centre/rail components that compose ui-web sections from them
-  sw.ts                     service worker (built by @serwist/next in production only)
+  sw.ts                     service worker (bundled by @serwist/turbopack's route handler; see
+                            app/serwist/[path]/route.ts — registered client-side in production only)
 config.yaml                 the primary server config document — see Configuration below
 ```
 
@@ -146,6 +147,33 @@ The alternative dev realm the Expo app's `.env` points at
 `lightbridge-api-key,converse-frontend,lightbridge-token-issuer`) works too: point
 `keycloak.issuer`/`keycloak.clientId` in `config.yaml` at it and restore the audience values.
 
+### Testing on a real device (why `dev:https` exists)
+
+The session cookie is `Secure` unconditionally (`src/server/session.ts`) — deliberately, because it
+carries the JWE-sealed tokens and there is no deployment where sending it in the clear is
+acceptable. Browsers make one exception: `localhost` counts as a trustworthy origin, so plain
+`pnpm --filter console dev` over `http://localhost:3000` works fine.
+
+Any **other** http origin does not get that exception. Opening `http://192.168.1.20:3000` from a
+phone on the same network — the obvious way to check a mobile-first app (ADR 0009 Decision 6) on a
+real device — means the browser silently discards the session cookie. There is no error: the
+callback succeeds, the cookie never lands, and the app bounces straight back to `/auth/login`. It
+reads as a broken login rather than a missing `Secure` context, which is what makes it worth
+writing down.
+
+```bash
+pnpm --filter console dev:https        # https://localhost:3000, self-signed
+```
+
+Next generates and trusts a local certificate on first run. Two things to remember:
+
+- Your device must accept the self-signed certificate — visit the URL once and accept the warning
+  before expecting login to work.
+- The **IdP must allow the origin you actually use.** `idp.clientId`'s registered redirect URIs and
+  the console's `publicBaseUrl` both have to match it, so a LAN address needs adding on the
+  authz-idp side (`oauth2.token_exchange.clients` in `lightbridge-app.yaml`) — it is not something
+  the console can wave through.
+
 ### Dev without a backend: wiremock
 
 `config.yaml`'s default `backendUrl: 'http://localhost:13000'` assumes a real `lightbridge-authz`
@@ -190,7 +218,12 @@ One thing changed to make this work (dev-only — see `src/client/rpc-clients.ts
   `apps/self-service`), so keeping calls unbatched reuses them instead of adding a second stubbing
   strategy for the same ops.
 
-What's stubbed: `accounts`/`projects`/`apiKeys` list/get + the mutation procedures
+What's stubbed: `accounts`/`projects`/`apiKeys`/`projectMembers` list/get + the mutation
+procedures, plus `listBillingPlans` (`free`/`pro`/`enterprise`, the create-key form's plan
+selector, ticket #317 — `enterprise` deliberately ships no `limits` field, to exercise the
+"absent means no limit" rendering against wiremock too) and the `projectMembers` roster (ticket
+#320's lead-gate check — `acc_01` is a `lead` on `proj_03`, which `acc_01` does not own, so
+scoping to `?account=acc_01&project=proj_03` exercises the "member, not owner" eligible path)
 (`wiremock/mappings/mapping.json`), and the `/admin` refill queue's three budget procedures —
 `listPendingAugmentationRequests`, `approveAugmentationRequest`, `rejectAugmentationRequest`
 (`wiremock/mappings/console-budget.json`, mounted under the fixed `/budget` prefix). Not stubbed:
@@ -211,23 +244,25 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 | Script                            | What it does                                                     |
 | --------------------------------- | ---------------------------------------------------------------- |
 | `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
-| `pnpm --filter console build:web` | `next build --webpack` — the task `turbo run build:web` picks up |
+| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"  |
+| `pnpm --filter console build:web` | `next build --turbopack` — the task `turbo run build:web` picks up |
 | `pnpm --filter console start`     | serve the production build                                       |
 | `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |
 | `pnpm --filter console typecheck` | `tsc --noEmit`                                                   |
 
-### Turbopack in dev, webpack for the build
+### Turbopack for both dev and the build
 
-Two different bundlers on purpose, one reason each.
+The console now runs Turbopack everywhere (`next dev --turbopack`, `next build --turbopack`).
+Production used to stay on webpack for one reason: `@serwist/next`, the Serwist integration that
+compiled `src/sw.ts` into `public/sw.js`, was a webpack plugin, and Turbopack never calls a
+`next.config.mjs` `webpack()` function at all. That reason is gone — the console now runs
+`@serwist/turbopack` instead, whose `createSerwistRoute` bundles `src/sw.ts` with `esbuild-wasm`
+inside a normal route handler (`src/app/serwist/[path]/route.ts`), so there is no webpack-only
+build step left to keep production on. `src/client/providers.tsx` still gates SW *registration* on
+`NODE_ENV === 'production'` (ADR 0009 Decision 7 — in development it would serve a stale precached
+shell over every edit), but the route itself, and thus the bundler, is no longer the reason.
 
-**The production build stays on webpack** because `@serwist/next` — the stable Serwist integration,
-and the only thing that compiles `src/sw.ts` into `public/sw.js` — is a webpack plugin. Turbopack
-never calls a `next.config.mjs` `webpack()` function at all, so under Turbopack the service worker
-would simply never be built. In development that costs nothing: ADR 0009 Decision 7 disables the
-service worker there anyway (`disable: process.env.NODE_ENV !== 'production'`), so `withSerwist` is
-already a no-op under `next dev`.
-
-**Dev moved to Turbopack** once the one thing pinning it to webpack was fixed at the source.
+**Dev moved to Turbopack first**, once the one thing pinning it to webpack was fixed at the source.
 `packages/authz-rpc/generated/` is emitted by `cratestack generate-typescript` as ESM TypeScript
 using NodeNext `.js` import specifiers (`./runtime.js` for `runtime.ts`). `tsc`, vitest, Metro and
 webpack all resolve that — webpack did so through `experimental.extensionAlias`, which used to live
@@ -281,7 +316,8 @@ Ruled out along the way, each measured rather than assumed:
   reach the top 14 packages by module count in any compilation. The console already imports it
   granularly — `@lightbridge/authz-rpc/refine` is a single re-export of `generated/src/refine.ts`,
   deliberately off the package barrel.
-- **Serwist is already fully dev-disabled** (below), and under Turbopack it cannot run at all.
+- **Serwist registration is already fully dev-disabled** (below) — irrelevant to this migration
+  since it was true before and after the switch to `@serwist/turbopack`.
 - **`theme.css`'s `@source '.'` does not over-scan.** It resolves to `packages/ui-web/src` (the file
   lives in `src/`), not the package root — 364 files. The whole CSS loader chain cost 810 ms + 486 ms
   on a cold client compile, ~9% of that compilation's loader time.
@@ -314,10 +350,11 @@ pipeline never had the problem — it does not run Lightning CSS over the Tailwi
 
 ### Other dev-speed notes
 
-- **Serwist is already fully dev-disabled** (`disable: process.env.NODE_ENV !== 'production'` in
-  `next.config.mjs`) — confirmed by reading `@serwist/next`'s own webpack plugin: with `disable`
-  true it returns the untouched webpack config immediately, before any of its precache-manifest or
-  service-worker-bundling work runs.
+- **Serwist registration is already fully dev-disabled** (`register={process.env.NODE_ENV ===
+  'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
+  itself (`src/app/serwist/[path]/route.ts`) still exists and can be fetched in dev — unlike the old
+  `@serwist/next` webpack plugin, `@serwist/turbopack` has no build-wide `disable` switch — but a
+  route nothing registers against never runs, so this has no dev-speed cost either.
 - **The refine/query-client provider tree is already lazy**: `src/client/providers.tsx` mounts
   `ConsoleProviders` via `next/dynamic({ ssr: false })`, not a static import.
 - **Every `ui-web` value import goes through its own `@lightbridge/ui-web/src/*` subpath**, not the
@@ -379,7 +416,7 @@ exact same bytes with a fresh token. Responses are streamed.
 
 ## Offline-first
 
-- **Service worker** via `@serwist/next`: precached app shell plus Next-aware runtime caching.
+- **Service worker** via `@serwist/turbopack`: precached app shell plus Next-aware runtime caching.
   Registered **only in a production build**. Nothing under `/api/*` is cached — every proxy response
   is `no-store`, and caching an authenticated response into an origin-scoped store would outlive the
   session that authorised it.
@@ -397,8 +434,6 @@ Each is visible in the UI as an inline status line, never a fake number:
 - **Report export** on `/manage` states that `/api/reports/consumption` (ADR 0009 Decision 8) is not
   wired.
 - **Project creation** has no form yet.
-- The `/api-keys` "New key" action creates a key with a generated name and a 90-day expiry; the
-  parameter form is a follow-up.
 - `src/middleware.ts` uses the file convention Next 16 deprecated in favour of `proxy`. Renaming it
   is a follow-up rather than a silent side effect of this PR.
 - **WireMock dev mode cannot exercise a real data fetch end to end**, since `wiremock/mappings/`

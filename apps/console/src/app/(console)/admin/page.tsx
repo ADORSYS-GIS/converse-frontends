@@ -1,27 +1,12 @@
-import { notFound } from 'next/navigation';
-
-import { AdminCentre } from '../../../containers/admin-centre';
-import { readSession } from '../../../server/session-store';
-import { isAdmin } from '../../../server/tokens';
-
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
 /**
- * `/admin` — gated **server-side** on the `lightbridge-admin` role read from the decrypted session
- * cookie, before any admin markup is generated.
- *
- * `notFound()` rather than a 403: a non-admin should not learn that this route exists at all, and
- * the console-ui contract already hides the Admin nav group entirely for them. This is still only
- * the UI half — `lightbridge-authz` enforces `budget:review` on every procedure the screen calls,
- * so a forged session could at most render an empty queue.
- *
- * The `@rail` and `@scope` slots for this route carry the SAME gate: a parallel-route slot is its
- * own segment, so `notFound()` here does not by itself stop a sibling slot from rendering.
+ * `/admin` — the admin area's own bare-segment resolver, the same shape `settings/page.tsx`
+ * already establishes for `/settings`: no centre of its own, just a redirect to the first (and,
+ * as of this build, only) destination. `/admin/overview` owns the real server-side role gate
+ * (`admin/overview/page.tsx`) — a non-admin hitting `/admin` still lands there and gets the honest
+ * `notFound()`, never a visible-then-denied flash.
  */
-export default async function AdminRoute() {
-  const session = await readSession();
-  if (!session || !isAdmin(session.user.roles)) {
-    notFound();
-  }
-  return <AdminCentre />;
+export default function AdminRoute() {
+  redirect('/admin/overview');
 }

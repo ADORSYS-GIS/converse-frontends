@@ -1,53 +1,26 @@
 import React from 'react';
-import type { ReactNode } from 'react';
 
 import { cn } from '../../cn';
 import { SkeletonMetric } from '../../components/skeleton-metric';
 import { Sparkline } from '../../components/sparkline';
 import { StatCard } from '../../components/stat-card';
-import type { OverviewStatCardIcon, OverviewStatRowProps } from './types';
-
-// 12px structural line glyphs (console-ui skill: "structural, not decorative"). One per
-// `OverviewStatCardIcon` — kept out of `fixtures.ts` so that file stays plain data.
-const STAT_ICONS: Record<OverviewStatCardIcon, ReactNode> = {
-  spend: (
-    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <path d="M1 11 L5 3 L9 11" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  projects: (
-    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="9" height="9" rx="1" />
-    </svg>
-  ),
-  keys: (
-    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <path d="M1 7 h6 M5 7 a3 3 0 1 0 0 -0.01" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  requests: (
-    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <path d="M1 8 l2 -5 l2 4 l2 -6 l2 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-};
+import type { OverviewStatRowProps } from './types';
 
 // Skeleton matching a real `StatCard`'s geometry exactly (console-ui skill §states: "skeleton
-// blocks (`raised`) matching final geometry" — no spinner, no shimmer).
+// blocks (`raised`) matching final geometry" — no spinner, no shimmer). No icon block any more
+// (phase 9, item 4 — "DELETE the corner glyphs: label + numeral only"): the label line is the
+// card's only leading block now.
 function StatCardSkeleton() {
   return (
-    <div className="rounded-[2px] bg-surface p-4" role="presentation" aria-hidden="true">
+    <div className="bg-surface rounded-[2px] p-4" role="presentation" aria-hidden="true">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <span className="h-3 w-3 rounded-[1px] bg-raised" />
-          <span className="h-[10px] w-24 rounded-[2px] bg-raised" />
-        </div>
-        <span className="h-[20px] w-20 rounded-[2px] bg-raised" />
+        <span className="bg-raised h-[10px] w-24 rounded-[2px]" />
+        <span className="bg-raised h-[20px] w-20 rounded-[2px]" />
       </div>
       <div className="mt-3">
         <SkeletonMetric width={72} />
       </div>
-      <div className="mt-2 h-[10px] w-28 rounded-[2px] bg-raised" />
+      <div className="bg-raised mt-2 h-[10px] w-28 rounded-[2px]" />
     </div>
   );
 }
@@ -67,11 +40,15 @@ export function OverviewStatRow({ cards, loading = false, className }: OverviewS
         : cards.map((card) => (
             <StatCard
               key={card.key}
-              icon={card.icon ? STAT_ICONS[card.icon] : undefined}
               label={card.label}
               metric={card.metric}
               delta={card.delta}
-              sparkline={<Sparkline data={card.sparklineData} />}
+              // #273 — omit the sparkline slot entirely when there is no trend data, rather than
+              // rendering `<Sparkline data={[]} />`: `Sparkline` already draws nothing for fewer
+              // than two points, but `StatCard` would still reserve the slot's layout for an
+              // element that renders empty, which is the "flat/zero decorative line" shape this
+              // ticket bans -- just invisible instead of visibly flat.
+              sparkline={card.sparklineData ? <Sparkline data={card.sparklineData} /> : undefined}
               className="w-full lg:min-w-0 lg:flex-1 lg:basis-[209px]"
             />
           ))}

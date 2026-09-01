@@ -1,52 +1,50 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 
 import { Pagination } from './component';
 
 const meta: Meta<typeof Pagination> = {
-  title: 'Forms & actions/Pagination',
+  title: 'Data display/Pagination',
   component: Pagination,
+  args: {
+    shown: 12,
+    total: 23,
+    unit: 'keys',
+    hasPrev: false,
+    hasNext: true,
+    onPrev: fn(),
+    onNext: fn(),
+  },
 };
 
 export default meta;
 type Story = StoryObj<typeof Pagination>;
 
-function Controlled({ pageCount = 11 }: { pageCount?: number }) {
-  const [current, setCurrent] = useState(0);
-  return (
-    <Pagination
-      current={current}
-      pageCount={pageCount}
-      rangeLabel={`${current * 4 + 1}–${Math.min((current + 1) * 4, pageCount * 4)} / ${pageCount * 4}`}
-      onPageChange={(page) => setCurrent(page ?? 0)}
-    />
-  );
-}
+export const FirstPage: Story = {};
 
-export const Default: Story = {
-  render: () => <Controlled />,
+export const MiddlePage: Story = {
+  args: { shown: 12, total: 23, hasPrev: true, hasNext: true },
 };
 
-export const AtStart: Story = {
-  render: () => (
-    <Pagination current={0} pageCount={11} rangeLabel="1–4 / 41" onPageChange={() => {}} />
-  ),
+export const LastPage: Story = {
+  args: { shown: 11, total: 23, hasPrev: true, hasNext: false },
 };
 
-export const AtEnd: Story = {
-  render: () => (
-    <Pagination current={10} pageCount={11} rangeLabel="41–41 / 41" onPageChange={() => {}} />
-  ),
+export const UnknownTotal: Story = {
+  name: 'Total unknown — "12 keys" rather than "of ?"',
+  args: { shown: 12, total: undefined, hasPrev: true, hasNext: true },
 };
 
-export const SinglePage: Story = {
-  render: () => (
-    <Pagination current={0} pageCount={1} rangeLabel="1–2 / 2" onPageChange={() => {}} />
-  ),
+/** No caller wiring for either direction — a single page of results renders no bar at all. */
+export const Unwired: Story = {
+  name: 'Nothing wired — renders null',
+  args: { onPrev: undefined, onNext: undefined },
 };
 
-export const DefaultLight: Story = {
-  name: 'Default — wireframe (light)',
+// ADR 0010 phase 4: the `wireframe` (light) counterpart.
+export const FirstPageLight: Story = {
+  name: 'First page — wireframe (light)',
+  args: FirstPage.args,
   globals: { theme: 'wireframe' },
-  render: () => <Controlled />,
 };

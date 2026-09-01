@@ -18,7 +18,7 @@ describe('RefineOverviewScreen', () => {
     // "$142.55" alone is ambiguous once loaded — BudgetHero echoes the same figure the SPEND THIS
     // MONTH stat card shows (both fixtures use the same mock number), so assert via `getAllByText`.
     await waitFor(() => expect(screen.getAllByText('$142.55').length).toBeGreaterThan(0), { timeout: 3000 });
-    expect(screen.getByText('SPEND THIS MONTH')).toBeInTheDocument();
+    expect(screen.getByText('Spend this month')).toBeInTheDocument();
   });
 
   it('adapts a custom-endpoint failure into the Overview sections’ error props (ErrorLine per dashboard)', async () => {

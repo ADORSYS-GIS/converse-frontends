@@ -1,46 +1,43 @@
 import type { ReactNode } from 'react';
 
-import type { NavSpineProps } from '../nav-spine';
-
 export interface ConsoleShellProps {
-  /** Fully composed `ConsoleHeader` (or equivalent) — sticky at the very top of the shell. */
-  header: ReactNode;
+  /** Fully composed `ConsoleSidebar` (sections/console-sidebar) — the persistent left column at
+   *  `md`+, and (internally, via the same component) the mobile bottom navigation dock below it. */
+  sidebar: ReactNode;
+  /** Fully composed `ConsoleTopBar` — the mobile/tablet-only 48px sticky replacement for the
+   *  sidebar below `md`. */
+  topBar: ReactNode;
   /**
-   * Structured nav data, not a pre-rendered rail. `ConsoleShell` owns two renderings of the
-   * same `NavSpineProps` — a vertical `NavSpine` in the left rail at `md`/`lg`, and a
-   * `layout="bottom-bar"` `NavSpine` docked as a fixed bottom navigation bar below `md`
-   * (console-ui skill "Shape and layout" — mobile-first ladder). Both are always in the DOM;
-   * only one is visible at a time via CSS (`md:hidden` / `hidden md:flex`), so the tier switch
-   * needs no JS viewport detection.
+   * The persistent right INSPECTOR rail — 280px, visible at `lg`+ only, absent entirely below it
+   * (the same content lives in `DetailSheet` there). Optional, but in practice always supplied by
+   * `app/(console)/layout.tsx`'s `InspectorRail` container, which never returns nothing: it
+   * resolves to a selection's detail or the scope quick-settings panel, never a blank column
+   * (`lib/shell-grid.ts`'s `INSPECTOR_RAIL_CLASS` doc comment — the owner's explicit condition for
+   * bringing the rail back).
    */
-  nav: NavSpineProps;
+  rail?: ReactNode;
   /**
-   * Secondary left-rail content stacked below the nav panel — a `SCOPE` echo or a section
-   * `SubNav` (docs/design/console-redesign/README.md §3's "left rail is a stack of panels").
-   * Rendered inline at `md`/`lg`. Below `md` it is not in the rail at all (there is no rail);
-   * instead it is reachable from a small trigger row under the header that opens it in a vaul
-   * drawer — provide `leftSecondaryLabel` alongside this to label both the trigger and the
-   * drawer title.
+   * The rail's current width, px — controlled, and required whenever `rail` is supplied. Owned by
+   * `apps/console`'s `use-rail-width.ts` (a per-viewer `localStorage` preference, the same shape
+   * `use-console-theme.ts` already establishes for the theme toggle), never by this package —
+   * `packages/ui-web` stays presentational. Clamped by the caller to
+   * `INSPECTOR_RAIL_MIN_WIDTH`/`INSPECTOR_RAIL_MAX_WIDTH` (`lib/shell-grid.ts`); this component
+   * does not re-clamp it, since `RailResizer` (which it renders) already only ever reports a
+   * clamped value.
    */
-  leftSecondary?: ReactNode;
-  /** Trigger label and drawer title for `leftSecondary` below `md`. Required whenever
-   * `leftSecondary` is set — omitting it while `leftSecondary` is present leaves the mobile
-   * trigger unlabelled. */
-  leftSecondaryLabel?: string;
+  railWidth?: number;
+  /** Fires as the rail is dragged/keyboard-resized (`RailResizer`). Required whenever `rail` is
+   *  supplied. */
+  onRailWidthChange?: (width: number) => void;
   /**
-   * Right rail content — parameters and the action that consumes them (README §3/§10.3).
-   * Persistent and inline at `lg` (never an overlay, per ADR 0008 Decision 3). Below `lg` there
-   * is no shell-owned fallback for this prop at all (owner revision 2026-08-25, console-ui
-   * skill "Shape and layout" — no persistent footer/peek bar at 600–1024, and no docked panel
-   * below 600 either): `ConsoleShell` does not own right-rail sheet state below `lg`. Each page
-   * decomposes its own right-rail sections into individually-triggered `SectionSheet`s, placed
-   * in context next to the on-page element they parameterise (a filter icon in a table toolbar,
-   * a view/range icon beside a chart header, …) — see the sections under `src/sections/` and the
-   * full-screen compositions under `src/pages-stories/`.
+   * A console-wide alert band, at the top of the content column — today only
+   * `MutationFailureBanner` (converse-frontends#323: refine has no default visible failure path,
+   * so the shell carries one slot every route gets for free). `undefined`/`null`/a component that
+   * renders nothing reserves no space.
    */
-  rightRail?: ReactNode;
-  /** Centre floor content — no card, no max-width. The document's own scroller; both rails are
-   * sticky and scroll independently of it at `md`/`lg`. */
+  banner?: ReactNode;
+  /** Centre floor content — no card, no max-width beyond the shell's own reading-measure cap. The
+   * document's own scroller; the sidebar is sticky and scrolls independently of it at `md`+. */
   children: ReactNode;
   className?: string;
 }

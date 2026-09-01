@@ -35,9 +35,8 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReportExport
       format="csv"
       onFormatChange={onFormatChange}
       onGenerate={onGenerate}
-      lastExports={[{ filename: '2026-01 · CSV', date: '4 d ago' }]}
       {...overrides}
-    />,
+    />
   );
 
   return { onGenerate, onToggleInclude, onPeriodChange, onGroupByChange, onFormatChange };
@@ -49,15 +48,33 @@ describe('ReportExportPanel', () => {
     expect(screen.getByText('scope slot')).toBeInTheDocument();
   });
 
-  it('renders the last exports list as mono filename · date rows', () => {
+  // Ticket #309: there is no real export-history source, so the panel no longer renders a LAST
+  // EXPORTS section at all — neither a fabricated list nor a permanent "unwired"/"No exports yet."
+  // placeholder (console-ui#326's original complaint about the latter).
+  it('renders no export-history section — removed entirely, not emptied', () => {
     renderPanel();
-    expect(screen.getByText('2026-01 · CSV')).toBeInTheDocument();
-    expect(screen.getByText('4 d ago')).toBeInTheDocument();
+    expect(screen.queryByText('Last exports')).not.toBeInTheDocument();
+    expect(screen.queryByText('Export history is unwired.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No exports yet.')).not.toBeInTheDocument();
   });
 
-  it('shows a fallback line when there are no exports yet', () => {
-    renderPanel({ lastExports: [] });
-    expect(screen.getByText('No exports yet.')).toBeInTheDocument();
+  // console-ui#325 — pressing Generate report when report export isn't wired yet must not read
+  // as an error: no `role="alert"`, no `Retry`, and the explanatory copy stays visible.
+  it('renders a placeholder notice as a non-alert status with Dismiss, never Retry', () => {
+    const onDismiss = vi.fn();
+    renderPanel({ notice: { message: "Report export isn't available yet.", onDismiss } });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent("Report export isn't available yet.");
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the notice entirely when none is given', () => {
+    renderPanel();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('fires onGenerate with the current period, groupBy, format and checked includes', () => {

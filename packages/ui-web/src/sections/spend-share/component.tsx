@@ -1,82 +1,87 @@
 import React from 'react';
 
-import { SPEC_GRID } from '../../chart-tokens';
-import { DonutChart } from '../../components/donut-chart';
 import { ErrorLine } from '../../components/error-line';
-import { DASHBOARD_LABEL } from '../dashboard-label';
+import { InlineStatus } from '../../components/inline-status';
+import { ShareBar } from '../../components/share-bar';
+import { DATA_INK_CLASS, LABEL_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
+import { UNWIRED_CHART_MESSAGE } from '../unwired-chart-message';
 import type { SpendShareSectionProps } from './types';
 
-const RING_THICKNESS_RATIO = 0.38;
-const OUTER_INSET = 4;
-
-// Matches `DonutChart`'s own empty-state ring geometry exactly (same insets/ratio), per the
-// console-ui skill's loading rule: `raised` blocks over the exact final geometry, no shimmer, no
-// spinner. Documented inline rather than exported from `donut-chart` because -- same as
-// `SpendDashboard`'s `SpendChartSkeleton` -- a chart-loading skeleton is the consumer's frame to
-// swap out once the query resolves, not a prop on the chart primitive itself.
-function DonutSkeleton({ size }: { size: number }) {
-  const radius = size / 2;
-  const outerRadius = Math.max(radius - OUTER_INSET, 0);
-  const innerRadius = outerRadius * (1 - RING_THICKNESS_RATIO);
-  return (
-    <svg width={size} height={size} role="presentation" aria-hidden="true">
-      <circle
-        cx={radius}
-        cy={radius}
-        r={(outerRadius + innerRadius) / 2}
-        fill="none"
-        stroke={SPEC_GRID}
-        strokeWidth={outerRadius - innerRadius}
-      />
-    </svg>
-  );
-}
-
-// Contract: owner brief 2026-08-24 -- "SPEND — SHARE BY PROJECT," a donut of the same per-project
-// series data `SpendDashboard`'s time series plots, placed directly below it (see this section's
-// `component.stories.tsx` for the full placement note). Follows `SpendDashboard`'s own
-// heading/status-row shape (`DASHBOARD_LABEL` + `ready`/`loading`/`error`) so the two dashboards
-// read as one family, uncontained on the floor.
+// Contract: owner brief 2026-08-24 -- "Spend — share by project," the part-to-whole view of the
+// same per-project series `SpendDashboard` plots over time, placed directly below it. Follows
+// `SpendDashboard`'s heading/status shape (`SECTION_TITLE_CLASS` + `ready`/`loading`/`error`/
+// `unwired`) so the two dashboards read as one family, uncontained on the floor.
+//
+// The mark is a `ShareBar`, not a donut (owner review 2026-08-29) — see that component's own
+// docstring for why. The zone went from ~330px tall to ~90px in the process, which is most of
+// what made Overview feel dense below the fold.
 export function SpendShareSection({
-  label = 'SPEND — SHARE BY PROJECT',
-  slices,
-  size = 200,
+  label = 'Spend — share by project',
+  segments,
+  total,
   status = 'ready',
   errorMessage,
+  unwiredMessage,
   onRetry,
   selectedKey,
-  onSelectSlice,
-  centreMetric,
-  centreLabel,
-  formatTooltipValue,
-  formatLegendValue,
+  onSelectSegment,
+  formatPercent,
+  degenerateMessage,
   className,
 }: SpendShareSectionProps) {
   return (
     <div className={className}>
-      <div className={DASHBOARD_LABEL}>{label}</div>
-      <div className="mt-4 flex justify-center">
-        {status === 'error' ? (
+      {/* `trailing`, not `actions`: the total is the other half of the label's sentence and sits
+          on its baseline. Rendered only when there is a real figure to show — an `unwired` zone
+          must never print a total, fabricated or zero, which is the whole point of the status. */}
+      <ZoneHeading
+        label={label}
+        trailing={
+          total && status === 'ready' ? (
+            <span className={DATA_INK_CLASS}>{total}</span>
+          ) : undefined
+        }
+      />
+
+      {status === 'error' ? (
+        <div className="mt-4">
           <ErrorLine message={errorMessage ?? 'Failed to load spend share.'} onRetry={onRetry} />
-        ) : status === 'loading' ? (
-          <div className="flex flex-col items-center gap-2">
-            <DonutSkeleton size={size} />
-            <p className="text-subtle font-mono text-[10px]">Querying usage…</p>
+        </div>
+      ) : status === 'loading' ? (
+        // Skeleton over the exact final geometry (console-ui skill "States"): the 8px bar, then
+        // three list rows at the `ShareBar` row height. daisy `skeleton` is the raised fill and
+        // the 2px radius — byte for byte what these blocks were spelling out — with its shimmer
+        // already killed by the `@utility skeleton` override; only the heights are local.
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="skeleton h-2" />
+          <div className="flex flex-col gap-1">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="skeleton h-[28px]" />
+            ))}
           </div>
-        ) : (
-          <DonutChart
-            slices={slices}
-            width={size}
-            height={size}
-            selectedKey={selectedKey}
-            onSelectSlice={onSelectSlice}
-            centreMetric={centreMetric}
-            centreLabel={centreLabel}
-            formatTooltipValue={formatTooltipValue}
-            formatLegendValue={formatLegendValue}
-          />
-        )}
-      </div>
+          <p className={LABEL_CLASS}>Querying usage…</p>
+        </div>
+      ) : status === 'ready' && degenerateMessage ? (
+        // A single-band share bar asserts a distribution the data doesn't have — an inline status
+        // line replaces the bar itself (heading stays, above), the same contract `SpendDashboard`
+        // already applies to its own chart body.
+        <InlineStatus className="mt-4">{degenerateMessage}</InlineStatus>
+      ) : (
+        <ShareBar
+          className="mt-4"
+          segments={segments}
+          selectedKey={selectedKey}
+          onSelectSegment={onSelectSegment}
+          formatPercent={formatPercent}
+          // Only overridden for `unwired` — see `SpendDashboard`'s equivalent comment. A zone
+          // whose source was never queried says so; one that WAS queried and came back empty
+          // keeps `ShareBar`'s own "No spend in this range."
+          emptyMessage={
+            status === 'unwired' ? (unwiredMessage ?? UNWIRED_CHART_MESSAGE) : undefined
+          }
+        />
+      )}
     </div>
   );
 }

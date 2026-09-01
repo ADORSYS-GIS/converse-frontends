@@ -1,22 +1,39 @@
+import { Field as BaseField } from '@base-ui/react/field';
+import { Switch } from '@base-ui/react/switch';
 import React from 'react';
 
 import { cn } from '../../cn';
 import { Button } from '../button';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
+import { InlineStatus } from '../inline-status';
 import { SegmentedControl } from '../segmented-control';
-import { Toggle } from '../toggle';
 import type { ReportExportPanelProps } from './types';
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT (not self-panelled)
 // for the Manage screen (manage-projects.svg): period · scope slot · group-by segmented ·
-// include toggles · CSV|PDF segmented · one Generate report primary · LAST EXPORTS list.
+// include toggles · CSV|PDF segmented · one Generate report primary.
 //
-// ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled `sr-only`
-// checkbox + drawn box/check-mark pair. The include-toggles below render through the standalone
-// `Toggle` primitive (extracted from this panel — LCI design pass, `PRIMITIVES.md`'s `toggle.tsx`
-// row) rather than the inline `Field.Root`/`Switch.Root` pair this file used to hand-write, so a
-// second consumer doesn't reimplement the same click-to-toggle/`aria-labelledby` wiring.
+// Ticket #309: the LAST EXPORTS list that used to render below the primary is gone, not just
+// emptied. It was never a real list — the manage screen hook fed it a hardcoded empty array because
+// no export had ever been attempted (console-ui#326's "Export history is unwired." fix), but now
+// that Generate report calls the real consumption-report route (#308), keeping a permanently-empty
+// "history" section would misrepresent a genuinely-succeeding action as one that still has nothing
+// to show. There is no backend surface that records past exports (no such table or procedure in
+// the authz schema), so per the ticket's own Risk section the safer default is removing the
+// section outright rather than half-implementing it — recorded here as the decision, not left as
+// a TODO.
+//
+// ADR 0010 Decision 4 (Base UI Switch + daisy `toggle`): replaces the hand-rolled visually-hidden
+// checkbox plus drawn box/check-mark pair. daisy's toggle CSS already matches `[aria-checked]`
+// (not only `:checked`), which is exactly the attribute Base UI's `Switch.Root` sets — no extra
+// styling glue needed. Both theme blocks pin no depth and a 2px selector radius, so the stock knob
+// renders flat with a square corner rather than a shadowed pill.
+//
+// Every wrapper here is now a daisy layout class: `fieldset` for a label stacked over its control,
+// `label` for a switch beside its text (which is also where the row's pointer cursor and the label
+// association come from — a bare native label wrapping a non-native `role="switch"` element gets
+// neither for free). `btn-block` is daisy's own full-width button.
 export function ReportExportPanel({
   period,
   onPeriodChange,
@@ -30,7 +47,7 @@ export function ReportExportPanel({
   onFormatChange,
   onGenerate,
   generating = false,
-  lastExports,
+  notice,
   className,
 }: ReportExportPanelProps) {
   return (
@@ -44,7 +61,7 @@ export function ReportExportPanel({
 
       {scopeSlot}
 
-      <div className="flex flex-col gap-1.5">
+      <div className="fieldset">
         <span className={fieldLabelClassName}>Group by</span>
         <SegmentedControl
           aria-label="Group by"
@@ -54,18 +71,20 @@ export function ReportExportPanel({
         />
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="fieldset">
         {includeToggles.map((toggle) => (
-          <Toggle
-            key={toggle.id}
-            checked={toggle.checked}
-            onCheckedChange={(checked) => onToggleInclude(toggle.id, checked)}
-            label={toggle.label}
-          />
+          <BaseField.Root key={toggle.id} className="label">
+            <Switch.Root
+              checked={toggle.checked}
+              onCheckedChange={(checked) => onToggleInclude(toggle.id, checked)}
+              className="toggle"
+            />
+            <BaseField.Label>{toggle.label}</BaseField.Label>
+          </BaseField.Root>
         ))}
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="fieldset">
         <span className={fieldLabelClassName}>Format</span>
         <SegmentedControl
           aria-label="Export format"
@@ -81,7 +100,7 @@ export function ReportExportPanel({
       <Button
         type="button"
         variant="primary"
-        className="w-full"
+        className="btn-block"
         disabled={generating}
         onClick={() =>
           onGenerate({
@@ -94,23 +113,18 @@ export function ReportExportPanel({
         {generating ? 'Generating…' : 'Generate report'}
       </Button>
 
-      <div className="flex flex-col gap-3">
-        <span className={fieldLabelClassName}>Last exports</span>
-        {lastExports.length === 0 ? (
-          <p className="text-subtle font-mono text-[11px]">No exports yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {lastExports.map((entry) => (
-              <li
-                key={`${entry.filename}-${entry.date}`}
-                className="flex items-baseline justify-between gap-3">
-                <span className="text-soft font-mono text-xs">{entry.filename}</span>
-                <span className="text-subtle font-mono text-[11px]">{entry.date}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {notice ? (
+        <InlineStatus
+          action={
+            notice.onDismiss ? (
+              <Button type="button" variant="ghost" size="sm" onClick={notice.onDismiss}>
+                Dismiss
+              </Button>
+            ) : undefined
+          }>
+          {notice.message}
+        </InlineStatus>
+      ) : null}
     </div>
   );
 }

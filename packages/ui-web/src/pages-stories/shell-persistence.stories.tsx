@@ -2,9 +2,9 @@
 // not remount the chrome**.
 //
 // Before, every route imported a monolithic `*Page` that mounted its own
-// ConsoleShell/ConsoleHeader/NavSpine, so a route change rebuilt the entire shell. Now the shell
+// ConsoleShell/ConsoleSidebar/NavSpine, so a route change rebuilt the entire shell. Now the shell
 // is mounted once — by `apps/console/src/app/(console)/layout.tsx` for real, and by this story's
-// single `<ConsoleShell>` here — and only the centre (`children`) and the rail (`@rail`) swap.
+// single `<ConsoleShell>` here — and only the centre (`children`) swaps.
 //
 // This story reproduces that structure with two "routes" swapped by a nav click, and its `play`
 // function performs exactly the check the PR is judged on: stash a reference to the live nav DOM
@@ -17,26 +17,40 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
-import { RailPanel } from '../components/rail-panel';
+import { ConsoleTopBar } from '../components/console-top-bar';
+import { ConsoleSidebar } from '../sections/console-sidebar';
 import { ApiKeysLedger } from '../sections/api-keys-ledger';
 import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
-import { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from '../sections/api-keys-hygiene-rail';
-import { apiKeysHygiene } from '../sections/api-keys-hygiene-rail/fixtures';
+import { ApiKeysHygieneNotes } from '../sections/api-keys-hygiene-notes';
+import { apiKeysHygiene } from '../sections/api-keys-hygiene-notes/fixtures';
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
+
+import { PageHeader } from '../sections/page-header';
 import {
-  OVERVIEW_EXPORT_RAIL_LABEL,
-  OverviewExportRail,
-} from '../sections/overview-export-rail';
-import { SCOPE_RAIL_LABEL, ScopeRail } from '../sections/scope-rail';
-import { ScreenHeading } from '../sections/screen-heading';
-import { storyAdminNavItems, storyHeader, storyNavItems, type StoryRoute } from './shell-fixtures';
+  storyBrand,
+  storyNavGroups,
+  storyTopBarWorkspaceSwitcher,
+  storyWorkspaceSwitcher,
+  type StoryRoute,
+} from './shell-fixtures';
 
 /**
  * One shell, two routes. `route` stands in for the App Router's pathname: changing it swaps the
- * centre and the rail, exactly as `children` and the `@rail` slot swap for real — and, exactly as
- * for real, the shell itself is never re-created.
+ * centre, exactly as `children` swaps for real — and, exactly as for real, the shell itself is
+ * never re-created.
+ *
+ * The pair is Overview ↔ API keys — the only two destinations left in the account area's
+ * Workspace group (IA v3 phase E, "the settings/accounts move": Projects moved off `/accounts/
+ * [accountId]/*` entirely, to `/settings/accounts/<id>/projects`, taking the rail's own one-and-
+ * only live case with it — see `settings-accounts-projects.stories.tsx`'s own doc comment). There
+ * is no right rail ANYWHERE left in the console (`ConsoleShell`'s `rail` prop is still a real
+ * primitive capability — `component.stories.tsx` exercises it directly — but nothing in
+ * `apps/console` feeds it any more), so this story no longer reproduces one: the content that
+ * differs structurally between the two routes (a stat row vs. a table) is enough on its own to
+ * prove the SAME property — chrome persists, content swaps — without a rail case to stand in for.
  */
 function PersistentShell() {
   const [route, setRoute] = useState<StoryRoute>('overview');
@@ -45,52 +59,52 @@ function PersistentShell() {
     if (key === 'overview' || key === 'api-keys') setRoute(key);
   };
 
-  const items = storyNavItems(route).map((item) => ({
-    ...item,
-    // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
-    // `href`s and Next's client-side navigation does the same swap.
-    href: undefined,
-    onSelect: navigate,
+  // Storybook has no router, so the nav items act as buttons here. In `apps/console` these carry
+  // `href`s and Next's client-side navigation does the same swap.
+  const groups = storyNavGroups(route, false).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item, href: undefined, onSelect: navigate })),
   }));
 
   return (
     <ConsoleShell
-      header={storyHeader}
-      nav={{ items, adminItems: storyAdminNavItems(route), showAdmin: false }}
-      leftSecondary={
-        <RailPanel label={SCOPE_RAIL_LABEL}>
-          <ScopeRail accountLabel="adorsys-gis" projectLabel="gateway-prod" />
-        </RailPanel>
+      sidebar={
+        <ConsoleSidebar
+          brand={storyBrand}
+          workspaceSwitcher={storyWorkspaceSwitcher}
+          groups={groups}
+          footer={<span />}
+        />
       }
-      leftSecondaryLabel="Scope"
-      rightRail={
-        route === 'overview' ? (
-          <RailPanel label={OVERVIEW_EXPORT_RAIL_LABEL}>
-            <OverviewExportRail onExport={() => {}} />
-          </RailPanel>
-        ) : (
-          <RailPanel label={API_KEYS_HYGIENE_RAIL_LABEL}>
-            <ApiKeysHygieneRail hygiene={apiKeysHygiene} />
-          </RailPanel>
-        )
+      topBar={
+        <ConsoleTopBar
+          brand={storyBrand}
+          workspaceSwitcher={storyTopBarWorkspaceSwitcher}
+          trailing={<span />}
+        />
       }>
       {route === 'overview' ? (
         <div className="flex flex-col gap-8">
-          <ScreenHeading title="Overview" subline="adorsys-gis · last 30 days · UTC" />
+          <PageHeader title="Overview" subtitle="adorsys-gis · last 30 days · UTC" />
           <OverviewStatRow cards={overviewStatCards} />
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <ScreenHeading title="Api-Keys" subline="adorsys-gis / gateway-prod" />
+          <PageHeader title="API keys" />
           <ApiKeysLedger
             keys={apiKeysFixture}
-            onDismissSecret={() => {}}
             onRotate={() => {}}
-            onDelete={() => {}}
             onRequestRevoke={() => {}}
             onConfirmRevoke={() => {}}
             onCancelRevoke={() => {}}
+            isAdmin
+            onRequestDelete={() => {}}
+            onConfirmDelete={() => {}}
+            onCancelDelete={() => {}}
           />
+          <Card title="Key hygiene">
+            <ApiKeysHygieneNotes hygiene={apiKeysHygiene} />
+          </Card>
         </div>
       )}
     </ConsoleShell>
@@ -121,9 +135,9 @@ export const NavigationDoesNotRemountTheChrome: Story = {
     // Also expose them the way a human reviewer checks this in the live browser.
     (window as unknown as { __nav?: Element | null }).__nav = navBefore;
 
-    await canvas.findByText('SPEND THIS MONTH');
+    await canvas.findByText('Spend this month');
 
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Api-Keys' })[0]);
+    await userEvent.click(canvas.getAllByRole('button', { name: 'API keys' })[0]);
     await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument());
 
     const navAfter = document.querySelectorAll('nav[aria-label="Primary"]')[0];
@@ -136,7 +150,7 @@ export const NavigationDoesNotRemountTheChrome: Story = {
 
     // And back again.
     await userEvent.click(canvas.getAllByRole('button', { name: 'Overview' })[0]);
-    await waitFor(() => expect(canvas.getByText('SPEND THIS MONTH')).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText('Spend this month')).toBeInTheDocument());
     expect(document.querySelectorAll('nav[aria-label="Primary"]')[0]).toBe(navBefore);
   },
 };

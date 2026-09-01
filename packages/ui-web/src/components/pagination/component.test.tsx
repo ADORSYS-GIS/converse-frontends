@@ -5,48 +5,76 @@ import { describe, expect, it, vi } from 'vitest';
 import { Pagination } from './component';
 
 describe('Pagination', () => {
-  it('renders the range label and current/total page count', () => {
-    render(<Pagination current={2} pageCount={11} rangeLabel="9–12 / 41" onPageChange={vi.fn()} />);
-
-    expect(screen.getByText('9–12 / 41')).toBeInTheDocument();
-    expect(screen.getByText('3 / 11')).toBeInTheDocument();
-  });
-
-  it('disables Prev on the first page', () => {
-    render(<Pagination current={0} pageCount={11} rangeLabel="1–4 / 41" onPageChange={vi.fn()} />);
-
-    expect(screen.getByRole('button', { name: 'Prev' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
-  });
-
-  it('disables Next on the last page', () => {
-    render(
-      <Pagination current={10} pageCount={11} rangeLabel="41–41 / 41" onPageChange={vi.fn()} />
+  it('renders nothing when neither onPrev nor onNext is given', () => {
+    const { container } = render(
+      <Pagination shown={12} total={23} unit="keys" hasPrev={false} hasNext={true} />
     );
 
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Prev' })).toBeEnabled();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it('calls onPageChange with the next index when Next is clicked', () => {
-    const onPageChange = vi.fn();
+  it('shows "Showing X of Y unit" when the total is known', () => {
     render(
-      <Pagination current={2} pageCount={11} rangeLabel="9–12 / 41" onPageChange={onPageChange} />
+      <Pagination
+        shown={12}
+        total={23}
+        unit="keys"
+        hasPrev={false}
+        hasNext={true}
+        onNext={vi.fn()}
+      />
     );
 
-    screen.getByRole('button', { name: 'Next' }).click();
-
-    expect(onPageChange).toHaveBeenCalledWith(3);
+    expect(screen.getByText('Showing 12 of 23 keys')).toBeInTheDocument();
   });
 
-  it('calls onPageChange with null when Prev clears back to the first page', () => {
-    const onPageChange = vi.fn();
+  it('falls back to "X unit" when the total is unknown', () => {
     render(
-      <Pagination current={1} pageCount={11} rangeLabel="5–8 / 41" onPageChange={onPageChange} />
+      <Pagination shown={12} unit="keys" hasPrev={false} hasNext={true} onNext={vi.fn()} />
     );
 
-    screen.getByRole('button', { name: 'Prev' }).click();
+    expect(screen.getByText('12 keys')).toBeInTheDocument();
+    expect(screen.queryByText(/of/)).not.toBeInTheDocument();
+  });
 
-    expect(onPageChange).toHaveBeenCalledWith(null);
+  it('disables Previous when hasPrev is false and enables it when true', () => {
+    const { rerender } = render(
+      <Pagination shown={1} unit="keys" hasPrev={false} hasNext={true} onPrev={vi.fn()} />
+    );
+    expect(screen.getByRole('button', { name: '‹ Previous' })).toBeDisabled();
+
+    rerender(<Pagination shown={1} unit="keys" hasPrev={true} hasNext={true} onPrev={vi.fn()} />);
+    expect(screen.getByRole('button', { name: '‹ Previous' })).toBeEnabled();
+  });
+
+  it('disables Next when hasNext is false and enables it when true', () => {
+    const { rerender } = render(
+      <Pagination shown={1} unit="keys" hasPrev={true} hasNext={false} onNext={vi.fn()} />
+    );
+    expect(screen.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+
+    rerender(<Pagination shown={1} unit="keys" hasPrev={true} hasNext={true} onNext={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Next ›' })).toBeEnabled();
+  });
+
+  it('fires onPrev and onNext when clicked', () => {
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
+    render(
+      <Pagination
+        shown={1}
+        unit="keys"
+        hasPrev={true}
+        hasNext={true}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+    );
+
+    screen.getByRole('button', { name: '‹ Previous' }).click();
+    screen.getByRole('button', { name: 'Next ›' }).click();
+
+    expect(onPrev).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 });

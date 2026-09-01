@@ -2,10 +2,13 @@ import type { AugmentationRequest } from '@lightbridge/authz-rpc';
 import { describe, expect, it } from 'vitest';
 
 import {
+  AUGMENTATION_STATUS,
   isPending,
   microsToAmount,
+  refillHref,
+  refillStatusLabel,
   relativeAge,
-  toDecisionRow,
+  toRefillHistoryRow,
   toRefillRequestRow,
 } from './refill-rows';
 
@@ -20,7 +23,7 @@ function request(overrides: Partial<AugmentationRequest> = {}): AugmentationRequ
     period: '2026-03',
     requestedTier: 'tier-2',
     requestedAmountMicros: '250000000',
-    status: 'pending',
+    status: AUGMENTATION_STATUS.PENDING_REVIEW,
     policyEffect: null,
     policyReasonCodes: [],
     matchedRuleIds: [],
@@ -34,6 +37,18 @@ function request(overrides: Partial<AugmentationRequest> = {}): AugmentationRequ
     ...overrides,
   } as AugmentationRequest;
 }
+
+describe('AUGMENTATION_STATUS', () => {
+  // Regression pin for converse-frontends#264: the backend's real pending-state value is
+  // `pending_review` (authz.cstack:951-955,968-988), never the `'pending'` literal this module
+  // used to compare against. A future rename must fail this test, not silently empty the queue.
+  it('pins the real backend status literals', () => {
+    expect(AUGMENTATION_STATUS.PENDING_REVIEW).toBe('pending_review');
+    expect(AUGMENTATION_STATUS.AUTO_APPROVED).toBe('auto_approved');
+    expect(AUGMENTATION_STATUS.APPROVED).toBe('approved');
+    expect(AUGMENTATION_STATUS.DENIED).toBe('denied');
+  });
+});
 
 describe('microsToAmount', () => {
   it('converts integer micros to the major unit', () => {
@@ -70,8 +85,8 @@ describe('relativeAge', () => {
 });
 
 describe('toRefillRequestRow', () => {
-  it('maps identity, age and the requested amount', () => {
-    expect(toRefillRequestRow(request(), NOW)).toMatchObject({
+  it('maps identity, age and the requested amount, using the caller-resolved labels verbatim', () => {
+    expect(toRefillRequestRow(request(), NOW, 'gateway-prod', 'adorsys-gis')).toMatchObject({
       id: 'req-1',
       submittedAgo: '2 days ago',
       project: 'gateway-prod',
@@ -80,34 +95,71 @@ describe('toRefillRequestRow', () => {
     });
   });
 
-  it('renders an account-level request with a dash for the project', () => {
-    expect(toRefillRequestRow(request({ projectId: null }), NOW).project).toBe('—');
-  });
-});
-
-describe('toDecisionRow', () => {
-  it('reports an approved decision with the approved amount', () => {
-    const row = toDecisionRow(
-      request({ status: 'approved', approvedAmountMicros: '100000000', reviewedBy: 'ada' })
-    );
-    expect(row).toMatchObject({
-      decision: 'approved',
-      amount: 100,
-      decidedBy: 'ada',
-      date: '2026-02-27',
-    });
+  // converse-frontends#270: this module has no data source of its own to resolve an id against —
+  // it never falls back to `request.projectId`/`request.accountId` itself, so a raw uuid can only
+  // reach the row if the CALLER passes one in.
+  it('never resolves labels itself — it trusts exactly what the caller passes', () => {
+    const row = toRefillRequestRow(request(), NOW, '—', 'acct_9f3a');
+    expect(row.project).toBe('—');
+    expect(row.account).toBe('acct_9f3a');
   });
 
-  it('reports a rejection, falling back to the requested amount', () => {
-    const row = toDecisionRow(request({ status: 'rejected', reviewedBy: 'ada' }));
-    expect(row.decision).toBe('declined');
-    expect(row.amount).toBe(250);
+  it('carries no consumed/ceiling/requesterEmail fields any more', () => {
+    const row = toRefillRequestRow(request(), NOW, 'gateway-prod', 'adorsys-gis');
+    expect(row).not.toHaveProperty('consumed');
+    expect(row).not.toHaveProperty('ceiling');
+    expect(row).not.toHaveProperty('requesterEmail');
   });
 });
 
 describe('isPending', () => {
-  it('matches only the pending status', () => {
+  it('matches only pending_review, the real backend literal', () => {
     expect(isPending(request())).toBe(true);
     expect(isPending(request({ status: 'approved' }))).toBe(false);
+    expect(isPending(request({ status: 'auto_approved' }))).toBe(false);
+    expect(isPending(request({ status: 'denied' }))).toBe(false);
+  });
+
+  it('does not match the old, wrong literal', () => {
+    expect(isPending(request({ status: 'pending' }))).toBe(false);
+  });
+});
+
+describe('refillStatusLabel', () => {
+  it('sentence-cases every known backend status literal', () => {
+    expect(refillStatusLabel(AUGMENTATION_STATUS.PENDING_REVIEW)).toBe('Pending review');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.AUTO_APPROVED)).toBe('Auto-approved');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.APPROVED)).toBe('Approved');
+    expect(refillStatusLabel(AUGMENTATION_STATUS.DENIED)).toBe('Declined');
+  });
+
+  it('falls back to the raw string for an unrecognised status, rather than disappearing', () => {
+    expect(refillStatusLabel('some_future_status')).toBe('some_future_status');
+  });
+});
+
+describe('toRefillHistoryRow', () => {
+  it('maps identity, age, amount and a sentence-case status — no project/account label', () => {
+    const row = toRefillHistoryRow(request(), NOW);
+    expect(row).toEqual({
+      id: 'req-1',
+      submittedAgo: '2 days ago',
+      amount: 250,
+      statusLabel: 'Pending review',
+    });
+  });
+});
+
+describe('refillHref', () => {
+  it('builds the bare account-scoped path when no project is scoped', () => {
+    expect(refillHref('acct_1', undefined)).toBe('/settings/accounts/acct_1/request-refill');
+    expect(refillHref('acct_1', null)).toBe('/settings/accounts/acct_1/request-refill');
+    expect(refillHref('acct_1', '')).toBe('/settings/accounts/acct_1/request-refill');
+  });
+
+  it('carries ?project= when a project is scoped', () => {
+    expect(refillHref('acct_1', 'proj_7')).toBe(
+      '/settings/accounts/acct_1/request-refill?project=proj_7'
+    );
   });
 });

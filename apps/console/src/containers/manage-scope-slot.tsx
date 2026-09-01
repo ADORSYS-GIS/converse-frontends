@@ -13,14 +13,19 @@ import { useConsoleScope } from '../client/use-console-scope';
  * are two mounts of the same control in two React subtrees, and they agree because both read the
  * same `?account=`/`?project=` params — not because a provider is holding a value for them
  * (ADR 0011 Decision 2).
+ *
+ * `accounts` is narrowed to the one currently-scoped account — see `OverviewScopeSlot`'s own doc
+ * comment (Phase 2d, account-scoping audit, converse-frontends#368/#392) for why offering every
+ * other account here was a dead affordance: `scope.setValue` silently ignores an account change.
  */
 export function ManageScopeSlot() {
   const scope = useConsoleScope();
   const [, setView] = useManageParams();
+  const scopedAccount = scope.accounts.find((account) => account.id === scope.value.accountId);
 
   return (
     <ScopeSelect
-      accounts={scope.accounts}
+      accounts={scopedAccount ? [scopedAccount] : []}
       projects={scope.projects}
       value={scope.value}
       onChange={(value) => {

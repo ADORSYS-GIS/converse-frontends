@@ -15,7 +15,7 @@ export const runtime = 'nodejs';
  * The local cookie is cleared unconditionally, on every path through this handler — a failure to
  * reach the IdP must never leave the user still logged in here.
  *
- * NOTE(keycloak): `post_logout_redirect_uri` has to be registered on the client under
+ * NOTE(idp): `post_logout_redirect_uri` has to be registered on the client under
  * "Valid post logout redirect URIs", otherwise Keycloak refuses the redirect.
  */
 export async function GET(request: NextRequest) {

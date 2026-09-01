@@ -2,50 +2,35 @@
 //
 // This is the Storybook analogue of `apps/console`'s persistent `(console)` layout (console-ui
 // skill "Composition"): the shell is composed ONCE here, and each container supplies only its
-// centre (`children`) and its right-rail sections (`rail`) — the same `children` / `@rail` split
-// the App Router performs for real. A container therefore never mounts `ConsoleShell`,
-// `ConsoleHeader` or `NavSpine` itself.
+// centre (`children`) — the same thing the App Router's own persistent layout gives `apps/console`
+// for real. A container therefore never mounts `ConsoleShell`, `ConsoleSidebar`, `ConsoleTopBar`
+// or `NavSpine` itself.
 //
-// The nav/header fixtures come from `../pages-stories/shell-fixtures` so the fixture-driven page
-// stories and these hook-driven ones show the identical chrome. Both files are Storybook-only and
-// neither is exported from `src/index.ts`.
+// Shell revamp phase 3 (right rail out): the `aside` column this component used to place beside
+// `children` for Manage/Admin's former right-rail sections is gone along with the rail concept
+// itself — every screen's parameters live in `PageHeader.controls`/`action` now, and
+// selection-driven detail opens as a `DetailSheet` (see `refine-manage-screen.tsx`,
+// `refine-admin-budget-review-screen.tsx`), so no container has rail-shaped content left to pass.
+//
+// The brand/switcher/nav fixtures come from `../pages-stories/shell-fixtures` so the fixture-driven
+// page stories and these hook-driven ones show the identical chrome. Both files are Storybook-only
+// and neither is exported from `src/index.ts`.
 
 import React from 'react';
 import type { ReactNode } from 'react';
 
 import { ConsoleShell } from '../components/console-shell';
-import {
-  storyAdminNavItems,
-  storyHeader,
-  storyNavItems,
-  type StoryRoute,
-} from '../pages-stories/shell-fixtures';
+import { storySidebar, storyTopBar, type StoryRoute } from '../pages-stories/shell-fixtures';
 
 export interface RefineMockShellProps {
   active: StoryRoute;
   showAdmin?: boolean;
-  leftSecondary?: ReactNode;
-  leftSecondaryLabel?: string;
-  /** Right-rail sections — the `@rail` slot's analogue. */
-  rail?: ReactNode;
   children: ReactNode;
 }
 
-export function RefineMockShell({
-  active,
-  showAdmin = false,
-  leftSecondary,
-  leftSecondaryLabel,
-  rail,
-  children,
-}: RefineMockShellProps) {
+export function RefineMockShell({ active, showAdmin = false, children }: RefineMockShellProps) {
   return (
-    <ConsoleShell
-      header={storyHeader}
-      nav={{ items: storyNavItems(active), adminItems: storyAdminNavItems(active), showAdmin }}
-      leftSecondary={leftSecondary}
-      leftSecondaryLabel={leftSecondaryLabel}
-      rightRail={rail}>
+    <ConsoleShell sidebar={storySidebar(active, { isAdmin: showAdmin })} topBar={storyTopBar()}>
       {children}
     </ConsoleShell>
   );

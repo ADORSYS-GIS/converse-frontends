@@ -4,6 +4,13 @@
 
 Accepted
 
+> **Status amendment, 2026-08-31 (#368):** Follow-up 7's source-level cutover landed —
+> `apps/self-service` and `packages/ui` are deleted from this repo. `packages/hooks`' RN-only
+> auth/query surface, the nginx/envsubst delivery chain's remaining infra (`charts/converse-frontend`),
+> and the currently-running production deployment are unchanged by that PR and remain a separate,
+> later concern (tracked outside this ADR). The Context and Decision sections below describe the
+> tree as it stood on 2026-08-24 and are left as written for history.
+
 ## Context
 
 ADR 0008 locked the console's visual direction (Axiom-derived dark shell inversion, nav spine,
@@ -220,8 +227,9 @@ over. For the console:
 - `600–1024` keeps the persistent left rail with the right rail docked as a bottom drawer;
   `≥1024` is the full three-panel shell. The visual language (floor/panels/accent rules) is
   tier-invariant.
-- All drawers and bottom sheets are built on **vaul** — the console's only drawer primitive; no
-  hand-rolled sheet implementations.
+- All drawers and bottom sheets are built on one primitive — no hand-rolled sheet implementations.
+  That primitive was `vaul`; since the owner decision of 2026-08-29 it is Base UI's **Drawer**
+  (`@base-ui/react/drawer`), and `vaul` is out of the tree. See ADR 0010 Decision 2.
 
 ### 7. Client-first and offline-first
 
@@ -242,9 +250,19 @@ client.** Consequences:
 
 ### 8. Report export: month consumption, server-rendered
 
-A route handler (`/api/reports/consumption?month=…`) queries the usage backend server-side and
-streams a **CSV** download (grouped by project × model, with totals). The UI offers it from
-`Manage`. CSV is the committed format; PDF is out of scope until someone asks for it.
+A route handler (`/api/reports/consumption?month=…&format=csv|pdf`) queries the usage backend
+server-side and returns the report (grouped by project × model, with totals). The UI offers it
+from `Manage`.
+
+**Amended:** this originally read "CSV is the committed format; PDF is out of scope until someone
+asks for it." Someone asked. `format=pdf` now renders the SAME report — same
+`aggregateConsumptionRows`/`consumptionTotals` call, in the same request — as a paginated A4
+document (`apps/console/src/server/consumption-pdf.ts`), and the format toggle the UI has always
+shown (`ReportExportPanel`, taken from Coinbase's download-report pattern in
+`docs/design/console-redesign/README.md` §1.2) finally means both of its options. `format`
+defaults to `csv`, so nothing that predates the change had to move. The CSV keeps streaming; a
+PDF cannot be streamed honestly, because its cross-reference trailer indexes the byte offset of
+every object in the file.
 
 ### 9. What stays
 

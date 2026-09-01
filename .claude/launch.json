@@ -2,16 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "self-service-web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "apps/self-service",
-        "web"
-      ],
-      "port": 8081
-    },
-    {
       "name": "ui-web-storybook",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
@@ -30,6 +20,28 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "authz-ui-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "apps/authz-ui",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "ui-web-storybook-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "6100",
+        "--directory",
+        "packages/ui-web/storybook-static"
+      ],
+      "port": 6100
     }
   ]
 }

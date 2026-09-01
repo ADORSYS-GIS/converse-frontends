@@ -1,9 +1,10 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { ConsoleHeader } from '../console-header';
-import type { NavSpineItem } from '../nav-spine';
-import { RailPanel } from '../rail-panel';
+import type { NavGroup } from '../nav-spine';
+import { ConsoleSidebar } from '../../sections/console-sidebar';
+import { MutationFailureBanner } from '../mutation-failure-banner';
+import { ConsoleTopBar } from '../console-top-bar';
 import { ConsoleShell } from './component';
 
 function Glyph() {
@@ -14,85 +15,195 @@ function Glyph() {
   );
 }
 
-const navItems: NavSpineItem[] = [
-  { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
-  { key: 'api-keys', label: 'Api-Keys', icon: <Glyph /> },
-  { key: 'manage', label: 'Manage', icon: <Glyph /> },
-];
-const adminItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin', icon: <Glyph /> }];
+function navGroups(showAdmin: boolean): NavGroup[] {
+  const groups: NavGroup[] = [
+    {
+      key: 'workspace',
+      label: 'Workspace',
+      items: [
+        { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
+        { key: 'api-keys', label: 'Api-Keys', icon: <Glyph /> },
+        { key: 'manage', label: 'Projects', icon: <Glyph /> },
+      ],
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      items: [{ key: 'settings', label: 'Settings', icon: <Glyph /> }],
+    },
+  ];
+  if (showAdmin) {
+    groups.push({
+      key: 'operator',
+      label: 'Operator',
+      items: [{ key: 'admin', label: 'Admin', icon: <Glyph /> }],
+    });
+  }
+  return groups;
+}
+
+// Same mark `console-chrome.tsx`'s real `BRAND` renders (owner findings, 2026-08-31: the logo is
+// a link to `/`, and once a logo renders the `Lightbridge` wordmark text is dropped — an
+// `aria-label` on the link carries the accessible name instead).
+const brand = (
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
+    <span className="header-logo" aria-hidden="true">
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      </svg>
+    </span>
+  </a>
+);
+
+// Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): the
+// `BrandMark` shape `apps/console`'s `console-chrome.tsx` renders when BOTH `branding.logo` and
+// `branding.logoLight` are configured -- two `<img>`s, `header-logo` plus theme.css's
+// `brand-mark-dark`/`brand-mark-light` deciding which one is visible via `[data-theme]`. Tiny
+// inline SVG data URIs stand in for the operator's real files (a white triangle for the dark
+// mark, a near-black triangle for the light one) so the swap is visible without a real branding
+// deployment.
+const DARK_THEME_LOGO_DATA_URI =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgMTQgOCAyIDE0IDE0WiIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==';
+const LIGHT_THEME_LOGO_DATA_URI =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgMTQgOCAyIDE0IDE0WiIgZmlsbD0iIzExMTExMSIvPjwvc3ZnPg==';
+
+const brandedBothThemes = (
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
+    <img
+      src={DARK_THEME_LOGO_DATA_URI}
+      alt=""
+      aria-hidden="true"
+      className="header-logo brand-mark-dark"
+    />
+    <img
+      src={LIGHT_THEME_LOGO_DATA_URI}
+      alt=""
+      aria-hidden="true"
+      className="header-logo brand-mark-light"
+    />
+  </a>
+);
+
+const workspaceSwitcher = (
+  <button type="button" className="workspace-switcher-row">
+    <span aria-hidden="true" className="avatar-chip-md">
+      AG
+    </span>
+    <span className="text-ink truncate font-sans text-[13px]">adorsys-gis</span>
+  </button>
+);
+
+const compactWorkspaceSwitcher = (
+  <span className="text-ink font-sans text-[13px]">adorsys-gis</span>
+);
 
 const identity = (
-  <div className="flex items-center gap-3">
-    <span className="hidden font-mono text-[11px] text-subtle md:inline">sam@adorsys.com</span>
-    <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-raised font-mono text-[10px] text-soft">
-      SL
-    </span>
-  </div>
+  <span aria-hidden="true" className="avatar-chip-md">
+    SL
+  </span>
 );
 
-const orgSwitcher = <span className="font-mono text-xs text-soft">adorsys-gis</span>;
+const footer = (
+  <>
+    <button type="button" className="sidebar-footer-row">
+      <span className="text-subtle font-sans text-[13px]">Search</span>
+      <span className="kbd kbd-sm ml-auto">⌘K</span>
+    </button>
+    <div className="sidebar-footer-row">
+      <span className="text-subtle font-sans text-[13px]">Theme</span>
+    </div>
+    <div className="sidebar-footer-row">
+      {identity}
+      <span className="text-subtle truncate font-sans text-[12px]">sam@adorsys.com</span>
+    </div>
+  </>
+);
 
 const statCard = (label: string, value: string) => (
-  <div className="w-full shrink-0 rounded-[2px] bg-surface p-4 md:w-[209px]">
-    <div className="mb-4 font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
-      {label}
-    </div>
-    <div className="font-mono text-2xl text-ink">{value}</div>
+  <div className="console-card w-full shrink-0 md:w-[209px]">
+    <div className="text-subtle mb-4 font-sans text-[12px]">{label}</div>
+    <div className="text-ink font-mono text-2xl">{value}</div>
   </div>
 );
 
-const scopePanel = (
-  <RailPanel label="SCOPE">
-    <div className="space-y-3">
-      <div>
-        <div className="font-mono text-[10px] text-subtle">Account</div>
-        <div className="font-mono text-xs text-ink">adorsys-gis</div>
-      </div>
-      <div>
-        <div className="font-mono text-[10px] text-subtle">Project</div>
-        <div className="font-mono text-xs text-ink">all projects</div>
-      </div>
-    </div>
-  </RailPanel>
-);
-
-const rightRailContent = (
-  <RailPanel label="VIEW">
-    <div className="space-y-3">
-      <div>
-        <div className="mb-1 font-mono text-[10px] text-subtle">Range</div>
-        <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-xs text-soft">
-          Last 30 days
+const quickSettingsRail = (
+  <div className="flex flex-col gap-4 p-5">
+    <span className="text-ink font-sans text-[15px] font-medium">adorsys-gis</span>
+    <div className="settings-list">
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="text-ink font-sans text-[13px]">Account name</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="text-soft font-sans text-[13px]">adorsys-gis</span>
         </div>
       </div>
-      <div>
-        <div className="mb-1 font-mono text-[10px] text-subtle">Bucket</div>
-        <div className="flex h-[30px] items-center rounded-[2px] border border-border bg-chrome px-3 font-mono text-xs text-soft">
-          Daily
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="text-ink font-sans text-[13px]">Account id</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="text-soft font-mono text-[13px]">acct_9f3a2b1c</span>
+        </div>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-main">
+          <span className="text-ink font-sans text-[13px]">Quota tier</span>
+        </div>
+        <div className="settings-row-value">
+          <span className="text-soft font-sans text-[13px]">growth</span>
         </div>
       </div>
     </div>
-  </RailPanel>
+  </div>
 );
 
-function Shell({ showAdmin }: { showAdmin: boolean }) {
+function Shell({
+  showAdmin,
+  banner,
+  rail,
+}: {
+  showAdmin: boolean;
+  banner?: React.ReactNode;
+  rail?: React.ReactNode;
+}) {
+  // Storybook's own controlled-width owner — the real one is `apps/console`'s `use-rail-width.ts`
+  // (a localStorage-backed preference); this stands in for it so the story's rail is actually
+  // draggable/keyboard-resizable rather than frozen at the default.
+  const [railWidth, setRailWidth] = React.useState(280);
+
   return (
     <ConsoleShell
-      header={<ConsoleHeader orgSwitcher={orgSwitcher} identity={identity} />}
-      nav={{ items: navItems, adminItems, showAdmin }}
-      leftSecondary={scopePanel}
-      leftSecondaryLabel="Scope"
-      rightRail={rightRailContent}
-    >
+      sidebar={
+        <ConsoleSidebar
+          brand={brand}
+          workspaceSwitcher={workspaceSwitcher}
+          groups={navGroups(showAdmin)}
+          footer={footer}
+        />
+      }
+      topBar={
+        <ConsoleTopBar
+          brand={brand}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          trailing={identity}
+        />
+      }
+      rail={rail}
+      railWidth={railWidth}
+      onRailWidthChange={setRailWidth}
+      banner={banner}>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="font-mono text-[22px] text-ink">Overview</h1>
-          <p className="font-sans text-[11px] text-subtle">adorsys-gis · last 30 days · UTC</p>
+          <h1 className="text-ink font-sans text-[24px] font-semibold">Overview</h1>
+          <p className="text-subtle font-sans text-[13px]">
+            adorsys-gis · all projects · last 30 days · UTC
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:flex">
-          {statCard('SPEND THIS MONTH', '$142.55')}
-          {statCard('ACTIVE PROJECTS', '6')}
-          {statCard('ACTIVE API KEYS', '23')}
+          {statCard('Spend this month', '$142.55')}
+          {statCard('Active projects', '6')}
+          {statCard('Active API keys', '23')}
         </div>
       </div>
     </ConsoleShell>
@@ -108,32 +219,79 @@ const meta: Meta<typeof ConsoleShell> = {
 export default meta;
 type Story = StoryObj<typeof ConsoleShell>;
 
-// Full shell at `lg` (1440, the default viewport — see .storybook/preview.tsx), member view (no
-// Admin group) — visually comparable to overview.svg. Both rails are sticky (`top-[56px]`,
-// independently scrollable); the centre is the only stretching zone (`flex-1 min-w-0`).
+// Full shell at `lg` (1440, the default viewport), member view (no Operator group) — the sidebar
+// composition, visually comparable to the shell brief's target.
 export const FullShellMember: Story = {
   render: () => <Shell showAdmin={false} />,
 };
 
-// Same composition with the Admin group visible (lightbridge-admin grant).
+// Same composition with the Operator group visible (lightbridge-admin grant).
 export const FullShellAdmin: Story = {
   render: () => <Shell showAdmin />,
 };
 
-// `md` tier (600–1024): the left rail persists inline; the right rail has NO shell-owned
-// fallback at all (owner revision 2026-08-25 — no persistent footer/peek bar at this tier). This
-// bare `ConsoleShell` story has no page-level content to place contextual triggers in, so its
-// right rail is simply not reachable here below `lg` — see each page story's own md-tier variant
-// (`Pages/Overview`, `Pages/ApiKeys`, …) for the real contextual-trigger + `SectionSheet` pattern.
-export const MdTierNoRightRailFallback: Story = {
-  globals: { viewport: { value: 'md900' } },
+// Below `md` (a designed target — console-ui skill "Shape and layout"): the sidebar is replaced
+// by the top bar, nav moves to the fixed bottom dock.
+export const MobileTopBarAndDock: Story = {
+  globals: { viewport: { value: 'base390' } },
   render: () => <Shell showAdmin={false} />,
 };
 
-// Base tier (<600, a designed target — console-ui skill "Shape and layout"): single column,
-// nav spine docked as a fixed bottom navigation bar, left-rail SCOPE panel reachable via the
-// header's drawer trigger. Same right-rail caveat as `MdTierNoRightRailFallback`.
-export const MobileBottomNav: Story = {
-  globals: { viewport: { value: 'base390' } },
-  render: () => <Shell showAdmin={false} />,
+// The right INSPECTOR rail (2026-08-30 owner round — "I liked it when the right rail was there").
+// Visible at `lg`+ (1440, the default viewport) only, and never empty by construction: with
+// nothing selected it falls back to the scope quick-settings panel — see
+// `containers/inspector-rail.tsx` (apps/console) for the real resolution logic this story stands
+// in for with static markup.
+export const FullShellWithInspectorRail: Story = {
+  render: () => <Shell showAdmin={false} rail={quickSettingsRail} />,
+};
+
+// converse-frontends#323: the console-wide mutation-failure banner sits at the top of the content
+// column, sticky under whatever chrome is above it at each tier.
+export const WithMutationFailureBanner: Story = {
+  name: 'With an active mutation failure (converse-frontends#323)',
+  render: () => (
+    <Shell
+      showAdmin={false}
+      banner={
+        <MutationFailureBanner
+          message="RPC call failed with code internal (status 500): the server returned an error."
+          onDismiss={() => {}}
+        />
+      }
+    />
+  ),
+};
+
+// Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): when a
+// deployment configures BOTH `branding.logo` and `branding.logoLight`, `apps/console`'s
+// `BrandMark` renders both `<img>`s unconditionally and `theme.css`'s `brand-mark-dark`/
+// `brand-mark-light` utilities pick which one is visible, purely by CSS keyed off `[data-theme]`.
+// Two `ConsoleTopBar`s side by side, one wrapped `data-theme="black"` and the other
+// `data-theme="wireframe"` (the SAME `brandedBothThemes` markup in both -- proving the swap is
+// CSS-only, not a per-story prop), demonstrates the mechanism directly: the white-triangle fixture
+// shows on the dark side, the near-black one on the light side, with nothing re-rendered between
+// them. See `theme.css`'s own `@theme` block comment for why a nested `data-theme` wrapper (rather
+// than only `<html data-theme>`) resolves every token correctly here, `bg-chrome` included.
+export const BrandedBothThemes: Story = {
+  name: 'Branded, both themes (per-theme logos)',
+  parameters: { layout: 'padded' },
+  render: () => (
+    <div className="flex flex-col gap-4 md:flex-row">
+      <div data-theme="black" className="bg-chrome flex-1 rounded-lg">
+        <ConsoleTopBar
+          brand={brandedBothThemes}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          trailing={identity}
+        />
+      </div>
+      <div data-theme="wireframe" className="bg-chrome flex-1 rounded-lg">
+        <ConsoleTopBar
+          brand={brandedBothThemes}
+          workspaceSwitcher={compactWorkspaceSwitcher}
+          trailing={identity}
+        />
+      </div>
+    </div>
+  ),
 };

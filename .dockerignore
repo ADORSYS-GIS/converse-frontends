@@ -5,17 +5,29 @@
 .docker/keycloak-config
 node_modules
 **/node_modules
-# NOTE: apps/self-service/dist is intentionally NOT ignored — the web bundle is
-# built on the CI runner (turbo run build:web) and COPYed into the runtime image.
-# Metro mirrors node_modules paths into dist/assets/__node_modules/... for any
-# asset (e.g. vector-icon fonts) that resolves from inside a package's own
-# node_modules (pnpm's virtual store nests a real `node_modules` dir there).
-# The blanket rules above would otherwise strip those shipped assets from the
-# build context, so un-ignore anything under dist/.
-!apps/self-service/dist/**/node_modules
-!apps/self-service/dist/**/node_modules/**
-.expo
-**/.expo
+
+# apps/console/.next/standalone is `next build`'s traced runtime bundle (ticket #287,
+# next.config.mjs `output: 'standalone'`) — it embeds its own node_modules (a hoisted pnpm store
+# plus per-workspace-package symlinks into it), which the blanket rules above would otherwise
+# strip from apps/console/Dockerfile's build context.
+!apps/console/.next/standalone/**
+!apps/console/.next/standalone/**/node_modules
+!apps/console/.next/standalone/**/node_modules/**
+
+# apps/console's runtime CBOR codec (see apps/console/Dockerfile + next.config.mjs's
+# `serverExternalPackages` comment): @cratestack/cbor's native N-API addon and its per-platform
+# binary packages are shipped into the image via an explicit `COPY`, not via Next's standalone
+# tracer (which panics under Turbopack on this exact package family — see next.config.mjs).
+# `apps/console/scripts/stage-cratestack-cbor-for-docker.mjs` (run before `docker build`/`buildah
+# build` — see that script + the Dockerfile) copies the needed pnpm-store dirs into
+# apps/console/.docker-stage/ first, preserving each dir's own name — a plain Dockerfile `COPY` of
+# a glob matching multiple directories does NOT do that (verified: it merges their *contents* into
+# one destination and collides). Same `!`-triplet pattern as the apps/console/.next/standalone
+# carve-out above: the staged dirs' own content, then the nested node_modules those dirs'
+# packages resolve their own `@cratestack/*` siblings through.
+!apps/console/.docker-stage/**
+!apps/console/.docker-stage/**/node_modules
+!apps/console/.docker-stage/**/node_modules/**
 .DS_Store
 **/.turbo
 **/.cache

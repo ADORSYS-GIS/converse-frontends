@@ -21,7 +21,7 @@ const spendIcon = (
 export const Default: Story = {
   args: {
     icon: spendIcon,
-    label: 'SPEND THIS MONTH',
+    label: 'Spend this month',
     metric: '$142.55',
     delta: { direction: 'up', label: '18% vs prev 30d' },
     sparkline: <Sparkline data={[12, 14, 13, 16, 18, 17, 21, 24, 23, 27]} />,
@@ -30,7 +30,7 @@ export const Default: Story = {
 
 export const FlatDelta: Story = {
   args: {
-    label: 'ACTIVE PROJECTS',
+    label: 'Active projects',
     metric: '6',
     delta: { direction: 'flat', label: 'no change' },
     sparkline: <Sparkline data={[6, 6, 6, 6, 6, 6, 6, 6, 6, 6]} />,
@@ -39,7 +39,7 @@ export const FlatDelta: Story = {
 
 export const DownDelta: Story = {
   args: {
-    label: 'REQUESTS TODAY',
+    label: 'Requests today',
     metric: '41,208',
     delta: { direction: 'down', label: '8% vs yesterday' },
     sparkline: <Sparkline data={[41, 38, 39, 35, 33, 34, 30, 28, 29, 25]} />,
@@ -48,7 +48,7 @@ export const DownDelta: Story = {
 
 export const NoSparklineOrDelta: Story = {
   args: {
-    label: 'ACTIVE API KEYS',
+    label: 'Active API keys',
     metric: '23',
   },
 };
@@ -59,25 +59,25 @@ export const RowOfFour: Story = {
     <div className="grid grid-cols-4 gap-3" style={{ width: 872 }}>
       <StatCard
         icon={spendIcon}
-        label="SPEND THIS MONTH"
+        label="Spend this month"
         metric="$142.55"
         delta={{ direction: 'up', label: '18% vs prev 30d' }}
         sparkline={<Sparkline data={[12, 14, 13, 16, 18, 17, 21, 24, 23, 27]} />}
       />
       <StatCard
-        label="ACTIVE PROJECTS"
+        label="Active projects"
         metric="6"
         delta={{ direction: 'flat', label: 'no change' }}
         sparkline={<Sparkline data={[6, 6, 6, 6, 6, 6, 6, 6, 6, 6]} />}
       />
       <StatCard
-        label="ACTIVE API KEYS"
+        label="Active API keys"
         metric="23"
         delta={{ direction: 'up', label: '2 this week' }}
         sparkline={<Sparkline data={[19, 20, 20, 21, 21, 22, 22, 23, 23, 23]} />}
       />
       <StatCard
-        label="REQUESTS TODAY"
+        label="Requests today"
         metric="41,208"
         delta={{ direction: 'down', label: '8% vs yesterday' }}
         sparkline={<Sparkline data={[41, 38, 39, 35, 33, 34, 30, 28, 29, 25]} />}

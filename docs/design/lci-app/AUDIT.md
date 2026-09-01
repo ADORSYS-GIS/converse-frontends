@@ -22,7 +22,7 @@ that with exact file counts, then gives the real state of "built vs. still lacki
 
 ## 1. Correction: issue #635 is resolved, not open
 
-[`PRIMITIVES.md`](PRIMITIVES.md) and [ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md)
+[`PRIMITIVES.md`](PRIMITIVES.md) and [ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md)
 previously treated `lightbridge-code-intelligence#635` (code-graph label overflow) as an open bug
 this epic's port needed to absorb a fix for. It is resolved:
 [PR #640](https://github.com/ADORSYS-GIS/lightbridge-code-intelligence/pull/640) merged to LCI's

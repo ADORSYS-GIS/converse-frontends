@@ -1,5 +1,19 @@
 # LCI app — design spec and screen inventory
 
+> **Superseded in part by [ADR 0012 — Console visual revamp](../../adr/0012-console-visual-revamp.md)
+> and [ADR 0013 — Console information architecture v3](../../adr/0013-console-information-architecture-v3.md)**,
+> landed 2026-08-30/31, after this document was first written — see
+> [`PRIMITIVES.md`](PRIMITIVES.md)'s own notice and [`AUDIT.md`](AUDIT.md) §6 before treating the
+> screen shapes or wireframes below as current. The console's shell is now two-column (a persistent
+> sidebar + one content column, no right rail); `Card` is now the default, encouraged zone
+> container, not a rejected pattern; `EmptyState` is a real, sanctioned `ui-web` primitive, which
+> resolves this document's §4.2 "open conflict" in LCI's favour. The three wireframes below
+> (`repositories.svg`, `code-graph.svg`, `runs.svg`) all draw a right-rail shell that no longer
+> exists upstream and should be treated as historical, not a build target — matching ADR 0012's own
+> precedent ("a wrong mockup is worse than none... the five SVG mockups are deleted"), a fresh set
+> (or Storybook page-stories, now the ground truth `ui-web` itself uses) should replace them before
+> `apps/lci` screens are actually built against this document.
+
 Design spec for rebuilding `lightbridge-code-intelligence`'s UI
 (`lightbridge-code-intelligence/apps/web`) as `apps/lci` in this monorepo, on `packages/ui-web`
 and `packages/chart-core`, alongside `apps/console`
@@ -18,8 +32,8 @@ Companion documents:
 | File | What it is |
 | --- | --- |
 | [`PRIMITIVES.md`](PRIMITIVES.md) | The gap list — every LCI UI element mapped to its `ui-web` fate |
-| [ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md) | App name, chart name, and the code-graph build decision |
-| `repositories.svg`, `code-graph.svg`, `runs.svg` | Hand-authored screen wireframes — see §0 below |
+| [ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) | App name, chart name, and the code-graph build decision |
+| ~~`repositories.svg`, `code-graph.svg`, `runs.svg`~~ | **Deleted** — drew a right-rail shell ADR 0012 D1 removed; see the notice at the top of this file and §2 below |
 
 ---
 
@@ -66,14 +80,17 @@ below; three get a wireframe.
 
 ---
 
-## 2. Wireframes
+## 2. Wireframes — deleted, kept here only as a description of what's missing
 
-`repositories.svg`, `code-graph.svg`, `runs.svg` are **hand-authored documentation artifacts**,
-in the same spirit as `console-redesign`'s SVGs: real tokens (`theme.css`'s `black` palette),
-real type hierarchy (IBM Plex Mono structural, Inter prose), plausible data — not exported comps,
-and not claiming pixel-final status. They exist so spacing and density can be argued about before
-any React is written, and so AC 1 ("every LCI surface that will exist in the new app has a screen
-design") has something concrete behind it rather than a table of intentions.
+`repositories.svg`, `code-graph.svg`, `runs.svg` **no longer exist in this directory.** They were
+hand-authored documentation artifacts drawn against the console's pre-revamp three-column
+flush-rail shell (right-rail node inspector, right-rail review detail) — a shell ADR 0012 D1
+removed outright. A wireframe of a shell that no longer exists is actively misleading, not merely
+stale, so they were deleted rather than left to rot — the same call ADR 0012 itself made for the
+five `console-redesign` SVGs it superseded. The subsections below (§2.1–§2.3) describe what each
+one showed, so the next design pass knows what still needs drawing (against the real two-column
+`Card`-based shell, `sections/page-header`, and `DetailSheet` for row detail) without having to
+reverse-engineer it from a deleted file in git history.
 
 ### `repositories.svg` — list + detail shell
 
@@ -94,7 +111,7 @@ matching the console's right-rail contract — never an overlay), including the 
 behaviour LCI's own screen already ships: a long, fully-qualified Rust symbol path truncates to
 one line with an ellipsis inside its fixed-size node box, with the full name available via a
 hover tooltip. That behaviour is already correct upstream — see
-[ADR 0012](../../adr/0012-lci-app-scaffolding-and-code-graph.md) — so this wireframe documents
+[ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) — so this wireframe documents
 what the port inherits, not a change this app needs to make.
 
 ### `runs.svg` — list + review-result detail

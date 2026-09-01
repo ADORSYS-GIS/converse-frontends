@@ -27,7 +27,7 @@ let cachedConfig: { issuer: string; clientId: string; config: client.Configurati
  * issuer fails here rather than silently sending credentials in the clear.
  */
 export async function oidcConfig(env: ConsoleEnv = serverEnv()): Promise<client.Configuration> {
-  const { issuer, clientId, clientSecret } = env.keycloak;
+  const { issuer, clientId, clientSecret } = env.idp;
   if (cachedConfig && cachedConfig.issuer === issuer && cachedConfig.clientId === clientId) {
     return cachedConfig.config;
   }
@@ -69,7 +69,7 @@ export async function buildAuthorizationRequest(
 
   const authorizationUrl = client.buildAuthorizationUrl(config, {
     redirect_uri: redirectUri,
-    scope: env.keycloak.scopes,
+    scope: env.idp.scopes,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state,
@@ -117,8 +117,8 @@ export async function exchangeCode(
   const accessToken = tokenResponse.access_token;
   const audienceCheck = checkAudience(
     accessToken,
-    env.keycloak.expectedAudiences,
-    env.keycloak.audienceRequired
+    env.idp.expectedAudiences,
+    env.idp.audienceRequired
   );
   if (!audienceCheck.valid) {
     throw new AudienceError(audienceCheck.errors);
@@ -136,8 +136,8 @@ export async function exchangeCode(
 
   const user = buildSessionUser(
     accessToken,
-    env.keycloak.rolesClaim,
-    env.keycloak.clientId,
+    env.idp.rolesClaim,
+    env.idp.clientId,
     userInfo
   );
   if (!user) {
@@ -170,8 +170,8 @@ export async function refreshSession(
 
     const audienceCheck = checkAudience(
       accessToken,
-      env.keycloak.expectedAudiences,
-      env.keycloak.audienceRequired
+      env.idp.expectedAudiences,
+      env.idp.audienceRequired
     );
     if (!audienceCheck.valid) {
       console.error('[console] Audience validation failed on refresh:', audienceCheck.errors);
@@ -180,7 +180,7 @@ export async function refreshSession(
 
     return {
       tokens: toSessionTokens(tokenResponse, audienceCheck.audience, Date.now()),
-      roles: extractRoles(accessToken, env.keycloak.rolesClaim, env.keycloak.clientId),
+      roles: extractRoles(accessToken, env.idp.rolesClaim, env.idp.clientId),
     };
   } catch (error) {
     console.error('[console] Token refresh failed:', error);
@@ -202,7 +202,7 @@ export async function buildLogoutUrl(
     return null;
   }
   const parameters: Record<string, string> = {
-    client_id: env.keycloak.clientId,
+    client_id: env.idp.clientId,
     post_logout_redirect_uri: postLogoutRedirectUri,
   };
   if (idToken) {

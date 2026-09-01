@@ -1,0 +1,7 @@
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local overrides on top of the committed .env.example defaults — never committed.
+.env.local
+.env.*.local

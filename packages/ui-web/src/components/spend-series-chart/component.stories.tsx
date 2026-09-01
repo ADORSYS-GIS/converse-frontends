@@ -76,7 +76,7 @@ const legendValues: Record<string, string> = {
 };
 
 /**
- * Recreates `overview.svg`'s dashboard 1 ("SPEND — BY PROJECT AND MODEL").
+ * Recreates `overview.svg`'s dashboard 1 ("Spend — by project and model").
  * Fully interactive: select a legend entry in the canvas below to see it turn
  * `--signal` -- the chart holds its own selection state, same as the source.
  */
@@ -145,6 +145,61 @@ export const OneSeriesDwarfsAnother: Story = {
       makeSeries('tiny-project', 'tiny-project', [5, 8, 6, 9, 7]),
       makeSeries('huge-project', 'huge-project', [4000, 4200, 3900, 4500, 4800]),
     ],
+  },
+};
+
+/**
+ * Build brief §2a — the gap-breaking fix. This project genuinely spent nothing on several days
+ * (a real, sparse-usage account, not an artifact) — the line must show a visible break over each
+ * absent day rather than a straight segment implying spend that never happened.
+ */
+export const SparseGap: Story = {
+  args: {
+    series: [
+      (() => {
+        const days = febDays(17);
+        // Active on days 0, 3, 5, 10, 13, 16 — 6 of 17 days, matching the phase's own
+        // "median 5 active days / 17" measurement.
+        const active: [number, number][] = [
+          [0, 4.2],
+          [3, 6.1],
+          [5, 0.4],
+          [10, 9.8],
+          [13, 2.0],
+          [16, 3.3],
+        ];
+        return {
+          key: 'sparse-project',
+          label: 'sparse-project',
+          points: active.map(([dayIndex, y]) => ({ x: days[dayIndex], y })),
+        };
+      })(),
+    ],
+    formatXTick: (d) => `${String(d.getDate()).padStart(2, '0')} Feb`,
+    formatYTick: (v) => `$${v}`,
+  },
+};
+
+/**
+ * The account-lens budget burn-down (build brief §2b/§3): `cumulative` turns the same raw
+ * per-bucket series into a running total, forward-filled across days with no spend, and `ceiling`
+ * draws the dashed reference rule. This account crosses its ceiling partway through the month, so
+ * the line turns the SAME breach accent `series[].breached` already drives elsewhere.
+ */
+export const CumulativeBudgetBurnDown: Story = {
+  args: {
+    series: [
+      {
+        key: 'account',
+        label: 'This account',
+        points: [1.2, 0, 2.4, 0, 0, 3.1, 1.8, 0, 4.0, 2.2].map((y, i) => ({ x: febDays(10)[i], y })),
+      },
+    ],
+    cumulative: true,
+    ceiling: 12,
+    formatXTick: (d) => `${String(d.getDate()).padStart(2, '0')} Feb`,
+    formatYTick: (v) => `$${v}`,
+    formatTooltipValue: (v) => `$${v.toFixed(2)}`,
   },
 };
 

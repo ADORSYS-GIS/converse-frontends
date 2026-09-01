@@ -4,25 +4,57 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { CommandPalette, CommandPaletteTrigger } from './component';
 import type { CommandPaletteGroup } from './types';
+import { AdminIcon, KeysIcon, OverviewIcon, ProjectsIcon } from '../../lib/icons';
 
-/** Mirrors the real groups the console-ui skill's palette contract names: Navigate then Actions. */
+/**
+ * Mirrors the real groups the console-ui skill's palette contract names: Navigate then Actions.
+ * Navigate rows carry the same glyph their matching nav row does (`lib/icons.tsx`) -- a
+ * deliberate mix of icon and no-icon rows (Actions has none) is included on purpose, since a real
+ * palette will mix the two and the icon COLUMN has to stay aligned either way.
+ */
 function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
   return [
     {
       key: 'navigate',
       heading: 'Navigate',
       items: [
-        { key: 'overview', label: 'Overview', onSelect: () => onSelect('overview') },
-        { key: 'api-keys', label: 'Api-Keys', onSelect: () => onSelect('api-keys') },
-        { key: 'manage', label: 'Manage', onSelect: () => onSelect('manage') },
-        { key: 'admin', label: 'Admin', onSelect: () => onSelect('admin'), hint: 'ROLE' },
+        {
+          key: 'overview',
+          label: 'Overview',
+          icon: <OverviewIcon />,
+          onSelect: () => onSelect('overview'),
+        },
+        {
+          key: 'api-keys',
+          label: 'Api-Keys',
+          icon: <KeysIcon />,
+          onSelect: () => onSelect('api-keys'),
+        },
+        {
+          key: 'manage',
+          label: 'Manage',
+          icon: <ProjectsIcon />,
+          onSelect: () => onSelect('manage'),
+        },
+        {
+          key: 'admin',
+          label: 'Admin',
+          icon: <AdminIcon />,
+          onSelect: () => onSelect('admin'),
+          hint: 'Role',
+        },
       ],
     },
     {
       key: 'actions',
       heading: 'Actions',
       items: [
-        { key: 'new-key', label: 'New key', onSelect: () => onSelect('new-key') },
+        {
+          key: 'new-key',
+          label: 'New key',
+          shortcut: 'N',
+          onSelect: () => onSelect('new-key'),
+        },
         {
           key: 'generate-report',
           label: 'Generate report',
@@ -39,18 +71,41 @@ function exampleGroups(onSelect: (key: string) => void): CommandPaletteGroup[] {
   ];
 }
 
+/**
+ * Adds a populated `Scope` group between `Navigate` and `Actions` — the account-switch ask
+ * (console-ui#310/#302) `useConsolePalette` wires for real against `useConsoleScope().allAccounts`.
+ * A mix of named and unnamed accounts: an unnamed one renders via the `acct_<first8>` convention
+ * `accountScopeLabel` produces, never a raw 36-character UUID.
+ */
+function exampleGroupsWithScope(onSelect: (key: string) => void): CommandPaletteGroup[] {
+  const [navigate, actions] = exampleGroups(onSelect);
+  const scope: CommandPaletteGroup = {
+    key: 'scope',
+    heading: 'Scope',
+    items: [
+      { key: 'scope-acme', label: 'Acme Corp', onSelect: () => onSelect('scope-acme') },
+      { key: 'scope-globex', label: 'Globex Industries', onSelect: () => onSelect('scope-globex') },
+      // Unnamed account — `accountScopeLabel`'s `acct_<first8>` fallback, not a raw uuid.
+      { key: 'scope-unnamed', label: 'acct_4f21a90c', onSelect: () => onSelect('scope-unnamed') },
+    ],
+  };
+  return [navigate, scope, actions];
+}
+
 function ControlledPalette({
   initialOpen,
   onSelect,
+  groups = exampleGroups,
 }: {
   initialOpen: boolean;
   onSelect: (key: string) => void;
+  groups?: (onSelect: (key: string) => void) => CommandPaletteGroup[];
 }) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
       <CommandPaletteTrigger onClick={() => setOpen(true)} />
-      <CommandPalette open={open} onOpenChange={setOpen} groups={exampleGroups(onSelect)} />
+      <CommandPalette open={open} onOpenChange={setOpen} groups={groups(onSelect)} />
     </>
   );
 }
@@ -96,6 +151,29 @@ export const OpenLight: Story = {
   name: 'Open — wireframe (light)',
   globals: { theme: 'wireframe' },
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+/** Base tier (<600, `CONSOLE_VIEWPORTS.base390`) — the palette owner ask named explicitly: it
+ *  still opens as a centred overlay (never a bottom sheet; a command palette is not row detail),
+ *  just narrower, so the footer's three hints and a shortcut-bearing row both stay legible. */
+export const Mobile: Story = {
+  name: 'Open — base tier (390px)',
+  globals: { viewport: { value: 'base390' } },
+  render: () => <ControlledPalette initialOpen onSelect={fn()} />,
+};
+
+// The palette-scope ask (console-ui#310/#302): Navigate, then a populated Scope group, then
+// Actions — matching the real group order `useConsolePalette` wires.
+export const OpenWithScope: Story = {
+  name: 'Open — Scope group populated',
+  render: () => <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />,
+};
+
+// `wireframe` (light) counterpart of `OpenWithScope`.
+export const OpenWithScopeLight: Story = {
+  name: 'Open — Scope group populated, wireframe (light)',
+  globals: { theme: 'wireframe' },
+  render: () => <ControlledPalette initialOpen onSelect={fn()} groups={exampleGroupsWithScope} />,
 };
 
 export const Filtering: Story = {

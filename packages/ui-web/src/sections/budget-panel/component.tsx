@@ -3,8 +3,9 @@ import React from 'react';
 import { BudgetHero } from '../../components/budget-hero';
 import { Button } from '../../components/button';
 import { Meter } from '../../components/meter';
-import { formatMoneyOf } from '../../lib/money';
-import { DASHBOARD_LABEL, SECTION_LABEL } from '../dashboard-label';
+import { formatUsdOf } from '../../lib/money';
+import { LABEL_CLASS } from '../../lib/type-roles';
+import { ZoneHeading } from '../../lib/zone-heading';
 import type { BudgetPanelProps } from './types';
 
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 3) — the BUDGET
@@ -12,9 +13,14 @@ import type { BudgetPanelProps } from './types';
 // ATTENTION (the project closest to its ceiling, with its refill action) and REFILL REQUESTS (a
 // count plus the link into Admin). Both are omitted entirely when their data is absent; neither
 // leaves an empty placeholder behind.
+// The hairline between the panel's optional blocks. One definition, because the two blocks that
+// draw it must never disagree about the rule that separates them.
+const BLOCK_DIVIDER_CLASS = 'border-border my-5 border-t';
+
 export function BudgetPanel({
-  label = 'BUDGET — CONSUMPTION VS CEILING',
+  label = 'Budget — consumption vs ceiling',
   budget,
+  heroAction,
   needsAttentionProject,
   onRequestRefill,
   refillRequestStatus,
@@ -24,26 +30,34 @@ export function BudgetPanel({
 }: BudgetPanelProps) {
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={DASHBOARD_LABEL}>{label}</div>
-        {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
-      </div>
+      <ZoneHeading label={label} actions={actions} />
       <div className="mt-4">
-        <BudgetHero
-          value={budget.value}
-          ceiling={budget.ceiling}
-          threshold={budget.threshold}
-          caption={budget.caption}
-        />
+        {budget.status === 'unwired' ? (
+          <BudgetHero status="unwired" caption={budget.caption} />
+        ) : budget.status === 'loading' ? (
+          <BudgetHero status="loading" />
+        ) : budget.status === 'error' ? (
+          <BudgetHero status="error" errorMessage={budget.errorMessage} onRetry={budget.onRetry} />
+        ) : (
+          <BudgetHero
+            value={budget.value}
+            ceiling={budget.ceiling}
+            threshold={budget.threshold}
+            caption={budget.caption}
+            action={heroAction}
+          />
+        )}
 
         {needsAttentionProject ? (
           <>
-            <div aria-hidden="true" className="my-5 border-t border-border" />
-            <div className={SECTION_LABEL}>NEEDS ATTENTION</div>
+            <div aria-hidden="true" className={BLOCK_DIVIDER_CLASS} />
+            <div className={LABEL_CLASS}>Needs attention</div>
             <div className="mt-3 flex items-baseline justify-between gap-3">
-              <span className="font-mono text-xs text-ink">{needsAttentionProject.name}</span>
-              <span className="font-mono text-[11px] text-soft">
-                {formatMoneyOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
+              {/* A project NAME — sans, like every other name in the console (phase 9 consistency
+                  pass: this used to be mono). The figure beside it is data and stays mono. */}
+              <span className="text-ink font-sans text-xs">{needsAttentionProject.name}</span>
+              <span className="text-soft font-mono text-[11px]">
+                {formatUsdOf(needsAttentionProject.value, needsAttentionProject.ceiling)}
               </span>
             </div>
             <div className="mt-2">
@@ -59,7 +73,7 @@ export function BudgetPanel({
               <Button type="button" variant="primary" size="sm" onClick={onRequestRefill}>
                 {needsAttentionProject.refillActionLabel ?? 'Request refill'}
               </Button>
-              <span className="font-sans text-[10px] text-subtle">
+              <span className="text-subtle font-sans text-[10px]">
                 {needsAttentionProject.caption}
               </span>
             </div>
@@ -68,15 +82,17 @@ export function BudgetPanel({
 
         {refillRequestStatus ? (
           <>
-            <div aria-hidden="true" className="my-5 border-t border-border" />
-            <div className={SECTION_LABEL}>REFILL REQUESTS</div>
-            <p className="mt-3 font-mono text-[11px] text-soft">
+            <div aria-hidden="true" className={BLOCK_DIVIDER_CLASS} />
+            <div className={LABEL_CLASS}>Refill requests</div>
+            <p className="text-soft mt-3 font-mono text-[11px]">
               {refillRequestStatus.pendingCount} pending · {refillRequestStatus.submittedLabel}
             </p>
+            {/* A link/action label — sans, like every other button (phase 9 consistency pass:
+                this used to be mono). */}
             <button
               type="button"
               onClick={onReviewInAdmin}
-              className="mt-1 font-mono text-[11px] text-soft underline-offset-2 hover:text-ink hover:underline">
+              className="text-soft hover:text-ink mt-1 font-sans text-[11px] underline-offset-2 hover:underline">
               Review in Admin →
             </button>
           </>

@@ -30,13 +30,13 @@ export const Populated: Story = {
     // "$142.55" alone is ambiguous once loaded — BudgetHero echoes the same figure the SPEND THIS
     // MONTH stat card shows (docs/design/console-redesign/overview.svg's own mock numbers), so key
     // off the stat card's label instead.
-    await waitFor(() => expect(canvas.getByText('SPEND THIS MONTH')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('Spend this month')).toBeInTheDocument(), { timeout: 3000 });
     await waitFor(() => expect(canvas.getAllByText('$142.55').length).toBeGreaterThan(0));
   },
 };
 
-// The `overview` custom endpoint rejects — the SPEND and LATENCY dashboards render their
-// section-level ErrorLine + Retry in place of the charts.
+// The `overview` custom endpoint rejects — the SPEND and SPEND BY MODEL zones render their
+// section-level error line + Retry in place of the chart/ranked list.
 export const ErrorMode: Story = {
   decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { overview: 'Failed to load overview data.' } })],
   render: () => (

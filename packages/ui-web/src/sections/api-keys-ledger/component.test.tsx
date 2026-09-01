@@ -2,18 +2,21 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { EmptyState } from '../../components/empty-state';
 import { ApiKeysLedger } from './component';
-import { apiKeysFixture, apiKeysNewSecret } from './fixtures';
+import { apiKeysFixture } from './fixtures';
 import type { ApiKeysLedgerProps } from './types';
 
 const baseProps: ApiKeysLedgerProps = {
   keys: apiKeysFixture,
-  onDismissSecret: vi.fn(),
   onRotate: vi.fn(),
-  onDelete: vi.fn(),
   onRequestRevoke: vi.fn(),
   onConfirmRevoke: vi.fn(),
   onCancelRevoke: vi.fn(),
+  isAdmin: true,
+  onRequestDelete: vi.fn(),
+  onConfirmDelete: vi.fn(),
+  onCancelDelete: vi.fn(),
 };
 
 describe('ApiKeysLedger', () => {
@@ -24,29 +27,14 @@ describe('ApiKeysLedger', () => {
     expect(screen.getByText('partner-readonly')).toBeInTheDocument();
   });
 
-  it('renders the SecretReveal strip when secretReveal is present, and omits it otherwise', () => {
-    const { rerender } = render(<ApiKeysLedger {...baseProps} secretReveal={null} />);
-    expect(screen.queryByText(apiKeysNewSecret.heading)).not.toBeInTheDocument();
-
-    rerender(<ApiKeysLedger {...baseProps} secretReveal={apiKeysNewSecret} />);
-
-    expect(screen.getByText(apiKeysNewSecret.heading)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(apiKeysNewSecret.secret)).toBeInTheDocument();
-  });
-
-  it('fires onDismissSecret from the strip close control', () => {
-    const onDismissSecret = vi.fn();
-    render(
-      <ApiKeysLedger
-        {...baseProps}
-        secretReveal={apiKeysNewSecret}
-        onDismissSecret={onDismissSecret}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-
-    expect(onDismissSecret).toHaveBeenCalledTimes(1);
+  // Addition D (2026-08-30 owner round, "a card inside a card?") — this section no longer
+  // renders a `SecretReveal` at all: CREATE's own one-time secret moved into
+  // `CreateApiKeyDialog`'s own second step, and ROTATE's is a floor-level `SecretReveal` the
+  // CONTAINER renders as a sibling above the `Card` this section fills, never nested inside it
+  // (`api-keys-centre.tsx`).
+  it('never renders a SecretReveal itself — that concept moved out of this section entirely', () => {
+    const { container } = render(<ApiKeysLedger {...baseProps} />);
+    expect(container.querySelector('.secret-strip')).toBeNull();
   });
 
   it('renders the compact-tier trigger slot in the table toolbar', () => {
@@ -115,13 +103,139 @@ describe('ApiKeysLedger', () => {
     });
   });
 
-  it('shows an inline empty status above the still-rendered ledger header when there are no keys', () => {
+  describe('delete gating flow (ticket #321)', () => {
+    it('does not delete on a single click — it only requests confirmation', () => {
+      const row = apiKeysFixture[0];
+      const onRequestDelete = vi.fn();
+      const onConfirmDelete = vi.fn();
+      render(
+        <ApiKeysLedger
+          {...baseProps}
+          onRequestDelete={onRequestDelete}
+          onConfirmDelete={onConfirmDelete}
+        />
+      );
+
+      const group = screen.getByRole('group', { name: `${row.name} actions` });
+      fireEvent.click(within(group).getByRole('button', { name: 'Delete' }));
+
+      expect(onRequestDelete).toHaveBeenCalledWith(row);
+      expect(onConfirmDelete).not.toHaveBeenCalled();
+    });
+
+    it('opens the typed-confirm dialog and keeps the primary disabled until the name matches exactly', () => {
+      const row = apiKeysFixture[0];
+      const { rerender } = render(<ApiKeysLedger {...baseProps} deleteTarget={undefined} />);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+      rerender(<ApiKeysLedger {...baseProps} deleteTarget={{ row }} />);
+      const dialog = screen.getByRole('alertdialog');
+      expect(within(dialog).getByText(`Delete ${row.name}?`)).toBeInTheDocument();
+
+      const confirmButton = within(dialog).getByRole('button', { name: 'Delete' });
+      expect(confirmButton).toBeDisabled();
+
+      const input = within(dialog).getByLabelText(`Type "${row.name}" to confirm`);
+      fireEvent.change(input, { target: { value: 'wrong-name' } });
+      expect(confirmButton).toBeDisabled();
+
+      fireEvent.change(input, { target: { value: row.name } });
+      expect(confirmButton).toBeEnabled();
+    });
+
+    it('fires onConfirmDelete with the row only once the typed name matches exactly', () => {
+      const row = apiKeysFixture[0];
+      const onConfirmDelete = vi.fn();
+      render(
+        <ApiKeysLedger {...baseProps} deleteTarget={{ row }} onConfirmDelete={onConfirmDelete} />
+      );
+
+      const dialog = screen.getByRole('alertdialog');
+      const confirmButton = within(dialog).getByRole('button', { name: 'Delete' });
+      const input = within(dialog).getByLabelText(`Type "${row.name}" to confirm`);
+
+      // A near-miss must not enable the destructive action — this is the whole point of the gate.
+      fireEvent.change(input, { target: { value: `${row.name}!` } });
+      fireEvent.click(confirmButton);
+      expect(onConfirmDelete).not.toHaveBeenCalled();
+
+      fireEvent.change(input, { target: { value: row.name } });
+      fireEvent.click(confirmButton);
+      expect(onConfirmDelete).toHaveBeenCalledWith(row);
+    });
+
+    it('keeps the dialog open and surfaces an inline error when the confirmed delete fails', () => {
+      const row = apiKeysFixture[0];
+      render(
+        <ApiKeysLedger {...baseProps} deleteTarget={{ row, error: 'Delete failed. Try again.' }} />
+      );
+
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('Delete failed. Try again.');
+    });
+
+    it('fires onCancelDelete on Cancel', () => {
+      const row = apiKeysFixture[0];
+      const onCancelDelete = vi.fn();
+      render(
+        <ApiKeysLedger {...baseProps} deleteTarget={{ row }} onCancelDelete={onCancelDelete} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(onCancelDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('is reachable for a revoked key — ADR 0003 makes delete the cleanup step after revoke, not blocked by it', () => {
+      const revoked = apiKeysFixture.find((row) => row.status === 'revoked');
+      expect(revoked).toBeDefined();
+      const onRequestDelete = vi.fn();
+      render(<ApiKeysLedger {...baseProps} onRequestDelete={onRequestDelete} />);
+
+      const group = screen.getByRole('group', { name: `${revoked!.name} actions` });
+      const delButton = within(group).getByRole('button', { name: 'Delete' });
+
+      expect(delButton).toBeEnabled();
+      fireEvent.click(delButton);
+      expect(onRequestDelete).toHaveBeenCalledWith(revoked);
+    });
+
+    it('is unavailable to a non-admin — omitted, not shown disabled with no explanation', () => {
+      render(<ApiKeysLedger {...baseProps} isAdmin={false} />);
+
+      // Rotate and Revoke stay reachable; only the admin-gated Delete action disappears.
+      const group = screen.getByRole('group', { name: `${apiKeysFixture[0].name} actions` });
+      expect(within(group).getByRole('button', { name: 'Rotate' })).toBeInTheDocument();
+      expect(within(group).getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
+      expect(within(group).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders the given EmptyState instead of the table when there are no keys', () => {
+    render(
+      <ApiKeysLedger
+        {...baseProps}
+        keys={[]}
+        emptyState={
+          <EmptyState
+            headline="No API keys in this project"
+            explainer="Keys authenticate requests to the Lightbridge API. Each belongs to exactly one project."
+            action={<button type="button">+ New key</button>}
+          />
+        }
+      />
+    );
+
+    expect(screen.getByText('No API keys in this project')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ New key' })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('still renders the table (structure stays) when there are no keys and no emptyState is given', () => {
     render(<ApiKeysLedger {...baseProps} keys={[]} />);
 
-    expect(
-      screen.getByText('No keys in this project yet. Create one from the right.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'NAME' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
   });
 
   it('renders an ErrorLine with Retry on error', () => {
@@ -133,5 +247,24 @@ describe('ApiKeysLedger', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load keys.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the shared Pagination component, disabled Next when there is no next page', () => {
+    render(
+      <ApiKeysLedger
+        {...baseProps}
+        pagination={{
+          shown: 1,
+          total: 1,
+          hasPrev: false,
+          hasNext: false,
+          onPrev: vi.fn(),
+          onNext: vi.fn(),
+        }}
+      />
+    );
+
+    expect(screen.getByText('Showing 1 of 1 keys')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
   });
 });

@@ -21,46 +21,46 @@ import type {
   UpdateResponse,
 } from '@refinedev/core';
 
-import { manageProjectsFixture } from '../sections/manage-projects-ledger/fixtures';
-import type { ProjectRow } from '../sections/manage-projects-ledger/types';
-import { manageAccountOptions } from '../sections/manage-filters-rail/fixtures';
+import { projectsFixture } from '../sections/projects-ledger/fixtures';
+import type { ProjectRow } from '../sections/projects-ledger/types';
+import { manageAccountOptions } from '../sections/manage-controls/fixtures';
 import { apiKeysFixture } from '../sections/api-keys-ledger/fixtures';
 import type { ApiKeyRow } from '../sections/api-keys-ledger/types';
 import { pendingRequestsFixture } from '../sections/review-queue/fixtures';
 import type { RefillRequestRow } from '../sections/review-queue/types';
-import { recentDecisionsFixture } from '../sections/decisions-ledger/fixtures';
-import type { DecisionRow } from '../sections/decisions-ledger/types';
 import { overviewStatCards } from '../sections/overview-stat-row/fixtures';
 import type { OverviewStatCardData } from '../sections/overview-stat-row/types';
 import { overviewSpendSeries } from '../sections/spend-dashboard/fixtures';
-import { overviewLatencySeries } from '../sections/latency-dashboard/fixtures';
-import {
-  overviewBudget,
-  overviewNeedsAttentionProject,
-  overviewRefillRequestStatus,
-} from '../sections/budget-panel/fixtures';
-import type {
-  BudgetNeedsAttentionProject,
-  BudgetRefillRequestStatus,
-  BudgetSummary,
-} from '../sections/budget-panel/types';
-import type { LatencyRidgelineSeries } from '../components/latency-ridgeline';
+import { rankedRowsDominantModel } from '../sections/ranked-series-rows/fixtures';
+import type { RankedSeriesRow } from '../sections/ranked-series-rows/types';
+import { overviewBudget } from '../sections/budget-panel/fixtures';
+import type { BudgetSummary } from '../sections/budget-panel/types';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
 
-/** The five CRUD resources the mock provider seeds — the resource set named in the task. */
-export type MockResourceName = 'projects' | 'accounts' | 'api-keys' | 'refill-requests' | 'decisions';
+/** The CRUD resources the mock provider seeds. `decisions` (phase 6, admin/settings revamp) is
+ *  gone: it fed the deleted `DecisionsLedger`, which was never backed by a real listing — see
+ *  `apps/console/src/containers/use-admin-screen.ts`'s own doc comment for the fuller history. */
+export type MockResourceName = 'projects' | 'accounts' | 'api-keys' | 'refill-requests';
 
 export type MockAccountRecord = BaseRecord & { id: string; label: string };
 
-/** Snapshot payload for the read-only `overview` custom endpoint (`useCustom({ url: 'overview' })`) —
- * the aggregation refine's `useCustom` hook fetches for `RefineOverviewScreen`. */
+/**
+ * Snapshot payload for the read-only `overview` custom endpoint (`useCustom({ url: 'overview' })`) —
+ * the aggregation refine's `useCustom` hook fetches for `RefineOverviewScreen`.
+ *
+ * Kept in step with `/`'s real shape (`apps/console/src/containers/use-overview-screen.ts`'s
+ * `OverviewScreen`, IA v3 phase 4): `modelSpendRows` (not `modelSpendSegments`) since SPEND BY
+ * MODEL renders through `RankedSeriesRows` now, not `SpendShareSection`/`ShareBar` (build brief
+ * §7); `needsAttentionProject`/`refillRequestStatus` are gone — `/` renders no admin-only zone at
+ * all any more (BUDGET PRESSURE moved to `/settings/overview/project`, KEY HYGIENE to
+ * `/settings/overview/account`, and the refill count lives in the settings nav's own numeral).
+ */
 export interface OverviewSnapshot {
   statCards: OverviewStatCardData[];
   spendSeries: SpendSeriesSeries[];
-  latencySeries: LatencyRidgelineSeries[];
+  /** "Spend by model" (phase 9.2). */
+  modelSpendRows: RankedSeriesRow[];
   budget: BudgetSummary;
-  needsAttentionProject?: BudgetNeedsAttentionProject;
-  refillRequestStatus?: BudgetRefillRequestStatus;
 }
 
 /** Payload for the `refill-requests/decide` custom mutation (`useCustomMutation`). */
@@ -76,18 +76,16 @@ type Store = {
   accounts: MockAccountRecord[];
   'api-keys': ApiKeyRow[];
   'refill-requests': RefillRequestRow[];
-  decisions: DecisionRow[];
 };
 
 function seedStore(): Store {
   return structuredClone({
-    projects: manageProjectsFixture,
+    projects: projectsFixture,
     accounts: manageAccountOptions
       .filter((option) => option.value !== 'all')
       .map((option) => ({ id: option.value, label: option.label })),
     'api-keys': apiKeysFixture,
     'refill-requests': pendingRequestsFixture,
-    decisions: recentDecisionsFixture,
   });
 }
 
@@ -95,10 +93,8 @@ function seedOverviewSnapshot(): OverviewSnapshot {
   return structuredClone({
     statCards: overviewStatCards,
     spendSeries: overviewSpendSeries,
-    latencySeries: overviewLatencySeries,
+    modelSpendRows: rankedRowsDominantModel,
     budget: overviewBudget,
-    needsAttentionProject: overviewNeedsAttentionProject,
-    refillRequestStatus: overviewRefillRequestStatus,
   });
 }
 
@@ -111,7 +107,7 @@ export interface MockDataProviderConfig {
 }
 
 function isStoreResource(resource: string): resource is MockResourceName {
-  return resource === 'projects' || resource === 'accounts' || resource === 'api-keys' || resource === 'refill-requests' || resource === 'decisions';
+  return resource === 'projects' || resource === 'accounts' || resource === 'api-keys' || resource === 'refill-requests';
 }
 
 function applyLogicalFilter(row: BaseRecord, filter: Extract<CrudFilter, { field: string }>): boolean {
@@ -263,28 +259,23 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
 
       if (url === 'refill-requests/decide' && method === 'post') {
         maybeFail('refill-requests/decide');
-        const { id, decision, note, decidedBy } = payload as DecideRefillPayload;
+        const { id, note, decidedBy } = payload as DecideRefillPayload;
 
         const pending = store['refill-requests'];
         const index = pending.findIndex((row) => row.id === id);
         if (index === -1) throw new Error(`Mock data provider: refill request "${id}" not found.`);
 
-        const [request] = pending.splice(index, 1);
+        // Phase 6 (admin/settings revamp): the decided row no longer moves into a `decisions`
+        // resource — `DecisionsLedger` (the section that read it) is deleted, since it was never
+        // backed by a real listing. The mock queue does not persist reviewer notes or who decided,
+        // matching the real provider's own contract (`use-admin-screen.ts`'s `decide.mutationFn`
+        // sends nothing back beyond the decision itself).
+        void note;
+        void decidedBy;
+        const [removed] = pending.splice(index, 1);
         setResourceStore('refill-requests', [...pending]);
 
-        const decisionRow: DecisionRow = {
-          id: `decision-${request.id}-${Date.now()}`,
-          date: new Date().toISOString().slice(0, 10),
-          project: request.project,
-          account: request.account,
-          amount: request.requestedAmount,
-          decision: decision === 'approve' ? 'approved' : 'declined',
-          decidedBy: decidedBy ?? 'sam',
-        };
-        void note; // the mock queue does not persist reviewer notes — the real provider will.
-        setResourceStore('decisions', [decisionRow, ...store.decisions]);
-
-        return { data: decisionRow as unknown as TData };
+        return { data: removed as unknown as TData };
       }
 
       throw new Error(`Mock data provider: unhandled custom request "${method} ${url}".`);

@@ -23,15 +23,209 @@ function parsedFrom(
 
 const VALID_CONFIG = {
   session: { secret: 'a'.repeat(48) },
-  keycloak: { issuer: 'http://localhost:13444/realms/dev', clientId: 'self-service' },
+  idp: { issuer: 'http://localhost:13444/realms/dev', clientId: 'self-service' },
   backendUrl: 'http://localhost:13000',
 };
 
 describe('buildConsoleEnv', () => {
+  /**
+   * The usage query listener requires mTLS and has no bearer-token auth of its own
+   * (lightbridge-authz#347/#361), so a half-configured cert block is not "partly working" -- it
+   * cannot produce a TLS identity at all. Treating it as configured would turn a config typo into
+   * a per-request handshake failure instead of the same honest 503 an unconfigured deployment
+   * already gets, which is a far harder thing to diagnose from the outside.
+   */
+  it.each([
+    ['cert without key', { certPath: '/tls.crt' }],
+    ['key without cert', { keyPath: '/tls.key' }],
+    ['both blank', { certPath: '   ', keyPath: '   ' }],
+    ['empty block', {}],
+  ])('treats a %s usageClientCert block as unconfigured', (_label, usageClientCert) => {
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, usageClientCert }));
+    expect(env.usageClientCert).toBeUndefined();
+  });
+
+  it('reads a complete usageClientCert block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        usageClientCert: {
+          certPath: '/etc/lightbridge/tls/tls.crt',
+          keyPath: '/etc/lightbridge/tls/tls.key',
+        },
+      })
+    );
+    expect(env.usageClientCert).toEqual({
+      certPath: '/etc/lightbridge/tls/tls.crt',
+      keyPath: '/etc/lightbridge/tls/tls.key',
+    });
+  });
+
+  /**
+   * Issue #368 (Phase H, runtime white-label branding). Unlike `usageClientCert` above, `logo`
+   * and `style` are independently optional — they back two unrelated routes that each 404 on
+   * their own when unset, so there is no half-configured failure mode pairing them.
+   */
+  it('leaves branding undefined when the block is absent', () => {
+    const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+    expect(env.branding).toBeUndefined();
+  });
+
+  it('leaves branding undefined when the block is present but both fields are blank', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '   ', style: '' } })
+    );
+    expect(env.branding).toBeUndefined();
+  });
+
+  it('reads a logo-only branding block, deriving Content-Type from the extension', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo.png' } })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.png',
+      logoContentType: 'image/png',
+    });
+  });
+
+  it('reads a style-only branding block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { style: '/tmp/branding/override.style' } })
+    );
+    expect(env.branding).toEqual({ stylePath: '/tmp/branding/override.style' });
+  });
+
+  it('reads a complete branding block', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: { logo: '/tmp/branding/logo.svg', style: '/tmp/branding/override.style' },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.svg',
+      logoContentType: 'image/svg+xml',
+      stylePath: '/tmp/branding/override.style',
+    });
+  });
+
+  it.each([
+    ['jpg', '/tmp/branding/logo.jpg', 'image/jpeg'],
+    ['jpeg', '/tmp/branding/logo.jpeg', 'image/jpeg'],
+    ['webp', '/tmp/branding/logo.webp', 'image/webp'],
+  ])('derives %s as %s', (_label, logo, contentType) => {
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo } }));
+    expect(env.branding?.logoContentType).toBe(contentType);
+  });
+
+  it('fails fast on a relative branding.logo path', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: 'branding/logo.png' } }))
+    ).toThrow(/"branding\.logo" must be a host-absolute path/);
+  });
+
+  it('fails fast on a relative branding.style path', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, branding: { style: 'branding/override.style' } })
+      )
+    ).toThrow(/"branding\.style" must be a host-absolute path/);
+  });
+
+  it('fails fast on an unsupported branding.logo extension', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo.gif' } }))
+    ).toThrow(/"branding\.logo" must end in one of/);
+  });
+
+  it('fails fast on a branding.logo path with no extension at all', () => {
+    expect(() =>
+      buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { logo: '/tmp/branding/logo' } }))
+    ).toThrow(/"branding\.logo" must end in one of/);
+  });
+
+  /**
+   * Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"):
+   * `branding.logoLight` — the light-theme (`wireframe`) counterpart to `logo`. Deliberately NOT
+   * independently optional the way `logo`/`style` are — see `buildBrandingConfig`'s own doc
+   * comment.
+   */
+  it('reads a logo + logoLight branding block, deriving Content-Type for each independently', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: { logo: '/tmp/branding/logo.png', logoLight: '/tmp/branding/logo-light.svg' },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.png',
+      logoContentType: 'image/png',
+      logoLightPath: '/tmp/branding/logo-light.svg',
+      logoLightContentType: 'image/svg+xml',
+    });
+  });
+
+  it('reads a complete branding block including logoLight and style', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({
+        ...VALID_CONFIG,
+        branding: {
+          logo: '/tmp/branding/logo.svg',
+          logoLight: '/tmp/branding/logo-light.png',
+          style: '/tmp/branding/override.style',
+        },
+      })
+    );
+    expect(env.branding).toEqual({
+      logoPath: '/tmp/branding/logo.svg',
+      logoContentType: 'image/svg+xml',
+      logoLightPath: '/tmp/branding/logo-light.png',
+      logoLightContentType: 'image/png',
+      stylePath: '/tmp/branding/override.style',
+    });
+  });
+
+  it('fails fast on branding.logoLight without branding.logo', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, branding: { logoLight: '/tmp/branding/logo-light.png' } })
+      )
+    ).toThrow(/"branding\.logoLight" requires "branding\.logo" to also be set/);
+  });
+
+  it('fails fast on a relative branding.logoLight path', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          branding: { logo: '/tmp/branding/logo.png', logoLight: 'branding/logo-light.png' },
+        })
+      )
+    ).toThrow(/"branding\.logoLight" must be a host-absolute path/);
+  });
+
+  it('fails fast on an unsupported branding.logoLight extension', () => {
+    expect(() =>
+      buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          branding: { logo: '/tmp/branding/logo.png', logoLight: '/tmp/branding/logo-light.gif' },
+        })
+      )
+    ).toThrow(/"branding\.logoLight" must end in one of/);
+  });
+
+  it('leaves branding undefined when only a blank logoLight is present', () => {
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, branding: { logo: '   ', logoLight: '   ', style: '' } })
+    );
+    expect(env.branding).toBeUndefined();
+  });
+
   it('builds a full ConsoleEnv from a minimal valid document, applying every default', () => {
     const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
     expect(env).toEqual({
-      keycloak: {
+      idp: {
         issuer: 'http://localhost:13444/realms/dev',
         clientId: 'self-service',
         clientSecret: undefined,
@@ -53,11 +247,11 @@ describe('buildConsoleEnv', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, issuer: 'http://localhost:13444/realms/dev/' },
+        idp: { ...VALID_CONFIG.idp, issuer: 'http://localhost:13444/realms/dev/' },
         backendUrl: 'http://localhost:13000/',
       })
     );
-    expect(env.keycloak.issuer).toBe('http://localhost:13444/realms/dev');
+    expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
     expect(env.backendUrl).toBe('http://localhost:13000');
   });
 
@@ -73,45 +267,45 @@ describe('buildConsoleEnv', () => {
     expect(env.apiBasePath).toBe('/v2');
     expect(env.usageUrl).toBeUndefined();
     expect(env.publicBaseUrl).toBeUndefined();
-    expect(env.keycloak.clientSecret).toBeUndefined();
+    expect(env.idp.clientSecret).toBeUndefined();
   });
 
   it('accepts expectedAudiences as a real YAML array', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, expectedAudiences: ['converse-frontend', 'other'] },
+        idp: { ...VALID_CONFIG.idp, expectedAudiences: ['converse-frontend', 'other'] },
       })
     );
-    expect(env.keycloak.expectedAudiences).toEqual(['converse-frontend', 'other']);
+    expect(env.idp.expectedAudiences).toEqual(['converse-frontend', 'other']);
   });
 
   it('accepts expectedAudiences as a comma-separated string (single-placeholder escape hatch)', () => {
     const env = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, expectedAudiences: 'a, b ,c' },
+        idp: { ...VALID_CONFIG.idp, expectedAudiences: 'a, b ,c' },
       })
     );
-    expect(env.keycloak.expectedAudiences).toEqual(['a', 'b', 'c']);
+    expect(env.idp.expectedAudiences).toEqual(['a', 'b', 'c']);
   });
 
   it('coerces a string "false"/"0" audienceRequired (the {env:VAR} case) to a real boolean', () => {
     const asFalseString = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, audienceRequired: 'false' },
+        idp: { ...VALID_CONFIG.idp, audienceRequired: 'false' },
       })
     );
-    expect(asFalseString.keycloak.audienceRequired).toBe(false);
+    expect(asFalseString.idp.audienceRequired).toBe(false);
 
     const asRealBoolean = buildConsoleEnv(
       parsedFrom({
         ...VALID_CONFIG,
-        keycloak: { ...VALID_CONFIG.keycloak, audienceRequired: false },
+        idp: { ...VALID_CONFIG.idp, audienceRequired: false },
       })
     );
-    expect(asRealBoolean.keycloak.audienceRequired).toBe(false);
+    expect(asRealBoolean.idp.audienceRequired).toBe(false);
   });
 
   it('rejects a session secret shorter than 32 characters', () => {
@@ -133,11 +327,11 @@ describe('buildConsoleEnv', () => {
     );
   });
 
-  it('fails fast on a missing keycloak.issuer', () => {
-    const { keycloak, ...rest } = VALID_CONFIG;
-    const { issuer: _omit, ...keycloakWithoutIssuer } = keycloak;
-    expect(() => buildConsoleEnv(parsedFrom({ ...rest, keycloak: keycloakWithoutIssuer }))).toThrow(
-      /"keycloak\.issuer"/
+  it('fails fast on a missing idp.issuer', () => {
+    const { idp, ...rest } = VALID_CONFIG;
+    const { issuer: _omit, ...idpWithoutIssuer } = idp;
+    expect(() => buildConsoleEnv(parsedFrom({ ...rest, idp: idpWithoutIssuer }))).toThrow(
+      /"idp\.issuer"/
     );
   });
 
@@ -175,7 +369,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',
@@ -184,7 +378,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
 
     const env = serverEnv();
     expect(env.sessionSecret).toBe('b'.repeat(40));
-    expect(env.keycloak.issuer).toBe('http://localhost:13444/realms/dev');
+    expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
   });
 
   it('caches the result: a second call does not re-read the file even if it changes on disk', () => {
@@ -194,7 +388,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',
@@ -216,7 +410,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
       [
         'session:',
         '  secret: "{env:SESSION_SECRET}"',
-        'keycloak:',
+        'idp:',
         '  issuer: "http://localhost:13444/realms/dev"',
         '  clientId: "self-service"',
         'backendUrl: "http://localhost:13000"',

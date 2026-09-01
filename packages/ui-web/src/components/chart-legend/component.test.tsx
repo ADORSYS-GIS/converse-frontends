@@ -46,7 +46,11 @@ describe('ChartLegend', () => {
     const selectedButton = screen.getByRole('button', { name: 'project-b' });
     const selectedSwatch = selectedButton.querySelector('[aria-hidden="true"]') as HTMLElement;
     expect(selectedSwatch.style.backgroundColor).toBe(SPEC_ACCENT);
-    expect(selectedButton.querySelector('.text-ink')).toHaveTextContent('project-b');
+    // The `ink` label is `series-row[data-emphasized="true"] .series-label` (theme.css), shared
+    // with `ShareBar` — so the assertion is that the row is marked emphasised and that the label
+    // it emphasises is the right one.
+    expect(selectedButton).toHaveAttribute('data-emphasized', 'true');
+    expect(selectedButton.querySelector('.series-label')).toHaveTextContent('project-b');
 
     const otherButton = screen.getByRole('button', { name: 'project-a' });
     const otherSwatch = otherButton.querySelector('[aria-hidden="true"]') as HTMLElement;

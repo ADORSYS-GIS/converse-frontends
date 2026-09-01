@@ -1,93 +1,95 @@
 'use client';
 
+import { AccountNameDialog } from '@lightbridge/ui-web/src/components/account-name-dialog';
 import { ConsoleShell } from '@lightbridge/ui-web/src/components/console-shell';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { CreateProjectDialog } from '@lightbridge/ui-web/src/components/create-project-dialog';
+import { MutationFailureBanner } from '@lightbridge/ui-web/src/components/mutation-failure-banner';
 import type { ReactNode } from 'react';
 
 import {
-  ConsoleHeaderBar,
-  adminNavItems,
-  navItems,
-  routeFromPathname,
+  ConsolePaletteDialog,
+  ConsoleSidebarContent,
+  ConsoleTopBarContent,
+  useConsolePalette,
 } from '../../client/console-chrome';
-import { useConsoleScope } from '../../client/use-console-scope';
-import { useConsoleSession } from '../../client/session-context';
+import {
+  notificationText,
+  useConsoleNotification,
+  useDismissConsoleNotification,
+} from '../../client/console-notifications';
+import { useCreateAccountDialog } from '../../containers/use-create-account-dialog';
+import { useCreateProjectDialog } from '../../containers/use-create-project-dialog';
+import { useRenameAccountDialog } from '../../containers/use-rename-account-dialog';
 
 /**
  * The console's persistent shell — mounted **exactly once**, for every route in the `(console)`
  * group (console-ui skill "Composition — sections in the library, the shell mounted once, pages
  * only in stories").
  *
- * Before this, every route imported a monolithic `*Page` that mounted its own
- * ConsoleShell/ConsoleHeader/NavSpine, so navigating rebuilt the entire chrome, no shell state
- * could survive a route change, and every route bundled the whole shell. Now the chrome lives
- * here and the routes supply only content, through three zones:
+ * Shell revamp phase 2 (2026-08-30): the three-rail, header-band shell is gone. `ConsoleShell` now
+ * takes `{ sidebar, topBar, rail?, railWidth?, onRailWidthChange?, banner?, children }`. Both
+ * `sidebar`/`topBar` are fully self-contained (`ConsoleSidebarContent`/`ConsoleTopBarContent` in
+ * `client/console-chrome.tsx` read the session, the scope and the pathname themselves).
  *
- *  - `children` — the centre column, from `(console)/<route>/page.tsx`.
- *  - `rail` — the right rail, from the `@rail` parallel-route slot.
- *  - `scope` — the left rail's secondary section (the SCOPE echo, or a section sub-nav), from the
- *    `@scope` parallel-route slot. It is a slot rather than something derived from the pathname
- *    here because its content is per-route *data* (a sub-nav's counts), not just a label.
+ * **The rail is gone from this app entirely, IA v3 phase E** (the `/settings/accounts` move):
+ * `ConsoleShell`'s `rail`/`railWidth`/`onRailWidthChange` props still exist on the primitive
+ * itself (a reusable shell shape `packages/ui-web`'s own stories still exercise), but nothing in
+ * `apps/console` feeds them any more. The rail's own contract was always narrower than "a right
+ * column" — ADR 0013 D2/D3 pinned it to exactly ONE case, `/accounts/<id>/projects` with a row
+ * selected, everywhere else collapsed rather than shown empty. That one case moved wholesale to
+ * `/settings/accounts/<id>/projects` (this phase), which — like every `/settings/*` route — has
+ * no right rail at any tier by construction (ADR 0013 D2: "no right rail in settings, at any
+ * tier"). With its one live case gone, the rail has no remaining destination to resolve content
+ * for, so the resolver (`containers/inspector-rail.tsx`), its `showRail` pathname/selection check,
+ * and the persisted-width hook (`client/use-rail-width.ts`) are deleted outright rather than kept
+ * as dead branches that would always evaluate to "no rail" — the same "hide it if empty" instinct
+ * this layout already applied to the rail's CONTENT, now applied to whether it is wired at all.
+ * `/settings/accounts/<id>/projects`' own selection detail is `BottomSheet` at every tier instead
+ * — the same surface `/admin/refills-queue` already uses for the identical reason.
  *
- * Both slots carry a `default.tsx`, so a route that has nothing to put in a rail simply renders
- * nothing there rather than 404-ing the whole segment.
+ * Four dialogs mount here, alongside the shell, for the identical reason each time: two or more
+ * structurally separate subtrees need to open the SAME instance, which only a layout-level mount
+ * makes possible (`use-create-account-dialog.ts`'s own doc comment is the canonical explanation;
+ * `use-rename-account-dialog.ts` and `use-create-project-dialog.ts` follow it for their own verbs
+ * — account rename and project creation, each reachable from more than one screen). Budget refill
+ * is NOT a fifth: IA v3 phase 3 deletes `RequestRefillDialog` outright — every refill trigger now
+ * navigates to its own page, `/settings/accounts/<id>/request-refill`, rather than opening a
+ * shared dialog instance.
  *
  * Auth routes live OUTSIDE this group (`app/auth/*`) and get no shell at all — that is the whole
  * reason the group exists.
- *
- * **No state providers wrap any of this any more (ADR 0011 Decision 2).** `ConsoleScopeProvider`
- * and `ConsoleViewStateProviders` existed only to move view state between the centre and the two
- * slots; the query string does that natively and above all three subtrees, so both are deleted
- * rather than wrapped. The layout's client boundary is now the chrome and nothing else — this
- * component reads `useConsoleScope()` directly for the header's org label, exactly the way any
- * other zone does.
- *
- * Nav active state comes from `usePathname()`: nothing remounts on navigation any more, so there
- * is no mount-time route prop to read it from.
  */
-export default function ConsoleLayout({
-  children,
-  rail,
-  scope,
-}: {
-  children: ReactNode;
-  rail: ReactNode;
-  scope: ReactNode;
-}) {
-  const pathname = usePathname();
-  const route = routeFromPathname(pathname);
-  const session = useConsoleSession();
-  const consoleScope = useConsoleScope();
-
-  const leftSecondaryLabel = route === 'manage' ? 'Manage' : route === 'admin' ? 'Admin' : 'Scope';
+export default function ConsoleLayout({ children }: { children: ReactNode }) {
+  const palette = useConsolePalette();
+  const createAccount = useCreateAccountDialog();
+  const createProject = useCreateProjectDialog();
+  const renameAccount = useRenameAccountDialog();
+  // converse-frontends#323: the console-wide default visibility path for a failed refine
+  // mutation — see `console-notifications.ts`'s own module doc comment for the full mechanism.
+  const notification = useConsoleNotification();
+  const dismissNotification = useDismissConsoleNotification();
 
   return (
-    <ConsoleShell
-      header={
-        <ConsoleHeaderBar
-          orgSwitcher={
-            <span className="text-soft font-mono text-xs">
-              {consoleScope.value.accountId || '—'}
-            </span>
-          }
-        />
-      }
-      nav={{
-        items: navItems(route),
-        adminItems: adminNavItems(route),
-        showAdmin: session.isAdmin,
-        // `next/link` (not the `<a href>` `NavSpine` falls back to): the App Router only
-        // intercepts clicks on its own `Link` for a client-side transition. Without this, every
-        // nav click was a full document reload — the console's actual "black screen between
-        // navigations" root cause (README §"Composition" persistent-shell contract was correct in
-        // the code, just never exercised because navigation itself never went through it).
-        linkComponent: Link,
-      }}
-      leftSecondary={scope}
-      leftSecondaryLabel={leftSecondaryLabel}
-      rightRail={rail}>
-      {children}
-    </ConsoleShell>
+    <>
+      <ConsoleShell
+        sidebar={<ConsoleSidebarContent onOpenPalette={() => palette.setOpen(true)} />}
+        topBar={<ConsoleTopBarContent onOpenPalette={() => palette.setOpen(true)} />}
+        banner={
+          <MutationFailureBanner
+            message={notificationText(notification)}
+            onDismiss={dismissNotification}
+          />
+        }>
+        {children}
+      </ConsoleShell>
+      <ConsolePaletteDialog
+        open={palette.open}
+        onOpenChange={palette.setOpen}
+        groups={palette.groups}
+      />
+      <AccountNameDialog {...createAccount.dialog} />
+      <AccountNameDialog {...renameAccount.dialog} />
+      <CreateProjectDialog {...createProject.dialog} />
+    </>
   );
 }

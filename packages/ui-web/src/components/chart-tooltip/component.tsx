@@ -12,9 +12,16 @@ import type { ChartTooltipProps } from './types';
  * Floating UI wiring lives one level up, in the component that renders the interactive
  * hit-region elements a pointer/tap/keyboard focus actually lands on, rather than here).
  *
- * DOM port of packages/ui's `chart-tooltip` (RN `View`/`Text` ->
- * `<div>`/`<span>`), still using the console-ui token set (`bg-surface`,
- * `text-ink`, `text-subtle`).
+ * DOM port of packages/ui's chart tooltip (RN View/Text -> div/span), still on
+ * the console-ui token set. Its paint is one named class in theme.css
+ * (chart-tooltip-card, and two parts under it): the card is the one
+ * overlay that is deliberately not OVERLAY_CLASS, because a hairline border on
+ * a card that tracks the cursor reads as flicker.
+ *
+ * Every part inside the card is positional rather than its own class name. The
+ * rows are divs, so the optional title is the card's only direct span child.
+ * Inside a row the value is the last child and the label the one before it,
+ * which holds whether or not the row has a swatch in front.
  */
 export function ChartTooltip({
   visible,
@@ -36,18 +43,15 @@ export function ChartTooltip({
         ref={setFloating}
         style={{ ...floatingStyles, pointerEvents: 'none' }}
         {...getFloatingProps()}
-        className="flex max-w-[240px] flex-col gap-1 rounded-[2px] bg-surface px-2.5 py-2 font-mono">
-        {title ? <span className="truncate text-[11px] text-subtle">{title}</span> : null}
+        className="chart-tooltip-card">
+        {title ? <span>{title}</span> : null}
         {rows.map((row) => (
-          <div key={row.key} className="flex items-center gap-1.5">
+          <div key={row.key} className="chart-tooltip-row">
             {row.color ? (
-              <span
-                className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{ backgroundColor: row.color }}
-              />
+              <span className="chart-tooltip-dot" style={{ backgroundColor: row.color }} />
             ) : null}
-            <span className="flex-1 truncate text-xs text-ink">{row.label}</span>
-            <span className="text-xs tabular-nums text-ink">{row.value}</span>
+            <span>{row.label}</span>
+            <span>{row.value}</span>
           </div>
         ))}
       </div>

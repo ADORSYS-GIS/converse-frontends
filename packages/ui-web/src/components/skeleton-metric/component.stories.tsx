@@ -16,9 +16,9 @@ export const Default: Story = {};
 export const InStatCardShape: Story = {
   render: () => (
     <div className="bg-surface flex w-[209px] flex-col gap-2 rounded-[2px] p-4">
-      <span className="bg-raised h-3 w-24 rounded-[2px]" />
+      <span className="skeleton h-3 w-24" />
       <SkeletonMetric width={72} className="mt-3" />
-      <span className="bg-raised mt-2 h-3 w-32 rounded-[2px]" />
+      <span className="skeleton mt-2 h-3 w-32" />
     </div>
   ),
 };
@@ -29,9 +29,9 @@ export const InStatCardShapeLight: Story = {
   globals: { theme: 'wireframe' },
   render: () => (
     <div className="bg-surface flex w-[209px] flex-col gap-2 rounded-[2px] p-4">
-      <span className="bg-raised h-3 w-24 rounded-[2px]" />
+      <span className="skeleton h-3 w-24" />
       <SkeletonMetric width={72} className="mt-3" />
-      <span className="bg-raised mt-2 h-3 w-32 rounded-[2px]" />
+      <span className="skeleton mt-2 h-3 w-32" />
     </div>
   ),
 };

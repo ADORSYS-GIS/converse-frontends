@@ -11,33 +11,36 @@ allowBuilds:
   # Pulled in by @serwist/turbopack, which uses SWC to compile apps/console's service worker.
   # Its postinstall only resolves the prebuilt native binding for this platform.
   '@swc/core': true
+  # Its postinstall only prints a donation-request banner (wrapped in try/catch, so it can never
+  # fail the install) -- no functional side effect, so there is nothing to gain by running it.
+  core-js: false
 
 minimumReleaseAgeExclude:
-  - '@cratestack/adapter-rtk@0.8.13'
-  - '@cratestack/adapter-tanstack-query@0.8.13'
-  - '@cratestack/api@0.8.13'
-  - '@cratestack/cbor@0.8.13'
-  - '@cratestack/cli@0.8.13'
-  - '@cratestack/link-batch@0.8.13'
-  - '@cratestack/link-logger@0.8.13'
-  - '@cratestack/refine@0.8.13'
-  - '@cratestack/runtime-axios@0.8.13'
-  - '@cratestack/runtime-fetch@0.8.13'
-  - '@cratestack/ts-types@0.8.13'
-  - '@cratestack/validator-yup@0.8.13'
-  - '@cratestack/validator-zod@0.8.13'
+  - '@cratestack/adapter-rtk@0.10.0'
+  - '@cratestack/adapter-tanstack-query@0.10.0'
+  - '@cratestack/api@0.10.0'
+  - '@cratestack/cbor@0.10.0'
+  - '@cratestack/cli@0.10.0'
+  - '@cratestack/link-batch@0.10.0'
+  - '@cratestack/link-logger@0.10.0'
+  - '@cratestack/refine@0.10.0'
+  - '@cratestack/runtime-axios@0.10.0'
+  - '@cratestack/runtime-fetch@0.10.0'
+  - '@cratestack/ts-types@0.10.0'
+  - '@cratestack/validator-yup@0.10.0'
+  - '@cratestack/validator-zod@0.10.0'
   - '@tanstack/query-core@5.102.3'
   - '@tanstack/query-persist-client-core@5.102.3'
   - '@tanstack/react-query-persist-client@5.102.3'
   - '@tanstack/react-query@5.102.3'
   - nuqs@2.10.1
-  - '@cratestack/cbor-node-darwin-arm64@0.8.13'
-  - '@cratestack/cbor-node-darwin-x64@0.8.13'
-  - '@cratestack/cbor-node-linux-arm64-gnu@0.8.13'
-  - '@cratestack/cbor-node-linux-x64-gnu@0.8.13'
-  - '@cratestack/cbor-node-win32-x64-msvc@0.8.13'
-  - '@cratestack/cbor-node@0.8.13'
-  - '@cratestack/cbor-web@0.8.13'
+  - '@cratestack/cbor-node-darwin-arm64@0.10.0'
+  - '@cratestack/cbor-node-darwin-x64@0.10.0'
+  - '@cratestack/cbor-node-linux-arm64-gnu@0.10.0'
+  - '@cratestack/cbor-node-linux-x64-gnu@0.10.0'
+  - '@cratestack/cbor-node-win32-x64-msvc@0.10.0'
+  - '@cratestack/cbor-node@0.10.0'
+  - '@cratestack/cbor-web@0.10.0'
 
 overrides:
   axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0
@@ -55,8 +58,13 @@ overrides:
   "react-native-safe-area-context": "~5.7.0"
   "react-native-screens": "~4.26.0"
   "react-native-gesture-handler": "~2.32.0"
-  "react-dom": "19.2.3"
-  react: 19.2.3
+  # Raised from 19.2.3 for story #406: `react-router@8` (apps/authz-ui) declares
+  # `peerDependencies: react >=19.2.7`, and an override wins over any range a workspace
+  # declares -- so pinning 19.2.3 here would leave that peer permanently unmet and make the new
+  # app's own manifest a lie. 19.2.8 is the current 19.2 line; `next@16.3.2`'s peer is `^19.0.0`
+  # and `@lightbridge/ui-web`'s is `>=19.2.3`, so nothing else moves.
+  "react-dom": 19.2.8
+  react: 19.2.8
   react-native: 0.86.2
   # Security: transitive-dependency CVE fixes (Trivy HIGH/CRITICAL)
   shell-quote: "^1.8.4" # CVE-2026-9277 (CRITICAL): command injection

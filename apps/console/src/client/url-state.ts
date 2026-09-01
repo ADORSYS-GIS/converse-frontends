@@ -3,21 +3,27 @@
 import {
   debounce,
   parseAsArrayOf,
+  parseAsBoolean,
   parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
-  useQueryState,
   useQueryStates,
 } from 'nuqs';
-import type { AdminReviewTab, ReportExportFormat } from '@lightbridge/ui-web';
+import type { UsageGroupBy } from '@lightbridge/api-rest';
+import type { ReportExportFormat } from '@lightbridge/ui-web';
 
 /**
  * **The console's URL param contract — the single module that owns it (ADR 0011).**
  *
  * Every piece of state that describes *what the user is looking at* lives here, as a typed nuqs
- * parser with a default: scope, dashboard view params, per-route filters and pagination,
+ * parser with a default: project scope, dashboard view params, per-route filters and pagination,
  * selections, the active sub-nav tab, and which rail section is open as a sheet. Nothing else in
  * `apps/console` may declare a query param — one module, one writer, one contract.
+ *
+ * **The account is a path segment, not a param, as of IA v3 phase 1** ("account into the path"):
+ * every screen lives under `/accounts/[accountId]/*`, and `client/use-account-id.ts`'s
+ * `useAccountId()` reads it from the route. This module owns everything that is genuinely a query
+ * param — which, for scope, is now the project alone (`projectScopeParsers` below).
  *
  * **Param names are product surface.** These strings appear in URLs users bookmark, share and
  * paste into tickets; renaming one is a breaking change to the same degree an API field rename is
@@ -47,131 +53,136 @@ import type { AdminReviewTab, ReportExportFormat } from '@lightbridge/ui-web';
  * cache, see `use-shared-mutation.ts`).
  */
 
-// ── shared: scope ────────────────────────────────────────────────────────────────────────────
+// ── shared: project scope ───────────────────────────────────────────────────────────────────
 
 /**
- * Account/project scope, read by every route and by all three zones (centre, `@rail`, `@scope`).
+ * Project scope — `?project=` — read by every screen under `/accounts/[accountId]/*`.
  *
- * This is the clearest case of "the URL is the cross-zone state bus" (ADR 0011 Decision 2): the
- * rail's `ScopeSelect` writes it, the centre's ledger filters by it and the left rail's SCOPE echo
- * displays it, and none of the three knows the others exist.
+ * **The account half of scope is a path segment, not a URL param, as of IA v3 phase 1** ("account
+ * into the path"): every screen now lives under `/accounts/[accountId]/*`, and `useAccountId()`
+ * (`client/use-account-id.ts`) reads it from the route, never from here. Only the project — a
+ * narrowing WITHIN the account already named by the path — remains a query param, because a
+ * project is optional (bare `/accounts/<id>/overview` means "every project in this account") in a
+ * way the account segment itself never is.
  *
- * An empty `account` does not mean "no account" — it means *"whichever account the data hands me
- * first"*, resolved in `use-console-scope.ts` without ever being written back. That keeps the
- * default out of the URL (rule 1) instead of pinning a shared link to the sender's first account.
+ * This is still "the URL is the cross-zone state bus" (ADR 0011 Decision 2) for the project half:
+ * the scope picker writes it, the centre's ledger filters by it, and neither knows the other
+ * exists. An empty `project` does not mean "no project" — it means *"every project in this
+ * account"*, the parser's own default, which `clearOnDefault` keeps out of the URL.
  */
-export const scopeParsers = {
-  accountId: parseAsString.withDefault(''),
+export const projectScopeParsers = {
   projectId: parseAsString.withDefault(''),
 };
 
-const scopeUrlKeys = { accountId: 'account', projectId: 'project' };
+const projectScopeUrlKeys = { projectId: 'project' };
 
-/** Scope is a navigation-grade change: Back should return to the previous account/project. */
-const scopeOptions = { history: 'push' as const };
+/** Scope is a navigation-grade change: Back should return to the previous project. */
+const projectScopeOptions = { history: 'push' as const };
 
-export function useScopeParams() {
-  return useQueryStates(scopeParsers, { urlKeys: scopeUrlKeys, ...scopeOptions });
+export function useProjectScopeParams() {
+  return useQueryStates(projectScopeParsers, {
+    urlKeys: projectScopeUrlKeys,
+    ...projectScopeOptions,
+  });
 }
 
-// ── shared: which rail section is open as a sheet ────────────────────────────────────────────
+// ── / (account resolver) ─────────────────────────────────────────────────────────────────────
+
+/** The three screens the account resolver can send a visitor on to — `ConsoleRoute` minus
+ *  `settings`/`admin`, which are not (yet — Phase 2) reached under `/accounts/[accountId]/*`. */
+export const RESOLVER_TARGETS = ['overview', 'projects', 'api-keys'] as const;
+export type ResolverTarget = (typeof RESOLVER_TARGETS)[number];
 
 /**
- * Below `lg` the right rail is not rendered and each of its sections is reached through a
- * contextual trigger that opens *that one section* as a `SectionSheet`. Which one is open is view
- * state — it is part of what the user is looking at, and a link to `?sheet=filters` opens the
- * screen with its filter parameters already in front of the recipient.
- *
- * One param for the whole console, not one per route: only one sheet can be open at a time, and
- * the ids are the rail-section vocabulary the trigger glyphs already use.
- *
- * `history: 'replace'` — opening and closing a sheet is knob-twiddling, not navigation, and the
- * sheet's own dismiss gestures (backdrop, Escape) would otherwise each cost a history entry.
+ * `?next=` — the account resolver's (`app/(console)/page.tsx`) own single param: which of the
+ * three account-scoped screens to land on once an account id is resolved. Lets a link like
+ * `/?next=api-keys` (bookmarked, or minted by a legacy-redirect table entry — `middleware.ts`)
+ * survive the account resolution hop instead of always landing on Overview.
  */
-export const SECTION_SHEET_IDS = ['view', 'filters', 'export', 'scope', 'report'] as const;
-export type SectionSheetId = (typeof SECTION_SHEET_IDS)[number];
-
-export function useSectionSheetParam() {
-  return useQueryState(
-    'sheet',
-    parseAsStringLiteral(SECTION_SHEET_IDS).withOptions({ history: 'replace' })
-  );
-}
-
-// ── / (overview) ─────────────────────────────────────────────────────────────────────────────
-
-export const OVERVIEW_RANGES = ['7d', '30d', '90d'] as const;
-export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
-export const OVERVIEW_GROUP_BYS = ['project', 'model'] as const;
-
-/**
- * The Overview dashboard's view params.
- *
- * `model` is a plain string rather than a literal union: model ids come from the usage backend, so
- * the closed set the rail currently offers (`all`) is a UI limitation, not a contract — a parser
- * that rejected an unknown id would silently drop a valid deep link the moment that list grows.
- *
- * `series` is the selected chart series — a selection, so `push`: clicking a series in the chart
- * and pressing Back deselects it rather than leaving the page.
- */
-export const overviewParsers = {
-  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('30d'),
-  bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
-  groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project'),
-  model: parseAsString.withDefault('all'),
-  series: parseAsString.withDefault(''),
+export const resolverParsers = {
+  next: parseAsStringLiteral(RESOLVER_TARGETS).withDefault('overview'),
 };
 
-const overviewUrlKeys = { groupBy: 'group-by' };
+const resolverUrlKeys = { next: 'next' };
 
-export function useOverviewParams() {
-  return useQueryStates(overviewParsers, { urlKeys: overviewUrlKeys, history: 'replace' });
+export function useResolverParams() {
+  return useQueryStates(resolverParsers, { urlKeys: resolverUrlKeys, history: 'replace' });
 }
 
-/** The one Overview param that is a selection rather than a knob, so it gets its own history entry. */
-export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
-
-// ── /api-keys ────────────────────────────────────────────────────────────────────────────────
-
-export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
+// ── shared: create-account dialog ───────────────────────────────────────────────────────────
 
 /**
- * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
- * per keystroke while the address bar (and the refine query it drives) settles once typing stops.
+ * `?new-account=true` — whether the create-account dialog is open, read from wherever it can be
+ * triggered.
  *
- * `revoke` holds the id of the key whose revoke confirmation is open. A dialog *target* is view
- * state — Back closes the dialog, and a colleague can be sent straight to the confirmation. The
- * dialog's failure reason is not here: it belongs to the mutation that failed.
+ * ADR-0026 (lightbridge-authz#564, "one identity may own many accounts") turned "+ New account"
+ * into a standing action reachable from two structurally separate places at once: the workspace
+ * switcher (chrome — mounted once, present on every route, `console-chrome.tsx`) and
+ * `/settings/account`'s own `PageHeader`. Both have to open the SAME dialog instance, the same way
+ * `projectScopeParsers` above is the project scope every zone reads without knowing the others
+ * exist. That rules out a lifted local `useState` (`useConsolePalette`'s own pattern): the palette
+ * is only ever triggered from chrome, so lifting it to `app/(console)/layout.tsx` and threading a
+ * prop down to the two chrome zones is enough — this dialog also needs to open from inside a
+ * routed screen's own subtree, which the layout cannot hand a prop to. Real view state instead —
+ * Back closes it, same as every other dialog flag in this module — declared here rather than
+ * under `settingsParsers` because chrome is not itself a route.
  */
-export const apiKeysParsers = {
-  page: parseAsInteger.withDefault(1),
-  status: parseAsStringLiteral(API_KEY_STATUSES).withDefault('all'),
-  search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
-  selectedKeyId: parseAsString.withDefault(''),
-  revokeKeyId: parseAsString.withDefault(''),
+export const createAccountParsers = {
+  open: parseAsBoolean.withDefault(false),
 };
 
-const apiKeysUrlKeys = { search: 'q', selectedKeyId: 'key', revokeKeyId: 'revoke' };
+const createAccountUrlKeys = { open: 'new-account' };
 
-export function useApiKeysParams() {
-  return useQueryStates(apiKeysParsers, { urlKeys: apiKeysUrlKeys, history: 'replace' });
+export function useCreateAccountDialogParams() {
+  return useQueryStates(createAccountParsers, {
+    urlKeys: createAccountUrlKeys,
+    history: 'push' as const,
+  });
 }
 
-/** Row selection and the revoke dialog are navigation-grade; the filters above them are not. */
-export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
+// ── shared: create-project dialog ───────────────────────────────────────────────────────────
 
-// ── /manage ──────────────────────────────────────────────────────────────────────────────────
+/**
+ * `?new-project=true` — whether `CreateProjectDialog` is open. Lifted out of `manageParsers.
+ * createOpen` (owner, 2026-08-30: "I create account in settings or in a raw dropdown, but project
+ * only in projects? Not in settings?") into the SAME shared, cross-route shape
+ * `createAccountParsers` above already established: `+ New project` is now reachable from
+ * `/projects`' own `PageHeader` action, `/settings/projects`' own `PageHeader` action, AND the
+ * inspector rail's quick-settings row (every route) — three structurally separate triggers that
+ * must all open the ONE instance mounted in `app/(console)/layout.tsx`
+ * (`use-create-project-dialog.ts`). The wire key changes (`create` on `/projects` meant this
+ * specifically; `new-project` says so on every route it now opens from) — a genuine rename, not
+ * a compatibility shim, since the flow itself moved cross-route.
+ */
+export const createProjectParsers = {
+  open: parseAsBoolean.withDefault(false),
+};
 
-export const MANAGE_STATUSES = ['all', 'active', 'archived'] as const;
-export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
-export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
+const createProjectUrlKeys = { open: 'new-project' };
+
+export function useCreateProjectDialogParams() {
+  return useQueryStates(createProjectParsers, {
+    urlKeys: createProjectUrlKeys,
+    history: 'push' as const,
+  });
+}
+
+// ── report export — shared vocabulary (`/`, `/projects`) ────────────────────────────────────
+
+/**
+ * The report export dialog's format/include vocabulary — shared verbatim by `/`'s and
+ * `/projects`'s own `?report=` params (phase 4 gives Overview the same `Export` action Projects'
+ * `Monthly report` button already opens). Declared here, ahead of both routes' own param tables,
+ * because a `const` must exist before either object literal below can reference it.
+ */
 export const REPORT_FORMATS = ['csv', 'pdf'] as const satisfies readonly ReportExportFormat[];
 export const REPORT_INCLUDE_IDS = ['totals', 'per-model'] as const;
 export type ReportIncludeId = (typeof REPORT_INCLUDE_IDS)[number];
 
 /**
- * The month the monthly report defaults to, resolved **once at module load** rather than per
- * render — reading the clock during render makes output depend on when React happens to re-render.
+ * The month the monthly/period report defaults to, resolved **once at module load** rather than
+ * per render — reading the clock during render makes output depend on when React happens to
+ * re-render.
  *
  * It is a moving default by design: because it is the default, `clearOnDefault` keeps it out of
  * the URL, so a shared link without `?period=` means "the current month" for whoever opens it,
@@ -180,9 +191,275 @@ export type ReportIncludeId = (typeof REPORT_INCLUDE_IDS)[number];
 export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 
 /**
+ * The three parsers built from the vocabulary above — declared once and shared **by instance**
+ * between `overviewParsers` and `manageParsers` below, the same way `adminParsers` used to share
+ * `overviewParsers.range` etc. by reference rather than by a lookalike copy: `?format=pdf` has to
+ * mean one thing on both routes' Export dialogs, and sharing the instance makes that a structural
+ * guarantee (`url-state.test.ts` asserts the identity), not a convention two literals could drift
+ * out of.
+ */
+const reportPeriodParser = parseAsString.withDefault(CURRENT_PERIOD);
+const reportFormatParser = parseAsStringLiteral(REPORT_FORMATS).withDefault('csv');
+const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
+  'totals',
+] as ReportIncludeId[]);
+
+// ── / (overview) ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `mtd` ("this month") is the default (2026-08-31 owner directive): the budget resets monthly, so
+ * the dashboard's default window matches the billing period rather than an arbitrary rolling span.
+ * It resolves to a CALENDAR-MONTH span (UTC month start -> now), not a rolling 30-day window — see
+ * `overview-usage.ts`'s `resolveRangeWindow`. It is listed first so it reads as the natural
+ * default in any UI that renders these in order (the range select, `RANGE_PRESETS`).
+ */
+export const OVERVIEW_RANGES = ['mtd', '7d', '30d', '90d'] as const;
+export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
+
+/** `MultiSeriesSpendChart`'s own `scale` union (`@lightbridge/ui-web`), restated here rather than
+ *  imported so this module's own literal-union assertions (`RESOLVER_TARGETS` etc.) stay
+ *  self-contained — shared by `overviewParsers.modelScale` (`/`'s "Spend by model") and
+ *  `settingsOverviewParsers.accountScale` (`/settings/overview/usage`'s "Spend by account"). */
+export const MULTI_SERIES_SPEND_SCALES = ['linear', 'log', 'indexed'] as const;
+
+/**
+ * `console-ui#312`, closed: this used to be a UI-facing pair (`'project' | 'model'`) that
+ * `overview-usage.ts`'s own `OVERVIEW_GROUP_BY_TO_USAGE_GROUP_BY` bridged onto the real
+ * `UsageGroupBy` enum — a translation table that existed only because the URL vocabulary was
+ * picked before the usage contract was read closely. The values here are now literally a subset
+ * of `UsageGroupBy` (`@lightbridge/api-rest`), asserted at the definition below, so the bridge
+ * table is gone: the URL param IS the wire value.
+ *
+ * `user_name`/`metric_name`/`signal_type`/`account_id` are deliberately excluded — the phase 4
+ * measurement's "DO NOT BUILD" list rules out `metric_name`/`signal_type` breakdowns outright,
+ * `user_name` duplicates `user_id` for this console's purposes, and `account_id` only makes sense
+ * for the estate overview's own account-scoped fan-out (`/settings/overview/usage`), which never
+ * reads this per-account param at all.
+ */
+export const OVERVIEW_GROUP_BYS = [
+  'project_id',
+  'model',
+  'user_id',
+  'api_key_id',
+] as const satisfies readonly UsageGroupBy[];
+
+/**
+ * The Overview dashboard's view params.
+ *
+ * `model` is a plain string rather than a literal union: model ids come from the usage backend, so
+ * the closed set the toolbar currently offers (`all`) is a UI limitation, not a contract — a
+ * parser that rejected an unknown id would silently drop a valid deep link the moment that list
+ * grows.
+ *
+ * `series` is the selected chart series — a selection, so `push`: clicking a series in the chart
+ * and pressing Back deselects it rather than leaving the page.
+ *
+ * `range` and `from`/`to` are one value expressed two ways. `range` names a rolling preset and is
+ * what the URL carries by default; `from`/`to` carry an explicit UTC span picked from the calendar.
+ * **`from`/`to` win when both are present** — an explicit span is never silently re-rolled by a
+ * preset that happens to still be in the URL. A preset write clears them; see
+ * `use-overview-screen.ts`.
+ *
+ * `reportOpen`/`period`/`reportGroupBy`/`format`/`include` (phase 4) are the same boolean-target
+ * idiom `manageParsers.reportOpen` established (#303/#309): the Export dialog has exactly one
+ * possible target (the scoped account/project, already named by `range`/`groupBy` above), so
+ * these five params are its whole contract — no separate provider, no dialog-owned draft state.
+ * `reportGroupBy` reuses `OVERVIEW_GROUP_BYS` rather than declaring its own union: the report's
+ * grouping and the dashboard's are the same vocabulary, and `Export` defaults to whatever the
+ * dashboard is currently grouped by (see `use-overview-screen.ts`).
+ *
+ * `modelScale` (2026-08-31, `MultiSeriesSpendChart` wiring — that component's own doc comment)
+ * is SPEND BY MODEL's axis transform, a knob like `bucket`/`groupBy` above (`replace`, not
+ * `push` — dragging the segmented control must not cost a Back press per click). Defaults to
+ * `log`: the owner's real account data is one ~100%-share model beside several sub-1%-share ones,
+ * and `log` was the reviewed recommendation for that shape, unchallenged.
+ */
+export const overviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
+  groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
+  model: parseAsString.withDefault('all'),
+  series: parseAsString.withDefault(''),
+  modelScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
+  reportOpen: parseAsBoolean.withDefault(false),
+  period: reportPeriodParser,
+  reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
+  format: reportFormatParser,
+  include: reportIncludeParser,
+};
+
+const overviewUrlKeys = {
+  groupBy: 'group-by',
+  modelScale: 'model-scale',
+  reportOpen: 'report',
+  reportGroupBy: 'report-group',
+};
+
+export function useOverviewParams() {
+  return useQueryStates(overviewParsers, { urlKeys: overviewUrlKeys, history: 'replace' });
+}
+
+/** The Overview params that are navigation-grade rather than knobs: selecting a chart series, and
+ *  opening/closing the Export dialog — both get their own history entry (mirrors
+ *  `MANAGE_SELECTION_OPTIONS`'s `reportOpen` write). */
+export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
+
+// ── /settings/overview/{usage,account,project,user} — IA v3 phase 4 analytics lenses ──────────
+
+/**
+ * The range/bucket/selection vocabulary shared by all four analytics lenses under
+ * `/settings/overview/*` — the estate overview (`usage`) and the three scope-parameterised lenses
+ * (`account`/`project`/`user`, one `use-settings-overview-screen.ts` hook keyed by `lens`).
+ *
+ * Deliberately the SAME shape `overviewParsers` above declares (`range`/`from`/`to`/`bucket`, the
+ * explicit-span-wins-over-preset rule, `resolveOverviewWindow` reused verbatim) rather than a
+ * fifth divergent range picker: a reader who already knows what `?range=` and `?from=`/`?to=` mean
+ * on `/accounts/<id>/overview` should not have to relearn them here. Declared as its own object
+ * (not literally shared by reference with `overviewParsers`) because these lenses have no
+ * `groupBy`/report vocabulary of their own — each lens's breakdown dimension is fixed by what it
+ * IS (account lens breaks down by model, project lens by api key, …), not a toolbar choice.
+ *
+ * `series` is the selected ranked-list/chart row — `RankedSeriesRows`' own `selectedKey`, wired
+ * the same "URL is the cross-zone state bus" way `overviewParsers.series` already is, `push`-
+ * written via `SETTINGS_OVERVIEW_SELECTION_OPTIONS` below.
+ *
+ * `accountScale` (2026-08-31, `MultiSeriesSpendChart` wiring) is SPEND BY ACCOUNT's axis
+ * transform — the same `replace`-written knob idiom `overviewParsers.modelScale` uses. Defaults
+ * to `linear` (unlike that one's `log` default): the estate's own account mix has no single
+ * measured "one dominant, several near-zero" shape the way one account's own model mix does, so
+ * this starts at the honest raw-dollar reading.
+ *
+ * **`accountSort` is gone** (2026-08-31, hard cutover alongside the scale param above): the
+ * by-account board is a superposed line chart now, not a ranked row list — a chart's rank/colour
+ * order is always by total descending (`MultiSeriesSpendChart/domain.ts`'s own `ranked` sort, not
+ * caller-controlled), so "sort by change" has no surface to render into any more. Deleted rather
+ * than left wired to a control that no longer exists — the same "a dormant knob is a defect" rule
+ * that took `bucket` out of this table below.
+ *
+ * **No `bucket` here** (removed 2026-08-31, owner round finding #5): these lenses have no bucket
+ * toolbar of their own — every spend chart under `/settings/overview/*` is a FIXED day bucket
+ * (`settings-overview-usage.ts`'s `DAY_BUCKET`, `buildLensDayRequest` hardcodes `'1 day'`) — so a
+ * `?bucket=` param used to parse into `view.bucket` and then go completely unread: no request
+ * builder consumed it, no control rendered it. A dormant knob, deleted rather than left wired to
+ * nothing.
+ */
+export const settingsOverviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  series: parseAsString.withDefault(''),
+  accountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+};
+
+const settingsOverviewUrlKeys = { accountScale: 'account-scale' };
+
+export function useSettingsOverviewParams() {
+  return useQueryStates(settingsOverviewParsers, {
+    urlKeys: settingsOverviewUrlKeys,
+    history: 'replace',
+  });
+}
+
+/** Selecting a ranked-list/chart row is navigation-grade — mirrors `OVERVIEW_SELECTION_OPTIONS`. */
+export const SETTINGS_OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
+
+// ── shared: ledger sort ──────────────────────────────────────────────────────────────────────
+
+/** `LedgerTable`'s own `LedgerSortDirection` — a plain string union re-declared rather than
+ *  imported: it is a UI-layer concept (which way the caret points), not a URL-contract one, and
+ *  this module never imports FROM `ui-web` component internals, only shared prop/data types. */
+export const LEDGER_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
+// ── /api-keys ────────────────────────────────────────────────────────────────────────────────
+
+export const API_KEY_STATUSES = ['all', 'active', 'revoked'] as const;
+
+/** The three date columns the Api-Keys ledger can sort by — `ApiKeyRow`'s own `created`/
+ *  `lastUsed`/`expires` keys, reused verbatim as the URL vocabulary so the column key IS the sort
+ *  key (no separate lookup table to drift). */
+export const API_KEY_SORT_KEYS = ['created', 'lastUsed', 'expires'] as const;
+
+/**
+ * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
+ * per keystroke while the address bar (and the refine query it drives) settles once typing stops.
+ *
+ * `revoke` holds the id of the key whose revoke confirmation is open, and `delete` the same for
+ * the (admin-gated, ticket #321) delete confirmation. A dialog *target* is view state — Back
+ * closes the dialog, and a colleague can be sent straight to the confirmation. Neither dialog's
+ * failure reason is here: it belongs to the mutation that failed.
+ *
+ * `create` (ticket #319) is the same idea with no id to carry — the create-key dialog has exactly
+ * one possible target (the active project), so a bare boolean is the whole contract. Its draft
+ * inputs (name/expiry/plan) are NOT here: `use-api-keys-screen.ts`'s own "SANCTIONED LOCAL STATE"
+ * comment explains why a typed-but-unsent form draft must not reach the URL or history.
+ */
+export const apiKeysParsers = {
+  page: parseAsInteger.withDefault(1),
+  status: parseAsStringLiteral(API_KEY_STATUSES).withDefault('all'),
+  search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  selectedKeyId: parseAsString.withDefault(''),
+  revokeKeyId: parseAsString.withDefault(''),
+  deleteKeyId: parseAsString.withDefault(''),
+  createOpen: parseAsBoolean.withDefault(false),
+  // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'createdAt', order:
+  // 'desc' }]` (`use-api-keys-screen.ts`) — newest key first, until a header is pressed.
+  sortKey: parseAsStringLiteral(API_KEY_SORT_KEYS).withDefault('created'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('desc'),
+};
+
+const apiKeysUrlKeys = {
+  search: 'q',
+  selectedKeyId: 'key',
+  revokeKeyId: 'revoke',
+  deleteKeyId: 'delete',
+  createOpen: 'create',
+  sortKey: 'sort',
+  sortDirection: 'dir',
+};
+
+export function useApiKeysParams() {
+  return useQueryStates(apiKeysParsers, { urlKeys: apiKeysUrlKeys, history: 'replace' });
+}
+
+/** Row selection and the revoke/delete dialogs are navigation-grade; the filters above them are not. */
+export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
+
+// ── /projects (params still named 'manage*' internally — the route renamed, this module's own
+// internal identifiers did not) ─────────────────────────────────────────────────────────────
+
+// `active | suspended` are the only two values `Project.status` ever holds (authz.cstack:274-277,
+// 699-700 — mutated only by `disableProject`/`enableProject`). `archived` never existed on the
+// backend (issue #268); a bookmarked `?status=archived` link now falls back to nuqs's `all`
+// default rather than silently matching zero rows forever.
+export const MANAGE_STATUSES = ['all', 'active', 'suspended'] as const;
+export const MANAGE_BUDGET_STATES = ['all', 'quota-set', 'no-quota'] as const;
+export const MANAGE_REPORT_GROUP_BYS = ['project', 'model'] as const;
+/** The two sortable Projects ledger columns (phase 5 revamp brief — Name and the now-wired Spend
+ *  MTD). `ProjectRow`'s own column keys, reused verbatim as the URL vocabulary. */
+export const PROJECTS_SORT_KEYS = ['name', 'spendMtd'] as const;
+// `REPORT_FORMATS`/`REPORT_INCLUDE_IDS`/`ReportIncludeId`/`CURRENT_PERIOD` moved above the
+// "/ (overview)" section (phase 4): both routes' report dialogs now share the same vocabulary,
+// declared once ahead of whichever param table references it first.
+
+/**
  * `include` is a set, so it is a comma-separated array param (`?include=totals,per-model`) rather
  * than one boolean param per toggle — the URL stays legible and a new toggle costs no new param.
  * `parseAsArrayOf` compares by value, so the default set still clears itself out of the URL.
+ *
+ * `reportOpen` (`?report=`) is shell revamp phase 3's replacement for the deleted right rail's
+ * persistent MONTHLY REPORT section: `Monthly report` is now a `PageHeader.action` button that
+ * opens `ReportExportDialog` — the dialog has exactly one possible target (the scoped
+ * account/period), so a bare boolean is the whole contract.
+ *
+ * What is NO LONGER here: `accountNameOpen` (`?account-name=`) — moved to `/settings` along with
+ * the panel that opens it (see `settingsParsers` below) — and `createOpen` (ticket #303, rail-
+ * return round 2026-08-30: lifted into the shared, cross-route `createProjectParsers` above,
+ * alongside `createAccountParsers`, since `+ New project` is reachable from `/settings/projects`
+ * and the inspector rail now too, not only from here). A `/projects` bookmark carrying either old
+ * flag now simply ignores an unknown param rather than opening a dialog on a screen that no
+ * longer mounts one.
  */
 export const manageParsers = {
   page: parseAsInteger.withDefault(1),
@@ -190,19 +467,25 @@ export const manageParsers = {
   status: parseAsStringLiteral(MANAGE_STATUSES).withDefault('all'),
   budgetState: parseAsStringLiteral(MANAGE_BUDGET_STATES).withDefault('all'),
   selectedProjectId: parseAsString.withDefault(''),
-  period: parseAsString.withDefault(CURRENT_PERIOD),
+  reportOpen: parseAsBoolean.withDefault(false),
+  period: reportPeriodParser,
   reportGroupBy: parseAsStringLiteral(MANAGE_REPORT_GROUP_BYS).withDefault('project'),
-  format: parseAsStringLiteral(REPORT_FORMATS).withDefault('csv'),
-  include: parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_IDS)).withDefault([
-    'totals',
-  ] as ReportIncludeId[]),
+  format: reportFormatParser,
+  include: reportIncludeParser,
+  // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'name', order: 'asc'
+  // }]` (`use-projects-screen.ts`) — alphabetical, until a header is pressed.
+  sortKey: parseAsStringLiteral(PROJECTS_SORT_KEYS).withDefault('name'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('asc'),
 };
 
 const manageUrlKeys = {
   search: 'q',
   budgetState: 'budget-state',
   selectedProjectId: 'row',
+  reportOpen: 'report',
   reportGroupBy: 'report-group',
+  sortKey: 'sort',
+  sortDirection: 'dir',
 };
 
 export function useManageParams() {
@@ -212,30 +495,232 @@ export function useManageParams() {
 /** Picking a project row retargets the SELECTION rail — a view change worth a Back press. */
 export const MANAGE_SELECTION_OPTIONS = { history: 'push' as const };
 
-// ── /admin ───────────────────────────────────────────────────────────────────────────────────
-
-export const ADMIN_REVIEW_TABS = [
-  'pending',
-  'decided',
-] as const satisfies readonly AdminReviewTab[];
-
 /**
- * The review queue's active tab and selected request.
- *
- * Both are `push`: the tab is this screen's sub-nav (ADR 0011 Decision 1 names "active sub-nav
- * tab" explicitly), and selecting a request is what fills the review rail — a reviewer who opens
- * the wrong request expects Back to return to the queue, not to leave `/admin`.
+ * `?create=true` — `/settings/accounts/<id>/projects`' own entry flag (task directive: "project
+ * creation would be inside /settings/accounts/<account-id>/projects?create=true"). Distinct from
+ * `createProjectParsers.open` (`?new-project=`, the SHARED cross-route dialog-open flag every
+ * trigger writes): this one is a one-shot LANDING intent, not itself the dialog's open state —
+ * `ProjectsCentre` reads it once on mount, calls the shared trigger
+ * (`useOpenCreateProjectDialog().open()`, which sets `?new-project=true`) and immediately clears
+ * this flag (`history: 'replace'`, so the landing hop never costs a Back press), leaving
+ * `?new-project=` as the one param that actually governs the dialog's open/close state from then
+ * on — the same "?new-account=true IS in the URL, its typed contents are not" split every other
+ * dialog flag in this module follows, one level up (this flag names INTENT, not even a draft).
  */
-export const adminParsers = {
-  tab: parseAsStringLiteral(ADMIN_REVIEW_TABS).withDefault('pending'),
-  selectedRequestId: parseAsString.withDefault(''),
+export const projectsEntryParsers = {
+  create: parseAsBoolean.withDefault(false),
 };
 
-const adminUrlKeys = { selectedRequestId: 'request' };
+export function useProjectsEntryParams() {
+  return useQueryStates(projectsEntryParsers, { history: 'replace' });
+}
+
+// ── /settings ─────────────────────────────────────────────────────────────────
+
+/**
+ * Settings owns the console's account-level and project-level *identity* writes, so its two params
+ * are both "which write is open", never "what has been typed into it".
+ *
+ * `accountNameOpen` (`?account-name=true`) moved here from `manageParsers` together with
+ * `AccountPanel` itself (owner, 2026-08-29: "We cannot modify account core information on the same
+ * page we're filtering"). Under ADR-0026 it drives exactly one procedure now —
+ * `updateAccountName`, renaming whichever account is currently SCOPED — not two: `createAccount`
+ * moved out to its own cross-route flag (`createAccountParsers.open`, `?new-account=`) once
+ * account creation stopped being something the data alone could derive ("does this identity
+ * already have an account" stopped being the question the moment one identity could hold several).
+ * The wire key stays `account-name`, deliberately distinct from scope's own `account` (which
+ * carries an id, not a flag) and from the new `new-account` flag (a different write entirely).
+ *
+ * `renameProjectId` (`?row=<project id>`) carries an ID rather than a boolean, which is the one
+ * structural difference from every other dialog param in this module: the account dialog has
+ * exactly one possible target (the signed-in subject), while a rename has as many targets as the
+ * account has projects. A boolean would have to be paired with a separate "which row" param — two
+ * params that can contradict each other — so the id IS the open flag, exactly the way
+ * `apiKeysParsers.revokeKeyId` already works.
+ *
+ * Phase 9 (Addition C) split what `renameProjectId` used to mean in two: it now names the row
+ * `DetailSheet` has open (a SELECTION — clicking a project row), and `projectNameOpen` is a
+ * separate boolean for whether the RENAME dialog is stacked on top of that sheet, targeting the
+ * same id. Two params rather than one because they are two different things a person does: open a
+ * project to look at it, versus open its rename dialog — the settings list's own row click no
+ * longer implies "and also start renaming this."
+ *
+ * Both write with `push` (`SETTINGS_DIALOG_OPTIONS`): opening a dialog that is about to perform a
+ * write is navigation, and Back must close it rather than leave the screen. The typed-but-unsent
+ * names in either dialog are NOT here — see `use-settings-screen.ts`'s own "SANCTIONED LOCAL
+ * STATE" comment for why a draft must never reach the URL or browser history.
+ *
+ * `search`/`page` (phase 6, admin/settings revamp): `/settings/projects`' own filter and pager,
+ * the same idiom `apiKeysParsers`/`manageParsers` already use — the unbounded N×7 project dump
+ * this screen used to render died in favour of a search box + 10/page `Pagination`, so it needs
+ * the same two params every OTHER browsable list on the console carries. Both `replace`
+ * (rule 2 — knobs, not navigation), and `search` is debounced onto the URL the same way the two
+ * ledger search boxes are.
+ */
+export const settingsParsers = {
+  accountNameOpen: parseAsBoolean.withDefault(false),
+  renameProjectId: parseAsString.withDefault(''),
+  projectNameOpen: parseAsBoolean.withDefault(false),
+  search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  page: parseAsInteger.withDefault(1),
+};
+
+const settingsUrlKeys = {
+  accountNameOpen: 'account-name',
+  renameProjectId: 'row',
+  projectNameOpen: 'rename',
+  search: 'q',
+  page: 'page',
+};
+
+export function useSettingsParams() {
+  return useQueryStates(settingsParsers, { urlKeys: settingsUrlKeys, history: 'replace' });
+}
+
+/** Opening or closing either dialog is navigation-grade: Back closes it, it does not leave. */
+export const SETTINGS_DIALOG_OPTIONS = { history: 'push' as const };
+
+// ── /admin ───────────────────────────────────────────────────────────────────────────────────
+
+/** The queue's one sortable column — `RefillRequestRow`'s own `submittedAgo`, sorted by the
+ *  request's real `createdAt` (`use-refills-queue-screen.ts`). A single-member union rather than a bare
+ *  boolean, matching every other ledger's `sortKey`/`sortDirection` pair (`PROJECTS_SORT_KEYS`,
+ *  `API_KEY_SORT_KEYS`) so a second sortable column costs no new shape later. */
+export const ADMIN_SORT_KEYS = ['submitted'] as const;
+
+/**
+ * `/admin`'s params: the review queue's sort, its selected request, and its page cursor.
+ *
+ * Phase 4 (2026-08-30) deleted `/admin`'s own dashboard section (moved to `/`, gated behind
+ * `session.isAdmin`). Phase 6 (admin/settings revamp) deletes the Pending/Decided tab that used
+ * to live here too — `tab`/`ADMIN_REVIEW_TABS` are gone, because the Decided side they switched
+ * to was never backed by a real listing (see the deleted `sections/decisions-ledger`'s own doc
+ * comment). `/admin` is now ONE screen with no sub-nav param at all.
+ *
+ * `after` (phase 6) is the pending queue's page cursor — `listPendingAugmentationRequests`'
+ * own `after`/`nextCursor` contract, not a page NUMBER: `use-refills-queue-screen.ts` keeps the stack of
+ * cursors a `Previous` press needs in local state (a browser-history-shaped concept a URL param
+ * cannot express on its own), and only the CURRENT page's cursor is ever written here.
+ *
+ * All three write with `push` (ADR 0011 rule 2): the sort is this screen's own column header, a
+ * selected request is a selection, and moving a page is navigation — Back walks each of them
+ * back rather than leaving the screen.
+ */
+export const adminParsers = {
+  selectedRequestId: parseAsString.withDefault(''),
+  sortKey: parseAsStringLiteral(ADMIN_SORT_KEYS).withDefault('submitted'),
+  sortDirection: parseAsStringLiteral(LEDGER_SORT_DIRECTIONS).withDefault('asc'),
+  after: parseAsString.withDefault(''),
+};
+
+const adminUrlKeys = {
+  selectedRequestId: 'request',
+  sortKey: 'sort',
+  sortDirection: 'dir',
+  after: 'after',
+};
 
 export function useAdminParams() {
   return useQueryStates(adminParsers, { urlKeys: adminUrlKeys, history: 'push' });
 }
+
+// ── /admin/overview ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/overview`'s own params (converse-frontends#368, the admin-area build) — the operator
+ * dashboard's date range plus one axis-transform knob per `MultiSeriesSpendBoard` on the page
+ * (`use-admin-overview-screen.ts`). Same `range`/`from`/`to` shape `overviewParsers`/
+ * `settingsOverviewParsers` already declare (the explicit-span-wins-over-preset rule,
+ * `resolveOverviewWindow` reused verbatim) rather than a fourth divergent range picker.
+ *
+ * Six scale knobs, one per board, rather than one shared value: the approved page story
+ * (`Pages/AdminOverview`) gives each board its own default (`modelMixScale` defaults to `log` —
+ * the same one-dominant-model shape `overviewParsers.modelScale` defaults to `log` for;
+ * `requestVolumeScale` defaults to `indexed` — request COUNT and (when it ships) an error metric
+ * cannot share a linear axis, the same reasoning `MultiSeriesSpendChart`'s own doc comment gives
+ * for `indexed`; every other board defaults to the honest raw `linear` reading), so a single
+ * shared param would either lose those defaults or force every board to agree on one axis
+ * transform, which the story never asked for. All `replace`-written knobs (ADR 0011 rule 2) —
+ * dragging a segmented control must not cost a Back press per click, the same idiom
+ * `overviewParsers.modelScale`/`settingsOverviewParsers.accountScale` already use.
+ */
+export const adminOverviewParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  estateTotalScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  estateAccountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  modelMixScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
+  refillDecisionsScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+  requestVolumeScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('indexed'),
+  adoptionScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
+};
+
+const adminOverviewUrlKeys = {
+  estateTotalScale: 'estate-total-scale',
+  estateAccountScale: 'estate-account-scale',
+  modelMixScale: 'model-mix-scale',
+  refillDecisionsScale: 'refill-decisions-scale',
+  requestVolumeScale: 'request-volume-scale',
+  adoptionScale: 'adoption-scale',
+};
+
+export function useAdminOverviewParams() {
+  return useQueryStates(adminOverviewParsers, {
+    urlKeys: adminOverviewUrlKeys,
+    history: 'replace',
+  });
+}
+
+// ── /admin/refill-policies ──────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/refill-policies`'s own mode-split params — TWO modes now, not three (owner review round
+ * 2, 2026-08-31, converse-frontends#368 finding #4, verbatim): "You made out of
+ * /admin/refill-policies?create=true a full page. Instead, I was thinking of a modal. But it's
+ * fine. Just move it to a page /admin/refill-policies/create." Create moved OFF this query-param
+ * table to its own route segment, `/admin/refill-policies/create`
+ * (`use-refill-policy-create-screen.ts`) — there is no `create`/`createOpen` param left here at
+ * all; a bookmarked `?create=true` still works via `middleware.ts`'s own redirect. `edit`/
+ * `simulate` are unchanged (the owner named only create) — the original ruling that put all three
+ * behind query params (verbatim: "/admin/refill-policies should be for listing them
+ * /admin/refill-policies?create=true or /admin/refill-policies?edit=<id> to create or edit,
+ * respectively, /admin/refill-policies?simulate=<id> to simulate" — and never simulate on the same
+ * view as create/edit) still governs the two that remain.
+ *
+ * `policySetId` is the LIST mode's own lookup target, debounced onto the URL the same way the two
+ * ledger search boxes are: there is no procedure that lists which policy sets exist
+ * (`converse-frontends#368`), so "which one am I looking at" is exactly the shareable view state
+ * ADR 0011 puts in the URL, not a component-local search box. `editPolicySetId`/
+ * `simulatePolicySetId` are the two remaining modes — an id IS the open flag for the target
+ * policy set, the same shape `apiKeysParsers.revokeKeyId`/`settingsParsers.renameProjectId`
+ * already use. Both mode params write with `push` (`ADMIN_REFILL_POLICIES_MODE_OPTIONS`) — Back
+ * must close the form/simulator rather than leave the screen — while the lookup itself stays the
+ * hook's own default `replace`, the same knob-vs-navigation split `apiKeysParsers`/
+ * `API_KEYS_SELECTION_OPTIONS` already draws.
+ */
+export const adminRefillPoliciesParsers = {
+  policySetId: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  editPolicySetId: parseAsString.withDefault(''),
+  simulatePolicySetId: parseAsString.withDefault(''),
+};
+
+const adminRefillPoliciesUrlKeys = {
+  policySetId: 'policy-set',
+  editPolicySetId: 'edit',
+  simulatePolicySetId: 'simulate',
+};
+
+export function useAdminRefillPoliciesParams() {
+  return useQueryStates(adminRefillPoliciesParsers, {
+    urlKeys: adminRefillPoliciesUrlKeys,
+    history: 'replace',
+  });
+}
+
+/** Switching between list/create/edit/simulate is navigation-grade: Back closes the form/
+ *  simulator rather than leaving the screen. */
+export const ADMIN_REFILL_POLICIES_MODE_OPTIONS = { history: 'push' as const };
 
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 
@@ -248,9 +733,19 @@ export function useAdminParams() {
  * letting the two lists drift.
  */
 export const URL_PARAM_CONTRACT = {
-  scope: { parsers: scopeParsers, urlKeys: scopeUrlKeys },
+  projectScope: { parsers: projectScopeParsers, urlKeys: projectScopeUrlKeys },
+  resolver: { parsers: resolverParsers, urlKeys: resolverUrlKeys },
+  createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
+  createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
+  settingsOverview: { parsers: settingsOverviewParsers, urlKeys: settingsOverviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },
   manage: { parsers: manageParsers, urlKeys: manageUrlKeys },
+  settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
+  adminOverview: { parsers: adminOverviewParsers, urlKeys: adminOverviewUrlKeys },
+  adminRefillPolicies: {
+    parsers: adminRefillPoliciesParsers,
+    urlKeys: adminRefillPoliciesUrlKeys,
+  },
 } as const;

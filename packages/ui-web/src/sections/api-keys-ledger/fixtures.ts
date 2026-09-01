@@ -17,8 +17,6 @@ export const apiKeysFixture: ApiKeyRow[] = [
   { id: 'partner-readonly', name: 'partner-readonly', prefix: 'lb_live_b7e5…', status: 'active', statusLabel: 'active', created: '2026-01-27', lastUsed: '9 d ago', expires: '2027-01-27' },
 ];
 
-export const apiKeysStatusSummary = '23 active · 4 revoked · 1 expires in 6 days';
-
 export const apiKeysNewSecret: ApiKeysSecretReveal = {
   heading: 'New key created — shown once',
   description:

@@ -5,9 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   OVERVIEW_SELECTION_OPTIONS,
+  useCreateAccountDialogParams,
   useOverviewParams,
-  useScopeParams,
-  useSectionSheetParam,
+  useProjectScopeParams,
 } from './url-state';
 
 /**
@@ -36,6 +36,9 @@ function Rail() {
       </button>
       <button type="button" onClick={() => void setView({ range: '30d' })}>
         rail: last 30 days
+      </button>
+      <button type="button" onClick={() => void setView({ range: 'mtd' })}>
+        rail: this month
       </button>
       <button
         type="button"
@@ -85,7 +88,9 @@ describe('the URL as the cross-zone state bus', () => {
     const user = userEvent.setup();
     render(<Zones />, { wrapper: withNuqsTestingAdapter({ hasMemory: true }) });
 
-    expect(screen.getByTestId('centre-range')).toHaveTextContent('30d');
+    // 'mtd' ("this month") is the default range (IA v3 phase 5) — the budget resets monthly, so
+    // the dashboard defaults to the billing window, not the old rolling '30d'.
+    expect(screen.getByTestId('centre-range')).toHaveTextContent('mtd');
 
     await user.click(screen.getByRole('button', { name: 'rail: last 7 days' }));
 
@@ -117,34 +122,36 @@ describe('the URL as the cross-zone state bus', () => {
       wrapper: withNuqsTestingAdapter({ searchParams: '?range=7d', hasMemory: true, onUrlUpdate }),
     });
 
-    await user.click(screen.getByRole('button', { name: 'rail: last 30 days' }));
+    await user.click(screen.getByRole('button', { name: 'rail: this month' }));
 
-    // `clearOnDefault`: the URL a user shares carries only what they actually changed.
+    // `clearOnDefault`: the URL a user shares carries only what they actually changed. 'mtd' is
+    // the default (IA v3 phase 5), so returning to it clears `?range=` the same way '30d' used to.
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    expect(screen.getByTestId('centre-range')).toHaveTextContent('30d');
+    expect(screen.getByTestId('centre-range')).toHaveTextContent('mtd');
   });
 });
 
+/**
+ * IA v3 phase 1 ("account into the path"): the account half of scope moved to a path segment
+ * (`/accounts/[accountId]/*`, `client/use-account-id.ts`), so it is no longer a URL param this
+ * file's cross-zone claim needs to cover — only the project half remains one.
+ */
 function ScopeWriter() {
-  const [, setScope] = useScopeParams();
+  const [, setScope] = useProjectScopeParams();
   return (
-    <button
-      type="button"
-      onClick={() => void setScope({ accountId: 'acct_1', projectId: 'proj_3' })}>
-      pick scope
+    <button type="button" onClick={() => void setScope({ projectId: 'proj_3' })}>
+      pick project
     </button>
   );
 }
 
 function ScopeReader() {
-  const [scope] = useScopeParams();
-  return (
-    <output data-testid="scope">{`${scope.accountId || '—'}/${scope.projectId || 'all'}`}</output>
-  );
+  const [scope] = useProjectScopeParams();
+  return <output data-testid="scope">{scope.projectId || 'all'}</output>;
 }
 
-describe('scope', () => {
-  it('crosses zones and writes one push entry for both halves', async () => {
+describe('project scope', () => {
+  it('crosses zones and writes a push entry', async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
     render(
@@ -155,51 +162,68 @@ describe('scope', () => {
       { wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }) }
     );
 
-    expect(screen.getByTestId('scope')).toHaveTextContent('—/all');
+    expect(screen.getByTestId('scope')).toHaveTextContent('all');
 
-    await user.click(screen.getByRole('button', { name: 'pick scope' }));
+    await user.click(screen.getByRole('button', { name: 'pick project' }));
 
-    expect(screen.getByTestId('scope')).toHaveTextContent('acct_1/proj_3');
-    // Account and project move together in ONE update, so Back returns to the previous scope in
-    // one press rather than leaving the user half-scoped between two entries.
+    expect(screen.getByTestId('scope')).toHaveTextContent('proj_3');
     expect(onUrlUpdate).toHaveBeenCalledTimes(1);
-    expect(onUrlUpdate.mock.calls[0][0].queryString).toBe('?account=acct_1&project=proj_3');
+    expect(onUrlUpdate.mock.calls[0][0].queryString).toBe('?project=proj_3');
     expect(onUrlUpdate.mock.calls[0][0].options.history).toBe('push');
   });
 });
 
-function SheetZone() {
-  const [sheet, setSheet] = useSectionSheetParam();
+/**
+ * ADR-0026 (lightbridge-authz#564, one identity may own several accounts): "+ New account" opens
+ * from two structurally separate subtrees — the workspace switcher, mounted in the chrome, and
+ * `/settings/account`'s own `PageHeader` action — that share nothing but the query string, the
+ * same shape `scope` above already proves out. `Switcher`/`Screen` below stand in for those two.
+ */
+function Switcher() {
+  const [, setParams] = useCreateAccountDialogParams();
+  return (
+    <button type="button" onClick={() => void setParams({ open: true })}>
+      switcher: + New account
+    </button>
+  );
+}
+
+function Screen() {
+  const [params, setParams] = useCreateAccountDialogParams();
   return (
     <div>
-      <button type="button" onClick={() => void setSheet(sheet === 'filters' ? null : 'filters')}>
-        toggle filters sheet
+      <output data-testid="create-account-open">{String(params.open)}</output>
+      <button type="button" onClick={() => void setParams({ open: false })}>
+        screen: cancel
       </button>
-      <output data-testid="sheet">{sheet ?? 'closed'}</output>
     </div>
   );
 }
 
-describe('the open section sheet', () => {
-  it('is a linkable param that closes back to nothing in the URL', async () => {
+describe('createAccount dialog', () => {
+  it('opens from the switcher and is read by the settings screen sharing nothing else', async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
-    render(<SheetZone />, {
-      wrapper: withNuqsTestingAdapter({
-        searchParams: '?sheet=filters',
-        hasMemory: true,
-        onUrlUpdate,
-      }),
-    });
+    render(
+      <>
+        <Switcher />
+        <Screen />
+      </>,
+      { wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }) }
+    );
 
-    // A deep link opens the sheet — the compact-tier equivalent of sharing a configured rail.
-    expect(screen.getByTestId('sheet')).toHaveTextContent('filters');
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
 
-    await user.click(screen.getByRole('button', { name: 'toggle filters sheet' }));
+    await user.click(screen.getByRole('button', { name: 'switcher: + New account' }));
 
-    expect(screen.getByTestId('sheet')).toHaveTextContent('closed');
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('true');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
+    // Real view state: Back closes it, same as every other dialog flag in this module.
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('push');
+
+    await user.click(screen.getByRole('button', { name: 'screen: cancel' }));
+
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    // Opening and closing a sheet is not navigation; it must not fill the history stack.
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
   });
 });

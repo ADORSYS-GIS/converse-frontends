@@ -1,44 +1,39 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import type { StatCardDelta, StatCardProps } from './types';
+import { DELTA_GLYPH, statCardDeltaVariants } from './cva';
+import type { StatCardProps } from './types';
+import { LABEL_CLASS, METRIC_CLASS } from '../../lib/type-roles';
 
-const DELTA_GLYPH: Record<StatCardDelta['direction'], string> = {
-  up: '▲',
-  down: '▼',
-  flat: '—',
-};
-
-// Contract: docs/design/console-redesign/README.md §4 (data display) / §5.1 — `#191919` panel:
+// Contract: docs/design/console-redesign/README.md §4 (data display) / §5.1 — a panel carrying a
 // 12px line glyph, `label`, `metric` numeral, delta line, and a right-hand `Sparkline` slot.
-// Never tinted, never coloured by value. This is one of the two components allowed to
-// self-panel (console-ui skill).
+// Never tinted, never coloured by value. This is one of the two components allowed to self-panel
+// (console-ui skill), which is why the panel fill and radius below are its own.
+//
+// NO UPSTREAM: PRIMITIVES.md rejects daisy `stat`/`stats` outright — it imposes its own padding,
+// its own dividers and a horizontal grouping model, against a card that is mockup-locked at a
+// tighter geometry. So the card's own geometry (the panel, the 4-8-12 spacing steps, the fixed
+// 12px glyph box) is declared part by part in theme.css, under the block the JSX below names;
+// both type roles are imported, and the delta's tone axis is cva.ts.
 export function StatCard({ icon, label, metric, delta, sparkline, className }: StatCardProps) {
   return (
-    <div className={cn('rounded-[2px] bg-surface p-4', className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
+    <div className={cn('stat-card', className)}>
+      <div className="stat-card-head">
+        <div>
           {icon ? (
-            <span aria-hidden="true" className="text-subtle [&>svg]:h-3 [&>svg]:w-3">
+            <span aria-hidden="true" className="stat-card-icon">
               {icon}
             </span>
           ) : null}
-          <span className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
-            {label}
-          </span>
+          <span className={LABEL_CLASS}>{label}</span>
         </div>
-        {sparkline ? <div className="shrink-0 pt-1">{sparkline}</div> : null}
+        {sparkline ? <div className="stat-card-spark">{sparkline}</div> : null}
       </div>
 
-      <div className="mt-3 font-mono text-[22px] leading-[1.2] text-ink">{metric}</div>
+      <div className={cn(METRIC_CLASS, 'stat-card-metric')}>{metric}</div>
 
       {delta ? (
-        <div
-          className={cn(
-            'mt-2 font-mono text-[10px]',
-            delta.direction === 'flat' ? 'text-subtle' : 'text-soft',
-          )}
-        >
+        <div className={statCardDeltaVariants({ direction: delta.direction })}>
           <span aria-hidden="true">{DELTA_GLYPH[delta.direction]}</span> {delta.label}
         </div>
       ) : null}

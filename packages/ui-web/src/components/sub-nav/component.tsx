@@ -1,3 +1,4 @@
+import { NavigationMenu } from '@base-ui/react/navigation-menu';
 import React from 'react';
 
 import { cn } from '../../cn';
@@ -21,25 +22,64 @@ import type { SubNavItem, SubNavProps } from './types';
 // that and instead relied on daisyUI's default `menu` gutters, which is what let its rows,
 // active bar, and text start at a different x than `NavSpine`'s).
 //
-// ADR 0010 Decision 4 (task assignment note): a route-navigation list (`href` links, like
-// `NavSpine`), not a tab-panel switcher, so it takes daisy's `menu` rather than PRIMITIVES.md's
-// general Base UI Tabs row — Tabs couples a trigger to a same-tree `Tabs.Panel`, which doesn't
-// fit route links. `menu`'s radius/list semantics stay; its default row padding is explicitly
-// overridden below (`RAIL_ROW_PADDING_CLASS`) so the row's own inset is grid-driven, not
-// daisy's default — the active fill/bar stay explicit overrides since daisy's `menu-active`
-// resolves to `chrome`, not our `raised` token.
+// Base UI `@base-ui/react/navigation-menu`, byte-for-byte the same adoption `NavSpine` makes — see
+// the long note at the top of `../nav-spine/component.tsx` for why a primitive usually described
+// as a popup menu is the right one for a list of route links, and for the measured proof that its
+// `CompositeRoot` does NOT take the rows out of the tab order. Two components spelling one
+// contract two ways is exactly the thing the shared row class was introduced to end; the behaviour
+// half now matches too.
+//
+// The ADR 0010 Decision 4 note this file used to carry still stands and is untouched by the
+// adoption: this is a route-navigation list, not a tab-panel switcher, so Base UI `Tabs` remains
+// wrong for it — `Tabs` couples a trigger to a same-tree `Tabs.Panel`, which route links have no
+// equivalent of. The primitive adopted here models a DESTINATION rather than a panel, which is why
+// its `Link` ships an `active` prop that emits `aria-current="page"`.
+//
+// The paint is `theme.css`'s `rail-row`, byte-identical to `NavSpine`'s, which is the contract.
+// The five `!important` overrides that used to hang off this row are gone: an `@utility` lands
+// unlayered inside `utilities` while daisy emits into a sublayer of it, so it beats `menu` on the
+// cascade rather than on `!`. Active state is read off the `aria-current="page"` Base UI sets from
+// the `active` prop — there is no second flag to keep in step, and the daisy `menu-active` both
+// rails used to add alongside it is gone for the same cascade reason: it existed only to exclude
+// the active row from daisy's row-hover rule, which `rail-row` already outranks by layer.
 const ROW_BASE_CLASS = cn(
-  `relative flex ${RAIL_SUBNAV_ROW_HEIGHT_CLASS} items-center ${RAIL_LABEL_GAP_CLASS} ${RAIL_ROW_PADDING_CLASS} font-mono text-xs`,
-  'transition-colors duration-150 ease-out',
-  'focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
+  'rail-row focus-ring',
+  RAIL_SUBNAV_ROW_HEIGHT_CLASS,
+  RAIL_LABEL_GAP_CLASS,
+  RAIL_ROW_PADDING_CLASS
 );
 
-function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: LinkComponent }) {
-  const className = cn(
-    ROW_BASE_CLASS,
-    item.active ? 'bg-raised! text-ink!' : 'text-soft! hover:bg-chrome! hover:text-ink!',
-  );
-  const content = (
+function SubNavRow({
+  item,
+  linkComponent,
+  horizontal,
+}: {
+  item: SubNavItem;
+  linkComponent: LinkComponent;
+  horizontal: boolean;
+}) {
+  const Link = linkComponent;
+  const content = horizontal ? (
+    <>
+      {item.label}
+      {/* A trailing numeral, styled — not bare concatenation (phase 9, owner: the "Projects 2"
+          stutter). The same `rail-row-count` treatment the vertical rail's own counts use: one
+          step back on the ramp, never a badge (console-ui skill). The VISUAL gap is
+          `rail-row-count`'s own `margin-left` (theme.css) — the original fix relied on this
+          `{' '}` text node alone for spacing, which at 13px sans renders under 4px wide, visually
+          indistinguishable from no gap (the defect this still-live-on-prod nit is about). The
+          `{' '}` stays for the accessible name ("Projects 24", not "Projects24") — it costs
+          nothing visually because `sub-nav-tab`/`rail-row` are flex containers, and a
+          whitespace-only text node next to flex items generates no box (CSS Flexbox §"Absolutely
+          Positioned Flex Children" / anonymous-flex-item rules). */}
+      {item.count !== undefined ? (
+        <>
+          {' '}
+          <span className="rail-row-count">{item.count}</span>
+        </>
+      ) : null}
+    </>
+  ) : (
     <>
       {item.active ? <span aria-hidden="true" className={RAIL_ACTIVE_BAR_CLASS} /> : null}
       {/* Reserves the same width `NavSpine`'s icon column occupies, even though sub-nav rows
@@ -47,55 +87,61 @@ function SubNavRow({ item, linkComponent }: { item: SubNavItem; linkComponent: L
           row/heading uses (rail-grid.ts rule 4), and sub-nav visibly nests under the nav
           spine's label column rather than its icon column. */}
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="rail-row-label">{item.label}</span>
       {item.count !== undefined ? (
         <>
           {' '}
-          <span className="shrink-0 text-[10px] text-subtle">{item.count}</span>
+          <span className="rail-row-count">{item.count}</span>
         </>
       ) : null}
     </>
   );
 
-  if (item.href) {
-    const Link = linkComponent;
-    return (
-      <li>
-        <Link
-          href={item.href}
-          aria-current={item.active ? 'page' : undefined}
-          className={className}
-          onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}>
-          {content}
-        </Link>
-      </li>
-    );
-  }
-
+  // Same `render` seam as `NavSpine`: the row element is a `<button>` or the caller's
+  // `linkComponent`, never Base UI's own bare `<a>`, and the children hang off that element.
   return (
-    <li>
-      <button
-        type="button"
-        aria-current={item.active ? 'page' : undefined}
-        className={className}
-        onClick={() => item.onSelect?.(item.key)}>
-        {content}
-      </button>
-    </li>
+    <NavigationMenu.Item>
+      <NavigationMenu.Link
+        active={Boolean(item.active)}
+        className={horizontal ? 'sub-nav-tab focus-ring' : ROW_BASE_CLASS}
+        onClick={item.onSelect ? () => item.onSelect?.(item.key) : undefined}
+        render={
+          item.href ? (
+            <Link href={item.href}>{content}</Link>
+          ) : (
+            <button type="button">{content}</button>
+          )
+        }
+      />
+    </NavigationMenu.Item>
   );
 }
 
-export function SubNav({ items, className, linkComponent = DefaultAnchor }: SubNavProps) {
+export function SubNav({
+  items,
+  className,
+  linkComponent = DefaultAnchor,
+  orientation = 'vertical',
+}: SubNavProps) {
+  const horizontal = orientation === 'horizontal';
   return (
-    <nav aria-label="Section" className={className}>
-      {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the list out of the enclosing `RailPanel`'s
-          16px inset — the same bleed `NavSpine`'s `<nav>` applies — so this list's active
-          fill/active bar land at the identical net inset from the rail's true left edge. */}
-      <ul className={cn('menu menu-sm w-full gap-1 p-0', RAIL_ROW_BLEED_CLASS)}>
+    <NavigationMenu.Root
+      orientation={horizontal ? 'horizontal' : 'vertical'}
+      aria-label="Section"
+      className={className}>
+      {/* `-mx-2` (`RAIL_ROW_BLEED_CLASS`) bleeds the VERTICAL list out of the enclosing
+          `RailPanel`'s 16px inset — the same bleed `NavSpine`'s `<ul>` applies — so this list's
+          active fill/active bar land at the identical net inset from the rail's true left edge.
+          The width that makes the bleed symmetric is `rail-list`'s; the `w-full` that used to sit
+          here fought it, resolving 100% against the panel and then shifting left by the bleed.
+          The HORIZONTAL list is not a rail at all — no bleed, no daisy `menu` paint, just
+          `sub-nav-tabs`'s row of cells (theme.css). */}
+      <NavigationMenu.List
+        className={horizontal ? 'sub-nav-tabs' : cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
         {items.map((item) => (
-          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} />
+          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} horizontal={horizontal} />
         ))}
-      </ul>
-    </nav>
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
   );
 }

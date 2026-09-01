@@ -1,48 +1,86 @@
 // ── foundations
 export { cn } from './cn';
+export {
+  applyThemePreference,
+  CONSOLE_THEME_NO_FLASH_SCRIPT,
+  CONSOLE_THEME_STORAGE_KEY,
+  readStoredThemePreference,
+  resolveConsoleTheme,
+} from './lib/theme';
+export type { ConsoleTheme, ConsoleThemePreference } from './lib/theme';
+export { OVERLAY_CLASS, OVERLAY_ITEM_CLASS, OVERLAY_SEPARATOR_CLASS } from './lib/overlay';
+export {
+  BODY_CLASS,
+  DATA_CLASS,
+  DATA_INK_CLASS,
+  ERROR_TEXT_CLASS,
+  HERO_CEILING_CLASS,
+  HERO_METRIC_CLASS,
+  LABEL_CLASS,
+  META_CLASS,
+  METRIC_CLASS,
+  PAGE_SUBTITLE_CLASS,
+  PAGE_TITLE_CLASS,
+  SECTION_TITLE_CLASS,
+} from './lib/type-roles';
 export { useResizeObserver } from './lib/use-resize-observer';
 export type { ResizeObserverSize } from './lib/use-resize-observer';
-export { useIsBelowLg, useIsBelowMd } from './lib/use-is-below-breakpoint';
 export { useCommandPaletteShortcut } from './lib/use-command-palette-shortcut';
 export { DefaultAnchor } from './lib/link-component';
 export type { LinkComponent, LinkComponentProps } from './lib/link-component';
 
+// ── revamp primitives
+// The console visual revamp's phase 1 foundation (2026-08): the two-column console's card shell,
+// list chrome and detail sheet. See `lib/type-roles.ts` for the type scale these compose.
+export { Card } from './components/card';
+export type { CardProps } from './components/card';
+export { EmptyState } from './components/empty-state';
+export type { EmptyStateProps } from './components/empty-state';
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
+
 // ── shell
 export { ConsoleShell } from './components/console-shell';
 export type { ConsoleShellProps } from './components/console-shell';
-export { ConsoleHeader } from './components/console-header';
-export type { ConsoleHeaderProps } from './components/console-header';
-export { AccountMenu } from './components/account-menu';
-export type { AccountMenuProps } from './components/account-menu';
+export { RailResizer } from './components/rail-resizer';
+export type { RailResizerProps } from './components/rail-resizer';
+export {
+  INSPECTOR_RAIL_CLASS,
+  INSPECTOR_RAIL_DEFAULT_WIDTH,
+  INSPECTOR_RAIL_MAX_WIDTH,
+  INSPECTOR_RAIL_MIN_WIDTH,
+} from './lib/shell-grid';
+export { ConsoleTopBar } from './components/console-top-bar';
+export type { ConsoleTopBarProps } from './components/console-top-bar';
+export { AccountBadge, shortAccountId } from './components/account-badge';
+export type { AccountBadgeOption, AccountBadgeProps } from './components/account-badge';
 export { ThemeToggle } from './components/theme-toggle';
 export type { ThemeToggleProps, ThemeTogglePreference } from './components/theme-toggle';
-export { RailPanel } from './components/rail-panel';
-export type { RailPanelProps } from './components/rail-panel';
 export { NavSpine } from './components/nav-spine';
-export type { NavSpineItem, NavSpineProps } from './components/nav-spine';
+export type { NavGroup, NavSpineItem, NavSpineProps } from './components/nav-spine';
 export { SubNav } from './components/sub-nav';
 export type { SubNavItem, SubNavProps } from './components/sub-nav';
 export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
-export { SectionSheet } from './components/section-sheet';
-export type { SectionSheetProps } from './components/section-sheet';
-export { SectionSheetTrigger } from './components/section-sheet-trigger';
-export type {
-  SectionSheetTriggerIcon,
-  SectionSheetTriggerProps,
-} from './components/section-sheet-trigger';
-export { SelectionSheet } from './components/selection-sheet';
-export type { SelectionSheetProps } from './components/selection-sheet';
 
 // ── data display
-export { formatMoney, formatMoneyOf } from './lib/money';
+export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
+export { formatMs, formatMsAxis } from './lib/duration';
+export { dollarsToMicros, microsToDollars, parseNonNegativeInt } from './lib/parse-amount';
 export { StatCard } from './components/stat-card';
 export type { StatCardDelta, StatCardProps } from './components/stat-card';
 export { Sparkline } from './components/sparkline';
 export type { SparklineProps } from './components/sparkline';
+export { Tooltip, TooltipGroup } from './components/tooltip';
+export type { TooltipAlign, TooltipProps, TooltipSide } from './components/tooltip';
 export { LedgerTable } from './components/ledger-table';
 export { ledgerRowVariants } from './components/ledger-table';
-export type { LedgerColumn, LedgerTableProps } from './components/ledger-table';
+export type {
+  LedgerColumn,
+  LedgerSort,
+  LedgerSortDirection,
+  LedgerTableProps,
+} from './components/ledger-table';
 export { StatusText } from './components/status-text';
 export { statusTextVariants } from './components/status-text';
 export type { StatusTextVariantProps, StatusTextProps } from './components/status-text';
@@ -52,6 +90,8 @@ export { Meter } from './components/meter';
 export type { MeterProps } from './components/meter';
 export { BudgetHero } from './components/budget-hero';
 export type { BudgetHeroProps } from './components/budget-hero';
+export { formatBillingPlanLimits } from './lib/billing-plan-limits';
+export type { BillingPlanLimits } from './lib/billing-plan-limits';
 
 // ── charts
 export { ChartAxisBottom, ChartAxisLeft } from './components/chart-axis';
@@ -68,10 +108,15 @@ export type {
 } from './components/spend-series-chart';
 export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
-export { LatencyRidgeline } from './components/latency-ridgeline';
-export type { LatencyRidgelineProps, LatencyRidgelineSeries } from './components/latency-ridgeline';
-export { DonutChart } from './components/donut-chart';
-export type { DonutChartProps, DonutSlice } from './components/donut-chart';
+export { ShareBar } from './components/share-bar';
+export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
+export { MultiSeriesSpendChart } from './components/multi-series-spend-chart';
+export type {
+  MultiSeriesSpendChartProps,
+  MultiSeriesSpendPoint,
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from './components/multi-series-spend-chart';
 
 // ── forms & actions
 export { Button } from './components/button';
@@ -83,8 +128,20 @@ export type { FieldProps, FieldInputProps, FieldTextareaProps } from './componen
 export { SegmentedControl } from './components/segmented-control';
 export type { SegmentedControlProps, SegmentedOption } from './components/segmented-control';
 
-export { RailSelect } from './components/rail-select';
-export type { RailSelectOption, RailSelectProps } from './components/rail-select';
+export { Chevron } from './components/chevron';
+export { DateRangeField, formatDateRange, presetRange } from './components/date-range-field';
+export type {
+  DateRangeFieldProps,
+  DateRangePreset,
+  DateRangeValue,
+} from './components/date-range-field';
+export { Checkbox, CheckboxGroup } from './components/checkbox';
+export type { CheckboxGroupProps, CheckboxProps } from './components/checkbox';
+export { SelectField } from './components/select-field';
+export type { SelectFieldOption, SelectFieldProps } from './components/select-field';
+
+export { SettingsRow } from './components/settings-row';
+export type { SettingsRowProps } from './components/settings-row';
 
 export { ScopeSelect } from './components/scope-select';
 export type {
@@ -106,15 +163,13 @@ export type {
   ReportExportParams,
   ReportExportFormat,
   ReportIncludeToggle,
-  LastExportEntry,
 } from './components/report-export-panel';
 
+export { ReportExportDialog } from './components/report-export-dialog';
+export type { ReportExportDialogProps } from './components/report-export-dialog';
+
 export { ReviewDetailPanel } from './components/review-detail-panel';
-export type {
-  ReviewDetailPanelProps,
-  ReviewHistoryRow,
-  ReviewDecision,
-} from './components/review-detail-panel';
+export type { ReviewDetailPanelProps, ReviewDecision } from './components/review-detail-panel';
 
 export { CommandPalette, CommandPaletteTrigger } from './components/command-palette';
 export type {
@@ -124,24 +179,34 @@ export type {
   CommandPaletteTriggerProps,
 } from './components/command-palette';
 
+export { AccountNameDialog } from './components/account-name-dialog';
+export type {
+  AccountNameDialogMode,
+  AccountNameDialogProps,
+} from './components/account-name-dialog';
+
+export { CreateApiKeyDialog } from './components/create-api-key-dialog';
+export type {
+  CreateApiKeyDialogProps,
+  CreateApiKeyPlanOption,
+  CreateApiKeyResult,
+} from './components/create-api-key-dialog';
+
+export { CreateProjectDialog } from './components/create-project-dialog';
+export type {
+  CreateProjectDialogProps,
+  CreateProjectPlanOption,
+} from './components/create-project-dialog';
+
 export { Toggle } from './components/toggle';
 export type { ToggleProps } from './components/toggle';
-
-export { Pagination } from './components/pagination';
-export type { PaginationProps } from './components/pagination';
 
 export { CommandSnippet } from './components/command-snippet';
 export type { CommandSnippetProps } from './components/command-snippet';
 
-// ── settings
-// New family (LCI design pass, `docs/design/lci-app/PRIMITIVES.md`) — a floor-native settings
-// group; no console screen has needed one yet.
-export { SettingsRow, SettingsSection } from './components/settings-section';
-export type { SettingsRowProps, SettingsSectionProps } from './components/settings-section';
-
 // ── states
 export { InlineStatus } from './components/inline-status';
-export type { InlineStatusProps } from './components/inline-status';
+export type { InlineStatusProps, PlaceholderNotice } from './components/inline-status';
 export { SkeletonRow } from './components/skeleton-row';
 export { skeletonRowVariants } from './components/skeleton-row';
 export type { SkeletonRowProps } from './components/skeleton-row';
@@ -158,24 +223,33 @@ export type { ErrorLineProps } from './components/error-line';
 // own shell. Full-page compositions live in Storybook (`src/pages-stories/`) and in
 // `apps/console`'s own route implementations.
 
-export { ScreenHeading } from './sections/screen-heading';
-export type { ScreenHeadingProps } from './sections/screen-heading';
+export { PageHeader } from './sections/page-header';
+export type { PageHeaderProps } from './sections/page-header';
+
+export { ConsoleSidebar } from './sections/console-sidebar';
+export type { ConsoleSidebarProps } from './sections/console-sidebar';
 
 export { OverviewStatRow } from './sections/overview-stat-row';
-export type {
-  OverviewStatCardData,
-  OverviewStatCardIcon,
-  OverviewStatRowProps,
-} from './sections/overview-stat-row';
+export type { OverviewStatCardData, OverviewStatRowProps } from './sections/overview-stat-row';
 
 export { SpendDashboard } from './sections/spend-dashboard';
 export type { DashboardStatus, SpendDashboardProps } from './sections/spend-dashboard';
 
+export { MultiSeriesSpendBoard } from './sections/multi-series-spend-board';
+export type { MultiSeriesSpendBoardProps } from './sections/multi-series-spend-board';
+
 export { SpendShareSection } from './sections/spend-share';
 export type { SpendShareSectionProps, SpendShareStatus } from './sections/spend-share';
 
-export { LatencyDashboard } from './sections/latency-dashboard';
-export type { LatencyDashboardProps } from './sections/latency-dashboard';
+export { RankedSeriesRows } from './sections/ranked-series-rows';
+export type {
+  RankedSeriesRow,
+  RankedSeriesRowMeter,
+  RankedSeriesRowsProps,
+} from './sections/ranked-series-rows';
+
+export { LatencyStatCards } from './sections/latency-stat-cards';
+export type { LatencyStatCardsProps, LatencyStatRow } from './sections/latency-stat-cards';
 
 export { BudgetPanel } from './sections/budget-panel';
 export type {
@@ -185,80 +259,221 @@ export type {
   BudgetSummary,
 } from './sections/budget-panel';
 
+// Phase 4 — `/` now renders this section too (admin-only "Budget pressure" card), so it earns its
+// barrel lines: `use-overview-screen.ts`/`use-admin-screen.ts` callers no longer need the
+// `/src/sections/budget-pressure` subpath import the admin-only screen used while the barrel was
+// mid-edit by parallel work.
+export { BudgetPressure } from './sections/budget-pressure';
+export type {
+  BudgetPressureProject,
+  BudgetPressureProps,
+  BudgetPressureStatus,
+} from './sections/budget-pressure';
+
+// The operator overview's estate-wide sibling of `BudgetPressure` (admin-overview design batch,
+// dashboard 4) — accounts ranked by their OWN consumption ratio rather than projects sharing one
+// account's ceiling.
+export { EstateBudgetPressure } from './sections/estate-budget-pressure';
+export type {
+  EstateBudgetPressureAccount,
+  EstateBudgetPressureProps,
+  EstateBudgetPressureStatus,
+} from './sections/estate-budget-pressure';
+
 export { ApiKeysLedger } from './sections/api-keys-ledger';
 export type {
   ApiKeyRow,
   ApiKeyStatus,
+  ApiKeysDeleteTarget,
   ApiKeysLedgerProps,
   ApiKeysPagination,
   ApiKeysRevokeTarget,
   ApiKeysSecretReveal,
 } from './sections/api-keys-ledger';
 
-export { ManageProjectsLedger } from './sections/manage-projects-ledger';
+export { ProjectsLedger } from './sections/projects-ledger';
 export type {
-  ManagePagination,
-  ManageProjectsLedgerProps,
-  ManageTotals,
   ProjectRow,
+  ProjectsLedgerProps,
+  ProjectsPagination,
   ProjectStatus,
-} from './sections/manage-projects-ledger';
+} from './sections/projects-ledger';
 
 export { ReviewQueue } from './sections/review-queue';
-export type { AdminReviewTab, RefillRequestRow, ReviewQueueProps } from './sections/review-queue';
-
-export { DecisionsLedger } from './sections/decisions-ledger';
 export type {
-  AdminReviewPagination,
-  DecisionOutcome,
-  DecisionRow,
-  DecisionsLedgerProps,
-} from './sections/decisions-ledger';
+  RefillRequestRow,
+  ReviewQueuePagination,
+  ReviewQueueProps,
+} from './sections/review-queue';
+
+// `/accounts/<id>/refill` (IA v3 phase 3 — refill moved from `RequestRefillDialog` to its own
+// page): the amount-choice form and the caller's own request history, each a standalone Card zone.
+export { RefillRequestForm } from './sections/refill-request-form';
+export type {
+  RefillAmountOption,
+  RefillRequestFormProps,
+  RefillRequestFormState,
+} from './sections/refill-request-form';
+
+export { RefillHistory } from './sections/refill-history';
+export type {
+  RefillHistoryProps,
+  RefillHistoryRow,
+  RefillHistoryState,
+} from './sections/refill-history';
+
+// `/admin/refill-policies` (an admin-only surface — owner ruling, converse-frontends#368: list at
+// the bare path, `?create=true`/`?edit=<id>`/`?simulate=<id>` as mode-split modes, simulate never
+// on the same view as create/edit). `RuleSetForm`/`ScenarioForm` are the typed authoring forms
+// (the JSON-textarea version the owner flagged as "very non-human" is gone); `PolicySimulator`
+// composes both for the simulate mode; `RefillPolicyManual` is the "how does it work" explainer +
+// lifecycle diagram; `RefillPolicyStatusStrip` is the honest active-policy-set/-revision line, and
+// `RefillPolicyLookup` is the list mode's own "which policy set do I look at" zone, since no
+// procedure lists which policy sets exist.
+export { PolicySimulator } from './sections/policy-simulator';
+export type { PolicySimulationResult, PolicySimulatorProps } from './sections/policy-simulator';
+
+export {
+  createBlankRuleSet,
+  RuleSetForm,
+  toRuleDataJson,
+  validateRuleSet,
+} from './sections/rule-set-form';
+export type {
+  ComparisonOperator,
+  RuleConditionValue,
+  RuleEffect,
+  RuleErrors,
+  RuleSetErrors,
+  RuleSetFormProps,
+  RuleSetValue,
+  RuleValue,
+  ThresholdConditionValue,
+  ThresholdErrors,
+  ThresholdField,
+} from './sections/rule-set-form';
+
+export {
+  createBlankScenario,
+  ScenarioForm,
+  toScenarioJson,
+  validateScenario,
+} from './sections/refill-scenario-form';
+export type {
+  ScenarioErrors,
+  ScenarioFormProps,
+  ScenarioValue,
+} from './sections/refill-scenario-form';
+
+export { RefillPolicyManual } from './sections/refill-policy-manual';
+export type { RefillPolicyManualProps } from './sections/refill-policy-manual';
+
+export {
+  NO_POLICY_SET_ID_CAPTION,
+  RefillPolicyStatusStrip,
+} from './sections/refill-policy-status-strip';
+export type {
+  RefillPolicyStatusState,
+  RefillPolicyStatusStripProps,
+} from './sections/refill-policy-status-strip';
+
+export { RefillPolicyLookup } from './sections/refill-policy-lookup';
+export type { RefillPolicyLookupProps } from './sections/refill-policy-lookup';
 
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
-// ── rail sections
-// Each exports a `*_RAIL_LABEL` constant alongside its component: rail sections render their
-// content BARE (no `RailPanel` of their own), so the same section can mount twice — inside a
-// `RailPanel label={LABEL}` in the persistent `lg` rail, and inside a `SectionSheet label={LABEL}`
-// below `lg` — without doubling the heading or letting the two copies' wording drift apart.
+// authz-idp's human plane (lightbridge-authz#478, converse-frontends#409). CSP-SAFE SECTIONS:
+// these render into apps/authz-ui, which authz-idp serves under `default-src 'self'` with no
+// `data:` allowance. They use native elements + token utilities ONLY — never `Button`,
+// `ErrorLine` with `onRetry`, or any daisy component class, every one of which pulls in
+// daisy's `--fx-noise` `data:` background and is CSP-blocked at runtime. Enforced by
+// `csp-safe-sections.test.ts`; do not "tidy" them onto the shared components.
+export { AuthPanelShell } from './sections/auth-panel-shell';
+export type { AuthPanelShellProps } from './sections/auth-panel-shell';
+export { DeviceCodeEntry } from './sections/device-code-entry';
+export type { DeviceCodeEntryProps } from './sections/device-code-entry';
+export { DeviceConfirmation } from './sections/device-confirmation';
+export type {
+  DeviceConfirmationProps,
+  DeviceConfirmationStatus,
+} from './sections/device-confirmation';
+export { AuthErrorPanel } from './sections/auth-error-panel';
+export type { AuthErrorPanelProps } from './sections/auth-error-panel';
 
-export { SCOPE_RAIL_LABEL, ScopeRail } from './sections/scope-rail';
-export type { ScopeRailProps } from './sections/scope-rail';
+// The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
+// dashboard 3) — accounts and projects on one ranking.
+export { TopSpendersLedger } from './sections/top-spenders-ledger';
+export type {
+  TopSpenderRow,
+  TopSpenderScope,
+  TopSpendersLedgerProps,
+} from './sections/top-spenders-ledger';
 
-export { OVERVIEW_VIEW_RAIL_LABEL, OverviewViewRail } from './sections/overview-view-rail';
-export type { OverviewViewRailProps } from './sections/overview-view-rail';
+// ── toolbar sections
+// Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,
+// filters, search — in one horizontal strip above the content, always visible, at every
+// breakpoint; the 2026-08-30 rail-return round did not undo that (see `OverviewControls`'s
+// docstring for the toolbar-vs-rail judgement call, and `ManageControls`'s for how the Projects
+// screen's (née Manage) former FILTERS rail section made the same move). What the INSPECTOR rail
+// carries instead is SELECTION-DRIVEN DETAIL and the scope quick-settings panel — see
+// "── selection-driven detail" below.
 
-export { OVERVIEW_FILTERS_RAIL_LABEL, OverviewFiltersRail } from './sections/overview-filters-rail';
-export type { OverviewFiltersRailProps } from './sections/overview-filters-rail';
+export { OverviewControls } from './sections/overview-controls';
+export type { OverviewControlsField, OverviewControlsProps } from './sections/overview-controls';
 
-export { OVERVIEW_SERIES_RAIL_LABEL, OverviewSeriesRail } from './sections/overview-series-rail';
-export type { OverviewSeriesRailProps } from './sections/overview-series-rail';
+export { ApiKeysControls } from './sections/api-keys-controls';
+export type { ApiKeysControlsProps } from './sections/api-keys-controls';
 
-export { OVERVIEW_EXPORT_RAIL_LABEL, OverviewExportRail } from './sections/overview-export-rail';
-export type { OverviewExportRailProps } from './sections/overview-export-rail';
+export { ApiKeysHygieneNotes } from './sections/api-keys-hygiene-notes';
+export type { ApiKeysHygiene, ApiKeysHygieneNotesProps } from './sections/api-keys-hygiene-notes';
 
-export { API_KEYS_FILTERS_RAIL_LABEL, ApiKeysFiltersRail } from './sections/api-keys-filters-rail';
-export type { ApiKeysFiltersRailProps } from './sections/api-keys-filters-rail';
-
-export { API_KEYS_HYGIENE_RAIL_LABEL, ApiKeysHygieneRail } from './sections/api-keys-hygiene-rail';
-export type { ApiKeysHygiene, ApiKeysHygieneRailProps } from './sections/api-keys-hygiene-rail';
+export { ManageControls } from './sections/manage-controls';
+export type { ManageControlsProps, ManageOption } from './sections/manage-controls';
 
 export {
-  API_KEYS_LIFECYCLE_RAIL_LABEL,
-  ApiKeysLifecycleRail,
-} from './sections/api-keys-lifecycle-rail';
-export type { ApiKeysLifecycleRailProps } from './sections/api-keys-lifecycle-rail';
+  AccountSettings,
+  NO_ACCOUNT_MESSAGE,
+  UNNAMED_ACCOUNT_HINT,
+  UNNAMED_ACCOUNT_LABEL,
+} from './sections/account-settings';
+export type {
+  AccountSettingsAccount,
+  AccountSettingsDetails,
+  AccountSettingsPanel,
+  AccountSettingsProps,
+} from './sections/account-settings';
 
-export { MANAGE_REPORT_RAIL_LABEL, ManageReportRail } from './sections/manage-report-rail';
-export type { ManageReportRailProps } from './sections/manage-report-rail';
+export {
+  ACCOUNT_DIRECTORY_REGION_LABEL,
+  AccountDirectory,
+  NO_ACCOUNTS_MESSAGE,
+} from './sections/account-directory';
+export type { AccountDirectoryProps, AccountDirectoryRow } from './sections/account-directory';
 
-export { MANAGE_FILTERS_RAIL_LABEL, ManageFiltersRail } from './sections/manage-filters-rail';
-export type { ManageFiltersRailProps, ManageOption } from './sections/manage-filters-rail';
+export {
+  detailRows,
+  NO_PROJECTS_MESSAGE,
+  PROJECT_SETTINGS_LABEL,
+  ProjectSettings,
+  ProjectSettingsDetail,
+} from './sections/project-settings';
+export type {
+  ProjectSettingsPagination,
+  ProjectSettingsProps,
+  ProjectSettingsRow,
+} from './sections/project-settings';
 
-export { MANAGE_SELECTION_RAIL_LABEL, ManageSelectionRail } from './sections/manage-selection-rail';
-export type { ManageSelectionRailProps } from './sections/manage-selection-rail';
+// ── selection-driven detail
+// The persistent right INSPECTOR rail's content at `lg`+ (`ConsoleShell.rail`,
+// `containers/inspector-rail.tsx`), and — below `lg`, where the rail is absent — the SAME content
+// a `BottomSheet` hosts instead (`projects-centre.tsx`'s selected project; `admin-centre.tsx`
+// hosts `ReviewDetailPanel` — from "── forms & actions" above — directly, since it already owned
+// its whole decision surface and needed no section of its own). IA v3 phase 3 deletes the rail's
+// former "otherwise" content, `InspectorSettingsPanel` (the scope quick-settings panel standing on
+// `/accounts/<id>/overview`) — owner: "account mutations/creation/refill on the Overview rail
+// makes no sense" — so `InspectorRail` now returns `undefined` (no rail at all) off a selection,
+// the same as every other route that never showed one.
 
-export { REVIEW_DETAIL_RAIL_LABEL, ReviewDetailRail } from './sections/review-detail-rail';
-export type { ReviewDetailRailProps } from './sections/review-detail-rail';
+export { ProjectDetail } from './sections/project-detail';
+export type { ProjectDetailProps } from './sections/project-detail';

@@ -1,42 +1,94 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NavSpine } from './component';
-import type { NavSpineItem } from './types';
+import type { NavGroup } from './types';
 
-const items: NavSpineItem[] = [
-  { key: 'overview', label: 'Overview', active: true },
-  { key: 'api-keys', label: 'Api-Keys' },
-];
-const adminItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin' }];
+const workspaceGroup: NavGroup = {
+  key: 'workspace',
+  label: 'Workspace',
+  items: [
+    { key: 'overview', label: 'Overview', active: true },
+    { key: 'api-keys', label: 'Api-Keys' },
+  ],
+};
+const operatorGroup: NavGroup = {
+  key: 'operator',
+  label: 'Operator',
+  items: [{ key: 'admin', label: 'Admin' }],
+};
 
 describe('NavSpine', () => {
-  it('renders every item as a button by default', () => {
-    render(<NavSpine items={items} />);
+  it('renders every item across every group as a button by default', () => {
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
 
     expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
   });
 
-  it('marks the active item with aria-current and the raised fill', () => {
-    render(<NavSpine items={items} />);
+  it('renders a group label row when a group has one', () => {
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
+
+    expect(screen.getByText('Workspace')).toBeInTheDocument();
+  });
+
+  it('renders no label row for a group with none', () => {
+    const unlabelled: NavGroup = {
+      key: 'account',
+      items: [{ key: 'settings', label: 'Settings' }],
+    };
+    render(<NavSpine groups={[unlabelled]} layout="sidebar" />);
+
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  });
+
+  // Active state is not a cva boolean axis (console-ui skill shrink policy) and is not a class
+  // swapped in JS either: the `raised` fill is `theme.css`'s `rail-row[aria-current="page"]`.
+  it('marks the active item with aria-current and data-active, and never with daisy menu-active', () => {
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
 
     const active = screen.getByRole('button', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(active).toHaveClass('bg-raised');
+    expect(active).toHaveAttribute('data-active');
+    expect(active).toHaveClass('rail-row');
+    expect(active).not.toHaveClass('menu-active');
 
     const inactive = screen.getByRole('button', { name: 'Api-Keys' });
     expect(inactive).not.toHaveAttribute('aria-current');
-    expect(inactive).not.toHaveClass('bg-raised');
+    expect(inactive).not.toHaveAttribute('data-active');
+  });
+
+  // The invariant that decided the Base UI adoption. See the component's own doc comment for the
+  // measured proof this guards.
+  it('leaves every destination in the natural tab order — no roving tab stop', () => {
+    const { container } = render(
+      <NavSpine groups={[workspaceGroup, operatorGroup]} layout="sidebar" />
+    );
+
+    const rows = [...container.querySelectorAll('li > a, li > button')];
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row).not.toHaveAttribute('tabindex');
+    }
+  });
+
+  it('renders the sidebar rows as a daisy menu list', () => {
+    const { container } = render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
+
+    const list = container.querySelector('ul');
+    expect(list).toHaveClass('menu', 'menu-sm', 'rail-list');
+    expect(container.querySelectorAll('li')).toHaveLength(3); // 1 group label + 2 items
   });
 
   it('fires onSelect with the item key', () => {
     const onSelect = vi.fn();
     render(
       <NavSpine
-        items={[{ key: 'overview', label: 'Overview', onSelect }]}
-      />,
+        groups={[{ key: 'g', items: [{ key: 'overview', label: 'Overview', onSelect }] }]}
+        layout="sidebar"
+      />
     );
 
     screen.getByRole('button', { name: 'Overview' }).click();
@@ -45,18 +97,18 @@ describe('NavSpine', () => {
   });
 
   it('renders an anchor when href is provided', () => {
-    render(<NavSpine items={[{ key: 'overview', label: 'Overview', href: '/overview' }]} />);
+    render(
+      <NavSpine
+        groups={[{ key: 'g', items: [{ key: 'overview', label: 'Overview', href: '/overview' }] }]}
+        layout="sidebar"
+      />
+    );
 
     const link = screen.getByRole('link', { name: 'Overview' });
     expect(link).toHaveAttribute('href', '/overview');
   });
 
   it('renders href items through a custom linkComponent (e.g. next/link) instead of a bare anchor', () => {
-    // Regression: `apps/console` previously had no way to route `NavSpine`'s href items through
-    // `next/link`, so every nav click was a full document reload (not a client-side transition) —
-    // the console's actual "black screen between navigations" root cause. This proves the seam
-    // that fixes it: a consumer-supplied component receives exactly the props a router-aware Link
-    // needs.
     const CustomLink = vi.fn(
       ({
         href,
@@ -70,14 +122,20 @@ describe('NavSpine', () => {
         <a href={href} data-testid="custom-link" {...rest}>
           {children}
         </a>
-      ),
+      )
     );
 
     render(
       <NavSpine
-        items={[{ key: 'overview', label: 'Overview', href: '/overview', active: true }]}
+        groups={[
+          {
+            key: 'g',
+            items: [{ key: 'overview', label: 'Overview', href: '/overview', active: true }],
+          },
+        ]}
+        layout="sidebar"
         linkComponent={CustomLink}
-      />,
+      />
     );
 
     expect(CustomLink).toHaveBeenCalled();
@@ -86,50 +144,133 @@ describe('NavSpine', () => {
     expect(link).toHaveAttribute('aria-current', 'page');
   });
 
-  it('hides the Admin group when showAdmin is false', () => {
-    render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} />);
+  // There is no more `adminItems`/`showAdmin` axis (shell brief 2026-08-30) — a gated group is
+  // simply included or omitted from `groups` by the caller, and the group's own optional label
+  // IS the role marker.
+  it('has no special-cased admin group — an omitted group renders nothing of it at all', () => {
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
 
     expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Operator')).not.toBeInTheDocument();
+  });
+
+  it('renders an included group with its own label, and no separate role marker element', () => {
+    render(<NavSpine groups={[workspaceGroup, operatorGroup]} layout="sidebar" />);
+
+    expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.getByText('Operator')).toBeInTheDocument();
+    expect(screen.queryByText('Role')).not.toBeInTheDocument();
     expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
   });
 
-  it('renders the Admin group with a role marker when showAdmin is true', () => {
-    render(<NavSpine items={items} adminItems={adminItems} showAdmin />);
-
-    expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-    expect(screen.getByText('ROLE')).toBeInTheDocument();
-  });
-
-  it('supports a custom role marker label', () => {
+  // Phase 4 — the Operator row's pending-refill count, plain trailing text (never a badge).
+  it('renders a trailing count when the item carries one, and omits it when absent', () => {
     render(
-      <NavSpine items={items} adminItems={adminItems} showAdmin roleLabel="STAFF" />,
+      <NavSpine
+        groups={[
+          {
+            key: 'operator',
+            items: [{ key: 'admin', label: 'Refill requests', count: 3 }],
+          },
+        ]}
+        layout="sidebar"
+      />
     );
 
-    expect(screen.getByText('STAFF')).toBeInTheDocument();
+    const row = screen.getByRole('button', { name: /Refill requests/ });
+    expect(row).toHaveTextContent('3');
+
+    render(<NavSpine groups={[workspaceGroup]} layout="sidebar" />);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  // Owner finding, 2026-08-31 (issue #368): "I have the role lightbridge-admin and yet I can't
+  // see roles" — the row existed the whole time, `disabled` with the reason only in a native
+  // `title` attribute a real `disabled` button does not reliably surface at all. See
+  // `component.tsx`'s own doc comment for the full mechanism.
+  describe('disabled item with a reason', () => {
+    const disabledGroup: NavGroup = {
+      key: 'settings',
+      items: [{ key: 'roles', label: 'Roles', disabled: true, reason: 'No read API exists yet.' }],
+    };
+
+    it('renders aria-disabled, never the native disabled attribute — the row stays focusable', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      expect(row).toHaveAttribute('aria-disabled', 'true');
+      expect(row).not.toHaveAttribute('disabled');
+      row.focus();
+      expect(row).toHaveFocus();
+    });
+
+    it('shows an always-visible "Unavailable" annotation, with the label at its normal position', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      expect(row).toHaveTextContent('Roles');
+      expect(row).toHaveTextContent('Unavailable');
+    });
+
+    it('surfaces the full reason as an accessible tooltip on focus, on the sidebar layout', async () => {
+      render(<NavSpine groups={[disabledGroup]} layout="sidebar" />);
+
+      const row = screen.getByRole('button', { name: /Roles/ });
+      fireEvent.focus(row);
+
+      const tooltip = await screen.findByRole('tooltip');
+      expect(tooltip).toHaveTextContent('No read API exists yet.');
+      expect(row).toHaveAttribute('aria-describedby', tooltip.id);
+    });
+
+    it('never fires onSelect, even if a caller mistakenly passes one', () => {
+      const onSelect = vi.fn();
+      render(
+        <NavSpine
+          groups={[
+            {
+              key: 'settings',
+              items: [{ key: 'roles', label: 'Roles', disabled: true, onSelect }],
+            },
+          ]}
+          layout="sidebar"
+        />
+      );
+
+      screen.getByRole('button', { name: /Roles/ }).click();
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('skips the tooltip on the bottom-bar dock — no room for a hover popup on a touch strip', () => {
+      render(<NavSpine groups={[disabledGroup]} layout="bottom-bar" />);
+
+      const row = screen.getByRole('button', { name: 'Roles' });
+      fireEvent.focus(row);
+
+      expect(row).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
   });
 
   describe('bottom-bar layout', () => {
-    it('renders every item as a horizontal strip, without a ROLE marker', () => {
-      render(<NavSpine items={items} adminItems={adminItems} showAdmin layout="bottom-bar" />);
+    it('flattens every group into one horizontal strip, without any group label', () => {
+      render(<NavSpine groups={[workspaceGroup, operatorGroup]} layout="bottom-bar" />);
 
       expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Api-Keys' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-      expect(screen.queryByText('ROLE')).not.toBeInTheDocument();
-    });
-
-    it('hides the Admin item when showAdmin is false', () => {
-      render(<NavSpine items={items} adminItems={adminItems} showAdmin={false} layout="bottom-bar" />);
-
-      expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Workspace')).not.toBeInTheDocument();
+      expect(screen.queryByText('Operator')).not.toBeInTheDocument();
     });
 
     it('marks the active item with aria-current and the primary text colour', () => {
-      render(<NavSpine items={items} layout="bottom-bar" />);
+      render(<NavSpine groups={[workspaceGroup]} layout="bottom-bar" />);
 
       const active = screen.getByRole('button', { name: 'Overview' });
       expect(active).toHaveAttribute('aria-current', 'page');
-      expect(active).toHaveClass('text-primary');
+      expect(active).toHaveAttribute('data-active');
+      expect(active).toHaveClass('nav-dock-row');
     });
   });
 });

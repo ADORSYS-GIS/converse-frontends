@@ -3,15 +3,14 @@ import { Switch } from '@base-ui/react/switch';
 import React from 'react';
 
 import { cn } from '../../cn';
+import { LABEL_CLASS } from '../../lib/type-roles';
 import type { ToggleProps } from './types';
 
-// Extracted from `ReportExportPanel`'s inline include-toggles (ADR 0010 Decision 4: Base UI
-// Switch + daisy `toggle` — daisy's `.toggle` CSS already matches `[aria-checked]`, exactly the
-// attribute `Switch.Root` (`role="switch"`) sets, so no styling glue is needed). Standalone here
-// so a second consumer (e.g. a settings row) doesn't hand-roll the same `Field.Root` +
-// `Switch.Root` + `Field.Label` wiring a second time — a bare `<label>` around a non-native
-// `role="switch"` element does not get click-to-toggle/`aria-labelledby` for free the way it did
-// for the old hand-rolled checkbox.
+// Base UI Switch beside its own label — `Field.Root`/`Field.Label` wire the click-to-toggle and
+// `aria-labelledby` association a bare `<label>` around a non-native `role="switch"` element does
+// not get for free. Paint is entirely daisy `toggle` plus the shared `toggle-row`/`LABEL_CLASS`
+// parts (class-budget: daisy for paint, a named `theme.css` part or a `lib/` constant for the
+// rest, never a fresh hand-written string per component).
 export function Toggle({
   checked,
   onCheckedChange,
@@ -21,7 +20,7 @@ export function Toggle({
   'aria-label': ariaLabel,
 }: ToggleProps) {
   return (
-    <BaseField.Root className={cn('flex items-center gap-2', className)}>
+    <BaseField.Root className={cn('toggle-row', className)}>
       <Switch.Root
         checked={checked}
         onCheckedChange={onCheckedChange}
@@ -30,9 +29,7 @@ export function Toggle({
         className="toggle"
       />
       {label ? (
-        <BaseField.Label className="text-soft cursor-pointer font-mono text-xs">
-          {label}
-        </BaseField.Label>
+        <BaseField.Label className={cn(LABEL_CLASS, 'cursor-pointer')}>{label}</BaseField.Label>
       ) : null}
     </BaseField.Root>
   );

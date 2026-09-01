@@ -1,23 +1,38 @@
-import type { DonutSlice } from '../../components/donut-chart';
+import type { ShareBarSegment } from '../../components/share-bar';
 
-/** Per-section load status -- this dashboard failing must never take its neighbours down (same contract as `spend-dashboard`'s `DashboardStatus`, kept as its own type so the two sections stay parallel-PR-friendly). */
-export type SpendShareStatus = 'ready' | 'loading' | 'error';
+/**
+ * Per-section load status -- this dashboard failing must never take its neighbours down (same
+ * contract as `spend-dashboard`'s `DashboardStatus`, kept as its own type so the two sections stay
+ * parallel-PR-friendly). `'unwired'` carries the same meaning as `DashboardStatus`'s own
+ * `'unwired'` -- see that type's docstring.
+ */
+export type SpendShareStatus = 'ready' | 'loading' | 'error' | 'unwired';
 
 export interface SpendShareSectionProps {
-  /** Uppercase tracked heading. Defaults to the section's own wording. */
+  /** Section heading. Defaults to the section's own wording. */
   label?: string;
-  slices: DonutSlice[];
-  /** Ring diameter in px -- a donut is a fixed-size widget, not a full-width one (unlike `SpendDashboard`'s time series), so this is a plain size rather than a measured container width. */
-  size?: number;
+  segments: ShareBarSegment[];
+  /** Total across every segment, pre-formatted (e.g. `$1.36`). Rendered as the zone's one numeral. */
+  total?: string;
   status?: SpendShareStatus;
   errorMessage?: string;
+  /** Overrides `UNWIRED_CHART_MESSAGE` for `status="unwired"`. */
+  unwiredMessage?: string;
   onRetry?: () => void;
-  /** Controlled selection -- pass the page's `selectedSeriesKey` state to keep this donut in sync with the SPEND time-series chart and its rail legend. */
+  /** Controlled selection -- pass the page's `selectedSeriesKey` so this stays in sync with the SPEND time-series chart. */
   selectedKey?: string | null;
-  onSelectSlice?: (key: string | null) => void;
-  centreMetric?: string;
-  centreLabel?: string;
-  formatTooltipValue?: (slice: DonutSlice, percent: number) => string;
-  formatLegendValue?: (slice: DonutSlice, percent: number) => string;
+  onSelectSegment?: (key: string | null) => void;
+  formatPercent?: (percent: number) => string;
+  /**
+   * Set (instead of rendering `segments`) once this breakdown resolves to <=1 distinct value — a
+   * single-band SHARE bar asserts a distribution ("here is how this splits") the data does not
+   * have. Renders an inline status line in the bar's own place, heading kept above — the SAME
+   * `status === 'ready' && degenerateMessage` contract `SpendDashboard`'s own prop already uses
+   * (console-ui skill analytics doctrine; 2026-08-31 owner-round parity fix #3 moved this
+   * suppression OFF the account overview's time-series chart and onto this component instead — a
+   * single-series TIME SERIES is still a meaningful reading, a single-segment BREAKDOWN is the one
+   * that asserts a shape the data doesn't have). Ignored while `loading`/`error`.
+   */
+  degenerateMessage?: string;
   className?: string;
 }

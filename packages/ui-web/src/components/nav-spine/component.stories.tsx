@@ -1,9 +1,9 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent, within } from 'storybook/test';
 
-import { RailPanel } from '../rail-panel';
 import { NavSpine } from './component';
-import type { NavSpineItem } from './types';
+import type { NavGroup } from './types';
 
 function Glyph() {
   return (
@@ -13,21 +13,32 @@ function Glyph() {
   );
 }
 
-const baseItems: NavSpineItem[] = [
-  { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
-  { key: 'api-keys', label: 'Api-Keys', icon: <Glyph /> },
-  { key: 'manage', label: 'Manage', icon: <Glyph /> },
-];
+const workspaceGroup: NavGroup = {
+  key: 'workspace',
+  label: 'Workspace',
+  items: [
+    { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
+    { key: 'api-keys', label: 'Api-Keys', icon: <Glyph /> },
+    { key: 'manage', label: 'Manage', icon: <Glyph /> },
+  ],
+};
+const accountGroup: NavGroup = {
+  key: 'account',
+  label: 'Account',
+  items: [{ key: 'settings', label: 'Settings', icon: <Glyph /> }],
+};
+const operatorGroup: NavGroup = {
+  key: 'operator',
+  label: 'Operator',
+  items: [{ key: 'admin', label: 'Admin', icon: <Glyph /> }],
+};
 
-const adminItems: NavSpineItem[] = [{ key: 'admin', label: 'Admin', icon: <Glyph /> }];
-
-// `rail` (default) layout decorator — frames the story the way the left rail actually hosts it.
-function railDecorator(Story: () => React.ReactElement) {
+// `sidebar` (default) layout decorator — frames the story the way `ConsoleSidebar` actually hosts
+// it: a flush `chrome` column, no floating panel.
+function sidebarDecorator(Story: () => React.ReactElement) {
   return (
-    <div className="w-52">
-      <RailPanel>
-        <Story />
-      </RailPanel>
+    <div className="bg-chrome w-60 p-2">
+      <Story />
     </div>
   );
 }
@@ -40,35 +51,85 @@ const meta: Meta<typeof NavSpine> = {
 export default meta;
 type Story = StoryObj<typeof NavSpine>;
 
-export const MemberWithoutAdmin: Story = {
-  args: { items: baseItems, showAdmin: false, adminItems },
-  decorators: [railDecorator],
+export const Member: Story = {
+  args: { groups: [workspaceGroup, accountGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
 };
 
-export const AdminWithGroup: Story = {
-  args: { items: baseItems, showAdmin: true, adminItems },
-  decorators: [railDecorator],
+export const WithOperatorGroup: Story = {
+  args: { groups: [workspaceGroup, accountGroup, operatorGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
 };
 
 export const AsLinks: Story = {
   args: {
-    items: baseItems.map((item) => ({ ...item, href: `/${item.key}`, onSelect: undefined })),
-    showAdmin: true,
-    adminItems: adminItems.map((item) => ({ ...item, href: `/${item.key}` })),
+    groups: [
+      {
+        ...workspaceGroup,
+        items: workspaceGroup.items.map((item) => ({
+          ...item,
+          href: `/${item.key}`,
+          onSelect: undefined,
+        })),
+      },
+    ],
+    layout: 'sidebar',
   },
-  decorators: [railDecorator],
+  decorators: [sidebarDecorator],
 };
 
 // Mobile-first (<600) bottom navigation dock — console-ui skill "Shape and layout". Rendered by
-// `ConsoleShell` inside a fixed h-14 `chrome` bar; this story reproduces just that frame (not
-// the rail decorator above — the bottom bar never sits inside a `RailPanel`).
+// `ConsoleSidebar` inside a fixed h-14 `chrome` bar; this story reproduces just that frame.
 export const BottomBar: Story = {
-  args: { items: baseItems, showAdmin: true, adminItems, layout: 'bottom-bar' },
+  args: { groups: [workspaceGroup, accountGroup, operatorGroup], layout: 'bottom-bar' },
   decorators: [
     (Story) => (
-      <div className="flex h-14 w-[390px] bg-chrome">
+      <div className="bg-chrome flex h-14 w-[390px]">
         <Story />
       </div>
     ),
   ],
+};
+
+// Owner finding, 2026-08-31 (issue #368) — "I have the role lightbridge-admin and yet I can't see
+// roles": the real `/settings` "Roles" row (`apps/console/src/client/console-chrome.tsx`'s
+// `ROLES_DISABLED_REASON`). The label stays at its normal position, "Unavailable" is a small
+// always-visible trailing annotation (no interaction needed to see THAT it's unavailable), and
+// the `play` function focuses the row so Storybook's default snapshot shows the reason tooltip
+// actually open — proving it surfaces, not just that the row renders.
+const disabledGroup: NavGroup = {
+  key: 'settings',
+  items: [
+    { key: 'overview', label: 'Overview', icon: <Glyph />, active: true },
+    {
+      key: 'roles',
+      label: 'Roles',
+      icon: <Glyph />,
+      disabled: true,
+      reason:
+        'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).',
+    },
+    { key: 'tiers', label: 'Tier configs', icon: <Glyph /> },
+  ],
+};
+
+export const DisabledWithReason: Story = {
+  name: 'Disabled row — reason tooltip open',
+  args: { groups: [disabledGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.tab(); // focuses Overview first (natural tab order)
+    await userEvent.tab(); // ...then Roles, the disabled row
+    void canvas; // the tooltip portals outside canvasElement — nothing further to query here
+  },
+};
+
+// ADR 0010 phase 4: the `wireframe` (light) counterpart.
+export const DisabledWithReasonLight: Story = {
+  name: 'Disabled row — reason tooltip open, wireframe (light)',
+  args: { groups: [disabledGroup], layout: 'sidebar' },
+  decorators: [sidebarDecorator],
+  globals: { theme: 'wireframe' },
+  play: DisabledWithReason.play,
 };

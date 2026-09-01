@@ -77,11 +77,73 @@ describe('ADR 0011 discipline', () => {
     // The exceptions ADR 0011 Decision 3 sanctions, and nothing else:
     //  - the command palette's open flag (ephemeral chrome interaction — a launcher, not a view),
     //  - the auth doorway's pre-redirect status (in-flight submit, one paint before navigating),
-    //  - the reviewer's unsent decision note (a pre-submit draft that must never reach a URL).
+    //  - the reviewer's unsent decision note (a pre-submit draft that must never reach a URL),
+    //  - the create-key dialog's unsent name/expiry/plan draft (ticket #319 — same shape as the
+    //    decision note above: `?create=1` itself IS in the URL, its typed-but-unsubmitted
+    //    contents are not),
+    //  - the create-project dialog's unsent name/billing-identity/plan draft (ticket #303 — same
+    //    shape again: `?create=1` on `/manage` IS in the URL, its typed-but-unsubmitted contents
+    //    are not),
+    //  - the Settings screens' two unsent name drafts, now split across `/settings/account`
+    //    (account rename) and `/settings/projects` (project rename) — phase 6 (admin/settings
+    //    revamp) split `use-settings-screen.ts` into one hook per real route. Same shape as
+    //    ever: `?account-name=true` and `?rename=<project id>` ARE in the URL, the half-typed
+    //    names going into either dialog are not,
+    //  - `use-refills-queue-screen.ts`'s page-cursor stack (phase 6) — the trail of cursors a `Previous`
+    //    press needs is a browser-history-shaped concept, not itself "what am I looking at" the
+    //    way its own `?after=` param is, so it stays local rather than a second, redundant URL
+    //    param.
+    //  - `use-create-account-dialog.ts`'s unsent name draft (ADR-0026, lightbridge-authz#564 —
+    //    account creation lifted into its own shared, cross-route container): same shape as every
+    //    other dialog draft above — `?new-account=true` IS in the URL, the half-typed name is not.
+    //  - Rail-return round (2026-08-30, Addition C): `use-rename-account-dialog.ts` (the RENAME
+    //    half of `AccountNameDialog`, lifted out of `use-account-settings-screen.ts` — which no
+    //    longer carries any local state of its own, and drops off this list) and
+    //    `use-project-rename.ts` (the inspector rail's own project-rename dialog, `/projects`)
+    //    follow the same shape: `?account-name=true` / `?rename=<id>` ARE in the URL, the
+    //    half-typed or half-picked contents are not.
+    //  - Addition C.1/C.4 (same day): `use-create-project-dialog.ts`'s unsent name/billing-
+    //    identity/plan draft — the create-project flow lifted into its own shared, cross-route
+    //    container the identical way `use-create-account-dialog.ts` already did, so
+    //    `use-projects-screen.ts` carries no local state of its own any more and drops off this
+    //    list too; `?new-project=true` IS in the URL, the half-typed draft is not.
+    //  - IA v3 phase 3 ("refill as a page"): `use-request-refill-dialog.ts` (the deleted dialog's
+    //    own amount draft) drops off this list along with the dialog itself — its replacement,
+    //    `use-refill-screen.ts`, carries the identical draft, but now against a real ROUTE
+    //    (`/accounts/<id>/refill`) rather than a `?refill=true` flag, so there is no URL-vs-draft
+    //    pair to state here at all; the draft is simply local, the same as every unsent-input
+    //    site on this list.
+    //  - `use-refill-policies-screen.ts` (`/admin/refill-policies`, moved off `/settings/
+    //    refill-options` — owner ruling, converse-frontends#368) carries THREE unsent drafts, one
+    //    per remaining mode's own scratch input, none of them shareable view state on their own:
+    //    the edit-mode rule-set draft (`RuleSetValue`, authored fresh either way — there is no
+    //    read API to prefill FROM, `converse-frontends#368`), and the simulate-mode rule-set +
+    //    scenario draft (the same `simulateBudgetPolicy` scratch pad `use-refill-options-
+    //    screen.ts` used to hold: nothing it holds is shareable view state, since a simulation
+    //    reads no stored policy and changes nothing). (It used to also carry a FOURTH, the
+    //    create-mode policy-set-id-being-chosen — owner review round 2, 2026-08-31,
+    //    converse-frontends#368 finding #4, moved that draft to its own route/hook below.)
+    //  - `use-refill-policy-create-screen.ts` (`/admin/refill-policies/create`, split off the
+    //    hook above by the same finding #4) carries the identical create-mode draft that used to
+    //    live there: the policy-set-id-being-chosen (same shape as `use-create-account-dialog.ts`'s
+    //    unsent name — there is no `?create=` URL flag left at all on this route, the id being
+    //    typed for a NOT-YET-real policy set was never shareable view state either way) and the
+    //    same rule-set draft, plus the two write-call outcome trackers
+    //    (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — none of it `useSharedMutation`'s
+    //    cross-zone cache, since only this one view ever renders it.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
-      join('containers', 'use-admin-screen.ts'),
+      join('containers', 'use-api-keys-screen.ts'),
+      join('containers', 'use-create-account-dialog.ts'),
+      join('containers', 'use-create-project-dialog.ts'),
+      join('containers', 'use-project-rename.ts'),
+      join('containers', 'use-project-settings-screen.ts'),
+      join('containers', 'use-refill-policies-screen.ts'),
+      join('containers', 'use-refill-policy-create-screen.ts'),
+      join('containers', 'use-refill-screen.ts'),
+      join('containers', 'use-refills-queue-screen.ts'),
+      join('containers', 'use-rename-account-dialog.ts'),
     ]);
   });
 

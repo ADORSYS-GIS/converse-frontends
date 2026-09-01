@@ -21,8 +21,8 @@ export type ActiveInput = 'hover' | 'touch' | 'keyboard';
 /**
  * Drives which datum/bucket/row a chart's `ChartTooltip` is anchored to, continuously, off
  * pointer and keyboard-focus movement across a set of per-datum hit-region elements (the
- * existing `<button>` overlays in `spend-series-chart`/`histogram-chart`/`latency-ridgeline`,
- * already sized to tile the plotted area) -- fixing the console-ui skill's chart-tooltip
+ * existing `<button>` overlays in `spend-series-chart`/`histogram-chart`, already sized to tile
+ * the plotted area) -- fixing the console-ui skill's chart-tooltip
  * interaction contract ("virtual mouse move around d3 stuffs", ADR 0010 Decision 6): the
  * Floating UI rewrite in #240 built the positioning half of that contract but left every chart
  * wired to `onClick` only, so hovering a chart surfaced nothing until you clicked.
@@ -68,7 +68,7 @@ export function useHoverActive<T>(): {
       onFocus: () => setState({ value, input: 'keyboard' }),
       onBlur: () => setState((current) => (current?.value === value ? null : current)),
     }),
-    [],
+    []
   );
 
   return {

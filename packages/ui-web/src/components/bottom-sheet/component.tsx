@@ -1,88 +1,97 @@
 import React from 'react';
-import { Drawer } from 'vaul';
+import { Drawer } from '@base-ui/react/drawer';
 
 import { cn } from '../../cn';
+import { Button } from '../button';
 import type { BottomSheetProps } from './types';
+import { META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from '../../lib/overlay';
 
-// Contract: docs/design/console-redesign/README.md §4 `BottomSheet` / ADR 0009 Decision 6 —
-// vaul is the console's only drawer primitive; no hand-rolled sheets. A standard transient vaul
-// modal drawer — mounts on `open` behind a `muted/80` overlay, unmounts on close. Dialog
-// semantics (focus trap, Escape-to-close, aria-modal) come from vaul's underlying Radix Dialog
-// primitive.
+// Contract: docs/design/console-redesign/README.md §4 BottomSheet / ADR 0009 Decision 6 — one
+// drawer primitive for the console, no hand-rolled sheets. That primitive is Base UI's Drawer
+// (owner decision 2026-08-29, superseding ADR 0010 Decision 2's `vaul`). A standard transient
+// modal drawer — mounts on open behind a muted/80 scrim, unmounts on close. Dialog semantics
+// (focus trap, Escape, aria-modal) and swipe-to-dismiss are the primitive's.
 //
-// Formerly also supported a `peek` mode (a persistent, non-modal docked panel for the compact
-// right rail — vaul `snapPoints`, collapsed state rendered outside `Drawer.Root` to sidestep a
-// Radix modality bug). That mode is gone (owner revision 2026-08-25, console-ui skill "Shape and
-// layout"): the compact right rail is no longer a persistent footer/peek bar at all — its content
-// is reached through contextual per-section triggers (`SectionSheet`, each a plain transient
-// modal drawer scoped to one rail section) rendered in context on the page, not docked chrome
-// owned by the shell. `ConsoleShell` no longer renders a peek-mode `BottomSheet` for the right
-// rail; nothing else used `peek` either, so it is removed here rather than left dormant.
+// **Bottom-only, on purpose** (owner's locked layout contract, restated 2026-08-30: "3 slices:
+// left rail, main content, right rail... Right rail on large screens, bottom sheet on medium and
+// small. Not from sides."). This used to also support `direction: 'right'`, a side-docked edge
+// sheet — that variant is DELETED, not merely unused: no side-docked drawer geometry survives
+// anywhere in the console (`theme.css`'s `sheet-panel` carries only the `down` swipe-direction
+// branch now). `DetailSheet` — the component that used to own the RIGHT-docked, always-420px
+// version of row detail — is gone with it; every one of its former callers
+// (`projects-centre.tsx`, `admin-centre.tsx`, `project-settings-centre.tsx`) renders THIS
+// component instead, below `lg` only where a persistent rail isn't the detail surface
+// (`portalClassName="lg:hidden"` — see `types.ts`'s own doc comment on why that prop, not a
+// wrapper class, is the correct tier hook for a portalled overlay).
+//
+// It takes the same two shared strings every other overlay in the library takes: the scrim is
+// OVERLAY_BACKDROP_CLASS and the panel is OVERLAY_CLASS. The hairline that comes with the latter
+// is the point, not a side effect. The close affordance is the library's Button, handed to
+// Drawer.Close through `render` so the dismissal is the primitive's rather than a second onClick
+// path.
 export function BottomSheet({
   open,
   onOpenChange,
   title,
+  subtitle,
   children,
-  direction = 'bottom',
+  headerAction,
+  footer,
   className,
-  overlayClassName,
+  portalClassName,
 }: BottomSheetProps) {
-  const isBottom = direction === 'bottom';
-
-  const contentClassName = cn(
-    'fixed z-50 flex flex-col bg-surface outline-hidden',
-    isBottom
-      ? 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-[2px]'
-      : 'inset-y-0 right-0 h-full w-[85vw] max-w-[320px] rounded-l-[2px]',
-    className,
-  );
-
-  const handle = isBottom ? (
-    <div className="flex justify-center pt-2">
-      <Drawer.Handle className="h-[3px] w-8 rounded-[2px] bg-raised" />
-    </div>
-  ) : null;
-
   const titleLabel = title ? (
-    <Drawer.Title className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
-      {title}
-    </Drawer.Title>
+    <Drawer.Title className={SECTION_TITLE_CLASS}>{title}</Drawer.Title>
   ) : (
     <Drawer.Title className="sr-only">Drawer</Drawer.Title>
   );
 
-  const description = (
-    <Drawer.Description className="sr-only">
-      {title ? `${title} drawer` : 'Drawer content'}
-    </Drawer.Description>
-  );
-
-  const closeButton = (
-    <button
-      type="button"
-      aria-label="Close"
-      onClick={() => onOpenChange(false)}
-      className="font-mono text-sm leading-none text-subtle hover:text-ink"
-    >
-      ×
-    </button>
-  );
-
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange} direction={direction}>
-      <Drawer.Portal>
-        <Drawer.Overlay className={cn('fixed inset-0 z-40 bg-muted/80', overlayClassName)} />
-        <Drawer.Content className={contentClassName}>
-          <div className="flex shrink-0 flex-col gap-1">
-            {handle}
-            <div className="flex items-center justify-between px-4 py-2">
-              {titleLabel}
-              {closeButton}
+    <Drawer.Root open={open} onOpenChange={(nextOpen) => onOpenChange(nextOpen)} swipeDirection="down">
+      <Drawer.Portal className={portalClassName}>
+        <Drawer.Backdrop className={OVERLAY_BACKDROP_CLASS} />
+        {/* The viewport is Base UI's swipe and scroll-lock host and is required around the popup,
+            but it must not become a box of its own: a full-screen viewport would swallow presses
+            meant for the page. `display: contents` gives it no box at all, and the panel keeps
+            its own `position: fixed`. */}
+        <Drawer.Viewport className="contents">
+          <Drawer.Popup className={cn('sheet-panel', OVERLAY_CLASS, className)}>
+            {/* Base UI ships no grab-bar part (`Drawer.Handle` is the imperative handle object for
+                detached triggers, not an element), so this is ours. Always rendered now that
+                bottom is the only direction. */}
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <div className="sheet-header-title">
+                {titleLabel}
+                {subtitle ? <Drawer.Description className={META_CLASS}>{subtitle}</Drawer.Description> : null}
+              </div>
+              <div className="sheet-header-actions">
+                {/* Addition E (2026-08-30 owner round): "primary action (Rename) as a small
+                    secondary button IN THE HEADER row, never a stranded footer button" — grouped
+                    with Close, not `footer`, which stays for content that genuinely belongs at
+                    the sheet's foot (a decision panel's own Approve/Decline). */}
+                {headerAction}
+                {/* The × reads as chrome rather than as an action — `subtle` until pointed at.
+                    That pair is `sheet-header`'s, not this call site's: it is what the header's
+                    trailing control IS, and stating it here made a two-part treatment that only
+                    ever appears inside this one header look like a prop of the button. */}
+                <Drawer.Close render={<Button variant="ghost" size="icon" aria-label="Close" />}>
+                  ×
+                </Drawer.Close>
+              </div>
             </div>
-            {description}
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
-        </Drawer.Content>
+            {!subtitle ? (
+              <Drawer.Description className="sr-only">
+                {title ? `${title} drawer` : 'Drawer content'}
+              </Drawer.Description>
+            ) : null}
+            {/* Drawer.Content, not a plain div: it marks the scrollable region so a drag that
+                starts inside the body scrolls it instead of dismissing the sheet. */}
+            <Drawer.Content className="sheet-body">{children}</Drawer.Content>
+            {footer ? <div className="sheet-footer">{footer}</div> : null}
+          </Drawer.Popup>
+        </Drawer.Viewport>
       </Drawer.Portal>
     </Drawer.Root>
   );

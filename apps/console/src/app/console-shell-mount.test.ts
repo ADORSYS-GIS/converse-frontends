@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +14,11 @@ import { describe, expect, it } from 'vitest';
  * rebuilt the entire chrome, no shell state could survive a route change, and every route bundled
  * the whole shell.
  *
+ * Shell revamp phase 2 (2026-08-30): `ConsoleHeader`/`ConsoleHeaderBar` are deleted along with the
+ * header band — the persistent chrome is now `ConsoleSidebarContent`/`ConsoleTopBarContent`
+ * (`client/console-chrome.tsx`), composed into `ConsoleShell`'s `sidebar`/`topBar` slots. The
+ * mount-once invariant is unchanged; only the names of what must be mounted exactly once changed.
+ *
  * This is a source-shape assertion, not a render test, precisely because the property is about
  * the ROUTE TREE rather than about any one component's output — and because the runtime half of
  * the same claim (the nav DOM node surviving a content swap by object identity) is checked
@@ -25,7 +30,7 @@ const CONSOLE_GROUP = join(APP_DIR, '(console)');
 const SRC_DIR = join(__dirname, '..');
 
 const SHELL_IMPORT = /components\/console-shell/;
-const HEADER_MOUNTS = /<ConsoleHeaderBar|components\/console-header/;
+const CHROME_MOUNTS = /ConsoleSidebarContent|ConsoleTopBarContent/;
 const NAV_MOUNTS = /components\/nav-spine/;
 
 function walk(dir: string): string[] {
@@ -52,14 +57,15 @@ describe('console shell mounting', () => {
     expect(mounts[0]).toBe(join(CONSOLE_GROUP, 'layout.tsx'));
   });
 
-  it('mounts the header and the nav spine only from that same layout', () => {
-    const headerMounts = srcFiles.filter(
-      (file) => HEADER_MOUNTS.test(read(file)) && !file.endsWith('console-chrome.tsx')
+  it('mounts the sidebar/top-bar chrome only from that same layout', () => {
+    const chromeMounts = srcFiles.filter(
+      (file) => CHROME_MOUNTS.test(read(file)) && !file.endsWith('console-chrome.tsx')
     );
     const navMounts = srcFiles.filter((file) => NAV_MOUNTS.test(read(file)));
 
-    expect(headerMounts).toEqual([join(CONSOLE_GROUP, 'layout.tsx')]);
-    // `console-chrome.tsx` only builds `NavSpineItem[]` data — a type-only import, which erases.
+    expect(chromeMounts).toEqual([join(CONSOLE_GROUP, 'layout.tsx')]);
+    // `console-chrome.tsx` only imports `ConsoleSidebar`/`ConsoleTopBar` (the `ui-web` primitives)
+    // and `NavGroup` (a type-only import, which erases) — never `nav-spine` directly.
     expect(navMounts).toEqual([]);
   });
 
@@ -74,42 +80,6 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gives both parallel-route slots a default, so a rail-less route renders rather than 404s', () => {
-    const defaults = appFiles.filter((file) => file.endsWith('default.tsx'));
-
-    expect(defaults.sort()).toEqual(
-      [
-        join(CONSOLE_GROUP, '@rail', 'default.tsx'),
-        join(CONSOLE_GROUP, '@scope', 'default.tsx'),
-      ].sort()
-    );
-  });
-
-  it('provides a @rail and a @scope segment for every centre route in the group', () => {
-    const centreRoutes = appFiles
-      .filter((file) => file.startsWith(CONSOLE_GROUP) && file.endsWith('page.tsx'))
-      .filter((file) => !file.includes('@rail') && !file.includes('@scope'))
-      .map((file) => file.slice(CONSOLE_GROUP.length + 1));
-
-    expect(centreRoutes.sort()).toEqual(
-      [
-        'page.tsx',
-        join('admin', 'page.tsx'),
-        join('api-keys', 'page.tsx'),
-        join('manage', 'page.tsx'),
-      ].sort()
-    );
-
-    for (const route of centreRoutes) {
-      for (const slot of ['@rail', '@scope']) {
-        expect(
-          appFiles.includes(join(CONSOLE_GROUP, slot, route)),
-          `${slot} is missing a segment for ${route}`
-        ).toBe(true);
-      }
-    }
-  });
-
   it('keeps the auth routes outside the (console) group, so they get no shell', () => {
     const authPages = appFiles.filter((file) => file.includes(join('app', 'auth')));
 
@@ -119,16 +89,91 @@ describe('console shell mounting', () => {
     }
   });
 
-  it('gates every /admin segment — centre and both slots — server-side on the admin role', () => {
-    const adminSegments = appFiles.filter(
-      (file) => file.startsWith(CONSOLE_GROUP) && file.includes(`${'admin'}${'/'}page.tsx`)
-    );
+  it('gates /admin/refills-queue server-side on the admin role', () => {
+    // This route has moved twice: `/admin` (pre-IA-v3) -> `/settings/refills-queue` (IA v3
+    // phase 2, `git mv`, gate kept verbatim) -> `/admin/refills-queue` (ADR 0013's same-day "the
+    // admin area" amendment, another `git mv`) — `admin-refills-queue-route-gate.test.ts` is the
+    // full row-by-row guard for this route; this is only the same one-line structural smoke check
+    // every OTHER test in this file already gives every other shell-mounting concern.
+    const source = read(join(CONSOLE_GROUP, 'admin', 'refills-queue', 'page.tsx'));
 
-    expect(adminSegments).toHaveLength(3);
-    for (const segment of adminSegments) {
-      const source = read(segment);
-      expect(source, `${segment} must read the session server-side`).toContain('readSession');
-      expect(source, `${segment} must 404 a non-admin`).toContain('notFound()');
-    }
+    expect(source, 'refills-queue/page.tsx must read the session server-side').toContain(
+      'readSession'
+    );
+    expect(source, 'refills-queue/page.tsx must 404 a non-admin').toContain('notFound()');
+  });
+
+  it('gates /admin/overview server-side on the admin role', () => {
+    // The admin area's other real route (ADR 0013's same-day "the admin area" amendment) —
+    // `admin-overview-route-gate.test.ts` is the full guard; same smoke-check shape as above.
+    const source = read(join(CONSOLE_GROUP, 'admin', 'overview', 'page.tsx'));
+
+    expect(source, 'admin/overview/page.tsx must read the session server-side').toContain(
+      'readSession'
+    );
+    expect(source, 'admin/overview/page.tsx must 404 a non-admin').toContain('notFound()');
+  });
+
+  /**
+   * IA v3 phase 2 ("the settings area") — the settings area's own version of the account-area
+   * check two tests below: `settings/layout.tsx` is a nested layout strictly BELOW the
+   * shell-mounting `(console)/layout.tsx`, so crossing INTO or OUT OF `/settings/*` (a client-side
+   * navigation, same mechanism as an account switch) cannot remount the shell either — there is no
+   * file where a shell mount and this layout coexist for a remount to be possible. Combined with
+   * the very first test in this file (`ConsoleShell` mounts in exactly one place, and it's the
+   * ancestor layout), this is what makes "one shell, two nav surfaces, zero remounts" true by
+   * construction across an area crossing, not only across an account switch.
+   */
+  it('keeps the settings area strictly below the shell-mounting layout, so crossing into it cannot remount the shell', () => {
+    const settingsLayout = join(CONSOLE_GROUP, 'settings', 'layout.tsx');
+    expect(existsSync(settingsLayout), 'settings/layout.tsx must exist').toBe(true);
+
+    const source = read(settingsLayout);
+    expect(
+      SHELL_IMPORT.test(source),
+      'settings/layout.tsx must not mount ConsoleShell — that stays the ancestor ' +
+        "(console)/layout.tsx's job, which is what keeps it from remounting on an area crossing"
+    ).toBe(false);
+    expect(
+      CHROME_MOUNTS.test(source),
+      'settings/layout.tsx must not mount ConsoleSidebarContent/ConsoleTopBarContent either — ' +
+        'it renders {children} only'
+    ).toBe(false);
+  });
+
+  /**
+   * IA v3 phase 1 ("account into the path") — the deliverable's own acceptance criterion: "the
+   * shell does NOT remount on account switch." `ConsoleShell` mounts exactly once, in
+   * `(console)/layout.tsx` — the FIRST test in this file already proves that in isolation.
+   * `/accounts/[accountId]/layout.tsx` is a nested layout strictly BELOW it in the route tree, so
+   * by the App Router's own routing model a change to the `[accountId]` dynamic segment can only
+   * re-render/remount `accounts/[accountId]/layout.tsx` and what's inside it — it structurally
+   * cannot touch an ANCESTOR layout. Combined, these two facts are what make "the shell survives
+   * an account switch" true by construction rather than by convention: there is no file where a
+   * shell mount and the `[accountId]` segment coexist for a remount to even be possible.
+   *
+   * The second half checks the actual account-switch TRIGGER — the workspace switcher
+   * (`console-chrome.tsx`'s `onSelectAccount`) — uses client-side navigation (`router.push`,
+   * `next/navigation`) rather than a hard browser navigation (`window.location`, a plain `<a>`),
+   * which is what would force a full document reload and remount everything, shell included, even
+   * though the shell itself never re-mounts on the SPA-navigation path this asserts is the one
+   * actually wired up.
+   */
+  it('keeps the [accountId] segment strictly below the shell-mounting layout, so switching account cannot remount it', () => {
+    const accountLayout = join(CONSOLE_GROUP, 'accounts', '[accountId]', 'layout.tsx');
+    expect(existsSync(accountLayout), 'accounts/[accountId]/layout.tsx must exist').toBe(true);
+
+    const source = read(accountLayout);
+    expect(
+      SHELL_IMPORT.test(source),
+      'accounts/[accountId]/layout.tsx must not mount ConsoleShell — that stays the ancestor ' +
+        "(console)/layout.tsx's job, which is what keeps it from remounting on account switch"
+    ).toBe(false);
+  });
+
+  it('switches account via client-side navigation (router.push), never a hard reload', () => {
+    const chrome = read(join(SRC_DIR, 'client', 'console-chrome.tsx'));
+    expect(chrome).toMatch(/onSelectAccount:\s*\([^)]*\)\s*=>\s*\{[\s\S]*?router\.push/);
+    expect(chrome).not.toContain('window.location');
   });
 });

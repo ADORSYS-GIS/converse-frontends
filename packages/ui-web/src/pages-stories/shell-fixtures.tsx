@@ -1,27 +1,36 @@
-// Shell chrome for the page-level stories — the nav spine's items, the header identity slot and
-// the section sub-navs, in one place.
+// Shell chrome for the page-level stories — the nav groups, the sidebar/top-bar brand and
+// workspace-switcher slots, and the section sub-navs, in one place.
 //
 // These are STORYBOOK-ONLY fixtures. They are never exported from `src/index.ts`: in the real app
 // the same data comes from `apps/console`'s own route table and session (console-ui skill
 // "Composition" — the shell mounts once, in the console's persistent layout).
+//
+// Shell brief (2026-08-30): `ConsoleHeader` is gone, replaced by `ConsoleSidebar` (persistent
+// `md`+ column, brand/switcher/nav/footer) and `ConsoleTopBar` (mobile/tablet 48px band). This
+// file builds both from the same brand/switcher fixtures so the two chrome forms stay visually
+// consistent across every page story.
 
 import React, { useState } from 'react';
 
-import { AccountMenu } from '../components/account-menu';
-import { ConsoleHeader } from '../components/console-header';
-import type { NavSpineItem } from '../components/nav-spine';
+import { AccountBadge } from '../components/account-badge';
+import { Button } from '../components/button';
+import { ConsoleSidebar } from '../sections/console-sidebar';
+import { ConsoleTopBar } from '../components/console-top-bar';
+import type { NavGroup, NavSpineItem } from '../components/nav-spine';
+import { SearchIcon, SignOutIcon } from '../lib/icons';
+import { RAIL_ICON_COLUMN_CLASS } from '../lib/rail-grid';
 import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
-import type { SubNavItem } from '../components/sub-nav';
 
-export type StoryRoute = 'overview' | 'api-keys' | 'manage' | 'admin';
+export type StoryRoute = 'overview' | 'api-keys' | 'settings' | 'admin';
 
 /** 10px line glyphs — structural markers, never decoration (console-ui skill). */
 function NavGlyph({ shape }: { shape: StoryRoute }) {
   const paths: Record<StoryRoute, string> = {
     overview: 'M1 9V4m3 5V1m3 8V6m3 3V3',
     'api-keys': 'M1 5h4M7 5a2 2 0 1 0 0 .01M5 5v2',
-    manage: 'M1 2h8M1 5h8M1 8h5',
+    // Two rails with an offset knob on each — the settings glyph, same 10px line vocabulary.
+    settings: 'M1 3h8M1 7h8M4 1.5v3M6.5 5.5v3',
     admin: 'M5 1 1 3v3c0 2 4 3 4 3s4-1 4-3V3Z',
   };
   return (
@@ -31,7 +40,10 @@ function NavGlyph({ shape }: { shape: StoryRoute }) {
   );
 }
 
-export function storyNavItems(active: StoryRoute): NavSpineItem[] {
+/** IA v3 phase E ("the settings/accounts move"): the Workspace group narrows to Overview/API
+ *  keys — Projects moved to `/settings/accounts/<id>/projects`, off the account area entirely
+ *  (`console-chrome.tsx`'s own `navGroups`). */
+function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
   return [
     {
       key: 'overview',
@@ -41,62 +53,182 @@ export function storyNavItems(active: StoryRoute): NavSpineItem[] {
     },
     {
       key: 'api-keys',
-      label: 'Api-Keys',
+      label: 'API keys',
       icon: <NavGlyph shape="api-keys" />,
       active: active === 'api-keys',
     },
-    { key: 'manage', label: 'Manage', icon: <NavGlyph shape="manage" />, active: active === 'manage' },
+    {
+      key: 'settings',
+      label: 'Settings',
+      icon: <NavGlyph shape="settings" />,
+      active: active === 'settings',
+    },
   ];
 }
 
-export function storyAdminNavItems(active: StoryRoute): NavSpineItem[] {
-  return [
-    {
+/**
+ * The nav items every page story's `ConsoleSidebar` renders — ONE flat group, no separate
+ * "Operator" group any more (owner review round 2, 2026-08-31, converse-frontends#368 finding #1,
+ * verbatim: "Which button leads to the admin pages? ... Please remove that. Instead, inside of
+ * the settings, place a permission gated button 'Admin' that leads to admin."). The gated "Admin"
+ * row is appended to the flat item list — matching `settingsNavGroups`' own real shape, which is
+ * one ungrouped list with "Admin" as its own last, isAdmin-gated row, not a labelled group — and
+ * only when `active` is `'settings'` or `'admin'`: the account area's own rail (`'overview'`/
+ * `'api-keys'`) never shows it at all any more, gated role or not, since the real `navGroups` no
+ * longer has anywhere for it to go there (see `console-chrome.tsx`'s own doc comment).
+ */
+export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] {
+  const items = storyPrimaryItems(active);
+  if (isAdmin && (active === 'settings' || active === 'admin')) {
+    items.push({
       key: 'admin',
       label: 'Admin',
       icon: <NavGlyph shape="admin" />,
       active: active === 'admin',
-    },
-  ];
+    });
+  }
+  return [{ key: 'primary', items }];
 }
 
-// `ThemeToggle` beside `AccountMenu`, both driven by one shared preference -- mirrors
-// `apps/console/src/client/console-chrome.tsx`'s `ConsoleIdentity`, whose single `useConsoleTheme`
-// instance is what actually keeps the header quick-cycle and the menu's Dark/Light/System entries
-// in sync for real.
-function StoryIdentity() {
+// The sidebar footer stack -- Search, Theme, then the identity row -- mirrors
+// `apps/console/src/client/console-chrome.tsx`'s `ConsoleSidebarContent` exactly: Search's icon
+// sits in the same `RAIL_ICON_COLUMN_CLASS` (16px) column `NavSpine`'s rows use. The standalone
+// Theme row is back (owner finding, 2026-08-31: "I don't see the usage, for the theme to be
+// hidden behind the account dropdown. Please put it outside") -- `ThemeToggle` is the only place
+// the preference is edited. The identity row below no longer opens a menu at all (owner ruling,
+// 2026-08-31, issue #368: "We don't need a drop down for the connected user, since it's in the
+// left rail" -- `AccountMenu` is deleted outright): it is the SAME icon-column/label/trailing-
+// control shape as the Theme row above it, with a plain trailing `Button` for the one row-scoped
+// action (sign out) instead of a click-to-discover popup.
+function StoryFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
-    <div className="flex items-center gap-4">
-      <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-      <AccountMenu
-        name="Sam Lambou"
-        email="sam@adorsys.com"
-        initials="SL"
-        onSignOut={() => {}}
-        theme={preference}
-        onThemeChange={setPreference}
-      />
-    </div>
+    <>
+      <button type="button" className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+          <SearchIcon />
+        </span>
+        <span className="text-subtle font-sans text-[13px]">Search</span>
+        <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
+      </button>
+      <div className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+        <span className="text-subtle font-sans text-[13px]">Theme</span>
+        <ThemeToggle
+          preference={preference}
+          onPreferenceChange={setPreference}
+          className="ml-auto"
+        />
+      </div>
+      <div className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
+          <span aria-hidden="true" className="avatar-chip-sm">
+            SL
+          </span>
+        </span>
+        <span className="rail-row-label text-soft text-[13px]">Sam Lambou</span>
+        <Button variant="ghost" size="icon" aria-label="Sign out" className="ml-auto">
+          <SignOutIcon />
+        </Button>
+      </div>
+    </>
   );
 }
 
-export const storyHeader = (
-  <ConsoleHeader
-    orgSwitcher={<span className="font-mono text-xs text-soft">adorsys-gis</span>}
-    identity={<StoryIdentity />}
+// The compact `ConsoleTopBar` equivalent of `StoryFooter`'s Theme row — real `apps/console`
+// (`ConsoleTopBarContent`) renders exactly `ThemeToggle` alone here now, no identity avatar at
+// all: the `AccountMenu` `inline` variant that used to sit beside it is deleted (same ruling as
+// `StoryFooter`'s comment above). Sign out stays reachable below `md` via the `⌘K` palette.
+function StoryTopBarTrailing() {
+  const [preference, setPreference] = useState<ThemeTogglePreference>('black');
+  return <ThemeToggle preference={preference} onPreferenceChange={setPreference} />;
+}
+
+// The sidebar/top-bar's ONLY rendering of "which account am I in" (owner review 2026-08-29) —
+// hence a real `AccountBadge` here rather than a bare `<span>`. The story id is the same UUID
+// production serves, so the fallback path stays honest: the badge shows a name when the account
+// has one and `acct_49534505` when it does not, never the raw 36 characters.
+export const STORY_ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
+
+// A tiny brand fixture standing in for `ConsoleSidebar`/`ConsoleTopBar`'s real `BRAND` constant
+// (`apps/console/src/client/console-chrome.tsx`) — these are Storybook fixtures, not production
+// chrome, so a plain marker is enough; it does not need the real mark's exact path. It DOES need
+// to match the real mark's two owner-mandated behaviours (2026-08-31, issue #368) since a page
+// story is the acceptance surface for what a screen renders: a link to `/`, and no visible
+// "Lightbridge" wordmark now that a logo renders (the accessible name moves to the link's own
+// `aria-label` instead).
+export const storyBrand = (
+  <a href="/" aria-label="Lightbridge — go to console home" className="header-brand focus-ring">
+    <span aria-hidden="true" className="text-ink inline-flex items-center">
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+        <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" />
+      </svg>
+    </span>
+  </a>
+);
+
+export const storyWorkspaceSwitcher = (
+  <AccountBadge
+    variant="sidebar"
+    initials="AG"
+    name="adorsys-gis"
+    accountId={STORY_ACCOUNT_ID}
+    onCopyId={() => {}}
+    onCreateAccount={() => {}}
   />
 );
 
-export const manageSubNavItems: SubNavItem[] = [
-  { key: 'projects', label: 'Projects', count: 24, active: true },
-  { key: 'accounts', label: 'Accounts', count: 3 },
-  { key: 'budgets', label: 'Budgets', count: 24 },
-  { key: 'members', label: 'Members', count: 17 },
-];
+/** The same switcher with an UNNAMED account — the state production is actually in today. */
+export const storyWorkspaceSwitcherUnnamed = (
+  <AccountBadge
+    variant="sidebar"
+    accountId={STORY_ACCOUNT_ID}
+    onCopyId={() => {}}
+    onCreateAccount={() => {}}
+  />
+);
 
-export const adminSubNavItems: SubNavItem[] = [
-  { key: 'budget-review', label: 'Budget review', count: 4, active: true },
-  { key: 'org-config', label: 'Org config' },
-  { key: 'roles', label: 'Roles', count: 3 },
-];
+export const storyTopBarWorkspaceSwitcher = (
+  <AccountBadge
+    name="adorsys-gis"
+    accountId={STORY_ACCOUNT_ID}
+    onCopyId={() => {}}
+    onCreateAccount={() => {}}
+  />
+);
+
+export const storyTopBarWorkspaceSwitcherUnnamed = (
+  <AccountBadge accountId={STORY_ACCOUNT_ID} onCopyId={() => {}} onCreateAccount={() => {}} />
+);
+
+/**
+ * A fully-composed `ConsoleSidebar` for a page story — the `sidebar` prop every `ConsoleShell` in
+ * `pages-stories/` and `refine-mock/` now takes. `unnamed` swaps in the unnamed-account switcher
+ * fixture (`storyHeaderUnnamed`'s old job).
+ */
+export function storySidebar(
+  active: StoryRoute,
+  { isAdmin = false, unnamed = false }: { isAdmin?: boolean; unnamed?: boolean } = {}
+) {
+  return (
+    <ConsoleSidebar
+      brand={storyBrand}
+      workspaceSwitcher={unnamed ? storyWorkspaceSwitcherUnnamed : storyWorkspaceSwitcher}
+      groups={storyNavGroups(active, isAdmin)}
+      footer={<StoryFooter />}
+    />
+  );
+}
+
+/** A fully-composed `ConsoleTopBar` for a page story — the `topBar` prop `ConsoleShell` takes. */
+export function storyTopBar({ unnamed = false }: { unnamed?: boolean } = {}) {
+  return (
+    <ConsoleTopBar
+      brand={storyBrand}
+      workspaceSwitcher={
+        unnamed ? storyTopBarWorkspaceSwitcherUnnamed : storyTopBarWorkspaceSwitcher
+      }
+      trailing={<StoryTopBarTrailing />}
+    />
+  );
+}

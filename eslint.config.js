@@ -29,4 +29,24 @@ module.exports = defineConfig([
       'react/display-name': 'off',
     },
   },
+  {
+    // `apps/authz-ui` imports `virtual:pwa-register` (vite-plugin-pwa) -- a bundler-virtual
+    // specifier that only exists once Vite's dev server or build resolves it; there is no file
+    // on disk for any resolver to find. `tsc` accepts it because the app's `tsconfig.json`
+    // `types` array includes `vite-plugin-pwa/client`, whose ambient `declare module
+    // 'virtual:pwa-register'` types the import -- confirmed by `tsc --noEmit -p
+    // apps/authz-ui/tsconfig.json` passing clean. `eslint-import-resolver-typescript` does not
+    // replicate that resolution (it resolves per-file, not through a full `tsc` program, so a
+    // `types`-only ambient declaration never reaching `include` is invisible to it), so
+    // `import/no-unresolved` reports a false positive here. Same shape as the `import/ignore`
+    // entry `eslint-config-expo/flat` itself carries for react-native's Flow-typed main module
+    // (its utils/core.js) -- a specifier that is real and correct but that no static resolver
+    // can walk to. Verified live at HEAD: removing this block makes
+    // `eslint apps/authz-ui/**/*.{ts,tsx}` report `Unable to resolve path to module
+    // 'virtual:pwa-register'`, so this is a working suppression, not residue.
+    files: ['apps/authz-ui/**/*.{ts,tsx}'],
+    rules: {
+      'import/no-unresolved': ['error', { ignore: ['^virtual:pwa-register$'] }],
+    },
+  },
 ]);

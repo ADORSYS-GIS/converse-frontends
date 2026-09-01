@@ -70,7 +70,8 @@ async function forward(
   headers: Headers,
   body: ArrayBuffer | undefined,
   accessToken: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  dispatcher?: unknown
 ): Promise<Response> {
   const upstreamHeaders = new Headers(headers);
   upstreamHeaders.set('Authorization', `Bearer ${accessToken}`);
@@ -82,12 +83,23 @@ async function forward(
     // Never let a redirect from a backend turn into a request the console did not intend.
     redirect: 'manual',
     cache: 'no-store',
-  });
+    // `dispatcher` is undici's, not the WHATWG `RequestInit`'s, so it needs the cast -- Node's
+    // global fetch IS undici and honours it. Present only for the usage backend, whose query
+    // listener requires a client certificate; every other proxy call leaves it undefined and so
+    // presents no client identity at all.
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit);
 }
 
 export type ProxyOptions = {
   /** Resolves the upstream URL. Throws `InvalidProxyPathError` for a rejected path. */
   resolveTarget: () => string;
+  /**
+   * undici dispatcher for the upstream call. Only the usage proxy sets one (its backend's query
+   * listener requires mTLS); leaving it undefined is what keeps the console from presenting a
+   * client certificate to backends that never asked for one.
+   */
+  dispatcher?: unknown;
 };
 
 /**
@@ -98,7 +110,7 @@ export type ProxyOptions = {
  */
 export async function proxyRequest(
   request: NextRequest,
-  { resolveTarget }: ProxyOptions
+  { resolveTarget, dispatcher }: ProxyOptions
 ): Promise<NextResponse> {
   let targetUrl: string;
   try {
@@ -155,7 +167,8 @@ export async function proxyRequest(
       headers,
       body,
       session.tokens.accessToken,
-      request.signal
+      request.signal,
+      dispatcher
     );
   } catch (error) {
     console.error('[console] Upstream request failed:', error);
@@ -192,12 +205,40 @@ export async function proxyRequest(
         headers,
         body,
         session.tokens.accessToken,
-        request.signal
+        request.signal,
+        // MUST be passed here too. This is the reactive-401 retry, and dropping the dispatcher
+        // would send the retry without the client certificate -- so any usage query that happened
+        // to land on an expiring token would fail the TLS handshake instead of succeeding with the
+        // refreshed one. The two call sites differ only in which token they carry.
+        dispatcher
       );
     } catch (error) {
       console.error('[console] Upstream retry failed:', error);
       return noStore(NextResponse.json({ error: 'upstream_unreachable' }, { status: 502 }));
     }
+  }
+
+  // A 401 that survives to here means the access token was refused and could NOT be replaced:
+  // either there was no refresh token to use, or the single reactive retry already ran and the
+  // fresh token was refused too, or a cooldown from an earlier failure suppressed the attempt.
+  // Whichever it was, this session cannot make an authorized call again, so forwarding the
+  // upstream 401 verbatim strands the browser: the cookie still decrypts, `/api/session` still
+  // answers `authenticated: true`, and every request 401s indefinitely while the UI renders as a
+  // signed-in app. Observed in production 2026-08-29 — authz logged
+  // `JWT error: ExpiredSignature` in a loop while the console kept resending the dead token,
+  // because both refresh predicates short-circuit on a missing `refreshToken` and neither the
+  // clear nor the retry ever ran.
+  //
+  // Clearing the cookie converts that dead end into the recoverable state the client already
+  // knows how to handle: `session_expired` is exactly the signal `/auth/login` acts on, and the
+  // IdP session is usually still live, so the next navigation re-authenticates silently.
+  //
+  // Deliberately NOT applied to 403: authz fail-closes an unauthorized *operation* to 403
+  // (`rpc_authorize`), which says nothing about the token's validity — ending the session there
+  // would sign a user out for opening a page they simply cannot use.
+  if (upstream.status === 401) {
+    await upstream.body?.cancel().catch(() => undefined);
+    return sessionExpired();
   }
 
   const response = new NextResponse(upstream.body, {

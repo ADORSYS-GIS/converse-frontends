@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "converse-console values",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "app": { "type": "string" },
+            "team": { "type": "string" }
+          }
+        }
+      }
+    },
+    "console": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "controllers": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "main": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "containers": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "frontend": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "image": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "repository": { "type": "string", "minLength": 1 },
+                            "tag": { "type": "string", "minLength": 1 }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": ["frontend"]
+                }
+              },
+              "required": ["containers"]
+            }
+          },
+          "required": ["main"]
+        },
+        "configMaps": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "console-config": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "config.yaml": {
+                      "description": "The full apps/console config.yaml document for this deployment (server.js's config-loader.ts reads it -- see that file's header comment for the {env:VAR} placeholder syntax it supports). A real deployment supplies its own complete document here (its own Keycloak issuer, backend URLs, etc. as plain literals; secrets as {env:VAR} placeholders backed by a mounted Secret) rather than overriding individual fields.",
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["config.yaml"]
+                }
+              },
+              "required": ["data"]
+            },
+            "branding-logo": {
+              "description": "issue #368 (Phase H, runtime white-label branding). Optional -- disabled (console.configMaps.branding-logo.enabled: false) by default, unlike console-config. Holds the operator's logo file as base64 binaryData (app-template's own values schema forbids a ConfigMap entry from carrying both data and binaryData in one resource, hence a separate configMap from branding-style below -- see values.yaml's own comment on persistence.branding-logo).",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo.png": {
+                      "description": "Base64-encoded logo file, mounted at /tmp/branding/logo.png (console.persistence.branding-logo). Despite the literal key name, any of the extensions apps/console's env.ts accepts (.png/.svg/.jpg/.jpeg/.webp) may be supplied here -- the key is the ConfigMap's, not a format constraint; config.yaml's own branding.logo path decides the actual served Content-Type.",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "branding-logo-light": {
+              "description": "Per-theme logos addendum (owner directive 2026-08-31, \"White is for dark themes\"). Optional -- disabled by default, matching branding-logo above. Holds the operator's light-theme (wireframe) logo file as base64 binaryData, the light-theme counterpart to branding-logo (config.yaml's branding.logo doubles as both the default AND dark-theme mark). Only meaningful when branding-logo is ALSO enabled -- apps/console's env.ts fails config parsing on a branding.logoLight-without-branding.logo document.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo-light.png": {
+                      "description": "Base64-encoded light-theme logo file, mounted at /tmp/branding/logo-light.png (console.persistence.branding-logo-light). Despite the literal key name, any of the extensions apps/console's env.ts accepts (.png/.svg/.jpg/.jpeg/.webp) may be supplied here -- the key is the ConfigMap's, not a format constraint; config.yaml's own branding.logoLight path decides the actual served Content-Type.",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "branding-style": {
+              "description": "issue #368 (Phase H). Optional -- disabled by default, matching branding-logo above. Holds the operator's daisyUI custom-property override stylesheet as plain text (GET /branding/override.css filters it server-side -- see apps/console/src/server/branding-css-filter.ts).",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "data": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "override.style": {
+                      "description": "CSS custom-property overrides (:root / [data-theme=\"...\"] blocks only), mounted at /tmp/branding/override.style (console.persistence.branding-style).",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": ["console-config"]
+        }
+      },
+      "required": ["controllers", "configMaps"]
+    }
+  },
+  "required": ["console"]
+}

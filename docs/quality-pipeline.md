@@ -194,8 +194,8 @@ node .ci/quality/scripts/eslint-to-sarif.js eslint-raw.json > eslint.sarif
 # TypeScript — no root tsconfig.json exists, so each workspace's tsconfig
 # must be checked explicitly. Bare `tsc --noEmit` at the repo root has no
 # config to find and just prints the CLI help text (exit 1, zero real checks).
-pnpm exec tsc --noEmit -p apps/self-service/tsconfig.json > tsc-raw.log 2>&1
-pnpm exec tsc --noEmit -p packages/ui/tsconfig.json >> tsc-raw.log 2>&1
+pnpm exec tsc --noEmit -p apps/console/tsconfig.json > tsc-raw.log 2>&1
+pnpm exec tsc --noEmit -p packages/ui-web/tsconfig.json >> tsc-raw.log 2>&1
 node .ci/quality/scripts/typescript-to-sarif.js tsc-raw.log > typescript.sarif
 
 # Prettier (format check)

@@ -11,6 +11,15 @@ mono numerics, one signal accent, status-as-text, flush full-height rails, "a sc
 a distribution gets the floor" all continue to bind. This ADR decides _what libraries produce that
 look with the least hand-written code_, and _where the theme lives_.
 
+**Amended by [ADR 0012](0012-console-visual-revamp.md)** (owner directive 2026-08-30): this
+paragraph's restatement of ADR 0008's radius-2 and flush-full-height-rails doctrine no longer
+holds — radius is now 8px (panels) / 4px (controls), and the flush right rail it describes is
+deleted in favour of a two-column shell (`Card` as the default zone container, `DetailSheet` for
+row detail). Nothing else in this document moves: the daisyUI/Base UI/cmdk/Floating UI primitive
+stack, Tailwind v4, the `theme.css` single-source-of-truth rule, and the two-theme (`black` /
+`wireframe`) model below are all still binding, including the mono-for-numerics rule wherever this
+ADR states it **for data values** — ADR 0012 narrows that to "data only," it does not remove it.
+
 ## Context
 
 `packages/ui-web` today is entirely hand-built: 30 component directories, each with
@@ -74,12 +83,13 @@ So "adopt daisyUI" is not a dependency addition; it is a Tailwind major-version 
 | `@floating-ui/react`        | **0.27.20**     | `>=17.0.0`                     |                                                                 |
 | `radix-ui`                  | **1.6.7**       | `^16.8 \|\| … \|\| ^19.0`      | the unified single-package distribution                         |
 | `tailwindcss`               | **4.3.3**       | n/a                            | `dist-tags`: `latest 4.3.3`, `v3-lts 3.4.19`                    |
-| `vaul`                      | 1.1.2 (in tree) | `^16.8 \|\| … \|\| ^19.0.0`    | dep: `@radix-ui/react-dialog ^1.1.1`                            |
+| `vaul`                      | 1.1.2 (in tree) | `^16.8 \|\| … \|\| ^19.0.0`    | dep: `@radix-ui/react-dialog ^1.1.1` — **removed 2026-08-29**   |
 
 Everything in the proposed stack supports React 19.2.3, which is what the workspace pins.
 
 Note the transitive fact that shapes Decision 2: **Radix is already in this tree**, twice —
-`vaul` and `cmdk` both depend on `@radix-ui/react-dialog`.
+`vaul` and `cmdk` both depend on `@radix-ui/react-dialog`. (Once, since 2026-08-29: `vaul` is
+gone and `cmdk` is the only Radix consumer left.)
 
 ## Decision
 
@@ -166,6 +176,27 @@ Why Base UI wins the authoring slot:
 
 **Escape hatch, recorded so nobody invents a third option:** if Base UI lacks a primitive we need,
 use the unified `radix-ui` package for that one primitive. Do not add a fourth primitive library.
+
+> **SUPERSEDED 2026-08-29 — the drawer is Base UI's, and `vaul` is gone.** What follows in this
+> paragraph was written on 2026-08-25, when Base UI's Drawer was new and unexamined and the owner
+> directive named `vaul`. Owner decision of 2026-08-29: use `@base-ui/react/drawer`. `vaul` is
+> removed from `packages/ui-web/package.json` and imported nowhere; `BottomSheet` — and through it
+> `SectionSheet` and `SelectionSheet` — is `Drawer.Root/Portal/Backdrop/Viewport/Popup/Content/
+Title/Description/Close`. Two consequences worth recording, both read off a live browser rather
+> than inferred:
+>
+> - **Radix now ships under `cmdk` alone.** The "two transitive Radix consumers" below is one.
+> - **The modality is a different mechanism with the same failure mode.** Radix froze the page
+>   with `pointer-events: none` on `<body>`; Base UI leaves `<body>` alone and instead renders
+>   Floating UI's `InternalBackdrop` — an unclassable `position: fixed; inset: 0` press-absorber —
+>   inside `Drawer.Portal`. A tier class must therefore hide the PORTAL: hiding the backdrop and
+>   the panel leaves that layer over a page that looks perfectly normal. The `useIsBelowLg`/`Md`
+>   gate that suppresses `open` itself is unchanged and still the primary defence.
+>
+> One thing genuinely improved: `Drawer.Root`'s `modal` prop is real and honoured, where vaul's
+> never reached the Radix dialog under it. And Base UI ships no grab-bar part, so the sheet handle
+> is our own element — which ended the standing bug where vaul's unlayered runtime `<style>`
+> outranked the console's own handle paint and four `!important`s were holding it back.
 
 **`vaul` stays** as the only drawer/bottom-sheet primitive, per the owner directive and the
 console-ui skill's existing lock. Noted for later, not decided now: Base UI 1.7 ships its own
@@ -301,6 +332,12 @@ has a boundary:**
   `chart-core`'s DOM-free _math_ (`seriesColor`'s accent/rank decision) still comes from
   `@lightbridge/ui` verbatim, exactly as ADR 0009 Decision 5 requires.
 
+> **Status amendment, 2026-08-31 (#368):** the Expo surface named throughout this section —
+> `packages/ui` and `apps/self-service` — was removed in the cutover this section anticipated. The
+> preset single-source rule is therefore whole again, per the last bullet above: `theme.css` is now
+> the repo's only palette source. The body above is left as written for history; it is no longer
+> current.
+
 ### 4. Component-shrink policy
 
 For every **new** and every **rewritten** component in `packages/ui-web`, in this order:
@@ -372,6 +409,26 @@ switch account/project scope, and run the scoped actions the right rail owns. It
 cmdk brings `@radix-ui/react-dialog` transitively — that is the whole of Radix's presence in the
 palette and it stays transitive (Decision 2).
 
+> **Status amendment, 2026-08-31 (#368):** "radius 2" above no longer holds for this panel. Owner
+> review of a Storybook-only restyle batch (`claude/sb-overlay-restyle`) ruled "10px looks good for
+> the command palette" — wired in as the live default (`claude/wire-overlay-restyle`), and extended
+> to every primitive in the same visual family rather than the palette alone: Menu popups (the
+> account switcher, and any other Base UI Menu), Select/Combobox popups, and Popovers all now
+> render at a 10px corner radius too (`--radius-overlay-floating`, `theme.css`;
+> `OVERLAY_FLOATING_CLASS`/`OVERLAY_ANCHORED_POPUP_FLOATING_CLASS`, `lib/overlay.ts`), since they
+> already share this exact `surface`/hairline/no-shadow chrome and a palette-only radius would have
+> read as an inconsistency, not a decision. The exception is scoped to FLOATING overlays only —
+> an anchored popup pointing at a trigger from an arbitrary screen position. Every DOCKED overlay
+> (Dialog, the bottom sheet Drawer, Tooltip) is unaffected and stays at the flush 2px contract:
+> they anchor to a screen edge or centre over the whole viewport rather than pointing at one
+> element, so the "floating" read this exception answers does not apply. See the console-ui
+> skill's "Shape and layout" section for the full, current statement of this rule.
+>
+> Two further, narrower departures shipped in the same batch, reviewed and kept deliberately
+> rather than extended anywhere else: `CommandPalette`'s own group headings render upper-cased
+> (against this ADR's/ADR 0012's sentence-case rule) and its empty-query line renders in
+> `font-mono` (against the "mono is data only" rule) — both scoped to that one component alone.
+
 **Floating UI** replaces the arithmetic in `chart-tooltip`. Two documented pieces do the work:
 
 - A **virtual element** — "a plain object that has a `getBoundingClientRect` method" — is what
@@ -422,8 +479,9 @@ edge.
 
 **Neutral**
 
-- Radix's version surface is now managed by `cmdk` and `vaul` rather than by us. If we ever need
-  a Radix primitive directly, Decision 2's escape hatch says use `radix-ui`, not a fourth library.
+- Radix's version surface is now managed by `cmdk` and `vaul` rather than by us (by `cmdk` alone
+  since the 2026-08-29 drawer swap). If we ever need a Radix primitive directly, Decision 2's
+  escape hatch says use `radix-ui`, not a fourth library.
 
 ## Alternatives considered
 
@@ -442,7 +500,9 @@ edge.
   second theme is precisely the work daisy's `[data-theme]` machinery removes.
 - **Base UI Drawer instead of `vaul`, now.** Deferred to phase 5 — the directive keeps `vaul`, and
   swapping the drawer primitive in the same change as a Tailwind major is more risk than the
-  saving is worth.
+  saving is worth. **Reversed 2026-08-29** (see the note in Decision 2): the objection was about
+  bundling the swap with the Tailwind major, and that major has long landed. Done as its own
+  change, on its own branch, with its own browser verification.
 - **daisy class prefix (`prefix: daisy-`) from day one.** Rejected as pre-emptive; recorded as the
   escape hatch if a real collision appears.
 
@@ -487,9 +547,12 @@ against the Decision 5 table. **Acceptance:** every story in `packages/ui-web` r
 `wireframe` without a hardcoded-dark artifact, and the a11y addon reports no new violations in
 either theme beyond the accepted `subtle`-on-metadata contrast exemption.
 
-**Phase 5 — deferred, not authorized here.** Evaluate replacing `vaul` with Base UI Drawer, which
-would remove one of the two transitive Radix consumers. Requires its own decision; the console-ui
-skill's "all drawers are vaul" lock stands until then.
+**Phase 5 — DONE 2026-08-29, having been deferred here.** Replace `vaul` with Base UI Drawer,
+removing one of the two transitive Radix consumers. Landed with the owner decision recorded in
+Decision 2; the console-ui skill's drawer lock now names Base UI. **Acceptance, all met:** `vaul`
+absent from every `package.json` and imported nowhere; the `lg`/`md` gates verified in a real
+browser across a live resize; the sheet handle's computed style matches the contract in both
+themes with no `!important`; class budget down (307 → 305), not up.
 
 ## References
 

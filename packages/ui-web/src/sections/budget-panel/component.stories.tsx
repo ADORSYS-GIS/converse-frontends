@@ -1,13 +1,16 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SectionSheetTrigger } from '../../components/section-sheet-trigger';
+import { Button } from '../../components/button';
 import { BudgetPanel } from './component';
 import {
   overviewBudget,
   overviewEmptyBudget,
+  overviewErrorBudget,
+  overviewLoadingBudget,
   overviewNeedsAttentionProject,
   overviewRefillRequestStatus,
+  overviewUnwiredBudget,
 } from './fixtures';
 
 const meta: Meta<typeof BudgetPanel> = {
@@ -42,18 +45,56 @@ export const Empty: Story = {
   },
 };
 
-// Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration).
-export const Breached: Story = {
-  args: { budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' } },
+// #273 — Overview's real state today: no budget query client exists yet. Distinct wording and
+// layout from `Empty` above, which is a real wired account with genuinely zero consumption.
+export const Unwired: Story = {
+  args: {
+    budget: overviewUnwiredBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
 };
 
-export const MdTierWithTrigger: Story = {
-  globals: { viewport: { value: 'md900' } },
+// Past the warning threshold — the hero meter's fill turns `primary` (breach, not decoration),
+// and #306's inline `heroAction` sits beside the numeral (ADR 0008 Decision 7). IA v3 phase 3:
+// this button navigates to `/accounts/<id>/refill` rather than opening a dialog — see
+// `heroAction`'s own doc comment.
+export const Breached: Story = {
+  args: {
+    budget: { value: 478.4, ceiling: 500, caption: 'account ceiling · 96% used' },
+    heroAction: <Button size="sm">Request refill</Button>,
+  },
+};
+
+// 2026-08-30 owner round ("budget refill form disappeared"): the standing, always-visible
+// secondary action on the heading row — reachable well before any breach, unlike `heroAction`.
+export const WithStandingRefillAction: Story = {
+  name: 'With the standing "Request refill…" heading action (pre-breach)',
   args: {
     actions: (
-      <SectionSheetTrigger icon="export" triggerLabel="Open export" label="EXPORT">
-        <p className="font-mono text-xs text-ink">Export current view · CSV</p>
-      </SectionSheetTrigger>
+      <Button type="button" variant="secondary" size="sm">
+        Request refill…
+      </Button>
     ),
   },
 };
+
+// #306 — the budget-balance/usage query is in flight.
+export const Loading: Story = {
+  args: {
+    budget: overviewLoadingBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
+};
+
+// #306 — the budget-balance/usage query ran and failed. Distinct from `Unwired`: this account has
+// a real budget, the query for it just failed.
+export const ErrorState: Story = {
+  args: {
+    budget: overviewErrorBudget,
+    needsAttentionProject: undefined,
+    refillRequestStatus: undefined,
+  },
+};
+

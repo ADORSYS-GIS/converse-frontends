@@ -10,9 +10,11 @@ import {
 
 import { ChartAxisBottom, ChartAxisLeft } from '../chart-axis';
 import type { ChartTick } from '../chart-axis';
-import { SPEC_TEXT_MUTED, specSeriesColor } from '../../chart-tokens';
+import { specSeriesColor } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
+import { ChartEmptyMessage } from '../../lib/chart-empty-message';
+import { ChartHitRegion } from '../../lib/chart-hit-region';
 import { useHoverActive } from '../../lib/use-hover-active';
 import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
 import { collectXTicks, computeXDomain, computeYDomain, layoutBars } from './layout';
@@ -81,7 +83,7 @@ export function HistogramChart({
         ...tick,
         position: MARGIN.left + tick.position,
       })),
-    [bins, xScale, formatXTick],
+    [bins, xScale, formatXTick]
   );
 
   const yTicks: ChartTick[] = useMemo(
@@ -89,7 +91,7 @@ export function HistogramChart({
       yScale
         .ticks(4)
         .map((value) => ({ position: MARGIN.top + yScale(value), label: formatYTick(value) })),
-    [yScale, formatYTick],
+    [yScale, formatYTick]
   );
 
   const activeBar = activeIndex !== null ? bars[activeIndex] : null;
@@ -121,18 +123,24 @@ export function HistogramChart({
 
   if (bins.length === 0) {
     return (
-      <div style={{ width, height }}>
+      <div style={{ width, height, position: 'relative' }}>
         <svg width={width} height={height}>
-          <ChartAxisLeft x={MARGIN.left} y1={MARGIN.top} y2={MARGIN.top + plotHeight} ticks={yTicks} />
-          <text
-            x={MARGIN.left + plotWidth / 2}
-            y={MARGIN.top + plotHeight - 8}
-            fontSize={10}
-            fill={SPEC_TEXT_MUTED}
-            textAnchor="middle">
-            {emptyMessage}
-          </text>
+          <ChartAxisLeft
+            x={MARGIN.left}
+            y1={MARGIN.top}
+            y2={MARGIN.top + plotHeight}
+            ticks={yTicks}
+          />
         </svg>
+        {/* Was an SVG `<text>` until 2026-08-30 — the last of the three plots still carrying the
+            bug the other two were fixed for. SVG text does not wrap, so a message wider than the
+            plot spilled off both ends; see `ChartEmptyMessage`. */}
+        <ChartEmptyMessage
+          left={MARGIN.left}
+          right={MARGIN.right}
+          top={MARGIN.top + plotHeight / 2}>
+          {emptyMessage}
+        </ChartEmptyMessage>
       </div>
     );
   }
@@ -174,12 +182,10 @@ export function HistogramChart({
         const hitWidth = Math.max(bar.width, MIN_HIT_WIDTH);
         const hitLeft = MARGIN.left + bar.x + bar.width / 2 - hitWidth / 2;
         return (
-          <button
+          <ChartHitRegion
             key={`${bar.bin.x0}-${bar.bin.x1}-${index}`}
-            type="button"
             aria-label={`${formatXTick(bar.bin.x0)}–${formatXTick(bar.bin.x1)}`}
             {...getReferenceProps(getHoverProps(index))}
-            className="absolute cursor-pointer bg-transparent p-0"
             style={{
               left: hitLeft,
               top: MARGIN.top,
@@ -192,7 +198,9 @@ export function HistogramChart({
       <ChartTooltip
         visible={activeIndex !== null}
         title={
-          activeBar ? `${formatXTick(activeBar.bin.x0)}–${formatXTick(activeBar.bin.x1)}` : undefined
+          activeBar
+            ? `${formatXTick(activeBar.bin.x0)}–${formatXTick(activeBar.bin.x1)}`
+            : undefined
         }
         rows={tooltipRows}
         setFloating={setFloating}

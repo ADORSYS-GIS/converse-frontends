@@ -1,33 +1,42 @@
 name: docker-image
 
-# Automatic image builds are DISABLED (owner directive, 2026-08-26).
+# Builds and publishes the apps/console (Next.js) container image. Ticket #287 re-points this
+# pipeline from `apps/self-service` (the Expo static export) to the console — the console needs a
+# live Node server (server route handlers, a session-decrypting server component, a byte-forwarding
+# RPC proxy), which the old nginx-static pipeline could never produce.
 #
-# This pipeline images `apps/self-service` — the Expo web export — which ADR 0009 schedules for
-# deletion once `apps/console` reaches feature parity. Publishing new images from it while the
-# console migration is mid-flight would push half-migrated builds down the GitOps chain
-# (GHCR → ai-helm `converse-ui` → cluster), so the `push` triggers are removed rather than left
-# to fire on every merge to main.
+# Automatic builds were disabled 2026-08-26 specifically to stop publishing half-migrated *Expo*
+# images while the console migration was mid-flight (see git history on this file). That concern
+# doesn't apply to a distinctly-named console package, so the `push` triggers are restored here.
 #
-# `workflow_dispatch` is kept so a release can still be cut deliberately.
-#
-# Re-enable by restoring the `push:` block below — and re-point it at `apps/console` rather than
-# the Expo app, which is the cutover PR's job:
-#
-#   push:
-#     branches: [main]
-#     tags: ['v*']
+# IMPORTANT: apps/self-service keeps running in production (its own ArgoCD app, its own pinned
+# image tag) until Epic 4 retires it — this workflow must never rebuild or republish that image.
+# It doesn't: it only ever invokes `apps/console/Dockerfile` and only ever tags/pushes into the
+# `console` GHCR package below, never into the existing `converse-frontends` package self-service's
+# ArgoCD app / argocd-image-updater watch.
 on:
+  push:
+    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # A package DISTINCT from `ghcr.io/${{ github.repository }}` (the self-service/Expo image) —
+  # deliberately so. argocd-image-updater watches that exact package name and commits the newest
+  # signed `sha-<gitsha>` tag into environments/prod/values/converse-ui.yaml in the private
+  # ai-helm-values repo; if the console pushed into the same package, image-updater would roll a
+  # Node-server image onto self-service's still-live nginx-static Deployment; wrong port, wrong
+  # probes, wrong config mechanism, no PR anywhere in the loop. The cluster's GHCR pull secret is
+  # keyed on the `ghcr.io` host, not a package path, so a new package under the same
+  # `adorsys-gis/converse-frontends` repo needs no separate credential.
+  IMAGE_NAME: ${{ github.repository }}/console
 
 jobs:
   build-and-push:
     # Rootless Buildah on the self-hosted runner (daemonless — no Docker/dind).
-    # The web bundle is built here via Turbo (hitting the runner's Turbo cache),
-    # then baked into a thin nginx image. Single-arch: every cluster node is amd64.
+    # The standalone Next.js bundle is built here via Turbo (hitting the runner's Turbo cache),
+    # then baked into a thin Node image. Single-arch: every cluster node is amd64.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,10 +62,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Build the static web export on the runner. Turbo pulls from / writes to
-      # the runner's integrated Turbo cache — no Docker/BuildKit layer cache.
-      - name: Build web export (Turbo)
-        run: pnpm turbo run build:web
+      # `--filter=console` deliberately, not a bare `pnpm turbo run build:web`: `apps/self-service`
+      # was removed (#368), so console is the only workspace with a `build:web` task today, but the
+      # explicit filter is kept so this workflow keeps building exactly one package if the workspace
+      # graph grows another `build:web` task later. apps/console/turbo.json already
+      # overrides the root task's `dist/**` outputs with `.next/**` (excluding `.next/cache/**`)
+      # for this package specifically, so Turbo caches and restores the standalone bundle
+      # correctly; verified locally with two consecutive runs (second one reports `>>> FULL TURBO`).
+      - name: Build console (Turbo)
+        run: pnpm turbo run build:web --filter=console
+
+      # `next.config.mjs` no longer has an `outputFileTracingIncludes` block for the CBOR codec
+      # (Turbopack panics on it — see that file's own comment); the image ships those pnpm-store
+      # dirs via an explicit `COPY` in apps/console/Dockerfile instead, sourced from
+      # apps/console/.docker-stage/ (git-ignored, regenerated every run). This step is what
+      # regenerates it — see scripts/stage-cratestack-cbor-for-docker.mjs's own header for why a
+      # plain Dockerfile `COPY` can't do this glob-and-preserve-names copy itself.
+      - name: Stage CBOR codec for the image (Turbopack CBOR-tracing workaround)
+        run: node apps/console/scripts/stage-cratestack-cbor-for-docker.mjs
 
       - name: Extract metadata
         id: meta
@@ -86,9 +109,11 @@ jobs:
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
           tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
           # No --layers / --cache-from / --cache-to: the Docker build is deliberately
-          # uncached (caching lives in Turbo). Single amd64 platform.
+          # uncached (caching lives in Turbo). Single amd64 platform. Build context is the
+          # repo root (not apps/console/) — the standalone bundle's node_modules is hoisted to
+          # the pnpm workspace root, so apps/console/Dockerfile needs the whole tree visible.
           buildah build --format docker --platform linux/amd64 \
-            -f Dockerfile "${label_args[@]}" "${tag_args[@]}" .
+            -f apps/console/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.
           primary="$(head -n1 <<<"$TAGS")"
           buildah push "$primary" docker-archive:/tmp/image.tar

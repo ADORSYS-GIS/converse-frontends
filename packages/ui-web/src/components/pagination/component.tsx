@@ -1,45 +1,30 @@
 import React from 'react';
 
-import { cn } from '../../cn';
+import { INLINE_ROW_CLASS } from '../../lib/inline-row';
+import { META_CLASS } from '../../lib/type-roles';
+import { Button } from '../button';
 import type { PaginationProps } from './types';
 
-// Gap-list item (LCI design pass, `docs/design/lci-app/PRIMITIVES.md`): a range label + prev/
-// page/next control. Controlled — the caller owns the page index (URL-first state, ADR 0011),
-// so this component never reads or writes a URL param itself. Uses daisy `join` to group the
-// three controls into one visual unit; unlike `RowActionGroup` (deliberately *not* `join` —
-// diagonal hairlines, no shared border to merge), a prev/current/next trio is exactly the
-// "adjacent buttons collapse into one strip" case `join` is for.
-export function Pagination({
-  current,
-  pageCount,
-  rangeLabel,
-  onPageChange,
-  className,
-}: PaginationProps) {
-  const atStart = current <= 0;
-  const atEnd = current >= pageCount - 1;
+// The console visual revamp's pagination row (phase 1 foundation brief): a caption on the left
+// ("Showing 12 of 23 keys") and Previous/Next on the right, composing the already-rebuilt
+// `Button` rather than a second control treatment. Renders nothing at all when the caller has
+// wired neither direction — a ledger with no more pages to reach has no pagination row, not a
+// row of two disabled buttons.
+export function Pagination({ shown, total, unit, hasPrev, hasNext, onPrev, onNext }: PaginationProps) {
+  if (!onPrev && !onNext) return null;
+
+  const caption = total != null ? `Showing ${shown} of ${total} ${unit}` : `${shown} ${unit}`;
 
   return (
-    <div className={cn('flex items-center gap-3 font-mono text-xs', className)}>
-      <span className="text-subtle">{rangeLabel}</span>
-      <div className="join">
-        <button
-          type="button"
-          className="btn btn-xs join-item"
-          disabled={atStart}
-          onClick={() => onPageChange(current - 1 || null)}>
-          Prev
-        </button>
-        <span className="btn btn-xs join-item text-soft pointer-events-none tabular-nums">
-          {current + 1} / {pageCount}
-        </span>
-        <button
-          type="button"
-          className="btn btn-xs join-item"
-          disabled={atEnd}
-          onClick={() => onPageChange(current + 1)}>
-          Next
-        </button>
+    <div className="pagination-bar">
+      <span className={META_CLASS}>{caption}</span>
+      <div className={INLINE_ROW_CLASS}>
+        <Button type="button" variant="ghost" size="sm" disabled={!hasPrev} onClick={onPrev}>
+          ‹ Previous
+        </Button>
+        <Button type="button" variant="ghost" size="sm" disabled={!hasNext} onClick={onNext}>
+          Next ›
+        </Button>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import type { DecisionRow, RefillRequestRow } from '@lightbridge/ui-web';
+import type { RefillHistoryRow, RefillRequestRow } from '@lightbridge/ui-web';
 
 /**
- * Pure adapters from the generated `AugmentationRequest` model to the admin review page's rows.
+ * Pure adapters from the generated `AugmentationRequest` model to the admin review queue's rows.
  *
  * The backend carries money as **integer micros in a string** (`requestedAmountMicros`), which is
  * the only representation that survives a round trip without floating-point drift. Converting to
@@ -10,6 +10,20 @@ import type { DecisionRow, RefillRequestRow } from '@lightbridge/ui-web';
  */
 
 const MICROS_PER_UNIT = 1_000_000;
+
+/**
+ * `AugmentationRequest.status`'s real values (`authz.cstack:951-955,968-988` — a plain `String`,
+ * not a schema enum; these are the Rust `AugmentationStatus::as_str` wire values). Pinned here as
+ * the single source `isPending` compares against, so a future rename is caught by the regression
+ * test on this constant rather than by a silently-empty pending queue in production
+ * (converse-frontends#264).
+ */
+export const AUGMENTATION_STATUS = {
+  PENDING_REVIEW: 'pending_review',
+  AUTO_APPROVED: 'auto_approved',
+  APPROVED: 'approved',
+  DENIED: 'denied',
+} as const;
 
 export function microsToAmount(micros: string | null | undefined): number {
   if (!micros) return 0;
@@ -32,34 +46,69 @@ export function relativeAge(iso: string, now: number): string {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
-export function toRefillRequestRow(request: AugmentationRequest, now: number): RefillRequestRow {
+/**
+ * `projectLabel`/`accountLabel` are resolved by the caller (`use-refills-queue-screen.ts`, the same way
+ * `use-overview-screen.ts` resolves its own scope labels from `useConsoleScope()`'s
+ * `allProjects`/`allAccounts`) — this module has no data source of its own to resolve an id
+ * against, and a raw `projectId`/`accountId` is never an acceptable label
+ * (converse-frontends#270's correction to the Manage ledger applies here too).
+ */
+export function toRefillRequestRow(
+  request: AugmentationRequest,
+  now: number,
+  projectLabel: string,
+  accountLabel: string
+): RefillRequestRow {
   return {
     id: request.id,
     submittedAgo: relativeAge(request.createdAt, now),
-    project: request.projectId ?? '—',
-    account: request.accountId,
-    // Consumption and the ceiling come from the budget balance, not from the request itself; the
-    // review panel fetches them per selection rather than guessing here.
-    consumed: 0,
-    ceiling: 0,
+    project: projectLabel,
+    account: accountLabel,
     requestedAmount: microsToAmount(request.requestedAmountMicros),
-    requesterEmail: request.accountId,
   };
 }
 
-export function toDecisionRow(request: AugmentationRequest): DecisionRow {
-  const approved = request.status === 'approved' || request.approvedAmountMicros !== null;
+/** True only for a request genuinely awaiting a decision (`authz.cstack:951-955`). */
+export function isPending(request: AugmentationRequest): boolean {
+  return request.status === AUGMENTATION_STATUS.PENDING_REVIEW;
+}
+
+/** `AugmentationRequest.status`'s wire values, sentence-cased for display — the console-ui
+ *  skill's "sentence case everywhere" rule applied to `AUGMENTATION_STATUS`'s own vocabulary. An
+ *  unrecognised value (a future backend status this console doesn't know about yet) still renders
+ *  the raw string rather than disappearing, so a row is never silently unlabelled. */
+const AUGMENTATION_STATUS_LABEL: Record<string, string> = {
+  [AUGMENTATION_STATUS.PENDING_REVIEW]: 'Pending review',
+  [AUGMENTATION_STATUS.AUTO_APPROVED]: 'Auto-approved',
+  [AUGMENTATION_STATUS.APPROVED]: 'Approved',
+  [AUGMENTATION_STATUS.DENIED]: 'Declined',
+};
+
+export function refillStatusLabel(status: string): string {
+  return AUGMENTATION_STATUS_LABEL[status] ?? status;
+}
+
+/** `/settings/accounts/<id>/request-refill`'s own history card (`use-refill-screen.ts`) — the caller's own past
+ *  requests need no project/account label the queue's row carries (`toRefillRequestRow` above):
+ *  every row here already belongs to the one account the page is scoped to. */
+export function toRefillHistoryRow(request: AugmentationRequest, now: number): RefillHistoryRow {
   return {
     id: request.id,
-    date: request.createdAt.slice(0, 10),
-    project: request.projectId ?? '—',
-    account: request.accountId,
-    amount: microsToAmount(request.approvedAmountMicros ?? request.requestedAmountMicros),
-    decision: approved ? 'approved' : 'declined',
-    decidedBy: request.reviewedBy ?? '—',
+    submittedAgo: relativeAge(request.createdAt, now),
+    amount: microsToAmount(request.requestedAmountMicros),
+    statusLabel: refillStatusLabel(request.status),
   };
 }
 
-export function isPending(request: AugmentationRequest): boolean {
-  return request.status === 'pending';
+/**
+ * `/settings/accounts/<id>/request-refill`'s own URL — the destination every refill trigger now
+ * navigates to (IA v3 phase 3, moved off `/accounts/<id>/refill` by IA v3 phase E — the old path
+ * 308s here verbatim, `middleware.ts`) instead of opening `RequestRefillDialog` (deleted). Carries
+ * `?project=` — the same wire key `use-console-scope.ts`'s `projectScopeParsers` already owns —
+ * only when a project is actually scoped; account-wide stays a bare path, matching
+ * `projectScopeParsers`' own "absent means every project in this account" contract.
+ */
+export function refillHref(accountId: string, projectId: string | null | undefined): string {
+  const base = `/settings/accounts/${accountId}/request-refill`;
+  return projectId ? `${base}?project=${encodeURIComponent(projectId)}` : base;
 }

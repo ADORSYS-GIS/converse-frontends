@@ -1,128 +1,113 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { EmptyState } from '../../components/empty-state';
 import { ErrorLine } from '../../components/error-line';
-import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
-import { formatMoney } from '../../lib/money';
+import { Pagination } from '../../components/pagination';
+import { formatUsd } from '../../lib/money';
 import type { RefillRequestRow, ReviewQueueProps } from './types';
 
 function signedMoney(amount: number): string {
-  return `${amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(amount))}`;
+  return `${amount >= 0 ? '+' : '−'}${formatUsd(Math.abs(amount))}`;
 }
 
-// Contract: docs/design/console-redesign/README.md §5.4 (admin-budget-review.svg) — the centre's
-// upper zone: the Pending/Decided text tabs (counts go in the tab labels, never in a badge) above
-// the pending refill queue at review density, selectable one row at a time.
-//
-// The tabs drive the underline and the pager's subject only — both tables stay mounted, since the
-// RECENT DECISIONS ledger below is a separate zone (`DecisionsLedger`) with its own data.
+// Admin review revamp (phase 6): the whole of `/admin` now — no Pending/Decided tabs (that
+// switch, and the DECIDED side, were built on `listPendingAugmentationRequests`, the one real
+// endpoint this screen has, which by its own name and doc comment is a PENDING-only read path;
+// there is no dedicated decided-request listing to back a second tab honestly — see the deleted
+// `sections/decisions-ledger`'s own doc comment for the fuller history). Four columns: Submitted
+// (sortable — the consumer owns the actual order, a URL param per ADR 0011), Project, Account
+// (both resolved display names, never raw ids — `use-admin-screen.ts` resolves them the same way
+// `use-overview-screen.ts` resolves its own scope labels) and Refill, right-aligned mono. Consumed
+// and Ceiling are gone: both were permanently `null` upstream (no consumption query is wired up),
+// and a column that can never hold a real value is not a column, it is a promise the screen
+// cannot keep. Requester is gone too — it duplicated the Account cell verbatim.
 export function ReviewQueue({
-  activeTab,
-  onTabChange,
-  pendingCount,
-  decidedCount,
   pending,
   loading = false,
   loadingRowCount = 4,
   error,
   onRetry,
-  emptyPendingMessage,
+  sort,
+  onSortChange,
   selectedRequestId,
   onSelectRequest,
+  pagination,
   className,
 }: ReviewQueueProps) {
-  const pendingColumns: LedgerColumn<RefillRequestRow>[] = [
-    { key: 'submitted', header: 'SUBMITTED', width: '110px', accessor: (row) => row.submittedAgo },
+  const columns: LedgerColumn<RefillRequestRow>[] = [
+    {
+      key: 'submitted',
+      header: 'Submitted',
+      width: '130px',
+      sortable: true,
+      kind: 'data',
+      accessor: (row) => row.submittedAgo,
+    },
     {
       key: 'project',
-      header: 'PROJECT',
-      width: '160px',
+      header: 'Project',
+      width: '180px',
       accessor: (row) => <span className="text-ink">{row.project}</span>,
     },
-    { key: 'account', header: 'ACCOUNT', width: '190px', accessor: (row) => row.account },
-    {
-      key: 'consumed',
-      header: 'CONSUMED',
-      width: '110px',
-      align: 'right',
-      accessor: (row) => {
-        const ratio = row.ceiling > 0 ? row.consumed / row.ceiling : 0;
-        return (
-          <span className={ratio >= 0.9 ? 'text-primary' : 'text-ink'}>
-            {formatMoney(row.consumed)}
-          </span>
-        );
-      },
-    },
-    { key: 'ceiling', header: 'CEILING', width: '100px', align: 'right', accessor: (row) => formatMoney(row.ceiling) },
+    { key: 'account', header: 'Account', width: '190px', accessor: (row) => row.account },
     {
       key: 'refill',
-      header: 'REFILL',
-      width: '100px',
+      header: 'Refill',
+      width: '110px',
       align: 'right',
+      kind: 'data',
       accessor: (row) => <span className="text-ink">{signedMoney(row.requestedAmount)}</span>,
     },
-    { key: 'requester', header: 'REQUESTER', width: '160px', align: 'right', accessor: (row) => row.requesterEmail },
   ];
 
-  const isPendingEmpty = !loading && !error && pending.length === 0;
+  // A true empty COLLECTION (no filter to blame — this screen has none) replaces the table
+  // outright, the same contract `ProjectsLedger.emptyState` uses.
+  const isEmpty = !loading && !error && pending.length === 0;
 
   return (
-    <div className={cn('flex flex-col gap-6', className)}>
-      <div>
-        <div className="flex items-center gap-6 font-mono text-xs">
-          <button
-            type="button"
-            onClick={() => onTabChange('pending')}
-            className={cn('pb-2', activeTab === 'pending' ? 'text-ink' : 'text-subtle')}>
-            Pending ({pendingCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => onTabChange('decided')}
-            className={cn('pb-2', activeTab === 'decided' ? 'text-ink' : 'text-subtle')}>
-            Decided ({decidedCount})
-          </button>
-        </div>
-        <div className="relative h-px bg-raised">
-          <span
-            aria-hidden="true"
-            className={cn(
-              'absolute bottom-0 h-[2px] w-[74px] bg-primary transition-transform duration-150 ease-out',
-              activeTab === 'decided' && 'translate-x-[98px]'
-            )}
-          />
-        </div>
-      </div>
-
+    <div className={cn('flex flex-col gap-4', className)}>
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />
-      ) : isPendingEmpty ? (
-        <InlineStatus>
-          {emptyPendingMessage ??
-            `Nothing awaiting a decision. ${decidedCount} decided this month.`}
-        </InlineStatus>
-      ) : null}
-
-      <div className="flex flex-col gap-2">
-        <LedgerTable
-          columns={pendingColumns}
-          data={pending}
-          rowKey={(row) => row.id}
-          density="review"
-          loading={loading}
-          loadingRowCount={loadingRowCount}
-          selectedRowKeys={selectedRequestId ? [selectedRequestId] : []}
-          onSelectRow={onSelectRequest}
+      ) : isEmpty ? (
+        <EmptyState
+          headline="No requests awaiting a decision"
+          explainer="Refill requests submitted by project members appear here."
         />
-        {pending.length > 0 ? (
-          <p className="font-sans text-[11px] text-subtle">
+      ) : (
+        <>
+          <LedgerTable
+            columns={columns}
+            data={pending}
+            rowKey={(row) => row.id}
+            density="review"
+            loading={loading}
+            loadingRowCount={loadingRowCount}
+            selectedRowKeys={selectedRequestId ? [selectedRequestId] : []}
+            onSelectRow={onSelectRequest}
+            sort={sort}
+            onSortChange={onSortChange}
+          />
+          <p className="text-subtle font-sans text-[11px]">
             Requests expire after 14 days without a decision.
           </p>
-        ) : null}
-      </div>
+          {/* Never rendered with neither direction wired — `Pagination` itself returns nothing
+              in that case, which is what keeps this from becoming the "more exist" caption with
+              nothing to click that the decided-tab pager used to be. */}
+          {pagination ? (
+            <Pagination
+              shown={pagination.shown}
+              unit="requests"
+              hasPrev={pagination.hasPrev}
+              hasNext={pagination.hasNext}
+              onPrev={pagination.onPrev}
+              onNext={pagination.onNext}
+            />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

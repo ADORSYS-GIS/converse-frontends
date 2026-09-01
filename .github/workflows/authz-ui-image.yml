@@ -1,0 +1,263 @@
+name: authz-ui-image
+
+# Builds apps/authz-ui and publishes its `dist/` as an ASSETS-ONLY OCI image
+# (ghcr.io/adorsys-gis/converse-frontends/authz-ui). Modelled on docker-image.yml — same rootless
+# Buildah, same `--format docker`, same linux/amd64, same metadata-action tag set, same
+# Trivy-on-the-exported-tarball gate ahead of the push. Two things are deliberately different:
+#
+#  1. FEATURE BRANCHES PUBLISH. `feat/authz-ui-**` is in the branch list on purpose.
+#     docs/knowledge/ci-cd.md records that this repo has no per-branch preview image, and for the
+#     console that is correct. It is wrong here: this image is consumed by ANOTHER repo
+#     (ADORSYS-GIS/lightbridge-authz#591 replaces its whole `frontend` build stage with a pinned
+#     pull of this image), and that cutover has to be provable BEFORE either side merges. A push to
+#     e.g. `feat/authz-ui-image` publishes `sha-<gitsha>` + `feat-authz-ui-image`; `latest` stays
+#     gated on the default branch, so a feature-branch build can never become the floating tag.
+#
+#  2. NO `v*` TAG TRIGGER. A `push:` block applies its `paths:` filter to tag pushes too, and on a
+#     tag push GitHub evaluates that filter against the tagged commit's own diff — so a release tag
+#     cut on a commit that didn't touch apps/authz-ui/ would silently produce no image. This bundle
+#     is consumed by DIGEST, never by semver, and every commit that changes it already produces a
+#     `sha-` image on main, so the tag trigger buys nothing and costs a silent gap. Use
+#     `workflow_dispatch` for a manual build.
+#
+# test.yml is deliberately untouched: its `build-web` job runs `pnpm build` (unfiltered
+# `turbo run build:web`) on every push and PR, so authz-ui's tsc gates and its
+# scripts/verify-service-worker-scope.mjs already gate PRs without this workflow.
+on:
+  push:
+    branches:
+      - main
+      - 'feat/authz-ui-**'
+    paths:
+      - 'apps/authz-ui/**'
+      # ui-web is authz-ui's ONLY styling/component dependency. Its theme.css does NOT carry an
+      # authz-ui `@source` line (deliberately — see theme.css's own comment on why one must not be
+      # added); this app's classes reach the built CSS via Vite-root automatic content detection
+      # instead. The filter is still correct: theme.css's `@source '.'` compiles ui-web's OWN
+      # classes (including the CSP-safe auth sections this bundle renders) into every consumer's
+      # Tailwind pass, so a change under packages/ui-web/** really does change this bundle's bytes.
+      - 'packages/ui-web/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/authz-ui-image.yml'
+      - 'apps/authz-ui/Containerfile'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # A package DISTINCT from `${{ github.repository }}` (self-service/Expo) and from
+  # `${{ github.repository }}/console`, for the same reason docker-image.yml gives at length: a
+  # package name is what argocd-image-updater watches. Nothing watches this one — it is pulled at
+  # build time by lightbridge-authz, not deployed as a workload — and it must stay that way.
+  IMAGE_NAME: ${{ github.repository }}/authz-ui
+  # The in-image bundle path. This is the cross-repo contract (see apps/authz-ui/Containerfile).
+  BUNDLE_PATH: /dist
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `--filter=authz-ui` deliberately: console's build:web is a different, much heavier task and
+      # this workflow must never publish it. The task itself runs both tsc passes, `vite build`,
+      # and scripts/verify-service-worker-scope.mjs — the SW-scope verifier (ADR-0021 Decision 10)
+      # is therefore already inside this step, not a separate one to forget.
+      - name: Build authz-ui (Turbo)
+        run: pnpm turbo run build:web --filter=authz-ui
+
+      # Ported from lightbridge-authz's .github/actions/build-frontend (`Assert content-hashed
+      # output`), which this workflow retires on the producing side. Decision 10's
+      # `immutable`/`no-cache` split in static_assets.rs is only correct if Vite is actually
+      # emitting content-hashed filenames — assert it here rather than discovering the regression
+      # at static_assets_tests.rs runtime or, worse, in production.
+      #
+      # Two assertions are ADDED beyond the port, both of which the old action could not make:
+      #  - dist/sw.js must exist, because the SW-scope verifier that just ran reads exactly that
+      #    file and would have passed vacuously if the plugin ever stopped emitting it;
+      #  - index.html must reference `/ui/`-prefixed assets, because vite.config.ts's
+      #    `base: '/ui/'` is what makes the bundle loadable at all once authz-idp nests it under
+      #    /ui. A regression to the default base produces a bundle that builds, scans, pushes and
+      #    then 404s fetching its own JS in production.
+      - name: Assert content-hashed output
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dist=apps/authz-ui/dist
+          hashed=("$dist"/assets/*-*.js)
+          if [ ${#hashed[@]} -eq 0 ]; then
+            echo "::error::expected at least one content-hashed JS asset under $dist/assets/, found none"
+            exit 1
+          fi
+          if [ ! -f "$dist/index.html" ]; then
+            echo "::error::$dist/index.html is missing"
+            exit 1
+          fi
+          if [ ! -f "$dist/sw.js" ]; then
+            echo "::error::$dist/sw.js is missing — the service-worker-scope verifier had nothing to verify"
+            exit 1
+          fi
+          if [ ! -f "$dist/routes.json" ]; then
+            echo "::error::$dist/routes.json is missing — authz-idp's /ui allowlist would fail closed to '/' alone and every device page would 404 (lightbridge-authz#598)"
+            exit 1
+          fi
+          if ! grep -q '/ui/assets/' "$dist/index.html"; then
+            echo "::error::$dist/index.html does not reference /ui/-prefixed assets — vite base is not '/ui/'"
+            exit 1
+          fi
+          echo "content-hashed assets found:"
+          printf '  %s\n' "${hashed[@]}"
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=authz-ui
+            org.opencontainers.image.description=Assets-only bundle for lightbridge-authz authz-idp's hosted login page. No runtime; the bundle lives at ${{ env.BUNDLE_PATH }}.
+
+      - name: Log in to GHCR (Buildah)
+        # Direct `buildah login` writes the podman/buildah/skopeo auth.json ($XDG_RUNTIME_DIR/
+        # containers/auth.json) that the build, push AND verify steps all read.
+        # (redhat-actions/podman-login mirrors creds to ~/.docker/config.json, which ENOENTs on
+        # daemonless runners.) The verify step below depends on this: if the package is private,
+        # the pull-back only works because of this login.
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | buildah login --username "${{ github.actor }}" --password-stdin "${{ env.REGISTRY }}"
+
+      - name: Build image (Buildah, amd64, no layer cache)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          LABELS: ${{ steps.meta.outputs.labels }}
+        run: |
+          set -euo pipefail
+          label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
+          tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # Same posture as docker-image.yml: no --layers/--cache-from/--cache-to (caching lives in
+          # Turbo), single amd64 platform, `--format docker`. Context is the repo root because the
+          # Containerfile's COPY path is repo-relative.
+          buildah build --format docker --platform linux/amd64 \
+            -f apps/authz-ui/Containerfile "${label_args[@]}" "${tag_args[@]}" .
+          # Export the first tag as a tarball so Trivy can scan it daemonless, BEFORE any push.
+          primary="$(head -n1 <<<"$TAGS")"
+          buildah push "$primary" docker-archive:/tmp/image.tar
+
+      # A `scratch` image has no OS packages and the bundle has no lockfile/manifest, so the
+      # expected result is zero findings. That is not a reason to drop the gate: it is the gate
+      # that PROVES the surface stayed at zero. A future change that bases this image on anything
+      # other than scratch, or that ships a node_modules/lockfile into dist/, gets caught here.
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: /tmp/image.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Push image (all tags)
+        id: push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          digest_file="$(mktemp)"
+          while IFS= read -r t; do
+            [ -n "$t" ] || continue
+            echo "Pushing ${t}"
+            buildah push --digestfile "$digest_file" "$t"
+          done <<<"$TAGS"
+          digest="$(cat "$digest_file")"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          # Derive the repository from the first metadata-action tag, NOT from $IMAGE_NAME:
+          # `github.repository` carries the org's real casing (ADORSYS-GIS), metadata-action
+          # lowercases it for the tags it emits, and OCI repository names must be lowercase —
+          # skopeo hard-fails on `ghcr.io/ADORSYS-GIS/...` ("repository name must be lowercase").
+          # Found on this workflow's first real run; the tag-derived form cannot drift from what
+          # was actually pushed.
+          repo="$(head -n1 <<<"$TAGS")"
+          repo="${repo%%:*}"
+          echo "pinned-ref=${repo}@${digest}" >> "$GITHUB_OUTPUT"
+
+      # THE FALSIFIABLE CHECK (issue #408's own "Test Expectations"). Everything above proves things
+      # about a local directory and a local tarball. This step proves them about the artifact that
+      # actually landed in the registry, by pulling it back BY DIGEST and listing its layer
+      # contents. It is not `buildah inspect` (which reads metadata, not files) and not a re-read of
+      # /tmp/image.tar (which would prove nothing about the push).
+      #
+      # skopeo reads the same auth.json `buildah login` wrote, so this works whether the package is
+      # public or private. `--override-{os,arch}` keeps it deterministic on any runner.
+      - name: Verify the pushed image contains the bundle
+        env:
+          PINNED_REF: ${{ steps.push.outputs.pinned-ref }}
+        run: |
+          set -euo pipefail
+          if ! command -v skopeo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y skopeo
+          fi
+          work="$(mktemp -d)"
+          skopeo copy --override-os linux --override-arch amd64 \
+            "docker://${PINNED_REF}" "docker-archive:${work}/pulled.tar"
+          tar -xf "${work}/pulled.tar" -C "${work}"
+          listing="${work}/listing.txt"
+          : > "$listing"
+          # A scratch image has exactly one layer, but enumerate every layer tar anyway rather than
+          # assuming the archive's internal naming.
+          while IFS= read -r -d '' layer; do
+            tar -tf "$layer" | sed 's#^\./##' >> "$listing"
+          done < <(find "${work}" -name '*.tar' ! -name 'pulled.tar' -print0)
+
+          echo "::group::layer contents of ${PINNED_REF}"
+          sort -u "$listing"
+          echo "::endgroup::"
+
+          fail=0
+          grep -qx 'dist/index.html' "$listing" \
+            || { echo "::error::${BUNDLE_PATH}/index.html is NOT in the pushed image"; fail=1; }
+          grep -Eq '^dist/assets/[^/]+-[^/]+\.js$' "$listing" \
+            || { echo "::error::no content-hashed ${BUNDLE_PATH}/assets/*.js in the pushed image"; fail=1; }
+          grep -qx 'dist/sw.js' "$listing" \
+            || { echo "::error::${BUNDLE_PATH}/sw.js is NOT in the pushed image"; fail=1; }
+          grep -qx 'dist/routes.json' "$listing" \
+            || { echo "::error::${BUNDLE_PATH}/routes.json is NOT in the pushed image"; fail=1; }
+          [ "$fail" -eq 0 ] || exit 1
+
+          {
+            echo "### authz-ui image published"
+            echo
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| pinned reference | \`${PINNED_REF}\` |"
+            echo "| bundle path | \`${BUNDLE_PATH}\` |"
+            echo
+            echo "Pin this exact reference in lightbridge-authz's \`Dockerfile\` (\`ARG AUTHZ_UI_REF=\`)."
+            echo
+            echo '```'
+            grep -E '^dist/(index\.html|sw\.js|routes\.json|assets/)' "$listing" | sort -u
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

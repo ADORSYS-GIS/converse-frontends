@@ -11,7 +11,7 @@ import {
   useNodesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   RELATION_STYLE,
@@ -22,6 +22,34 @@ import {
 } from '../../lib/domain/graph';
 import type { GraphResponse } from '../../lib/server/admin';
 import { GRAPH_NODE_WIDTH, layoutGraph } from './layout';
+
+const CANVAS_MIN_HEIGHT = 400;
+const CANVAS_DEFAULT_HEIGHT = 600;
+/** Breathing room below the canvas so it doesn't butt against the viewport's bottom edge. */
+const CANVAS_BOTTOM_MARGIN = 24;
+
+/** Tracks the viewport height so the canvas can size itself to fill the space below it. */
+function useFillViewportHeight<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [height, setHeight] = useState(CANVAS_DEFAULT_HEIGHT);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    function measure() {
+      if (!el) return;
+      const available = window.innerHeight - el.getBoundingClientRect().top - CANVAS_BOTTOM_MARGIN;
+      setHeight(Math.max(CANVAS_MIN_HEIGHT, Math.round(available)));
+    }
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  return { ref, height };
+}
 
 /** Recomputes just a node's border color for the current selection — the only per-node thing that
  *  needs to change when `selectedNodeId` changes, so this is the only thing selection is allowed
@@ -104,6 +132,7 @@ export function CodeGraphCanvas({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
+  const { ref: containerRef, height } = useFillViewportHeight<HTMLDivElement>();
 
   useEffect(() => {
     // `selectedNodeId` is read here (so a refresh while a node is selected doesn't visually lose
@@ -124,7 +153,10 @@ export function CodeGraphCanvas({
   }, [selectedNodeId, setNodes]);
 
   return (
-    <div className="border-border h-[600px] w-full overflow-hidden rounded-lg border">
+    <div
+      ref={containerRef}
+      className="border-border w-full overflow-hidden rounded-lg border"
+      style={{ height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

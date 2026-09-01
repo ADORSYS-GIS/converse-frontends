@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { currentClaims } from '../../../../../lib/server/session';
+import { currentClaims } from '../lib/server/session';
 import {
   hasPermission,
   setRepoSettingsOverride,
   type RepoSettingsPatch,
-} from '../../../../../lib/server/admin';
+} from '../lib/server/admin';
 
 /**
  * Set (or clear, via `null`) one or more DB-layer setting overrides for a repository. Called

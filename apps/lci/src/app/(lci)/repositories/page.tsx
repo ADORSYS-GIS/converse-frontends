@@ -1,8 +1,4 @@
-import { Card } from '@lightbridge/ui-web/src/components/card';
-import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
-import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-
-import { RepositoriesTable } from '../../../client/repositories-table';
+import { RepositoriesCentre } from '../../../containers/repositories-centre';
 import { REPOS_PAGE_SIZE } from '../../../lib/domain/repos';
 import { listRepositoriesPage, type RepositoriesCursor } from '../../../lib/server/api';
 import { now as fetchNow } from '../../../lib/server/now';
@@ -39,30 +35,5 @@ export default async function RepositoriesPage({
   });
   const now = await fetchNow();
 
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Repositories"
-        subtitle="Repositories the GitHub/GitLab App is connected to, with their approval and run activity."
-      />
-
-      {!result.ok ? (
-        <Card>
-          <ErrorLine
-            message={
-              result.reason === 'unauthenticated'
-                ? "Your session can't reach the control plane. Sign in again."
-                : result.reason === 'unavailable'
-                  ? 'The control plane is unreachable right now.'
-                  : `Couldn't load repositories${result.status ? ` (HTTP ${result.status})` : ''}.`
-            }
-          />
-        </Card>
-      ) : (
-        <Card>
-          <RepositoriesTable page={result.data} q={params.q ?? ''} now={now} />
-        </Card>
-      )}
-    </div>
-  );
+  return <RepositoriesCentre result={result} q={params.q ?? ''} now={now} />;
 }

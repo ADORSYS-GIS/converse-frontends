@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 
-import { CodeGraphPanel } from '../../../../../client/graph/code-graph-panel';
+import { CodeGraphPanel } from '../../../../../containers/graph/code-graph-panel';
 
 export const dynamic = 'force-dynamic';
 

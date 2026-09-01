@@ -81,7 +81,7 @@ function FindingItem({ finding }: { finding: ReviewFinding }) {
   if (!hasDetail) {
     return (
       <li>
-        <div className="border-border flex flex-wrap items-center gap-2 rounded-[2px] border p-3">
+        <div className="border-border rounded-field flex flex-wrap items-center gap-2 border p-3">
           <FindingHeader finding={finding} />
         </div>
       </li>
@@ -90,7 +90,7 @@ function FindingItem({ finding }: { finding: ReviewFinding }) {
 
   return (
     <li>
-      <details open={defaultOpen} className="border-border group rounded-[2px] border">
+      <details open={defaultOpen} className="border-border rounded-field group border">
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 [&::-webkit-details-marker]:hidden">
           <FindingHeader finding={finding} />
         </summary>
@@ -99,7 +99,7 @@ function FindingItem({ finding }: { finding: ReviewFinding }) {
             <p className="text-subtle text-sm whitespace-pre-wrap">{finding.body}</p>
           ) : null}
           {finding.suggestion ? (
-            <pre className="bg-chrome mt-2 overflow-x-auto rounded-[2px] p-2 font-mono text-xs">
+            <pre className="bg-chrome rounded-field mt-2 overflow-x-auto p-2 font-mono text-xs">
               {finding.suggestion}
             </pre>
           ) : null}

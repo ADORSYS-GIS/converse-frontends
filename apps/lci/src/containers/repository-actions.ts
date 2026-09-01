@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { currentClaims } from '../../../../lib/server/session';
-import { mutateRepoApproval } from '../../../../lib/server/admin';
+import { currentClaims } from '../lib/server/session';
+import { mutateRepoApproval } from '../lib/server/admin';
 
 async function mutate(formData: FormData, action: 'approve' | 'deny'): Promise<void> {
   const id = Number(formData.get('id'));

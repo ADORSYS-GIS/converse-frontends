@@ -32,7 +32,7 @@ function classify(status: number): 'unauthenticated' | 'unavailable' | 'error' {
   return 'error';
 }
 
-interface TasksPageResponse {
+export interface TasksPageResponse {
   tasks: Task[];
   total: number;
 }

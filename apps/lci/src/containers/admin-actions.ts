@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { currentClaims } from '../../../lib/server/session';
-import { mutateRepoApproval } from '../../../lib/server/admin';
+import { currentClaims } from '../lib/server/session';
+import { mutateRepoApproval } from '../lib/server/admin';
 
 /** Shared body for the approve/deny actions — authorizes the caller on the specific permission
  *  (`repo:approve`/`repo:deny`) via `mutateRepoApproval`, throws on failure so the UI surfaces

@@ -10,7 +10,7 @@ import { Toggle } from '@lightbridge/ui-web/src/components/toggle';
 import { useState, useTransition } from 'react';
 
 import type { RepoSettingsPatch, ResolvedSettings } from '../lib/server/admin';
-import { clearRepoSetting, setRepoSetting } from '../app/(lci)/repositories/[id]/settings/actions';
+import { clearRepoSetting, setRepoSetting } from './repository-settings-actions';
 
 /** A setting's provenance as `StatusText` — `db` (an explicit admin override) is the one state
  *  worth a reader's attention; `file`/`default` are both "nothing overridden," so both read

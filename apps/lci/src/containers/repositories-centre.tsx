@@ -1,25 +1,65 @@
 'use client';
 
+import { Card } from '@lightbridge/ui-web/src/components/card';
+import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { Field } from '@lightbridge/ui-web/src/components/field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { LedgerTable } from '@lightbridge/ui-web/src/components/ledger-table';
 import { Pagination } from '@lightbridge/ui-web/src/components/pagination';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { useRouter } from 'next/navigation';
 import { useQueryState } from 'nuqs';
 
 import { approvalTone, REPOS_PAGE_SIZE, repoSlug, type Repository } from '../lib/domain/repos';
 import { relativeTime } from '../lib/domain/tasks';
-import type { RepositoriesPageResponse } from '../lib/server/api';
+import type { ApiResult, RepositoriesPageResponse } from '../lib/server/api';
 import { useCursorPagination } from './use-cursor-pagination';
 
 /**
- * The Repositories list: a searchable, paged table of every connected repository and its
- * approval/run activity. Search and paging update live as the user types or clicks — every field
- * carries `shallow: false` (`use-cursor-pagination.ts` has the fuller reasoning), so there's no
- * separate submit step.
+ * The Repositories screen: title, a searchable and paged table of every connected repository and
+ * its approval/run activity. Search and paging update live as the user types or clicks — every
+ * field carries `shallow: false` (`use-cursor-pagination.ts` has the fuller reasoning), so there's
+ * no separate submit step.
  */
-export function RepositoriesTable({
+export function RepositoriesCentre({
+  result,
+  q,
+  now,
+}: {
+  result: ApiResult<RepositoriesPageResponse>;
+  q: string;
+  now: number;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Repositories"
+        subtitle="Repositories the GitHub/GitLab App is connected to, with their approval and run activity."
+      />
+
+      {!result.ok ? (
+        <Card>
+          <ErrorLine
+            message={
+              result.reason === 'unauthenticated'
+                ? "Your session can't reach the control plane. Sign in again."
+                : result.reason === 'unavailable'
+                  ? 'The control plane is unreachable right now.'
+                  : `Couldn't load repositories${result.status ? ` (HTTP ${result.status})` : ''}.`
+            }
+          />
+        </Card>
+      ) : (
+        <Card>
+          <RepositoriesList page={result.data} q={q} now={now} />
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function RepositoriesList({
   page,
   q,
   now,

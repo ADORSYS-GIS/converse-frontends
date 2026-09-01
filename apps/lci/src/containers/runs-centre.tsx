@@ -1,11 +1,14 @@
 'use client';
 
+import { Card } from '@lightbridge/ui-web/src/components/card';
+import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { Field } from '@lightbridge/ui-web/src/components/field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { LedgerTable } from '@lightbridge/ui-web/src/components/ledger-table';
 import { Pagination } from '@lightbridge/ui-web/src/components/pagination';
 import { SegmentedControl } from '@lightbridge/ui-web/src/components/segmented-control';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
+import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { useRouter } from 'next/navigation';
 import { parseAsInteger, parseAsStringLiteral, useQueryState } from 'nuqs';
 
@@ -19,6 +22,7 @@ import {
   triggerLabel,
   type Task,
 } from '../lib/domain/tasks';
+import type { ApiResult, TasksPageResponse } from '../lib/server/api';
 
 const FILTER_VALUES = ['all', 'active', 'pending', 'success', 'error', 'muted'] as const;
 type FilterValue = (typeof FILTER_VALUES)[number];
@@ -33,13 +37,39 @@ const FILTERS: { value: FilterValue; label: string }[] = [
 ];
 
 /**
- * Runs list: status filter, text search, and a paged table, all live in the URL — every field
- * updates the table as the user types or clicks, with no separate submit step. **Simplification,
- * stated not hidden**: a day-grouped timeline view is a distinct visual form worth its own
- * follow-up once this table view is confirmed against real data; only the table view renders
- * here for now.
+ * The Runs screen: title, a status filter, a text search, and a paged table — every field updates
+ * live in the URL as the user types or clicks, with no separate submit step.
+ * **Simplification, stated not hidden**: a day-grouped timeline view is a distinct visual form
+ * worth its own follow-up once this table view is confirmed against real data; only the table
+ * view renders here for now.
  */
-export function RunsTable({ tasks, total, now }: { tasks: Task[]; total: number; now: number }) {
+export function RunsCentre({ result, now }: { result: ApiResult<TasksPageResponse>; now: number }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Runs" subtitle="Every task run, most recent first." />
+
+      {!result.ok ? (
+        <Card>
+          <ErrorLine
+            message={
+              result.reason === 'unauthenticated'
+                ? "Your session can't reach the control plane. Sign in again."
+                : result.reason === 'unavailable'
+                  ? 'The control plane is unreachable right now.'
+                  : `Couldn't load runs${result.status ? ` (HTTP ${result.status})` : ''}.`
+            }
+          />
+        </Card>
+      ) : (
+        <Card>
+          <RunsList tasks={result.data.tasks} total={result.data.total} now={now} />
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function RunsList({ tasks, total, now }: { tasks: Task[]; total: number; now: number }) {
   const router = useRouter();
   const [status, setStatus] = useQueryState(
     'status',

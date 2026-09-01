@@ -8,21 +8,16 @@ import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { useRouter } from 'next/navigation';
 import { useQueryState } from 'nuqs';
 
-import { approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
+import { approvalTone, REPOS_PAGE_SIZE, repoSlug, type Repository } from '../lib/domain/repos';
 import { relativeTime } from '../lib/domain/tasks';
 import type { RepositoriesPageResponse } from '../lib/server/api';
+import { useCursorPagination } from './use-cursor-pagination';
 
 /**
- * The Repositories list, ported from `lightbridge-code-intelligence/apps/web/components/repos/
- * repo-list.tsx` onto the current `ui-web`: `LedgerTable` (not repo cards — the source screen's
- * card grid was itself a `Card`-per-row pattern the revamped `LedgerTable` already generalises),
- * `StatusText` for approval status (not `Pill`/`status-pill`'s daisy badge — see
- * `docs/design/lci-app/PRIMITIVES.md`'s corrected Card/badge rows).
- *
- * Cursor pagination is server-driven (`page.tsx` reads `searchParams`, this component only
- * navigates to the next URL) rather than porting `use-cursor-pagination.ts`'s client-side nuqs
- * wiring verbatim — the page itself already re-renders server-side on every navigation, so there
- * is no client state to own beyond the search box.
+ * The Repositories list: a searchable, paged table of every connected repository and its
+ * approval/run activity. Search and paging update live as the user types or clicks — every field
+ * carries `shallow: false` (`use-cursor-pagination.ts` has the fuller reasoning), so there's no
+ * separate submit step.
  */
 export function RepositoriesTable({
   page,
@@ -34,25 +29,20 @@ export function RepositoriesTable({
   now: number;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useQueryState('q', { defaultValue: q, clearOnDefault: true });
+  const [query, setQuery] = useQueryState('q', {
+    defaultValue: q,
+    clearOnDefault: true,
+    shallow: false,
+  });
+  const { current, pageCount, goToPage, reset } = useCursorPagination({
+    total: page.total,
+    pageSize: REPOS_PAGE_SIZE,
+    next: page.next,
+    prev: page.prev,
+  });
 
   const shown = page.repositories.length;
   const start = page.total === 0 ? 0 : shown; // one page at a time; no absolute offset to show
-
-  function hrefFor(
-    cursor: { activity_at: string; id: number } | null,
-    direction: 'after' | 'before'
-  ) {
-    if (!cursor) return null;
-    const params = new URLSearchParams();
-    if (query) params.set('q', query);
-    params.set(`${direction}_activity_at`, cursor.activity_at);
-    params.set(`${direction}_id`, String(cursor.id));
-    return `/repositories?${params.toString()}`;
-  }
-
-  const nextHref = hrefFor(page.next, 'after');
-  const prevHref = hrefFor(page.prev, 'before');
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,7 +52,10 @@ export function RepositoriesTable({
         type="search"
         placeholder="Search repositories"
         value={query}
-        onChange={(e) => setQuery(e.target.value || null)}
+        onChange={(e) => {
+          setQuery(e.target.value || null);
+          reset();
+        }}
         containerClassName="max-w-sm"
       />
 
@@ -76,7 +69,7 @@ export function RepositoriesTable({
             {
               key: 'name',
               header: 'Repository',
-              accessor: (repo) => repoSlug(repo),
+              accessor: (repo) => <span className="text-ink">{repoSlug(repo)}</span>,
             },
             {
               key: 'branch',
@@ -109,6 +102,10 @@ export function RepositoriesTable({
           ]}
           data={page.repositories}
           rowKey={(repo) => String(repo.id)}
+          // The whole row opens the repository — a reader shouldn't have to land a click on one
+          // narrow column just to drill in. This also makes every row a keyboard stop (Enter or
+          // Space opens it), not only the pointer target.
+          onSelectRow={(repo) => router.push(`/repositories/${repo.id}`)}
         />
       )}
 
@@ -116,28 +113,10 @@ export function RepositoriesTable({
         shown={start}
         total={page.total}
         unit="repositories"
-        hasPrev={Boolean(prevHref)}
-        hasNext={Boolean(nextHref)}
-        onPrev={
-          prevHref
-            ? () => {
-                router.push(prevHref);
-                // `force-dynamic` opts the SERVER render out of caching, but the client Router
-                // Cache is a separate layer that can still serve a stale RSC payload for a
-                // same-route, different-searchParams navigation — `refresh()` forces a fresh
-                // fetch for the page the push just landed on.
-                router.refresh();
-              }
-            : undefined
-        }
-        onNext={
-          nextHref
-            ? () => {
-                router.push(nextHref);
-                router.refresh();
-              }
-            : undefined
-        }
+        hasPrev={current > 0}
+        hasNext={current < pageCount - 1}
+        onPrev={current > 0 ? () => goToPage(current - 1) : undefined}
+        onNext={current < pageCount - 1 ? () => goToPage(current + 1) : undefined}
       />
     </div>
   );

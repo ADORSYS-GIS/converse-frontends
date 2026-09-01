@@ -13,15 +13,11 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from './use-theme';
 
 /**
- * The chrome every `apps/lci` screen shares — sidebar/top-bar brand, nav, and footer. Mirrors
- * `apps/console/src/client/console-chrome.tsx`'s shape, trimmed to what LCI actually has: no
- * account/workspace switcher (LCI has no multi-account concept — the `workspaceSwitcher` slot
- * carries the app name instead), no command-palette groups beyond page jumps (no run-id lookup
- * yet — that ports once the Runs screen does), no offline banner (not wired yet).
- *
- * Only two routes exist so far (`/`, `/repositories`) — Runs, Admin, and Settings render as real,
- * honest disabled rows (`NavSpineItem.reason`, ADR 0013 D2's pattern) rather than being omitted
- * or linking to a 404: this is what a mid-migration nav looks like, stated outright.
+ * The chrome every `apps/lci` screen shares — sidebar/top-bar brand, nav, and footer. There is no
+ * account/workspace switcher, since LCI has no multi-account concept — the `workspaceSwitcher`
+ * slot carries the product name, "Code Intelligence", instead (see `LciBrandMark` below for the
+ * brand/name split). The command palette covers page jumps only for now (no run-id lookup yet),
+ * and there's no offline banner yet either.
  */
 function navGroups(pathname: string): NavGroup[] {
   return [
@@ -39,35 +35,48 @@ function navGroups(pathname: string): NavGroup[] {
         {
           key: 'runs',
           label: 'Runs',
-          disabled: true,
-          reason: 'Not yet ported from lightbridge-code-intelligence/apps/web (epic #328).',
+          href: '/runs',
+          active: pathname.startsWith('/runs'),
         },
         {
           key: 'admin',
           label: 'Approvals',
-          disabled: true,
-          reason: 'Not yet ported from lightbridge-code-intelligence/apps/web (epic #328).',
+          href: '/admin',
+          active: pathname.startsWith('/admin'),
         },
         {
           key: 'settings',
           label: 'Settings',
-          disabled: true,
-          reason: 'Not yet ported from lightbridge-code-intelligence/apps/web (epic #328).',
+          href: '/settings',
+          active: pathname.startsWith('/settings'),
         },
       ],
     },
   ];
 }
 
-function Brand() {
+/**
+ * The brand mark — an icon-only adorsys wordmark, no visible text beside it; the product name is
+ * carried in `aria-label` instead. The dark/light PNG pair (`public/branding/`) is a static asset
+ * here rather than a runtime-configured file, since this app has no white-label deployment case.
+ * `brand-mark-dark`/`brand-mark-light` pick the right image per theme in pure CSS, so it resolves
+ * correctly on first paint with no client-side theme read and no flash.
+ */
+function LciBrandMark() {
   return (
-    <Link href="/" className="sidebar-footer-row">
-      <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
-        <span aria-hidden="true" className="avatar-chip-sm">
-          L
-        </span>
-      </span>
-      <span className="rail-row-label text-ink text-[13px] font-medium">Code Intelligence</span>
+    <Link href="/" aria-label="adorsys Code Intelligence — go to home" className="header-brand">
+      <img
+        src="/branding/logo.png"
+        alt=""
+        aria-hidden="true"
+        className="header-logo brand-mark-dark"
+      />
+      <img
+        src="/branding/logo-light.png"
+        alt=""
+        aria-hidden="true"
+        className="header-logo brand-mark-light"
+      />
     </Link>
   );
 }
@@ -84,10 +93,10 @@ export function LciSidebarContent({
 
   return (
     <ConsoleSidebar
-      brand={<Brand />}
+      brand={<LciBrandMark />}
       workspaceSwitcher={
         <div className="sidebar-footer-row">
-          <span className="text-subtle font-sans text-[13px]">Lightbridge</span>
+          <span className="text-subtle font-sans text-[13px]">Code Intelligence</span>
         </div>
       }
       groups={navGroups(pathname)}
@@ -134,8 +143,10 @@ export function LciTopBarContent({ onOpenPalette }: { onOpenPalette: () => void 
   const { preference, setPreference } = useTheme();
   return (
     <ConsoleTopBar
-      brand={<Brand />}
-      workspaceSwitcher={<span className="text-subtle font-sans text-[13px]">Lightbridge</span>}
+      brand={<LciBrandMark />}
+      workspaceSwitcher={
+        <span className="text-subtle font-sans text-[13px]">Code Intelligence</span>
+      }
       paletteTrigger={<CommandPaletteTrigger onClick={onOpenPalette} />}
       trailing={<ThemeToggle preference={preference} onPreferenceChange={setPreference} />}
     />

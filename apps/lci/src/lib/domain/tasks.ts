@@ -1,15 +1,11 @@
 /**
  * Task-run domain types + presentation logic. Mirrors the control plane's `/tasks` payload
- * (`TaskRow` in `services/control-plane/src/db.rs`) — ported from
- * `lightbridge-code-intelligence/apps/web/lib/domain/tasks.ts`, field-for-field identical since
- * this app talks to the same control plane. Pure + Edge-safe.
+ * (`TaskRow` in `services/control-plane/src/db.rs`). Pure + Edge-safe.
  *
- * `statusTone` differs from the source's `statusVisual`: LCI's own `StatusPill` has five variants
- * (`pending`/`active`/`success`/`error`/`muted`), including a green-adjacent `success` and a red
- * `error`. `ui-web`'s `StatusText` has three tones (`active`/`muted`/`attention`) and explicitly
- * never uses colour for a good/bad axis (console-ui skill: "Deltas are never green/red"; the
- * accent is reserved for what needs attention). The mapping below collapses on that basis: a
- * completed run is `active` (plain, nothing to do), not `success` (nothing here claims "good").
+ * `statusTone` maps a run's status onto `StatusText`'s three tones (`active`/`muted`/`attention`)
+ * rather than a wider good/bad palette — colour is never used to say a run's outcome was "good"
+ * or "bad", only whether it needs attention. A completed run reads as `active` (plain, nothing to
+ * do), not a distinct "success" colour.
  */
 
 export const RUNS_PAGE_SIZE = 25;
@@ -37,12 +33,46 @@ export interface Task {
   error_detail: string | null;
 }
 
+/** One finding from the agent's review (mirrors `review::Finding`). */
+export interface ReviewFinding {
+  file: string;
+  line: number;
+  /** Triage priority `P0`|`P1`|`P2`. Optional for rows that predate the priority model. */
+  priority?: string;
+  /** Dimension: `security`|`correctness`|`quality`|`style`|`performance`. */
+  category?: string;
+  /** Legacy `error`|`warning`|`info` level. Read-only fallback for old rows. */
+  severity?: string;
+  title: string;
+  body: string;
+  suggestion?: string | null;
+  resources?: string[];
+}
+
+/** A persisted review (`GET /tasks/{id}/review`). */
+export interface Review {
+  task_id: string;
+  summary: string;
+  body: string;
+  inline_count: number;
+  deferred_count: number;
+  out_of_scope_count: number;
+  findings: ReviewFinding[];
+  review_url: string | null;
+  created_at: string;
+}
+
+/** Failure-banner label, matched to what the task actually attempted: indexing vs. review. */
+export function failureNoticePrefix(task: Task): string {
+  return task.target_type === 'repository' ? 'Indexing failed' : 'Review did not post';
+}
+
 export type StatusTone = 'active' | 'muted' | 'attention';
 
-/** The five-way semantic classification `lightbridge-code-intelligence`'s own `statusVisual`
- *  used — kept separate from `statusTone` (display) because KPI aggregation (`insights.ts`'s
- *  `computeKpis`) genuinely needs to distinguish "succeeded" from "failed", a distinction
- *  `StatusText`'s three tones deliberately collapse for display (no colour encodes good/bad). */
+/** A five-way outcome classification, kept separate from `statusTone` (display) because KPI
+ *  aggregation (`insights.ts`'s `computeKpis`) genuinely needs to distinguish "succeeded" from
+ *  "failed" — a distinction `StatusText`'s three tones deliberately collapse for display, since
+ *  no colour there encodes good/bad. */
 export type StatusOutcome = 'pending' | 'active' | 'success' | 'error' | 'muted';
 
 export function statusOutcome(status: string): StatusOutcome {
@@ -137,6 +167,18 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
     }
   }
   return RELATIVE_TIME_FORMATTER.format(0, 'second');
+}
+
+const ABSOLUTE_TIME_FORMATTER = new Intl.DateTimeFormat('en', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+/** Absolute timestamp for tooltips/detail rows. */
+export function absoluteTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return ABSOLUTE_TIME_FORMATTER.format(date);
 }
 
 export function durationSeconds(task: Task, now: number = Date.now()): number | null {

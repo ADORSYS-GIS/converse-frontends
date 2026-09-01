@@ -1,10 +1,9 @@
-import { durationSeconds, statusOutcome, type Task } from './tasks';
+import { durationSeconds, repoLabel, statusOutcome, type StatusOutcome, type Task } from './tasks';
 
 /**
- * Overview KPI aggregation — pure functions over the already-fetched task list, ported from
- * `lightbridge-code-intelligence/apps/web/lib/domain/insights.ts`, trimmed to what the Overview
- * screen's stat-card row uses (the runs-over-time sparkline and by-repo/by-outcome breakdowns
- * port the same way once that part of the screen is built).
+ * Overview KPI aggregation — pure functions over the already-fetched task list: totals and pass
+ * rate for the stat-card row, a daily run count for the trend sparkline, and counts grouped by
+ * repository and by outcome for the breakdown lists.
  */
 export interface Kpis {
   total: number;
@@ -56,4 +55,78 @@ export function formatSeconds(seconds: number): string {
   if (minutes < 60) return rem ? `${minutes}m ${rem}s` : `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+
+const DAY_MS = 86_400_000;
+const MONTH_DAY_FORMATTER = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+export interface DayBucket {
+  key: string;
+  label: string;
+  count: number;
+}
+
+/** Runs created per UTC day over the last `days` days (inclusive of today), zero-filled — feeds
+ *  `Sparkline`'s `data: number[]` directly via `.map((b) => b.count)`. */
+export function runsPerDay(tasks: Task[], now: number, days = 14): DayBucket[] {
+  const today = Math.floor(now / DAY_MS);
+  const buckets = new Map<string, number>();
+  const order: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const key = new Date((today - i) * DAY_MS).toISOString().slice(0, 10);
+    buckets.set(key, 0);
+    order.push(key);
+  }
+  for (const t of tasks) {
+    const key = t.created_at.slice(0, 10);
+    if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+  }
+  return order.map((key) => ({
+    key,
+    label: MONTH_DAY_FORMATTER.format(new Date(`${key}T00:00:00Z`)),
+    count: buckets.get(key) ?? 0,
+  }));
+}
+
+export interface Slice {
+  label: string;
+  count: number;
+}
+
+/** Top repositories by run count (descending), capped at `limit`. */
+export function breakdownByRepo(tasks: Task[], limit = 6): Slice[] {
+  const counts = new Map<string, number>();
+  for (const t of tasks) {
+    const label = repoLabel(t);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+const OUTCOME_ORDER: { outcome: StatusOutcome; label: string }[] = [
+  { outcome: 'success', label: 'Succeeded' },
+  { outcome: 'error', label: 'Failed' },
+  { outcome: 'active', label: 'Running' },
+  { outcome: 'pending', label: 'Pending' },
+  { outcome: 'muted', label: 'Cancelled' },
+];
+
+/** Run counts per status outcome, in a fixed order, omitting empty buckets. */
+export function breakdownByOutcome(tasks: Task[]): Slice[] {
+  const counts = new Map<StatusOutcome, number>();
+  for (const t of tasks) {
+    const outcome = statusOutcome(t.status);
+    counts.set(outcome, (counts.get(outcome) ?? 0) + 1);
+  }
+  return OUTCOME_ORDER.map(({ outcome, label }) => ({
+    label,
+    count: counts.get(outcome) ?? 0,
+  })).filter((s) => s.count > 0);
 }

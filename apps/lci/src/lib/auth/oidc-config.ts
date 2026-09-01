@@ -1,7 +1,7 @@
 /**
  * Config for the OIDC Authorization-Code (+PKCE) flow. Kept free of any `openid-client` import so
  * this module stays usable from Edge code (`proxy.ts`); the flow itself lives in the Node-runtime
- * route handlers. Ported from `@lightbridge/auth` — see `claims.ts`'s doc comment.
+ * route handlers.
  */
 export interface OidcClientConfig {
   issuer: string;
@@ -13,7 +13,7 @@ export interface OidcClientConfig {
 }
 
 function required(name: string): string {
-  // eslint-disable-next-line expo/no-dynamic-env-var -- same pattern apps/console/src/server/config-loader.ts uses; this reads one of a small fixed set of OIDC_* names, never user input.
+  // eslint-disable-next-line expo/no-dynamic-env-var -- reads one of a small fixed set of OIDC_* names, never user input.
   const value = process.env[name];
   if (!value) throw new Error(`${name} must be set`);
   return value;

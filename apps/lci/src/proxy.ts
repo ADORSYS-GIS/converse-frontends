@@ -47,7 +47,7 @@ export async function proxy(req: NextRequest) {
       const res = NextResponse.redirect(new URL('/api/auth/login', appBaseUrl()));
       res.cookies.delete(SESSION_COOKIE);
       // Not deleted here: a concurrent refresh race in another tab may have already set a new
-      // valid one — same reasoning as lightbridge-code-intelligence's own proxy.ts.
+      // valid one.
       return res;
     }
 

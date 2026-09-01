@@ -9,10 +9,9 @@ import { type ReactNode, useState } from 'react';
 import { LciSidebarContent, LciTopBarContent } from './lci-chrome';
 
 /**
- * The persistent shell — mounted exactly once, for every route in the `(lci)` group (console-ui
- * skill "Composition"). Mirrors `apps/console/src/app/(console)/layout.tsx`'s shape: no rail (not
- * needed yet — the first two screens have no row-selection detail), no dialogs beyond the command
- * palette.
+ * The persistent shell — mounted exactly once, wrapping every route in the app: sidebar, top bar,
+ * and the command palette they both open. No detail rail yet, since no screen currently needs
+ * row-selection detail alongside its list.
  *
  * A client component rendered BY `app/(lci)/layout.tsx` (a Server Component) with `userLabel` as
  * a prop — Next.js layouts only ever receive `{children}` from the router itself, so the session

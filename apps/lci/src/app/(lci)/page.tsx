@@ -1,25 +1,42 @@
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
+import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { Sparkline } from '@lightbridge/ui-web/src/components/sparkline';
 import { StatCard } from '@lightbridge/ui-web/src/components/stat-card';
+import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
+import { DATA_CLASS, LABEL_CLASS, META_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import Link from 'next/link';
 
-import { computeKpis, formatSeconds } from '../../lib/domain/insights';
-import type { Task } from '../../lib/domain/tasks';
+import {
+  breakdownByOutcome,
+  breakdownByRepo,
+  computeKpis,
+  formatSeconds,
+  runsPerDay,
+  type Slice,
+} from '../../lib/domain/insights';
+import {
+  duration,
+  relativeTime,
+  repoLabel,
+  shortSha,
+  statusTone,
+  triggerLabel,
+  type Task,
+} from '../../lib/domain/tasks';
 import { listTasks } from '../../lib/server/api';
 import { now as fetchNow } from '../../lib/server/now';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Overview — the first real `apps/lci` screen wired to live data (epic #328, story #331).
- * Ported from `lightbridge-code-intelligence/apps/web/app/dashboard/page.tsx`'s KPI row, rebuilt
- * against the current `ui-web`: `PageHeader` + `Card`-wrapped stat row (ADR 0012 D1/D3), not the
- * old header-band/never-a-card shell this design pass's now-deleted wireframes assumed.
+ * Overview — task-run activity across every connected repository: totals, pass rate, typical
+ * duration, active runs, a 14-day trend, and breakdowns by repository and outcome.
  *
- * The runs-over-time sparkline and by-repo/by-outcome breakdowns from the source screen are not
- * ported yet — `formatSeconds`/`computeKpis` cover only the stat row here; the rest follows the
- * identical pattern once `packages/chart-core` charts are wired the same way `apps/console`'s
- * Overview already does it.
+ * The breakdown rows are a plain label/count list with a relative-width bar, not `Meter` —
+ * `Meter` is a budget-consumption primitive with a hardcoded "$X of $Y" caption, not a generic
+ * progress control; using it here would print a dollar sign in front of a run count.
  */
 export default async function OverviewPage() {
   const result = await listTasks();
@@ -42,34 +59,151 @@ export default async function OverviewPage() {
           />
         </Card>
       ) : (
-        <OverviewStats tasks={result.data} now={now} />
+        <OverviewInsights tasks={result.data} now={now} />
       )}
     </div>
   );
 }
 
-function OverviewStats({ tasks, now }: { tasks: Task[]; now: number }) {
+function OverviewInsights({ tasks, now }: { tasks: Task[]; now: number }) {
   const kpis = computeKpis(tasks, now);
+  const series = runsPerDay(tasks, now, 14);
+  const byRepo = breakdownByRepo(tasks);
+  const byOutcome = breakdownByOutcome(tasks);
+
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <Card>
-        <StatCard label="Total runs" metric={String(kpis.total)} />
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card>
+          <StatCard label="Total runs" metric={String(kpis.total)} />
+        </Card>
+        <Card>
+          <StatCard
+            label="Pass rate"
+            metric={kpis.passRate === null ? '—' : `${Math.round(kpis.passRate * 100)}%`}
+          />
+        </Card>
+        <Card>
+          <StatCard
+            label="p50 duration"
+            metric={kpis.p50Seconds === null ? '—' : formatSeconds(kpis.p50Seconds)}
+          />
+        </Card>
+        <Card>
+          <StatCard label="Active" metric={String(kpis.active)} />
+        </Card>
+      </div>
+
+      <Card title="Runs over time" actions={<span className={META_CLASS}>last 14 days</span>}>
+        <RunsOverTime series={series} />
       </Card>
-      <Card>
-        <StatCard
-          label="Pass rate"
-          metric={kpis.passRate === null ? '—' : `${Math.round(kpis.passRate * 100)}%`}
-        />
-      </Card>
-      <Card>
-        <StatCard
-          label="p50 duration"
-          metric={kpis.p50Seconds === null ? '—' : formatSeconds(kpis.p50Seconds)}
-        />
-      </Card>
-      <Card>
-        <StatCard label="Active" metric={String(kpis.active)} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title="By repository">
+          <BreakdownList slices={byRepo} emptyMessage="No runs yet." />
+        </Card>
+        <Card title="By outcome">
+          <BreakdownList slices={byOutcome} emptyMessage="No runs yet." />
+        </Card>
+      </div>
+
+      <Card
+        title="Recent runs"
+        actions={
+          <Link href="/runs" className={`${META_CLASS} hover:underline`}>
+            View all
+          </Link>
+        }>
+        <RecentRuns tasks={tasks} now={now} />
       </Card>
     </div>
+  );
+}
+
+/** The last 8 runs, most recent first. `tasks` already arrives sorted newest-first from
+ *  `listTasks()` — this only takes the head. */
+function RecentRuns({ tasks, now }: { tasks: Task[]; now: number }) {
+  if (tasks.length === 0) {
+    return <InlineStatus>No task runs yet.</InlineStatus>;
+  }
+  return (
+    <ul className="divide-border flex flex-col divide-y">
+      {tasks.slice(0, 8).map((task) => {
+        const { tone, label } = statusTone(task.status);
+        const sha = shortSha(task.head_sha);
+        const dur = duration(task, now);
+        return (
+          <li key={task.id}>
+            <Link
+              href={`/runs/${task.id}`}
+              className="hover:bg-raised -mx-4 flex items-center gap-3 px-4 py-3 first:pt-0 last:pb-0">
+              <span className="w-28 shrink-0">
+                <StatusText tone={tone}>{label}</StatusText>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm">{triggerLabel(task)}</span>
+                <span className={`${META_CLASS} flex flex-wrap items-center gap-x-3`}>
+                  <span className="truncate">{repoLabel(task)}</span>
+                  {task.repo_default_branch ? <span>{task.repo_default_branch}</span> : null}
+                  {sha ? <span className={DATA_CLASS}>{sha}</span> : null}
+                </span>
+              </span>
+              <span className={`${META_CLASS} hidden shrink-0 text-right sm:block`}>
+                <span className="block">{relativeTime(task.created_at, now)}</span>
+                {dur ? <span className={`block ${DATA_CLASS}`}>{dur}</span> : null}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function RunsOverTime({ series }: { series: ReturnType<typeof runsPerDay> }) {
+  const total = series.reduce((sum, d) => sum + d.count, 0);
+  const max = Math.max(1, ...series.map((d) => d.count));
+  const first = series.at(0);
+  const last = series.at(-1);
+
+  if (total === 0) {
+    return <InlineStatus>No runs in the last 14 days.</InlineStatus>;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Sparkline data={series.map((d) => d.count)} width={640} height={96} />
+      <div className={`flex items-center justify-between ${META_CLASS}`}>
+        <span>{first?.label}</span>
+        <span>
+          {total} run{total === 1 ? '' : 's'} · peak {max}/day
+        </span>
+        <span>{last?.label}</span>
+      </div>
+    </div>
+  );
+}
+
+function BreakdownList({ slices, emptyMessage }: { slices: Slice[]; emptyMessage: string }) {
+  if (slices.length === 0) {
+    return <InlineStatus>{emptyMessage}</InlineStatus>;
+  }
+  const max = Math.max(1, ...slices.map((s) => s.count));
+
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {slices.map((s) => (
+        <li key={s.label} className="flex items-center gap-3">
+          <span className={`w-40 shrink-0 truncate ${LABEL_CLASS}`}>{s.label}</span>
+          <span className="bg-raised h-1.5 flex-1 overflow-hidden rounded-none">
+            <span
+              className="bg-soft block h-full"
+              style={{ width: `${Math.round((s.count / max) * 100)}%` }}
+            />
+          </span>
+          <span className="w-8 shrink-0 text-right font-mono text-xs tabular-nums">{s.count}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

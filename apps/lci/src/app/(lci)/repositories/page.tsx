@@ -9,8 +9,8 @@ import { now as fetchNow } from '../../../lib/server/now';
 
 export const dynamic = 'force-dynamic';
 
-/** Cursor + search params live in the URL (ADR 0011) — the same shape
- *  `lightbridge-code-intelligence`'s own `RepoList` reads, ported field-for-field. */
+/** Cursor and search state both live in the URL, so a shared or reloaded link reproduces the
+ *  exact page a reader was looking at. */
 interface RepositoriesSearchParams {
   q?: string;
   after_activity_at?: string;

@@ -2,17 +2,12 @@ import { cookies } from 'next/headers';
 
 import { SESSION_COOKIE } from '../auth';
 import type { Repository } from '../domain/repos';
-import type { Task } from '../domain/tasks';
+import type { Review, Task } from '../domain/tasks';
 
 /**
  * Server-side client for LCI's control-plane read API (resource server). Runs only in Server
  * Components: reads the httpOnly session cookie and forwards the OIDC access token as a Bearer
  * credential — the same token the control plane validates.
- *
- * Ported from `lightbridge-code-intelligence/apps/web/lib/server/api.ts`, trimmed to the two
- * endpoints the first two screens (`Overview`, `Repositories`) actually call — the full surface
- * (`/tasks/{id}`, `/tasks/{id}/review`, `/tasks/{id}/cancel`, `/config`) ports the same way as
- * the remaining screens are built.
  */
 function controlPlaneUrl(): string {
   return (process.env.CONTROL_PLANE_URL ?? 'http://localhost:8080/api/v2').replace(/\/+$/, '');
@@ -50,6 +45,66 @@ export async function listTasks(): Promise<ApiResult<Task[]>> {
     if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
     const body = (await res.json()) as TasksPageResponse;
     return { ok: true, data: body.tasks };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** Status filter accepted by `GET /tasks` — `"all"` is sent as omitted (no filter). */
+export type TasksStatusFilter = 'active' | 'pending' | 'success' | 'error' | 'muted';
+
+export interface TasksPageParams {
+  page: number;
+  pageSize: number;
+  status?: TasksStatusFilter;
+  repositoryId?: number;
+  q?: string;
+}
+
+/** `GET /tasks?page=&page_size=&status=&repository_id=&q=` — real server-side pagination +
+ *  filtering for the Runs page. */
+export async function listTasksPage(
+  params: TasksPageParams
+): Promise<ApiResult<TasksPageResponse>> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    page_size: String(params.pageSize),
+  });
+  if (params.status) query.set('status', params.status);
+  if (params.repositoryId !== undefined) query.set('repository_id', String(params.repositoryId));
+  if (params.q) query.set('q', params.q);
+
+  try {
+    const res = await authedFetch(`/tasks?${query.toString()}`);
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as TasksPageResponse };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `GET /tasks/{id}` — a single run, or `null` data on 404. */
+export async function getTask(id: string): Promise<ApiResult<Task | null>> {
+  try {
+    const res = await authedFetch(`/tasks/${encodeURIComponent(id)}`);
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (res.status === 404) return { ok: true, data: null };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as Task };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `GET /tasks/{id}/review` — the persisted review for a run, or `null` when none recorded. */
+export async function getReview(id: string): Promise<ApiResult<Review | null>> {
+  try {
+    const res = await authedFetch(`/tasks/${encodeURIComponent(id)}/review`);
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (res.status === 404) return { ok: true, data: null };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as Review };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

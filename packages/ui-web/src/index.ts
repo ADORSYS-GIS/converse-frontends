@@ -198,6 +198,12 @@ export type {
   CreateProjectPlanOption,
 } from './components/create-project-dialog';
 
+export { Toggle } from './components/toggle';
+export type { ToggleProps } from './components/toggle';
+
+export { CommandSnippet } from './components/command-snippet';
+export type { CommandSnippetProps } from './components/command-snippet';
+
 // ── states
 export { InlineStatus } from './components/inline-status';
 export type { InlineStatusProps, PlaceholderNotice } from './components/inline-status';

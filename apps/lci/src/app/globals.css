@@ -1,0 +1,6 @@
+/*
+ * ONE style pipeline (console-ui skill "Composition" — "One style pipeline"), same as
+ * apps/console's own globals.css: nothing but the import. The package's stylesheet owns the font
+ * imports, `@import "tailwindcss"`, the daisyUI theme blocks and the base layer.
+ */
+@import '@lightbridge/ui-web/styles.css';

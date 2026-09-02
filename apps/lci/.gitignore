@@ -1,0 +1,10 @@
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local overrides on top of the committed .env.example defaults — never committed.
+.env.local
+.env.*.local
+
+# Brand mark images — not committed; a deployment mounts them here itself.
+public/branding/*.png

@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { AdminUsageCentre } from '../../../../containers/admin-usage-centre';
 import { findPage } from '../../../../dashboards/dashboard-spec';
 import { loadDashboards } from '../../../../dashboards/load-dashboards';
+import { can } from '../../../../server/access';
 import { readSession } from '../../../../server/session-store';
-import { isAdmin } from '../../../../server/tokens';
+import { PERMISSION } from '../../../../shared/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +16,12 @@ export const ADMIN_USAGE_ROUTE = '/admin/usage';
 /**
  * `/admin/usage` — the estate's usage surface (converse-frontends#448, story C5).
  *
- * Gated **server-side** on the `lightbridge-admin` role read from the decrypted session cookie,
- * before any dashboard markup is generated — byte-for-byte the mechanism every other `/admin/*`
- * route already uses (`admin-route-gate.test.ts` covers them together). `notFound()` rather than a
- * 403: a non-admin should not learn this route exists. That is still only the UI half — every
+ * Gated **server-side** on **`usage:read-all`** read from the permission set `getMyAccess`
+ * resolved into the decrypted session cookie, before any dashboard markup is generated —
+ * byte-for-byte the mechanism every other `/admin/*` route already uses (converse-frontends#452
+ * replaced the `lightbridge-admin` role check that used to sit here; `admin-usage-route-gate.test.ts`
+ * covers it). `notFound()` rather than a 403: a caller without the permission should not learn this
+ * route exists. That is still only the UI half — every
  * query the screen issues is `scope: 'all'`, which the usage backend independently gates on
  * `usage:read-all`, and the console's own proxy re-checks it in `server/usage-scope-guard.ts`. A
  * forged session could at most render an empty dashboard.
@@ -32,7 +35,7 @@ export const ADMIN_USAGE_ROUTE = '/admin/usage';
  */
 export default async function AdminUsageRoute() {
   const session = await readSession();
-  if (!session || !isAdmin(session.user.roles)) {
+  if (!session || !can(session, PERMISSION.usageReadAll)) {
     notFound();
   }
 

@@ -29,7 +29,32 @@ export type SessionUser = {
   name?: string;
   preferredUsername?: string;
   email?: string;
+  /**
+   * The PERSON behind the acting account (`users.id`), as `getMyAccess` resolved it — NOT `sub`,
+   * which is the account subject. `platform_role_grants` is keyed on the person (ADR-0026: one
+   * human may own several accounts, and a platform role follows them across all of them), so this
+   * is what `/admin/roles` compares a grant against to know it is the caller's own.
+   *
+   * Empty string when `getMyAccess` could not be reached — which can only cost an extra
+   * confirmation warning, never suppress one.
+   */
+  platformUserId: string;
+  /** The raw role strings off the access token, as `getMyAccess` echoed them back. Kept for
+   *  display/diagnostics only — nothing in the console gates on a role any more. */
   roles: string[];
+  /**
+   * The canonical `resource:action` strings `procedure.getMyAccess` resolved those roles into,
+   * server-side, at login and on every refresh. This is the ONLY input to every gate in the app
+   * (`server/access.ts`, `client/use-can.ts`) — the console never re-derives it from `roles`.
+   */
+  permissions: string[];
+  /**
+   * Whether `getMyAccess` actually answered. `false` means the call failed and `permissions` is
+   * the fail-closed empty set — NOT "this person legitimately has no permissions". The chrome
+   * renders an `InlineStatus` for it so an unverified session reads as a degraded state rather
+   * than as an empty nav (converse-frontends#452, negative AC 1).
+   */
+  accessVerified: boolean;
 };
 
 export type ConsoleSession = {
@@ -72,13 +97,33 @@ export async function sealSession(session: ConsoleSession, secret: string): Prom
     .encrypt(deriveSessionKey(secret));
 }
 
-/** Returns `null` for anything that does not decrypt to a well-formed session. Never throws. */
+/**
+ * Returns `null` for anything that does not decrypt to a well-formed session. Never throws.
+ *
+ * `permissions`/`accessVerified` are NORMALISED rather than required by `isConsoleSession`: a
+ * cookie sealed before converse-frontends#452 carries neither, and rejecting it outright would
+ * sign every live session out at deploy time to reach the exact state normalising already
+ * produces — the fail-closed empty permission set, flagged unverified, with the chrome's own
+ * "access could not be verified — retry sign-in" line telling the person what to do. Normalising
+ * fails closed; only the presentation differs, and it differs in the honest direction.
+ */
 export async function openSession(token: string, secret: string): Promise<ConsoleSession | null> {
   try {
     const { payload } = await jwtDecrypt(token, deriveSessionKey(secret));
     const session = (payload as { session?: unknown }).session;
     if (!isConsoleSession(session)) return null;
-    return session;
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        platformUserId:
+          typeof session.user.platformUserId === 'string' ? session.user.platformUserId : '',
+        permissions: Array.isArray(session.user.permissions)
+          ? session.user.permissions.filter((entry): entry is string => typeof entry === 'string')
+          : [],
+        accessVerified: session.user.accessVerified === true,
+      },
+    };
   } catch {
     return null;
   }

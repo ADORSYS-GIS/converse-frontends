@@ -707,6 +707,56 @@ export function useAdminUsageParams() {
   });
 }
 
+// ── /admin/roles ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/roles`' params — the grant directory's filter, its page cursor, and its two dialogs
+ * (converse-frontends#452, story C9).
+ *
+ * `role` and `revoked` are FILTERS, so they write with `replace` (ADR 0011 rule 2: a knob must not
+ * cost a Back press per click) — but they ARE in the URL, because "who currently holds
+ * lightbridge-admin" is precisely the view an operator pastes into an incident thread. `''` is the
+ * role filter's own all-values sentinel and can never collide with a real role.
+ *
+ * `after` is `listPlatformRoleGrants`' own cursor — the last entry's `grantedAt`, not a page
+ * NUMBER. The stack of cursors a `Previous` press needs stays in component state, the same split
+ * `useAdminParams` documents for the refills queue: the CURRENT page's cursor is a fact about what
+ * is on screen, the trail that got there is a browser-history-shaped concept a URL param cannot
+ * express on its own.
+ *
+ * `grant`/`revoke` are the two dialogs, and they write with `push` — opening a modal is
+ * navigation-grade, so Back closes it rather than leaving the screen (the same contract
+ * `SETTINGS_DIALOG_OPTIONS` states). The GRANT dialog's own field drafts (the person query, the
+ * chosen role, the reason) deliberately stay OUT of the URL: they are an in-flight form draft
+ * naming a real person, which ADR 0011 Decision 3 keeps out of history and out of any link copied
+ * from the address bar.
+ */
+export const adminRolesParsers = {
+  role: parseAsString.withDefault(''),
+  includeRevoked: parseAsBoolean.withDefault(false),
+  after: parseAsString.withDefault(''),
+  grantOpen: parseAsBoolean.withDefault(false),
+  revokeGrantId: parseAsString.withDefault(''),
+};
+
+const adminRolesUrlKeys = {
+  role: 'role',
+  includeRevoked: 'revoked',
+  after: 'after',
+  grantOpen: 'grant',
+  revokeGrantId: 'revoke',
+};
+
+/** Filters and the cursor: `replace`. Paging is a knob on this screen, not a destination — the
+ *  ledger is one view of one collection, and a Back press should leave `/admin/roles` rather than
+ *  walk the operator back through however many pages they scrolled past. */
+export function useAdminRolesParams() {
+  return useQueryStates(adminRolesParsers, { urlKeys: adminRolesUrlKeys, history: 'replace' });
+}
+
+/** Opening or closing either dialog is navigation-grade: Back closes it, it does not leave. */
+export const ADMIN_ROLES_DIALOG_OPTIONS = { history: 'push' as const };
+
 // ── declarative dashboards: one axis knob per series panel ───────────────────────────────────
 
 /** A `dashboards.yaml` panel id → the query param carrying that panel's axis transform. Kebab

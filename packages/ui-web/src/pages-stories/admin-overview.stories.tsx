@@ -98,7 +98,7 @@ function AdminOverviewScreen() {
   const [range, setRange] = React.useState(presetRange('mtd', STORY_TODAY));
 
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin: true })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Overview"

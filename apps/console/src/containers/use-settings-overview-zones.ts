@@ -27,6 +27,7 @@ import {
 } from './overview-usage';
 import { microsToAmount } from './refill-rows';
 import { sentinelLabel } from './sentinel-labels';
+import { PERMISSION, hasPermission } from '../shared/permissions';
 import { buildBurnDownRequest, toAggregateDaySeries } from './settings-overview-usage';
 import { UNASSIGNED_KEY } from './overview-usage';
 
@@ -120,7 +121,18 @@ export interface SettingsOverviewZones {
 export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOverviewZones {
   const scope = useConsoleScope();
   const session = useConsoleSession();
-  const isAdmin = session.isAdmin;
+  // converse-frontends#452: these two additive cards used to hang on one `session.isAdmin` flag —
+  // `roles.includes('lightbridge-admin')`, which prod minted for everybody, so it gated nothing.
+  // Each is now gated on the permission its OWN queries need, which is what the backend would
+  // refuse them without: the budget-pressure card reads `getMyBudgetBalance` (`budget:read-own`),
+  // the key-hygiene card lists this account's projects and their keys (`project:read` +
+  // `apikey:read`). Both are held by `lightbridge-viewer`, so an account owner keeps seeing their
+  // own account-wide cards after the role cutover — which is correct: the data is theirs, and
+  // nothing here is estate-wide (`usage:read-all` would be the wrong, wider gate).
+  const canReadOwnBudget = hasPermission(session.permissions, PERMISSION.budgetReadOwn);
+  const canReadAccountKeys =
+    hasPermission(session.permissions, PERMISSION.projectRead) &&
+    hasPermission(session.permissions, PERMISSION.apiKeyRead);
   const budgetClient = useConsoleBudgetClient();
 
   const accountId = scope.value.accountId;
@@ -156,7 +168,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
     // Account lens: every user (the burn-down's own ceiling). Project lens: admin only (the
     // BudgetPressure card's ceiling) — a non-admin on the project lens never fires this.
     enabled:
-      (lens === 'account' || (lens === 'project' && isAdmin)) &&
+      (lens === 'account' || (lens === 'project' && canReadOwnBudget)) &&
       Boolean(accountId) &&
       accountIsHome,
     staleTime: 30_000,
@@ -167,7 +179,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
   const pressureQuery = useQuery({
     queryKey: ['usage', 'budget-consumption-by-project', accountId, period],
     queryFn: () => queryUsage(buildBudgetConsumptionByProjectRequest(accountId, new Date())),
-    enabled: lens === 'project' && Boolean(accountId) && isAdmin,
+    enabled: lens === 'project' && Boolean(accountId) && canReadOwnBudget,
     staleTime: 30_000,
   });
 
@@ -200,7 +212,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
     resource: 'projects',
     pagination: { currentPage: 1, pageSize: PROJECTS_PAGE_SIZE },
     filters: accountId ? [{ field: 'accountId', operator: 'eq', value: accountId }] : [],
-    queryOptions: { enabled: lens === 'account' && isAdmin },
+    queryOptions: { enabled: lens === 'account' && canReadAccountKeys },
   });
   const adminAccountProjectIds = useMemo(
     () => adminProjects.result.data.map((project) => project.id),
@@ -214,7 +226,9 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
     resource: 'apiKeys',
     pagination: { currentPage: 1, pageSize: KEYS_PAGE_SIZE },
     filters: adminApiKeysFilters ?? [],
-    queryOptions: { enabled: lens === 'account' && isAdmin && adminApiKeysFilters !== null },
+    queryOptions: {
+      enabled: lens === 'account' && canReadAccountKeys && adminApiKeysFilters !== null,
+    },
   });
   const accountKeys = adminApiKeys.result.data;
   // The fetch timestamp, not `Date.now()`: reading the clock during render is impure, and an
@@ -282,7 +296,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
         : undefined,
     burnDown,
     adminPressure:
-      lens === 'project' && isAdmin
+      lens === 'project' && canReadOwnBudget
         ? {
             projects: pressureProjects,
             ceiling: pressureCeiling,
@@ -295,7 +309,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
           }
         : undefined,
     adminHygiene:
-      lens === 'account' && isAdmin
+      lens === 'account' && canReadAccountKeys
         ? {
             hygiene: apiKeysHygiene(accountKeys, adminKeysReadAt),
             summary: apiKeysStatusSummary(accountKeys, adminKeysReadAt),

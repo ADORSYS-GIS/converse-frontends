@@ -44,7 +44,7 @@ function SpecPageView({ page }: { page: SpecPage }) {
  *  the content column it actually renders in (console-ui skill "Composition"). */
 function ShelledPage({ page }: { page: SpecPage }) {
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin: true })} topBar={storyTopBar()}>
       <SpecPageView page={page} />
     </ConsoleShell>
   );

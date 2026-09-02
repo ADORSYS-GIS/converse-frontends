@@ -121,7 +121,7 @@ const BURN_DOWN_CAPTION =
 
 interface SettingsOverviewLensScreenProps {
   lens: SettingsLens;
-  isAdmin?: boolean;
+  showAdmin?: boolean;
   /** `false` only demonstrated for the `project` lens (no project selected yet) — every panel is
    *  suspended rather than fired unscoped, matching `zones.ready`. */
   ready?: boolean;
@@ -135,7 +135,7 @@ interface SettingsOverviewLensScreenProps {
  *  mirrors `apps/console/src/containers/settings-overview-centre.tsx`, render for render. */
 function SettingsOverviewLensScreen({
   lens,
-  isAdmin = false,
+  showAdmin = false,
   ready = true,
   burnDownStatus = 'ready',
   adminPressureStatus = 'ready',
@@ -149,11 +149,11 @@ function SettingsOverviewLensScreen({
   );
 
   const showBurnDown = lens === 'account';
-  const showPressure = lens === 'project' && isAdmin;
-  const showHygiene = lens === 'account' && isAdmin;
+  const showPressure = lens === 'project' && showAdmin;
+  const showHygiene = lens === 'account' && showAdmin;
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title={LENS_TITLE[lens]}
@@ -255,18 +255,18 @@ function SettingsOverviewLensScreen({
 const FAMILY_PAGE = specPage('/settings/overview/usage');
 
 interface UsageOverviewScreenProps {
-  isAdmin?: boolean;
+  showAdmin?: boolean;
   /** Only rendered when the cap actually dropped real accounts — never an apology for a
    *  truncation that did not happen. */
   truncationCaption?: string;
 }
 
-function UsageOverviewScreen({ isAdmin = false, truncationCaption }: UsageOverviewScreenProps) {
+function UsageOverviewScreen({ showAdmin = false, truncationCaption }: UsageOverviewScreenProps) {
   const [rangePreset, setRangePreset] = useState<string | null>('mtd');
   const [range, setRange] = useState(presetRange('mtd', STORY_TODAY));
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Usage overview"
@@ -313,12 +313,12 @@ type Story = StoryObj;
 
 export const AccountPopulatedAdmin: Story = {
   name: 'Account — populated, admin (Key hygiene shown)',
-  render: () => <SettingsOverviewLensScreen lens="account" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="account" showAdmin />,
 };
 
 export const AccountPopulatedAdminLight: Story = {
   name: 'Account — populated, admin — wireframe (light)',
-  render: () => <SettingsOverviewLensScreen lens="account" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="account" showAdmin />,
   globals: { theme: 'wireframe' },
 };
 
@@ -330,7 +330,7 @@ export const AccountPopulatedMember: Story = {
 
 export const AccountLoading: Story = {
   name: 'Account — burn-down loading',
-  render: () => <SettingsOverviewLensScreen lens="account" isAdmin burnDownStatus="loading" />,
+  render: () => <SettingsOverviewLensScreen lens="account" showAdmin burnDownStatus="loading" />,
 };
 
 export const AccountHygieneTruncated: Story = {
@@ -338,7 +338,7 @@ export const AccountHygieneTruncated: Story = {
   render: () => (
     <SettingsOverviewLensScreen
       lens="account"
-      isAdmin
+      showAdmin
       adminHygieneCaveat="Counted over the first 100 of 140 keys in this account — the rest are beyond this page."
     />
   ),
@@ -347,25 +347,25 @@ export const AccountHygieneTruncated: Story = {
 export const AccountMobileBaseTier: Story = {
   name: 'Account — mobile base tier',
   globals: { viewport: { value: 'base390' } },
-  render: () => <SettingsOverviewLensScreen lens="account" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="account" showAdmin />,
 };
 
 export const AccountMobileBaseTierLight: Story = {
   name: 'Account — mobile base tier — wireframe (light)',
   globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
-  render: () => <SettingsOverviewLensScreen lens="account" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="account" showAdmin />,
 };
 
 // ── project lens ──────────────────────────────────────────────────────────────────────────────
 
 export const ProjectPopulatedAdmin: Story = {
   name: 'Project — populated, admin (Budget pressure shown)',
-  render: () => <SettingsOverviewLensScreen lens="project" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="project" showAdmin />,
 };
 
 export const ProjectPopulatedAdminLight: Story = {
   name: 'Project — populated, admin — wireframe (light)',
-  render: () => <SettingsOverviewLensScreen lens="project" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="project" showAdmin />,
   globals: { theme: 'wireframe' },
 };
 
@@ -383,33 +383,33 @@ export const ProjectUnselected: Story = {
 
 export const ProjectNoCeiling: Story = {
   name: 'Project — budget pressure with no readable ceiling',
-  render: () => <SettingsOverviewLensScreen lens="project" isAdmin adminPressureCeiling={null} />,
+  render: () => <SettingsOverviewLensScreen lens="project" showAdmin adminPressureCeiling={null} />,
 };
 
 export const ProjectMobileBaseTier: Story = {
   name: 'Project — mobile base tier',
   globals: { viewport: { value: 'base390' } },
-  render: () => <SettingsOverviewLensScreen lens="project" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="project" showAdmin />,
 };
 
 export const ProjectMobileBaseTierLight: Story = {
   name: 'Project — mobile base tier — wireframe (light)',
   globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
-  render: () => <SettingsOverviewLensScreen lens="project" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="project" showAdmin />,
 };
 
 // ── user lens ─────────────────────────────────────────────────────────────────────────────────
 
-// No admin-only card exists on this lens at all — `isAdmin` is exercised on the sidebar's Operator
+// No admin-only card exists on this lens at all — `showAdmin` is exercised on the sidebar's Operator
 // nav group only, never as a second populated variant.
 export const UserPopulated: Story = {
   name: 'User — populated',
-  render: () => <SettingsOverviewLensScreen lens="user" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="user" showAdmin />,
 };
 
 export const UserPopulatedLight: Story = {
   name: 'User — populated — wireframe (light)',
-  render: () => <SettingsOverviewLensScreen lens="user" isAdmin />,
+  render: () => <SettingsOverviewLensScreen lens="user" showAdmin />,
   globals: { theme: 'wireframe' },
 };
 

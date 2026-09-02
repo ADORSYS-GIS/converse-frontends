@@ -1,13 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { resolveOwnedAccountIds, resolveProjectAccountId } from '../../../../server/authz-account-lookup';
+import { can } from '../../../../server/access';
+import {
+  resolveOwnedAccountIds,
+  resolveProjectAccountId,
+} from '../../../../server/authz-account-lookup';
 import { serverEnv } from '../../../../server/env';
 import { proxyRequest } from '../../../../server/proxy';
 import { usageTargetUrl } from '../../../../server/proxy-target';
 import { readSessionFromRequest } from '../../../../server/session-store';
-import { isAdmin } from '../../../../server/tokens';
 import { usageDispatcher } from '../../../../server/usage-dispatcher';
 import { guardUsageScope } from '../../../../server/usage-scope-guard';
+import { PERMISSION } from '../../../../shared/permissions';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -45,12 +49,12 @@ function isUsageQueryPath(path: string[]): boolean {
  * returns, and a `Request`/`NextRequest` body can only be consumed once. Cloning tees the
  * underlying stream so both reads succeed independently.
  *
- * `isAdmin(session.user?.roles ?? [])` (converse-frontends#368) is the SAME role check
- * `app/(console)/admin/overview/page.tsx` already gates the route itself with — read from the
- * decrypted session cookie, never from anything the browser could set on this request. Passed
- * through to `guardUsageScope`'s own admin fast path (see that function's doc comment); a
- * non-admin session always computes `false` here and the guard's existing ownership check runs
- * completely unchanged.
+ * `can(session, PERMISSION.usageReadAll)` (converse-frontends#368, converted by #452) is the SAME
+ * check `app/(console)/admin/overview/page.tsx` already gates the route itself with — read from
+ * the permission set `getMyAccess` resolved into the decrypted session cookie, never from anything
+ * the browser could set on this request. Passed through to `guardUsageScope`'s own estate-read
+ * fast path (see that function's doc comment); a session without the permission always computes
+ * `false` here and the guard's existing ownership check runs completely unchanged.
  */
 async function guardUsageQueryRequest(request: NextRequest) {
   const session = await readSessionFromRequest(request);
@@ -71,7 +75,7 @@ async function guardUsageQueryRequest(request: NextRequest) {
     // Optional chaining, not an invariant: test/session shapes without a user still take the
     // resolver path — the fast-path is an optimization, never a requirement.
     session.user?.sub,
-    isAdmin(session.user?.roles ?? [])
+    can(session, PERMISSION.usageReadAll)
   );
 }
 

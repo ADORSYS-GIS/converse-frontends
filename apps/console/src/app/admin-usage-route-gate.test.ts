@@ -23,12 +23,12 @@ const USAGE_CENTRE = join('src', 'containers', 'admin-usage-centre.tsx');
 
 const read = (relative: string) => readFileSync(join(process.cwd(), relative), 'utf8');
 
-describe('the /admin/usage role gate', () => {
-  it('decrypts the session and 404s a non-admin', () => {
+describe('the /admin/usage permission gate', () => {
+  it('decrypts the session and 404s a caller without usage:read-all', () => {
     const source = read(USAGE_SEGMENT);
 
     expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
+    expect(source).toContain('can(session, PERMISSION.usageReadAll)');
     expect(source).toContain('notFound()');
   });
 

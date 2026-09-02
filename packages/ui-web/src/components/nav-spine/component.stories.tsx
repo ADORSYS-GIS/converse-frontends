@@ -92,8 +92,11 @@ export const BottomBar: Story = {
 };
 
 // Owner finding, 2026-08-31 (issue #368) — "I have the role lightbridge-admin and yet I can't see
-// roles": the real `/settings` "Roles" row (`apps/console/src/client/console-chrome.tsx`'s
-// `ROLES_DISABLED_REASON`). The label stays at its normal position, "Unavailable" is a small
+// roles": the `/settings` "Roles" row rendered `disabled` with a stated reason while no read API
+// for role mappings existed. It is a LIVE row now (converse-frontends#452 — `/admin/roles`, backed
+// by `platform_role_grants`), so this story no longer mirrors a real console row; it keeps
+// documenting the DISABLED-row treatment itself, which the contract still allows for any
+// destination that genuinely is not built. The label stays at its normal position, "Unavailable" is a small
 // always-visible trailing annotation (no interaction needed to see THAT it's unavailable), and
 // the `play` function focuses the row so Storybook's default snapshot shows the reason tooltip
 // actually open — proving it surfaces, not just that the row renders.

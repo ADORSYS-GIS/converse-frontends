@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react';
 import { useConsoleScope } from '../client/use-console-scope';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
+import { PERMISSION, hasPermission } from '../shared/permissions';
 import {
   API_KEYS_SELECTION_OPTIONS,
   API_KEY_SORT_KEYS,
@@ -60,10 +61,12 @@ import {
  * **Delete (ticket #321)**: `Del` is gated exactly like Revoke — a `TypedConfirmDialog` retargeted
  * by `?delete=<id>`, gone through `useDelete()`'s own `mutation` (a full react-query
  * `UseMutationResult`) rather than the shared cache, because unlike Revoke this mutation has no
- * other zone to share its outcome with — the dialog only ever renders in the centre. `isAdmin`
- * comes straight from the session (`useConsoleSession()`) the root layout already decrypted
- * server-side; it is presentation only — see `ApiKeysLedgerProps.isAdmin`'s doc comment for why
- * this is not the security boundary.
+ * other zone to share its outcome with — the dialog only ever renders in the centre. `canDelete`
+ * comes from the permission set `getMyAccess` resolved into the session the root layout already
+ * decrypted server-side (converse-frontends#452 replaced the old `session.isAdmin` role flag with
+ * `apikey:delete`, the permission the backend actually enforces on the mutation); it is
+ * presentation only — see `ApiKeysLedgerProps.canDelete`'s doc comment for why this is not the
+ * security boundary.
  *
  * **Create (tickets #317/#319/#320, redesigned live findings #4, 2026-08-30)**: `+ New key` now
  * opens `CreateApiKeyDialog` (`?create=1`) instead of firing `createApiKey` straight off with an
@@ -84,7 +87,7 @@ import {
  * first project the account can read) and `createKeyEligible`/`createKeyReason` mirror
  * `createApiKey`'s lead/owner gate (`authz.cstack:520-528`) is now evaluated against THAT
  * selection (`draftProjectId`) as the dialog's own `projectReason` caption, not against the
- * trigger. Both checks stay presentation only, same disclaimer as `isAdmin` above:
+ * trigger. Both checks stay presentation only, same disclaimer as `canDelete` above:
  * `lightbridge-authz`'s hand-written SQL check is the actual enforcement
  * (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role grants).
  */
@@ -162,7 +165,7 @@ export interface ApiKeysScreen {
   confirmRevoke: (row: ApiKeyRow) => void;
   cancelRevoke: () => void;
   rotate: (row: ApiKeyRow) => void;
-  isAdmin: boolean;
+  canDelete: boolean;
   deleteTarget: ApiKeysDeleteTarget | null;
   requestDelete: (row: ApiKeyRow) => void;
   confirmDelete: (row: ApiKeyRow) => void;
@@ -208,9 +211,10 @@ export function useApiKeysScreen(): ApiKeysScreen {
   // The account's own project ids — `scope.projects` is already scoped to `scope.value.accountId`
   // (`use-console-scope.ts`'s Phase 2d fix), so mapping it to ids is all `apiKeysAccountFilters`
   // needs to build the `projectId in […]` filter below.
-  const accountProjectIds = useMemo(() => scope.projects.map((project) => project.id), [
-    scope.projects,
-  ]);
+  const accountProjectIds = useMemo(
+    () => scope.projects.map((project) => project.id),
+    [scope.projects]
+  );
 
   const accountFilters = useMemo(
     () => apiKeysAccountFilters({ projectId: scope.value.projectId, accountProjectIds }),
@@ -521,9 +525,9 @@ export function useApiKeysScreen(): ApiKeysScreen {
       void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
     },
     rotate: (row) => secret.mutate({ kind: 'rotate', keyId: row.id, name: row.name }),
-    // Presentation only (see `ApiKeysLedgerProps.isAdmin`'s doc comment): `lightbridge-authz`
-    // refuses `apiKeys:delete` server-side regardless of what this renders.
-    isAdmin: session.isAdmin,
+    // Presentation only (see `ApiKeysLedgerProps.canDelete`'s doc comment): `lightbridge-authz`
+    // refuses `apikey:delete` server-side regardless of what this renders.
+    canDelete: hasPermission(session.permissions, PERMISSION.apiKeyDelete),
     deleteTarget: deleteRow ? { row: deleteRow, error: deleteErrorMessage } : null,
     requestDelete: (row) => {
       deleteMutation.reset();

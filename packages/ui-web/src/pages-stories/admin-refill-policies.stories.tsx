@@ -222,7 +222,7 @@ function AdminRefillPoliciesScreen({
   })();
 
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin })} topBar={storyTopBar()}>
       {body}
     </ConsoleShell>
   );

@@ -150,10 +150,20 @@ describe('ADR 0011 discipline', () => {
     //    difference that this draft is PREFILLED on `?edit=<id>` (there is a real read path here,
     //    unlike the refill-policy route), which the draft carries as an id TAG so the prefill stays
     //    a pure derivation rather than a `setState` inside an effect.
+    //  - converse-frontends#452 (story C9, `/admin/roles`) adds two.
+    //    `use-admin-roles-screen.ts` carries the grant form's unsent draft — the person being
+    //    searched for, the role picked, the reason typed — plus the same page-cursor stack
+    //    `use-refills-queue-screen.ts` already justifies. `?grant=1` and `?revoke=<id>` ARE in the
+    //    URL; a real person's name typed into a search box is not, which is exactly the
+    //    in-flight-draft carve-out Decision 3 names.
+    //    `use-debounced-value.ts` is the debounce latch behind that search: a delayed COPY of a
+    //    value the caller already owns, never a second home for a fact.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
+      join('client', 'use-debounced-value.ts'),
       join('containers', 'auth-view.tsx'),
       join('containers', 'use-admin-budget-schedules-screen.ts'),
+      join('containers', 'use-admin-roles-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
       join('containers', 'use-budget-schedule-form-screen.ts'),
       join('containers', 'use-create-account-dialog.ts'),

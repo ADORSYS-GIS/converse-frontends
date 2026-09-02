@@ -259,7 +259,7 @@ describe('home-account fast path', () => {
 // bypass this widening added to close the gap between what `/admin/overview`'s fan-out can
 // legitimately DISCOVER (family + refill-queue account ids, `estateAccountIds`) and what this
 // guard would actually let it QUERY. Every case here also asserts the resolver is never called
-// on the admin path, and that the non-admin path is untouched by `isAdmin`'s mere presence. ────
+// on the admin path, and that the non-admin path is untouched by `canReadAllUsage`'s mere presence. ────
 describe('admin fast path', () => {
   const neverResolve = () => {
     throw new Error('resolver must not be called on the admin fast path');
@@ -276,7 +276,7 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: true });
   });
 
-  it('isAdmin: false behaves exactly like the pre-existing signature — resolver still runs, foreign scope still 403s', async () => {
+  it('canReadAllUsage: false behaves exactly like the pre-existing signature — resolver still runs, foreign scope still 403s', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account', scope_id: 'acct-foreign' },
       async () => new Set(['acct-owned']),
@@ -287,7 +287,7 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('isAdmin omitted (undefined) is treated as non-admin — the existing five-arg call sites are unaffected', async () => {
+  it('canReadAllUsage omitted (undefined) is treated as non-admin — the existing five-arg call sites are unaffected', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account', scope_id: 'acct-foreign' },
       async () => new Set(['acct-owned']),
@@ -365,7 +365,7 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('an admin body still 400s on a malformed request, before isAdmin is ever consulted', async () => {
+  it('an admin body still 400s on a malformed request, before canReadAllUsage is ever consulted', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account' },
       neverResolve as never,
@@ -426,7 +426,7 @@ describe('admin scope=all fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('isAdmin omitted (undefined) refuses scope=all — the existing five-arg call sites are unaffected', async () => {
+  it('canReadAllUsage omitted (undefined) refuses scope=all — the existing five-arg call sites are unaffected', async () => {
     const outcome = await guardUsageScope(
       { scope: 'all', scope_id: '' },
       async () => new Set(['acct-owned']),

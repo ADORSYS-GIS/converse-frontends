@@ -61,7 +61,7 @@ function AdminRefillPolicyCreateScreen({
   const [confirmOpen, setConfirmOpen] = useState(overwriteConfirmOpen);
 
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="New refill policy"

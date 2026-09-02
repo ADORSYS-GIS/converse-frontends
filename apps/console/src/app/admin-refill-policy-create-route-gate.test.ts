@@ -28,7 +28,7 @@ describe('the /admin/refill-policies/create role gate', () => {
     const source = readFileSync(join(process.cwd(), REFILL_POLICIES_CREATE_SEGMENT), 'utf8');
 
     expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
+    expect(source).toContain('can(session, PERMISSION.budgetPolicyWrite)');
     expect(source).toContain('notFound()');
   });
 

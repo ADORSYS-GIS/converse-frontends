@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 
 import { AdminBudgetScheduleCreateCentre } from '../../../../../containers/admin-budget-schedule-create-centre';
+import { can } from '../../../../../server/access';
 import { readSession } from '../../../../../server/session-store';
-import { isAdmin } from '../../../../../server/tokens';
+import { PERMISSION } from '../../../../../shared/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AdminBudgetScheduleCreateRoute() {
   const session = await readSession();
-  if (!session || !isAdmin(session.user.roles)) {
+  if (!session || !can(session, PERMISSION.budgetScheduleManage)) {
     notFound();
   }
   return <AdminBudgetScheduleCreateCentre />;

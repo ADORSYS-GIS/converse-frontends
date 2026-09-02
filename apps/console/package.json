@@ -33,7 +33,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "undici": "^7.16.0",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@serwist/turbopack": "10.0.0-preview.14",

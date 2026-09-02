@@ -49,6 +49,14 @@ export const EXPECTED: Record<string, string | null> = {
   'chart-axis': null, // SVG primitive
   'chart-legend': null, // SVG primitive
   'chart-tooltip': null, // point-anchored: Floating UI virtual element, not a DOM anchor
+  'donut-chart': null, // SVG primitive (converse-frontends#446). Recorded with its reason rather
+  // than left to the `?? null` default — this file's own doc comment is explicit that an
+  // unexamined `null` is how the `button` gap survived. Checked against Base UI 1.7.0's export
+  // list, not assumed: it ships no chart, no arc and no part-to-whole mark of any kind. Its two
+  // behaviours are per-wedge hover (`lib/use-hover-active.ts`, shared with every sibling chart)
+  // and a click-to-select `<path>` with `role="button"`, which is native tab order rather than a
+  // roving-tabindex widget — nothing upstream owns either. The arc MATH is not bespoke: it lives
+  // in `@lightbridge/chart-core`'s `arcs.ts` on d3-shape, and the ring invariant is tested there.
   chevron: null, // a static path
   'command-palette': null, // cmdk owns the palette (ADR 0010)
   'console-shell': null, // the two-column responsive contract; daisy `drawer` rejected

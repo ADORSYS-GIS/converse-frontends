@@ -68,6 +68,7 @@ export function LedgerTable<T>({
   selectedRowKeys,
   onSelectRow,
   renderRowActions,
+  rowHref,
   totals,
   sort,
   onSortChange,
@@ -179,6 +180,9 @@ export function LedgerTable<T>({
             : data.map((row) => {
                 const key = rowKey(row);
                 const isSelected = selected.has(key);
+                // Only the FIRST column becomes a link — it is the row's identity cell. A `$`
+                // figure or a timestamp being a link says nothing about where it goes.
+                const href = rowHref?.(row);
 
                 return (
                   <tr
@@ -197,12 +201,18 @@ export function LedgerTable<T>({
                         : undefined
                     }
                     className={ledgerRowVariants({ density, selectable: Boolean(onSelectRow) })}>
-                    {columns.map((column) => (
+                    {columns.map((column, columnIndex) => (
                       <td
                         key={column.key}
                         data-kind={column.kind === 'data' ? 'data' : undefined}
                         className={cn(column.align === 'right' && ALIGN_RIGHT_CLASS)}>
-                        {column.accessor(row)}
+                        {columnIndex === 0 && href ? (
+                          <a href={href} className="ledger-row-link">
+                            {column.accessor(row)}
+                          </a>
+                        ) : (
+                          column.accessor(row)
+                        )}
                       </td>
                     ))}
                     {hasActions ? (

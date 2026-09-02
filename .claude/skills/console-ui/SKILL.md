@@ -355,6 +355,10 @@ from what reads honestly against that shape, not house taste.
 - **`ShareBar` survives in exactly one place**: a genuine "how does this whole add up" question
   with no per-row ranking involved (today: the estate overview's global model mix,
   `/settings/overview/usage`). Everywhere else, reach for `RankedSeriesRows` — never a donut, ever.
+- **Amended 2026-09-02 (owner ruling, converse-frontends#446):** rings ARE allowed — `DonutChart`
+  is a hollow ring with a non-zero inner radius (`chart-core/arcs.ts` clamps it, for every input),
+  values on hover only, and a Top-N + `Other (N)` collapse; a filled disk stays banned. The full
+  D5 rewrite and the ADR amendment land with C11; this line is the pointer until then.
 - **Never build a stacked bar or an area fill for a usage/spend breakdown.** Tried against the same
   sample and rejected for three measured reasons (ADR 0013 D5): top-1 dominance collapses
   non-leading bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage

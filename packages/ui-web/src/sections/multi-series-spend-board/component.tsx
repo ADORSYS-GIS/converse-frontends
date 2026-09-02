@@ -9,7 +9,10 @@ import { ZoneHeading } from '../../lib/zone-heading';
 import type { MultiSeriesSpendScale } from '../../components/multi-series-spend-chart';
 import type { MultiSeriesSpendBoardProps } from './types';
 
-const SCALE_OPTIONS: SegmentedOption<MultiSeriesSpendScale>[] = [
+/** Exported so a host that suppresses this board's own heading (`heading: 'none'`) can render the
+ *  SAME three options in its own actions slot — `DashboardPanel`'s series panel does exactly that
+ *  (converse-frontends#446) and must not restate the vocabulary. */
+export const SCALE_OPTIONS: SegmentedOption<MultiSeriesSpendScale>[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'log', label: 'Log' },
   { value: 'indexed', label: 'Indexed' },
@@ -32,6 +35,7 @@ const SCALE_OPTIONS: SegmentedOption<MultiSeriesSpendScale>[] = [
  */
 export function MultiSeriesSpendBoard({
   label = 'Spend',
+  heading = 'zone',
   series,
   scale,
   onScaleChange,
@@ -54,18 +58,20 @@ export function MultiSeriesSpendBoard({
 
   return (
     <div className={className}>
-      <ZoneHeading
-        label={label}
-        actions={
-          <SegmentedControl
-            aria-label="Scale"
-            options={SCALE_OPTIONS}
-            value={scale}
-            onChange={onScaleChange}
-          />
-        }
-      />
-      <div ref={ref} className="mt-4 w-full">
+      {heading === 'zone' ? (
+        <ZoneHeading
+          label={label}
+          actions={
+            <SegmentedControl
+              aria-label="Scale"
+              options={SCALE_OPTIONS}
+              value={scale}
+              onChange={onScaleChange}
+            />
+          }
+        />
+      ) : null}
+      <div ref={ref} className={heading === 'zone' ? 'mt-4 w-full' : 'w-full'}>
         {status === 'error' ? (
           <ErrorLine message={errorMessage ?? 'Failed to load spend data.'} onRetry={onRetry} />
         ) : status === 'loading' ? (

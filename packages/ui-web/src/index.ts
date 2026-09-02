@@ -110,6 +110,11 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { ShareBar } from './components/share-bar';
 export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
+// The RING (converse-frontends#446 — owner ruling 2026-09-02 amending ADR 0013 D5: rings allowed,
+// filled disks never). It stands BESIDE `ShareBar`, which keeps the one part-to-whole job it was
+// given on 2026-08-29, rather than replacing it.
+export { DonutChart } from './components/donut-chart';
+export type { DonutChartProps, DonutSegment } from './components/donut-chart';
 export { MultiSeriesSpendChart } from './components/multi-series-spend-chart';
 export type {
   MultiSeriesSpendChartProps,
@@ -256,6 +261,39 @@ export type {
 
 export { LatencyStatCards } from './sections/latency-stat-cards';
 export type { LatencyStatCardsProps, LatencyStatRow } from './sections/latency-stat-cards';
+
+// ── declarative dashboards (converse-frontends#446, decision D-K)
+// The grid a YAML page lays out in, the panel every board renders through (Card + ZoneHeading +
+// zoom), and the nine-entry renderer registry `apps/console`'s `dashboard-renderer.tsx` drives.
+export { DashboardGrid } from './sections/dashboard-grid';
+export type { DashboardGridProps } from './sections/dashboard-grid';
+export { DashboardPanel } from './sections/dashboard-panel';
+export type {
+  DashboardPanelBodyContext,
+  DashboardPanelProps,
+  DashboardPanelSize,
+} from './sections/dashboard-panel';
+export {
+  DASHBOARD_PANEL_TYPES,
+  PANEL_CHART_FALLBACK_WIDTH,
+  PANEL_CHART_HEIGHT,
+  PANEL_TABLE_PAGE_SIZE,
+  PANEL_TOP_N,
+  panelActionRenderers,
+  panelRenderers,
+  renderPanelActions,
+  renderPanelBody,
+} from './sections/dashboard-panels';
+export type {
+  DashboardPanelType,
+  DashboardPanelView,
+  DashboardTableColumn,
+  DashboardTableRow,
+  PanelRenderer,
+  PanelRendererProps,
+  PanelViewOf,
+} from './sections/dashboard-panels';
+export { usePanelHotkey } from './lib/use-panel-hotkey';
 
 export { BudgetPanel } from './sections/budget-panel';
 export type {

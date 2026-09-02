@@ -1,11 +1,9 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import type { DateRangePreset } from '@lightbridge/ui-web/src/components/date-range-field';
-import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { EstateBudgetPressure } from '@lightbridge/ui-web/src/sections/estate-budget-pressure';
@@ -13,24 +11,15 @@ import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 
-import {
-  dashboardScaleKey,
-  OVERVIEW_RANGES,
-  useAdminOverviewParams,
-  useDashboardScaleParams,
-} from '../client/url-state';
+import { OVERVIEW_RANGES, useAdminOverviewParams } from '../client/url-state';
 import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
+import { useDashboardScales } from '../dashboards/use-dashboard-scales';
 import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
-import {
-  currentPeriodRange,
-  RANGE_DAYS,
-  RANGE_LABELS,
-  resolveOverviewWindow,
-  toUrlDate,
-} from './overview-usage';
+import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { currentPeriodRange, resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
@@ -69,12 +58,6 @@ import { useAdminEstateOperations } from './use-admin-estate-operations';
  * than a pre-built URL, which is what makes that true rather than asserted.
  */
 
-const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
-}));
-
 export interface AdminOverviewCentreProps {
   /** The validated `/admin/overview` entry, read from `dashboards.yaml` by the route's server
    *  component. Passed in rather than loaded here because the loader is `node:fs` — and because a
@@ -91,29 +74,8 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
     [view.range, view.from, view.to]
   );
 
-  // One URL knob per SERIES panel, declared from the spec — see `useDashboardScaleParams`. Both
-  // series-shaped types, because both render a scale toggle.
-  const seriesPanelIds = useMemo(
-    () =>
-      page.panels
-        .filter((panel) => panel.type === 'series' || panel.type === 'latency-series')
-        .map((panel) => panel.id),
-    [page]
-  );
-  const [scales, setScales] = useDashboardScaleParams(seriesPanelIds);
-
-  const scaleFor = useCallback(
-    (panelId: string): MultiSeriesSpendScale | undefined =>
-      (scales[dashboardScaleKey(panelId)] as MultiSeriesSpendScale | null) ?? undefined,
-    [scales]
-  );
-
-  const onScaleChange = useCallback(
-    (panelId: string, scale: MultiSeriesSpendScale) => {
-      void setScales({ [dashboardScaleKey(panelId)]: scale });
-    },
-    [setScales]
-  );
+  // One URL knob per SERIES panel, declared from the spec — see `useDashboardScales`.
+  const { scaleFor, onScaleChange } = useDashboardScales(page);
 
   const dashboard = useDashboard({
     page,

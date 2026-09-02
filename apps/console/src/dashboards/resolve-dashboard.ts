@@ -5,6 +5,7 @@ import {
   type UsageWindow,
 } from '../containers/comparison-window';
 import {
+  FAMILY_SCOPE,
   isDashboardLens,
   LENS_DIMENSION,
   type DashboardLens,
@@ -44,6 +45,11 @@ import {
  *     `stat` panel on a page shares ONE request. `/admin/overview` today fires one query per board
  *     varying only `group_by`, and the identical ungrouped ones are not shared; that is the waste
  *     this closes.
+ *  6. **Expands `scope: family`** (C12, converse-frontends#455) into one `scope: account` query per
+ *     account in the session's own family — the fan-out `/settings/overview/usage` has always
+ *     performed by hand, now expressed in YAML. The members are ordinary queries and are
+ *     deduplicated like any other, so two family panels sharing a `group_by` share the whole
+ *     fan-out rather than doubling it.
  */
 
 /** Values a page can inject into its panels' `$param` placeholders. */
@@ -68,9 +74,26 @@ export interface ResolvedQuery {
 
 export interface ResolvedPanel {
   spec: DashboardPanelSpec;
-  /** Index into `ResolvedDashboard.queries` for this panel's own data. */
-  queryIndex: number;
-  /** Index of the comparison-window twin, when `compare: true`. */
+  /**
+   * Indices into `ResolvedDashboard.queries` for this panel's own data — ONE entry for an ordinary
+   * panel, one per family account for a `scope: family` fan-out. Never empty.
+   *
+   * An array rather than a scalar because a fan-out panel's reading is the COMBINATION of its
+   * members: `use-dashboard.ts` merges the responses into one before any adapter sees them, so a
+   * panel is loading while any member is, and errors when any member does — the same all-or-
+   * nothing honesty the hand-written estate screen had (a half-summed estate total is a wrong
+   * number, not a partial one).
+   *
+   * EMPTY only for a `family` panel on a session whose account family is empty or still loading —
+   * which resolves to a real, ready, zero-usage reading, never a permanently-pending panel.
+   */
+  queryIndices: number[];
+  /** `queryIndices[0]` — the convenience read for the overwhelmingly common single-query panel,
+   *  and `undefined` for the empty fan-out above. */
+  queryIndex?: number;
+  /** The comparison-window twin's indices, when `compare: true`. Fans out with the panel. */
+  compareQueryIndices?: number[];
+  /** `compareQueryIndices[0]`. */
   compareQueryIndex?: number;
   /** Which cadence the comparison was computed against — the delta's wording comes from it. */
   compareCadence?: ResetCadence;
@@ -119,9 +142,21 @@ export interface ResolveDashboardInput {
   /** The actor's reset cadence, when one is known. Estate pages omit it and get the monthly rule
    *  (D-F / owner Q8). */
   resetCadence?: ResetCadence;
+  /**
+   * The account ids a `scope: family` panel fans out over, ALREADY CAPPED by the caller (the cap
+   * is a page-level fact that has to be captioned where the page is drawn, so this module never
+   * silently truncates). A page with no family panel may omit it; a page WITH one and an empty
+   * list resolves to a fan-out of zero queries, which reads as an empty dashboard rather than an
+   * error — a session whose account family has not loaded yet is a real, transient state.
+   */
+  familyAccountIds?: readonly string[];
 }
 
-const PLACEHOLDER = /^\$([A-Za-z_][A-Za-z0-9_]*)$/;
+/** `$name`, or `$name?` for the optional form legal only inside `filters.<key>`. */
+const PLACEHOLDER = /^\$([A-Za-z_][A-Za-z0-9_]*)(\?)?$/;
+
+/** What `substitute` returns for an optional placeholder the page has no value for. */
+const DROP_FIELD = Symbol('drop');
 
 const DAY_MS = 86_400_000;
 
@@ -138,18 +173,35 @@ export function autoBucket(window: UsageWindow): string {
  * Substitutes one field. A bare `$name` is a placeholder; anything else is a literal (there is no
  * interpolation INSIDE a longer string — a half-substituted `scope_id` would be a silently wrong
  * query, and no page has ever needed one).
+ *
+ * `$name?` is the OPTIONAL form: when the page has no value for it, the whole field is DROPPED
+ * (`DROP_FIELD`) instead of raising. It exists for exactly one shape — a filter whose neutral
+ * position is "no filter at all", such as `/accounts/<id>/overview`'s project picker sitting on
+ * "All projects" — and `optionalAllowed` gates it to `filters.<key>`, because dropping a `scope`
+ * or a `scope_id` does not widen a query, it changes which thing the query is about.
  */
 function substitute(
   value: string,
   filters: DashboardFilters,
-  context: { route: string; panelId: string; field: string }
-): string {
+  context: { route: string; panelId: string; field: string; optionalAllowed?: boolean }
+): string | typeof DROP_FIELD {
   const match = PLACEHOLDER.exec(value);
   if (!match) return value;
 
   const name = match[1];
+  const optional = match[2] === '?';
+  if (optional && !context.optionalAllowed) {
+    throw new Error(
+      `[console] Optional dashboard placeholder "$${name}?" on page "${context.route}", panel ` +
+        `"${context.panelId}", field "${context.field}". Optional placeholders are legal only ` +
+        'inside `filters.<key>`: dropping a scope or a scope_id does not widen a query, it ' +
+        'changes what the query is about.'
+    );
+  }
+
   const resolved = filters[name];
   if (resolved === undefined || resolved === '') {
+    if (optional) return DROP_FIELD;
     throw new Error(
       `[console] Unresolved dashboard placeholder "$${name}" on page "${context.route}", ` +
         `panel "${context.panelId}", field "${context.field}". The page must supply it in ` +
@@ -185,18 +237,37 @@ function resolveQuery(
   context: { route: string; panelId: string },
   lens: DashboardLens | undefined
 ): ResolvedQuery {
-  const substituteField = (value: string, field: string) =>
-    substitute(value, filters, { ...context, field });
+  const substituteField = (value: string, field: string) => {
+    const resolved = substitute(value, filters, { ...context, field });
+    if (resolved === DROP_FIELD) {
+      // Unreachable: only `filters.<key>` passes `optionalAllowed`, and that branch handles the
+      // sentinel itself. Stated rather than cast, so a future caller cannot silently smuggle an
+      // optional placeholder into `scope`.
+      throw new Error(
+        `[console] Field "${field}" on page "${context.route}", panel "${context.panelId}" ` +
+          'cannot be dropped.'
+      );
+    }
+    return resolved;
+  };
 
   const resolvedFilters = query.filters
     ? Object.fromEntries(
-        Object.entries(query.filters).map(([key, value]) => [
-          key,
-          // A LIST filter (`operation_in`) is a closed vocabulary the backend validates, not
-          // page state — every entry is a literal, and substituting into one would mean a single
-          // URL knob silently rewriting a set-membership filter.
-          Array.isArray(value) ? [...value] : substituteField(value, `filters.${key}`),
-        ])
+        Object.entries(query.filters)
+          .map(([key, value]) => [
+            key,
+            // A LIST filter (`operation_in`) is a closed vocabulary the backend validates, not
+            // page state — every entry is a literal, and substituting into one would mean a single
+            // URL knob silently rewriting a set-membership filter.
+            Array.isArray(value)
+              ? [...value]
+              : substitute(value, filters, {
+                  ...context,
+                  field: `filters.${key}`,
+                  optionalAllowed: true,
+                }),
+          ])
+          .filter(([, value]) => value !== DROP_FIELD)
       )
     : undefined;
 
@@ -216,6 +287,27 @@ function resolveQuery(
       resolvedFilters && Object.keys(resolvedFilters).length > 0 ? resolvedFilters : undefined,
     limit: query.limit,
   };
+}
+
+/**
+ * One resolved query, or — for `scope: family` — one per family account.
+ *
+ * The fan-out members are ordinary `scope: account` queries: nothing downstream needs to know they
+ * came from a family panel except `use-dashboard.ts`, which merges their responses. The account id
+ * is carried in each member's own `scope_id`, which is what lets that merge attribute every point
+ * even when the response echoes no `account_id` of its own.
+ */
+function resolveQueries(
+  query: DashboardQuerySpec,
+  window: UsageWindow,
+  filters: DashboardFilters,
+  familyAccountIds: readonly string[],
+  context: { route: string; panelId: string },
+  lens: DashboardLens | undefined
+): ResolvedQuery[] {
+  const base = resolveQuery(query, window, filters, context, lens);
+  if (base.scope !== FAMILY_SCOPE) return [base];
+  return familyAccountIds.map((accountId) => ({ ...base, scope: 'account', scope_id: accountId }));
 }
 
 /**
@@ -272,6 +364,7 @@ export function resolveDashboard({
   window,
   filters = {},
   resetCadence,
+  familyAccountIds = [],
 }: ResolveDashboardInput): ResolvedDashboard {
   const queries: ResolvedQuery[] = [];
   const index = new Map<string, number>();
@@ -298,24 +391,32 @@ export function resolveDashboard({
     const lens = spec.options?.lens ? (pageLens ?? spec.options.lens) : undefined;
     const link =
       spec.options?.link && lens ? spec.options.link.replaceAll('$lens', lens) : spec.options?.link;
-    const queryIndex = intern(
-      queries,
-      index,
-      resolveQuery(spec.query, effectiveWindow, filters, context, lens)
-    );
 
-    if (!spec.compare || !comparison) return { spec, queryIndex, lens, link };
+    const queryIndices = resolveQueries(
+      spec.query,
+      effectiveWindow,
+      filters,
+      familyAccountIds,
+      context,
+      lens
+    ).map((query) => intern(queries, index, query));
+
+    const base = { spec, queryIndices, queryIndex: queryIndices[0], lens, link };
+    if (!spec.compare || !comparison) return base;
+
+    const compareQueryIndices = resolveQueries(
+      spec.query,
+      comparison.previous,
+      filters,
+      familyAccountIds,
+      context,
+      lens
+    ).map((query) => intern(queries, index, query));
 
     return {
-      spec,
-      queryIndex,
-      lens,
-      link,
-      compareQueryIndex: intern(
-        queries,
-        index,
-        resolveQuery(spec.query, comparison.previous, filters, context, lens)
-      ),
+      ...base,
+      compareQueryIndices,
+      compareQueryIndex: compareQueryIndices[0],
       compareCadence: comparison.cadence,
       compareShiftMs: comparison.current.start.getTime() - comparison.previous.start.getTime(),
     };

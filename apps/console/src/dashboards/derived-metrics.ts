@@ -4,8 +4,8 @@ import { safeCost } from '../containers/overview-usage';
 import type { DerivedMetricName } from './dashboard-spec';
 
 /**
- * The three metrics a panel can name as `metric: derived:<name>` — each a named PURE function of
- * one usage response, each unit-tested (converse-frontends#446, decision D-K).
+ * The metrics a panel can name as `metric: derived:<name>` — each a named PURE function of one
+ * usage response, each unit-tested (converse-frontends#446, decision D-K).
  *
  * "Derived" means the number is not a column the backend returns; it is arithmetic over columns
  * that are. That makes each one a place a fabricated figure could creep in, which is why they are
@@ -49,6 +49,28 @@ export function avgCostPerMillionTokens(response: UsageQueryResponse): number | 
   }
   if (tokens <= 0) return null;
   return (cost / tokens) * 1_000_000;
+}
+
+/**
+ * Mean cost of ONE request across the window, in USD — the third card of every
+ * `/settings/overview/*` lens' stat row, which `use-settings-overview-screen.ts` computed as
+ * `lensTotals().costPerRequest` before C12 moved those lenses onto this engine.
+ *
+ * `null` when the window carries no requests at all, for exactly the reason
+ * `avgCostPerMillionTokens` returns `null` with no tokens: a mean with an empty denominator has no
+ * value, and `$0.00 / request` reads as "we measured it and requests are free". The old hook
+ * returned `0` here and the stat row printed `$0.00`; that is the one behaviour this function
+ * deliberately does NOT reproduce.
+ */
+export function costPerRequest(response: UsageQueryResponse): number | null {
+  let cost = 0;
+  let requests = 0;
+  for (const point of response.points) {
+    cost += safeCost(point);
+    requests += safeRequests(point);
+  }
+  if (requests <= 0) return null;
+  return cost / requests;
 }
 
 /**
@@ -210,6 +232,7 @@ export function activeActorsPerBucket(
  */
 export const derivedMetrics = {
   avgCostPerMillionTokens,
+  costPerRequest,
   activeActors,
   chatCount,
   activeActorsPerBucket,

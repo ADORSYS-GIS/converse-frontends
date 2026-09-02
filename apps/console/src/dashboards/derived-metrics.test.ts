@@ -8,6 +8,7 @@ import {
   activeActorsPerBucket,
   avgCostPerMillionTokens,
   chatCount,
+  costPerRequest,
   derivedMetrics,
   lastActiveByGroup,
 } from './derived-metrics';
@@ -29,6 +30,45 @@ function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
 }
 
 const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ truncated: false, points });
+
+/**
+ * The third card of every `/settings/overview/*` lens' stat row, moved onto the engine by C12
+ * (converse-frontends#455) when those lenses became `dashboards.yaml` pages.
+ */
+describe('costPerRequest', () => {
+  it('sums cost and requests across every point before dividing', () => {
+    const value = costPerRequest(
+      response([
+        point({ requests: 1, total_cost: 1_000_000 }),
+        point({ requests: 3, total_cost: 3_000_000 }),
+      ])
+    );
+    // $4.00 over 4 requests, NOT the mean of the two per-point ratios (which is also 1 here only
+    // by coincidence — the point is the order of operations).
+    expect(value).toBeCloseTo(1, 10);
+  });
+
+  /**
+   * The one behaviour deliberately NOT carried over from the hook this replaced: `lensTotals`
+   * returned `0` for an empty window and the stat row printed `$0.00`, which reads as "we measured
+   * it and requests are free" rather than "there is nothing to measure".
+   */
+  it('is null, never 0, when the window carried no requests at all', () => {
+    expect(costPerRequest(response([point({ total_cost: 5_000_000 })]))).toBeNull();
+    expect(costPerRequest(response([]))).toBeNull();
+  });
+
+  it('ignores a malformed request count rather than poisoning the divisor', () => {
+    expect(
+      costPerRequest(
+        response([
+          point({ requests: Number.NaN, total_cost: 1_000_000 }),
+          point({ requests: 2, total_cost: 1_000_000 }),
+        ])
+      )
+    ).toBeCloseTo(1, 10);
+  });
+});
 
 describe('avgCostPerMillionTokens', () => {
   /** Money is micro-USD on the wire: 2_000_000 µUSD is $2.00, over 1M tokens = $2.00 / 1M. */

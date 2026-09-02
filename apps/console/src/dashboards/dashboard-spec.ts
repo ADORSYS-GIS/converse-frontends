@@ -43,6 +43,7 @@ export type BaseMetric = (typeof BASE_METRICS)[number];
  */
 export const DERIVED_METRICS = [
   'avgCostPerMillionTokens',
+  'costPerRequest',
   'activeActors',
   'chatCount',
   'activeActorsPerBucket',
@@ -68,6 +69,12 @@ const metricSchema = z.union([
  * the YAML author writes `scope_id: $actorId` and `resolve-dashboard.ts` substitutes it — this
  * schema only guarantees the field is a string, and an UNRESOLVED placeholder is an error raised
  * by the resolver (where the page's actual filters are known), not here.
+ *
+ * A trailing `?` (`$project?`) marks the placeholder OPTIONAL, and is legal only inside
+ * `filters.<key>` — see `resolve-dashboard.ts`'s `substitute`. It means "drop this filter when the
+ * page has no value for it", which is what an account dashboard needs for a project picker whose
+ * neutral position is "all projects". It is deliberately NOT legal on `scope`/`scope_id`: a
+ * dropped scope is not a narrower query, it is a different one.
  */
 const placeholderOrLiteral = z.string().min(1);
 
@@ -140,6 +147,24 @@ export const DEFAULT_TABLE_COLUMNS: readonly DashboardTableColumnId[] = [
 ];
 
 /**
+ * The one scope that is NOT a `UsageScope` — a resolver extension added by C12
+ * (converse-frontends#455) for `/settings/overview/usage`.
+ *
+ * That page is the operator's own ACCOUNT FAMILY, not the estate: `scope: all` is gated on
+ * `usage:read-all` and answers for every account on the deployment, which is a different (and for
+ * most signed-in people, forbidden) question. The usage API has no "every account I can see"
+ * scope either — filed as lightbridge-authz#578 — so the honest expression of that page is a
+ * FAN-OUT: one `scope: account` query per account in the session's own family, capped, combined
+ * client-side, with the cap stated in a caption.
+ *
+ * `resolve-dashboard.ts` expands a `family`-scoped panel into one resolved query per supplied
+ * account id, and `use-dashboard.ts` merges their responses into one before the adapters see it —
+ * stamping each point's `account_id` from the query it came from, so a by-account panel can
+ * attribute rows even if the backend echoed nothing. The panels themselves are ordinary YAML.
+ */
+export const FAMILY_SCOPE = 'family';
+
+/**
  * `group_by` is a plain string array, not the generated `UsageGroupBy` enum, and that is
  * deliberate: lane A3 adds `azp` / `operation` / `billing_plan` as first-class dimensions, and a
  * page must be authorable (and reviewable in Storybook, against fixtures) BEFORE that column
@@ -210,6 +235,18 @@ export const panelOptionsSchema = z
     unit: z.string().min(1).optional(),
     /** `table` only — which columns the ledger draws, in order. Omit for `DEFAULT_TABLE_COLUMNS`. */
     columns: z.array(z.enum(DASHBOARD_TABLE_COLUMNS)).min(1).optional(),
+    /**
+     * Which of the query's `group_by` dimensions this panel READS, when it is not the first one.
+     * `none` reads no dimension at all — the panel plots/sums the response's ungrouped total.
+     *
+     * Added by C12 (converse-frontends#455) for one concrete reason. `group_by` order is what lets
+     * several panels share one request (`queryKey` sorts the dimensions, each panel reads its own
+     * first one — `/admin/overview` already leans on it), and that is worth far more under a
+     * `family` fan-out, where every distinct query shape costs N requests rather than one. The one
+     * reading order cannot express is "the estate total", which is not any dimension: hence
+     * `dimension: none` rather than a second, ungrouped fan-out of 25 more requests.
+     */
+    dimension: z.string().min(1).optional(),
   })
   .strict();
 

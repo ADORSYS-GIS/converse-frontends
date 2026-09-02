@@ -6,20 +6,31 @@ import type {
 import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
 import type { ShareBarSegment } from '@lightbridge/ui-web/src/components/share-bar';
 
-import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
+import type { OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
 import { apiKeysAccountFilters, type ApiKeysFilter } from './api-key-rows';
 
 /**
- * Pure request/response adapters between the Overview screen's URL-driven view state and
- * `POST /usage/v1/usage/query` (#305/#306) — kept dependency-free of React/refine/TanStack Query
- * so the mapping itself (the part most likely to have an off-by-one or a wrong dimension) is
- * covered by plain unit tests, the same split `refill-rows.ts` already uses for its own
- * generated-model -> row adapters.
+ * The console's shared usage-query vocabulary: how a `?range=`/`?from=`/`?to=` selection becomes
+ * one UTC window, the explicit row limit every request carries, the micro-USD guard and the
+ * unassigned sentinel every response adapter reads through, and the BILLING-PERIOD budget-
+ * consumption requests.
+ *
+ * **What this module is NOT any more, as of C12 (converse-frontends#455).** It used to also hold
+ * the account dashboard's own request builder and share-bar adapters — `buildOverviewUsageRequest`
+ * (with its `?bucket=` interval table), `splitUnassignedProjects` and `degenerateChartMessage`.
+ * Those served a hand-written page that is now a `dashboards.yaml` entry, so they are deleted
+ * rather than left standing beside `resolve-dashboard.ts`/`panel-adapters.ts`, which do the same
+ * work from the spec. What remains is what has callers OUTSIDE any one dashboard: the window
+ * resolution every page's range picker shares, the guards the declarative engine's own adapters
+ * import, and the billing-period requests the RPC-backed budget zones fire.
+ *
+ * Kept dependency-free of React/refine/TanStack Query so the mapping itself — the part most likely
+ * to have an off-by-one or a wrong dimension — is covered by plain unit tests, the same split
+ * `refill-rows.ts` already uses.
  */
 
 export type OverviewRange = (typeof OVERVIEW_RANGES)[number];
-export type OverviewBucket = (typeof OVERVIEW_BUCKETS)[number];
 export type OverviewGroupBy = (typeof OVERVIEW_GROUP_BYS)[number];
 
 /** The three ROLLING presets' fixed day counts. `mtd` is deliberately excluded — it is a
@@ -112,25 +123,6 @@ const GROUP_BY_POINT_FIELD: Record<OverviewGroupBy, keyof UsageSeriesPoint> = {
   api_key_id: 'api_key_id',
 };
 
-export interface OverviewUsageQueryInput {
-  accountId: string;
-  /** `null`/`''` = account-wide; a project id scopes the query to that project instead. */
-  projectId?: string | null;
-  /** The resolved UTC window. Presets are resolved to dates by the caller (`resolveOverviewWindow`)
-   *  so this builder never has to know whether the user picked a preset or a calendar span. */
-  window: { start: Date; end: Date };
-  bucket: OverviewBucket;
-  /**
-   * `undefined` builds the UNGROUPED (account-total) request — the account overview's own "Spend
-   * over time" chart's shape since the 2026-08-31 owner finding ("the graphs are literally
-   * completely different"; see `use-overview-screen.ts`'s `totalUsageQuery`). A real dimension
-   * still drives the SHARE bar's own (separately queried) breakdown.
-   */
-  groupBy?: OverviewGroupBy;
-  /** `'all'` (the rail's own sentinel — see `use-overview-screen.ts`'s `MODEL_OPTIONS`) omits the filter. */
-  model: string;
-}
-
 /**
  * The `limit` every usage request sets explicitly (build brief §5) — the usage API accepts one,
  * and an unbounded request against a wide window (90d, hourly) is a real "how many rows could this
@@ -149,50 +141,6 @@ export function isUsageResponseTruncated(
 ): boolean {
   return response.points.length === limit;
 }
-
-/** Builds the `UsageQueryRequest` for the SPEND/SPEND SHARE dashboards from the Overview's own
- *  URL-driven view state (range/bucket/group-by/model) plus the console scope (account/project).
- *  Omitting `groupBy` builds the UNGROUPED request — one point per bucket, summed across every
- *  project/model/user/api-key (including unattributed spend), the shape the account TOTAL chart
- *  now uses. */
-export function buildOverviewUsageRequest(input: OverviewUsageQueryInput): UsageQueryRequest {
-  const { start: startTime, end: endTime } = input.window;
-  const scoped = Boolean(input.projectId);
-
-  return {
-    scope: scoped ? 'project' : 'account',
-    scope_id: scoped ? (input.projectId as string) : input.accountId,
-    start_time: startTime.toISOString(),
-    end_time: endTime.toISOString(),
-    bucket: USAGE_BUCKET_INTERVAL[input.bucket],
-    group_by: input.groupBy ? [input.groupBy] : undefined,
-    filters: input.model !== 'all' ? { model: input.model } : undefined,
-    limit: USAGE_QUERY_LIMIT,
-  };
-}
-
-/**
- * The URL's bucket vocabulary translated into the interval strings the usage API accepts.
- *
- * The backend validates against `^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$`
- * (`lightbridge-authz` `crates/lightbridge-authz-usage/src/repo.rs`'s `validate_bucket_interval`),
- * so a bare `'day'` is a `400 Bad request: bucket must look like ...` on every dashboard load --
- * which is exactly what it was doing.
- *
- * The URL keeps the short vocabulary deliberately: `?bucket=day` is the readable, shareable form,
- * and it is what `OVERVIEW_BUCKETS`/`BUCKET_LABELS` are keyed on. Translating at the API boundary
- * keeps the wire format an implementation detail of this request builder rather than leaking a
- * Postgres interval literal into every shared link.
- *
- * `week` maps to `7 days`, not `1 week`: the regex above has no `week` arm at all, and
- * `validate_bucket_interval_rejects_unexpected_values` asserts `"1 week"` is refused. `7 days` is
- * both accepted and the same bucket width.
- */
-const USAGE_BUCKET_INTERVAL: Record<OverviewBucket, string> = {
-  hour: '1 hour',
-  day: '1 day',
-  week: '7 days',
-};
 
 /** A finite, non-negative cost — a malformed or negative `total_cost` from the backend renders as
  *  `0` for THIS point only rather than throwing and taking the whole chart down with it (#304's
@@ -218,8 +166,10 @@ function groupKey(point: UsageSeriesPoint, groupBy: OverviewGroupBy): string {
  * (`zezxvt21irmoi0kzm22el7gu`). Until now each adapter did `label: key`, which put those ids
  * straight onto the share list — the console's most visible papercut.
  *
- * `key` stays the id: it is the identity the share bar and the `?series=` URL param both match
- * on. Only the LABEL changes.
+ * `key` stays the id: it is the identity a share bar or a ranked row matches on. Only the LABEL
+ * changes. The declarative engine has its own, dimension-aware version of the same idea
+ * (`DashboardLabelResolver`); this one survives for `project-rows.ts` and the budget-pressure
+ * zone, whose single dimension is known at the call site.
  */
 export type SeriesLabeller = (key: string) => string;
 
@@ -265,64 +215,6 @@ export function toSpendShareSegments(
  *  separately-scoped request (see `use-overview-screen.ts`), the budget consumption figure. */
 export function sumTotalCost(response: UsageQueryResponse): number {
   return response.points.reduce((sum, point) => sum + safeCost(point), 0);
-}
-
-/**
- * IA v3 phase 4's own measurement: 88% of usage rows carry no `project_id` at all — a real,
- * common state, not an edge case. `groupKey` still folds those into the `UNASSIGNED_KEY` sentinel
- * (every OTHER dimension legitimately wants that bucket rendered as an ordinary row/segment), but
- * a PROJECT breakdown must never turn it into a series: "NULL group keys are never a series,
- * surface as a caption" (build brief §3). This strips it out of whichever list a caller already
- * built and hands back an honest caption describing the excluded share, or `null` when there was
- * nothing to exclude — never a caption stating "0% unattributed" for a dataset with no gap at all.
- */
-export function splitUnassignedProjects<T extends { key: string; value: number }>(
-  segments: readonly T[]
-): { segments: T[]; unassignedCaption: string | null } {
-  const unassigned = segments.find((s) => s.key === UNASSIGNED_KEY);
-  const kept = segments.filter((s) => s.key !== UNASSIGNED_KEY);
-  if (!unassigned || unassigned.value <= 0) {
-    return { segments: kept, unassignedCaption: null };
-  }
-  const total = segments.reduce((sum, s) => sum + Math.max(s.value, 0), 0);
-  const percent = total > 0 ? Math.round((unassigned.value / total) * 100) : 0;
-  return {
-    segments: kept,
-    unassignedCaption: `${formatUsd(unassigned.value)} (${percent}%) of spend is not attributed to a project this period.`,
-  };
-}
-
-/**
- * A single-band chart (or a one-row breakdown) asserts a shape the data does not actually have —
- * "here is how spend varies across N things" reads as broken when N turns out to be zero or one.
- * This is the ONE place that decision is made, reused by both the account overview's SPEND chart
- * (`use-overview-screen.ts`) and the settings-overview lenses' secondary breakdown
- * (`use-settings-overview-screen.ts`) — finish item §2.
- *
- * No extra query: takes the SAME segments/caption the caller already computed for the real
- * rendering (`toSpendShareSegments`/`splitUnassignedProjects`'s own output), never fires a
- * dedicated "how many distinct values" request.
- *
- *  - 0 segments, no `unassignedCaption` — genuinely no usage at all; `undefined` here, since the
- *    chart's/list's own built-in empty state already says that honestly.
- *  - 0 segments, WITH an `unassignedCaption` — real usage exists but none of it resolved to a
- *    real value of this dimension (e.g. 100% unattributed to a project); the caption IS the
- *    degenerate message, stated as why there is nothing to chart, not "no usage."
- *  - Exactly 1 segment — a real single value; states it by name rather than drawing one flat band.
- *  - >=2 segments — a real breakdown; `undefined`.
- */
-export function degenerateChartMessage(
-  segments: readonly { label: string }[],
-  dimensionNoun: string,
-  unassignedCaption: string | null
-): string | undefined {
-  if (segments.length === 0) {
-    return unassignedCaption ?? undefined;
-  }
-  if (segments.length === 1) {
-    return `Only one ${dimensionNoun} in this window (${segments[0].label}).`;
-  }
-  return undefined;
 }
 
 /** `[start of this calendar month (UTC), now]` — the budget domain's own period boundary

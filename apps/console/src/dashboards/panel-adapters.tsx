@@ -34,6 +34,7 @@ import {
   activeActorsPerBucket,
   avgCostPerMillionTokens,
   chatCount,
+  costPerRequest,
   lastActiveByGroup,
 } from './derived-metrics';
 
@@ -94,6 +95,55 @@ function keyLabel(key: string, kind: ActorKind | null, labelFor: LabelFor): stri
   if (key === UNASSIGNED_KEY) return 'Unassigned';
   if (!kind) return key;
   return labelFor(kind, key).label;
+}
+
+/**
+ * A LOCAL name for an opaque group key — one the console already holds, without asking the backend
+ * (C12, converse-frontends#455).
+ *
+ * It sits IN FRONT of `labelFor` rather than replacing it, for two reasons. First, coverage:
+ * `resolveActorLabels` answers for users, accounts and projects, and nothing else — an API-key id
+ * has no actor kind at all, so the project lens's "Spend by API key" would print raw cuids without
+ * this. Second, authorization: that procedure needs `user:read`, which the account dashboard's
+ * readers will not hold once platform roles land (story C9), while `scope.allProjects` is already
+ * in memory for the page's own project picker. Answering from what is already held is both cheaper
+ * and available to more people.
+ *
+ * `undefined` means "no better name than the id" — the honest fallback for an entity deleted since
+ * the usage was recorded, and what hands the key on to `labelFor`.
+ */
+export type DashboardLabelResolver = (dimension: string, key: string) => string | undefined;
+
+/**
+ * The one place a group key becomes a label: local names first, then the backend's actor labels,
+ * then the id itself. `UNASSIGNED_KEY` is labelled, never dropped and never renamed by a resolver.
+ */
+function labelOf(
+  key: string,
+  dimension: string | undefined,
+  labelFor: LabelFor,
+  localLabels: DashboardLabelResolver | undefined
+): string {
+  if (key === UNASSIGNED_KEY) return 'Unassigned';
+  const local = dimension && localLabels ? localLabels(dimension, key) : undefined;
+  return local || keyLabel(key, actorKindOf(dimension), labelFor);
+}
+
+/**
+ * Which dimension a panel READS — `options.dimension` when it names one, otherwise the query's
+ * first `group_by` entry (C12, converse-frontends#455).
+ *
+ * `dimension: none` reads nothing: the panel plots or ranks the response's ungrouped total. That is
+ * what lets a family fan-out serve a total chart off the SAME grouped query its by-account chart
+ * reads, rather than a second fan-out of N more requests.
+ */
+export function panelDimension(
+  spec: DashboardPanelSpec,
+  groupBy: readonly string[] | undefined
+): string | undefined {
+  const declared = spec.options?.dimension;
+  if (declared === 'none') return undefined;
+  return declared ?? (groupBy ?? spec.query.group_by)?.[0];
 }
 
 function safeRequests(point: UsageSeriesPoint): number {
@@ -198,9 +248,9 @@ export function seriesByGroup(
   response: UsageQueryResponse,
   dimension: string | undefined,
   metric: DashboardMetric,
-  labelFor: LabelFor = IDENTITY_LABEL_FOR
+  labelFor: LabelFor = IDENTITY_LABEL_FOR,
+  localLabels?: DashboardLabelResolver
 ): { key: string; label: string; points: { x: Date; y: number }[] }[] {
-  const kind = actorKindOf(dimension);
   const byKey = new Map<string, Map<number, number>>();
   const totals = new Map<string, number>();
 
@@ -218,7 +268,7 @@ export function seriesByGroup(
     .sort(([, a], [, b]) => b - a)
     .map(([key]) => ({
       key,
-      label: key === '__total__' ? 'Total' : keyLabel(key, kind, labelFor),
+      label: key === '__total__' ? 'Total' : labelOf(key, dimension, labelFor, localLabels),
       points: Array.from(byKey.get(key) ?? [])
         .sort(([a], [b]) => a - b)
         .map(([t, y]) => ({ x: new Date(t), y })),
@@ -358,6 +408,8 @@ export interface PanelViewInput {
   /** Resolves an actor id to a name; defaults to sentinels-only, which is what every panel gets
    *  while the batch lookup is in flight or after it failed. */
   labelFor?: LabelFor;
+  /** Names the console already holds, consulted before `labelFor` — see `DashboardLabelResolver`. */
+  localLabels?: DashboardLabelResolver;
   /** `table` only — the URL-held sort and page, and the callbacks that write them back. */
   sort?: LedgerSort;
   onSortChange?: (sort: LedgerSort) => void;
@@ -418,12 +470,12 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
   const { spec, response } = input;
   // The RESOLVED group-by, so a lens-driven panel reads the dimension it actually queried.
   const groupBy = input.groupBy ?? spec.query.group_by;
-  const dimension = groupBy?.[0];
+  const dimension = panelDimension(spec, groupBy);
   const topN = spec.options?.topN;
   const link = input.link ?? spec.options?.link;
   const labelFor = input.labelFor ?? IDENTITY_LABEL_FOR;
-  const kind = actorKindOf(dimension);
-  const label = (key: string) => keyLabel(key, kind, labelFor);
+  const label = (key: string, forDimension = dimension) =>
+    labelOf(key, forDimension, labelFor, input.localLabels);
 
   switch (spec.type) {
     case 'stat':
@@ -438,7 +490,10 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'latency-series':
       return {
         kind: 'latency-series',
-        series: seriesByGroup(response, dimension, 'latency', labelFor).slice(0, topN ?? 5),
+        series: seriesByGroup(response, dimension, 'latency', labelFor, input.localLabels).slice(
+          0,
+          topN ?? 5
+        ),
         scale: input.scale,
         onScaleChange: input.onScaleChange,
       };
@@ -460,12 +515,19 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'share':
       return {
         kind: 'share',
-        segments: totalsByGroup(response, dimension ?? 'model', spec.metric).map((group) => ({
-          key: group.key,
-          label: label(group.key),
-          value: group.value,
-          formattedValue: formatMetric(group.value, spec.metric),
-        })),
+        // `ShareBar` has no Top-N notion of its own (unlike `RankedSeriesRows`), so a share panel
+        // that names one folds the tail into ONE labelled `Other (N)` segment here — never drops
+        // it, which would make the bar's own parts stop summing to the total beside it.
+        segments: collapseTail(
+          totalsByGroup(response, dimension ?? 'model', spec.metric).map((group) => ({
+            key: group.key,
+            label: label(group.key, dimension ?? 'model'),
+            value: group.value,
+            formattedValue: formatMetric(group.value, spec.metric),
+          })),
+          topN,
+          spec.metric
+        ),
       };
 
     case 'donut': {
@@ -486,11 +548,38 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     }
 
     case 'latency-cards':
-      return { kind: 'latency-cards', rows: latencyRowsByGroup(response, dimension ?? 'model') };
+      return {
+        kind: 'latency-cards',
+        rows: latencyRowsByGroup(response, dimension ?? 'model').map((row) => ({
+          ...row,
+          model: label(row.key, dimension ?? 'model'),
+        })),
+      };
 
     case 'table':
       return tableView(input, groupBy);
   }
+}
+
+/** Top-N + one summed `Other (N)` tail segment, for the one panel type whose primitive cannot cap
+ *  itself. `undefined`/oversized `topN` returns the list unchanged rather than a spurious tail. */
+function collapseTail(
+  segments: { key: string; label: string; value: number; formattedValue: string }[],
+  topN: number | undefined,
+  metric: DashboardMetric
+): { key: string; label: string; value: number; formattedValue: string }[] {
+  if (topN === undefined || segments.length <= topN) return segments;
+  const tail = segments.slice(topN);
+  const value = tail.reduce((sum, segment) => sum + segment.value, 0);
+  return [
+    ...segments.slice(0, topN),
+    {
+      key: '__other__',
+      label: `Other (${tail.length})`,
+      value,
+      formattedValue: formatMetric(value, metric),
+    },
+  ];
 }
 
 /**
@@ -614,11 +703,16 @@ function tableView(input: PanelViewInput, groupBy: string[] | undefined): Dashbo
 
   const values: TableRowValues[] = Array.from(cost.keys()).map((key) => {
     const resolved = kind && key !== UNASSIGNED_KEY ? labelFor(kind, key) : undefined;
+    // A locally-held name wins over the backend's, for the coverage and authorization reasons
+    // `DashboardLabelResolver` states — but it never overrides the `Unassigned` sentinel, and it
+    // never suppresses the resolved SECOND line (an account's owner, a user's email), which is a
+    // fact the local map does not hold.
+    const local = key !== UNASSIGNED_KEY ? input.localLabels?.(dimension, key) : undefined;
     return {
       key,
-      label: resolved?.label ?? plainLabel(key),
+      label: local || (resolved?.label ?? plainLabel(key)),
       secondary: resolved?.secondary,
-      subtle: resolved?.subtle ?? key === UNASSIGNED_KEY,
+      subtle: local ? false : (resolved?.subtle ?? key === UNASSIGNED_KEY),
       type: rowType,
       cost: cost.get(key) ?? 0,
       requests: requests.get(key) ?? 0,
@@ -698,9 +792,10 @@ function seriesView(input: PanelViewInput): DashboardPanelView {
 
   const series = seriesByGroup(
     response,
-    dimensions[0],
+    panelDimension(spec, dimensions),
     spec.metric,
-    input.labelFor ?? IDENTITY_LABEL_FOR
+    input.labelFor ?? IDENTITY_LABEL_FOR,
+    input.localLabels
   ).slice(0, spec.options?.topN ?? 5);
   if (compareResponse && compareShiftMs !== undefined) {
     series.push(comparisonSeries(compareResponse, spec.metric, compareShiftMs));
@@ -733,8 +828,19 @@ function statView(input: PanelViewInput): DashboardPanelView {
     };
   }
 
+  if (derived === 'costPerRequest') {
+    const value = costPerRequest(response);
+    return {
+      kind: 'stat',
+      label: spec.title,
+      // A dash, never `$0.00` — a mean over zero requests is not a number (the hook this replaced
+      // printed `$0.00` here; see `costPerRequest`'s own doc comment).
+      metric: value === null ? '—' : formatUsd(value),
+    };
+  }
+
   if (derived === 'activeActors') {
-    const dimension = (spec.query.group_by?.[0] ?? 'user_id') as keyof UsageSeriesPoint;
+    const dimension = (panelDimension(spec, input.groupBy) ?? 'user_id') as keyof UsageSeriesPoint;
     return {
       kind: 'stat',
       label: spec.title,

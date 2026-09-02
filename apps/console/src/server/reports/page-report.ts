@@ -6,7 +6,7 @@ import {
   type OverviewRange,
 } from '../../containers/overview-usage';
 import { loadDashboards } from '../../dashboards/load-dashboards';
-import { findPage, type DashboardPageSpec } from '../../dashboards/dashboard-spec';
+import { FAMILY_SCOPE, findPage, type DashboardPageSpec } from '../../dashboards/dashboard-spec';
 import { resolveDashboard, type ResolvedDashboard } from '../../dashboards/resolve-dashboard';
 import { assertSafeRouteSegments } from './template-resolver';
 import { buildReport, type BuiltReport } from './report-data';
@@ -32,7 +32,11 @@ import { buildReport, type BuiltReport } from './report-data';
 
 export type PageReportFailure =
   | { kind: 'unknown_route'; route: string; known: string[] }
-  | { kind: 'invalid_filter'; message: string };
+  | { kind: 'invalid_filter'; message: string }
+  /** A page whose panels fan out over the caller's own account family (`scope: family`, C12 /
+   *  converse-frontends#455). See `resolvePageReport`'s guard for why that cannot be answered
+   *  here. */
+  | { kind: 'unexportable_route'; route: string; message: string };
 
 export type PageReportResolution =
   | { ok: true; page: DashboardPageSpec; resolved: ResolvedDashboard; context: ReportContext }
@@ -132,6 +136,34 @@ export function resolvePageReport(input: ResolvePageReportInput): PageReportReso
         kind: 'unknown_route',
         route,
         known: file.pages.map((entry) => entry.route),
+      },
+    };
+  }
+
+  /**
+   * A `scope: family` page is refused, LOUDLY, rather than exported as a document of unavailable
+   * panels (C12, converse-frontends#455).
+   *
+   * That scope expands to one account-scoped query per account in the CALLER'S OWN account family,
+   * and this route has no session to read that list from — it is a report renderer, not a signed-in
+   * page. Resolving it here with an empty list would produce a syntactically valid report in which
+   * every panel says "could not be loaded", which is a worse answer than a refusal: a person would
+   * reasonably read it as "we have no usage", not as "this route cannot ask this question".
+   *
+   * The page that carries it (`/settings/overview/usage`) therefore renders no Export action at
+   * all. This guard is the second half of that decision, so a hand-built URL gets the same answer
+   * the UI gives.
+   */
+  if (page.panels.some((panel) => panel.query.scope === FAMILY_SCOPE)) {
+    return {
+      ok: false,
+      failure: {
+        kind: 'unexportable_route',
+        route,
+        message:
+          `"${route}" fans out over the signed-in identity's own account family, which a report ` +
+          'route cannot resolve — it has no session to read that list from. Export the ' +
+          'per-account overview instead.',
       },
     };
   }

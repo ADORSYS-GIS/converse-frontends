@@ -27,20 +27,20 @@ function skeletonBlocks(container: HTMLElement): NodeListOf<Element> {
   return container.querySelectorAll('[role="presentation"][aria-hidden="true"]');
 }
 
-describe('console route Loading page-stories (the source `apps/console`\'s loading.tsx files reuse)', () => {
+describe("console route Loading page-stories (the source `apps/console`'s loading.tsx files reuse)", () => {
   it('Overview: renders skeleton blocks and the real title, never a blank floor', () => {
     const { container } = render(<>{OverviewLoading.render!({}, {} as never)}</>);
 
     expect(skeletonBlocks(container).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
-    // The chart zones keep their heading row even while loading — geometry stays, only the plot
-    // area is a skeleton (console-ui skill: "axes/structure stay rendered"). SPEND BY MODEL
-    // (phase 9.2, replaces the deleted LATENCY panel) is part of this skeleton because, unlike
-    // LATENCY was, it is role-agnostic — every signed-in user sees it, so a route-transition
-    // loading boundary CAN honestly render it before the session resolves client-side — see
-    // `apps/console/src/app/(console)/loading.tsx`'s own doc comment.
-    expect(screen.getByText('Spend over time')).toBeInTheDocument();
-    expect(screen.getByText('Spend by model')).toBeInTheDocument();
+    // BUDGET is the one zone this fallback names, and the only one it honestly CAN: the panels
+    // below it come from `dashboards.yaml`, which the server component reads after this boundary
+    // has already rendered, so their titles are not knowable here (converse-frontends#455, story
+    // C12 — the fallback draws the page's shape, not a guess at its labels). The zone keeps its
+    // heading row while loading; only the numeral is a skeleton.
+    expect(screen.getByText('Budget')).toBeInTheDocument();
+    // …and the grid below it is real skeleton geometry, not a blank floor.
+    expect(skeletonBlocks(container).length).toBeGreaterThan(4);
   });
 
   it('Api-Keys: renders ledger row skeletons and the real title', () => {

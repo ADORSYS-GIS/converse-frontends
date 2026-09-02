@@ -115,6 +115,13 @@ export async function GET(request: NextRequest) {
           `Known routes: ${resolution.failure.known.join(', ')}.`
       );
     }
+    if (resolution.failure.kind === 'unexportable_route') {
+      // 400, not 404: the route EXISTS and is a real dashboard — it just asks a question that
+      // needs the caller's own account family, which this renderer has no session to read
+      // (converse-frontends#455). The page itself renders no Export action; this is the same
+      // answer for a hand-built URL.
+      return fail(400, 'unexportable_route', resolution.failure.message);
+    }
     return fail(400, 'invalid_filter', resolution.failure.message);
   }
 

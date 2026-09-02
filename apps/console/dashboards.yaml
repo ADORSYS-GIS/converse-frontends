@@ -18,17 +18,35 @@
 # to this file.
 #
 # ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
-# TWO page entries, both complete. C3 shipped the ENGINE and a first `/admin/usage` sketch; C4
-# migrated `/admin/overview` onto it and DELETED its hand-written containers
-# (`admin-overview-usage.ts`, `use-admin-overview-screen.ts`); C5 (this change) replaced the
-# sketch with the full nineteen-panel `/admin/usage` contract. Still to come:
-#   - C6 the actors/channels/chats routes, reusing C5's panel ids.
-#   - C12 brings `/accounts/<id>/overview` and `/settings/overview/*` onto the same engine.
+# SEVEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
+# sketch; C4 migrated `/admin/overview` onto it; C5 replaced the sketch with the full
+# nineteen-panel `/admin/usage` contract; C12 (converse-frontends#455) brought the account
+# dashboard and all four `/settings/overview/*` lenses across and deleted their hand-written
+# containers (`use-overview-screen.ts`, `use-settings-overview-screen.ts`,
+# `use-usage-overview-screen.ts`, `usage-overview-usage.ts`). **No hand-written dashboard container
+# remains in this console** — what is left beside a grid is only what is not a usage query
+# (RPC-backed budget zones, refine listings), each named in its page's own comment below. Still to
+# come: C6, the actors/channels/chats routes, reusing C5's panel ids.
 #
 # ── PLACEHOLDERS ─────────────────────────────────────────────────────────────────────────────
 # `$name` in any query string field is substituted from the page's own filters (a route param or
 # a URL knob). An unresolved placeholder is an ERROR, never an empty string — `scope_id: ""` on an
 # account-scoped panel would silently query something other than what the panel's title says.
+# `$name?` (C12) is the OPTIONAL form, legal ONLY inside `filters.<key>`: it DROPS the filter when
+# the page has no value for it, which is what a project picker sitting on "All projects" needs.
+#
+# ── SCOPES ───────────────────────────────────────────────────────────────────────────────────
+# `scope` is a `UsageScope` (`user`/`api_key`/`project`/`account`/`all`), or the resolver's own
+# `family` (C12): one `scope: account` query per account in the SESSION's own account family,
+# merged client-side. `family` is what `/settings/overview/usage` means — the accounts this
+# identity can see — and is deliberately not `all`, which is the whole deployment and is gated on
+# `usage:read-all`.
+#
+# ── WHICH DIMENSION A PANEL READS ────────────────────────────────────────────────────────────
+# By default, its query's FIRST `group_by` entry — which is what lets several panels share one
+# request, since the dedupe key sorts the dimensions. `options.dimension` names a different one
+# explicitly, and `dimension: none` reads no dimension at all (the ungrouped total). That matters
+# most under a `family` fan-out, where a second query shape costs N requests rather than one.
 #
 # ── BUCKET AND LIMIT ─────────────────────────────────────────────────────────────────────────
 # `bucket: auto` resolves from the page's range: ≤7d → 1 hour, ≤90d → 1 day, else 7 days.
@@ -631,5 +649,711 @@ pages:
           scope: all
           group_by:
             - azp
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /accounts/[accountId]/overview — the account-scoped user dashboard (converse-frontends#455,
+  # story C12).
+  #
+  # These panels ARE the boards `overview-centre.tsx` drew by hand until 2026-09-02 (spend over
+  # time with its previous-period overlay, the per-project breakdown, the by-model board), plus
+  # the two the toolbar's `?group-by=` knob used to reach — by API key, and the model share —
+  # which are now their own panels rather than one board changing shape under a select.
+  #
+  # **What stays hand-written, and why.** `dashboards.yaml` describes usage queries. The BUDGET
+  # card reads `getMyBudgetBalance` (an RPC) against BILLING-PERIOD consumption that must not
+  # follow the range picker, and the stat row beside it counts projects and active API keys
+  # through refine. None of those is a usage query, so none is a panel — the same line
+  # `/admin/overview` draws for its budget-pressure zone. They render in their own grid ABOVE this
+  # one, with the honesty caption that says which window they are about.
+  #
+  # Request count: eight panels resolve to FOUR requests — the ungrouped one (three panels), its
+  # comparison twin, one `[project_id, model]` grouping (four panels, each reading its own
+  # dimension), and one by-API-key grouping. The hand-written page fired four for three boards,
+  # and none of them were shared.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /accounts/[accountId]/overview
+    # `accountId` is the route segment; `project` is the console-wide `?project=` scope, whose
+    # neutral position is "All projects" — hence the OPTIONAL `$project?` placeholder below, which
+    # drops the filter entirely rather than sending an empty one.
+    filters:
+      - accountId
+      - project
+
+    panels:
+      # ── the money-first pair ────────────────────────────────────────────────────────────────
+      # Both read the SAME ungrouped query as the chart below, and both carry the D-F comparison,
+      # so the delta's wording names its window ("12% vs previous month") instead of the vague
+      # "vs prev period" the deleted per-container helpers used.
+      - id: spend-total
+        type: stat
+        title: Spend in this range
+        subtitle: The range picked above, not the billing period the BUDGET card states.
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: request-total
+        type: stat
+        title: Requests in this range
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── spend over time ─────────────────────────────────────────────────────────────────────
+      # UNGROUPED, deliberately: it plots the account TOTAL, summing every project/model/key
+      # including spend the backend attributed to nothing. It used to plot one line per project
+      # while silently dropping every unassigned point (often 88-99% of real spend), which is what
+      # made this chart and the estate overview's own draw different curves for the same account
+      # (owner finding, 2026-08-31). The dashed line is the previous period, re-based forward so
+      # the two overlay.
+      - id: spend-over-time
+        type: series
+        title: Spend over time
+        subtitle: The account total, with the previous period dashed underneath it.
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          scale: linear
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── the breakdowns ──────────────────────────────────────────────────────────────────────
+      # One `[project_id, model]` query serves all four panels below: each declares which
+      # dimension it READS (`options.dimension`), and the request is interned once.
+      - id: spend-by-project
+        type: ranked
+        title: Spend by project
+        subtitle: Spend the backend attributed to no project is a labelled Unassigned row, never dropped.
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: model-share
+        type: share
+        title: Spend by model — share
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 5
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: series
+        title: Spend by model over time
+        subtitle: Log axis by default — one model at ~100% share flattens every other line on a linear one.
+        span: 2
+        metric: cost
+        options:
+          dimension: model
+          scale: log
+          topN: 5
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 1
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # Its own request: an api-key grouping crossed with the two above would multiply the row
+      # count past the limit on any account with a real number of keys.
+      - id: spend-by-api-key
+        type: ranked
+        title: Spend by API key
+        subtitle: Spend the backend attributed to no key is a labelled Unassigned row.
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - api_key_id
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/usage — the operator's own ACCOUNT FAMILY overview (converse-frontends#455,
+  # story C12). The landing lens under "Overview" in the settings area.
+  #
+  # **This page is a `scope: family` FAN-OUT, and that is the whole design decision here.** It is
+  # NOT `scope: all`: that scope is the estate (every account on the deployment) and is gated on
+  # `usage:read-all`, which most signed-in people do not hold — `/admin/overview` is the page that
+  # asks that question. What this page has always shown is the accounts the signed-in identity can
+  # actually see, and the usage API has no scope for "every account I can see" (filed as
+  # lightbridge-authz#578). So the resolver expands each panel below into one `scope: account`
+  # query per family account — capped, and the cap stated in the page's own caption — and merges
+  # the responses before the adapters see them. That is exactly what `use-usage-overview-screen.ts`
+  # did by hand; it is YAML now.
+  #
+  # **Every panel shares ONE `[account_id, model]` grouping, on purpose.** Under a fan-out each
+  # distinct query shape costs N requests rather than one, so a second, ungrouped fan-out for the
+  # family total would have doubled the page's request count. `options.dimension` is what makes one
+  # grouping serve all six panels: `account_id` for the by-account board, `model` for the share,
+  # `none` for the family total. Request count is therefore the fan-out plus its comparison twin —
+  # the same 25 + 25 the hand-written screen fired, for three more panels.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/usage
+    # No route params: the family is a fact about the session, not about the URL. The account cap
+    # and its caption belong to the page, not to a panel.
+    filters: []
+
+    panels:
+      - id: family-requests
+        type: stat
+        title: Requests
+        span: 1
+        metric: requests
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost
+        type: stat
+        title: Cost
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost-per-request
+        type: stat
+        title: Cost / request
+        subtitle: Blank when the window carries no requests at all — a mean over nothing is not a number.
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # Last of the four, because its caption is the one an operator has to read: a usage query can
+      # only ever see accounts that DREW something.
+      - id: family-accounts
+        type: stat
+        title: Accounts
+        subtitle: Only accounts with usage in this window — an account that drew nothing never appears in a usage query at all.
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: account_id
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # `dimension: none` — the family TOTAL, summed across every account and model in the merged
+      # response, rather than one line per account (that is the board below). The dashed line is
+      # the previous period, re-based forward so the two overlay instead of doubling the x-domain.
+      - id: family-spend
+        type: series
+        title: Spend over time
+        subtitle: Every account in your family, summed. The dashed line is the previous period.
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          dimension: none
+          scale: linear
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-account
+        type: series
+        title: Spend by account
+        subtitle: One line per account, values on hover.
+        span: 2
+        metric: cost
+        options:
+          dimension: account_id
+          scale: linear
+          topN: 12
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-model-share
+        type: share
+        title: Spend by model
+        subtitle: The share across every account in your family. Spend the backend attributed to no model is a labelled Unassigned segment, never dropped.
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 5
+        query:
+          scope: family
+          group_by:
+            - account_id
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/account — the account analytics lens (converse-frontends#455, story C12).
+  #
+  # One of the three "scope-parameterised" lenses `use-settings-overview-screen.ts` drove by hand
+  # until 2026-09-02. Each is now its own YAML entry rather than one hook keyed by a `lens`
+  # literal: what actually differed between them was the scope and one breakdown dimension, which
+  # is precisely what a page entry states.
+  #
+  # Hand-written beside this grid, because neither is a usage query over the page's range: the
+  # cumulative BUDGET BURN-DOWN (its ceiling is `getMyBudgetBalance`, its window the billing
+  # period) and, for an admin, KEY HYGIENE (a refine listing of the account's API keys).
+  #
+  # Eight panels, TWO requests — the ungrouped one and one `[project_id, model]` grouping. The
+  # hand-written lens fired four (day, model-day, model-totals, secondary).
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/account
+    filters:
+      - accountId
+
+    panels:
+      - id: requests
+        type: stat
+        title: Requests
+        span: 1
+        metric: requests
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: Cost
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: Cost / request
+        subtitle: Blank when the window carries no requests at all — a mean over nothing is not a number.
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: Models in use
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: Spend over time
+        subtitle: The account total across every project and model.
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: Spend by model
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-project
+        type: ranked
+        title: Spend by project
+        subtitle: Spend the backend attributed to no project is a labelled Unassigned row, never dropped.
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/project — the project analytics lens (converse-frontends#455, story C12).
+  # Same shape as the account lens, with the secondary breakdown on API KEYS rather than projects
+  # (a project's sub-dimension is which key drew the spend). Hand-written beside the grid, for an
+  # admin only: BUDGET PRESSURE, which reads the account's single ceiling through an RPC.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/project
+    filters:
+      - projectId
+
+    panels:
+      - id: requests
+        type: stat
+        title: Requests
+        span: 1
+        metric: requests
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: Cost
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: Cost / request
+        subtitle: Blank when the window carries no requests at all — a mean over nothing is not a number.
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: Models in use
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: Spend over time
+        subtitle: This project's total across every key and model.
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: Spend by model
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-api-key
+        type: ranked
+        title: Spend by API key
+        subtitle: Spend the backend attributed to no key is a labelled Unassigned row, never dropped.
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/user — "Your usage" (converse-frontends#455, story C12).
+  #
+  # `scope: user` is the one scope the usage backend allows ONLY for the caller's own token
+  # subject — there is no admin bypass and no user picker, so `$sub` can never be anyone else's
+  # id, and this lens carries no secondary breakdown: a single identity's usage has no natural
+  # sub-dimension beyond the model. No hand-written zone at all.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/user
+    filters:
+      - sub
+
+    panels:
+      - id: requests
+        type: stat
+        title: Requests
+        span: 1
+        metric: requests
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: Cost
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: Cost / request
+        subtitle: Blank when the window carries no requests at all — a mean over nothing is not a number.
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: Models in use
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: Spend over time
+        subtitle: Your own usage, across every account and project you drew from.
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: Spend by model
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 1
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
           bucket: auto
           limit: 2000

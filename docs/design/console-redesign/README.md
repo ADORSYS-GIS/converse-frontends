@@ -338,23 +338,55 @@ the page stories (`packages/ui-web/src/pages-stories/`) as the pixel-level groun
 
 ### 5.1 Overview — `/accounts/<id>/overview` (`overview.stories.tsx`)
 
+**Rendered from `dashboards.yaml`** ([ADR 0013](../../adr/0013-console-information-architecture-v3.md);
+decision D-K, story C12 / converse-frontends#455). This screen is no longer a composition anyone
+writes down in a container: its route's server component reads the `/accounts/[accountId]/overview`
+entry from the document, and `DashboardRenderer` draws whatever panels that entry declares. Adding
+a board is adding YAML. The page story reads the same entry, so it certifies the shipped page
+rather than a copy of it.
+
 The account-scoped user dashboard, real for every signed-in user, admin or not — **no admin-only
-zone renders here any more** ([ADR 0013](../../adr/0013-console-information-architecture-v3.md);
-build brief §7, "`/` becomes purely the account-scoped user dashboard"). BUDGET PRESSURE and KEY
-HYGIENE moved to the settings-area estate lenses (§5.5); LATENCY is gone outright (phase 9.2 —
-the usage backend has no per-request duration, so the panel could never fill).
+zone renders here** (build brief §7, "`/` becomes purely the account-scoped user dashboard").
+BUDGET PRESSURE and KEY HYGIENE live on the settings-area lenses (§5.5).
 
-Top to bottom: `PageHeader` (title "Overview", scope subline, `OverviewControls` — range · bucket ·
-group-by · project — inline, `mtd`/"This month" default, ADR 0013 D6, and an `Export` action
-opening `ReportExportDialog`) → the money-first stat row (`OverviewStatRow`, self-panelled
-`StatCard`s) → `Card` "Spend over time" (`SpendDashboard`) → `Card` "Spend by project"
-(`SpendShareSection`, `RankedSeriesRows` under the hood — ADR 0013 D5) → `Card` "Spend by model"
-(`RankedSeriesRows`) → `Card` "Budget" (`BudgetPanel` + inline `Request refill`, linking to
-`/settings/accounts/<id>/request-refill` — §5.4).
+**Two hand-written zones, first, then the grid.** `dashboards.yaml` describes usage queries over
+the page's RANGE. The stat row and the BUDGET card are measured over the BILLING PERIOD and read an
+RPC ceiling (`getMyBudgetBalance`), so neither is a panel; they render in their own `DashboardGrid`
+above the engine's, with the caption that states which window they are about. "How much of my
+allowance is left" is what a person opens this page to check.
 
-- Deltas are `▲ 18% vs prev period` in `body`, `— no change` in `muted`. **Never green or red.**
+Top to bottom: `PageHeader` (title "Overview", scope subline, range picker + project scope inline,
+`mtd`/"This month" default, and an `Export` action opening `ReportExportDialog`) → the
+billing-period zones (`OverviewStatRow`, self-panelled; `Card` "Budget" with `BudgetPanel`) → the
+YAML grid.
+
+The panels that entry declares today, in order — `stat` **Spend in this range** and **Requests in
+this range** (both `compare: true`), `series` **Spend over time** (the account TOTAL with the
+previous period dashed under it), `ranked` **Spend by project**, `share` **Spend by model — share**,
+`series` **Spend by model over time** (log axis), `latency-cards` **Latency by model**, `ranked`
+**Spend by API key**. Eight panels, FOUR usage requests: the ungrouped one (three panels), its
+comparison twin, one `[project_id, model]` grouping that four panels share by each declaring the
+dimension it reads (`options.dimension`), and one by-API-key grouping.
+
+- **The `?group-by=` select is gone**, along with `?bucket=` and `?model=`. It reshaped ONE share
+  bar between project / model / user / API key; those are separate panels now, all visible at once
+  instead of one at a time behind a select. `bucket` went because the engine derives bucket width
+  from the range (`bucket: auto`); `model` only ever offered a single inert "All models" entry. A
+  knob wired to nothing is a defect, not a harmless leftover.
+- **Project scope is an OPTIONAL placeholder** (`filters.project_id: $project?`): "All projects" is
+  the neutral position of that picker, so the filter is DROPPED rather than sent empty — an empty
+  `project_id` matches nothing and would draw an empty dashboard for the page's default state.
+- Each series panel's axis transform is its own URL knob, `?<panel-id>-scale=`, declared from the
+  spec — so a panel a deployment adds through the config-volume override gets a real, shareable
+  toggle like every other.
+- Deltas name their window (`▲ 12% vs previous month`, `— no change`), in `body`/`muted`. **Never
+  green or red.**
 - The right rail never renders on this route — there is nothing selection-driven here, and (ADR
   0013 phase E) no route in the console mounts one any more regardless.
+- Export is `DashboardExportButton` (§8.3), which walks the SAME resolved panel list this page
+  renders — `/api/reports/page` re-resolves this route's own entry server-side through the same
+  `resolveDashboard`. The consumption-report dialog this page used to open is gone with the hook
+  that built it: it produced a document that knew nothing about the panels beside it.
 
 ### 5.2 API keys — `/accounts/<id>/api-keys` (`api-keys.stories.tsx`)
 
@@ -412,24 +444,54 @@ groups in the same sidebar mount, and a `← Back to console` row replaces the w
 `/settings` itself has no centre of its own — it redirects to `/settings/overview`, which redirects
 to `/settings/overview/usage`, the designated landing lens.
 
-**Overview — the estate/analytics lens family**, all built on ADR 0013 D5's ranked-rows doctrine:
+**Overview — the analytics lens family, all four rendered from `dashboards.yaml`** (decision D-K,
+story C12 / converse-frontends#455). Each lens is its own page entry rather than one hook keyed by
+a `lens` literal: what actually differed between them was the SCOPE and one breakdown dimension,
+which is precisely what a page entry states. `SettingsOverviewCentre` still takes `lens` alongside
+the spec, because the hand-written zones beside each grid are lens-conditional in a way the spec
+cannot express, and because the "select a project first" gate belongs to one lens only.
 
-- `/settings/overview/usage` (`UsageOverviewCentre`) — the cross-account **estate overview**, the
-  actual landing screen: `PageHeader` (range only — no project/user picker, it _is_ the
-  cross-account view) → stat row → "Spend over time" (a `line` chart — the one place dense,
-  estate-wide data reads honestly as a line rather than day-bucketed bars) with a dashed
-  previous-period comparison → "Spend by account" (`RankedSeriesRows`, value/delta sort toggle,
-  capped at `MAX_FANNED_OUT_ACCOUNTS = 25` — ADR 0013 D5) → "Spend by model" (`ShareBar` — the one
-  screen this primitive survives on, per the same doctrine).
-- `/settings/overview/{account,project,user}` (`SettingsOverviewCentre`, one `lens` prop) — three
-  further, narrower lenses sharing one composition: `PageHeader` → stat row → spend over time
-  (bars, day-bucketed) → spend by model (`RankedSeriesRows`) → the lens' own secondary breakdown
-  (by project for the account lens, by API key for the project lens, omitted for the user lens) →
-  latency by model (`LatencyStatCards`, ADR 0013 D5) → the account lens only: the cumulative
-  budget burn-down. Admin-only and purely additive: the project lens adds Budget pressure, the
-  account lens adds Key hygiene (both moved here verbatim from Overview, phase 4). **Not currently
-  linked from any nav element** — reachable only by direct URL. That is a real, honestly-recorded
-  gap (no in-app entry point shipped for them this phase), not an oversight to paper over.
+- `/settings/overview/usage` (`UsageOverviewCentre`) — the **account-family overview**, the actual
+  landing screen, and the one page in the console whose panels carry **`scope: family`**. That is a
+  resolver extension, not a `UsageScope`: the usage API has no "every account I can see" scope
+  (`lightbridge-authz#578`), and `scope: all` is a different question — the whole deployment, gated
+  on `usage:read-all`. So the resolver expands each panel into one account-scoped query per family
+  account (capped at `MAX_FANNED_OUT_ACCOUNTS = 25`, with the cap stated in the page's own caption)
+  and `use-dashboard.ts` merges the responses before any adapter sees them, stamping each point's
+  `account_id` from the query it came from. Panels: `stat` Accounts / Requests / Cost, `series`
+  Spend over time (the family total — `dimension: none`, with the dashed previous period), `series`
+  Spend by account, `share` Spend by model. Six panels share ONE `[account_id, model]` grouping,
+  because under a fan-out every distinct query shape costs N requests rather than one; the page is
+  the fan-out plus its comparison twin, the same 25 + 25 the hand-written screen fired for three
+  fewer panels.
+- `/settings/overview/{account,project,user}` (`SettingsOverviewCentre`, one composition, three
+  entries) — three narrower lenses: `stat` Requests / Cost / Cost per request / Models in use →
+  `series` Spend over time → `ranked` Spend by model → the lens' own secondary breakdown (by
+  project for the account lens, by API key for the project lens, **omitted for the user lens** — a
+  single identity's usage has no natural sub-dimension beyond the model) → `latency-cards` Latency
+  by model. Eight panels, THREE requests each (ungrouped, its comparison twin, and one grouping
+  four panels share); the hand-written lens fired four and had no "vs previous" reading at all.
+  `scope: user` is allowed by the backend only for the caller's own token subject, so that lens'
+  `$sub` can never resolve to anyone else's id.
+- The three narrower lenses carry the same `DashboardExportButton` every other YAML page does.
+  **The `usage` lens deliberately does not**: `/api/reports/page` re-resolves a page's entry
+  server-side and a `scope: family` panel needs the CALLER'S own account family, a list a report
+  route has no session to read. Rendering the button would hand a reader a document in which every
+  panel says "could not be loaded" — which reads as "no usage", not as "this cannot be asked here".
+  `page-report.ts` refuses such a route with `unexportable_route` so a hand-built URL gets the same
+  answer, and exporting one account at a time is the honest alternative.
+- Beside those grids, hand-written because none is a usage query over the page's range: the account
+  lens' cumulative **budget burn-down** (billing period, ceiling from `getMyBudgetBalance`) and,
+  admin-only, the project lens' **Budget pressure** and the account lens' **Key hygiene** (a refine
+  listing of the account's API keys). Both admin cards are OMITTED, never empty-stated, for a
+  non-admin or the wrong lens.
+- Divergences from the hand-composed lenses, deliberate: spend over time is a LINE, not bars (the
+  engine has one series shape, with the Linear/Log/Indexed toggle every declarative page carries —
+  a bars-only renderer existing solely for these three would be the hand-written container coming
+  back through the registry); bucket width follows the range instead of always being one day; "Cost
+  / request" is a DASH rather than `$0.00` when the window carried no requests.
+- **Not currently linked from any nav element** — reachable only by direct URL. That is a real,
+  honestly-recorded gap, not an oversight to paper over.
 
 **Accounts** — `/settings/accounts` and `/settings/accounts/<id>/*` (ADR 0013 phase E, "the
 settings/accounts move" — new this phase, `settings-accounts.stories.tsx`):
@@ -1053,6 +1115,103 @@ stateDiagram-v2
 **Unreachable on purpose:** the edit route (`/admin/refill-policies?edit=<id>`) has no
 `FilledFromExample` state at all — `startFromExample` is absent from the edit hook's return value,
 so the action never renders there.
+
+### 8.5 Resolving an analytics lens from `dashboards.yaml` (story C12, converse-frontends#455)
+
+How the five overview pages — `/accounts/<id>/overview` and the four `/settings/overview/*` lenses —
+get from a route to a rendered grid. The interesting part is the fork: a lens whose scope is a
+single actor issues ONE deduplicated query list, while the account-family lens (`scope: family`)
+expands each panel into one account-scoped query per family account and merges the responses back
+into a single one before any adapter sees it.
+
+Participants cite the modules that back them, so the diagram can be re-verified rather than
+quietly rotting: `apps/console/src/dashboards/page-entry.ts`, `resolve-dashboard.ts`,
+`use-dashboard.ts`, `panel-adapters.ts`, `dashboard-renderer.tsx`, and the zone hooks
+`use-account-overview-zones.ts` / `use-settings-overview-zones.ts`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Signed-in user
+    participant R as Route (server component)
+    participant Y as dashboardPage() -> dashboards.yaml
+    participant C as Centre (client)
+    participant Z as Zone hook (RPC-backed)
+    participant S as resolveDashboard()
+    participant Q as useDashboard / useQueries
+    participant API as POST /usage/v1/usage/query
+    participant A as toPanelView()
+    participant G as DashboardRenderer
+
+    U->>R: open the route
+    R->>Y: read the entry keyed by THIS route
+    alt no entry, or an invalid document
+        Y-->>R: throw, naming the page and panel id
+        R-->>U: fail loud — never a blank grid
+    end
+    Y-->>R: DashboardPageSpec
+    R->>C: render with page={spec}
+
+    par the hand-written zones
+        C->>Z: budget ceiling / burn-down / key hygiene (billing period, RPCs)
+        Z-->>C: their own status, independent of every panel
+    and the declarative grid
+        C->>S: page + window + $param filters (+ family account ids)
+        S->>S: substitute $params; $project? drops when absent
+        S->>S: resolve bucket: auto from the range; add the compare twin
+        alt scope: family
+            S->>S: expand each panel into one scope:account query per family account
+        end
+        S->>S: dedupe on the resolved query key
+        S-->>C: ResolvedDashboard {queries[], panels[queryIndices]}
+        C->>Q: one useQueries over the deduped list
+        Q->>API: N requests (never one per panel)
+        API-->>Q: UsageQueryResponse per query
+        Q->>Q: merge a panel's fan-out members, stamping account_id from each query's scope_id
+        Q->>A: response (+ compare twin, + label resolver)
+        A-->>G: DashboardPanelView per panel
+    end
+    G-->>U: DashboardGrid of DashboardPanels
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> ReadingSpec
+    ReadingSpec --> FailedLoud: no entry / invalid document
+    ReadingSpec --> AwaitingScope: entry read
+    AwaitingScope --> AwaitingScope: project lens with no project picked
+    AwaitingScope --> Resolving: scope id known (or the page needs none)
+    Resolving --> Unresolvable: a required $param is missing
+    Resolving --> EmptyFanOut: scope family, account list still empty
+    Resolving --> Fetching: query list built
+    EmptyFanOut --> PanelReady: zero queries reads as zero usage
+    Fetching --> PanelReady: every query for this panel resolved
+    Fetching --> PanelError: any query for this panel failed
+    Fetching --> DeltaMissing: only the comparison twin failed
+    PanelError --> Fetching: Retry (this panel only)
+    DeltaMissing --> PanelReady: figure stands, delta omitted
+    PanelReady --> Fetching: range or scope changed
+    FailedLoud --> [*]
+    Unresolvable --> [*]
+
+    note right of PanelError
+        Per PANEL, never per page: a failed
+        query renders ErrorLine in its own
+        card while its neighbours draw data.
+    end note
+    note right of DeltaMissing
+        A twin that failed does not fail the
+        panel — the figure is real, only the
+        delta is unknown.
+    end note
+```
+
+**States nothing can enter, and why that is correct:** there is no `PartialFanOut`. A family total
+summed over 18 of 25 accounts is a WRONG number, not a partial one, so a fan-out panel is
+all-or-nothing — `collect()` in `use-dashboard.ts` reports `loading` while any member is pending and
+`error` if any member failed. And `Unresolvable` is terminal by design: an unresolved `$param` is a
+thrown error, never an empty `scope_id`, because an empty scope silently queries something other
+than what the panel's title says.
 
 ---
 

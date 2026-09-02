@@ -17,6 +17,7 @@ import {
   adminRefillPoliciesParsers,
   apiKeysParsers,
   createProjectParsers,
+  dashboardExportParsers,
   dashboardScaleKey,
   manageParsers,
   overviewParsers,
@@ -76,23 +77,15 @@ describe('the URL param contract', () => {
       // `format` because they configure a DIFFERENT document (a dashboard report, not the monthly
       // consumption one) and a page could in principle mount both.
       dashboardExport: ['export', 'export-format', 'export-tables'],
-      // Phase 4: `/` absorbed the admin-only dashboard's own Export action, so it carries the
-      // same report vocabulary `/manage` does, on top of its own dashboard knobs.
-      overview: [
-        'bucket',
-        'format',
-        'from',
-        'group-by',
-        'include',
-        'model',
-        'model-scale',
-        'period',
-        'range',
-        'report',
-        'report-group',
-        'series',
-        'to',
-      ],
+      // The account dashboard's WINDOW, and nothing else. C12 (converse-frontends#455) moved this
+      // page's boards into `dashboards.yaml`, which took `bucket` (the engine derives it from the
+      // range), `group-by` (the four breakdowns it switched between are four panels now), `model`
+      // (a single inert "All models" entry), `model-scale` (every series panel gets its own
+      // `?<panel-id>-scale=`, declared from the spec) and `series` (no engine panel type wires a
+      // selected key). Its export dialog's five params went with them: the page's action is
+      // `DashboardExportButton`, whose knobs are the cross-route `dashboardExport` above. A knob
+      // wired to nothing is a defect.
+      overview: ['from', 'range', 'to'],
       apiKeys: ['create', 'delete', 'dir', 'key', 'page', 'q', 'revoke', 'sort', 'status'],
       manage: [
         'budget-state',
@@ -138,14 +131,14 @@ describe('the URL param contract', () => {
       // means the same thing here as on `/admin/refill-policies` (open the form on this id), which
       // is why the shared-meaning check below is content with both routes owning the key.
       adminBudgetSchedules: ['delete', 'edit', 'preview'],
-      // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
-      // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
-      // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the
-      // param parsed into nothing any request builder or control ever read). `account-scale` is
-      // the estate overview's "Spend by account" axis toggle (`MultiSeriesSpendChart` wiring,
-      // 2026-08-31) — it replaced `account-sort`, the by-account board's now-deleted ranked-row
-      // sort toggle, which has no surface to render into once that board is a chart.
-      settingsOverview: ['account-scale', 'from', 'range', 'series', 'to'],
+      // The four `/settings/overview/*` lenses (`usage`/`account`/`project`/`user`) share one
+      // vocabulary, and every deletion from it has the same reason — a knob wired to nothing is a
+      // defect: `bucket` went in 2026-08-31 (no request builder read it), `account-sort` with the
+      // ranked-row list it sorted, and C12 (converse-frontends#455) took the last two when these
+      // lenses became YAML pages: `account-scale` is the by-account PANEL's own
+      // `?spend-by-account-scale=` now, declared from the spec, and `series` went with the
+      // cross-zone selection no panel type reads.
+      settingsOverview: ['from', 'range', 'to'],
     });
   });
 
@@ -168,14 +161,12 @@ describe('the URL param contract', () => {
       URL_PARAM_CONTRACT.manage.urlKeys.search
     );
 
-    // `format`/`include`/`period` appear on both `/` and `/manage`'s report dialogs. They are the
-    // SAME parser instances, not lookalikes — `?format=pdf` cannot come to mean one thing on one
-    // screen's Export dialog and another on the other's.
-    for (const key of ['format', 'include', 'period'] as const) {
-      expect(overviewParsers[key], `overview.${key} must be manage.${key} itself`).toBe(
-        manageParsers[key]
-      );
-    }
+    // `format`/`include`/`period` used to appear on BOTH the account overview's and `/manage`'s
+    // report dialogs, as the same parser instances. C12 (converse-frontends#455) left `/manage` as
+    // their only holder: the account dashboard exports through `DashboardExportButton` now, whose
+    // knobs are the cross-route `dashboardExportParsers`. What the by-instance rule protected is
+    // therefore now protected structurally — there is one declaration, not two.
+    expect(Object.keys(URL_PARAM_CONTRACT.overview.parsers)).toEqual(['range', 'from', 'to']);
 
     // `range` appears on both the account overview (`overviewParsers`) and the four
     // `/settings/overview/*` analytics lenses (`settingsOverviewParsers`) — deliberately the SAME
@@ -205,7 +196,10 @@ describe('the URL param contract', () => {
     // 'mtd' ("this month") is the default (2026-08-31) — a bare shared link with no `?range=`
     // means "this month" for whoever opens it, not the old 30-day default.
     expect(overview({ range: 'mtd' })).toBe('');
-    expect(overview({ groupBy: 'model' })).toBe('?group-by=model');
+    // C12 (converse-frontends#455) deleted this table's dashboard knobs — the boards they
+    // reshaped are `dashboards.yaml` panels now — so the export dialog's own grouping is what is
+    // left with a kebab-cased url key.
+    expect(overview({ from: '2026-08-01' })).toBe('?from=2026-08-01');
 
     const settings = createSerializer(settingsParsers, {
       urlKeys: URL_PARAM_CONTRACT.settings.urlKeys,
@@ -233,9 +227,7 @@ describe('the URL param contract', () => {
     expect(isParserBijective(projectScopeParsers.projectId, 'proj_7', 'proj_7')).toBe(true);
     expect(isParserBijective(resolverParsers.next, 'api-keys', 'api-keys')).toBe(true);
     expect(isParserBijective(overviewParsers.range, '7d', '7d')).toBe(true);
-    expect(isParserBijective(overviewParsers.bucket, 'hour', 'hour')).toBe(true);
-    expect(isParserBijective(overviewParsers.groupBy, 'model', 'model')).toBe(true);
-    expect(isParserBijective(overviewParsers.series, 'proj_7', 'proj_7')).toBe(true);
+    expect(isParserBijective(overviewParsers.from, '2026-08-01', '2026-08-01')).toBe(true);
     expect(isParserBijective(apiKeysParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(apiKeysParsers.status, 'revoked', 'revoked')).toBe(true);
     expect(isParserBijective(apiKeysParsers.search, 'alpha beta', 'alpha beta')).toBe(true);
@@ -282,16 +274,12 @@ describe('the URL param contract', () => {
     expect(
       isParserBijective(adminBudgetSchedulesParsers.deleteScheduleId, 'sched_1', 'sched_1')
     ).toBe(true);
-    // Overview's own Export dialog (phase 4) — same parsers as `/manage`'s, checked once here and
-    // by instance-identity in the "shared meaning" test above.
-    expect(isParserBijective(overviewParsers.reportOpen, 'true', true)).toBe(true);
-    expect(isParserBijective(overviewParsers.period, '2026-07', '2026-07')).toBe(true);
-    expect(isParserBijective(overviewParsers.format, 'pdf', 'pdf')).toBe(true);
-    expect(isParserBijective(overviewParsers.modelScale, 'indexed', 'indexed')).toBe(true);
+    // Every dashboard page's Export dialog, cross-route since converse-frontends#453.
+    expect(isParserBijective(dashboardExportParsers.open, 'true', true)).toBe(true);
+    expect(isParserBijective(dashboardExportParsers.format, 'pdf', 'pdf')).toBe(true);
     expect(isParserBijective(createProjectParsers.open, 'true', true)).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.range, '7d', '7d')).toBe(true);
-    expect(isParserBijective(settingsOverviewParsers.series, 'acct_7', 'acct_7')).toBe(true);
-    expect(isParserBijective(settingsOverviewParsers.accountScale, 'log', 'log')).toBe(true);
+    expect(isParserBijective(settingsOverviewParsers.from, '2026-08-01', '2026-08-01')).toBe(true);
   });
 
   it('falls back to the default rather than crashing on a hand-edited or stale value', () => {
@@ -322,9 +310,9 @@ describe('the URL param contract', () => {
 
   it('defaults the report period to the current month, resolved once', () => {
     expect(CURRENT_PERIOD).toMatch(/^\d{4}-\d{2}$/);
+    // `/manage`'s consumption report is the last dialog that picks a MONTH: a dashboard-page
+    // report inherits its window from the page's own range picker instead.
     expect(manageParsers.period.defaultValue).toBe(CURRENT_PERIOD);
-    // Same parser instance as `/manage`'s (checked above) — so it carries the same default.
-    expect(overviewParsers.period.defaultValue).toBe(CURRENT_PERIOD);
   });
 
   // A declarative dashboard page's axis knobs are not in `URL_PARAM_CONTRACT` because they are

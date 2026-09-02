@@ -258,13 +258,13 @@ describe('/admin/usage in dashboards.yaml', () => {
 
     const table = byAccount.panels.find((panel) => panel.spec.id === 'actors-table');
     expect(table?.lens).toBe('account');
-    expect(byAccount.queries[table!.queryIndex].group_by).toEqual(['account_id']);
+    expect(byAccount.queries[table!.queryIndices[0]].group_by).toEqual(['account_id']);
     expect(table?.link).toBe('/admin/usage/actors/:key?type=account');
 
     // A panel with no `options.lens` is untouched by the knob — the rings stay per-model.
     const ring = byAccount.panels.find((panel) => panel.spec.id === 'model-distribution-cost');
     expect(ring?.lens).toBeUndefined();
-    expect(byAccount.queries[ring!.queryIndex].group_by).toEqual(['model']);
+    expect(byAccount.queries[ring!.queryIndices[0]].group_by).toEqual(['model']);
   });
 
   it('still resolves to seven requests under a non-default lens', () => {

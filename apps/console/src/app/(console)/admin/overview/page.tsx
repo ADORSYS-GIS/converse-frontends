@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { AdminOverviewCentre } from '../../../../containers/admin-overview-centre';
-import { findPage } from '../../../../dashboards/dashboard-spec';
-import { loadDashboards } from '../../../../dashboards/load-dashboards';
+import { dashboardPage } from '../../../../dashboards/page-entry';
 import { readSession } from '../../../../server/session-store';
 import { isAdmin } from '../../../../server/tokens';
 
@@ -25,11 +24,10 @@ export const ADMIN_OVERVIEW_ROUTE = '/admin/overview';
  * gated server-side (`budget:read`, `budget:review`, `usage:read-all`), so a forged session could
  * at most render an empty/degraded dashboard.
  *
- * **The panel list is read HERE, not in the client component.** `loadDashboards()` is `node:fs`
+ * **The panel list is read HERE, not in the client component.** `dashboardPage()` is `node:fs`
  * (it prefers `${CONSOLE_CONFIG_DIR}/dashboards.yaml` so a deployment can add or remove a panel
- * without a rebuild — owner ruling Q11), and it is fail-loud by contract: an invalid document
- * throws with the offending page and panel id named rather than rendering an empty dashboard. A
- * MISSING entry is the same class of failure and gets the same treatment — never a blank page.
+ * without a rebuild — owner ruling Q11), and it is fail-loud by contract: an invalid or missing
+ * entry throws with the offending page and panel id named rather than rendering a blank page.
  */
 export default async function AdminOverviewRoute() {
   const session = await readSession();
@@ -37,14 +35,5 @@ export default async function AdminOverviewRoute() {
     notFound();
   }
 
-  const page = findPage(loadDashboards(), ADMIN_OVERVIEW_ROUTE);
-  if (!page) {
-    throw new Error(
-      `[console] dashboards.yaml has no entry for "${ADMIN_OVERVIEW_ROUTE}". The page is defined ` +
-        'entirely by that entry, so there is nothing to render — fix the document (or the ' +
-        'override mounted at CONSOLE_CONFIG_DIR) rather than shipping an empty dashboard.'
-    );
-  }
-
-  return <AdminOverviewCentre page={page} />;
+  return <AdminOverviewCentre page={dashboardPage(ADMIN_OVERVIEW_ROUTE)} />;
 }

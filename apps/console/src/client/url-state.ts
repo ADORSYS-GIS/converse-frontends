@@ -237,12 +237,13 @@ export type ReportIncludeId = (typeof REPORT_INCLUDE_IDS)[number];
 export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 
 /**
- * The three parsers built from the vocabulary above — declared once and shared **by instance**
- * between `overviewParsers` and `manageParsers` below, the same way `adminParsers` used to share
- * `overviewParsers.range` etc. by reference rather than by a lookalike copy: `?format=pdf` has to
- * mean one thing on both routes' Export dialogs, and sharing the instance makes that a structural
- * guarantee (`url-state.test.ts` asserts the identity), not a convention two literals could drift
- * out of.
+ * The three parsers built from the vocabulary above. They were shared BY INSTANCE between
+ * `overviewParsers` and `manageParsers`, so `?format=pdf` could not come to mean two things on two
+ * routes' Export dialogs. C12 (converse-frontends#455) left `manageParsers` as their only holder:
+ * the account dashboard's Export is `DashboardExportButton` now, with its own cross-route
+ * `dashboardExportParsers`, so the consumption report — `/manage`'s — is the last dialog speaking
+ * this vocabulary. They stay declared here rather than inlined, because a second consumption-report
+ * surface would have to share them again, by instance, for the same reason.
  */
 const reportPeriodParser = parseAsString.withDefault(CURRENT_PERIOD);
 const reportFormatParser = parseAsStringLiteral(REPORT_FORMATS).withDefault('csv');
@@ -260,12 +261,13 @@ const reportIncludeParser = parseAsArrayOf(parseAsStringLiteral(REPORT_INCLUDE_I
  * default in any UI that renders these in order (the range select, `RANGE_PRESETS`).
  */
 export const OVERVIEW_RANGES = ['mtd', '7d', '30d', '90d'] as const;
-export const OVERVIEW_BUCKETS = ['hour', 'day', 'week'] as const;
 
 /** `MultiSeriesSpendChart`'s own `scale` union (`@lightbridge/ui-web`), restated here rather than
  *  imported so this module's own literal-union assertions (`RESOLVER_TARGETS` etc.) stay
- *  self-contained — shared by `overviewParsers.modelScale` (`/`'s "Spend by model") and
- *  `settingsOverviewParsers.accountScale` (`/settings/overview/usage`'s "Spend by account"). */
+ *  self-contained. Every consumer is now a declarative dashboard's per-panel axis knob
+ *  (`useDashboardScaleParams` below) — the two hand-declared board scales it used to serve
+ *  (`overviewParsers.modelScale`, `settingsOverviewParsers.accountScale`) went with the
+ *  hand-written boards themselves in C12. */
 export const MULTI_SERIES_SPEND_SCALES = ['linear', 'log', 'indexed'] as const;
 
 /**
@@ -292,114 +294,74 @@ export const OVERVIEW_GROUP_BYS = [
 /**
  * The Overview dashboard's view params.
  *
- * `model` is a plain string rather than a literal union: model ids come from the usage backend, so
- * the closed set the toolbar currently offers (`all`) is a UI limitation, not a contract — a
- * parser that rejected an unknown id would silently drop a valid deep link the moment that list
- * grows.
- *
- * `series` is the selected chart series — a selection, so `push`: clicking a series in the chart
- * and pressing Back deselects it rather than leaving the page.
+ * **2026-09-02 (converse-frontends#455, story C12): the dashboard knobs are gone from this table.**
+ * `/accounts/<id>/overview` renders from `dashboards.yaml` now, and its five deleted params each
+ * steered something that no longer exists:
+ *  - `groupBy` reshaped ONE share bar between project/model/user/API key. Those are four PANELS
+ *    now, all visible at once, so there is nothing left for a dimension knob to switch.
+ *  - `bucket` chose the bucket width; the engine derives it from the range (`bucket: auto`).
+ *  - `model` only ever offered a single inert "All models" entry — it filtered nothing.
+ *  - `modelScale` was one board's axis transform; every series panel now gets its own
+ *    `?<panel-id>-scale=` knob, declared from the spec by `useDashboardScaleParams` below, because
+ *    which panels a page has is DATA (a deployment can add one through the config volume).
+ *  - `series` was the cross-zone chart selection; no engine panel type wires a selected key today.
+ * A knob wired to nothing is a defect, not a harmless leftover — the same rule that took `bucket`
+ * out of `settingsOverviewParsers`. What remains is the page's WINDOW and the export dialog.
  *
  * `range` and `from`/`to` are one value expressed two ways. `range` names a rolling preset and is
  * what the URL carries by default; `from`/`to` carry an explicit UTC span picked from the calendar.
  * **`from`/`to` win when both are present** — an explicit span is never silently re-rolled by a
  * preset that happens to still be in the URL. A preset write clears them; see
- * `use-overview-screen.ts`.
+ * `overview-centre.tsx`.
  *
- * `reportOpen`/`period`/`reportGroupBy`/`format`/`include` (phase 4) are the same boolean-target
- * idiom `manageParsers.reportOpen` established (#303/#309): the Export dialog has exactly one
- * possible target (the scoped account/project, already named by `range`/`groupBy` above), so
- * these five params are its whole contract — no separate provider, no dialog-owned draft state.
- * `reportGroupBy` reuses `OVERVIEW_GROUP_BYS` rather than declaring its own union: the report's
- * grouping and the dashboard's are the same vocabulary, and `Export` defaults to whatever the
- * dashboard is currently grouped by (see `use-overview-screen.ts`).
- *
- * `modelScale` (2026-08-31, `MultiSeriesSpendChart` wiring — that component's own doc comment)
- * is SPEND BY MODEL's axis transform, a knob like `bucket`/`groupBy` above (`replace`, not
- * `push` — dragging the segmented control must not cost a Back press per click). Defaults to
- * `log`: the owner's real account data is one ~100%-share model beside several sub-1%-share ones,
- * and `log` was the reviewed recommendation for that shape, unchallenged.
+ * The export dialog's own five params (`reportOpen`/`period`/`reportGroupBy`/`format`/`include`)
+ * went too. This page's Export is `DashboardExportButton` (converse-frontends#453), whose knobs are
+ * `dashboardExportParsers` — one cross-route declaration for every YAML-driven page, rather than a
+ * `?report=`-shaped flag per page. The consumption-report vocabulary survives where its dialog
+ * still lives, on `manageParsers`.
  */
 export const overviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
-  bucket: parseAsStringLiteral(OVERVIEW_BUCKETS).withDefault('day'),
-  groupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
-  model: parseAsString.withDefault('all'),
-  series: parseAsString.withDefault(''),
-  modelScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
-  reportOpen: parseAsBoolean.withDefault(false),
-  period: reportPeriodParser,
-  reportGroupBy: parseAsStringLiteral(OVERVIEW_GROUP_BYS).withDefault('project_id'),
-  format: reportFormatParser,
-  include: reportIncludeParser,
 };
 
-const overviewUrlKeys = {
-  groupBy: 'group-by',
-  modelScale: 'model-scale',
-  reportOpen: 'report',
-  reportGroupBy: 'report-group',
-};
+const overviewUrlKeys = {};
 
 export function useOverviewParams() {
   return useQueryStates(overviewParsers, { urlKeys: overviewUrlKeys, history: 'replace' });
 }
 
-/** The Overview params that are navigation-grade rather than knobs: selecting a chart series, and
- *  opening/closing the Export dialog — both get their own history entry (mirrors
- *  `MANAGE_SELECTION_OPTIONS`'s `reportOpen` write). */
-export const OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
-
 // ── /settings/overview/{usage,account,project,user} — IA v3 phase 4 analytics lenses ──────────
 
 /**
- * The range/bucket/selection vocabulary shared by all four analytics lenses under
- * `/settings/overview/*` — the estate overview (`usage`) and the three scope-parameterised lenses
- * (`account`/`project`/`user`, one `use-settings-overview-screen.ts` hook keyed by `lens`).
+ * The WINDOW every one of the four analytics lenses under `/settings/overview/*` is read over —
+ * the account-family overview (`usage`) and the three scope-parameterised lenses
+ * (`account`/`project`/`user`), each of which is its own `dashboards.yaml` entry since
+ * converse-frontends#455 (story C12).
  *
- * Deliberately the SAME shape `overviewParsers` above declares (`range`/`from`/`to`/`bucket`, the
+ * Deliberately the SAME shape `overviewParsers` above declares (`range`/`from`/`to`, the
  * explicit-span-wins-over-preset rule, `resolveOverviewWindow` reused verbatim) rather than a
  * fifth divergent range picker: a reader who already knows what `?range=` and `?from=`/`?to=` mean
  * on `/accounts/<id>/overview` should not have to relearn them here. Declared as its own object
- * (not literally shared by reference with `overviewParsers`) because these lenses have no
- * `groupBy`/report vocabulary of their own — each lens's breakdown dimension is fixed by what it
- * IS (account lens breaks down by model, project lens by api key, …), not a toolbar choice.
+ * (not literally shared by reference with `overviewParsers`) because these lenses have no export
+ * dialog of their own.
  *
- * `series` is the selected ranked-list/chart row — `RankedSeriesRows`' own `selectedKey`, wired
- * the same "URL is the cross-zone state bus" way `overviewParsers.series` already is, `push`-
- * written via `SETTINGS_OVERVIEW_SELECTION_OPTIONS` below.
- *
- * `accountScale` (2026-08-31, `MultiSeriesSpendChart` wiring) is SPEND BY ACCOUNT's axis
- * transform — the same `replace`-written knob idiom `overviewParsers.modelScale` uses. Defaults
- * to `linear` (unlike that one's `log` default): the estate's own account mix has no single
- * measured "one dominant, several near-zero" shape the way one account's own model mix does, so
- * this starts at the honest raw-dollar reading.
- *
- * **`accountSort` is gone** (2026-08-31, hard cutover alongside the scale param above): the
- * by-account board is a superposed line chart now, not a ranked row list — a chart's rank/colour
- * order is always by total descending (`MultiSeriesSpendChart/domain.ts`'s own `ranked` sort, not
- * caller-controlled), so "sort by change" has no surface to render into any more. Deleted rather
- * than left wired to a control that no longer exists — the same "a dormant knob is a defect" rule
- * that took `bucket` out of this table below.
- *
- * **No `bucket` here** (removed 2026-08-31, owner round finding #5): these lenses have no bucket
- * toolbar of their own — every spend chart under `/settings/overview/*` is a FIXED day bucket
- * (`settings-overview-usage.ts`'s `DAY_BUCKET`, `buildLensDayRequest` hardcodes `'1 day'`) — so a
- * `?bucket=` param used to parse into `view.bucket` and then go completely unread: no request
- * builder consumed it, no control rendered it. A dormant knob, deleted rather than left wired to
- * nothing.
+ * **It is the window and nothing else, and every deletion from it has the same reason.** `bucket`
+ * went in 2026-08-31 (a `?bucket=` that no request builder read); `accountSort` went with the
+ * ranked-row list it sorted; `accountScale` and `series` went with C12, when these lenses became
+ * YAML pages — a series panel's axis transform is now its own `?<panel-id>-scale=` knob, declared
+ * FROM the page spec by `useDashboardScaleParams` below (which panels a page has is DATA, and a
+ * deployment can add one through the config volume), and no engine panel type wires a selected
+ * key. A knob wired to nothing is a defect, not a harmless leftover.
  */
 export const settingsOverviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
-  series: parseAsString.withDefault(''),
-  accountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
 };
 
-const settingsOverviewUrlKeys = { accountScale: 'account-scale' };
+const settingsOverviewUrlKeys = {};
 
 export function useSettingsOverviewParams() {
   return useQueryStates(settingsOverviewParsers, {
@@ -407,9 +369,6 @@ export function useSettingsOverviewParams() {
     history: 'replace',
   });
 }
-
-/** Selecting a ranked-list/chart row is navigation-grade — mirrors `OVERVIEW_SELECTION_OPTIONS`. */
-export const SETTINGS_OVERVIEW_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── shared: ledger sort ──────────────────────────────────────────────────────────────────────
 

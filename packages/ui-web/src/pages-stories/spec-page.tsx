@@ -94,7 +94,13 @@ export interface SpecPage {
 }
 
 /** A panel's first `group_by` dimension, or `undefined` for an ungrouped query. */
-function readDimension(query: unknown): string | undefined {
+function readDimension(query: unknown, options: Record<string, unknown>): string | undefined {
+  // `options.dimension` (C12, converse-frontends#455) names a dimension other than the query's
+  // first, and `none` names no dimension at all — the ungrouped total off a grouped query. A story
+  // that followed `group_by[0]` regardless would label a family TOTAL chart with account names.
+  const declared = options.dimension === undefined ? undefined : String(options.dimension);
+  if (declared === 'none') return undefined;
+  if (declared) return declared;
   const groupBy = (query as { group_by?: unknown } | undefined)?.group_by;
   return Array.isArray(groupBy) && groupBy.length > 0 ? String(groupBy[0]) : undefined;
 }
@@ -127,7 +133,7 @@ export function readPages(text: string = dashboardsYaml): SpecPage[] {
           columns: Array.isArray(options.columns) ? options.columns.map(String) : undefined,
           lens: options.lens === undefined ? undefined : String(options.lens),
           metric: p.metric === undefined ? undefined : String(p.metric),
-          dimension: readDimension(p.query),
+          dimension: readDimension(p.query, options),
           scale:
             options.scale === 'log' || options.scale === 'indexed' || options.scale === 'linear'
               ? options.scale
@@ -272,6 +278,7 @@ const STAT_METRIC_FIXTURE: Record<string, string> = {
   tokens: '58,262,486',
   latency: '412 ms',
   'derived:avgCostPerMillionTokens': '$16.20 / 1M',
+  'derived:costPerRequest': '$0.0130',
   'derived:activeActors': '187',
   'derived:chatCount': '64,112',
 };
@@ -285,6 +292,8 @@ const EMPTY_STAT_FIXTURE: Record<string, string> = {
   tokens: '0',
   latency: '0 ms',
   'derived:avgCostPerMillionTokens': '—',
+  // A mean over zero requests has no value — the same dash `costPerRequest` returns `null` for.
+  'derived:costPerRequest': '—',
   'derived:activeActors': '0',
   'derived:chatCount': '0',
 };

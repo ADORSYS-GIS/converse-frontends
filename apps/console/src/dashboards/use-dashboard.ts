@@ -14,7 +14,7 @@ import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import type { ResetCadence, UsageWindow } from '../containers/comparison-window';
 import { collectActorIds, EMPTY_ACTOR_IDS } from './actor-labels';
 import type { DashboardPageSpec } from './dashboard-spec';
-import { toPanelView } from './panel-adapters';
+import { toPanelView, type DashboardLabelResolver } from './panel-adapters';
 import { queryKey, resolveDashboard } from './resolve-dashboard';
 import type { DashboardFilters, ResolvedDashboard, ResolvedQuery } from './resolve-dashboard';
 import { useActorLabels } from './use-actor-labels';
@@ -102,6 +102,13 @@ export interface UseDashboardInput {
   onPageChange?: (panelId: string, page: number) => void;
   /** Suspends every request — used while a route param the placeholders need is still resolving. */
   enabled?: boolean;
+  /**
+   * The account ids a `scope: family` panel fans out over, already capped by the page (which is
+   * also where the cap gets captioned). Ignored by a page with no family panel.
+   */
+  familyAccountIds?: readonly string[];
+  /** Opaque group key → readable name, per dimension — see `DashboardLabelResolver`. */
+  localLabels?: DashboardLabelResolver;
 }
 
 /** The caption a `truncated: true` response gets, naming the panel's own limit. */
@@ -136,6 +143,34 @@ function toUsageRequest(query: ResolvedQuery): UsageQueryRequest {
   };
 }
 
+/**
+ * Merges a `scope: family` fan-out's responses into ONE, as if the backend had a family scope
+ * (C12, converse-frontends#455).
+ *
+ * `UsageQueryResponse` is a bag of points, so the merge is a concatenation — the points are
+ * already bucketed and every adapter re-groups by `(key, bucket)` anyway, so summing across
+ * accounts falls out of the existing math rather than needing a second set of combiners (the
+ * deleted `combineAccountModelResponses` was exactly that second set).
+ *
+ * Each point's `account_id` is STAMPED from the query it came from when the backend echoed none.
+ * A `scope: account` query knows its own account by construction, and relying on the echo would
+ * make the by-account panel silently collapse into one "Unassigned" series on any deployment that
+ * does not return the column.
+ */
+function mergeFamilyResponses(
+  responses: readonly UsageQueryResponse[],
+  accountIds: readonly string[]
+): UsageQueryResponse {
+  const points = responses.flatMap((response, index) =>
+    response.points.map((point) =>
+      point.account_id ? point : { ...point, account_id: accountIds[index] }
+    )
+  );
+  // ANY member truncating truncates the whole reading: a family total missing one account's tail
+  // is short by that tail, and the caption is what says so.
+  return { truncated: responses.some((response) => response.truncated), points };
+}
+
 export function useDashboard({
   page,
   window,
@@ -148,10 +183,12 @@ export function useDashboard({
   pageFor,
   onPageChange,
   enabled = true,
+  familyAccountIds,
+  localLabels,
 }: UseDashboardInput): DashboardState {
   const resolved = useMemo(
-    () => resolveDashboard({ page, window, filters, resetCadence }),
-    [page, window, filters, resetCadence]
+    () => resolveDashboard({ page, window, filters, resetCadence, familyAccountIds }),
+    [page, window, filters, resetCadence, familyAccountIds]
   );
 
   const results = useQueries({
@@ -192,6 +229,26 @@ export function useDashboard({
   );
   const actorLabels = useActorLabels(actorIds);
 
+  /**
+   * One panel's members, collapsed into a single reading. A fan-out is all-or-nothing on purpose:
+   * a family total summed over 18 of 25 accounts is a WRONG number, not a partial one, and the
+   * hand-written estate screen this replaces held the same rule.
+   */
+  const collect = (indices: readonly number[]) => {
+    const members = indices.map((index) => results[index]);
+    if (members.some((member) => !member || member.isPending))
+      return { status: 'loading' as const };
+    const failed = members.find((member) => member?.isError);
+    if (failed) return { status: 'error' as const, error: failed.error };
+    return {
+      status: 'ready' as const,
+      response: mergeFamilyResponses(
+        members.map((member) => member!.data as UsageQueryResponse),
+        indices.map((index) => resolved.queries[index]?.scope_id ?? '')
+      ),
+    };
+  };
+
   const panels = resolved.panels.map((panel): DashboardPanelState => {
     const base = {
       id: panel.spec.id,
@@ -200,38 +257,37 @@ export function useDashboard({
       subtitle: panel.spec.subtitle,
       span: panel.spec.span,
       onRetry: () => {
-        void results[panel.queryIndex]?.refetch();
-        if (panel.compareQueryIndex !== undefined) {
-          void results[panel.compareQueryIndex]?.refetch();
-        }
+        for (const index of panel.queryIndices) void results[index]?.refetch();
+        for (const index of panel.compareQueryIndices ?? []) void results[index]?.refetch();
       },
     };
 
-    const primary = results[panel.queryIndex];
-    if (!primary || primary.isPending) return { ...base, status: 'loading' };
-    if (primary.isError) {
+    const primary = collect(panel.queryIndices);
+    if (primary.status === 'loading') return { ...base, status: 'loading' };
+    if (primary.status === 'error') {
       return { ...base, status: 'error', errorMessage: getUsageErrorMessage(primary.error) };
     }
 
     // A comparison twin that failed does NOT fail the panel: the figure itself is real, only the
     // delta is unknown, and a panel that renders its number without a delta is honest where one
     // that renders an error is not.
-    const compare =
-      panel.compareQueryIndex !== undefined ? results[panel.compareQueryIndex] : undefined;
-    const compareResponse =
-      compare && !compare.isPending && !compare.isError
-        ? (compare.data as UsageQueryResponse)
-        : undefined;
+    const compare = panel.compareQueryIndices
+      ? collect(panel.compareQueryIndices)
+      : { status: 'loading' as const };
+    const compareResponse = compare.status === 'ready' ? compare.response : undefined;
 
-    const response = primary.data as UsageQueryResponse;
-    const query = resolved.queries[panel.queryIndex];
+    // The panel's OWN response — one query's, or a family fan-out's members merged into one.
+    const response = primary.response;
+    // The first member's query, for the truncation caption's limit: every member of a fan-out
+    // carries the same `limit`, because they are the same panel's query with a different scope_id.
+    const query = resolved.queries[panel.queryIndices[0]];
 
     return {
       ...base,
       status: 'ready',
       // Named, not implied: the caption states the panel's OWN limit, which is the number the YAML
       // author set and the only one that explains what was dropped.
-      truncationCaption: response.truncated ? truncationCaption(query.limit) : undefined,
+      truncationCaption: response.truncated && query ? truncationCaption(query.limit) : undefined,
       view: toPanelView({
         spec: panel.spec,
         response,
@@ -240,10 +296,11 @@ export function useDashboard({
         compareShiftMs: compareResponse ? panel.compareShiftMs : undefined,
         scale: scaleFor(panel.spec.id) ?? panel.spec.options?.scale ?? 'linear',
         onScaleChange: (next) => onScaleChange(panel.spec.id, next),
-        groupBy: query.group_by,
+        groupBy: query?.group_by,
         lens: panel.lens,
         link: panel.link,
         labelFor: actorLabels.labelFor,
+        localLabels,
         sort: sortFor?.(panel.spec.id),
         onSortChange: onSortChange ? (next) => onSortChange(panel.spec.id, next) : undefined,
         page: pageFor?.(panel.spec.id),

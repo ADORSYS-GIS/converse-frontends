@@ -161,13 +161,29 @@ selected / breached  #DA5C2C
 ### 2.4a Analytics doctrine — chart choice, ranked rows, part-to-whole
 
 **Superseded as a standalone section by [ADR 0013](../../adr/0013-console-information-architecture-v3.md)
-D5**, which records the full doctrine (grounded in a 726k-prod-usage-row measurement) and is the
-source of truth — this section is not restated here to avoid the two drifting apart. In short:
-`RankedSeriesRows` (normalized rows with a per-row sparkline, share bar suppressed above 95%
-top-1 share) is the default breakdown everywhere; `ShareBar` — a 100%-stacked bar over a ranked
-list, not a donut — survives for exactly one screen, the estate overview's global model mix;
-stacked bars and area fills were tried against the same sample and rejected for three measured
-reasons (D5); latency is stat cards, not a time series, until the backend can honestly trend it.
+D5 as amended by [ADR 0015](../../adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+D2**, which together record the full doctrine (grounded in a 726k-prod-usage-row measurement) and
+are the source of truth — the reasoning is not restated here, to keep the two from drifting. In
+short: `RankedSeriesRows` (normalized rows with a per-row sparkline, share bar suppressed above 95%
+top-1 share) is the default breakdown everywhere; stacked bars and area fills were tried against
+the same sample and rejected for three measured reasons (D5).
+
+Two clauses changed on **2026-09-02** by owner ruling, and this section states the current rule so
+nobody follows a retired one found elsewhere:
+
+- **Rings are allowed; filled disks never.** The earlier absolute — "never a donut, ever" — is
+  **retired**, not softened. `DonutChart` draws a hollow ring whose hole `chart-core`'s
+  `donutGeometry` clamps into `[0.35, 0.85]` of the outer radius for every input, so a filled disk
+  is unreachable through the component's own API. Top-N + one summed `Other (N)` wedge, values on
+  hover only (no legend list), the formatted total in the hole. **The sanctioned use is exactly
+  three panels** — `model-distribution-{requests,cost,tokens}` on `/admin/usage` (§5.10). `ShareBar`
+  keeps the single sanctioned part-to-whole (the estate overview's global model mix and
+  `model-cost-share`); a fourth ring is a decision, not a default.
+- **A latency series is now honest.** "Stat cards until history depth justifies a series" rested on
+  whole-window aggregate percentiles being uncombinable across days. The usage query API computes
+  `latency_p50/p95/p99_ms` with `percentile_cont` **per bucket group at query time**, so plotting
+  them in order composes nothing. `latency-series` is a sanctioned panel type; `latency-cards`
+  keeps the window totals; both belong on the same page.
 
 ---
 
@@ -180,19 +196,24 @@ the settings area) — `apps/console/src/client/console-chrome.tsx`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│ SIDEBAR (md+, 240px, chrome) — ONE mount, TWO nav surfaces, swapped by pathname       │
-│                                                                                        │
-│ ACCOUNT AREA (/accounts/<id>/*, /)     │  SETTINGS AREA (/settings/*)                 │
-│ ─ brand row                            │  ─ brand row                                 │
-│ ─ workspace switcher (AccountBadge)    │  ─ "← Back to console" row                   │
-│ ─ Workspace: Overview·API keys         │  ─ flat nav: Overview·Accounts·               │
-│ ─ Account: Settings                    │    Roles(disabled)·Tiers·Project policies·    │
-│ ─ Operator: Refill requests (admin)    │    Refill options·Refills queue(admin)·Info   │
-│ ─ footer (⌘K · theme · offline · id)   │  ─ footer (⌘K · theme · offline · id)        │
+│ SIDEBAR (md+, 240px, chrome) — ONE mount, THREE nav surfaces, swapped by pathname     │
+│                                                                                       │
+│ ACCOUNT (/accounts/<id>/*, /) │ SETTINGS (/settings/*)      │ ADMIN (/admin/*)        │
+│ ─ brand row                   │ ─ brand row                 │ ─ brand row             │
+│ ─ workspace switcher          │ ─ "← Back to console" row   │ ─ "← Back to console"   │
+│ ─ Workspace: Overview·API keys│ ─ flat nav: Overview·       │ ─ flat nav, per-row     │
+│ ─ Account: Settings           │   Accounts·Roles(rbac)·     │   permission-filtered:  │
+│   (no Operator group — the    │   Tiers·Project policies·   │   Overview·Usage·       │
+│    account rail is not an     │   Info · Admin (exit row,   │   Refills queue·Refill  │
+│    admin shortcut)            │   any admin permission)     │   policies·Budget       │
+│                               │                             │   schedules·Sessions·   │
+│                               │                             │   Roles                 │
+│ ─ footer (⌘K · theme · offline · id) — identical on all three                          │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │  CONTENT COLUMN — fluid, max-w-1120, floor — the ONLY column; no right rail anywhere  │
 │  PageHeader (title · subtitle · controls · action)                                    │
 │  Card  Card  Card  …  (every self-contained zone)                                     │
+│  DashboardGrid of DashboardPanels on every dashboard page (1 col, 2 at `lg`+)         │
 │  Selection opens BottomSheet, at EVERY tier — the right rail has no live case left    │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -213,15 +234,22 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`) —
   `min-w-0` is mandatory so a wide table or chart cannot blow the row open into horizontal page
   scroll.
-- **Account-area nav groups, exactly three, role-gated by inclusion, not by a marker prop**
-  (`navGroups`): `Workspace` (Overview, API keys — hrefs built off the path account,
-  `navHrefs(accountId)`; narrowed from three items to two in ADR 0013's phase E amendment, which
-  moved Projects to `/settings/accounts/<id>/projects`), `Account` (Settings), `Operator` (Refill
-  requests → `/settings/refills-queue`, included only when `session.isAdmin`).
-- **Settings-area nav is a flat, ungrouped list of eight** (`settingsNavGroups`): Overview,
-  Accounts (phase E, new), Roles (disabled, `ROLES_DISABLED_REASON` — `lightbridge-authz#571`),
-  Tier configs, Project policies (renamed from "Account / Project policies" in phase E), Refill
-  options policies, Refills queue (admin only), Info. See §5.5.
+- **Account-area nav groups, exactly two** (`navGroups`): `Workspace` (Overview, API keys — hrefs
+  built off the path account, `navHrefs(accountId)`; narrowed from three items to two in ADR 0013's
+  phase E amendment, which moved Projects to `/settings/accounts/<id>/projects`) and `Account`
+  (Settings). The old `Operator` group is deleted outright (ADR 0013's 2026-08-31 owner review round
+  2 — the account rail is not an admin shortcut); this function takes no permission argument at all
+  and is not gated.
+- **Settings-area nav is a flat, ungrouped list** (`settingsNavGroups`): Overview, Accounts,
+  **Roles** (live, gated on `rbac:manage`, pointing at `/admin/roles`), Tier configs, Project
+  policies, Info — plus an **Admin** exit row appended last when the caller holds any one of
+  `ADMIN_AREA_PERMISSIONS`, aimed by `adminLandingHref` at the first admin destination _this_
+  caller can actually open. The Roles row is no longer `disabled` with `ROLES_DISABLED_REASON`
+  (`lightbridge-authz#571`): the read API landed and an honest row is a working one. See §5.5.
+- **Admin-area nav is a flat list of seven, filtered per row against the caller's own permission
+  set** (`adminNavGroups`, over `ADMIN_DESTINATIONS`). Rows are **omitted, never disabled**: each
+  route segment answers `notFound()` for the same permission, so a visible-but-dead row would
+  advertise a URL the server denies. See the table below and ADR 0015 D4.
 - **The right rail has no live case left, anywhere in the console** (ADR 0013 phase E): its one
   remaining case, `/accounts/<id>/projects` with a row selected, moved into the settings area
   along with the route itself — and settings has never had a right rail, at any tier (ADR 0013
@@ -234,33 +262,89 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
   table + pager inside one `Card`), and settings sections all wrap in `Card`. The page header and a
   bare `InlineStatus`/`ErrorLine` are the only elements that sit directly on the floor.
 
+#### The dashboard grid (ADR 0015 D1)
+
+Every dashboard page — `/admin/overview`, `/admin/usage`, `/accounts/<id>/overview`, all four
+`/settings/overview/*` lenses — lays its panels out in `DashboardGrid` inside that same content
+column. It is not a third layout tier; it is what replaced the single `flex flex-col gap-8` stack
+those pages used to be.
+
+```
+┌─ CONTENT COLUMN (max-w-1120, the only column) ───────────────────────────────┐
+│  PageHeader (title · subtitle · range picker + lens · Export action)         │
+│                                                                              │
+│  DashboardGrid — 1 column below `lg`, 2 columns at `lg`+, gap-6              │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐                  │
+│  │ DashboardPanel  span 1   │  │ DashboardPanel  span 1   │                  │
+│  │ Card + ZoneHeading       │  │ Card + ZoneHeading       │                  │
+│  │  title · subtitle        │  │  · actions ⌄ · [Expand]  │                  │
+│  │  body(size:'panel')      │  │  body(size:'panel')      │                  │
+│  └──────────────────────────┘  └──────────────────────────┘                  │
+│  ┌─────────────────────────────────────────────────────────┐                 │
+│  │ DashboardPanel  span 2 — both columns at every breakpoint│                 │
+│  └─────────────────────────────────────────────────────────┘                 │
+│  ┌─────────────────────────────────────────────────────────┐                 │
+│  │ stat / stat-group — chrome:'bare', NO Card, NO heading,  │                 │
+│  │ NO Expand (StatCard carries its own surface fill)        │                 │
+│  └─────────────────────────────────────────────────────────┘                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **One breakpoint, and it is a real `@media` query.** `grid-cols-1` below `lg`, `grid-cols-2` at
+  `lg` and up, `gap-6`. No responsive JS, no measured container prop — so it follows the actual
+  viewport and, in Storybook, the preview iframe's own width.
+- **A panel declares its own span.** `span: 2` in `dashboards.yaml` lands as `data-span="2"` on the
+  panel's card and the grid's CSS block reads that attribute. The grid never inspects or clones its
+  children, so a panel type can declare a span without the grid knowing panel types exist.
+- **Everything the grid and the panel paint is a named `@utility` in `theme.css`**
+  (`dashboard-grid`, `dashboard-panel` and its two descendant hooks, `dashboard-expanded-popup`);
+  the expanded dialog's chrome is `lib/dialog.ts`'s shared constants. Both sections are pinned at
+  **zero** hand-written utilities by `section-class-audit.test.ts` — they are the wrapper every
+  future panel renders through, so the first utility written into either is a visible diff.
+- **Expand is not a layout affordance, it is a density change.** The expanded view is a Base UI
+  `Dialog` (~1280 wide, ~80vh) that calls the same body render-prop with `size: 'expanded'`: chart
+  height 200 → 460, top-N 6 → 12, table page 10 → 50. `v` opens it while focus is inside the panel
+  (ignored while an input is focused); Esc closes it and focus returns to the panel.
+- **The rail is unaffected.** The layout contract stands unchanged: a persistent drag-resizable
+  right rail at `lg`+ where a screen has a live case for one, bottom sheets below, never a
+  side-docked drawer at any tier, and the rail is never rendered empty. No dashboard page mounts
+  one — panel detail is the expanded dialog, and row detail is `BottomSheet`.
+
 ### Nav destinations
 
-| Nav item                            | Group / area                                                                         | Route                                                                       |
-| ----------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| Overview                            | Workspace                                                                            | `/accounts/<id>/overview`                                                   |
-| API keys                            | Workspace                                                                            | `/accounts/<id>/api-keys`                                                   |
-| Settings                            | Account                                                                              | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
-| Refill requests                     | Operator (admin only)                                                                | `/settings/refills-queue`                                                   |
-| — Admin: Overview                   | Admin area (admin only)                                                              | `/admin/overview`                                                           |
-| — Admin: Usage                      | Admin area (admin only)                                                              | `/admin/usage` (+ `/actors/<id>`, `/channels/<azp>`, `/chats`)              |
-| — Admin: Refills queue              | Admin area (admin only)                                                              | `/admin/refills-queue`                                                      |
-| — Admin: Refill policies            | Admin area (admin only)                                                              | `/admin/refill-policies` (+ `/create`, `?edit=`, `?simulate=`)              |
-| — Admin: Budget schedules           | Admin area (admin only)                                                              | `/admin/budget-schedules` (+ `/create`, `?edit=`, `?preview=`, `?delete=`)  |
-| — Admin: Sessions                   | Admin area (`session:read`)                                                          | `/admin/sessions` (§5.8)                                                    |
-| — Settings: Overview                | Settings area                                                                        | `/settings/overview` → lens picker (§5.5)                                   |
-| — Settings: Accounts                | Settings area                                                                        | `/settings/accounts` → `/settings/accounts/<id>`                            |
-| — Settings: Roles                   | Settings area                                                                        | _(disabled, no route)_                                                      |
-| — Settings: Tier configs            | Settings area                                                                        | `/settings/tiers`                                                           |
-| — Settings: Project policies        | Settings area                                                                        | `/settings/policies`                                                        |
-| — Settings: Refill options policies | Settings area                                                                        | `/settings/refill-options`                                                  |
-| — Settings: Refills queue           | Settings area (admin only)                                                           | `/settings/refills-queue`                                                   |
-| — Settings: Info                    | Settings area                                                                        | `/settings/info`                                                            |
-| Projects (per account)              | _(reached via the Accounts nav row → account detail's own tab, not a top-level row)_ | `/settings/accounts/<id>/projects`                                          |
-| Request refill (per account)        | _(reached via the Budget card / palette / account detail's own tab)_                 | `/settings/accounts/<id>/request-refill`                                    |
+| Nav item                     | Group / area                                                                         | Permission               | Route                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------ | ------------------------ | --------------------------------------------------------------------------------- |
+| Overview                     | Workspace                                                                            | —                        | `/accounts/<id>/overview`                                                         |
+| API keys                     | Workspace                                                                            | —                        | `/accounts/<id>/api-keys`                                                         |
+| Settings                     | Account                                                                              | —                        | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`)       |
+| — Settings: Overview         | Settings area                                                                        | —                        | `/settings/overview` → lens picker (§5.5)                                         |
+| — Settings: Accounts         | Settings area                                                                        | —                        | `/settings/accounts` → `/settings/accounts/<id>`                                  |
+| — Settings: Roles            | Settings area                                                                        | `rbac:manage`            | `/admin/roles` (the row lives in settings, the screen in admin — §5.11)           |
+| — Settings: Tier configs     | Settings area                                                                        | —                        | `/settings/tiers`                                                                 |
+| — Settings: Project policies | Settings area                                                                        | —                        | `/settings/policies`                                                              |
+| — Settings: Info             | Settings area                                                                        | —                        | `/settings/info`                                                                  |
+| — Settings: Admin            | Settings area (appended last — an exit door, never `active`)                         | any of the six below     | `adminLandingHref(permissions)` — the first admin row this caller can open        |
+| — Admin: Overview            | Admin area                                                                           | `usage:read-all`         | `/admin/overview` (§5.9)                                                          |
+| — Admin: Usage               | Admin area                                                                           | `usage:read-all`         | `/admin/usage` (§5.10) (+ `/actors/<id>`, `/channels/<azp>`, `/chats`)            |
+| — Admin: Refills queue       | Admin area                                                                           | `budget:review`          | `/admin/refills-queue` — carries the pending-count numeral                        |
+| — Admin: Refill policies     | Admin area                                                                           | `budget:policy-write`    | `/admin/refill-policies` (+ `/create`, `?edit=`, `?simulate=`)                    |
+| — Admin: Budget schedules    | Admin area                                                                           | `budget:schedule-manage` | `/admin/budget-schedules` (§5.7) (+ `/create`, `?edit=`, `?preview=`, `?delete=`) |
+| — Admin: Sessions            | Admin area                                                                           | `session:read`           | `/admin/sessions` (§5.8)                                                          |
+| — Admin: Roles               | Admin area                                                                           | `rbac:manage`            | `/admin/roles` (§5.11) (+ `?grant=`, `?revoke=`)                                  |
+| Projects (per account)       | _(reached via the Accounts nav row → account detail's own tab, not a top-level row)_ | —                        | `/settings/accounts/<id>/projects`                                                |
+| Request refill (per account) | _(reached via the Budget card / palette / account detail's own tab)_                 | —                        | `/settings/accounts/<id>/request-refill`                                          |
 
 `/` is the account resolver (ADR 0013 D1), not a nav destination in its own right — every nav href
 above degrades to it (`?next=<segment>`) when no account is yet known.
+
+**Every permission in that column comes from `procedure.getMyAccess`, never from a role claim**
+(ADR 0015 D4). `isAdmin` is deleted: it was `roles.includes('lightbridge-admin')`, and production
+minted that role for every signed-in person, so it gated nothing. The row and its gate are declared
+together in `ADMIN_DESTINATIONS`, and one `admin-*-route-gate.test.ts` per segment asserts the nav
+row and the server gate name the same permission — so a row cannot appear for a caller the route
+would 404. A caller who holds only `budget:review` sees exactly one admin row and reaches it. When
+`getMyAccess` cannot be reached the permission set is empty and the chrome **says so** rather than
+rendering an unexplained empty nav.
 
 ---
 
@@ -285,50 +369,65 @@ list.
 
 **Data display**
 
-| Component        | Contract                                                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Card`           | The console's one generic panel: `surface` fill, `border` hairline at `--radius-box`, 1.25rem inset, optional `.card-head` title/actions row. Wraps every self-contained zone (ADR 0012 D3) |
-| `StatCard`       | Self-panelled (keeps its own `surface` fill even inside a `Card`-wrapped row): glyph, `label`, `metric` numeral, delta line, right-hand `Sparkline`. Never tinted, never coloured by value  |
-| `Sparkline`      | 81×26 unlabelled polyline in `border` with a `body` terminal dot — no axis, no tooltip                                                                                                      |
-| `LedgerTable`    | Midday-derived treatment: hairline `raised` rules, no striping, right-aligned numerics, `role=grid` when selectable, always-visible row actions                                             |
-| `Pagination`     | Caption + Previous/Next. Renders **nothing** when the caller wires neither direction — no pager with dead disabled buttons                                                                  |
-| `StatusText`     | Status as text, never a pill: `body` active, `muted` revoked/archived, `signal` expiring/near-ceiling                                                                                       |
-| `RowActionGroup` | Always-visible lifecycle actions, separated by diagonal hairlines, ordered `Rotate ╱ Revoke ╱ Del` with revoke emphasised                                                                   |
-| `Meter`          | 4px track + fill; `body` under threshold, `signal` at/past it; paired with `"$X of $Y"` in mono                                                                                             |
-| `BudgetHero`     | Hero metric + `of $ceiling` + `Meter` + caption + inline action                                                                                                                             |
+| Component        | Contract                                                                                                                                                                                                                                                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Card`           | The console's one generic panel: `surface` fill, `border` hairline at `--radius-box`, 1.25rem inset, optional `.card-head` title/actions row. Wraps every self-contained zone (ADR 0012 D3)                                                                                                                                |
+| `StatCard`       | Self-panelled (keeps its own `surface` fill even inside a `Card`-wrapped row): glyph, `label`, `metric` numeral, delta line, right-hand `Sparkline`. Never tinted, never coloured by value                                                                                                                                 |
+| `Sparkline`      | 81×26 unlabelled polyline in `border` with a `body` terminal dot — no axis, no tooltip                                                                                                                                                                                                                                     |
+| `LedgerTable`    | Midday-derived treatment: hairline `raised` rules, no striping, right-aligned numerics, `role=grid` when selectable, always-visible row actions. **`rowHref`** renders the label cell as a real anchor (keyboard semantics intact) — how a ranked/table panel's rows navigate, instead of an `onClick` that pushes a route |
+| `Pagination`     | Caption + Previous/Next. Renders **nothing** when the caller wires neither direction — no pager with dead disabled buttons                                                                                                                                                                                                 |
+| `StatusText`     | Status as text, never a pill: `body` active, `muted` revoked/archived, `signal` expiring/near-ceiling                                                                                                                                                                                                                      |
+| `RowActionGroup` | Always-visible lifecycle actions, separated by diagonal hairlines, ordered `Rotate ╱ Revoke ╱ Del` with revoke emphasised                                                                                                                                                                                                  |
+| `Meter`          | 4px track + fill; `body` under threshold, `signal` at/past it; paired with `"$X of $Y"` in mono                                                                                                                                                                                                                            |
+| `BudgetHero`     | Hero metric + `of $ceiling` + `Meter` + caption + inline action                                                                                                                                                                                                                                                            |
 
 **Charts** (DOM ports of `chart-core` d3 primitives — monochrome ramp, ADR 0008 D6)
 
-| Component          | Contract                                                                        |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `SpendSeriesChart` | Multi-series line/area over time; exactly one series may be `signal`            |
-| `LatencyRidgeline` | Stacked density ridges by model; a ridge over SLO strokes `signal`              |
-| `ShareBar`         | 100%-stacked part-to-whole bar over a ranked list; at most one segment `signal` |
-| `ChartLegend`      | Swatch + name + value; the selected entry is `ink` + `signal` swatch            |
-| `ChartTooltip`     | Floating-UI-positioned, anchored to a virtual point over the `<svg>`            |
+| Component               | Contract                                                                                                                                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SpendSeriesChart`      | Multi-series line/area over time; exactly one series may be `signal`                                                                                                                                                                                                                                               |
+| `MultiSeriesSpendChart` | The dashboard series primitive: Linear / Log / Indexed axis transform, values on hover only — **no legend list** (owner ruling 2026-08-31). `static` renders a standalone `<svg>` with no Floating UI, for the PDF report                                                                                          |
+| `MultiSeriesSpendBoard` | `ZoneHeading` + fluid-width wrapper + the scale `SegmentedControl` around the chart above; the scale is a URL knob                                                                                                                                                                                                 |
+| `LatencyRidgeline`      | Stacked density ridges by model; a ridge over SLO strokes `signal`                                                                                                                                                                                                                                                 |
+| `RankedSeriesRows`      | The default breakdown (ADR 0013 D5): rank swatch, label, value, share micro-bar (suppressed above 95% top-1 share), per-row sparkline, optional `Meter`/delta, optional row `href`, `Other (N)` tail collapse                                                                                                      |
+| `ShareBar`              | 100%-stacked part-to-whole bar over a ranked list; at most one segment `signal`. The single sanctioned part-to-whole beside the three rings                                                                                                                                                                        |
+| `DonutChart`            | **A ring, never a disk** (ADR 0015 D2): `chart-core`'s `donutGeometry` clamps the hole into `[0.35, 0.85]` of the outer radius for every input, so a filled disk is unreachable through the API. Top-N + summed `Other (N)`, formatted total in the hole, values on hover, no legend. `static` mode for the report |
+| `LatencyStatCards`      | Per-model p50/p95/n (p99 past a minimum sample count) as a row of self-panelled cards — the window totals. A per-bucket **series** is now separately sanctioned (§2.4a)                                                                                                                                            |
+| `ChartLegend`           | Swatch + name + value; the selected entry is `ink` + `signal` swatch. **Not used by any dashboard chart** — values live in the tooltip                                                                                                                                                                             |
+| `ChartTooltip`          | Floating-UI-positioned, anchored to a virtual point over the `<svg>`                                                                                                                                                                                                                                               |
+
+**Dashboards** (ADR 0015 D1 — the declarative engine's own surfaces)
+
+| Component               | Contract                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DashboardGrid`         | One column below `lg`, two at `lg`+, `gap-6`. A child's `span: 2` lands as `data-span="2"` and the CSS reads it — the grid never inspects or clones children, and there is no responsive JS. Pinned at **zero** hand-written utilities                                                                                                                              |
+| `DashboardPanel`        | `Card` + `ZoneHeading` (title · subtitle · actions slot · an Expand button the caller cannot opt out of) around a **body render-prop** `(ctx: { size: 'panel' \| 'expanded' }) => ReactNode`. `v` expands while focus is inside (ignored while an input is focused); Esc returns focus. `chrome: 'bare'` for `stat`/`stat-group` — no `Card`, no heading, no Expand |
+| `usePanelHotkey`        | The focus-within-scoped document listener behind `v`, mirroring `use-command-palette-shortcut`'s style                                                                                                                                                                                                                                                              |
+| `panelRenderers`        | The registry, keyed on `DASHBOARD_PANEL_TYPES` — nine entries (`stat`, `stat-group`, `series`, `ranked`, `share`, `donut`, `table`, `latency-cards`, `latency-series`). A test asserts the registry and the type array cover each other exactly                                                                                                                     |
+| `DashboardExportButton` | The `PageHeader.actions` control on every dashboard page; opens the shared `ReportExportDialog` against `GET /api/reports/page`. Composes — never a per-page button                                                                                                                                                                                                 |
 
 **Forms, actions, states**
 
-| Component                                  | Contract                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PageHeader`                               | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `controls` (inline screen parameters), `action` (the one emphasised control)                                                                                                                                                                                                                                           |
-| `EmptyState`                               | First-run empty (ADR 0012 D6): headline, explainer, CTA, centred inside a `Card`                                                                                                                                                                                                                                                                                                                        |
-| `InlineStatus`                             | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay                                                                                                                                                                                                                                                                             |
-| `ErrorLine`                                | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line                                                                                                                                                                                                                                                                                                               |
-| `SkeletonRow` / `SkeletonMetric`           | `raised` blocks matched to final geometry — no shimmer, no spinner                                                                                                                                                                                                                                                                                                                                      |
-| `BottomSheet`                              | Base UI `Drawer`, bottom-docked only (never from a side). Hosts a selected row's detail **at every tier** — ADR 0013's phase E amendment moved the right rail's one live case off the account area entirely, so `BottomSheet` is the ONE detail surface left anywhere in the console, not a below-`lg` fallback for a rail (`DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted)        |
-| `RailResizer`                              | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` — still a real `ConsoleShell` capability (`packages/ui-web`'s own stories exercise it), but `apps/console` has no live route feeding the rail any more (phase E)                                                                                                                           |
-| `AccountDirectory`                         | `/settings/accounts`'s own list section — one row per account (name/label, status/tier summary), each a link into its detail page; `EmptyState` for the genuine zero-accounts case                                                                                                                                                                                                                      |
-| `AccountDetailSubNav`                      | The three-tab horizontal `SubNav` row shared by `/settings/accounts/<id>`, `.../projects` and `.../request-refill` (Overview · Projects · Request refill)                                                                                                                                                                                                                                               |
-| `Button`                                   | `primary` = `signal` fill; `secondary` = `border` outline; `ghost` = text only                                                                                                                                                                                                                                                                                                                          |
-| `Field` / `SelectField` / `DateRangeField` | Base UI `Field`/`Select` wearing daisy classes. Both `Field` and `SelectField` carry an `example?: string` slot — a muted `meta` line BETWEEN the label and the control, in the control's `aria-describedby`, and never a placeholder, so it stays readable while the author types (issue #445). `stacked` layout only                                                                                  |
-| `SegmentedControl`                         | Base UI Toggle Group + daisy `tabs`                                                                                                                                                                                                                                                                                                                                                                     |
-| `ScopeSelect`                              | Account → project cascade (used where a screen still needs a project _parameter_, distinct from the sidebar's account _identity_ switcher)                                                                                                                                                                                                                                                              |
-| `SecretReveal`                             | One-time secret strip: heading, read-only mono field, `Copy` primary, dismissed only by explicit `×`                                                                                                                                                                                                                                                                                                    |
-| `TypedConfirmDialog`                       | Destructive gate: names the object, requires the object name typed exactly                                                                                                                                                                                                                                                                                                                              |
-| `ConfirmDialog`                            | Plain yes/no gate for discarding UNSAVED LOCAL work (e.g. "Start from example policy" overwriting a draft). Same panel as the typed gate, no name to type — reach for `TypedConfirmDialog` instead whenever the loss survives the tab closing                                                                                                                                                           |
-| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV                                                                                                                                                                                                                                                                                                                                                             | PDF`segmented · one`Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and `/settings/accounts/<id>/projects` |
-| `ReviewDetailPanel`                        | The content `/settings/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (settings has no right rail at any tier — ADR 0013 D2 — one of two screens, alongside `/settings/accounts/<id>/projects`, where `BottomSheet` is the review surface even at `lg`+): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline` |
+| Component                                  | Contract                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PageHeader`                               | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `controls` (inline screen parameters), `action` (the one emphasised control)                                                                                                                                                                                                                                    |
+| `EmptyState`                               | First-run empty (ADR 0012 D6): headline, explainer, CTA, centred inside a `Card`                                                                                                                                                                                                                                                                                                                 |
+| `InlineStatus`                             | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay                                                                                                                                                                                                                                                                      |
+| `ErrorLine`                                | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line                                                                                                                                                                                                                                                                                                        |
+| `SkeletonRow` / `SkeletonMetric`           | `raised` blocks matched to final geometry — no shimmer, no spinner                                                                                                                                                                                                                                                                                                                               |
+| `BottomSheet`                              | Base UI `Drawer`, bottom-docked only (never from a side). Hosts a selected row's detail **at every tier** — ADR 0013's phase E amendment moved the right rail's one live case off the account area entirely, so `BottomSheet` is the ONE detail surface left anywhere in the console, not a below-`lg` fallback for a rail (`DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted) |
+| `RailResizer`                              | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` — still a real `ConsoleShell` capability (`packages/ui-web`'s own stories exercise it), but `apps/console` has no live route feeding the rail any more (phase E)                                                                                                                    |
+| `AccountDirectory`                         | `/settings/accounts`'s own list section — one row per account (name/label, status/tier summary), each a link into its detail page; `EmptyState` for the genuine zero-accounts case                                                                                                                                                                                                               |
+| `AccountDetailSubNav`                      | The three-tab horizontal `SubNav` row shared by `/settings/accounts/<id>`, `.../projects` and `.../request-refill` (Overview · Projects · Request refill)                                                                                                                                                                                                                                        |
+| `Button`                                   | `primary` = `signal` fill; `secondary` = `border` outline; `ghost` = text only                                                                                                                                                                                                                                                                                                                   |
+| `Field` / `SelectField` / `DateRangeField` | Base UI `Field`/`Select` wearing daisy classes. Both `Field` and `SelectField` carry an `example?: string` slot — a muted `meta` line BETWEEN the label and the control, in the control's `aria-describedby`, and never a placeholder, so it stays readable while the author types (issue #445). `stacked` layout only                                                                           |
+| `SegmentedControl`                         | Base UI Toggle Group + daisy `tabs`                                                                                                                                                                                                                                                                                                                                                              |
+| `ScopeSelect`                              | Account → project cascade (used where a screen still needs a project _parameter_, distinct from the sidebar's account _identity_ switcher)                                                                                                                                                                                                                                                       |
+| `SecretReveal`                             | One-time secret strip: heading, read-only mono field, `Copy` primary, dismissed only by explicit `×`                                                                                                                                                                                                                                                                                             |
+| `TypedConfirmDialog`                       | Destructive gate: names the object, requires the object name typed exactly                                                                                                                                                                                                                                                                                                                       |
+| `ConfirmDialog`                            | Plain yes/no gate for discarding UNSAVED LOCAL work (e.g. "Start from example policy" overwriting a draft). Same panel as the typed gate, no name to type — reach for `TypedConfirmDialog` instead whenever the loss survives the tab closing                                                                                                                                                    |
+| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV                                                                                                                                                                                                                                                                                                                                                      | PDF`segmented · one`Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and `/settings/accounts/<id>/projects` |
+| `ReviewDetailPanel`                        | The content `/admin/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (no `/admin/*` or `/settings/*` route mounts a rail at any tier — ADR 0013 D2 — so `BottomSheet` is the review surface even at `lg`+): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline`                                          |
 
 ---
 
@@ -510,10 +609,14 @@ account` is the `PageHeader` action, moved here off `/settings/policies`.
   two siblings, `/settings/accounts/<id>/projects` (§5.3) and `/settings/accounts/<id>/request-refill`
   (§5.4) — the SAME three-tab row renders on all three.
 
-**Roles** — a real, permanent, `href`-less nav row rendered `disabled`, not omitted: no read API
-for role/permission mappings exists (`ROLES_DISABLED_REASON`, `lightbridge-authz#571`). ADR 0013
-D2's honesty-doctrine extension to navigation — a row that looks live but 404s is its own kind of
-fabrication; a disabled row with a stated reason is the honest middle ground.
+**Roles** — **live since 2026-09-02**, gated on `rbac:manage`, pointing at `/admin/roles` (§5.11).
+It spent one phase as a permanent `href`-less row rendered `disabled` with a stated reason
+(`ROLES_DISABLED_REASON`, `lightbridge-authz#571`) — ADR 0013 D2's honesty-doctrine extension to
+navigation, the honest middle ground while no read API existed. The read API landed
+(`listPlatformRoleGrants`, lightbridge-authz#656), so the row is a working link and the disabled
+variant plus its reason string are **deleted**, not kept as a fallback. The disabled treatment
+remains the right answer for a destination that is genuinely not built (see **Members** above) —
+never for one the caller merely lacks permission for, which is omitted instead.
 
 **Tier configs** — `/settings/tiers`: two read-only catalogues, no picker. "Billing plans" is a
 `ZoneHeading` directly on the floor above one `Card` _per plan_ (never nested inside a wrapping
@@ -526,21 +629,25 @@ picker `ProjectPolicyControls` acts on) and `ProjectPolicyControls`, appended in
 detail sheet below `ProjectSettingsDetail`'s read-only field list. `AccountSettings` and both
 `+ New account`/`+ New project` creation triggers moved to the new Accounts subtree above.
 
-**Refill options policies** — `/settings/refill-options` (live since phase 3): "Your current
-ladder" (a read-only echo of the same `useBudgetRefillLadder()` the refill page uses) above "Try a
-policy" (`PolicySimulator`, over `procedure.simulateBudgetPolicy` — a scratch pad, explicitly not
-a view onto any account's stored/active policy). The policy-status and stored-rule-content blocks
-are omitted, with the reason stated inline (`REFILL_OPTIONS_DISABLED_REASON`,
-`converse-frontends#368`) rather than a disabled nav row — the row itself is live.
+**Two settings rows have MOVED to the admin area and are no longer settings destinations at all.**
+Both paths survive only as 308 redirects (`middleware.ts`), so an old bookmark still lands
+somewhere real:
 
-**Refills queue** — `/settings/refills-queue` (admin only; the destination the old `/admin` route
-now redirects to, 308, with every other param preserved). Exactly the budget-refill review queue:
+- `/settings/refill-options` → **`/admin/refill-policies`** (gated on `budget:policy-write`). The
+  simulator ("Try a policy", `PolicySimulator` over `procedure.simulateBudgetPolicy` — a scratch
+  pad, explicitly not a view onto any account's stored policy) went with it, alongside the authoring
+  form and its worked example (§8.4).
+- `/settings/refills-queue` → **`/admin/refills-queue`** (gated on `budget:review`). This is the
+  queue's _third_ home: `/admin` (pre-IA-v3) → `/settings/refills-queue` (IA v3 phase 2) → here.
+  The bare `/admin` is a live route again and no longer 308s off itself.
+
+**Refills queue** — `/admin/refills-queue`. Exactly the budget-refill review queue:
 
 - `PageHeader` states the pending count and, when there is one, the oldest submission's age.
 - The queue (`ReviewQueue`) sits inside **one `Card`**: sortable `Submitted` column, `Project`,
   `Account` (both resolved display names, never UUIDs), `Requested amount`.
 - Selecting a row opens `BottomSheet` hosting `ReviewDetailPanel` **at every tier, including
-  `lg`+** — settings has no right rail at any tier (D2), so `BottomSheet` is this screen's one
+  `lg`+** — no `/admin/*` route mounts a rail at any tier, so `BottomSheet` is this screen's one
   detail surface regardless of viewport, not just the below-`lg` fallback it is everywhere else.
   `ReviewDetailPanel` owns its whole decision surface (consumption, requested tier, requester
   note, history, decision note, `Approve +$X`/`Decline`).
@@ -573,8 +680,9 @@ again` and calls `onRetry` (falling back to `onSignIn`) once `status === 'error'
 ### 5.7 Budget schedules — `/admin/budget-schedules` (`admin-budget-schedules.stories.tsx`)
 
 The standing rules that write budget grants on a cadence — converse-frontends#451 (story C8) over
-lightbridge-authz ADR-0032. Admin-only, server-gated the same way every `/admin/*` route is
-(`readSession()` → `isAdmin` → `notFound()`), mode-split by nuqs params exactly the way
+lightbridge-authz ADR-0032. Gated on **`budget:schedule-manage`**, server-side, the same way every
+`/admin/*` route is (`readSession()` → `can(session, …)` → `notFound()`), mode-split by nuqs params
+exactly the way
 `/admin/refill-policies` is: the bare path lists, `?edit=<id>` opens the form, `?preview=<id>` opens
 the dry-run sheet, `?delete=<id>` opens the typed confirmation, and **`create` is its own route
 segment**, `/admin/budget-schedules/create`.
@@ -836,6 +944,143 @@ stateDiagram-v2
     end note
 ```
 
+### 5.9 Operator dashboard — `/admin/overview` (`admin-overview.stories.tsx`)
+
+Gated on **`usage:read-all`**. The admin area's landing destination, and the first page migrated
+onto the declarative engine (ADR 0015 D1): eleven panels in `dashboards.yaml`, three usage requests
+plus one comparison twin, where its eight hand-written boards fired six.
+
+Top to bottom: `PageHeader` (title, range picker in `controls`, `DashboardExportButton` in
+`action`) → **a first `DashboardGrid` of the two hand-written zones** → **the engine's
+`DashboardGrid`**.
+
+- **Two zones stay hand-written, and it is not an escape hatch.** `dashboards.yaml` describes usage
+  queries. Estate budget pressure reads `getBudgetBalance` (an RPC, one call per account) against
+  month-to-date spend that must **not** follow the page's range picker, and the refill row reads
+  `listPendingAugmentationRequests`. Neither is a usage query, so neither is a panel; inventing an
+  RPC panel type for two callers would be a worse abstraction than one honest container. They are
+  two stacked grids rather than one, so the renderer keeps no "hand-written children" slot that a
+  later page would reach for.
+- **They come first, deliberately.** "Who is about to breach their ceiling" and "what is waiting on
+  me" are the two things an operator opens this page to act on; the analytics grid is what they read
+  afterwards.
+- **Panels** (in YAML order): estate spend over time (`series`, `compare`) · model mix
+  (`ranked` + `share`) · top spenders by account and by project (two `table`s, rows linking into
+  `/admin/usage/actors/<id>`) · request volume (`series`) · latency (`latency-cards` +
+  `latency-series`) · adoption — active accounts, active projects, and both per day.
+- **Two boards were dropped as inexpressible**, and are named in ADR 0015 D6 so nobody re-adds
+  them: **"New accounts this period"** (a usage query cannot see an account that was created and
+  never used, nor a creation date at all) and **"Gone quiet"** (an account that stopped is precisely
+  an account with _no rows_ in the window, and no query over an event table returns rows that are
+  not there). `derived:activeActors` counts replace both. `latencyScopeCaption` went with them:
+  latency is estate-wide now and the backend computes `percentile_cont` per (bucket, model) itself,
+  so the old "scoped to the busiest account" caption would today be a false statement.
+- **States are per panel, never page-level.** A panel whose query failed draws `ErrorLine` with a
+  `Retry` inside its own card while every other panel draws its data; loading is a skeleton of the
+  body's own geometry, so the card, its title and its Expand button stay put and the page does not
+  reflow when data lands. A truncated response adds an `InlineStatus` caption naming the limit —
+  rendered once for all nine types, so a renderer cannot forget it. There is no centred placard on
+  this page at all: nothing here is a first-run empty.
+
+### 5.10 Estate usage — `/admin/usage` (`admin-usage.stories.tsx`)
+
+Gated on **`usage:read-all`** — the same `scope: 'all'` read as §5.9, so one grant unlocks both.
+**Nineteen panels, one YAML entry, one `useDashboard` call, six usage requests plus one twin.**
+There is no per-panel query code in `apps/console` for this page; `admin-usage-page.test.ts` pins
+the exact panel-id list, in order, because those ids are a cross-slice contract (the actor/channel/
+chat routes reuse them and the report renderer walks them).
+
+`PageHeader` carries the three things a **page** owns and a panel cannot: the range picker, the
+lens `SegmentedControl`, and the URL knobs that make both — plus every panel's own axis, sort and
+page — restorable from a pasted link (ADR 0011). Those knobs are declared **from the spec**, not
+from a hand-written table, so a panel a deployment adds through the config-volume override gets a
+real `?<panel-id>-scale=` knob like every other.
+
+- **The lens leads with User** (the owner's actor-identity rule). Switching it re-groups five panels
+  — `active-actors`, `cost-by-actor`, `tokens-by-actor`, `top-actor-cost`, `actors-table` — onto
+  `account_id`/`project_id` **and** rewrites the `?type=` on every row link, because the resolver
+  substitutes `$lens` into `options.link` at the same moment it swaps the `group_by`. A row that
+  said "account" while linking to `?type=user` is exactly the quiet wrongness that substitution
+  prevents.
+- **The three rings** (`model-distribution-requests`, `-cost`, `-tokens`) are the sanctioned
+  `donut` use case (§2.4a). Three panels rather than one with a metric toggle: a toggle would hide
+  two of three readings behind a click, and all three share the `[model]` request the series and
+  share panels already issue, so they cost nothing extra.
+- **The two ledgers sort and page client-side** over the grouped response, because the usage query
+  API has no ordering and no offset — owner-accepted, provided the truncation caption stays visible
+  beside the table. Both are URL knobs, so a sorted page is a shareable link.
+- **Honest captions that must not be deleted**: "Total requests" carries no error rate (usage
+  events have no error/status field, `lightbridge-authz#597`); every active-actor figure counts only
+  actors _with usage in the window_, so it is not a census of the estate; "Accounts with usage, by
+  plan" prints no total and does not sum to the account count, because a mid-month plan change is
+  real; average cost per million tokens renders a **dash, not `$0.00`**, when the window carries no
+  token counts.
+- **Empty and error are the same per-panel treatment as §5.9** — inline, inside the panel, never a
+  centred placard.
+- **Known gap: this page has no Export action yet.** Its `.typ` template ships
+  (`templates/admin/usage/report.typ`) and `/api/reports/page?path=/admin/usage` works, but
+  `DashboardExportButton` is mounted on `/admin/overview`, `/accounts/<id>/overview` and
+  `/settings/overview/*` only. Recorded as a follow-up rather than papered over.
+
+#### The three drill-downs (story C6, `admin-usage-actor` / `-channel` / `-chats` stories)
+
+Same gate, same engine, same treatment — three more `dashboards.yaml` entries and three thin route
+files, reached from this page's own linked rows rather than from the admin rail.
+
+| Route                                                       | Panels → requests | What makes it different                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin/usage/actors/[actorId]?type=user\|account\|project` | 9 → 5             | `scope: $type` and `scope_id: $actorId` both come from the route. The header is the identity from the page's own single `resolveActorLabels` batch (the path id is seeded into it), with a labelled sentinel for an id that resolves to nothing. `type=account` adds a hand-written **Budget & next reset** zone off `getBudgetBalance` + `getEffectiveResetSchedule` — an RPC read, so not a panel |
+| `/admin/usage/channels/[channelId]`                         | 7 → 6             | An estate query **narrowed by `filters.azp`**, not a scope: a channel is a `azp` value, and there is no channel scope to ask for                                                                                                                                                                                                                                                                    |
+| `/admin/usage/chats`                                        | 5 → 4             | Every panel filtered with `operation_in` in **one** query. Reached through an **Estate \| Chats sub-nav** on `/admin/usage`, not a sixth admin rail row — it is a lens on the same surface                                                                                                                                                                                                          |
+
+- **Panel ids are prefixed** (`actor-*`, `channel-*`, `chat-*`) rather than reusing the index
+  page's verbatim. Three things need an id to be unambiguous across the whole document: the report
+  walk resolves a route to a panel list, the per-panel URL knob is `?<panel-id>-scale=`, and the
+  file is read across pages. The types and readings are the index page's unchanged, and no new
+  hand-written component was introduced. `admin-usage-detail-pages.test.ts` pins them in order.
+- **An invalid `?type=` 404s at the route, and the resolver refuses it again.** A substituted
+  `scope` is validated against the closed usage-scope enum before any query is built — it is the
+  one field whose value a typed URL decides, and a 400 arriving under a page that has already
+  printed an actor's name is worse than a 404.
+- **Same states as the index**: per-panel `ErrorLine` + `Retry`, per-panel skeletons that keep the
+  card and its title in place, `InlineStatus` truncation captions. An unresolved actor id renders
+  its sentinel label and still draws the page — it is a real key the backend wrote, never dropped.
+- **No Export action yet**, same as the index page: templates ship, the button does not.
+
+### 5.11 Platform roles — `/admin/roles` (`admin-roles.stories.tsx`)
+
+Gated on **`rbac:manage`**. Reached from the admin area's own "Roles" row _or_ from the settings
+area's "Roles" row, which stopped being a `disabled` placeholder the moment
+`listPlatformRoleGrants`/`grantPlatformRole`/`revokePlatformRole` became real
+(lightbridge-authz#656 / ADR-0033). The disabled variant and `ROLES_DISABLED_REASON` are deleted,
+not kept as a fallback: once the destination is real, an honest row is a working one.
+
+`PageHeader` ("Platform roles", "Grant role" as the one primary) → an optional `InlineStatus`
+outcome line → one `Card` holding `PlatformRoleGrants` (toolbar + table + pager). `?grant=` and
+`?revoke=` are its two dialogs.
+
+- **The subtitle states the propagation rule permanently, not only after a mutation.** A grant
+  reaches its holder at their **next token mint** — the single most surprising property of this
+  screen. An operator who grants a role and watches the person still be refused for a few minutes
+  has not hit a bug. Revocation is the asymmetric half: it closes the subject's sessions and applies
+  immediately, because otherwise the window between revoke and token expiry is a role nobody holds
+  and every live token still claims.
+- **The outcome is an `InlineStatus`, not a toast.** The console has no toast pattern (ADR 0008),
+  and a revocation's `revokedSessionCount` is a fact worth leaving on screen rather than one that
+  fades after four seconds.
+- **The role catalogue is a constant, not a fetch.** No procedure enumerates it — it is the
+  deployment's own `oauth2.rbac.role_permissions` config, which `grantPlatformRole` validates
+  against and refuses an unknown role for, and `getMyAccess` answers with the _caller's_ roles,
+  which is one person's grants and not a vocabulary. So the dialog offers `PLATFORM_ROLES` and a
+  deployment configured differently gets an honest server-side refusal rather than a silently
+  useless row.
+- **Empty is an inline status line**, never a centred placard: a grants table with filters above it
+  that matched nothing is a fact about the filters, and a deployment with genuinely zero grants is
+  the expected pre-bootstrap state, not a first-run onboarding moment.
+- **The first admin cannot come from here.** `/admin/roles` is gated on `rbac:manage`, so the
+  bootstrap grant is a CLI/Job action (`rbac grant`, ai-helm-values#347). ADR 0015 draws that as a
+  blocked edge in the grant-lifecycle diagram.
+
 ---
 
 ## 6. Interaction contracts
@@ -907,6 +1152,26 @@ acceptance test, not something a screen spec should re-litigate per screen.
 
 ## 8. Process diagrams
 
+Every process the console owns is a **pair** — a `sequenceDiagram` for the interaction and a
+`stateDiagram-v2` for the lifecycle — because a flow usually looks correct until the state machine
+is drawn and a state turns out to be unreachable. Prose follows a diagram and carries what a
+diagram cannot: the `file:line` citations, why an edge is blocked, what the fix would be.
+
+| §                                                                                          | Process                                                   | Lives here or elsewhere                                                                           |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [8.1](#81-api-key-rotation)                                                                | API key rotation                                          | here                                                                                              |
+| [8.2](#82-budget-refill-request--review--decision)                                         | Budget refill: request → review → decision                | here                                                                                              |
+| [8.3](#83-report-export)                                                                   | Report export (dialog → `/api/reports/page` → Typst)      | here; the wire contract and template lookup are in `apps/console/README.md`                       |
+| [8.4](#84-authoring-a-refill-policy-from-the-example-issue-445)                            | Authoring a refill policy from the example                | here                                                                                              |
+| [8.5](#85-resolving-an-analytics-lens-from-dashboardsyaml-story-c12-converse-frontends455) | Resolving an analytics lens from `dashboards.yaml`        | here                                                                                              |
+| §5.7                                                                                       | A budget reset schedule's lifecycle                       | in its own screen spec                                                                            |
+| §5.8                                                                                       | A session's lifecycle, and where the screen touches it    | in its own screen spec                                                                            |
+| —                                                                                          | YAML → resolve → dedupe → render, and the export branch   | [ADR 0015](../../adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md) Diagrams |
+| —                                                                                          | A dashboard panel's lifecycle (Idle → Focused → Expanded) | ADR 0015 Diagrams                                                                                 |
+| —                                                                                          | Sign-in → `getMyAccess` → a rendered admin row            | ADR 0015 Diagrams; also `docs/knowledge/authorization-and-permissions.md`                         |
+| —                                                                                          | A platform role grant's lifecycle (grant → mint → revoke) | ADR 0015 Diagrams                                                                                 |
+| —                                                                                          | `config.yaml` startup outcomes                            | `docs/knowledge/console-configuration.md`                                                         |
+
 ### 8.1 API key rotation
 
 Unaffected by the shell revamp — `TypedConfirmDialog` and `SecretReveal` were never rail content.
@@ -933,7 +1198,7 @@ sequenceDiagram
         L->>L: row updates in place — new prefix, last used reset
     else failed
         API-->>D: error
-        D-->>U: dialog stays open with ErrorLine; nothing changed
+        D-->>U: dialog stays open with ErrorLine · nothing changed
     end
 ```
 
@@ -987,12 +1252,12 @@ sequenceDiagram
     M->>RP: pick tier, add a note, submit
     RP-->>M: request recorded with requestedByUserId = auth().id
     Note over O,Q: same record, two routes
-    A->>Q: open /admin/refills-queue (session.isAdmin gates the route;\nan old /settings link 308s here)
+    A->>Q: open /admin/refills-queue (can(session, 'budget:review') gates the route ·\nan old /settings link 308s here)
     Q-->>A: rows render immediately · Requester cell reads "Resolving…"
     Q->>ID: resolveUserProfiles({ userIds: sorted, de-duplicated ids })\nONE call per page, never one per row
     alt profiles returned
         ID-->>Q: [{ userId, displayName?, email?, username? }]
-        Q-->>A: Requester = name, email underneath;\nan id with no profile = "Unresolved user" + the raw id
+        Q-->>A: Requester = name, email underneath ·\nan id with no profile = "Unresolved user" + the raw id
     else user:read refused / call failed
         ID-->>Q: error
         Q-->>A: every id falls back to "Unresolved user" + raw id,\nInlineStatus above the table says why · rows stay decidable
@@ -1003,15 +1268,15 @@ sequenceDiagram
     BS-->>A: the same requester in the header block, then tier, amount, notes
     alt approve
         A->>BS: Approve +$250.00
-        BS-->>Q: row leaves Pending, enters Decided; sheet closes
-        BS-->>O: ceiling becomes $750.00; meter returns to body-grey
+        BS-->>Q: row leaves Pending, enters Decided · sheet closes
+        BS-->>O: ceiling becomes $750.00 · meter returns to body-grey
     else decline
         A->>BS: Decline (+ optional decision note)
-        BS-->>Q: row leaves Pending, enters Decided; sheet closes
-        BS-->>O: ceiling unchanged; card shows the decision and its note
+        BS-->>Q: row leaves Pending, enters Decided · sheet closes
+        BS-->>O: ceiling unchanged · card shows the decision and its note
     else request fails
         A->>BS: decision submitted
-        BS-->>A: sheet stays open, error inline; nothing changed
+        BS-->>A: sheet stays open, error inline · nothing changed
     end
 ```
 
@@ -1124,7 +1389,7 @@ sequenceDiagram
     E->>B: downloadBlob -> the file
     E-->>U: dialog closes, re-armed
     R-->>E: 404 unknown route · 422 template did not compile · 502 renderer unreachable
-    E-->>U: ErrorLine + Retry; every input kept
+    E-->>U: ErrorLine + Retry · every input kept
 ```
 
 The consumption report's own flow, which keeps the period/scope/group-by controls:
@@ -1157,7 +1422,7 @@ sequenceDiagram
     else empty result
         E-->>U: a real document stating a genuine zero, never a fabricated one
     else failed
-        E-->>U: ErrorLine + Retry; the form keeps every input
+        E-->>U: ErrorLine + Retry · the form keeps every input
     end
 ```
 
@@ -1290,8 +1555,8 @@ sequenceDiagram
         Z-->>C: their own status, independent of every panel
     and the declarative grid
         C->>S: page + window + $param filters (+ family account ids)
-        S->>S: substitute $params; $project? drops when absent
-        S->>S: resolve bucket: auto from the range; add the compare twin
+        S->>S: substitute $params · $project? drops when absent
+        S->>S: resolve bucket: auto from the range · add the compare twin
         alt scope: family
             S->>S: expand each panel into one scope:account query per family account
         end

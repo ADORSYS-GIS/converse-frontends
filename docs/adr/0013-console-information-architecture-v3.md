@@ -30,6 +30,20 @@ choice, and its own "offline-first PWA" language never named webpack; the bundle
 is new ground, not a correction. Both ADR 0011 and ADR 0012 carry status-note amendments pointing
 here.
 
+**Amended by [ADR 0015](0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+(2026-09-02) in three places, each marked inline below.** ADR 0015 D2 amends **D5**: rings (hollow
+donuts) are now allowed and filled disks are still banned, so D5's "not a donut" clause no longer
+states an absolute prohibition; and a latency **series** is now sanctioned, because the usage query
+API computes `latency_p50/p95/p99_ms` with `percentile_cont` per bucket group at query time, which
+removes the premise D5's "stat cards until history depth justifies a series" clause rested on. ADR
+0015 D4 replaces this ADR's admin-area gate wholesale — every `isAdmin(session.user.roles)` +
+`notFound()` mechanism described in the amendments below is deleted and replaced by a permission
+read from `procedure.getMyAccess`; the mechanism is recorded here as history, not as current code.
+ADR 0015 D1 supersedes the hand-written dashboard containers this ADR's amendments describe
+(`admin-overview-usage.ts`, `use-admin-overview-screen.ts`, `overview-usage.ts`,
+`usage-overview-usage.ts` and their hooks are all deleted): every dashboard page in the console now
+renders from `apps/console/dashboards.yaml`. Everything else in this ADR stands.
+
 ## Context
 
 By ADR 0012 (2026-08-30), the console had a working two-column shell, but the account/project
@@ -184,6 +198,30 @@ that back into a first-class URL and let the dialog concept shrink back to what 
 
 ### D5 — The analytics doctrine
 
+> **Amended 2026-09-02 by [ADR 0015](0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+> D2 — read that first for the two clauses below that no longer hold.**
+>
+> 1. **Rings are allowed; filled disks never.** The part-to-whole clause below reads "not a donut"
+>    and the console-ui skill used to restate it as "never a donut, ever". That absolute is
+>    **removed**. A `donut` panel type ships (`packages/ui-web/src/components/donut-chart`) and
+>    draws a **hollow ring**: `donutGeometry` (`packages/chart-core/src/arcs.ts:54`) clamps the
+>    inner radius into `[0.35, 0.85]` of the outer radius for every input, so a filled disk is
+>    unreachable through the API rather than merely discouraged. Top-N + `Other (N)`, values on
+>    hover, the total in the hole. The sanctioned use is exactly three panels —
+>    `model-distribution-{requests,cost,tokens}` on `/admin/usage`. `ShareBar` keeps the single
+>    part-to-whole and `RankedSeriesRows` stays the default breakdown; everything else in this
+>    clause stands.
+> 2. **A latency series is now honest.** The "stat cards until history depth justifies a series"
+>    clause below rested on whole-window aggregate percentiles being uncombinable across days. The
+>    usage query API computes `latency_p50/p95/p99_ms` with `percentile_cont` **per bucket group at
+>    query time**, so each bucket's percentile is a real percentile of that bucket's own samples and
+>    plotting them in order composes nothing. A `latency-series` panel type is sanctioned;
+>    `latency-cards` stays for the window totals.
+>
+> Every other bullet in D5 — the ranked-row default, the rejection of stacked bars and area fills,
+> labelled sentinels, explicit limits and surfaced truncation, the capped estate fan-out — is
+> unchanged, and is now enforced by the `dashboards.yaml` schema rather than by review.
+
 The phase 4 usage/spend screens are grounded in a **measured prod distribution**, not house taste:
 scanning 726k prod usage rows, the dominant shape across accounts is one series overwhelming the
 rest — "top-1 ≥95% of an account's spend" is the _common_ case, not an edge case. Every choice
@@ -203,7 +241,9 @@ data:
   overview's global model mix (`/settings/overview/usage`, `combineAccountModelResponses`'s
   `modelTotals`). `ShareBar` — a 100%-stacked bar over a ranked list, not a donut (replaced
   2026-08-29: a monochrome ramp reads badly as adjacent arcs, and a real 99/1/0.4 split produced
-  sub-pixel donut slivers) — is right exactly once, when the question genuinely is "how does this
+  sub-pixel donut slivers; **that replacement stands, but it is no longer a blanket ban on arcs —
+  see the amendment above, rings allowed / disks never**) — is right exactly once, when the
+  question genuinely is "how does this
   whole add up," not "which of these rows matters." Every per-row breakdown elsewhere uses
   `RankedSeriesRows` instead, specifically _because_ of the measured top-1-dominance shape: a
   ranked list survives a 95/5/0.4 split by showing the 95% as a number and the 5%/0.4% as smaller
@@ -230,7 +270,10 @@ data:
   named in the build brief's "DO NOT BUILD" list for exactly this reason. The day this backend
   starts emitting per-bucket percentiles with enough history to trend honestly, this doctrine's
   own "stat cards until…" clause is what tells a future implementer to revisit it — not a silent
-  reversal.
+  reversal. **That day arrived (2026-09-02): the usage query API computes the percentiles with
+  `percentile_cont` per bucket group at query time, so the `latency-series` panel type is
+  sanctioned and this clause is revisited, out loud, in ADR 0015 D2. `LatencyStatCards` keeps the
+  window totals.**
 - **Sentinel identities are labelled, never dropped or fabricated.** `sentinelLabel`
   (`apps/console/src/containers/sentinel-labels.ts`) resolves two backend-emitted sentinel keys
   (`missing:keycloak:preferred_username`, `missing:github:preferred_username`) to de-emphasized
@@ -765,8 +808,8 @@ render.
 
 ## Amendment (2026-08-31, later still): `/admin/overview`'s account enumeration is honest, not estate-wide
 
-A direct owner review finding on the admin-area amendment above, verbatim: *"/admin/overview is
-overview for ALL account, not just the one the user is bound to. ALL of them."* The dashboard's own
+A direct owner review finding on the admin-area amendment above, verbatim: _"/admin/overview is
+overview for ALL account, not just the one the user is bound to. ALL of them."_ The dashboard's own
 subtitle already claimed "Estate-wide"; the fan-out behind it (`use-admin-overview-screen.ts`)
 enumerated only the operator's own account family (`scope.allAccounts`, `model.Account.list`) —
 because that listing was the only account enumeration the console had any RPC path to. The
@@ -820,8 +863,8 @@ more application of it, this time to the page's own header rather than one dashb
   `admin-overview-usage.test.ts`).
 - `apps/console/src/containers/use-admin-overview-screen.ts`'s fan-out source changes from
   `allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS)` to `estateAccountIds(allAccounts, pendingQueue
-  AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugmentationRequests
-  ({budgetAccountId: null})` scan (`PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) separate from
+AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugmentationRequests
+({budgetAccountId: null})` scan (`PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) separate from
   `useRefillsQueueScreen`'s own UI-paginated queue-screen query.
 - `apps/console/src/server/usage-scope-guard.ts`'s `guardUsageScope` gains an optional 5th
   parameter, `isAdmin?: boolean`, defaulting to non-admin behavior when omitted — every pre-
@@ -906,9 +949,9 @@ tsx`'s `storyNavGroups` fixture follows the same shape — no separate "Operator
 
 ## Amendment (2026-08-31, later still): `/admin/overview` becomes one real `scope: 'all'` query per board — the estate-wide chain closes
 
-The final link in the chain the previous amendment left open: *"Once it ships, `estateAccountIds`'s
+The final link in the chain the previous amendment left open: _"Once it ships, `estateAccountIds`'s
 pending-queue half becomes unnecessary and the fan-out can call the real enumeration directly —
-tracked there, not here."* `lightbridge-authz#602` asked for an account-ENUMERATION endpoint;
+tracked there, not here."_ `lightbridge-authz#602` asked for an account-ENUMERATION endpoint;
 what actually shipped, `lightbridge-authz#605` (`PR #605`, composing on `#603`), is a different but
 sufficient mechanism for this page's purpose — a genuine estate-wide USAGE query (`scope: 'all'`,
 no `account_id`/`project_id`/`user_id`/`api_key_id` filter at all), gated server-side on a new
@@ -917,9 +960,9 @@ grant. `#605` also fixed `scope: 'user'`, unconditionally `403` since `#603`: al
 `scope_id` equals the caller's own validated token subject (self-ownership) — closing the gap
 `#570` originally left for `/settings/overview/user`.
 
-Owner ruling this amendment implements, verbatim: *"/admin/overview is overview for ALL account,
-not just the one the user is bound to. ALL of them."* + *"Just not mention you're fetching for a
-specific account."* The same finding the account-enumeration-honesty amendment above answered
+Owner ruling this amendment implements, verbatim: _"/admin/overview is overview for ALL account,
+not just the one the user is bound to. ALL of them."_ + _"Just not mention you're fetching for a
+specific account."_ The same finding the account-enumeration-honesty amendment above answered
 partially (family∪pending-queue, honestly captioned as partial) is now answered for real: every
 board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, varying only the
 `group_by` dimension it needs, instead of fanning out to a pre-enumerated account-id list at all.
@@ -930,7 +973,7 @@ board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, v
   `UsageScope` and `UsageQueryRequest.scope_id` stating the wire contract `#605`'s merged Rust
   documents: `scope_id` is required-but-IGNORED for `scope: all` (send `""`); `scope: user` is
   allowed only for the caller's own subject. `packages/api-rest`'s generated client (`pnpm --filter
-  @lightbridge/api-rest codegen`, gitignored `src/client/`) picks up `'all'` in the `UsageScope`
+@lightbridge/api-rest codegen`, gitignored `src/client/`) picks up `'all'` in the `UsageScope`
   union from this regeneration.
 - **`admin-overview-usage.ts`** loses `estateAccountIds`/`estateCoverageCaption`/
   `ESTATE_SUBTITLE_SCOPE` (the family∪pending-queue id-harvesting this amendment replaces) and
@@ -976,7 +1019,7 @@ board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, v
   drew nothing in either compared window never appears as an `account_id` group at all, so "gone
   quiet" and "active accounts" only ever count accounts with SOME usage in the compared windows;
   and account creation dates remain resolvable only for the operator's own family (`scope.
-  allAccounts`), since usage events carry no creation-date field for anyone. Both are structural
+allAccounts`), since usage events carry no creation-date field for anyone. Both are structural
   properties of what a usage-events query can answer, not something a wider scope removes.
 - **`/settings/overview/user`** (the self-service user lens, `use-settings-overview-screen.ts:224`)
   already sends `scope_id: session.user?.sub ?? ''` for `lens === 'user'` — exactly `#605`'s
@@ -992,7 +1035,7 @@ what is actually true) — applied here to the one gap in that chain that has no
 - `openapi/usage.backend.yaml`: `UsageScope` enum gains `all`; `scope`/`scope_id` gain
   authorization-note `description`s. `packages/api-rest/src/client/` (gitignored, regenerated via
   `pnpm install`'s `postinstall` → `codegen:all`) picks up `UsageScope = 'user' | 'api_key' |
-  'project' | 'account' | 'all'`.
+'project' | 'account' | 'all'`.
 - `apps/console/src/containers/admin-overview-usage.ts` / `admin-overview-usage.test.ts`: see the
   function list above; `estateAccountIds`/`estateCoverageCaption`/`ESTATE_SUBTITLE_SCOPE` and their
   tests are deleted, not deprecated.

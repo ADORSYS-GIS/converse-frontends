@@ -279,9 +279,35 @@ here as a real, reachable startup-adjacent failure mode, not a state `env.ts` it
 
 ---
 
+## The other two documents on the same volume
+
+`config.yaml` is not the only file the console reads from `${CONSOLE_CONFIG_DIR}`. Two more are
+resolved from the same mount, both added by ADR 0015 and both documented in
+`apps/console/README.md` rather than here, since neither is a config _schema_:
+
+| File                                          | Purpose                                                   | Absent means                                       |
+| --------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------- |
+| `${CONSOLE_CONFIG_DIR}/dashboards.yaml`       | Operator override of the declarative dashboard definition | the in-repo `apps/console/dashboards.yaml` is read |
+| `${CONSOLE_TEMPLATES_DIR}/<route>/report.typ` | Operator override of one route's Typst report template    | the shipped template, else `_lib/default.typ`      |
+
+**`CONSOLE_CONFIG_DIR` is derived, not a second independently-wired variable**: an explicit
+`CONSOLE_CONFIG_DIR`, else the directory holding `CONSOLE_CONFIG`, else none — so a dev checkout
+with no `CONSOLE_CONFIG` has no override root and does not treat the repo root as one. That is why
+adding the dashboards override to `charts/converse-console` needed one more optional ConfigMap and
+no new env var. `CONSOLE_TEMPLATES_DIR` **is** its own variable and is always set on the container,
+which is only safe because template lookup is per **file**: a ConfigMap carrying one template
+overrides exactly one report, and an absent directory overrides nothing.
+
+`dashboards.yaml` shares `config.yaml`'s startup contract — validated on first read, cached for the
+process lifetime, and **fail-loud**: an override that exists but is invalid throws (naming the
+offending page route and panel id) rather than silently falling back to the shipped file.
+
+---
+
 ## Cross-references
 
-- `apps/console/README.md` — quickstart and pointer to this document.
+- `apps/console/README.md` — quickstart, the `dashboards.yaml` schema, and the report-template
+  contract; also the pointer to this document.
 - `auth-and-identity.md` — what `keycloak.*` and `session.secret` feed into (OIDC flow, session
   cookie crypto, audience validation, role claim).
 - `rpc-and-codegen.md` — what `backendUrl`/`apiBasePath`/`budgetUrl`/`usageUrl` feed into (the

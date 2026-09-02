@@ -13,11 +13,22 @@ import { LciSidebarContent, LciTopBarContent } from './lci-chrome';
  * and the command palette they both open. No detail rail yet, since no screen currently needs
  * row-selection detail alongside its list.
  *
- * A client component rendered BY `app/(lci)/layout.tsx` (a Server Component) with `userLabel` as
- * a prop — Next.js layouts only ever receive `{children}` from the router itself, so the session
- * read has to happen in the server layout and get handed down, not read here.
+ * A client component rendered BY `app/(lci)/layout.tsx` (a Server Component) with `userLabel` and
+ * the branding booleans as props — Next.js layouts only ever receive `{children}` from the router
+ * itself, so the session/env reads have to happen in the server layout and get handed down, not
+ * read here.
  */
-export function LciShell({ children, userLabel }: { children: ReactNode; userLabel: string }) {
+export function LciShell({
+  children,
+  userLabel,
+  hasLogo,
+  hasLogoLight,
+}: {
+  children: ReactNode;
+  userLabel: string;
+  hasLogo: boolean;
+  hasLogoLight: boolean;
+}) {
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandPaletteShortcut(setPaletteOpen);
@@ -31,8 +42,21 @@ export function LciShell({ children, userLabel }: { children: ReactNode; userLab
   return (
     <>
       <ConsoleShell
-        sidebar={<LciSidebarContent userLabel={userLabel} onOpenPalette={openPalette} />}
-        topBar={<LciTopBarContent onOpenPalette={openPalette} />}>
+        sidebar={
+          <LciSidebarContent
+            userLabel={userLabel}
+            onOpenPalette={openPalette}
+            hasLogo={hasLogo}
+            hasLogoLight={hasLogoLight}
+          />
+        }
+        topBar={
+          <LciTopBarContent
+            onOpenPalette={openPalette}
+            hasLogo={hasLogo}
+            hasLogoLight={hasLogoLight}
+          />
+        }>
         {children}
       </ConsoleShell>
       <CommandPalette

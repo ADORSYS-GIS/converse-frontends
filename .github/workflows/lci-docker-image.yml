@@ -1,0 +1,112 @@
+name: lci-docker-image
+
+# Builds and publishes the apps/lci (Next.js) container image. A separate workflow, not a
+# shared/matrixed one, so this pipeline can never touch another app's images or GHCR packages.
+#
+# apps/lci needs a live Node process: server route handlers under src/app/api/** (the OIDC
+# login/callback/logout flow, the graph API proxy) and server components that read the session
+# cookie and call the control plane.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # Its own GHCR package — argocd-image-updater watches this exact name and commits the newest
+  # `sha-<gitsha>` tag into environments/prod/values/lci-ui.yaml in the private ai-helm-values
+  # repo.
+  IMAGE_NAME: ${{ github.repository }}/lci
+
+jobs:
+  build-and-push:
+    # Rootless Buildah on the self-hosted runner (daemonless — no Docker/dind).
+    # The standalone Next.js bundle is built here via Turbo (hitting the runner's Turbo cache),
+    # then baked into a thin Node image. Single-arch: every cluster node is amd64.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # Also regenerates the gitignored packages/authz-rpc/generated/ via the root
+      # postinstall (`codegen:all`) — @cratestack/cli is a devDependency of that package, so no
+      # separately installed tooling is needed.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `--filter=lci` deliberately: this keeps building exactly one package regardless of how
+      # many workspaces gain a `build:web` task later.
+      - name: Build lci (Turbo)
+        env:
+          # Next.js inlines NEXT_PUBLIC_* variables into the client bundle at build time — setting
+          # this at deploy/runtime instead has no effect, the value is already baked into the
+          # compiled JS by then. Not a secret: it's a public URL and ends up in the bundle either
+          # way. Powers the Grafana panels on the repository and run detail screens.
+          NEXT_PUBLIC_GRAFANA_URL: https://grafana.ai.camer.digital
+        run: pnpm turbo run build:web --filter=lci
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to GHCR (Buildah)
+        # Direct `buildah login` writes the podman/buildah auth.json the build +
+        # push steps read. (redhat-actions/podman-login mirrors creds to
+        # ~/.docker/config.json, which ENOENTs on daemonless runners.)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | buildah login --username "${{ github.actor }}" --password-stdin "${{ env.REGISTRY }}"
+
+      - name: Build image (Buildah, amd64, no layer cache)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          LABELS: ${{ steps.meta.outputs.labels }}
+        run: |
+          set -euo pipefail
+          label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
+          tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # No --layers / --cache-from / --cache-to: the Docker build is deliberately
+          # uncached (caching lives in Turbo). Single amd64 platform. Build context is the
+          # repo root (not apps/lci/) — the standalone bundle's node_modules is hoisted to
+          # the pnpm workspace root, so apps/lci/Dockerfile needs the whole tree visible.
+          buildah build --format docker --platform linux/amd64 \
+            -f apps/lci/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
+          # Export the first tag as a tarball so Trivy can scan it daemonless.
+          primary="$(head -n1 <<<"$TAGS")"
+          buildah push "$primary" docker-archive:/tmp/image.tar
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: /tmp/image.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Push image (all tags)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && buildah push "$t"; done <<<"$TAGS"

@@ -1,0 +1,15 @@
+{
+  // The shipped build. Deliberately narrower than tsconfig.json: tests and their helpers
+  // (`src/**/*.test.ts`, `src/test-support/**`) are excluded so nothing test-only can be reached
+  // from `dist/`, which is the only thing the runtime image copies in.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/test-support"]
+}

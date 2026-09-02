@@ -1,0 +1,188 @@
+# Declarative dashboards — converse-frontends#446 (decision D-K).
+#
+# "The dashboards are basically fetch(filters × type × parameters) = data. The page handles the
+# filters; we externalize the list of type × parameters into a dashboards.yaml (per page); Next
+# reads those and does the mapping." — owner, 2026-09-02.
+#
+# One entry per page ROUTE (the same path string the App Router uses). A page declares which
+# filters it owns; each panel declares its type, its query, and which metric it reads. Adding a
+# panel is adding YAML — never another hand-written container.
+#
+# Validated against `src/dashboards/dashboard-spec.ts` at startup AND by a unit test
+# (`dashboard-spec.test.ts`). An invalid document fails LOUD, naming the page and the panel id —
+# the console refuses to start rather than rendering an empty dashboard.
+#
+# Overridable in production: `${CONSOLE_CONFIG_DIR}/dashboards.yaml` wins over this file when it
+# exists (owner ruling Q11), on the same volume the console already mounts `config.yaml` and its
+# branding from. An override that exists but is invalid is a hard failure, never a silent fallback
+# to this file.
+#
+# ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
+# ONE page entry, deliberately. C3 ships the ENGINE; the real entries land with the pages that
+# use them:
+#   - C4 migrates `/admin/overview`'s eight boards here and deletes their containers.
+#   - C5 adds `/admin/usage` (panels 1–19), C6 the actors/channels/chats routes.
+#   - C12 brings `/accounts/<id>/overview` and `/settings/overview/*` onto the same engine.
+# The `/admin/usage` entry below is what the engine's tests and the `Pages/FromSpec` Storybook
+# story render against — a real, valid page, deliberately a handful of panels rather than all
+# nineteen, so C5 can add the rest without first having to undo a guess made here.
+#
+# ── PLACEHOLDERS ─────────────────────────────────────────────────────────────────────────────
+# `$name` in any query string field is substituted from the page's own filters (a route param or
+# a URL knob). An unresolved placeholder is an ERROR, never an empty string — `scope_id: ""` on an
+# account-scoped panel would silently query something other than what the panel's title says.
+#
+# ── BUCKET AND LIMIT ─────────────────────────────────────────────────────────────────────────
+# `bucket: auto` resolves from the page's range: ≤7d → 1 hour, ≤90d → 1 day, else 7 days.
+# `limit` is ALWAYS explicit (console-ui skill) — never left to a server default.
+
+pages:
+  - route: /admin/usage
+    # `range` is implicit on every page and never listed. `lens` is this page's own knob: which
+    # entity the ranked/table panels are about (owner rule: users first, then account, project).
+    filters:
+      - lens
+
+    panels:
+      # Every ungrouped panel below resolves to the SAME query — one request serves all three,
+      # which is what `resolve-dashboard.ts`'s dedupe is for. `/admin/overview` today fires one
+      # per board.
+      - id: total-cost
+        type: stat
+        title: Total cost
+        subtitle: All accounts with usage in this window
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      - id: total-requests
+        type: stat
+        title: Total requests
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      - id: avg-cost-per-million-tokens
+        type: stat
+        title: Average cost per million tokens
+        subtitle: Blank when the window carries no token counts at all
+        span: 1
+        metric: derived:avgCostPerMillionTokens
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # A distinct count needs the dimension it counts as a group key, so this one is NOT the
+      # ungrouped query above and correctly stays its own request.
+      - id: active-actors
+        type: stat
+        title: Active actors
+        subtitle: Only counts actors with usage in this window
+        span: 1
+        metric: derived:activeActors
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      - id: cost-by-model-over-time
+        type: series
+        title: Cost per period by model
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: cost-by-model-share
+        type: share
+        title: Which models
+        subtitle: Cost share across the window
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # The RING (owner ruling 2026-09-02 amending ADR 0013 D5: rings allowed, filled disks
+      # never). `ShareBar` above keeps the single part-to-whole job it was given on 2026-08-29;
+      # this is the actor × model distribution the owner asked for.
+      - id: requests-by-model-distribution
+        type: donut
+        title: Model distribution
+        subtitle: Requests by model — values on hover
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: top-actors
+        type: ranked
+        title: Top actors by cost
+        span: 1
+        metric: cost
+        options:
+          lens: user
+          topN: 8
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: p99 hidden below 100 samples
+        span: 1
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actors-table
+        type: table
+        title: Actors
+        subtitle: Cost, requests and tokens per actor in this window
+        span: 2
+        metric: cost
+        options:
+          lens: user
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000

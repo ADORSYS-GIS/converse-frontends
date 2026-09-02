@@ -13,6 +13,15 @@ export type { SeriesColorOptions } from './colors';
 export { computeHistogramBins, computeSharedBins } from './bins';
 export type { HistogramBin, SharedBins } from './bins';
 export {
+  collapseDonutTail,
+  DEFAULT_INNER_RADIUS_RATIO,
+  donutGeometry,
+  layoutDonutArcs,
+  MAX_INNER_RADIUS_RATIO,
+  MIN_INNER_RADIUS_RATIO,
+} from './arcs';
+export type { DonutArc, DonutDatum, DonutGeometry } from './arcs';
+export {
   DEFAULT_CHART_MARGIN,
   innerHeight,
   innerWidth,

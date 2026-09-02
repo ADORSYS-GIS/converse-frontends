@@ -167,6 +167,19 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+/** Expand — `DashboardPanel`'s zoom affordance (converse-frontends#446, decision D-E): two
+ *  opposite corner brackets with an arrow into each, the conventional "make this bigger" mark.
+ *  Drawn in the same 16-unit box at the same 1.5 stroke as every glyph here, so a panel's heading
+ *  action reads as the same family as a nav row's icon. */
+export function ExpandIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9.5 2.5h4v4M13.5 2.5 9.25 6.75" />
+      <path d="M6.5 13.5h-4v-4M2.5 13.5l4.25-4.25" />
+    </IconBase>
+  );
+}
+
 /** A single sort chevron — `LedgerTable`'s active-column caret, pointing the sort direction. */
 export function SortChevronIcon({
   direction,

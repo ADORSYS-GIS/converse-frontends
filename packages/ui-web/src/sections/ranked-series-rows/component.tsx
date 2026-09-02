@@ -54,6 +54,8 @@ interface Rendered {
   formattedDelta?: string;
   emphasized: boolean;
   subtle: boolean;
+  /** Set only when `hrefFor` gave this row a destination — see `RankedSeriesRowsProps.hrefFor`. */
+  href?: string;
 }
 
 export function RankedSeriesRows({
@@ -63,6 +65,7 @@ export function RankedSeriesRows({
   sortMode = 'value',
   selectedKey,
   onSelect,
+  hrefFor,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   className,
 }: RankedSeriesRowsProps) {
@@ -91,7 +94,7 @@ export function RankedSeriesRows({
   const visibleByValue = withSpend.slice(0, topN);
   const overflow = withSpend.slice(topN);
 
-  const topShare = total > 0 ? (visibleByValue[0]?.value ?? 0) / total * 100 : 0;
+  const topShare = total > 0 ? ((visibleByValue[0]?.value ?? 0) / total) * 100 : 0;
   const suppressBars = topShare >= TOP_SHARE_SUPPRESS_BAR_PERCENT;
 
   const visible: Rendered[] = visibleByValue.map((row, index) => ({
@@ -99,14 +102,14 @@ export function RankedSeriesRows({
     label: row.label,
     formattedValue: row.formattedValue,
     percent: total > 0 ? (Math.max(row.value, 0) / total) * 100 : 0,
-    color:
-      row.key === selectedKey || row.breached ? SPEC_ACCENT : specSeriesColor(index),
+    color: row.key === selectedKey || row.breached ? SPEC_ACCENT : specSeriesColor(index),
     sparklinePoints: row.sparklinePoints,
     meter: row.meter,
     delta: row.delta,
     formattedDelta: row.formattedDelta,
     emphasized: row.key === selectedKey || Boolean(row.breached),
     subtle: Boolean(row.subtle) && row.key !== selectedKey && !row.breached,
+    href: hrefFor?.(row),
   }));
 
   // The reading order only — bucket membership (which rows are "visible" at all) was already
@@ -134,19 +137,17 @@ export function RankedSeriesRows({
   return (
     <div className={className}>
       <ul className="ranked-series-rows">
-        {visible.map((row) => (
-          <li key={row.key}>
-            <button
-              type="button"
-              onClick={
-                onSelect ? () => onSelect(row.key === selectedKey ? null : row.key) : undefined
-              }
-              disabled={!onSelect}
-              aria-pressed={onSelect ? row.key === selectedKey : undefined}
-              data-emphasized={row.emphasized ? 'true' : 'false'}
-              data-subtle={row.subtle ? 'true' : 'false'}
-              className="ranked-row">
-              <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: row.color }} />
+        {visible.map((row) => {
+          // Identical cell content either way — a linked row and a selectable row are the SAME
+          // row, only reached differently (see `RankedSeriesRowsProps.hrefFor`). Extracted rather
+          // than duplicated so the two can never drift into two different rows.
+          const cells = (
+            <>
+              <span
+                aria-hidden="true"
+                className="series-swatch"
+                style={{ backgroundColor: row.color }}
+              />
               <span className="ranked-label">{row.label}</span>
               {row.sparklinePoints && row.sparklinePoints.length > 0 ? (
                 <Sparkline points={row.sparklinePoints} color={row.color} />
@@ -156,10 +157,7 @@ export function RankedSeriesRows({
               {suppressBars ? (
                 <span className="ranked-percent">{defaultPercent(row.percent)}</span>
               ) : (
-                <span
-                  className="ranked-share-bar"
-                  style={{ color: row.color }}
-                  aria-hidden="true">
+                <span className="ranked-share-bar" style={{ color: row.color }} aria-hidden="true">
                   <span style={{ width: `${Math.max(row.percent, row.percent > 0 ? 2 : 0)}%` }} />
                 </span>
               )}
@@ -171,19 +169,46 @@ export function RankedSeriesRows({
               ) : (
                 <span aria-hidden="true" />
               )}
-            </button>
-            {row.meter ? (
-              <Meter
-                className="mt-1"
-                value={row.meter.value}
-                ceiling={row.meter.ceiling}
-                threshold={row.meter.threshold}
-                showCaption={false}
-                label={`${row.label} draw`}
-              />
-            ) : null}
-          </li>
-        ))}
+            </>
+          );
+
+          return (
+            <li key={row.key}>
+              {row.href ? (
+                <a
+                  href={row.href}
+                  data-emphasized={row.emphasized ? 'true' : 'false'}
+                  data-subtle={row.subtle ? 'true' : 'false'}
+                  className="ranked-row">
+                  {cells}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={
+                    onSelect ? () => onSelect(row.key === selectedKey ? null : row.key) : undefined
+                  }
+                  disabled={!onSelect}
+                  aria-pressed={onSelect ? row.key === selectedKey : undefined}
+                  data-emphasized={row.emphasized ? 'true' : 'false'}
+                  data-subtle={row.subtle ? 'true' : 'false'}
+                  className="ranked-row">
+                  {cells}
+                </button>
+              )}
+              {row.meter ? (
+                <Meter
+                  className="mt-1"
+                  value={row.meter.value}
+                  ceiling={row.meter.ceiling}
+                  threshold={row.meter.threshold}
+                  showCaption={false}
+                  label={`${row.label} draw`}
+                />
+              ) : null}
+            </li>
+          );
+        })}
 
         {other ? (
           <li>
@@ -193,14 +218,23 @@ export function RankedSeriesRows({
               data-emphasized="false"
               data-subtle="true"
               className="ranked-row">
-              <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: other.color }} />
+              <span
+                aria-hidden="true"
+                className="series-swatch"
+                style={{ backgroundColor: other.color }}
+              />
               <span className="ranked-label">{other.label}</span>
               <span aria-hidden="true" />
               {suppressBars ? (
                 <span className="ranked-percent">{defaultPercent(other.percent)}</span>
               ) : (
-                <span className="ranked-share-bar" style={{ color: other.color }} aria-hidden="true">
-                  <span style={{ width: `${Math.max(other.percent, other.percent > 0 ? 2 : 0)}%` }} />
+                <span
+                  className="ranked-share-bar"
+                  style={{ color: other.color }}
+                  aria-hidden="true">
+                  <span
+                    style={{ width: `${Math.max(other.percent, other.percent > 0 ? 2 : 0)}%` }}
+                  />
                 </span>
               )}
               {/* No value column — the spec's own example ("Other (77 accounts)") states the
@@ -222,10 +256,12 @@ export function RankedSeriesRows({
               data-emphasized="false"
               data-subtle="true"
               className="ranked-row">
-              <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: 'transparent' }} />
-              <span className="ranked-label">
-                {noSpend.length} more · no spend this period
-              </span>
+              <span
+                aria-hidden="true"
+                className="series-swatch"
+                style={{ backgroundColor: 'transparent' }}
+              />
+              <span className="ranked-label">{noSpend.length} more · no spend this period</span>
               <span aria-hidden="true" />
               <span aria-hidden="true" />
               <span aria-hidden="true" />
@@ -236,7 +272,11 @@ export function RankedSeriesRows({
                 {noSpend.map((row) => (
                   <li key={row.key}>
                     <div data-emphasized="false" data-subtle="true" className="ranked-row">
-                      <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: 'transparent' }} />
+                      <span
+                        aria-hidden="true"
+                        className="series-swatch"
+                        style={{ backgroundColor: 'transparent' }}
+                      />
                       <span className="ranked-label">{row.label}</span>
                       <span aria-hidden="true" />
                       <span aria-hidden="true" />

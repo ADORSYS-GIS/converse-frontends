@@ -1719,6 +1719,11 @@
   border-radius: var(--radius-field);
   font-size: 0.75rem;
   text-align: left;
+  /* A row rendered as an `<a>` (`RankedSeriesRowsProps.hrefFor`, #446) is the same row, drawn the
+     same way — inherited colour, no underline at rest. `:not(:disabled)` below already gives it
+     the hover fill, since an anchor is never `:disabled`. */
+  color: inherit;
+  text-decoration: none;
 
   /* Same `:disabled`-drives-affordance rule `.series-row` uses — the "Other" row and the zero-
      value tail are always `disabled` (see `component.tsx`), a read-only list is every row. */
@@ -3089,4 +3094,220 @@
    clickable rows had no click affordance at all beyond the hover fill). */
 @utility chevron-right {
   transform: rotate(-90deg);
+}
+
+/*
+ * ─── Declarative dashboards (converse-frontends#446, C3) ─────────────────────────────────────
+ *
+ * The engine's paints: the two-column grid a YAML page lays out in, the panel that wraps every
+ * board, the expanded (zoomed) dialog, the ring chart, and the ledger's linked label cell.
+ * Everything below is a named `@utility` rather than utilities at the call site for the usual
+ * reason (`class-budget.test.ts`) — `DonutChart` and `LedgerTable` both sit in `components/`,
+ * where the budget is three hand-written utilities and `LedgerTable` is already at exactly three.
+ */
+
+/* `DashboardGrid` — one column below `lg`, two at `lg` and up, and a panel that declares
+   `span: 2` occupies both columns at EVERY breakpoint (below `lg` it is already the only column,
+   so the rule has anything to say only at `lg`). `1.5rem` is `gap-6`, the same step every stacked
+   zone in the console uses between boards. */
+@utility dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+
+  @media (width >= 64rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    & > [data-span='2'] {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+/*
+ * `DashboardPanel` — a `Card` that is also a focus target, because the `v` zoom hotkey is scoped
+ * to focus-within (`lib/use-panel-hotkey.ts`): a panel nobody can focus is a panel nobody can
+ * expand from the keyboard. The ring is a box-shadow rather than an outline, so it traces the
+ * card's own `--radius-box` instead of popping the corners square on focus.
+ *
+ * The subtitle sits under the title inside the heading row's label slot — `ZoneHeading` takes one
+ * `label` node deliberately (it is a label ROW, not a two-line header component), which is why
+ * this is a descendant hook here rather than a new prop there.
+ */
+@utility dashboard-panel {
+  display: flex;
+  flex-direction: column;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 1px var(--color-base-100),
+      0 0 0 2px var(--color-primary);
+  }
+
+  & .dashboard-panel-subtitle {
+    display: block;
+    margin-top: 0.125rem;
+  }
+
+  /* The body fills whatever height the panel is given, so two panels sharing a grid row keep
+     their charts on one baseline instead of each shrink-wrapping its own content. */
+  & .dashboard-panel-body {
+    flex: 1;
+    min-width: 0;
+    margin-top: 1rem;
+  }
+}
+
+/* A `chrome: 'bare'` panel — a self-panelling `StatCard`/`OverviewStatRow` sitting directly on the
+   floor (the console-ui skill's own long-standing exemption). It is still a grid item and still
+   focusable, so it keeps the same focus ring the carded panel has; it simply draws no card of its
+   own around a body that already has one. */
+@utility dashboard-panel-bare {
+  display: flex;
+  flex-direction: column;
+
+  /* The honesty caption under a self-panelled stat, indented onto the card's own text edge so it
+     reads as belonging to that stat rather than floating on the grid. */
+  & .dashboard-panel-subtitle {
+    margin-top: 0.5rem;
+    padding-inline: 0.25rem;
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-radius: var(--radius-box);
+    box-shadow:
+      0 0 0 1px var(--color-base-100),
+      0 0 0 2px var(--color-primary);
+  }
+}
+
+/* The measured wrapper a fluid-width chart sits in inside a panel — every chart primitive here
+   takes real pixels and measures its own container (console-ui skill "No overflow, ever"), so the
+   wrapper's only job is to BE the full width the observer reads. A named part rather than a bare
+   `w-full` at the call site, for the usual reason (`class-budget.test.ts`). */
+@utility dashboard-panel-chart {
+  width: 100%;
+}
+
+/*
+ * The expanded (zoomed) view's popup — the shared dialog chrome from `lib/dialog.ts` at the one
+ * geometry a full-size chart actually needs (D-E): ~1280px wide, ~80vh tall, scrolling internally
+ * rather than growing the page behind the scrim.
+ *
+ * WHY THE COMPOUND SELECTOR, for exactly the reason `palette-trigger` above records: the rule this
+ * has to beat is `DIALOG_POPUP_CLASS`'s own `max-w-[420px]` — a form dialog's width, correct for
+ * the four dialogs that class was written for and three times too narrow for a chart. Both are
+ * unlayered single-class rules, so the tie falls to Tailwind's emitted order rather than to this
+ * file, and the 420 was winning: measured in Storybook at 419px against an expected 1280. Made
+ * `.dashboard-expanded-popup.overlay-pop` (`overlay-pop` is always present — it comes from
+ * `DIALOG_POPUP_CLASS` itself), which beats any single-class rule on specificity and therefore
+ * does not depend on emitted order at all.
+ */
+@utility dashboard-expanded-popup {
+  &.overlay-pop {
+    width: min(1280px, calc(100vw - 3rem));
+    max-width: min(1280px, calc(100vw - 3rem));
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  & .dashboard-expanded-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin-top: 1rem;
+  }
+}
+
+/*
+ * `DonutChart` — the RING (owner ruling 2026-09-02: rings allowed, filled disks never). The hole
+ * itself is geometry, owned by `chart-core`'s `donutGeometry`; what lives here is only what a
+ * class can carry — the positioning context the tooltip and the centre readout need, and the
+ * wedge's own pointer/focus affordance.
+ *
+ * The centre block is absolutely positioned and `pointer-events: none` on purpose: it sits over
+ * the ring's hole, and a pointer crossing it must not blur the wedge underneath and flicker the
+ * tooltip off.
+ */
+@utility donut-chart {
+  position: relative;
+  /* The ring is a fixed-size block inside a fluid panel body — centred, because a mark that is
+     symmetric about its own centre reads as misplaced anywhere but the middle of its zone. */
+  margin-inline: auto;
+
+  & .donut-wedge {
+    cursor: pointer;
+    outline: none;
+    transition: opacity 0.15s ease-out;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 0.82;
+    }
+    /* A wedge that is not a control (a read-only ring, or the collapsed `Other`) keeps the hover
+       highlight — it still drives the tooltip — but claims no pressability. */
+    &[role='img'] {
+      cursor: default;
+    }
+  }
+
+  & .donut-centre {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    padding-inline: 22%;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  & .donut-centre-metric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25rem;
+    line-height: 1.1;
+    color: var(--color-ink);
+  }
+
+  & .donut-centre-label {
+    font-family: var(--font-sans);
+    font-size: 0.625rem;
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+    color: var(--color-subtle);
+  }
+}
+
+/*
+ * `LedgerTable`'s `rowHref` — the label cell rendered as a REAL anchor, so ⌘-click, middle-click
+ * and "open in new tab" all work (a row-level `onClick` router push silently breaks all three).
+ * It is the CELL, not the row: an `<a>` wrapping a `<tr>` is not valid table markup, and a
+ * whole-row link would swallow the row-actions column's own buttons.
+ *
+ * Inherits colour and stays undecorated at rest so a linked ledger still reads as a ledger rather
+ * than a page of blue text; the underline on hover/focus is the affordance.
+ */
+@utility ledger-row-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-field);
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  &:focus-visible {
+    outline: none;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    box-shadow:
+      0 0 0 1px var(--color-base-200),
+      0 0 0 2px var(--color-primary);
+  }
 }

@@ -7,6 +7,19 @@ import type { DashboardStatus } from '../spend-dashboard';
 export interface MultiSeriesSpendBoardProps {
   /** `ZoneHeading`'s own label. Defaults to overview.svg's own wording. */
   label?: string;
+  /**
+   * Whether this board draws its OWN heading row (converse-frontends#446).
+   *
+   * `'zone'` (default, and what every pre-#446 caller gets) — the `ZoneHeading` + scale
+   * `SegmentedControl` this section has always rendered.
+   *
+   * `'none'` — chart and status only. Used when the board sits inside a `DashboardPanel`, which
+   * already owns the title/subtitle/actions row: the scale toggle moves into THAT heading's
+   * actions slot (the AC's "scale toggle in the panel actions slot"), and rendering a second
+   * heading here would put two title rows inside one card. `scale`/`onScaleChange` are still
+   * required in this mode — the chart itself reads `scale`; only the control moved.
+   */
+  heading?: 'zone' | 'none';
   series: MultiSeriesSpendSeries[];
   /** Controlled — the caller (a URL-first `apps/console` hook, per the console-ui skill's "view
    *  state lives in the URL") owns which axis transform is active. */

@@ -1,245 +1,206 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { ShareBar } from '@lightbridge/ui-web/src/components/share-bar';
+import type { DateRangePreset } from '@lightbridge/ui-web/src/components/date-range-field';
+import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
-import { DATA_INK_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
-import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
+import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { EstateBudgetPressure } from '@lightbridge/ui-web/src/sections/estate-budget-pressure';
-import { LatencyStatCards } from '@lightbridge/ui-web/src/sections/latency-stat-cards';
-import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { TopSpendersLedger } from '@lightbridge/ui-web/src/sections/top-spenders-ledger';
 
 import {
-  REFILL_DECISIONS_UNAVAILABLE_CAPTION,
-  REQUEST_ERROR_RATE_UNAVAILABLE_CAPTION,
-  useAdminOverviewScreen,
-} from './use-admin-overview-screen';
-
-/** A count-valued figure — never the currency ladder (`lib/money`'s own contract is dollars
- *  only). Reused across every count-series board on this page (dashboard 6's request volume,
- *  dashboard 8's adoption). */
-function formatCount(value: number): string {
-  return Math.round(value).toLocaleString();
-}
-
-/** `LatencyStatCards` carries no loading/error state of its own (same contract
- *  `settings-overview-centre.tsx`'s own latency zone already follows) — this mirrors that file's
- *  skeleton geometry exactly rather than inventing a second shape for the same zone kind. */
-function skeletonRows(count: number) {
-  return (
-    <div className="mt-4 flex flex-col gap-1">
-      {Array.from({ length: count }, (_, row) => (
-        <div key={row} className="skeleton h-[28px]" />
-      ))}
-    </div>
-  );
-}
+  dashboardScaleKey,
+  OVERVIEW_RANGES,
+  useAdminOverviewParams,
+  useDashboardScaleParams,
+} from '../client/url-state';
+import { DashboardRenderer } from '../dashboards/dashboard-renderer';
+import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
+import { useDashboard } from '../dashboards/use-dashboard';
+import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
+import { currentPeriodRange, RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
- * `/admin/overview` — the operator dashboard (converse-frontends#368, the admin-area build).
- * The centre column, and the whole of this route. The shell is NOT here — it is mounted once by
- * `app/(console)/layout.tsx`.
+ * `/admin/overview` — the operator dashboard, rendered from `dashboards.yaml`
+ * (converse-frontends#447, story C4; decision D-K).
  *
- * Composition matches the approved page story (`Pages/AdminOverview`), updated 2026-08-31 (owner
- * ruling, verbatim: "How come we're using cards almost everywhere, but not in the admin pages?").
- * The original `claude/sb-admin-dashboards`@aaf3fe6 batch's "charts and tables render on the
- * floor, not in cards" ruling for this page is overturned — it was always a narrower carve-out
- * against ADR 0012 D3's general "`Card` is the default zone container," and the owner has now
- * closed that carve-out for consistency with every other page in the console (`overview-centre.tsx`
- * wraps its own zones the identical way — see that file's own doc comment for the precedent this
- * one follows). Every zone below sits in its own `Card`, matching `overview-centre.tsx`'s
- * granularity: one `Card` per rendered board/section, sections keep whatever heading they already
- * render (`ZoneHeading`, or a section's own `label`) rather than being promoted into `Card`'s own
- * `title`, and a caption that describes one specific board lives inside that board's `Card`, not
- * beside it. Two things stay on the floor, per that same precedent: `PageHeader`, and any bare
- * page-level `InlineStatus` not tied to one specific board (the truncation caption) — plus
- * `OverviewStatRow`'s stat cards, which stay self-panelled (their own `surface` fill) whether or
- * not a `Card` also wraps the row they sit in (console-ui skill, "Shape and layout").
- * `use-admin-overview-screen.ts` supplies the real data the story's fixtures stood in for,
- * including two honest divergences from the story's own drawn shape (dashboard 5 has no
- * decisions-over-time board or median-time-to-decision card; dashboard 6 has no error-rate line)
- * — both are real backend gaps, captioned inline rather than fabricated, per that hook's own doc
- * comment.
+ * **What this file no longer is.** Until 2026-09-02 it was eight hand-composed boards in a single
+ * `flex flex-col gap-8` column, fed by a 650-line screen hook and a 540-line adapter module, each
+ * board issuing its own `scope: 'all'` usage query that differed from its neighbour's only by
+ * `group_by`. All three are gone: `use-admin-overview-screen.ts` and `admin-overview-usage.ts` are
+ * deleted, the boards are eleven panels in `dashboards.yaml`, and the whole page's data comes from
+ * one `useDashboard` call over a DEDUPLICATED query list. Adding a board here is now adding YAML.
+ *
+ * **The two zones that stay hand-written, and why.** `dashboards.yaml` describes usage queries.
+ * Budget pressure reads `getBudgetBalance` (an RPC, one call per account) against month-to-date
+ * spend that must NOT follow the page's range picker, and the refill row reads
+ * `listPendingAugmentationRequests`. Neither is a usage query, so neither is a panel; inventing an
+ * RPC panel type for two callers would be a worse abstraction than one honest container
+ * (`use-admin-estate-operations.ts`). They render in their own `DashboardGrid` above the engine's —
+ * two stacked grids rather than one, because a full-width zone stacks seamlessly and this keeps
+ * the renderer free of a "hand-written children" escape hatch that every later page would reach
+ * for. They are FIRST on the page deliberately: "who is about to breach their ceiling" and "what
+ * is waiting on me" are the two things an operator opens this page to act on; the analytics grid
+ * below is what they read afterwards.
+ *
+ * **Panel scale knobs stay in the URL** (ADR 0011), one per series panel, declared FROM the spec
+ * (`useDashboardScaleParams`) rather than from a hand-written table — so a panel a deployment adds
+ * through the config-volume override gets a real, shareable `?<panel-id>-scale=` knob like every
+ * other, and this container holds no local state at all. The DEFAULT axis is stated once, in the
+ * YAML (`options.scale`), never duplicated here.
+ *
+ * There is no Export action yet, and that is deliberate rather than an oversight: C10 owns the
+ * export pipeline and adds one action to every YAML-driven page at once, walking the same resolved
+ * panel list this page renders. Wiring this one page to the old consumption-report route in the
+ * meantime would ship a second export path to delete a week later.
  */
-export function AdminOverviewCentre() {
-  const screen = useAdminOverviewScreen();
 
-  const modelMixTotal = screen.modelSegments.reduce((sum, segment) => sum + segment.value, 0);
+const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
+  mtd: 'This month',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+};
+
+const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
+  value,
+  label: RANGE_LABELS[value],
+  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
+}));
+
+export interface AdminOverviewCentreProps {
+  /** The validated `/admin/overview` entry, read from `dashboards.yaml` by the route's server
+   *  component. Passed in rather than loaded here because the loader is `node:fs` — and because a
+   *  page that takes its spec as a prop is the same page a Storybook story can render. */
+  page: DashboardPageSpec;
+}
+
+export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
+  const [view, setView] = useAdminOverviewParams();
+  const operations = useAdminEstateOperations();
+
+  const window = useMemo(
+    () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
+    [view.range, view.from, view.to]
+  );
+
+  // One URL knob per SERIES panel, declared from the spec — see `useDashboardScaleParams`. Both
+  // series-shaped types, because both render a scale toggle.
+  const seriesPanelIds = useMemo(
+    () =>
+      page.panels
+        .filter((panel) => panel.type === 'series' || panel.type === 'latency-series')
+        .map((panel) => panel.id),
+    [page]
+  );
+  const [scales, setScales] = useDashboardScaleParams(seriesPanelIds);
+
+  const scaleFor = useCallback(
+    (panelId: string): MultiSeriesSpendScale | undefined =>
+      (scales[dashboardScaleKey(panelId)] as MultiSeriesSpendScale | null) ?? undefined,
+    [scales]
+  );
+
+  const onScaleChange = useCallback(
+    (panelId: string, scale: MultiSeriesSpendScale) => {
+      void setScales({ [dashboardScaleKey(panelId)]: scale });
+    },
+    [setScales]
+  );
+
+  const dashboard = useDashboard({
+    page,
+    window,
+    resetCadence: operations.resetCadence,
+    scaleFor,
+    onScaleChange,
+  });
+
+  const billingPeriod = useMemo(() => currentPeriodRange(new Date()), []);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Overview"
-        subtitle={screen.subtitle}
-        controls={<DateRangeField {...screen.rangeField} layout="inline" hideLabel />}
+        subtitle={`Operator · All accounts with usage this period · ${RANGE_LABELS[view.range]} · UTC`}
+        controls={
+          <DateRangeField
+            label="Range"
+            presets={RANGE_PRESETS}
+            preset={view.from && view.to ? null : view.range}
+            value={{ from: window.start, to: window.end }}
+            onPresetChange={(range) => {
+              void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
+            }}
+            onRangeChange={({ from, to }) => {
+              void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+            }}
+            layout="inline"
+            hideLabel
+          />
+        }
       />
 
-      {screen.truncationCaption ? <InlineStatus>{screen.truncationCaption}</InlineStatus> : null}
+      {operations.truncationCaption ? (
+        <InlineStatus>{operations.truncationCaption}</InlineStatus>
+      ) : null}
 
-      {/* ── 1. Estate spend over time ── */}
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Total spend vs previous period"
-          series={screen.estateTotalSeries}
-          scale={screen.estateTotalScale}
-          onScaleChange={screen.setEstateTotalScale}
-          status={screen.estateTotalStatus}
-          errorMessage={screen.errorMessage}
-          onRetry={screen.onRetry}
-          fallbackWidth={1120}
-          height={200}
-          emptyMessage="No usage in this range."
-        />
-      </Card>
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Spend by account"
-          series={screen.estateAccountSeries}
-          scale={screen.estateAccountScale}
-          onScaleChange={screen.setEstateAccountScale}
-          status={screen.estateTotalStatus}
-          errorMessage={screen.errorMessage}
-          onRetry={screen.onRetry}
-          fallbackWidth={1120}
-          height={220}
-          emptyMessage="No usage in this range."
-        />
-      </Card>
-
-      {/* ── 2. Model mix ── */}
-      <Card>
-        <ZoneHeading
-          label="Spend by model — estate share"
-          trailing={
-            modelMixTotal > 0 && screen.estateTotalStatus === 'ready' ? (
-              <span className={DATA_INK_CLASS}>{formatUsd(modelMixTotal)}</span>
-            ) : undefined
-          }
-        />
-        <ShareBar className="mt-4" segments={screen.modelSegments} />
-      </Card>
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Spend by model over time"
-          series={screen.modelMixSeries}
-          scale={screen.modelMixScale}
-          onScaleChange={screen.setModelMixScale}
-          status={screen.estateTotalStatus}
-          errorMessage={screen.errorMessage}
-          onRetry={screen.onRetry}
-          fallbackWidth={1120}
-          height={220}
-          emptyMessage="No usage in this range."
-        />
-      </Card>
-
-      {/* ── 3. Top spenders ── */}
-      <Card>
-        <ZoneHeading label="Top spenders" />
-        <TopSpendersLedger
-          className="mt-4"
-          rows={screen.topSpenders}
-          loading={screen.topSpendersLoading}
-          loadingRowCount={8}
-          error={screen.topSpendersError}
-          onRetry={screen.onRetryTopSpenders}
-        />
-      </Card>
-
-      {/* ── 4. Budget pressure ── */}
-      <Card>
-        <EstateBudgetPressure
-          accounts={screen.budgetPressureAccounts}
-          status={screen.budgetPressureStatus}
-          errorMessage={screen.budgetPressureError}
-          onRetry={screen.onRetryBudgetPressure}
-        />
-      </Card>
-      <Card>
-        {screen.worstBudgetPressureAccount ? (
-          <SpendDashboard
-            label={`Budget burn-down — ${screen.worstBudgetPressureAccount.name}`}
-            series={screen.worstAccountBurnDown}
-            cumulative
-            ceiling={screen.worstBudgetPressureAccount.ceiling}
-            status={screen.budgetPressureStatus === 'error' ? 'error' : 'ready'}
-            errorMessage={screen.budgetPressureError}
-            onRetry={screen.onRetryBudgetPressure}
-            fallbackWidth={1120}
-            height={200}
-            formatYTick={formatUsdAxis}
-            formatTooltipValue={formatUsd}
+      {/* The two RPC-backed zones. Plain `Card`s rather than `DashboardPanel`s: each already
+          renders its own heading, and a panel would state it a second time — and neither has a
+          zoomed reading a 1280×80vh dialog would add anything to. `data-span` is what the grid
+          reads, exactly as `DashboardPanel` sets it. */}
+      <DashboardGrid>
+        <Card data-span="2">
+          <EstateBudgetPressure
+            accounts={operations.budgetPressureAccounts}
+            status={operations.budgetPressureStatus}
+            errorMessage={operations.budgetPressureError}
+            onRetry={operations.onRetryBudgetPressure}
+            emptyMessage="No account with a readable budget ceiling drew anything this period."
           />
-        ) : screen.budgetPressureStatus === 'ready' ? (
-          <InlineStatus>No account with a readable budget ceiling drew anything this period.</InlineStatus>
+        </Card>
+
+        {operations.worstBudgetPressureAccount ? (
+          <Card data-span="2">
+            <SpendDashboard
+              label={`Budget burn-down — ${operations.worstBudgetPressureAccount.name}`}
+              series={operations.worstAccountBurnDown}
+              cumulative
+              ceiling={operations.worstBudgetPressureAccount.ceiling}
+              status={operations.budgetPressureStatus === 'error' ? 'error' : 'ready'}
+              errorMessage={operations.budgetPressureError}
+              onRetry={operations.onRetryBudgetPressure}
+              fallbackWidth={1120}
+              height={200}
+              formatYTick={formatUsdAxis}
+              formatTooltipValue={formatUsd}
+            />
+          </Card>
         ) : null}
-      </Card>
 
-      {/* ── 5. Refill operations ── */}
-      <OverviewStatRow cards={screen.refillStatCards} loading={screen.refillStatCardsLoading} />
-      <InlineStatus>{REFILL_DECISIONS_UNAVAILABLE_CAPTION}</InlineStatus>
+        {/* `OverviewStatRow` is self-panelling (its cards carry their own surface), so no `Card`
+            here — the same exemption `DashboardPanel`'s `chrome: 'bare'` encodes for the engine's
+            own stat panels. The caption is the zone's honesty line, not decoration: there is no
+            decided-requests read path at all. */}
+        <div data-span="2">
+          <OverviewStatRow
+            cards={operations.refillStatCards}
+            loading={operations.refillStatCardsLoading}
+          />
+          <InlineStatus className="mt-2">{REFILL_DECISIONS_UNAVAILABLE_CAPTION}</InlineStatus>
+          <InlineStatus className="mt-1">
+            {`Budget pressure and the queue above are measured over the billing period (${toUrlDate(billingPeriod.start)} → today), not the range picked above — a ceiling is a fact about this calendar month.`}
+          </InlineStatus>
+        </div>
+      </DashboardGrid>
 
-      {/* ── 6. Request volume & errors ── */}
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Request volume"
-          series={screen.requestVolumeSeries}
-          scale={screen.requestVolumeScale}
-          onScaleChange={screen.setRequestVolumeScale}
-          status={screen.estateTotalStatus}
-          errorMessage={screen.errorMessage}
-          onRetry={screen.onRetry}
-          fallbackWidth={1120}
-          height={200}
-          formatValue={formatCount}
-          formatYTick={formatCount}
-          emptyMessage="No requests in this range."
-        />
-        <InlineStatus className="mt-2">{REQUEST_ERROR_RATE_UNAVAILABLE_CAPTION}</InlineStatus>
-      </Card>
-
-      {/* ── 7. Latency board — scoped to the estate's single busiest account (see
-           `use-admin-overview-screen.ts`'s own doc comment for why an estate-wide blend of
-           per-account percentiles is not honestly computable). ── */}
-      <Card>
-        <ZoneHeading label="Latency by model" />
-        {screen.latencyStatus === 'error' ? (
-          <InlineStatus className="mt-4">Failed to load latency for this account.</InlineStatus>
-        ) : screen.latencyStatus === 'loading' ? (
-          skeletonRows(4)
-        ) : (
-          <LatencyStatCards className="mt-4" rows={screen.latencyRows} />
-        )}
-        {screen.latencyCaption ? (
-          <InlineStatus className="mt-2">{screen.latencyCaption}</InlineStatus>
-        ) : null}
-      </Card>
-
-      {/* ── 8. Adoption ── */}
-      <OverviewStatRow cards={screen.adoptionStatCards} loading={screen.adoptionStatCardsLoading} />
-      <InlineStatus>{screen.adoptionLimitsCaption}</InlineStatus>
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Active accounts & projects per day"
-          series={screen.adoptionOverTimeSeries}
-          scale={screen.adoptionScale}
-          onScaleChange={screen.setAdoptionScale}
-          status={screen.estateTotalStatus}
-          errorMessage={screen.errorMessage}
-          onRetry={screen.onRetry}
-          fallbackWidth={1120}
-          height={200}
-          formatValue={formatCount}
-          formatYTick={formatCount}
-          emptyMessage="No activity in this range."
-        />
-      </Card>
+      <DashboardRenderer state={dashboard} />
     </div>
   );
 }

@@ -7,8 +7,13 @@
  * and `admin-overview-usage.ts`'s `spendDelta` (the wording of the delta, with no say in what
  * "previous" meant). Neither knew about a reset cadence, so "vs previous" on a daily-resetting
  * account compared yesterday to the day before — a single day of spend against another, which is
- * noise, not a signal. This module states the rule once, and C4 deletes the duplicates when it
- * migrates `/admin/overview` onto the engine.
+ * noise, not a signal. This module states the rule once.
+ *
+ * **C4 (converse-frontends#447) deleted `spendDelta` with `admin-overview-usage.ts`.**
+ * `previousWindow` is still standing, and deliberately so: `use-overview-screen.ts` and
+ * `use-usage-overview-screen.ts` are its two remaining callers, and both are hand-written screens
+ * C12 migrates onto this engine. Deleting it here would have meant rewriting two screens outside
+ * this story's scope; it goes when its last caller does.
  *
  * The rule, in the owner's words ("vs previous per reset period and at least a week"):
  *

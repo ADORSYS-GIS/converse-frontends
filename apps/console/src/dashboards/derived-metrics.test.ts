@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { DERIVED_METRICS } from './dashboard-spec';
 import {
   activeActors,
+  activeActorsPerBucket,
   avgCostPerMillionTokens,
   chatCount,
   derivedMetrics,
@@ -117,6 +118,85 @@ describe('chatCount', () => {
 
   it('is zero for an empty response — a real count, not an unknown', () => {
     expect(chatCount(response([]))).toBe(0);
+  });
+});
+
+describe('activeActorsPerBucket', () => {
+  const points = [
+    point({
+      bucket_start: '2026-09-01T00:00:00Z',
+      account_id: 'a1',
+      project_id: 'p1',
+      requests: 3,
+    }),
+    point({
+      bucket_start: '2026-09-01T00:00:00Z',
+      account_id: 'a1',
+      project_id: 'p2',
+      requests: 5,
+    }),
+    point({
+      bucket_start: '2026-09-02T00:00:00Z',
+      account_id: 'a2',
+      project_id: 'p3',
+      requests: 1,
+    }),
+  ];
+
+  it('counts DISTINCT keys per bucket, one series per dimension — not one per key', () => {
+    const [accounts, projects] = activeActorsPerBucket(response(points), [
+      'account_id',
+      'project_id',
+    ]);
+    expect(accounts.dimension).toBe('account_id');
+    expect(accounts.points.map((p) => p.y)).toEqual([1, 1]);
+    expect(projects.points.map((p) => p.y)).toEqual([2, 1]);
+  });
+
+  it('shares one x-domain across dimensions, zero-filling rather than dropping a bucket', () => {
+    const [accounts, projects] = activeActorsPerBucket(
+      response([
+        point({ bucket_start: '2026-09-01T00:00:00Z', account_id: 'a1', requests: 2 }),
+        point({
+          bucket_start: '2026-09-02T00:00:00Z',
+          account_id: 'a1',
+          project_id: 'p1',
+          requests: 2,
+        }),
+      ]),
+      ['account_id', 'project_id']
+    );
+    expect(accounts.points).toHaveLength(2);
+    expect(projects.points.map((p) => p.y)).toEqual([0, 1]);
+  });
+
+  /** A bucket the backend returned with no requests is not evidence the actor was active in it. */
+  it('does not count a zero-request bucket as activity', () => {
+    const [accounts] = activeActorsPerBucket(
+      response([point({ bucket_start: '2026-09-01T00:00:00Z', account_id: 'a1', requests: 0 })]),
+      ['account_id']
+    );
+    expect(accounts.points.map((p) => p.y)).toEqual([0]);
+  });
+
+  /** "Usage attributed to nobody" is not one more actor — the same rule the scalar count keeps. */
+  it('never counts a null or empty group key', () => {
+    const [projects] = activeActorsPerBucket(
+      response([
+        point({ bucket_start: '2026-09-01T00:00:00Z', project_id: null, requests: 4 }),
+        point({ bucket_start: '2026-09-01T00:00:00Z', project_id: '', requests: 4 }),
+        point({ bucket_start: '2026-09-01T00:00:00Z', project_id: 'p1', requests: 4 }),
+      ]),
+      ['project_id']
+    );
+    expect(projects.points.map((p) => p.y)).toEqual([1]);
+  });
+
+  it('is an empty series list for no dimensions, and empty points for no data', () => {
+    expect(activeActorsPerBucket(response(points), [])).toEqual([]);
+    expect(activeActorsPerBucket(response([]), ['account_id'])).toEqual([
+      { dimension: 'account_id', points: [] },
+    ]);
   });
 });
 

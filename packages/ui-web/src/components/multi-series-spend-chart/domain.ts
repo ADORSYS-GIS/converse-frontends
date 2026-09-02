@@ -38,6 +38,9 @@ export interface TransformedSeries {
   key: string;
   label: string;
   breached?: boolean;
+  /** Carried straight through from the input series — see `MultiSeriesSpendSeries.dashed`. The
+   *  scale transform has no opinion about it; it only decides how the line is STROKED. */
+  dashed?: boolean;
   /** The true dollar sum across every bucket this series reported — independent of `scale`,
    *  the one figure the legend/tooltip always state regardless of how the lines are plotted. */
   total: number;
@@ -84,7 +87,7 @@ export function transformSeries(
       }
       return { x: t, y: raw };
     });
-    return { key: s.key, label: s.label, breached: s.breached, total, points };
+    return { key: s.key, label: s.label, breached: s.breached, dashed: s.dashed, total, points };
   });
 }
 

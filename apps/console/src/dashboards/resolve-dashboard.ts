@@ -59,6 +59,17 @@ export interface ResolvedPanel {
   compareQueryIndex?: number;
   /** Which cadence the comparison was computed against — the delta's wording comes from it. */
   compareCadence?: ResetCadence;
+  /**
+   * How far FORWARD the comparison window's own timestamps must be shifted to sit under the
+   * current window (`current.start - previous.start`, in ms).
+   *
+   * A `stat` panel never needs it — a total is a scalar. A `series` panel does: plotting the
+   * previous window at its real dates would double the chart's x-domain and squeeze the current
+   * period into half the board, which is exactly the defect the 2026-08-31 owner finding ("the
+   * graphs are literally completely different") was about. Computed here rather than in the
+   * adapter because this is the only module that knows both windows.
+   */
+  compareShiftMs?: number;
 }
 
 export interface ResolvedDashboard {
@@ -239,6 +250,7 @@ export function resolveDashboard({
         resolveQuery(spec.query, comparison.previous, filters, context)
       ),
       compareCadence: comparison.cadence,
+      compareShiftMs: comparison.current.start.getTime() - comparison.previous.start.getTime(),
     };
   });
 

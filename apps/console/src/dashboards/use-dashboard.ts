@@ -20,9 +20,10 @@ import type { DashboardFilters, ResolvedDashboard, ResolvedQuery } from './resol
  * The one hook a declarative dashboard page calls (converse-frontends#446, decision D-K).
  *
  * ONE `useQueries` over the DEDUPLICATED query list — not one `useQuery` per board, which is what
- * `use-admin-overview-screen.ts` does today (five hand-declared queries, several of them
- * identical apart from `group_by`, and the genuinely identical ungrouped ones not shared at all).
- * A page of eight `stat` panels over the same window and scope now issues one request.
+ * the deleted `use-admin-overview-screen.ts` did (six hand-declared queries for eight boards,
+ * several identical apart from `group_by`, and the genuinely identical ungrouped ones not shared at
+ * all). `/admin/overview`'s eleven panels now issue four requests
+ * (`dashboards/admin-overview-page.test.ts` pins the count).
  *
  * **One panel's failure never fails the page.** Each panel reads only the query it points at, so a
  * panel whose request errored renders its own error state while its neighbours render their data
@@ -62,9 +63,17 @@ export interface UseDashboardInput {
   window: UsageWindow;
   filters?: DashboardFilters;
   resetCadence?: ResetCadence;
-  /** Controlled scale for series panels — the console holds it in the URL (ADR 0011). */
-  scale: MultiSeriesSpendScale;
-  onScaleChange: (scale: MultiSeriesSpendScale) => void;
+  /**
+   * The controlled scale for ONE series panel, or `undefined` to take the panel's own YAML
+   * default (`options.scale`, else `linear`).
+   *
+   * Per panel, not per page: `/admin/overview`'s boards do not agree on an axis transform and
+   * never did — request VOLUME defaults to `indexed`, the model mix to `log`, spend to the honest
+   * raw `linear` — and each is a separate `?*-scale` URL knob (ADR 0011). A single page-level
+   * value would either lose those defaults or force every board onto one transform.
+   */
+  scaleFor: (panelId: string) => MultiSeriesSpendScale | undefined;
+  onScaleChange: (panelId: string, scale: MultiSeriesSpendScale) => void;
   /** Suspends every request — used while a route param the placeholders need is still resolving. */
   enabled?: boolean;
 }
@@ -97,7 +106,7 @@ export function useDashboard({
   window,
   filters,
   resetCadence,
-  scale,
+  scaleFor,
   onScaleChange,
   enabled = true,
 }: UseDashboardInput): DashboardState {
@@ -156,8 +165,9 @@ export function useDashboard({
         response: primary.data as UsageQueryResponse,
         compareResponse,
         compareCadence: compareResponse ? panel.compareCadence : undefined,
-        scale,
-        onScaleChange,
+        compareShiftMs: compareResponse ? panel.compareShiftMs : undefined,
+        scale: scaleFor(panel.spec.id) ?? panel.spec.options?.scale ?? 'linear',
+        onScaleChange: (next) => onScaleChange(panel.spec.id, next),
       }),
     };
   });

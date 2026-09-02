@@ -9,6 +9,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
+import { useMemo } from 'react';
 import type { UsageGroupBy } from '@lightbridge/api-rest';
 import type { ReportExportFormat } from '@lightbridge/ui-web';
 
@@ -627,49 +628,80 @@ export function useAdminParams() {
 // ── /admin/overview ──────────────────────────────────────────────────────────────────────────
 
 /**
- * `/admin/overview`'s own params (converse-frontends#368, the admin-area build) — the operator
- * dashboard's date range plus one axis-transform knob per `MultiSeriesSpendBoard` on the page
- * (`use-admin-overview-screen.ts`). Same `range`/`from`/`to` shape `overviewParsers`/
+ * `/admin/overview`'s own params — the operator dashboard's date range plus one axis-transform
+ * knob per SERIES PANEL on the page. Same `range`/`from`/`to` shape `overviewParsers`/
  * `settingsOverviewParsers` already declare (the explicit-span-wins-over-preset rule,
  * `resolveOverviewWindow` reused verbatim) rather than a fourth divergent range picker.
  *
- * Six scale knobs, one per board, rather than one shared value: the approved page story
- * (`Pages/AdminOverview`) gives each board its own default (`modelMixScale` defaults to `log` —
- * the same one-dominant-model shape `overviewParsers.modelScale` defaults to `log` for;
- * `requestVolumeScale` defaults to `indexed` — request COUNT and (when it ships) an error metric
- * cannot share a linear axis, the same reasoning `MultiSeriesSpendChart`'s own doc comment gives
- * for `indexed`; every other board defaults to the honest raw `linear` reading), so a single
- * shared param would either lose those defaults or force every board to agree on one axis
- * transform, which the story never asked for. All `replace`-written knobs (ADR 0011 rule 2) —
- * dragging a segmented control must not cost a Back press per click, the same idiom
- * `overviewParsers.modelScale`/`settingsOverviewParsers.accountScale` already use.
+ * **2026-09-02 (converse-frontends#447, story C4): the six hand-declared per-board scale knobs are
+ * gone from this table.** The page's boards come from `dashboards.yaml` now, so the set of series
+ * panels — and therefore the set of axis knobs — is DATA, not something this module can enumerate
+ * at build time: a deployment may add or remove a panel through the config-volume override without
+ * a rebuild (owner ruling Q11). A fixed list here would have silently left such a panel's toggle
+ * unshareable, or worse, steering nothing. `useDashboardScaleParams` below declares them from the
+ * page spec instead, so this table keeps only what genuinely belongs to the PAGE: its window.
+ *
+ * (`refill-decisions-scale` went with the same change, and would have anyway: it named a board
+ * that never existed — there is no procedure that lists decided refill requests,
+ * lightbridge-authz#556 — so the knob steered nothing from the day it shipped.)
  */
 export const adminOverviewParsers = {
   range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
   from: parseAsString.withDefault(''),
   to: parseAsString.withDefault(''),
-  estateTotalScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
-  estateAccountScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
-  modelMixScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('log'),
-  refillDecisionsScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
-  requestVolumeScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('indexed'),
-  adoptionScale: parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES).withDefault('linear'),
 };
 
-const adminOverviewUrlKeys = {
-  estateTotalScale: 'estate-total-scale',
-  estateAccountScale: 'estate-account-scale',
-  modelMixScale: 'model-mix-scale',
-  refillDecisionsScale: 'refill-decisions-scale',
-  requestVolumeScale: 'request-volume-scale',
-  adoptionScale: 'adoption-scale',
-};
+const adminOverviewUrlKeys = {};
 
 export function useAdminOverviewParams() {
   return useQueryStates(adminOverviewParsers, {
     urlKeys: adminOverviewUrlKeys,
     history: 'replace',
   });
+}
+
+// ── declarative dashboards: one axis knob per series panel ───────────────────────────────────
+
+/** A `dashboards.yaml` panel id → the query param carrying that panel's axis transform. Kebab
+ *  already, because panel ids are (`estate-spend` → `?estate-spend-scale=log`). */
+export function dashboardScaleKey(panelId: string): string {
+  return `${panelId}-scale`;
+}
+
+/**
+ * The axis-transform knobs for a declarative dashboard page — one per series panel, declared FROM
+ * the page's own panel ids rather than from a hand-written table (converse-frontends#447, C4).
+ *
+ * This is the one place in this module whose params are built at render time, and it is the only
+ * honest option: which panels a YAML page has is data, and a deployment can change it through the
+ * config volume without a rebuild. The alternatives were both worse — a fixed table would leave an
+ * override-added panel's toggle steering nothing, and component state for the unmatched ones would
+ * put genuinely shareable view state (which axis a chart is on) outside the URL, which is exactly
+ * what ADR 0011 Decision 3 forbids. Declaring the params from the spec keeps every panel's knob in
+ * the URL and keeps this module the only nuqs importer in the app.
+ *
+ * **No `withDefault`.** A panel's default axis is stated once, in the YAML (`options.scale`), and
+ * `null` here means "use it". A default in both places would silently override the document the
+ * moment the two disagreed, which is the drift externalizing the dashboards exists to end.
+ *
+ * `history: 'replace'` (ADR 0011 rule 2): dragging a segmented control must not cost a Back press
+ * per click, the same idiom every other axis knob in this module already uses.
+ */
+export function useDashboardScaleParams(panelIds: readonly string[]) {
+  // Keyed on the joined ids, not the array's identity: a caller deriving the list inside a render
+  // would otherwise rebuild the parsers (and nuqs' subscriptions) on every paint.
+  const identity = panelIds.join(',');
+  const parsers = useMemo(
+    () =>
+      Object.fromEntries(
+        identity
+          .split(',')
+          .filter((id) => id.length > 0)
+          .map((id) => [dashboardScaleKey(id), parseAsStringLiteral(MULTI_SERIES_SPEND_SCALES)])
+      ),
+    [identity]
+  );
+  return useQueryStates(parsers, { history: 'replace' });
 }
 
 // ── /admin/refill-policies ──────────────────────────────────────────────────────────────────

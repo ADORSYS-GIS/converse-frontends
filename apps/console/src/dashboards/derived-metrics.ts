@@ -89,6 +89,56 @@ export function chatCount(response: UsageQueryResponse): number {
 }
 
 /**
+ * How many DISTINCT actors drew anything in EACH bucket, one count series per group-by dimension
+ * — the series counterpart of `activeActors` above, and what `/admin/overview`'s adoption board
+ * plots ("Active accounts & projects per day").
+ *
+ * A `series` panel normally plots a value PER GROUP (one line per model). This one is the
+ * opposite: the group keys are what is being counted, so `group_by: [account_id, project_id]`
+ * yields exactly two lines — "how many distinct accounts" and "how many distinct projects" — not
+ * one line per account. That is why it is a named derived metric rather than a `metric: requests`
+ * panel with different options: no reading of a point's own columns produces it.
+ *
+ * The same two honesty rules the scalar version states apply per bucket: a point with
+ * `requests <= 0` is not evidence of activity, and a null/empty group key is not one more actor.
+ * A bucket in which a dimension saw nothing yields `0` rather than being dropped, so both lines
+ * share one x-domain and a genuine zero-activity day reads as zero instead of as a gap.
+ */
+export function activeActorsPerBucket(
+  response: UsageQueryResponse,
+  dimensions: readonly string[]
+): { dimension: string; points: { x: Date; y: number }[] }[] {
+  const buckets = new Set<number>();
+  const perDimension = new Map<string, Map<number, Set<string>>>();
+  for (const dimension of dimensions) perDimension.set(dimension, new Map());
+
+  for (const point of response.points) {
+    const t = new Date(point.bucket_start).getTime();
+    if (!Number.isFinite(t)) continue;
+    buckets.add(t);
+    if (safeRequests(point) <= 0) continue;
+    for (const dimension of dimensions) {
+      const value = (point as unknown as Record<string, unknown>)[dimension];
+      if (typeof value !== 'string' || value.length === 0) continue;
+      const byBucket = perDimension.get(dimension);
+      if (!byBucket) continue;
+      const seen = byBucket.get(t) ?? new Set<string>();
+      seen.add(value);
+      byBucket.set(t, seen);
+    }
+  }
+
+  const ordered = Array.from(buckets).sort((a, b) => a - b);
+  return dimensions.map((dimension) => {
+    const byBucket = perDimension.get(dimension) ?? new Map<number, Set<string>>();
+    return {
+      dimension,
+      points: ordered.map((t) => ({ x: new Date(t), y: byBucket.get(t)?.size ?? 0 })),
+    };
+  });
+}
+
+/**
  * `derived:<name>` → its implementation. The map is exhaustive over `DERIVED_METRICS` by
  * construction (the `satisfies` below fails to compile if a name is added to the spec's list
  * without a function here), which is the compile-time half of the AC's "an unknown `derived:` name
@@ -98,4 +148,5 @@ export const derivedMetrics = {
   avgCostPerMillionTokens,
   activeActors,
   chatCount,
+  activeActorsPerBucket,
 } satisfies Record<DerivedMetricName, (response: UsageQueryResponse, ...rest: never[]) => unknown>;

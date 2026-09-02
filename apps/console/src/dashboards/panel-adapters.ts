@@ -5,13 +5,21 @@ import type {
   DashboardTableColumn,
   DashboardTableRow,
 } from '@lightbridge/ui-web/src/sections/dashboard-panels';
-import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
+import type {
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 import type { StatCardDelta } from '@lightbridge/ui-web/src/components/stat-card';
 
 import { comparisonLabel, type ResetCadence } from '../containers/comparison-window';
 import { safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
 import { derivedMetricName, type DashboardMetric, type DashboardPanelSpec } from './dashboard-spec';
-import { activeActors, avgCostPerMillionTokens, chatCount } from './derived-metrics';
+import {
+  activeActors,
+  activeActorsPerBucket,
+  avgCostPerMillionTokens,
+  chatCount,
+} from './derived-metrics';
 
 /**
  * Usage response → `DashboardPanelView` — the per-metric adapters `use-dashboard.ts` keys by a
@@ -170,6 +178,64 @@ export function seriesByGroup(
     }));
 }
 
+/**
+ * How a `group_by` dimension reads as a COUNT series label — `activeActorsPerBucket`'s two lines
+ * are "how many distinct accounts / projects", not one line per account, so the label has to come
+ * from the dimension rather than from a group key. An unlisted dimension keeps its own wire name
+ * rather than being guessed at or dropped.
+ */
+const DIMENSION_COUNT_LABELS: Record<string, string> = {
+  account_id: 'Active accounts',
+  project_id: 'Active projects',
+  user_id: 'Active users',
+  api_key_id: 'Active API keys',
+  model: 'Models in use',
+};
+
+/** The `derived:activeActorsPerBucket` series shape — one distinct-count line per group-by
+ *  dimension, sharing one x-domain (see that function's own doc comment). */
+export function distinctCountSeries(
+  response: UsageQueryResponse,
+  dimensions: readonly string[]
+): MultiSeriesSpendSeries[] {
+  return activeActorsPerBucket(response, dimensions).map(({ dimension, points }) => ({
+    key: dimension,
+    label: DIMENSION_COUNT_LABELS[dimension] ?? dimension,
+    points,
+  }));
+}
+
+/**
+ * The comparison overlay a `compare: true` SERIES panel carries: the previous window's own
+ * aggregate, re-based FORWARD by `shiftMs` so it lies under the current window instead of
+ * doubling the chart's x-domain, and `dashed` so it is distinguishable without a legend (this
+ * console has none, by ruling).
+ *
+ * Always ungrouped, whatever the panel's `group_by` is: a comparison is a reading of the WHOLE
+ * period against the whole previous one. Overlaying one previous line per model on top of one
+ * current line per model would double the series count and make neither readable.
+ */
+export function comparisonSeries(
+  response: UsageQueryResponse,
+  metric: DashboardMetric,
+  shiftMs: number
+): MultiSeriesSpendSeries {
+  const totals = new Map<number, number>();
+  for (const point of response.points) {
+    const t = new Date(point.bucket_start).getTime();
+    if (!Number.isFinite(t)) continue;
+    totals.set(t, (totals.get(t) ?? 0) + readMetric(point, metric));
+  }
+  return {
+    key: '__previous__',
+    label: 'Previous period',
+    dashed: true,
+    points: Array.from(totals.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([t, y]) => ({ x: new Date(t + shiftMs), y })),
+  };
+}
+
 /** Per-model latency rows — read straight off the response's own per-bucket percentiles, which is
  *  what makes `latency-cards` honest (the backend computes `percentile_cont` per bucket group at
  *  query time). Samples sum across buckets; the percentiles are the WORST bucket's, never an
@@ -226,17 +292,24 @@ export interface PanelViewInput {
   /** The comparison twin's response, when `compare: true` and it resolved. */
   compareResponse?: UsageQueryResponse;
   compareCadence?: ResetCadence;
+  /** `ResolvedPanel.compareShiftMs` — how far forward to re-base the twin's timestamps so a
+   *  SERIES overlay lands under the current window. Irrelevant to a `stat`, which sums a scalar. */
+  compareShiftMs?: number;
   /** Controlled scale for the two series-shaped panels — the console holds it in the URL. */
   scale: MultiSeriesSpendScale;
   onScaleChange: (scale: MultiSeriesSpendScale) => void;
 }
 
-const TABLE_COLUMNS: DashboardTableColumn[] = [
-  { key: 'label', header: 'Actor', sortable: true },
-  { key: 'cost', header: 'Cost', align: 'right', kind: 'data', sortable: true },
-  { key: 'requests', header: 'Requests', align: 'right', kind: 'data', sortable: true },
-  { key: 'tokens', header: 'Tokens', align: 'right', kind: 'data', sortable: true },
-];
+/** Every `table` panel states the same three figures; only what a ROW is varies, so only the
+ *  first column's header is a parameter (`options.rowLabel`). */
+function tableColumns(rowLabel: string | undefined): DashboardTableColumn[] {
+  return [
+    { key: 'label', header: rowLabel ?? 'Actor', sortable: true },
+    { key: 'cost', header: 'Cost', align: 'right', kind: 'data', sortable: true },
+    { key: 'requests', header: 'Requests', align: 'right', kind: 'data', sortable: true },
+    { key: 'tokens', header: 'Tokens', align: 'right', kind: 'data', sortable: true },
+  ];
+}
 
 /**
  * The single entry point: one resolved panel plus its response(s) → the render-ready view its
@@ -266,17 +339,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     }
 
     case 'series':
-      return {
-        kind: 'series',
-        series: seriesByGroup(response, dimension, spec.metric).slice(0, topN ?? 5),
-        scale: input.scale,
-        onScaleChange: input.onScaleChange,
-        formatValue: (value) => formatMetric(value, spec.metric),
-        // A COUNT axis must never carry a fabricated `$` — the exact reason `formatYTick` exists
-        // on `MultiSeriesSpendChart`.
-        formatYTick:
-          spec.metric === 'cost' ? undefined : (value) => formatMetric(value, spec.metric),
-      };
+      return seriesView(input);
 
     case 'latency-series':
       return {
@@ -354,10 +417,65 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         },
       }));
 
-      return { kind: 'table', columns: TABLE_COLUMNS, rows, unit: 'actors', total: rows.length };
+      return {
+        kind: 'table',
+        columns: tableColumns(spec.options?.rowLabel),
+        rows,
+        unit: spec.options?.unit ?? 'actors',
+        total: rows.length,
+      };
     }
   }
 }
+
+/**
+ * A `series` panel — the one type that can carry BOTH a derived metric (a distinct count per
+ * bucket, which no column holds) and a comparison overlay (`compare: true`).
+ *
+ * A derived series is deliberately exclusive of the comparison overlay: "how many accounts were
+ * active" against "how many were active last month" is a legitimate question, but it is a second
+ * COUNT line, not the ungrouped total `comparisonSeries` builds, and no page has asked for it —
+ * so it is left unbuilt rather than half-built.
+ */
+function seriesView(input: PanelViewInput): DashboardPanelView {
+  const { spec, response, compareResponse, compareShiftMs } = input;
+  const dimensions = spec.query.group_by ?? [];
+  const derived = derivedMetricName(spec.metric);
+
+  const base = {
+    kind: 'series' as const,
+    scale: input.scale,
+    onScaleChange: input.onScaleChange,
+  };
+
+  if (derived === 'activeActorsPerBucket') {
+    return {
+      ...base,
+      series: distinctCountSeries(response, dimensions.length > 0 ? dimensions : ['user_id']),
+      formatValue: countFormatter,
+      formatYTick: countFormatter,
+    };
+  }
+
+  const series = seriesByGroup(response, dimensions[0], spec.metric).slice(
+    0,
+    spec.options?.topN ?? 5
+  );
+  if (compareResponse && compareShiftMs !== undefined) {
+    series.push(comparisonSeries(compareResponse, spec.metric, compareShiftMs));
+  }
+
+  return {
+    ...base,
+    series,
+    formatValue: (value) => formatMetric(value, spec.metric),
+    // A COUNT axis must never carry a fabricated `$` — the exact reason `formatYTick` exists on
+    // `MultiSeriesSpendChart`.
+    formatYTick: spec.metric === 'cost' ? undefined : (value) => formatMetric(value, spec.metric),
+  };
+}
+
+const countFormatter = (value: number) => Math.round(value).toLocaleString('en-US');
 
 /** A `stat` panel — the one type whose metric can be DERIVED rather than summed. */
 function statView(input: PanelViewInput): DashboardPanelView {

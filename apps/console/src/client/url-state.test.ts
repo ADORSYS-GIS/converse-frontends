@@ -16,6 +16,7 @@ import {
   adminRefillPoliciesParsers,
   apiKeysParsers,
   createProjectParsers,
+  dashboardScaleKey,
   manageParsers,
   overviewParsers,
   projectScopeParsers,
@@ -111,20 +112,13 @@ describe('the URL param contract', () => {
       // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
       // sort (`sort`/`dir`) and page cursor (`after`).
       admin: ['after', 'dir', 'request', 'sort'],
-      // D8 (2026-08-31, same-day ADR 0013 amendment — the admin area): `/admin/overview`'s own
-      // range + six per-board axis-transform knobs (`use-admin-overview-screen.ts`'s own doc
-      // comment covers why each board keeps its own scale param rather than sharing one).
-      adminOverview: [
-        'adoption-scale',
-        'estate-account-scale',
-        'estate-total-scale',
-        'from',
-        'model-mix-scale',
-        'range',
-        'refill-decisions-scale',
-        'request-volume-scale',
-        'to',
-      ],
+      // `/admin/overview`'s own window, and nothing else. C4 (converse-frontends#447) moved the
+      // six per-board axis knobs out of this static table: the page's boards are `dashboards.yaml`
+      // entries now, so its series panels — and therefore its axis knobs — are DATA, declared per
+      // panel id by `useDashboardScaleParams` (asserted below). `refill-decisions-scale` went with
+      // them and would have anyway: it named a board that never existed, since no procedure lists
+      // decided refill requests (lightbridge-authz#556).
+      adminOverview: ['from', 'range', 'to'],
       // Owner review round 2 (2026-08-31, converse-frontends#368 finding #4): list at the bare
       // path, TWO mode params now (`edit`/`simulate` — `create` moved off this table to its own
       // route, `/admin/refill-policies/create`), plus the list mode's own lookup target
@@ -309,5 +303,14 @@ describe('the URL param contract', () => {
     expect(manageParsers.period.defaultValue).toBe(CURRENT_PERIOD);
     // Same parser instance as `/manage`'s (checked above) — so it carries the same default.
     expect(overviewParsers.period.defaultValue).toBe(CURRENT_PERIOD);
+  });
+
+  // A declarative dashboard page's axis knobs are not in `URL_PARAM_CONTRACT` because they are
+  // derived from `dashboards.yaml`, not declared. What IS fixed is how a panel id becomes a param
+  // name — kebab-case on the wire, like every other multi-word key above.
+  it('derives a kebab-case scale param from a dashboard panel id', () => {
+    expect(dashboardScaleKey('estate-spend')).toBe('estate-spend-scale');
+    expect(dashboardScaleKey('adoption-over-time')).toBe('adoption-over-time-scale');
+    expect(dashboardScaleKey('request-volume')).not.toMatch(/[A-Z_]/);
   });
 });

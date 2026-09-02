@@ -27,6 +27,7 @@ import {
   RolesIcon,
   ScheduleIcon,
   SearchIcon,
+  SessionsIcon,
   SettingsIcon,
   SignOutIcon,
   TiersIcon,
@@ -423,16 +424,23 @@ export function settingsNavGroups(
  *
  * The order is READINGS, then ACTIONS. Usage sits SECOND, immediately after the dashboard and
  * before the queue: overview answers "is anything wrong", usage answers "where did it come from",
- * and the three budget rows are things an operator DOES rather than reads. `/admin/roles`
- * (converse-frontends#452) comes LAST — who may operate the area at all is a fact about the
- * operators, not about the estate.
+ * and the three budget rows are things an operator DOES rather than reads. `/admin/sessions`
+ * (converse-frontends#450) and `/admin/roles` (converse-frontends#452) come LAST, in that order —
+ * both are facts about the OPERATORS rather than about the estate, and of the two, closing a
+ * session is the one an operator reaches for on an ordinary day.
  *
  * A row is real for a visitor only when they hold ITS OWN permission: each route file gates on one
  * (`readSession` + `can(session, …)` + `notFound()`), and `adminNavGroups` filters against the
  * same string, so no row can be shown to someone the segment would 404.
  */
 export type AdminRoute =
-  'overview' | 'usage' | 'refills-queue' | 'refill-policies' | 'budget-schedules' | 'roles';
+  | 'overview'
+  | 'usage'
+  | 'refills-queue'
+  | 'refill-policies'
+  | 'budget-schedules'
+  | 'sessions'
+  | 'roles';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
@@ -447,6 +455,7 @@ export function adminRouteFromPathname(pathname: string): AdminRoute {
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
   if (pathname.startsWith('/admin/budget-schedules')) return 'budget-schedules';
+  if (pathname.startsWith('/admin/sessions')) return 'sessions';
   if (pathname.startsWith('/admin/roles')) return 'roles';
   return 'overview';
 }
@@ -493,6 +502,15 @@ const ADMIN_DESTINATIONS: readonly {
     href: '/admin/budget-schedules',
     permission: PERMISSION.budgetScheduleManage,
   },
+  // converse-frontends#450 (story C7). `session:read` is the ESTATE widening, never the
+  // `session:read-own` floor every default role holds — a caller with only the floor would reach
+  // this screen and see their own two rows, which is not what an operator ledger is for.
+  {
+    route: 'sessions',
+    label: 'Sessions',
+    href: '/admin/sessions',
+    permission: PERMISSION.sessionRead,
+  },
   { route: 'roles', label: 'Roles', href: '/admin/roles', permission: PERMISSION.rbacManage },
 ];
 
@@ -526,6 +544,9 @@ const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   // A clock, not a second gauge — see `ScheduleIcon`'s own doc comment for why the two
   // budget-rule rows deliberately do not share a glyph family.
   'budget-schedules': <ScheduleIcon />,
+  // A DEVICE, deliberately not a second person-shaped mark: `RolesIcon` below already owns "who
+  // somebody is", and this row is about where they are signed in FROM.
+  sessions: <SessionsIcon />,
   // The SAME glyph the settings area's own "Roles" row draws — the row moved area, the concept
   // (who holds which platform role) did not.
   roles: <RolesIcon />,

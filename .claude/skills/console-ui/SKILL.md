@@ -293,10 +293,10 @@ decimals.
   The settings and admin areas replace `navGroups`' content in the same mount and carry a
   `← Back to console` row instead of the workspace switcher.
 
-  The admin area's six destinations, in nav order — READINGS first, then ACTIONS, then who may
-  operate the area at all. `ADMIN_DESTINATIONS` declares each row's href and its permission
-  together, which is what keeps the row and its route segment's own `notFound()` from drifting
-  into "shown and then 404s":
+  The admin area's seven destinations, in nav order — READINGS first, then ACTIONS, then the two
+  rows about the OPERATORS rather than the estate. `ADMIN_DESTINATIONS` declares each row's href
+  and its permission together, which is what keeps the row and its route segment's own
+  `notFound()` from drifting into "shown and then 404s":
 
   | Row              | Route                     | Permission               | Notes                                                                                                                |
   | ---------------- | ------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -305,6 +305,7 @@ decimals.
   | Refills queue    | `/admin/refills-queue`    | `budget:review`          | Carries the pending-count numeral — its ONLY home; never a fabricated `0` while it loads                             |
   | Refill policies  | `/admin/refill-policies`  | `budget:policy-write`    | `create` is its own route segment; `?edit=`/`?simulate=` are modes                                                   |
   | Budget schedules | `/admin/budget-schedules` | `budget:schedule-manage` | Story C8 — `create` is its own segment; `?edit=`/`?preview=`/`?delete=` are modes. A clock glyph, not a second gauge |
+  | Sessions         | `/admin/sessions`         | `session:read`           | Story C7 — `querySessions`, never `listSessions`; the ESTATE widening, never the `session:read-own` floor            |
   | Roles            | `/admin/roles`            | `rbac:manage`            | Story C9 — the platform-role grant directory; `?grant=`/`?revoke=` are its two dialogs                               |
 
   `AdminRoute`/`adminRouteFromPathname` is the closed union behind the active flag; anything

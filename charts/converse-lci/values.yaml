@@ -99,12 +99,10 @@ lci:
           port: 80
           targetPort: http
 
-  # Runtime white-label logo (mirrors charts/converse-console's own branding-logo/
-  # branding-logo-light) — mounted into the SAME /tmp/branding/ directory as two separate
-  # ConfigMaps, since app-template's values schema forbids one ConfigMap entry from carrying both
-  # `data` and `binaryData`. Both disabled by default; enabling one without the other's LOGO
-  # renders no mark under `black` (this app's default theme) — see apps/lci's own
-  # LCI_BRANDING_LOGO_LIGHT_PATH handling.
+  # Runtime white-label logo — disabled by default, so the app renders its own built-in mark.
+  # Two ConfigMaps, not one: an entry can't carry both `data` and `binaryData`. Both mount into
+  # /tmp/branding/. Enabling logo-light without logo renders no mark at all under `black`, this
+  # app's default theme.
   persistence:
     branding-logo:
       enabled: false

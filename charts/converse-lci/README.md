@@ -80,23 +80,12 @@ Install/upgrade:
 
 - `helm upgrade --install -n ai lci ./charts/converse-lci -f my-values.yaml`
 
-## Runtime white-label branding (optional)
+## Branding (optional)
 
-`apps/lci` renders its own built-in mark by default. To supply a real logo instead, it reads
-`LCI_BRANDING_LOGO_PATH`/`LCI_BRANDING_LOGO_LIGHT_PATH` (host-absolute paths) and streams whatever
-file is there at `GET /branding/logo`/`GET /branding/logo-light` — see `apps/lci/.env.example`.
-This chart's job is only to get the logo file(s) onto disk at those paths.
-
-Disabled by default: `lci.configMaps.branding-logo`/`branding-logo-light` and
-`lci.persistence.branding-logo`/`branding-logo-light` are all `enabled: false` out of the box, so
-an operator who never touches this renders no ConfigMap/mount at all — app-template drops a
-`persistence`/`configMaps` entry entirely when its own `enabled` is false.
-
-Two ConfigMaps, not one: app-template's own values schema forbids a ConfigMap entry from carrying
-both `data` and `binaryData`, so `branding-logo`/`branding-logo-light` are separate resources.
-Both mount into the SAME `/tmp/branding/` directory via their own `subPath`, so the end state on
-disk is one directory holding both files — matching what `LCI_BRANDING_LOGO_PATH`/
-`LCI_BRANDING_LOGO_LIGHT_PATH` should then point at.
+Disabled by default — the app renders its own built-in mark. To supply a real logo, enable
+`lci.configMaps.branding-logo`/`branding-logo-light` with the base64-encoded file, enable
+`lci.persistence.branding-logo`/`branding-logo-light`, and point `LCI_BRANDING_LOGO_PATH`/
+`LCI_BRANDING_LOGO_LIGHT_PATH` at the mounted paths:
 
 ```yaml
 lci:
@@ -111,11 +100,11 @@ lci:
     branding-logo:
       enabled: true
       binaryData:
-        logo.png: <base64-encoded PNG/SVG/JPEG/WebP — the dark-theme mark>
+        logo.png: <base64-encoded logo>
     branding-logo-light:
       enabled: true
       binaryData:
-        logo-light.png: <base64-encoded PNG/SVG/JPEG/WebP — the light-theme mark>
+        logo-light.png: <base64-encoded light-theme logo>
   persistence:
     branding-logo:
       enabled: true
@@ -123,21 +112,8 @@ lci:
       enabled: true
 ```
 
-```bash
-helm upgrade --install -n ai lci ./charts/converse-lci \
-  --set lci.configMaps.branding-logo.enabled=true \
-  --set lci.persistence.branding-logo.enabled=true \
-  --set-file lci.configMaps.branding-logo.binaryData.logo\\.png=./logo.b64 \
-  --set lci.configMaps.branding-logo-light.enabled=true \
-  --set lci.persistence.branding-logo-light.enabled=true \
-  --set-file lci.configMaps.branding-logo-light.binaryData.logo-light\\.png=./logo-light.b64
-```
-
-(`logo.b64` = the file already base64-encoded, e.g. `base64 -i logo.png -o logo.b64`, since
-`binaryData` values are base64 strings, not raw bytes.)
-
-`LOGO_LIGHT` is not independently optional: setting it without `LOGO` renders no mark at all under
-`black`, this app's default theme (the dark mark doubles as both the default and dark-theme mark).
+`branding-logo-light` only matters alongside `branding-logo` — set without it, no mark renders
+under `black`, this app's default theme.
 
 ## Ingress
 

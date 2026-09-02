@@ -15,18 +15,22 @@ import {
   type Task,
 } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
+import { GrafanaPanel } from './grafana-panel';
 import { ReviewOutput } from './review-output';
 
-/** Run detail: status, trigger, and the persisted review, with a `kubectl logs` snippet standing
- *  in for a Grafana logs embed when `NEXT_PUBLIC_GRAFANA_URL` is unset. */
+/** Run detail: status, trigger, the persisted review, and this run's logs — live from Grafana/
+ *  Loki when `NEXT_PUBLIC_GRAFANA_URL` is set, always available as a `kubectl logs` command
+ *  either way. */
 export function RunDetailCentre({
   taskResult,
   reviewResult,
   now,
+  grafanaBaseUrl,
 }: {
   taskResult: ApiResult<Task | null>;
   reviewResult: ApiResult<Review | null> | null;
   now: number;
+  grafanaBaseUrl: string | null;
 }) {
   if (!taskResult.ok) {
     return (
@@ -80,6 +84,20 @@ export function RunDetailCentre({
           </InlineStatus>
         )}
       </Card>
+
+      {grafanaBaseUrl ? (
+        <Card title="Run logs">
+          <GrafanaPanel
+            baseUrl={grafanaBaseUrl}
+            dashboardUid="lci-task-runs"
+            dashboardSlug="task-runs"
+            panelId={100}
+            title="Run logs (Grafana / Loki)"
+            vars={{ task_id: task.id }}
+            minHeight={420}
+          />
+        </Card>
+      ) : null}
 
       <Card title="Stream logs">
         <div className="flex flex-col gap-1.5">

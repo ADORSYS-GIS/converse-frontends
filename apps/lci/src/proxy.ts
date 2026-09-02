@@ -4,7 +4,7 @@ import {
   appBaseUrl,
   cookieOptions,
   oidcClientConfigFromEnv,
-  performRefreshGrant,
+  refreshOnce,
   REFRESH_COOKIE,
   SESSION_COOKIE,
   verifyAccessToken,
@@ -24,7 +24,7 @@ export async function proxy(req: NextRequest) {
     const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
 
     if (refreshToken) {
-      const refreshed = await performRefreshGrant(refreshToken, oidcClientConfigFromEnv());
+      const refreshed = await refreshOnce(refreshToken, oidcClientConfigFromEnv());
 
       if (refreshed.ok) {
         const res = NextResponse.next();

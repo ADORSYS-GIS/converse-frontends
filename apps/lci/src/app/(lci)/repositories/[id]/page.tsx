@@ -22,7 +22,7 @@ export default async function RepositoryOverviewPage({
     <RepositoryOverviewCentre
       result={result}
       now={now}
-      grafanaConfigured={Boolean(process.env.NEXT_PUBLIC_GRAFANA_URL)}
+      grafanaBaseUrl={process.env.NEXT_PUBLIC_GRAFANA_URL ?? null}
     />
   );
 }

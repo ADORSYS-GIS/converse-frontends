@@ -35,6 +35,23 @@ Companion documents:
 | [ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) | App name, chart name, and the code-graph build decision |
 | ~~`repositories.svg`, `code-graph.svg`, `runs.svg`~~ | **Deleted** — drew a right-rail shell ADR 0012 D1 removed; see the notice at the top of this file and §2 below |
 
+## Where this plan and the shipped app diverge
+
+This document was written before `apps/lci` existed, against LCI's upstream `apps/web/app/dashboard/`
+routes. Two concrete things the built app does differently, for anyone using this as a map of the
+real app rather than a record of the plan:
+
+- **No `/dashboard` prefix.** Routes are flat: `/` (overview), `/repositories`,
+  `/repositories/[id]` (+ `/graph`, `/settings`), `/runs`, `/runs/[id]`, `/admin`, `/settings` —
+  read `/dashboard/x` below as `/x`.
+- **No persistent right rail anywhere.** `LciShell` never wires `ConsoleShell`'s `rail` slot — the
+  code graph's node inspector is a second grid column inside the Graph tab's own `Card`
+  (`grid-cols-[1fr_260px]` at `lg`+, stacked below it otherwise), and a run's review output is an
+  inline `Card` on the same column as the rest of the page, not right-rail content. §2's
+  `code-graph.svg`/`runs.svg` descriptions and §6 below describe the plan, not what shipped.
+- Screen implementations live in `apps/lci/src/containers/*.tsx`; each `app/(lci)/**/page.tsx`
+  route is a thin server component that fetches and renders its container.
+
 ---
 
 ## 0. What this design pass could and could not do
@@ -209,4 +226,5 @@ Recorded here as the one open item blocking `PRIMITIVES.md`'s `EmptyState` row f
 - No card-wrapped centre content: consistent; flagged as the largest single rebuild.
 - Right rail is persistent at `lg`, never an overlay: `code-graph.svg`'s node inspector and
   `runs.svg`'s review detail both follow this, matching the console's `admin-budget-review.svg`.
+  **Not what shipped** — see "Where this plan and the shipped app diverge" above.
 - Empty states: **not yet consistent** — see §4.2, the one open conflict this pass did not resolve.

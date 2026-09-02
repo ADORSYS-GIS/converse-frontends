@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted.
 
 Applies under [ADR 0008](0008-console-shell-inversion-and-visual-direction.md)'s locked visual
 direction and [ADR 0010](0010-ui-primitive-stack-and-theming.md)'s primitive stack. Neither is
@@ -72,6 +72,11 @@ No graph-visualization library beyond what LCI already uses (`@xyflow/react` + `
 introduced by this decision. If the design pass (`docs/design/lci-app/README.md`) surfaces a
 second screen that also needs node-link visualization, that graph primitive extraction (its own
 package, sibling to `chart-core`) is a separate, later decision — not assumed here.
+
+One local addition beyond the port itself: the canvas sizes its own height to the space below it
+in the viewport, rather than the fixed height LCI's screen uses upstream. This doesn't touch the
+`@xyflow/react`/`dagre` decision above — it's a container-sizing detail, not a rendering or layout
+change to the graph itself.
 
 ## Consequences
 

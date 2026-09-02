@@ -1,0 +1,17 @@
+/*
+ * ONE style pipeline, the same shape `apps/authz-ui/src/index.css` and
+ * `apps/console/src/app/globals.css` have: this file is nothing but the import.
+ * `packages/ui-web/src/styles.css` owns the font imports, the single `@import 'tailwindcss'`
+ * (via `theme.css`, ADR 0010 Decision 3), the daisyUI `black`/`wireframe` theme blocks, the token
+ * registrations and the base layer. This app re-declares none of them — that is what makes the
+ * page look like the console rather than like something that resembles it.
+ *
+ * Tailwind v4 is CSS-first: no `content` glob. This app authors no Tailwind class of its own
+ * (every class it renders comes from `packages/ui-web`, which `theme.css` already covers with its
+ * own `@source '.'`), so — like `apps/authz-ui` — it needs no `@source` line added to `theme.css`.
+ *
+ * Everything this import pulls in ends up INLINED into a single HTML file: the whole stylesheet
+ * as one `<style>`, and every `@font-face` `url()` as a `data:` URI. See README.md for the size
+ * that costs and why it is paid.
+ */
+@import '@lightbridge/ui-web/styles.css';

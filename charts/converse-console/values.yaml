@@ -30,11 +30,31 @@ console:
 
           env:
             # apps/console/src/server/config-loader.ts: config.yaml is the primary config
-            # document (YAML-first, not env-var-first) — this is the ONLY app env var this chart
-            # sets. It points at the file mounted from configMaps.console-config below (see
-            # persistence.console-config), which a real deployment supplies via its own values
-            # file (see README.md) rather than editing individual fields through the environment.
+            # document (YAML-first, not env-var-first). It points at the file mounted from
+            # configMaps.console-config below (see persistence.console-config), which a real
+            # deployment supplies via its own values file (see README.md) rather than editing
+            # individual fields through the environment.
             CONSOLE_CONFIG: /config/console/config.yaml
+
+            # Directory the console looks in for per-route report template overrides
+            # (`<CONSOLE_TEMPLATES_DIR>/<route>/report.typ`). ALWAYS set, whether or not
+            # `persistence.report-templates` is enabled: lookup is per FILE, and a directory that
+            # does not exist simply yields no override, so the console falls back to the templates
+            # baked into its image. Story ai-helm-values#346; consumed by console story C10.
+            CONSOLE_TEMPLATES_DIR: /config/console/templates
+
+            # Where the console POSTs render jobs. `127.0.0.1` because typst-render is a SIDECAR
+            # in this same pod (see containers.typst-render below and README.md's "Why a sidecar"
+            # section) — the two containers share one network namespace, so this never leaves the
+            # pod and never touches the cluster network.
+            #
+            # This is an environment variable rather than a config.yaml field on purpose: the
+            # console is YAML-first, and config.yaml's `{env:VAR}` placeholder syntax
+            # (config-loader.ts) is exactly the seam a deployment uses to let the chart own a
+            # value the chart alone knows. Console story C10 adds `reports.typstRenderUrl:
+            # "{env:TYPST_RENDER_URL}"` to its own document; nothing in apps/console reads this
+            # yet, and an unread env var costs a deployment nothing.
+            TYPST_RENDER_URL: http://127.0.0.1:8080
 
           resources:
             # A Node SSR server, not nginx serving static files — every request runs application
@@ -79,6 +99,125 @@ console:
                 failureThreshold: 30
                 periodSeconds: 5
 
+        # The Typst PDF renderer (apps/typst-render — converse-frontends#456), the engine behind
+        # the console's report export. Story ai-helm-values#346.
+        #
+        # DISABLED BY DEFAULT: this chart can land before console story C10 ships the route that
+        # calls it, and an operator should not be handed a running service nothing talks to. A
+        # deployment that wants exports flips `enabled: true` here (and, if it also wants
+        # `readOnlyRootFilesystem` to have somewhere to write, `persistence.typst-tmp.enabled`).
+        #
+        # WHY A SIDECAR, NOT A SIBLING DEPLOYMENT (the story leaves this open and asks the chart
+        # to record the choice):
+        #   * Render payloads are whole documents — template source, a JSON dataset and any
+        #     embedded assets in, a multi-MB PDF back. A sidecar keeps all of that inside one
+        #     network namespace: no cluster hop, no Service, no TLS decision to get wrong.
+        #   * Reachability becomes a property of the process rather than of a policy. The listener
+        #     is bound to 127.0.0.1 below, so NO pod in any namespace can reach it, whatever the
+        #     CNI does or does not enforce. A sibling Deployment would need a ClusterIP Service
+        #     plus a correct NetworkPolicy to get a weaker version of the same guarantee.
+        #   * The renderer is stateless and strictly per-request, so it has no scaling profile of
+        #     its own worth separating: one console replica's export load is one sidecar's load.
+        # The cost is recorded honestly in README.md — see "The egress limitation", which explains
+        # what a sidecar CANNOT be given and what replaces it.
+        typst-render:
+          enabled: false
+
+          image:
+            # Its own GHCR package, sibling to `.../console` — see
+            # .github/workflows/typst-render-image.yml's IMAGE_NAME comment.
+            repository: ghcr.io/adorsys-gis/converse-frontends/typst-render
+            # PINNED to a real published tag, never `latest`: this container runs a document
+            # compiler, and a Typst or service bump can change how a report renders. That has to
+            # be a reviewed commit, not something a pod restart picks up silently. `sha-7d829c3`
+            # is the first image typst-render-image.yml published (run 33670636793, 2026-09-02),
+            # from the commit that merged converse-frontends#456. argocd-image-updater re-pins
+            # this in ai-helm-values the same way it re-pins the console image.
+            tag: sha-7d829c3
+            pullPolicy: IfNotPresent
+
+          # NO `ports:` entry, deliberately. A containerPort is a reachability advertisement, and
+          # this listener binds loopback only (TYPST_RENDER_HOST below) — declaring 8080 here
+          # would tell every reader, and every port-discovering controller, that something outside
+          # the pod can connect to it. Nothing can.
+          env:
+            # Overrides the image's own `0.0.0.0` default. This is the whole ingress story: a
+            # loopback-bound socket in a shared network namespace is reachable by the console
+            # container and by nothing else — not another pod, not another namespace, not the
+            # node. It needs no NetworkPolicy to be true and no CNI to enforce it.
+            TYPST_RENDER_HOST: 127.0.0.1
+            TYPST_RENDER_PORT: '8080'
+
+          resources:
+            # `typst compile` is a short CPU burst, not a resident workload: the service holds no
+            # cache between requests (apps/typst-render/src/render.ts builds and deletes a fresh
+            # directory per render), so the floor is small and the ceiling exists to stop one
+            # pathological template from starving the console container it shares a pod with.
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+
+          probes:
+            # EXEC, not HTTP: kubelet HTTP probes dial the POD IP, which a loopback-bound listener
+            # does not answer on. Running the check inside the container is what makes the
+            # loopback bind above possible at all. The command is the image's own HEALTHCHECK
+            # verbatim, and `node` is guaranteed present (it is the entrypoint) whereas the
+            # bookworm-slim base ships neither curl nor wget.
+            #
+            # GET /healthz actually shells out to `typst --version` (see apps/typst-render's
+            # README), so a pass means "this container can render", not merely "a socket is open"
+            # — the exact failure mode an image built by copying a binary between bases has.
+            liveness:
+              enabled: true
+              custom: true
+              spec:
+                exec:
+                  command:
+                    - node
+                    - -e
+                    - >-
+                      require('http').get('http://127.0.0.1:8080/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))
+                initialDelaySeconds: 5
+                periodSeconds: 30
+                timeoutSeconds: 5
+                failureThreshold: 3
+            readiness:
+              enabled: true
+              custom: true
+              spec:
+                exec:
+                  command:
+                    - node
+                    - -e
+                    - >-
+                      require('http').get('http://127.0.0.1:8080/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))
+                initialDelaySeconds: 3
+                periodSeconds: 10
+                timeoutSeconds: 5
+                failureThreshold: 3
+            startup:
+              enabled: false
+
+          securityContext:
+            # Hardened well past the console container next to it, on purpose: this is the one
+            # container in the pod that executes a document program supplied at request time. The
+            # image already drops to its base's `node` user (uid/gid 1000) — asserting it here
+            # makes the kubelet refuse to start a future image that forgot to, instead of quietly
+            # running the compiler as root.
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+            # Requires persistence.typst-tmp (an emptyDir at /tmp) to be enabled with it: every
+            # render writes its throwaway working directory under $TMPDIR. The two flip together;
+            # see that entry's own comment.
+            readOnlyRootFilesystem: true
+
   # Mounts the ConfigMap generated from configMaps.console-config (below) at the path
   # CONSOLE_CONFIG points the app at above (controllers.main.containers.frontend.env). This is
   # this chart's whole "bring your own config.yaml" mechanism: config-loader.ts reads one YAML
@@ -111,18 +250,22 @@ console:
     console-config:
       type: configMap
       identifier: console-config
-      globalMounts:
-        - path: /config/console/config.yaml
-          subPath: config.yaml
-          readOnly: true
+      advancedMounts:
+        main:
+          frontend:
+            - path: /config/console/config.yaml
+              subPath: config.yaml
+              readOnly: true
     branding-logo:
       enabled: false
       type: configMap
       identifier: branding-logo
-      globalMounts:
-        - path: /tmp/branding/logo.png
-          subPath: logo.png
-          readOnly: true
+      advancedMounts:
+        main:
+          frontend:
+            - path: /tmp/branding/logo.png
+              subPath: logo.png
+              readOnly: true
     # Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): the
     # light-theme (`wireframe`) counterpart to `branding-logo` above -- same mechanism, same
     # single-file-per-ConfigMap constraint, mounted to its own `subPath` in the SAME
@@ -134,18 +277,98 @@ console:
       enabled: false
       type: configMap
       identifier: branding-logo-light
-      globalMounts:
-        - path: /tmp/branding/logo-light.png
-          subPath: logo-light.png
-          readOnly: true
+      advancedMounts:
+        main:
+          frontend:
+            - path: /tmp/branding/logo-light.png
+              subPath: logo-light.png
+              readOnly: true
     branding-style:
       enabled: false
       type: configMap
       identifier: branding-style
-      globalMounts:
-        - path: /tmp/branding/override.style
-          subPath: override.style
-          readOnly: true
+      advancedMounts:
+        main:
+          frontend:
+            - path: /tmp/branding/override.style
+              subPath: override.style
+              readOnly: true
+
+    # ── Story ai-helm-values#346: the two report/dashboard override surfaces ────────────────────
+    #
+    # `dashboards.yaml` — the declarative dashboard definition (console story C3). Deliberately
+    # the SAME ConfigMap as `config.yaml` (`identifier: console-config`), one directory
+    # (`/config/console/`), two `subPath` mounts: the two documents are read by the same process
+    # at the same moment and there is no case where an operator grants one and not the other.
+    # Templates get their own volume instead (`report-templates` below) precisely because that one
+    # IS separately grantable — a designer restyling a report has no business editing the
+    # console's IdP configuration.
+    #
+    # A SEPARATE persistence entry rather than a second `globalMounts` item on `console-config`,
+    # and disabled by default, because a `subPath` naming a ConfigMap key that does not exist does
+    # not fall back — the kubelet refuses to mount and the pod sits in ContainerCreating. Enabling
+    # this entry without also adding `dashboards.yaml` to `configMaps.console-config.data` is
+    # therefore the one way to break a previously-healthy console with these values, which is why
+    # they flip together and why the README says so.
+    #
+    # Absent, the console reads the `dashboards.yaml` shipped in its image. Present but invalid,
+    # the console deliberately fails startup (owner ruling: fail loud, never render a half-parsed
+    # dashboard set) — recovery is removing the key here, not editing it in the live pod.
+    console-dashboards:
+      enabled: false
+      type: configMap
+      identifier: console-config
+      advancedMounts:
+        main:
+          frontend:
+            - path: /config/console/dashboards.yaml
+              subPath: dashboards.yaml
+              readOnly: true
+
+    # Per-route Typst report templates, mounted read-only at CONSOLE_TEMPLATES_DIR
+    # (`/config/console/templates`, set on the frontend container above). Same shape as the
+    # branding mounts: disabled by default, and enabling it is the whole opt-in.
+    #
+    # Lookup is per FILE, not per directory: `<CONSOLE_TEMPLATES_DIR>/<route>/report.typ` wins
+    # over the shipped template of that same path, and a route with no override file here falls
+    # back to the image's own template rather than erroring. So a ConfigMap carrying one file
+    # overrides exactly one report.
+    #
+    # `type` is `configMap` here because that is the smallest thing that works and needs no
+    # storage class; a deployment with templates too large for a ConfigMap's 1 MiB ceiling
+    # overrides `type: persistentVolumeClaim` (+ `existingClaim`) in its own values file — the
+    # mount path and the read-only-ness are what this chart is asserting, not the source.
+    report-templates:
+      enabled: false
+      type: configMap
+      identifier: report-templates
+      advancedMounts:
+        main:
+          frontend:
+            - path: /config/console/templates
+              readOnly: true
+
+    # Scratch space for the typst-render sidecar, so its container can run with
+    # `readOnlyRootFilesystem: true`. apps/typst-render/src/render.ts creates one throwaway
+    # directory per render under `$TMPDIR` and removes it in a `finally`; nothing here outlives a
+    # request, so an emptyDir is exactly right and a size limit is a real backstop against one
+    # runaway render filling the node's ephemeral storage.
+    #
+    # `advancedMounts`, not `globalMounts`: the console container has its own `/tmp` (the branding
+    # mounts land there) and must not have it replaced by this volume.
+    #
+    # Flips with `controllers.main.containers.typst-render.enabled`. Enabling that container
+    # WITHOUT this one gives a read-only `/tmp` and every render fails at `mkdtemp`; the README
+    # states the pairing and ai-helm-values' console-ui.yaml sets both.
+    typst-tmp:
+      enabled: false
+      type: emptyDir
+      sizeLimit: 512Mi
+      advancedMounts:
+        main:
+          typst-render:
+            - path: /tmp
+              readOnly: false
 
   service:
     frontend:
@@ -169,6 +392,65 @@ console:
       enabled: false
       className: ''
       hosts: []
+
+  # Story ai-helm-values#346. Belt to the loopback bind's braces: the typst-render sidecar already
+  # cannot be reached from outside the pod because its listener is bound to 127.0.0.1
+  # (containers.typst-render.env.TYPST_RENDER_HOST), and this policy makes the same statement at
+  # the network layer, so the guarantee survives someone later "fixing" the bind address back to
+  # 0.0.0.0. `policyTypes: [Ingress]` with exactly one rule allowing the console's own HTTP port
+  # means every other port on this pod — 8080 included — is refused for every off-pod source,
+  # while today's traffic (the Ingress controller → :3000) is untouched.
+  #
+  # No `from` selector on that rule on purpose: the console is a public web app whose callers are
+  # the ingress controller and, in this estate, a Traefik pod outside this namespace. Pinning a
+  # source selector here would be a second place to get the ingress topology right, owned by the
+  # wrong repo, and getting it wrong 502s the console.
+  #
+  # DISABLED BY DEFAULT, flipping with the sidecar: shipping a NetworkPolicy to a cluster whose
+  # CNI does not enforce them is harmless but dishonest, and shipping one to a cluster that does,
+  # for a pod that has no sidecar to protect, is pure risk. The deployment that turns the renderer
+  # on turns this on with it.
+  #
+  # ── The egress limitation, stated plainly ──────────────────────────────────────────────────
+  # Typst reaches the `@preview` package registry over the network if the host has egress
+  # (verified in apps/typst-render/README.md — `#import "@preview/cetz"` downloads and compiles on
+  # a machine with internet), which is why that README says the sidecar is expected to run with no
+  # egress. This chart does NOT ship that egress deny, and cannot:
+  #
+  #   A NetworkPolicy — Cilium's included — selects PODS, not containers. typst-render shares the
+  #   console's network namespace, so any egress rule written for the renderer applies verbatim to
+  #   the console, whose entire job is talking to authz-api, authz-budget, authz-usage, the IdP and
+  #   DNS. A deny would take the console offline; a rule permissive enough for the console is
+  #   permissive enough for a package download. There is no container-granular form of this
+  #   object, so "scope it to the sidecar" is not a thing the API can express.
+  #
+  # What actually holds the line, in the order it bites:
+  #   1. `--package-path` / `--package-cache-path` point at an empty per-request directory
+  #      (apps/typst-render/src/render.ts), so nothing is ever cached or reused between renders
+  #      and an unresolvable import fails as a 422 naming the package, not a 30 s hang.
+  #   2. Templates are supposed to be self-contained; `report-templates` is an operator-supplied
+  #      mount, not user input, so the residual exposure is "an operator wrote `@preview` into
+  #      their own override and it silently worked in an egress-having cluster".
+  #   3. The real confinement is a POD-level egress allow-list in the deployment repo
+  #      (`ai-helm-values environments/prod/deps/console-ui/ciliumnetworkpolicy.yaml`), which can
+  #      enumerate the console's genuine destinations and thereby exclude packages.typst.org.
+  #      Only the deployment knows those destinations, so only the deployment can write it.
+  #
+  # The alternative topology — typst-render as a sibling Deployment — WOULD make a precise
+  # egress deny expressible, at the cost of a ClusterIP Service, a cluster hop for every multi-MB
+  # PDF, and reachability that depends on a policy being enforced rather than on a socket not
+  # existing. That trade was considered and declined; see containers.typst-render's comment.
+  networkpolicies:
+    typst-render-isolation:
+      enabled: false
+      controller: main
+      policyTypes:
+        - Ingress
+      rules:
+        ingress:
+          - ports:
+              - port: 3000
+                protocol: TCP
 
   # The operator-supplied config.yaml, mounted into the pod at CONSOLE_CONFIG above. No default
   # value is shipped here (see values.schema.json — it's a required field): `helm lint`/`helm
@@ -215,3 +497,17 @@ console:
       enabled: false
       data:
         override.style: ''
+
+    # Story ai-helm-values#346 — per-route Typst report template overrides, mounted read-only at
+    # CONSOLE_TEMPLATES_DIR by `persistence.report-templates` above (the two flip together, same
+    # as every branding pair). Disabled by default: with no override present the console renders
+    # the templates baked into its image, which is the shape every deployment starts in.
+    #
+    # Keys are paths relative to CONSOLE_TEMPLATES_DIR. A ConfigMap key cannot contain `/`, so a
+    # nested layout (`consumption/report.typ`) needs `persistence.report-templates` to carry
+    # explicit `subPath` mounts, or a PVC instead — see that entry's comment. Templates are plain
+    # Typst source, so `data` (text), never `binaryData`; a typeface a template needs is shipped
+    # as a render asset by the console, not mounted here.
+    report-templates:
+      enabled: false
+      data: {}

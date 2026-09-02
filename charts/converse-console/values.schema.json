@@ -47,6 +47,27 @@
                           }
                         }
                       }
+                    },
+                    "typst-render": {
+                      "description": "The Typst PDF renderer sidecar (apps/typst-render, converse-frontends#456) that the console's report export POSTs to on 127.0.0.1:8080. Story ai-helm-values#346. Disabled by default -- the chart can land before the console route that calls it. Enabling this container REQUIRES enabling console.persistence.typst-tmp with it: the container runs with readOnlyRootFilesystem and every render needs a writable /tmp (apps/typst-render/src/render.ts mkdtemps one throwaway directory per request). Helm cannot express that cross-key dependency, so it is stated here, in values.yaml and in README.md instead.",
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "enabled": { "type": "boolean" },
+                        "image": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "repository": { "type": "string", "minLength": 1 },
+                            "tag": {
+                              "description": "MUST be an explicit published tag or digest. `latest` is rejected outright rather than merely discouraged: this container is a document compiler, so an unpinned reference makes 'how does last month's report render' depend on when a pod happened to restart. That is the exact breakage class pinning exists to prevent, and a schema rejection at helm lint/install time is the only place it can be caught before a cluster picks it up.",
+                              "type": "string",
+                              "minLength": 1,
+                              "not": { "const": "latest" }
+                            }
+                          }
+                        }
+                      }
                     }
                   },
                   "required": ["frontend"]

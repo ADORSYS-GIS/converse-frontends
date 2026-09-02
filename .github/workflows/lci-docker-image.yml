@@ -50,6 +50,12 @@ jobs:
       # `--filter=lci` deliberately: this keeps building exactly one package regardless of how
       # many workspaces gain a `build:web` task later.
       - name: Build lci (Turbo)
+        env:
+          # Next.js inlines NEXT_PUBLIC_* variables into the client bundle at build time — setting
+          # this at deploy/runtime instead has no effect, the value is already baked into the
+          # compiled JS by then. Not a secret: it's a public URL and ends up in the bundle either
+          # way. Powers the Grafana panels on the repository and run detail screens.
+          NEXT_PUBLIC_GRAFANA_URL: https://grafana.ai.camer.digital
         run: pnpm turbo run build:web --filter=lci
 
       - name: Extract metadata

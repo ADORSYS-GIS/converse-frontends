@@ -2,6 +2,7 @@ export type { SessionClaims } from './claims';
 export type { OidcClientConfig } from './oidc-config';
 export { appBaseUrl, oidcClientConfigFromEnv, oidcTokenUri } from './oidc-config';
 export { performRefreshGrant, type RefreshGrantResult } from './refresh-grant';
+export { refreshOnce } from './refresh-coordinator';
 export {
   type CookieOptions,
   cookieOptions,

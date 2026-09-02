@@ -55,6 +55,7 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: false, reason: 'unavailable' } as ApiResult<Task | null>}
         reviewResult={null}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -63,7 +64,12 @@ describe('RunDetailCentre', () => {
 
   it('renders nothing for a not-found task (ok, null data)', () => {
     const { container } = render(
-      <RunDetailCentre taskResult={{ ok: true, data: null }} reviewResult={null} now={NOW} />
+      <RunDetailCentre
+        taskResult={{ ok: true, data: null }}
+        reviewResult={null}
+        now={NOW}
+        grafanaBaseUrl={null}
+      />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -74,6 +80,7 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: true, data: baseTask() }}
         reviewResult={{ ok: true, data: null }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -89,6 +96,7 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: true, data: baseTask({ status: 'succeeded' }) }}
         reviewResult={{ ok: true, data: null }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -101,6 +109,7 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: true, data: baseTask({ status: 'running' }) }}
         reviewResult={{ ok: true, data: null }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -113,6 +122,7 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: true, data: baseTask() }}
         reviewResult={{ ok: true, data: baseReview() }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -125,9 +135,42 @@ describe('RunDetailCentre', () => {
         taskResult={{ ok: true, data: baseTask() }}
         reviewResult={{ ok: false, reason: 'error' }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
     expect(screen.getByText("Couldn't load the review for this run.")).toBeInTheDocument();
+  });
+
+  it('embeds the real run logs panel, scoped to this task, when Grafana is configured', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask() }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl="https://grafana.example.com"
+      />
+    );
+
+    const logs = screen.getByTitle('Run logs (Grafana / Loki)');
+    expect(logs.tagName).toBe('IFRAME');
+    expect(logs.getAttribute('src')).toContain('https://grafana.example.com/d-solo/lci-task-runs');
+    expect(logs.getAttribute('src')).toContain('var-task_id=task-1118');
+    // The kubectl fallback stays available even with a live embed.
+    expect(screen.getByText(/kubectl logs -f job\/task-3b9285de/)).toBeInTheDocument();
+  });
+
+  it('keeps only the kubectl fallback, no broken iframe, when Grafana is unconfigured', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask() }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+      />
+    );
+
+    expect(screen.queryByTitle('Run logs (Grafana / Loki)')).not.toBeInTheDocument();
+    expect(screen.getByText(/kubectl logs -f job\/task-3b9285de/)).toBeInTheDocument();
   });
 });

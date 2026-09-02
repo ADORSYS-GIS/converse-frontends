@@ -231,6 +231,26 @@ const TABLE_ROWS: {
   },
 ];
 
+/**
+ * Re-states a ranked fixture's `formattedValue` in the panel's OWN unit.
+ *
+ * The fixtures are per-TYPE and their values are dollars, which is right for a cost ranking and a
+ * quiet lie on a count one. Counts are derived from the same measured magnitudes (scaled up, since
+ * a request count of `812.40` is not a count either) so the top-1-dominant distribution the
+ * fixtures were built around survives.
+ */
+function rankedUnit<T extends { value: number; formattedValue?: string }>(
+  rows: T[],
+  metric: string | undefined
+): T[] {
+  if (metric !== 'requests' && metric !== 'tokens') return rows;
+  const factor = metric === 'tokens' ? 60_000 : 50;
+  return rows.map((row) => {
+    const value = Math.round(row.value * factor);
+    return { ...row, value, formattedValue: value.toLocaleString('en-US') };
+  });
+}
+
 const LENS_NOUN: Record<string, string> = {
   user: 'User',
   account: 'Account',
@@ -248,6 +268,11 @@ const LENS_NOUN: Record<string, string> = {
  */
 const DIMENSION_KEYS: Record<string, string[]> = {
   billing_plan: ['pro', 'free', 'scale', 'trial'],
+  // Already HUMANISED — `panel-adapters.tsx` maps the wire vocabulary (`chat_completions`, …)
+  // through `OPERATION_LABELS` before a row ever reaches a renderer, so a story showing the
+  // snake_case values would be reviewing a page nobody ships. "Other" is kept because it is the
+  // row an operator has to see before believing a chat total.
+  operation: ['Chat completions', 'Responses', 'Messages', 'Embeddings', 'Other'],
   azp: ['console-ui', 'opencode-cli', 'ci-deploy', 'zed-editor', 'raycast'],
   user_id: ['Ada Lovelace', 'grace@adorsys.com', 'ci-deploy', 'usr_01j8k2m4p'],
   account_id: ['Brightline', 'Stark Infer', 'Northwind Labs', 'acct_01j7x'],
@@ -427,7 +452,15 @@ export function SpecPanels({ page, state = 'loaded' }: { page: SpecPage; state?:
       } else if (fixture.kind === 'ranked') {
         map.set(panel.id, {
           ...fixture,
-          rows: reKey(fixture.rows, DIMENSION_KEYS[panel.dimension ?? '']),
+          // The per-type fixture's values are DOLLARS. A ranking of requests or tokens formatted
+          // as money is a fabricated unit — the same failure `formatYTick` exists to prevent on an
+          // axis, and the exact thing a reviewer looking at `/admin/usage/channels/<azp>`'s
+          // "Requests by operation" would (rightly) flag. The console's own adapter formats by
+          // `metric`; so does this.
+          rows: rankedUnit(
+            reKey(fixture.rows, DIMENSION_KEYS[panel.dimension ?? '']),
+            panel.metric
+          ),
         });
       } else if (fixture.kind === 'share') {
         map.set(panel.id, {

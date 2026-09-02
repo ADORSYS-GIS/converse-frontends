@@ -122,6 +122,7 @@ export function MultiSeriesSpendChart({
   onSelectSeries,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   truncationCaption,
+  summable = true,
   static: isStatic = false,
   className,
 }: MultiSeriesSpendChartProps) {
@@ -260,7 +261,8 @@ export function MultiSeriesSpendChart({
     series.length,
     noSpend.length,
     formatValue,
-    truncationCaption
+    truncationCaption,
+    summable
   );
 
   /**
@@ -512,7 +514,9 @@ export function MultiSeriesSpendChart({
           getFloatingProps={getFloatingProps}
         />
       </div>
-      <p className={cn(META_CLASS, 'mt-2')}>{summaryCaption}</p>
+      {/* Omitted entirely when there is nothing true to say — a non-summable board with no tail
+          and no truncation has no summary, and an empty line would reserve space for one. */}
+      {summaryCaption ? <p className={cn(META_CLASS, 'mt-2')}>{summaryCaption}</p> : null}
     </div>
   );
 }

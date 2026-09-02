@@ -68,9 +68,16 @@ describe('the /admin/usage container', () => {
     const centre = read(USAGE_CENTRE);
 
     expect(centre).toContain('useAdminUsageParams');
-    expect(centre).toContain('useDashboardScaleParams');
-    expect(centre).toContain('useDashboardTableParams');
+    // The per-panel knobs moved into the shared `useDashboardKnobs` with story C6, which added
+    // three sibling pages needing the identical six callbacks. The URL param NAMES are still
+    // stated once, in `url-state.ts`, and that hook is the only thing that reads them — asserted
+    // from the other side below so this is not a claim about a file nobody checked.
+    expect(centre).toContain('useDashboardKnobs(page)');
     // No component state for anything shareable (ADR 0011 Decision 3).
     expect(centre).not.toContain('useState');
+
+    const knobs = read(join('src', 'dashboards', 'use-dashboard-knobs.ts'));
+    expect(knobs).toContain('useDashboardScaleParams');
+    expect(knobs).toContain('useDashboardTableParams');
   });
 });

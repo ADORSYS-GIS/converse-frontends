@@ -6,6 +6,7 @@ import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashbo
 
 import { dashboardsFileSchema } from './dashboard-spec';
 import { DashboardRenderer, panelActionRenderers, panelRenderers } from './dashboard-renderer';
+import { IDENTITY_LABEL_FOR } from './actor-labels';
 import type { DashboardPanelState, DashboardState } from './use-dashboard';
 
 /**
@@ -41,6 +42,10 @@ function state(panels: DashboardPanelState[]): DashboardState {
       window: { start: new Date(0), end: new Date(0) },
     },
     requestCount: 1,
+    // The page's own identity resolver (story C6) — sentinels only, which is exactly what every
+    // panel gets while the batch is in flight. This test is about CHROME, not names.
+    labelFor: IDENTITY_LABEL_FOR,
+    actorLabelsStatus: 'idle',
   };
 }
 

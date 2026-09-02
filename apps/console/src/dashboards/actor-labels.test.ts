@@ -10,6 +10,8 @@ import {
   collectActorIds,
   hasActorIds,
   IDENTITY_LABEL_FOR,
+  actorIdsOf,
+  withSeedActorIds,
 } from './actor-labels';
 
 function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
@@ -139,5 +141,57 @@ describe('buildLabelFor', () => {
   it('degrades to sentinels-only when the lookup produced nothing at all', () => {
     const none = buildLabelFor(undefined);
     expect(none('user', 'usr_1')).toEqual(IDENTITY_LABEL_FOR('user', 'usr_1'));
+  });
+});
+
+// ── Story C6 (converse-frontends#449): the page's own subject id joins the same batch ──
+
+describe('withSeedActorIds / actorIdsOf', () => {
+  it('names exactly one actor, in the list its kind belongs to', () => {
+    expect(actorIdsOf('user', 'usr_1')).toEqual({
+      users: ['usr_1'],
+      accounts: [],
+      projects: [],
+    });
+    expect(actorIdsOf('account', 'acct_1').accounts).toEqual(['acct_1']);
+    expect(actorIdsOf('project', 'proj_1').projects).toEqual(['proj_1']);
+  });
+
+  /** The page's subject leads: it is the one id whose absence would leave the header titled after
+   *  a cuid, so the batch cap must never be what drops it. */
+  it('puts the seed FIRST, ahead of everything the responses carried', () => {
+    const merged = withSeedActorIds(actorIdsOf('user', 'usr_seed'), {
+      users: ['usr_a', 'usr_b'],
+      accounts: ['acct_a'],
+      projects: [],
+    });
+    expect(merged.users).toEqual(['usr_seed', 'usr_a', 'usr_b']);
+    // Untouched kinds pass straight through.
+    expect(merged.accounts).toEqual(['acct_a']);
+  });
+
+  it('folds a seed the responses also carried instead of asking about it twice', () => {
+    const merged = withSeedActorIds(actorIdsOf('user', 'usr_a'), {
+      users: ['usr_a', 'usr_b'],
+      accounts: [],
+      projects: [],
+    });
+    expect(merged.users).toEqual(['usr_a', 'usr_b']);
+  });
+
+  it('keeps the batch inside the procedure’s own cap, seed included', () => {
+    const collected = Array.from({ length: ACTOR_ID_BATCH_CAP }, (_, i) => `usr_${i}`);
+    const merged = withSeedActorIds(actorIdsOf('user', 'usr_seed'), {
+      users: collected,
+      accounts: [],
+      projects: [],
+    });
+    expect(merged.users).toHaveLength(ACTOR_ID_BATCH_CAP);
+    expect(merged.users[0]).toBe('usr_seed');
+  });
+
+  it('is a no-op for a page with no subject of its own', () => {
+    const collected = { users: ['usr_a'], accounts: [], projects: [] };
+    expect(withSeedActorIds(undefined, collected)).toBe(collected);
   });
 });

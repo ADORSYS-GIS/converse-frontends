@@ -12,7 +12,8 @@ import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/m
 
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import type { ResetCadence, UsageWindow } from '../containers/comparison-window';
-import { collectActorIds, EMPTY_ACTOR_IDS } from './actor-labels';
+import { actorIdsKey, collectActorIds, EMPTY_ACTOR_IDS, withSeedActorIds } from './actor-labels';
+import type { ActorIds, LabelFor } from './actor-labels';
 import type { DashboardPageSpec } from './dashboard-spec';
 import { toPanelView, type DashboardLabelResolver } from './panel-adapters';
 import { queryKey, resolveDashboard } from './resolve-dashboard';
@@ -69,6 +70,18 @@ export interface DashboardState {
   /** Set only when the ONE batched `resolveActorLabels` call failed — the page captions it, and
    *  every actor row falls back to its labelled sentinel rather than disappearing. */
   actorLabelsErrorMessage?: string;
+  /**
+   * The page's own resolver, exposed so a page HEADER can name its subject from the same batch its
+   * panels label their rows with (converse-frontends#449) — `/admin/usage/actors/<id>` states a
+   * person's name and email above the grid. Exposing it (rather than letting the header fire its
+   * own `resolveActorLabels`) is what keeps one lookup per page true on a parameterised page.
+   *
+   * Falls back to sentinels while the batch is in flight and after it fails, exactly as every
+   * panel does — a header reading a raw id is the honest state, and never an error.
+   */
+  labelFor: LabelFor;
+  /** `'idle'` when the page had no actor id to resolve at all. */
+  actorLabelsStatus: 'idle' | 'loading' | 'error' | 'ready';
 }
 
 export interface UseDashboardInput {
@@ -109,6 +122,12 @@ export interface UseDashboardInput {
   familyAccountIds?: readonly string[];
   /** Opaque group key → readable name, per dimension — see `DashboardLabelResolver`. */
   localLabels?: DashboardLabelResolver;
+  /**
+   * Actor ids the PAGE itself is about, folded into the same batched `resolveActorLabels` the
+   * responses' ids go through (`withSeedActorIds`). `/admin/usage/actors/<id>` passes its path id
+   * so the header can name it; an estate page passes nothing.
+   */
+  seedActorIds?: ActorIds;
 }
 
 /** The caption a `truncated: true` response gets, naming the panel's own limit. */
@@ -185,6 +204,7 @@ export function useDashboard({
   enabled = true,
   familyAccountIds,
   localLabels,
+  seedActorIds,
 }: UseDashboardInput): DashboardState {
   const resolved = useMemo(
     () => resolveDashboard({ page, window, filters, resetCadence, familyAccountIds }),
@@ -214,18 +234,24 @@ export function useDashboard({
   const responsesKey = results
     .map((result) => (result.isSuccess ? result.dataUpdatedAt : 0))
     .join(',');
+  // The page's OWN subject id (an actor route's path param) leads the batch, so a header can be
+  // named before — and independently of — any panel resolving. See `withSeedActorIds`.
+  const seedKey = seedActorIds ? actorIdsKey(seedActorIds) : '';
   const actorIds = useMemo(
     () =>
-      enabled
-        ? collectActorIds(
-            results.map((result) =>
-              result.isSuccess ? (result.data as UsageQueryResponse) : undefined
+      withSeedActorIds(
+        seedActorIds,
+        enabled
+          ? collectActorIds(
+              results.map((result) =>
+                result.isSuccess ? (result.data as UsageQueryResponse) : undefined
+              )
             )
-          )
-        : EMPTY_ACTOR_IDS,
+          : EMPTY_ACTOR_IDS
+      ),
     // `results` is a fresh array every render; `responsesKey` changes exactly when a response does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [responsesKey, enabled]
+    [responsesKey, enabled, seedKey]
   );
   const actorLabels = useActorLabels(actorIds);
 
@@ -314,5 +340,7 @@ export function useDashboard({
     resolved,
     requestCount: resolved.queries.length,
     actorLabelsErrorMessage: actorLabels.errorMessage,
+    labelFor: actorLabels.labelFor,
+    actorLabelsStatus: actorLabels.status,
   };
 }

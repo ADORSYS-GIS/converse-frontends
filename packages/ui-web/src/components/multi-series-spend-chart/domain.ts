@@ -166,15 +166,22 @@ export function shareOfTotal(total: number, grandTotal: number): number {
  * series collapsed into it, and an optional truncation notice from a caller whose own fan-out
  * capped its scope (`MultiSeriesSpendChartProps.truncationCaption`). A caption is a sentence, not
  * rows, so the three clauses join with a middle dot rather than rendering as separate lines.
+ *
+ * **`summable: false` drops the total clause entirely** (converse-frontends#449). Not every board
+ * plots a quantity that can be added up: `/admin/usage/chats`' latency board plots p50 and p95 per
+ * bucket, and summing per-bucket percentiles produces a number ("45,036 ms") that is not a
+ * duration, not a percentile, and not anything at all. The caption then states only what remains
+ * true — the zero-tail count and any truncation — and says nothing rather than something false.
  */
 export function buildSummaryCaption(
   grandTotal: number,
   totalSeriesCount: number,
   noSpendCount: number,
   formatValue: (value: number) => string,
-  truncationCaption?: string
+  truncationCaption?: string,
+  summable = true
 ): string {
-  const parts = [`${formatValue(grandTotal)} across ${totalSeriesCount} series`];
+  const parts = summable ? [`${formatValue(grandTotal)} across ${totalSeriesCount} series`] : [];
   if (noSpendCount > 0) {
     parts.push(`${noSpendCount} more · no spend this period`);
   }

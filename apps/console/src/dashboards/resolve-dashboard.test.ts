@@ -647,3 +647,116 @@ describe('scope: family', () => {
     expect(resolved.queries[resolved.panels[1].queryIndex as number].scope).toBe('all');
   });
 });
+
+// ── Story C6 (converse-frontends#449): a substituted `scope` is CHECKED, not passed through ──
+
+describe('substituting a scope from a page filter', () => {
+  const actorPanel = statPanel('actor-total-cost', {
+    query: { scope: '$type', scope_id: '$actorId', bucket: 'auto', limit: 2000 },
+  });
+
+  it.each(['user', 'account', 'project', 'all', 'api_key'])(
+    'accepts %s — every member of the backend’s own scope enum',
+    (type) => {
+      const resolved = resolveDashboard({
+        page: page([actorPanel]),
+        window: windowOf(30),
+        filters: { type, actorId: 'act_1' },
+      });
+      expect(resolved.queries[0].scope).toBe(type);
+      expect(resolved.queries[0].scope_id).toBe('act_1');
+    }
+  );
+
+  /**
+   * The failure this exists to prevent: a `?type=` a person typed reaching the usage backend as a
+   * malformed scope, whose 400 would arrive under a page that has already printed an actor's name
+   * above it — and which, on the day the enum grows, would silently ask a question the page never
+   * meant to ask.
+   */
+  it.each(['everything', 'account ', 'Account', 'accounts', '../etc'])(
+    'REFUSES %s, naming the page and the panel',
+    (type) => {
+      expect(() =>
+        resolveDashboard({
+          page: page([actorPanel], '/admin/usage/actors/[actorId]'),
+          window: windowOf(30),
+          filters: { type, actorId: 'act_1' },
+        })
+      ).toThrow(
+        /Invalid usage scope .* on page "\/admin\/usage\/actors\/\[actorId\]", panel "actor-total-cost"/
+      );
+    }
+  );
+
+  /** A LITERAL scope in the YAML goes through the same check — the schema types it as a plain
+   *  string so a page can be authored before a column lands, and this is the one field where that
+   *  freedom would be a bug rather than a feature. */
+  it('refuses a literal scope the enum does not know', () => {
+    expect(() =>
+      resolveDashboard({
+        page: page([statPanel('p', { query: { scope: 'estate', bucket: 'auto', limit: 10 } })]),
+        window: windowOf(30),
+      })
+    ).toThrow(/Invalid usage scope "estate"/);
+  });
+
+  it('still refuses an ABSENT type before it can become an empty scope', () => {
+    expect(() =>
+      resolveDashboard({
+        page: page([actorPanel]),
+        window: windowOf(30),
+        filters: { actorId: 'act_1' },
+      })
+    ).toThrow(/Unresolved dashboard placeholder "\$type"/);
+  });
+});
+
+describe('a list filter (operation_in) through resolution', () => {
+  const chatPanel = statPanel('chat', {
+    query: {
+      scope: 'all',
+      filters: { operation_in: ['chat_completions', 'responses', 'messages'] },
+      bucket: 'auto',
+      limit: 2000,
+    },
+  });
+
+  it('survives as a LIST — never joined into a string, never substituted into', () => {
+    const resolved = resolveDashboard({
+      page: page([chatPanel]),
+      window: windowOf(30),
+      filters: { type: 'user' },
+    });
+    expect(resolved.queries[0].filters?.operation_in).toEqual([
+      'chat_completions',
+      'responses',
+      'messages',
+    ]);
+  });
+
+  /** The dedupe key sorts list members, so two panels asking the same three-valued question in a
+   *  different order share ONE request rather than firing two identical ones. */
+  it('shares one request with a panel that listed the same operations in another order', () => {
+    const reordered = statPanel('chat-2', {
+      query: {
+        scope: 'all',
+        filters: { operation_in: ['messages', 'chat_completions', 'responses'] },
+        bucket: 'auto',
+        limit: 2000,
+      },
+    });
+    const resolved = resolveDashboard({ page: page([chatPanel, reordered]), window: windowOf(30) });
+    expect(resolved.queries).toHaveLength(1);
+  });
+
+  it('is a DIFFERENT question from the same query unfiltered', () => {
+    const unfiltered = statPanel('total');
+    const resolved = resolveDashboard({
+      page: page([chatPanel, unfiltered]),
+      window: windowOf(30),
+    });
+    expect(resolved.queries).toHaveLength(2);
+    expect(queryKey(resolved.queries[0])).not.toBe(queryKey(resolved.queries[1]));
+  });
+});

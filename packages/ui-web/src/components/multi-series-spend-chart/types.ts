@@ -77,6 +77,17 @@ export interface MultiSeriesSpendChartProps {
    *  omitted entirely when nothing was truncated. */
   truncationCaption?: string;
   /**
+   * Whether the plotted quantity can be ADDED UP across buckets and series — `true` (money,
+   * requests, tokens) and the caption states the period total; `false` and it does not
+   * (converse-frontends#449).
+   *
+   * The one caller that sets it false is the latency board, and the reason is not stylistic: a sum
+   * of per-bucket p50s is not a duration, not a percentile and not any quantity a reader could act
+   * on. A caption that printed one would be the most confident sentence on the page and the only
+   * false one.
+   */
+  summable?: boolean;
+  /**
    * Print/export mode (converse-frontends#453, the Typst report pipeline): the component renders
    * a STANDALONE `<svg>` as its root element — no wrapper `<div>`, no captions, no pointer
    * hit-regions, no hover/selection state and **no Floating UI tooltip** — so

@@ -23,13 +23,20 @@ export const CALLBACK_COPY: Record<CallbackStatus, { heading: string; detail: st
 };
 
 /**
- * Shown while the close attempt is still pending.
+ * Shown as soon as the page renders.
  *
- * It says "closing", never "closed": browsers honour `window.close()` only for windows a script
- * opened, and this tab was reached by a redirect the user followed. The page tries, and then says
- * what is actually true.
+ * The page NEVER closes itself. `window.close()` used to be attempted after 1.2s, and browsers
+ * honour it only for windows a script opened — this tab was reached by a redirect the user
+ * followed, so it was refused every time and the "Closing this tab…" it showed in the meantime was
+ * never true. Saying the true thing immediately is shorter and more honest than saying a false
+ * thing and then correcting it.
  */
-export const CLOSE_PENDING_HINT = 'Closing this tab…';
+export const CLOSE_HINT = 'You can close this tab and return to your terminal.';
 
-/** Shown once the close attempt has run — which, for a navigated-to tab, means it was refused. */
-export const CLOSE_REFUSED_HINT = 'You can close this tab and return to your terminal.';
+/**
+ * Replaces {@link CLOSE_HINT} once the page has been open longer than {@link FRESH_FOR_MS}.
+ *
+ * A tab left open overnight otherwise goes on asserting a sign-in that happened hours ago, in the
+ * present tense. This does not close anything — it just stops the page claiming to be current.
+ */
+export const STALE_HINT = 'This page is from an earlier sign-in. Your terminal has the session.';

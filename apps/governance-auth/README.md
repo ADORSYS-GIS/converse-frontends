@@ -106,15 +106,15 @@ not, because this tag gets copy-pasted across a repo boundary where an abbreviat
 ```bash
 # In the lightbridge-governance checkout, at its repo root.
 # Replace <sha> with the converse-frontends commit you are pinning to.
-oras pull ghcr.io/adorsys-gis/governance-auth-callback:sha-<sha> \
-  --output app/governance-auth/src/oauth/callback_page/templates
-
-# The artifact carries the file under its build name; the Rust side include_str!s callback.html.
-mv app/governance-auth/src/oauth/callback_page/templates/index.html \
-   app/governance-auth/src/oauth/callback_page/templates/callback.html
+scripts/vendor-callback-page.sh <sha>
 ```
 
-Then commit `callback.html`, exactly as the hand-written template was committed. `oras` is needed
+That wrapper is the supported path: it pulls the tag, re-checks the self-containment properties on
+arrival (a registry is a different trust boundary from a build job), writes the file to
+`app/governance-auth/src/oauth/callback_page/callback.html`, and records the source commit and
+sha256 in `callback.source.json` beside it. A Rust test fails if that file is later edited by hand.
+
+Then commit both files. `oras` is needed
 once, by the person doing the bump — never by `cargo build`, never by CI in that repo.
 
 #### `latest` is a footgun here, not a shortcut
@@ -134,8 +134,7 @@ strongest pin available: a tag is a mutable pointer, a digest is the content. Us
 bump should be provably immutable (a release, an audit trail, a security review):
 
 ```bash
-oras pull ghcr.io/adorsys-gis/governance-auth-callback@sha256:<digest> \
-  --output app/governance-auth/src/oauth/callback_page/templates
+oras pull ghcr.io/adorsys-gis/governance-auth-callback@sha256:<digest> --output .
 ```
 
 Read it back off the registry at any time — no download of the artifact required:
@@ -174,7 +173,7 @@ While iterating across both repos, skip the registry and copy the file:
 
 ```bash
 cp apps/governance-auth/dist/index.html \
-   ../lightbridge-governance/app/governance-auth/src/oauth/callback_page/templates/callback.html
+   ../lightbridge-governance/app/governance-auth/src/oauth/callback_page/callback.html
 ```
 
 That is for a local loop only. Anything that lands on `main` in `lightbridge-governance` should
@@ -193,7 +192,7 @@ Rust rewrites that one literal — `minijinja` is no longer needed, and neither 
 because the only two values are compile-time constants:
 
 ```rust
-const TEMPLATE: &str = include_str!("templates/callback.html");
+const PAGE: &str = include_str!("callback.html");
 const STATUS_PLACEHOLDER: &str = "__GOVERNANCE_AUTH_CALLBACK_STATUS__";
 
 fn document(success: bool) -> String {

@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CallbackPage, CLOSE_ATTEMPT_DELAY_MS } from './callback-page';
-import { CALLBACK_COPY, CLOSE_PENDING_HINT, CLOSE_REFUSED_HINT } from './callback-copy';
+import { CallbackPage, FRESH_FOR_MS } from './callback-page';
+import { CALLBACK_COPY, CLOSE_HINT, STALE_HINT } from './callback-copy';
 
 // Plain `toBeNull()`/`textContent` assertions, not `@testing-library/jest-dom` matchers:
 // `apps/authz-ui` runs its jsdom project with no setup file, and neither does this one. A
@@ -54,56 +54,63 @@ describe('CallbackPage', () => {
     expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
-  it('never promises a close it has not attempted', () => {
-    render(<CallbackPage status="success" />);
-
-    expect(screen.getByText(CLOSE_PENDING_HINT)).not.toBeNull();
-    expect(screen.queryByText(CLOSE_REFUSED_HINT)).toBeNull();
-  });
-
-  it.each(['success', 'error'] as const)(
-    'attempts window.close() and then degrades to the manual hint (%s)',
-    (status) => {
-      // Arrange
-      const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
-      render(<CallbackPage status={status} />);
-
-      // Act
-      act(() => {
-        vi.advanceTimersByTime(CLOSE_ATTEMPT_DELAY_MS);
-      });
-
-      // Assert
-      expect(close).toHaveBeenCalled();
-      expect(screen.getByText(CLOSE_REFUSED_HINT)).not.toBeNull();
-      expect(screen.queryByText(CLOSE_PENDING_HINT)).toBeNull();
-    }
-  );
-
-  it('still degrades to the manual hint when window.close() throws', () => {
-    // Arrange — a browser that refuses by throwing rather than by ignoring the call.
-    vi.spyOn(window, 'close').mockImplementation(() => {
-      throw new Error('Scripts may close only the windows that were opened by them.');
-    });
-    render(<CallbackPage status="success" />);
-
-    // Act
-    act(() => {
-      vi.advanceTimersByTime(CLOSE_ATTEMPT_DELAY_MS);
-    });
-
-    // Assert
-    expect(screen.getByText(CLOSE_REFUSED_HINT)).not.toBeNull();
-  });
-
-  it('does not attempt the close before the delay has elapsed', () => {
-    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
+  it('never closes the tab, however long it is open', () => {
+    // The behaviour this file exists to pin. A tab reached by a redirect cannot be closed by
+    // script anyway, so the old attempt was refused every time -- but the reason it is gone is
+    // that dismissing someone's tab is not ours to do.
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
     render(<CallbackPage status="success" />);
 
     act(() => {
-      vi.advanceTimersByTime(CLOSE_ATTEMPT_DELAY_MS - 1);
+      vi.advanceTimersByTime(FRESH_FOR_MS * 4);
     });
 
     expect(close).not.toHaveBeenCalled();
+    close.mockRestore();
+  });
+
+  it('offers the manual hint immediately, with nothing pending', () => {
+    render(<CallbackPage status="success" />);
+    expect(screen.getByText(CLOSE_HINT)).not.toBeNull();
+    expect(screen.queryByText(STALE_HINT)).toBeNull();
+  });
+
+  it.each(['success', 'error'] as const)(
+    'stops claiming to be current after five minutes (%s)',
+    (status) => {
+      render(<CallbackPage status={status} />);
+      expect(screen.getByText(CLOSE_HINT)).not.toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(FRESH_FOR_MS);
+      });
+
+      expect(screen.getByText(STALE_HINT)).not.toBeNull();
+      expect(screen.queryByText(CLOSE_HINT)).toBeNull();
+    }
+  );
+
+  it('is still current one tick before the five minutes elapse', () => {
+    render(<CallbackPage status="success" />);
+
+    act(() => {
+      vi.advanceTimersByTime(FRESH_FOR_MS - 1);
+    });
+
+    expect(screen.getByText(CLOSE_HINT)).not.toBeNull();
+    expect(screen.queryByText(STALE_HINT)).toBeNull();
+  });
+
+  it('keeps stating the outcome after it goes stale', () => {
+    // Staleness changes the hint and NOTHING else -- the heading and the statement are the
+    // answer the developer came here for and must survive.
+    render(<CallbackPage status="success" />);
+
+    act(() => {
+      vi.advanceTimersByTime(FRESH_FOR_MS);
+    });
+
+    expect(screen.getByRole('heading').textContent).toBe(CALLBACK_COPY.success.heading);
+    expect(screen.getByText(CALLBACK_COPY.success.detail)).not.toBeNull();
   });
 });

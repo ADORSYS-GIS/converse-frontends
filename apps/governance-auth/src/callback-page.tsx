@@ -5,14 +5,16 @@ import { META_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { AuthErrorPanel } from '@lightbridge/ui-web/src/sections/auth-error-panel';
 import { AuthPanelShell } from '@lightbridge/ui-web/src/sections/auth-panel-shell';
 
-import { CALLBACK_COPY, CLOSE_PENDING_HINT, CLOSE_REFUSED_HINT } from './callback-copy';
+import { CALLBACK_COPY, CLOSE_HINT, STALE_HINT } from './callback-copy';
 import type { CallbackStatus } from './callback-status';
 
 /**
- * How long the page waits before attempting to close itself. Carried over from the Rust template:
- * long enough that the outcome can be read in the rare case the close actually works.
+ * How long the page presents itself as current.
+ *
+ * Five minutes, and nothing happens at the end of it except the hint changing — the page does NOT
+ * close, navigate or clear itself. See {@link useIsStale}.
  */
-export const CLOSE_ATTEMPT_DELAY_MS = 1200;
+export const FRESH_FOR_MS = 5 * 60 * 1000;
 
 export interface CallbackPageProps {
   /** The outcome the Rust side already decided — see `callback-status.ts`. */
@@ -20,27 +22,26 @@ export interface CallbackPageProps {
 }
 
 /**
- * `true` once the close attempt has run, which for a tab the user navigated to means it was
- * refused. Not a "did it work" signal — if it worked there is no page left to re-render.
+ * `true` once the page has been open longer than {@link FRESH_FOR_MS}.
+ *
+ * ⚠️ This replaced a `window.close()` attempt on a 1.2s timer. Two things were wrong with it: a tab
+ * reached by a redirect cannot be closed by script (browsers allow it only for windows a script
+ * opened), so it was refused every single time; and while it was pending the page said "Closing
+ * this tab…", which was never going to become true. Auto-dismissing the user's tab is also not
+ * ours to do — they navigated here, and the terminal is where the outcome actually lives.
+ *
+ * So nothing is dismissed. The only thing the timer changes is the hint, so a tab found open the
+ * next morning stops asserting a sign-in that happened hours ago in the present tense.
  */
-function useCloseAttempt(): boolean {
-  const [attempted, setAttempted] = useState(false);
+function useIsStale(): boolean {
+  const [stale, setStale] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        window.close();
-      } catch {
-        // Expected. Browsers allow close() only on script-opened windows and this tab was
-        // reached by a redirect, so the line below is the real answer, not a fallback.
-      }
-      setAttempted(true);
-    }, CLOSE_ATTEMPT_DELAY_MS);
-
+    const timer = window.setTimeout(() => setStale(true), FRESH_FOR_MS);
     return () => window.clearTimeout(timer);
   }, []);
 
-  return attempted;
+  return stale;
 }
 
 /**
@@ -59,7 +60,7 @@ function useCloseAttempt(): boolean {
  * nothing about the outcome is carried by colour.
  */
 export function CallbackPage({ status }: CallbackPageProps) {
-  const closeAttempted = useCloseAttempt();
+  const stale = useIsStale();
   const { heading, detail } = CALLBACK_COPY[status];
 
   return (
@@ -70,9 +71,7 @@ export function CallbackPage({ status }: CallbackPageProps) {
         <AuthErrorPanel message={detail} />
       )}
 
-      <InlineStatus className={META_CLASS}>
-        {closeAttempted ? CLOSE_REFUSED_HINT : CLOSE_PENDING_HINT}
-      </InlineStatus>
+      <InlineStatus className={META_CLASS}>{stale ? STALE_HINT : CLOSE_HINT}</InlineStatus>
     </AuthPanelShell>
   );
 }

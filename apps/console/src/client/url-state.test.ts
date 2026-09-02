@@ -13,6 +13,7 @@ import {
   RESOLVER_TARGETS,
   URL_PARAM_CONTRACT,
   adminParsers,
+  adminBudgetSchedulesParsers,
   adminRefillPoliciesParsers,
   apiKeysParsers,
   createProjectParsers,
@@ -132,6 +133,11 @@ describe('the URL param contract', () => {
       // (`policy-set`) — there is no procedure that lists which policy sets exist, so "which one
       // am I looking at" has to be a URL param, not a component-local search box.
       adminRefillPolicies: ['edit', 'policy-set', 'simulate'],
+      // Story C8 (converse-frontends#451): the same URL-mode shape one route over — list at the
+      // bare path, `create` as its own route segment, and three id-as-open-flag params. `edit`
+      // means the same thing here as on `/admin/refill-policies` (open the form on this id), which
+      // is why the shared-meaning check below is content with both routes owning the key.
+      adminBudgetSchedules: ['delete', 'edit', 'preview'],
       // IA v3 phase 4: the four `/settings/overview/*` analytics lenses (`usage`/`account`/
       // `project`/`user`) share this one range/selection vocabulary — no `bucket` (removed
       // 2026-08-31, owner round finding #5: every lens' spend chart is a fixed day bucket, so the
@@ -266,6 +272,15 @@ describe('the URL param contract', () => {
         'budget-refill',
         'budget-refill'
       )
+    ).toBe(true);
+    expect(
+      isParserBijective(adminBudgetSchedulesParsers.editScheduleId, 'sched_1', 'sched_1')
+    ).toBe(true);
+    expect(
+      isParserBijective(adminBudgetSchedulesParsers.previewScheduleId, 'sched_1', 'sched_1')
+    ).toBe(true);
+    expect(
+      isParserBijective(adminBudgetSchedulesParsers.deleteScheduleId, 'sched_1', 'sched_1')
     ).toBe(true);
     // Overview's own Export dialog (phase 4) — same parsers as `/manage`'s, checked once here and
     // by instance-identity in the "shared meaning" test above.

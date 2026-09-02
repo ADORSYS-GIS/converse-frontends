@@ -4,9 +4,31 @@ import { BudgetHero } from '../../components/budget-hero';
 import { Button } from '../../components/button';
 import { Meter } from '../../components/meter';
 import { formatUsdOf } from '../../lib/money';
-import { LABEL_CLASS } from '../../lib/type-roles';
+import { NO_RESET_SCHEDULED_LINE } from '../../lib/reset-schedule';
+import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
-import type { BudgetPanelProps } from './types';
+import type { BudgetNextReset, BudgetPanelProps } from './types';
+
+/**
+ * The next-reset line under the hero (converse-frontends#451, story C8).
+ *
+ * A `meta` line, not a block with its own divider: it qualifies the numeral above it ("$4.20 of
+ * $12.00" — and it goes back to $12.00 on Monday), so putting a rule between them would make it
+ * read as a separate fact about something else.
+ *
+ * `'none'` renders a real line rather than nothing. Blank space beside a balance reads as "it will
+ * be topped up somehow", which is precisely the belief a schedules feature exists to replace.
+ */
+function NextResetLine({ nextReset }: { nextReset: BudgetNextReset }) {
+  if (nextReset.status === 'loading') return null;
+  const text =
+    nextReset.status === 'scheduled'
+      ? nextReset.label
+      : nextReset.status === 'none'
+        ? NO_RESET_SCHEDULED_LINE
+        : nextReset.caption;
+  return <p className={META_CLASS}>{text}</p>;
+}
 
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 3) — the BUDGET
 // zone: the account hero meter, then two optional blocks separated by `border` rules — NEEDS
@@ -21,6 +43,7 @@ export function BudgetPanel({
   label = 'Budget — consumption vs ceiling',
   budget,
   heroAction,
+  nextReset,
   needsAttentionProject,
   onRequestRefill,
   refillRequestStatus,
@@ -47,6 +70,8 @@ export function BudgetPanel({
             action={heroAction}
           />
         )}
+
+        {nextReset ? <NextResetLine nextReset={nextReset} /> : null}
 
         {needsAttentionProject ? (
           <>

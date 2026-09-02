@@ -139,10 +139,23 @@ describe('ADR 0011 discipline', () => {
     //    the same document. What stays local is what a shared link must NOT carry: a stranger's
     //    failure message, and a "Generating…" that a reload would resurrect without a request
     //    behind it.
+    //  - Story C8 (converse-frontends#451), two more of the same shape on
+    //    `/admin/budget-schedules`: `use-admin-budget-schedules-screen.ts` holds the DRY-RUN
+    //    RESULT and the three inline mutation-failure messages (`?preview=<id>`/`?delete=<id>` ARE
+    //    in the URL; the plan itself deliberately is not, and is not in the query cache either —
+    //    it answers "what would happen if I pressed this, right now", and a cached one served
+    //    after the schedule was edited would be a stale plan wearing a fresh label), and
+    //    `use-budget-schedule-form-screen.ts` holds the schedule draft and its submit outcome, the
+    //    identical shape `use-refill-policy-create-screen.ts` above already carries — with the one
+    //    difference that this draft is PREFILLED on `?edit=<id>` (there is a real read path here,
+    //    unlike the refill-policy route), which the draft carries as an id TAG so the prefill stays
+    //    a pure derivation rather than a `setState` inside an effect.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
+      join('containers', 'use-admin-budget-schedules-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
+      join('containers', 'use-budget-schedule-form-screen.ts'),
       join('containers', 'use-create-account-dialog.ts'),
       join('containers', 'use-create-project-dialog.ts'),
       join('containers', 'use-project-rename.ts'),

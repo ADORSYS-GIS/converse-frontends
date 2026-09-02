@@ -173,7 +173,12 @@ export function OverviewCentre() {
       </Card>
 
       <Card>
-        <BudgetPanel className="w-full" label="Budget" budget={screen.budget} />
+        <BudgetPanel
+          className="w-full"
+          label="Budget"
+          budget={screen.budget}
+          nextReset={screen.nextReset}
+        />
       </Card>
     </div>
   );

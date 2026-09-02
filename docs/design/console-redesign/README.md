@@ -242,6 +242,10 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 | API keys                            | Workspace                                                                            | `/accounts/<id>/api-keys`                                                   |
 | Settings                            | Account                                                                              | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
 | Refill requests                     | Operator (admin only)                                                                | `/settings/refills-queue`                                                   |
+| — Admin: Overview                   | Admin area (admin only)                                                              | `/admin/overview`                                                           |
+| — Admin: Refills queue              | Admin area (admin only)                                                              | `/admin/refills-queue`                                                      |
+| — Admin: Refill policies            | Admin area (admin only)                                                              | `/admin/refill-policies` (+ `/create`, `?edit=`, `?simulate=`)              |
+| — Admin: Budget schedules           | Admin area (admin only)                                                              | `/admin/budget-schedules` (+ `/create`, `?edit=`, `?preview=`, `?delete=`)  |
 | — Settings: Overview                | Settings area                                                                        | `/settings/overview` → lens picker (§5.5)                                   |
 | — Settings: Accounts                | Settings area                                                                        | `/settings/accounts` → `/settings/accounts/<id>`                            |
 | — Settings: Roles                   | Settings area                                                                        | _(disabled, no route)_                                                      |
@@ -501,6 +505,141 @@ entirely: no sidebar, no nav group, `#000`/floor full-bleed.
   _why_ before deciding what to do), and the single primary button **relabels itself** to `Try
 again` and calls `onRetry` (falling back to `onSignIn`) once `status === 'error'`. `ErrorLine`
   no longer owns retry on this screen.
+
+### 5.7 Budget schedules — `/admin/budget-schedules` (`admin-budget-schedules.stories.tsx`)
+
+The standing rules that write budget grants on a cadence — converse-frontends#451 (story C8) over
+lightbridge-authz ADR-0032. Admin-only, server-gated the same way every `/admin/*` route is
+(`readSession()` → `isAdmin` → `notFound()`), mode-split by nuqs params exactly the way
+`/admin/refill-policies` is: the bare path lists, `?edit=<id>` opens the form, `?preview=<id>` opens
+the dry-run sheet, `?delete=<id>` opens the typed confirmation, and **`create` is its own route
+segment**, `/admin/budget-schedules/create`.
+
+**The honesty caption is the page subtitle, not a footnote.** Verbatim: _"Schedules change the
+ledger balance and the minted budget tier; gateway rate limits still follow the plan buckets until
+lightbridge-authz Phase 6a lands."_ The ledger is not wired to per-request enforcement at all —
+live 429s come from Envoy `BackendTrafficPolicy` buckets keyed on Authorino-stamped headers
+(`lightbridge-authz/docs/governance-model-and-enforcement.md:540-551`) — so an operator reading
+"reset" as "lifts my rate limit" is wrong, and nothing else on the screen would tell them. It
+renders on the `loading.tsx` boundary too, so a reader has it before the first row appears.
+
+**List** — one `Card`, one `LedgerTable`, no sort and no pager: this is operator-authored
+configuration measured in tens of rows and the RPC is unpaginated on purpose. Columns:
+
+- **Name**, **Applies to** (a sentence — `All accounts` / `Plan free` / `Account northwind-ai`,
+  resolved through `listBillingPlans` and `resolveActorLabels`, falling back to the raw id rather
+  than a blank cell, which would read as "global"),
+- **What it does** — the whole schedule as ONE sentence (`Reset remaining to $2.00 every day at
+00:00 UTC` / `Add $15.00 every Monday at 06:00 UTC` / `… on day 1 of each month at 00:00 UTC`).
+  Six enum columns is a table nobody can read; the two modes deliberately share no opening word.
+- **Next run** (relative — `in 6 h`, `overdue`, or **`paused`** for a disabled schedule, whose
+  stored `nextRunAt` the scheduler will never reach), **Last run** (relative, em dash when it has
+  never fired), and an **Enabled** `Toggle` that writes optimistically and rolls back with an
+  inline `ErrorLine` on failure.
+- Row actions: `Edit` · `Preview run` · `Del`. Empty state is an inline status line over a
+  still-rendered header, never a centred placard.
+
+**Form** (`BudgetScheduleForm`, shared by the create route and `?edit=`) — every field carries its
+muted `example` line in the C2 style. Two controls are **absent, not disabled**, when they have no
+meaning: the anchor for a `daily` cadence, and the scope id for a `global` scope. The anchor is a
+weekday picker for `weekly` and a day-of-month picker **capped at 28** for `monthly` (the backend
+constraint — a later day would silently skip February). Amounts are typed in USD and converted once,
+in integer minor units, by `lib/micro-usd.ts` — never `Number(x) * 1e6`. **Both** mode explanations
+render at once, because the owner's binding Q3 ruling (a `reset` clamps DOWN as well as up, the
+excess booked as a refund-type correction) is the most surprising thing this feature does and an
+operator must meet it before choosing, not after a balance falls. The create route shows the
+"saved disabled" notice where the edit route shows the `enabled` toggle — `createBudgetResetSchedule`
+has no `enabled` field at all.
+
+**Preview** — a `BottomSheet` (D5: row detail is a bottom sheet at every tier) holding
+`BudgetSchedulePreview`: the first 25 entries with account label, remaining and a **signed** delta,
+plus counts for deferred (spend unreadable — nothing written, window stays due) and superseded
+(a more specific schedule covers them). It leads with _"Dry run — nothing was written: no grant, no
+next-run advance, no last-run stamp."_ `Run now, for real` sits in the sheet footer and is
+**disabled until a dry run has actually come back** — the second confirmation.
+
+**Next reset, everywhere a budget is shown.** `getEffectiveResetSchedule` (gated at `budget:read`,
+deliberately lower than `budget:schedule-manage`) resolves the winning schedule for one account —
+account > billing_plan > global, decided by the BACKEND and never recomputed in the client. The
+account Budget card (§5.1) renders `Next reset in 3 days → $2.00 (reset)` under the hero, and
+`No reset scheduled` when nothing covers it: an explicit line, because blank space beside a balance
+reads as "it will be topped up somehow". `/admin/overview`'s budget-pressure rows carry the same
+line per row, from one capped `useQueries` fan-out sharing the Budget card's query key.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Admin
+    participant L as AdminBudgetSchedulesCentre
+    participant H as useAdminBudgetSchedulesScreen
+    participant RPC as authz-budget (budget:schedule-manage)
+    participant S as BudgetSchedulePreview
+    participant LED as budget_grants (append-only)
+
+    A->>L: /admin/budget-schedules/create - author the rule
+    L->>RPC: createBudgetResetSchedule (no `enabled` field on the input)
+    RPC-->>L: BudgetResetSchedule { enabled: false, nextRunAt }
+    Note over L: created DISABLED - a global rule cannot fire on its first window
+
+    A->>L: row action "Preview run"
+    L->>H: onPreview(id) - ?preview=id, then the dry run
+    H->>RPC: runBudgetResetScheduleNow { id, dryRun: true }
+    RPC-->>H: { entries[], deferredAccountIds[], supersededAccountIds[], windowStart }
+    Note over RPC,LED: dryRun writes NOTHING - no grant, no nextRunAt advance, no lastRunAt
+    H->>S: first 25 entries + labels from resolveActorLabels
+    S-->>A: "$0.42 -> +$1.58", "$12.40 -> -$10.40" (the clamp-down)
+
+    alt the plan is what the admin intended
+        A->>S: Run now, for real (enabled only now)
+        S->>RPC: runBudgetResetScheduleNow { id, dryRun: false }
+        RPC->>LED: one grant per entry (negative = source "correction")
+        RPC-->>H: same shape, dryRun: false
+        H->>H: invalidate ['budget'] - every cached balance is now stale
+    else the plan is wrong
+        A->>L: Edit / Del (TypedConfirmDialog - it removes the FUTURE, not the past)
+    end
+
+    A->>L: Enabled toggle
+    L->>H: optimistic cache write, previous list kept
+    H->>RPC: updateBudgetResetSchedule { id, enabled }
+    alt refused
+        RPC-->>H: error
+        H->>L: roll back to the kept list + inline ErrorLine
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: /admin/budget-schedules/create
+    Draft --> Draft: field edits (validateBudgetSchedule mirrors the backend)
+    Draft --> Disabled: createBudgetResetSchedule
+    note right of Disabled
+        The ONLY state a create can produce.
+        `enabled` is absent from the input,
+        not merely defaulted.
+    end note
+
+    Disabled --> Previewed: Preview run (dryRun: true - writes nothing)
+    Previewed --> Disabled: close the sheet
+    Previewed --> Disabled: Run now, for real (grants written, still disabled)
+    Disabled --> Enabled: toggle / updateBudgetResetSchedule { enabled: true }
+    Enabled --> Disabled: toggle off (scheduler skips it; no window queued)
+    Enabled --> Enabled: a scheduled tick fires - nextRunAt advances from the schedule, not from now
+    Enabled --> Deleted: TypedConfirmDialog
+    Disabled --> Deleted: TypedConfirmDialog
+    Deleted --> [*]
+
+    state "unreachable" as U
+    note left of U
+        Enabled-straight-from-create: there is no
+        input field for it.
+        RunNow-without-a-preview: the footer button
+        is disabled until a dryRun result exists.
+        A client-decided precedence winner: only
+        getEffectiveResetSchedule / the run result's
+        supersededAccountIds answer that.
+    end note
+```
 
 ---
 

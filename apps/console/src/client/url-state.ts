@@ -799,6 +799,54 @@ export function useAdminRefillPoliciesParams() {
  *  simulator rather than leaving the screen. */
 export const ADMIN_REFILL_POLICIES_MODE_OPTIONS = { history: 'push' as const };
 
+// ── /admin/budget-schedules ─────────────────────────────────────────────────────────────────
+
+/**
+ * `/admin/budget-schedules`' own params (converse-frontends#451, story C8) — the SAME URL-mode
+ * shape `/admin/refill-policies` already uses, deliberately: an id IS the open flag for its target
+ * (`apiKeysParsers.revokeKeyId`/`settingsParsers.renameProjectId`'s idiom), `create` is its own
+ * route segment rather than a param, and every one of these writes with `push`
+ * (`ADMIN_BUDGET_SCHEDULES_MODE_OPTIONS`).
+ *
+ *  - `editScheduleId` (`?edit=<id>`) — opens the schedule form on an existing row. Unlike the
+ *    refill-policy edit route, this one is a REAL prefill: `listBudgetResetSchedules` returns every
+ *    field, so the form opens on the stored schedule rather than a blank draft wearing an edit
+ *    label.
+ *  - `previewScheduleId` (`?preview=<id>`) — opens the dry-run sheet. In the URL and not component
+ *    state because a preview is exactly the thing an operator sends to a colleague before enabling
+ *    a rule that rewrites the estate's balances ("look at what this would do") — ADR 0011's own
+ *    test for shareable view state.
+ *  - `deleteScheduleId` (`?delete=<id>`) — opens the typed confirmation. Same reason the two
+ *    ledgers put `revokeKeyId`/`deleteKeyId` in the URL: Back must close the dialog.
+ *
+ * All three are `push` because each opens a surface Back should close rather than leave the screen.
+ * There is no `sort` param: the backend returns schedules oldest-first and this is operator-authored
+ * configuration measured in tens of rows (`authz.cstack`: "Unpaginated on purpose"), so the ledger
+ * renders no sortable header and there is no order for a param to carry.
+ */
+export const adminBudgetSchedulesParsers = {
+  editScheduleId: parseAsString.withDefault(''),
+  previewScheduleId: parseAsString.withDefault(''),
+  deleteScheduleId: parseAsString.withDefault(''),
+};
+
+const adminBudgetSchedulesUrlKeys = {
+  editScheduleId: 'edit',
+  previewScheduleId: 'preview',
+  deleteScheduleId: 'delete',
+};
+
+export function useAdminBudgetSchedulesParams() {
+  return useQueryStates(adminBudgetSchedulesParsers, {
+    urlKeys: adminBudgetSchedulesUrlKeys,
+    history: 'push',
+  });
+}
+
+/** Opening the form, the preview sheet or the delete confirmation is navigation-grade: Back closes
+ *  the surface rather than leaving the screen. */
+export const ADMIN_BUDGET_SCHEDULES_MODE_OPTIONS = { history: 'push' as const };
+
 // ── the contract, as data ────────────────────────────────────────────────────────────────────
 
 /**
@@ -825,5 +873,9 @@ export const URL_PARAM_CONTRACT = {
   adminRefillPolicies: {
     parsers: adminRefillPoliciesParsers,
     urlKeys: adminRefillPoliciesUrlKeys,
+  },
+  adminBudgetSchedules: {
+    parsers: adminBudgetSchedulesParsers,
+    urlKeys: adminBudgetSchedulesUrlKeys,
   },
 } as const;

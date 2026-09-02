@@ -147,6 +147,23 @@ export function RefillOptionsIcon(props: IconProps) {
   );
 }
 
+/**
+ * Admin area — Budget schedules (converse-frontends#451): a clock face, the recurrence glyph.
+ *
+ * Deliberately NOT `RefillOptionsIcon`'s gauge, and not a variant of it: a refill policy decides
+ * whether to grant when someone ASKS, a reset schedule grants on a CLOCK whether or not anyone
+ * asks. Two neighbouring nav rows wearing the same glyph family would say those are the same kind
+ * of thing, which is precisely the confusion this feature is easiest to fall into.
+ */
+export function ScheduleIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5V8l2.5 1.8" />
+    </IconBase>
+  );
+}
+
 /** Settings area — Info: a lowercase "i" in a circle. */
 export function InfoIcon(props: IconProps) {
   return (

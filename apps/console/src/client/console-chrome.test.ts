@@ -244,6 +244,11 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/refill-policies')).toBe('refill-policies');
   });
 
+  it('matches /admin/budget-schedules by its own prefix, create route included', () => {
+    expect(adminRouteFromPathname('/admin/budget-schedules')).toBe('budget-schedules');
+    expect(adminRouteFromPathname('/admin/budget-schedules/create')).toBe('budget-schedules');
+  });
+
   it('defaults to overview for the bare /admin segment (mid-redirect) or anything unrecognised', () => {
     expect(adminRouteFromPathname('/admin')).toBe('overview');
     expect(adminRouteFromPathname('/admin/overview')).toBe('overview');
@@ -251,17 +256,19 @@ describe('adminRouteFromPathname', () => {
 });
 
 describe('adminNavGroups', () => {
-  it('lists all three admin destinations, dashboard first', () => {
+  it('lists all four admin destinations, dashboard first', () => {
     const [group] = adminNavGroups('overview');
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
       'refills-queue',
       'refill-policies',
+      'budget-schedules',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
     expect(group.items[1]?.href).toBe('/admin/refills-queue');
     expect(group.items[2]?.href).toBe('/admin/refill-policies');
+    expect(group.items[3]?.href).toBe('/admin/budget-schedules');
   });
 
   it('marks the active row off the given AdminRoute', () => {
@@ -295,5 +302,15 @@ describe('adminNavGroups', () => {
 
     expect(refillPolicies?.active).toBe(true);
     expect(refillPolicies?.count).toBeUndefined();
+  });
+
+  // converse-frontends#451 (story C8).
+  it('marks budget-schedules active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('budget-schedules', 4);
+    const schedules = group.items.find((item) => item.key === 'budget-schedules');
+
+    expect(schedules?.active).toBe(true);
+    expect(schedules?.count).toBeUndefined();
+    expect(group.items.find((item) => item.key === 'overview')?.active).toBe(false);
   });
 });

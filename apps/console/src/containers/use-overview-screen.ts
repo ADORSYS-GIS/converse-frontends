@@ -4,6 +4,7 @@ import type { ApiKey, Project } from '@lightbridge/authz-rpc';
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
 import { formatUsd } from '@lightbridge/ui-web';
 import type {
+  BudgetNextReset,
   BudgetSummary,
   DashboardStatus,
   ShareBarSegment,
@@ -29,6 +30,7 @@ import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
 import { accountScopeLabel } from './account-label';
 import { isHomeAccount } from './account-ownership';
+import { effectiveResetLabel, effectiveResetScheduleQueryKey } from './budget-schedule-rows';
 import {
   OVERVIEW_BUCKETS,
   OVERVIEW_GROUP_BYS,
@@ -253,6 +255,9 @@ export interface OverviewScreen {
   // `BudgetPanel` renders with `budget` alone on this screen; the one remaining refill entry
   // point is `/settings/accounts/<id>/request-refill`, which already had it.
   budget: BudgetSummary;
+  // ── story C8: the account's next budget reset, under the hero. Four states, none of which is
+  // "render nothing because there is no schedule" — see `BudgetNextReset`. ──────────────────
+  nextReset: BudgetNextReset;
   // ── phase 4: `Export` — `PageHeader.action`, defaults from this screen's own params ──────
   report: ReportExportDialogProps;
 }
@@ -566,6 +571,54 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
     staleTime: 30_000,
   });
 
+  /**
+   * "Next reset" on the Budget card (converse-frontends#451, story C8).
+   *
+   * Unlike `balanceQuery` this is NOT gated on `accountIsHome`: `getEffectiveResetSchedule` takes
+   * the account id as an explicit argument and is gated server-side at `budget:read`
+   * (`authz.cstack` — deliberately a lower bar than `budget:schedule-manage`, precisely so a budget
+   * card can render this), so it answers for whatever account the path is on rather than
+   * structurally answering for the caller's own the way `getMyBudgetBalance` does. Which schedule
+   * governs an account is also a fact about the ACCOUNT, not about whose balance we may read.
+   *
+   * `retry: false` and the shared `effectiveResetScheduleQueryKey`: a forbidden read must not
+   * retry-storm a page that works fine without this line, and `/admin/overview`'s own fan-out asks
+   * the identical question for the same accounts — one key, one answer, never two zones of the
+   * console stating different next resets for one account.
+   */
+  const resetScheduleQuery = useQuery({
+    queryKey: effectiveResetScheduleQueryKey(accountId ?? ''),
+    queryFn: () =>
+      budgetClient.procedures.getEffectiveResetSchedule({
+        args: { budgetAccountId: accountId as string },
+      }),
+    enabled: Boolean(accountId),
+    staleTime: 300_000,
+    retry: false,
+  });
+
+  const nextReset = useMemo<BudgetNextReset>(() => {
+    if (!accountId || resetScheduleQuery.isPending) return { status: 'loading' };
+    if (resetScheduleQuery.isError) {
+      // "We could not ask" is not "there is none" — the two must never render as the same line.
+      return {
+        status: 'unavailable',
+        caption: 'Next reset unknown — the reset schedule could not be read for this account.',
+      };
+    }
+    // The FETCH timestamp, not `Date.now()` — the house idiom (`use-refills-queue-screen.ts`,
+    // `use-api-keys-screen.ts`): reading the clock during render is impure, and "in 3 days" is
+    // relative to when the schedule was read.
+    const label = effectiveResetLabel(resetScheduleQuery.data, resetScheduleQuery.dataUpdatedAt);
+    return label ? { status: 'scheduled', label } : { status: 'none' };
+  }, [
+    accountId,
+    resetScheduleQuery.isPending,
+    resetScheduleQuery.isError,
+    resetScheduleQuery.data,
+    resetScheduleQuery.dataUpdatedAt,
+  ]);
+
   const budget: BudgetSummary = useMemo(() => {
     // Checked FIRST, before either query's own status: a non-home account never fires
     // `balanceQuery` at all (see its `enabled` guard above), so falling through to the ordinary
@@ -774,6 +827,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       : undefined,
     modelSpendRetry: () => void modelUsageQuery.refetch(),
     budget,
+    nextReset,
     report: {
       open: view.reportOpen,
       onOpenChange: (open) => {

@@ -309,10 +309,91 @@ export { usePanelHotkey } from './lib/use-panel-hotkey';
 export { BudgetPanel } from './sections/budget-panel';
 export type {
   BudgetNeedsAttentionProject,
+  BudgetNextReset,
   BudgetPanelProps,
   BudgetRefillRequestStatus,
   BudgetSummary,
 } from './sections/budget-panel';
+
+// ── budget reset schedules (converse-frontends#451, story C8; backend ADR-0032) ─────────────
+// The shared vocabulary first: `/admin/budget-schedules`' ledger, the form's own copy, the account
+// Budget card and `/admin/overview`'s budget-pressure rows all render the same six wire fields, and
+// a second wording of "Reset remaining to $2.00 every day at 00:00 UTC" anywhere would be a second
+// claim about what the scheduler does.
+export {
+  DAY_OF_MONTH_OPTIONS,
+  MAX_DAY_OF_MONTH,
+  MIN_DAY_OF_MONTH,
+  NO_RESET_SCHEDULED_LINE,
+  RESET_SCHEDULE_CADENCES,
+  RESET_SCHEDULE_ENFORCEMENT_CAPTION,
+  RESET_SCHEDULE_MODES,
+  RESET_SCHEDULE_SCOPE_KINDS,
+  isResetScheduleCadence,
+  isResetScheduleMode,
+  isResetScheduleScopeKind,
+  relativeWhen,
+  resetScheduleCadenceSentence,
+  resetScheduleModePhrase,
+  resetScheduleModeWord,
+  resetScheduleNextRunLabel,
+  resetScheduleScopeSentence,
+  WEEKDAY_OPTIONS,
+} from './lib/reset-schedule';
+export type {
+  ResetScheduleCadence,
+  ResetScheduleFacts,
+  ResetScheduleMode,
+  ResetScheduleNextRun,
+  ResetScheduleScope,
+  ResetScheduleScopeKind,
+} from './lib/reset-schedule';
+
+// Integer-minor-unit money, for the string-carried i64 `amountMicros` the schedule RPCs use. Not a
+// fork of `parse-amount.ts` — that one converts to the NUMBER-shaped amounts the rule-data JSON
+// carries; this one converts to the STRING-shaped ones. See `lib/micro-usd.ts`'s own header.
+export {
+  MICRO_USD_DECIMALS,
+  MICROS_PER_USD,
+  microsToUsdInput,
+  microsToUsdNumber,
+  usdToMicros,
+} from './lib/micro-usd';
+
+export { BudgetScheduleForm } from './sections/budget-schedule-form';
+export {
+  anchorFieldExample,
+  anchorRange,
+  BUDGET_SCHEDULE_FIELD_EXAMPLES,
+  budgetScheduleFieldExample,
+  budgetScheduleUnknownFields,
+  cadenceUsesAnchor,
+  createBlankBudgetSchedule,
+  CREATED_DISABLED_NOTICE,
+  DEFAULT_RUN_AT_UTC,
+  ENABLED_EXPLANATION,
+  fromStoredBudgetSchedule,
+  MODE_EXPLANATIONS,
+  scopeKindUsesScopeId,
+  toBudgetScheduleWire,
+  validateBudgetSchedule,
+} from './sections/budget-schedule-form';
+export type {
+  BillingPlanChoice,
+  BudgetScheduleFieldName,
+  BudgetScheduleFormErrors,
+  BudgetScheduleFormProps,
+  BudgetScheduleFormValue,
+  BudgetScheduleWire,
+  StoredBudgetSchedule,
+} from './sections/budget-schedule-form';
+
+export { BudgetSchedulePreview, PREVIEW_ENTRY_LIMIT } from './sections/budget-schedule-preview';
+export type {
+  BudgetSchedulePreviewEntry,
+  BudgetSchedulePreviewProps,
+  BudgetSchedulePreviewStatus,
+} from './sections/budget-schedule-preview';
 
 // Phase 4 — `/` now renders this section too (admin-only "Budget pressure" card), so it earns its
 // barrel lines: `use-overview-screen.ts`/`use-admin-screen.ts` callers no longer need the

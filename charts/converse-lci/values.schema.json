@@ -84,6 +84,42 @@
             }
           },
           "required": ["main"]
+        },
+        "configMaps": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "branding-logo": {
+              "description": "Runtime white-label logo. Optional — disabled (lci.configMaps.branding-logo.enabled: false) by default, in which case the app renders its own built-in mark. Holds the operator's logo file as base64 binaryData, mounted at /tmp/branding/logo.png (lci.persistence.branding-logo). Despite the literal key name, any extension apps/lci's branding.ts accepts (.png/.svg/.jpg/.jpeg/.webp) may be supplied — the key is the ConfigMap's, not a format constraint; LCI_BRANDING_LOGO_PATH's own extension decides the served Content-Type.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo.png": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "branding-logo-light": {
+              "description": "Per-theme logo addendum. Optional — disabled by default, matching branding-logo above. Only meaningful when branding-logo is ALSO enabled — a light-only brand renders no mark under black, this app's default theme. Holds the operator's light-theme logo file as base64 binaryData, mounted at /tmp/branding/logo-light.png (lci.persistence.branding-logo-light).",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo-light.png": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
         }
       },
       "required": ["controllers"]

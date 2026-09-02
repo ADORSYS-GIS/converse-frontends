@@ -179,6 +179,17 @@ export type {
 export { ReportExportDialog } from './components/report-export-dialog';
 export type { ReportExportDialogProps } from './components/report-export-dialog';
 
+// The refill requester union + its labelled sentinels — shared by the review queue's Requester
+// column and `ReviewDetailPanel`'s header block (converse-frontends#444).
+export {
+  REQUESTER_RESOLVING_LABEL,
+  REQUESTER_UNKNOWN_LABEL,
+  REQUESTER_UNRESOLVED_LABEL,
+  requesterDisplay,
+} from './lib/refill-requester';
+export type { RefillRequester, RequesterDisplay } from './lib/refill-requester';
+export { RequesterLines } from './lib/requester-lines';
+
 export { ReviewDetailPanel } from './components/review-detail-panel';
 export type { ReviewDetailPanelProps, ReviewDecision } from './components/review-detail-panel';
 

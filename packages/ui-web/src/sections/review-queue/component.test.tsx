@@ -15,15 +15,86 @@ function makeProps(overrides: Partial<ReviewQueueProps> = {}): ReviewQueueProps 
 }
 
 describe('ReviewQueue', () => {
-  it('renders Submitted, Project, Account and Refill — no Consumed/Ceiling/Requester', () => {
+  it('renders Submitted, Project, Account, Requester and Refill — no Consumed/Ceiling', () => {
     render(<ReviewQueue {...makeProps()} />);
 
-    for (const header of ['Submitted', 'Project', 'Account', 'Refill']) {
+    for (const header of ['Submitted', 'Project', 'Account', 'Requester', 'Refill']) {
       expect(screen.getByRole('columnheader', { name: new RegExp(header) })).toBeInTheDocument();
     }
-    for (const gone of ['Consumed', 'Ceiling', 'Requester']) {
+    // Both remain permanently `null` upstream — a column that can never hold a real value is not
+    // a column. Requester is NOT in this list any more (converse-frontends#444): it is backed by
+    // `AugmentationRequest.requestedByUserId` now, not by a copy of the Account cell.
+    for (const gone of ['Consumed', 'Ceiling']) {
       expect(screen.queryByRole('columnheader', { name: gone })).not.toBeInTheDocument();
     }
+  });
+
+  // converse-frontends#444 — the Requester column's four branches. Every one of them RENDERS:
+  // a labelled sentinel is never a reason to drop a row from a decision queue.
+  describe('Requester column', () => {
+    it('shows a resolved identity as name over email', () => {
+      render(<ReviewQueue {...makeProps()} />);
+
+      expect(screen.getByText('Maria Okonkwo')).toBeInTheDocument();
+      expect(screen.getByText('maria@brightline.dev')).toBeInTheDocument();
+    });
+
+    it('shows the dated sentinel for a pre-migration row, and still lists the row', () => {
+      render(<ReviewQueue {...makeProps()} />);
+
+      expect(screen.getByText('Unknown (pre-2026-09)')).toBeInTheDocument();
+      expect(screen.getByText('support-copilot')).toBeInTheDocument();
+    });
+
+    it('shows a distinct sentinel plus the raw id for an id the batch did not resolve', () => {
+      render(<ReviewQueue {...makeProps()} />);
+
+      expect(screen.getByText('Unresolved user')).toBeInTheDocument();
+      expect(screen.getByText('usr_k3m9x1qp0z7v')).toBeInTheDocument();
+    });
+
+    it('says "resolving" while the batch is in flight rather than claiming "unknown"', () => {
+      render(
+        <ReviewQueue
+          {...makeProps({
+            pending: [{ ...pendingRequestsFixture[0]!, requester: { kind: 'resolving' } }],
+          })}
+        />
+      );
+
+      expect(screen.getByText('Resolving…')).toBeInTheDocument();
+      expect(screen.queryByText('Unknown (pre-2026-09)')).not.toBeInTheDocument();
+    });
+
+    it('degrades to an InlineStatus above a fully rendered table, never a blocking error', () => {
+      render(
+        <ReviewQueue
+          {...makeProps({
+            pending: pendingRequestsFixture.map((row) => ({
+              ...row,
+              requester: { kind: 'unresolved' as const, userId: 'usr_k3m9x1qp0z7v' },
+            })),
+            requesterStatus: 'Requester names could not be resolved.',
+          })}
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Requester names could not be resolved.'
+      );
+      // The rows are still there and still decidable — the queue did not fail, a lookup did.
+      // `role="grid"`, not `table`: `LedgerTable` promotes itself whenever rows are selectable,
+      // which they are here (`onSelectRequest` is always wired on this queue).
+      expect(screen.getByRole('grid')).toBeInTheDocument();
+      expect(screen.getAllByText('Unresolved user')).toHaveLength(pendingRequestsFixture.length);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('renders no status line at all when resolution is fine', () => {
+      render(<ReviewQueue {...makeProps()} />);
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
   });
 
   it('renders the resolved account label, never a raw id, in the Account column', () => {
@@ -70,7 +141,11 @@ describe('ReviewQueue', () => {
 
   it('renders an ErrorLine with Retry on error', () => {
     const onRetry = vi.fn();
-    render(<ReviewQueue {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })} />);
+    render(
+      <ReviewQueue
+        {...makeProps({ pending: [], error: 'Could not load the refill queue.', onRetry })}
+      />
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the refill queue.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

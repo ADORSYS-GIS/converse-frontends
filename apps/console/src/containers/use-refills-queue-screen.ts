@@ -1,16 +1,31 @@
 'use client';
 
-import type { AugmentationRequest, AugmentationRequestPage } from '@lightbridge/authz-rpc';
-import type { LedgerSort, RefillRequestRow, ReviewDetailPanelProps } from '@lightbridge/ui-web';
+import type {
+  AugmentationRequest,
+  AugmentationRequestPage,
+  UserProfile,
+} from '@lightbridge/authz-rpc';
+import type {
+  LedgerSort,
+  RefillRequester,
+  RefillRequestRow,
+  ReviewDetailPanelProps,
+} from '@lightbridge/ui-web';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { useConsoleBudgetClient } from '../client/rpc-clients';
+import { useConsoleAuthzClient, useConsoleBudgetClient } from '../client/rpc-clients';
 import { useAdminParams } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { useConsoleScope } from '../client/use-console-scope';
 import { accountScopeLabel } from './account-label';
-import { isPending, microsToAmount, toRefillRequestRow } from './refill-rows';
+import {
+  isPending,
+  microsToAmount,
+  requesterIdsOf,
+  toRefillRequestRow,
+  toRequester,
+} from './refill-rows';
 
 /**
  * `/admin/refills-queue` — the budget refill review queue's data adapter, shared by its centre
@@ -50,6 +65,23 @@ const PAGE_SIZE = 25;
 const QUERY_KEY = ['budget', 'pendingAugmentationRequests', PAGE_SIZE];
 
 /**
+ * The requester-profile batch's own key prefix. The variable part is the SORTED, de-duplicated id
+ * list (`requesterIdsOf`), which is what makes this ONE query per page rather than one per row:
+ * two renders of the same page produce the same key, and react-query serves the second from cache
+ * instead of refetching. Sorting matters — `['b','a']` and `['a','b']` are the same request but
+ * two different cache entries otherwise.
+ */
+const REQUESTER_QUERY_KEY = ['authz', 'resolveUserProfiles'];
+
+/**
+ * Requester resolution failed but the queue itself did not (converse-frontends#444). Rendered as
+ * an `InlineStatus` above the table — the rows are real and decidable, only their names are
+ * missing, and a failed secondary lookup must never blank a page of pending decisions.
+ */
+const REQUESTER_DEGRADED_MESSAGE =
+  'Requester names could not be resolved — showing the raw user id instead.';
+
+/**
  * Module-level so both zones agree on the identity: the decision is submitted from whichever zone
  * is showing the review panel — the rail at `lg`, the centre's selection sheet below it — while
  * its failure has to surface in the CENTRE's queue error line. Two zones mean two `useMutation`
@@ -68,7 +100,16 @@ export interface RefillsQueueScreen {
   sort: LedgerSort;
   setSort: (sort: LedgerSort) => void;
 
-  pagination: { shown: number; hasPrev: boolean; hasNext: boolean; onPrev: () => void; onNext: () => void };
+  pagination: {
+    shown: number;
+    hasPrev: boolean;
+    hasNext: boolean;
+    onPrev: () => void;
+    onNext: () => void;
+  };
+
+  /** Set only when the requester batch failed — the queue renders it above the table. */
+  requesterStatus: string | undefined;
 
   selectedRequestId: string | null;
   selectRequest: (row: RefillRequestRow) => void;
@@ -87,6 +128,10 @@ export interface RefillsQueueScreen {
  */
 export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
   const budgetClient = useConsoleBudgetClient();
+  // `resolveUserProfiles` lives on `authz-api` (`crates/lightbridge-authz-rest/src/
+  // identity_directory.rs`), not on `authz-budget` — a different service behind a different proxy
+  // route, hence a second client here rather than another call on `budgetClient`.
+  const authzClient = useConsoleAuthzClient();
   const queryClient = useQueryClient();
   const scope = useConsoleScope();
   const [view, setView] = useAdminParams();
@@ -139,6 +184,53 @@ export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
     );
   }, [pendingRequests, sort.direction]);
 
+  /**
+   * ONE batch per page (converse-frontends#444's acceptance criterion): every `requestedByUserId`
+   * on the page, de-duplicated and sorted, resolved by a single `resolveUserProfiles` call rather
+   * than one call per row. The ids come from the WHOLE fetched page (`requests`), not just the
+   * pending subset the table paints, because `selected` — the request the detail panel renders —
+   * is looked up in `requests` too.
+   *
+   * The 200-id cap `ResolveUserProfilesInput` documents cannot be reached from here: `PAGE_SIZE`
+   * is 25, so the list is at most 25 ids long.
+   */
+  const requesterIds = useMemo(() => requesterIdsOf(requests), [requests]);
+
+  const requesterQuery = useQuery({
+    queryKey: [...REQUESTER_QUERY_KEY, requesterIds],
+    queryFn: async (): Promise<UserProfile[]> => {
+      const page = await authzClient.procedures.resolveUserProfiles({
+        args: { userIds: requesterIds },
+      });
+      return page.profiles;
+    },
+    // Nothing to ask for: a page whose every row predates the migration has no id to resolve, and
+    // firing an empty batch would be a request that cannot answer anything.
+    enabled: enabled && requesterIds.length > 0,
+  });
+
+  /**
+   * The batch's answer, as a lookup.
+   *
+   * `undefined` while it is in flight — which `toRequester` renders as its own `resolving`
+   * sentinel rather than as "unresolved". An id we have not asked about yet and an id the backend
+   * had nothing for are different claims, and only one of them is the reviewer's problem.
+   *
+   * A FAILED batch is not an absent one either: it becomes an EMPTY map, which resolves every id
+   * to the `unresolved` sentinel (the raw id, de-emphasised) and pairs with `requesterStatus`
+   * above the table, instead of leaving the column spinning on `resolving` forever.
+   */
+  const profilesById = useMemo(() => {
+    if (requesterQuery.isError) return new Map<string, UserProfile>();
+    if (!requesterQuery.data) return undefined;
+    return new Map(requesterQuery.data.map((profile) => [profile.userId, profile]));
+  }, [requesterQuery.data, requesterQuery.isError]);
+
+  const requesterFor = useMemo(() => {
+    return (request: AugmentationRequest): RefillRequester =>
+      toRequester(request.requestedByUserId, profilesById);
+  }, [profilesById]);
+
   const allProjects = scope.allProjects;
   const allAccounts = scope.allAccounts;
 
@@ -156,9 +248,9 @@ export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
     () =>
       sortedRequests.map((request) => {
         const { project, account } = labelFor(request);
-        return toRefillRequestRow(request, now, project, account);
+        return toRefillRequestRow(request, now, project, account, requesterFor(request));
       }),
-    [sortedRequests, now, labelFor]
+    [sortedRequests, now, labelFor, requesterFor]
   );
 
   const decide = useSharedMutation<
@@ -219,6 +311,7 @@ export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
         void setView({ after: nextCursor });
       },
     },
+    requesterStatus: requesterQuery.isError ? REQUESTER_DEGRADED_MESSAGE : undefined,
     selectedRequestId: view.selectedRequestId || null,
     selectRequest: (row) => {
       setNote('');
@@ -233,6 +326,7 @@ export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
     reviewDetail:
       selected && selectedLabels
         ? {
+            requester: requesterFor(selected),
             projectLabel: selectedLabels.project,
             accountLabel: selectedLabels.account,
             submittedAt: selected.createdAt,

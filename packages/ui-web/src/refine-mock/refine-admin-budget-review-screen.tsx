@@ -100,7 +100,8 @@ export function RefineAdminBudgetReviewScreen() {
         </Card>
       </div>
 
-      <BottomSheet portalClassName="lg:hidden"
+      <BottomSheet
+        portalClassName="lg:hidden"
         open={selectedId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
@@ -109,6 +110,7 @@ export function RefineAdminBudgetReviewScreen() {
         {selected ? (
           <ReviewDetailPanel
             key={selectedId}
+            requester={selected.requester}
             projectLabel={selected.project}
             accountLabel={selected.account}
             submittedAt={selected.submittedAgo}

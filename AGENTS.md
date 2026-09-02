@@ -62,17 +62,36 @@ This document is the definitive source of truth for the working method, architec
      `console-ui` skill's CSP-safe-sections note and `apps/authz-ui/README.md`'s "CSP posture" for
      the full list. The console's pre-hydration theme script therefore has no counterpart here;
      see that app's README for what replaces it.
-3. **UI layer (`packages/ui-web`)**:
+3. **Loopback callback page (`apps/governance-auth/src`)** — the terminal-facing page a browser
+   lands on after `lightbridge-governance`'s OAuth2 **loopback** redirect (tells the user whether
+   their terminal got a session, then "gets out of the way"):
+   - A **Vite + React 19 static page**, no router, no server code, no i18n. It is **not** a
+     sibling of the `authz-ui`/`authz-idp` serving model: the build output is exactly **one
+     self-contained `index.html`** (`vite-plugin-singlefile`, `base: './'`, `assetsInlineLimit`
+     maxed) that the Rust side `include_str!`s at **compile time** and writes to a loopback socket
+     bound to `127.0.0.1` — no origin, no CDN, and the machine may be offline.
+   - **There is no CSP at all**, because nothing serves it — the middle case on the CSP spectrum
+     between the console (inlines its theme script) and `authz-ui` (CSP forbids inline).
+   - **It ships as an OCI artifact, not a container image**: `governance-auth-callback-oci.yml`
+     publishes `dist/index.html` (via `oras`) to `ghcr.io/adorsys-gis/governance-auth-callback`,
+     pinned by full `sha-<40-char>` (the `latest` tag is called out as a footgun — it moves on
+     every `main` merge). `lightbridge-governance`'s `scripts/vendor-callback-page.sh <sha>`
+     consumes it; a single string replacement on `data-callback-status="…"` drives the
+     success/error rendering.
+   - It composes **only existing `packages/ui-web` sections** (`AuthPanelShell`, `AuthErrorPanel`,
+     `InlineStatus`) — no new primitive, no fork, no extension — and shares the same `theme.css`
+     token pipeline and two-theme model.
+4. **UI layer (`packages/ui-web`)**:
    - DOM component primitives (daisyUI + Base UI + cmdk + Floating UI, per ADR 0010) and screen
      sections (`src/sections/`). Also the shared theme-resolution module (`src/lib/theme.ts`),
      promoted here when a second app needed the same `black`-default/`wireframe` contract. See the
      `console-ui` skill for the full contract.
-4. **RPC layer**:
+5. **RPC layer**:
    - **`packages/authz-rpc`**: cratestack-generated RPC client. **DO NOT HAND-EDIT** `generated/`.
    - **`packages/api-rest`**: Generated REST client for the usage backend (Hey API/OpenAPI). **DO NOT HAND-EDIT.**
-5. **Chart math (`packages/chart-core`)**:
+6. **Chart math (`packages/chart-core`)**:
    - DOM-free d3 scales/bins/colour-ramp math, consumed by `packages/ui-web`'s SVG chart components.
-6. **i18n layer (`packages/i18n`)**:
+7. **i18n layer (`packages/i18n`)**:
    - Centralized translations and configuration via `react-i18next`. Note: `apps/console` imports
      it nowhere today, so §1's "No Plain Visible Text" rule currently describes an intent rather
      than the state of the web surface.

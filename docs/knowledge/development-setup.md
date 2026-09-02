@@ -43,20 +43,24 @@ generate successfully before anything will build.
 
 ## Running things
 
-| What                 | Command                                | URL                       |
-| -------------------- | -------------------------------------- | ------------------------- |
-| Console (Next.js)    | `pnpm --filter console dev`            | http://localhost:3000     |
-| Console over HTTPS   | `pnpm --filter console dev:https`      | https://localhost:3000    |
-| authz-ui (Vite SPA)  | `pnpm --filter authz-ui dev`           | http://localhost:5173/ui/ |
-| Storybook (`ui-web`) | `pnpm --dir packages/ui-web storybook` | http://localhost:6007     |
-
-The same three servers are declared in `.claude/launch.json`.
+| What                        | Command                                | URL                       |
+| --------------------------- | -------------------------------------- | ------------------------- |
+| Console (Next.js)           | `pnpm --filter console dev`            | http://localhost:3000     |
+| Console over HTTPS          | `pnpm --filter console dev:https`      | https://localhost:3000    |
+| authz-ui (Vite SPA)         | `pnpm --filter authz-ui dev`           | http://localhost:5173/ui/ |
+| governance-auth (Vite page) | `pnpm --filter governance-auth dev`    | http://localhost:5174     |
+| Storybook (`ui-web`)        | `pnpm --dir packages/ui-web storybook` | http://localhost:6007     |
 
 **authz-ui's dev server serves at `/ui/`** because the app is built with Vite `base: '/ui/'` to match
 where `authz-idp` mounts it; Vite redirects `/` there for you. Note that `vite dev` has **no route
 allowlist** — in production `authz-idp` serves only the routes published in `dist/routes.json`, so a
 route that works in dev can still 404 in production if it was not added to
 `src/routes/route-table.ts`. See `apps/authz-ui/README.md`.
+
+**governance-auth's dev server runs on port 5174** (with `--strictPort`) so it does not collide with
+authz-ui's `vite dev` on 5173. It is the one app where `vite dev` is only for visual iteration: the
+artifact that matters is the single self-contained `dist/index.html` that
+`lightbridge-governance` embeds. See `apps/governance-auth/README.md`.
 
 ### Local backing services
 
@@ -93,7 +97,9 @@ Start from `apps/console/.env.example`. Full key-by-key reference: `console-conf
 (ADR 0009 D3).
 
 `apps/authz-ui` needs no configuration at all: it is a static bundle with no server and no runtime
-config.
+config. `apps/governance-auth` likewise: a static page, no server, no runtime config (its only
+"input" is the single `data-callback-status` attribute `lightbridge-governance` swaps in after
+embedding it).
 
 ---
 
@@ -101,7 +107,7 @@ config.
 
 ```bash
 pnpm test          # every workspace's vitest suite
-pnpm build         # turbo run build:web — both apps
+pnpm build         # turbo run build:web — all three apps
 pnpm lint          # eslint + prettier --check, repo-wide
 pnpm format        # eslint --fix + prettier --write
 ```
@@ -123,14 +129,18 @@ formalities — read the error before working around one.
 ## Building for production
 
 ```bash
-pnpm --filter console build:web    # .next/standalone — the console's Node server bundle
-pnpm --filter authz-ui build:web   # dist/ — static assets + routes.json
+pnpm --filter console build:web        # .next/standalone — the console's Node server bundle
+pnpm --filter authz-ui build:web       # dist/ — static assets + routes.json
+pnpm --filter governance-auth build:web  # dist/index.html — one self-contained HTTP callback page
 ```
 
 Container images are built in CI, not from a root Dockerfile: `apps/console/Dockerfile` produces the
 console's runtime image (glibc base — the CBOR native package publishes no musl build), and
 `apps/authz-ui/Containerfile` produces an assets-only `FROM scratch` image that `lightbridge-authz`
-pins by digest. Details and the deployment matrix: `ci-cd.md`, `infrastructure.md`.
+pins by digest. `apps/governance-auth` ships **no image at all** — `governance-auth-callback-oci.yml`
+publishes its single `dist/index.html` as an OCI artifact via `oras`, which
+`lightbridge-governance`'s `scripts/vendor-callback-page.sh` consumes. Details and the deployment
+matrix: `ci-cd.md`, `infrastructure.md`.
 
 ---
 

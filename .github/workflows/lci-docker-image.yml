@@ -1,13 +1,11 @@
 name: lci-docker-image
 
-# Builds and publishes the apps/lci (Next.js) container image. Mirrors
-# .github/workflows/docker-image.yml's pattern for apps/console (ticket #287) — a separate
-# workflow, not a shared/matrixed one, so this pipeline can never touch console's or
-# self-service's own images or GHCR packages.
+# Builds and publishes the apps/lci (Next.js) container image. A separate workflow, not a
+# shared/matrixed one, so this pipeline can never touch another app's images or GHCR packages.
 #
-# apps/lci needs a live Node process for the same reason console does: server route handlers
-# under src/app/api/** (the OIDC login/callback/logout flow, the graph API proxy) and server
-# components that read the session cookie and call the control plane.
+# apps/lci needs a live Node process: server route handlers under src/app/api/** (the OIDC
+# login/callback/logout flow, the graph API proxy) and server components that read the session
+# cookie and call the control plane.
 on:
   push:
     branches: [main]
@@ -16,9 +14,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # A package distinct from console's and from self-service's own `converse-frontends` package —
-  # argocd-image-updater watches this exact name and commits the newest signed `sha-<gitsha>` tag
-  # into environments/prod/values/lci-ui.yaml in the private ai-helm-values repo.
+  # Its own GHCR package — argocd-image-updater watches this exact name and commits the newest
+  # `sha-<gitsha>` tag into environments/prod/values/lci-ui.yaml in the private ai-helm-values
+  # repo.
   IMAGE_NAME: ${{ github.repository }}/lci
 
 jobs:
@@ -49,8 +47,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # `--filter=lci` deliberately, matching console's own workflow: this keeps building exactly
-      # one package regardless of how many workspaces gain a `build:web` task later.
+      # `--filter=lci` deliberately: this keeps building exactly one package regardless of how
+      # many workspaces gain a `build:web` task later.
       - name: Build lci (Turbo)
         run: pnpm turbo run build:web --filter=lci
 

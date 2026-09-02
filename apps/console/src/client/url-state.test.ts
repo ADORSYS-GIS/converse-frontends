@@ -121,6 +121,18 @@ describe('the URL param contract', () => {
       // them and would have anyway: it named a board that never existed, since no procedure lists
       // decided refill requests (lightbridge-authz#556).
       adminOverview: ['from', 'range', 'to'],
+      // `/admin/usage`'s window plus its own lens (story C5). Pinned here from story C6 onward,
+      // which is when the area grew three sibling routes that have to agree with it about what
+      // `range`/`from`/`to` mean.
+      adminUsage: ['from', 'lens', 'range', 'to'],
+      // `/admin/usage/actors/[actorId]` (story C6) — the window plus the REQUIRED `?type=` naming
+      // which of the three entities the path id is. It is the same three-valued vocabulary
+      // `/admin/usage`'s lens writes into every actor row's href.
+      adminUsageActor: ['from', 'range', 'to', 'type'],
+      // `/admin/usage/channels/[channelId]` and `/admin/usage/chats` share one declaration: the
+      // channel is a path segment and the chat filter is the YAML's, so neither owns a knob beyond
+      // the window.
+      adminUsageWindow: ['from', 'range', 'to'],
       // Owner review round 2 (2026-08-31, converse-frontends#368 finding #4): list at the bare
       // path, TWO mode params now (`edit`/`simulate` — `create` moved off this table to its own
       // route, `/admin/refill-policies/create`), plus the list mode's own lookup target

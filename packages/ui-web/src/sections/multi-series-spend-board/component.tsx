@@ -51,6 +51,7 @@ export function MultiSeriesSpendBoard({
   formatYTick,
   emptyMessage,
   truncationCaption,
+  summable,
   className,
 }: MultiSeriesSpendBoardProps) {
   const { ref, size } = useResizeObserver<HTMLDivElement>();
@@ -92,6 +93,7 @@ export function MultiSeriesSpendBoard({
             onSelectSeries={onSelectSeries}
             emptyMessage={emptyMessage}
             truncationCaption={truncationCaption}
+            summable={summable}
           />
         )}
       </div>

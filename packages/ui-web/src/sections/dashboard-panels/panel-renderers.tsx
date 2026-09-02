@@ -67,11 +67,14 @@ function SeriesBody({
   size,
   formatYTick,
   formatValue,
+  summable,
 }: {
   view: Extract<DashboardPanelView, { kind: 'series' | 'latency-series' }>;
   size: PanelRendererProps['size'];
   formatYTick?: (value: number) => string;
   formatValue?: (value: number) => string;
+  /** `false` on the latency board — see `MultiSeriesSpendChartProps.summable`. */
+  summable?: boolean;
 }) {
   return (
     <MultiSeriesSpendBoard
@@ -85,6 +88,7 @@ function SeriesBody({
       formatYTick={formatYTick}
       emptyMessage={view.emptyMessage}
       truncationCaption={view.truncationCaption}
+      summable={summable}
     />
   );
 }
@@ -235,8 +239,17 @@ export const panelRenderers = {
     <LatencyStatCards rows={view.rows} emptyMessage={view.emptyMessage} />
   ),
 
+  // `summable={false}`: this board plots p50 and p95 per bucket, and a SUM of per-bucket
+  // percentiles is not a duration, not a percentile and not any quantity a reader could act on —
+  // so the caption states no total rather than a fabricated one (converse-frontends#449).
   'latency-series': ({ view, size }: PanelRendererProps<'latency-series'>) => (
-    <SeriesBody view={view} size={size} formatValue={formatMs} formatYTick={formatMs} />
+    <SeriesBody
+      view={view}
+      size={size}
+      formatValue={formatMs}
+      formatYTick={formatMs}
+      summable={false}
+    />
   ),
 } satisfies { [T in DashboardPanelType]: PanelRenderer<T> };
 

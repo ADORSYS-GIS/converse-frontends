@@ -18,15 +18,17 @@
 # to this file.
 #
 # ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
-# SEVEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
+# TEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
 # sketch; C4 migrated `/admin/overview` onto it; C5 replaced the sketch with the full
-# nineteen-panel `/admin/usage` contract; C12 (converse-frontends#455) brought the account
-# dashboard and all four `/settings/overview/*` lenses across and deleted their hand-written
-# containers (`use-overview-screen.ts`, `use-settings-overview-screen.ts`,
-# `use-usage-overview-screen.ts`, `usage-overview-usage.ts`). **No hand-written dashboard container
-# remains in this console** — what is left beside a grid is only what is not a usage query
-# (RPC-backed budget zones, refine listings), each named in its page's own comment below. Still to
-# come: C6, the actors/channels/chats routes, reusing C5's panel ids.
+# nineteen-panel `/admin/usage` contract; C6 (converse-frontends#449) added the three DRILL-DOWN
+# routes — `/admin/usage/actors/[actorId]`, `/admin/usage/channels/[channelId]` and
+# `/admin/usage/chats` — the engine's proof that a PARAMETERISED page needs no code of its own
+# either; C12 (converse-frontends#455) brought the account dashboard and all four
+# `/settings/overview/*` lenses across and deleted their hand-written containers
+# (`use-overview-screen.ts`, `use-settings-overview-screen.ts`, `use-usage-overview-screen.ts`,
+# `usage-overview-usage.ts`). **No hand-written dashboard container remains in this console** —
+# what is left beside a grid is only what is not a usage query (RPC-backed budget zones, refine
+# listings), each named in its page's own comment below.
 #
 # ── PLACEHOLDERS ─────────────────────────────────────────────────────────────────────────────
 # `$name` in any query string field is substituted from the page's own filters (a route param or
@@ -649,6 +651,473 @@ pages:
           scope: all
           group_by:
             - azp
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/actors/[actorId] — ONE actor's own usage (converse-frontends#449, story C6).
+  #
+  # This entry is the proof that the engine handles PARAMETERISED pages, not just static ones:
+  # there is no per-actor container anywhere in `apps/console`, and no panel type this page
+  # introduced. Every panel is a type C3 shipped and a shape C5 already draws estate-wide; what
+  # differs is two `$param` placeholders.
+  #
+  # ── THE PLACEHOLDERS ───────────────────────────────────────────────────────────────────────
+  # `scope: $type` and `scope_id: $actorId`. `$type` is the closed usage-scope enum
+  # (`user|account|project`) and `resolve-dashboard.ts` validates the SUBSTITUTED value against it
+  # — a `?type=everything` cannot reach the backend as a malformed scope with an actor's name
+  # already printed above it. An unresolved placeholder throws rather than substituting an empty
+  # string: `scope_id: ""` under `scope: account` is not "no actor", it is a query that would
+  # return something other than what every title on this page claims.
+  #
+  # The route itself 404s an invalid or missing `?type=` before any markup is generated. An
+  # unresolved LABEL is a different matter entirely and is NOT a 404 — an id with real usage rows
+  # keeps its data under a labelled sentinel header (an explicit AC).
+  #
+  # ── PANEL IDS ──────────────────────────────────────────────────────────────────────────────
+  # Prefixed `actor-`. They are the same panel TYPES and the same readings as `/admin/usage`'s,
+  # but a distinct identity per page is what keeps three things unambiguous: C10's report walk
+  # (`/api/reports/page` resolves a route to a panel list), the per-panel URL knobs
+  # (`?<panel-id>-scale=`), and this file's own cross-page reading.
+  # `admin-usage-detail-pages.test.ts` pins the list, in order.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Nine panels resolve to FIVE requests:
+  #   1. the ungrouped actor query (total cost, total requests)
+  #   2. its previous-window twin (`compare: true` on both totals)
+  #   3. `[model]` (cost by model, model cost share, all three distribution rings)
+  #   4. `[azp]` (cost by channel)
+  #   5. the ungrouped actor query filtered to the three chat operations
+  #
+  # ── THE BUDGET ZONE ────────────────────────────────────────────────────────────────────────
+  # `type=account` additionally renders a hand-written "Budget & next reset" zone above this grid
+  # (`admin-usage-actor-centre.tsx`). It is deliberately NOT a panel: it reads `getBudgetBalance`
+  # and `getEffectiveResetSchedule`, both RPCs, over the BILLING PERIOD rather than the page's
+  # range — the same two reasons `/admin/overview`'s budget-pressure zone stays hand-written.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/actors/[actorId]
+    # Both are ROUTE params rather than view knobs, and both are required. `range` is implicit.
+    filters:
+      - actorId
+      - type
+
+    panels:
+      # ── The two totals, against the previous comparison window (D-F) ──────────────────────
+      # The cadence is the ACCOUNT's own effective reset schedule when `type=account`, and the
+      # global/monthly rule otherwise — resolved by the container, applied by the engine.
+      - id: actor-total-cost
+        type: stat
+        title: Total cost
+        subtitle: This actor's own spend in the window.
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: $type
+          scope_id: $actorId
+          bucket: auto
+          limit: 2000
+
+      - id: actor-total-requests
+        type: stat
+        title: Total requests
+        subtitle: Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597).
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: $type
+          scope_id: $actorId
+          bucket: auto
+          limit: 2000
+
+      # ── What this actor spends it on ──────────────────────────────────────────────────────
+      - id: actor-cost-by-model
+        type: series
+        title: Cost per period by model
+        subtitle: Log axis by default — one dominant model flattens every other line on a linear one.
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── Where it arrives from ─────────────────────────────────────────────────────────────
+      # Rows are real anchors into the channel page — the drill path continues rather than
+      # dead-ending at the actor.
+      - id: actor-cost-by-channel
+        type: ranked
+        title: Cost by channel
+        subtitle: Which OAuth client this actor's spend arrived on. Rows open the channel.
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/channels/:key
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-cost-share
+        type: share
+        title: Which models
+        subtitle: Cost share across the window
+        span: 1
+        metric: cost
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-chat-completions-count
+        type: stat
+        title: Chat completions
+        subtitle: Requests on the chat-shaped surfaces — /v1/chat/completions, /v1/responses and /v1/messages.
+        span: 1
+        metric: derived:chatCount
+        query:
+          scope: $type
+          scope_id: $actorId
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── Model distribution — three RINGS ──────────────────────────────────────────────────
+      # Owner ruling, 2026-09-02, amending ADR 0013 D5: "rings allowed, filled disks never." All
+      # three share the `[model]` request the two panels above already issue.
+      - id: actor-model-distribution-requests
+        type: donut
+        title: Model distribution — requests
+        subtitle: Requests by model
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-distribution-cost
+        type: donut
+        title: Model distribution — cost
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-distribution-tokens
+        type: donut
+        title: Model distribution — tokens
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/channels/[channelId] — ONE OAuth client's usage (converse-frontends#449, C6).
+  #
+  # A channel is NOT a usage scope: the backend's scope enum knows users, projects, accounts, API
+  # keys and the estate, and nothing else. So every panel here is `scope: all` narrowed by the
+  # EQUALITY FILTER `azp: $channelId` — lane A3's bridge column (lightbridge-authz#648). That is
+  # also why this page needs `usage:read-all` exactly as the estate page does: it is an estate
+  # query with one more filter on it, not a narrower permission.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Seven panels resolve to SIX requests: the ungrouped channel query (both totals), its
+  # comparison twin, `[model]` (series + share), the chat-filtered query, `[user_id]` and
+  # `[operation]`. Nothing shares beyond those two pairs because each of the last three asks a
+  # genuinely different question.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/channels/[channelId]
+    filters:
+      - channelId
+
+    panels:
+      - id: channel-total-cost
+        type: stat
+        title: Total cost
+        subtitle: Spend that arrived on this OAuth client, across every account.
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-total-requests
+        type: stat
+        title: Total requests
+        subtitle: Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597).
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-cost-by-model
+        type: series
+        title: Cost per period by model
+        subtitle: Log axis by default — one dominant model flattens every other line on a linear one.
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-model-cost-share
+        type: share
+        title: Which models
+        subtitle: Cost share across the window
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-chat-completions-count
+        type: stat
+        title: Chat completions
+        subtitle: Requests on the chat-shaped surfaces — /v1/chat/completions, /v1/responses and /v1/messages.
+        span: 1
+        metric: derived:chatCount
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── Who is on this channel ────────────────────────────────────────────────────────────
+      # Always USERS, never a lens: this page has no lens knob, and a channel is a client people
+      # sign in through — "which accounts use the CLI" is a question the estate page's own lens
+      # already answers. Rows link back to the actor page with the matching `?type=user`.
+      - id: channel-actors
+        type: ranked
+        title: Actors on this channel
+        subtitle: Cost per user on this client. Rows open that actor.
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      # ── What it is used FOR ───────────────────────────────────────────────────────────────
+      # `operation` is A3's derived column: the request path folded into a closed vocabulary
+      # (chat_completions / responses / messages / embeddings / other). The wire values are
+      # snake_case and the rows are humanised by `panel-adapters.tsx`, in one place.
+      - id: channel-requests-by-operation
+        type: ranked
+        title: Requests by operation
+        subtitle: Which API surface this client calls.
+        span: 2
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/chats — the chat-shaped operations across the estate (C6).
+  #
+  # ── ONE QUERY PER PANEL, NOT THREE ─────────────────────────────────────────────────────────
+  # Every panel carries `operation_in: [chat_completions, responses, messages]`, A3's single
+  # set-membership filter (lightbridge-authz#648). Three equality queries unioned in the browser
+  # would triple the load AND disagree with themselves whenever a bucket boundary fell differently
+  # between them — and a latency percentile cannot be unioned at all.
+  #
+  # ── THE LATENCY SERIES IS HONEST, AND THIS IS WHY ──────────────────────────────────────────
+  # ADR 0013 D5 limited latency to stat cards "until history depth justifies a series". That limit
+  # is amended here (C11 carries the write-up): the usage backend computes `percentile_cont` PER
+  # BUCKET GROUP at query time, so each plotted point is a real percentile of that bucket's own
+  # samples — not an interpolation between window aggregates, and not an average of percentiles,
+  # which is not a percentile of anything. `latency-cards` still states the window's WORST bucket
+  # rather than a mean, for the same reason.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Five panels resolve to FOUR requests: the ungrouped chat query (latency series + the count),
+  # its comparison twin, `[model]` (latency cards + cost by model), and `[operation]`.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/chats
+    # No route params and no lens — this page is the estate's chat traffic, always.
+    filters: []
+
+    panels:
+      # ── Latency over time, p50 and p95 ────────────────────────────────────────────────────
+      # UNGROUPED on purpose: the two lines are the two PERCENTILES, not two models. A grouped
+      # latency series would plot one p50 line per model and drop p95 entirely, which is the
+      # reading `latency-cards` below already gives per model.
+      - id: chat-latency-series
+        type: latency-series
+        title: Chat latency over time
+        subtitle: p50 and p95 per bucket, computed by the usage backend at query time — never an average of percentiles. No TTFT is emitted by the gateway, so first-token latency is absent rather than estimated.
+        span: 2
+        metric: latency
+        options:
+          scale: linear
+        query:
+          scope: all
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-latency-cards
+        type: latency-cards
+        title: Latency by model
+        subtitle: Each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── How many ──────────────────────────────────────────────────────────────────────────
+      # `metric: requests`, not `derived:chatCount`: every query on this page is ALREADY filtered
+      # to the three chat surfaces, so a request here IS a chat request — and unlike the derived
+      # count, a plain metric carries an honest previous-window delta. The estate page's own
+      # `chat-completions-count` stat keeps `derived:chatCount` because its page is unfiltered and
+      # the panel is what does the narrowing.
+      - id: chat-total-count
+        type: stat
+        title: Chat requests
+        subtitle: Requests on /v1/chat/completions, /v1/responses and /v1/messages.
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-requests-by-operation
+        type: series
+        title: Requests per period by operation
+        subtitle: The three chat surfaces plotted apart — a migration from one to another is visible here and nowhere else.
+        span: 1
+        metric: requests
+        options:
+          scale: linear
+          topN: 3
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-cost-by-model
+        type: series
+        title: Chat cost per period by model
+        subtitle: Log axis by default — one dominant model flattens every other line on a linear one.
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
           bucket: auto
           limit: 2000
 

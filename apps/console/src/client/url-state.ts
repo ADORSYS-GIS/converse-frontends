@@ -830,6 +830,67 @@ export function useAdminSessionsParams() {
 /** Paging and opening a session's detail are navigation-grade; the filters above them are not. */
 export const ADMIN_SESSIONS_NAVIGATION_OPTIONS = { history: 'push' as const };
 
+// ── /admin/usage drill-downs (converse-frontends#449, story C6) ──────────────────────────────
+
+/**
+ * `/admin/usage/actors/[actorId]`'s own params: the range every dashboard page owns, plus the
+ * REQUIRED `type` that says which of the three entities the id names.
+ *
+ * `type` is a URL param rather than a second path segment because it is the same knob
+ * `/admin/usage`'s lens is, seen from the other end — a row on the estate page links out as
+ * `/admin/usage/actors/<id>?type=$lens`, and the page it lands on has to read exactly what that
+ * link wrote. It is `history: 'replace'` with the rest: switching it is re-reading the same id
+ * under a different scope, not navigating somewhere new.
+ *
+ * The route's server component independently 404s a missing or unrecognised `?type=` before any
+ * markup is generated, so the default below is unreachable in practice; it exists so a parser is
+ * total, and `user` is the owner's actor-identity default rather than an arbitrary pick.
+ *
+ * The literal list is kept here rather than imported from `dashboards/usage-routes.ts` for the
+ * same reason `ADMIN_USAGE_LENSES` is: this module is the app's only `nuqs` importer and stays
+ * free of dashboard-engine imports. `usage-routes.test.ts` asserts the two agree.
+ */
+export const ADMIN_USAGE_ACTOR_TYPES = ['user', 'account', 'project'] as const;
+export type AdminUsageActorTypeParam = (typeof ADMIN_USAGE_ACTOR_TYPES)[number];
+
+export const adminUsageActorParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  type: parseAsStringLiteral(ADMIN_USAGE_ACTOR_TYPES).withDefault('user'),
+};
+
+const adminUsageActorUrlKeys = {};
+
+export function useAdminUsageActorParams() {
+  return useQueryStates(adminUsageActorParsers, {
+    urlKeys: adminUsageActorUrlKeys,
+    history: 'replace',
+  });
+}
+
+/**
+ * `/admin/usage/channels/[channelId]` and `/admin/usage/chats` — the window and nothing else.
+ *
+ * ONE declaration for both, because they own literally the same vocabulary: the channel is a path
+ * segment and the chat filter is the YAML's, so neither page has a knob of its own beyond the
+ * range every dashboard page carries. Two identical objects would be two places to forget.
+ */
+export const adminUsageWindowParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+};
+
+const adminUsageWindowUrlKeys = {};
+
+export function useAdminUsageWindowParams() {
+  return useQueryStates(adminUsageWindowParsers, {
+    urlKeys: adminUsageWindowUrlKeys,
+    history: 'replace',
+  });
+}
+
 // ── declarative dashboards: one axis knob per series panel ───────────────────────────────────
 
 /** A `dashboards.yaml` panel id → the query param carrying that panel's axis transform. Kebab
@@ -1047,6 +1108,9 @@ export const URL_PARAM_CONTRACT = {
   settings: { parsers: settingsParsers, urlKeys: settingsUrlKeys },
   admin: { parsers: adminParsers, urlKeys: adminUrlKeys },
   adminOverview: { parsers: adminOverviewParsers, urlKeys: adminOverviewUrlKeys },
+  adminUsage: { parsers: adminUsageParsers, urlKeys: adminUsageUrlKeys },
+  adminUsageActor: { parsers: adminUsageActorParsers, urlKeys: adminUsageActorUrlKeys },
+  adminUsageWindow: { parsers: adminUsageWindowParsers, urlKeys: adminUsageWindowUrlKeys },
   adminRefillPolicies: {
     parsers: adminRefillPoliciesParsers,
     urlKeys: adminRefillPoliciesUrlKeys,

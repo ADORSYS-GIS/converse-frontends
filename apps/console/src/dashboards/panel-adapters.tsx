@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
+import type { UsageOperation, UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import { IdentityLines } from '@lightbridge/ui-web/src/lib/identity-lines';
 import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
 // The narrow `/types` path, NOT the section's barrel (converse-frontends#453): the barrel
@@ -56,9 +56,11 @@ import {
  *  - **Never fabricate a figure.** A ratio with no denominator renders as a dash, not `$0.00`.
  */
 
-/** Which `UsageSeriesPoint` field a panel's `group_by` dimension lands in. A dimension lane A3 has
- *  not landed yet (`azp`, `operation`, `billing_plan`) simply has no point field to read, so the
- *  adapter falls back to the sentinel and the panel's subtitle says so — no crash, no fabrication. */
+/** Which `UsageSeriesPoint` field a panel's `group_by` dimension lands in. A dimension a
+ *  deployment's backend does not carry has no point field to read, so the adapter falls back to
+ *  the labelled sentinel and the panel's subtitle says so — no crash, no fabrication. (Lane A3's
+ *  three bridge columns, `azp`/`operation`/`billing_plan`, have since landed and are typed on the
+ *  generated point; this stays the general rule for the next one.) */
 function groupValue(point: UsageSeriesPoint, dimension: string): string {
   const value = (point as unknown as Record<string, unknown>)[dimension];
   return typeof value === 'string' && value.length > 0 ? value : UNASSIGNED_KEY;
@@ -80,21 +82,60 @@ export function actorKindOf(dimension: string | undefined): ActorKind | null {
 }
 
 /**
- * One group key → the string a row/segment/series is labelled with.
- *
- * `UNASSIGNED_KEY` is the sentinel for spend the backend attributed to nothing, and it is LABELLED,
- * never dropped (ADR 0013 D5). An actor dimension goes through `labelFor`, which resolves a real
- * name where `resolveActorLabels` had one and falls back to `sentinelLabel` where it did not —
- * so an unresolved id keeps its row rather than disappearing from a spend ranking.
+ * A group key with no identity to resolve at all — `UNASSIGNED_KEY` is the sentinel for spend the
+ * backend attributed to nothing, and it is LABELLED, never dropped (ADR 0013 D5).
  */
 function plainLabel(key: string): string {
   return key === UNASSIGNED_KEY ? 'Unassigned' : key;
 }
 
-function keyLabel(key: string, kind: ActorKind | null, labelFor: LabelFor): string {
+/**
+ * `operation` — lane A3's derived dimension (lightbridge-authz#648) — read as English.
+ *
+ * The column is a CLOSED vocabulary the ingest path folds a request path into
+ * (`/v1/chat/completions` → `chat_completions`, `/v1/responses` → `responses`, `/v1/messages` →
+ * `messages`, `/v1/embeddings` → `embeddings`, anything else → `other`), so the mapping is a
+ * finite list rather than a title-casing heuristic — and an unlisted value keeps its WIRE name
+ * rather than being prettified into something that looks official. `other` is deliberately
+ * labelled "Other" and never dropped: it is the bucket every surface the gateway does not
+ * recognise lands in, which is exactly the row an operator needs to see before believing a chat
+ * total.
+ *
+ * Typed `Record<UsageOperation, string>` against the GENERATED enum on purpose: when the backend
+ * adds a sixth operation, this file fails to compile rather than quietly printing its wire name in
+ * a ranked row. That is the whole difference between a closed vocabulary and a guess.
+ *
+ * Stated once here because three surfaces read it — the channel page's ranked breakdown, the chats
+ * page's per-operation series, and C10's report walk over the same views.
+ */
+const OPERATION_LABELS: Record<UsageOperation, string> = {
+  chat_completions: 'Chat completions',
+  responses: 'Responses',
+  messages: 'Messages',
+  embeddings: 'Embeddings',
+  other: 'Other',
+};
+
+/** Dimensions whose VALUES have a fixed human rendering (no identity lookup involved). */
+const DIMENSION_VALUE_LABELS: Record<string, Record<string, string>> = {
+  operation: OPERATION_LABELS,
+};
+
+/**
+ * One group key → the string a row/segment/series is labelled with, given the DIMENSION it came
+ * from.
+ *
+ * Three cases, in order: the labelled `Unassigned` sentinel; an actor dimension, resolved through
+ * `labelFor`; a dimension with a closed value vocabulary (`operation`), humanised from the map
+ * above. Anything else — `model`, `azp`, `billing_plan` — is already a human-readable value and is
+ * printed verbatim rather than guessed at.
+ */
+function keyLabel(key: string, dimension: string | undefined, labelFor: LabelFor): string {
   if (key === UNASSIGNED_KEY) return 'Unassigned';
-  if (!kind) return key;
-  return labelFor(kind, key).label;
+  const kind = actorKindOf(dimension);
+  if (kind) return labelFor(kind, key).label;
+  const vocabulary = dimension ? DIMENSION_VALUE_LABELS[dimension] : undefined;
+  return vocabulary?.[key] ?? key;
 }
 
 /**
@@ -126,7 +167,7 @@ function labelOf(
 ): string {
   if (key === UNASSIGNED_KEY) return 'Unassigned';
   const local = dimension && localLabels ? localLabels(dimension, key) : undefined;
-  return local || keyLabel(key, actorKindOf(dimension), labelFor);
+  return local || keyLabel(key, dimension, labelFor);
 }
 
 /**
@@ -333,6 +374,56 @@ export function comparisonSeries(
   };
 }
 
+/**
+ * The two lines an UNGROUPED `latency-series` panel plots: p50 and p95, per bucket
+ * (converse-frontends#449, `/admin/usage/chats`).
+ *
+ * **Why this is honest, and why it is not `seriesByGroup(…, 'latency')`.** The usage backend runs
+ * `percentile_cont` per bucket GROUP at query time, so `latency_p50_ms` on a point is a real
+ * percentile of that bucket's own samples — not an interpolation between window aggregates. Each
+ * plotted point is therefore a measurement, which is precisely the ground on which ADR 0013 D5's
+ * "latency is stat cards until history depth justifies a series" is amended (C11 carries the
+ * write-up). `seriesByGroup` would give p50 alone, and a latency chart without its tail is the
+ * more comforting half of the reading.
+ *
+ * A bucket the backend returned with NO latency-bearing samples is skipped entirely rather than
+ * plotted at 0 — "nothing reported" and "0 ms" are different facts, and a zero here would draw a
+ * spike toward the floor that looks like the fastest minute of the window.
+ *
+ * An ungrouped response has one point per bucket; a grouped one would have several, so the values
+ * are folded with `max` — the WORST percentile in the bucket, matching `latencyRowsByGroup`'s own
+ * rule that a mean of percentiles is not a percentile of anything.
+ */
+export function latencyPercentileSeries(response: UsageQueryResponse): MultiSeriesSpendSeries[] {
+  const p50 = new Map<number, number>();
+  const p95 = new Map<number, number>();
+
+  for (const point of response.points) {
+    const t = new Date(point.bucket_start).getTime();
+    if (!Number.isFinite(t)) continue;
+    const samples = Number.isFinite(point.latency_samples) ? point.latency_samples : 0;
+    if (samples <= 0) continue;
+    if (typeof point.latency_p50_ms === 'number') {
+      p50.set(t, Math.max(p50.get(t) ?? 0, point.latency_p50_ms));
+    }
+    if (typeof point.latency_p95_ms === 'number') {
+      p95.set(t, Math.max(p95.get(t) ?? 0, point.latency_p95_ms));
+    }
+  }
+
+  const line = (key: string, label: string, values: Map<number, number>) => ({
+    key,
+    label,
+    points: Array.from(values.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([t, y]) => ({ x: new Date(t), y })),
+  });
+
+  // Both lines are returned even when one is empty: a chart that silently drops p95 would read as
+  // "the tail is fine", and the axis is the same milliseconds either way.
+  return [line('p50', 'p50', p50), line('p95', 'p95', p95)];
+}
+
 /** Per-model latency rows — read straight off the response's own per-bucket percentiles, which is
  *  what makes `latency-cards` honest (the backend computes `percentile_cont` per bucket group at
  *  query time). Samples sum across buckets; the percentiles are the WORST bucket's, never an
@@ -490,10 +581,15 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'latency-series':
       return {
         kind: 'latency-series',
-        series: seriesByGroup(response, dimension, 'latency', labelFor, input.localLabels).slice(
-          0,
-          topN ?? 5
-        ),
+        // UNGROUPED → the two PERCENTILES as the two lines (`/admin/usage/chats`); grouped → one
+        // p50 line per group key, which is the only per-group latency a single line can carry
+        // without claiming the tail belongs to a group it was never computed within.
+        series: dimension
+          ? seriesByGroup(response, dimension, 'latency', labelFor, input.localLabels).slice(
+              0,
+              topN ?? 5
+            )
+          : latencyPercentileSeries(response),
         scale: input.scale,
         onScaleChange: input.onScaleChange,
       };
@@ -622,7 +718,7 @@ function statGroupView(input: PanelViewInput, groupBy: string[] | undefined): Da
         .slice(0, topN ?? 4)
         .map((group) => ({
           key: group.key,
-          label: keyLabel(group.key, actorKindOf(groupDimension), labelFor),
+          label: keyLabel(group.key, groupDimension, labelFor),
           metric: group.count.toLocaleString('en-US'),
         })),
     };
@@ -635,7 +731,7 @@ function statGroupView(input: PanelViewInput, groupBy: string[] | undefined): Da
       .slice(0, topN ?? 4)
       .map((group) => ({
         key: group.key,
-        label: keyLabel(group.key, actorKindOf(dimension), labelFor),
+        label: keyLabel(group.key, dimension, labelFor),
         metric: formatMetric(group.value, spec.metric),
       })),
   };
@@ -710,7 +806,9 @@ function tableView(input: PanelViewInput, groupBy: string[] | undefined): Dashbo
     const local = key !== UNASSIGNED_KEY ? input.localLabels?.(dimension, key) : undefined;
     return {
       key,
-      label: local || (resolved?.label ?? plainLabel(key)),
+      // `keyLabel` for the non-actor case, so a table grouped by a dimension with a closed value
+      // vocabulary (`operation`) reads the same English its ranked sibling does.
+      label: local || (resolved?.label ?? keyLabel(key, dimension, labelFor)),
       secondary: resolved?.secondary,
       subtle: local ? false : (resolved?.subtle ?? key === UNASSIGNED_KEY),
       type: rowType,

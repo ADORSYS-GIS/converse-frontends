@@ -105,6 +105,39 @@ export function collectActorIds(responses: readonly (UsageQueryResponse | undefi
   return { users: top('user'), accounts: top('account'), projects: top('project') };
 }
 
+/**
+ * The page's OWN subject ids, folded in ahead of everything the responses carried
+ * (converse-frontends#449, story C6).
+ *
+ * `/admin/usage/actors/<id>` has to resolve one identity before any panel does: the id in its own
+ * path, which is what its header states. Seeding it into the same batch — rather than firing a
+ * second `resolveActorLabels` from the header — is what keeps "ONE lookup per page" true for a
+ * parameterised page too, and it is why the seed goes FIRST: it is the one id whose absence would
+ * leave the page titled after a cuid, so it must never be the one the cap drops.
+ *
+ * Order is otherwise preserved (the collected ids are already in descending-request order) and
+ * duplicates are folded, so seeding an id the responses also carried costs nothing.
+ */
+export function withSeedActorIds(seed: ActorIds | undefined, collected: ActorIds): ActorIds {
+  if (!seed) return collected;
+  const merge = (first: readonly string[], rest: readonly string[]) =>
+    Array.from(new Set([...first, ...rest])).slice(0, ACTOR_ID_BATCH_CAP);
+  return {
+    users: merge(seed.users, collected.users),
+    accounts: merge(seed.accounts, collected.accounts),
+    projects: merge(seed.projects, collected.projects),
+  };
+}
+
+/** The `ActorIds` naming exactly one actor — what an actor-scoped page seeds its page batch with. */
+export function actorIdsOf(kind: ActorKind, id: string): ActorIds {
+  return {
+    users: kind === 'user' ? [id] : [],
+    accounts: kind === 'account' ? [id] : [],
+    projects: kind === 'project' ? [id] : [],
+  };
+}
+
 /** Stable, order-independent cache key for one batch — sorted so two renders that discovered the
  *  same ids in a different order share one request instead of re-fetching (an explicit AC). */
 export function actorIdsKey(ids: ActorIds): string {

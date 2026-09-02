@@ -8,6 +8,7 @@ import {
   FAMILY_SCOPE,
   isDashboardLens,
   LENS_DIMENSION,
+  usageScopes,
   type DashboardLens,
   type DashboardPageSpec,
   type DashboardPanelSpec,
@@ -29,6 +30,8 @@ import {
  *     `scope: $type`, `filters.azp: $channelId`). An unresolved placeholder is an ERROR, never an
  *     empty string — `scope_id: ''` on an `account` scope is not "no actor", it is a malformed
  *     query, and on `scope: all` it would silently widen a per-actor panel to the whole estate.
+ *     A substituted `scope` is additionally CHECKED against the closed usage-scope enum
+ *     (`assertUsageScope`), because that one field decides whose data comes back.
  *  2. **Applies the range** — always, to every panel. The page owns the window; a panel never
  *     carries dates of its own.
  *  3. **Resolves `bucket: auto`** by the range rule (≤7d → `1 hour`, ≤90d → `1 day`, else
@@ -213,6 +216,39 @@ function substitute(
 }
 
 /**
+ * The one field whose SUBSTITUTED value is validated rather than passed through: `scope`.
+ *
+ * `/admin/usage/actors/[actorId]` writes `scope: $type` and takes `$type` from a URL a person can
+ * edit (converse-frontends#449). Every other substituted field is an opaque id the backend either
+ * finds or does not; `scope` is a closed enum that decides WHOSE data comes back, so a value
+ * outside it is not a query that returns nothing — it is a 400 from the usage backend arriving
+ * under a page that has already printed an actor's name above it, and (worse, on the day the enum
+ * grows) a query for something the page never meant to ask for. The route 404s an invalid
+ * `?type=` before rendering; this is the second, structural line, and it is what makes the YAML
+ * safe to read on its own.
+ *
+ * `api_key` is a member of the enum and therefore accepted here, exactly as `dashboard-spec.ts`
+ * declares it — the BACKEND refuses that scope for every caller, and mirroring that refusal in
+ * two more places is how the two drift apart.
+ *
+ * `family` (C12, converse-frontends#455) is accepted too: it is this RESOLVER's own extension, not
+ * a wire scope, and it never survives resolution — `expandFamily` below turns it into one
+ * `account`-scoped query per family account before anything reaches the wire.
+ */
+const RESOLVABLE_SCOPES: readonly string[] = [...usageScopes, FAMILY_SCOPE];
+
+function assertUsageScope(scope: string, context: { route: string; panelId: string }): string {
+  if (RESOLVABLE_SCOPES.includes(scope)) return scope;
+  throw new Error(
+    `[console] Invalid usage scope "${scope}" on page "${context.route}", panel ` +
+      `"${context.panelId}". A scope substituted from a page filter must be one of ` +
+      `${RESOLVABLE_SCOPES.join(', ')} — it decides whose data the panel returns, so an ` +
+      'unrecognised value is refused here rather than sent to the usage backend under this ' +
+      'panel’s title.'
+  );
+}
+
+/**
  * A lens-driven panel's `group_by`, with its FIRST dimension swapped for the effective lens's own.
  *
  * Only the first: a lens says what a row IS, and every dimension after it is there to widen the
@@ -277,7 +313,7 @@ function resolveQuery(
     // `scope: all` with an empty `scope_id` is the estate-wide default the backend documents
     // (`scope_id` is ignored for that scope and callers send `""`), so it is the ONLY place an
     // empty id is legitimate — and it comes from this default, never from a failed substitution.
-    scope: query.scope ? substituteField(query.scope, 'scope') : 'all',
+    scope: query.scope ? assertUsageScope(substituteField(query.scope, 'scope'), context) : 'all',
     scope_id: query.scope_id ? substituteField(query.scope_id, 'scope_id') : '',
     start_time: window.start.toISOString(),
     end_time: window.end.toISOString(),

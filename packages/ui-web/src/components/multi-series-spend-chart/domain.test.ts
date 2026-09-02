@@ -136,6 +136,21 @@ describe('buildSummaryCaption', () => {
     expect(buildSummaryCaption(255, 3, 0, usd)).toBe('$255.00 across 3 series');
   });
 
+  /**
+   * A latency board plots p50 and p95 per bucket. Adding those up produces a number that is not a
+   * duration, not a percentile and not anything a reader could act on — so a NON-SUMMABLE board
+   * says nothing rather than something false (converse-frontends#449).
+   */
+  it('drops the total clause entirely for a non-summable board', () => {
+    expect(buildSummaryCaption(45_036, 2, 0, (n) => `${n} ms`, undefined, false)).toBe('');
+  });
+
+  it('still states the tail and any truncation on a non-summable board', () => {
+    expect(buildSummaryCaption(45_036, 3, 1, (n) => `${n} ms`, 'Showing the top 25.', false)).toBe(
+      '1 more · no spend this period · Showing the top 25.'
+    );
+  });
+
   it('appends the zero-spend tail count only when the tail is non-empty', () => {
     expect(buildSummaryCaption(255, 4, 1, usd)).toBe(
       '$255.00 across 4 series · 1 more · no spend this period'

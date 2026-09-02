@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { AdminUsageCentre } from '../../../../containers/admin-usage-centre';
 import { findPage } from '../../../../dashboards/dashboard-spec';
 import { loadDashboards } from '../../../../dashboards/load-dashboards';
+import { ADMIN_USAGE_ROUTE } from '../../../../dashboards/usage-routes';
 import { can } from '../../../../server/access';
 import { readSession } from '../../../../server/session-store';
 import { PERMISSION } from '../../../../shared/permissions';
@@ -10,8 +11,10 @@ import { PERMISSION } from '../../../../shared/permissions';
 export const dynamic = 'force-dynamic';
 
 /** The route this page's `dashboards.yaml` entry is keyed by — the same string the App Router
- *  uses, stated once so the lookup and the YAML cannot drift apart silently. */
-export const ADMIN_USAGE_ROUTE = '/admin/usage';
+ *  uses. It moved to `dashboards/usage-routes.ts` with story C6, which added three sibling routes
+ *  and the href builders that link into them: one module now states the area's whole route
+ *  vocabulary, so a link template and the page it lands on cannot drift apart. */
+export { ADMIN_USAGE_ROUTE };
 
 /**
  * `/admin/usage` — the estate's usage surface (converse-frontends#448, story C5).

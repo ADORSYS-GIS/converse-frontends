@@ -47,5 +47,9 @@ export interface MultiSeriesSpendBoardProps {
   /** Appended to the chart's own caption sentence — passed straight through to
    *  `MultiSeriesSpendChartProps.truncationCaption`. */
   truncationCaption?: string;
+  /** Whether the plotted quantity can be summed across buckets and series — passed straight
+   *  through to `MultiSeriesSpendChartProps.summable`. `false` on the latency board, where a sum
+   *  of per-bucket percentiles is not a quantity at all (converse-frontends#449). */
+  summable?: boolean;
   className?: string;
 }

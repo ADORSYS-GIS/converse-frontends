@@ -8,6 +8,7 @@ import {
   comparisonSeries,
   distinctCountSeries,
   formatMetric,
+  latencyPercentileSeries,
   latencyRowsByGroup,
   metricDelta,
   panelDimension,
@@ -939,5 +940,180 @@ describe('derived:costPerRequest as a stat panel', () => {
       input({ spec: costPerRequestSpec, response: response([point({ total_cost: 1_000_000 })]) })
     );
     expect(view.kind === 'stat' && view.metric).toBe('—');
+  });
+});
+
+// ── Story C6 (converse-frontends#449): the two adapter capabilities the drill-down pages added ──
+
+describe('latencyPercentileSeries', () => {
+  const bucket = (start: string, p50: number, p95: number, samples: number) =>
+    point({
+      bucket_start: start,
+      latency_p50_ms: p50,
+      latency_p95_ms: p95,
+      latency_samples: samples,
+    });
+
+  it('plots p50 AND p95 per bucket — the tail is half the reading', () => {
+    const series = latencyPercentileSeries(
+      response([
+        bucket('2026-09-01T00:00:00Z', 300, 1200, 40),
+        bucket('2026-09-01T01:00:00Z', 420, 1800, 55),
+      ])
+    );
+
+    expect(series.map((line) => line.key)).toEqual(['p50', 'p95']);
+    expect(series[0].points.map((p) => p.y)).toEqual([300, 420]);
+    expect(series[1].points.map((p) => p.y)).toEqual([1200, 1800]);
+    expect(series[0].points.map((p) => p.x.toISOString())).toEqual([
+      '2026-09-01T00:00:00.000Z',
+      '2026-09-01T01:00:00.000Z',
+    ]);
+  });
+
+  /** A bucket with no latency-bearing sample is ABSENT, never plotted at 0 — a zero here would
+   *  draw a spike toward the floor that reads as the fastest minute of the window. */
+  it('skips a bucket that reported no samples rather than plotting it at zero', () => {
+    const series = latencyPercentileSeries(
+      response([
+        bucket('2026-09-01T00:00:00Z', 300, 1200, 40),
+        point({ bucket_start: '2026-09-01T01:00:00Z', latency_samples: 0 }),
+      ])
+    );
+    expect(series[0].points).toHaveLength(1);
+    expect(series[1].points).toHaveLength(1);
+  });
+
+  /** Several rows in one bucket fold with `max` — the WORST percentile, never a mean of
+   *  percentiles, which is not a percentile of anything. */
+  it('takes the worst percentile when a bucket carries several groups', () => {
+    const series = latencyPercentileSeries(
+      response([
+        bucket('2026-09-01T00:00:00Z', 300, 1200, 40),
+        bucket('2026-09-01T00:00:00Z', 900, 900, 10),
+      ])
+    );
+    expect(series[0].points).toEqual([{ x: new Date('2026-09-01T00:00:00Z'), y: 900 }]);
+    expect(series[1].points).toEqual([{ x: new Date('2026-09-01T00:00:00Z'), y: 1200 }]);
+  });
+
+  it('still returns both lines for an empty window, so the panel keeps its axis', () => {
+    expect(latencyPercentileSeries(response([])).map((line) => line.label)).toEqual(['p50', 'p95']);
+  });
+
+  it('is what an UNGROUPED latency-series panel renders, and a grouped one keeps per-group p50', () => {
+    const ungrouped = toPanelView(
+      input({
+        spec: spec({
+          type: 'latency-series',
+          metric: 'latency',
+          query: { scope: 'all', limit: 10 },
+        }),
+        response: response([bucket('2026-09-01T00:00:00Z', 300, 1200, 40)]),
+      })
+    );
+    expect(ungrouped.kind === 'latency-series' && ungrouped.series.map((s) => s.key)).toEqual([
+      'p50',
+      'p95',
+    ]);
+
+    const grouped = toPanelView(
+      input({
+        spec: spec({
+          type: 'latency-series',
+          metric: 'latency',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+        }),
+        response: response([{ ...bucket('2026-09-01T00:00:00Z', 300, 1200, 40), model: 'gpt-4o' }]),
+      })
+    );
+    expect(grouped.kind === 'latency-series' && grouped.series.map((s) => s.key)).toEqual([
+      'gpt-4o',
+    ]);
+  });
+});
+
+describe('the operation dimension reads as English', () => {
+  const operationResponse = response([
+    point({ operation: 'chat_completions', requests: 40 }),
+    point({ operation: 'responses', requests: 30 }),
+    point({ operation: 'messages', requests: 20 }),
+    point({ operation: 'embeddings', requests: 10 }),
+    point({ operation: 'other', requests: 5 }),
+  ]);
+
+  it('humanises every value of A3’s closed vocabulary, "Other" included', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'ranked',
+          metric: 'requests',
+          query: { scope: 'all', group_by: ['operation'], limit: 10 },
+        }),
+        response: operationResponse,
+      })
+    );
+
+    expect(view.kind === 'ranked' && view.rows.map((row) => row.label)).toEqual([
+      'Chat completions',
+      'Responses',
+      'Messages',
+      'Embeddings',
+      'Other',
+    ]);
+  });
+
+  /** An unlisted value keeps its WIRE name rather than being prettified into something that looks
+   *  official — the backend's vocabulary is closed, and guessing at a new member would be the
+   *  console inventing a fact. */
+  it('leaves a value the vocabulary does not know exactly as the backend sent it', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'ranked',
+          metric: 'requests',
+          query: { scope: 'all', group_by: ['operation'], limit: 10 },
+        }),
+        response: response([
+          // Cast through `unknown`: the generated enum does not have this member, which is
+          // exactly the state a deployment running a NEWER backend than this console would be in.
+          point({
+            operation: 'batch_predictions',
+            requests: 3,
+          } as unknown as Partial<UsageSeriesPoint>),
+        ]),
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('batch_predictions');
+  });
+
+  it('labels a per-operation SERIES the same way it labels ranked rows', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'requests',
+          query: { scope: 'all', group_by: ['operation'], limit: 10 },
+        }),
+        response: operationResponse,
+      })
+    );
+    expect(view.kind === 'series' && view.series[0].label).toBe('Chat completions');
+  });
+
+  /** Every other non-actor dimension is already human-readable and is printed verbatim — a model
+   *  name must not be run through a humaniser that could rewrite it. */
+  it('leaves model, azp and billing_plan untouched', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'ranked',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['azp'], limit: 10 },
+        }),
+        response: response([point({ azp: 'opencode-cli', total_cost: 2_000_000 })]),
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('opencode-cli');
   });
 });

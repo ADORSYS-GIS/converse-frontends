@@ -30,6 +30,7 @@ import {
   SettingsIcon,
   SignOutIcon,
   TiersIcon,
+  UsageIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -387,25 +388,37 @@ export function settingsNavGroups(active: SettingsRoute, isAdmin: boolean): NavG
 // ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
 
 /**
- * The admin area's three destinations, in the same "dashboard first, drill-down after" order the
+ * The admin area's five destinations, in the same "dashboard first, drill-down after" order the
  * settings area's own gated "Admin" row (`settingsNavGroups`) links into: `/admin/overview` (the
- * eight-board operator dashboard), `/admin/refills-queue` (the budget refill review queue, moved
- * here from
- * `/settings/refills-queue`), then `/admin/refill-policies` (the policy authoring/simulation
- * surface, moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options
- * are for admins only. Not normal users.", converse-frontends#368). All three are real for every
- * visitor who reaches this nav at all — the whole area is gated server-side
- * (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`, `admin/refill-policies/page.tsx`)
- * and `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
- * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
+ * operator dashboard), `/admin/usage` (the estate's usage surface — nineteen panels answering
+ * "who spent what, on which channel, with which model", converse-frontends#448), then
+ * `/admin/refills-queue` (the budget refill review queue, moved here from
+ * `/settings/refills-queue`), `/admin/refill-policies` (the policy authoring/simulation surface,
+ * moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options are for
+ * admins only. Not normal users.", converse-frontends#368), then `/admin/budget-schedules`
+ * (converse-frontends#451).
+ *
+ * The order is READINGS, then ACTIONS. Usage sits SECOND, immediately after the dashboard and
+ * before the queue: overview answers "is anything wrong", usage answers "where did it come from",
+ * and the three budget rows are things an operator DOES rather than reads. All five are real for
+ * every visitor who reaches this nav at all — the whole area is gated server-side (one
+ * `readSession`/`isAdmin` check per route file) and `ConsoleSidebarContent` never renders
+ * `adminNavGroups` for a non-admin (see its own doc comment), so there is no disabled/omitted row
+ * to model here the way settings' `roles` needs.
  */
-export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies' | 'budget-schedules';
+export type AdminRoute =
+  'overview' | 'usage' | 'refills-queue' | 'refill-policies' | 'budget-schedules';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
  *  "unmatched reads as the first destination" contract `settingsRouteFromPathname`/
- *  `routeFromPathname` use for their own bare segments. */
+ *  `routeFromPathname` use for their own bare segments.
+ *
+ *  `/admin/usage` matches by PREFIX, so C6's drill-downs (`/admin/usage/actors/<id>`,
+ *  `/admin/usage/channels/<azp>`, `/admin/usage/chats`) keep the Usage row lit rather than falling
+ *  through to Overview — the same reason `refill-policies` matches its own `/create` child. */
 export function adminRouteFromPathname(pathname: string): AdminRoute {
+  if (pathname.startsWith('/admin/usage')) return 'usage';
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
   if (pathname.startsWith('/admin/budget-schedules')) return 'budget-schedules';
@@ -418,6 +431,7 @@ export function adminRouteFromPathname(pathname: string): AdminRoute {
  *  used — the glyph names a CONCEPT (a refill ladder), not the area it lives in. */
 const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
+  usage: <UsageIcon />,
   'refills-queue': <AdminIcon />,
   'refill-policies': <RefillOptionsIcon />,
   // A clock, not a second gauge — see `ScheduleIcon`'s own doc comment for why the two
@@ -447,6 +461,13 @@ export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGro
           href: '/admin/overview',
           icon: ADMIN_NAV_ICON.overview,
           active: active === 'overview',
+        },
+        {
+          key: 'usage',
+          label: 'Usage',
+          href: '/admin/usage',
+          icon: ADMIN_NAV_ICON.usage,
+          active: active === 'usage',
         },
         {
           key: 'refills-queue',

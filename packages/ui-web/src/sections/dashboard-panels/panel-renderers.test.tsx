@@ -30,6 +30,29 @@ describe('the panel renderer registry', () => {
     expect(container).toBeTruthy();
   });
 
+  /**
+   * The one type that COULD collapse to nothing: a row of zero stat cards renders zero elements,
+   * which is a hole where a panel was — it reads as broken rather than as "no usage". An inline
+   * status line is the honest empty state (converse-frontends#448, spotted reviewing
+   * `Pages/AdminUsage`'s empty story).
+   */
+  it('renders an inline status for an EMPTY stat-group rather than an empty row', () => {
+    render(<>{renderPanelBody(emptyPanelFixtures['stat-group'], 'panel')}</>);
+    expect(screen.getByText('No usage in this range.')).toBeInTheDocument();
+  });
+
+  it('lets the caller word that empty status itself', () => {
+    render(
+      <>
+        {renderPanelBody(
+          { kind: 'stat-group', stats: [], emptyMessage: 'No account drew anything.' },
+          'panel'
+        )}
+      </>
+    );
+    expect(screen.getByText('No account drew anything.')).toBeInTheDocument();
+  });
+
   it.each(DASHBOARD_PANEL_TYPES)('renders %s at the expanded size too', (type) => {
     const { container } = render(<>{renderPanelBody(panelFixtures[type], 'expanded')}</>);
     expect(container.firstChild).not.toBeNull();

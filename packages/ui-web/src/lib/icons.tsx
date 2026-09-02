@@ -45,6 +45,23 @@ export function OverviewIcon(props: IconProps) {
   );
 }
 
+/**
+ * Admin area — Usage: an axis pair with a trend line rising across it.
+ *
+ * Deliberately NOT `OverviewIcon`'s bar chart, even though both rows are "charts": the two sit
+ * adjacent in the admin rail, and two chart glyphs a stroke apart would make the pair unreadable at
+ * 16px. A LINE over an axis is the distinct half of the pairing — overview is a set of readings,
+ * usage is what happened over time.
+ */
+export function UsageIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 2.5v11h11" />
+      <path d="M5 10.5 7.5 7l2.5 2 3-4.5" />
+    </IconBase>
+  );
+}
+
 /** Projects — a folder. */
 export function ProjectsIcon(props: IconProps) {
   return (

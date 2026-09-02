@@ -302,6 +302,176 @@ describe('compare twins', () => {
   });
 });
 
+// ── converse-frontends#448: the lens, and list-valued filters ─────────────────────────────────
+describe('the lens', () => {
+  const lensPanel = (id: string, overrides: Partial<DashboardPageSpec['panels'][number]> = {}) =>
+    statPanel(id, {
+      query: { scope: 'all', group_by: ['user_id'], bucket: 'auto', limit: 100 },
+      options: { lens: 'user' },
+      ...overrides,
+    });
+
+  it('swaps the FIRST group_by dimension for the effective lens', () => {
+    const resolved = resolveDashboard({
+      page: page([lensPanel('a')], '/admin/usage'),
+      window: windowOf(30),
+      filters: { lens: 'project' },
+    });
+    expect(resolved.queries[0].group_by).toEqual(['project_id']);
+    expect(resolved.panels[0].lens).toBe('project');
+  });
+
+  it('leaves every later dimension in place — those exist to widen the DEDUPE, not to be read', () => {
+    const resolved = resolveDashboard({
+      page: page(
+        [
+          lensPanel('a', {
+            query: { scope: 'all', group_by: ['user_id', 'model'], bucket: 'auto', limit: 100 },
+            options: { lens: 'user' },
+          }),
+        ],
+        '/admin/usage'
+      ),
+      window: windowOf(30),
+      filters: { lens: 'account' },
+    });
+    expect(resolved.queries[0].group_by).toEqual(['account_id', 'model']);
+  });
+
+  it('never duplicates a dimension the lens already introduced', () => {
+    const resolved = resolveDashboard({
+      page: page(
+        [
+          lensPanel('a', {
+            query: {
+              scope: 'all',
+              group_by: ['user_id', 'account_id'],
+              bucket: 'auto',
+              limit: 100,
+            },
+            options: { lens: 'user' },
+          }),
+        ],
+        '/admin/usage'
+      ),
+      window: windowOf(30),
+      filters: { lens: 'account' },
+    });
+    expect(resolved.queries[0].group_by).toEqual(['account_id']);
+  });
+
+  it("falls back to the panel's own YAML default when the page sets no lens", () => {
+    const resolved = resolveDashboard({
+      page: page([lensPanel('a', { options: { lens: 'account' } })], '/admin/usage'),
+      window: windowOf(30),
+    });
+    expect(resolved.queries[0].group_by).toEqual(['account_id']);
+    expect(resolved.panels[0].lens).toBe('account');
+  });
+
+  /** A `?lens=` value is something a person can type. Unlike a `$param` placeholder — which has no
+   *  honest fallback and therefore throws — every lens panel has its own default, so a nonsense
+   *  value degrades to that rather than taking the page down. */
+  it('ignores an unrecognised ?lens= rather than throwing', () => {
+    const resolved = resolveDashboard({
+      page: page([lensPanel('a')], '/admin/usage'),
+      window: windowOf(30),
+      filters: { lens: 'octopus' },
+    });
+    expect(resolved.queries[0].group_by).toEqual(['user_id']);
+  });
+
+  it('leaves a panel with no options.lens completely untouched by the knob', () => {
+    const resolved = resolveDashboard({
+      page: page(
+        [
+          statPanel('a', {
+            query: { scope: 'all', group_by: ['model'], bucket: 'auto', limit: 1 },
+          }),
+        ],
+        '/admin/usage'
+      ),
+      window: windowOf(30),
+      filters: { lens: 'account' },
+    });
+    expect(resolved.queries[0].group_by).toEqual(['model']);
+    expect(resolved.panels[0].lens).toBeUndefined();
+  });
+
+  it('substitutes $lens into the row link, so a row never says one thing and links to another', () => {
+    const resolved = resolveDashboard({
+      page: page(
+        [
+          lensPanel('a', {
+            options: { lens: 'user', link: '/admin/usage/actors/:key?type=$lens' },
+          }),
+        ],
+        '/admin/usage'
+      ),
+      window: windowOf(30),
+      filters: { lens: 'project' },
+    });
+    expect(resolved.panels[0].link).toBe('/admin/usage/actors/:key?type=project');
+  });
+});
+
+describe('list-valued filters (operation_in)', () => {
+  const filtered = (operations: string[]) =>
+    statPanel('a', {
+      query: {
+        scope: 'all',
+        filters: { operation_in: operations },
+        bucket: 'auto',
+        limit: 100,
+      },
+    });
+
+  it('passes the list through verbatim rather than substituting into it', () => {
+    const resolved = resolveDashboard({
+      page: page([filtered(['chat_completions', 'responses'])]),
+      window: windowOf(30),
+      filters: { lens: 'user' },
+    });
+    expect(resolved.queries[0].filters).toEqual({
+      operation_in: ['chat_completions', 'responses'],
+    });
+  });
+
+  it('treats a re-ordered list as the SAME question — one request, not two', () => {
+    const resolved = resolveDashboard({
+      page: page([
+        filtered(['chat_completions', 'responses']),
+        { ...filtered(['responses', 'chat_completions']), id: 'b' },
+      ]),
+      window: windowOf(30),
+    });
+    expect(resolved.queries).toHaveLength(1);
+  });
+
+  it('keeps a genuinely different list its own request', () => {
+    const resolved = resolveDashboard({
+      page: page([
+        filtered(['chat_completions']),
+        { ...filtered(['chat_completions', 'messages']), id: 'b' },
+      ]),
+      window: windowOf(30),
+    });
+    expect(resolved.queries).toHaveLength(2);
+  });
+
+  it('never shares a request with the same query UNFILTERED', () => {
+    const resolved = resolveDashboard({
+      page: page([
+        statPanel('plain', { query: { scope: 'all', bucket: 'auto', limit: 100 } }),
+        filtered(['chat_completions']),
+      ]),
+      window: windowOf(30),
+    });
+    expect(resolved.queries).toHaveLength(2);
+    expect(queryKey(resolved.queries[0])).not.toBe(queryKey(resolved.queries[1]));
+  });
+});
+
 describe('the checked-in page entry', () => {
   const file = parseDashboardsFile(
     parseYaml(readFileSync(join(import.meta.dirname, '..', '..', 'dashboards.yaml'), 'utf8')),
@@ -316,9 +486,17 @@ describe('the checked-in page entry', () => {
     expect(resolved.panels).toHaveLength(usage.panels.length);
     expect(resolved.queries.length).toBeLessThan(usage.panels.length);
 
-    // The three ungrouped stats (total cost, total requests, avg cost per million tokens) all
-    // point at the same request.
-    const ungrouped = resolved.panels.filter((p) => !p.spec.query.group_by);
+    // The three UNFILTERED ungrouped stats (total cost, total requests, avg cost per million
+    // tokens) all point at the same request. `chat-completions-count` is ungrouped too but carries
+    // an `operation_in` filter, so it is a different question and correctly stays its own request
+    // — which is exactly what the dedupe key is supposed to distinguish.
+    const ungrouped = resolved.panels.filter(
+      (p) => !p.spec.query.group_by && !p.spec.query.filters
+    );
+    expect(ungrouped.length).toBeGreaterThan(1);
     expect(new Set(ungrouped.map((p) => p.queryIndex)).size).toBe(1);
+
+    const chat = resolved.panels.find((p) => p.spec.id === 'chat-completions-count');
+    expect(chat?.queryIndex).not.toBe(ungrouped[0].queryIndex);
   });
 });

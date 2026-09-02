@@ -1,10 +1,16 @@
+import React from 'react';
 import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
+import { IdentityLines } from '@lightbridge/ui-web/src/lib/identity-lines';
 import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
+// The narrow `/types` path, NOT the section's barrel (converse-frontends#453): the barrel
+// re-exports `panel-renderers.tsx`, and this module is reached from the export route's own
+// server-side walk of the resolved panel list.
 import type {
   DashboardPanelView,
   DashboardTableColumn,
   DashboardTableRow,
 } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
+import type { LedgerSort } from '@lightbridge/ui-web/src/components/ledger-table';
 import type {
   MultiSeriesSpendScale,
   MultiSeriesSpendSeries,
@@ -13,12 +19,22 @@ import type { StatCardDelta } from '@lightbridge/ui-web/src/components/stat-card
 
 import { comparisonLabel, type ResetCadence } from '../containers/comparison-window';
 import { safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
-import { derivedMetricName, type DashboardMetric, type DashboardPanelSpec } from './dashboard-spec';
+import { IDENTITY_LABEL_FOR, type ActorKind, type LabelFor } from './actor-labels';
+import {
+  DEFAULT_TABLE_COLUMNS,
+  derivedMetricName,
+  type DashboardLens,
+  type DashboardMetric,
+  type DashboardPanelSpec,
+  type DashboardTableColumnId,
+} from './dashboard-spec';
 import {
   activeActors,
+  activeActorsByGroup,
   activeActorsPerBucket,
   avgCostPerMillionTokens,
   chatCount,
+  lastActiveByGroup,
 } from './derived-metrics';
 
 /**
@@ -47,8 +63,37 @@ function groupValue(point: UsageSeriesPoint, dimension: string): string {
   return typeof value === 'string' && value.length > 0 ? value : UNASSIGNED_KEY;
 }
 
-function labelFor(key: string): string {
+/**
+ * Which actor kind a `group_by` dimension names, or `null` for a dimension with no identity to
+ * resolve at all (`model`, `azp`, `billing_plan`, `metric_name`, …). Stated once so a renderer
+ * never has to guess whether a group key is a cuid or a human-readable value.
+ */
+const DIMENSION_ACTOR_KIND: Record<string, ActorKind> = {
+  user_id: 'user',
+  account_id: 'account',
+  project_id: 'project',
+};
+
+export function actorKindOf(dimension: string | undefined): ActorKind | null {
+  return dimension ? (DIMENSION_ACTOR_KIND[dimension] ?? null) : null;
+}
+
+/**
+ * One group key → the string a row/segment/series is labelled with.
+ *
+ * `UNASSIGNED_KEY` is the sentinel for spend the backend attributed to nothing, and it is LABELLED,
+ * never dropped (ADR 0013 D5). An actor dimension goes through `labelFor`, which resolves a real
+ * name where `resolveActorLabels` had one and falls back to `sentinelLabel` where it did not —
+ * so an unresolved id keeps its row rather than disappearing from a spend ranking.
+ */
+function plainLabel(key: string): string {
   return key === UNASSIGNED_KEY ? 'Unassigned' : key;
+}
+
+function keyLabel(key: string, kind: ActorKind | null, labelFor: LabelFor): string {
+  if (key === UNASSIGNED_KEY) return 'Unassigned';
+  if (!kind) return key;
+  return labelFor(kind, key).label;
 }
 
 function safeRequests(point: UsageSeriesPoint): number {
@@ -152,8 +197,10 @@ export function totalsByGroup(
 export function seriesByGroup(
   response: UsageQueryResponse,
   dimension: string | undefined,
-  metric: DashboardMetric
+  metric: DashboardMetric,
+  labelFor: LabelFor = IDENTITY_LABEL_FOR
 ): { key: string; label: string; points: { x: Date; y: number }[] }[] {
+  const kind = actorKindOf(dimension);
   const byKey = new Map<string, Map<number, number>>();
   const totals = new Map<string, number>();
 
@@ -171,7 +218,7 @@ export function seriesByGroup(
     .sort(([, a], [, b]) => b - a)
     .map(([key]) => ({
       key,
-      label: key === '__total__' ? 'Total' : labelFor(key),
+      label: key === '__total__' ? 'Total' : keyLabel(key, kind, labelFor),
       points: Array.from(byKey.get(key) ?? [])
         .sort(([a], [b]) => a - b)
         .map(([t, y]) => ({ x: new Date(t), y })),
@@ -276,7 +323,7 @@ export function latencyRowsByGroup(
   }
 
   return Array.from(rows.entries())
-    .map(([key, row]) => ({ key, model: labelFor(key), ...row }))
+    .map(([key, row]) => ({ key, model: plainLabel(key), ...row }))
     .sort((a, b) => b.samples - a.samples);
 }
 
@@ -298,17 +345,68 @@ export interface PanelViewInput {
   /** Controlled scale for the two series-shaped panels — the console holds it in the URL. */
   scale: MultiSeriesSpendScale;
   onScaleChange: (scale: MultiSeriesSpendScale) => void;
+  /**
+   * The RESOLVED `group_by` — `spec.query.group_by` after `resolve-dashboard.ts` applied the page's
+   * lens. A lens-driven panel's spec says `[user_id]` and its resolved query may say
+   * `[account_id]`; reading the spec here would label account ids as users.
+   */
+  groupBy?: string[];
+  /** `ResolvedPanel.lens` — set only on a lens-driven panel. */
+  lens?: DashboardLens;
+  /** `ResolvedPanel.link` — `options.link` with `$lens` already substituted. */
+  link?: string;
+  /** Resolves an actor id to a name; defaults to sentinels-only, which is what every panel gets
+   *  while the batch lookup is in flight or after it failed. */
+  labelFor?: LabelFor;
+  /** `table` only — the URL-held sort and page, and the callbacks that write them back. */
+  sort?: LedgerSort;
+  onSortChange?: (sort: LedgerSort) => void;
+  page?: number;
+  onPageChange?: (page: number) => void;
 }
 
-/** Every `table` panel states the same three figures; only what a ROW is varies, so only the
- *  first column's header is a parameter (`options.rowLabel`). */
-function tableColumns(rowLabel: string | undefined): DashboardTableColumn[] {
-  return [
-    { key: 'label', header: rowLabel ?? 'Actor', sortable: true },
-    { key: 'cost', header: 'Cost', align: 'right', kind: 'data', sortable: true },
-    { key: 'requests', header: 'Requests', align: 'right', kind: 'data', sortable: true },
-    { key: 'tokens', header: 'Tokens', align: 'right', kind: 'data', sortable: true },
-  ];
+/** Column headers for the closed `options.columns` vocabulary. `label`'s header is the panel's own
+ *  `options.rowLabel` — a column header is a claim about what the rows ARE. */
+const TABLE_COLUMN_DEFS: Record<DashboardTableColumnId, Omit<DashboardTableColumn, 'key'>> = {
+  label: { header: 'Actor', sortable: true },
+  type: { header: 'Type', sortable: true },
+  cost: { header: 'Cost', align: 'right', kind: 'data', sortable: true },
+  requests: { header: 'Requests', align: 'right', kind: 'data', sortable: true },
+  tokens: { header: 'Tokens', align: 'right', kind: 'data', sortable: true },
+  lastActive: { header: 'Last active', align: 'right', kind: 'data', sortable: true },
+};
+
+function tableColumns(
+  columns: readonly DashboardTableColumnId[],
+  rowLabel: string | undefined
+): DashboardTableColumn[] {
+  return columns.map((key) => ({
+    key,
+    ...TABLE_COLUMN_DEFS[key],
+    header:
+      key === 'label'
+        ? (rowLabel ?? TABLE_COLUMN_DEFS.label.header)
+        : TABLE_COLUMN_DEFS[key].header,
+  }));
+}
+
+/** What a lens reads as a table cell — singular and capitalised, the way a person would say it. */
+const LENS_NOUN: Record<DashboardLens, string> = {
+  user: 'User',
+  account: 'Account',
+  project: 'Project',
+};
+
+/**
+ * "Last active", stated at the resolution the data actually has: the START of the most recent
+ * bucket in which the actor drew something, in UTC — never "3 hours ago", which would imply an
+ * event-level timestamp the usage API does not return. A group with no active bucket renders a
+ * dash, because "no activity we can date" is not a date.
+ */
+function formatLastActive(at: Date | undefined): string {
+  if (!at || Number.isNaN(at.getTime())) return '—';
+  const iso = at.toISOString();
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
 /**
@@ -318,25 +416,21 @@ function tableColumns(rowLabel: string | undefined): DashboardTableColumn[] {
  */
 export function toPanelView(input: PanelViewInput): DashboardPanelView {
   const { spec, response } = input;
-  const dimension = spec.query.group_by?.[0];
+  // The RESOLVED group-by, so a lens-driven panel reads the dimension it actually queried.
+  const groupBy = input.groupBy ?? spec.query.group_by;
+  const dimension = groupBy?.[0];
   const topN = spec.options?.topN;
-  const link = spec.options?.link;
+  const link = input.link ?? spec.options?.link;
+  const labelFor = input.labelFor ?? IDENTITY_LABEL_FOR;
+  const kind = actorKindOf(dimension);
+  const label = (key: string) => keyLabel(key, kind, labelFor);
 
   switch (spec.type) {
     case 'stat':
       return statView(input);
 
-    case 'stat-group': {
-      const groups = totalsByGroup(response, dimension ?? 'model', spec.metric).slice(0, topN ?? 4);
-      return {
-        kind: 'stat-group',
-        stats: groups.map((group) => ({
-          key: group.key,
-          label: labelFor(group.key),
-          metric: formatMetric(group.value, spec.metric),
-        })),
-      };
-    }
+    case 'stat-group':
+      return statGroupView(input, groupBy);
 
     case 'series':
       return seriesView(input);
@@ -344,7 +438,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'latency-series':
       return {
         kind: 'latency-series',
-        series: seriesByGroup(response, dimension, 'latency').slice(0, topN ?? 5),
+        series: seriesByGroup(response, dimension, 'latency', labelFor).slice(0, topN ?? 5),
         scale: input.scale,
         onScaleChange: input.onScaleChange,
       };
@@ -354,7 +448,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         kind: 'ranked',
         rows: totalsByGroup(response, dimension ?? 'model', spec.metric).map((group) => ({
           key: group.key,
-          label: labelFor(group.key),
+          label: label(group.key),
           value: group.value,
           formattedValue: formatMetric(group.value, spec.metric),
           subtle: group.key === UNASSIGNED_KEY,
@@ -368,7 +462,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         kind: 'share',
         segments: totalsByGroup(response, dimension ?? 'model', spec.metric).map((group) => ({
           key: group.key,
-          label: labelFor(group.key),
+          label: label(group.key),
           value: group.value,
           formattedValue: formatMetric(group.value, spec.metric),
         })),
@@ -381,7 +475,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         kind: 'donut',
         segments: groups.map((group) => ({
           key: group.key,
-          label: labelFor(group.key),
+          label: label(group.key),
           value: group.value,
           formattedValue: formatMetric(group.value, spec.metric),
         })),
@@ -394,38 +488,182 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'latency-cards':
       return { kind: 'latency-cards', rows: latencyRowsByGroup(response, dimension ?? 'model') };
 
-    case 'table': {
-      const dimensionKey = dimension ?? 'user_id';
-      const cost = new Map(
-        totalsByGroup(response, dimensionKey, 'cost').map((g) => [g.key, g.value])
-      );
-      const requests = new Map(
-        totalsByGroup(response, dimensionKey, 'requests').map((g) => [g.key, g.value])
-      );
-      const tokens = new Map(
-        totalsByGroup(response, dimensionKey, 'tokens').map((g) => [g.key, g.value])
-      );
+    case 'table':
+      return tableView(input, groupBy);
+  }
+}
 
-      const rows: DashboardTableRow[] = Array.from(cost.keys()).map((key) => ({
-        key,
-        href: panelRowHref(link, key),
-        cells: {
-          label: labelFor(key),
-          cost: formatUsd(cost.get(key) ?? 0),
-          requests: (requests.get(key) ?? 0).toLocaleString('en-US'),
-          tokens: (tokens.get(key) ?? 0).toLocaleString('en-US'),
-        },
-      }));
+/**
+ * A `stat-group` — a ROW of stat cards, one per group key.
+ *
+ * Two readings, and the metric picks between them. `derived:activeActors` counts DISTINCT actors of
+ * the first `group_by` dimension, broken down by the second ("accounts with usage per billing
+ * plan", owner Q4); every other metric sums the first dimension's own totals. Both are one query
+ * and one panel; what differs is only which question the numbers answer, which is exactly what
+ * `metric` is for.
+ */
+function statGroupView(input: PanelViewInput, groupBy: string[] | undefined): DashboardPanelView {
+  const { spec, response } = input;
+  const labelFor = input.labelFor ?? IDENTITY_LABEL_FOR;
+  const topN = spec.options?.topN;
 
+  if (derivedMetricName(spec.metric) === 'activeActors') {
+    const countDimension = groupBy?.[0] ?? 'account_id';
+    // The BREAKDOWN dimension is the second one; with only one dimension there is nothing to break
+    // down by, so the panel degrades to a single card counting the whole response rather than
+    // inventing a grouping.
+    const groupDimension = groupBy?.[1];
+    if (!groupDimension) {
       return {
-        kind: 'table',
-        columns: tableColumns(spec.options?.rowLabel),
-        rows,
-        unit: spec.options?.unit ?? 'actors',
-        total: rows.length,
+        kind: 'stat-group',
+        stats: [
+          {
+            key: countDimension,
+            label: spec.title,
+            metric: activeActors(response, countDimension as keyof UsageSeriesPoint).toLocaleString(
+              'en-US'
+            ),
+          },
+        ],
       };
     }
+    return {
+      kind: 'stat-group',
+      stats: activeActorsByGroup(response, countDimension, groupDimension)
+        .slice(0, topN ?? 4)
+        .map((group) => ({
+          key: group.key,
+          label: keyLabel(group.key, actorKindOf(groupDimension), labelFor),
+          metric: group.count.toLocaleString('en-US'),
+        })),
+    };
   }
+
+  const dimension = groupBy?.[0] ?? 'model';
+  return {
+    kind: 'stat-group',
+    stats: totalsByGroup(response, dimension, spec.metric)
+      .slice(0, topN ?? 4)
+      .map((group) => ({
+        key: group.key,
+        label: keyLabel(group.key, actorKindOf(dimension), labelFor),
+        metric: formatMetric(group.value, spec.metric),
+      })),
+  };
+}
+
+/** Which figure a sort key reads off a row, for the client-side ordering the table owns while the
+ *  query API has no `ORDER BY` of its own (an explicit, captioned assumption of story C5). */
+type TableRowValues = {
+  key: string;
+  label: string;
+  secondary?: string;
+  subtle: boolean;
+  type: string;
+  cost: number;
+  requests: number;
+  tokens: number;
+  lastActive?: Date;
+};
+
+function compareRows(a: TableRowValues, b: TableRowValues, sortKey: string): number {
+  switch (sortKey) {
+    case 'cost':
+      return a.cost - b.cost;
+    case 'requests':
+      return a.requests - b.requests;
+    case 'tokens':
+      return a.tokens - b.tokens;
+    case 'lastActive':
+      // A row with no dated activity sorts to the BOTTOM in either direction rather than pretending
+      // to be the oldest — "unknown" is not "long ago".
+      return (a.lastActive?.getTime() ?? -Infinity) - (b.lastActive?.getTime() ?? -Infinity);
+    case 'type':
+      return a.type.localeCompare(b.type);
+    default:
+      return a.label.localeCompare(b.label);
+  }
+}
+
+/**
+ * A `table` panel — the one type whose column set, ordering and paging are all the console's own,
+ * because the query API has none of them (no `ORDER BY`, no `OFFSET`, equality filters only).
+ *
+ * Sorting and paging are therefore client-side over the GROUPED response, which is honest exactly
+ * as long as the truncation caption beside the table is visible — the page renders it whenever the
+ * backend set `truncated`, and every panel states its own `limit` in the YAML.
+ */
+function tableView(input: PanelViewInput, groupBy: string[] | undefined): DashboardPanelView {
+  const { spec, response } = input;
+  const dimension = groupBy?.[0] ?? 'user_id';
+  const kind = actorKindOf(dimension);
+  const labelFor = input.labelFor ?? IDENTITY_LABEL_FOR;
+  const columns = spec.options?.columns ?? DEFAULT_TABLE_COLUMNS;
+  const link = input.link ?? spec.options?.link;
+
+  const cost = new Map(totalsByGroup(response, dimension, 'cost').map((g) => [g.key, g.value]));
+  const requests = new Map(
+    totalsByGroup(response, dimension, 'requests').map((g) => [g.key, g.value])
+  );
+  const tokens = new Map(totalsByGroup(response, dimension, 'tokens').map((g) => [g.key, g.value]));
+  const lastActive = lastActiveByGroup(response, dimension);
+
+  // What a row IS, as a cell: the lens when the panel has one, else the `rowLabel` the YAML gave
+  // its first column ("Channel"), else nothing worth printing.
+  const rowType = input.lens ? LENS_NOUN[input.lens] : (spec.options?.rowLabel ?? '—');
+
+  const values: TableRowValues[] = Array.from(cost.keys()).map((key) => {
+    const resolved = kind && key !== UNASSIGNED_KEY ? labelFor(kind, key) : undefined;
+    return {
+      key,
+      label: resolved?.label ?? plainLabel(key),
+      secondary: resolved?.secondary,
+      subtle: resolved?.subtle ?? key === UNASSIGNED_KEY,
+      type: rowType,
+      cost: cost.get(key) ?? 0,
+      requests: requests.get(key) ?? 0,
+      tokens: tokens.get(key) ?? 0,
+      lastActive: lastActive.get(key),
+    };
+  });
+
+  const sort = input.sort;
+  if (sort) {
+    const direction = sort.direction === 'asc' ? 1 : -1;
+    values.sort((a, b) => compareRows(a, b, sort.key) * direction || a.key.localeCompare(b.key));
+  } else {
+    values.sort((a, b) => b.cost - a.cost || a.key.localeCompare(b.key));
+  }
+
+  const rows: DashboardTableRow[] = values.map((row) => ({
+    key: row.key,
+    href: panelRowHref(link, row.key),
+    cells: {
+      // Name AND email for a user (owner-confirmed shape); account owner / project parent
+      // otherwise. Two lines, never concatenated into one — the second is supporting, not part of
+      // the name.
+      label: <IdentityLines label={row.label} detail={row.secondary} subtle={row.subtle} />,
+      type: row.type,
+      cost: formatUsd(row.cost),
+      requests: row.requests.toLocaleString('en-US'),
+      tokens: row.tokens.toLocaleString('en-US'),
+      lastActive: formatLastActive(row.lastActive),
+    },
+  }));
+
+  const page = input.page ?? 0;
+  return {
+    kind: 'table',
+    columns: tableColumns(columns, spec.options?.rowLabel),
+    rows,
+    unit: spec.options?.unit ?? 'actors',
+    total: rows.length,
+    sort: input.sort,
+    onSortChange: input.onSortChange,
+    page,
+    onPrev: input.onPageChange ? () => input.onPageChange?.(Math.max(page - 1, 0)) : undefined,
+    onNext: input.onPageChange ? () => input.onPageChange?.(page + 1) : undefined,
+  };
 }
 
 /**
@@ -439,7 +677,8 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
  */
 function seriesView(input: PanelViewInput): DashboardPanelView {
   const { spec, response, compareResponse, compareShiftMs } = input;
-  const dimensions = spec.query.group_by ?? [];
+  // The RESOLVED dimensions, so a lens-driven series plots (and labels) what it actually queried.
+  const dimensions = input.groupBy ?? spec.query.group_by ?? [];
   const derived = derivedMetricName(spec.metric);
 
   const base = {
@@ -457,10 +696,12 @@ function seriesView(input: PanelViewInput): DashboardPanelView {
     };
   }
 
-  const series = seriesByGroup(response, dimensions[0], spec.metric).slice(
-    0,
-    spec.options?.topN ?? 5
-  );
+  const series = seriesByGroup(
+    response,
+    dimensions[0],
+    spec.metric,
+    input.labelFor ?? IDENTITY_LABEL_FOR
+  ).slice(0, spec.options?.topN ?? 5);
   if (compareResponse && compareShiftMs !== undefined) {
     series.push(comparisonSeries(compareResponse, spec.metric, compareShiftMs));
   }

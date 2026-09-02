@@ -240,6 +240,15 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/refills-queue')).toBe('refills-queue');
   });
 
+  // converse-frontends#448 — and by PREFIX, so C6's drill-downs keep the Usage row lit instead of
+  // falling through to Overview.
+  it('matches /admin/usage and every route below it', () => {
+    expect(adminRouteFromPathname('/admin/usage')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/actors/usr_1?type=user')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/channels/console')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/chats')).toBe('usage');
+  });
+
   it('matches /admin/refill-policies by its own prefix', () => {
     expect(adminRouteFromPathname('/admin/refill-policies')).toBe('refill-policies');
   });
@@ -256,19 +265,32 @@ describe('adminRouteFromPathname', () => {
 });
 
 describe('adminNavGroups', () => {
-  it('lists all four admin destinations, dashboard first', () => {
+  // Readings first, then actions. Usage sits SECOND, between the dashboard and the three budget
+  // rows: overview answers "is anything wrong", usage answers "where did it come from", and the
+  // rest are things an operator DOES (converse-frontends#448).
+  it('lists all five admin destinations, dashboard first and usage second', () => {
     const [group] = adminNavGroups('overview');
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
+      'usage',
       'refills-queue',
       'refill-policies',
       'budget-schedules',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
-    expect(group.items[1]?.href).toBe('/admin/refills-queue');
-    expect(group.items[2]?.href).toBe('/admin/refill-policies');
-    expect(group.items[3]?.href).toBe('/admin/budget-schedules');
+    expect(group.items[1]?.href).toBe('/admin/usage');
+    expect(group.items[2]?.href).toBe('/admin/refills-queue');
+    expect(group.items[3]?.href).toBe('/admin/refill-policies');
+    expect(group.items[4]?.href).toBe('/admin/budget-schedules');
+  });
+
+  it('marks the usage row active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('usage', 4);
+    const usage = group.items.find((item) => item.key === 'usage');
+
+    expect(usage?.active).toBe(true);
+    expect(usage?.count).toBeUndefined();
   });
 
   it('marks the active row off the given AdminRoute', () => {

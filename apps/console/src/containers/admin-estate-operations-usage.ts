@@ -54,7 +54,10 @@ export function splitResponseByAccount(response: UsageQueryResponse): AccountUsa
   }
   return Array.from(byAccount.entries()).map(([accountId, points]) => ({
     accountId,
-    response: { points },
+    // The split RE-USES the parent response's `truncated` flag rather than resetting it: if the
+    // estate-wide query dropped buckets to fit its limit, every per-account slice of it is short by
+    // the same amount, and claiming otherwise per account would be the more confident lie.
+    response: { points, truncated: response.truncated },
   }));
 }
 

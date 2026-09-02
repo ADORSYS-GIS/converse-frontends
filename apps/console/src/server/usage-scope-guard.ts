@@ -35,6 +35,21 @@
  * role check is the correct (and only available) substitute for a per-tenant predicate that
  * cannot be expressed here either.
  *
+ * **Widened to `user` and `project` too (converse-frontends#448 / lightbridge-authz#648, PR
+ * #652).** The backend's own `query_usage` now reads: a token holding `Permission::UsageReadAll`
+ * "may read ANY `scope_id` under `user`/`project`/`account`. Without it those three scopes are
+ * strictly WIDER than `all` is narrow: `scope=all` already returns every row in the estate to this
+ * exact permission." This guard mirrors that exactly, and had to: `/admin/usage/actors/<id>` is a
+ * single actor's slice of data the SAME session can already fetch wholesale through `scope: all`,
+ * so refusing it here would protect nothing while forcing the console to download the estate and
+ * filter it in the browser. The `project` note below (about `model.Project.read` having no admin
+ * bypass) applies to the authz-api RPC path, not to this usage endpoint, whose sole backend
+ * authority is the permission check quoted above.
+ *
+ * **`api_key` is NOT widened, for admins or anyone.** The backend refuses that scope
+ * unconditionally — it has no resolvable ownership authority at all — so accepting it here would
+ * produce a guard pass immediately followed by a backend `403`: dishonest, not merely redundant.
+ *
  * `isAdmin` MUST be computed server-side from the decrypted session cookie's own
  * `user.roles` (`tokens.ts`'s `isAdmin(session.user.roles)`, the identical check
  * `app/(console)/admin/overview/page.tsx` already gates the route itself with) — never from a
@@ -55,13 +70,21 @@
  * (whose backend authority is only the mTLS-authenticated proxy, per the admin-fast-path note
  * above).
  *
- * Deliberately scoped to `scope: 'account'` only — `scope: 'project'` still resolves through
- * `resolveProjectAccountId` regardless of role, because `model.Project.read`'s own `@@allow`
- * (`authz.cstack:345`) has no admin bypass on the backend either: an operator's session cannot
- * actually read a project outside their own family today, so widening the project path here
- * would only produce a guard pass immediately followed by a 403/404 from `authz-api` itself —
- * dishonest, not just redundant.
+ * A NON-admin caller's path is completely unchanged by any of the above: `account` and `project`
+ * still resolve real ownership through `resolveOwnedAccountIds`/`resolveProjectAccountId`, and
+ * `user`/`api_key`/`all` still fail closed in `isScopeOwned`, which has no arm for them.
  */
+
+/**
+ * The scopes a `lightbridge-admin` session may name ANY `scope_id` under, mirroring the backend's
+ * own `usage:read-all` rule verbatim (`handlers::query::query_usage`, lightbridge-authz PR #652).
+ *
+ * `all` is not in this set because it is handled by its own fast path below (it has no `scope_id`
+ * at all), and `api_key` is not in it because the backend refuses that scope unconditionally for
+ * every caller — an admin included. Stated as a closed set rather than an `||` chain so
+ * "which scopes does admin unlock" has exactly one answer a test can read.
+ */
+const ADMIN_READABLE_SCOPES: ReadonlySet<string> = new Set(['user', 'project', 'account']);
 
 export type UsageScopeGuardOutcome =
   | { ok: true }
@@ -158,13 +181,15 @@ export async function guardUsageScope(
     return { ok: true };
   }
 
-  // ── Admin fast path (converse-frontends#368) — see this function's own doc comment above for
-  // why an account-scoped role bypass, not a wider per-tenant predicate, is the correct mirror of
-  // the backend's own admin budget-read pair. `isAdmin` is trusted here BECAUSE the caller
-  // (`route.ts`) is contractually required to derive it from the decrypted session cookie, never
-  // from request input — this function has no way to re-verify that itself, the same trust
-  // boundary `homeAccountId` above already relies on.
-  if (isAdmin === true && parsed.scope === 'account') {
+  // ── Admin fast path (converse-frontends#368, widened for `user`/`project` by #448) — see this
+  // function's own doc comment above for why a role bypass, not a wider per-tenant predicate, is
+  // the correct mirror of the backend's own rule. These are EXACTLY the three scopes
+  // `handlers::query::query_usage` lets a `usage:read-all` holder read any `scope_id` under;
+  // `api_key` is deliberately absent, because the backend refuses it for every caller.
+  // `isAdmin` is trusted here BECAUSE the caller (`route.ts`) is contractually required to derive
+  // it from the decrypted session cookie, never from request input — this function has no way to
+  // re-verify that itself, the same trust boundary `homeAccountId` above already relies on.
+  if (isAdmin === true && ADMIN_READABLE_SCOPES.has(parsed.scope)) {
     return { ok: true };
   }
 

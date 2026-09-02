@@ -71,6 +71,10 @@ export type DashboardPanelView =
   | {
       kind: 'stat-group';
       stats: { key: string; label: string; metric: string; delta?: StatCardDelta }[];
+      /** Shown INSTEAD of the (empty) card row when the window produced no groups. A row of zero
+       *  cards renders nothing at all, which reads as a broken panel rather than as "no usage" —
+       *  the collapsed zone ADR 0013 D5 bans. */
+      emptyMessage?: string;
     }
   | {
       kind: 'series';
@@ -119,6 +123,14 @@ export type DashboardPanelView =
       unit: string;
       sort?: LedgerSort;
       onSortChange?: (sort: LedgerSort) => void;
+      /**
+       * Which page of `rows` to draw, 0-based. The caller holds it (in the URL, for the console)
+       * but does NOT slice: the page SIZE is this panel's own density decision
+       * (`PANEL_TABLE_PAGE_SIZE`, and it doubles in the expanded dialog), so a caller that sliced
+       * would have to know a number it has no business knowing — and would silently show ten rows
+       * in a dialog sized for fifty.
+       */
+      page?: number;
       hasPrev?: boolean;
       hasNext?: boolean;
       onPrev?: () => void;

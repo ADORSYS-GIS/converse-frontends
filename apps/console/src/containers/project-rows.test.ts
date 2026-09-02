@@ -126,6 +126,7 @@ describe('applyProjectSpend', () => {
     // successful fetch — trusting `response` alone here would print last period's figures under
     // this period's heading.
     const stale: UsageQueryResponse = {
+      truncated: false,
       points: [point({ project_id: 'gateway-prod', total_cost: usd(999) })],
     };
     expect(applyProjectSpend(rows, stale, 'error')[0].spendMtd).toBeNull();
@@ -133,6 +134,7 @@ describe('applyProjectSpend', () => {
 
   it('maps a resolved response onto the matching row by project id, summed across points', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ project_id: 'gateway-prod', total_cost: usd(30) }),
         point({ project_id: 'gateway-prod', total_cost: usd(12.5) }),
@@ -148,6 +150,7 @@ describe('applyProjectSpend', () => {
     // The request is account-wide for the whole period — absence means no usage was recorded,
     // which is a fact ("$0.00"), not the "we don't know yet" an em dash would misstate it as.
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [point({ project_id: 'gateway-prod', total_cost: usd(10) })],
     };
 
@@ -178,9 +181,9 @@ describe('sortProjectRows', () => {
   });
 
   it('sorts by spend, treating a still-loading (null) row as the lowest value', () => {
-    expect(
-      sortProjectRows(rows, { key: 'spendMtd', direction: 'asc' }).map((r) => r.name)
-    ).toEqual(['bravo', 'charlie', 'alpha']);
+    expect(sortProjectRows(rows, { key: 'spendMtd', direction: 'asc' }).map((r) => r.name)).toEqual(
+      ['bravo', 'charlie', 'alpha']
+    );
   });
 
   it('does not mutate the input array', () => {

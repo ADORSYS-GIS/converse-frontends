@@ -7,14 +7,17 @@ import type {
   DashboardPanelType,
   DashboardPanelView,
 } from '@lightbridge/ui-web/src/sections/dashboard-panels';
+import type { LedgerSort } from '@lightbridge/ui-web/src/components/ledger-table';
 import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import type { ResetCadence, UsageWindow } from '../containers/comparison-window';
+import { collectActorIds, EMPTY_ACTOR_IDS } from './actor-labels';
 import type { DashboardPageSpec } from './dashboard-spec';
 import { toPanelView } from './panel-adapters';
 import { queryKey, resolveDashboard } from './resolve-dashboard';
 import type { DashboardFilters, ResolvedDashboard, ResolvedQuery } from './resolve-dashboard';
+import { useActorLabels } from './use-actor-labels';
 
 /**
  * The one hook a declarative dashboard page calls (converse-frontends#446, decision D-K).
@@ -46,6 +49,13 @@ export interface DashboardPanelState {
   view?: DashboardPanelView;
   errorMessage?: string;
   onRetry: () => void;
+  /**
+   * Set only when the backend actually dropped buckets to fit this panel's own `limit`
+   * (`UsageQueryResponse.truncated`, lightbridge-authz#578). It NAMES the limit, because "some data
+   * is missing" without a number is not something an operator can act on — ADR 0013 D5's
+   * "explicit limits and truncation captions", and an explicit AC of story C5.
+   */
+  truncationCaption?: string;
 }
 
 export interface DashboardState {
@@ -56,6 +66,9 @@ export interface DashboardState {
   /** How many requests the page actually issued. Equal to `resolved.queries.length`; surfaced so
    *  the "N panels → M requests" claim is checkable rather than asserted in a comment. */
   requestCount: number;
+  /** Set only when the ONE batched `resolveActorLabels` call failed — the page captions it, and
+   *  every actor row falls back to its labelled sentinel rather than disappearing. */
+  actorLabelsErrorMessage?: string;
 }
 
 export interface UseDashboardInput {
@@ -74,8 +87,30 @@ export interface UseDashboardInput {
    */
   scaleFor: (panelId: string) => MultiSeriesSpendScale | undefined;
   onScaleChange: (panelId: string, scale: MultiSeriesSpendScale) => void;
+  /**
+   * Per-TABLE sort and page, held in the URL by the caller for the same reason the scale knobs are
+   * (ADR 0011: a shared link must restore the exact view). Per panel, not per page: a screen can
+   * carry two tables — `/admin/usage` carries actors and channels — and one sort key steering both
+   * would mean sorting one table silently re-sorted the other.
+   *
+   * Optional as a pair: a page with no table (or one that does not care to make its order
+   * shareable) omits both and gets the default cost-descending order and page 0.
+   */
+  sortFor?: (panelId: string) => LedgerSort | undefined;
+  onSortChange?: (panelId: string, sort: LedgerSort) => void;
+  pageFor?: (panelId: string) => number;
+  onPageChange?: (panelId: string, page: number) => void;
   /** Suspends every request — used while a route param the placeholders need is still resolving. */
   enabled?: boolean;
+}
+
+/** The caption a `truncated: true` response gets, naming the panel's own limit. */
+export function truncationCaption(limit: number): string {
+  return (
+    `Showing the most recent ${limit.toLocaleString('en-US')} time buckets — older buckets in ` +
+    'this window were dropped to fit the query limit, so totals here are lower than the true ' +
+    'period totals. Narrow the range for a complete reading.'
+  );
 }
 
 /**
@@ -108,6 +143,10 @@ export function useDashboard({
   resetCadence,
   scaleFor,
   onScaleChange,
+  sortFor,
+  onSortChange,
+  pageFor,
+  onPageChange,
   enabled = true,
 }: UseDashboardInput): DashboardState {
   const resolved = useMemo(
@@ -125,6 +164,33 @@ export function useDashboard({
       enabled,
     })),
   });
+
+  /**
+   * ONE actor-label lookup for the whole page, over every id every panel's response carries.
+   *
+   * Collected from the RESPONSES rather than declared per panel, because which actors a window
+   * contains is not knowable until the data lands — and gathering them here, once, is what keeps
+   * `/admin/usage`'s five actor-grained panels plus a two-hundred-row table on a single
+   * `resolveActorLabels` call instead of an N+1. `results` is memo-keyed on the query list, so the
+   * lookup re-runs when the data changes and not on every paint.
+   */
+  const responsesKey = results
+    .map((result) => (result.isSuccess ? result.dataUpdatedAt : 0))
+    .join(',');
+  const actorIds = useMemo(
+    () =>
+      enabled
+        ? collectActorIds(
+            results.map((result) =>
+              result.isSuccess ? (result.data as UsageQueryResponse) : undefined
+            )
+          )
+        : EMPTY_ACTOR_IDS,
+    // `results` is a fresh array every render; `responsesKey` changes exactly when a response does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [responsesKey, enabled]
+  );
+  const actorLabels = useActorLabels(actorIds);
 
   const panels = resolved.panels.map((panel): DashboardPanelState => {
     const base = {
@@ -157,20 +223,39 @@ export function useDashboard({
         ? (compare.data as UsageQueryResponse)
         : undefined;
 
+    const response = primary.data as UsageQueryResponse;
+    const query = resolved.queries[panel.queryIndex];
+
     return {
       ...base,
       status: 'ready',
+      // Named, not implied: the caption states the panel's OWN limit, which is the number the YAML
+      // author set and the only one that explains what was dropped.
+      truncationCaption: response.truncated ? truncationCaption(query.limit) : undefined,
       view: toPanelView({
         spec: panel.spec,
-        response: primary.data as UsageQueryResponse,
+        response,
         compareResponse,
         compareCadence: compareResponse ? panel.compareCadence : undefined,
         compareShiftMs: compareResponse ? panel.compareShiftMs : undefined,
         scale: scaleFor(panel.spec.id) ?? panel.spec.options?.scale ?? 'linear',
         onScaleChange: (next) => onScaleChange(panel.spec.id, next),
+        groupBy: query.group_by,
+        lens: panel.lens,
+        link: panel.link,
+        labelFor: actorLabels.labelFor,
+        sort: sortFor?.(panel.spec.id),
+        onSortChange: onSortChange ? (next) => onSortChange(panel.spec.id, next) : undefined,
+        page: pageFor?.(panel.spec.id),
+        onPageChange: onPageChange ? (next) => onPageChange(panel.spec.id, next) : undefined,
       }),
     };
   });
 
-  return { panels, resolved, requestCount: resolved.queries.length };
+  return {
+    panels,
+    resolved,
+    requestCount: resolved.queries.length,
+    actorLabelsErrorMessage: actorLabels.errorMessage,
+  };
 }

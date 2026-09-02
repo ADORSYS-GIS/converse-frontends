@@ -218,6 +218,7 @@ describe('safeCost', () => {
 describe('toSpendShareSegments', () => {
   it('sums cost per dimension value across the whole range', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ model: 'gpt-4o-mini', total_cost: usd(3) }),
         point({ model: 'gpt-4o-mini', total_cost: usd(4) }),
@@ -240,6 +241,7 @@ describe('toSpendShareSegments', () => {
     // unsorted list would hand the lightest, most prominent step to whichever key the usage
     // backend happened to mention first rather than to the largest share.
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ model: 'small', total_cost: 1 }),
         point({ model: 'largest', total_cost: 9 }),
@@ -314,13 +316,16 @@ describe('degenerateChartMessage', () => {
   });
 
   it('returns undefined once there are >=2 real segments', () => {
-    expect(degenerateChartMessage([{ label: 'a' }, { label: 'b' }], 'project', null)).toBeUndefined();
+    expect(
+      degenerateChartMessage([{ label: 'a' }, { label: 'b' }], 'project', null)
+    ).toBeUndefined();
   });
 });
 
 describe('sumTotalCost', () => {
   it('sums every point regardless of grouping', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [point({ total_cost: usd(1.5) }), point({ total_cost: usd(2.25) })],
     };
 
@@ -328,18 +333,24 @@ describe('sumTotalCost', () => {
   });
 
   it('returns 0, not NaN or a thrown error, for an empty response', () => {
-    expect(sumTotalCost({ points: [] })).toBe(0);
+    expect(sumTotalCost({ truncated: false, points: [] })).toBe(0);
   });
 });
 
 describe('isUsageResponseTruncated', () => {
   it('is true only when the response hit the limit exactly', () => {
-    const atLimit: UsageQueryResponse = { points: Array.from({ length: 5 }, () => point({})) };
+    const atLimit: UsageQueryResponse = {
+      truncated: false,
+      points: Array.from({ length: 5 }, () => point({})),
+    };
     expect(isUsageResponseTruncated(atLimit, 5)).toBe(true);
   });
 
   it('is false when the response returned fewer points than the limit', () => {
-    const underLimit: UsageQueryResponse = { points: Array.from({ length: 4 }, () => point({})) };
+    const underLimit: UsageQueryResponse = {
+      truncated: false,
+      points: Array.from({ length: 4 }, () => point({})),
+    };
     expect(isUsageResponseTruncated(underLimit, 5)).toBe(false);
   });
 
@@ -492,6 +503,7 @@ describe('resolveOverviewWindow', () => {
 
 describe('series labelling', () => {
   const response: UsageQueryResponse = {
+    truncated: false,
     points: [
       point({ project_id: 'zezxvt21irmoi0kzm22el7gu', total_cost: 5 }),
       point({ project_id: undefined, total_cost: 2 }),

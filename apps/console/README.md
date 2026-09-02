@@ -29,10 +29,15 @@ src/
   server/                   server-only: config loading, OIDC, session crypto, refresh policy, proxy
   client/                   'use client': refine root, cratestack clients, shell chrome, view state
   containers/               per-route `use-*-screen` adapters (refine hooks -> section props) and
-                            the thin centre/rail components that compose ui-web sections from them
+                            the thin centre components that compose ui-web sections from them
+  dashboards/               the declarative dashboard engine: zod spec, loader, resolver, hook,
+                            renderer registry, derived metrics, export button — see below
+  shared/                   permission vocabulary shared by the server gates and the client chrome
   sw.ts                     service worker (bundled by @serwist/turbopack's route handler; see
                             app/serwist/[path]/route.ts — registered client-side in production only)
 config.yaml                 the primary server config document — see Configuration below
+dashboards.yaml             the declarative dashboard definition — see "Declarative dashboards"
+templates/<route>/report.typ  per-route Typst report templates — see "Report export"
 ```
 
 ## The shell is mounted once
@@ -54,7 +59,7 @@ The property this buys: **navigating does not remount the header or the nav**. T
 regression-tested claim, in two halves —
 `src/app/console-shell-mount.test.ts` asserts the route tree's shape (the shell is imported in
 exactly one file; no `page.tsx` mounts any part of it; every centre route has a matching segment in
-both slots; every `/admin` segment carries the server-side role gate), and
+both slots; every `/admin` segment carries its server-side permission gate — a permission from `getMyAccess`, never a role string; see ADR 0015 D4), and
 `packages/ui-web/src/pages-stories/shell-persistence.stories.tsx` asserts the runtime half by
 object identity: stash the nav DOM node, navigate, and it is still the same node.
 
@@ -413,6 +418,157 @@ client-supplied `Authorization` can never reach a backend. Path segments are val
 
 The request body is buffered rather than streamed, because the reactive-401 path has to replay the
 exact same bytes with a fresh token. Responses are streamed.
+
+## Declarative dashboards — `dashboards.yaml`
+
+converse-frontends#446 / #447 / #448 / #455, recorded in
+[ADR 0015](../../docs/adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md) D1.
+Owner, 2026-09-02: _"the dashboards are basically fetch(filters × type × parameters) = data. The
+page handles the filters; we externalize the list of type × parameters into a dashboards.yaml (per
+page); Next reads those and does the mapping."_
+
+**There are zero hand-written dashboard containers in this app.** A dashboard page is one entry in
+`apps/console/dashboards.yaml` keyed by its router path, plus a route file that reads the entry,
+calls `useDashboard(route)` and renders `DashboardRenderer`. **Ten** entries ship today:
+`/admin/overview`, `/admin/usage` and its three drill-downs (`/admin/usage/actors/[actorId]`,
+`/admin/usage/channels/[channelId]`, `/admin/usage/chats`), `/accounts/[accountId]/overview`, and
+the four `/settings/overview/*` lenses.
+
+Panel ids are **prefixed per page** (`actor-*`, `channel-*`, `chat-*`), never reused across pages:
+the report walk resolves a route to a panel list, the per-panel URL knob is `?<panel-id>-scale=`,
+and this file is read across pages, so an id has to be unambiguous document-wide. Types and
+readings are shared freely; only identities are distinct.
+
+### The schema
+
+Validated by zod (`src/dashboards/dashboard-spec.ts`) at **build time** (`dashboard-spec.test.ts`
+parses the real document) **and at startup** (`loadDashboards()`), fail-loud both times.
+
+```yaml
+pages:
+  - route: /admin/usage # the App Router path; `[param]` segments written literally
+    filters: [lens] # which $params panels here may use; `range` is implicit
+    panels:
+      - id: cost-by-channel # unique on the page: React key, dedupe attribution,
+        type: ranked #   heading id, and what a validation error names
+        title: Cost by channel
+        subtitle: Which client each request came through. # optional; screen AND report
+        span: 1 # 1 = one grid column, 2 = both
+        metric: cost # cost | requests | tokens | latency | derived:<name>
+        compare: false # optional; adds the comparison-window twin + a delta
+        options: # optional, per type
+          topN: 8
+          link: /admin/usage/channels/:key # `:key` = the row's own group-by value
+        query:
+          scope: all # user | api_key | project | account | all | family
+          scope_id: '' # optional; a literal or a $placeholder
+          group_by: [azp]
+          filters: {} # equality strings, plus the one list filter (`operation_in`)
+          bucket: auto # ≤7d → 1 hour, ≤90d → 1 day, else 7 days
+          limit: 2000 # ALWAYS explicit — never a server default
+```
+
+Closed vocabularies, each stated once and shared with `packages/ui-web` so YAML and the renderer
+registry cannot disagree:
+
+| Field               | Values                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `type`              | `stat` · `stat-group` · `series` · `ranked` · `share` · `donut` · `table` · `latency-cards` · `latency-series` |
+| `metric`            | `cost` · `requests` · `tokens` · `latency`, or `derived:<name>`                                                |
+| `derived:<name>`    | `avgCostPerMillionTokens` · `costPerRequest` · `activeActors` · `chatCount` · `activeActorsPerBucket`          |
+| `options.scale`     | `linear` · `log` · `indexed` (`series`/`latency-series`)                                                       |
+| `options.lens`      | `user` · `account` · `project` — swaps the first `group_by` dimension and resolves `$lens` in `options.link`   |
+| `options.columns`   | `label` · `type` · `cost` · `requests` · `tokens` · `lastActive` (`table`)                                     |
+| `options.dimension` | any `group_by` entry, or `none` for the ungrouped total                                                        |
+| `scope`             | `user` · `api_key` · `project` · `account` · `all`, plus the resolver's own `family`                           |
+
+### Placeholders
+
+`$name` in any query string field is substituted from the page's own `filters` — `scope_id:
+$actorId`, `scope: $type`, `filters.azp: $channelId`. **An unresolved placeholder is an error**,
+never an empty string: `scope_id: ''` on an account-scoped panel is not "no actor", it is a
+different question than the panel's title claims, and on `scope: all` it would silently widen a
+per-actor panel to the whole deployment.
+
+`$name?` is the **optional** form and is legal **only inside `filters.<key>`**: it drops the filter
+when the page has no value for it — what an account dashboard's project picker needs when it rests
+on "All projects". It is deliberately not legal on `scope`/`scope_id`: a dropped scope is not a
+narrower query, it is a different one.
+
+`range` (with `from`/`to`) is applied to every panel on every page and is never listed in
+`filters`.
+
+### Resolution, in order
+
+`resolveDashboard` (`src/dashboards/resolve-dashboard.ts`) is **React-free, DOM-free and
+clock-free** — it takes the window it is told about — precisely so `/api/reports/page` can run the
+same function server-side and get the same queries the browser issued.
+
+1. Substitute `$param` placeholders (error on an unresolved one).
+2. Apply the page's range to every panel.
+3. Resolve `bucket: auto`; always emit an explicit `limit`.
+4. Add the comparison-window twin for `compare: true` (`containers/comparison-window.ts` — the one
+   "vs previous" rule in the console: previous window of the same length, snapped to the reset
+   cadence, floor of one week).
+5. Apply the lens — swap the first `group_by` dimension, resolve `$lens` in `options.link`.
+6. Expand `scope: family` into one `scope: account` query per account in the session's own family.
+7. **Deduplicate** on a stable key derived from the fully-resolved query (`group_by` sorted).
+
+A **substituted** `scope` is additionally validated against the closed usage-scope enum
+(`assertUsageScope`). It is the one field whose value a URL a person can type decides, and an
+invalid `?type=` must not reach the backend as a 400 arriving under a page that has already printed
+an actor's name. The route 404s it first — this is the structural second line, so a page entry is
+safe to read on its own.
+
+Dedupe is the measured payoff: `/admin/usage`'s nineteen panels are **six** requests plus one
+twin; `/admin/overview`'s eleven are **three** plus one, where its eight hand-written boards fired
+six.
+
+### Adding a panel vs adding a type
+
+- **A panel is YAML.** Add an entry under the page's `panels:` and it renders, exports and gets its
+  own URL knobs. No code.
+- **A type is a renderer plus a Storybook story**, in `packages/ui-web/src/sections/dashboard-panels`
+  — an entry in `DASHBOARD_PANEL_TYPES`, an entry in `panelRenderers`, and a story. The console's
+  zod enum is built from that array and the registry is keyed on it, with a test asserting both
+  cover it exactly, so a type cannot exist in YAML without a renderer or vice versa. An
+  `if (panelId === …)` in a page is the thing this engine exists to remove.
+- **Storybook is the oracle.** `Pages/FromSpec` renders any YAML page entry against a mocked query
+  layer, so a page is reviewable before the backend column behind it exists — and a page migrated
+  onto the engine proves parity against its own existing page story before any container is
+  deleted.
+
+### Where the file is read from
+
+```
+1. ${CONSOLE_CONFIG_DIR}/dashboards.yaml   # the deployment's own copy (operator override)
+2. ./dashboards.yaml                       # the in-repo file shipped in the image
+```
+
+`CONSOLE_CONFIG_DIR` is **derived**, not a second independently-wired variable: an explicit
+`CONSOLE_CONFIG_DIR`, else the directory holding `CONSOLE_CONFIG`, else none (a dev checkout with
+no `CONSOLE_CONFIG` has no override root and must not treat the repo root as one). That is why the
+Helm chart needed only one more optional ConfigMap (`console-dashboards`, mounted at
+`/config/console/dashboards.yaml`) beside the config and branding it already mounts.
+
+`CONSOLE_DASHBOARDS` overrides the in-repo path itself, and exists for tests.
+
+### Validation is fail-loud, and an invalid override never falls back
+
+An unreadable, unparseable or invalid document **throws at startup**, listing every problem and
+naming the offending **page route and panel id** — the console refuses to boot rather than
+rendering an empty dashboard, which is exactly the failure mode hand-written containers had. An
+override that exists but is invalid is a hard failure: an operator who mounted a broken file is
+told, not quietly served a different dashboard than the one they deployed.
+
+```
+[console] Invalid dashboards document at "/config/console/dashboards.yaml":
+  - page "/admin/usage", panel "cost-by-channel", at pages.1.panels.11.query.limit: Required
+  - page "/admin/usage", panel "model-mix", at pages.1.panels.12.type: Invalid enum value
+```
+
+The document is cached for the process lifetime, like `serverEnv()` — it cannot change without a
+restart.
 
 ## Report export — `.typ` templates and the `typst-render` sidecar
 

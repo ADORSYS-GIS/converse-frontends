@@ -64,6 +64,19 @@ What holds for **both**, and is the load-bearing part:
 - **Full-page compositions exist in exactly two places**: Storybook page stories
   (`packages/ui-web/src/pages-stories/`) and the consuming app's own routes.
 - **The shell mounts once**, in the console's persistent layout. Navigating must not remount it.
+- **A dashboard page is DECLARED, not written** (ADR 0015 D1). The route → container → section
+  layering above is the rule for every screen that is _not_ a dashboard. A usage/spend dashboard is
+  an entry in `apps/console/dashboards.yaml` plus a thin route file: the container holds only what a
+  page owns and a panel cannot (its window, its lens, its URL knobs) and calls
+  `useDashboard(route)`. There are **zero** hand-written dashboard containers left, a ratchet keeps
+  it that way, and adding a panel is adding YAML. Adding a panel _type_ is a renderer plus a
+  Storybook story in `packages/ui-web`, never an inline branch in a page. See
+  `apps/console/README.md` § "Declarative dashboards".
+- **The console never re-derives authorization** (ADR 0015 D4). Gates read the permission set
+  `procedure.getMyAccess` resolved server-side, never a role string off the token claim. There is no
+  role → permission map in the console and no `isAdmin`; a ratchet
+  (`apps/console/src/no-role-derived-gates.test.ts`) fails the build if one returns. See
+  `authorization-and-permissions.md`.
 
 ---
 

@@ -162,7 +162,10 @@ Details: `apps/governance-auth/README.md`.
 | Console routes, config, session/proxy mechanics         | `apps/console/README.md`, `console-configuration.md`, `auth-and-identity.md`                    |
 | authz-ui routes, the `routes.json` contract, CSP gates  | `apps/authz-ui/README.md`                                                                       |
 | governance-auth single-file callback page, OCI artifact | `apps/governance-auth/README.md`                                                                |
-| Why the console looks and is laid out the way it is     | ADRs 0007–0013                                                                                  |
+| Why the console looks and is laid out the way it is     | ADRs 0007–0015                                                                                  |
+| How a dashboard page is DEFINED (not coded)             | `apps/console/dashboards.yaml` + `apps/console/README.md` § Declarative dashboards, ADR 0015 D1 |
+| Who may see which console screen                        | `authorization-and-permissions.md`, ADR 0015 D4                                                 |
+| How a dashboard page becomes a PDF                      | `apps/console/README.md` § Report export, `apps/typst-render/README.md`, ADR 0015 D5            |
 | RPC codegen, the cratestack pin, CBOR                   | `rpc-and-codegen.md`, `packages/authz-rpc/README.md`                                            |
 | Usage/analytics backend surface                         | `api-usage-backend.md`                                                                          |
 | CI, image publishing, deployment                        | `ci-cd.md`, `infrastructure.md`                                                                 |

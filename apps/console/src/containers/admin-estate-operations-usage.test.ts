@@ -59,6 +59,7 @@ describe('summarizeMtdSpend', () => {
   it('sums micro-USD costs into USD across every point', () => {
     expect(
       summarizeMtdSpend({
+        truncated: false,
         points: [
           point({ total_cost: 1_000_000 }),
           point({ total_cost: 2_500_000 }),
@@ -69,12 +70,13 @@ describe('summarizeMtdSpend', () => {
   });
 
   it('is honestly zero for a response with no points', () => {
-    expect(summarizeMtdSpend({ points: [] })).toBe(0);
+    expect(summarizeMtdSpend({ truncated: false, points: [] })).toBe(0);
   });
 
   it('clamps a malformed or negative cost per point rather than dropping the whole account', () => {
     expect(
       summarizeMtdSpend({
+        truncated: false,
         points: [point({ total_cost: 1_000_000 }), point({ total_cost: -5_000_000 })],
       })
     ).toBe(1);
@@ -84,6 +86,7 @@ describe('summarizeMtdSpend', () => {
 describe('splitResponseByAccount', () => {
   it('groups points by account_id into the AccountUsageResponse[] shape the zone reads', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ account_id: 'acct_1', total_cost: 1_000_000 }),
         point({ account_id: 'acct_2', total_cost: 2_000_000 }),
@@ -98,6 +101,7 @@ describe('splitResponseByAccount', () => {
 
   it('drops a point with no account_id rather than inventing a pseudo-account for it', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ account_id: 'acct_1', total_cost: 1_000_000 }),
         point({ account_id: null, total_cost: 5_000_000 }),
@@ -106,12 +110,26 @@ describe('splitResponseByAccount', () => {
     };
     const split = splitResponseByAccount(response);
     expect(split).toEqual([
-      { accountId: 'acct_1', response: { points: [split[0].response.points[0]] } },
+      {
+        accountId: 'acct_1',
+        // Each slice carries the PARENT's `truncated` flag: a slice of a query that dropped
+        // buckets is short by the same amount, and claiming otherwise per account would be the
+        // more confident lie (converse-frontends#448, mirroring lightbridge-authz#578).
+        response: { points: [split[0].response.points[0]], truncated: false },
+      },
     ]);
   });
 
+  it('carries a truncated parent flag onto every slice rather than resetting it', () => {
+    const split = splitResponseByAccount({
+      truncated: true,
+      points: [point({ account_id: 'acct_1' }), point({ account_id: 'acct_2' })],
+    });
+    expect(split.map((slice) => slice.response.truncated)).toEqual([true, true]);
+  });
+
   it('an empty response splits to an empty array', () => {
-    expect(splitResponseByAccount({ points: [] })).toEqual([]);
+    expect(splitResponseByAccount({ truncated: false, points: [] })).toEqual([]);
   });
 });
 

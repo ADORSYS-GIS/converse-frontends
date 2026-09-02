@@ -82,6 +82,64 @@ const bucketSchema = z.union([z.literal('auto'), z.string().min(1)]);
 export const usageScopes = ['user', 'api_key', 'project', 'account', 'all'] as const;
 
 /**
+ * The three entities an "actor" panel can be ABOUT (converse-frontends#448, story C5). Users
+ * first, always — the owner's actor-identity rule, and the order the lens `SegmentedControl`
+ * renders in.
+ */
+export const DASHBOARD_LENSES = ['user', 'account', 'project'] as const;
+export type DashboardLens = (typeof DASHBOARD_LENSES)[number];
+
+/**
+ * A lens → the `group_by` dimension (and `UsageSeriesPoint` field) it reads.
+ *
+ * This is the whole mechanism behind "one panel, three lenses": a panel that declares
+ * `options.lens` has the FIRST dimension of its `group_by` replaced by this map's entry for the
+ * page's effective lens (`resolve-dashboard.ts`). The YAML still states a real, honest default
+ * dimension — `group_by: [user_id]` with `options.lens: user` — rather than a placeholder that
+ * means nothing on its own, so a page entry read in isolation still says what it queries.
+ */
+export const LENS_DIMENSION: Record<DashboardLens, string> = {
+  user: 'user_id',
+  account: 'account_id',
+  project: 'project_id',
+};
+
+export function isDashboardLens(value: string | undefined): value is DashboardLens {
+  return value !== undefined && (DASHBOARD_LENSES as readonly string[]).includes(value);
+}
+
+/**
+ * The columns a `table` panel may declare, as a closed vocabulary (`options.columns`).
+ *
+ * A table panel used to be exactly one shape — label, cost, requests, tokens — which is right for
+ * `/admin/overview`'s top-spender ledgers and wrong for both of `/admin/usage`'s tables: the actor
+ * table owes an operator a TYPE (which lens a row belongs to) and a LAST ACTIVE reading, and the
+ * channel table has no token column worth printing at all. Declaring the column list is what keeps
+ * that a YAML decision rather than an `if (isActorTable)` in the adapter.
+ *
+ * Closed on purpose: `columns: [spend]` must fail validation naming the page and the panel, not
+ * render a header over an empty column.
+ */
+export const DASHBOARD_TABLE_COLUMNS = [
+  'label',
+  'type',
+  'cost',
+  'requests',
+  'tokens',
+  'lastActive',
+] as const;
+export type DashboardTableColumnId = (typeof DASHBOARD_TABLE_COLUMNS)[number];
+
+/** What a `table` panel draws when it declares no `columns` — `/admin/overview`'s two
+ *  top-spender ledgers, unchanged by this vocabulary existing. */
+export const DEFAULT_TABLE_COLUMNS: readonly DashboardTableColumnId[] = [
+  'label',
+  'cost',
+  'requests',
+  'tokens',
+];
+
+/**
  * `group_by` is a plain string array, not the generated `UsageGroupBy` enum, and that is
  * deliberate: lane A3 adds `azp` / `operation` / `billing_plan` as first-class dimensions, and a
  * page must be authorable (and reviewable in Storybook, against fixtures) BEFORE that column
@@ -93,7 +151,22 @@ export const dashboardQuerySchema = z
     scope: placeholderOrLiteral.optional(),
     scope_id: placeholderOrLiteral.optional(),
     group_by: z.array(z.string().min(1)).optional(),
-    filters: z.record(z.string().min(1), placeholderOrLiteral).optional(),
+    /**
+     * Equality filters, plus the ONE set-membership filter the backend offers: `operation_in`
+     * (lightbridge-authz#648) takes a list. A list value is modelled here generically rather than
+     * as a named `operation_in` field so the schema does not have to be edited again the next time
+     * the backend grows a `*_in` filter — the wire cast is still the single one in
+     * `use-dashboard.ts`, and an unknown filter key is the backend's 400 to raise, exactly as it
+     * already is for an unknown `group_by` dimension.
+     *
+     * An EMPTY list is refused here rather than sent: `operation = ANY('{}')` is false for every
+     * row, so it is a filter that can only ever return nothing while looking like a real question
+     * — the same reasoning (and the same refusal) as the backend's own `UsageQueryFilters::
+     * validate`, caught one hop earlier.
+     */
+    filters: z
+      .record(z.string().min(1), z.union([placeholderOrLiteral, z.array(z.string().min(1)).min(1)]))
+      .optional(),
     bucket: bucketSchema.optional(),
     /**
      * ALWAYS explicit, never left to a server default (console-ui skill: "every usage request sets
@@ -110,8 +183,16 @@ export const panelOptionsSchema = z
   .object({
     /** `series`/`latency-series` only — the initial axis transform. */
     scale: z.enum(['linear', 'log', 'indexed']).optional(),
-    /** Which entity a breakdown ranks. `user` first, per the owner's actor-identity rule. */
-    lens: z.enum(['user', 'account', 'project']).optional(),
+    /**
+     * Which entity a breakdown ranks, and the panel's DEFAULT when the page's own `?lens=` knob is
+     * unset. `user` first, per the owner's actor-identity rule.
+     *
+     * Declaring it is what makes a panel lens-DRIVEN: `resolve-dashboard.ts` swaps the first
+     * `group_by` dimension for `LENS_DIMENSION[effective lens]`, and `$lens` in `options.link`
+     * resolves to the same value — so one YAML panel serves all three lenses without the page
+     * holding three of them.
+     */
+    lens: z.enum(DASHBOARD_LENSES).optional(),
     /** Rows/wedges before the `Other (N)` collapse. Omit to take the panel size's own default. */
     topN: z.number().int().positive().optional(),
     /** A route TEMPLATE with `:key` standing for the row's own group-by value, e.g.
@@ -127,6 +208,8 @@ export const panelOptionsSchema = z
     /** `table` only — the PLURAL noun `Pagination` counts in ("accounts", "projects"). Defaults
      *  to `actors`, and must move together with `rowLabel` for the same reason. */
     unit: z.string().min(1).optional(),
+    /** `table` only — which columns the ledger draws, in order. Omit for `DEFAULT_TABLE_COLUMNS`. */
+    columns: z.array(z.enum(DASHBOARD_TABLE_COLUMNS)).min(1).optional(),
   })
   .strict();
 

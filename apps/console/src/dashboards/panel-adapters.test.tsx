@@ -1,4 +1,6 @@
+import type React from 'react';
 import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
+import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashboard-panels';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardPanelSpec } from './dashboard-spec';
@@ -29,7 +31,7 @@ function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
   };
 }
 
-const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ points });
+const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ truncated: false, points });
 
 const spec = (overrides: Partial<DashboardPanelSpec>): DashboardPanelSpec =>
   ({
@@ -269,13 +271,273 @@ describe('toPanelView', () => {
       })
     );
     expect(view.kind === 'table' && view.rows[0].cells).toMatchObject({
-      label: 'u1',
       cost: '$1.50',
       requests: '4',
       tokens: '1,200',
     });
+    // The label cell is an ELEMENT (`IdentityLines`), not a string, since #448: a user row is a
+    // name over an email, and the second line is the half that tells two people with the same
+    // display name apart.
+    expect(labelCellText(view)).toBe('u1');
   });
 });
+
+// ── converse-frontends#448: the lens, the actor table, the plan stat-group ───────────────────
+describe('toPanelView — the actor table', () => {
+  const actorSpec = spec({
+    type: 'table',
+    query: { scope: 'all', group_by: ['user_id'], limit: 100 },
+    options: {
+      lens: 'user',
+      rowLabel: 'Actor',
+      unit: 'actors',
+      columns: ['label', 'type', 'cost', 'requests', 'tokens', 'lastActive'],
+      link: '/admin/usage/actors/:key?type=$lens',
+    },
+  });
+
+  const labelFor = (kind: 'user' | 'account' | 'project', id: string) =>
+    id === 'u1'
+      ? { label: 'Ada Lovelace', secondary: 'ada@example.com', subtle: false }
+      : { label: id, subtle: false };
+
+  const rows = (over: Partial<Parameters<typeof toPanelView>[0]> = {}) => {
+    const view = toPanelView(
+      input({
+        spec: actorSpec,
+        groupBy: ['user_id'],
+        lens: 'user',
+        link: '/admin/usage/actors/:key?type=user',
+        labelFor,
+        response: response([
+          point({
+            user_id: 'u1',
+            bucket_start: '2026-09-03T00:00:00Z',
+            total_cost: 3_000_000,
+            requests: 9,
+            total_tokens: 900,
+          }),
+          point({
+            user_id: 'u2',
+            bucket_start: '2026-09-01T00:00:00Z',
+            total_cost: 1_000_000,
+            requests: 4,
+            total_tokens: 100,
+          }),
+        ]),
+        ...over,
+      })
+    );
+    if (view.kind !== 'table') throw new Error('not a table view');
+    return view;
+  };
+
+  it('draws exactly the columns the YAML declared, in order', () => {
+    expect(rows().columns.map((column) => column.key)).toEqual([
+      'label',
+      'type',
+      'cost',
+      'requests',
+      'tokens',
+      'lastActive',
+    ]);
+    expect(rows().columns[0].header).toBe('Actor');
+  });
+
+  it('shows the resolved name over the email, and says what a row IS', () => {
+    const cells = rows().rows[0].cells;
+    expect(labelCell(rows())).toMatchObject({
+      label: 'Ada Lovelace',
+      detail: 'ada@example.com',
+    });
+    expect(cells.type).toBe('User');
+  });
+
+  it('dates last activity from the most recent bucket, in UTC, at bucket resolution', () => {
+    expect(rows().rows[0].cells.lastActive).toBe('2026-09-03 00:00 UTC');
+  });
+
+  it('links each row at the lens-resolved actor route', () => {
+    expect(rows().rows[0].href).toBe('/admin/usage/actors/u1?type=user');
+  });
+
+  it('defaults to cost descending, with no sort in the URL', () => {
+    expect(rows().rows.map((row) => row.key)).toEqual(['u1', 'u2']);
+  });
+
+  it('sorts client-side on the URL-held key and direction', () => {
+    expect(
+      rows({ sort: { key: 'requests', direction: 'asc' } }).rows.map((row) => row.key)
+    ).toEqual(['u2', 'u1']);
+    expect(rows({ sort: { key: 'tokens', direction: 'desc' } }).rows.map((row) => row.key)).toEqual(
+      ['u1', 'u2']
+    );
+  });
+
+  it('carries the page index through rather than slicing — the page SIZE is the panel own', () => {
+    const view = rows({ page: 2, onPageChange: () => {} });
+    expect(view.page).toBe(2);
+    // Every row is still present; `TableBody` is what windows them at its own density.
+    expect(view.rows).toHaveLength(2);
+    expect(view.total).toBe(2);
+  });
+
+  it('keeps an unresolved actor row, labelled, rather than dropping its spend', () => {
+    const view = rows({
+      response: response([point({ user_id: 'u_ghost', total_cost: 5_000_000, requests: 1 })]),
+    });
+    expect(view.rows).toHaveLength(1);
+    expect(labelCell(view).label).toBe('u_ghost');
+  });
+
+  it('reads the LENS-resolved dimension, not the spec own — an account is not a user', () => {
+    const view = toPanelView(
+      input({
+        spec: actorSpec,
+        groupBy: ['account_id'],
+        lens: 'account',
+        link: '/admin/usage/actors/:key?type=account',
+        labelFor: (_kind, id) => ({ label: `acct ${id}`, subtle: false }),
+        response: response([point({ account_id: 'a1', total_cost: 1_000_000, requests: 1 })]),
+      })
+    );
+    if (view.kind !== 'table') throw new Error('not a table view');
+    expect(view.rows[0].key).toBe('a1');
+    expect(view.rows[0].cells.type).toBe('Account');
+    expect(view.rows[0].href).toBe('/admin/usage/actors/a1?type=account');
+  });
+
+  it('keeps the pre-#448 four-column shape when the YAML declares no columns', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'table', query: { scope: 'all', group_by: ['account_id'], limit: 10 } }),
+        groupBy: ['account_id'],
+        response: response([point({ account_id: 'a1', total_cost: 1_000_000 })]),
+      })
+    );
+    expect(view.kind === 'table' && view.columns.map((c) => c.key)).toEqual([
+      'label',
+      'cost',
+      'requests',
+      'tokens',
+    ]);
+  });
+});
+
+describe('toPanelView — the plan stat-group', () => {
+  it('counts distinct accounts per billing plan, one card each', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'stat-group',
+          metric: 'derived:activeActors',
+          query: { scope: 'all', group_by: ['account_id', 'billing_plan'], limit: 100 },
+        }),
+        groupBy: ['account_id', 'billing_plan'],
+        response: response([
+          point({ account_id: 'a1', billing_plan: 'pro', requests: 2 }),
+          point({ account_id: 'a2', billing_plan: 'pro', requests: 2 }),
+          point({ account_id: 'a3', billing_plan: 'free', requests: 2 }),
+        ]),
+      })
+    );
+    expect(view.kind === 'stat-group' && view.stats).toEqual([
+      { key: 'pro', label: 'pro', metric: '2' },
+      { key: 'free', label: 'free', metric: '1' },
+    ]);
+  });
+
+  it('degrades to one honest card when there is no second dimension to break down by', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'stat-group',
+          title: 'Active accounts',
+          metric: 'derived:activeActors',
+          query: { scope: 'all', group_by: ['account_id'], limit: 100 },
+        }),
+        groupBy: ['account_id'],
+        response: response([point({ account_id: 'a1', requests: 2 })]),
+      })
+    );
+    expect(view.kind === 'stat-group' && view.stats).toEqual([
+      { key: 'account_id', label: 'Active accounts', metric: '1' },
+    ]);
+  });
+
+  it('still SUMS for a non-derived metric — the two readings are what `metric` picks between', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'stat-group',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['billing_plan'], limit: 100 },
+        }),
+        groupBy: ['billing_plan'],
+        response: response([point({ billing_plan: 'pro', total_cost: 2_000_000 })]),
+      })
+    );
+    expect(view.kind === 'stat-group' && view.stats).toEqual([
+      { key: 'pro', label: 'pro', metric: '$2.00' },
+    ]);
+  });
+});
+
+describe('toPanelView — labels on ranked, share, donut and series', () => {
+  const labelFor = (_kind: 'user' | 'account' | 'project', id: string) =>
+    id === 'u1' ? { label: 'Ada Lovelace', subtle: false } : { label: id, subtle: false };
+
+  const withUsers = (type: 'ranked' | 'share' | 'donut' | 'series') =>
+    toPanelView(
+      input({
+        spec: spec({ type, query: { scope: 'all', group_by: ['user_id'], limit: 10 } }),
+        groupBy: ['user_id'],
+        labelFor,
+        response: response([point({ user_id: 'u1', total_cost: 1_000_000, requests: 1 })]),
+      })
+    );
+
+  it.each(['ranked', 'share', 'donut'] as const)('resolves actor ids in a %s panel', (type) => {
+    const view = withUsers(type);
+    const first =
+      view.kind === 'ranked' ? view.rows[0] : view.kind === 'share' ? view.segments[0] : null;
+    const label = first?.label ?? (view.kind === 'donut' ? view.segments[0].label : undefined);
+    expect(label).toBe('Ada Lovelace');
+  });
+
+  it('resolves actor ids in a series panel too', () => {
+    const view = withUsers('series');
+    expect(view.kind === 'series' && view.series[0].label).toBe('Ada Lovelace');
+  });
+
+  it('never resolves a dimension that has no identity — a model is its own name', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'ranked', query: { scope: 'all', group_by: ['model'], limit: 10 } }),
+        groupBy: ['model'],
+        labelFor: () => ({ label: 'WRONG', subtle: false }),
+        response: response([point({ model: 'gpt-4o', total_cost: 1_000_000 })]),
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('gpt-4o');
+  });
+});
+
+/** The `label` cell's own props — the cell is `IdentityLines`, so a test asserting on the row's
+ *  identity reads the props rather than a string. */
+function labelCell(view: DashboardPanelView): { label: string; detail?: string; subtle?: boolean } {
+  if (view.kind !== 'table') throw new Error('not a table view');
+  const cell = view.rows[0].cells.label as React.ReactElement<{
+    label: string;
+    detail?: string;
+    subtle?: boolean;
+  }>;
+  return cell.props;
+}
+
+function labelCellText(view: DashboardPanelView): string {
+  return labelCell(view).label;
+}
 
 const DAY = 86_400_000;
 

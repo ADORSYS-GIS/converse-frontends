@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { DonutChart } from '../../components/donut-chart';
+import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { Pagination } from '../../components/pagination';
@@ -123,7 +124,13 @@ function DonutBody({ view, size }: PanelRendererProps<'donut'>) {
 
 function TableBody({ view, size }: PanelRendererProps<'table'>) {
   const pageSize = PANEL_TABLE_PAGE_SIZE[size];
-  const rows = view.rows.slice(0, pageSize);
+  // The page INDEX is the caller's (the console holds it in the URL); the page SIZE is this
+  // panel's, and it doubles when the panel is expanded. Clamped so a `?…-page=9` deep-link into a
+  // table that has since shrunk lands on a real page rather than on an empty one.
+  const lastPage = Math.max(Math.ceil(view.rows.length / pageSize) - 1, 0);
+  const page = Math.min(Math.max(view.page ?? 0, 0), lastPage);
+  const start = page * pageSize;
+  const rows = view.rows.slice(start, start + pageSize);
   const columns: LedgerColumn<DashboardTableRow>[] = view.columns.map((column) => ({
     key: column.key,
     header: column.header,
@@ -150,8 +157,8 @@ function TableBody({ view, size }: PanelRendererProps<'table'>) {
         unit={view.unit}
         // A page that was cut by THIS panel's own size (rather than by the caller's cursor) still
         // has a next page — stated honestly rather than presenting a truncated view as complete.
-        hasPrev={view.hasPrev ?? false}
-        hasNext={view.hasNext ?? view.rows.length > pageSize}
+        hasPrev={view.hasPrev ?? page > 0}
+        hasNext={view.hasNext ?? start + pageSize < view.rows.length}
         onPrev={view.onPrev}
         onNext={view.onNext}
       />
@@ -172,16 +179,23 @@ export const panelRenderers = {
     <StatCard label={view.label} metric={view.metric} delta={view.delta} />
   ),
 
-  'stat-group': ({ view }: PanelRendererProps<'stat-group'>) => (
-    <OverviewStatRow
-      cards={view.stats.map((stat) => ({
-        key: stat.key,
-        label: stat.label,
-        metric: stat.metric,
-        delta: stat.delta,
-      }))}
-    />
-  ),
+  // A row of ZERO cards renders nothing at all — a hole where a panel was, which reads as broken
+  // rather than as "no usage in this range". An inline status line is the honest empty state here
+  // (ADR 0013 D5: "empty states are inline status lines, not centred placards", and never a
+  // collapsed zone).
+  'stat-group': ({ view }: PanelRendererProps<'stat-group'>) =>
+    view.stats.length === 0 ? (
+      <InlineStatus>{view.emptyMessage ?? 'No usage in this range.'}</InlineStatus>
+    ) : (
+      <OverviewStatRow
+        cards={view.stats.map((stat) => ({
+          key: stat.key,
+          label: stat.label,
+          metric: stat.metric,
+          delta: stat.delta,
+        }))}
+      />
+    ),
 
   series: ({ view, size }: PanelRendererProps<'series'>) => (
     <SeriesBody

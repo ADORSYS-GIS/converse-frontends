@@ -4,7 +4,14 @@ import {
   type ResetCadence,
   type UsageWindow,
 } from '../containers/comparison-window';
-import type { DashboardPageSpec, DashboardPanelSpec, DashboardQuerySpec } from './dashboard-spec';
+import {
+  isDashboardLens,
+  LENS_DIMENSION,
+  type DashboardLens,
+  type DashboardPageSpec,
+  type DashboardPanelSpec,
+  type DashboardQuerySpec,
+} from './dashboard-spec';
 
 /**
  * Spec + page filters → a concrete, DEDUPLICATED query list plus a per-panel index into it
@@ -27,6 +34,12 @@ import type { DashboardPageSpec, DashboardPanelSpec, DashboardQuerySpec } from '
  *     `7 days`), and always emits an explicit `limit`.
  *  4. **Adds the comparison twin** for `compare: true`, through the shared `comparisonWindow`
  *     helper (D-F) — the twin is an ordinary query and is deduplicated like any other.
+ *  4b. **Applies the LENS** (converse-frontends#448) — a panel declaring `options.lens` has the
+ *     first dimension of its `group_by` swapped for the page's effective lens
+ *     (`?lens=user|account|project`, else the panel's own YAML default), and `$lens` in its
+ *     `options.link` resolved to the same value. One YAML panel, three readings; the dedupe below
+ *     then folds every lens-driven panel on the page into one request, because they all end up
+ *     asking the same question.
  *  5. **Deduplicates** on a stable key derived from the fully-resolved query, so every ungrouped
  *     `stat` panel on a page shares ONE request. `/admin/overview` today fires one query per board
  *     varying only `group_by`, and the identical ungrouped ones are not shared; that is the waste
@@ -47,7 +60,9 @@ export interface ResolvedQuery {
   end_time: string;
   bucket: string;
   group_by?: string[];
-  filters?: Record<string, string>;
+  /** A list value is the backend's one set-membership filter, `operation_in`
+   *  (lightbridge-authz#648) — every other filter is a plain equality string. */
+  filters?: Record<string, string | string[]>;
   limit: number;
 }
 
@@ -70,6 +85,19 @@ export interface ResolvedPanel {
    * adapter because this is the only module that knows both windows.
    */
   compareShiftMs?: number;
+  /**
+   * Which entity this panel is about, when it declares `options.lens` — the page's `?lens=` knob
+   * if it set one, else the panel's own YAML default. `undefined` on a panel that is not
+   * lens-driven at all, so an adapter can tell "this panel has no lens" from "this panel's lens is
+   * user", which is the difference between a table with a Type column and one without.
+   */
+  lens?: DashboardLens;
+  /**
+   * `options.link` with `$lens` already substituted; `:key` is still the row's own placeholder and
+   * is filled per row by `panelRowHref`. Resolved HERE because this is the module that knows the
+   * effective lens, and because C10's server-side report walk needs the same hrefs the page draws.
+   */
+  link?: string;
 }
 
 export interface ResolvedDashboard {
@@ -132,11 +160,30 @@ function substitute(
   return resolved;
 }
 
+/**
+ * A lens-driven panel's `group_by`, with its FIRST dimension swapped for the effective lens's own.
+ *
+ * Only the first: a lens says what a row IS, and every dimension after it is there to widen the
+ * dedupe (a panel that lists `[user_id, account_id]` shares a request with one that lists
+ * `[account_id, user_id]`, and each reads its own first entry — the mechanism `/admin/overview`'s
+ * adoption panels already rely on). Swapping them all would collapse two dimensions into one and
+ * quietly change how coarse the query is.
+ *
+ * A lens-driven panel with no `group_by` at all is given the lens dimension outright, so the
+ * option always means something rather than being silently ignored.
+ */
+function applyLens(groupBy: string[] | undefined, lens: DashboardLens): string[] {
+  const dimension = LENS_DIMENSION[lens];
+  if (!groupBy || groupBy.length === 0) return [dimension];
+  return [dimension, ...groupBy.slice(1).filter((entry) => entry !== dimension)];
+}
+
 function resolveQuery(
   query: DashboardQuerySpec,
   window: UsageWindow,
   filters: DashboardFilters,
-  context: { route: string; panelId: string }
+  context: { route: string; panelId: string },
+  lens: DashboardLens | undefined
 ): ResolvedQuery {
   const substituteField = (value: string, field: string) =>
     substitute(value, filters, { ...context, field });
@@ -145,10 +192,15 @@ function resolveQuery(
     ? Object.fromEntries(
         Object.entries(query.filters).map(([key, value]) => [
           key,
-          substituteField(value, `filters.${key}`),
+          // A LIST filter (`operation_in`) is a closed vocabulary the backend validates, not
+          // page state — every entry is a literal, and substituting into one would mean a single
+          // URL knob silently rewriting a set-membership filter.
+          Array.isArray(value) ? [...value] : substituteField(value, `filters.${key}`),
         ])
       )
     : undefined;
+
+  const groupBy = lens ? applyLens(query.group_by, lens) : query.group_by;
 
   return {
     // `scope: all` with an empty `scope_id` is the estate-wide default the backend documents
@@ -159,7 +211,7 @@ function resolveQuery(
     start_time: window.start.toISOString(),
     end_time: window.end.toISOString(),
     bucket: !query.bucket || query.bucket === 'auto' ? autoBucket(window) : query.bucket,
-    group_by: query.group_by && query.group_by.length > 0 ? [...query.group_by] : undefined,
+    group_by: groupBy && groupBy.length > 0 ? [...groupBy] : undefined,
     filters:
       resolvedFilters && Object.keys(resolvedFilters).length > 0 ? resolvedFilters : undefined,
     limit: query.limit,
@@ -181,7 +233,11 @@ export function queryKey(query: ResolvedQuery): string {
   const filters = query.filters
     ? Object.entries(query.filters)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key}=${value}`)
+        // A list filter is normalized the same way `group_by` is — SORTED, because
+        // `operation_in: [a, b]` and `[b, a]` are the same question and must share one request.
+        .map(
+          ([key, value]) => `${key}=${Array.isArray(value) ? [...value].sort().join('+') : value}`
+        )
         .join('&')
     : '';
   return [
@@ -231,23 +287,34 @@ export function resolveDashboard({
   const comparison = wantsCompare ? comparisonWindow(window, cadence) : undefined;
   const effectiveWindow = comparison?.current ?? window;
 
+  // The page's own lens knob, narrowed once. An unrecognised `?lens=` value is IGNORED rather than
+  // thrown on: it comes from a URL a person can type, and every lens-driven panel still has its own
+  // YAML default to fall back to — unlike a `$param` placeholder, which has no honest fallback and
+  // therefore does throw.
+  const pageLens = isDashboardLens(filters.lens) ? filters.lens : undefined;
+
   const panels: ResolvedPanel[] = page.panels.map((spec) => {
     const context = { route: page.route, panelId: spec.id };
+    const lens = spec.options?.lens ? (pageLens ?? spec.options.lens) : undefined;
+    const link =
+      spec.options?.link && lens ? spec.options.link.replaceAll('$lens', lens) : spec.options?.link;
     const queryIndex = intern(
       queries,
       index,
-      resolveQuery(spec.query, effectiveWindow, filters, context)
+      resolveQuery(spec.query, effectiveWindow, filters, context, lens)
     );
 
-    if (!spec.compare || !comparison) return { spec, queryIndex };
+    if (!spec.compare || !comparison) return { spec, queryIndex, lens, link };
 
     return {
       spec,
       queryIndex,
+      lens,
+      link,
       compareQueryIndex: intern(
         queries,
         index,
-        resolveQuery(spec.query, comparison.previous, filters, context)
+        resolveQuery(spec.query, comparison.previous, filters, context, lens)
       ),
       compareCadence: comparison.cadence,
       compareShiftMs: comparison.current.start.getTime() - comparison.previous.start.getTime(),

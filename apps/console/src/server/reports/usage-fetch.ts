@@ -52,7 +52,13 @@ import { guardUsageScope } from '../usage-scope-guard';
 
 /** The wire body, loosely typed on purpose — `resolve-dashboard.ts` deliberately produces plain
  *  strings for `scope`/`group_by`/`filters` so a page can name a dimension the backend does not
- *  have yet, and the backend's own 400 is the honest answer to that. */
+ *  have yet, and the backend's own 400 is the honest answer to that.
+ *
+ *  A LIST filter value is the backend's one set-membership filter, `operation_in`
+ *  (lightbridge-authz#648): the report walks the same resolved query list the page issues, so it
+ *  has to be able to carry the same filter shapes — `/admin/usage`'s chat-completions panel is a
+ *  three-value question, and a report that silently dropped the filter would print the estate's
+ *  whole request count under a heading that says "chat completions". */
 export interface UsageQueryBody {
   scope: string;
   scope_id: string;
@@ -60,7 +66,7 @@ export interface UsageQueryBody {
   end_time: string;
   bucket?: string;
   group_by?: string[];
-  filters?: Record<string, string>;
+  filters?: Record<string, string | string[]>;
   limit?: number;
 }
 

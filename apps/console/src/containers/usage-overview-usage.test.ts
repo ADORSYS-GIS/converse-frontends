@@ -28,7 +28,10 @@ function point(overrides: Partial<UsageQueryResponse['points'][number]>) {
 
 describe('previousWindow', () => {
   it('is the immediately preceding, non-overlapping window of the same length', () => {
-    const window = { start: new Date('2026-08-01T00:00:00Z'), end: new Date('2026-08-08T00:00:00Z') };
+    const window = {
+      start: new Date('2026-08-01T00:00:00Z'),
+      end: new Date('2026-08-08T00:00:00Z'),
+    };
     const previous = previousWindow(window);
     expect(previous.end).toEqual(window.start);
     expect(previous.start.toISOString()).toBe('2026-07-25T00:00:00.000Z');
@@ -40,17 +43,37 @@ describe('combineAccountModelResponses', () => {
     {
       accountId: 'acct_a',
       response: {
+        truncated: false,
         points: [
-          point({ model: 'gpt-4o', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 3_000_000 }),
-          point({ model: 'claude', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 1_000_000 }),
-          point({ model: 'gpt-4o', bucket_start: '2026-08-02T00:00:00.000Z', total_cost: 2_000_000 }),
+          point({
+            model: 'gpt-4o',
+            bucket_start: '2026-08-01T00:00:00.000Z',
+            total_cost: 3_000_000,
+          }),
+          point({
+            model: 'claude',
+            bucket_start: '2026-08-01T00:00:00.000Z',
+            total_cost: 1_000_000,
+          }),
+          point({
+            model: 'gpt-4o',
+            bucket_start: '2026-08-02T00:00:00.000Z',
+            total_cost: 2_000_000,
+          }),
         ],
       },
     },
     {
       accountId: 'acct_b',
       response: {
-        points: [point({ model: 'gpt-4o', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 5_000_000 })],
+        truncated: false,
+        points: [
+          point({
+            model: 'gpt-4o',
+            bucket_start: '2026-08-01T00:00:00.000Z',
+            total_cost: 5_000_000,
+          }),
+        ],
       },
     },
   ];
@@ -88,8 +111,13 @@ describe('combineAccountModelResponses', () => {
       {
         accountId: 'acct_c',
         response: {
+          truncated: false,
           points: [
-            point({ model: 'gpt-4o', bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 4_000_000 }),
+            point({
+              model: 'gpt-4o',
+              bucket_start: '2026-08-01T00:00:00.000Z',
+              total_cost: 4_000_000,
+            }),
             point({ model: null, bucket_start: '2026-08-01T00:00:00.000Z', total_cost: 6_000_000 }),
           ],
         },
@@ -132,8 +160,14 @@ describe('toPreviousPeriodSeries', () => {
 
   it('sums every account into one comparison series, keyed distinctly from the estate total', () => {
     const perAccount: AccountUsageResponse[] = [
-      { accountId: 'acct_a', response: { points: [point({ total_cost: 2_000_000 })] } },
-      { accountId: 'acct_b', response: { points: [point({ total_cost: 3_000_000 })] } },
+      {
+        accountId: 'acct_a',
+        response: { truncated: false, points: [point({ total_cost: 2_000_000 })] },
+      },
+      {
+        accountId: 'acct_b',
+        response: { truncated: false, points: [point({ total_cost: 3_000_000 })] },
+      },
     ];
     const series = toPreviousPeriodSeries(perAccount, SPAN_MS);
     expect(series.key).toBe('previous-period');
@@ -148,7 +182,10 @@ describe('toPreviousPeriodSeries', () => {
     const perAccount: AccountUsageResponse[] = [
       {
         accountId: 'acct_a',
-        response: { points: [point({ bucket_start: '2026-07-25T00:00:00.000Z', total_cost: 2_000_000 })] },
+        response: {
+          truncated: false,
+          points: [point({ bucket_start: '2026-07-25T00:00:00.000Z', total_cost: 2_000_000 })],
+        },
       },
     ];
 

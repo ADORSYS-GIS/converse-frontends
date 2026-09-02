@@ -705,6 +705,49 @@ export function useAdminOverviewParams() {
   });
 }
 
+// ── /admin/usage ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The three entities `/admin/usage`'s lens-driven panels can be about (converse-frontends#448).
+ * USER FIRST, and the order here is the order the `SegmentedControl` renders in — the owner's
+ * actor-identity rule ("actor means the user first, then account, then project"), stated in the
+ * one module that owns this page's URL vocabulary.
+ *
+ * Kept as a literal here rather than imported from `dashboards/dashboard-spec.ts` because this
+ * module is the app's only nuqs importer and is deliberately free of dashboard-engine imports;
+ * `admin-usage-page.test.ts` asserts the two lists agree, so they cannot drift silently.
+ */
+export const ADMIN_USAGE_LENSES = ['user', 'account', 'project'] as const;
+export type AdminUsageLens = (typeof ADMIN_USAGE_LENSES)[number];
+
+/**
+ * `/admin/usage`'s own params: the range every dashboard page owns, plus this page's `lens`.
+ *
+ * The per-panel axis knobs come from `useDashboardScaleParams` and the per-table sort/page knobs
+ * from `useDashboardTableParams` below — both declared FROM the page spec for the same reason
+ * `/admin/overview`'s were (a deployment can add a panel through the config-volume override
+ * without a rebuild, and a fixed table here would leave its knob steering nothing).
+ *
+ * `history: 'replace'` for all four: a range and a lens are view knobs, not navigation, and
+ * dragging a segmented control must not cost a Back press per click (ADR 0011 rule 2). Sort and
+ * page are the exception and say so at their own declaration.
+ */
+export const adminUsageParsers = {
+  range: parseAsStringLiteral(OVERVIEW_RANGES).withDefault('mtd'),
+  from: parseAsString.withDefault(''),
+  to: parseAsString.withDefault(''),
+  lens: parseAsStringLiteral(ADMIN_USAGE_LENSES).withDefault('user'),
+};
+
+const adminUsageUrlKeys = {};
+
+export function useAdminUsageParams() {
+  return useQueryStates(adminUsageParsers, {
+    urlKeys: adminUsageUrlKeys,
+    history: 'replace',
+  });
+}
+
 // ── declarative dashboards: one axis knob per series panel ───────────────────────────────────
 
 /** A `dashboards.yaml` panel id → the query param carrying that panel's axis transform. Kebab
@@ -747,6 +790,58 @@ export function useDashboardScaleParams(panelIds: readonly string[]) {
     [identity]
   );
   return useQueryStates(parsers, { history: 'replace' });
+}
+
+// ── declarative dashboards: sort + page per TABLE panel ──────────────────────────────────────
+
+/** A `dashboards.yaml` table panel id → its three query params. Kebab already, because panel ids
+ *  are (`actors-table` → `?actors-table-sort=cost&actors-table-dir=desc&actors-table-page=2`). */
+export function dashboardSortKey(panelId: string): string {
+  return `${panelId}-sort`;
+}
+export function dashboardDirKey(panelId: string): string {
+  return `${panelId}-dir`;
+}
+export function dashboardPageKey(panelId: string): string {
+  return `${panelId}-page`;
+}
+
+/**
+ * Sort and page for a declarative dashboard page's TABLE panels — one triple per table, declared
+ * from the page's own panel ids (converse-frontends#448, story C5), exactly as
+ * `useDashboardScaleParams` declares the axis knobs.
+ *
+ * **Per table, not per page.** `/admin/usage` carries two (actors, channels); one shared sort key
+ * would mean sorting the actor ledger silently re-sorted the channel one, and a shared page cursor
+ * would jump both.
+ *
+ * **No `withDefault` on the sort pair.** `null` means "the panel's own default order" (cost
+ * descending, which is what an operator opens a spend table wanting), and a default here would be
+ * a second place that decision lived. `page` DOES default, to `0`, because a page index has no
+ * meaningful "unset" — the first page is the default reading, not a fallback for a missing one.
+ *
+ * **`history: 'push'`** — ADR 0011 rule 2: a sort is this screen's own column header and moving a
+ * page is navigation, so Back walks each of them back rather than leaving the screen. That is the
+ * opposite of the scale knobs above, and deliberately so; every other ledger in this module
+ * (`apiKeysParsers`, `manageParsers`, `adminParsers`) makes the same split.
+ */
+export function useDashboardTableParams(panelIds: readonly string[]) {
+  const identity = panelIds.join(',');
+  const parsers = useMemo(
+    () =>
+      Object.fromEntries(
+        identity
+          .split(',')
+          .filter((id) => id.length > 0)
+          .flatMap((id) => [
+            [dashboardSortKey(id), parseAsString],
+            [dashboardDirKey(id), parseAsStringLiteral(LEDGER_SORT_DIRECTIONS)],
+            [dashboardPageKey(id), parseAsInteger.withDefault(0)],
+          ])
+      ),
+    [identity]
+  );
+  return useQueryStates(parsers, { history: 'push' });
 }
 
 // ── /admin/refill-policies ──────────────────────────────────────────────────────────────────

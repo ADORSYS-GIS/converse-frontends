@@ -89,6 +89,70 @@ export function chatCount(response: UsageQueryResponse): number {
 }
 
 /**
+ * How many DISTINCT actors of one dimension drew anything, BROKEN DOWN by a second dimension —
+ * `/admin/usage`'s "accounts with usage per billing plan" (owner Q4, confirmed), and what a
+ * `stat-group` panel with `metric: derived:activeActors` and `group_by: [account_id, billing_plan]`
+ * renders as one card per plan.
+ *
+ * It is a genuinely different question from `activeActors` above, not a convenience wrapper:
+ * summing per-plan account counts does NOT give the estate's account count, because one account
+ * can appear under two plans across a window (a plan change mid-month is a real event). Each card
+ * therefore states its own honest count and the panel does not print a total.
+ *
+ * The same two rules apply as everywhere else here: a point with `requests <= 0` is not evidence of
+ * activity, and a null/empty key on EITHER dimension is skipped rather than folded into an
+ * "Unassigned" card — "an account on no plan we can name" is not a plan, and inventing a bucket for
+ * it would put a number under a label nobody can act on.
+ */
+export function activeActorsByGroup(
+  response: UsageQueryResponse,
+  countDimension: string,
+  groupDimension: string
+): { key: string; count: number }[] {
+  const perGroup = new Map<string, Set<string>>();
+  for (const point of response.points) {
+    if (safeRequests(point) <= 0) continue;
+    const row = point as unknown as Record<string, unknown>;
+    const actor = row[countDimension];
+    const group = row[groupDimension];
+    if (typeof actor !== 'string' || actor.length === 0) continue;
+    if (typeof group !== 'string' || group.length === 0) continue;
+    const seen = perGroup.get(group) ?? new Set<string>();
+    seen.add(actor);
+    perGroup.set(group, seen);
+  }
+  return Array.from(perGroup.entries())
+    .map(([key, seen]) => ({ key, count: seen.size }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
+/**
+ * The most recent bucket in which each group key actually drew something — the actor table's
+ * "Last active" column (converse-frontends#448).
+ *
+ * BUCKET-grained, and that is the honest reading, not an approximation to apologise for: the usage
+ * API returns buckets, not events, so the finest "when" it can answer is "in the bucket starting
+ * at T". A group with no bucket carrying `requests > 0` is ABSENT from the result rather than
+ * dated at the window start — the console renders a dash for it, because "we have rows for this
+ * actor but none with activity" is not a date.
+ */
+export function lastActiveByGroup(
+  response: UsageQueryResponse,
+  dimension: string
+): Map<string, Date> {
+  const latest = new Map<string, number>();
+  for (const point of response.points) {
+    if (safeRequests(point) <= 0) continue;
+    const value = (point as unknown as Record<string, unknown>)[dimension];
+    if (typeof value !== 'string' || value.length === 0) continue;
+    const t = new Date(point.bucket_start).getTime();
+    if (!Number.isFinite(t)) continue;
+    latest.set(value, Math.max(latest.get(value) ?? Number.NEGATIVE_INFINITY, t));
+  }
+  return new Map(Array.from(latest.entries()).map(([key, t]) => [key, new Date(t)]));
+}
+
+/**
  * How many DISTINCT actors drew anything in EACH bucket, one count series per group-by dimension
  * — the series counterpart of `activeActors` above, and what `/admin/overview`'s adoption board
  * plots ("Active accounts & projects per day").

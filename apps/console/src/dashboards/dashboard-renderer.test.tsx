@@ -116,6 +116,68 @@ describe('DashboardRenderer', () => {
     expect(screen.getByRole('button', { name: 'Expand Broken' })).toBeInTheDocument();
   });
 
+  /**
+   * ADR 0013 D5, and an explicit AC of story C5: a truncated response gets an EXPLICIT caption
+   * naming the limit. Rendered here, once, for every panel type rather than as a field on each of
+   * the nine view shapes — which would have made it something a renderer could forget.
+   */
+  it('captions a truncated panel, naming the limit that dropped the data', () => {
+    render(
+      <DashboardRenderer
+        state={state([
+          panel({ truncationCaption: 'Showing the most recent 2,000 time buckets — older…' }),
+          panel({ id: 'p2', title: 'Untruncated' }),
+        ])}
+      />
+    );
+    expect(screen.getByText(/Showing the most recent 2,000 time buckets/)).toBeInTheDocument();
+    // And exactly one panel carries it — a caption is not decoration on every card.
+    expect(screen.getAllByText(/Showing the most recent/)).toHaveLength(1);
+  });
+
+  it('shows no truncation caption when the backend returned everything', () => {
+    render(<DashboardRenderer state={state([panel()])} />);
+    expect(screen.queryByText(/Showing the most recent/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A BARE panel (`stat`/`stat-group`) has no heading row: its title is the `StatCard`'s own label,
+   * which only exists once data lands. Without this, a page of failed stats is a column of
+   * identical "Upstream is down." lines with nothing saying WHICH reading is missing —
+   * converse-frontends#448, found reviewing `Pages/AdminUsage`'s errored story.
+   */
+  it('restates a BARE panel own title while it is failed or loading', () => {
+    render(
+      <DashboardRenderer
+        state={state([
+          panel({
+            id: 'bare-error',
+            type: 'stat',
+            title: 'Total cost',
+            status: 'error',
+            view: undefined,
+            errorMessage: 'Upstream is down.',
+          }),
+          panel({
+            id: 'bare-loading',
+            type: 'stat',
+            title: 'Active actors',
+            status: 'loading',
+            view: undefined,
+          }),
+        ])}
+      />
+    );
+    expect(screen.getByText('Total cost')).toBeInTheDocument();
+    expect(screen.getByText('Active actors')).toBeInTheDocument();
+  });
+
+  it('does NOT restate the title on a ready bare panel — the StatCard already carries it', () => {
+    render(<DashboardRenderer state={state([panel({ type: 'stat', title: 'Total cost' })])} />);
+    // Exactly once: the card's own label, not a duplicate above it.
+    expect(screen.getAllByText('Total cost')).toHaveLength(1);
+  });
+
   it('renders a skeleton, not a spinner and not a missing card, while loading', () => {
     const { container } = render(
       <DashboardRenderer state={state([panel({ status: 'loading', view: undefined })])} />

@@ -4,10 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { DERIVED_METRICS } from './dashboard-spec';
 import {
   activeActors,
+  activeActorsByGroup,
   activeActorsPerBucket,
   avgCostPerMillionTokens,
   chatCount,
   derivedMetrics,
+  lastActiveByGroup,
 } from './derived-metrics';
 
 /** A point with only the fields a given assertion cares about — every other numeric column is a
@@ -26,7 +28,7 @@ function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
   };
 }
 
-const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ points });
+const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ truncated: false, points });
 
 describe('avgCostPerMillionTokens', () => {
   /** Money is micro-USD on the wire: 2_000_000 µUSD is $2.00, over 1M tokens = $2.00 / 1M. */
@@ -197,6 +199,89 @@ describe('activeActorsPerBucket', () => {
     expect(activeActorsPerBucket(response([]), ['account_id'])).toEqual([
       { dimension: 'account_id', points: [] },
     ]);
+  });
+});
+
+// ── converse-frontends#448: the two readings `/admin/usage` needs on top of the four above ────
+describe('activeActorsByGroup', () => {
+  it('counts DISTINCT actors of one dimension, broken down by a second', () => {
+    expect(
+      activeActorsByGroup(
+        response([
+          point({ account_id: 'a1', billing_plan: 'pro', requests: 3 }),
+          point({ account_id: 'a1', billing_plan: 'pro', requests: 5 }),
+          point({ account_id: 'a2', billing_plan: 'pro', requests: 1 }),
+          point({ account_id: 'a3', billing_plan: 'free', requests: 2 }),
+        ]),
+        'account_id',
+        'billing_plan'
+      )
+    ).toEqual([
+      { key: 'pro', count: 2 },
+      { key: 'free', count: 1 },
+    ]);
+  });
+
+  /** A plan change mid-window is a real event, so the per-plan counts genuinely do NOT sum to the
+   *  estate's account count — the panel prints no total for exactly this reason. */
+  it('counts one account under both plans when it moved between them', () => {
+    const byPlan = activeActorsByGroup(
+      response([
+        point({ account_id: 'a1', billing_plan: 'free', requests: 1 }),
+        point({ account_id: 'a1', billing_plan: 'pro', requests: 1 }),
+      ]),
+      'account_id',
+      'billing_plan'
+    );
+    expect(byPlan.reduce((sum, group) => sum + group.count, 0)).toBe(2);
+    expect(activeActors(response([point({ account_id: 'a1', requests: 1 })]), 'account_id')).toBe(
+      1
+    );
+  });
+
+  it('is not evidence of activity when the bucket carried no requests', () => {
+    expect(
+      activeActorsByGroup(
+        response([point({ account_id: 'a1', billing_plan: 'pro', requests: 0 })]),
+        'account_id',
+        'billing_plan'
+      )
+    ).toEqual([]);
+  });
+
+  it('invents no bucket for a null plan — "no plan we can name" is not a plan', () => {
+    expect(
+      activeActorsByGroup(
+        response([
+          point({ account_id: 'a1', billing_plan: null, requests: 4 }),
+          point({ account_id: 'a2', billing_plan: 'pro', requests: 4 }),
+        ]),
+        'account_id',
+        'billing_plan'
+      )
+    ).toEqual([{ key: 'pro', count: 1 }]);
+  });
+});
+
+describe('lastActiveByGroup', () => {
+  it('is the START of the most recent bucket that carried activity', () => {
+    const latest = lastActiveByGroup(
+      response([
+        point({ user_id: 'u1', bucket_start: '2026-09-01T00:00:00Z', requests: 3 }),
+        point({ user_id: 'u1', bucket_start: '2026-09-03T00:00:00Z', requests: 1 }),
+        point({ user_id: 'u1', bucket_start: '2026-09-02T00:00:00Z', requests: 2 }),
+      ]),
+      'user_id'
+    );
+    expect(latest.get('u1')?.toISOString()).toBe('2026-09-03T00:00:00.000Z');
+  });
+
+  it('is ABSENT for an actor with rows but no activity — never dated at the window start', () => {
+    const latest = lastActiveByGroup(
+      response([point({ user_id: 'u1', bucket_start: '2026-09-01T00:00:00Z', requests: 0 })]),
+      'user_id'
+    );
+    expect(latest.has('u1')).toBe(false);
   });
 });
 

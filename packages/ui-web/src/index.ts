@@ -188,6 +188,7 @@ export {
   requesterDisplay,
 } from './lib/refill-requester';
 export type { RefillRequester, RequesterDisplay } from './lib/refill-requester';
+export { IdentityLines } from './lib/identity-lines';
 export { RequesterLines } from './lib/requester-lines';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';

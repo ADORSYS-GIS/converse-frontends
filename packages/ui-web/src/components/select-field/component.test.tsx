@@ -124,4 +124,56 @@ describe('SelectField', () => {
     expect(other).toHaveAttribute('data-highlighted', '');
     expect(selected).not.toHaveAttribute('data-highlighted');
   });
+  // Issue #445 — the example slot, the identical contract `Field` carries.
+  it('renders the example under the label and describes the trigger with it', () => {
+    render(
+      <SelectField
+        label="Default effect"
+        example="e.g. Send to manual review"
+        value="last-30"
+        options={options}
+        onChange={() => {}}
+      />
+    );
+
+    const trigger = screen.getByLabelText('Default effect');
+    const describedBy = trigger.getAttribute('aria-describedby') as string;
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy)?.textContent).toBe('e.g. Send to manual review');
+  });
+
+  it('describes the trigger with the example AND the error when both are present', () => {
+    render(
+      <SelectField
+        label="Default effect"
+        example="e.g. Send to manual review"
+        error="Pick an effect."
+        value="last-30"
+        options={options}
+        onChange={() => {}}
+      />
+    );
+
+    const described = (
+      screen.getByLabelText('Default effect').getAttribute('aria-describedby') as string
+    )
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent);
+    expect(described).toEqual(['e.g. Send to manual review', 'Pick an effect.']);
+  });
+
+  it('drops the example in the inline layout, where there is no room under the label', () => {
+    render(
+      <SelectField
+        label="Default effect"
+        example="e.g. Send to manual review"
+        layout="inline"
+        value="last-30"
+        options={options}
+        onChange={() => {}}
+      />
+    );
+
+    expect(screen.queryByText('e.g. Send to manual review')).not.toBeInTheDocument();
+  });
 });

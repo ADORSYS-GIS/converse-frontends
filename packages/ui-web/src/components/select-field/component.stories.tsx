@@ -152,6 +152,25 @@ export const ErrorInFieldLight: Story = {
   ),
 };
 
+// Issue #445 — the example slot, the identical contract `Field` carries: a muted line between the
+// label and the trigger, in the trigger's `aria-describedby`.
+export const WithExample: Story = {
+  render: () => (
+    <div className="bg-surface w-[248px] p-4">
+      <SelectField
+        label="Default effect"
+        example="e.g. Send to manual review, when no rule below matches"
+        value="pro"
+        options={[
+          { value: 'free', label: 'Free' },
+          { value: 'pro', label: 'Pro' },
+        ]}
+        onChange={() => {}}
+      />
+    </div>
+  ),
+};
+
 /** Base tier (<600, `CONSOLE_VIEWPORTS.base390`) — the trigger stays full-width in a narrow
  *  column exactly as it does in a toolbar; the popup's own `min-w-(--anchor-width)` keeps it at
  *  least as wide as that trigger. */

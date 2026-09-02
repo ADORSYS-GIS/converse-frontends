@@ -125,6 +125,18 @@ describe('AdminRefillPoliciesCentre', () => {
     expect(screen.getByLabelText('Policy set id')).toBeDisabled();
   });
 
+  it('edit mode: never offers "Start from example policy" — create-only (issue #445)', async () => {
+    await renderCentre({
+      mode: 'edit',
+      form: { mode: 'edit', policySetId: 'budget-refill', policySetIdReadOnly: true } as never,
+    });
+
+    expect(
+      screen.queryByRole('button', { name: 'Start from example policy' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
   it('simulate mode: renders the simulator, never the create/edit form', async () => {
     await renderCentre({ mode: 'simulate' });
 

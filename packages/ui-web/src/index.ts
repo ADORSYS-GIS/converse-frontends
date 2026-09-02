@@ -462,14 +462,11 @@ export type {
 export { AuthErrorPanel } from './sections/auth-error-panel';
 export type { AuthErrorPanelProps } from './sections/auth-error-panel';
 
-// The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
-// dashboard 3) — accounts and projects on one ranking.
-export { TopSpendersLedger } from './sections/top-spenders-ledger';
-export type {
-  TopSpenderRow,
-  TopSpenderScope,
-  TopSpendersLedgerProps,
-} from './sections/top-spenders-ledger';
+// `TopSpendersLedger` lived here until 2026-09-02 (converse-frontends#447, story C4). Its one
+// consumer, `/admin/overview`'s dashboard 3, is a `dashboards.yaml` `table` panel now — two of
+// them, split by what a row IS, so an account row and a project row can link to their own actor
+// pages. That section was a static ranking with no links and no onClick at all, which is the
+// defect the migration set out to fix, so it was deleted rather than left standing unused.
 
 // ── toolbar sections
 // Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,

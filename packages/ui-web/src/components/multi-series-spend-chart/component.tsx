@@ -321,8 +321,14 @@ export function MultiSeriesSpendChart({
                       d={d}
                       stroke={color}
                       strokeWidth={2}
-                      strokeLinecap="round"
+                      // `butt` caps on a dashed line, round on a solid one: round caps on a 5px
+                      // dash close most of the 4px gap and the line reads solid again at panel
+                      // size, which would defeat the only thing the dash is for.
+                      strokeLinecap={s.dashed ? 'butt' : 'round'}
                       strokeLinejoin="round"
+                      // A comparison overlay is the ONLY dashed line on this chart — see
+                      // `MultiSeriesSpendSeries.dashed`.
+                      strokeDasharray={s.dashed ? '5 4' : undefined}
                       fill="none"
                     />
                   ) : null}

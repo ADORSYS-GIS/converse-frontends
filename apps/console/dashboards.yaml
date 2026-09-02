@@ -18,14 +18,13 @@
 # to this file.
 #
 # ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
-# ONE page entry, deliberately. C3 ships the ENGINE; the real entries land with the pages that
-# use them:
-#   - C4 migrates `/admin/overview`'s eight boards here and deletes their containers.
-#   - C5 adds `/admin/usage` (panels 1–19), C6 the actors/channels/chats routes.
+# TWO page entries. C3 shipped the ENGINE and a first `/admin/usage` sketch; C4 (this change)
+# migrated `/admin/overview` onto it and DELETED its hand-written containers
+# (`admin-overview-usage.ts`, `use-admin-overview-screen.ts`). Still to come:
+#   - C5 fills out `/admin/usage` (panels 1–19), C6 the actors/channels/chats routes.
 #   - C12 brings `/accounts/<id>/overview` and `/settings/overview/*` onto the same engine.
-# The `/admin/usage` entry below is what the engine's tests and the `Pages/FromSpec` Storybook
-# story render against — a real, valid page, deliberately a handful of panels rather than all
-# nineteen, so C5 can add the rest without first having to undo a guess made here.
+# The `/admin/usage` entry is deliberately a handful of panels rather than all nineteen, so C5 can
+# add the rest without first having to undo a guess made here.
 #
 # ── PLACEHOLDERS ─────────────────────────────────────────────────────────────────────────────
 # `$name` in any query string field is substituted from the page's own filters (a route param or
@@ -37,6 +36,214 @@
 # `limit` is ALWAYS explicit (console-ui skill) — never left to a server default.
 
 pages:
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/overview — the operator dashboard (converse-frontends#447, story C4).
+  #
+  # These panels ARE the eight boards the hand-written page drew until 2026-09-02. Two zones are
+  # deliberately absent and stay hand-written in `admin-overview-centre.tsx`, because neither is a
+  # usage query and this file only describes usage queries: dashboard 4's budget pressure (the
+  # `getBudgetBalance` RPC, one call per account) and dashboard 5's refill queue depth
+  # (`listPendingAugmentationRequests`). Both render in their own `DashboardGrid` above this one,
+  # with their honesty captions intact.
+  #
+  # Request count: eleven panels resolve to THREE usage requests plus the one previous-window twin
+  # `compare: true` adds — four. The eight-board page this replaces fired SIX, one per board
+  # family, none of them shared. Adding the budget-pressure zone's own billing-period request
+  # (one now; it used to be two, current and previous month) the whole page is five where it was
+  # six, for three more panels.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/overview
+    # No route params and no lens toggle — this page is the whole estate, always. `range` (with
+    # `from`/`to`) is implicit and never listed.
+    filters: []
+
+    panels:
+      # ── 1. Estate spend over time ──────────────────────────────────────────────────────────
+      - id: estate-spend
+        type: series
+        title: Total spend vs previous period
+        subtitle: Every account with usage in this window. The dashed line is the previous period, laid under this one.
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          scale: linear
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # `group_by` is `[account_id, project_id]` on this panel and on both top-spender tables, not
+      # the single dimension each of them actually reads. That is not redundancy — it is what
+      # makes them, and all three adoption panels, ONE request. Adding `project_id` beside
+      # `account_id` costs nothing in rows either: a project belongs to exactly one account, so
+      # the account is functionally determined by the project and the grouping is exactly as
+      # coarse as `[project_id]` alone. Which dimension a panel READS is its own first one.
+      - id: spend-by-account
+        type: series
+        title: Spend by account
+        subtitle: The twelve highest-spending accounts. Values on hover.
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 12
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      # ── 2. Model mix ───────────────────────────────────────────────────────────────────────
+      # Both halves read the SAME per-model query — one request, two panels.
+      - id: model-mix-share
+        type: share
+        title: Spend by model — estate share
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: series
+        title: Spend by model over time
+        subtitle: Log axis by default — one model at ~95% share flattens every other line on a linear one.
+        span: 1
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 3. Top spenders ────────────────────────────────────────────────────────────────────
+      # Two tables, not one mixed ranking: an account row and a project row lead to different
+      # places (`?type=account` vs `?type=project`), and a table has one group-by dimension.
+      # `/admin/usage/actors/<id>` ships in C5 — the href here is already the final URL.
+      - id: top-spender-accounts
+        type: table
+        title: Top spenders — accounts
+        span: 1
+        metric: cost
+        options:
+          rowLabel: Account
+          unit: accounts
+          link: /admin/usage/actors/:key?type=account
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      - id: top-spender-projects
+        type: table
+        title: Top spenders — projects
+        subtitle: Spend the backend attributed to no project is folded into a labelled Unassigned row, never dropped.
+        span: 1
+        metric: cost
+        options:
+          rowLabel: Project
+          unit: projects
+          link: /admin/usage/actors/:key?type=project
+        query:
+          scope: all
+          group_by:
+            - project_id
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── 6. Request volume ──────────────────────────────────────────────────────────────────
+      # Shares the ungrouped query with panel 1 — same scope, same window, same bucket.
+      - id: request-volume
+        type: series
+        title: Request volume
+        subtitle: Error rate is not shown — usage events carry no error/status signal today (lightbridge-authz#597).
+        span: 2
+        metric: requests
+        options:
+          scale: indexed
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # ── 7. Latency ─────────────────────────────────────────────────────────────────────────
+      - id: latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 8. Adoption ────────────────────────────────────────────────────────────────────────
+      # All three panels here resolve to ONE request. `group_by` is order-INSENSITIVE for the
+      # dedupe key (`queryKey` sorts it) but order-SENSITIVE for a distinct count: a
+      # `derived:activeActors` stat counts its query's FIRST dimension. So listing the same two
+      # dimensions in a different order gives two different counts off one shared response, which
+      # is exactly what "identical queries are deduplicated" is supposed to buy.
+      - id: active-accounts
+        type: stat
+        title: Active accounts
+        subtitle: Only counts accounts with usage in this window — an account with zero usage never appears in an estate-wide usage query at all.
+        span: 1
+        metric: derived:activeActors
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      - id: active-projects
+        type: stat
+        title: Active projects
+        subtitle: Same window and the same limit; spend attributed to no project is not counted as one.
+        span: 1
+        metric: derived:activeActors
+        query:
+          scope: all
+          group_by:
+            - project_id
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      - id: adoption-over-time
+        type: series
+        title: Active accounts & projects per day
+        subtitle: Distinct accounts and projects with at least one request in each bucket.
+        span: 2
+        metric: derived:activeActorsPerBucket
+        options:
+          scale: linear
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
   - route: /admin/usage
     # `range` is implicit on every page and never listed. `lens` is this page's own knob: which
     # entity the ranked/table panels are about (owner rule: users first, then account, project).

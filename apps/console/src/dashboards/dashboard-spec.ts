@@ -1,4 +1,11 @@
-import { DASHBOARD_PANEL_TYPES } from '@lightbridge/ui-web/src/sections/dashboard-panels';
+// The narrow `/types` path, NOT the section's barrel. The barrel re-exports `panel-renderers.tsx`,
+// which pulls in `useEffect`/`useState` through the chart primitives — and this module is imported
+// by `/admin/overview`'s SERVER component, which reads the YAML before rendering anything. Going
+// through the barrel made the whole renderer registry a Server Component import and failed the
+// Turbopack build outright ("You're importing a module that depends on `useEffect` into a React
+// Server Component"). `types.ts` is the vocabulary and nothing else: every one of its own imports
+// is `import type`, so it erases completely.
+import { DASHBOARD_PANEL_TYPES } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 import { z } from 'zod';
 
 /**
@@ -34,7 +41,12 @@ export type BaseMetric = (typeof BASE_METRICS)[number];
  * Kept as a closed list on purpose: `metric: derived:whateverIFeltLike` must fail validation, not
  * resolve to `undefined` at render time and draw an empty panel.
  */
-export const DERIVED_METRICS = ['avgCostPerMillionTokens', 'activeActors', 'chatCount'] as const;
+export const DERIVED_METRICS = [
+  'avgCostPerMillionTokens',
+  'activeActors',
+  'chatCount',
+  'activeActorsPerBucket',
+] as const;
 export type DerivedMetricName = (typeof DERIVED_METRICS)[number];
 
 export const DERIVED_METRIC_PREFIX = 'derived:';
@@ -105,6 +117,16 @@ export const panelOptionsSchema = z
     /** A route TEMPLATE with `:key` standing for the row's own group-by value, e.g.
      *  `/admin/usage/actors/:key?type=user`. Turns ranked rows and table rows into real anchors. */
     link: z.string().min(1).optional(),
+    /**
+     * `table` only — what one row IS, singular and capitalised ("Account", "Project"). It is the
+     * first column's header. The default is `Actor`, which is right for a `user_id` table and a
+     * quiet lie on a table of accounts: a column header is a claim about what the rows are, and
+     * `/admin/overview` ranks accounts and projects, not actors.
+     */
+    rowLabel: z.string().min(1).optional(),
+    /** `table` only — the PLURAL noun `Pagination` counts in ("accounts", "projects"). Defaults
+     *  to `actors`, and must move together with `rowLabel` for the same reason. */
+    unit: z.string().min(1).optional(),
   })
   .strict();
 

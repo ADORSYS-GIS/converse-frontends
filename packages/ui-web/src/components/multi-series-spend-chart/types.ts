@@ -15,6 +15,21 @@ export interface MultiSeriesSpendSeries {
   /** This series has breached a configured ceiling — always renders in the accent, regardless of
    *  hover/selection, same contract as `SpendSeriesChart.series[].breached`. */
   breached?: boolean;
+  /**
+   * Draw this line dashed rather than solid.
+   *
+   * Exactly one meaning, and it is the reason this exists: **this series is not the period the
+   * page is about.** A comparison overlay (`compare: true` in `dashboards.yaml` — the previous
+   * window, re-based forward so it sits under the current one) must be distinguishable from the
+   * current period at a glance and WITHOUT a legend, which this console does not have
+   * (`component.tsx`'s "values on hover, never a static per-series list" ruling). Colour alone
+   * cannot carry it: rank-2 grey is also what an ordinary second account or model gets.
+   *
+   * Deliberately not a general styling hook — nothing here reads it except the line's own
+   * `stroke-dasharray`, and no caller should set it to mean "de-emphasise", which is what
+   * hover dimming already does.
+   */
+  dashed?: boolean;
 }
 
 /**

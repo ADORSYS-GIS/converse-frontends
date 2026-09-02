@@ -240,6 +240,33 @@ describe('compare twins', () => {
     expect(twin.end_time).toBe(resolved.queries[0].start_time);
   });
 
+  /**
+   * A SERIES overlay has to be re-based forward or it doubles the chart's x-domain and squeezes
+   * the current period into half the board — the 2026-08-31 owner finding. The shift is the gap
+   * between the two windows' starts, which for a fixed-length cadence is exactly the span.
+   */
+  it('reports how far forward the twin must be shifted to overlay the current window', () => {
+    const resolved = resolveDashboard({
+      page: page([statPanel('a', { compare: true })]),
+      window: windowOf(30),
+      resetCadence: 'weekly',
+    });
+    const [panel] = resolved.panels;
+    const current = resolved.queries[panel.queryIndex];
+    const twin = resolved.queries[panel.compareQueryIndex as number];
+    expect(panel.compareShiftMs).toBe(Date.parse(current.start_time) - Date.parse(twin.start_time));
+    // Weekly snapping rounds 30 days up to 35, so the shift is that snapped span, not 30 days.
+    expect(panel.compareShiftMs).toBe(35 * 86_400_000);
+  });
+
+  it('leaves the shift undefined for a panel that does not compare', () => {
+    const resolved = resolveDashboard({
+      page: page([statPanel('a', { compare: true }), statPanel('b')]),
+      window: windowOf(30),
+    });
+    expect(resolved.panels[1].compareShiftMs).toBeUndefined();
+  });
+
   it('deduplicates the twin like any other query', () => {
     const resolved = resolveDashboard({
       page: page([statPanel('a', { compare: true }), statPanel('b', { compare: true })]),

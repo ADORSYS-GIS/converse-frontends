@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { DashboardPanelSpec } from './dashboard-spec';
 import {
+  comparisonSeries,
+  distinctCountSeries,
   formatMetric,
   latencyRowsByGroup,
   metricDelta,
@@ -272,6 +274,163 @@ describe('toPanelView', () => {
       requests: '4',
       tokens: '1,200',
     });
+  });
+});
+
+const DAY = 86_400_000;
+
+describe('comparisonSeries', () => {
+  it('sums the previous window ungrouped and re-bases it forward so the two overlay', () => {
+    const series = comparisonSeries(
+      response([
+        point({ bucket_start: '2026-07-01T00:00:00Z', model: 'a', total_cost: 1_000_000 }),
+        point({ bucket_start: '2026-07-01T00:00:00Z', model: 'b', total_cost: 2_000_000 }),
+        point({ bucket_start: '2026-07-02T00:00:00Z', model: 'a', total_cost: 4_000_000 }),
+      ]),
+      'cost',
+      31 * DAY
+    );
+    // Grouped points collapse into ONE per bucket — a comparison is a whole-period reading.
+    expect(series.points).toEqual([
+      { x: new Date('2026-08-01T00:00:00Z'), y: 3 },
+      { x: new Date('2026-08-02T00:00:00Z'), y: 4 },
+    ]);
+  });
+
+  it('is dashed and labelled, so it needs no legend to be told apart', () => {
+    const series = comparisonSeries(response([]), 'cost', 0);
+    expect(series.dashed).toBe(true);
+    expect(series.label).toBe('Previous period');
+  });
+});
+
+describe('distinctCountSeries', () => {
+  it('counts distinct group values per bucket, one line per dimension', () => {
+    const series = distinctCountSeries(
+      response([
+        point({
+          bucket_start: '2026-09-01T00:00:00Z',
+          account_id: 'a1',
+          project_id: 'p1',
+          requests: 3,
+        }),
+        point({
+          bucket_start: '2026-09-01T00:00:00Z',
+          account_id: 'a1',
+          project_id: 'p2',
+          requests: 1,
+        }),
+        point({
+          bucket_start: '2026-09-02T00:00:00Z',
+          account_id: 'a2',
+          project_id: 'p3',
+          requests: 2,
+        }),
+      ]),
+      ['account_id', 'project_id']
+    );
+    expect(series.map((s) => s.label)).toEqual(['Active accounts', 'Active projects']);
+    expect(series[0].points.map((p) => p.y)).toEqual([1, 1]);
+    expect(series[1].points.map((p) => p.y)).toEqual([2, 1]);
+  });
+
+  it('zero-fills a bucket a dimension saw nothing in rather than dropping it', () => {
+    const series = distinctCountSeries(
+      response([
+        point({ bucket_start: '2026-09-01T00:00:00Z', account_id: 'a1', requests: 3 }),
+        // Real bucket, no requests: not evidence of activity, but still part of the x-domain.
+        point({ bucket_start: '2026-09-02T00:00:00Z', account_id: 'a1', requests: 0 }),
+      ]),
+      ['account_id']
+    );
+    expect(series[0].points.map((p) => p.y)).toEqual([1, 0]);
+  });
+});
+
+describe('toPanelView — series', () => {
+  it('appends the dashed comparison overlay when a compare twin resolved', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'series', metric: 'cost', compare: true }),
+        response: response([
+          point({ bucket_start: '2026-08-01T00:00:00Z', total_cost: 5_000_000 }),
+        ]),
+        compareResponse: response([
+          point({ bucket_start: '2026-07-01T00:00:00Z', total_cost: 4_000_000 }),
+        ]),
+        compareShiftMs: 31 * DAY,
+      })
+    );
+    expect(view.kind === 'series' && view.series.map((s) => s.label)).toEqual([
+      'Total',
+      'Previous period',
+    ]);
+    expect(view.kind === 'series' && view.series[1].dashed).toBe(true);
+  });
+
+  it('draws no overlay at all when the twin failed — the figure is real, only the delta is not', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'series', metric: 'cost', compare: true }),
+        response: response([
+          point({ bucket_start: '2026-08-01T00:00:00Z', total_cost: 5_000_000 }),
+        ]),
+      })
+    );
+    expect(view.kind === 'series' && view.series).toHaveLength(1);
+  });
+
+  it('plots a derived distinct-count metric as counts, never dollars', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'derived:activeActorsPerBucket',
+          query: { scope: 'all', group_by: ['account_id', 'project_id'], limit: 10 },
+        }),
+        response: response([
+          point({
+            bucket_start: '2026-09-01T00:00:00Z',
+            account_id: 'a1',
+            project_id: 'p1',
+            requests: 2,
+          }),
+        ]),
+      })
+    );
+    expect(view.kind === 'series' && view.series.map((s) => s.label)).toEqual([
+      'Active accounts',
+      'Active projects',
+    ]);
+    expect(view.kind === 'series' && view.formatYTick?.(1200)).toBe('1,200');
+  });
+});
+
+describe('toPanelView — table labels', () => {
+  it('says what a row IS when the panel declares it, and counts in that unit', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'table',
+          query: { scope: 'all', group_by: ['account_id'], limit: 10 },
+          options: { rowLabel: 'Account', unit: 'accounts' },
+        }),
+        response: response([point({ account_id: 'a1', total_cost: 1_000_000 })]),
+      })
+    );
+    expect(view.kind === 'table' && view.columns[0].header).toBe('Account');
+    expect(view.kind === 'table' && view.unit).toBe('accounts');
+  });
+
+  it('falls back to the actor wording when a panel declares neither', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'table', query: { scope: 'all', group_by: ['user_id'], limit: 10 } }),
+        response: response([]),
+      })
+    );
+    expect(view.kind === 'table' && view.columns[0].header).toBe('Actor');
+    expect(view.kind === 'table' && view.unit).toBe('actors');
   });
 });
 

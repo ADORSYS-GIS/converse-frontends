@@ -280,3 +280,23 @@ export const FluidWidth: Story = {
 export const Empty: Story = {
   args: { series: [] },
 };
+
+/**
+ * A `compare: true` panel's overlay (`dashboards.yaml`): the current window solid, the previous
+ * window DASHED and re-based forward so the two sit on the same x-domain. The dash is the only
+ * thing distinguishing them — this console has no legend by ruling, and rank-2 grey is also what
+ * an ordinary second model gets, so colour alone cannot say "this one is not now".
+ */
+export const DashedComparisonOverlay: Story = {
+  args: {
+    series: [
+      denseSeries('current', 'This period', [612, 634, 651, 698, 685, 703, 728, 736, 754, 749]),
+      {
+        ...denseSeries('previous', 'Previous period', [
+          548, 566, 581, 622, 611, 627, 649, 656, 672, 668,
+        ]),
+        dashed: true,
+      },
+    ],
+  },
+};

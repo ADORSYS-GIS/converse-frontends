@@ -262,6 +262,25 @@ describe('MultiSeriesSpendChart', () => {
     expect(tooltipCard()).not.toHaveTextContent('2/1');
   });
 
+  it('strokes only a `dashed` series with a dash array, and gives it butt caps', () => {
+    const { container } = render(
+      <MultiSeriesSpendChart
+        series={[
+          series('current', 'This period', [40, 50, 60]),
+          { ...series('previous', 'Previous period', [30, 35, 45]), dashed: true },
+        ]}
+        width={400}
+        height={200}
+      />
+    );
+    const lines = Array.from(container.querySelectorAll('path[stroke-width="2"]'));
+    expect(lines).toHaveLength(2);
+    expect(lines[0].getAttribute('stroke-dasharray')).toBeNull();
+    expect(lines[0].getAttribute('stroke-linecap')).toBe('round');
+    expect(lines[1].getAttribute('stroke-dasharray')).toBe('5 4');
+    expect(lines[1].getAttribute('stroke-linecap')).toBe('butt');
+  });
+
   it('renders the empty message as wrapping DOM text, never SVG text', () => {
     const longMessage =
       'A message longer than the plot is wide, which must wrap rather than spill off both ends.';

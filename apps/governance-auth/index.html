@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+  The OAuth loopback callback page for `governance-auth` (lightbridge-governance).
+
+  `data-callback-status` is the ONE value the Rust side injects. It ships as the literal
+  placeholder below and is rewritten to `success` or `error` by a single `str::replace` before the
+  document is written to the loopback socket — see README.md ("The contract with the Rust side").
+  An unreplaced or unrecognised value resolves to `error`, never to `success`
+  (`src/callback-status.ts`).
+
+  `data-theme="black"` is the static default the console ships (ADR 0010 Decision 5); the
+  no-flash script `vite.config.ts` inlines into <head> corrects it to `wireframe` before first
+  paint when the machine is in light mode. Unlike `apps/authz-ui`, an inline script is allowed
+  here: nothing serves this page with a CSP — a loopback listener writes it to a socket.
+-->
+<html lang="en" data-theme="black" data-callback-status="__GOVERNANCE_AUTH_CALLBACK_STATUS__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- The URL that reached this page carried the authorization `code`. Never hand it to anyone. -->
+    <meta name="referrer" content="no-referrer" />
+    <title>Sign-in &middot; governance-auth</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

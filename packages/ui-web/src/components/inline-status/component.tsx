@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { cn } from '../../cn';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { BODY_CLASS } from '../../lib/type-roles';

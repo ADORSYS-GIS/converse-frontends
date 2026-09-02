@@ -1,0 +1,274 @@
+name: governance-auth-callback-oci
+
+# Publishes apps/governance-auth's built page to GHCR as an OCI ARTIFACT:
+#
+#   ghcr.io/adorsys-gis/governance-auth-callback
+#
+# WHY AN OCI ARTIFACT AND NOT AN IMAGE. The deliverable is literally one file —
+# `dist/index.html`, ~566 KiB, self-contained (apps/governance-auth/README.md, "The one
+# constraint everything else follows from"). The consumer is a Rust build in ANOTHER repo
+# (ADORSYS-GIS/lightbridge-governance) that `include_str!`s the file at COMPILE time. It never
+# runs a container, never needs a filesystem layout, never needs a base OS. Wrapping one file in
+# a Containerfile the way authz-ui-image.yml does would buy a scratch image whose only job is to
+# be untarred again — so this pushes the file directly with `oras` instead. Same registry, same
+# GITHUB_TOKEN, same `sha-`/`latest` tag shape as the sibling workflows; no Dockerfile.
+#
+# THE PACKAGE NAMESPACE is org-level (`adorsys-gis/governance-auth-callback`), not
+# `${{ github.repository }}/...`. That is the same choice publish-charts-oci.yml makes and it
+# works for the same reason: a GHCR package is created and owned by whichever repo first pushes
+# it, so this repo's `packages: write` GITHUB_TOKEN can create and own a name nothing else claims.
+# The `org.opencontainers.image.source` annotation below is what links the package back to this
+# repository in the GitHub UI (and lets it inherit repo visibility) — it is load-bearing, not
+# decoration.
+#
+# WHICH TAG A CONSUMER PINS. `sha-<full 40-char commit sha>` is THE CONTRACT. It is the only tag
+# that answers "which commit of converse-frontends produced the HTML compiled into this binary",
+# which is the whole point of publishing at all. `latest` is a convenience for a human poking at
+# the registry by hand and is a FOOTGUN for anything else: it moves on every merge, so a build
+# that pins it is not reproducible — two `cargo build`s of the same Rust commit can embed
+# different HTML. Strongest of all is the `@sha256:` digest this job prints, which pins the exact
+# bytes even if a tag were ever force-moved. Never pin `latest` in lightbridge-governance.
+#
+# The full sha is used rather than metadata-action's 7-char `type=sha` (docker-image.yml,
+# authz-ui-image.yml) deliberately: this tag is copy-pasted BETWEEN REPOSITORIES, where a short
+# sha is ambiguous — `git rev-parse HEAD` in a reviewer's checkout of this repo has to match it
+# character for character with no mental abbreviation step.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/governance-auth/**'
+      # The app composes from ui-web (AuthPanelShell, AuthErrorPanel, InlineStatus) and imports
+      # its styles.css/theme.css wholesale, so a change here really does change the published
+      # bytes even though nothing under apps/governance-auth/ was touched.
+      - 'packages/ui-web/**'
+      # Same argument, one level down: the verifier asserts things about what react-dom and
+      # @fontsource actually emit (the react.dev/errors diagnostic URL, exactly 4 @font-face
+      # rules), so a dependency bump changes the artifact. Without this filter a React upgrade
+      # would silently not republish, and the registry would drift from main.
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/governance-auth-callback-oci.yml'
+  workflow_dispatch:
+
+# Minimal. `contents: read` to check out, `packages: write` to push to GHCR. Nothing else — this
+# job writes no checks, no comments, no releases, and touches no other repository.
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # Serialise publishes so two merges cannot race `latest` into the wrong order.
+  group: governance-auth-callback-oci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  # Lowercase, hardcoded: `github.repository_owner` carries the org's real casing (ADORSYS-GIS)
+  # and OCI repository names must be lowercase — the registry rejects a mixed-case path outright.
+  ARTIFACT_REPO: ghcr.io/adorsys-gis/governance-auth-callback
+  # Names what the artifact IS, so a puller can tell this apart from a container image without
+  # downloading it. Not an OCI-registered type; the vnd.* namespace is ours to define.
+  ARTIFACT_TYPE: application/vnd.lightbridge.governance-auth-callback.v1+html
+  BUILD_DIR: apps/governance-auth/dist
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    outputs:
+      # The pin a human wires into lightbridge-governance. Also printed to the job summary.
+      digest: ${{ steps.push.outputs.digest }}
+      pinned-ref: ${{ steps.push.outputs.pinned-ref }}
+      sha-tag: ${{ steps.push.outputs.sha-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # THE GATE, AND IT IS A PRECONDITION, NOT A PARALLEL JOB. `build:web` is
+      # `tsc --noEmit` -> `vite build` -> `scripts/verify-single-file.mjs`, and the verifier is
+      # the only thing standing between this registry and an artifact that reaches the network.
+      # A callback page that fetches anything is the worst regression this app can ship: the URL
+      # that reached it carried an OAuth authorization `code`, so an external reference hands a
+      # third party a Referer containing it — and the machine may be offline anyway, in which
+      # case the page simply breaks in exactly the situation it exists for. Running this as a
+      # separate job would let a green publish coexist with a red gate. It runs here, in this
+      # job, before the login step, so a failure means nothing is pushed.
+      #
+      # `pnpm --filter` rather than `pnpm turbo run` on purpose: ui-web declares no `build:web`
+      # task, so turbo's `^build:web` resolves to nothing and the only thing turbo would add is
+      # a cache layer between the gate and the bytes being published. Publish uncached.
+      - name: Build and verify the single-file page
+        run: pnpm --filter governance-auth build:web
+
+      - name: Set up oras
+        # The action is pinned by commit sha (quality.yml's style) and the ORAS CLI is pinned to
+        # an exact version rather than left on the action's own default (1.3.1 as of v2.0.1).
+        # Both matter: a release pipeline whose tooling floats is a build that can break with no
+        # commit to point at. The CLI pin is stronger than it looks — setup-oras ships a
+        # version -> {url, sha256} table (src/lib/data/releases.json), so naming 1.3.3 pins the
+        # downloaded binary by checksum, not just by label. Dependabot bumps the action sha; the
+        # `version:` below is bumped deliberately, in a PR.
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+        with:
+          version: 1.3.3
+
+      - name: Log in to GHCR (oras)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | oras login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
+
+      # `working-directory` is not cosmetic: oras derives each layer's
+      # `org.opencontainers.image.title` from the path it was given, so pushing
+      # `apps/governance-auth/dist/index.html` would make the consumer's `oras pull` recreate
+      # that whole directory tree. From inside dist/, the title is exactly `index.html` and a
+      # pull drops one file where the puller asked for it.
+      - name: Push the callback page to GHCR
+        id: push
+        working-directory: apps/governance-auth/dist
+        env:
+          SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          # `latest` moves only on the default branch — same posture as docker-image.yml's
+          # `enable={{is_default_branch}}`. A `workflow_dispatch` from a feature branch still
+          # publishes its `sha-` tag (which is how a cross-repo cutover is proved before either
+          # side merges, cf. authz-ui-image.yml) but can never become the floating tag.
+          IS_DEFAULT_BRANCH: ${{ github.ref_name == github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          sha_tag="sha-${REVISION}"
+          created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          local_sha256="$(sha256sum index.html | cut -d ' ' -f 1)"
+
+          # oras pushes every comma-separated tag from ONE upload of the blobs.
+          push_ref="${ARTIFACT_REPO}:${sha_tag}"
+          if [ "$IS_DEFAULT_BRANCH" = "true" ]; then
+            push_ref="${push_ref},latest"
+          else
+            echo "::notice::not the default branch — publishing ${sha_tag} only, leaving 'latest' where it is"
+          fi
+
+          # Provenance lives in the manifest annotations, so it travels WITH the artifact: a
+          # reviewer in lightbridge-governance can answer "which commit produced this HTML"
+          # from the registry alone, without a workflow run URL or a PR body.
+          #   .source   — the repo (and what links the GHCR package back to it)
+          #   .revision — the commit that produced these exact bytes
+          #   .created  — build timestamp, RFC 3339 UTC
+          oras push "$push_ref" \
+            --artifact-type "$ARTIFACT_TYPE" \
+            --annotation "org.opencontainers.image.title=governance-auth-callback" \
+            --annotation "org.opencontainers.image.description=Self-contained OAuth2 loopback callback page for governance-auth. One HTML file, no external references, embedded into lightbridge-governance at compile time." \
+            --annotation "org.opencontainers.image.source=${SOURCE_URL}" \
+            --annotation "org.opencontainers.image.revision=${REVISION}" \
+            --annotation "org.opencontainers.image.created=${created}" \
+            --annotation "org.opencontainers.image.version=${sha_tag}" \
+            --annotation "org.opencontainers.image.url=${SOURCE_URL}/tree/${REVISION}/apps/governance-auth" \
+            index.html:text/html
+
+          # Read the digest back off the registry rather than scraping oras's own stdout.
+          # `manifest fetch --descriptor` is a stable (non-experimental) subcommand, unlike
+          # `oras resolve` ([Preview]) and `push --format go-template` ([Experimental]); it also
+          # proves the manifest is really there, which parsing our own push output would not.
+          #
+          # No jq: .ci/quality/gate.sh treats jq as something to check for rather than assume,
+          # so this stays dependency-free. The extraction is space-tolerant (compact or --pretty)
+          # and the shape is asserted below, so a future descriptor change fails loudly instead
+          # of exporting a truncated string.
+          descriptor="$(oras manifest fetch --descriptor "${ARTIFACT_REPO}:${sha_tag}")"
+          digest="$(printf '%s\n' "$descriptor" \
+            | sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"\(sha256:[0-9a-f]\{64\}\)".*/\1/p')"
+          if ! printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+            echo "::error::could not read a sha256 digest out of the descriptor: ${descriptor}"
+            exit 1
+          fi
+
+          {
+            echo "sha-tag=${sha_tag}"
+            echo "digest=${digest}"
+            echo "pinned-ref=${ARTIFACT_REPO}:${sha_tag}"
+            echo "digest-ref=${ARTIFACT_REPO}@${digest}"
+            echo "local-sha256=${local_sha256}"
+            echo "created=${created}"
+          } >> "$GITHUB_OUTPUT"
+
+      # THE FALSIFIABLE CHECK. Everything above proves things about a local directory. This
+      # proves them about what actually landed in the registry: pull the artifact back BY DIGEST
+      # and assert it is one file, named index.html, byte-identical to the one the verifier
+      # passed. Modelled on authz-ui-image.yml's pull-back step, which exists for the same reason.
+      - name: Verify the published artifact round-trips
+        env:
+          DIGEST_REF: ${{ steps.push.outputs.digest-ref }}
+          LOCAL_SHA256: ${{ steps.push.outputs.local-sha256 }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          oras pull "$DIGEST_REF" --output "$work"
+
+          echo "::group::pulled contents of ${DIGEST_REF}"
+          find "$work" -type f | sed "s#^${work}/##" | sort
+          echo "::endgroup::"
+
+          count="$(find "$work" -type f | wc -l | tr -d ' ')"
+          if [ "$count" != "1" ]; then
+            echo "::error::expected exactly one file in the published artifact, got ${count}"
+            exit 1
+          fi
+          if [ ! -f "${work}/index.html" ]; then
+            echo "::error::the published artifact does not contain index.html at its root"
+            exit 1
+          fi
+
+          pulled_sha256="$(sha256sum "${work}/index.html" | cut -d ' ' -f 1)"
+          if [ "$pulled_sha256" != "$LOCAL_SHA256" ]; then
+            echo "::error::pulled index.html does not match the built one (${pulled_sha256} != ${LOCAL_SHA256})"
+            exit 1
+          fi
+          echo "round-trip ok: index.html sha256 ${pulled_sha256}"
+
+      - name: Summarise the pin for the consumer
+        env:
+          SHA_TAG: ${{ steps.push.outputs.sha-tag }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          PINNED_REF: ${{ steps.push.outputs.pinned-ref }}
+          DIGEST_REF: ${{ steps.push.outputs.digest-ref }}
+          FILE_SHA256: ${{ steps.push.outputs.local-sha256 }}
+          CREATED: ${{ steps.push.outputs.created }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### governance-auth callback page published"
+            echo
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| tag to pin | \`${SHA_TAG}\` |"
+            echo "| pinned reference | \`${PINNED_REF}\` |"
+            echo "| manifest digest | \`${DIGEST}\` |"
+            echo "| digest reference | \`${DIGEST_REF}\` |"
+            echo "| index.html sha256 | \`${FILE_SHA256}\` |"
+            echo "| built | \`${CREATED}\` |"
+            echo "| source commit | \`${GITHUB_SHA}\` |"
+            echo
+            echo "Pull it in \`lightbridge-governance\`:"
+            echo
+            echo '```bash'
+            echo "oras pull ${PINNED_REF} \\"
+            echo "  --output app/governance-auth/src/oauth/callback_page/templates"
+            echo "mv app/governance-auth/src/oauth/callback_page/templates/index.html \\"
+            echo "   app/governance-auth/src/oauth/callback_page/templates/callback.html"
+            echo '```'
+            echo
+            echo "Pin the \`sha-\` tag (or the digest above) — **never \`latest\`**: it moves on"
+            echo "every merge here, so a build pinned to it is not reproducible."
+          } >> "$GITHUB_STEP_SUMMARY"

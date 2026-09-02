@@ -11,9 +11,11 @@ import {
   verifyConfigFromEnv,
 } from './lib/auth';
 
-// Protect every route except /sign-in and the auth API itself. Edge-safe: only `jose` and fetch.
+// Protect every route except /sign-in, the auth API itself, and robots.txt (a Next metadata
+// route with no session dependency — a liveness/readiness probe target). Edge-safe: only `jose`
+// and fetch.
 export const config = {
-  matcher: ['/((?!sign-in|api/auth|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!sign-in|api/auth|_next/static|_next/image|favicon.ico|robots.txt).*)'],
 };
 
 export async function proxy(req: NextRequest) {

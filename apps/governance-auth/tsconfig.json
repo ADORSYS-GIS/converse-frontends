@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node", "vite/client"],
+    "paths": {
+      // `tsc`-only shim for `@lightbridge/ui-web`'s own `"./src/*"` wildcard, exactly as
+      // `apps/authz-ui/tsconfig.json` and `apps/console/tsconfig.json` carry it: this app imports
+      // `ui-web` through its subpaths rather than the package barrel, so a page that renders one
+      // panel never pulls the barrel's `d3`/`cmdk`/`react-day-picker` re-exports into a bundle
+      // that is inlined into an HTML file byte for byte. Mirrored in `vite.config.ts` and
+      // `vitest.config.ts` — three tools, one mapping.
+      "@lightbridge/ui-web/src/*": ["../../packages/ui-web/src/*"]
+    }
+  },
+  // A plain (non solution-style) config on purpose: CI's typecheck gate discovers
+  // `apps/*/tsconfig.json` at `-maxdepth 2` and runs `tsc --noEmit -p` on it, and a
+  // `files: []` + `references` config checks ZERO files under that invocation — see
+  // `apps/authz-ui/tsconfig.json`, where the same trap is documented.
+  "include": ["src", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -6,7 +6,11 @@ import { ThemeToggle } from '@lightbridge/ui-web/src/components/theme-toggle';
 import type { NavGroup } from '@lightbridge/ui-web/src/components/nav-spine';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
-import { RAIL_ICON_COLUMN_CLASS } from '@lightbridge/ui-web/src/lib/rail-grid';
+import {
+  RAIL_ICON_COLUMN_CLASS,
+  RAIL_ICON_SIZE,
+  RAIL_ICON_STROKE_WIDTH,
+} from '@lightbridge/ui-web/src/lib/rail-grid';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -56,27 +60,52 @@ function navGroups(pathname: string): NavGroup[] {
 }
 
 /**
- * The brand mark — an icon-only adorsys wordmark, no visible text beside it; the product name is
- * carried in `aria-label` instead. The dark/light PNG pair (`public/branding/`) is a static asset
- * here rather than a runtime-configured file, since this app has no white-label deployment case.
- * `brand-mark-dark`/`brand-mark-light` pick the right image per theme in pure CSS, so it resolves
- * correctly on first paint with no client-side theme read and no flash.
+ * The brand mark — no visible text beside it; the product name is carried in `aria-label`
+ * instead. Runtime white-label logo, the same mechanism `apps/console`'s own `BrandMark` uses
+ * (issue #368, Phase H): `hasLogo`/`hasLogoLight` (from `LCI_BRANDING_LOGO_PATH`/
+ * `LCI_BRANDING_LOGO_LIGHT_PATH`, read server-side in `app/(lci)/layout.tsx`) swap the built-in
+ * mark for the operator's own file (`GET /branding/logo`/`GET /branding/logo-light`), never a
+ * build-time asset. `brand-mark-dark`/`brand-mark-light` pick the right configured image per
+ * theme in pure CSS, so it resolves correctly on first paint with no client-side theme read and
+ * no flash — the same reasoning `theme.css`'s own `[data-theme]`-redeclared colour tokens rely on.
  */
-function LciBrandMark() {
+function LciBrandMark({ hasLogo, hasLogoLight }: { hasLogo: boolean; hasLogoLight: boolean }) {
+  const bothConfigured = hasLogo && hasLogoLight;
   return (
     <Link href="/" aria-label="adorsys Code Intelligence — go to home" className="header-brand">
-      <img
-        src="/branding/logo.png"
-        alt=""
-        aria-hidden="true"
-        className="header-logo brand-mark-dark"
-      />
-      <img
-        src="/branding/logo-light.png"
-        alt=""
-        aria-hidden="true"
-        className="header-logo brand-mark-light"
-      />
+      {hasLogo ? (
+        bothConfigured ? (
+          <>
+            <img
+              src="/branding/logo"
+              alt=""
+              aria-hidden="true"
+              className="header-logo brand-mark-dark"
+            />
+            <img
+              src="/branding/logo-light"
+              alt=""
+              aria-hidden="true"
+              className="header-logo brand-mark-light"
+            />
+          </>
+        ) : (
+          <img src="/branding/logo" alt="" aria-hidden="true" className="header-logo" />
+        )
+      ) : (
+        <span className="header-logo" aria-hidden="true">
+          <svg
+            width={RAIL_ICON_SIZE}
+            height={RAIL_ICON_SIZE}
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={RAIL_ICON_STROKE_WIDTH}
+            strokeLinejoin="round">
+            <path d="M2 14 8 2 14 14Z" />
+          </svg>
+        </span>
+      )}
     </Link>
   );
 }
@@ -84,16 +113,20 @@ function LciBrandMark() {
 export function LciSidebarContent({
   userLabel,
   onOpenPalette,
+  hasLogo,
+  hasLogoLight,
 }: {
   userLabel: string;
   onOpenPalette: () => void;
+  hasLogo: boolean;
+  hasLogoLight: boolean;
 }) {
   const pathname = usePathname();
   const { preference, setPreference } = useTheme();
 
   return (
     <ConsoleSidebar
-      brand={<LciBrandMark />}
+      brand={<LciBrandMark hasLogo={hasLogo} hasLogoLight={hasLogoLight} />}
       workspaceSwitcher={
         <div className="sidebar-footer-row">
           <span className="text-subtle font-sans text-[13px]">Code Intelligence</span>
@@ -139,11 +172,19 @@ export function LciSidebarContent({
   );
 }
 
-export function LciTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
+export function LciTopBarContent({
+  onOpenPalette,
+  hasLogo,
+  hasLogoLight,
+}: {
+  onOpenPalette: () => void;
+  hasLogo: boolean;
+  hasLogoLight: boolean;
+}) {
   const { preference, setPreference } = useTheme();
   return (
     <ConsoleTopBar
-      brand={<LciBrandMark />}
+      brand={<LciBrandMark hasLogo={hasLogo} hasLogoLight={hasLogoLight} />}
       workspaceSwitcher={
         <span className="text-subtle font-sans text-[13px]">Code Intelligence</span>
       }

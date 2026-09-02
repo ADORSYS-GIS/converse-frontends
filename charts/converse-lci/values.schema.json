@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "converse-lci values",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "app": { "type": "string" },
+            "team": { "type": "string" }
+          }
+        }
+      }
+    },
+    "lci": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "controllers": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "main": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "containers": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "frontend": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "image": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "repository": { "type": "string", "minLength": 1 },
+                            "tag": { "type": "string", "minLength": 1 }
+                          },
+                          "required": ["repository", "tag"]
+                        },
+                        "env": {
+                          "description": "apps/lci's runtime configuration — plain environment variables, not a mounted config document (unlike apps/console). See README.md for the full field reference; the keys below are the ones the app cannot boot or authenticate without (apps/lci/src/lib/auth/oidc-config.ts, verify-jwt.ts, lib/server/admin.ts).",
+                          "type": "object",
+                          "properties": {
+                            "OIDC_ISSUER": {
+                              "description": "The OIDC provider this deployment authenticates against (e.g. authz-idp). Thrown on missing (verify-jwt.ts, oidc-config.ts).",
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "OIDC_CLIENT_ID": {
+                              "description": "This app's registered OIDC client id. Thrown on missing (oidc-config.ts).",
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "CONTROL_PLANE_URL": {
+                              "description": "The LCI control plane's base URL. Not enforced by app code (silently falls back to http://localhost:8080/api/v2 if unset), so required here to fail fast instead of a deployment silently pointing at nothing.",
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["OIDC_ISSUER", "OIDC_CLIENT_ID", "CONTROL_PLANE_URL"],
+                          "anyOf": [
+                            { "required": ["OIDC_REDIRECT_URI"] },
+                            { "required": ["OIDC_POST_LOGOUT_REDIRECT_URI"] }
+                          ]
+                        }
+                      },
+                      "required": ["image", "env"]
+                    }
+                  },
+                  "required": ["frontend"]
+                }
+              },
+              "required": ["containers"]
+            }
+          },
+          "required": ["main"]
+        }
+      },
+      "required": ["controllers"]
+    }
+  },
+  "required": ["lci"]
+}

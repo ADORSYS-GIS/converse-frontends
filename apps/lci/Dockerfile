@@ -8,9 +8,9 @@
 # This app needs a live Node process: server route handlers under src/app/api/** (the OIDC
 # login/callback/logout flow, the graph API proxy), and server components that read the session
 # cookie and call the control plane. next.config.mjs sets `output: 'standalone'` so `next build`
-# traces the actual runtime dependency graph into `.next/standalone/` — that trace, plus the two
-# directories it deliberately excludes (`.next/static/` and `public/`, copied explicitly below),
-# is this image's entire contents.
+# traces the actual runtime dependency graph into `.next/standalone/` — that trace, plus the client
+# asset output it deliberately excludes (`.next/static/`, copied explicitly below), is this image's
+# entire contents.
 #
 # Build context MUST be the repo root, e.g.:
 #   docker build -f apps/lci/Dockerfile -t lci:local .
@@ -41,11 +41,11 @@ WORKDIR /app
 # their own `require()` calls expect.
 COPY apps/lci/.next/standalone/ ./
 
-# `output: 'standalone'` intentionally does NOT copy the client-asset build output or the static
-# public/ directory — both are copied explicitly, per Next's documented standalone deployment
-# recipe.
+# `output: 'standalone'` intentionally does NOT copy the client-asset build output, so it's copied
+# explicitly here, per Next's documented standalone deployment recipe. There's no `public/` copy:
+# this app has no committed static assets (its brand marks are gitignored and not baked into the
+# image — see apps/lci/.gitignore).
 COPY apps/lci/.next/static/ ./apps/lci/.next/static/
-COPY apps/lci/public/ ./apps/lci/public/
 
 # Non-root: the base image's own built-in `node` user (uid/gid 1000), not root.
 RUN chown -R node:node /app

@@ -35,13 +35,18 @@ export default defineConfig({
     // runner (no turbo remote cache, #134) they cross 5s and fail CI-only, taking the NEXT test in
     // the file down with leaked DOM ("found multiple elements"). Seen on main at 28a046d.
     testTimeout: 15_000,
+    // converse-frontends#453: `server/reports/panel-svg.ts` loads the report chart renderer as a
+    // prebuilt bundle (see `server/reports/render-charts.tsx` for why it cannot be compiled by
+    // Next). Building it here means a fresh checkout can run `pnpm test` with no separate build
+    // step, and that a test run can never be exercising a stale bundle.
+    globalSetup: ['./src/test/build-report-charts-setup.ts'],
     projects: [
       {
         resolve: {
-          // Same alias, same reason as the `dom` project below — `src/server/consumption-pdf.ts`
-          // imports `@lightbridge/ui-web/src/lib/money` (the shared USD formatter) so the PDF
-          // report and the on-screen figures render money identically, and Vite will not resolve
-          // that wildcarded subpath on its own.
+          // Same alias, same reason as the `dom` project below — `src/server/reports/*` imports
+          // `@lightbridge/ui-web/src/lib/money` (the shared USD formatter) so a report and the
+          // on-screen figures render money identically, and Vite will not resolve that wildcarded
+          // subpath on its own.
           alias: [
             {
               find: /^@lightbridge\/ui-web\/src\/(.*)$/,

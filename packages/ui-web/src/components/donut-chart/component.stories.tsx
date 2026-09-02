@@ -100,3 +100,18 @@ export const TopOneDominantLight: Story = {
   args: TopOneDominant.args,
   globals: { theme: 'wireframe' },
 };
+
+/**
+ * `static` — what the Typst report embeds (converse-frontends#453). The root element IS the
+ * `<svg>`, and the hole's numeral is SVG `<text>` because there is no DOM to wrap in.
+ */
+export const StaticForReport: Story = {
+  name: 'Static (report SVG)',
+  args: { ...Default.args, static: true },
+};
+
+export const StaticForReportLight: Story = {
+  name: 'Static (report SVG) — wireframe (light)',
+  args: { ...Default.args, static: true },
+  globals: { theme: 'wireframe' },
+};

@@ -131,6 +131,14 @@ describe('ADR 0011 discipline', () => {
     //    same rule-set draft, plus the two write-call outcome trackers
     //    (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — none of it `useSharedMutation`'s
     //    cross-zone cache, since only this one view ever renders it.
+    //  - `dashboards/dashboard-export-button.tsx` (converse-frontends#453) carries only the
+    //    IN-FLIGHT status of a download and the error it just produced — the same shape
+    //    `containers/auth-view.tsx`'s pre-redirect status has. Everything about the export that IS
+    //    "what am I looking at" went to the URL instead (`dashboardExportParsers`: `?export=`,
+    //    `?export-format=`, `?export-tables=`), so a shared link reopens the same dialog producing
+    //    the same document. What stays local is what a shared link must NOT carry: a stranger's
+    //    failure message, and a "Generating…" that a reload would resurrect without a request
+    //    behind it.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
@@ -144,6 +152,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-refill-screen.ts'),
       join('containers', 'use-refills-queue-screen.ts'),
       join('containers', 'use-rename-account-dialog.ts'),
+      join('dashboards', 'dashboard-export-button.tsx'),
     ]);
   });
 

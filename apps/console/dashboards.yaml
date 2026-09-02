@@ -337,7 +337,10 @@ pages:
       - id: requests-by-model-distribution
         type: donut
         title: Model distribution
-        subtitle: Requests by model — values on hover
+        # NOT "values on hover": a `subtitle` is rendered by the screen AND by the report
+        # (converse-frontends#453), and paper has no pointer. On screen the values are in the
+        # tooltip; in the PDF they are in the panel's own table.
+        subtitle: Requests by model
         span: 1
         metric: requests
         options:

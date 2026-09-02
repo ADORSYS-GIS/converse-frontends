@@ -149,6 +149,8 @@ describe('buildSummaryCaption', () => {
   });
 
   it('omits the truncation clause entirely when not supplied', () => {
-    expect(buildSummaryCaption(0, 2, 2, usd)).toBe('$0.00 across 2 series · 2 more · no spend this period');
+    expect(buildSummaryCaption(0, 2, 2, usd)).toBe(
+      '$0.00 across 2 series · 2 more · no spend this period'
+    );
   });
 });

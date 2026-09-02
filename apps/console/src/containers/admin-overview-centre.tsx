@@ -19,11 +19,18 @@ import {
   useAdminOverviewParams,
   useDashboardScaleParams,
 } from '../client/url-state';
+import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
-import { currentPeriodRange, RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import {
+  currentPeriodRange,
+  RANGE_DAYS,
+  RANGE_LABELS,
+  resolveOverviewWindow,
+  toUrlDate,
+} from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
@@ -55,18 +62,12 @@ import { useAdminEstateOperations } from './use-admin-estate-operations';
  * other, and this container holds no local state at all. The DEFAULT axis is stated once, in the
  * YAML (`options.scale`), never duplicated here.
  *
- * There is no Export action yet, and that is deliberate rather than an oversight: C10 owns the
- * export pipeline and adds one action to every YAML-driven page at once, walking the same resolved
- * panel list this page renders. Wiring this one page to the old consumption-report route in the
- * meantime would ship a second export path to delete a week later.
+ * **The Export action** (converse-frontends#453) walks the SAME resolved panel list this page
+ * renders — `/api/reports/page` re-resolves this route's own `dashboards.yaml` entry server-side
+ * through the same `resolveDashboard`, so a panel added to the YAML appears in the report with no
+ * change here and no second export path. It takes this page's route, window and filters rather
+ * than a pre-built URL, which is what makes that true rather than asserted.
  */
-
-const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
-  mtd: 'This month',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-};
 
 const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
   value,
@@ -143,6 +144,22 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
             }}
             layout="inline"
             hideLabel
+          />
+        }
+        // The export (converse-frontends#453). It takes this page's own identity — the
+        // `dashboards.yaml` route, the resolved window, the filters — rather than a pre-built URL,
+        // so the report is a rendering of exactly the entry this page just queried and cannot go
+        // stale when a panel is added to the YAML. Every YAML-driven page composes these same
+        // three lines; there is one component, not one per page.
+        action={
+          <DashboardExportButton
+            route={page.route}
+            title="Overview"
+            range={view.range}
+            rangeLabel={RANGE_LABELS[view.range]}
+            window={window}
+            from={view.from}
+            to={view.to}
           />
         }
       />

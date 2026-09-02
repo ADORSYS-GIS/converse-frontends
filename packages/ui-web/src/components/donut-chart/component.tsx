@@ -3,7 +3,14 @@ import React, { useMemo, useState } from 'react';
 import { collapseDonutTail, donutGeometry, layoutDonutArcs } from '@lightbridge/chart-core';
 
 import { cn } from '../../cn';
-import { SPEC_ACCENT, SPEC_FLOOR, SPEC_GRID, specSeriesColor } from '../../chart-tokens';
+import {
+  SPEC_ACCENT,
+  SPEC_FLOOR,
+  SPEC_GRID,
+  SPEC_TEXT_MUTED,
+  SPEC_TEXT_PRIMARY,
+  specSeriesColor,
+} from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { useChartTooltipFloating } from '../../lib/use-chart-tooltip-floating';
@@ -71,6 +78,7 @@ export function DonutChart({
   formatTooltipValue = defaultFormatTooltipValue,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   innerRadiusRatio,
+  static: isStatic = false,
   className,
 }: DonutChartProps) {
   // Which wedge the tooltip points at — hover/tap/focus driven, deliberately independent of
@@ -125,12 +133,123 @@ export function DonutChart({
 
   const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
     useChartTooltipFloating({
-      open: hoveredKey !== null && svgElement !== null,
+      // `static` never opens — a report has no pointer (converse-frontends#453 AC-1).
+      open: !isStatic && hoveredKey !== null && svgElement !== null,
       anchorElement: svgElement,
       pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
     });
 
   const empty = arcs.length === 0;
+
+  /** Still a ring, at the gridline tone — never a collapsed, zero-height gap. Drawn as a stroked
+   *  circle on the band's own mid-radius, so its thickness is exactly the band's. */
+  const emptyRing = (
+    <circle
+      cx={geometry.cx}
+      cy={geometry.cy}
+      r={(geometry.outerRadius + geometry.innerRadius) / 2}
+      fill="none"
+      stroke={SPEC_GRID}
+      strokeWidth={geometry.outerRadius - geometry.innerRadius}
+    />
+  );
+
+  /** The wedges. `static` strips every interaction prop — no tab stop, no `role="button"`, no
+   *  handlers, no Floating UI reference props — but not one attribute that carries data. */
+  const wedges = (
+    <g transform={`translate(${geometry.cx}, ${geometry.cy})`}>
+      {arcs.map((slice) => {
+        const isAccent = slice.datum.key === accentKey;
+        const isSelected = slice.datum.key === selectedKey;
+        const selectable = !isStatic && Boolean(onSelectSegment) && slice.datum.key !== OTHER_KEY;
+        const interactive = isStatic
+          ? {}
+          : {
+              tabIndex: 0,
+              role: selectable ? ('button' as const) : ('img' as const),
+              'aria-pressed': selectable ? isSelected : undefined,
+              onClick: selectable
+                ? () => onSelectSegment?.(isSelected ? null : slice.datum.key)
+                : undefined,
+              onKeyDown: selectable
+                ? (event: React.KeyboardEvent) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    onSelectSegment?.(isSelected ? null : slice.datum.key);
+                  }
+                : undefined,
+              ...getReferenceProps(getHoverProps(slice.datum.key)),
+            };
+        return (
+          <path
+            key={slice.datum.key}
+            d={slice.path}
+            fill={isAccent ? SPEC_ACCENT : specSeriesColor(slice.index)}
+            stroke={SPEC_FLOOR}
+            strokeWidth={WEDGE_SEPARATOR_WIDTH}
+            strokeLinejoin="round"
+            className="donut-wedge"
+            aria-label={`${slice.datum.label}, ${formatTooltipValue(slice.datum, slice.percent)}${
+              slice.datum.breached ? ', over ceiling' : ''
+            }`}
+            {...interactive}
+          />
+        );
+      })}
+    </g>
+  );
+
+  // ── `static`: a STANDALONE `<svg>` document, and nothing else ─────────────────────────────
+  // See `DonutChartProps.static`. The centre numeral moves from DOM text into SVG `<text>`
+  // because there is no DOM here — sound for a short numeral, which is why the empty state's
+  // SENTENCE is placed under the ring rather than in the hole.
+  if (isStatic) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className={className}>
+        {empty ? emptyRing : wedges}
+        {empty ? (
+          <text
+            x={geometry.cx}
+            y={height - 4}
+            fontSize={11}
+            fill={SPEC_TEXT_MUTED}
+            textAnchor="middle">
+            {emptyMessage}
+          </text>
+        ) : (
+          <>
+            {centreMetric ? (
+              <text
+                x={geometry.cx}
+                y={geometry.cy}
+                fontSize={16}
+                fill={SPEC_TEXT_PRIMARY}
+                textAnchor="middle"
+                dominantBaseline="middle">
+                {centreMetric}
+              </text>
+            ) : null}
+            {centreLabel ? (
+              <text
+                x={geometry.cx}
+                y={geometry.cy + 18}
+                fontSize={9}
+                fill={SPEC_TEXT_MUTED}
+                textAnchor="middle"
+                dominantBaseline="middle">
+                {centreLabel}
+              </text>
+            ) : null}
+          </>
+        )}
+      </svg>
+    );
+  }
 
   return (
     <div className={cn('donut-chart', className)} style={{ width, height }}>
@@ -147,58 +266,7 @@ export function DonutChart({
               ? `${centreLabel}: ${centreMetric}`
               : 'Share by segment'
         }>
-        {empty ? (
-          // Still a ring, at the gridline tone — never a collapsed, zero-height gap. Drawn as a
-          // stroked circle on the band's own mid-radius, so its thickness is exactly the band's.
-          <circle
-            cx={geometry.cx}
-            cy={geometry.cy}
-            r={(geometry.outerRadius + geometry.innerRadius) / 2}
-            fill="none"
-            stroke={SPEC_GRID}
-            strokeWidth={geometry.outerRadius - geometry.innerRadius}
-          />
-        ) : (
-          <g transform={`translate(${geometry.cx}, ${geometry.cy})`}>
-            {arcs.map((slice) => {
-              const isAccent = slice.datum.key === accentKey;
-              const isSelected = slice.datum.key === selectedKey;
-              const selectable = Boolean(onSelectSegment) && slice.datum.key !== OTHER_KEY;
-              return (
-                <path
-                  key={slice.datum.key}
-                  d={slice.path}
-                  fill={isAccent ? SPEC_ACCENT : specSeriesColor(slice.index)}
-                  stroke={SPEC_FLOOR}
-                  strokeWidth={WEDGE_SEPARATOR_WIDTH}
-                  strokeLinejoin="round"
-                  className="donut-wedge"
-                  tabIndex={0}
-                  role={selectable ? 'button' : 'img'}
-                  aria-pressed={selectable ? isSelected : undefined}
-                  aria-label={`${slice.datum.label}, ${formatTooltipValue(slice.datum, slice.percent)}${
-                    slice.datum.breached ? ', over ceiling' : ''
-                  }`}
-                  onClick={
-                    selectable
-                      ? () => onSelectSegment?.(isSelected ? null : slice.datum.key)
-                      : undefined
-                  }
-                  onKeyDown={
-                    selectable
-                      ? (event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') return;
-                          event.preventDefault();
-                          onSelectSegment?.(isSelected ? null : slice.datum.key);
-                        }
-                      : undefined
-                  }
-                  {...getReferenceProps(getHoverProps(slice.datum.key))}
-                />
-              );
-            })}
-          </g>
-        )}
+        {empty ? emptyRing : wedges}
       </svg>
 
       {/* The hole's contents are DOM text, not SVG `<text>`: SVG text never wraps, which is the

@@ -728,32 +728,100 @@ stateDiagram-v2
     end note
 ```
 
-### 8.3 Monthly consumption report export
+### 8.3 Report export
 
 **Updated for the two-column shell** — export is a `Dialog`, not a rail form; reachable from
 Overview and Projects alike.
+
+**Updated again (converse-frontends#453) — there are now TWO reports through ONE dialog.**
+
+|             | Consumption report             | Dashboard page report                                               |
+| ----------- | ------------------------------ | ------------------------------------------------------------------- |
+| Opened from | Overview, Projects             | the `PageHeader` of **every** `dashboards.yaml`-driven page         |
+| Route       | `GET /api/reports/consumption` | `GET /api/reports/page?path=<route>&…`                              |
+| Window      | a month, picked in the dialog  | the page's own range picker, **echoed read-only**                   |
+| Scope       | `ScopeSelect` in the dialog    | the route it was opened from                                        |
+| Grouping    | a segmented control            | each panel's, from `dashboards.yaml`                                |
+| Formats     | CSV · PDF                      | CSV · PDF (+ `format=html` as a preview, not offered in the dialog) |
+
+Both render through the same `typst-render` sidecar and the same per-route `.typ` templates. The
+dialog is the same `ReportExportDialog`, **extended rather than forked**: `period`, `scopeSlot` and
+`groupBy` became optional, and a dashboard export omits all three rather than disabling them — a
+control that appears to change the document and does not is worse than no control. What is left is
+the format and one "Include tables" toggle.
+
+**Why a dashboard report carries its values as tables under each chart, against §2.4a's "no static
+per-series legend lists".** That rule exists because a screen has a pointer and the values live in a
+Floating-UI tooltip. Paper has none: a ring or a five-line board printed with no values states
+nothing a reader can act on. The rule is unchanged where it applies; the medium changed. The toggle
+is the reader's own control over it.
+
+The `EmptyResult` state below is the CONSUMPTION report's. A dashboard report of an empty window is
+a real document — each panel states its own emptiness and the header states the window, which is a
+more useful answer to "what happened last week" than a refusal to produce a file.
+
+Failure is `ErrorLine` + `Retry` inside the dialog, with every input kept. The renderer's own
+compile-error detail (Typst's stderr, line and column) goes to the server log, not into the dialog:
+it is a template author's diagnostic, and a reader who pressed Export cannot act on a line number.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Operator
+    participant H as PageHeader (any YAML page)
+    participant E as ReportExportDialog
+    participant R as GET /api/reports/page
+    participant T as typst-render sidecar
+    participant B as Browser
+
+    U->>H: Export
+    H->>E: open · range echoed read-only · format · include tables
+    U->>E: Generate report
+    E->>E: primary -> "Generating…", disabled
+    E->>R: path=<dashboards.yaml route> · range · filters · format
+    R->>R: resolveDashboard -> the SAME deduplicated query list the page issued
+    alt format=pdf
+        R->>T: POST /render {template, data.json, one SVG per chart panel}
+        T-->>R: application/pdf
+    else format=csv
+        R->>R: the underlying grouped rows, one section per panel
+    end
+    R-->>E: 200 + Content-Disposition filename
+    E->>B: downloadBlob -> the file
+    E-->>U: dialog closes, re-armed
+    R-->>E: 404 unknown route · 422 template did not compile · 502 renderer unreachable
+    E-->>U: ErrorLine + Retry; every input kept
+```
+
+The consumption report's own flow, which keeps the period/scope/group-by controls:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor U as Account member
     participant E as ReportExportDialog
+    participant R as GET /api/reports/consumption
     participant API as POST /usage/v1/usage/query
-    participant F as Report builder
+    participant T as typst-render sidecar
     participant B as Browser
 
-    U->>E: PageHeader action "Export" opens the dialog
+    U->>E: PageHeader action "Monthly report" opens the dialog
     U->>E: period · scope · group-by · includes · CSV|PDF
     U->>E: Generate report
     E->>E: primary -> "Generating...", disabled
-    E->>API: query(period, filters, group_by)
-    API-->>F: usage rows
-    F-->>E: signed download URL
+    E->>R: month · account [· project] · format
+    R->>API: one account-scoped query, project x model (scope-guarded since #453)
+    API-->>R: usage rows
+    alt format=csv
+        R-->>E: streamed CSV — byte-identical to before #453
+    else format=pdf
+        R->>T: POST /render {templates/reports/consumption/report.typ, data.json}
+        T-->>R: application/pdf
+    end
     alt ready
         E->>B: trigger download
-        E-->>U: dialog records "2026-02 · CSV · just now"
     else empty result
-        E-->>U: InlineStatus "No usage in February 2026 for this scope." -- no file produced
+        E-->>U: a real document stating a genuine zero, never a fabricated one
     else failed
         E-->>U: ErrorLine + Retry; the form keeps every input
     end
@@ -761,16 +829,29 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
+    direction TB
     [*] --> Idle
     Idle --> Idle: parameters edited
     Idle --> Generating: Generate report
     Generating --> Downloaded: file delivered
-    Generating --> EmptyResult: query returned no rows
-    Generating --> Failed: query or build error
-    Downloaded --> Idle: dialog re-armed
+    Generating --> EmptyResult: consumption report only — the month had no usage
+    Generating --> Failed: route, query or renderer error
+    Downloaded --> Idle: dialog re-armed on close
     EmptyResult --> Idle: parameters edited
-    Failed --> Generating: Retry
+    Failed --> Generating: Retry — the SAME request
     Failed --> Idle: parameters edited
+
+    note right of EmptyResult
+      Unreachable for a DASHBOARD report (#453): an empty
+      window is still a real document — each panel states
+      its own emptiness and the header states the window.
+      Only the consumption report refuses to produce a file.
+    end note
+
+    note right of Failed
+      Also unreachable: a PDF without its charts. A renderer
+      that cannot be reached lands HERE, never in Downloaded.
+    end note
 ```
 
 ### 8.4 Authoring a refill policy from the example (issue #445)

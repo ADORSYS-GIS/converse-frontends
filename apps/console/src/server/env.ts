@@ -50,6 +50,14 @@ export type ConsoleEnv = {
    */
   usageClientCert?: { certPath: string; keyPath: string };
   sessionSecret: string;
+  /**
+   * Where `GET /api/reports/page` POSTs its render jobs — the `typst-render` sidecar
+   * (converse-frontends#453, `apps/typst-render/README.md` for the wire contract). Unset is a
+   * REAL deployment state, not a misconfiguration: `format=csv`/`format=html` keep working and
+   * `format=pdf` answers a 502 naming the missing configuration. It never degrades to a chartless
+   * PDF — the story lists that as a failure mode by name.
+   */
+  typstRenderUrl?: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
   publicBaseUrl?: string;
   /**
@@ -95,6 +103,7 @@ type RawConsoleConfig = {
   budgetUrl?: unknown;
   usageUrl?: unknown;
   usageClientCert?: { certPath?: unknown; keyPath?: unknown };
+  reports?: { typstRenderUrl?: unknown };
   publicBaseUrl?: unknown;
   branding?: { logo?: unknown; logoLight?: unknown; style?: unknown };
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
@@ -319,6 +328,12 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
     usageClientCert,
     sessionSecret,
+    // Trimmed like the cert paths above and for the same reason: a `{env:TYPST_RENDER_URL}` that
+    // resolves to whitespace is a realistic config accident, and "configured with a blank URL" has
+    // no honest meaning — it is simply unconfigured, and the PDF path says so.
+    typstRenderUrl: asOptionalString(raw.reports?.typstRenderUrl)?.trim()
+      ? trimTrailingSlash((raw.reports?.typstRenderUrl as string).trim())
+      : undefined,
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,

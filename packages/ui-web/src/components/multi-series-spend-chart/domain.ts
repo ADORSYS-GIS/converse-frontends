@@ -1,8 +1,4 @@
-import type {
-  MultiSeriesSpendPoint,
-  MultiSeriesSpendScale,
-  MultiSeriesSpendSeries,
-} from './types';
+import type { MultiSeriesSpendPoint, MultiSeriesSpendScale, MultiSeriesSpendSeries } from './types';
 
 /**
  * All distinct timestamps across every series, ascending — union, not just the first series' own
@@ -61,10 +57,7 @@ export function transformSeries(
 ): TransformedSeries[] {
   return series.map((s) => {
     const byTime = new Map<number, number>(s.points.map((p) => [p.x.getTime(), p.y]));
-    const total = s.points.reduce(
-      (sum, p) => (Number.isFinite(p.y) ? sum + p.y : sum),
-      0
-    );
+    const total = s.points.reduce((sum, p) => (Number.isFinite(p.y) ? sum + p.y : sum), 0);
     // `indexed` needs each series' OWN peak, never a domain shared across series — the same rule
     // `RankedSeriesRow.sparklinePoints` documents: a dominant series must not flatten a smaller
     // one's shape.

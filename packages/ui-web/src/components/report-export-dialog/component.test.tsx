@@ -10,9 +10,7 @@ const groupByOptions = [
   { value: 'project-model', label: 'Project × Model' },
 ];
 
-const toggles: ReportIncludeToggle[] = [
-  { id: 'totals', label: 'Totals row', checked: true },
-];
+const toggles: ReportIncludeToggle[] = [{ id: 'totals', label: 'Totals row', checked: true }];
 
 function baseProps(
   overrides: Partial<React.ComponentProps<typeof ReportExportDialog>> = {}
@@ -57,6 +55,12 @@ describe('ReportExportDialog', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('names the page when given a title — "Monthly report" would be wrong on a 7-day range', () => {
+    render(<ReportExportDialog {...baseProps({ title: 'Export · Overview' })} />);
+
+    expect(screen.getByRole('dialog', { name: 'Export · Overview' })).toBeInTheDocument();
   });
 
   it('still fires onGenerate through the hosted panel', () => {

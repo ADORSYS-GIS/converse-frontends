@@ -118,6 +118,23 @@ RUN node ./apps/console/scripts/link-standalone-cratestack.mjs /app/node_modules
 # CONSOLE_CONFIG at it — see charts/converse-frontend, which mounts one via a ConfigMap.
 COPY apps/console/config.yaml ./apps/console/config.yaml
 
+# Report export (converse-frontends#453) — two runtime artifacts the app reads off disk, COPYed
+# explicitly for the same reason config.yaml above is: the standalone tracer DOES currently pick
+# both up (it traces the whole project, because `load-dashboards.ts`/`config-loader.ts` resolve
+# paths against `process.cwd()` — Turbopack warns about exactly that on every build), but that is a
+# side effect of a warning, not a contract. A missing template directory would surface as a 500 on
+# an export; a missing chart bundle as an export that cannot draw. Both are worth two COPY lines.
+#
+#  - `templates/` — the per-route `.typ` report templates plus `_lib/`. Operator overrides mount
+#    OVER these at CONSOLE_TEMPLATES_DIR; lookup is per file, so these stay the fallback.
+#  - `report-charts/` — `scripts/build-report-charts.mjs`'s output: the chart renderer, bundled out
+#    of Next's react-server layer (see `src/server/reports/render-charts.tsx` for why it cannot be
+#    compiled by Next). One dependency-free CJS file, produced by `build:web` on the CI runner
+#    alongside `.next/`. It is NOT a Typst binary or a browser engine — the console image still
+#    carries no PDF toolchain, which is an acceptance criterion of that story.
+COPY apps/console/templates/ ./apps/console/templates/
+COPY apps/console/report-charts/ ./apps/console/report-charts/
+
 # `next build`'s standalone tracer copies apps/console/.env verbatim into the bundle — it's a
 # tracked source file, not a build artifact, and it carries a committed, published, dev-only
 # SESSION_SECRET placeholder (see apps/console/.env's own header comment). `@next/env` only fills

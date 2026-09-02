@@ -40,7 +40,12 @@ function sparseSeries(
 }
 
 function denseSeries(key: string, label: string, values: number[]): MultiSeriesSpendSeries {
-  return sparseSeries(key, label, values.length, values.map((y, i): [number, number] => [i, y]));
+  return sparseSeries(
+    key,
+    label,
+    values.length,
+    values.map((y, i): [number, number] => [i, y])
+  );
 }
 
 // ─── The real fixture (build brief): one dominant model beside five sub-1%-share models ─────────
@@ -48,9 +53,11 @@ function denseSeries(key: string, label: string, values: number[]): MultiSeriesS
 // an approximate distribution that sums to its real $1.36 total; the ADR 0013 D5 measurement is
 // about the SHAPE — one dominant series, several near-zero ones — not about any one day's split).
 const DOMINANT_MODEL_SERIES: MultiSeriesSpendSeries[] = [
-  denseSeries('deepseek-v4-flash-0731', 'deepseek-v4-flash-0731', [
-    0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.1, 0.115, 0.12, 0.1, 0.095, 0.09, 0.085, 0.145,
-  ]), // sums to 1.360
+  denseSeries(
+    'deepseek-v4-flash-0731',
+    'deepseek-v4-flash-0731',
+    [0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.1, 0.115, 0.12, 0.1, 0.095, 0.09, 0.085, 0.145]
+  ), // sums to 1.360
   sparseSeries('adorsys-researcher', 'adorsys-researcher', 14, [
     [2, 0.002],
     [7, 0.0015],
@@ -141,9 +148,11 @@ const BY_PROJECT_SERIES: MultiSeriesSpendSeries[] = [
     'prod-api',
     [180, 195, 205, 190, 210, 225, 215, 230, 240, 220, 235, 248, 242, 255]
   ),
-  denseSeries('internal-tools', 'internal-tools', [
-    9, 10, 8, 11, 9, 10, 12, 9, 11, 10, 12, 11, 10, 13,
-  ]),
+  denseSeries(
+    'internal-tools',
+    'internal-tools',
+    [9, 10, 8, 11, 9, 10, 12, 9, 11, 10, 12, 11, 10, 13]
+  ),
   sparseSeries('research-sandbox', 'research-sandbox', 14, [
     [1, 2.4],
     [5, 1.1],
@@ -168,12 +177,12 @@ const BY_ACCOUNT_SERIES: MultiSeriesSpendSeries[] = [
     'acct_49534505',
     [310, 330, 345, 320, 355, 370, 360, 380, 395, 375, 390, 405, 398, 415]
   ),
-  denseSeries('acme-labs', 'acme-labs', [
-    22, 24, 21, 25, 23, 26, 28, 24, 27, 26, 29, 27, 25, 30,
-  ]),
-  denseSeries('northwind-ai', 'northwind-ai', [
-    14, 15, 13, 16, 14, 17, 15, 18, 16, 15, 17, 16, 14, 18,
-  ]),
+  denseSeries('acme-labs', 'acme-labs', [22, 24, 21, 25, 23, 26, 28, 24, 27, 26, 29, 27, 25, 30]),
+  denseSeries(
+    'northwind-ai',
+    'northwind-ai',
+    [14, 15, 13, 16, 14, 17, 15, 18, 16, 15, 17, 16, 14, 18]
+  ),
   sparseSeries('acct_71a2c9e0', 'acct_71a2c9e0', 14, [
     [2, 3.1],
     [9, 2.4],
@@ -228,7 +237,13 @@ export const HoverAndPinOnTheLines: Story = {
 // ─── Mobile ────────────────────────────────────────────────────────────────────────────────────
 export const Mobile: Story = {
   name: 'Spend by model — dominant series, log — mobile',
-  args: { series: DOMINANT_MODEL_SERIES, formatXTick: dayTick, scale: 'log', width: 343, height: 220 },
+  args: {
+    series: DOMINANT_MODEL_SERIES,
+    formatXTick: dayTick,
+    scale: 'log',
+    width: 343,
+    height: 220,
+  },
   decorators: [
     (Story) => (
       <div className="bg-muted" style={{ padding: 16, width: 375 }}>
@@ -292,11 +307,29 @@ export const DashedComparisonOverlay: Story = {
     series: [
       denseSeries('current', 'This period', [612, 634, 651, 698, 685, 703, 728, 736, 754, 749]),
       {
-        ...denseSeries('previous', 'Previous period', [
-          548, 566, 581, 622, 611, 627, 649, 656, 672, 668,
-        ]),
+        ...denseSeries(
+          'previous',
+          'Previous period',
+          [548, 566, 581, 622, 611, 627, 649, 656, 672, 668]
+        ),
         dashed: true,
       },
     ],
   },
+};
+
+/**
+ * `static` — what the Typst report embeds (converse-frontends#453). The root element IS the
+ * `<svg>`: no wrapper, no captions, no hit regions, no tooltip. Reviewable here so a regression in
+ * the export's picture is visible without opening a PDF.
+ */
+export const StaticForReport: Story = {
+  name: 'Static (report SVG)',
+  args: { static: true },
+};
+
+export const StaticForReportLight: Story = {
+  name: 'Static (report SVG) — wireframe (light)',
+  args: { static: true },
+  globals: { theme: 'wireframe' },
 };

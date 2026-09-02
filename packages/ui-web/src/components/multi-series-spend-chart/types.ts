@@ -76,5 +76,21 @@ export interface MultiSeriesSpendChartProps {
    *  `use-usage-overview-screen.ts`'s `truncationCaption` ("Showing the top 25 of 61 accounts."),
    *  omitted entirely when nothing was truncated. */
   truncationCaption?: string;
+  /**
+   * Print/export mode (converse-frontends#453, the Typst report pipeline): the component renders
+   * a STANDALONE `<svg>` as its root element — no wrapper `<div>`, no captions, no pointer
+   * hit-regions, no hover/selection state and **no Floating UI tooltip** — so
+   * `renderToStaticMarkup` yields a document that can be written straight to an `.svg` file and
+   * embedded by `image()` in a `.typ` template.
+   *
+   * It is a MODE, not a styling flag: everything it removes is an interaction the paper cannot
+   * carry. The two captions it drops (the log/indexed axis note and the period-total summary) are
+   * real content, so they are NOT lost — `scaleAxisCaption` and `buildSummaryCaption` are exported
+   * for the caller to place in the report's own chrome, which is where the Typst template puts
+   * them.
+   *
+   * Never toggled at runtime: a chart is either on screen or in a report.
+   */
+  static?: boolean;
   className?: string;
 }

@@ -112,6 +112,31 @@ budgetUrl: 'http://localhost:13005'
 # behind a proxy that rewrites Host — a real deployment's own config.yaml sets this explicitly.
 publicBaseUrl: 'http://localhost:3000'
 
+# ── Report export (converse-frontends#453) ────────────────────────────────────────────────────
+# `GET /api/reports/page` builds a JSON data file plus one SVG per chart panel and POSTs them,
+# with the route's own `.typ` template, to the `typst-render` sidecar (apps/typst-render). The
+# console image carries NO PDF toolchain — no Typst binary, no browser engine — which is an
+# explicit acceptance criterion of that story.
+#
+# `{env:TYPST_RENDER_URL}` because the URL is the DEPLOYMENT's to know, not this document's: the
+# Helm chart runs the renderer as a loopback-only sidecar and sets `TYPST_RENDER_URL:
+# http://127.0.0.1:8080` on the console container (charts/converse-console/values.yaml). Locally,
+# `compose.yml`'s `typst-render` service publishes the same port, so the default below is the
+# right one for a dev checkout.
+#
+# UNSET is a real, supported deployment state, not a misconfiguration: `format=csv` and
+# `format=html` keep working and `format=pdf` answers a 502 that SAYS the renderer is not
+# configured. It never falls back to a chartless PDF — the story calls that failure mode out by
+# name.
+#
+# Template overrides are NOT configured here. They are read from the `CONSOLE_TEMPLATES_DIR`
+# environment variable (default `/config/console/templates`), which the chart always sets, because
+# it is a mount path the chart alone owns — same reasoning as `CONSOLE_CONFIG` itself. Lookup is
+# per FILE: `${CONSOLE_TEMPLATES_DIR}/<route>/report.typ` wins for that one report, and a route
+# with no override file falls back to the template baked into the image.
+reports:
+  typstRenderUrl: '{env:TYPST_RENDER_URL}'
+
 # ── Branding (runtime white-label, optional) ──────────────────────────────────────────────────
 # Owner design (issue #368, Phase H): "a .branding key inside the config, that will hold .logo: a
 # host absolute path to the logo file... .style: a host absolute path to the css file. This should

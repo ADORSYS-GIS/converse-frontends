@@ -1,6 +1,10 @@
-import type { UsageQueryRequest, UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
-import { formatUsd } from '@lightbridge/ui-web';
-import type { ShareBarSegment } from '@lightbridge/ui-web';
+import type {
+  UsageQueryRequest,
+  UsageQueryResponse,
+  UsageSeriesPoint,
+} from '@lightbridge/api-rest';
+import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
+import type { ShareBarSegment } from '@lightbridge/ui-web/src/components/share-bar';
 
 import type { OVERVIEW_BUCKETS, OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
@@ -63,6 +67,24 @@ export function resolveOverviewWindow(
   if (usable) return { start, end };
   return resolveRangeWindow(range, now);
 }
+
+/**
+ * How a range preset is WORDED — the sentence a page's subtitle and a report's header both state.
+ *
+ * Lives here, in the module that already owns `OverviewRange`/`resolveOverviewWindow`, because
+ * converse-frontends#453 needs it on the SERVER (the export route has no screen hook to read it
+ * from) and a fifth private copy would be a fifth thing to keep in step. The four container hooks
+ * that still declare their own identical copy (`use-overview-screen.ts`,
+ * `use-admin-overview-screen.ts`, `use-usage-overview-screen.ts`,
+ * `use-settings-overview-screen.ts`) are deleted by the `dashboards.yaml` migration (C4/C12);
+ * this is where the surviving definition lives.
+ */
+export const RANGE_LABELS: Record<OverviewRange, string> = {
+  mtd: 'This month',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+};
 
 /** `YYYY-MM-DD` in UTC — the form `from`/`to` take in the URL. */
 export function toUrlDate(date: Date): string {

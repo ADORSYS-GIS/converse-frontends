@@ -4,7 +4,7 @@ import type {
   DashboardPanelView,
   DashboardTableColumn,
   DashboardTableRow,
-} from '@lightbridge/ui-web/src/sections/dashboard-panels';
+} from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 import type {
   MultiSeriesSpendScale,
   MultiSeriesSpendSeries,

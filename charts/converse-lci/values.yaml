@@ -15,8 +15,6 @@ lci:
       containers:
         frontend:
           image:
-            # A GHCR package distinct from console's and self-service's own images — see
-            # .github/workflows/lci-docker-image.yml's IMAGE_NAME comment for why.
             repository: ghcr.io/adorsys-gis/converse-frontends/lci
             # argocd-image-updater re-pins this to a real `sha-<gitsha>` tag once the workflow has
             # pushed at least one image; `latest` here is only a bootstrap default.
@@ -29,12 +27,12 @@ lci:
               protocol: TCP
 
           # apps/lci reads its configuration from plain environment variables (lib/auth/*,
-          # lib/server/admin.ts, lib/server/api.ts) — unlike apps/console, there is no single
-          # config-document mechanism this chart mounts on the app's behalf. This map is
-          # deliberately EMPTY here: every key below is a real per-deployment literal (a real
-          # Keycloak/authz-idp issuer, a real control-plane URL, ...), so a real deployment
-          # supplies its own complete env map via its own values file (see README.md) rather than
-          # this chart shipping placeholder values that could silently pass validation.
+          # lib/server/admin.ts, lib/server/api.ts) — there is no config-document mechanism this
+          # chart mounts on the app's behalf. This map is deliberately EMPTY here: every key below
+          # is a real per-deployment literal (a real Keycloak/authz-idp issuer, a real
+          # control-plane URL, ...), so a real deployment supplies its own complete env map via
+          # its own values file (see README.md) rather than this chart shipping placeholder
+          # values that could silently pass validation.
           #
           # values.schema.json requires the keys a deployment cannot omit (OIDC_ISSUER,
           # OIDC_CLIENT_ID, CONTROL_PLANE_URL, and one of OIDC_REDIRECT_URI/
@@ -51,8 +49,7 @@ lci:
           resources:
             # A Node SSR server, not nginx serving static files — every request runs application
             # code (session/JWT verification, OIDC token exchange, control-plane proxying), so
-            # both floors sit meaningfully above a static-file pod's. Matches apps/console's own
-            # floors — both are Next.js Node-runtime servers of comparable shape.
+            # both floors sit meaningfully above a static-file pod's.
             requests:
               cpu: 100m
               memory: 256Mi
@@ -63,9 +60,9 @@ lci:
           probes:
             # /robots.txt (app/robots.ts): a static Next.js metadata route, excluded from
             # proxy.ts's session-gate matcher and independent of runtime config — a clean "is the
-            # Node server actually serving requests" signal, the same role it plays for
-            # apps/console. `/` itself always redirects to /api/auth/login when unauthenticated,
-            # and a kubelet probe can't follow that redirect meaningfully.
+            # Node server actually serving requests" signal. `/` itself always redirects to
+            # /api/auth/login when unauthenticated, and a kubelet probe can't follow that redirect
+            # meaningfully.
             liveness:
               enabled: true
               type: HTTP

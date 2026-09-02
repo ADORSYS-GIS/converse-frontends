@@ -48,7 +48,7 @@
                           "required": ["repository", "tag"]
                         },
                         "env": {
-                          "description": "apps/lci's runtime configuration — plain environment variables, not a mounted config document (unlike apps/console). See README.md for the full field reference; the keys below are the ones the app cannot boot or authenticate without (apps/lci/src/lib/auth/oidc-config.ts, verify-jwt.ts, lib/server/admin.ts).",
+                          "description": "apps/lci's runtime configuration — plain environment variables, not a mounted config document. See README.md for the full field reference; the keys below are the ones the app cannot boot or authenticate without (apps/lci/src/lib/auth/oidc-config.ts, verify-jwt.ts, lib/server/admin.ts).",
                           "type": "object",
                           "properties": {
                             "OIDC_ISSUER": {

@@ -3,9 +3,9 @@ name: converse-lci
 description: Lightbridge Code Intelligence UI (Next.js, Node runtime) — apps/lci's server-rendered app (bjw-s app-template)
 type: application
 
-# A separate chart directory, same reason charts/converse-console is one (ticket #328/#331): a
-# separate GHCR package via publish-charts-oci.yml's `for cf in charts/*/Chart.yaml` glob, so
-# nothing here can collide with another chart's consumer floating a broad semver range against it.
+# Its own chart directory gets its own GHCR package via publish-charts-oci.yml's `for cf in
+# charts/*/Chart.yaml` glob, so nothing here can collide with another chart's consumer floating a
+# broad semver range against it.
 version: 0.1.0
 
 # Tracks the container image tag by default

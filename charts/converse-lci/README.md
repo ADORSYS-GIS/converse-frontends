@@ -1,8 +1,7 @@
 # converse-lci
 
 This chart deploys the Lightbridge Code Intelligence UI (`apps/lci`, Next.js) as a Node-runtime
-server. It follows the same shape as `charts/converse-console` — a separate chart directory (not a
-version bump of an existing one), for the same reason: a dedicated GHCR package via
+server. It's its own chart directory, which gets it a dedicated GHCR package via
 `publish-charts-oci.yml`'s `for cf in charts/*/Chart.yaml` loop, so nothing else's floating semver
 range can pick this up by accident. See `apps/lci/Dockerfile` for the image this chart deploys.
 
@@ -31,10 +30,9 @@ OCI reference above to deploy a published version.
 
 ## Required runtime configuration
 
-Unlike `converse-console`, this app reads its configuration from **plain environment
-variables**, not a mounted YAML document — `apps/lci` has no `config-loader.ts` equivalent. This
-chart ships `lci.controllers.main.containers.frontend.env` **empty by default**; a real
-deployment supplies its own complete env map.
+This app reads its configuration from **plain environment variables**, not a mounted YAML
+document. This chart ships `lci.controllers.main.containers.frontend.env` **empty by default**; a
+real deployment supplies its own complete env map.
 
 This chart ships a values schema (see [`values.schema.json`](./values.schema.json)) requiring
 `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `CONTROL_PLANE_URL`, and at least one of `OIDC_REDIRECT_URI` /
@@ -53,7 +51,7 @@ Read from `apps/lci/src/lib/auth/*`, `apps/lci/src/lib/server/admin.ts`,
 | `OIDC_CLIENT_ID` | **Yes** | Throws at request time if unset. No default. |
 | `OIDC_REDIRECT_URI` or `OIDC_POST_LOGOUT_REDIRECT_URI` | **At least one** | `appBaseUrl()` (this app's public origin, used for every app-relative redirect) derives from whichever is set and throws if neither is. Each individually still falls back to a `localhost:3001` dev default when read on its own elsewhere in the app — only `appBaseUrl()` has no fallback. |
 | `CONTROL_PLANE_URL` | Effectively yes | Falls back to `http://localhost:8080/api/v2` if unset — **not** enforced by app code, so a real deployment omitting it fails silently rather than loudly. This chart's schema requires it for that reason. |
-| `OIDC_CLIENT_SECRET` | No | Omit for a public client + PKCE (the pattern `converse-console`'s own `lightbridge-console` client uses — confirm this app's registered client type before setting it). |
+| `OIDC_CLIENT_SECRET` | No | Omit for a public client + PKCE; confirm this app's registered client type before setting it. |
 | `OIDC_AUDIENCE` | No | JWT `aud` check is skipped entirely when unset. |
 | `OIDC_JWKS_URI` | No | Derived from `OIDC_ISSUER` (`{issuer}/protocol/openid-connect/certs`) when unset. |
 | `OIDC_TOKEN_URI` | No | Derived from `OIDC_ISSUER` (`{issuer}/protocol/openid-connect/token`) when unset. |

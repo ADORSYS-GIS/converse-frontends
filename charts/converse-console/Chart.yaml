@@ -14,10 +14,10 @@ type: application
 # (oci://ghcr.io/adorsys-gis/charts/converse-console — see publish-charts-oci.yml, which globs
 # `charts/*/Chart.yaml`), so this is the only mechanism that removes the collision risk entirely
 # rather than relying on a version range holding.
-version: 0.1.0
+version: 0.2.0
 
 # Tracks the container image tag by default
-appVersion: 0.1.0
+appVersion: 0.2.0
 
 keywords:
   - converse

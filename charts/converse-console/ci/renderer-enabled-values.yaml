@@ -1,0 +1,49 @@
+# helm lint / helm template fixture #2 of 2 (story ai-helm-values#346): every switch this story
+# adds, ON — the pinned typst-render sidecar, its emptyDir /tmp, the ingress NetworkPolicy, an
+# overriding dashboards.yaml in the console-config ConfigMap, and a report-templates mount.
+#
+#   helm lint    charts/converse-console -f charts/converse-console/ci/renderer-enabled-values.yaml
+#   helm template console-ui charts/converse-console \
+#     -f charts/converse-console/ci/renderer-enabled-values.yaml
+#
+# Note the pairings this file exercises on purpose, because each is a way to break a healthy pod:
+#   * containers.typst-render.enabled  ⇄  persistence.typst-tmp.enabled
+#     (readOnlyRootFilesystem with no writable /tmp = every render fails at mkdtemp)
+#   * persistence.console-dashboards.enabled  ⇄  configMaps.console-config.data['dashboards.yaml']
+#     (a subPath naming an absent ConfigMap key does not fall back — the kubelet refuses to mount)
+#   * persistence.report-templates.enabled  ⇄  configMaps.report-templates.enabled
+console:
+  controllers:
+    main:
+      containers:
+        typst-render:
+          enabled: true
+  persistence:
+    typst-tmp:
+      enabled: true
+    console-dashboards:
+      enabled: true
+    report-templates:
+      enabled: true
+  networkpolicies:
+    typst-render-isolation:
+      enabled: true
+  configMaps:
+    console-config:
+      data:
+        config.yaml: |
+          session:
+            secret: '{env:SESSION_SECRET}'
+          idp:
+            issuer: https://idp.example.test/realms/lightbridge
+            clientId: console
+          backendUrl: https://authz-api.example.test
+          budgetUrl: https://authz-budget.example.test
+        dashboards.yaml: |
+          dashboards: []
+    report-templates:
+      enabled: true
+      data:
+        report.typ: |
+          #set page(width: 210mm, height: 297mm)
+          = Overridden report

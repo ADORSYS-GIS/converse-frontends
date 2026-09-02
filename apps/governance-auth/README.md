@@ -73,15 +73,112 @@ Two things move between the repos: **one file**, and **one string replacement**.
 
 ### 1. The file
 
-Copy the built artifact into the Rust tree, replacing the current template:
+`dist/` is gitignored here on purpose — the Rust repo commits the artifact it ships, the same way
+it committed the template it is replacing. Nothing in the Rust build reaches into this repo, and
+nothing in this repo pushes into that one. What moves between them is a **published artifact**.
+
+#### Where it is published
+
+Every merge to `main` that changes this app, `packages/ui-web`, or `pnpm-lock.yaml` publishes the
+built page to GHCR as an **OCI artifact** (`.github/workflows/governance-auth-callback-oci.yml`):
+
+```text
+ghcr.io/adorsys-gis/governance-auth-callback
+```
+
+An artifact, not a container image: the deliverable is one 566 KiB HTML file that a Rust build
+reads at compile time. There is no process to start, no base OS, no filesystem layout — so there
+is no Dockerfile either. `oras` pushes the file itself.
+
+Two tags are published:
+
+| Tag         | What it means                                           | Pin it?                                                     |
+| ----------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `sha-<sha>` | The build produced by that commit of this repo. Frozen. | **Yes. This is the contract.**                              |
+| `latest`    | Whatever merged to `main` most recently. Moves.         | **No.** See below — it defeats the point of pinning at all. |
+
+`<sha>` is the **full 40-character** commit sha of this repo, so it matches `git rev-parse HEAD`
+in a checkout character for character (the sibling image workflows use a 7-char sha; this one does
+not, because this tag gets copy-pasted across a repo boundary where an abbreviation is a guess).
+
+#### Pull it
+
+```bash
+# In the lightbridge-governance checkout, at its repo root.
+# Replace <sha> with the converse-frontends commit you are pinning to.
+oras pull ghcr.io/adorsys-gis/governance-auth-callback:sha-<sha> \
+  --output app/governance-auth/src/oauth/callback_page/templates
+
+# The artifact carries the file under its build name; the Rust side include_str!s callback.html.
+mv app/governance-auth/src/oauth/callback_page/templates/index.html \
+   app/governance-auth/src/oauth/callback_page/templates/callback.html
+```
+
+Then commit `callback.html`, exactly as the hand-written template was committed. `oras` is needed
+once, by the person doing the bump — never by `cargo build`, never by CI in that repo.
+
+#### `latest` is a footgun here, not a shortcut
+
+`latest` moves on every merge to `main` in this repo. A `cargo build` of a **fixed**
+`lightbridge-governance` commit that was fed `latest` at bump time can therefore be pointed at
+different HTML than the one that was reviewed — the Rust commit no longer determines the bytes it
+embeds. The whole reason this artifact is addressable by commit sha is that the consuming repo has
+to be able to answer "which commit of converse-frontends produced the page in this binary". Pin
+`sha-<sha>`; use `latest` only for poking at the registry by hand.
+
+#### The digest, and what it is for
+
+The publishing run prints the artifact's `sha256` manifest digest to its job summary and exposes
+it as a workflow output (`digest`), alongside a ready-to-paste `pinned-ref`. The digest is the
+strongest pin available: a tag is a mutable pointer, a digest is the content. Use it when the
+bump should be provably immutable (a release, an audit trail, a security review):
+
+```bash
+oras pull ghcr.io/adorsys-gis/governance-auth-callback@sha256:<digest> \
+  --output app/governance-auth/src/oauth/callback_page/templates
+```
+
+Read it back off the registry at any time — no download of the artifact required:
+
+```bash
+oras manifest fetch --descriptor ghcr.io/adorsys-gis/governance-auth-callback:sha-<sha>
+```
+
+#### Provenance travels with the artifact
+
+The manifest carries standard `org.opencontainers.image.*` annotations, so the answer to "where
+did this come from" lives in the registry rather than in a workflow run that ages out:
+
+| Annotation                          | Value                                               |
+| ----------------------------------- | --------------------------------------------------- |
+| `org.opencontainers.image.source`   | `https://github.com/ADORSYS-GIS/converse-frontends` |
+| `org.opencontainers.image.revision` | the full commit sha that produced these bytes       |
+| `org.opencontainers.image.created`  | build timestamp, RFC 3339 UTC                       |
+| `org.opencontainers.image.version`  | `sha-<sha>` (the tag)                               |
+| `org.opencontainers.image.url`      | this directory, at that commit                      |
+| `org.opencontainers.image.title`    | `governance-auth-callback`                          |
+
+```bash
+oras manifest fetch --pretty ghcr.io/adorsys-gis/governance-auth-callback:sha-<sha>
+```
+
+The publish job runs `build:web` — including `scripts/verify-single-file.mjs` — as a hard
+precondition in the same job, before it ever logs in to the registry, and then pulls the pushed
+artifact back **by digest** and asserts it is one file, named `index.html`, byte-identical to the
+one the verifier passed. A published artifact that reaches the network is the one regression this
+app cannot ship, so that gate is not a parallel check.
+
+#### Working locally, without the registry
+
+While iterating across both repos, skip the registry and copy the file:
 
 ```bash
 cp apps/governance-auth/dist/index.html \
    ../lightbridge-governance/app/governance-auth/src/oauth/callback_page/templates/callback.html
 ```
 
-`dist/` is gitignored here on purpose — the Rust repo commits the artifact it ships, the same way
-it committed the template it is replacing. Nothing in the Rust build reaches into this repo.
+That is for a local loop only. Anything that lands on `main` in `lightbridge-governance` should
+come from a pinned `sha-` tag, so the commit that produced the page is recorded.
 
 ### 2. The replacement
 

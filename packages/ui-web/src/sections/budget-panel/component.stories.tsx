@@ -97,4 +97,3 @@ export const ErrorState: Story = {
     refillRequestStatus: undefined,
   },
 };
-

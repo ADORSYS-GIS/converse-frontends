@@ -1,6 +1,7 @@
 'use client';
 
 import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
+import { NO_RESET_SCHEDULED_LINE } from '@lightbridge/ui-web';
 import type {
   EstateBudgetPressureAccount,
   EstateBudgetPressureStatus,
@@ -23,6 +24,7 @@ import {
   splitResponseByAccount,
   summarizeMtdSpend,
 } from './admin-estate-operations-usage';
+import { effectiveResetLabel, effectiveResetScheduleQueryKey } from './budget-schedule-rows';
 import { currentPeriodRange } from './overview-usage';
 import { toAggregateDaySeries } from './settings-overview-usage';
 import { MAX_FANNED_OUT_ACCOUNTS } from './usage-overview-usage';
@@ -73,6 +75,11 @@ export interface AdminEstateOperations {
    */
   resetCadence: ResetCadence;
 }
+
+/** Said when the per-account schedule read itself failed. Deliberately NOT `NO_RESET_SCHEDULED_LINE`:
+ *  "we could not ask" and "there is none" are different claims, and only one of them is a reason to
+ *  go write a schedule. */
+export const SCHEDULE_UNREADABLE_LINE = 'Next reset unknown — the schedule read failed';
 
 /** `budget_reset_schedules.cadence` is a plain wire string (the schema keeps the Rust enum's own
  *  rendering rather than a generated union), so it is narrowed here rather than trusted. */
@@ -192,28 +199,101 @@ export function useAdminEstateOperations(): AdminEstateOperations {
    * `Period` and this console's default `mtd` range.
    */
   const probeAccountId = scope.value.accountId;
-  const scheduleQuery = useQuery({
-    queryKey: ['admin-estate-operations', 'reset-schedule', probeAccountId],
-    queryFn: () =>
-      budgetClient.procedures.getEffectiveResetSchedule({
-        args: { budgetAccountId: probeAccountId as string },
-      }),
-    enabled: Boolean(probeAccountId),
-    staleTime: 300_000,
-    // A missing/forbidden schedule read must not retry-storm a page that works fine without it.
-    retry: false,
+
+  /**
+   * ONE fan-out over `getEffectiveResetSchedule`, serving two readers (converse-frontends#451,
+   * story C8 — this replaces the single-account probe this hook used to fire):
+   *
+   *  1. **Every budget-pressure row's own "next reset" line.** The winner for an account is
+   *     account > billing_plan > global and the BACKEND resolves it, so two neighbouring rows
+   *     genuinely can answer differently and there is no estate-wide read that could answer for
+   *     all of them at once.
+   *  2. **The estate comparison cadence** (decision D-F, owner Q8), which is what tells
+   *     `comparisonWindow` whether "vs previous" on this page means a week or a month.
+   *
+   * Capped by construction: the id list is `includedIds`, already `MAX_FANNED_OUT_ACCOUNTS`-capped
+   * by `budgetPressureAccountIds`, plus the probe account. The key is the shared
+   * `effectiveResetScheduleQueryKey`, so the account Budget card asking about the same account in
+   * the same session reuses this answer rather than firing a second request and possibly rendering
+   * a different line for it.
+   */
+  const scheduleIds = useMemo(
+    () => Array.from(new Set([...includedIds, probeAccountId].filter(Boolean) as string[])),
+    [includedIds, probeAccountId]
+  );
+
+  const scheduleQueries = useQueries({
+    queries: scheduleIds.map((accountId) => ({
+      queryKey: effectiveResetScheduleQueryKey(accountId),
+      queryFn: () =>
+        budgetClient.procedures.getEffectiveResetSchedule({
+          args: { budgetAccountId: accountId },
+        }),
+      staleTime: 300_000,
+      // A missing/forbidden schedule read must not retry-storm a page that works fine without it.
+      retry: false,
+    })),
   });
 
+  const scheduleByAccount = useMemo(
+    () => new Map(scheduleQueries.map((query, index) => [scheduleIds[index], query])),
+    [scheduleQueries, scheduleIds]
+  );
+
+  /**
+   * The estate's comparison cadence (owner Q8: "estate pages use the global schedule's cadence if
+   * one exists, else monthly").
+   *
+   * There is no estate-wide read of the schedule table, and an estate page has no single actor to
+   * ask about — so it reads the answer for the account it does have (the operator's own current
+   * scope) and accepts it ONLY when the winning schedule is `global`. An account-scoped or
+   * plan-scoped schedule governs that one account, not the estate, and letting it set the page's
+   * cadence would silently redefine "vs previous" for every other account's numbers. Anything else
+   * — no schedule, a scoped schedule, an unreadable cadence string, a failed call — falls through
+   * to monthly, which is the budget domain's own calendar-month `Period` and this console's default
+   * `mtd` range.
+   */
   const resetCadence = useMemo<ResetCadence>(() => {
-    const schedule = scheduleQuery.data?.schedule;
+    const schedule = probeAccountId
+      ? scheduleByAccount.get(probeAccountId)?.data?.schedule
+      : undefined;
     if (!schedule || schedule.scopeKind !== 'global' || !schedule.enabled) {
       return DEFAULT_COMPARISON_CADENCE;
     }
     return toResetCadence(schedule.cadence) ?? DEFAULT_COMPARISON_CADENCE;
-  }, [scheduleQuery.data]);
+  }, [scheduleByAccount, probeAccountId]);
+
+  /**
+   * The rows the zone actually renders — the pressure rows above, each carrying its own next-reset
+   * line (story C8).
+   *
+   * Three distinct states, worded as three distinct things:
+   *  - still resolving → NO line at all (never a fabricated "no schedule" for an unanswered query);
+   *  - resolved, covered → the schedule's own sentence;
+   *  - resolved, uncovered → `NO_RESET_SCHEDULED_LINE`, an explicit statement rather than blank
+   *    space, which beside a balance reads as "it will be topped up somehow";
+   *  - the read itself failed → said so, because "we could not ask" is not "there is none".
+   */
+  const budgetPressureRows = useMemo<EstateBudgetPressureAccount[]>(
+    () =>
+      budgetPressureAccounts.map((row) => {
+        const query = scheduleByAccount.get(row.key);
+        if (!query || query.isPending) return row;
+        if (query.isError) return { ...row, nextReset: SCHEDULE_UNREADABLE_LINE };
+        // Each row's own FETCH timestamp, not `Date.now()` — the house idiom
+        // (`use-refills-queue-screen.ts`): reading the clock during render is impure, and "in 6 h"
+        // is relative to when THAT account's schedule was read.
+        return {
+          ...row,
+          nextReset:
+            effectiveResetLabel(query.data, query.dataUpdatedAt) ?? NO_RESET_SCHEDULED_LINE,
+        };
+      }),
+    [budgetPressureAccounts, scheduleByAccount]
+  );
 
   return {
-    budgetPressureAccounts,
+    budgetPressureAccounts: budgetPressureRows,
     budgetPressureStatus,
     budgetPressureError: isError ? getUsageErrorMessage(mtdQuery.error) : undefined,
     onRetryBudgetPressure: () => {

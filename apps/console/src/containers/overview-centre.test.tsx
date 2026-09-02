@@ -73,6 +73,9 @@ function baseScreen(overrides: Partial<OverviewScreenData> = {}): OverviewScreen
     modelSpendErrorMessage: undefined,
     modelSpendRetry: vi.fn(),
     budget: { status: 'unwired', caption: 'Budget figures arrive with the budget query wiring.' },
+    // Story C8 — the base screen leaves the schedule read in flight, so the default fixture adds
+    // no next-reset line and the existing budget-shape assertions below stay about the budget.
+    nextReset: { status: 'loading' },
     report: {
       open: false,
       onOpenChange: vi.fn(),
@@ -313,6 +316,26 @@ describe('OverviewCentre', () => {
 
     expect(screen.getByText('$142.55')).toBeInTheDocument();
     expect(screen.getByText('of $500.00')).toBeInTheDocument();
+  });
+
+  // Story C8 (converse-frontends#451) — the Budget card carries the account's next reset, and says
+  // so explicitly when nothing covers it rather than leaving blank space beside the balance.
+  it('renders the next reset line under the budget hero', async () => {
+    await renderCentre({
+      budget: { value: 142.55, ceiling: 500, caption: 'account ceiling · 28% used' },
+      nextReset: { status: 'scheduled', label: 'Next reset in 3 days → $500.00 (reset)' },
+    });
+
+    expect(screen.getByText('Next reset in 3 days → $500.00 (reset)')).toBeInTheDocument();
+  });
+
+  it('states that no reset is scheduled rather than rendering nothing', async () => {
+    await renderCentre({
+      budget: { value: 142.55, ceiling: 500, caption: 'account ceiling · 28% used' },
+      nextReset: { status: 'none' },
+    });
+
+    expect(screen.getByText('No reset scheduled')).toBeInTheDocument();
   });
 
   // Owner review round 2 (2026-08-31, converse-frontends#368 finding #3, verbatim): "Remove the

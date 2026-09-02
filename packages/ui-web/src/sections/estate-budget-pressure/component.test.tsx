@@ -56,4 +56,25 @@ describe('EstateBudgetPressure', () => {
     );
     expect(screen.queryByText('acme-labs')).not.toBeInTheDocument();
   });
+
+  // ── per-row next reset (converse-frontends#451, story C8) ────────────────────────────────
+  it('states each row’s own next reset, including the rows that have none', () => {
+    render(<EstateBudgetPressure accounts={estateBudgetPressureAccounts} />);
+
+    expect(screen.getByText('Next reset in 6 h → $500.00 (reset)')).toBeInTheDocument();
+    expect(screen.getByText('Next reset in 3 days → $50.00 (top up)')).toBeInTheDocument();
+    // Two accounts genuinely have no schedule, and both say so.
+    expect(screen.getAllByText('No reset scheduled')).toHaveLength(2);
+  });
+
+  it('renders no line at all for a row whose schedule read has not answered yet', () => {
+    render(
+      <EstateBudgetPressure
+        accounts={[{ key: 'acct_pending', name: 'pending-co', spend: 1, ceiling: 10 }]}
+      />
+    );
+
+    expect(screen.queryByText(/Next reset/)).not.toBeInTheDocument();
+    expect(screen.queryByText('No reset scheduled')).not.toBeInTheDocument();
+  });
 });

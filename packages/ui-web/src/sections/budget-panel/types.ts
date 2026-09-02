@@ -36,6 +36,24 @@ export interface BudgetSummaryError {
 export type BudgetSummary =
   BudgetSummaryReady | BudgetSummaryUnwired | BudgetSummaryLoading | BudgetSummaryError;
 
+/**
+ * The account's next budget reset (converse-frontends#451, story C8) — resolved by
+ * `getEffectiveResetSchedule`, which answers with the WINNING schedule for this account
+ * (account > billing_plan > global). Precedence is the backend's answer and is never recomputed
+ * here, so a card can never disagree with what the scheduler will actually do.
+ *
+ * `'none'` is a real, explicit line ("No reset scheduled"), NOT a hidden block: the story's own
+ * negative acceptance criterion says so, and for good reason — blank space beside a balance reads
+ * as "it will be topped up somehow", which is exactly the belief this feature exists to replace.
+ * `'unavailable'` is the separate, honest case where the read itself could not be made (no
+ * `budget:read` on this session, a forbidden account) and the console must not claim either way.
+ */
+export type BudgetNextReset =
+  | { status: 'scheduled'; /** e.g. "Next reset in 3 days → $2.00 (reset)". */ label: string }
+  | { status: 'none' }
+  | { status: 'loading' }
+  | { status: 'unavailable'; caption: string };
+
 export interface BudgetNeedsAttentionProject {
   name: string;
   value: number;
@@ -66,6 +84,13 @@ export interface BudgetPanelProps {
    * `BudgetHeroProps.action`'s own "only present once breached" convention.
    */
   heroAction?: ReactNode;
+  /**
+   * The next reset line, under the hero (story C8). Unlike every other optional block on this
+   * panel, `'none'` still RENDERS — see `BudgetNextReset`. Omitting the prop entirely is for a
+   * caller that has not adopted schedules at all (the loading skeleton, a story predating them);
+   * a caller wired to `getEffectiveResetSchedule` always passes one of the four states.
+   */
+  nextReset?: BudgetNextReset;
   /** Omitted entirely when no project is near its ceiling — never an empty placeholder block. */
   needsAttentionProject?: BudgetNeedsAttentionProject;
   onRequestRefill?: () => void;

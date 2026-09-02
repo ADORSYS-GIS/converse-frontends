@@ -292,6 +292,22 @@ decimals.
   Never resurrect a `ROLE` badge/marker component. A nav row may ship `disabled` with a stated
   reason (Roles — `lightbridge-authz#571`) rather than being omitted: the honesty doctrine (below)
   extends to navigation — a row that looks live but 404s is its own kind of fabrication.
+- **The admin area is a THIRD nav surface in the same mount** (`adminNavGroups`, swapped in by the
+  same `areaFromPathname` branch). It takes no `isAdmin` param at all — `ConsoleSidebarContent` has
+  already confirmed it before calling, so there is no disabled-row case to model, unlike
+  `settingsNavGroups`. Four rows, dashboard first:
+
+  | Row              | Route                     | Notes                                                                                                                |
+  | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+  | Overview         | `/admin/overview`         | The operator dashboard; its boards come from `dashboards.yaml` (ADR 0013 / story C4)                                 |
+  | Refills queue    | `/admin/refills-queue`    | Carries the pending-count numeral — its ONLY home; never a fabricated `0` while it loads                             |
+  | Refill policies  | `/admin/refill-policies`  | `create` is its own route segment; `?edit=`/`?simulate=` are modes                                                   |
+  | Budget schedules | `/admin/budget-schedules` | Story C8 — `create` is its own segment; `?edit=`/`?preview=`/`?delete=` are modes. A clock glyph, not a second gauge |
+
+  `AdminRoute`/`adminRouteFromPathname` is the closed union behind the active flag; anything
+  unrecognised (the bare `/admin`, mid-redirect) reads as `overview`, the same "unmatched reads as
+  the first destination" contract the other two areas use.
+
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.
 - **Row detail is `BottomSheet`, at every tier, everywhere — never a side sheet, and never the
@@ -389,7 +405,8 @@ in the admin pages?"):** the `/admin/overview` batch (`claude/sb-admin-dashboard
 shipped one page-specific carve-out — "charts and tables render on the floor, not in cards" — that
 narrowed ADR 0012 D3's general "`Card` is the default zone container" rule below for that page
 alone. That carve-out is gone: **`Card` is the zone treatment console-wide, no exceptions by
-page.** `/admin/overview`, `/admin/refill-policies` and `/admin/refills-queue` all wrap their zones
+page.** `/admin/overview`, `/admin/refill-policies`, `/admin/refills-queue` and
+`/admin/budget-schedules` all wrap their zones
 in `Card` now, at the same granularity `overview-centre.tsx` established (one `Card` per rendered
 board/section; `PageHeader`, a bare page-level `InlineStatus` not tied to one board, and
 `OverviewStatRow`'s self-panelled stat cards stay on the floor, same as everywhere else). The

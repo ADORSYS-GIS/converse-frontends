@@ -25,6 +25,7 @@ import {
   PoliciesIcon,
   RefillOptionsIcon,
   RolesIcon,
+  ScheduleIcon,
   SearchIcon,
   SettingsIcon,
   SignOutIcon,
@@ -398,7 +399,7 @@ export function settingsNavGroups(active: SettingsRoute, isAdmin: boolean): NavG
  * and `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
  * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
  */
-export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
+export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies' | 'budget-schedules';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
@@ -407,6 +408,7 @@ export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
 export function adminRouteFromPathname(pathname: string): AdminRoute {
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
+  if (pathname.startsWith('/admin/budget-schedules')) return 'budget-schedules';
   return 'overview';
 }
 
@@ -418,6 +420,9 @@ const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
   'refills-queue': <AdminIcon />,
   'refill-policies': <RefillOptionsIcon />,
+  // A clock, not a second gauge — see `ScheduleIcon`'s own doc comment for why the two
+  // budget-rule rows deliberately do not share a glyph family.
+  'budget-schedules': <ScheduleIcon />,
 };
 
 /**
@@ -457,6 +462,17 @@ export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGro
           href: '/admin/refill-policies',
           icon: ADMIN_NAV_ICON['refill-policies'],
           active: active === 'refill-policies',
+        },
+        {
+          // converse-frontends#451 (story C8). Gated by inclusion in this admin-only nav, the same
+          // way every row here is; C9 (converse-frontends#452) narrows that to the specific
+          // permission the five schedule procedures already enforce server-side,
+          // `budget:schedule-manage`.
+          key: 'budget-schedules',
+          label: 'Budget schedules',
+          href: '/admin/budget-schedules',
+          icon: ADMIN_NAV_ICON['budget-schedules'],
+          active: active === 'budget-schedules',
         },
       ],
     },

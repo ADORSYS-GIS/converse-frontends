@@ -141,6 +141,51 @@ export function useCreateAccountDialogParams() {
   });
 }
 
+// ── shared: dashboard report export (converse-frontends#453) ─────────────────────────────────
+
+/**
+ * `?export=true&export-format=pdf&export-tables=false` — the Export dialog on EVERY
+ * `dashboards.yaml`-driven page.
+ *
+ * Cross-route and shared, the same shape `createAccountParsers`/`createProjectParsers` established
+ * and for the same reason: the button is owned by the dashboard engine's page shell
+ * (`dashboards/dashboard-page-shell.tsx`), not by any one route, so there is exactly one
+ * declaration rather than one per page — a fifth `?report=`-shaped flag per YAML page is precisely
+ * the drift this module exists to prevent.
+ *
+ * All three are real view state under ADR 0011, not drafts. `open` is "what am I looking at" (Back
+ * closes it, same as every other dialog flag here). `format` and `tables` are the two knobs that
+ * decide WHICH DOCUMENT the Generate button produces, so a link to a page with an export in
+ * progress must carry them — and the route's own `?format=`/`?tables=` mean the same two things,
+ * which is what makes an exported report reproducible from a URL someone pasted.
+ *
+ * Distinct names from `manageParsers`/`overviewParsers`' `format`/`reportOpen`: those belong to the
+ * CONSUMPTION report (a month, a scope, a group-by) which is a different document with different
+ * inputs, and a page could in principle mount both.
+ */
+export const DASHBOARD_EXPORT_FORMATS = ['pdf', 'csv'] as const;
+
+export const dashboardExportParsers = {
+  open: parseAsBoolean.withDefault(false),
+  format: parseAsStringLiteral(DASHBOARD_EXPORT_FORMATS).withDefault('pdf'),
+  // Defaults ON: a chart in a document nobody can hover states nothing without its values.
+  tables: parseAsBoolean.withDefault(true),
+};
+
+const dashboardExportUrlKeys = {
+  open: 'export',
+  format: 'export-format',
+  tables: 'export-tables',
+};
+
+export function useDashboardExportParams() {
+  // `push`, like every other dialog-open flag in this module — Back closes the dialog.
+  return useQueryStates(dashboardExportParsers, {
+    urlKeys: dashboardExportUrlKeys,
+    history: 'push' as const,
+  });
+}
+
 // ── shared: create-project dialog ───────────────────────────────────────────────────────────
 
 /**
@@ -769,6 +814,7 @@ export const URL_PARAM_CONTRACT = {
   resolver: { parsers: resolverParsers, urlKeys: resolverUrlKeys },
   createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
   createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
+  dashboardExport: { parsers: dashboardExportParsers, urlKeys: dashboardExportUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   settingsOverview: { parsers: settingsOverviewParsers, urlKeys: settingsOverviewUrlKeys },
   apiKeys: { parsers: apiKeysParsers, urlKeys: apiKeysUrlKeys },

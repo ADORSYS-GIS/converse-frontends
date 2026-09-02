@@ -241,14 +241,14 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 
 ## Scripts
 
-| Script                            | What it does                                                     |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
-| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"  |
+| Script                            | What it does                                                       |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                    |
+| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"    |
 | `pnpm --filter console build:web` | `next build --turbopack` — the task `turbo run build:web` picks up |
-| `pnpm --filter console start`     | serve the production build                                       |
-| `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |
-| `pnpm --filter console typecheck` | `tsc --noEmit`                                                   |
+| `pnpm --filter console start`     | serve the production build                                         |
+| `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)             |
+| `pnpm --filter console typecheck` | `tsc --noEmit`                                                     |
 
 ### Turbopack for both dev and the build
 
@@ -258,7 +258,7 @@ compiled `src/sw.ts` into `public/sw.js`, was a webpack plugin, and Turbopack ne
 `next.config.mjs` `webpack()` function at all. That reason is gone — the console now runs
 `@serwist/turbopack` instead, whose `createSerwistRoute` bundles `src/sw.ts` with `esbuild-wasm`
 inside a normal route handler (`src/app/serwist/[path]/route.ts`), so there is no webpack-only
-build step left to keep production on. `src/client/providers.tsx` still gates SW *registration* on
+build step left to keep production on. `src/client/providers.tsx` still gates SW _registration_ on
 `NODE_ENV === 'production'` (ADR 0009 Decision 7 — in development it would serve a stale precached
 shell over every edit), but the route itself, and thus the bundler, is no longer the reason.
 
@@ -351,7 +351,7 @@ pipeline never had the problem — it does not run Lightning CSS over the Tailwi
 ### Other dev-speed notes
 
 - **Serwist registration is already fully dev-disabled** (`register={process.env.NODE_ENV ===
-  'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
+'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
   itself (`src/app/serwist/[path]/route.ts`) still exists and can be fetched in dev — unlike the old
   `@serwist/next` webpack plugin, `@serwist/turbopack` has no build-wide `disable` switch — but a
   route nothing registers against never runs, so this has no dev-speed cost either.
@@ -413,6 +413,201 @@ client-supplied `Authorization` can never reach a backend. Path segments are val
 
 The request body is buffered rather than streamed, because the reactive-401 path has to replay the
 exact same bytes with a fresh token. Responses are streamed.
+
+## Report export — `.typ` templates and the `typst-render` sidecar
+
+converse-frontends#453. Every `dashboards.yaml`-driven page exports to PDF, CSV or an HTML preview,
+and **the report walks the SAME resolved panel list the page renders**: `resolveDashboard`
+(`src/dashboards/`, React-free precisely so it can run here) produces one deduplicated query list,
+`toPanelView` turns the responses into the same views the browser draws, and the `.typ` template
+mirroring the route path decides only the document's chrome. A panel added to the YAML appears in
+the report with no template change and no code change.
+
+The console image carries **no PDF toolchain** — no Typst binary, no browser engine. It builds
+`data.json` plus one standalone SVG per chart panel and POSTs them to `apps/typst-render`, a
+loopback-only sidecar (`charts/converse-console`), whose wire contract is in that app's README.
+
+### The route
+
+```
+GET /api/reports/page
+  ?path=<dashboards.yaml route, [param] segments LITERAL>
+  &range=mtd|7d|30d|90d[&from=YYYY-MM-DD&to=YYYY-MM-DD]
+  &<each filter the page declares>=<value>
+  &format=pdf|csv|html          (default pdf)
+  &tables=true|false            (default true)
+```
+
+`path` is the **route pattern**, not the browser's URL: the page already knows which YAML entry it
+renders, so the route validates `path` by EQUALITY against its own document and the param values
+travel beside it as ordinary filters. That is also the whole path-traversal story — `../../etc`
+cannot equal a declared route, so it is refused before anything touches the filesystem.
+
+| Outcome                                            | Status | When                                                                                           |
+| -------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------- |
+| the report                                         | `200`  | `Content-Disposition: attachment; filename="<route-slug>-<range>.<ext>"` (`inline` for `html`) |
+| `unknown_route`                                    | `404`  | `path` is not a declared page. The message names every route it would have accepted.           |
+| `invalid_filter`                                   | `400`  | a `$param` a panel needs was not supplied — an actor report with no actor                      |
+| `template_compile_error`                           | `422`  | Typst's **stderr verbatim** on `detail`, plus which file and which route                       |
+| `renderer_unreachable` / `renderer_not_configured` | `502`  | it never degrades to a chartless PDF                                                           |
+
+`format=csv` returns the underlying grouped rows, **one section per panel** (a dashboard is not one
+table, so this is not one table), and never touches Typst. `format=html` is a preview of the same
+assembled document and also works with no sidecar running — which is what makes the sidecar
+optional for local development.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Operator
+    participant D as DashboardExportButton<br/>(PageHeader action)
+    participant R as GET /api/reports/page
+    participant Y as dashboards.yaml
+    participant G as usage-scope-guard
+    participant B as usage backend
+    participant T as typst-render (sidecar)
+
+    U->>D: Export -> format · include tables
+    D->>R: path=<route> · range · filters · format
+    R->>Y: findPage(path) — equality, never a file join
+    Y-->>R: 404 unknown_route (every traversal lands here)
+    R->>R: resolveDashboard -> deduplicated query list
+    R->>G: guard every query BEFORE any is sent
+    G-->>R: 403 scope_not_owned (all-or-nothing)
+    R->>B: POST /usage/v1/usage/query (once per deduplicated query)
+    B-->>R: points
+    R->>R: toPanelView -> data.json + one static SVG per chart panel
+    alt format=csv
+        R-->>U: 200 text/csv — one section per panel
+    else format=html
+        R-->>U: 200 text/html preview — no sidecar needed
+    else format=pdf
+        R->>T: POST /render {template, data, assets}
+        T-->>R: 200 application/pdf
+        T-->>R: 422 + typst stderr
+        R-->>U: 200 the PDF · 422 naming the template · 502 if unreachable
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> Requested
+
+    Requested --> Rejected404: path is not a declared route
+    Requested --> Rejected400: unresolved $param / bad format
+    Requested --> Resolved: page found, window + filters applied
+
+    Resolved --> Refused403: a query's scope is not the caller's
+    Resolved --> Queried: every query guarded, then sent
+    Queried --> Failed502Upstream: usage backend unreachable or refusing
+
+    Queried --> Assembled: data.json + one SVG per chart panel
+
+    Assembled --> DeliveredCsv: format=csv (Typst never involved)
+    Assembled --> DeliveredHtml: format=html (no sidecar needed)
+    Assembled --> Rendering: format=pdf
+
+    Rendering --> Failed502Renderer: unreachable / not configured
+    Rendering --> Failed422: template did not compile
+    Rendering --> DeliveredPdf: 200 application/pdf
+
+    note right of Failed502Renderer
+      There is NO state in which a PDF is produced
+      without its charts. A renderer that cannot be
+      reached is an error the dialog shows, never a
+      silently degraded document.
+    end note
+
+    DeliveredCsv --> [*]
+    DeliveredHtml --> [*]
+    DeliveredPdf --> [*]
+```
+
+### The template contract
+
+Templates live at `apps/console/templates/<route>/report.typ`, where `<route>` mirrors the page path
+with `[param]` segments kept **literally**:
+
+```
+templates/
+  _lib/report.typ                                  the shared library — NOT overridable
+  _lib/default.typ                                 the generic report, last rung of the lookup
+  admin/overview/report.typ
+  admin/usage/report.typ
+  admin/usage/actors/[actorId]/report.typ
+  admin/usage/channels/[channelId]/report.typ
+  admin/usage/chats/report.typ
+  accounts/[accountId]/overview/report.typ
+  reports/consumption/report.typ                   not a page — see "the consumption report" below
+```
+
+A template starts:
+
+```typst
+#import "_lib/report.typ": *
+#let report = json(sys.inputs.at("data"))   // sys.inputs.data is a FILENAME, not the payload
+#show: report-page.with(report)
+#panels-in-order(report)
+```
+
+It receives `report.panels[]` — `{id, type, title, subtitle?, span, caption?, chart?, chartAspect?,
+stats?, table?, unavailable?}` — plus the header fields (`title`, `route`, `rangeLabel`, `window`,
+`generatedAt`, `filters`, `template`, `includeTables`). **That is all it can know.** No query, no
+scope, no URL and no credential reaches `data.json`, so a template decides document chrome — header,
+section order, captions, page size — and cannot change which panels exist or what they queried.
+
+`_lib/report.typ` gives it `report-page`, `panel`, `stat-grid`, `table-from-rows`, `panel-chart`,
+`panel-body` and `panels-in-order`. Two things there are load-bearing rather than stylistic, and
+both were found by rendering against the real compiler rather than by reading the docs:
+
+- `panel-chart` uses `image("/" + p.chart)`. A **relative** `image()` path resolves against the file
+  doing the calling — this library, in `_lib/` — so a bare `panels/x.svg` looks for
+  `_lib/panels/x.svg` and fails. The leading `/` resolves against the render root, which is what the
+  asset paths are relative to.
+- it bounds a chart by width or by height according to `chartAspect`. `width: 100%` alone scales a
+  square ring to the full text width, which on A4 is a 174 mm circle that eats a whole page.
+
+Templates must be **self-contained** — no `@preview` imports. The sidecar's package path is an empty
+per-request directory and it is expected to run without egress, so an import surfaces as a `422`
+naming the package.
+
+### Overriding a template
+
+Lookup is **per file**, in this order:
+
+1. `${CONSOLE_TEMPLATES_DIR}/<route>/report.typ` — the operator's override
+   (`charts/converse-console`'s `report-templates` volume; the variable is always set on the console
+   container, mounted or not).
+2. `apps/console/templates/<route>/report.typ` — the template shipped in the image.
+3. `apps/console/templates/_lib/default.typ` — the generic report.
+
+So overriding one route leaves every other report on its shipped template, and a route with no
+template of its own is a styling gap rather than an error: a page added to `dashboards.yaml` is
+exportable the day it is added. `_lib/report.typ` itself is deliberately **not** overridable — an
+override of it would restyle every report at once, which is not a per-route decision.
+
+### The consumption report
+
+`GET /api/reports/consumption?month&account[&project][&format=csv|pdf]` renders through the same
+pipeline, from `templates/reports/consumption/report.typ`. The hand-rolled PDF 1.4 writer that
+preceded it (`src/server/pdf-document.ts` + `consumption-pdf.ts`) is **deleted** — a hard cutover,
+no parallel path — because a writer that cannot embed an image was a dead end for a story about
+charts in a report. The CSV path is untouched and byte-identical; the figures are unchanged in both
+formats (`consumption-report.test.ts` pins them). Two things it gained: the usage scope guard, which
+it previously did not apply at all, and a 502 rather than a silently chartless PDF.
+
+### Running it locally
+
+```sh
+pnpm turbo run build:web --filter=typst-render
+docker compose up typst-render            # or: node apps/typst-render/dist/index.js
+# then set TYPST_RENDER_URL=http://127.0.0.1:8080 (config.yaml reads it)
+pnpm --filter console test                # the live-renderer tests run; without it they SKIP loudly
+```
+
+Without the sidecar, `format=csv` and `format=html` work unchanged and `format=pdf` answers a 502
+that says so.
 
 ## Offline-first
 

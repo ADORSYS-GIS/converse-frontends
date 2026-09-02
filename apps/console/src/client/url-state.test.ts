@@ -68,6 +68,13 @@ describe('the URL param contract', () => {
       // solved — `/projects`, `/settings/projects` and the inspector rail's quick-settings row
       // all have to open the one instance mounted in the layout.
       createProject: ['new-project'],
+      // converse-frontends#453: the Export dialog on every `dashboards.yaml` page. Cross-route for
+      // the same reason the two above are — the button belongs to the dashboard engine's page
+      // shell, not to any one route, so there is ONE declaration rather than a `?report=`-shaped
+      // flag per YAML page. `export-format`/`export-tables` are named apart from `manage`'s own
+      // `format` because they configure a DIFFERENT document (a dashboard report, not the monthly
+      // consumption one) and a page could in principle mount both.
+      dashboardExport: ['export', 'export-format', 'export-tables'],
       // Phase 4: `/` absorbed the admin-only dashboard's own Export action, so it carries the
       // same report vocabulary `/manage` does, on top of its own dashboard knobs.
       overview: [

@@ -46,5 +46,18 @@ export interface DonutChartProps {
   /** Fraction of the outer radius the hole occupies. Clamped by `chart-core`'s `donutGeometry`
    *  into the sanctioned band — a caller CANNOT produce a filled disk through this prop. */
   innerRadiusRatio?: number;
+  /**
+   * Print/export mode (converse-frontends#453) — the same contract `MultiSeriesSpendChart.static`
+   * holds: the root becomes a STANDALONE `<svg>`, wedges carry no `tabIndex`/`role="button"`/
+   * click handlers, and **no Floating UI tooltip is attached**.
+   *
+   * The one thing that MOVES rather than disappearing is the hole's contents: on screen they are
+   * DOM text (SVG `<text>` does not wrap, and an empty-state sentence in a ring is exactly the
+   * case that spills). In `static` mode there is no DOM to wrap in, so `centreMetric`/
+   * `centreLabel` are drawn as SVG `<text>` — safe precisely because they are a short numeral and
+   * a one-word caption, never a sentence. The empty state's sentence is drawn UNDER the ring
+   * instead of inside it, for the same reason.
+   */
+  static?: boolean;
   className?: string;
 }

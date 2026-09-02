@@ -1,10 +1,10 @@
 // The narrow `/types` path, NOT the section's barrel. The barrel re-exports `panel-renderers.tsx`,
-// which pulls in `useEffect`/`useState` through the chart primitives — and this module is imported
-// by `/admin/overview`'s SERVER component, which reads the YAML before rendering anything. Going
-// through the barrel made the whole renderer registry a Server Component import and failed the
-// Turbopack build outright ("You're importing a module that depends on `useEffect` into a React
-// Server Component"). `types.ts` is the vocabulary and nothing else: every one of its own imports
-// is `import type`, so it erases completely.
+// which pulls in `useEffect`/`useState` through the chart primitives — and this module now sits on
+// TWO server import paths at once: `/admin/overview`'s server component, which reads the YAML
+// before rendering anything (#447), and `/api/reports/page`'s Route Handler (#453). Either one is
+// enough to fail the Turbopack build outright ("You're importing a module that depends on
+// `useEffect` into a React Server Component"). `types.ts` is the vocabulary and nothing else:
+// every one of its own imports is `import type`, so it erases completely.
 import { DASHBOARD_PANEL_TYPES } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 import { z } from 'zod';
 

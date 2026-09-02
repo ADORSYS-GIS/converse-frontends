@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:https": "next dev --turbopack --experimental-https",
-    "build:web": "next build --turbopack",
+    "build:report-charts": "node scripts/build-report-charts.mjs",
+    "build:web": "node scripts/build-report-charts.mjs && next build --turbopack",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

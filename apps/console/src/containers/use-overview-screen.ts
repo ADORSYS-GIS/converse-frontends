@@ -656,8 +656,13 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       if (!accountId) {
         throw new Error('Select an account before generating a report.');
       }
+      // `period` is OPTIONAL on `ReportExportParams` since converse-frontends#453 (a dashboard-page
+      // export has no month to pick). This dialog always renders the month picker, so it always
+      // supplies one — the fallback is a type guard, not a real branch, and it falls back to the
+      // SAME value the picker is bound to so it can never query a month other than the shown one.
+      const month = params.period ?? view.period;
       const query = new URLSearchParams({
-        month: params.period,
+        month,
         account: accountId,
         format: params.format,
       });
@@ -678,7 +683,7 @@ export function useOverviewScreen(scopeSlot: ReactNode): OverviewScreen {
       const blob = await response.blob();
       const filename =
         filenameFromContentDisposition(response.headers.get('content-disposition')) ??
-        `consumption-${params.period}.${params.format}`;
+        `consumption-${month}.${params.format}`;
       downloadBlob(blob, filename);
     },
   });

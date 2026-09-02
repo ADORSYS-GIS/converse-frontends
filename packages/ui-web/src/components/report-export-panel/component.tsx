@@ -4,10 +4,12 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { Button } from '../button';
+import { ErrorLine } from '../error-line';
 import { Field } from '../field';
 import { fieldLabelClassName } from '../field/field-classes';
 import { InlineStatus } from '../inline-status';
 import { SegmentedControl } from '../segmented-control';
+import { META_CLASS } from '../../lib/type-roles';
 import type { ReportExportPanelProps } from './types';
 
 // Contract: task assignment (forms & actions batch) — right-rail CONTENT (not self-panelled)
@@ -34,9 +36,17 @@ import type { ReportExportPanelProps } from './types';
 // `label` for a switch beside its text (which is also where the row's pointer cursor and the label
 // association come from — a bare native label wrapping a non-native `role="switch"` element gets
 // neither for free). `btn-block` is daisy's own full-width button.
+//
+// converse-frontends#453 makes the period picker, the scope slot and the group-by segmented
+// control OPTIONAL, and adds a read-only `rangeEcho` in the period's place. A dashboard-page
+// report has no period to pick (its window is the page's own range picker) and no grouping to
+// choose (each panel's grouping is `dashboards.yaml`'s) — offering either would be a control that
+// appears to change the document and does not. The consumption report passes all three exactly as
+// before, so its dialog is unchanged.
 export function ReportExportPanel({
   period,
   onPeriodChange,
+  rangeEcho,
   scopeSlot,
   groupByOptions,
   groupBy,
@@ -48,28 +58,42 @@ export function ReportExportPanel({
   onGenerate,
   generating = false,
   notice,
+  error,
   className,
 }: ReportExportPanelProps) {
   return (
     <div className={cn('flex flex-col gap-5', className)}>
-      <Field
-        label="Period"
-        type="month"
-        value={period}
-        onChange={(event) => onPeriodChange(event.target.value)}
-      />
+      {period !== undefined && onPeriodChange ? (
+        <Field
+          label="Period"
+          type="month"
+          value={period}
+          onChange={(event) => onPeriodChange(event.target.value)}
+        />
+      ) : null}
+
+      {rangeEcho ? (
+        <div className="fieldset">
+          <span className={fieldLabelClassName}>Range</span>
+          {/* Text, not a disabled control: a greyed-out picker reads as "temporarily
+              unavailable", and this window is never editable from here. */}
+          <p className={META_CLASS}>{rangeEcho}</p>
+        </div>
+      ) : null}
 
       {scopeSlot}
 
-      <div className="fieldset">
-        <span className={fieldLabelClassName}>Group by</span>
-        <SegmentedControl
-          aria-label="Group by"
-          options={groupByOptions}
-          value={groupBy}
-          onChange={onGroupByChange}
-        />
-      </div>
+      {groupByOptions && groupBy !== undefined && onGroupByChange ? (
+        <div className="fieldset">
+          <span className={fieldLabelClassName}>Group by</span>
+          <SegmentedControl
+            aria-label="Group by"
+            options={groupByOptions}
+            value={groupBy}
+            onChange={onGroupByChange}
+          />
+        </div>
+      ) : null}
 
       <div className="fieldset">
         {includeToggles.map((toggle) => (
@@ -112,6 +136,12 @@ export function ReportExportPanel({
         }>
         {generating ? 'Generating…' : 'Generate report'}
       </Button>
+
+      {/* Spec §8.3's `Failed` state: an `ErrorLine` with Retry, and the form keeps every input —
+          distinct from `notice`, which says "nothing failed, there is simply nothing here yet". */}
+      {error ? (
+        <ErrorLine message={error.message} onRetry={error.onRetry} retryLabel="Retry" />
+      ) : null}
 
       {notice ? (
         <InlineStatus

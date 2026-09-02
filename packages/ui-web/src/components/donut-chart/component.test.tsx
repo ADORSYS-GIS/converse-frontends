@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DonutChart } from './component';
@@ -169,5 +170,50 @@ describe('DonutChart', () => {
     );
     expect(wedges(container)[2].getAttribute('fill')).toBe('var(--color-primary)');
     expect(wedges(container)[0].getAttribute('fill')).not.toBe('var(--color-primary)');
+  });
+});
+
+/** `static` mode — the same export/print contract `MultiSeriesSpendChart` holds
+ *  (converse-frontends#453 AC-1), asserted through the server renderer for the same reason. */
+describe('DonutChart — static', () => {
+  const markup = (extra: Partial<React.ComponentProps<typeof DonutChart>> = {}) =>
+    renderToStaticMarkup(
+      <DonutChart
+        segments={segments}
+        width={240}
+        height={240}
+        centreMetric="$100.00"
+        centreLabel="TOTAL"
+        onSelectSegment={() => {}}
+        static
+        {...extra}
+      />
+    );
+
+  it('renders an <svg> carrying an xmlns as its ROOT element', () => {
+    const html = markup();
+    expect(html.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
+    expect(html.endsWith('</svg>')).toBe(true);
+  });
+
+  it('draws the ring and strips every interaction, tooltip included', () => {
+    const html = markup();
+    expect(html.match(/donut-wedge/g) ?? []).toHaveLength(3);
+    expect(html).not.toContain('tabindex');
+    expect(html).not.toContain('role="button"');
+    expect(html).not.toContain('chart-tooltip-card');
+  });
+
+  it('moves the hole’s numeral into SVG text, since there is no DOM to wrap in', () => {
+    const html = markup();
+    expect(html).toContain('>$100.00</text>');
+    expect(html).toContain('>TOTAL</text>');
+    expect(html).not.toContain('donut-centre');
+  });
+
+  it('keeps the empty ring, and puts its SENTENCE under the ring rather than in the hole', () => {
+    const html = markup({ segments: [], emptyMessage: 'No spend in this range.' });
+    expect(html).toContain('<circle');
+    expect(html).toContain('No spend in this range.');
   });
 });

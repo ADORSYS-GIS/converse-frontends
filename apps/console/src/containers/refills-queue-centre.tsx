@@ -63,6 +63,7 @@ export function RefillsQueueCentre() {
             onSortChange={screen.setSort}
             selectedRequestId={screen.selectedRequestId}
             onSelectRequest={screen.selectRequest}
+            requesterStatus={screen.requesterStatus}
             pagination={screen.pagination}
           />
         </Card>

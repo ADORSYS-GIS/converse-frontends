@@ -625,8 +625,16 @@ stateDiagram-v2
 the pre-revamp diagram opened a shared `RequestRefillDialog`; refill is now its own route, moved
 from `/accounts/<id>/refill` to `/settings/accounts/<id>/request-refill` by the phase E amendment
 (the old path 308s here verbatim), and the review surface moved from `/admin` to
-`/settings/refills-queue`, opening `BottomSheet` at every tier rather than a rail-adjacent sheet
-(§5.5 — settings has no right rail at any tier).
+`/admin/refills-queue`, opening `BottomSheet` at every tier rather than a rail-adjacent sheet
+(§5.5 — neither `/admin/*` nor `/settings/*` has a right rail at any tier).
+
+**Updated again for converse-frontends#444 (the requester)** — the queue names the person who
+asked, not just the account they asked under. `AugmentationRequest.requestedByUserId`
+(lightbridge-authz#646) is the token subject captured at `requestBudgetRefill`; the console
+resolves a whole PAGE of those ids through ONE `resolveUserProfiles` call (lightbridge-authz#647,
+gated on `user:read`) rather than one call per row, and owns every sentinel it prints — the
+backend fabricates no placeholder identity. The second diagram below is that cell's own lifecycle:
+four states, four labels, and no path on which a row is dropped for want of a name.
 
 ```mermaid
 sequenceDiagram
@@ -635,19 +643,30 @@ sequenceDiagram
     participant O as Overview · Budget card
     participant RP as /settings/accounts/<id>/request-refill (page)
     actor A as lightbridge-admin
-    participant Q as /settings/refills-queue (Card)
+    participant Q as /admin/refills-queue (Card)
+    participant ID as authz-api · resolveUserProfiles
     participant BS as BottomSheet -> ReviewDetailPanel
 
     O-->>M: "$455.20 of $500.00" · meter turns signal-orange at 91%
     M->>O: "Request refill" navigates to RP (no dialog opens)
     RP-->>M: RefillRequestForm, tiers from the active policy · RefillHistory below it
     M->>RP: pick tier, add a note, submit
-    RP-->>M: request recorded; RefillHistory updates in place
+    RP-->>M: request recorded with requestedByUserId = auth().id
     Note over O,Q: same record, two routes
-    A->>Q: open /settings/refills-queue (session.isAdmin gates the route;\nan old /admin link 308s here)
+    A->>Q: open /admin/refills-queue (session.isAdmin gates the route;\nan old /settings link 308s here)
+    Q-->>A: rows render immediately · Requester cell reads "Resolving…"
+    Q->>ID: resolveUserProfiles({ userIds: sorted, de-duplicated ids })\nONE call per page, never one per row
+    alt profiles returned
+        ID-->>Q: [{ userId, displayName?, email?, username? }]
+        Q-->>A: Requester = name, email underneath;\nan id with no profile = "Unresolved user" + the raw id
+    else user:read refused / call failed
+        ID-->>Q: error
+        Q-->>A: every id falls back to "Unresolved user" + raw id,\nInlineStatus above the table says why · rows stay decidable
+    end
+    Note over Q: requestedByUserId = NULL (pre-2026-09 row)\nnever reaches the batch — it renders "Unknown (pre-2026-09)"
     A->>Q: select row
     Q->>BS: open(requestId)
-    BS-->>A: consumption, burn trend, tier, note, refill history
+    BS-->>A: the same requester in the header block, then tier, amount, notes
     alt approve
         A->>BS: Approve +$250.00
         BS-->>Q: row leaves Pending, enters Decided; sheet closes
@@ -660,6 +679,29 @@ sequenceDiagram
         A->>BS: decision submitted
         BS-->>A: sheet stays open, error inline; nothing changed
     end
+```
+
+```mermaid
+%% converse-frontends#444 — the Requester cell's own lifecycle. Every terminal state carries a
+%% LABEL; none of them drops the row from the queue.
+stateDiagram-v2
+    [*] --> UnknownPreMigration: requestedByUserId is NULL
+    [*] --> Resolving: requestedByUserId present, batch in flight
+    Resolving --> ResolvedIdentity: profile carries displayName, username or email
+    Resolving --> UnresolvedId: no profile, or a profile with every field null
+    Resolving --> UnresolvedId: batch failed — user:read refused, transport error
+    note right of UnknownPreMigration
+        Renders "Unknown (pre-2026-09)", de-emphasised.
+        Permanent: nothing can backfill a pre-migration row.
+    end note
+    note right of ResolvedIdentity
+        Renders the name, with the email muted underneath.
+    end note
+    note right of UnresolvedId
+        Renders "Unresolved user" with the raw id muted underneath.
+        A failed batch ALSO raises the queue's InlineStatus — never
+        ErrorLine: the rows loaded, only the names did not.
+    end note
 ```
 
 ```mermaid

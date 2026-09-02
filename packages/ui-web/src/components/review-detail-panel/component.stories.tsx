@@ -17,6 +17,7 @@ function Demo() {
   return (
     <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
+        requester={{ kind: 'user', name: 'Maria Okonkwo', email: 'maria@brightline.dev' }}
         projectLabel="gateway-prod"
         accountLabel="adorsys-gis"
         submittedAt="3 days ago"
@@ -41,6 +42,7 @@ export const NoSupportingData: Story = {
   render: () => (
     <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
+        requester={{ kind: 'unknown' }}
         projectLabel="gateway-prod"
         accountLabel="adorsys-gis"
         submittedAt="3 days ago"
@@ -58,6 +60,7 @@ export const WithReviewerNote: Story = {
   render: () => (
     <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
+        requester={{ kind: 'user', name: 'Maria Okonkwo', email: 'maria@brightline.dev' }}
         projectLabel="gateway-prod"
         accountLabel="adorsys-gis"
         submittedAt="3 days ago"
@@ -71,10 +74,50 @@ export const WithReviewerNote: Story = {
   ),
 };
 
+// converse-frontends#444 — the two non-resolved requester branches, beside the resolved one
+// above. Each is a LABELLED sentinel: an unresolved id is still shown (it is the only true thing
+// left to say about that request), and it is legible enough here to copy into a support thread.
+export const RequesterUnknownPreMigration: Story = {
+  name: 'Requester — unknown (pre-2026-09 row)',
+  render: () => (
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
+      <ReviewDetailPanel
+        requester={{ kind: 'unknown' }}
+        projectLabel="support-copilot"
+        accountLabel="adorsys-labs"
+        submittedAt="18 hours ago"
+        requestedAmount={100}
+        note=""
+        onNoteChange={() => {}}
+        onDecide={() => {}}
+      />
+    </div>
+  ),
+};
+
+export const RequesterUnresolved: Story = {
+  name: 'Requester — unresolved id (raw id legible for copy)',
+  render: () => (
+    <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
+      <ReviewDetailPanel
+        requester={{ kind: 'unresolved', userId: 'usr_k3m9x1qp0z7v' }}
+        projectLabel="agent-sandbox"
+        accountLabel="adorsys-labs"
+        submittedAt="2 hours ago"
+        requestedAmount={500}
+        note=""
+        onNoteChange={() => {}}
+        onDecide={() => {}}
+      />
+    </div>
+  ),
+};
+
 export const Deciding: Story = {
   render: () => (
     <div className="bg-surface flex h-[820px] w-[280px] flex-col p-4">
       <ReviewDetailPanel
+        requester={{ kind: 'user', name: 'tobias.lang' }}
         projectLabel="batch-eval"
         accountLabel="adorsys-gis"
         submittedAt="2 days ago"
@@ -94,6 +137,7 @@ export const Deciding: Story = {
 export const DeclineBlockedOnEmptyNote: Story = {
   name: 'Decline blocked — empty note (converse-frontends#322)',
   args: {
+    requester: { kind: 'user', name: 'Priya Raman', email: 'priya@adorsys-labs.dev' },
     projectLabel: 'agent-sandbox',
     accountLabel: 'adorsys-labs',
     submittedAt: '2 hours ago',

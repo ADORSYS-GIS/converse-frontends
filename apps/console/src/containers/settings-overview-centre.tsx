@@ -1,69 +1,145 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
-import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SelectField } from '@lightbridge/ui-web/src/components/select-field';
 import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
-import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
+import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { RankedSeriesRows } from '@lightbridge/ui-web/src/sections/ranked-series-rows';
-import { LatencyStatCards } from '@lightbridge/ui-web/src/sections/latency-stat-cards';
-import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 
-import { USAGE_QUERY_LIMIT } from './overview-usage';
-import { useSettingsOverviewScreen, type SettingsOverviewLens } from './use-settings-overview-screen';
+import { OVERVIEW_RANGES, useSettingsOverviewParams } from '../client/url-state';
+import { DashboardExportButton } from '../dashboards/dashboard-export-button';
+import { DashboardRenderer } from '../dashboards/dashboard-renderer';
+import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
+import { useDashboard } from '../dashboards/use-dashboard';
+import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useDashboardLabels } from './use-dashboard-labels';
+import { useSettingsOverviewZones, type SettingsOverviewLens } from './use-settings-overview-zones';
 
 /**
- * The shared composition behind all three `/settings/overview/{account,project,user}` lenses (IA
- * v3 phase 4, build brief §3) — `use-settings-overview-screen.ts`'s own doc comment explains what
- * "scope-parameterized" means; this container renders whatever that hook resolves for the given
- * `lens`, and is otherwise the only place these three routes' pages need to differ from each
- * other (they each pass a different literal).
+ * The shared composition behind `/settings/overview/{account,project,user}` — each lens rendered
+ * from its OWN `dashboards.yaml` entry (converse-frontends#455, story C12; decision D-K).
  *
- * Zone order: `PageHeader` (range + the project lens' own picker) → the money-first stat row →
- * SPEND OVER TIME (bars, day-bucketed — build brief §3's "sparse data ... columns, gaps honest")
- * → SPEND BY MODEL (`RankedSeriesRows`) → the lens' own secondary breakdown (by project for the
- * account lens, by API key for the project lens, omitted for the user lens) → LATENCY BY MODEL →
- * account lens only: the cumulative budget burn-down; then, ADMIN-ONLY and purely additive:
- * project lens → BUDGET PRESSURE, account lens → KEY HYGIENE. Both MOVED here verbatim from `/`
- * (`overview-centre.tsx`, build brief §7 — "`/` becomes purely the account-scoped user
- * dashboard"): the queries behind them now live in `use-settings-overview-screen.ts`, gated
- * `lens === '<their lens>' && isAdmin`, firing no extra request for a non-admin or the wrong lens.
+ * **What changed.** These three lenses used to be one 592-line hook keyed by a `lens` literal,
+ * firing four usage queries each (day, model-day, model-totals, secondary) for five hand-composed
+ * zones. What actually differed between them was the SCOPE and one breakdown dimension — which is
+ * precisely what a page entry states — so each lens is now its own YAML entry, and this container
+ * is the chrome plus the zones that are not usage queries. Eight panels resolve to TWO requests.
+ *
+ * This component still takes `lens` alongside the spec, because the two hand-written zones are
+ * lens-conditional in a way the spec cannot express (`burnDown` is the account lens's, `pressure`
+ * the project lens's) and because the "select a project first" gate belongs to one lens only.
+ *
+ * **Divergences from the hand-written lenses, deliberate and named:**
+ *  - Spend over time is a LINE, not bars. The engine has one series shape (`MultiSeriesSpendBoard`,
+ *    with the Linear/Log/Indexed toggle every other declarative page carries); a second, bars-only
+ *    renderer existing solely for these three lenses would be the hand-written container coming
+ *    back through the registry. The data is identical.
+ *  - Bucket width follows the range (`bucket: auto`) rather than always being one day, so a 7-day
+ *    window now reads hourly instead of as seven columns.
+ *  - "Cost / request" is a DASH when the window carries no requests, where the hook printed
+ *    `$0.00` — see `costPerRequest`'s own doc comment.
+ *  - Each lens gains a "Models in use" stat, off the grouped query it already fires.
  */
-function skeletonRows(count: number) {
-  return (
-    <div className="mt-4 flex flex-col gap-1">
-      {Array.from({ length: count }, (_, row) => (
-        <div key={row} className="skeleton h-[28px]" />
-      ))}
-    </div>
-  );
+
+export interface SettingsOverviewCentreProps {
+  lens: SettingsOverviewLens;
+  /** The validated entry for THIS lens's route, read from `dashboards.yaml` by the route's server
+   *  component (`/settings/overview/account`, `…/project`, `…/user`). */
+  page: DashboardPageSpec;
 }
 
-export function SettingsOverviewCentre({ lens }: { lens: SettingsOverviewLens }) {
-  const screen = useSettingsOverviewScreen(lens);
+export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentreProps) {
+  const [view, setView] = useSettingsOverviewParams();
+  const zones = useSettingsOverviewZones(lens);
+  const localLabels = useDashboardLabels({
+    projectId: lens === 'project' ? zones.scopeId : null,
+  });
+
+  const window = useMemo(
+    () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
+    [view.range, view.from, view.to]
+  );
+
+  // One `$param` per lens, named to match its own YAML entry. Only the one this lens declares is
+  // ever read; supplying all three keeps this container free of a lens→placeholder lookup table.
+  const filters = useMemo(
+    () => ({ accountId: zones.scopeId, projectId: zones.scopeId, sub: zones.scopeId }),
+    [zones.scopeId]
+  );
+
+  const { scaleFor, onScaleChange } = useDashboardScales(page);
+
+  const dashboard = useDashboard({
+    page,
+    window,
+    filters,
+    scaleFor,
+    onScaleChange,
+    localLabels,
+    // Never fired unscoped: the project lens has no project until one is picked, and the user lens
+    // no subject until the session resolves.
+    enabled: zones.ready,
+  });
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        title={screen.title}
-        subtitle={screen.subtitle}
+        title={zones.title}
+        subtitle={zones.subtitle}
         controls={
           <div className="flex flex-wrap items-end gap-3">
-            <DateRangeField {...screen.rangeField} layout="inline" hideLabel />
-            {screen.projectField ? (
-              <SelectField {...screen.projectField} layout="inline" hideLabel />
+            <DateRangeField
+              label="Range"
+              presets={RANGE_PRESETS}
+              preset={view.from && view.to ? null : view.range}
+              value={{ from: window.start, to: window.end }}
+              onPresetChange={(range) => {
+                void setView({
+                  range: range as (typeof OVERVIEW_RANGES)[number],
+                  from: '',
+                  to: '',
+                });
+              }}
+              onRangeChange={({ from, to }) => {
+                void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+              }}
+              layout="inline"
+              hideLabel
+            />
+            {zones.projectField ? (
+              <SelectField {...zones.projectField} layout="inline" hideLabel />
             ) : null}
           </div>
         }
+        // The same one export component every YAML-driven page composes (converse-frontends#453):
+        // it takes this lens's route, window and filter values, and `/api/reports/page` re-resolves
+        // that entry server-side. Suppressed until the lens is scoped — a report of a page that
+        // fired no query would be a document of unavailable panels.
+        action={
+          zones.ready ? (
+            <DashboardExportButton
+              route={page.route}
+              title={zones.title}
+              range={view.range}
+              rangeLabel={RANGE_LABELS[view.range]}
+              window={window}
+              from={view.from}
+              to={view.to}
+              filters={filters}
+            />
+          ) : undefined
+        }
       />
 
-      {!screen.ready ? (
+      {!zones.ready ? (
         <InlineStatus>
           {lens === 'project'
             ? 'Select a project above to see its usage.'
@@ -71,133 +147,58 @@ export function SettingsOverviewCentre({ lens }: { lens: SettingsOverviewLens })
         </InlineStatus>
       ) : (
         <>
-          <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
+          <DashboardRenderer state={dashboard} />
 
-          <Card>
-            <SpendDashboard
-              label="Spend over time"
-              series={screen.spendSeries}
-              status={screen.spendStatus}
-              errorMessage={screen.spendErrorMessage}
-              onRetry={screen.spendRetry}
-              variant="bars"
-              fallbackWidth={840}
-              height={200}
-              formatYTick={formatUsdAxis}
-              formatTooltipValue={formatUsd}
-              onSelectSeries={screen.setSelectedSeriesKey}
-            />
-            {screen.spendTruncated ? (
-              <InlineStatus className="mt-2">
-                {`This range returned more points than one query can carry — showing the first ${USAGE_QUERY_LIMIT.toLocaleString()}.`}
-              </InlineStatus>
-            ) : null}
-          </Card>
-
-          <Card>
-            <ZoneHeading label="Spend by model" />
-            {screen.modelRowsStatus === 'error' ? (
-              <div className="mt-4">
-                <ErrorLine
-                  message={screen.modelRowsErrorMessage ?? 'Failed to load spend by model.'}
-                  onRetry={screen.modelRowsRetry}
-                />
-              </div>
-            ) : screen.modelRowsStatus === 'loading' ? (
-              skeletonRows(4)
-            ) : (
-              <RankedSeriesRows
-                className="mt-4"
-                rows={screen.modelRows}
-                selectedKey={screen.selectedSeriesKey}
-                onSelect={screen.setSelectedSeriesKey}
-                otherLabel={(count) => `Other (${count} models)`}
-                emptyMessage="No usage in this range."
-              />
-            )}
-          </Card>
-
-          {screen.secondary ? (
-            <Card>
-              <ZoneHeading label={screen.secondary.label} />
-              {screen.secondary.status === 'error' ? (
-                <div className="mt-4">
-                  <ErrorLine
-                    message={screen.secondary.errorMessage ?? 'Failed to load this breakdown.'}
-                    onRetry={screen.secondary.onRetry}
+          {/* The zones that are not usage queries over this range — see
+              `use-settings-overview-zones.ts`. They come AFTER the grid here (unlike
+              `/admin/overview`, where the operator's act-on-it zones lead) because on a lens the
+              analytics ARE the page; the budget zones are the standing context beneath them. */}
+          {zones.burnDown || zones.adminPressure || zones.adminHygiene ? (
+            <DashboardGrid>
+              {zones.burnDown ? (
+                <Card data-span="2">
+                  <SpendDashboard
+                    label="Budget burn-down this period"
+                    series={zones.burnDown.series}
+                    status={zones.burnDown.status}
+                    cumulative
+                    ceiling={zones.burnDown.ceiling ?? undefined}
+                    fallbackWidth={1120}
+                    height={200}
+                    formatYTick={formatUsdAxis}
+                    formatTooltipValue={formatUsd}
                   />
-                </div>
-              ) : screen.secondary.status === 'loading' ? (
-                skeletonRows(3)
-              ) : screen.secondary.gatedMessage ? (
-                <InlineStatus className="mt-4">{screen.secondary.gatedMessage}</InlineStatus>
-              ) : (
-                <>
-                  <RankedSeriesRows
-                    className="mt-4"
-                    rows={screen.secondary.rows}
-                    otherLabel={(count) =>
-                      `Other (${count} ${lens === 'account' ? 'projects' : 'keys'})`
-                    }
-                    emptyMessage="No usage in this range."
-                  />
-                  {screen.secondary.unassignedCaption ? (
-                    <InlineStatus className="mt-2">{screen.secondary.unassignedCaption}</InlineStatus>
-                  ) : null}
-                </>
-              )}
-            </Card>
-          ) : null}
-
-          <Card title="Latency by model">
-            {screen.latencyStatus === 'error' ? (
-              <ErrorLine message="Failed to load latency." />
-            ) : screen.latencyStatus === 'loading' ? (
-              skeletonRows(4)
-            ) : (
-              <LatencyStatCards rows={screen.latencyRows} />
-            )}
-          </Card>
-
-          {screen.burnDown ? (
-            <Card>
-              <SpendDashboard
-                label="Budget burn-down this period"
-                series={screen.burnDown.series}
-                status={screen.burnDown.status}
-                cumulative
-                ceiling={screen.burnDown.ceiling ?? undefined}
-                fallbackWidth={840}
-                height={200}
-                formatYTick={formatUsdAxis}
-                formatTooltipValue={formatUsd}
-              />
-            </Card>
-          ) : null}
-
-          {/* ── admin-only, purely additive — MOVED from `/` (see this file's own doc comment) ── */}
-          {screen.adminPressure ? (
-            <Card>
-              <BudgetPressure
-                label="Budget pressure"
-                projects={screen.adminPressure.projects}
-                ceiling={screen.adminPressure.ceiling}
-                status={screen.adminPressure.status}
-                errorMessage={screen.adminPressure.errorMessage}
-                onRetry={screen.adminPressure.onRetry}
-                note={screen.adminPressure.note}
-              />
-            </Card>
-          ) : null}
-
-          {screen.adminHygiene ? (
-            <Card title="Key hygiene">
-              <InlineStatus>{screen.adminHygiene.summary}</InlineStatus>
-              <ApiKeysHygieneNotes className="mt-3" hygiene={screen.adminHygiene.hygiene} />
-              {screen.adminHygiene.caveat ? (
-                <InlineStatus className="mt-2">{screen.adminHygiene.caveat}</InlineStatus>
+                  <InlineStatus className="mt-2">
+                    Measured over the billing period, not the range picked above — a ceiling is a
+                    fact about this calendar month.
+                  </InlineStatus>
+                </Card>
               ) : null}
-            </Card>
+
+              {zones.adminPressure ? (
+                <Card data-span="2">
+                  <BudgetPressure
+                    label="Budget pressure"
+                    projects={zones.adminPressure.projects}
+                    ceiling={zones.adminPressure.ceiling}
+                    status={zones.adminPressure.status}
+                    errorMessage={zones.adminPressure.errorMessage}
+                    onRetry={zones.adminPressure.onRetry}
+                    note={zones.adminPressure.note}
+                  />
+                </Card>
+              ) : null}
+
+              {zones.adminHygiene ? (
+                <Card data-span="2" title="Key hygiene">
+                  <InlineStatus>{zones.adminHygiene.summary}</InlineStatus>
+                  <ApiKeysHygieneNotes className="mt-3" hygiene={zones.adminHygiene.hygiene} />
+                  {zones.adminHygiene.caveat ? (
+                    <InlineStatus className="mt-2">{zones.adminHygiene.caveat}</InlineStatus>
+                  ) : null}
+                </Card>
+              ) : null}
+            </DashboardGrid>
           ) : null}
         </>
       )}

@@ -10,6 +10,7 @@ import {
   formatMetric,
   latencyRowsByGroup,
   metricDelta,
+  panelDimension,
   panelRowHref,
   readMetric,
   sumMetric,
@@ -701,5 +702,242 @@ describe('formatMetric', () => {
     expect(formatMetric(1234.5, 'cost')).toContain('1');
     expect(formatMetric(41208, 'requests')).toBe('41,208');
     expect(formatMetric(140.7, 'latency')).toBe('141 ms');
+  });
+});
+
+/**
+ * C12 (converse-frontends#455) — the three adapter extensions the account and settings overview
+ * pages needed: which dimension a panel reads, what an opaque key is CALLED, and a share bar's
+ * own Top-N (`ShareBar` has no such notion of its own, unlike `RankedSeriesRows`).
+ */
+describe('panelDimension', () => {
+  it('defaults to the query’s first group-by dimension', () => {
+    expect(
+      panelDimension(spec({ query: { scope: 'all', group_by: ['model'], limit: 10 } }), undefined)
+    ).toBe('model');
+  });
+
+  /** What makes ONE grouped request serve several panels — worth far more under a family fan-out,
+   *  where every distinct query shape costs N requests rather than one. */
+  it('reads a dimension the panel names explicitly, even when it is not the first', () => {
+    expect(
+      panelDimension(
+        spec({
+          query: { scope: 'all', group_by: ['account_id', 'model'], limit: 10 },
+          options: { dimension: 'model' },
+        }),
+        undefined
+      )
+    ).toBe('model');
+  });
+
+  it('reads NO dimension for `none` — the ungrouped total off a grouped response', () => {
+    expect(
+      panelDimension(
+        spec({
+          query: { scope: 'all', group_by: ['account_id', 'model'], limit: 10 },
+          options: { dimension: 'none' },
+        }),
+        undefined
+      )
+    ).toBeUndefined();
+  });
+
+  it('sums a grouped response into ONE series when the panel reads no dimension', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['account_id', 'model'], limit: 10 },
+          options: { dimension: 'none' },
+        }),
+        response: response([
+          point({ account_id: 'a', model: 'x', total_cost: 1_000_000 }),
+          point({ account_id: 'b', model: 'y', total_cost: 2_000_000 }),
+        ]),
+      })
+    );
+    expect(view.kind === 'series' && view.series).toHaveLength(1);
+    expect(view.kind === 'series' && view.series[0].points[0].y).toBeCloseTo(3, 10);
+  });
+
+  it('splits the SAME response per account when the panel reads account_id', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['account_id', 'model'], limit: 10 },
+          options: { dimension: 'account_id' },
+        }),
+        response: response([
+          point({ account_id: 'a', model: 'x', total_cost: 1_000_000 }),
+          point({ account_id: 'b', model: 'y', total_cost: 2_000_000 }),
+        ]),
+      })
+    );
+    expect(view.kind === 'series' && view.series.map((s) => s.key)).toEqual(['b', 'a']);
+  });
+});
+
+describe('resolveLabel', () => {
+  const labels = (dimension: string, key: string) =>
+    dimension === 'project_id' && key === 'proj_7' ? 'gateway-prod' : undefined;
+
+  const projectRanked = spec({
+    type: 'ranked',
+    metric: 'cost',
+    query: { scope: 'account', group_by: ['project_id'], limit: 10 },
+  });
+
+  /** The console's most visible papercut if it regressed: an opaque cuid2 on the most-read chart
+   *  in the product. */
+  it('names a project id the console already knows about', () => {
+    const view = toPanelView(
+      input({
+        spec: projectRanked,
+        response: response([point({ project_id: 'proj_7', total_cost: 1_000_000 })]),
+        localLabels: labels,
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('gateway-prod');
+    // The KEY stays the id — it is the identity a row link and a selection match on.
+    expect(view.kind === 'ranked' && view.rows[0].key).toBe('proj_7');
+  });
+
+  it('falls back to the id when nothing resolves, never to a fabricated name', () => {
+    const view = toPanelView(
+      input({
+        spec: projectRanked,
+        response: response([point({ project_id: 'proj_gone', total_cost: 1_000_000 })]),
+        localLabels: labels,
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('proj_gone');
+  });
+
+  it('never lets a resolver rename the unassigned sentinel', () => {
+    const view = toPanelView(
+      input({
+        spec: projectRanked,
+        response: response([point({ project_id: null, total_cost: 1_000_000 })]),
+        localLabels: () => 'WRONG',
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0].label).toBe('Unassigned');
+    expect(view.kind === 'ranked' && view.rows[0].subtle).toBe(true);
+  });
+
+  it('resolves labels on series, latency cards and table rows too', () => {
+    const seriesView = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'account', group_by: ['project_id'], limit: 10 },
+        }),
+        response: response([point({ project_id: 'proj_7', total_cost: 1_000_000 })]),
+        localLabels: labels,
+      })
+    );
+    expect(seriesView.kind === 'series' && seriesView.series[0].label).toBe('gateway-prod');
+
+    const latencyView = toPanelView(
+      input({
+        spec: spec({
+          type: 'latency-cards',
+          metric: 'latency',
+          query: { scope: 'account', group_by: ['project_id'], limit: 10 },
+        }),
+        response: response([
+          point({ project_id: 'proj_7', latency_samples: 10, latency_p50_ms: 100 }),
+        ]),
+        localLabels: labels,
+      })
+    );
+    expect(latencyView.kind === 'latency-cards' && latencyView.rows[0].model).toBe('gateway-prod');
+
+    const tableView = toPanelView(
+      input({
+        spec: spec({
+          type: 'table',
+          metric: 'cost',
+          query: { scope: 'account', group_by: ['project_id'], limit: 10 },
+        }),
+        response: response([point({ project_id: 'proj_7', total_cost: 1_000_000 })]),
+        localLabels: labels,
+      })
+    );
+    // The table's label cell is an `IdentityLines` element (C5's two-line actor identity), so the
+    // assertion reads its prop rather than a string — the local name still wins, and it is not
+    // rendered subtle, because a resolved name is not a sentinel.
+    const labelCell =
+      tableView.kind === 'table'
+        ? (tableView.rows[0].cells.label as React.ReactElement<{ label: string; subtle: boolean }>)
+        : null;
+    expect(labelCell?.props.label).toBe('gateway-prod');
+    expect(labelCell?.props.subtle).toBe(false);
+  });
+});
+
+describe('share panels with a Top-N', () => {
+  const shareSpec = (topN?: number) =>
+    spec({
+      type: 'share',
+      metric: 'cost',
+      query: { scope: 'all', group_by: ['model'], limit: 10 },
+      options: topN === undefined ? undefined : { topN },
+    });
+
+  const manyModels = response(
+    ['a', 'b', 'c', 'd', 'e', 'f'].map((model, i) =>
+      point({ model, total_cost: (6 - i) * 1_000_000 })
+    )
+  );
+
+  /** The tail is FOLDED, never dropped: a share bar whose parts stop summing to the total beside
+   *  it is worse than a long bar. */
+  it('folds the tail into one labelled Other segment that preserves the total', () => {
+    const view = toPanelView(input({ spec: shareSpec(3), response: manyModels }));
+    if (view.kind !== 'share') throw new Error('expected a share view');
+    expect(view.segments.map((s) => s.key)).toEqual(['a', 'b', 'c', '__other__']);
+    expect(view.segments.at(-1)?.label).toBe('Other (3)');
+    const total = view.segments.reduce((sum, segment) => sum + segment.value, 0);
+    expect(total).toBeCloseTo(21, 10);
+  });
+
+  it('leaves the list alone when it is shorter than the cap, or when none is set', () => {
+    const capped = toPanelView(input({ spec: shareSpec(10), response: manyModels }));
+    expect(capped.kind === 'share' && capped.segments).toHaveLength(6);
+    const uncapped = toPanelView(input({ spec: shareSpec(), response: manyModels }));
+    expect(uncapped.kind === 'share' && uncapped.segments).toHaveLength(6);
+  });
+});
+
+describe('derived:costPerRequest as a stat panel', () => {
+  const costPerRequestSpec = spec({
+    type: 'stat',
+    title: 'Cost / request',
+    metric: 'derived:costPerRequest',
+  });
+
+  it('states the mean cost of one request', () => {
+    const view = toPanelView(
+      input({
+        spec: costPerRequestSpec,
+        response: response([point({ requests: 4, total_cost: 2_000_000 })]),
+      })
+    );
+    expect(view.kind === 'stat' && view.metric).toContain('0.50');
+  });
+
+  /** The one behaviour deliberately NOT carried over from `lensTotals`, which returned 0 here and
+   *  printed `$0.00` — "we measured it and requests are free". */
+  it('renders a dash, never $0.00, when the window carried no requests', () => {
+    const view = toPanelView(
+      input({ spec: costPerRequestSpec, response: response([point({ total_cost: 1_000_000 })]) })
+    );
+    expect(view.kind === 'stat' && view.metric).toBe('—');
   });
 });

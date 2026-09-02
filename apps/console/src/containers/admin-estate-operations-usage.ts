@@ -7,7 +7,7 @@ import { shortAccountId } from '@lightbridge/ui-web';
 
 import { accountScopeLabel } from './account-label';
 import { safeCost, USAGE_QUERY_LIMIT } from './overview-usage';
-import type { AccountUsageResponse } from './usage-overview-usage';
+import type { AccountUsageResponse } from './account-family';
 
 /**
  * The pure adapters behind the two `/admin/overview` zones that are NOT usage-query panels

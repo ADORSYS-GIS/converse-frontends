@@ -76,6 +76,38 @@ describe('resolvePageReport — route validation', () => {
   });
 });
 
+/**
+ * The account-family fan-out (C12, converse-frontends#455). A report route has no session, so it
+ * cannot know which accounts the caller owns — and a page whose every panel needs that list must be
+ * refused rather than rendered as a document of unavailable panels, which a reader would fairly
+ * mistake for "no usage".
+ */
+describe('resolvePageReport — a scope: family page', () => {
+  it('is refused, naming the route and the reason', () => {
+    const outcome = resolve('/settings/overview/usage');
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.failure.kind).toBe('unexportable_route');
+    if (outcome.failure.kind !== 'unexportable_route') return;
+    expect(outcome.failure.route).toBe('/settings/overview/usage');
+    expect(outcome.failure.message).toMatch(/account family/i);
+    // It says what to do instead, rather than only what it will not do.
+    expect(outcome.failure.message).toMatch(/per-account overview/i);
+  });
+
+  /** The per-account page asks the same question with a scope the route CAN resolve — so it must
+   *  keep working, or the refusal above would be a dead end rather than a redirection. */
+  it('still exports the per-account overview it points at', () => {
+    const outcome = resolve('/accounts/[accountId]/overview', { accountId: 'acct_1' });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.resolved.queries.every((query) => query.scope === 'account')).toBe(true);
+    expect(outcome.resolved.queries.every((query) => query.scope_id === 'acct_1')).toBe(true);
+  });
+});
+
 describe('resolvePageReport — window and filters', () => {
   it('applies the range preset, defaulting to mtd like every dashboard page', () => {
     const outcome = resolve('/admin/usage', { range: '7d' });

@@ -9,11 +9,11 @@
  * account compared yesterday to the day before — a single day of spend against another, which is
  * noise, not a signal. This module states the rule once.
  *
- * **C4 (converse-frontends#447) deleted `spendDelta` with `admin-overview-usage.ts`.**
- * `previousWindow` is still standing, and deliberately so: `use-overview-screen.ts` and
- * `use-usage-overview-screen.ts` are its two remaining callers, and both are hand-written screens
- * C12 migrates onto this engine. Deleting it here would have meant rewriting two screens outside
- * this story's scope; it goes when its last caller does.
+ * **Both halves are gone now.** C4 (converse-frontends#447) deleted `spendDelta` with
+ * `admin-overview-usage.ts`; C12 (converse-frontends#455) deleted `previousWindow` with
+ * `usage-overview-usage.ts`, once its last two callers — the hand-written account and estate
+ * overview screens — became `dashboards.yaml` entries. This module is the only "vs previous" rule
+ * in the console, and every comparison on every dashboard now runs through it.
  *
  * The rule, in the owner's words ("vs previous per reset period and at least a week"):
  *

@@ -1,113 +1,112 @@
 'use client';
 
-import { Card } from '@lightbridge/ui-web/src/components/card';
+import { useMemo } from 'react';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
-import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { ShareBar } from '@lightbridge/ui-web/src/components/share-bar';
-import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
-import { DATA_INK_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
-import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
-import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 
-import { USAGE_QUERY_LIMIT } from './overview-usage';
-import { useUsageOverviewScreen } from './use-usage-overview-screen';
+import { OVERVIEW_RANGES, useSettingsOverviewParams } from '../client/url-state';
+import { useConsoleScope } from '../client/use-console-scope';
+import { DashboardRenderer } from '../dashboards/dashboard-renderer';
+import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
+import { useDashboard } from '../dashboards/use-dashboard';
+import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { familyAccountIds, familyTruncationCaption } from './account-family';
+import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useDashboardLabels } from './use-dashboard-labels';
 
 /**
- * `/settings/overview/usage` — the owner's cross-account estate overview (IA v3 phase 4, build
- * brief §4), the landing lens under "Overview." `use-usage-overview-screen.ts`'s own doc comment
- * covers the fan-out/ranking design and the filed backend gap behind the account cap.
+ * `/settings/overview/usage` — the signed-in identity's own ACCOUNT FAMILY overview, rendered from
+ * `dashboards.yaml` (converse-frontends#455, story C12; decision D-K).
  *
- * Zone order: `PageHeader` (range only — this screen has no project/user picker, it IS the
- * cross-account view) → stat row → SPEND OVER TIME (a `line` chart — dense, estate-wide data is
- * the one place a line reads honestly, per build brief §4) with the dashed previous-period
- * comparison → SPEND BY ACCOUNT → SPEND BY MODEL (`ShareBar` — the one place this primitive
- * stays, per build brief §4: "the global split 58/11/9/8/4 reads").
+ * **This page is why `scope: family` exists.** It is not the estate: `scope: all` answers for every
+ * account on the deployment and is gated on `usage:read-all`, which most people signing in do not
+ * hold — `/admin/overview` is the page that asks that question. What this page has always shown is
+ * the accounts THIS identity can see, and the usage API has no scope for that (lightbridge-authz
+ * #578), so it has always been a fan-out: one account-scoped query per family account, capped,
+ * combined client-side. C12 moved that fan-out from a hand-written hook
+ * (`use-usage-overview-screen.ts`, deleted with `usage-overview-usage.ts`) into the resolver, as a
+ * `scope: family` expansion — so the panels are ordinary YAML and the combination is the engine's
+ * ordinary per-(key, bucket) grouping rather than a bespoke set of combiners.
  *
- * **SPEND BY ACCOUNT renders through `MultiSeriesSpendBoard`/`MultiSeriesSpendChart` now**
- * (2026-08-31, owner ruling — see that component's own doc comment): one line per account, real
- * per-day points (`combineAccountModelResponses`'s own `accountSeries`, not just each account's
- * summed total), defaulting to a LINEAR scale. It had briefly rendered through `RankedSeriesRows`
- * with a value/delta sort toggle before that; the toggle is gone with it — a chart's rank/colour
- * order is always by total descending, never caller-sortable, so "sort by change" has no surface
- * left to render into. The board's own scale toggle (`linear`/`log`/`indexed`) replaced it on the
- * same heading row.
+ * **What stays here** is what belongs to the PAGE rather than to a panel: the cap itself and the
+ * caption that states it. The resolver is handed an already-capped list precisely so it can never
+ * silently truncate one — a page that queried 25 of 61 accounts and said nothing would be
+ * reporting a family total that is not the family's total.
+ *
+ * Seven panels, one fan-out plus its comparison twin — the same request count the hand-written
+ * screen fired for three panels.
+ *
+ * **No Export action here, and that is a decision rather than an omission.** C10's
+ * `/api/reports/page` re-resolves a page's YAML entry server-side, and a `scope: family` panel
+ * needs the CALLER'S OWN account family — a list this route has no session to read. Rendering the
+ * button anyway would hand a reader a document in which every panel says "could not be loaded",
+ * which reads as "no usage" rather than "this cannot be asked here". `page-report.ts` refuses such
+ * a route with `unexportable_route` for the same reason, so a hand-built URL gets the same answer.
+ * Exporting one account at a time (`/accounts/<id>/overview`) is the honest alternative, and it
+ * works today.
  */
-export function UsageOverviewCentre() {
-  const screen = useUsageOverviewScreen();
 
-  const modelTotal = screen.modelSegments.reduce((sum, segment) => sum + segment.value, 0);
+export interface UsageOverviewCentreProps {
+  /** The validated `/settings/overview/usage` entry, read by the route's server component. */
+  page: DashboardPageSpec;
+}
+
+export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
+  const scope = useConsoleScope();
+  const [view, setView] = useSettingsOverviewParams();
+  const localLabels = useDashboardLabels();
+
+  const window = useMemo(
+    () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
+    [view.range, view.from, view.to]
+  );
+
+  const allAccountIds = useMemo(
+    () => scope.allAccounts.map((account) => account.id),
+    [scope.allAccounts]
+  );
+  const includedIds = useMemo(() => familyAccountIds(allAccountIds), [allAccountIds]);
+  const truncationCaption = familyTruncationCaption(allAccountIds.length);
+
+  const { scaleFor, onScaleChange } = useDashboardScales(page);
+
+  const dashboard = useDashboard({
+    page,
+    window,
+    familyAccountIds: includedIds,
+    scaleFor,
+    onScaleChange,
+    localLabels,
+  });
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Usage overview"
-        subtitle={`Cross-account usage · ${screen.subtitle}`}
-        controls={<DateRangeField {...screen.rangeField} layout="inline" hideLabel />}
+        subtitle={`Your account family · ${RANGE_LABELS[view.range]} · UTC`}
+        controls={
+          <DateRangeField
+            label="Range"
+            presets={RANGE_PRESETS}
+            preset={view.from && view.to ? null : view.range}
+            value={{ from: window.start, to: window.end }}
+            onPresetChange={(range) => {
+              void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
+            }}
+            onRangeChange={({ from, to }) => {
+              void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+            }}
+            layout="inline"
+            hideLabel
+          />
+        }
       />
 
-      {screen.truncationCaption ? <InlineStatus>{screen.truncationCaption}</InlineStatus> : null}
+      {truncationCaption ? <InlineStatus>{truncationCaption}</InlineStatus> : null}
 
-      <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
-
-      <Card>
-        {screen.status === 'error' ? (
-          <ErrorLine
-            message={screen.errorMessage ?? 'Failed to load the estate overview.'}
-            onRetry={screen.onRetry}
-          />
-        ) : (
-          <SpendDashboard
-            label="Spend over time"
-            series={screen.spendSeries}
-            status={screen.spendStatus}
-            fallbackWidth={840}
-            height={220}
-            formatYTick={formatUsdAxis}
-            formatTooltipValue={formatUsd}
-            formatLegendValue={(series) =>
-              formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
-            }
-            onSelectSeries={screen.setSelectedSeriesKey}
-          />
-        )}
-        {screen.spendTruncated ? (
-          <InlineStatus className="mt-2">
-            {`This range returned more points than one query can carry — showing the first ${USAGE_QUERY_LIMIT.toLocaleString()}.`}
-          </InlineStatus>
-        ) : null}
-      </Card>
-
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Spend by account"
-          series={screen.accountSeries}
-          scale={screen.accountScale}
-          onScaleChange={screen.setAccountScale}
-          fallbackWidth={840}
-          height={220}
-          status={screen.status}
-          errorMessage={screen.errorMessage ?? 'Failed to load spend by account.'}
-          onRetry={screen.onRetry}
-          onSelectSeries={screen.setSelectedSeriesKey}
-          emptyMessage="No usage in this range."
-        />
-      </Card>
-
-      <Card>
-        <ZoneHeading
-          label="Spend by model"
-          trailing={
-            modelTotal > 0 && screen.status === 'ready' ? (
-              <span className={DATA_INK_CLASS}>{formatUsd(modelTotal)}</span>
-            ) : undefined
-          }
-        />
-        <ShareBar className="mt-4" segments={screen.status === 'ready' ? screen.modelSegments : []} />
-      </Card>
+      <DashboardRenderer state={dashboard} />
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testi
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  OVERVIEW_SELECTION_OPTIONS,
   useCreateAccountDialogParams,
   useOverviewParams,
   useProjectScopeParams,
@@ -40,10 +39,8 @@ function Rail() {
       <button type="button" onClick={() => void setView({ range: 'mtd' })}>
         rail: this month
       </button>
-      <button
-        type="button"
-        onClick={() => void setView({ series: 'proj_7' }, OVERVIEW_SELECTION_OPTIONS)}>
-        rail: select series
+      <button type="button" onClick={() => void setView({ from: '2026-08-01', to: '2026-08-29' })}>
+        rail: explicit span
       </button>
       <output data-testid="rail-range">{view.range}</output>
     </div>
@@ -55,8 +52,8 @@ function Centre() {
   return (
     <div>
       <output data-testid="centre-range">{view.range}</output>
-      <output data-testid="centre-bucket">{view.bucket}</output>
-      <output data-testid="centre-series">{view.series || 'none'}</output>
+      <output data-testid="centre-from">{view.from || 'none'}</output>
+      <output data-testid="centre-to">{view.to || 'none'}</output>
     </div>
   );
 }
@@ -73,15 +70,17 @@ function Zones() {
 describe('the URL as the cross-zone state bus', () => {
   it('restores the same view state in every zone from a shared URL', () => {
     render(<Zones />, {
-      wrapper: withNuqsTestingAdapter({ searchParams: '?range=90d&bucket=week&series=proj_2' }),
+      wrapper: withNuqsTestingAdapter({
+        searchParams: '?range=90d&from=2026-07-01&to=2026-07-31',
+      }),
     });
 
     // The acceptance criterion, in its simplest form: a link carries the view, and every zone
     // that renders part of that view agrees on it without being told by any of the others.
     expect(screen.getByTestId('rail-range')).toHaveTextContent('90d');
     expect(screen.getByTestId('centre-range')).toHaveTextContent('90d');
-    expect(screen.getByTestId('centre-bucket')).toHaveTextContent('week');
-    expect(screen.getByTestId('centre-series')).toHaveTextContent('proj_2');
+    expect(screen.getByTestId('centre-from')).toHaveTextContent('2026-07-01');
+    expect(screen.getByTestId('centre-to')).toHaveTextContent('2026-07-31');
   });
 
   it('lets the rail change a param that the centre then reads', async () => {
@@ -98,7 +97,7 @@ describe('the URL as the cross-zone state bus', () => {
     expect(screen.getByTestId('rail-range')).toHaveTextContent('7d');
   });
 
-  it('twiddles knobs with history: replace and makes selections with history: push', async () => {
+  it('twiddles every knob with history: replace — a range drag must not cost a Back press', async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
     render(<Zones />, { wrapper: withNuqsTestingAdapter({ hasMemory: true, onUrlUpdate }) });
@@ -109,10 +108,14 @@ describe('the URL as the cross-zone state bus', () => {
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?range=7d');
 
-    await user.click(screen.getByRole('button', { name: 'rail: select series' }));
-    // Selecting a series IS navigation: Back deselects rather than leaving the screen.
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('push');
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get('series')).toBe('proj_7');
+    await user.click(screen.getByRole('button', { name: 'rail: explicit span' }));
+    // A hand-picked span is a knob too — the same `replace`. The `push` half of this contract is
+    // exercised by project scope and the create-account dialog below: C12
+    // (converse-frontends#455) left the account dashboard's own param table with nothing but its
+    // window, since the boards that carried a selection and the dialog that carried a report are
+    // both gone from it.
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get('from')).toBe('2026-08-01');
   });
 
   it('removes a param again when it returns to its default', async () => {

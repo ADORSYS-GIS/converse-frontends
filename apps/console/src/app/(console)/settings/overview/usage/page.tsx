@@ -1,15 +1,18 @@
 import { UsageOverviewCentre } from '../../../../../containers/usage-overview-centre';
+import { dashboardPage } from '../../../../../dashboards/page-entry';
+
+/** The route this page's `dashboards.yaml` entry is keyed by. */
+export const SETTINGS_OVERVIEW_USAGE_ROUTE = '/settings/overview/usage';
 
 /**
  * `/settings/overview/usage` — the settings area's landing lens (owner directive: the
  * cross-account usage overlay is what "Overview" opens on). `force-dynamic` is inherited from
  * `settings/layout.tsx`.
  *
- * IA v3 phase 4 build: the real cross-account estate overview — stat row, estate spend-over-time
- * with a dashed previous-period comparison, spend by account, spend by model. See
- * `use-usage-overview-screen.ts`'s own doc comment for the fan-out design and the filed backend
- * gap (`lightbridge-authz#578`) behind its account cap.
+ * The one page in the console whose panels carry `scope: family` — a fan-out over the signed-in
+ * identity's own account family, capped and captioned by the container. See
+ * `usage-overview-centre.tsx` for why that is not `scope: all`.
  */
 export default function SettingsOverviewUsageRoute() {
-  return <UsageOverviewCentre />;
+  return <UsageOverviewCentre page={dashboardPage(SETTINGS_OVERVIEW_USAGE_ROUTE)} />;
 }

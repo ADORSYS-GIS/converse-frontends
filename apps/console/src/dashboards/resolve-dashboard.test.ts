@@ -252,7 +252,7 @@ describe('compare twins', () => {
       resetCadence: 'weekly',
     });
     const [panel] = resolved.panels;
-    const current = resolved.queries[panel.queryIndex];
+    const current = resolved.queries[panel.queryIndices[0]];
     const twin = resolved.queries[panel.compareQueryIndex as number];
     expect(panel.compareShiftMs).toBe(Date.parse(current.start_time) - Date.parse(twin.start_time));
     // Weekly snapping rounds 30 days up to 35, so the shift is that snapped span, not 30 days.
@@ -498,5 +498,152 @@ describe('the checked-in page entry', () => {
 
     const chat = resolved.panels.find((p) => p.spec.id === 'chat-completions-count');
     expect(chat?.queryIndex).not.toBe(ungrouped[0].queryIndex);
+  });
+});
+
+/**
+ * C12 (converse-frontends#455) — the two resolver extensions the account and settings overview
+ * pages needed, and the boundaries that keep them from becoming escape hatches.
+ */
+describe('optional filter placeholders', () => {
+  const optionalPanel = (value: string) =>
+    statPanel('a', {
+      query: {
+        scope: 'account',
+        scope_id: '$accountId',
+        filters: { project_id: value },
+        limit: 10,
+      },
+    });
+
+  it('drops the filter entirely when the page has no value for it', () => {
+    const resolved = resolveDashboard({
+      page: page([optionalPanel('$project?')]),
+      window: windowOf(30),
+      filters: { accountId: 'acct_1' },
+    });
+    // NOT `project_id: ''`, which matches nothing and would draw an empty dashboard for the
+    // neutral "All projects" state of the picker.
+    expect(resolved.queries[0].filters).toBeUndefined();
+  });
+
+  it('substitutes it like any other placeholder when the page does have one', () => {
+    const resolved = resolveDashboard({
+      page: page([optionalPanel('$project?')]),
+      window: windowOf(30),
+      filters: { accountId: 'acct_1', project: 'proj_7' },
+    });
+    expect(resolved.queries[0].filters).toEqual({ project_id: 'proj_7' });
+  });
+
+  it('still refuses a REQUIRED placeholder the page did not supply', () => {
+    expect(() =>
+      resolveDashboard({
+        page: page([optionalPanel('$project')]),
+        window: windowOf(30),
+        filters: { accountId: 'acct_1' },
+      })
+    ).toThrow(/Unresolved dashboard placeholder "\$project"/);
+  });
+
+  /** Dropping a scope does not widen a query, it changes what the query is ABOUT — so the optional
+   *  form is refused outside `filters`, loudly, rather than silently resolving to the estate. */
+  it('refuses the optional form on scope_id', () => {
+    const bad = statPanel('a', {
+      query: { scope: 'account', scope_id: '$accountId?', limit: 10 },
+    });
+    expect(() =>
+      resolveDashboard({ page: page([bad]), window: windowOf(30), filters: {} })
+    ).toThrow(/legal only inside `filters/);
+  });
+
+  it('changes the dedupe key, so a filtered and an unfiltered panel are two requests', () => {
+    const resolved = resolveDashboard({
+      page: page([
+        optionalPanel('$project?'),
+        statPanel('b', { query: { scope: 'account', scope_id: '$accountId', limit: 10 } }),
+      ]),
+      window: windowOf(30),
+      filters: { accountId: 'acct_1', project: 'proj_7' },
+    });
+    expect(resolved.queries).toHaveLength(2);
+  });
+});
+
+describe('scope: family', () => {
+  const familyPanel = (id: string, overrides: Partial<DashboardPageSpec['panels'][number]> = {}) =>
+    statPanel(id, {
+      query: { scope: 'family', group_by: ['account_id', 'model'], bucket: 'auto', limit: 2000 },
+      ...overrides,
+    });
+
+  it('expands into one account-scoped query per family account, in order', () => {
+    const resolved = resolveDashboard({
+      page: page([familyPanel('a')]),
+      window: windowOf(30),
+      familyAccountIds: ['acct_1', 'acct_2', 'acct_3'],
+    });
+
+    expect(resolved.queries).toHaveLength(3);
+    expect(resolved.queries.map((q) => q.scope)).toEqual(['account', 'account', 'account']);
+    expect(resolved.queries.map((q) => q.scope_id)).toEqual(['acct_1', 'acct_2', 'acct_3']);
+    expect(resolved.panels[0].queryIndices).toEqual([0, 1, 2]);
+  });
+
+  /** `family` is a RESOLVER concept — it must never reach the wire, where it is not a
+   *  `UsageScope` and would be a 400 on every panel. */
+  it('never leaves a family scope in the resolved query list', () => {
+    const resolved = resolveDashboard({
+      page: page([familyPanel('a')]),
+      window: windowOf(30),
+      familyAccountIds: ['acct_1'],
+    });
+    expect(resolved.queries.some((q) => q.scope === 'family')).toBe(false);
+  });
+
+  /** The whole point of putting the fan-out behind the dedupe: two family panels sharing a query
+   *  shape share the fan-out, rather than each costing N requests. */
+  it('deduplicates the fan-out across panels', () => {
+    const resolved = resolveDashboard({
+      page: page([familyPanel('a'), familyPanel('b'), familyPanel('c')]),
+      window: windowOf(30),
+      familyAccountIds: ['acct_1', 'acct_2'],
+    });
+    expect(resolved.queries).toHaveLength(2);
+    expect(resolved.panels.map((p) => p.queryIndices)).toEqual([
+      [0, 1],
+      [0, 1],
+      [0, 1],
+    ]);
+  });
+
+  it('fans the comparison twin out too, so both sides cover the same accounts', () => {
+    const resolved = resolveDashboard({
+      page: page([familyPanel('a', { compare: true })]),
+      window: windowOf(30),
+      familyAccountIds: ['acct_1', 'acct_2'],
+    });
+    expect(resolved.queries).toHaveLength(4);
+    expect(resolved.panels[0].compareQueryIndices).toEqual([2, 3]);
+    expect(resolved.queries.slice(2).map((q) => q.scope_id)).toEqual(['acct_1', 'acct_2']);
+  });
+
+  /** A session whose family has not loaded yet is transient and real — it reads as an empty
+   *  dashboard, never as a throw or a permanently-pending panel. */
+  it('resolves to zero queries for an empty family rather than throwing', () => {
+    const resolved = resolveDashboard({ page: page([familyPanel('a')]), window: windowOf(30) });
+    expect(resolved.queries).toEqual([]);
+    expect(resolved.panels[0].queryIndices).toEqual([]);
+    expect(resolved.panels[0].queryIndex).toBeUndefined();
+  });
+
+  it('leaves an ordinary panel on a family page as a single query', () => {
+    const resolved = resolveDashboard({
+      page: page([familyPanel('a'), statPanel('b')]),
+      window: windowOf(30),
+      familyAccountIds: ['acct_1', 'acct_2'],
+    });
+    expect(resolved.panels[1].queryIndices).toHaveLength(1);
+    expect(resolved.queries[resolved.panels[1].queryIndex as number].scope).toBe('all');
   });
 });

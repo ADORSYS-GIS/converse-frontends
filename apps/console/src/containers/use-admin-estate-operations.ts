@@ -27,7 +27,7 @@ import {
 import { effectiveResetLabel, effectiveResetScheduleQueryKey } from './budget-schedule-rows';
 import { currentPeriodRange } from './overview-usage';
 import { toAggregateDaySeries } from './settings-overview-usage';
-import { MAX_FANNED_OUT_ACCOUNTS } from './usage-overview-usage';
+import { MAX_FANNED_OUT_ACCOUNTS } from './account-family';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
 
 /**

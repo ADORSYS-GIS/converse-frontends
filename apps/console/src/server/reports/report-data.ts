@@ -270,7 +270,12 @@ export function buildReport(input: BuildReportInput): BuiltReport {
       span: spec.span,
     };
 
-    const response = input.responses[panel.queryIndex];
+    // `queryIndex` is optional since C12 (converse-frontends#455): a `scope: family` panel
+    // resolves to one query PER family account, and to none at all when no account list was
+    // supplied — which is exactly the case here, since a report route has no session to read one
+    // from. `resolvePageReport` refuses such a page outright rather than letting it reach this
+    // point, so this is the same "could not be loaded" branch a failed query already takes.
+    const response = panel.queryIndex === undefined ? undefined : input.responses[panel.queryIndex];
     if (!response) {
       return { ...base, unavailable: 'This panel’s data could not be loaded.' };
     }

@@ -1,0 +1,26 @@
+apiVersion: v2
+name: converse-lci
+description: Lightbridge Code Intelligence UI (Next.js, Node runtime) — apps/lci's server-rendered app (bjw-s app-template)
+type: application
+
+# Its own chart directory gets its own GHCR package via publish-charts-oci.yml's `for cf in
+# charts/*/Chart.yaml` glob, so nothing here can collide with another chart's consumer floating a
+# broad semver range against it.
+version: 0.1.0
+
+# Tracks the container image tag by default
+appVersion: 0.1.0
+
+keywords:
+  - lightbridge
+  - code-intelligence
+  - lci
+  - frontend
+  - ui
+  - typescript
+
+dependencies:
+  - name: app-template
+    version: 4.6.2
+    repository: https://bjw-s-labs.github.io/helm-charts
+    alias: lci

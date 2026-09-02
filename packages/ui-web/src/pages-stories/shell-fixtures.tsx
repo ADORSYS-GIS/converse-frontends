@@ -72,14 +72,14 @@ function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
  * verbatim: "Which button leads to the admin pages? ... Please remove that. Instead, inside of
  * the settings, place a permission gated button 'Admin' that leads to admin."). The gated "Admin"
  * row is appended to the flat item list — matching `settingsNavGroups`' own real shape, which is
- * one ungrouped list with "Admin" as its own last, isAdmin-gated row, not a labelled group — and
+ * one ungrouped list with "Admin" as its own last, showAdmin-gated row, not a labelled group — and
  * only when `active` is `'settings'` or `'admin'`: the account area's own rail (`'overview'`/
  * `'api-keys'`) never shows it at all any more, gated role or not, since the real `navGroups` no
  * longer has anywhere for it to go there (see `console-chrome.tsx`'s own doc comment).
  */
-export function storyNavGroups(active: StoryRoute, isAdmin = false): NavGroup[] {
+export function storyNavGroups(active: StoryRoute, showAdmin = false): NavGroup[] {
   const items = storyPrimaryItems(active);
-  if (isAdmin && (active === 'settings' || active === 'admin')) {
+  if (showAdmin && (active === 'settings' || active === 'admin')) {
     items.push({
       key: 'admin',
       label: 'Admin',
@@ -208,13 +208,13 @@ export const storyTopBarWorkspaceSwitcherUnnamed = (
  */
 export function storySidebar(
   active: StoryRoute,
-  { isAdmin = false, unnamed = false }: { isAdmin?: boolean; unnamed?: boolean } = {}
+  { showAdmin = false, unnamed = false }: { showAdmin?: boolean; unnamed?: boolean } = {}
 ) {
   return (
     <ConsoleSidebar
       brand={storyBrand}
       workspaceSwitcher={unnamed ? storyWorkspaceSwitcherUnnamed : storyWorkspaceSwitcher}
-      groups={storyNavGroups(active, isAdmin)}
+      groups={storyNavGroups(active, showAdmin)}
       footer={<StoryFooter />}
     />
   );

@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 
+import { can } from '../access';
 import { resolveOwnedAccountIds, resolveProjectAccountId } from '../authz-account-lookup';
 import { serverEnv } from '../env';
 import { refreshSession } from '../oidc';
@@ -10,9 +11,9 @@ import {
 } from '../refresh-policy';
 import type { ConsoleSession } from '../session';
 import { readSessionFromRequest } from '../session-store';
-import { isAdmin } from '../tokens';
 import { usageDispatcher } from '../usage-dispatcher';
 import { guardUsageScope } from '../usage-scope-guard';
+import { PERMISSION } from '../../shared/permissions';
 
 /**
  * The ONE server-side path from a report route to `POST /usage/v1/usage/query`
@@ -31,9 +32,10 @@ import { guardUsageScope } from '../usage-scope-guard';
  *  - **The scope guard, per query.** `usage-scope-guard.ts` is the console's entire per-account
  *    authorization story for `scope: 'account'` (the usage backend authenticates the PROXY via
  *    mTLS, not the end caller), so a route that reaches the backend without it is a hole of
- *    exactly the shape that guard was written to close. `isAdmin` is computed from the decrypted
- *    session cookie's own roles — never from anything on the request — which is the contract that
- *    function's doc comment requires of its callers.
+ *    exactly the shape that guard was written to close. `usage:read-all` is read from the decrypted
+ *    session cookie's own permission set (`server/access.ts`'s `can`, converse-frontends#452) —
+ *    never from anything on the request — which is the contract that function's doc comment
+ *    requires of its callers.
  *  - **Ownership resolution ONCE per request.** A dashboard page resolves to several deduplicated
  *    queries; resolving "which accounts does this caller own" per query would be N identical RPC
  *    round-trips. Memoised here, including the failure, so a failed lookup fails every query
@@ -127,7 +129,7 @@ export async function fetchUsageQueries(
   // ── Guard every query before ANY of them is sent ────────────────────────────────────────────
   // All-or-nothing on purpose: a report that silently omitted the one panel the caller was not
   // allowed to see would be a document asserting a total that is not the total.
-  const callerIsAdmin = isAdmin(session.user?.roles ?? []);
+  const callerCanReadAllUsage = can(session, PERMISSION.usageReadAll);
   let ownedAccountIds: ReadonlySet<string> | null | undefined;
   const resolveOwnedOnce = async () => {
     if (ownedAccountIds === undefined) {
@@ -142,7 +144,7 @@ export async function fetchUsageQueries(
       resolveOwnedOnce,
       (projectId) => resolveProjectAccountId(session!.tokens.accessToken, projectId),
       session.user?.sub,
-      callerIsAdmin
+      callerCanReadAllUsage
     );
     if (!outcome.ok) {
       return { ok: false, status: outcome.status, error: outcome.error };
@@ -159,7 +161,7 @@ export async function fetchUsageQueries(
   ) {
     const refreshed = await refreshSession(session);
     if (!refreshed) return sessionExpired();
-    session = rotateSession(session, refreshed.tokens, refreshed.roles);
+    session = rotateSession(session, refreshed.tokens, refreshed.access);
     rotated = session;
   }
 
@@ -184,7 +186,7 @@ export async function fetchUsageQueries(
     ) {
       const refreshed = await refreshSession(session);
       if (!refreshed) return sessionExpired();
-      session = rotateSession(session, refreshed.tokens, refreshed.roles);
+      session = rotateSession(session, refreshed.tokens, refreshed.access);
       rotated = session;
 
       await upstream.body?.cancel().catch(() => undefined);

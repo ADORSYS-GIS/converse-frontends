@@ -24,25 +24,30 @@ const CREATE_SEGMENT = join(
   'page.tsx'
 );
 
-describe('the /admin/budget-schedules role gate', () => {
+describe('the /admin/budget-schedules permission gate', () => {
   it.each([
     ['the list route', LIST_SEGMENT],
     ['the create route', CREATE_SEGMENT],
-  ])('decrypts the session and 404s a non-admin on %s', (_name, segment) => {
-    const source = readFileSync(join(process.cwd(), segment), 'utf8');
+  ])(
+    'decrypts the session and 404s a caller without budget:schedule-manage on %s',
+    (_name, segment) => {
+      const source = readFileSync(join(process.cwd(), segment), 'utf8');
 
-    expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
-    expect(source).toContain('notFound()');
-  });
+      expect(source).toContain('readSession()');
+      expect(source).toContain('can(session, PERMISSION.budgetScheduleManage)');
+      expect(source).toContain('notFound()');
+    }
+  );
 
   it('gates the one nav surface that links to it, cosmetic but must not regress into "shown then 404s"', () => {
-    // `adminNavGroups` is only ever called once the caller has already checked `session.isAdmin`
-    // (`ConsoleSidebarContent`'s own branch), so inclusion in that list IS the gate.
+    // converse-frontends#452: `adminNavGroups` filters EACH row against the caller's own permission
+    // set, declared beside the row's href in `ADMIN_DESTINATIONS`, so the row and this segment's
+    // own `notFound()` read the same string and cannot drift apart.
     const chrome = readFileSync(join(process.cwd(), 'src', 'client', 'console-chrome.tsx'), 'utf8');
 
     expect(chrome).toContain("'budget-schedules'");
     expect(chrome).toContain('export function adminNavGroups');
+    expect(chrome).toContain('permission: PERMISSION.budgetScheduleManage');
   });
 
   it('never renders the list and the form on the same view — the same mode split one route over', () => {

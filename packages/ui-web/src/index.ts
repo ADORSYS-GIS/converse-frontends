@@ -443,6 +443,29 @@ export type {
   ReviewQueueProps,
 } from './sections/review-queue';
 
+// `/admin/roles` (converse-frontends#452, story C9): the platform-role grant directory and its two
+// mutations. `platform_role_grants` (lightbridge-authz#656) is what decides who holds a platform
+// role, replacing the prod claim mapper that minted `lightbridge-admin` for every signed-in person.
+export {
+  ALL_ROLES,
+  GRANT_AUTHOR_CLI_LABEL,
+  GRANT_MINT_DELAY_NOTE,
+  GrantRoleDialog,
+  PlatformRoleGrants,
+  REVOKE_SELF_WARNING,
+  REVOKE_SESSION_NOTE,
+  RevokeRoleDialog,
+} from './sections/platform-role-grants';
+export type {
+  GrantRoleDialogProps,
+  GrantUserOption,
+  PlatformGrantAuthor,
+  PlatformRoleGrantRow,
+  PlatformRoleGrantsPagination,
+  PlatformRoleGrantsProps,
+  RevokeRoleDialogProps,
+} from './sections/platform-role-grants';
+
 // `/accounts/<id>/refill` (IA v3 phase 3 — refill moved from `RequestRefillDialog` to its own
 // page): the amount-choice form and the caller's own request history, each a standalone Card zone.
 export { RefillRequestForm } from './sections/refill-request-form';

@@ -6,7 +6,6 @@ import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme
 import { Providers } from '../client/providers';
 import { serverEnv } from '../server/env';
 import { readSession } from '../server/session-store';
-import { isAdmin } from '../server/tokens';
 import { ANONYMOUS_SESSION, type SessionResponse } from '../shared/session-response';
 
 import './globals.css';
@@ -46,12 +45,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         authenticated: true,
         user: {
           sub: session.user.sub,
+          platformUserId: session.user.platformUserId,
           name: session.user.name,
           preferredUsername: session.user.preferredUsername,
           email: session.user.email,
           roles: session.user.roles,
         },
-        isAdmin: isAdmin(session.user.roles),
+        permissions: session.user.permissions,
+        accessVerified: session.user.accessVerified,
       }
     : ANONYMOUS_SESSION;
 

@@ -1,5 +1,6 @@
 import * as client from 'openid-client';
 
+import { fetchMyAccess, type MyAccessSnapshot } from './access';
 import { serverEnv, type ConsoleEnv } from './env';
 import type { ConsoleSession, SessionTokens } from './session';
 import { buildSessionUser, checkAudience, extractRoles } from './tokens';
@@ -134,9 +135,19 @@ export async function exchangeCode(
     userInfo = undefined;
   }
 
+  // `getMyAccess` with the token that was just minted (converse-frontends#452): the session is
+  // built ONCE per login and carries the server's own permission answer from that moment on, so
+  // no screen and no nav row ever re-derives authorization from a claim. A failure here does not
+  // block the login — it produces the fail-closed unverified snapshot, and the chrome says so.
+  const access = await fetchMyAccess(
+    accessToken,
+    extractRoles(accessToken, env.idp.rolesClaim, env.idp.clientId)
+  );
+
   const user = buildSessionUser(
     accessToken,
     env.idp.rolesClaim,
+    access,
     env.idp.clientId,
     userInfo
   );
@@ -155,11 +166,16 @@ export async function exchangeCode(
  * Performs the refresh-token grant and re-validates the audience — the same "validate on login AND
  * on refresh" rule `refreshAccessToken()` enforces today. Returns `null` on any failure so the
  * caller can treat "refresh failed" uniformly (clear cookie, answer 401) without catching.
+ *
+ * It also re-asks `getMyAccess` with the freshly minted token, so the rotated session carries a
+ * current permission set rather than the one login happened to see. A `getMyAccess` failure is NOT
+ * a refresh failure: the tokens are valid, so the refresh succeeds and the returned snapshot is
+ * the fail-closed unverified one.
  */
 export async function refreshSession(
   session: ConsoleSession,
   env: ConsoleEnv = serverEnv()
-): Promise<{ tokens: SessionTokens; roles: string[] } | null> {
+): Promise<{ tokens: SessionTokens; access: MyAccessSnapshot } | null> {
   const refreshToken = session.tokens.refreshToken;
   if (!refreshToken) return null;
 
@@ -178,9 +194,19 @@ export async function refreshSession(
       return null;
     }
 
+    // Re-asked on every refresh, not carried over (converse-frontends#452): a grant or a
+    // revocation lands in `platform_role_grants` and reaches the token at its next mint, so the
+    // refresh is exactly the moment the console's own copy of "what may this caller do" must be
+    // replaced rather than trusted. Re-using the previous answer would hold a revoked capability
+    // open for as long as the browser kept refreshing.
+    const access = await fetchMyAccess(
+      accessToken,
+      extractRoles(accessToken, env.idp.rolesClaim, env.idp.clientId)
+    );
+
     return {
       tokens: toSessionTokens(tokenResponse, audienceCheck.audience, Date.now()),
-      roles: extractRoles(accessToken, env.idp.rolesClaim, env.idp.clientId),
+      access,
     };
   } catch (error) {
     console.error('[console] Token refresh failed:', error);

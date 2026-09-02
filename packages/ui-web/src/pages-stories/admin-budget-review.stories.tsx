@@ -88,7 +88,7 @@ function AdminBudgetReviewScreen({
 
   return (
     <ConsoleShell
-      sidebar={storySidebar('admin', { isAdmin: true })}
+      sidebar={storySidebar('admin', { showAdmin: true })}
       topBar={storyTopBar()}
       rail={rail}
       railWidth={280}

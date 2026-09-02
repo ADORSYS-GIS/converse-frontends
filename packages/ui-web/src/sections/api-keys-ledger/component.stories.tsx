@@ -20,7 +20,7 @@ function Demo({
   keys = apiKeysFixture,
   revokeInitial = null,
   deleteInitial = null,
-  isAdmin = true,
+  canDelete = true,
   loading = false,
   error,
   toolbarActions,
@@ -28,7 +28,7 @@ function Demo({
   keys?: ApiKeyRow[];
   revokeInitial?: ApiKeysRevokeTarget | null;
   deleteInitial?: ApiKeysDeleteTarget | null;
-  isAdmin?: boolean;
+  canDelete?: boolean;
   loading?: boolean;
   error?: string;
   toolbarActions?: React.ReactNode;
@@ -59,7 +59,7 @@ function Demo({
         revokeTarget={revokeTarget}
         onConfirmRevoke={() => setRevokeTarget(null)}
         onCancelRevoke={() => setRevokeTarget(null)}
-        isAdmin={isAdmin}
+        canDelete={canDelete}
         onRequestDelete={(row) => setDeleteTarget({ row })}
         deleteTarget={deleteTarget}
         onConfirmDelete={() => setDeleteTarget(null)}
@@ -107,11 +107,11 @@ export const DeleteDialogError: Story = {
 
 // A non-admin sees Rotate and Revoke; `Del` is omitted rather than shown disabled with no
 // explanation — the LIFECYCLE rail's own "admin only" copy is the stated reason (console-ui
-// skill §states). This is presentation only, not the security boundary (see `isAdmin`'s doc
+// skill §states). This is presentation only, not the security boundary (see `canDelete`'s doc
 // comment in `types.ts`).
 export const NonAdminNoDeleteAction: Story = {
   name: 'Non-admin — Del is omitted, not disabled',
-  render: () => <Demo isAdmin={false} />,
+  render: () => <Demo canDelete={false} />,
 };
 
 // A true empty collection replaces the table with `EmptyState` outright.

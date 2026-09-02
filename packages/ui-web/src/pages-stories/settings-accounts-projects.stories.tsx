@@ -139,7 +139,7 @@ function ProjectsScreen({
   );
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"
@@ -337,7 +337,7 @@ export const ErrorState: Story = {
 };
 
 // Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
-// isAdmin-gated "Admin" row (`settingsNavGroups`), not an "Operator group" any more — that group
+// showAdmin-gated "Admin" row (`settingsNavGroups`), not an "Operator group" any more — that group
 // is deleted outright from the account-area rail (`console-chrome.tsx`'s `navGroups`).
 export const AdminNav: Story = {
   name: 'Nav — admin (Admin row visible)',

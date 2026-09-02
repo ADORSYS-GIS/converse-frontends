@@ -30,10 +30,13 @@ const SESSION: ConsoleSession = {
   },
   user: {
     sub: 'user-1',
+    platformUserId: 'person-1',
     name: 'Ada Lovelace',
     preferredUsername: 'ada',
     email: 'ada@example.test',
     roles: ['lightbridge-admin'],
+    permissions: ['usage:read-all', 'rbac:manage'],
+    accessVerified: true,
   },
 };
 

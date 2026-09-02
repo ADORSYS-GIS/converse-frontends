@@ -26,7 +26,13 @@ function session(overrides: Partial<ConsoleSession['tokens']> = {}): ConsoleSess
       audience: ['lightbridge-api-key'],
       ...overrides,
     },
-    user: { sub: 'user-1', roles: ['lightbridge-editor'] },
+    user: {
+      sub: 'user-1',
+      platformUserId: 'person-1',
+      roles: ['lightbridge-editor'],
+      permissions: ['budget:read-own'],
+      accessVerified: true,
+    },
   };
 }
 
@@ -185,15 +191,47 @@ describe('rotateSession', () => {
     expect(rotated.tokens.idToken).toBe('id-1');
   });
 
-  it('replaces the roles when the refreshed access token carries new ones', () => {
-    const rotated = rotateSession(session(), { accessToken: 'a' }, ['lightbridge-admin']);
+  // converse-frontends#452: a refresh REPLACES the permission set wholesale. A revoked grant is
+  // expressed as an absence, so merging would keep a removed capability alive for as long as the
+  // browser kept refreshing -- the exact opposite of what re-asking `getMyAccess` is for.
+  it('replaces the roles and permissions from the refreshed access snapshot', () => {
+    const rotated = rotateSession(
+      session(),
+      { accessToken: 'a' },
+      {
+        userId: 'person-1',
+        roles: ['lightbridge-admin'],
+        permissions: ['usage:read-all', 'rbac:manage'],
+        accessVerified: true,
+      }
+    );
     expect(rotated.user.roles).toEqual(['lightbridge-admin']);
+    expect(rotated.user.permissions).toEqual(['usage:read-all', 'rbac:manage']);
     expect(rotated.user.sub).toBe('user-1');
   });
 
-  it('leaves the roles untouched when none are supplied', () => {
+  it('fails closed on an unverified snapshot without losing the known person id', () => {
+    const rotated = rotateSession(
+      session(),
+      { accessToken: 'a' },
+      {
+        userId: '',
+        roles: [],
+        permissions: [],
+        accessVerified: false,
+      }
+    );
+    expect(rotated.user.permissions).toEqual([]);
+    expect(rotated.user.accessVerified).toBe(false);
+    // `sub` does not change across a refresh, so neither does the person behind it -- an
+    // unanswered `getMyAccess` did not disprove the id login already resolved.
+    expect(rotated.user.platformUserId).toBe('person-1');
+  });
+
+  it('leaves the user record untouched when no snapshot is supplied', () => {
     const rotated = rotateSession(session(), { accessToken: 'a' });
     expect(rotated.user.roles).toEqual(['lightbridge-editor']);
+    expect(rotated.user.permissions).toEqual(['budget:read-own']);
   });
 });
 

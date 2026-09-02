@@ -35,7 +35,13 @@ const VALID_SESSION: ConsoleSession = {
     // Far in the future — never triggers the proactive-refresh branch in these tests.
     expiresAt: Date.now() + 60 * 60 * 1000,
   },
-  user: { sub: 'acct_01', roles: [] },
+  user: {
+    sub: 'acct_01',
+    platformUserId: 'person_01',
+    roles: [],
+    permissions: [],
+    accessVerified: true,
+  },
 };
 
 async function sessionCookieHeader(session: ConsoleSession = VALID_SESSION): Promise<string> {

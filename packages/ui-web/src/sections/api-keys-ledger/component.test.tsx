@@ -13,7 +13,7 @@ const baseProps: ApiKeysLedgerProps = {
   onRequestRevoke: vi.fn(),
   onConfirmRevoke: vi.fn(),
   onCancelRevoke: vi.fn(),
-  isAdmin: true,
+  canDelete: true,
   onRequestDelete: vi.fn(),
   onConfirmDelete: vi.fn(),
   onCancelDelete: vi.fn(),
@@ -38,7 +38,9 @@ describe('ApiKeysLedger', () => {
   });
 
   it('renders the compact-tier trigger slot in the table toolbar', () => {
-    render(<ApiKeysLedger {...baseProps} toolbarActions={<button type="button">Open filters</button>} />);
+    render(
+      <ApiKeysLedger {...baseProps} toolbarActions={<button type="button">Open filters</button>} />
+    );
 
     expect(screen.getByRole('button', { name: 'Open filters' })).toBeInTheDocument();
   });
@@ -201,7 +203,7 @@ describe('ApiKeysLedger', () => {
     });
 
     it('is unavailable to a non-admin — omitted, not shown disabled with no explanation', () => {
-      render(<ApiKeysLedger {...baseProps} isAdmin={false} />);
+      render(<ApiKeysLedger {...baseProps} canDelete={false} />);
 
       // Rotate and Revoke stay reachable; only the admin-gated Delete action disappears.
       const group = screen.getByRole('group', { name: `${apiKeysFixture[0].name} actions` });

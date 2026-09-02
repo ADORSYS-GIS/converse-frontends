@@ -142,7 +142,7 @@ function AdminBudgetSchedulesScreen({
   ];
 
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: true })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin: true })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Budget schedules"

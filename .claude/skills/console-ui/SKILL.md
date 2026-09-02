@@ -31,7 +31,8 @@ The full contracts live in the repo — **read them before writing components**:
   alone since phase E, `settings-accounts` — the new `/settings/accounts` list and
   `/settings/accounts/<id>` detail, `settings-accounts-projects` — `/settings/accounts/<id>/
 projects` (renamed from `projects.stories.tsx`, phase E — the route it fixtures moved),
-  `settings-overview` — the estate/analytics lenses, `shell-persistence`) are the rendered ground
+  `settings-overview` — the estate/analytics lenses, `admin-roles` — the platform-role grant
+  directory and its two dialogs, `shell-persistence`) are the rendered ground
   truth — match them. There is no story yet for `/settings/accounts/<id>/request-refill`
   specifically (it reuses `RefillCentre` unchanged from the pre-phase-E `/accounts/<id>/refill`,
   which likewise has none). There are no SVG mockups any more; a stale mockup was judged worse
@@ -278,35 +279,51 @@ decimals.
   `Card`. `PageHeader` and a bare `InlineStatus`/`ErrorLine` are the only things that sit directly
   on the floor. `StatCard`/`BudgetHero` stay self-panelled (their own `surface` fill) even when a
   `Card` also wraps the row they sit in.
-- **Two nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
-  `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`): the **account area**'s
-  `navGroups` — `Workspace` (Overview, API keys only, hrefs built off the path account — phase E
-  narrowed this from three items to two, Projects moved to `/settings/accounts/<id>/projects`),
-  `Account` (Settings), `Operator` (Refill requests → `/settings/refills-queue`, included only for
-  `session.isAdmin`) — versus the **settings area**'s `settingsNavGroups`, a flat, ungrouped list
-  of eight (Overview, Accounts [phase E, NEW], Roles [disabled], Tier configs, Project policies
-  [renamed from "Account / Project policies" once the account half moved out], Refill options
-  policies, Refills queue [admin only], Info), with a `← Back to console` row replacing the
-  workspace switcher. Both are role-gated by inclusion, not by a marker prop — no
-  `adminItems`/`showAdmin`/`roleLabel` axis; a gated row/group's own label IS the role marker.
-  Never resurrect a `ROLE` badge/marker component. A nav row may ship `disabled` with a stated
-  reason (Roles — `lightbridge-authz#571`) rather than being omitted: the honesty doctrine (below)
-  extends to navigation — a row that looks live but 404s is its own kind of fabrication.
-- **The admin area is a THIRD nav surface in the same mount** (`adminNavGroups`, swapped in by the
-  same `areaFromPathname` branch). It takes no `isAdmin` param at all — `ConsoleSidebarContent` has
-  already confirmed it before calling, so there is no disabled-row case to model, unlike
-  `settingsNavGroups`. Four rows, dashboard first:
+- **Three nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
+  `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`). Every gated row is included
+  or omitted, never marked: no `adminItems`/`showAdmin`/`roleLabel` axis, and a gated row's own
+  label IS the marker. Never resurrect a `ROLE` badge/marker component.
 
-  | Row              | Route                     | Notes                                                                                                                |
-  | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-  | Overview         | `/admin/overview`         | The operator dashboard; its boards come from `dashboards.yaml` (ADR 0013 / story C4)                                 |
-  | Refills queue    | `/admin/refills-queue`    | Carries the pending-count numeral — its ONLY home; never a fabricated `0` while it loads                             |
-  | Refill policies  | `/admin/refill-policies`  | `create` is its own route segment; `?edit=`/`?simulate=` are modes                                                   |
-  | Budget schedules | `/admin/budget-schedules` | Story C8 — `create` is its own segment; `?edit=`/`?preview=`/`?delete=` are modes. A clock glyph, not a second gauge |
+  | Area                           | Rows, in order                                                                                     | Gate                                                          |
+  | ------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+  | account (`navGroups`)          | `Workspace`: Overview, API keys (hrefs off the path account) - `Account`: Settings                 | none — the Operator group is deleted outright                 |
+  | settings (`settingsNavGroups`) | Overview, Accounts, Roles → `/admin/roles`, Tier configs, Project policies, Info, **Admin** (last) | Roles: `rbac:manage` - Admin: ANY of `ADMIN_AREA_PERMISSIONS` |
+  | admin (`adminNavGroups`)       | see the destination table below                                                                    | per row, see below                                            |
+
+  The settings and admin areas replace `navGroups`' content in the same mount and carry a
+  `← Back to console` row instead of the workspace switcher.
+
+  The admin area's six destinations, in nav order — READINGS first, then ACTIONS, then who may
+  operate the area at all. `ADMIN_DESTINATIONS` declares each row's href and its permission
+  together, which is what keeps the row and its route segment's own `notFound()` from drifting
+  into "shown and then 404s":
+
+  | Row              | Route                     | Permission               | Notes                                                                                                                |
+  | ---------------- | ------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+  | Overview         | `/admin/overview`         | `usage:read-all`         | The operator dashboard; its boards come from `dashboards.yaml` (ADR 0013 / story C4)                                 |
+  | Usage            | `/admin/usage`            | `usage:read-all`         | Story C5 — the estate usage surface; same `scope: 'all'` read, so the same one grant unlocks both                    |
+  | Refills queue    | `/admin/refills-queue`    | `budget:review`          | Carries the pending-count numeral — its ONLY home; never a fabricated `0` while it loads                             |
+  | Refill policies  | `/admin/refill-policies`  | `budget:policy-write`    | `create` is its own route segment; `?edit=`/`?simulate=` are modes                                                   |
+  | Budget schedules | `/admin/budget-schedules` | `budget:schedule-manage` | Story C8 — `create` is its own segment; `?edit=`/`?preview=`/`?delete=` are modes. A clock glyph, not a second gauge |
+  | Roles            | `/admin/roles`            | `rbac:manage`            | Story C9 — the platform-role grant directory; `?grant=`/`?revoke=` are its two dialogs                               |
 
   `AdminRoute`/`adminRouteFromPathname` is the closed union behind the active flag; anything
   unrecognised (the bare `/admin`, mid-redirect) reads as `overview`, the same "unmatched reads as
   the first destination" contract the other two areas use.
+
+  **Gate on a PERMISSION, never on a role** (converse-frontends#452). `session.isAdmin` is deleted:
+  it was `roles.includes('lightbridge-admin')`, a role production minted for every signed-in person,
+  so it gated nothing. Nav rows and route segments both read the permission set
+  `procedure.getMyAccess` resolved server-side — `useCan()` in the chrome, `can()` in the route.
+  Admin is not one thing: five independent grants, independently filtered rows, and
+  `adminLandingHref` aims the settings "Admin" row at the first destination _this_ caller can
+  actually open rather than at a dashboard they would 404 on.
+
+  A nav row may still ship `disabled` with a stated reason rather than being omitted — the honesty
+  doctrine extends to navigation, and a row that looks live but 404s is its own kind of fabrication
+  — but that treatment is for a destination that is genuinely **not built**, never for one the
+  caller merely lacks permission for. (The Roles row used it while no read API existed; it is a live
+  `/admin/roles` link now.)
 
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.

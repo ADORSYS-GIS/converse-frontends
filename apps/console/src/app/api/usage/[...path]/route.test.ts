@@ -184,18 +184,20 @@ describe('POST /api/usage/usage/v1/usage/query scope-ownership guard (P1 securit
   });
 });
 
-// ── admin-role wiring (converse-frontends#368) — this route's own contribution to the fix: it is
-// the ONE place `isAdmin(session.user.roles)` is computed and handed to `guardUsageScope`'s admin
-// fast path, so this is the regression net for "the flag really does come from the decrypted
-// session cookie's own role claims, never anything else." `guardUsageScope` itself is mocked
-// here (its own admin-path LOGIC is `usage-scope-guard.test.ts`'s job) — this file only asserts
-// the 5th argument this route passes it.
-describe('POST /api/usage/usage/v1/usage/query admin-role wiring (converse-frontends#368)', () => {
-  it('passes isAdmin: true for a session carrying the lightbridge-admin role', async () => {
+// ── estate-read wiring (converse-frontends#368, converted to a permission by #452) — this route's
+// own contribution to the fix: it is the ONE place `can(session, PERMISSION.usageReadAll)` is
+// computed and handed to `guardUsageScope`'s estate-read fast path, so this is the regression net
+// for "the flag really does come from the decrypted session cookie's own permission set, never
+// anything else." The role check it replaced (`isAdmin(session.user.roles)`) was `true` for every
+// signed-in person in production, which is precisely why it stopped being a check.
+// `guardUsageScope` itself is mocked here (its own fast-path LOGIC is `usage-scope-guard.test.ts`'s
+// job) — this file only asserts the 5th argument this route passes it.
+describe('POST /api/usage/usage/v1/usage/query estate-read wiring (converse-frontends#452)', () => {
+  it('passes true for a session holding usage:read-all', async () => {
     serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
     readSessionFromRequestMock.mockResolvedValue({
       tokens: { accessToken: 'tok' },
-      user: { sub: 'acct_operator', roles: ['lightbridge-admin'] },
+      user: { sub: 'acct_operator', roles: [], permissions: ['usage:read-all'] },
     });
     guardUsageScopeMock.mockResolvedValue({ ok: true });
     const { POST } = await import('./route');
@@ -206,14 +208,16 @@ describe('POST /api/usage/usage/v1/usage/query admin-role wiring (converse-front
     expect(guardUsageScopeMock).toHaveBeenCalledTimes(1);
     const call = guardUsageScopeMock.mock.calls[0];
     expect(call[3]).toBe('acct_operator'); // homeAccountId, unchanged by this wiring
-    expect(call[4]).toBe(true); // isAdmin
+    expect(call[4]).toBe(true); // canReadAllUsage
   });
 
-  it('passes isAdmin: false for a session with no admin role', async () => {
+  // The permission is the whole gate: carrying the ROLE and not the permission must not open the
+  // fast path, which is the inversion of the pre-#452 behaviour and the point of the cutover.
+  it('passes false for a session carrying lightbridge-admin but not the permission', async () => {
     serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
     readSessionFromRequestMock.mockResolvedValue({
       tokens: { accessToken: 'tok' },
-      user: { sub: 'acct_regular', roles: ['lightbridge-editor'] },
+      user: { sub: 'acct_regular', roles: ['lightbridge-admin'], permissions: [] },
     });
     guardUsageScopeMock.mockResolvedValue({ ok: true });
     const { POST } = await import('./route');
@@ -225,7 +229,7 @@ describe('POST /api/usage/usage/v1/usage/query admin-role wiring (converse-front
     expect(call[4]).toBe(false);
   });
 
-  it('passes isAdmin: false, never throws, for a session with no user at all', async () => {
+  it('passes false, never throws, for a session with no user at all', async () => {
     serverEnvMock.mockReturnValue({ usageUrl: 'http://usage.internal' });
     readSessionFromRequestMock.mockResolvedValue({ tokens: { accessToken: 'tok' } });
     guardUsageScopeMock.mockResolvedValue({ ok: true });

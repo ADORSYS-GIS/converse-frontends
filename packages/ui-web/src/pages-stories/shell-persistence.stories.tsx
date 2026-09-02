@@ -97,7 +97,7 @@ function PersistentShell() {
             onRequestRevoke={() => {}}
             onConfirmRevoke={() => {}}
             onCancelRevoke={() => {}}
-            isAdmin
+            canDelete
             onRequestDelete={() => {}}
             onConfirmDelete={() => {}}
             onCancelDelete={() => {}}

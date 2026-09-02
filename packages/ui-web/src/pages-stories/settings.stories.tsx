@@ -75,7 +75,7 @@ function SettingsScreen({
   const [allowedModels, setAllowedModels] = useState<string[]>([]);
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader title="Project policies" subtitle="adorsys-gis" />
 
@@ -187,7 +187,7 @@ export const ErrorState: Story = {
 };
 
 // Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
-// isAdmin-gated "Admin" row (`settingsNavGroups`, linking to `/admin/overview`) — the ONE way an
+// showAdmin-gated "Admin" row (`settingsNavGroups`, linking to `/admin/overview`) — the ONE way an
 // admin now reaches the admin area from the chrome, replacing the account-area rail's deleted
 // Operator row.
 export const AdminNav: Story = {

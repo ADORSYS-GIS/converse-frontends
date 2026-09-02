@@ -188,7 +188,16 @@ export {
   requesterDisplay,
 } from './lib/refill-requester';
 export type { RefillRequester, RequesterDisplay } from './lib/refill-requester';
-export { IdentityLines } from './lib/identity-lines';
+// The two-line renderer both of the above feed (converse-frontends#448), plus the generic PERSON
+// union `/admin/sessions` resolves into it (converse-frontends#450) — same treatment, its own
+// dated "unknown" sentence.
+export {
+  IDENTITY_RESOLVING_LABEL,
+  IDENTITY_UNRESOLVED_LABEL,
+  IdentityLines,
+  identityDisplay,
+} from './lib/identity-lines';
+export type { ConsoleIdentity, IdentityDisplay } from './lib/identity-lines';
 export { RequesterLines } from './lib/requester-lines';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
@@ -442,6 +451,26 @@ export type {
   ReviewQueuePagination,
   ReviewQueueProps,
 } from './sections/review-queue';
+
+// `/admin/sessions` (converse-frontends#450, story C7) — the estate-wide session ledger, its
+// filter cluster, and the body of the row-detail `BottomSheet` that carries both revoke actions.
+export {
+  SessionDetailPanel,
+  SessionLedger,
+  SessionLedgerControls,
+} from './sections/session-ledger';
+export type {
+  SessionDetail,
+  SessionDetailPanelProps,
+  SessionKind,
+  SessionKindFilter,
+  SessionLedgerControlsProps,
+  SessionLedgerPagination,
+  SessionLedgerProps,
+  SessionLedgerRow,
+  SessionStatus,
+  SessionStatusFilter,
+} from './sections/session-ledger';
 
 // `/admin/roles` (converse-frontends#452, story C9): the platform-role grant directory and its two
 // mutations. `platform_role_grants` (lightbridge-authz#656) is what decides who holds a platform

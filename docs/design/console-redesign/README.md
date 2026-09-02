@@ -243,9 +243,11 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 | Settings                            | Account                                                                              | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
 | Refill requests                     | Operator (admin only)                                                                | `/settings/refills-queue`                                                   |
 | — Admin: Overview                   | Admin area (admin only)                                                              | `/admin/overview`                                                           |
+| — Admin: Usage                      | Admin area (admin only)                                                              | `/admin/usage` (+ `/actors/<id>`, `/channels/<azp>`, `/chats`)              |
 | — Admin: Refills queue              | Admin area (admin only)                                                              | `/admin/refills-queue`                                                      |
 | — Admin: Refill policies            | Admin area (admin only)                                                              | `/admin/refill-policies` (+ `/create`, `?edit=`, `?simulate=`)              |
 | — Admin: Budget schedules           | Admin area (admin only)                                                              | `/admin/budget-schedules` (+ `/create`, `?edit=`, `?preview=`, `?delete=`)  |
+| — Admin: Sessions                   | Admin area (`session:read`)                                                          | `/admin/sessions` (§5.8)                                                    |
 | — Settings: Overview                | Settings area                                                                        | `/settings/overview` → lens picker (§5.5)                                   |
 | — Settings: Accounts                | Settings area                                                                        | `/settings/accounts` → `/settings/accounts/<id>`                            |
 | — Settings: Roles                   | Settings area                                                                        | _(disabled, no route)_                                                      |
@@ -700,6 +702,137 @@ stateDiagram-v2
         A client-decided precedence winner: only
         getEffectiveResetSchedule / the run result's
         supersededAccountIds answer that.
+    end note
+```
+
+### 5.8 Sessions — `/admin/sessions` (`admin-sessions.stories.tsx`)
+
+The admin area's sixth destination (converse-frontends#450, story C7), gated on **`session:read`**
+— the ESTATE widening, never the `session:read-own` floor every default role already holds — and
+the console half of
+lightbridge-authz ADR-0020 Follow-up 4. The `sessions` table had been revocable since #440/#441 and
+enumerable by nobody: `revokeOwnSessions` ("log out everywhere") and `revokeSubjectSessions`
+(offboard this person) were the only ways to touch it, both write-only and both all-or-nothing. A
+revocable table nobody can list is not a control.
+
+Top to bottom: `PageHeader` (title "Sessions", "N sessions on this page", and
+`SessionLedgerControls` in `controls` — status segmented · kind segmented · user search · the
+picked-user select) → one `Card` holding `SessionLedger` (the table, the offline caption and
+`Pagination`). Row detail opens `SessionDetailPanel` inside a `BottomSheet` **at every tier** — no
+`portalClassName` tier gate, because no `/admin/*` route mounts a rail at any tier (§5.5) and there
+is nothing to hand off to.
+
+Columns: user (name over email, `IdentityLines`) · account · kind (with a trailing `· offline`
+marker) · client (`clientId`, the `azp`) · created · last used · expires · status.
+
+- **Status is TEXT, not a pill** (§6, console-ui skill "Status is text, never a pill"). The story
+  asked for a pill with a semantic colour; the locked contract is `StatusText`, and the WORD is
+  what separates the three states — `active` reads `body`, `revoked` and `expired` both read
+  `muted`, and only their labels tell "an operator closed this" apart from "time ran out". The
+  accent (`--signal`) is deliberately unused: none of these three is a breach.
+- **Offline is a word, not a chip**, for the same reason, riding the Kind cell rather than taking a
+  column of blanks. Its meaning is a `meta` caption under the table: a session whose refresh chain
+  carries the `offline_access` scope — a CLI or device login that outlives a browser session
+  (owner ruling Q7).
+- **Empty is an inline status line with a `Reset filters` action**, never a centred placard: this
+  table always has filters above it, so "nothing matched" is a fact about the filters.
+- **Two revoke actions, two different confirmations.** `Close session` is a plain `ConfirmDialog` —
+  it costs its owner one re-login and there is no name worth typing. `Close all sessions for this
+user` is a `TypedConfirmDialog` typing the person's email (their display name when the identity
+  carries none): it is aimed at a different, absent person's every device at once, and the object
+  name is the guard against aiming it one row off in an operator table. Both are absent, never
+  disabled, when they cannot apply — an already-revoked row has nothing to close, and a row with no
+  recorded `subject` has nothing to aim the bulk action at (the Subject line says so).
+- **Optimistic, with a real rollback.** The revoke flips the row in the query cache and restores the
+  snapshot verbatim on failure, with the reason on screen — never a silent optimistic success.
+
+#### The list and its filters
+
+`querySessions` (**not** `listSessions`: that name is a hard cratestack codegen collision with the
+generic `model.Session.list` verb, so only the name moved between the story and the surface) takes
+one `status` of `active | revoked | expired | all`. The operator's **"Inactive" is therefore two
+calls**, merged newest-first — filtering a single `all` page down to its dead rows on the client
+would make every count and every `next` cursor a claim about a set the server never returned.
+
+The user search is server-side, and the hop that makes it possible is an invariant worth stating:
+`searchUsers` returns a `users.id`, `querySessions` filters on `sessions.subject`, and
+`sessions.subject` is the owner's JWT `sub`, which **is** `accounts.id` (ADR-0006). Those are the
+same string for the account a login adopts — `set_account_user`'s fallback branch inserts
+`users(id) VALUES (NEW.id)` and sets `user_id := id` for any account created without a named owner,
+which is exactly how a person's home account is made, and
+`migrations/20260830000003_accounts_owned_by_users.sql` records the consequence verbatim:
+"`users.id == accounts.id == subject` holds for all of them and stays holding".
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as lightbridge-admin
+    participant S as /admin/sessions (Card)
+    participant U as authz-api · searchUsers
+    participant Q as authz-api · querySessions
+    participant ID as authz-api · resolveUserProfiles
+
+    A->>S: open /admin/sessions (the route gates on session:read via can(session, ...))
+    S->>Q: querySessions({ status: "active", limit: 25 })
+    Q-->>S: { rows: SessionRow[], next? }
+    S-->>A: rows render immediately · User cell reads "Resolving…"
+    S->>ID: resolveUserProfiles({ userIds: sorted, de-duplicated subjectUserIds })<br/>ONE call per page, never one per row
+    alt profiles returned
+        ID-->>S: [{ userId, displayName?, email?, username? }]
+        S-->>A: name over email · unmatched ids keep a labelled sentinel
+    else lookup failed
+        ID--xS: error
+        S-->>A: InlineStatus "names could not be resolved" ABOVE a table that still lists and still revokes
+    end
+
+    A->>S: type ≥2 characters into the user search
+    S->>U: searchUsers({ query })
+    U-->>S: [{ userId, displayName?, email? }]
+    S-->>A: matches offered in the User select (nothing filtered yet — a typed string is not a subject)
+    A->>S: pick a person
+    S->>Q: querySessions({ status, subject: userId })<br/>subject == accounts.id == users.id for a home account
+    Q-->>S: that person's sessions only, filtered in SQL
+
+    A->>S: switch the filter to "Inactive"
+    par two calls, one page
+        S->>Q: querySessions({ status: "revoked" })
+    and
+        S->>Q: querySessions({ status: "expired" })
+    end
+    Q-->>S: two pages, merged newest-first · hasNext true when EITHER half has more
+```
+
+#### One session's lifecycle, and where this screen touches it
+
+`expired` is never stored (ADR-0020 Decision 6) — it is `active` past its `expiresAt`, computed on
+the way out — and `revoked` always wins over expiry, because revocation is the operator-visible act
+and expiry is just time passing. Both are terminal: there is no `@@allow("update")` on `Session`
+and none may be added, so nothing anywhere can flip a row back to `active`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> active: token grant mints the session<br/>(oauth2_op/store.rs)
+
+    active --> revoked: revokeSession({ id })<br/>"Close session" — this screen
+    active --> revoked: revokeSubjectSessions({ accountId })<br/>"Close all sessions for this user" — this screen
+    active --> revoked: revokeOwnSessions() — the person themself, elsewhere
+    active --> expired: expiresAt passes<br/>(computed, never written)
+
+    revoked --> revoked: a second revoke succeeds with revoked:false<br/>(reported as "already closed", not as a change)
+    expired --> revoked: still revocable — the row is stored active
+
+    note right of revoked
+        Terminal. The same transaction revokes every
+        still-active exchange_refresh_tokens row chained
+        under this session id (ADR-0020 Decision 9), so the
+        next refresh with that token fails.
+    end note
+
+    note left of active
+        The optimistic UI writes exactly this edge into the
+        query cache and rolls it back verbatim on failure.
+        There is no state this screen can reach that the
+        backend cannot.
     end note
 ```
 

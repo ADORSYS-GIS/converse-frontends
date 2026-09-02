@@ -29,9 +29,10 @@
  * pins the exact spellings so a rename upstream shows up as a failing test rather than as a
  * console area that quietly disappeared.
  *
- * `session:read` is deliberately ABSENT: it does not exist in the backend enum yet (it lands with
- * `/admin/sessions`, story C7), and declaring a permission before the screen that needs it is the
- * dormant-code pattern this repo does not ship.
+ * `session:read` LANDED with `/admin/sessions` (converse-frontends#450, story C7) — the screen that
+ * needs it now exists, and lightbridge-authz#657 added the enum variant it names, so it is declared
+ * below rather than held back. That is the same rule this comment used to state in the negative:
+ * a permission is declared WITH its screen, never before it.
  */
 export const PERMISSION = {
   /** Estate-wide usage reads (`scope: 'all'`) — `/admin/overview` and the `/admin/usage` area. */
@@ -44,6 +45,17 @@ export const PERMISSION = {
   budgetScheduleManage: 'budget:schedule-manage',
   /** Granting and revoking platform roles — `/admin/roles`. */
   rbacManage: 'rbac:manage',
+  /**
+   * Enumerating anyone's sessions — `/admin/sessions` (converse-frontends#450).
+   *
+   * The ESTATE-wide widening only. `session:read-own` is the floor every default role already
+   * holds, and `querySessions`' RBAC gate is mapped to that floor, not to this — the widening from
+   * "my rows" to "all rows" happens per ROW, in the `Session` model's own `@@allow("read", …)`
+   * clause, which cratestack folds into the SQL `WHERE` (lightbridge-authz#657). So this string
+   * gates the SCREEN (an own-scope caller reaching it would see only themselves, which is not what
+   * an operator ledger is for); it is not what makes the query safe.
+   */
+  sessionRead: 'session:read',
   /** Reading the user directory (`searchUsers`, `resolveUserProfiles`). */
   userRead: 'user:read',
   /** Hard-deleting an API key — the one row action `ApiKeysLedger` hides without it. */
@@ -76,6 +88,10 @@ export const ADMIN_AREA_PERMISSIONS: readonly ConsolePermission[] = [
   PERMISSION.budgetPolicyWrite,
   PERMISSION.budgetScheduleManage,
   PERMISSION.rbacManage,
+  // `session:read` IS a destination of its own (`/admin/sessions`) — unlike `user:read` above,
+  // which only resolves a name for someone else's row. Someone granted nothing but the ability to
+  // close sessions still has one real screen to reach.
+  PERMISSION.sessionRead,
 ];
 
 /**

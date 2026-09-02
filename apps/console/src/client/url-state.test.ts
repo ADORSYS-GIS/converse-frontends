@@ -15,6 +15,7 @@ import {
   adminParsers,
   adminBudgetSchedulesParsers,
   adminRefillPoliciesParsers,
+  adminSessionsParsers,
   apiKeysParsers,
   createProjectParsers,
   dashboardExportParsers,
@@ -131,6 +132,13 @@ describe('the URL param contract', () => {
       // means the same thing here as on `/admin/refill-policies` (open the form on this id), which
       // is why the shared-meaning check below is content with both routes owning the key.
       adminBudgetSchedules: ['delete', 'edit', 'preview'],
+      // `/admin/sessions` (converse-frontends#450, story C7). `q` and `user` are deliberately two
+      // params, not one: `q` is the text handed to `searchUsers`, `user` is the exact `subject`
+      // (an account id — `sessions.subject` IS the owner's JWT `sub`, lightbridge-authz ADR-0006)
+      // that `querySessions` is actually filtered by. A typed string can never be the filter, so
+      // collapsing them would hide that a choice is being made. `after` is the opaque page cursor
+      // `SessionPage.next` hands back — passed through verbatim, never constructed.
+      adminSessions: ['after', 'kind', 'q', 'selected', 'status', 'user'],
       // The four `/settings/overview/*` lenses (`usage`/`account`/`project`/`user`) share one
       // vocabulary, and every deletion from it has the same reason — a knob wired to nothing is a
       // defect: `bucket` went in 2026-08-31 (no request builder read it), `account-sort` with the
@@ -213,6 +221,17 @@ describe('the URL param contract', () => {
     );
     expect(settings({ accountNameOpen: true })).toBe('?account-name=true');
     expect(settings({ search: 'gateway', page: 2 })).toBe('?q=gateway&page=2');
+
+    const sessions = createSerializer(adminSessionsParsers, {
+      urlKeys: URL_PARAM_CONTRACT.adminSessions.urlKeys,
+    });
+    // `active` is the landing filter — a bare `/admin/sessions` link means "the live ones" for
+    // whoever opens it, the same default `querySessions` itself takes.
+    expect(sessions({ status: 'active' })).toBe('');
+    expect(sessions({ status: 'inactive' })).toBe('?status=inactive');
+    expect(sessions({ kind: 'token' })).toBe('?kind=token');
+    expect(sessions({ search: 'maria', subject: 'acc_1' })).toBe('?q=maria&user=acc_1');
+    expect(sessions({ selectedSessionId: 'ses_9' })).toBe('?selected=ses_9');
 
     const manage = createSerializer(manageParsers, { urlKeys: URL_PARAM_CONTRACT.manage.urlKeys });
     expect(manage({ search: 'alpha', budgetState: 'no-quota' })).toBe(

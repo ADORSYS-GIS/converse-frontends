@@ -29,6 +29,10 @@ describe('PERMISSION', () => {
       budgetPolicyWrite: 'budget:policy-write',
       budgetScheduleManage: 'budget:schedule-manage',
       rbacManage: 'rbac:manage',
+      // converse-frontends#450 (story C7). The ESTATE widening, and NOT `session:read-own` — that
+      // is the floor every default role already holds and the one `querySessions`' coarse RBAC
+      // gate is mapped to, so naming it here would look like a gate and be one only by accident.
+      sessionRead: 'session:read',
       userRead: 'user:read',
       apiKeyDelete: 'apikey:delete',
       apiKeyRead: 'apikey:read',
@@ -40,12 +44,16 @@ describe('PERMISSION', () => {
   it('lists exactly the destination permissions in the admin-area set', () => {
     // `user:read` is deliberately absent: it is a supporting read (resolving a name for a row),
     // never a destination, so holding it alone must not conjure an admin area with nothing in it.
+    // `session:read` IS present for the opposite reason — it has a screen of its own
+    // (`/admin/sessions`, converse-frontends#450), so someone granted nothing but the ability to
+    // close sessions still has one real destination to reach.
     expect([...ADMIN_AREA_PERMISSIONS]).toEqual([
       'usage:read-all',
       'budget:review',
       'budget:policy-write',
       'budget:schedule-manage',
       'rbac:manage',
+      'session:read',
     ]);
   });
 

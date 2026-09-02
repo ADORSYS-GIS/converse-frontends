@@ -158,12 +158,19 @@ describe('ADR 0011 discipline', () => {
     //    in-flight-draft carve-out Decision 3 names.
     //    `use-debounced-value.ts` is the debounce latch behind that search: a delayed COPY of a
     //    value the caller already owns, never a second home for a fact.
+    //  - converse-frontends#450 (story C7, `/admin/sessions`): `use-admin-sessions-screen.ts`
+    //    carries two — the same page-cursor stack `use-refills-queue-screen.ts` justifies above,
+    //    and WHICH revoke confirmation is open. The latter sits INSIDE an already-URL-addressed
+    //    selection (`?selected=<session id>` IS in the URL), and a link that reopened a stranger's
+    //    half-confirmed "close every session for this person" is precisely what a shared URL must
+    //    not do — the same shape every unsent-dialog carve-out on this list has.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('client', 'use-debounced-value.ts'),
       join('containers', 'auth-view.tsx'),
       join('containers', 'use-admin-budget-schedules-screen.ts'),
       join('containers', 'use-admin-roles-screen.ts'),
+      join('containers', 'use-admin-sessions-screen.ts'),
       join('containers', 'use-api-keys-screen.ts'),
       join('containers', 'use-budget-schedule-form-screen.ts'),
       join('containers', 'use-create-account-dialog.ts'),

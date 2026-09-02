@@ -302,6 +302,12 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/budget-schedules/create')).toBe('budget-schedules');
   });
 
+  // converse-frontends#450 (story C7).
+  it('matches /admin/sessions by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/sessions')).toBe('sessions');
+    expect(adminRouteFromPathname('/admin/sessions?status=all')).toBe('sessions');
+  });
+
   it('matches /admin/roles by its own prefix', () => {
     expect(adminRouteFromPathname('/admin/roles')).toBe('roles');
   });
@@ -318,15 +324,16 @@ describe('adminNavGroups', () => {
     'budget:review',
     'budget:policy-write',
     'budget:schedule-manage',
+    'session:read',
     'rbac:manage',
   ];
 
   // Readings first, then actions. Usage sits SECOND, between the dashboard and the three budget
   // rows: overview answers "is anything wrong", usage answers "where did it come from", and the
-  // rest are things an operator DOES (converse-frontends#448). Roles is last
-  // (converse-frontends#452) — who may operate the area is a fact about the operators, not the
-  // estate.
-  it('lists all six admin destinations, dashboard first and usage second', () => {
+  // rest are things an operator DOES (converse-frontends#448). Sessions (converse-frontends#450)
+  // and Roles (converse-frontends#452) are last, in that order — both are facts about the
+  // operators rather than the estate, and closing a session is the one reached for more often.
+  it('lists all seven admin destinations, dashboard first and usage second', () => {
     const [group] = adminNavGroups('overview', FULL);
 
     expect(group.items.map((item) => item.key)).toEqual([
@@ -335,6 +342,7 @@ describe('adminNavGroups', () => {
       'refills-queue',
       'refill-policies',
       'budget-schedules',
+      'sessions',
       'roles',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
@@ -342,7 +350,20 @@ describe('adminNavGroups', () => {
     expect(group.items[2]?.href).toBe('/admin/refills-queue');
     expect(group.items[3]?.href).toBe('/admin/refill-policies');
     expect(group.items[4]?.href).toBe('/admin/budget-schedules');
-    expect(group.items[5]?.href).toBe('/admin/roles');
+    expect(group.items[5]?.href).toBe('/admin/sessions');
+    expect(group.items[6]?.href).toBe('/admin/roles');
+  });
+
+  // converse-frontends#450: `session:read` is a destination of its own, so it must unlock the
+  // Sessions row on its own — someone granted nothing but the ability to close sessions still has
+  // one real screen. It must NOT unlock any other row.
+  it('unlocks the Sessions row, and only that row, from a lone session:read grant', () => {
+    const [group] = adminNavGroups('sessions', ['session:read']);
+
+    expect(group.items.map((item) => item.key)).toEqual(['sessions']);
+    expect(group.items[0]?.label).toBe('Sessions');
+    expect(group.items[0]?.active).toBe(true);
+    expect(group.items[0]?.count).toBeUndefined();
   });
 
   it('marks the usage row active off the given AdminRoute, and carries no count', () => {

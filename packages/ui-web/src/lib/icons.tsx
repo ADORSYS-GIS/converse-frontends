@@ -121,6 +121,18 @@ export function AdminIcon(props: IconProps) {
   );
 }
 
+/** Admin area — Sessions: a screen on a stand, the "signed in from somewhere" glyph
+ *  (converse-frontends#450). Deliberately a DEVICE and not a second person-shaped mark: `RolesIcon`
+ *  already owns "who somebody is", and this row is about where they are signed in FROM. */
+export function SessionsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="2" y="3" width="12" height="8" rx="1" />
+      <path d="M6.5 13.5h3M8 11v2.5" />
+    </IconBase>
+  );
+}
+
 /** Settings area — Roles: two people, the roster-and-permissions glyph. */
 export function RolesIcon(props: IconProps) {
   return (

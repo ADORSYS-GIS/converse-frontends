@@ -757,6 +757,79 @@ export function useAdminRolesParams() {
 /** Opening or closing either dialog is navigation-grade: Back closes it, it does not leave. */
 export const ADMIN_ROLES_DIALOG_OPTIONS = { history: 'push' as const };
 
+// ── /admin/sessions ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * The session ledger's status filter, as the URL spells it.
+ *
+ * `inactive` is NOT a `querySessions` status. That procedure's own `status` filter takes exactly
+ * one of `active | revoked | expired | all` (lightbridge-authz#657), so "inactive" — the operator
+ * question "what is no longer live?" — is two calls whose pages the container merges, not one
+ * `all` narrowed on the client. Two queries is the honest shape: filtering an `all` page down to
+ * its dead rows would make every count and every `next` cursor a claim about a set the server
+ * never returned, and the pager would skip pages whose rows were all active.
+ *
+ * `active` is the default — an operator opening a session list wants the live ones, and "show me
+ * three months of dead rows too" should be a deliberate press (the same default `querySessions`
+ * itself takes).
+ */
+export const SESSION_STATUS_FILTERS = ['active', 'inactive', 'all'] as const;
+
+/** `sessions.kind`'s own pair, plus the unfiltered case. */
+export const SESSION_KIND_FILTERS = ['all', 'browser', 'token'] as const;
+
+/**
+ * `/admin/sessions`' view params (converse-frontends#450, story C7).
+ *
+ * `q` is the free-text query handed to `searchUsers`, debounced onto the URL exactly as
+ * `apiKeysParsers.search` is: the input stays responsive per keystroke while the address bar — and
+ * the search request it drives — settles once typing stops. It is the SEARCH, not the filter.
+ *
+ * `user` is the filter: the account id (`sessions.subject`, which IS the owner's JWT `sub` per
+ * lightbridge-authz ADR-0006) of the person the operator picked out of `searchUsers`' matches.
+ * The two are separate params because they are separate facts — `querySessions` filters on an
+ * EXACT subject, so a typed string can never be the filter itself, and collapsing them would make
+ * "typed three characters, still seeing everyone" look like a bug instead of the honest "pick
+ * which of these four people you meant".
+ *
+ * `after` is the opaque page cursor `SessionPage.next` hands back — passed through verbatim, never
+ * constructed. `use-admin-sessions-screen.ts` keeps the stack of cursors a `Previous` press needs
+ * in local state, the same browser-history-shaped concept `use-refills-queue-screen.ts` already
+ * documents; only the CURRENT page's cursor is ever written here.
+ *
+ * `selected` is the row whose `BottomSheet` is open — a selection, so a colleague can be sent
+ * straight to one session and Back closes the sheet rather than leaving the screen.
+ *
+ * History: the group writes `replace` (dragging a segmented control must not cost a Back press per
+ * click, ADR 0011 rule 2); `after` and `selected` are written with
+ * `ADMIN_SESSIONS_NAVIGATION_OPTIONS` instead, because moving a page and opening a detail are both
+ * navigation.
+ */
+export const adminSessionsParsers = {
+  status: parseAsStringLiteral(SESSION_STATUS_FILTERS).withDefault('active'),
+  kind: parseAsStringLiteral(SESSION_KIND_FILTERS).withDefault('all'),
+  search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
+  subject: parseAsString.withDefault(''),
+  after: parseAsString.withDefault(''),
+  selectedSessionId: parseAsString.withDefault(''),
+};
+
+const adminSessionsUrlKeys = {
+  search: 'q',
+  subject: 'user',
+  selectedSessionId: 'selected',
+};
+
+export function useAdminSessionsParams() {
+  return useQueryStates(adminSessionsParsers, {
+    urlKeys: adminSessionsUrlKeys,
+    history: 'replace',
+  });
+}
+
+/** Paging and opening a session's detail are navigation-grade; the filters above them are not. */
+export const ADMIN_SESSIONS_NAVIGATION_OPTIONS = { history: 'push' as const };
+
 // ── declarative dashboards: one axis knob per series panel ───────────────────────────────────
 
 /** A `dashboards.yaml` panel id → the query param carrying that panel's axis transform. Kebab
@@ -982,4 +1055,5 @@ export const URL_PARAM_CONTRACT = {
     parsers: adminBudgetSchedulesParsers,
     urlKeys: adminBudgetSchedulesUrlKeys,
   },
+  adminSessions: { parsers: adminSessionsParsers, urlKeys: adminSessionsUrlKeys },
 } as const;

@@ -2,6 +2,7 @@
 
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
+import { ConfirmDialog } from '@lightbridge/ui-web/src/components/confirm-dialog';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { Field } from '@lightbridge/ui-web/src/components/field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
@@ -10,7 +11,7 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { PolicySimulator } from '@lightbridge/ui-web/src/sections/policy-simulator';
 import { RefillPolicyLookup } from '@lightbridge/ui-web/src/sections/refill-policy-lookup';
 import { RefillPolicyManual } from '@lightbridge/ui-web/src/sections/refill-policy-manual';
-import { RuleSetForm } from '@lightbridge/ui-web/src/sections/rule-set-form';
+import { RuleSetForm, ruleSetFieldExample } from '@lightbridge/ui-web/src/sections/rule-set-form';
 import Link from 'next/link';
 
 import type { AdminRefillPoliciesFormScreen } from './use-refill-policies-screen';
@@ -19,6 +20,11 @@ import { useRefillPoliciesScreen } from './use-refill-policies-screen';
 const EDIT_NO_PREFILL_NOTE =
   'This starts from a blank draft, not a copy of the current revision — there is no read API ' +
   'for stored rule content today (converse-frontends#368).';
+
+const EXAMPLE_OVERWRITE_TITLE = 'Replace this draft with the example policy?';
+const EXAMPLE_OVERWRITE_BODY =
+  'The example policy overwrites every field on this form, the policy set id included. Nothing ' +
+  'you have typed here has been saved yet, so it cannot be recovered afterwards.';
 
 /**
  * `/admin/refill-policies` — admin-only (owner ruling, verbatim: "Refill options are for admins
@@ -114,7 +120,25 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
-        subtitle={form.mode === 'edit' ? undefined : 'Author a brand-new policy set from scratch.'}
+        subtitle={
+          form.mode === 'edit'
+            ? undefined
+            : 'Author a brand-new policy set from scratch — or start from the example and edit it.'
+        }
+        controls={
+          // Create-only, by construction: `startFromExample` only exists on
+          // `useRefillPolicyCreateScreen`'s return value. The edit route authors a replacement
+          // revision for a policy set that already exists and has no business offering a sample.
+          form.startFromExample ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={form.startFromExample.onStart}>
+              Start from example policy
+            </Button>
+          ) : null
+        }
         action={
           <Button type="button" variant="ghost" size="sm" onClick={form.onCancel}>
             Cancel
@@ -122,11 +146,23 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
         }
       />
 
+      {form.startFromExample ? (
+        <ConfirmDialog
+          open={form.startFromExample.confirmOpen}
+          title={EXAMPLE_OVERWRITE_TITLE}
+          description={EXAMPLE_OVERWRITE_BODY}
+          confirmLabel="Replace my draft"
+          onConfirm={form.startFromExample.onConfirm}
+          onCancel={form.startFromExample.onCancelConfirm}
+        />
+      ) : null}
+
       {form.mode === 'edit' ? <InlineStatus>{EDIT_NO_PREFILL_NOTE}</InlineStatus> : null}
 
       <Card>
         <Field
           label="Policy set id"
+          example={ruleSetFieldExample('policySetId')}
           value={form.policySetId}
           onChange={(event) => form.onPolicySetIdChange?.(event.target.value)}
           disabled={form.policySetIdReadOnly}

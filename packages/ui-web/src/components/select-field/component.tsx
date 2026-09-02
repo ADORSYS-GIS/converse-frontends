@@ -8,7 +8,7 @@ import {
   OVERLAY_ITEM_CLASS,
   OVERLAY_POSITIONER_CLASS,
 } from '../../lib/overlay';
-import { LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { Chevron } from '../chevron';
 import type { SelectFieldProps } from './types';
 
@@ -40,11 +40,14 @@ export function SelectField({
   hideLabel,
   disabled,
   error,
+  example,
   className,
 }: SelectFieldProps) {
   const inline = layout === 'inline';
   const generatedId = useId();
   const errorId = error ? `${generatedId}-error` : undefined;
+  const exampleId = example && !inline ? `${generatedId}-example` : undefined;
+  const describedBy = [exampleId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
     <Select.Root
@@ -54,10 +57,15 @@ export function SelectField({
       onValueChange={(next) => next !== null && onChange(next)}>
       <div className={cn(inline ? 'label' : 'fieldset', className)}>
         <Select.Label className={hideLabel ? 'sr-only' : fieldLabelClassName}>{label}</Select.Label>
+        {exampleId ? (
+          <p id={exampleId} className={META_CLASS}>
+            {example}
+          </p>
+        ) : null}
         <Select.Trigger
           className={fieldControlClassName}
           aria-invalid={Boolean(error)}
-          aria-describedby={errorId}>
+          aria-describedby={describedBy}>
           <Select.Value />
           <Select.Icon>
             <Chevron />

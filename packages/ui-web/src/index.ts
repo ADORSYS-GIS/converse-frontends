@@ -157,6 +157,12 @@ export type { SecretRevealProps } from './components/secret-reveal';
 export { TypedConfirmDialog } from './components/typed-confirm-dialog';
 export type { TypedConfirmDialogProps } from './components/typed-confirm-dialog';
 
+// The light sibling of the gate above — a plain yes/no confirmation for discarding unsaved local
+// work (e.g. "Start from example policy" overwriting a draft). See its own `types.ts` for the rule
+// on which of the two a destructive action deserves.
+export { ConfirmDialog } from './components/confirm-dialog';
+export type { ConfirmDialogProps } from './components/confirm-dialog';
+
 export { ReportExportPanel } from './components/report-export-panel';
 export type {
   ReportExportPanelProps,
@@ -335,12 +341,18 @@ export type { PolicySimulationResult, PolicySimulatorProps } from './sections/po
 
 export {
   createBlankRuleSet,
+  createExampleRuleSet,
+  EXAMPLE_POLICY_SET_ID,
+  RULE_SET_FIELD_EXAMPLES,
+  ruleSetFieldExample,
   RuleSetForm,
   toRuleDataJson,
   validateRuleSet,
 } from './sections/rule-set-form';
 export type {
   ComparisonOperator,
+  FieldExample,
+  RuleSetFieldName,
   RuleConditionValue,
   RuleEffect,
   RuleErrors,

@@ -29,6 +29,7 @@ export const EXPECTED: Record<string, string | null> = {
   'select-field': 'select',
   tooltip: 'tooltip',
   'typed-confirm-dialog': 'alert-dialog',
+  'confirm-dialog': 'alert-dialog',
 
   // — GAPS: Base UI ships this and we do not use it
   button: 'button',

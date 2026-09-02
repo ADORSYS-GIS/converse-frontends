@@ -10,7 +10,7 @@ primitive stack, the two-theme model and the chart-colour rule are locked by
 [ADR 0010](../../adr/0010-ui-primitive-stack-and-theming.md). The **shell shape, type hierarchy
 and zone-container rule** below were revised wholesale by the 2026-08-30 owner directive and are
 recorded as decisions in [ADR 0012](../../adr/0012-console-visual-revamp.md) — this document is
-the *application* of ADR 0012 to each screen, the way it always was for ADR 0008 before it.
+the _application_ of ADR 0012 to each screen, the way it always was for ADR 0008 before it.
 
 **Ground truth is the page stories, not a mockup.** This directory used to ship five hand-authored
 SVG mockups (`overview.svg`, `api-keys.svg`, `manage-projects.svg`, `admin-budget-review.svg`,
@@ -40,7 +40,7 @@ usage-billing, Cartesia usage, Attio settings). Counts below are honest: preview
 references retrieved in full, for the original 2026-08-24 pass.
 
 - **Styles**: 1 query (`dark technical observability console near-black surfaces monospace numerics
-  single accent`), 10 previews scanned, **1 retrieved in full** (Axiom — the locked palette
+single accent`), 10 previews scanned, **1 retrieved in full** (Axiom — the locked palette
   reference; retrieved to get its exact token table rather than paraphrasing ADR 0008).
 - **Screens**: 6 queries (AI/dev-tool usage dashboards; dark stat-card rows with sparklines; CSV/PDF
   report export; dark admin table with row-detail side panel; admin approval queues; SSO login),
@@ -52,35 +52,35 @@ references retrieved in full, for the original 2026-08-24 pass.
 
 The 2026-08-24 style search locked Axiom as the palette reference (near-black tonal stack,
 monospace-leaning technical type, single non-decorative accent) and it still is — ADR 0012 revises
-the *shell* and the *type hierarchy* it sits in, not the colour tokens. See §2.1 for the current
+the _shell_ and the _type hierarchy_ it sits in, not the colour tokens. See §2.1 for the current
 token sheet and ADR 0008 §5 for the full rejected-styles table this decision came from (Better
 Stack, Inngest, Neon, Checkly, Linear changelog, Trunk/Dovetail — unchanged, not reproduced here).
 
 ### 1.2 Product patterns — screens (2026-08-24 pass)
 
-| Reference | Refero link | What was taken |
-| --- | --- | --- |
-| **Cursor** — usage & billing (dark) | [screen](https://refero.design/pages/7573ea52-2410-4886-930a-bc76b11943ae) | Card grid → full-width chart → full-width usage table reading order; right-aligned numeric columns; date-range + quick-range controls sitting *with* the chart |
-| **fal.ai** — usage-billing (dark) | [screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8) | KPI tile row above the fold with *money-first* labels; `Export CSV` as an outlined control near the section it exports — re-confirmed 2026-08-30 as part of the revamp's own reference lock (ADR 0012), where it grounds the card-per-zone shell directly, not only the export control |
-| **OpenAI** — platform usage | [screen](https://refero.design/pages/a81bb53c-e070-48c3-82d5-34b2eb1e561e) | `$0.60 of $120.00` + **Increase limit** placed immediately beside the number (ADR 0008 D7) |
-| **Gladia** — settings/usage (dark) | [screen](https://refero.design/pages/27a8c8d9-c095-4a87-8f8e-c18ecc28176d) | Three-control filter row: **API key · date · granularity** — the shape `OverviewControls`/`ApiKeysControls` inline toolbars follow, now in `PageHeader.controls` rather than a side panel |
-| **Mercury** — transactions (dark) | [screen](https://refero.design/pages/ad0fd5c1-c21c-476f-9f8c-72f4e4ec758a) | Row-select drives a detail surface; summary metrics inline above the table; dense rows for a review queue vs a browse list |
-| **Coinbase** — download report | [screen](https://refero.design/pages/339214d7-5cea-4e01-9a5e-4ae46421c788) · [statements](https://refero.design/pages/4c255140-dde9-4931-9614-97cbe65fd127) | Report export as **scope + period + format + generate**; now a `Dialog` (ADR 0012 D7) rather than a rail form |
-| **Fingerprint** — team members | [screen](https://refero.design/pages/936c3653-4aaf-4219-b990-502d0f01644d) | `Members / Pending` text-tab split with a count in the label |
-| **Webflow** — SSO login | [screen](https://refero.design/pages/e57d91d8-aebf-4594-ac5b-f89a360fb5bc) | Single centred column, logo top-left, one heading, one control, one primary button |
-| **Cohere** — spending limit | [screen](https://refero.design/pages/0316cb1c-3c50-4af2-8ca1-fd84b004d901) | Number, ceiling and control on one panel (ADR 0008 D7) |
+| Reference                           | Refero link                                                                                                                                                 | What was taken                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cursor** — usage & billing (dark) | [screen](https://refero.design/pages/7573ea52-2410-4886-930a-bc76b11943ae)                                                                                  | Card grid → full-width chart → full-width usage table reading order; right-aligned numeric columns; date-range + quick-range controls sitting _with_ the chart                                                                                                                         |
+| **fal.ai** — usage-billing (dark)   | [screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8)                                                                                  | KPI tile row above the fold with _money-first_ labels; `Export CSV` as an outlined control near the section it exports — re-confirmed 2026-08-30 as part of the revamp's own reference lock (ADR 0012), where it grounds the card-per-zone shell directly, not only the export control |
+| **OpenAI** — platform usage         | [screen](https://refero.design/pages/a81bb53c-e070-48c3-82d5-34b2eb1e561e)                                                                                  | `$0.60 of $120.00` + **Increase limit** placed immediately beside the number (ADR 0008 D7)                                                                                                                                                                                             |
+| **Gladia** — settings/usage (dark)  | [screen](https://refero.design/pages/27a8c8d9-c095-4a87-8f8e-c18ecc28176d)                                                                                  | Three-control filter row: **API key · date · granularity** — the shape `OverviewControls`/`ApiKeysControls` inline toolbars follow, now in `PageHeader.controls` rather than a side panel                                                                                              |
+| **Mercury** — transactions (dark)   | [screen](https://refero.design/pages/ad0fd5c1-c21c-476f-9f8c-72f4e4ec758a)                                                                                  | Row-select drives a detail surface; summary metrics inline above the table; dense rows for a review queue vs a browse list                                                                                                                                                             |
+| **Coinbase** — download report      | [screen](https://refero.design/pages/339214d7-5cea-4e01-9a5e-4ae46421c788) · [statements](https://refero.design/pages/4c255140-dde9-4931-9614-97cbe65fd127) | Report export as **scope + period + format + generate**; now a `Dialog` (ADR 0012 D7) rather than a rail form                                                                                                                                                                          |
+| **Fingerprint** — team members      | [screen](https://refero.design/pages/936c3653-4aaf-4219-b990-502d0f01644d)                                                                                  | `Members / Pending` text-tab split with a count in the label                                                                                                                                                                                                                           |
+| **Webflow** — SSO login             | [screen](https://refero.design/pages/e57d91d8-aebf-4594-ac5b-f89a360fb5bc)                                                                                  | Single centred column, logo top-left, one heading, one control, one primary button                                                                                                                                                                                                     |
+| **Cohere** — spending limit         | [screen](https://refero.design/pages/0316cb1c-3c50-4af2-8ca1-fd84b004d901)                                                                                  | Number, ceiling and control on one panel (ADR 0008 D7)                                                                                                                                                                                                                                 |
 
 ### 1.3 Journey logic — flows
 
-| Flow | Refero link | What was taken |
-| --- | --- | --- |
-| Gladia — API key deletion | [flow 10901](https://refero.design/flows/10901) | Typed-phrase confirmation before an irreversible key action (ADR 0001; carried forward for `delete`) |
-| Gladia — API key creation | [flow 10900](https://refero.design/flows/10900) | Optional name → create → list updates in place with the new row already present |
-| Cohere — create trial API key | [flow 3885](https://refero.design/flows/3885) | One-time secret display with copy affordance, then return to the list with scope preserved |
-| Cohere — production key onboarding | [flow 3882](https://refero.design/flows/3882) | Name-validation error state *inside* the create step |
-| Exa — service key creation | [flow 12030](https://refero.design/flows/12030) | Post-create success rendered **in the list**, never a toast that disappears |
-| Cohere — set monthly spending limit | [flow 3896](https://refero.design/flows/3896) | Where a limit change is entered from |
-| TravelPerk — approval processes | [flow 5255](https://refero.design/flows/5255) | Approval queues keep an `active / archived` split |
+| Flow                                | Refero link                                     | What was taken                                                                                       |
+| ----------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Gladia — API key deletion           | [flow 10901](https://refero.design/flows/10901) | Typed-phrase confirmation before an irreversible key action (ADR 0001; carried forward for `delete`) |
+| Gladia — API key creation           | [flow 10900](https://refero.design/flows/10900) | Optional name → create → list updates in place with the new row already present                      |
+| Cohere — create trial API key       | [flow 3885](https://refero.design/flows/3885)   | One-time secret display with copy affordance, then return to the list with scope preserved           |
+| Cohere — production key onboarding  | [flow 3882](https://refero.design/flows/3882)   | Name-validation error state _inside_ the create step                                                 |
+| Exa — service key creation          | [flow 12030](https://refero.design/flows/12030) | Post-create success rendered **in the list**, never a toast that disappears                          |
+| Cohere — set monthly spending limit | [flow 3896](https://refero.design/flows/3896)   | Where a limit change is entered from                                                                 |
+| TravelPerk — approval processes     | [flow 5255](https://refero.design/flows/5255)   | Approval queues keep an `active / archived` split                                                    |
 
 ---
 
@@ -91,17 +91,17 @@ Stack, Inngest, Neon, Checkly, Linear changelog, Trunk/Dovetail — unchanged, n
 Unchanged by the revamp — values are ADR 0008 Decision 5, cross-checked against the Axiom style
 reference, and are the single source of truth in `packages/ui-web/src/theme.css`.
 
-| Token | Value (dark `black`) | Value (light `wireframe`) | Role — **do not repurpose** |
-| --- | --- | --- | --- |
-| `muted` / `--floor` | `#000000` | `#EBEBEB` | The page background |
-| `chrome` / `--chrome` | `#111111` | `#F5F5F5` | Sidebar/top-bar fill, form-control inset, row hover |
-| `surface` / `--panel` | `#191919` | `#FFFFFF` | `Card`, `BottomSheet`, the right rail, dialogs |
-| `raised` / `--raised` | `#202020` | `#DEDEDE` | Active nav row, active segmented cell, table hairlines, skeletons |
-| `border` / `--line` | `#3a3a3a` | `#CFCFCF` | Control borders, `Card`'s hairline, chart baseline |
-| `subtle` / `--muted` | `#606060` | `#8A8A8A` | Labels, placeholders, disabled — never load-bearing (~2.9:1 by design) |
-| `soft` / `--body` | `#b4b4b4` | `#4D4D4D` | Body text, meter fills, rank-1 chart series |
-| `ink` / `--strong` | `#eeeeee` | `#1A1A1A` | Headings, key numerals |
-| `primary` / `--signal` | `#DA5C2C` | `#B4441C` | CTA · active · breach. Never decoration, never a large fill |
+| Token                  | Value (dark `black`) | Value (light `wireframe`) | Role — **do not repurpose**                                            |
+| ---------------------- | -------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `muted` / `--floor`    | `#000000`            | `#EBEBEB`                 | The page background                                                    |
+| `chrome` / `--chrome`  | `#111111`            | `#F5F5F5`                 | Sidebar/top-bar fill, form-control inset, row hover                    |
+| `surface` / `--panel`  | `#191919`            | `#FFFFFF`                 | `Card`, `BottomSheet`, the right rail, dialogs                         |
+| `raised` / `--raised`  | `#202020`            | `#DEDEDE`                 | Active nav row, active segmented cell, table hairlines, skeletons      |
+| `border` / `--line`    | `#3a3a3a`            | `#CFCFCF`                 | Control borders, `Card`'s hairline, chart baseline                     |
+| `subtle` / `--muted`   | `#606060`            | `#8A8A8A`                 | Labels, placeholders, disabled — never load-bearing (~2.9:1 by design) |
+| `soft` / `--body`      | `#b4b4b4`            | `#4D4D4D`                 | Body text, meter fills, rank-1 chart series                            |
+| `ink` / `--strong`     | `#eeeeee`            | `#1A1A1A`                 | Headings, key numerals                                                 |
+| `primary` / `--signal` | `#DA5C2C`            | `#B4441C`                 | CTA · active · breach. Never decoration, never a large fill            |
 
 Row-hover fill is `chrome` — one step up from the floor, which is how a hairline table gets a
 hover state without borders.
@@ -113,19 +113,19 @@ type is `Inter` (`font-sans`); `IBM Plex Mono` (`font-mono`) is reserved for dat
 currency, counts, ids, key prefixes, timestamps, `kbd` — and always carries `data-numeral` for
 tabular figures. One definition per role, `packages/ui-web/src/lib/type-roles.ts`:
 
-| Role | Class | Size / weight | Family | Used for |
-| --- | --- | --- | --- | --- |
-| Page title | `PAGE_TITLE_CLASS` | 24px / semibold, 1.2 | sans | `PageHeader`'s `title` — one per screen |
-| Page subtitle | `PAGE_SUBTITLE_CLASS` | 13px, 1.5 | sans | `PageHeader`'s scope/context line |
-| Section title | `SECTION_TITLE_CLASS` | 15px / medium | sans | `Card`'s own title, a dashboard zone heading |
-| Label | `LABEL_CLASS` | 12px | sans | Field labels, table column headers, section labels |
-| Body | `BODY_CLASS` | 13px, 1.5 | sans | Sentence-copy prose — hints, explanations |
-| Meta | `META_CLASS` | 12px, 1.45 | sans | Captions, non-load-bearing metadata |
-| Error text | `ERROR_TEXT_CLASS` | 13px | sans | `ErrorLine`'s own text |
-| Data | `DATA_CLASS` / `DATA_INK_CLASS` | 13px | mono, `data-numeral` | Table cells: counts, ids, dates, currency |
-| Metric | `METRIC_CLASS` | 28px, 1.15 | mono, `data-numeral` | Stat-card values, table footers |
-| Hero metric | `HERO_METRIC_CLASS` | 34px, 1.1 | mono, `data-numeral` | The one number a screen is about (budget hero) |
-| Hero ceiling | `HERO_CEILING_CLASS` | 13px | sans | The reference value beside a hero metric ("of $2,000.00") |
+| Role          | Class                           | Size / weight        | Family               | Used for                                                  |
+| ------------- | ------------------------------- | -------------------- | -------------------- | --------------------------------------------------------- |
+| Page title    | `PAGE_TITLE_CLASS`              | 24px / semibold, 1.2 | sans                 | `PageHeader`'s `title` — one per screen                   |
+| Page subtitle | `PAGE_SUBTITLE_CLASS`           | 13px, 1.5            | sans                 | `PageHeader`'s scope/context line                         |
+| Section title | `SECTION_TITLE_CLASS`           | 15px / medium        | sans                 | `Card`'s own title, a dashboard zone heading              |
+| Label         | `LABEL_CLASS`                   | 12px                 | sans                 | Field labels, table column headers, section labels        |
+| Body          | `BODY_CLASS`                    | 13px, 1.5            | sans                 | Sentence-copy prose — hints, explanations                 |
+| Meta          | `META_CLASS`                    | 12px, 1.45           | sans                 | Captions, non-load-bearing metadata                       |
+| Error text    | `ERROR_TEXT_CLASS`              | 13px                 | sans                 | `ErrorLine`'s own text                                    |
+| Data          | `DATA_CLASS` / `DATA_INK_CLASS` | 13px                 | mono, `data-numeral` | Table cells: counts, ids, dates, currency                 |
+| Metric        | `METRIC_CLASS`                  | 28px, 1.15           | mono, `data-numeral` | Stat-card values, table footers                           |
+| Hero metric   | `HERO_METRIC_CLASS`             | 34px, 1.1            | mono, `data-numeral` | The one number a screen is about (budget hero)            |
+| Hero ceiling  | `HERO_CEILING_CLASS`            | 13px                 | sans                 | The reference value beside a hero metric ("of $2,000.00") |
 
 Sentence case everywhere — no all-caps labels. Numeric columns are right-aligned; the mono family
 makes the digits line up as a ledger.
@@ -236,22 +236,22 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 
 ### Nav destinations
 
-| Nav item | Group / area | Route |
-| --- | --- | --- |
-| Overview | Workspace | `/accounts/<id>/overview` |
-| API keys | Workspace | `/accounts/<id>/api-keys` |
-| Settings | Account | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
-| Refill requests | Operator (admin only) | `/settings/refills-queue` |
-| — Settings: Overview | Settings area | `/settings/overview` → lens picker (§5.5) |
-| — Settings: Accounts | Settings area | `/settings/accounts` → `/settings/accounts/<id>` |
-| — Settings: Roles | Settings area | *(disabled, no route)* |
-| — Settings: Tier configs | Settings area | `/settings/tiers` |
-| — Settings: Project policies | Settings area | `/settings/policies` |
-| — Settings: Refill options policies | Settings area | `/settings/refill-options` |
-| — Settings: Refills queue | Settings area (admin only) | `/settings/refills-queue` |
-| — Settings: Info | Settings area | `/settings/info` |
-| Projects (per account) | *(reached via the Accounts nav row → account detail's own tab, not a top-level row)* | `/settings/accounts/<id>/projects` |
-| Request refill (per account) | *(reached via the Budget card / palette / account detail's own tab)* | `/settings/accounts/<id>/request-refill` |
+| Nav item                            | Group / area                                                                         | Route                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Overview                            | Workspace                                                                            | `/accounts/<id>/overview`                                                   |
+| API keys                            | Workspace                                                                            | `/accounts/<id>/api-keys`                                                   |
+| Settings                            | Account                                                                              | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`) |
+| Refill requests                     | Operator (admin only)                                                                | `/settings/refills-queue`                                                   |
+| — Settings: Overview                | Settings area                                                                        | `/settings/overview` → lens picker (§5.5)                                   |
+| — Settings: Accounts                | Settings area                                                                        | `/settings/accounts` → `/settings/accounts/<id>`                            |
+| — Settings: Roles                   | Settings area                                                                        | _(disabled, no route)_                                                      |
+| — Settings: Tier configs            | Settings area                                                                        | `/settings/tiers`                                                           |
+| — Settings: Project policies        | Settings area                                                                        | `/settings/policies`                                                        |
+| — Settings: Refill options policies | Settings area                                                                        | `/settings/refill-options`                                                  |
+| — Settings: Refills queue           | Settings area (admin only)                                                           | `/settings/refills-queue`                                                   |
+| — Settings: Info                    | Settings area                                                                        | `/settings/info`                                                            |
+| Projects (per account)              | _(reached via the Accounts nav row → account detail's own tab, not a top-level row)_ | `/settings/accounts/<id>/projects`                                          |
+| Request refill (per account)        | _(reached via the Budget card / palette / account detail's own tab)_                 | `/settings/accounts/<id>/request-refill`                                    |
 
 `/` is the account resolver (ADR 0013 D1), not a nav destination in its own right — every nav href
 above degrades to it (`?next=<segment>`) when no account is yet known.
@@ -268,60 +268,61 @@ list.
 
 **Shell**
 
-| Component | Contract |
-| --- | --- |
-| `ConsoleShell` | Owns the two-column grid (`sidebar` / `topBar` / `banner` / `children` slots) and nothing of its own — `lib/shell-grid.ts` carries every geometry decision |
-| `ConsoleSidebar` | The persistent left column: brand, workspace switcher, `NavSpine` (sidebar layout), footer stack. Also renders the mobile bottom-nav dock from the same `groups` prop |
-| `ConsoleTopBar` | The `<md` replacement for the sidebar: brand, compact workspace switcher, `⌘K` trigger, identity — a 48px sticky band |
-| `NavSpine` | The nav groups, rendered as either a vertical `sidebar` list or a `bottom-bar` dock from one `groups` prop; active item = `aria-current="page"` via Base UI `navigation-menu` |
-| `SubNav` | A second nav level: vertical (with counts, unused post-revamp since Settings moved to real routes) or horizontal text-tab row (`/settings`'s Account/Projects switch, Attio pattern) |
-| `CommandPaletteTrigger` / `CommandPalette` | `⌘K`/`Ctrl-K` palette — cmdk. Page jumps, scope switch |
+| Component                                  | Contract                                                                                                                                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ConsoleShell`                             | Owns the two-column grid (`sidebar` / `topBar` / `banner` / `children` slots) and nothing of its own — `lib/shell-grid.ts` carries every geometry decision                           |
+| `ConsoleSidebar`                           | The persistent left column: brand, workspace switcher, `NavSpine` (sidebar layout), footer stack. Also renders the mobile bottom-nav dock from the same `groups` prop                |
+| `ConsoleTopBar`                            | The `<md` replacement for the sidebar: brand, compact workspace switcher, `⌘K` trigger, identity — a 48px sticky band                                                                |
+| `NavSpine`                                 | The nav groups, rendered as either a vertical `sidebar` list or a `bottom-bar` dock from one `groups` prop; active item = `aria-current="page"` via Base UI `navigation-menu`        |
+| `SubNav`                                   | A second nav level: vertical (with counts, unused post-revamp since Settings moved to real routes) or horizontal text-tab row (`/settings`'s Account/Projects switch, Attio pattern) |
+| `CommandPaletteTrigger` / `CommandPalette` | `⌘K`/`Ctrl-K` palette — cmdk. Page jumps, scope switch                                                                                                                               |
 
 **Data display**
 
-| Component | Contract |
-| --- | --- |
-| `Card` | The console's one generic panel: `surface` fill, `border` hairline at `--radius-box`, 1.25rem inset, optional `.card-head` title/actions row. Wraps every self-contained zone (ADR 0012 D3) |
-| `StatCard` | Self-panelled (keeps its own `surface` fill even inside a `Card`-wrapped row): glyph, `label`, `metric` numeral, delta line, right-hand `Sparkline`. Never tinted, never coloured by value |
-| `Sparkline` | 81×26 unlabelled polyline in `border` with a `body` terminal dot — no axis, no tooltip |
-| `LedgerTable` | Midday-derived treatment: hairline `raised` rules, no striping, right-aligned numerics, `role=grid` when selectable, always-visible row actions |
-| `Pagination` | Caption + Previous/Next. Renders **nothing** when the caller wires neither direction — no pager with dead disabled buttons |
-| `StatusText` | Status as text, never a pill: `body` active, `muted` revoked/archived, `signal` expiring/near-ceiling |
-| `RowActionGroup` | Always-visible lifecycle actions, separated by diagonal hairlines, ordered `Rotate ╱ Revoke ╱ Del` with revoke emphasised |
-| `Meter` | 4px track + fill; `body` under threshold, `signal` at/past it; paired with `"$X of $Y"` in mono |
-| `BudgetHero` | Hero metric + `of $ceiling` + `Meter` + caption + inline action |
+| Component        | Contract                                                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Card`           | The console's one generic panel: `surface` fill, `border` hairline at `--radius-box`, 1.25rem inset, optional `.card-head` title/actions row. Wraps every self-contained zone (ADR 0012 D3) |
+| `StatCard`       | Self-panelled (keeps its own `surface` fill even inside a `Card`-wrapped row): glyph, `label`, `metric` numeral, delta line, right-hand `Sparkline`. Never tinted, never coloured by value  |
+| `Sparkline`      | 81×26 unlabelled polyline in `border` with a `body` terminal dot — no axis, no tooltip                                                                                                      |
+| `LedgerTable`    | Midday-derived treatment: hairline `raised` rules, no striping, right-aligned numerics, `role=grid` when selectable, always-visible row actions                                             |
+| `Pagination`     | Caption + Previous/Next. Renders **nothing** when the caller wires neither direction — no pager with dead disabled buttons                                                                  |
+| `StatusText`     | Status as text, never a pill: `body` active, `muted` revoked/archived, `signal` expiring/near-ceiling                                                                                       |
+| `RowActionGroup` | Always-visible lifecycle actions, separated by diagonal hairlines, ordered `Rotate ╱ Revoke ╱ Del` with revoke emphasised                                                                   |
+| `Meter`          | 4px track + fill; `body` under threshold, `signal` at/past it; paired with `"$X of $Y"` in mono                                                                                             |
+| `BudgetHero`     | Hero metric + `of $ceiling` + `Meter` + caption + inline action                                                                                                                             |
 
 **Charts** (DOM ports of `chart-core` d3 primitives — monochrome ramp, ADR 0008 D6)
 
-| Component | Contract |
-| --- | --- |
-| `SpendSeriesChart` | Multi-series line/area over time; exactly one series may be `signal` |
-| `LatencyRidgeline` | Stacked density ridges by model; a ridge over SLO strokes `signal` |
-| `ShareBar` | 100%-stacked part-to-whole bar over a ranked list; at most one segment `signal` |
-| `ChartLegend` | Swatch + name + value; the selected entry is `ink` + `signal` swatch |
-| `ChartTooltip` | Floating-UI-positioned, anchored to a virtual point over the `<svg>` |
+| Component          | Contract                                                                        |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `SpendSeriesChart` | Multi-series line/area over time; exactly one series may be `signal`            |
+| `LatencyRidgeline` | Stacked density ridges by model; a ridge over SLO strokes `signal`              |
+| `ShareBar`         | 100%-stacked part-to-whole bar over a ranked list; at most one segment `signal` |
+| `ChartLegend`      | Swatch + name + value; the selected entry is `ink` + `signal` swatch            |
+| `ChartTooltip`     | Floating-UI-positioned, anchored to a virtual point over the `<svg>`            |
 
 **Forms, actions, states**
 
-| Component | Contract |
-| --- | --- |
-| `PageHeader` | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `controls` (inline screen parameters), `action` (the one emphasised control) |
-| `EmptyState` | First-run empty (ADR 0012 D6): headline, explainer, CTA, centred inside a `Card` |
-| `InlineStatus` | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay |
-| `ErrorLine` | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line |
-| `SkeletonRow` / `SkeletonMetric` | `raised` blocks matched to final geometry — no shimmer, no spinner |
-| `BottomSheet` | Base UI `Drawer`, bottom-docked only (never from a side). Hosts a selected row's detail **at every tier** — ADR 0013's phase E amendment moved the right rail's one live case off the account area entirely, so `BottomSheet` is the ONE detail surface left anywhere in the console, not a below-`lg` fallback for a rail (`DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted) |
-| `RailResizer` | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` — still a real `ConsoleShell` capability (`packages/ui-web`'s own stories exercise it), but `apps/console` has no live route feeding the rail any more (phase E) |
-| `AccountDirectory` | `/settings/accounts`'s own list section — one row per account (name/label, status/tier summary), each a link into its detail page; `EmptyState` for the genuine zero-accounts case |
-| `AccountDetailSubNav` | The three-tab horizontal `SubNav` row shared by `/settings/accounts/<id>`, `.../projects` and `.../request-refill` (Overview · Projects · Request refill) |
-| `Button` | `primary` = `signal` fill; `secondary` = `border` outline; `ghost` = text only |
-| `Field` / `SelectField` / `DateRangeField` | Base UI `Field`/`Select` wearing daisy classes |
-| `SegmentedControl` | Base UI Toggle Group + daisy `tabs` |
-| `ScopeSelect` | Account → project cascade (used where a screen still needs a project *parameter*, distinct from the sidebar's account *identity* switcher) |
-| `SecretReveal` | One-time secret strip: heading, read-only mono field, `Copy` primary, dismissed only by explicit `×` |
-| `TypedConfirmDialog` | Destructive gate: names the object, requires the object name typed exactly |
-| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV|PDF` segmented · one `Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and `/settings/accounts/<id>/projects` |
-| `ReviewDetailPanel` | The content `/settings/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (settings has no right rail at any tier — ADR 0013 D2 — one of two screens, alongside `/settings/accounts/<id>/projects`, where `BottomSheet` is the review surface even at `lg`+): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline` |
+| Component                                  | Contract                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PageHeader`                               | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `controls` (inline screen parameters), `action` (the one emphasised control)                                                                                                                                                                                                                                           |
+| `EmptyState`                               | First-run empty (ADR 0012 D6): headline, explainer, CTA, centred inside a `Card`                                                                                                                                                                                                                                                                                                                        |
+| `InlineStatus`                             | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay                                                                                                                                                                                                                                                                             |
+| `ErrorLine`                                | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line                                                                                                                                                                                                                                                                                                               |
+| `SkeletonRow` / `SkeletonMetric`           | `raised` blocks matched to final geometry — no shimmer, no spinner                                                                                                                                                                                                                                                                                                                                      |
+| `BottomSheet`                              | Base UI `Drawer`, bottom-docked only (never from a side). Hosts a selected row's detail **at every tier** — ADR 0013's phase E amendment moved the right rail's one live case off the account area entirely, so `BottomSheet` is the ONE detail surface left anywhere in the console, not a below-`lg` fallback for a rail (`DetailSheet`, the old fixed-420px right-panel `Dialog`, is deleted)        |
+| `RailResizer`                              | Drag/keyboard-resizable divider for the right rail column, 240–480px, persisted per viewer in `localStorage` — still a real `ConsoleShell` capability (`packages/ui-web`'s own stories exercise it), but `apps/console` has no live route feeding the rail any more (phase E)                                                                                                                           |
+| `AccountDirectory`                         | `/settings/accounts`'s own list section — one row per account (name/label, status/tier summary), each a link into its detail page; `EmptyState` for the genuine zero-accounts case                                                                                                                                                                                                                      |
+| `AccountDetailSubNav`                      | The three-tab horizontal `SubNav` row shared by `/settings/accounts/<id>`, `.../projects` and `.../request-refill` (Overview · Projects · Request refill)                                                                                                                                                                                                                                               |
+| `Button`                                   | `primary` = `signal` fill; `secondary` = `border` outline; `ghost` = text only                                                                                                                                                                                                                                                                                                                          |
+| `Field` / `SelectField` / `DateRangeField` | Base UI `Field`/`Select` wearing daisy classes. Both `Field` and `SelectField` carry an `example?: string` slot — a muted `meta` line BETWEEN the label and the control, in the control's `aria-describedby`, and never a placeholder, so it stays readable while the author types (issue #445). `stacked` layout only                                                                                  |
+| `SegmentedControl`                         | Base UI Toggle Group + daisy `tabs`                                                                                                                                                                                                                                                                                                                                                                     |
+| `ScopeSelect`                              | Account → project cascade (used where a screen still needs a project _parameter_, distinct from the sidebar's account _identity_ switcher)                                                                                                                                                                                                                                                              |
+| `SecretReveal`                             | One-time secret strip: heading, read-only mono field, `Copy` primary, dismissed only by explicit `×`                                                                                                                                                                                                                                                                                                    |
+| `TypedConfirmDialog`                       | Destructive gate: names the object, requires the object name typed exactly                                                                                                                                                                                                                                                                                                                              |
+| `ConfirmDialog`                            | Plain yes/no gate for discarding UNSAVED LOCAL work (e.g. "Start from example policy" overwriting a draft). Same panel as the typed gate, no name to type — reach for `TypedConfirmDialog` instead whenever the loss survives the tab closing                                                                                                                                                           |
+| `ReportExportDialog` / `ReportExportPanel` | Period · scope · group-by · includes · `CSV                                                                                                                                                                                                                                                                                                                                                             | PDF`segmented · one`Generate report` primary. **`Dialog`, not a rail form** (ADR 0012 D7) — reachable from Overview and `/settings/accounts/<id>/projects` |
+| `ReviewDetailPanel`                        | The content `/settings/refills-queue` shows for a selected refill request, inside `BottomSheet` **at every tier** (settings has no right rail at any tier — ADR 0013 D2 — one of two screens, alongside `/settings/accounts/<id>/projects`, where `BottomSheet` is the review surface even at `lg`+): subject, consumption, requested tier, requester note, history, decision note, `Approve`/`Decline` |
 
 ---
 
@@ -360,10 +361,10 @@ opening `ReportExportDialog`) → the money-first stat row (`OverviewStatRow`, s
   `AccountBadge` in the sidebar's workspace switcher (a name, or `acct_49534505` when unnamed,
   never a raw UUID); project is a genuine `?project=` parameter and leads the toolbar, filtered to
   the path account only (ADR 0013 D3 — the project picker never leaks another account's projects).
-- `SecretReveal` occupies the top of the centre after create *or* rotate — both return the same
+- `SecretReveal` occupies the top of the centre after create _or_ rotate — both return the same
   one-time secret, so they share one component and contract.
 - The ledger's toolbar + table + pager sit inside **one `Card`**. Columns: `NAME · PREFIX · STATUS
-  · CREATED · LAST USED · EXPIRES`, `RowActionGroup` always visible in the trailing column.
+· CREATED · LAST USED · EXPIRES`, `RowActionGroup` always visible in the trailing column.
 - **Revoke is the emphasised action** (ADR 0003): `ink` text, while `Rotate` is `body` and `Del` is
   `muted`.
 - `ApiKeysHygieneNotes` is an inline-status block above the table: expiring keys in `signal`,
@@ -410,7 +411,7 @@ to `/settings/overview/usage`, the designated landing lens.
 **Overview — the estate/analytics lens family**, all built on ADR 0013 D5's ranked-rows doctrine:
 
 - `/settings/overview/usage` (`UsageOverviewCentre`) — the cross-account **estate overview**, the
-  actual landing screen: `PageHeader` (range only — no project/user picker, it *is* the
+  actual landing screen: `PageHeader` (range only — no project/user picker, it _is_ the
   cross-account view) → stat row → "Spend over time" (a `line` chart — the one place dense,
   estate-wide data reads honestly as a line rather than day-bucketed bars) with a dashed
   previous-period comparison → "Spend by account" (`RankedSeriesRows`, value/delta sort toggle,
@@ -431,7 +432,7 @@ settings/accounts move" — new this phase, `settings-accounts.stories.tsx`):
 
 - `/settings/accounts` (`AccountsCentre`) — the identity's account family, the SAME data the
   workspace switcher lists (`AccountDirectory`), each row linking to its own detail page. `+ New
-  account` is the `PageHeader` action, moved here off `/settings/policies`.
+account` is the `PageHeader` action, moved here off `/settings/policies`.
 - `/settings/accounts/<id>` (`AccountDetailCentre`) — three `Card`s: `AccountSettings` (rename +
   id/status/tier facts, also moved off `/settings/policies` verbatim), `Budget` (the honest
   budget-ceiling fact, home-account-gated exactly like `/`'s own Budget card — Phase 2d's
@@ -447,7 +448,7 @@ D2's honesty-doctrine extension to navigation — a row that looks live but 404s
 fabrication; a disabled row with a stated reason is the honest middle ground.
 
 **Tier configs** — `/settings/tiers`: two read-only catalogues, no picker. "Billing plans" is a
-`ZoneHeading` directly on the floor above one `Card` *per plan* (never nested inside a wrapping
+`ZoneHeading` directly on the floor above one `Card` _per plan_ (never nested inside a wrapping
 `Card`); "Assigned quota tiers" is the ordinary single-`Card`-of-rows treatment.
 
 **Project policies** — `/settings/policies` (renamed from "Account / Project policies" this phase
@@ -491,14 +492,14 @@ entirely: no sidebar, no nav group, `#000`/floor full-bleed.
   sans prose explaining sign-in happens at the identity provider → one primary button → nothing
   else.
 - **Signed-out state**: an `InlineStatus` line above the button — `Your session ended · signed out
-  2 minutes ago` in `muted`. Not a modal, not a toast.
+2 minutes ago` in `muted`. Not a modal, not a toast.
 - **Redirect-in-flight**: the button becomes `muted` with the label `Redirecting…`; no spinner.
 - **Callback error — fixed 2026-08-30 (phase 7 polish).** The pre-revamp spec described a
-  standing `ErrorLine` with its own `Try again` ghost button, stacked *under* an always-rendered
+  standing `ErrorLine` with its own `Try again` ghost button, stacked _under_ an always-rendered
   "Continue to sign in" primary — two controls that both restarted the identical redirect. There
   is now exactly **one** control at a time: the error message renders above it (the reader sees
-  *why* before deciding what to do), and the single primary button **relabels itself** to `Try
-  again` and calls `onRetry` (falling back to `onSignIn`) once `status === 'error'`. `ErrorLine`
+  _why_ before deciding what to do), and the single primary button **relabels itself** to `Try
+again` and calls `onRetry` (falling back to `onSignIn`) once `status === 'error'`. `ErrorLine`
   no longer owns retry on this screen.
 
 ---
@@ -511,14 +512,14 @@ entirely: no sidebar, no nav group, `#000`/floor full-bleed.
 is an inline status line" rule (which assumed every screen had a rail to keep it company) with two
 components for two distinct situations:
 
-| Situation | Treatment |
-| --- | --- |
-| First-run: no API keys yet in this project | `EmptyState` inside the `Card`: headline, explainer, CTA (same button as the screen's `+ New key`/`+ New project`) |
-| First-run: no projects in this account | Same |
-| Filtered to nothing (status/search filter excludes every row) | `InlineStatus` + a `Reset filters` ghost button, table header retained so the columns still teach the shape of the data |
-| No pending refills | `InlineStatus`: `Nothing awaiting a decision.` |
-| Chart has no data in range | Axes render; a `muted` DOM-text line (never SVG `<text>`, which does not wrap) sits on the baseline: `No usage in this range.` |
-| Query unresolved / still loading | `SkeletonRow`/`SkeletonMetric` — never `EmptyState`, which gates strictly on a *settled* query returning zero rows |
+| Situation                                                     | Treatment                                                                                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| First-run: no API keys yet in this project                    | `EmptyState` inside the `Card`: headline, explainer, CTA (same button as the screen's `+ New key`/`+ New project`)             |
+| First-run: no projects in this account                        | Same                                                                                                                           |
+| Filtered to nothing (status/search filter excludes every row) | `InlineStatus` + a `Reset filters` ghost button, table header retained so the columns still teach the shape of the data        |
+| No pending refills                                            | `InlineStatus`: `Nothing awaiting a decision.`                                                                                 |
+| Chart has no data in range                                    | Axes render; a `muted` DOM-text line (never SVG `<text>`, which does not wrap) sits on the baseline: `No usage in this range.` |
+| Query unresolved / still loading                              | `SkeletonRow`/`SkeletonMetric` — never `EmptyState`, which gates strictly on a _settled_ query returning zero rows             |
 
 ### Loading
 
@@ -553,10 +554,10 @@ load. No parallax, no reveal-on-scroll.
 
 ## 7. Responsive behaviour
 
-| Tier | Navigation | Content column |
-| --- | --- | --- |
-| **≥`md` (600px+)** | Persistent 240px sidebar, sticky, independently scrollable | Fluid, `max-w-[1120px]`, `PageHeader` + `Card`s stacked vertically |
-| **<`md`** | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageHeader.controls` wraps; ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
+| Tier               | Navigation                                                                                    | Content column                                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **≥`md` (600px+)** | Persistent 240px sidebar, sticky, independently scrollable                                    | Fluid, `max-w-[1120px]`, `PageHeader` + `Card`s stacked vertically                                                                                                                 |
+| **<`md`**          | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageHeader.controls` wraps; ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
 
 There is no third, "compact rail" tier — the old three-tier (full/compact/guard-rail) breakpoint
 table described a right rail with a different contract than today's, and ADR 0013's phase E
@@ -730,43 +731,106 @@ stateDiagram-v2
     Failed --> Idle: parameters edited
 ```
 
+### 8.4 Authoring a refill policy from the example (issue #445)
+
+`/admin/refill-policies/create` only. Every field of `RuleSetForm` carries its own example line, and
+one action fills the whole form with a sample that the form's OWN validator accepts — the create
+route's hook holds a dirty bit so the fill never silently discards typed input.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Admin
+    participant V as RefillPolicyFormView
+    participant H as useRefillPolicyCreateScreen
+    participant X as createExampleRuleSet()
+    participant C as ConfirmDialog
+    participant API as activateBudgetPolicy / createBudgetPolicyRevision
+
+    Note over V: every Field/SelectField renders its RULE_SET_FIELD_EXAMPLES line under its label
+    A->>V: PageHeader control "Start from example policy"
+    V->>H: startFromExample.onStart()
+    alt draft still pristine
+        H->>X: createExampleRuleSet()
+        X-->>H: ladder 2/5/10/25 - starting 2 - floor 1 - 3 rules
+        H-->>V: policySetId + ruleSet filled, validateRuleSet() === undefined
+    else draft already typed into
+        H->>C: confirmOpen = true
+        C-->>A: "overwrites every field, including the id - nothing here is saved"
+        alt confirmed
+            A->>C: Replace my draft
+            C->>H: onConfirm() - same fill as above
+        else cancelled
+            A->>C: Cancel / Escape
+            C->>H: onCancelConfirm() - draft untouched
+        end
+    end
+    A->>V: edit the filled draft (or submit it unchanged)
+    V->>API: Create & activate / Save as revision only
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> PristineDraft
+    PristineDraft --> FilledFromExample: Start from example policy
+    PristineDraft --> DirtyDraft: any field edited
+    DirtyDraft --> ConfirmingOverwrite: Start from example policy
+    ConfirmingOverwrite --> DirtyDraft: cancel (nothing discarded)
+    ConfirmingOverwrite --> FilledFromExample: confirm
+    FilledFromExample --> DirtyDraft: any field edited
+    FilledFromExample --> ConfirmingOverwrite: Start from example policy again
+    FilledFromExample --> Submitted: Create & activate / Save as revision only
+    DirtyDraft --> Submitted: Create & activate / Save as revision only
+    Submitted --> [*]
+    note right of FilledFromExample
+        Submittable unchanged - example-policy.test.ts
+        asserts validateRuleSet() accepts it
+    end note
+```
+
+**Unreachable on purpose:** the edit route (`/admin/refill-policies?edit=<id>`) has no
+`FilledFromExample` state at all — `startFromExample` is absent from the edit hook's return value,
+so the action never renders there.
+
+---
+
 ---
 
 ## 9. Decision ledger
 
-| Decision | Source | Why |
-| --- | --- | --- |
-| Near-black tonal stack `#000 → #111 → #191919 → #202020` | Axiom style, via ADR 0008 D5 | Unchanged by the revamp — see §1.1 |
-| `#DA5C2C` for CTA, active state and "needs you" only | Axiom; ADR 0008 D5–D6 | The one rule that makes the console legible at a glance |
-| Sans-first type, mono for data only | **2026-08-30**, ADR 0012 D2 | Matches the reference lock (Anthropic Console, fal.ai, Cartesia, Attio all set structural chrome in a sans face) |
-| Radius 8px (panels) / 4px (controls) | **2026-08-30**, ADR 0012 D4 | Superseded the flush 2px rule once panels became cards with real insets |
-| Two-column shell, no *permanent* right rail | **2026-08-30**, ADR 0012 D1 | Owner review: a permanent 280px column for five controls cost too much of the viewport on two of four screens, and the inconsistency (rail on two screens, none on two) was itself the defect |
-| Cards are the default zone container | **2026-08-30**, ADR 0012 D3 | Reference lock unanimous: every named product cards its dashboard content on a floor |
-| One dashboard, role-parameterised; no admin-only zone on it at all | **2026-08-30 → 2026-08-31**, ADR 0012 D5, superseded by ADR 0013 (build brief §7) | A standalone admin dashboard route duplicated Overview's own zones; then even Overview's own admin-only zones (Budget pressure, Key hygiene) moved out to the settings-area estate lenses, leaving Overview real for every signed-in user with nothing gated on it |
-| `EmptyState` for first-run, `InlineStatus` for filtered/unavailable | **2026-08-30**, ADR 0012 D6 | A genuinely empty first-run screen has nothing else on it — the centred placard earns its place back, narrowly |
-| Right rail returned, then narrowed to one case | **2026-08-30 → 2026-08-31**, ADR 0012 D7, superseded by ADR 0013 D2 | The owner brought the rail back for selection-driven detail, then deleted its one *standing* case (the Overview quick-settings panel) once every mutation it hosted had its own better home — see §3 |
-| Report export = `Dialog`, not a rail panel | **2026-08-30**, ADR 0012 D7 | Reachable from Overview and Projects, unaffected by the rail's later narrowing |
-| Refill is a page, not a shared dialog | **2026-08-31**, ADR 0013 D4 | `RequestRefillDialog` had drifted into flow territory (its own history, its own status reads) while still being modal chrome; a page gave it a real URL |
-| Account into the URL path; project stays `?project=` | **2026-08-31**, ADR 0013 D1 | Bookmark stability for the account, "absent means all" for the project — see D1's own two reasons |
-| A dedicated settings area, one shell mount, no right rail in it | **2026-08-31**, ADR 0013 D2 | Seven destinations needed real navigation, not five loose screens; a sibling shell mount would have remounted the sidebar on every account↔settings hop |
-| Ranked, normalized-sparkline rows as the default breakdown; `ShareBar` survives once | **2026-08-31**, ADR 0013 D5 | Grounded in a 726k-row measurement: top-1 ≥95% share is the *common* case, and a part-to-whole chart reads as a wall the moment one series dominates |
-| Monochrome chart ramp, one orange series max | ADR 0008 D6 | Unchanged — accent is signal, not category |
-| Budget number, ceiling and refill CTA on one line | OpenAI + Cohere (ADR 0008 D7) | Unchanged |
-| Hairline ledger tables, always-visible row actions | Midday via ADR 0008 D5 | Row actions moved from hover-only to always-visible during the revamp — hover-only is keyboard-invisible |
-| Status as text, not pills | shadcn/Fingerprint restraint (ADR 0001) | Unchanged |
-| Revoke emphasised over Delete; typed confirmation | ADR 0003 + Gladia flow 10901 | Unchanged |
-| One-time secret shown in the centre, dismissed explicitly | Cohere/Exa flows | Unchanged |
-| Empty/filtered states never hide a chart's axes or a table's header | Owner constraint + house rule | A disappearing frame reads as broken |
-| Skeletons matched to geometry; no spinners | Cursor/Gladia loading treatments | Unchanged |
-| Auth error state: one control, relabelled, not two stacked | **2026-08-30**, phase 7 polish | Two controls both restarting the identical redirect was itself the defect |
+| Decision                                                                             | Source                                                                            | Why                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Near-black tonal stack `#000 → #111 → #191919 → #202020`                             | Axiom style, via ADR 0008 D5                                                      | Unchanged by the revamp — see §1.1                                                                                                                                                                                                                                 |
+| `#DA5C2C` for CTA, active state and "needs you" only                                 | Axiom; ADR 0008 D5–D6                                                             | The one rule that makes the console legible at a glance                                                                                                                                                                                                            |
+| Sans-first type, mono for data only                                                  | **2026-08-30**, ADR 0012 D2                                                       | Matches the reference lock (Anthropic Console, fal.ai, Cartesia, Attio all set structural chrome in a sans face)                                                                                                                                                   |
+| Radius 8px (panels) / 4px (controls)                                                 | **2026-08-30**, ADR 0012 D4                                                       | Superseded the flush 2px rule once panels became cards with real insets                                                                                                                                                                                            |
+| Two-column shell, no _permanent_ right rail                                          | **2026-08-30**, ADR 0012 D1                                                       | Owner review: a permanent 280px column for five controls cost too much of the viewport on two of four screens, and the inconsistency (rail on two screens, none on two) was itself the defect                                                                      |
+| Cards are the default zone container                                                 | **2026-08-30**, ADR 0012 D3                                                       | Reference lock unanimous: every named product cards its dashboard content on a floor                                                                                                                                                                               |
+| One dashboard, role-parameterised; no admin-only zone on it at all                   | **2026-08-30 → 2026-08-31**, ADR 0012 D5, superseded by ADR 0013 (build brief §7) | A standalone admin dashboard route duplicated Overview's own zones; then even Overview's own admin-only zones (Budget pressure, Key hygiene) moved out to the settings-area estate lenses, leaving Overview real for every signed-in user with nothing gated on it |
+| `EmptyState` for first-run, `InlineStatus` for filtered/unavailable                  | **2026-08-30**, ADR 0012 D6                                                       | A genuinely empty first-run screen has nothing else on it — the centred placard earns its place back, narrowly                                                                                                                                                     |
+| Right rail returned, then narrowed to one case                                       | **2026-08-30 → 2026-08-31**, ADR 0012 D7, superseded by ADR 0013 D2               | The owner brought the rail back for selection-driven detail, then deleted its one _standing_ case (the Overview quick-settings panel) once every mutation it hosted had its own better home — see §3                                                               |
+| Report export = `Dialog`, not a rail panel                                           | **2026-08-30**, ADR 0012 D7                                                       | Reachable from Overview and Projects, unaffected by the rail's later narrowing                                                                                                                                                                                     |
+| Refill is a page, not a shared dialog                                                | **2026-08-31**, ADR 0013 D4                                                       | `RequestRefillDialog` had drifted into flow territory (its own history, its own status reads) while still being modal chrome; a page gave it a real URL                                                                                                            |
+| Account into the URL path; project stays `?project=`                                 | **2026-08-31**, ADR 0013 D1                                                       | Bookmark stability for the account, "absent means all" for the project — see D1's own two reasons                                                                                                                                                                  |
+| A dedicated settings area, one shell mount, no right rail in it                      | **2026-08-31**, ADR 0013 D2                                                       | Seven destinations needed real navigation, not five loose screens; a sibling shell mount would have remounted the sidebar on every account↔settings hop                                                                                                            |
+| Ranked, normalized-sparkline rows as the default breakdown; `ShareBar` survives once | **2026-08-31**, ADR 0013 D5                                                       | Grounded in a 726k-row measurement: top-1 ≥95% share is the _common_ case, and a part-to-whole chart reads as a wall the moment one series dominates                                                                                                               |
+| Monochrome chart ramp, one orange series max                                         | ADR 0008 D6                                                                       | Unchanged — accent is signal, not category                                                                                                                                                                                                                         |
+| Budget number, ceiling and refill CTA on one line                                    | OpenAI + Cohere (ADR 0008 D7)                                                     | Unchanged                                                                                                                                                                                                                                                          |
+| Hairline ledger tables, always-visible row actions                                   | Midday via ADR 0008 D5                                                            | Row actions moved from hover-only to always-visible during the revamp — hover-only is keyboard-invisible                                                                                                                                                           |
+| Status as text, not pills                                                            | shadcn/Fingerprint restraint (ADR 0001)                                           | Unchanged                                                                                                                                                                                                                                                          |
+| Revoke emphasised over Delete; typed confirmation                                    | ADR 0003 + Gladia flow 10901                                                      | Unchanged                                                                                                                                                                                                                                                          |
+| One-time secret shown in the centre, dismissed explicitly                            | Cohere/Exa flows                                                                  | Unchanged                                                                                                                                                                                                                                                          |
+| Empty/filtered states never hide a chart's axes or a table's header                  | Owner constraint + house rule                                                     | A disappearing frame reads as broken                                                                                                                                                                                                                               |
+| Skeletons matched to geometry; no spinners                                           | Cursor/Gladia loading treatments                                                  | Unchanged                                                                                                                                                                                                                                                          |
+| Auth error state: one control, relabelled, not two stacked                           | **2026-08-30**, phase 7 polish                                                    | Two controls both restarting the identical redirect was itself the defect                                                                                                                                                                                          |
 
 ---
 
 ## 10. Tensions
 
-*Historical tensions recorded in the pre-revamp version of this document have been resolved by
+_Historical tensions recorded in the pre-revamp version of this document have been resolved by
 [ADR 0012](../../adr/0012-console-visual-revamp.md) and are removed rather than kept as dead
-entries*: the right-panel-as-actions-vs-parameters question (screen parameters live in
+entries_: the right-panel-as-actions-vs-parameters question (screen parameters live in
 `PageHeader.controls` at every tier, unconditionally), the scalar-panel-vs-distribution-floor
 boundary (subsumed by "every zone gets a `Card`"), refine's `list/show/edit` route shape vs a
 persistent rail (resolved by the situational rail/`BottomSheet` pair, neither of which needs a

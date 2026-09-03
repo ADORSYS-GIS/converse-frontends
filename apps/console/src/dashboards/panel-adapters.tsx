@@ -16,6 +16,12 @@ import type {
   MultiSeriesSpendSeries,
 } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 import type { StatCardDelta } from '@lightbridge/ui-web/src/components/stat-card';
+import {
+  applyLinkTemplate,
+  collapseSegmentsTail,
+  resolveDashboardPanelDimension,
+  resolveDashboardSeriesStyle,
+} from '@lightbridge/ui-web/src/lib/dashboard-view-mapping';
 
 import { comparisonLabel, type UsageWindow } from '../containers/comparison-window';
 import { safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
@@ -182,9 +188,7 @@ export function panelDimension(
   spec: DashboardPanelSpec,
   groupBy: readonly string[] | undefined
 ): string | undefined {
-  const declared = spec.options?.dimension;
-  if (declared === 'none') return undefined;
-  return declared ?? (groupBy ?? spec.query.group_by)?.[0];
+  return resolveDashboardPanelDimension(spec.options?.dimension, groupBy ?? spec.query.group_by);
 }
 
 function safeRequests(point: UsageSeriesPoint): number {
@@ -471,10 +475,12 @@ export function latencyRowsByGroup(
     .sort((a, b) => b.samples - a.samples);
 }
 
-/** `options.link`'s `:key` template → a real href for one row's group value. */
+/** `options.link`'s `:key` template → a real href for one row's group value. `UNASSIGNED_KEY` is
+ *  the one sentinel this module refuses to link — an app-level fact `dashboard-view-mapping.ts`'s
+ *  shared `applyLinkTemplate` deliberately does not know about. */
 export function panelRowHref(template: string | undefined, key: string): string | undefined {
-  if (!template || key === UNASSIGNED_KEY) return undefined;
-  return template.replace(':key', encodeURIComponent(key));
+  if (key === UNASSIGNED_KEY) return undefined;
+  return applyLinkTemplate(template, key);
 }
 
 export interface PanelViewInput {
@@ -618,7 +624,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         // `ShareBar` has no Top-N notion of its own (unlike `RankedSeriesRows`), so a share panel
         // that names one folds the tail into ONE labelled `Other (N)` segment here — never drops
         // it, which would make the bar's own parts stop summing to the total beside it.
-        segments: collapseTail(
+        segments: collapseSegmentsTail(
           totalsByGroup(response, dimension ?? 'model', spec.metric).map((group) => ({
             key: group.key,
             label: label(group.key, dimension ?? 'model'),
@@ -626,7 +632,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
             formattedValue: formatMetric(group.value, spec.metric),
           })),
           topN,
-          spec.metric
+          (value) => formatMetric(value, spec.metric)
         ),
       };
 
@@ -686,27 +692,6 @@ const DONUT_EMPTY_MESSAGE: Record<string, string> = {
 
 function donutEmptyMessage(dimension: string): string | undefined {
   return DONUT_EMPTY_MESSAGE[dimension];
-}
-
-/** Top-N + one summed `Other (N)` tail segment, for the one panel type whose primitive cannot cap
- *  itself. `undefined`/oversized `topN` returns the list unchanged rather than a spurious tail. */
-function collapseTail(
-  segments: { key: string; label: string; value: number; formattedValue: string }[],
-  topN: number | undefined,
-  metric: DashboardMetric
-): { key: string; label: string; value: number; formattedValue: string }[] {
-  if (topN === undefined || segments.length <= topN) return segments;
-  const tail = segments.slice(topN);
-  const value = tail.reduce((sum, segment) => sum + segment.value, 0);
-  return [
-    ...segments.slice(0, topN),
-    {
-      key: '__other__',
-      label: `Other (${tail.length})`,
-      value,
-      formattedValue: formatMetric(value, metric),
-    },
-  ];
 }
 
 /**
@@ -906,7 +891,7 @@ function seriesView(input: PanelViewInput): DashboardPanelView {
   const derived = derivedMetricName(spec.metric);
 
   // `lines` unless the YAML says otherwise (`options.style`) — the mark, not the data.
-  const style = spec.options?.style ?? 'lines';
+  const style = resolveDashboardSeriesStyle(spec.options?.style);
   const stacked = style === 'stacked-bars';
 
   const base = {

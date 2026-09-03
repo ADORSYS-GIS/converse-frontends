@@ -17,6 +17,13 @@ import dashboardsEn from '../../../../apps/console/locales/en/dashboards.json';
 import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
 import type { MultiSeriesSpendScale } from '../components/multi-series-spend-chart';
+import {
+  applyLinkTemplate,
+  collapseSegmentsTail,
+  resolveDashboardPanelDimension,
+  resolveDashboardScale,
+  resolveDashboardSeriesStyle,
+} from '../lib/dashboard-view-mapping';
 import { formatUsd } from '../lib/money';
 import { IdentityLines } from '../lib/identity-lines';
 import { LABEL_CLASS } from '../lib/type-roles';
@@ -71,6 +78,24 @@ export interface SpecPanel {
    *  linear would be reviewing a page nobody ships: `cost-by-model` defaults to log precisely
    *  because one model at ~95% share flattens every other line on a linear axis. */
   scale?: MultiSeriesSpendScale;
+  /** `options.style` — `series` only, which MARK the panel draws (`lines`, the default, or
+   *  `stacked-bars`). Read here rather than left to the per-type fixture because a fixture drawn
+   *  as a superposed line board would review a chart nobody ships: three of `dashboards.yaml`'s
+   *  spend-by-model panels are stacks (the owner's 2026-09-03 ruling), and this is the field whose
+   *  absence let every one of them render as a plain line board in Storybook while the console
+   *  itself drew a stack (converse-frontends#487, #492). */
+  style?: 'lines' | 'stacked-bars';
+  /** `options.topN` — rows/segments/wedges before the tail collapses, for `ranked`, `share` and
+   *  `donut`. Read here because a `donut` panel's own ring collapses at a DIFFERENT count than the
+   *  panel size's default (`/admin/usage`'s three model rings collapse at 6, not the engine's own
+   *  panel-size default), and a story drawing the wrong cap reviews a ring nobody ships. */
+  topN?: number;
+  /** `options.link` — a route TEMPLATE with `:key` standing for a row's own group-by value
+   *  (`ranked`) or, with `$lens` already substituted by this panel's own `lens`, a table row's
+   *  href. Read here rather than hardcoded per table shape, which is exactly how the two
+   *  top-spender ledgers on `/admin/overview` (`?type=account` and `?type=project`) used to both
+   *  link to `?type=user` — the same fixture's own baked-in href, unread against the YAML. */
+  link?: string;
   /** The panel's own `metric` (`cost` | `requests` | `tokens` | `latency` | `derived:<name>`).
    *  A `stat` panel's FIGURE has to follow it, or a page of stats all reads "$943.60" and a
    *  reviewer cannot tell a count panel from a money one — which is half of what a page story is
@@ -100,16 +125,21 @@ export interface SpecPage {
   panels: SpecPanel[];
 }
 
-/** A panel's first `group_by` dimension, or `undefined` for an ungrouped query. */
+/** A panel's first `group_by` dimension, or `undefined` for an ungrouped query.
+ *
+ * `options.dimension` (C12, converse-frontends#455) names a dimension other than the query's
+ * first, and `'none'` names no dimension at all — the ungrouped total off a grouped query. A
+ * story that followed `group_by[0]` regardless would label a family TOTAL chart with account
+ * names. Delegates to `dashboard-view-mapping.ts`'s shared resolver — the SAME rule
+ * `panel-adapters.tsx`'s `panelDimension` reads off the validated spec — rather than restating it
+ * against the raw YAML, which is exactly the duplication that let `options.style` drift
+ * unnoticed (converse-frontends#487, #492: see this module's own top-of-file note). */
 function readDimension(query: unknown, options: Record<string, unknown>): string | undefined {
-  // `options.dimension` (C12, converse-frontends#455) names a dimension other than the query's
-  // first, and `none` names no dimension at all — the ungrouped total off a grouped query. A story
-  // that followed `group_by[0]` regardless would label a family TOTAL chart with account names.
-  const declared = options.dimension === undefined ? undefined : String(options.dimension);
-  if (declared === 'none') return undefined;
-  if (declared) return declared;
   const groupBy = (query as { group_by?: unknown } | undefined)?.group_by;
-  return Array.isArray(groupBy) && groupBy.length > 0 ? String(groupBy[0]) : undefined;
+  return resolveDashboardPanelDimension(
+    options.dimension,
+    Array.isArray(groupBy) ? groupBy.map(String) : undefined
+  );
 }
 
 /**
@@ -160,10 +190,10 @@ export function readPages(text: string = dashboardsYaml): SpecPage[] {
           lens: options.lens === undefined ? undefined : String(options.lens),
           metric: p.metric === undefined ? undefined : String(p.metric),
           dimension: readDimension(p.query, options),
-          scale:
-            options.scale === 'log' || options.scale === 'indexed' || options.scale === 'linear'
-              ? options.scale
-              : undefined,
+          scale: resolveDashboardScale(options.scale),
+          style: resolveDashboardSeriesStyle(options.style),
+          topN: typeof options.topN === 'number' ? options.topN : undefined,
+          link: options.link === undefined ? undefined : String(options.link),
           compare: p.compare === true,
         };
       }),
@@ -319,9 +349,11 @@ export type DimensionKeyOverrides = Record<string, string[]>;
 
 /** One panel → the key set its breakdown fixture is re-keyed onto (`undefined` = leave the
  *  per-type fixture's own keys alone, which is right for `model` and for an ungrouped panel). */
-type DimensionKeyLookup = (panel: SpecPanel) => string[] | undefined;
+export type DimensionKeyLookup = (panel: SpecPanel) => string[] | undefined;
 
-function dimensionKeyLookup(overrides: DimensionKeyOverrides | undefined): DimensionKeyLookup {
+export function dimensionKeyLookup(
+  overrides: DimensionKeyOverrides | undefined
+): DimensionKeyLookup {
   return (panel) => {
     const dimension = panel.dimension ?? '';
     return overrides?.[dimension] ?? DIMENSION_KEYS[dimension];
@@ -372,6 +404,25 @@ const EMPTY_STAT_FIXTURE: Record<string, string> = {
   'derived:chatCount': '0',
 };
 
+/**
+ * A table row's href, off the panel's OWN `options.link` — never a hardcoded per-shape template.
+ *
+ * The two top-spender ledgers on `/admin/overview` are the reason this exists rather than the
+ * fixture's own baked-in href: both fall through to the four-column branch below, and that
+ * fixture's rows are all stamped `?type=user` — right for neither, since one panel's real
+ * `options.link` says `?type=account` and the other `?type=project`. A hardcoded template that
+ * happened to match every table's link the day it was written is exactly the kind of duplicated
+ * list the YAML itself already fixes elsewhere; a table's href is no more special than that.
+ *
+ * `$lens` is substituted the same way `resolve-dashboard.ts` substitutes it server-side — with
+ * the panel's OWN `options.lens`, since a page story has no separate lens knob of its own to read
+ * a resolved value from.
+ */
+function tableRowHref(panel: SpecPanel, key: string): string | undefined {
+  const link = panel.lens ? panel.link?.split('$lens').join(panel.lens) : panel.link;
+  return applyLinkTemplate(link, key);
+}
+
 function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardPanelView {
   const base = panelFixtures.table;
   if (base.kind !== 'table' || !panel.columns) {
@@ -383,6 +434,9 @@ function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardP
         index === 0 && panel.rowLabel ? { ...column, header: panel.rowLabel } : column
       ),
       unit: panel.unit ?? base.unit,
+      rows: panel.link
+        ? base.rows.map((row) => ({ ...row, href: tableRowHref(panel, row.key) }))
+        : base.rows,
     };
   }
 
@@ -411,9 +465,7 @@ function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardP
     })),
     rows: rows.map((row) => ({
       key: row.key,
-      href: channelKeys
-        ? `/admin/usage/channels/${encodeURIComponent(row.key)}`
-        : `/admin/usage/actors/${encodeURIComponent(row.key)}?type=${panel.lens ?? 'user'}`,
+      href: tableRowHref(panel, row.key),
       cells: {
         label: <IdentityLines label={row.label} detail={row.detail} subtle={row.subtle} />,
         type: rowType,
@@ -427,6 +479,143 @@ function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardP
     total: rows.length,
     page: 0,
   };
+}
+
+export interface SpecPanelScaleControls {
+  scale: MultiSeriesSpendScale;
+  onScaleChange: (scale: MultiSeriesSpendScale) => void;
+}
+
+/**
+ * One panel's fixture-built view for the EMPTY state — pulled out of `SpecPanels`'s render loop so
+ * it is callable on its own, without mounting a component. See that function's own doc comment for
+ * why the split exists at all.
+ */
+export function buildEmptySpecPanelView(
+  panel: SpecPanel,
+  scaleControls: SpecPanelScaleControls
+): DashboardPanelView {
+  const empty = emptyPanelFixtures[panel.type];
+  if (empty.kind === 'series' || empty.kind === 'latency-series') {
+    return { ...empty, scale: scaleControls.scale, onScaleChange: scaleControls.onScaleChange };
+  }
+  if (empty.kind === 'stat') {
+    // An empty window still has an honest figure, and it is UNIT-CORRECT: `$0.00` for money, `0`
+    // for a count, and a DASH for a ratio with no denominator (`avgCostPerMillionTokens` —
+    // `$0.00 / 1M` would read as "we measured it and it is free"). This is what the console's own
+    // `statView` produces; the story must not be gentler than the page.
+    return {
+      ...empty,
+      label: panel.title,
+      metric: (panel.metric && EMPTY_STAT_FIXTURE[panel.metric]) || empty.metric,
+    };
+  }
+  return empty;
+}
+
+/**
+ * One panel's fixture-built view for the LOADED state — the pure half of `SpecPanels`'s render
+ * loop, pulled out for two reasons. First, a React `useMemo` body cannot be unit-tested on its
+ * own; second, and the reason it matters here, `apps/console/src/dashboards/spec-page-story-
+ * parity.test.tsx` calls this function directly, beside the real `toPanelView`, to assert the two
+ * cannot silently draw a different chart for the same YAML panel again — which is exactly how
+ * `options.style` drifted the first time (converse-frontends#487, #492): nothing FAILED, a story
+ * just quietly stopped matching the page it exists to certify.
+ */
+export function buildSpecPanelView(
+  panel: SpecPanel,
+  keysFor: DimensionKeyLookup,
+  scaleControls: SpecPanelScaleControls
+): DashboardPanelView {
+  const fixture = panel.type === 'table' ? tableFixture(panel, keysFor) : panelFixtures[panel.type];
+  const { scale, onScaleChange } = scaleControls;
+
+  if (fixture.kind === 'table') return fixture;
+
+  if (fixture.kind === 'series') {
+    // A `compare: true` panel's last line is the previous window, DASHED — the console's own
+    // adapter appends exactly that (`comparisonSeries`), and it is the whole reading of the panel,
+    // so a story that drew four ordinary lines would be reviewing the wrong chart. A STACK never
+    // carries the overlay at all — `panel-adapters.tsx`'s own `seriesView` refuses it (a previous
+    // period is not a part of this period's total), so neither does this.
+    const keyed = reKey(fixture.series, keysFor(panel));
+    const stacked = panel.style === 'stacked-bars';
+    const series =
+      panel.compare && !stacked && keyed.length > 1
+        ? keyed.map((s, index) =>
+            index === keyed.length - 1 ? { ...s, label: 'Previous period', dashed: true } : s
+          )
+        : keyed;
+    return {
+      ...fixture,
+      series,
+      scale,
+      onScaleChange,
+      // The field whose absence let every `stacked-bars` panel in `dashboards.yaml` render as a
+      // plain line board in Storybook (converse-frontends#487, #492) — see `SpecPanel.style`.
+      style: panel.style,
+      topN: panel.topN,
+    };
+  }
+
+  if (fixture.kind === 'latency-series') {
+    return { ...fixture, series: reKey(fixture.series, keysFor(panel)), scale, onScaleChange };
+  }
+
+  if (fixture.kind === 'stat') {
+    // The panel's TITLE is the stat's label in the console (`statView`), because a bare stat panel
+    // has no heading row of its own — so the fixture's own label must not stand in for it, or
+    // every stat on the page reads "Total cost".
+    return {
+      ...fixture,
+      label: panel.title,
+      metric: (panel.metric && STAT_METRIC_FIXTURE[panel.metric]) || fixture.metric,
+      delta: panel.compare ? fixture.delta : undefined,
+    };
+  }
+
+  if (fixture.kind === 'ranked') {
+    return {
+      ...fixture,
+      // The per-type fixture's values are DOLLARS. A ranking of requests or tokens formatted as
+      // money is a fabricated unit — the same failure `formatYTick` exists to prevent on an axis,
+      // and the exact thing a reviewer looking at `/admin/usage/channels/<azp>`'s "Requests by
+      // operation" would (rightly) flag. The console's own adapter formats by `metric`; so does
+      // this.
+      rows: rankedUnit(reKey(fixture.rows, keysFor(panel)), panel.metric),
+      topN: panel.topN,
+      hrefFor: panel.link ? (row) => applyLinkTemplate(panel.link, row.key) : undefined,
+    };
+  }
+
+  if (fixture.kind === 'share') {
+    return {
+      ...fixture,
+      // `ShareBar` has no Top-N notion of its own — the console's own adapter folds the tail into
+      // ONE summed `Other (N)` segment before the primitive ever sees it; so does this
+      // (`/accounts/<id>/overview` and `/settings/overview/usage` both cap their model-share ring
+      // at 5).
+      segments: collapseSegmentsTail(
+        reKey(fixture.segments, keysFor(panel)),
+        panel.topN,
+        formatUsd
+      ),
+    };
+  }
+
+  if (fixture.kind === 'donut') {
+    return {
+      ...fixture,
+      segments: reKey(fixture.segments, keysFor(panel)),
+      topN: panel.topN,
+      // The ring's centre states the TOTAL of what the ring measures — a requests ring centred on
+      // a dollar figure would be a fabricated unit, the same failure `formatYTick` exists to
+      // prevent on a chart axis.
+      centreMetric: (panel.metric && STAT_METRIC_FIXTURE[panel.metric]) || fixture.centreMetric,
+    };
+  }
+
+  return fixture;
 }
 
 /** The panels of one YAML page, in `DashboardGrid`, drawn by the real renderer registry. */
@@ -454,90 +643,18 @@ export function SpecPanels({
   const views = useMemo(() => {
     const map = new Map<string, DashboardPanelView>();
     for (const panel of page.panels) {
-      if (state === 'empty') {
-        const empty = emptyPanelFixtures[panel.type];
-        if (empty.kind === 'series' || empty.kind === 'latency-series') {
-          map.set(panel.id, {
-            ...empty,
-            scale: scaleOf(panel),
-            onScaleChange: setScaleOf(panel.id),
-          });
-        } else if (empty.kind === 'stat') {
-          // An empty window still has an honest figure, and it is UNIT-CORRECT: `$0.00` for money,
-          // `0` for a count, and a DASH for a ratio with no denominator (`avgCostPerMillionTokens`
-          // — `$0.00 / 1M` would read as "we measured it and it is free"). This is what the
-          // console's own `statView` produces; the story must not be gentler than the page.
-          map.set(panel.id, {
-            ...empty,
-            label: panel.title,
-            metric: (panel.metric && EMPTY_STAT_FIXTURE[panel.metric]) || empty.metric,
-          });
-        } else {
-          map.set(panel.id, empty);
-        }
-        continue;
-      }
-
-      const fixture =
-        panel.type === 'table' ? tableFixture(panel, keysFor) : panelFixtures[panel.type];
-      if (fixture.kind === 'table') {
-        map.set(panel.id, fixture);
-      } else if (fixture.kind === 'series' || fixture.kind === 'latency-series') {
-        // A `compare: true` panel's last line is the previous window, DASHED — the console's own
-        // adapter appends exactly that (`comparisonSeries`), and it is the whole reading of the
-        // panel, so a story that drew four ordinary lines would be reviewing the wrong chart.
-        const keyed = reKey(fixture.series, keysFor(panel));
-        const series =
-          panel.compare && keyed.length > 1
-            ? keyed.map((s, index) =>
-                index === keyed.length - 1 ? { ...s, label: 'Previous period', dashed: true } : s
-              )
-            : keyed;
-        map.set(panel.id, {
-          ...fixture,
-          series,
-          scale: scaleOf(panel),
-          onScaleChange: setScaleOf(panel.id),
-        });
-      } else if (fixture.kind === 'stat') {
-        // The panel's TITLE is the stat's label in the console (`statView`), because a bare stat
-        // panel has no heading row of its own — so the fixture's own label must not stand in for
-        // it, or every stat on the page reads "Total cost".
-        map.set(panel.id, {
-          ...fixture,
-          label: panel.title,
-          metric: (panel.metric && STAT_METRIC_FIXTURE[panel.metric]) || fixture.metric,
-          delta: panel.compare ? fixture.delta : undefined,
-        });
-      } else if (fixture.kind === 'ranked') {
-        map.set(panel.id, {
-          ...fixture,
-          // The per-type fixture's values are DOLLARS. A ranking of requests or tokens formatted
-          // as money is a fabricated unit — the same failure `formatYTick` exists to prevent on an
-          // axis, and the exact thing a reviewer looking at `/admin/usage/channels/<azp>`'s
-          // "Requests by operation" would (rightly) flag. The console's own adapter formats by
-          // `metric`; so does this.
-          rows: rankedUnit(reKey(fixture.rows, keysFor(panel)), panel.metric),
-        });
-      } else if (fixture.kind === 'share') {
-        map.set(panel.id, {
-          ...fixture,
-          segments: reKey(fixture.segments, keysFor(panel)),
-        });
-      } else if (fixture.kind === 'donut') {
-        map.set(panel.id, {
-          ...fixture,
-          segments: reKey(fixture.segments, keysFor(panel)),
-          // The ring's centre states the TOTAL of what the ring measures — a requests ring
-          // centred on a dollar figure would be a fabricated unit, the same failure `formatYTick`
-          // exists to prevent on a chart axis.
-          centreMetric: (panel.metric && STAT_METRIC_FIXTURE[panel.metric]) || fixture.centreMetric,
-        });
-      } else {
-        map.set(panel.id, fixture);
-      }
+      const scaleControls = { scale: scaleOf(panel), onScaleChange: setScaleOf(panel.id) };
+      map.set(
+        panel.id,
+        state === 'empty'
+          ? buildEmptySpecPanelView(panel, scaleControls)
+          : buildSpecPanelView(panel, keysFor, scaleControls)
+      );
     }
     return map;
+    // `scaleOf`/`setScaleOf` close over `scales`, which IS a dep below; re-listing the closures
+    // themselves would just re-run this on every render, since they are recreated each time — the
+    // same dep list the pre-extraction version of this loop already used.
   }, [page, scales, state, keysFor]);
 
   return (

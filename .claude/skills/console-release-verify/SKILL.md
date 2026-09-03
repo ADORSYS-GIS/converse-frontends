@@ -33,11 +33,16 @@ but no commit followed, the problem is the image-updater annotations in `ai-helm
 
 ## 3. What is ArgoCD actually serving?
 
+**Point `kubectl` at the cluster ArgoCD runs on, not at `home-remote`.** ai-helm ADR-0017's
+two-tier model puts the **Application CR** in the `argocd` namespace of the ArgoCD cluster and the
+**workload** on `home-remote` in namespace `converse`. Querying the Application on `home-remote`
+returns "not found" and reads as "not deployed".
+
 ```sh
-kubectl --context home-remote -n argocd get application aii-console-ui \
+kubectl -n argocd get application aii-console-ui \
   -o jsonpath='{.status.summary.images}{"\n"}'
 
-kubectl --context home-remote -n argocd get application aii-console-ui \
+kubectl -n argocd get application aii-console-ui \
   -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}'
 ```
 
@@ -48,7 +53,7 @@ If the tag in `ai-helm-values` is newer than `.status.summary.images`, look at t
 not the health status:
 
 ```sh
-kubectl --context home-remote -n argocd get application aii-console-ui \
+kubectl -n argocd get application aii-console-ui \
   -o jsonpath='{.status.conditions}{"\n"}'
 ```
 
@@ -98,6 +103,7 @@ The tag lives in `ai-helm-values`, so a rollback is a commit there or an ArgoCD 
 - **The console image package is `converse-frontends/console`**, distinct from
   `converse-frontends` (the older self-service image). Checking the wrong package reads as "not
   published".
-- **The cluster context is `home-remote`, the namespace is `converse`, the Application lives in
-  `argocd`** — three different scopes in one command line.
+- **Two clusters.** The Application CR is on the cluster ArgoCD runs on, namespace `argocd`; the
+  pods are on `home-remote`, namespace `converse`. Pointing at the wrong one returns "not found"
+  and reads as "not deployed".
 - **Do not report "deployed" from a CI green tick.** Read `.status.summary.images`.

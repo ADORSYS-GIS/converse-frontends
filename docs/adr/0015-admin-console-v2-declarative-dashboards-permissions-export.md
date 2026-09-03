@@ -880,6 +880,14 @@ renders through, so the first utility written into either is a visible diff.
    `/admin/overview`, `/accounts/<id>/overview` and `/settings/overview/*` only. C5 landed before
    C10 and said so in its own container comment ("no Export action yet, deliberately"); C10 added
    the button to the pages that existed at the time and did not go back. One import and one prop.
+
+   **Items 3 and 4 are DONE** (verified 2026-09-03): `DashboardExportButton` is mounted on
+   `admin-usage-centre.tsx`, `admin-usage-actor-centre.tsx`, `admin-usage-channel-centre.tsx` and
+   `admin-usage-chats-centre.tsx` as well as the three pages listed above. The one route that
+   deliberately still renders no Export action is `/settings/overview/usage`, because a `family`
+   fan-out has no session to resolve on the report side — `resolvePageReport` refuses it with
+   `400 unexportable_route` so a hand-built URL gets the same answer. The current mounting table is
+   in `docs/knowledge/export-pipeline.md`.
 5. **`packages/hooks/src/rbac.ts` is unconsumed residue.** It was the Expo self-service app's
    client-side permission mirror — a role → permission map with wildcard expansion, exactly the
    re-derivation D4 removes. That app no longer exists in this repository and nothing imports the

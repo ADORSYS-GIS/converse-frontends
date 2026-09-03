@@ -180,11 +180,16 @@ stateDiagram-v2
 
 Do all three. The first two are cheap and the third is the only one that proves the running code.
 
+**Two clusters, and it matters which one `kubectl` points at** (ai-helm ADR-0017's two-tier
+destination model): the **Application CR** lives in the `argocd` namespace of the cluster **ArgoCD
+itself runs on**, while the **workload** lands on `home-remote`, namespace `converse`. Query the
+Application on the ArgoCD cluster; query pods on `home-remote`.
+
 **1. What image did ArgoCD actually deploy?**
 
 ```sh
-kubectl --context home-remote -n argocd \
-  get application aii-console-ui \
+# on the cluster ArgoCD runs on — NOT home-remote
+kubectl -n argocd get application aii-console-ui \
   -o jsonpath='{.status.summary.images}{"\n"}'
 ```
 
@@ -197,7 +202,7 @@ status).
 **2. Is it synced and healthy?**
 
 ```sh
-kubectl --context home-remote -n argocd get application aii-console-ui \
+kubectl -n argocd get application aii-console-ui \
   -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}'
 ```
 

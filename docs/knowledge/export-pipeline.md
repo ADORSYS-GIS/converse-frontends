@@ -258,10 +258,30 @@ stateDiagram-v2
 
 ## Where the Export button is mounted
 
-`DashboardExportButton` (`apps/console/src/dashboards/dashboard-export-button.tsx`) is on
-`/admin/overview`, `/accounts/<id>/overview` and `/settings/overview/*`. `/admin/usage` and the three
-drill-downs **ship their `.typ` templates and answer the route**, but carry no button yet — ADR 0015
-follow-ups 3 and 4. Adding one is one import and one prop.
+`DashboardExportButton` (`apps/console/src/dashboards/dashboard-export-button.tsx`) is mounted on
+**every** dashboard route that answers the export contract:
+
+| Container                        | Route                                |
+| -------------------------------- | ------------------------------------ |
+| `admin-overview-centre.tsx`      | `/admin/overview`                    |
+| `admin-usage-centre.tsx`         | `/admin/usage`                       |
+| `admin-usage-actor-centre.tsx`   | `/admin/usage/actors/[actorId]`      |
+| `admin-usage-channel-centre.tsx` | `/admin/usage/channels/[channelId]`  |
+| `admin-usage-chats-centre.tsx`   | `/admin/usage/chats`                 |
+| `overview-centre.tsx` / `use-account-overview-zones.ts` | `/accounts/[accountId]/overview` |
+| `settings-overview-centre.tsx`   | `/settings/overview/*`               |
+
+(ADR 0015's follow-ups 3 and 4 described `/admin/usage` and the drill-downs as having no button.
+They have one; the ADR's follow-up list is stale on that point, and this table is the current
+state.)
+
+**One route deliberately has no Export action: `/settings/overview/usage`.** Any page with a
+`scope: family` panel fans out over the signed-in identity's own account family, and a report route
+has **no session to read that list from**. Rendering it anyway would produce a document where every
+panel says "could not be loaded" — which a reader would reasonably take as "we have no usage"
+rather than "this route cannot ask this question". `resolvePageReport`
+(`apps/console/src/server/reports/page-report.ts:175`) refuses it with `400 unexportable_route`, so
+a hand-built URL gets the same answer the UI gives.
 
 ---
 

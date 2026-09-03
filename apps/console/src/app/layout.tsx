@@ -1,11 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+import { cookies, headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme';
 
 import { Providers } from '../client/providers';
+import { chunkCookieName } from '../server/cookie-names';
 import { serverEnv } from '../server/env';
 import { readSession } from '../server/session-store';
+import { GUARDED_PATHNAME_HEADER } from '../shared/request-headers';
 import { ANONYMOUS_SESSION, type SessionResponse } from '../shared/session-response';
 
 import './globals.css';
@@ -38,8 +42,43 @@ export const viewport: Viewport = {
  * `prefers-color-scheme` -> `black`), so there is no flash and no server/client mismatch to
  * suppress beyond the usual extension-injected-attribute noise.
  */
+/**
+ * A session cookie that is present but does not open — an expired seal (ADR 0016 D3.1), or one
+ * sealed under a secret that has been rotated away (D3.2) — must land the person on sign-in, the
+ * same place having no cookie at all lands them.
+ *
+ * `middleware.ts` cannot make that call: it runs on the edge runtime, where `node:crypto`'s HKDF
+ * does not exist, so it checks the first chunk's PRESENCE and nothing more. Before seals carried
+ * an `exp` that gap was nearly unreachable and cost only a stale-looking shell. With a 12-hour
+ * sliding TTL it is the ordinary end of every working day, so it needs an answer: the root layout
+ * is the one place that has both facts — a cookie was sent, and it does not decrypt.
+ *
+ * Gated on `GUARDED_PATHNAME_HEADER` so this only fires on a request the middleware's matcher
+ * actually guarded. `/auth/error` and `/auth/signed-out` are pages under this same layout and are
+ * outside that matcher, so a stale cookie cannot bounce someone off the page that explains why
+ * their session ended — and there is no redirect loop, because `/auth/login` is a route handler
+ * with no layout at all.
+ */
+async function redirectTargetForStaleSession(session: unknown): Promise<string | null> {
+  if (session) return null;
+
+  const guardedPathname = (await headers()).get(GUARDED_PATHNAME_HEADER);
+  if (guardedPathname === null) return null;
+
+  const store = await cookies();
+  if (!store.has(chunkCookieName(0))) return null;
+
+  return guardedPathname && guardedPathname !== '/'
+    ? `/auth/login?returnTo=${encodeURIComponent(guardedPathname)}`
+    : '/auth/login';
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await readSession();
+
+  const staleSessionTarget = await redirectTargetForStaleSession(session);
+  if (staleSessionTarget) redirect(staleSessionTarget);
+
   const sessionResponse: SessionResponse = session
     ? {
         authenticated: true,

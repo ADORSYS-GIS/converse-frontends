@@ -16,9 +16,36 @@
 session:
   # Cookie-session JWE key material (A256GCM via an HKDF of this value). At least 32 characters.
   # ALWAYS a placeholder, never a literal, even in dev — it's a secret regardless of how low-stakes
-  # the local value is. Deploy-time secret: rotating it invalidates every live session. Generate
-  # with: openssl rand -base64 48
+  # the local value is. Generate with: openssl rand -base64 48
+  #
+  # Accepts a STRING (this form) or a LIST, newest first — that is the rotation mechanism
+  # (ADR 0016, D3.2). New seals always use the first entry; every entry is tried on open, so a
+  # session sealed under the outgoing secret keeps working while the rotation rolls out:
+  #
+  #   secret:
+  #     - '{env:SESSION_SECRET}'           # seals; tried first
+  #     - '{env:SESSION_SECRET_PREVIOUS}'  # only opens; drop once nobody is on it
+  #
+  # A list entry whose variable is unset is dropped, so the two-line form above is safe to leave
+  # in a document permanently. The full procedure (add → deploy → promote → deploy → drop) is in
+  # docs/knowledge/console-configuration.md, "Rotating `session.secret`".
   secret: '{env:SESSION_SECRET}'
+
+  # Sliding session lifetime, seconds. Stamped BOTH as the seal's JWE `exp` (server-enforced, with
+  # 30s clock tolerance) and as the cookie's `Max-Age`, so the two can never disagree — before
+  # ADR 0016 the seal had no `exp` at all and a 30-day `Max-Age` was the only "expiry", which is
+  # advice to a browser, not a check. Every token refresh re-seals and pushes this out, so an
+  # actively-used session is not logged out mid-work.
+  #
+  # Default when absent: 43200 (12 h). Must be a positive whole number and must not exceed
+  # `absoluteMaxAgeSeconds` — env.ts fails fast at boot on either.
+  maxAgeSeconds: 43200
+
+  # The ceiling the sliding window slides within, seconds, measured from the ORIGINAL login
+  # (`ConsoleSession.startedAt`, carried unchanged through every refresh) — not from the last
+  # refresh. This is what stops a copied cookie from being kept alive indefinitely just by being
+  # used. Default when absent: 604800 (7 days).
+  absoluteMaxAgeSeconds: 604800
 
 # ── IdP (OIDC) ────────────────────────────────────────────────────────────────────────────────
 # The OIDC provider this console authenticates against. Deliberately NOT named `keycloak`: in a

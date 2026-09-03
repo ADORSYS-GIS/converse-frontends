@@ -155,9 +155,14 @@ export async function exchangeCode(
     throw new Error('[console] Access token carries no subject; refusing to create a session');
   }
 
+  const now = Date.now();
   return {
     sid,
-    tokens: toSessionTokens(tokenResponse, audienceCheck.audience, Date.now()),
+    // The ONLY place `startedAt` is ever set. Every refresh carries it forward untouched
+    // (`rotateSession`), which is what makes `session.absoluteMaxAgeSeconds` measure from the
+    // original login rather than from the most recent token rotation (ADR 0016, D3.1).
+    startedAt: now,
+    tokens: toSessionTokens(tokenResponse, audienceCheck.audience, now),
     user,
   };
 }

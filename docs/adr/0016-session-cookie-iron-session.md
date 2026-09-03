@@ -314,15 +314,32 @@ stateDiagram-v2
 
 **Follow-up, named and sized — this ADR is not a reason to leave them undone**
 
+> **All three landed** in [issue #443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443)'s
+> follow-up PR. What actually shipped is written up in
+> `docs/knowledge/console-configuration.md` ("The session cookie's lifetime, and rotating
+> `session.secret`"); the notes below are the sizing done at decision time, kept as written, with
+> the one place reality diverged marked inline.
+
 1. **Seal TTL** (D3.1) — add `.setExpirationTime()` to `sealSession`, matched to
    `SESSION_MAX_AGE_SECONDS`. `openSession` already returns `null` on any throw, so this is one
    line plus a test that a backdated seal is refused. This is the security-relevant one.
+   _Shipped larger than sized:_ the 30-day `SESSION_MAX_AGE_SECONDS` constant was replaced by two
+   config keys — `session.maxAgeSeconds` (12 h, sliding, also the cookie's `Max-Age`) and
+   `session.absoluteMaxAgeSeconds` (7 d, anchored to a new `ConsoleSession.startedAt`) — because a
+   sliding window with no ceiling is not an expiry, and matching a 30-day TTL would have kept a
+   copied cookie useful for a month. `openSession` also had to require `exp` explicitly
+   (`requiredClaims`), since jose treats an absent `exp` as "not expired" — that is what refuses
+   every pre-existing cookie, at the cost of one re-login at deploy.
 2. **Secret rotation** (D3.2) — widen `session.secret` to accept a list, seal under the first,
    try each on open. Bump the HKDF `info` only when the derivation itself changes, not when a
-   secret is added.
+   secret is added. _Shipped as sized_, plus a `debug` line naming the index that opened, which is
+   how an operator knows a rotation is finished and the old secret is safe to drop.
 3. **Lower `MAX_COOKIE_CHUNKS`, and warn near the ingress limit** (D4) — the measured `Cookie`
    header is already 5381 B at two chunks, so the real ceiling is ~2, not 8. Failing at our own
    boundary with a message naming the cookie beats a 400 from nginx that names nothing.
+   _Shipped as a refusal rather than a warning:_ `chunkSealedSession` throws `SessionTooLargeError`
+   at seal time. A warning would still write cookie slots `joinCookieChunks` cannot read back —
+   a login that appears to succeed and then instantly does not.
 
 **Costs accepted by rejecting**
 

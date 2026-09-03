@@ -254,7 +254,9 @@ describe('buildConsoleEnv', () => {
       apiBasePath: '/api',
       budgetUrl: 'http://localhost:13000', // falls back to backendUrl
       usageUrl: undefined,
-      sessionSecret: 'a'.repeat(48),
+      sessionSecrets: ['a'.repeat(48)],
+      sessionMaxAgeSeconds: 12 * 60 * 60,
+      sessionAbsoluteMaxAgeSeconds: 7 * 24 * 60 * 60,
       publicBaseUrl: undefined,
     });
   });
@@ -341,6 +343,101 @@ describe('buildConsoleEnv', () => {
     expect(() => buildConsoleEnv(parsedFrom(resolved, raw))).toThrow(
       /"session\.secret" references \{env:SESSION_SECRET\}, but SESSION_SECRET is not set/
     );
+  });
+
+  describe('session.secret as a rotation list (ADR 0016, D3.2)', () => {
+    it('normalises a plain string to a one-entry list', () => {
+      const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+      expect(env.sessionSecrets).toEqual(['a'.repeat(48)]);
+    });
+
+    it('keeps a list in order — the first entry is what seals', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { secret: ['n'.repeat(48), 'o'.repeat(48)] },
+        })
+      );
+      expect(env.sessionSecrets).toEqual(['n'.repeat(48), 'o'.repeat(48)]);
+    });
+
+    it('drops a list entry whose {env:VAR} is unset, so a retired line can stay in the document', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { secret: ['n'.repeat(48), undefined] },
+        })
+      );
+      expect(env.sessionSecrets).toEqual(['n'.repeat(48)]);
+    });
+
+    it('rejects a short entry, naming its index', () => {
+      expect(() =>
+        buildConsoleEnv(
+          parsedFrom({ ...VALID_CONFIG, session: { secret: ['n'.repeat(48), 'too-short'] } })
+        )
+      ).toThrow(/"session\.secret\[1\]" must resolve to at least 32 characters/);
+    });
+
+    it('rejects a list that resolves to nothing at all', () => {
+      expect(() =>
+        buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, session: { secret: [undefined] } }))
+      ).toThrow(/"session\.secret"/);
+    });
+  });
+
+  describe('session TTL keys (ADR 0016, D3.1)', () => {
+    it('defaults to a 12-hour sliding window inside a 7-day cap', () => {
+      const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+      expect(env.sessionMaxAgeSeconds).toBe(43_200);
+      expect(env.sessionAbsoluteMaxAgeSeconds).toBe(604_800);
+    });
+
+    it('reads both keys off the document', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { ...VALID_CONFIG.session, maxAgeSeconds: 900, absoluteMaxAgeSeconds: 3600 },
+        })
+      );
+      expect(env.sessionMaxAgeSeconds).toBe(900);
+      expect(env.sessionAbsoluteMaxAgeSeconds).toBe(3600);
+    });
+
+    it('accepts a numeric string, which is what a {env:VAR} placeholder resolves to', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, session: { ...VALID_CONFIG.session, maxAgeSeconds: '900' } })
+      );
+      expect(env.sessionMaxAgeSeconds).toBe(900);
+    });
+
+    it('rejects a non-positive or non-integer value instead of silently defaulting', () => {
+      for (const bad of [0, -60, 1.5, 'soon']) {
+        expect(() =>
+          buildConsoleEnv(
+            parsedFrom({
+              ...VALID_CONFIG,
+              session: { ...VALID_CONFIG.session, maxAgeSeconds: bad },
+            })
+          )
+        ).toThrow(/"session\.maxAgeSeconds" must be a positive whole number/);
+      }
+    });
+
+    it('rejects a sliding window longer than the absolute cap it slides within', () => {
+      expect(() =>
+        buildConsoleEnv(
+          parsedFrom({
+            ...VALID_CONFIG,
+            session: {
+              ...VALID_CONFIG.session,
+              maxAgeSeconds: 7200,
+              absoluteMaxAgeSeconds: 3600,
+            },
+          })
+        )
+      ).toThrow(/must not exceed/);
+    });
   });
 
   it('fails fast on a missing idp.issuer', () => {
@@ -464,7 +561,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
     );
 
     const env = serverEnv();
-    expect(env.sessionSecret).toBe('b'.repeat(40));
+    expect(env.sessionSecrets).toEqual(['b'.repeat(40)]);
     expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
   });
 

@@ -29,6 +29,7 @@ function writeConfig(configDir: string, extraLines: string[] = []): void {
 
 const VALID_SESSION: ConsoleSession = {
   sid: 'sid_1',
+  startedAt: Date.now(),
   tokens: {
     accessToken: 'access-token-1',
     refreshToken: 'refresh-token-1',
@@ -45,7 +46,10 @@ const VALID_SESSION: ConsoleSession = {
 };
 
 async function sessionCookieHeader(session: ConsoleSession = VALID_SESSION): Promise<string> {
-  const sealed = await sealSession(session, SESSION_SECRET);
+  const sealed = await sealSession(session, SESSION_SECRET, {
+    maxAgeSeconds: 12 * 60 * 60,
+    absoluteMaxAgeSeconds: 7 * 24 * 60 * 60,
+  });
   return chunkCookieValue(sealed)
     .map((chunk, index) => `${chunkCookieName(index)}=${chunk}`)
     .join('; ');

@@ -38,7 +38,9 @@ function envWith(usageClientCert?: ConsoleEnv['usageClientCert']): ConsoleEnv {
     apiBasePath: '',
     budgetUrl: 'https://budget.example.test',
     usageUrl: 'https://usage.example.test',
-    sessionSecret: 'x'.repeat(48),
+    sessionSecrets: ['x'.repeat(48)],
+    sessionMaxAgeSeconds: 12 * 60 * 60,
+    sessionAbsoluteMaxAgeSeconds: 7 * 24 * 60 * 60,
     usageClientCert,
   };
 }
@@ -48,8 +50,14 @@ function certFixture(): { certPath: string; keyPath: string } {
   const dir = mkdtempSync(join(tmpdir(), 'console-usage-cert-'));
   const certPath = join(dir, 'tls.crt');
   const keyPath = join(dir, 'tls.key');
-  writeFileSync(certPath, '-----BEGIN CERTIFICATE-----\nnot-a-real-cert\n-----END CERTIFICATE-----\n');
-  writeFileSync(keyPath, '-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n-----END PRIVATE KEY-----\n');
+  writeFileSync(
+    certPath,
+    '-----BEGIN CERTIFICATE-----\nnot-a-real-cert\n-----END CERTIFICATE-----\n'
+  );
+  writeFileSync(
+    keyPath,
+    '-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n-----END PRIVATE KEY-----\n'
+  );
   return { certPath, keyPath };
 }
 

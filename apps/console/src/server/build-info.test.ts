@@ -40,7 +40,9 @@ function env(overrides: Partial<ConsoleEnv> = {}): ConsoleEnv {
     backendUrl: 'https://api.test',
     apiBasePath: '/api',
     budgetUrl: 'https://budget.test',
-    sessionSecret: 'x'.repeat(32),
+    sessionSecrets: ['x'.repeat(32)],
+    sessionMaxAgeSeconds: 12 * 60 * 60,
+    sessionAbsoluteMaxAgeSeconds: 7 * 24 * 60 * 60,
     ...overrides,
   } as ConsoleEnv;
 }

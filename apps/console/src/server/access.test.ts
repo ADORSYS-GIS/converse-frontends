@@ -17,6 +17,7 @@ const { can, canAny, canReachAdminArea, fetchMyAccess } = await import('./access
 function session(permissions: string[]): ConsoleSession {
   return {
     sid: 'sid-1',
+    startedAt: Date.now(),
     tokens: { accessToken: 'access-1' },
     user: {
       sub: 'acct_1',

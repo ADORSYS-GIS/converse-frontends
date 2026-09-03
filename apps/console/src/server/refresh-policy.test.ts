@@ -18,6 +18,7 @@ const NOW = 1_700_000_000_000;
 function session(overrides: Partial<ConsoleSession['tokens']> = {}): ConsoleSession {
   return {
     sid: 'sid-1',
+    startedAt: NOW,
     tokens: {
       accessToken: 'access-1',
       refreshToken: 'refresh-1',

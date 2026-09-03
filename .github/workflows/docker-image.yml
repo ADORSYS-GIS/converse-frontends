@@ -69,7 +69,15 @@ jobs:
       # overrides the root task's `dist/**` outputs with `.next/**` (excluding `.next/cache/**`)
       # for this package specifically, so Turbo caches and restores the standalone bundle
       # correctly; verified locally with two consecutive runs (second one reports `>>> FULL TURBO`).
+      # `NEXT_PUBLIC_BUILD_SHA` is INLINED by `next build`, so it must be set here rather than at
+      # image-build time (lightbridge-authz#573) — it is what `/settings/info`'s Platform card
+      # reports as the console's own commit. `apps/console/turbo.json` lists it in this task's
+      # `env`, which is not optional: without it the variable is outside Turbo's hash and a cache
+      # hit would happily serve a bundle stamped with some earlier commit's SHA — a diagnostics
+      # screen confidently reporting the wrong build is worse than one reporting none.
       - name: Build console (Turbo)
+        env:
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
         run: pnpm turbo run build:web --filter=console
 
       # `next.config.mjs` no longer has an `outputFileTracingIncludes` block for the CBOR codec
@@ -104,6 +112,13 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           LABELS: ${{ steps.meta.outputs.labels }}
+          # The IMAGE half of the build stamp (lightbridge-authz#573). The bundle already carries
+          # the commit it was compiled from; these three describe the container, which did not
+          # exist when `next build` ran. `IMAGE_BUILD_SHA` is the commit this image build ran at,
+          # NOT the pushed digest — a digest cannot be baked into the artifact it identifies —
+          # and `IMAGE_TAG` carries the immutable `sha-<gitsha>` tag, which resolves to one digest.
+          IMAGE_BUILD_SHA: ${{ github.sha }}
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
@@ -113,6 +128,9 @@ jobs:
           # repo root (not apps/console/) — the standalone bundle's node_modules is hoisted to
           # the pnpm workspace root, so apps/console/Dockerfile needs the whole tree visible.
           buildah build --format docker --platform linux/amd64 \
+            --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
+            --build-arg "IMAGE_TAG=${IMAGE_TAG}" \
+            --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/console/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.
           primary="$(head -n1 <<<"$TAGS")"

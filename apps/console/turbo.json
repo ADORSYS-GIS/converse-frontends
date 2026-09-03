@@ -4,7 +4,13 @@
   "tasks": {
     "build:web": {
       "dependsOn": ["^build:web", "codegen"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      // `NEXT_PUBLIC_BUILD_SHA` is INLINED into the bundle by `next build` — it is what
+      // `/settings/info`'s Platform card reports as the console's own commit
+      // (lightbridge-authz#573). It therefore MUST be part of this task's hash: left out of `env`,
+      // Turbo would restore a cached `.next/` built from a different commit and the diagnostics
+      // screen would confidently report the wrong SHA, which is worse than reporting none.
+      "env": ["NEXT_PUBLIC_BUILD_SHA"]
     }
   }
 }

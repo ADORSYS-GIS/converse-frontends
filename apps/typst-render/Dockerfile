@@ -71,6 +71,19 @@ COPY apps/typst-render/package.json ./package.json
 RUN chown -R node:node /app
 USER node
 
+
+# Build stamp (lightbridge-authz#573) — the same ARG -> ENV pair every image in this estate now
+# carries, so a running container can name the image it came from. The renderer has no
+# `/settings/info` of its own; these are here so that an operator exec'ing into the sidecar, or a
+# future `/healthz` extension, can answer "which build is this?" the same way every sibling does.
+# Empty defaults mean "not built by the pipeline" rather than a fabricated value.
+ARG IMAGE_BUILD_SHA=""
+ARG IMAGE_TAG=""
+ARG IMAGE_BUILD_TIME=""
+ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
+    IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
+
 ENV NODE_ENV=production \
     TYPST_RENDER_PORT=8080 \
     TYPST_RENDER_HOST=0.0.0.0 \

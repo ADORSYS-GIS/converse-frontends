@@ -1,9 +1,10 @@
 import { Field as BaseField } from '@base-ui/react/field';
 import { Input as BaseInput } from '@base-ui/react/input';
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 
 import { cn } from '../../cn';
 import { META_CLASS } from '../../lib/type-roles';
+import { useCopyToClipboard } from '../../lib/use-copy-to-clipboard';
 import { Button } from '../button';
 import { fieldControlClassName } from '../field/field-classes';
 import type { SecretRevealProps } from './types';
@@ -16,7 +17,8 @@ import type { SecretRevealProps } from './types';
 //     (row 28), so this security-sensitive strip and every `Field` in the console are painted by
 //     the same class rather than by two hand-written strings that can drift apart;
 //   • both `btn` axes arrive through `Button`, which is already `btn` + `btn-primary`/`btn-ghost`.
-// What deliberately stays ours is the behaviour: the `navigator.clipboard` call, and the mono
+// What deliberately stays ours is the behaviour: the clipboard call (through the shared
+// `lib/use-copy-to-clipboard`, one implementation for the whole library), and the mono
 // "Copied" acknowledgement on the button itself. That is NOT a toast, and not by omission —
 // ADR 0008 rules transient toasts out for this acknowledgement, and PRIMITIVE-MATRIX row 49
 // records the toast question as still-contested and explicitly undecided.
@@ -56,34 +58,11 @@ export function SecretReveal({
   copiedTimeoutMs = 2000,
   className,
 }: SecretRevealProps) {
-  const [copied, setCopied] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  async function handleCopy() {
-    // Best-effort, the same contract every other clipboard write in this app follows
-    // (`AccountBadge`'s own `onCopyId`): the write can genuinely fail (permission denied, an
-    // insecure origin), and the secret stays focused/selected either way as the manual-copy
-    // fallback, so a failure here is silent rather than an unhandled rejection — never a claimed
-    // "Copied" for a copy that didn't happen.
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(secret);
-      } else {
-        return;
-      }
-    } catch {
-      return;
-    }
-    setCopied(true);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setCopied(false), copiedTimeoutMs);
-  }
+  // Best-effort, no-throw, never a claimed copy that didn't happen — the contract lives in
+  // `lib/use-copy-to-clipboard`, shared with `CommandSnippet` and `CreateApiKeyDialog`. The
+  // secret stays focused/selected either way as the manual-copy fallback.
+  const { copiedKey, copy } = useCopyToClipboard(copiedTimeoutMs);
+  const copied = copiedKey === secret;
 
   return (
     <BaseField.Root className={cn('secret-strip', className)}>
@@ -106,7 +85,7 @@ export function SecretReveal({
           // that actually renders one).
           className={cn(fieldControlClassName, 'font-mono')}
         />
-        <Button type="button" variant="primary" onClick={handleCopy}>
+        <Button type="button" variant="primary" onClick={() => void copy(secret)}>
           {copied ? copiedLabel : 'Copy'}
         </Button>
       </div>

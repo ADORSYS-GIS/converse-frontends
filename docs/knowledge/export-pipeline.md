@@ -261,15 +261,15 @@ stateDiagram-v2
 `DashboardExportButton` (`apps/console/src/dashboards/dashboard-export-button.tsx`) is mounted on
 **every** dashboard route that answers the export contract:
 
-| Container                        | Route                                |
-| -------------------------------- | ------------------------------------ |
-| `admin-overview-centre.tsx`      | `/admin/overview`                    |
-| `admin-usage-centre.tsx`         | `/admin/usage`                       |
-| `admin-usage-actor-centre.tsx`   | `/admin/usage/actors/[actorId]`      |
-| `admin-usage-channel-centre.tsx` | `/admin/usage/channels/[channelId]`  |
-| `admin-usage-chats-centre.tsx`   | `/admin/usage/chats`                 |
-| `overview-centre.tsx` / `use-account-overview-zones.ts` | `/accounts/[accountId]/overview` |
-| `settings-overview-centre.tsx`   | `/settings/overview/*`               |
+| Container                                               | Route                               |
+| ------------------------------------------------------- | ----------------------------------- |
+| `admin-overview-centre.tsx`                             | `/admin/overview`                   |
+| `admin-usage-centre.tsx`                                | `/admin/usage`                      |
+| `admin-usage-actor-centre.tsx`                          | `/admin/usage/actors/[actorId]`     |
+| `admin-usage-channel-centre.tsx`                        | `/admin/usage/channels/[channelId]` |
+| `admin-usage-chats-centre.tsx`                          | `/admin/usage/chats`                |
+| `overview-centre.tsx` / `use-account-overview-zones.ts` | `/accounts/[accountId]/overview`    |
+| `settings-overview-centre.tsx`                          | `/settings/overview/*`              |
 
 (ADR 0015's follow-ups 3 and 4 described `/admin/usage` and the drill-downs as having no button.
 They have one; the ADR's follow-up list is stale on that point, and this table is the current

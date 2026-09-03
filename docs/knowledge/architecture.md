@@ -17,12 +17,12 @@ A **pnpm + Turborepo monorepo** (`pnpm@11.5.2`, Node 22) holding the web fronten
 LightBridge platform. **Five deployable surfaces**, talking to Rust backends that live in other
 repositories:
 
-| Surface                | Shape                                                                                          |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `apps/console`         | Browser-served Next.js app — the operator/customer console                                      |
-| `apps/lci`             | Browser-served Next.js app — code intelligence (ADR 0014)                                       |
-| `apps/authz-ui`        | Static SPA served by `lightbridge-authz`'s `authz-idp` under `/ui`                              |
-| `apps/governance-auth` | A single compile-time-embedded HTML page inside `lightbridge-governance`                        |
+| Surface                | Shape                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/console`         | Browser-served Next.js app — the operator/customer console                                            |
+| `apps/lci`             | Browser-served Next.js app — code intelligence (ADR 0014)                                             |
+| `apps/authz-ui`        | Static SPA served by `lightbridge-authz`'s `authz-idp` under `/ui`                                    |
+| `apps/governance-auth` | A single compile-time-embedded HTML page inside `lightbridge-governance`                              |
 | `apps/typst-render`    | A **headless Node sidecar** — no UI at all; compiles a `.typ` template to PDF over HTTP (ADR 0015 D5) |
 
 The three tables and the dependency graph below describe the first four in detail; the sidecar is

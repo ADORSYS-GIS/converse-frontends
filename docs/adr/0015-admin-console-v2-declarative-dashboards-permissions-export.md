@@ -888,6 +888,7 @@ renders through, so the first utility written into either is a visible diff.
    fan-out has no session to resolve on the report side — `resolvePageReport` refuses it with
    `400 unexportable_route` so a hand-built URL gets the same answer. The current mounting table is
    in `docs/knowledge/export-pipeline.md`.
+
 5. **`packages/hooks/src/rbac.ts` is unconsumed residue.** It was the Expo self-service app's
    client-side permission mirror — a role → permission map with wildcard expansion, exactly the
    re-derivation D4 removes. That app no longer exists in this repository and nothing imports the

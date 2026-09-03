@@ -1,6 +1,7 @@
 /**
- * The `/admin/usage` area's route vocabulary — the four `dashboards.yaml` keys, the two href
- * builders, and the actor `?type=` enum (converse-frontends#449, story C6).
+ * The `/admin/usage` area's route vocabulary — the five `dashboards.yaml` keys, the three href
+ * builders, and the actor `?type=` enum (converse-frontends#449, story C6; the model route added
+ * by the owner's 2026-09-03 feedback on that issue).
  *
  * **Why a module and not four string literals.** `/admin/usage`'s ranked rows and ledgers link
  * into the actor and channel pages through `options.link` TEMPLATES in the YAML
@@ -24,6 +25,11 @@ export const ADMIN_USAGE_ACTOR_ROUTE = '/admin/usage/actors/[actorId]';
 
 /** One OAuth client's slice. */
 export const ADMIN_USAGE_CHANNEL_ROUTE = '/admin/usage/channels/[channelId]';
+
+/** One MODEL's slice across the estate (owner feedback 2026-09-03). A model is not a usage scope
+ *  — the panels are `scope: all` narrowed by `filters.model`, exactly as the channel page narrows
+ *  by `azp`. */
+export const ADMIN_USAGE_MODEL_ROUTE = '/admin/usage/models/[model]';
 
 /** The chat-shaped operations across the estate. */
 export const ADMIN_USAGE_CHATS_ROUTE = '/admin/usage/chats';
@@ -61,6 +67,13 @@ export function channelHref(channelId: string): string {
   return `/admin/usage/channels/${encodeURIComponent(channelId)}`;
 }
 
+/** One model's page. A model name is a vendor string — `gpt-4o`, but also `openai/gpt-4o-mini` on
+ *  a router-style gateway and `anthropic.claude-sonnet-4:0` on Bedrock, both of which carry the
+ *  two characters (`/` and `:`) that would otherwise invent a path segment. */
+export function modelHref(model: string): string {
+  return `/admin/usage/models/${encodeURIComponent(model)}`;
+}
+
 /**
  * The `options.link` template a YAML panel writes for actor rows.
  *
@@ -75,4 +88,8 @@ export function actorLinkTemplate(type: AdminUsageActorType | '$lens'): string {
 
 export function channelLinkTemplate(): string {
   return '/admin/usage/channels/:key';
+}
+
+export function modelLinkTemplate(): string {
+  return '/admin/usage/models/:key';
 }

@@ -91,6 +91,10 @@ export function DashboardPanel({
   // (class-budget.test.ts).
   const gridProps = {
     ref: rootRef,
+    // The grid item IS the anchor target — see `DashboardPanelProps.id`. Safe as a DOM id because
+    // a panel id is already unique within its page (the spec schema refuses duplicates), and the
+    // dialog's own `aria-labelledby` target stays the separate, `useId`-prefixed `titleId`.
+    id,
     'data-span': span === 2 ? ('2' as const) : undefined,
     tabIndex: 0,
     'aria-label': title,

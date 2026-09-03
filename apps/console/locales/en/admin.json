@@ -42,7 +42,12 @@
       "loading": "loading this client’s usage…",
       "subtitle": "Channel · OAuth client (azp) · Every account · {{range}} · {{timezone}}"
     },
-    "labels-unresolved": "User names could not be resolved — showing the raw user id instead."
+    "labels-unresolved": "User names could not be resolved — showing the raw user id instead.",
+    "model": {
+      "fallback-title": "Model",
+      "loading": "loading this model’s usage…",
+      "subtitle": "Model · Every account · {{range}} · {{timezone}}"
+    }
   },
   "refills-queue": {
     "title": "Budget refill review",

@@ -92,6 +92,69 @@ describe('ShareBar', () => {
     expect(onSelectSegment).toHaveBeenLastCalledWith(null);
   });
 
+  /**
+   * `hrefFor` (2026-09-03) — a share bar's rows name real entities, and until this existed the only
+   * way to open one was to find it again in a table somewhere else on the page.
+   */
+  describe('hrefFor', () => {
+    it('renders a linked row as an anchor rather than a button', () => {
+      render(<ShareBar segments={segments} hrefFor={(s) => `/models/${s.key}`} />);
+
+      const link = screen.getByRole('link', { name: /atlas-prod/ });
+      expect(link).toHaveAttribute('href', '/models/a');
+      // The row is the anchor, not an anchor INSIDE a button — exactly one tab stop per segment.
+      expect(screen.queryAllByRole('button')).toHaveLength(0);
+      expect(screen.getAllByRole('link')).toHaveLength(2);
+    });
+
+    it('leaves a segment with no destination as an ordinary row', () => {
+      render(
+        <ShareBar
+          segments={segments}
+          onSelectSegment={() => {}}
+          hrefFor={(s) => (s.key === 'a' ? '/models/a' : undefined)}
+        />
+      );
+
+      expect(screen.getAllByRole('link')).toHaveLength(1);
+      expect(screen.getAllByRole('button')).toHaveLength(1);
+    });
+
+    /** A LINK wins over selection: a row that navigated and toggled on one click would do two
+     *  things the reader asked for one of. */
+    it('does not also toggle selection', () => {
+      const onSelectSegment = vi.fn();
+      render(
+        <ShareBar
+          segments={segments}
+          selectedKey={null}
+          onSelectSegment={onSelectSegment}
+          hrefFor={(s) => `/models/${s.key}`}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: /atlas-prod/ });
+      expect(link).not.toHaveAttribute('aria-pressed');
+      fireEvent.click(link);
+      expect(onSelectSegment).not.toHaveBeenCalled();
+    });
+
+    /** The collapsed tail is several entities at once, and there is no page for "several". The
+     *  caller folds it in (`collapseSegmentsTail`); refusing it here is what stops every caller
+     *  having to remember. */
+    it('never links the collapsed Other segment', () => {
+      render(
+        <ShareBar
+          segments={[segments[0], { key: '__other__', label: 'Other (4)', value: 25 }]}
+          hrefFor={(s) => `/models/${s.key}`}
+        />
+      );
+
+      expect(screen.getAllByRole('link')).toHaveLength(1);
+      expect(screen.getByRole('button', { name: /Other \(4\)/ })).toBeInTheDocument();
+    });
+  });
+
   it('marks a breached segment for assistive tech even when it is not the selected one', () => {
     render(
       <ShareBar

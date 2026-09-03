@@ -32,6 +32,18 @@ export interface DonutChartProps {
   selectedKey?: string | null;
   /** Omit for a read-only ring. The collapsed `Other` wedge is never selectable. */
   onSelectSegment?: (key: string | null) => void;
+  /**
+   * A destination for one wedge, or `undefined` for a wedge that has none — the same contract
+   * `RankedSeriesRows.hrefFor` and `ShareBar.hrefFor` hold.
+   *
+   * A linked wedge is wrapped in an SVG `<a>`: natively focusable, natively activated by Enter,
+   * and it keeps the hover tooltip (the anchor wraps the `<path>`, it does not replace it). It does
+   * NOT also toggle `selectedKey` — a wedge that navigated and selected on one click would do two
+   * things the reader asked for one of. The collapsed `Other` wedge is never linked, for the same
+   * reason it is never selectable, and `static` (print) mode drops the anchor with every other
+   * interaction: a PDF has no navigation.
+   */
+  hrefFor?: (segment: DonutSegment) => string | undefined;
   /** Mono numeral drawn in the hole (typically the formatted total). The hole is what makes this
    *  legible at all — a filled disk has nowhere to put it. */
   centreMetric?: string;

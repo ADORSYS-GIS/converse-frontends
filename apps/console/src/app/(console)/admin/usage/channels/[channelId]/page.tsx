@@ -5,6 +5,7 @@ import { ADMIN_USAGE_CHANNEL_ROUTE } from '../../../../../../dashboards/usage-ro
 import { can } from '../../../../../../server/access';
 import { readSession } from '../../../../../../server/session-store';
 import { PERMISSION } from '../../../../../../shared/permissions';
+import { decodeRouteParam } from '../../../../../../shared/route-params';
 import { dashboardPage } from '../../../../../../dashboards/page-entry';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,11 @@ export default async function AdminUsageChannelRoute({
     notFound();
   }
 
-  const { channelId } = await params;
+  // DECODED HERE, exactly once — see `decodeRouteParam`. An `azp` is an opaque OAuth client id
+  // and nothing stops one carrying a `/` or a `:` (`channelHref` encodes both), so this page has
+  // the same silent-empty-dashboard failure the actor route did until 2026-09-03.
+  const { channelId: rawChannelId } = await params;
+  const channelId = rawChannelId ? decodeRouteParam(rawChannelId) : rawChannelId;
   if (!channelId) {
     notFound();
   }

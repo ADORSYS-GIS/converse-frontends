@@ -8,6 +8,7 @@ import {
 import { can } from '../../../../../../server/access';
 import { readSession } from '../../../../../../server/session-store';
 import { PERMISSION } from '../../../../../../shared/permissions';
+import { decodeRouteParam } from '../../../../../../shared/route-params';
 import { dashboardPage } from '../../../../../../dashboards/page-entry';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,14 @@ export default async function AdminUsageActorRoute({
     notFound();
   }
 
-  const { actorId } = await params;
+  // DECODED HERE, exactly once — Next hands a page the RAW pathname segment (see
+  // `decodeRouteParam`, which carries the measurement). `actorHref` percent-encodes the id on the
+  // way out, so a repo-slug account id arrives as `cratestack%2Fcratestack` and would otherwise be
+  // queried verbatim: an id that exists nowhere, rendering a confident, complete, empty dashboard.
+  // Everything downstream — the container, the `$actorId` substitution, the header label — carries
+  // the decoded value and never decodes again.
+  const { actorId: rawActorId } = await params;
+  const actorId = rawActorId ? decodeRouteParam(rawActorId) : rawActorId;
   const query = await searchParams;
   const rawType = Array.isArray(query.type) ? query.type[0] : query.type;
 

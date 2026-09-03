@@ -143,6 +143,7 @@ function DonutBody({ view, size }: PanelRendererProps<'donut'>) {
         centreLabel={view.centreLabel}
         selectedKey={view.selectedKey}
         onSelectSegment={view.onSelectSegment}
+        hrefFor={view.hrefFor}
         emptyMessage={view.emptyMessage}
       />
     </div>
@@ -261,6 +262,7 @@ export const panelRenderers = {
       segments={view.segments}
       selectedKey={view.selectedKey}
       onSelectSegment={view.onSelectSegment}
+      hrefFor={view.hrefFor}
       emptyMessage={view.emptyMessage}
     />
   ),

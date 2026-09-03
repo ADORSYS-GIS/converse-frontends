@@ -74,14 +74,16 @@
     },
     "cost-by-model": {
       "title": "Cost per period by model",
-      "subtitle": "Bar height is the period's total spend; segments are the top five models plus one summed Other."
+      "subtitle": "Bar height is the period's total spend; segments are the top five models plus one summed Other.",
+      "linkAll": "View models"
     },
     "cost-by-actor": {
       "title": "Cost per period by actor",
       "subtitle": "Follows the lens above — users, accounts or projects."
     },
     "tokens-by-model": {
-      "title": "Tokens per period by model"
+      "title": "Tokens per period by model",
+      "linkAll": "View models"
     },
     "tokens-by-actor": {
       "title": "Tokens per period by actor"
@@ -189,6 +191,40 @@
     "channel-requests-by-operation": {
       "title": "Requests by operation",
       "subtitle": "Which API surface this client calls."
+    }
+  },
+  "admin-usage-models-model": {
+    "model-total-cost": {
+      "title": "Total cost",
+      "subtitle": "Spend on this model, across every account on the deployment."
+    },
+    "model-total-requests": {
+      "title": "Total requests",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597)."
+    },
+    "model-total-tokens": {
+      "title": "Total tokens",
+      "subtitle": "Prompt and completion together — the quantity this model is priced on."
+    },
+    "model-cost-over-time": {
+      "title": "Cost per period",
+      "subtitle": "One line, because this page is one model. Linear axis — the figure is the reading."
+    },
+    "model-actors": {
+      "title": "Who is using it",
+      "subtitle": "Cost per user on this model. Rows open that actor."
+    },
+    "model-channels": {
+      "title": "Where it arrives from",
+      "subtitle": "Cost per OAuth client (azp). Rows open that channel."
+    },
+    "model-latency": {
+      "title": "Latency",
+      "subtitle": "p50 and p95 over the buckets in this window, with the sample count each is drawn from — blank when the deployment records no latency at all."
+    },
+    "model-requests-by-operation": {
+      "title": "Requests by operation",
+      "subtitle": "Which API surface this model is called through."
     }
   },
   "admin-usage-chats": {

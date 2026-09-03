@@ -1616,9 +1616,16 @@
   border-radius: var(--radius-field);
   font-size: 0.75rem;
 
-  /* Both components render every row as a `<button>` — one markup, one set of tests — and mark
-     the non-interactive case `disabled`. So the affordance follows `:disabled` rather than a pair
-     of cursor utilities chosen at the call site. */
+  /* A row rendered as an `<a>` (`SeriesRowProps.href`) is the same row, drawn the same way —
+     inherited colour, no underline at rest. `:not(:disabled)` below already gives it the hover
+     fill, since an anchor is never `:disabled`. Same rule `.ranked-row` states for its own link
+     branch. */
+  color: inherit;
+  text-decoration: none;
+
+  /* Both components render every non-linked row as a `<button>` — one markup, one set of tests —
+     and mark the non-interactive case `disabled`. So the affordance follows `:disabled` rather
+     than a pair of cursor utilities chosen at the call site. */
   &:not(:disabled) {
     cursor: pointer;
     &:hover {
@@ -3176,6 +3183,21 @@
     margin-top: 0.125rem;
   }
 
+  /* `options.linkAll` — the one key-less destination a panel whose marks cannot carry links of
+     their own puts in its heading actions cluster. Quiet by default and underlined only on
+     hover/focus: it sits beside a scale toggle and the Expand button, and a permanently underlined
+     link there would read as the loudest thing in the row. */
+  & .dashboard-panel-link-all {
+    white-space: nowrap;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--color-base-content);
+      text-decoration: underline;
+    }
+  }
+
   /* The body fills whatever height the panel is given, so two panels sharing a grid row keep
      their charts on one baseline instead of each shrink-wrapping its own content. */
   & .dashboard-panel-body {
@@ -3277,6 +3299,22 @@
        highlight — it still drives the tooltip — but claims no pressability. */
     &[role='img'] {
       cursor: default;
+    }
+  }
+
+  /* A LINKED wedge (`DonutChartProps.hrefFor`): the SVG `<a>` owns the tab stop and the pointer,
+     while the `<path>` inside it keeps `role="img"` so the ring announces each segment once rather
+     than twice. The cursor is restated here because that `role="img"` rule above would otherwise
+     make a real link look inert. */
+  & .donut-wedge-link {
+    cursor: pointer;
+    outline: none;
+
+    & .donut-wedge {
+      cursor: pointer;
+    }
+    &:focus-visible .donut-wedge {
+      opacity: 0.82;
     }
   }
 

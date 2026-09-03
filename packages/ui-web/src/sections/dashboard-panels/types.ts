@@ -121,6 +121,8 @@ export type DashboardPanelView =
       segments: ShareBarSegment[];
       selectedKey?: string | null;
       onSelectSegment?: (key: string | null) => void;
+      /** `options.link` applied per segment — see `ShareBarProps.hrefFor`. */
+      hrefFor?: (segment: ShareBarSegment) => string | undefined;
       emptyMessage?: string;
     }
   | {
@@ -131,6 +133,8 @@ export type DashboardPanelView =
       centreLabel?: string;
       selectedKey?: string | null;
       onSelectSegment?: (key: string | null) => void;
+      /** `options.link` applied per wedge — see `DonutChartProps.hrefFor`. */
+      hrefFor?: (segment: DonutSegment) => string | undefined;
       emptyMessage?: string;
     }
   | {

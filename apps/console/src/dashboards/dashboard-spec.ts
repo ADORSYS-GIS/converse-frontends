@@ -236,8 +236,28 @@ export const panelOptionsSchema = z
     /** Rows/wedges before the `Other (N)` collapse. Omit to take the panel size's own default. */
     topN: z.number().int().positive().optional(),
     /** A route TEMPLATE with `:key` standing for the row's own group-by value, e.g.
-     *  `/admin/usage/actors/:key?type=user`. Turns ranked rows and table rows into real anchors. */
+     *  `/admin/usage/actors/:key?type=user`. Turns ranked rows, share segments, ring wedges and
+     *  table rows into real anchors. */
     link: z.string().min(1).optional(),
+    /**
+     * A single, KEY-LESS destination rendered in the panel's heading actions slot — for a panel
+     * whose marks cannot carry a link of their own.
+     *
+     * It exists for exactly one shape (owner feedback 2026-09-03): a `series` board grouped by a
+     * dimension that HAS a detail page. `/admin/usage`'s `cost-by-model` and `tokens-by-model`
+     * plot one line (or one stack band) per model, and a `<path>` in a shared chart with a
+     * hover tooltip is not a row — there is nowhere honest to hang a per-series href. So the panel
+     * gets one affordance instead of N, pointing at the panel on the same page where each model IS
+     * clickable (`#model-cost-share`), rather than at an `/admin/usage/models` index route that
+     * does not exist and that this field must not invent.
+     *
+     * Deliberately NOT a template: there is no `:key` to substitute, because the whole point is
+     * that the panel has no single row to be about.
+     */
+    linkAll: z.string().min(1).optional(),
+    /** The `linkAll` affordance's own copy — an i18n key, resolved by `translateDashboardPage`
+     *  like every other human-readable field here. Ignored without a `linkAll`. */
+    linkAllLabel: z.string().min(1).optional(),
     /**
      * `table` only — what one row IS, singular and capitalised ("Account", "Project"). It is the
      * first column's header. The default is `Actor`, which is right for a `user_id` table and a

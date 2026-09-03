@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import { parse as parseYaml } from 'yaml';
 
 import { ADMIN_USAGE_LENSES } from '../client/url-state';
 import { DASHBOARD_LENSES, findPage, parseDashboardsFile } from './dashboard-spec';
 import type { DashboardPageSpec } from './dashboard-spec';
+import { toPanelView } from './panel-adapters';
 import { resolveDashboard } from './resolve-dashboard';
 import { englishT } from '../test/english-t';
 import { translateDashboardPage } from './page-entry';
@@ -56,6 +58,31 @@ const WINDOW = {
   start: new Date('2026-08-01T00:00:00.000Z'),
   end: new Date('2026-08-29T00:00:00.000Z'),
 };
+
+/**
+ * Three rows on one dimension, deliberately in the WRONG order and with the middle one arriving
+ * first — so a table that simply echoed the response's order, or the map's insertion order, would
+ * fail the cost-descending assertion rather than pass it by accident.
+ *
+ * Costs are micro-USD, which is what the wire carries (`safeCost`).
+ */
+function tableResponse(dimension: string): UsageQueryResponse {
+  const row = (key: string, cost: number): UsageSeriesPoint => ({
+    bucket_start: '2026-08-02T00:00:00Z',
+    completion_tokens: 0,
+    latency_samples: 0,
+    prompt_tokens: 0,
+    requests: 1,
+    total_cost: cost,
+    total_tokens: 0,
+    usage_value: 0,
+    [dimension]: key,
+  });
+  return {
+    truncated: false,
+    points: [row('middle', 50_000_000), row('small', 1_000_000), row('big', 900_000_000)],
+  };
+}
 
 describe('/admin/usage in dashboards.yaml', () => {
   it('declares exactly the nineteen contracted panel ids, in order', () => {
@@ -161,6 +188,63 @@ describe('/admin/usage in dashboards.yaml', () => {
     expect(panelOf('cost-by-channel')?.query.group_by).toEqual(['azp']);
   });
 
+  // ── Every panel whose dimension HAS a detail page links its rows ────────────────────────────
+  // Owner feedback, 2026-09-03, verbatim: "/admin/usage should have panels with navigations too,
+  // the same way. E.g 'Top actors by cost', 'Which models'." Asserted as a RULE over the whole
+  // page rather than panel by panel, so a panel added later to a linkable dimension fails here
+  // instead of quietly shipping as a dead end.
+  it('links the rows of every ranked/share/donut/table panel on a linkable dimension', () => {
+    const LINKABLE: Record<string, string> = {
+      user_id: '/admin/usage/actors/:key?type=$lens',
+      account_id: '/admin/usage/actors/:key?type=$lens',
+      project_id: '/admin/usage/actors/:key?type=$lens',
+      azp: '/admin/usage/channels/:key',
+      model: '/admin/usage/models/:key',
+    };
+    const ROW_SHAPED = ['ranked', 'share', 'donut', 'table'];
+
+    const linkable = adminUsage().panels.filter(
+      (panel) =>
+        ROW_SHAPED.includes(panel.type) && LINKABLE[panel.query.group_by?.[0] ?? ''] !== undefined
+    );
+    // A guard against this passing vacuously if the dimensions were ever renamed.
+    expect(linkable.map((panel) => panel.id)).toEqual([
+      'cost-by-channel',
+      'model-cost-share',
+      'top-actor-cost',
+      'model-distribution-requests',
+      'model-distribution-cost',
+      'model-distribution-tokens',
+      'actors-table',
+      'channels-table',
+    ]);
+
+    for (const panel of linkable) {
+      expect(panel.options?.link, panel.id).toBe(LINKABLE[panel.query.group_by![0]]);
+    }
+  });
+
+  /** `plan-in-use` and `accounts-by-plan` are the deliberate NON-links: `billing_plan` has no
+   *  detail page, and inventing one would be a route that answers nothing. */
+  it('leaves a dimension with no detail page unlinked rather than inventing a route', () => {
+    expect(panelOf('plan-in-use')?.options?.link).toBeUndefined();
+    expect(panelOf('accounts-by-plan')?.options?.link).toBeUndefined();
+  });
+
+  /** A series board's lines cannot each carry an href — the values live in a hover tooltip and a
+   *  stack band is not a row. So the two model boards carry ONE affordance instead of N, pointing
+   *  at the panel on this same page where every model IS clickable. */
+  it('gives the two model series boards a View models affordance instead of per-line links', () => {
+    for (const id of ['cost-by-model', 'tokens-by-model']) {
+      expect(panelOf(id)?.options?.link, id).toBeUndefined();
+      expect(panelOf(id)?.options?.linkAll, id).toBe('#model-cost-share');
+      // Resolved through the same English bundle every other copy field is.
+      expect(panelOf(id)?.options?.linkAllLabel, id).toBe('View models');
+    }
+    // …and the anchor names a panel that actually exists on this page.
+    expect(panelOf('model-cost-share')).toBeDefined();
+  });
+
   // ── The A3 bridge columns ──────────────────────────────────────────────────────────────────
   it('reads the plan breakdown off [account_id, billing_plan], counting distinct accounts', () => {
     const panel = panelOf('accounts-by-plan');
@@ -196,6 +280,57 @@ describe('/admin/usage in dashboards.yaml', () => {
     expect(panelOf('channels-table')?.options?.columns).toEqual(['label', 'cost', 'requests']);
     expect(panelOf('channels-table')?.options?.rowLabel).toBe('Channel');
     expect(panelOf('channels-table')?.query.group_by).toEqual(['azp']);
+  });
+
+  // ── Every table pages, and leads with the biggest spender ──────────────────────────────────
+  // Owner feedback, 2026-09-03: "the table 'Channels' at the bottom is very useful … make sure it,
+  // the actors table and every other table on the page paginate and sort by cost by default."
+  //
+  // Asserted through the REAL adapter over a real-shaped response, not off the YAML: paging and
+  // ordering are not YAML fields at all (the usage query API has no `ORDER BY` and no `OFFSET` —
+  // `tableView`'s own doc comment), so the only honest check is what the panel actually hands the
+  // renderer.
+  it('gives every table on the page a pager and a cost-descending default order', () => {
+    const page = adminUsage();
+    const tables = page.panels.filter((panel) => panel.type === 'table');
+    expect(tables.map((panel) => panel.id)).toEqual(['actors-table', 'channels-table']);
+
+    for (const spec of tables) {
+      const dimension = spec.query.group_by![0];
+      const view = toPanelView({
+        spec,
+        response: tableResponse(dimension),
+        scale: 'linear',
+        onScaleChange: () => {},
+        // No `sort` — this is the DEFAULT reading, the one a reader gets before touching a header.
+        // The two callbacks are what `use-dashboard.ts` always supplies (they stopped being
+        // optional on the owner's 2026-09-03 pagination directive), so supplying them here is
+        // matching the app rather than arranging a pass.
+        onSortChange: () => {},
+        page: 0,
+        onPageChange: () => {},
+      });
+      if (view.kind !== 'table') throw new Error(`${spec.id} is not a table view`);
+
+      // Biggest spender first, smallest last — and never the response's own arrival order.
+      expect(
+        view.rows.map((row) => row.key),
+        spec.id
+      ).toEqual(['big', 'middle', 'small']);
+      // The pager is wired and knows how many rows it is walking. `hasPrev`/`hasNext` are the
+      // RENDERER's, computed from the page size it owns — a caller that supplied them would be
+      // guessing at a number it has no business knowing (`TableBody`).
+      expect(view.total, spec.id).toBe(3);
+      expect(view.page, spec.id).toBe(0);
+      expect(view.onPrev, spec.id).toBeTypeOf('function');
+      expect(view.onNext, spec.id).toBeTypeOf('function');
+      // Sorting is a real, shareable knob rather than a dead header.
+      expect(view.onSortChange, spec.id).toBeTypeOf('function');
+      expect(
+        view.columns.every((column) => column.sortable),
+        spec.id
+      ).toBe(true);
+    }
   });
 
   // ── Honesty captions the page owes an operator ─────────────────────────────────────────────

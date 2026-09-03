@@ -429,12 +429,13 @@ page); Next reads those and does the mapping."_
 
 **There are zero hand-written dashboard containers in this app.** A dashboard page is one entry in
 `apps/console/dashboards.yaml` keyed by its router path, plus a route file that reads the entry,
-calls `useDashboard(route)` and renders `DashboardRenderer`. **Ten** entries ship today:
-`/admin/overview`, `/admin/usage` and its three drill-downs (`/admin/usage/actors/[actorId]`,
-`/admin/usage/channels/[channelId]`, `/admin/usage/chats`), `/accounts/[accountId]/overview`, and
-the four `/settings/overview/*` lenses.
+calls `useDashboard(route)` and renders `DashboardRenderer`. **Eleven** entries ship today:
+`/admin/overview`, `/admin/usage` and its four drill-downs (`/admin/usage/actors/[actorId]`,
+`/admin/usage/channels/[channelId]`, `/admin/usage/models/[model]`, `/admin/usage/chats`),
+`/accounts/[accountId]/overview`, and the four `/settings/overview/*` lenses.
 
-Panel ids are **prefixed per page** (`actor-*`, `channel-*`, `chat-*`), never reused across pages:
+Panel ids are **prefixed per page** (`actor-*`, `channel-*`, `model-*`, `chat-*`), never reused
+across pages:
 the report walk resolves a route to a panel list, the per-panel URL knob is `?<panel-id>-scale=`,
 and this file is read across pages, so an id has to be unambiguous document-wide. Types and
 readings are shared freely; only identities are distinct.
@@ -459,6 +460,9 @@ pages:
         options: # optional, per type
           topN: 8
           link: /admin/usage/channels/:key # `:key` = the row's own group-by value
+          # `linkAll`/`linkAllLabel`: ONE key-less destination in the heading actions slot, for a
+          # panel whose marks cannot carry links of their own (a `series` board's lines). The label
+          # is an i18n key like every other copy field; the href is not.
         query:
           scope: all # user | api_key | project | account | all | family
           scope_id: '' # optional; a literal or a $placeholder
@@ -497,6 +501,67 @@ narrower query, it is a different one.
 
 `range` (with `from`/`to`) is applied to every panel on every page and is never listed in
 `filters`.
+
+### Route params are percent-decoded exactly once, at the route
+
+**Next.js does not decode a page's route params.** Measured against this repo's own Next (16.3.2,
+Turbopack) with a throwaway probe route on 2026-09-03: a **Route Handler** gets
+`params.id === 'cratestack/cratestack'` for `/…/cratestack%2Fcratestack` (it goes through
+`getRouteMatcher`, which decodes per group), while a **page** — and `useParams()` on the client,
+which reads the same Flight router tree — gets the raw `cratestack%2Fcratestack`.
+
+That produced a real defect, reported by the owner on 2026-09-03: an account id that is a repo slug
+(`cratestack/cratestack`) was correctly encoded by `actorHref`, passed through verbatim by the
+route, and queried as `scope_id: "cratestack%2Fcratestack"` — an id that exists nowhere. Nothing
+failed. The page rendered a complete, confident, empty dashboard.
+
+The rule is now one function (`src/shared/route-params.ts`) called once per parameterised route,
+and `admin-usage-detail-route-gate.test.ts` asserts every such route calls it **exactly once** — a
+second decode would corrupt an id containing a literal `%` (`a%20b` → `a b`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Row as Ranked row / ring wedge
+    participant Href as modelHref()<br/>encodeURIComponent
+    participant Next as Next App Router
+    participant Page as page.tsx (Server Component)
+    participant Res as resolveDashboard
+    participant API as usage backend
+
+    Row->>Href: key = "openai/gpt-4o-mini"
+    Href-->>Row: /admin/usage/models/openai%2Fgpt-4o-mini
+    Row->>Next: navigate
+    Next->>Page: params.model = "openai%2Fgpt-4o-mini" (RAW — never decoded)
+    Page->>Page: decodeRouteParam() → "openai/gpt-4o-mini"
+    Page->>Res: filters = { model: "openai/gpt-4o-mini" }
+    Res->>API: scope=all, filters.model="openai/gpt-4o-mini"
+    API-->>Res: the model's real points
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Encoded: link built by modelHref / actorHref / channelHref
+    Encoded --> RawSegment: Next hands the page params (no decode)
+    RawSegment --> Decoded: decodeRouteParam(), once, in page.tsx
+    RawSegment --> Corrupt: passed through (the pre-2026-09-03 path)
+    Decoded --> Queried: $param substituted into scope_id / filters
+    Decoded --> Corrupt: decoded a SECOND time (a%20b → a b)
+    Corrupt --> EmptyDashboard: backend answers for an id that exists nowhere
+    Queried --> [*]
+    EmptyDashboard --> [*]
+
+    note right of Corrupt
+        No error, no 404, no empty state —
+        real panels over an id nobody has.
+        This is the state the single decode
+        makes unreachable.
+    end note
+```
+
+A **malformed** escape (`100%`, `%zz`) is returned unchanged rather than thrown: that is a
+hand-typed URL, and the honest outcome is the same "no usage in this window" reading any unknown id
+gets. Throwing would turn a typo into a 500; returning `''` would silently widen a scoped query.
 
 ### Resolution, in order
 
@@ -695,6 +760,7 @@ templates/
   admin/usage/report.typ
   admin/usage/actors/[actorId]/report.typ
   admin/usage/channels/[channelId]/report.typ
+  admin/usage/models/[model]/report.typ
   admin/usage/chats/report.typ
   accounts/[accountId]/overview/report.typ
   reports/consumption/report.typ                   not a page — see "the consumption report" below

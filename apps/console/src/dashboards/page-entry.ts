@@ -49,11 +49,13 @@ export async function dashboardPage(route: string): Promise<DashboardPageSpec> {
  * `DashboardRenderer` and the report builder both stay ignorant of i18n. The same function is what
  * `/api/reports/page` calls, so an exported PDF is titled in the reader's own language.
  *
- * The four translated fields are exactly the four a human reads: `title`, `subtitle`, and a table
- * panel's `options.rowLabel`/`options.unit` (the first column's header — "Account", "Channel" —
- * and the plural noun `Pagination` counts in). Everything else in the entry is machine vocabulary:
- * scopes, dimensions, limits, panel types. None of it is copy, and translating any of it would
- * break the query.
+ * The translated fields are exactly the ones a human reads: `title`, `subtitle`, a table panel's
+ * `options.rowLabel`/`options.unit` (the first column's header — "Account", "Channel" — and the
+ * plural noun `Pagination` counts in), and `options.linkAllLabel` (the heading-slot affordance a
+ * series board carries in place of the per-line links it cannot have). Everything else in the entry
+ * is machine vocabulary: scopes, dimensions, limits, panel types, and the two ROUTES
+ * (`options.link`/`options.linkAll`) — none of it is copy, and translating any of it would break
+ * the query or the href.
  *
  * A key with no bundle entry resolves to the key itself, i18next's own behaviour, which prints
  * `admin-overview.estate-spend.title` on screen — ugly, obvious, and caught by
@@ -76,6 +78,9 @@ export function translateDashboardPage(page: DashboardPageSpec, t: Translate): D
                 ? {}
                 : { rowLabel: t(panel.options.rowLabel) }),
               ...(panel.options.unit === undefined ? {} : { unit: t(panel.options.unit) }),
+              ...(panel.options.linkAllLabel === undefined
+                ? {}
+                : { linkAllLabel: t(panel.options.linkAllLabel) }),
             },
           }),
     })),

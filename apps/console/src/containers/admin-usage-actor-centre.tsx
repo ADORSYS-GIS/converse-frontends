@@ -54,7 +54,9 @@ export interface AdminUsageActorCentreProps {
   /** The validated `/admin/usage/actors/[actorId]` entry, read from `dashboards.yaml` by the
    *  route's server component (the loader is `node:fs`). */
   page: DashboardPageSpec;
-  /** The path segment, already decoded by the router. */
+  /** The path segment, already percent-decoded by the ROUTE (`decodeRouteParam`) — Next hands a
+   *  page the raw segment, so `cratestack%2Fcratestack` is turned back into `cratestack/cratestack`
+   *  there and never touched again here. */
   actorId: string;
   /** Already validated against the closed enum by the route, which 404s anything else. */
   type: AdminUsageActorType;

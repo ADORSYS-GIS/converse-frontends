@@ -15,11 +15,15 @@ import {
   ADMIN_USAGE_ACTOR_TYPES as ROUTE_ACTOR_TYPES,
   ADMIN_USAGE_CHANNEL_ROUTE,
   ADMIN_USAGE_CHATS_ROUTE,
+  ADMIN_USAGE_MODEL_ROUTE,
   ADMIN_USAGE_ROUTE,
   channelHref,
   channelLinkTemplate,
   isAdminUsageActorType,
+  modelHref,
+  modelLinkTemplate,
 } from './usage-routes';
+import { decodeRouteParam } from '../shared/route-params';
 
 /**
  * The ROUND TRIP the story asks for: "a route-builder round-trip against C5's link generation"
@@ -56,6 +60,7 @@ function declaredLinks(lens: string) {
       accountId: 'acct_1',
       projectId: 'proj_1',
       project: 'proj_1',
+      model: 'gpt-4o',
       sub: 'usr_1',
     };
     const resolved = resolveDashboard({
@@ -74,10 +79,11 @@ function declaredLinks(lens: string) {
 }
 
 describe('the /admin/usage route vocabulary', () => {
-  it('states the four routes the area actually has', () => {
+  it('states the five routes the area actually has', () => {
     expect(ADMIN_USAGE_ROUTE).toBe('/admin/usage');
     expect(ADMIN_USAGE_ACTOR_ROUTE).toBe('/admin/usage/actors/[actorId]');
     expect(ADMIN_USAGE_CHANNEL_ROUTE).toBe('/admin/usage/channels/[channelId]');
+    expect(ADMIN_USAGE_MODEL_ROUTE).toBe('/admin/usage/models/[model]');
     expect(ADMIN_USAGE_CHATS_ROUTE).toBe('/admin/usage/chats');
   });
 
@@ -87,6 +93,7 @@ describe('the /admin/usage route vocabulary', () => {
       ADMIN_USAGE_ROUTE,
       ADMIN_USAGE_ACTOR_ROUTE,
       ADMIN_USAGE_CHANNEL_ROUTE,
+      ADMIN_USAGE_MODEL_ROUTE,
       ADMIN_USAGE_CHATS_ROUTE,
     ]) {
       expect(findPage(file, route), route).toBeDefined();
@@ -120,6 +127,103 @@ describe('the /admin/usage route vocabulary', () => {
       '/admin/usage/actors/acme%2Fwidgets?type=account'
     );
     expect(channelHref('console ui')).toBe('/admin/usage/channels/console%20ui');
+    // A router-style gateway's model names carry a slash; Bedrock's carry a colon.
+    expect(modelHref('openai/gpt-4o-mini')).toBe('/admin/usage/models/openai%2Fgpt-4o-mini');
+    expect(modelHref('anthropic.claude-sonnet-4:0')).toBe(
+      '/admin/usage/models/anthropic.claude-sonnet-4%3A0'
+    );
+  });
+});
+
+/**
+ * The bug the owner reported on 2026-09-03, in the one shape that can regress it.
+ *
+ * A repo-slug account id (`cratestack/cratestack`) is encoded by the builder, handed to a page by
+ * Next as the RAW segment (measured — see `decodeRouteParam`), and must arrive at the QUERY as the
+ * original string. It did not: every panel on `/admin/usage/actors/cratestack%2Fcratestack` queried
+ * `scope_id: "cratestack%2Fcratestack"`, an id that exists nowhere, and rendered a complete,
+ * confident, empty dashboard.
+ *
+ * This walks the whole loop for real — builder → route decode → `resolveDashboard` → the resolved
+ * query's own `scope_id`/`filters` — rather than asserting either half in isolation, because both
+ * halves were individually correct the whole time. What was missing was the join.
+ */
+describe('an id that is not a bare token survives link → route → query', () => {
+  /** What Next hands a PAGE: the raw path segment, exactly as it appears in the URL. */
+  function routeSegmentOf(href: string, position: number): string {
+    return new URL(href, 'https://console.invalid').pathname.split('/')[position];
+  }
+
+  it.each([
+    ['cratestack/cratestack', 'account'],
+    ['acme/widgets', 'user'],
+    ['missing:github:preferred_username', 'user'],
+  ] as const)('actor id %s under ?type=%s', (actorId, type) => {
+    const href = actorHref(actorId, type);
+    // The link does not invent a path segment…
+    expect(routeSegmentOf(href, 3)).not.toContain('/');
+    // …and the route's single decode gives the original id back.
+    const decoded = decodeRouteParam(routeSegmentOf(href, 4));
+    expect(decoded).toBe(actorId);
+
+    const resolved = resolveDashboard({
+      page: findPage(dashboards(), ADMIN_USAGE_ACTOR_ROUTE)!,
+      window: { start: new Date('2026-08-01T00:00:00Z'), end: new Date('2026-08-29T00:00:00Z') },
+      filters: { actorId: decoded, type },
+    });
+    for (const query of resolved.queries) {
+      expect(query.scope_id).toBe(actorId);
+      expect(query.scope).toBe(type);
+    }
+  });
+
+  it.each(['acme/cli', 'urn:client:ci', 'console ui'])('channel id %s', (channelId) => {
+    const decoded = decodeRouteParam(routeSegmentOf(channelHref(channelId), 4));
+    expect(decoded).toBe(channelId);
+
+    const resolved = resolveDashboard({
+      page: findPage(dashboards(), ADMIN_USAGE_CHANNEL_ROUTE)!,
+      window: { start: new Date('2026-08-01T00:00:00Z'), end: new Date('2026-08-29T00:00:00Z') },
+      filters: { channelId: decoded },
+    });
+    for (const query of resolved.queries) {
+      expect(query.filters?.azp).toBe(channelId);
+    }
+  });
+
+  it.each(['gpt-4o', 'openai/gpt-4o-mini', 'anthropic.claude-sonnet-4:0'])('model %s', (model) => {
+    const decoded = decodeRouteParam(routeSegmentOf(modelHref(model), 4));
+    expect(decoded).toBe(model);
+
+    const resolved = resolveDashboard({
+      page: findPage(dashboards(), ADMIN_USAGE_MODEL_ROUTE)!,
+      window: { start: new Date('2026-08-01T00:00:00Z'), end: new Date('2026-08-29T00:00:00Z') },
+      filters: { model: decoded },
+    });
+    for (const query of resolved.queries) {
+      expect(query.filters?.model).toBe(model);
+    }
+  });
+
+  /** A row's own href goes through the SAME encode — `panelRowHref` — so a linked row and a
+   *  hand-built one cannot disagree about how a slash is spelled. */
+  it('encodes a slug key identically whether the href came from a row or a builder', () => {
+    expect(panelRowHref(modelLinkTemplate(), 'openai/gpt-4o-mini')).toBe(
+      modelHref('openai/gpt-4o-mini')
+    );
+    expect(panelRowHref(channelLinkTemplate(), 'acme/cli')).toBe(channelHref('acme/cli'));
+    expect(panelRowHref(actorLinkTemplate('account'), 'cratestack/cratestack')).toBe(
+      actorHref('cratestack/cratestack', 'account')
+    );
+  });
+
+  /** A hand-typed URL with a broken escape is not a 500. It stays as it stands, queries an id that
+   *  does not exist, and renders the same "no usage" reading any unknown id gets. */
+  it('leaves a malformed escape alone rather than throwing', () => {
+    expect(decodeRouteParam('100%')).toBe('100%');
+    expect(decodeRouteParam('%zz')).toBe('%zz');
+    // …and decoding is not applied twice: a literal `%20` in an id survives one decode.
+    expect(decodeRouteParam(routeSegmentOf(modelHref('a%20b'), 4))).toBe('a%20b');
   });
 });
 
@@ -142,6 +246,9 @@ describe('every declared row link resolves to the page it claims', () => {
         expect(isAdminUsageActorType(type), `${where} → ${href!}`).toBe(true);
         expect(href, where).toBe(actorHref(key, type as (typeof ROUTE_ACTOR_TYPES)[number]));
         expect(link, where).toBe(actorLinkTemplate(type as (typeof ROUTE_ACTOR_TYPES)[number]));
+      } else if (link.startsWith('/admin/usage/models/')) {
+        expect(href, where).toBe(modelHref(key));
+        expect(link, where).toBe(modelLinkTemplate());
       } else {
         expect(href, where).toBe(channelHref(key));
         expect(link, where).toBe(channelLinkTemplate());

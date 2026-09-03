@@ -81,6 +81,10 @@ const DIMENSION_ACTOR_KIND: Record<string, ActorKind> = {
   user_id: 'user',
   account_id: 'account',
   project_id: 'project',
+  // Added with lightbridge-authz#674, which taught `resolveActorLabels` to answer for API keys.
+  // Before it, this map had no entry and "Spend by API key" printed cuid2s on every page that was
+  // not scoped to exactly one project.
+  api_key_id: 'api_key',
 };
 
 export function actorKindOf(dimension: string | undefined): ActorKind | null {
@@ -148,13 +152,16 @@ function keyLabel(key: string, dimension: string | undefined, labelFor: LabelFor
  * A LOCAL name for an opaque group key — one the console already holds, without asking the backend
  * (C12, converse-frontends#455).
  *
- * It sits IN FRONT of `labelFor` rather than replacing it, for two reasons. First, coverage:
- * `resolveActorLabels` answers for users, accounts and projects, and nothing else — an API-key id
- * has no actor kind at all, so the project lens's "Spend by API key" would print raw cuids without
- * this. Second, authorization: that procedure needs `user:read`, which the account dashboard's
- * readers will not hold once platform roles land (story C9), while `scope.allProjects` is already
- * in memory for the page's own project picker. Answering from what is already held is both cheaper
- * and available to more people.
+ * It sits IN FRONT of `labelFor` rather than replacing it, for one reason: AUTHORIZATION.
+ * `resolveActorLabels`' user/account/project kinds need `user:read`, which most people signing in
+ * do not hold, while `scope.allProjects`/`scope.allAccounts` are already in memory for the page's
+ * own pickers. Answering from what is already held is both cheaper and available to more people.
+ *
+ * It used to answer for API KEYS too, off a project-scoped `listApiKeys`. That path is gone
+ * (lightbridge-authz#674): `resolveActorLabels`' `apiKeyIds` kind is row-scoped rather than
+ * permission-gated, so it serves the same readers this resolver was protecting AND covers the
+ * pages a single-project listing never could — the account-family lens, the account overview's own
+ * breakdown. Keeping both would have been two answers to one question.
  *
  * `undefined` means "no better name than the id" — the honest fallback for an entity deleted since
  * the usage was recorded, and what hands the key on to `labelFor`.

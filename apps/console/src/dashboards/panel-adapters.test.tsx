@@ -3,6 +3,7 @@ import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest
 import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashboard-panels';
 import { describe, expect, it } from 'vitest';
 
+import type { LabelFor } from './actor-labels';
 import type { DashboardPanelSpec } from './dashboard-spec';
 import {
   comparisonSeries,
@@ -348,7 +349,7 @@ describe('toPanelView — the actor table', () => {
     },
   });
 
-  const labelFor = (kind: 'user' | 'account' | 'project', id: string) =>
+  const labelFor: LabelFor = (kind, id) =>
     id === 'u1'
       ? { label: 'Ada Lovelace', secondary: 'ada@example.com', subtle: false }
       : { label: id, subtle: false };
@@ -536,7 +537,7 @@ describe('toPanelView — the plan stat-group', () => {
 });
 
 describe('toPanelView — labels on ranked, share, donut and series', () => {
-  const labelFor = (_kind: 'user' | 'account' | 'project', id: string) =>
+  const labelFor: LabelFor = (_kind, id) =>
     id === 'u1' ? { label: 'Ada Lovelace', subtle: false } : { label: id, subtle: false };
 
   const withUsers = (type: 'ranked' | 'share' | 'donut' | 'series') =>

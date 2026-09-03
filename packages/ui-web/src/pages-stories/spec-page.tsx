@@ -348,6 +348,21 @@ const DIMENSION_KEYS: Record<string, string[]> = {
   user_id: ['Ada Lovelace', 'grace@adorsys.com', 'ci-deploy', 'usr_01j8k2m4p'],
   account_id: ['Brightline', 'Stark Infer', 'Northwind Labs', 'acct_01j7x'],
   project_id: ['ingest', 'rag-api', 'batch-eval', 'Unassigned'],
+  /**
+   * API keys, NAMED — new with lightbridge-authz#674 (owner feedback 2026-09-03: "can we use names
+   * on the 'Spend by API key' panel? API keys do have names").
+   *
+   * There was no entry here before, so every "Spend by API key" panel fell through to its
+   * per-TYPE fixture's own model-shaped labels — which is how this page looked correct in
+   * Storybook for months while prod printed `zezxvt21irmoi0kzm22el7gu`. A missing entry is not a
+   * neutral default; it is a fixture that reviews a different page than the one that ships.
+   *
+   * The four members are the four outcomes `buildLabelFor('api_key', …)` can actually produce:
+   * a plain name; a second plain name; a REVOKED key, which keeps its name and says so on the
+   * label rather than being demoted to a sentinel (its spend is real and still has to be
+   * attributable); and an id nothing resolved, KEPT rather than dropped.
+   */
+  api_key_id: ['Production ingest', 'Batch loader', 'Retired loader (revoked)', 'ak_01j9v2c8'],
 };
 
 /**

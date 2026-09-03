@@ -190,7 +190,10 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
     queryKey: ['actorLabels', 'accounts', accountIds.join(',')],
     queryFn: () =>
       authzClient.procedures.resolveActorLabels({
-        args: { userIds: [], accountIds, projectIds: [] },
+        // Every list is required (cratestack has no optional-list arity); this screen names
+        // accounts only. `/admin/budget-schedules` is `budget:schedule-manage`-gated and its
+        // holders carry `user:read`, so the estate-wide kind is the right one to ask for here.
+        args: { userIds: [], accountIds, projectIds: [], apiKeyIds: [] },
       }),
     enabled: accountIds.length > 0,
     staleTime: 300_000,

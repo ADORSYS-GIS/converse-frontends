@@ -69,6 +69,10 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
       'spend-by-model',
       'latency-by-model',
       'spend-by-api-key',
+      // The three RINGS the owner asked for on 2026-09-03 — one `[azp]` grouping, three readings.
+      'account-cost-by-channel',
+      'account-tokens-by-channel',
+      'account-requests-by-channel',
     ]);
   });
 
@@ -95,7 +99,7 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
     }
   });
 
-  it('resolves eight panels to four requests, one of them the comparison twin', () => {
+  it('resolves eleven panels to five requests, one of them the comparison twin', () => {
     const page = pageFor(ACCOUNT_ROUTE);
     const resolved = resolveDashboard({
       page,
@@ -103,9 +107,9 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
       filters: { accountId: 'acct_1' },
     });
 
-    expect(page.panels).toHaveLength(8);
+    expect(page.panels).toHaveLength(11);
     // The hand-written page fired four (total, previous, share, by-model) for three boards.
-    expect(resolved.queries).toHaveLength(4);
+    expect(resolved.queries).toHaveLength(5);
 
     const indexOf = (id: string) => resolved.panels.find((p) => p.spec.id === id)?.queryIndex;
 
@@ -122,6 +126,47 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
     // The API-key grouping is deliberately its own request — crossing it with the two dimensions
     // above would multiply the row count past the limit on any account with real key usage.
     expect(indexOf('spend-by-api-key')).not.toBe(grouped[0]);
+
+    // The three channel rings (owner request, 2026-09-03) are ONE `[azp]` request between them —
+    // three readings of the same grouping, not three round trips. A ring that fired its own query
+    // would triple this page's channel cost for nothing.
+    const rings = [
+      'account-cost-by-channel',
+      'account-tokens-by-channel',
+      'account-requests-by-channel',
+    ].map(indexOf);
+    expect(new Set(rings).size).toBe(1);
+    expect(rings[0]).not.toBe(grouped[0]);
+    expect(rings[0]).not.toBe(indexOf('spend-by-api-key'));
+  });
+
+  /**
+   * The rings are rings, they read the three columns the owner asked for, and they open NOTHING.
+   * `/admin/usage/channels/<azp>` — the one route a channel row could link to — is gated on
+   * `usage:read-all`, which this page's readers do not hold, so a linked segment would be a 404
+   * dressed up as a drill-down.
+   */
+  it('gives the three channel panels one metric each, grouped by azp, linking nowhere', () => {
+    const page = pageFor(ACCOUNT_ROUTE);
+    const ringOf = (id: string) => page.panels.find((panel) => panel.id === id);
+
+    expect(ringOf('account-cost-by-channel')?.metric).toBe('cost');
+    expect(ringOf('account-tokens-by-channel')?.metric).toBe('tokens');
+    expect(ringOf('account-requests-by-channel')?.metric).toBe('requests');
+
+    for (const id of [
+      'account-cost-by-channel',
+      'account-tokens-by-channel',
+      'account-requests-by-channel',
+    ]) {
+      const ring = ringOf(id);
+      expect(ring?.type, id).toBe('donut');
+      expect(ring?.span, id).toBe(1);
+      expect(ring?.query.group_by, id).toEqual(['azp']);
+      expect(ring?.options?.link, id).toBeUndefined();
+      // The subtitle has to name `azp` for what it is — a raw OAuth client id printed verbatim.
+      expect(ring?.subtitle, id).toMatch(/oauth client \(azp\)/i);
+    }
   });
 
   it('drops the project filter entirely when the scope is on All projects', () => {

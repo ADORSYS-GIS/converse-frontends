@@ -37,6 +37,10 @@ describe('PERMISSION', () => {
       apiKeyDelete: 'apikey:delete',
       apiKeyRead: 'apikey:read',
       projectRead: 'project:read',
+      // Owner ruling, 2026-09-03: `/settings/tiers` is gated on the WRITE permission the
+      // tier-changing RPC (`setProjectQuota`) requires, not on a read a viewer holds — see the
+      // constant's own doc comment for why `project:update` and not `account:update`.
+      projectUpdate: 'project:update',
       budgetReadOwn: 'budget:read-own',
     });
   });

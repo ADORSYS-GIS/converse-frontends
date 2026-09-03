@@ -64,6 +64,27 @@ export const PERMISSION = {
   apiKeyRead: 'apikey:read',
   /** Reading projects — the account-wide project listing behind that same card. */
   projectRead: 'project:read',
+  /**
+   * Editing a project — and, with it, the QUOTA TIER assigned to one (`procedure.setProjectQuota`,
+   * mapped to `project:update` in `rpc_authorize.rs`). This is what gates `/settings/tiers`
+   * (owner ruling, 2026-09-03: "users with the role -viewer should not even see tiers").
+   *
+   * A WRITE permission gating a READ-ONLY screen, deliberately, and it is worth saying why rather
+   * than leaving it to look like a mistake. `/settings/tiers` shows two things: the billing-plan
+   * catalogue (`listBillingPlans`, gated upstream on `apikey:create`) and which quota tier is
+   * assigned to the scoped account and its projects. Both are readings a person can only ACT on
+   * through `setProjectQuota`/`updateAccountDefaultQuota` — a tier catalogue is a menu, and a menu
+   * shown to someone who may not order from it is noise. The owner ruled that a viewer must not
+   * see the row OR the page, so the gate is the write permission the tier-changing RPC actually
+   * requires, not the read one a viewer happens to hold.
+   *
+   * `project:update`, not `account:update`: `lightbridge-editor` holds `project:*` (and therefore
+   * this) but NOT `account:update`, so gating on the account permission would hide the screen from
+   * editors too — one role too many. `lightbridge-viewer` holds only `project:read`
+   * (`default_role_permissions()`, `lightbridge-authz-core/src/authz.rs`), so it is exactly the
+   * line the ruling asks for.
+   */
+  projectUpdate: 'project:update',
   /** Reading the caller's own budget balance (`getMyBudgetBalance`). */
   budgetReadOwn: 'budget:read-own',
 } as const;

@@ -136,12 +136,44 @@ describe('settingsRouteFromPathname', () => {
 
 // Owner directive, 2026-09-03, verbatim: "The Admin button doesn't need to be hidden now, since
 // it's gated by permission. So it can appear on the main left rail. The Roles button in Settings'
-// left rail can safely be removed." Both rows that pointed OUT of the settings area are gone, and
-// with them the whole reason this builder ever took a permission set — it takes one argument now,
-// and every visitor sees the identical five rows.
+// left rail can safely be removed." Both rows that pointed OUT of the settings area are gone.
+//
+// The builder still takes a permission set, for ONE row: "Tier configs", gated on `project:update`
+// (owner ruling the same day, verbatim: "users with the role -viewer should not even see tiers").
 describe('settingsNavGroups', () => {
+  /** `default_role_permissions()` (`lightbridge-authz-core/src/authz.rs`), verbatim — the two role
+   *  shapes the tiers ruling draws its line between. `project:*`/`apikey:*` are already expanded
+   *  by the backend before `getMyAccess` answers with them, so the editor set names its members. */
+  const VIEWER = [
+    'account:create',
+    'account:read',
+    'project:read',
+    'apikey:read',
+    'session:revoke-own',
+    'budget:read-own',
+  ];
+  const EDITOR = [
+    'account:create',
+    'account:read',
+    'project:create',
+    'project:read',
+    'project:update',
+    'project:delete',
+    'project:disable',
+    'project:member',
+    'apikey:create',
+    'apikey:read',
+    'apikey:update',
+    'apikey:delete',
+    'apikey:revoke',
+    'apikey:rotate',
+    'apikey:validate',
+    'session:revoke-own',
+    'budget:read-own',
+  ];
+
   it('lists the five live settings destinations, in the owner-dictated order', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', EDITOR);
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
@@ -154,8 +186,34 @@ describe('settingsNavGroups', () => {
     expect(group.items.every((item) => item.href?.startsWith('/settings/'))).toBe(true);
   });
 
+  // Owner ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers."
+  // The gate is `project:update` — the permission `setProjectQuota` requires — so it lands exactly
+  // between the two default roles rather than on a role string.
+  it('omits Tier configs for a lightbridge-viewer — never a disabled placeholder', () => {
+    const [group] = settingsNavGroups('overview', VIEWER);
+
+    expect(group.items.find((item) => item.key === 'tiers')).toBeUndefined();
+    // …and the rest of the settings area is untouched: this narrows one row, not the area.
+    expect(group.items.map((item) => item.key)).toEqual([
+      'overview',
+      'accounts',
+      'policies',
+      'info',
+    ]);
+    expect(group.items.filter((item) => item.disabled)).toEqual([]);
+  });
+
+  it('keeps Tier configs for a lightbridge-editor, in its usual slot', () => {
+    const [group] = settingsNavGroups('tiers', EDITOR);
+    const tiers = group.items.find((item) => item.key === 'tiers');
+
+    expect(tiers?.href).toBe('/settings/tiers');
+    expect(tiers?.active).toBe(true);
+    expect(tiers?.disabled).toBeUndefined();
+  });
+
   it('places Accounts right after Overview, and navigates to /settings/accounts', () => {
-    const [group] = settingsNavGroups('accounts');
+    const [group] = settingsNavGroups('accounts', EDITOR);
     const accounts = group.items.find((item) => item.key === 'accounts');
 
     expect(group.items[1]?.key).toBe('accounts');
@@ -169,12 +227,12 @@ describe('settingsNavGroups', () => {
   // the admin area's own list (`adminNavGroups`), so this was a second entrance to somebody else's
   // destination rather than a settings one.
   it('lists no Roles row at all — /admin/roles belongs to the admin area only', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', EDITOR);
     expect(group.items.find((item) => item.key === 'roles')).toBeUndefined();
   });
 
   it('no longer lists a refills-queue or refill-options row at all — both moved to the admin area', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', EDITOR);
     expect(group.items.find((item) => item.key === 'refills-queue')).toBeUndefined();
     expect(group.items.find((item) => item.key === 'refill-options')).toBeUndefined();
   });
@@ -182,12 +240,12 @@ describe('settingsNavGroups', () => {
   // The 2026-08-31 "the admin shortcut lives in settings" placement is superseded: the row sits on
   // the account area's main rail now (`navGroups`' own tests below), never in both places at once.
   it('lists no Admin row any more — it moved to the account rail', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', EDITOR);
     expect(group.items.find((item) => item.key === 'admin')).toBeUndefined();
   });
 
   it('points every row at a live route — no disabled placeholder survives', () => {
-    const [group] = settingsNavGroups('overview');
+    const [group] = settingsNavGroups('overview', EDITOR);
     expect(group.items.filter((item) => item.disabled)).toEqual([]);
     expect(group.items.filter((item) => !item.href)).toEqual([]);
   });

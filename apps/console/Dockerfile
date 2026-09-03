@@ -30,13 +30,25 @@ FROM docker.io/library/node:22.23.2-bookworm-slim
 
 # Update Alpine packages to the latest security patches (mirrors the root Dockerfile).
 #
-# glibc base (2026-08-31, supersedes the libc6-compat/Alpine era): @cratestack/cbor-node ships
-# glibc-only prebuilds (no -musl variant, cratestack#850), and Alpine's musl — even with
-# libc6-compat's shim — cannot load them. Proven in a real linux/amd64 image build: the usage
-# scope guard's codec never initialized, so its slow path fail-closed on every child-account
-# query while every local gate stayed green (the standalone tracer/host runs glibc). bookworm-slim
-# is the smallest official glibc node image; sharp and every other traced native addon load
-# natively on it, ending the compat-shim class entirely.
+# glibc base (2026-08-31, supersedes the libc6-compat/Alpine era): @cratestack/cbor-node shipped
+# glibc-only prebuilds (cratestack#850), and Alpine's musl — even with libc6-compat's shim —
+# cannot load them. Proven in a real linux/amd64 image build: the usage scope guard's codec never
+# initialized, so its slow path fail-closed on every child-account query while every local gate
+# stayed green (the standalone tracer/host runs glibc). bookworm-slim is the smallest official
+# glibc node image; sharp and every other traced native addon load natively on it, ending the
+# compat-shim class entirely.
+#
+# UPDATE (2026-09-03, cratestack 0.11.0): @cratestack/cbor-node NOW ships musl prebuilds
+# (`-linux-x64-musl` / `-linux-arm64-musl`, cratestack#868), so the original blocker is gone and
+# an Alpine base is once again technically possible. **We are deliberately not taking it.** The
+# musl variant only removes the reason Alpine was impossible; it does not supply a reason to move.
+# What made this image work is not cbor-node alone — it is that EVERY traced native addon (sharp
+# included) loads without a compat shim, which is a property of glibc, not of any one package.
+# Going back to Alpine would re-open that whole class to buy a smaller base image, and this stays
+# glibc until something actually asks for the size. Concretely: nothing else in this Dockerfile,
+# and nothing in `scripts/stage-cratestack-cbor-for-docker.mjs`, changes because of #868 — the
+# staging script is glob-driven over whatever `@cratestack+cbor*` store dirs pnpm materialized,
+# and on a glibc runner pnpm never materializes the musl ones at all.
 RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*

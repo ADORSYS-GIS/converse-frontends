@@ -106,6 +106,46 @@ jobs:
         shell: bash
         run: bash .ci/test/run.sh
 
+  # `quality.yml` already runs ESLint and Prettier, but only as SARIF-producing
+  # scanners: `gate.sh` fails on a scanner CRASHING, never on the findings a
+  # scanner reports, and reviewdog's `-fail-level=error` only annotates PR
+  # lines — it does not fail the `Code Quality Scan` check itself (converse-
+  # frontends#412). So a real lint error has shipped to `main` unblocked before,
+  # and nothing in CI would stop the next one either. This job is the actual
+  # enforcement point, the same role `typecheck` plays for `tsc` above (see
+  # that job's own comment) — a separate job rather than an extra step on
+  # `test`, so a lint failure and a failing Jest test are two distinctly
+  # attributable red Xs, not one.
+  #
+  # `pnpm lint` is `eslint ... && prettier -c ...` (root package.json). ESLint's
+  # own exit code already gives the "0 errors required, warnings non-fatal"
+  # split for free: it exits 1 only when a rule is configured at `error`
+  # severity and fires, never for a `warning`-severity finding alone (no
+  # `--max-warnings` flag is passed here, so warnings never fail the step).
+  # The 39 warnings currently on `main` are exactly that — findings this job
+  # is meant to leave alone, not a threshold to tune around.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (eslint + prettier --check)
+        run: pnpm lint
+
   # tsc is not run by Metro/Expo's bundler (see the `build-web` job below) and
   # nothing else on the pull_request path turns a type error into a failed
   # check — quality.yml's tsc step never fails the PR (see docs/knowledge/ci-cd.md,

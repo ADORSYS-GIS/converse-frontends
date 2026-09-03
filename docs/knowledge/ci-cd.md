@@ -166,7 +166,15 @@ either — Gap 1) does not type-check. So `pnpm build` (`turbo run build:web`) s
 code `tsc` rejects, and no CI step gated on a PR currently disagrees. A dependency-bump PR
 nearly shipped a type regression today for exactly this combination of reasons.
 
-### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time
+### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time (CLOSED, converse-frontends#412, see below)
+
+> **Update, 2026-09-03 (`main` @ `b6d3c42` → this fix):** `pnpm lint` exits `0` on `main`
+> (0 errors, 39 warnings; the earlier reformat landed in #494) and `test.yml` now has a
+> dedicated `lint` job that runs `pnpm lint` and fails the PR check on it — verified by a
+> falsification run (a deliberately mis-formatted throwaway file made the job's command
+> exit 1; removing it restored exit 0). See `docs/ROADMAP.md`'s CI & quality gates table.
+> The numbers and analysis below are the history of how this gap was found and are left
+> as-is; they no longer describe the current state.
 
 The root `lint` script (`package.json`) is:
 

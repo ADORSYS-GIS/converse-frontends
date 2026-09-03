@@ -24,7 +24,7 @@
 //    select. `?bucket=` went with it (the engine derives bucket width from the range) and so did
 //    `?model=`, which only ever offered a single inert "All models" entry.
 //  - Spend over time and the two money stats carry the D-F comparison window, so a delta names
-//    the window it is against ("12% vs previous month") rather than saying "vs prev period".
+//    the window it is against, by date ("12% vs Aug 1 – Aug 31"), not "vs prev period".
 //  - Latency by model is new here: it comes free off the `[project_id, model]` grouping the
 //    breakdown panels already fire.
 //  - Export is C10's `DashboardExportButton` (converse-frontends#453), which walks the SAME

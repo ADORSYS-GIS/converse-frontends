@@ -186,6 +186,7 @@ describe('/admin/overview in dashboards.yaml', () => {
     expect(estate?.compareShiftMs).toBe(
       Date.UTC(2026, 7, 1) - Date.UTC(2026, 6, 1) // 31 days
     );
-    expect(estate?.compareCadence).toBe('monthly');
+    // Monthly cadence, so the twin is the same days of the previous calendar month.
+    expect(estate?.compareWindow?.start.toISOString()).toBe('2026-07-01T00:00:00.000Z');
   });
 });

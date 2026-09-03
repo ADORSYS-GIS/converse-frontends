@@ -24,6 +24,16 @@ import { microsToAmount } from './refill-rows';
  * (`use-admin-estate-operations.ts`); inventing an RPC panel type for a third caller would be a
  * worse abstraction than one honest container.
  *
+ * **How this zone's spend relates to `actor-total-cost` beside it** (converse-frontends#448). They
+ * are deliberately different windows and must stay so: this one is the BILLING PERIOD
+ * (`buildBudgetConsumptionRequest`, a calendar month), because a "$3.59 of $11.59" sentence only
+ * means anything if the numerator and the ceiling cover the same period; the panel is the RANGE
+ * PICKER's window, because that is what the page says it is showing. They agree exactly when the
+ * picker sits on `mtd`, which is the default. On 2026-09-03 they disagreed by $8.33 — and the zone
+ * was the one telling the truth, because it never went through `resolveDashboard`, which was
+ * widening every panel's window to a seven-day comparison floor. The rule that came out of it:
+ * whatever window a figure is drawn under is the window it is queried over, in both paths.
+ *
  * **It answers for an ACCOUNT and for nothing else.** A user has no budget and a project has no
  * ceiling of its own (`GetMyBudgetBalanceInput`'s own note: `budget_account_id` is always the
  * account id), so `enabled` is false for the other two actor types and the page omits the zone

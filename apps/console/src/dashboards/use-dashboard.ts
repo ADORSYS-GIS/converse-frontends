@@ -318,7 +318,7 @@ export function useDashboard({
         spec: panel.spec,
         response,
         compareResponse,
-        compareCadence: compareResponse ? panel.compareCadence : undefined,
+        compareWindow: compareResponse ? panel.compareWindow : undefined,
         compareShiftMs: compareResponse ? panel.compareShiftMs : undefined,
         scale: scaleFor(panel.spec.id) ?? panel.spec.options?.scale ?? 'linear',
         onScaleChange: (next) => onScaleChange(panel.spec.id, next),

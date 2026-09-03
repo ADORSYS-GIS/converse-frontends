@@ -2,7 +2,6 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
 import { formatUsd } from '@lightbridge/ui-web/src/lib/money';
 import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 
-import type { ResetCadence } from '../../containers/comparison-window';
 import type { DashboardPanelSpec } from '../../dashboards/dashboard-spec';
 import { toPanelView } from '../../dashboards/panel-adapters';
 import type { ResolvedDashboard } from '../../dashboards/resolve-dashboard';
@@ -299,9 +298,13 @@ export function buildReport(input: BuildReportInput): BuiltReport {
       spec,
       response,
       compareResponse,
-      compareCadence: compareResponse
-        ? (panel.compareCadence as ResetCadence | undefined)
-        : undefined,
+      compareWindow: compareResponse ? panel.compareWindow : undefined,
+      // The dashed overlay's re-base, passed for the same reason every other field here is: the
+      // PDF renders through the SAME adapter the browser does, so a series board that carries a
+      // "previous period" line on screen must carry it in the report too — and without the shift
+      // it would be plotted at its real dates and double the chart's x-domain
+      // (converse-frontends#448).
+      compareShiftMs: compareResponse ? panel.compareShiftMs : undefined,
       scale: spec.options?.scale ?? 'linear',
       onScaleChange: () => undefined,
     });

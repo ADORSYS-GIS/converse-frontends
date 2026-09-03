@@ -1,55 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  comparisonLabel,
-  comparisonWindow,
-  DEFAULT_COMPARISON_CADENCE,
-  MIN_COMPARISON_SPAN_MS,
-  snapToCadence,
-} from './comparison-window';
+import { comparisonLabel, comparisonWindow, DEFAULT_COMPARISON_CADENCE } from './comparison-window';
 
-const DAY = 86_400_000;
 const at = (iso: string) => new Date(iso);
 
-describe('snapToCadence', () => {
-  it('leaves a window that already meets the one-week floor alone', () => {
-    const window = { start: at('2026-08-01T00:00:00Z'), end: at('2026-08-31T00:00:00Z') };
-    const snapped = snapToCadence(window, 'monthly');
-    expect(snapped.start.toISOString()).toBe(window.start.toISOString());
-    expect(snapped.end.toISOString()).toBe(window.end.toISOString());
-  });
-
-  /** The owner's "at least a week": a daily-resetting actor compared day-on-day is noise. */
+describe('comparisonWindow', () => {
+  /**
+   * The 2026-09-03 money incident (converse-frontends#448), pinned as a rule rather than as one
+   * fixture: this helper used to hand back a WIDENED current window under the 7-day floor, and
+   * `resolve-dashboard.ts` queried it for every panel on the page.
+   */
   it.each(['daily', 'weekly', 'monthly'] as const)(
-    'widens a one-day window to the trailing week under %s',
+    'never moves the current window under %s, not even a sub-week one',
     (cadence) => {
-      const window = { start: at('2026-09-01T00:00:00Z'), end: at('2026-09-02T00:00:00Z') };
-      const snapped = snapToCadence(window, cadence);
-      expect(snapped.end.toISOString()).toBe('2026-09-02T00:00:00.000Z');
-      expect(snapped.end.getTime() - snapped.start.getTime()).toBe(MIN_COMPARISON_SPAN_MS);
+      const threeDays = { start: at('2026-09-01T00:00:00Z'), end: at('2026-09-03T23:59:59.999Z') };
+      const { current } = comparisonWindow(threeDays, cadence);
+      expect(current.start.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+      expect(current.end.toISOString()).toBe('2026-09-03T23:59:59.999Z');
     }
   );
 
-  it('rounds a weekly window UP to whole weeks, never truncating a longer selection', () => {
+  it('never moves a nine-day weekly window up to whole weeks either', () => {
     const nineDays = { start: at('2026-08-23T00:00:00Z'), end: at('2026-09-01T00:00:00Z') };
-    expect(
-      snapToCadence(nineDays, 'weekly').end.getTime() -
-        snapToCadence(nineDays, 'weekly').start.getTime()
-    ).toBe(14 * DAY);
-
-    const thirtyDays = { start: at('2026-08-02T00:00:00Z'), end: at('2026-09-01T00:00:00Z') };
-    const snapped = snapToCadence(thirtyDays, 'weekly');
-    expect(snapped.end.getTime() - snapped.start.getTime()).toBe(35 * DAY);
+    const { current } = comparisonWindow(nineDays, 'weekly');
+    expect(current.start.toISOString()).toBe('2026-08-23T00:00:00.000Z');
+    expect(current.end.toISOString()).toBe('2026-09-01T00:00:00.000Z');
   });
 
-  it('leaves a monthly window partial — `mtd` compares like-for-like against the same days', () => {
-    const mtd = { start: at('2026-09-01T00:00:00Z'), end: at('2026-09-15T12:00:00Z') };
-    const snapped = snapToCadence(mtd, 'monthly');
-    expect(snapped.start.toISOString()).toBe(mtd.start.toISOString());
+  it('copies the window rather than aliasing the caller’s Dates', () => {
+    const window = { start: at('2026-08-01T00:00:00Z'), end: at('2026-08-31T00:00:00Z') };
+    const { current } = comparisonWindow(window, 'weekly');
+    expect(current.start).not.toBe(window.start);
+    expect(current.end).not.toBe(window.end);
   });
-});
 
-describe('comparisonWindow', () => {
   it('never overlaps the current window', () => {
     const window = { start: at('2026-08-01T00:00:00Z'), end: at('2026-08-31T00:00:00Z') };
     const { current, previous } = comparisonWindow(window, 'weekly');
@@ -65,6 +49,17 @@ describe('comparisonWindow', () => {
         current.end.getTime() - current.start.getTime()
       );
     }
+  });
+
+  /** A three-day window compares against the three days before it — not against a widened week,
+   *  which would make the percentage a ratio of unequal spans. */
+  it('compares a sub-week window against an equally short one', () => {
+    const threeDays = { start: at('2026-09-01T00:00:00Z'), end: at('2026-09-03T23:59:59.999Z') };
+    const { current, previous } = comparisonWindow(threeDays, 'daily');
+    expect(previous.end.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(previous.end.getTime() - previous.start.getTime()).toBe(
+      current.end.getTime() - current.start.getTime()
+    );
   });
 
   /** The whole reason `monthly` is not a millisecond shift: a 30-day shift would compare 1–15
@@ -83,14 +78,6 @@ describe('comparisonWindow', () => {
     expect(previous.start.toISOString()).toBe('2026-02-28T00:00:00.000Z');
   });
 
-  it('reports when the current window was widened, so a caller can say so', () => {
-    const oneDay = { start: at('2026-09-01T00:00:00Z'), end: at('2026-09-02T00:00:00Z') };
-    expect(comparisonWindow(oneDay, 'daily').widened).toBe(true);
-
-    const oneMonth = { start: at('2026-08-01T00:00:00Z'), end: at('2026-09-01T00:00:00Z') };
-    expect(comparisonWindow(oneMonth, 'monthly').widened).toBe(false);
-  });
-
   it('defaults to the monthly rule for an estate page with no actor cadence', () => {
     const window = { start: at('2026-03-01T00:00:00Z'), end: at('2026-03-15T00:00:00Z') };
     expect(comparisonWindow(window).cadence).toBe(DEFAULT_COMPARISON_CADENCE);
@@ -99,9 +86,29 @@ describe('comparisonWindow', () => {
 });
 
 describe('comparisonLabel', () => {
-  it('names the window explicitly instead of a vague "prev period"', () => {
-    expect(comparisonLabel('daily')).toBe('vs previous week');
-    expect(comparisonLabel('weekly')).toBe('vs previous week');
-    expect(comparisonLabel('monthly')).toBe('vs previous month');
+  it('names the comparison window by date, not by cadence', () => {
+    expect(
+      comparisonLabel({ start: at('2026-08-25T00:00:00Z'), end: at('2026-09-01T00:00:00Z') })
+    ).toBe('vs Aug 25 – Aug 31');
+  });
+
+  /** A window ending at midnight ends where the next day BEGINS; printing that day would claim a
+   *  day the comparison never covered. */
+  it('states the end inclusively', () => {
+    expect(
+      comparisonLabel({ start: at('2026-02-01T00:00:00Z'), end: at('2026-03-01T00:00:00Z') })
+    ).toBe('vs Feb 1 – Feb 28');
+  });
+
+  it('prints a partial day’s own date when the end is not a midnight boundary', () => {
+    expect(
+      comparisonLabel({ start: at('2026-08-01T00:00:00Z'), end: at('2026-08-15T12:00:00Z') })
+    ).toBe('vs Aug 1 – Aug 15');
+  });
+
+  it('collapses a single-day window to one date', () => {
+    expect(
+      comparisonLabel({ start: at('2026-08-31T00:00:00Z'), end: at('2026-09-01T00:00:00Z') })
+    ).toBe('vs Aug 31');
   });
 });

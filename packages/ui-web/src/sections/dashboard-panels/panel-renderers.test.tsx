@@ -63,7 +63,7 @@ describe('per-type mappings', () => {
   it('stat → StatCard, with its delta', () => {
     render(<>{renderPanelBody(panelFixtures.stat, 'panel')}</>);
     expect(screen.getByText('$943.60')).toBeInTheDocument();
-    expect(screen.getByText(/12% vs previous month/)).toBeInTheDocument();
+    expect(screen.getByText(/12% vs Aug 1 – Aug 31/)).toBeInTheDocument();
   });
 
   it('donut → the RING, with a hole and no legend list', () => {

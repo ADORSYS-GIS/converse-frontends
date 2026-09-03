@@ -37,7 +37,9 @@ import {
  *  3. **Resolves `bucket: auto`** by the range rule (≤7d → `1 hour`, ≤90d → `1 day`, else
  *     `7 days`), and always emits an explicit `limit`.
  *  4. **Adds the comparison twin** for `compare: true`, through the shared `comparisonWindow`
- *     helper (D-F) — the twin is an ordinary query and is deduplicated like any other.
+ *     helper (D-F) — the twin is an ordinary query and is deduplicated like any other. It is
+ *     ADDITIVE: the twin's window belongs to the twin, and the panels' own window stays exactly
+ *     the one the page was given (converse-frontends#448).
  *  4b. **Applies the LENS** (converse-frontends#448) — a panel declaring `options.lens` has the
  *     first dimension of its `group_by` swapped for the page's effective lens
  *     (`?lens=user|account|project`, else the panel's own YAML default), and `$lens` in its
@@ -98,8 +100,12 @@ export interface ResolvedPanel {
   compareQueryIndices?: number[];
   /** `compareQueryIndices[0]`. */
   compareQueryIndex?: number;
-  /** Which cadence the comparison was computed against — the delta's wording comes from it. */
-  compareCadence?: ResetCadence;
+  /**
+   * The window the comparison twin actually covers — the delta's wording is taken from it
+   * (`comparisonLabel`), so a stat card names the span it compared against by date rather than
+   * asserting a cadence phrase that the resolver alone could verify.
+   */
+  compareWindow?: UsageWindow;
   /**
    * How far FORWARD the comparison window's own timestamps must be shifted to sit under the
    * current window (`current.start - previous.start`, in ms).
@@ -131,7 +137,9 @@ export interface ResolvedDashboard {
   /** Deduplicated. Two panels whose resolved queries are byte-identical point at one entry here. */
   queries: ResolvedQuery[];
   panels: ResolvedPanel[];
-  /** The window every non-comparison query was built over, after any comparison snapping. */
+  /** The window every non-comparison query was built over — ALWAYS the window the caller passed
+   *  in. A comparison adds a twin query over its own window; it never moves this one
+   *  (converse-frontends#448). */
   window: UsageWindow;
 }
 
@@ -407,14 +415,19 @@ export function resolveDashboard({
 
   // The comparison pair is computed ONCE for the page, not per panel: every panel on a page shares
   // one window, so a per-panel computation would produce identical windows and only give the
-  // dedupe more work to undo. It also decides the CURRENT window when a comparison widened it —
-  // both sides of a comparison must be the same length, which means the panels that do NOT
-  // compare have to move with it, or two panels on one page would report different totals for
-  // what the range picker calls the same window.
+  // dedupe more work to undo.
   const wantsCompare = page.panels.some((panel) => panel.compare);
   const cadence = resetCadence ?? DEFAULT_COMPARISON_CADENCE;
   const comparison = wantsCompare ? comparisonWindow(window, cadence) : undefined;
-  const effectiveWindow = comparison?.current ?? window;
+  // The page's OWN window, always — a comparison never moves it (converse-frontends#448). This
+  // line used to read `comparison?.current ?? window`, back when `comparisonWindow` widened a
+  // sub-week selection to a 7-day span to meet decision D-F's floor, and that widened window was
+  // then handed to EVERY panel on the page. `?from=2026-09-01&to=2026-09-03` therefore queried
+  // 28 Aug – 3 Sep and printed $11.92 under a header that said 1–3 Sep, where the true three-day
+  // total was $3.59. The floor is gone from `comparison-window.ts` for that reason; this
+  // assignment is the second, structural line — the window a page is drawn under is the window it
+  // is queried over, and no downstream helper gets a say.
+  const effectiveWindow: UsageWindow = window;
 
   // The page's own lens knob, narrowed once. An unrecognised `?lens=` value is IGNORED rather than
   // thrown on: it comes from a URL a person can type, and every lens-driven panel still has its own
@@ -453,8 +466,8 @@ export function resolveDashboard({
       ...base,
       compareQueryIndices,
       compareQueryIndex: compareQueryIndices[0],
-      compareCadence: comparison.cadence,
-      compareShiftMs: comparison.current.start.getTime() - comparison.previous.start.getTime(),
+      compareWindow: comparison.previous,
+      compareShiftMs: effectiveWindow.start.getTime() - comparison.previous.start.getTime(),
     };
   });
 

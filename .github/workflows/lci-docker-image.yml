@@ -81,15 +81,40 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           LABELS: ${{ steps.meta.outputs.labels }}
+          # The build stamp every image in this estate carries (lightbridge-authz#573). It was
+          # missing from THIS workflow, which is why `converse-lci` reached Tempo with no
+          # `service.version` at all — `@lightbridge/otel`'s `resolveServiceVersion` reads
+          # `IMAGE_TAG` first, and nothing was ever setting it here.
+          #
+          # `IMAGE_BUILD_SHA` is the commit this image build ran at, NOT the pushed digest — a
+          # digest cannot be baked into the artifact it identifies. `IMAGE_TAG` / `IMAGE_REF` are
+          # read out of `$TAGS` below rather than rebuilt from `github.sha`, because
+          # `docker/metadata-action`'s `type=sha` produces the SHORT form (`sha-52c0522`) and
+          # lowercases the owner; a hand-built reference would name a tag that does not exist on
+          # a mixed-case path GHCR does not serve.
+          IMAGE_BUILD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
           tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # The immutable, actually-pushed `…:sha-<short>` reference, and the TAG split off that
+          # same string so the two can never name different builds. The tag alone is what becomes
+          # `service.version`: a 60-character registry path is not something anyone can group a
+          # Tempo query by. Falls back to the first entry only if `type=sha` ever disappears from
+          # the metadata config.
+          image_ref="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
+          [ -n "$image_ref" ] || image_ref="$(head -n1 <<<"$TAGS")"
+          image_tag="${image_ref##*:}"
+          echo "build stamp: IMAGE_TAG=${image_tag} IMAGE_REF=${image_ref}"
           # No --layers / --cache-from / --cache-to: the Docker build is deliberately
           # uncached (caching lives in Turbo). Single amd64 platform. Build context is the
           # repo root (not apps/lci/) — the standalone bundle's node_modules is hoisted to
           # the pnpm workspace root, so apps/lci/Dockerfile needs the whole tree visible.
           buildah build --format docker --platform linux/amd64 \
+            --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
+            --build-arg "IMAGE_TAG=${image_tag}" \
+            --build-arg "IMAGE_REF=${image_ref}" \
+            --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/lci/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.
           primary="$(head -n1 <<<"$TAGS")"

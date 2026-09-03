@@ -28,9 +28,19 @@ export interface BuildInfoFacts {
   builtAt?: string;
   /** The container image's own build SHA. Copyable, same as `commitSha`. */
   imageSha?: string;
-  /** The image tag it was pushed as. Not necessarily the tag it was pulled by — image-updater
-   *  resolves by digest — which is why both this and `imageSha` are shown. */
+  /** The image tag it was pushed as — the tag ALONE (`sha-5fed3ad`), never the full reference.
+   *  Not necessarily the tag it was pulled by — image-updater resolves by digest — which is why
+   *  both this and `imageSha` are shown. */
   imageTag?: string;
+  /** The full image reference (`ghcr.io/adorsys-gis/converse-frontends/console:sha-5fed3ad`) —
+   *  the string that can be pasted into `docker pull`. Shown on its own row, below the tag, and
+   *  copyable: it is long enough that selecting it by hand is the worst part of using it.
+   *
+   *  Separate from `imageTag` on purpose. They were one field until converse-frontends#480's
+   *  follow-up, which is how a registry path ended up rendered under a label reading "Image" and,
+   *  worse, stamped onto every span as `service.version`. Backends do not report this: their
+   *  `GET /version` shape is `lightbridge-authz`'s and is deliberately untouched here. */
+  imageReference?: string;
   /** When the image was built (RFC 3339). */
   imageBuiltAt?: string;
 }

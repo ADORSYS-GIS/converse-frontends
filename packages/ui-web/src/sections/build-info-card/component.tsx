@@ -115,7 +115,7 @@ function EntryRows({
   const commit = commitLabel(facts);
   const commitFull = facts.commitSha;
   const imageSha = facts.imageSha;
-  const hasImage = Boolean(imageSha || facts.imageTag);
+  const hasImage = Boolean(imageSha || facts.imageTag || facts.imageReference);
 
   return (
     <div className="settings-list">
@@ -175,6 +175,28 @@ function EntryRows({
                 what={`${entry.label} image SHA`}
               />
             ) : undefined
+          }
+        />
+      ) : null}
+
+      {/* The full reference gets its OWN row rather than replacing the tag above, because they
+          answer two different questions: "which build is this" (the tag — short, and the thing a
+          Tempo `service.version` is grouped by) and "what do I type to pull it" (the reference).
+          It is the one value here long enough that selecting it by hand is the annoying part, so
+          it carries the Copy affordance; the tag is rendered whole and needs none. */}
+      {facts.imageReference ? (
+        <SettingsRow
+          label="Reference"
+          value={facts.imageReference}
+          valueKind="data"
+          action={
+            <CopyAction
+              full={facts.imageReference}
+              copyKey={`${entry.id}:image-reference`}
+              copiedKey={copiedKey}
+              onCopy={onCopy}
+              what={`${entry.label} image reference`}
+            />
           }
         />
       ) : null}

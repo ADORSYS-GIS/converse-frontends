@@ -34,3 +34,5 @@ export {
   type TelemetryIdentity,
   type TelemetryResolution,
 } from './config';
+
+export { resolveImageStamp, tagFromImageReference, type ImageStamp } from './image-stamp';

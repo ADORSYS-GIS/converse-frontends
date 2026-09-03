@@ -170,13 +170,21 @@ USER node
 # rather than as a fabricated value, and `/settings/info` simply omits the rows.
 #
 # Not the image DIGEST, deliberately — a digest cannot be baked into the artifact it identifies.
-# `IMAGE_TAG` carries the immutable `:sha-<gitsha>` tag, which resolves to exactly one digest, and
-# is the tag argocd-image-updater promotes against.
+#
+# TWO values, not one. `IMAGE_TAG` carries the immutable `sha-<gitsha>` tag ALONE, which resolves
+# to exactly one digest and is the tag argocd-image-updater promotes against; `IMAGE_REF` carries
+# the full `ghcr.io/…/console:sha-<gitsha>` reference. They were one field until #480's follow-up,
+# which is how the whole reference ended up rendered under a `/settings/info` row labelled "Image"
+# and, worse, stamped onto every span as `service.version` — where a 60-character registry path is
+# not something anyone can group a Tempo query by. The workflow derives the tag FROM the reference,
+# so the two can never name different builds.
 ARG IMAGE_BUILD_SHA=""
 ARG IMAGE_TAG=""
+ARG IMAGE_REF=""
 ARG IMAGE_BUILD_TIME=""
 ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
     IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_REF=${IMAGE_REF} \
     IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
 
 ENV NODE_ENV=production \

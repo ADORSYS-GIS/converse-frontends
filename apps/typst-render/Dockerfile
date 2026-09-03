@@ -77,11 +77,16 @@ USER node
 # `/settings/info` of its own; these are here so that an operator exec'ing into the sidecar, or a
 # future `/healthz` extension, can answer "which build is this?" the same way every sibling does.
 # Empty defaults mean "not built by the pipeline" rather than a fabricated value.
+#
+# `IMAGE_TAG` is the tag ALONE (`sha-5fed3ad`); `IMAGE_REF` is the full reference. See
+# apps/console/Dockerfile's identical block for why they are two values and not one.
 ARG IMAGE_BUILD_SHA=""
 ARG IMAGE_TAG=""
+ARG IMAGE_REF=""
 ARG IMAGE_BUILD_TIME=""
 ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
     IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_REF=${IMAGE_REF} \
     IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
 
 ENV NODE_ENV=production \

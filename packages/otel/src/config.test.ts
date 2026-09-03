@@ -109,6 +109,21 @@ describe('resolveServiceVersion', () => {
     ).toBe('sha-fbb937f');
   });
 
+  it('carries the TAG, never the full image reference', () => {
+    // The #477 regression: `service.version` read
+    // `ghcr.io/adorsys-gis/converse-frontends/console:sha-fbb937f`, which nobody can group a Tempo
+    // query by. Asserted from both halves of the stamp, because either one alone must answer with
+    // the tag.
+    expect(
+      resolveServiceVersion({
+        IMAGE_TAG: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-fbb937f',
+      })
+    ).toBe('sha-fbb937f');
+    expect(
+      resolveServiceVersion({ IMAGE_REF: 'ghcr.io/adorsys-gis/converse-frontends/lci:sha-fbb937f' })
+    ).toBe('sha-fbb937f');
+  });
+
   it('falls back to the short build SHA, and to nothing at all off a build pipeline', () => {
     expect(resolveServiceVersion({ NEXT_PUBLIC_BUILD_SHA: 'abcdef1234567890' })).toBe('abcdef1');
     expect(resolveServiceVersion({})).toBeUndefined();

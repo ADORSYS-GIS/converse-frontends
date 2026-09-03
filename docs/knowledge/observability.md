@@ -105,7 +105,8 @@ stateDiagram-v2
     note right of Exporting
       Resource: service.name (OTEL_SERVICE_NAME, else compiled-in)
                 service.namespace = converse
-                service.version = IMAGE_TAG, else short NEXT_PUBLIC_BUILD_SHA
+                service.version = IMAGE_TAG (the TAG alone, sha-5fed3ad),
+                                  else short NEXT_PUBLIC_BUILD_SHA
                                   (the same pair /settings/info reports, #476)
                 deployment.environment.name = OTEL_DEPLOYMENT_ENVIRONMENT
                                   or DEPLOYMENT_ENVIRONMENT — omitted when unset
@@ -130,7 +131,88 @@ stateDiagram-v2
 | `OTEL_SERVICE_NAME`                                      | compiled-in per app | `converse-console` / `converse-lci`.                                                          |
 | `OTEL_TRACES_SAMPLER_ARG`                                | `1.0`               | Root-trace ratio, clamped to `[0,1]`. Garbage falls back to the default rather than throwing. |
 | `OTEL_DEPLOYMENT_ENVIRONMENT` / `DEPLOYMENT_ENVIRONMENT` | unset               | `deployment.environment.name`.                                                                |
-| `IMAGE_TAG`, `NEXT_PUBLIC_BUILD_SHA`                     | unset               | `service.version` — the same pair `/settings/info` reports.                                   |
+| `IMAGE_TAG`, `NEXT_PUBLIC_BUILD_SHA`                     | unset               | `service.version` — the same pair `/settings/info` reports. See **The build stamp** below.    |
+| `IMAGE_REF`                                              | unset               | The full image reference. Diagnostics only; never `service.version`.                          |
+
+### The build stamp — how `service.version` gets its value
+
+`service.version` is not read from a `package.json` (every app in here says `0.0.0`, which names
+nothing). It is the **image tag**, stamped into the image at build time by the app's own image
+workflow and read back out of `process.env` at start-up. The same values feed `/settings/info`'s
+Platform card, so a trace and the diagnostics screen can never disagree about what is running.
+
+Two values, deliberately, because they answer different questions:
+
+| Variable    | Example                                                  | Who reads it                                  |
+| ----------- | -------------------------------------------------------- | --------------------------------------------- |
+| `IMAGE_TAG` | `sha-5fed3ad`                                            | `service.version`, `/settings/info` Image row |
+| `IMAGE_REF` | `ghcr.io/adorsys-gis/converse-frontends/lci:sha-5fed3ad` | `/settings/info` Reference row (copyable)     |
+
+They were one field until this follow-up to #480. `IMAGE_TAG` carried the whole reference, so a
+60-character registry path was rendered under a row labelled "Image" and — worse — stamped onto
+every span as `service.version`, where it is not something anyone can group a Tempo query by. The
+workflow now derives the tag FROM the reference (`image_tag="${image_ref##*:}"`) so the two can
+never name different builds, and `packages/otel/src/image-stamp.ts` is the single place that split
+is parsed for both consumers.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GH as GitHub Actions<br/>(*-image.yml)
+    participant Meta as docker/metadata-action
+    participant BA as buildah build
+    participant IMG as Image ENV<br/>(apps/*/Dockerfile)
+    participant App as startTelemetry()<br/>packages/otel/src/start.ts
+    participant Tempo as Alloy → Tempo
+
+    GH->>Meta: images=ghcr.io/<owner>/<repo>/<app><br/>tags: type=sha, type=ref, latest
+    Meta-->>GH: $TAGS (one reference per line)
+    GH->>GH: image_ref = grep -m1 ':sha-' $TAGS
+    GH->>GH: image_tag = everything after the last colon
+    GH->>BA: --build-arg IMAGE_TAG=sha-5fed3ad<br/>--build-arg IMAGE_REF=ghcr.io/…:sha-5fed3ad<br/>--build-arg IMAGE_BUILD_SHA / IMAGE_BUILD_TIME
+    BA->>IMG: ARG → ENV (empty defaults kept)
+    App->>IMG: resolveImageStamp(process.env)
+    IMG-->>App: { tag: "sha-5fed3ad", reference: "ghcr.io/…" }
+    App->>Tempo: Resource{ service.version = "sha-5fed3ad" }
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Reading: resolveServiceVersion(env)<br/>packages/otel/src/config.ts
+
+    Reading --> FromTag: IMAGE_TAG set
+    Reading --> FromRef: IMAGE_TAG unset,<br/>IMAGE_REF set
+    Reading --> FromCommit: neither set,<br/>NEXT_PUBLIC_BUILD_SHA inlined
+    Reading --> Absent: nothing set
+
+    FromTag --> Stamped: tagFromImageReference(IMAGE_TAG)<br/>?? IMAGE_TAG
+    FromRef --> Stamped: tagFromImageReference(IMAGE_REF)
+    FromCommit --> Stamped: first 7 chars
+
+    Stamped --> [*]: service.version on every span
+    Absent --> [*]: attribute OMITTED —<br/>never "unknown", never "0.0.0"
+
+    note right of FromTag
+      An IMAGE_TAG that (wrongly) holds a full
+      reference still yields the tag: the #477
+      shape is parsed, not propagated.
+    end note
+
+    note right of Absent
+      The ordinary state of every next dev server.
+      A placeholder here would be a value someone
+      could search Tempo for and find a pile of
+      unrelated dev spans behind.
+    end note
+```
+
+**Every image in this estate carries the stamp**: `apps/console` (`docker-image.yml`), `apps/lci`
+(`lci-docker-image.yml`) and `apps/typst-render` (`typst-render-image.yml`). LCI's was missing until
+this change, which is exactly why `converse-lci` spans reached Tempo with no `service.version` at
+all — the resolver reads `IMAGE_TAG` first, and nothing in that pipeline had ever set it.
+
+`lightbridge-authz`'s own `GET /version` shape is **not** changed from this side: its backends report
+whatever their `build.rs` stamps, and `/settings/info` renders it verbatim.
 
 ### Why the Edge runtime is skipped
 
@@ -191,6 +273,23 @@ IMAGE_TAG=sha-local1 DEPLOYMENT_ENVIRONMENT=local \
   pnpm --filter console dev
 
 docker logs otelcol | grep -A4 'service.name'
+```
+
+The stamp itself is checkable without a collector — build the image with the args the workflow
+passes and read them back:
+
+```bash
+docker build -f apps/lci/Dockerfile -t lci:local \
+  --build-arg IMAGE_TAG=sha-9c2a31c \
+  --build-arg IMAGE_REF=ghcr.io/adorsys-gis/converse-frontends/lci:sha-9c2a31c .
+docker inspect lci:local --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^IMAGE_'
+```
+
+Running that image with an OTLP endpoint prints the resolved version in its one start-up line
+before a single span is exported:
+
+```
+[otel] converse-lci exporting traces to http://…/v1/traces (version=sha-9c2a31c, environment=…, sampler=1)
 ```
 
 ---

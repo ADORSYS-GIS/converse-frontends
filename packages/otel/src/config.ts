@@ -17,6 +17,8 @@
  * be a way to ship the code disabled, which is precisely the shape this estate does not want.
  */
 
+import { resolveImageStamp } from './image-stamp';
+
 /** The OTLP wire format this package implements. */
 export const SUPPORTED_PROTOCOL = 'http/protobuf';
 
@@ -92,9 +94,14 @@ export function resolveSamplerRatio(raw: string | undefined): number {
  * `/settings/info`'s Platform card (converse-frontends#476) — deliberately the same pair, so the
  * version a trace is tagged with and the version the diagnostics screen prints can never disagree.
  *
- * `IMAGE_TAG` first: it is the `sha-<gitsha>` reference argocd-image-updater pinned, which names a
- * thing that exists in a registry. `NEXT_PUBLIC_BUILD_SHA` (inlined at `next build` time) is the
- * fallback, shortened the same way the card shortens it.
+ * The image TAG first — `sha-5fed3ad`, the immutable tag argocd-image-updater promotes against.
+ * Deliberately the tag and not the full reference: #477 stamped
+ * `ghcr.io/adorsys-gis/converse-frontends/console:sha-5fed3ad` here, and a 60-character registry
+ * path is not something anyone can group a Tempo query by. `resolveImageStamp` is what draws that
+ * line, and it draws it once for both this and `/settings/info`.
+ *
+ * `NEXT_PUBLIC_BUILD_SHA` (inlined at `next build` time) is the fallback, shortened the same way
+ * the card shortens it.
  *
  * Neither exists on a developer machine, and the answer there is `undefined` — NOT `"0.0.0"` (the
  * literal in every app's package.json, which names nothing) and not `"unknown"`. An absent
@@ -102,8 +109,8 @@ export function resolveSamplerRatio(raw: string | undefined): number {
  * search Tempo for and find a pile of unrelated dev spans behind.
  */
 export function resolveServiceVersion(env: Record<string, string | undefined>): string | undefined {
-  const imageTag = trimmed(env.IMAGE_TAG);
-  if (imageTag) return imageTag;
+  const { tag } = resolveImageStamp(env);
+  if (tag) return tag;
   const buildSha = trimmed(env.NEXT_PUBLIC_BUILD_SHA);
   if (buildSha) return buildSha.slice(0, 7);
   return undefined;

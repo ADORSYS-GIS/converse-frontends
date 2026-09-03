@@ -1,3 +1,4 @@
+import { resolveImageStamp } from '@lightbridge/otel';
 import type { Dispatcher } from 'undici';
 
 import { serverEnv, type ConsoleEnv } from './env';
@@ -63,6 +64,7 @@ export interface ServiceBuildFacts {
   builtAt?: string;
   imageSha?: string;
   imageTag?: string;
+  imageReference?: string;
   imageBuiltAt?: string;
 }
 
@@ -191,9 +193,15 @@ export async function readBackendBuildInfo(
  * - `NEXT_PUBLIC_BUILD_SHA` is inlined by `next build` and therefore fixed at BUILD time. It is
  *   the commit the bundle was compiled from. `apps/console/turbo.json` lists it in the task's
  *   `env` so a cache hit can never serve a bundle stamped with a different commit's SHA.
- * - `IMAGE_BUILD_SHA` / `IMAGE_TAG` / `IMAGE_BUILD_TIME` are read at RUNTIME, from `ENV` the
- *   Dockerfile promotes out of build-args. The image does not exist while `next build` runs, so
- *   there is nothing to inline.
+ * - `IMAGE_BUILD_SHA` / `IMAGE_TAG` / `IMAGE_REF` / `IMAGE_BUILD_TIME` are read at RUNTIME, from
+ *   `ENV` the Dockerfile promotes out of build-args. The image does not exist while `next build`
+ *   runs, so there is nothing to inline.
+ *
+ * The tag and the reference are two facts, not one. `IMAGE_TAG` alone used to carry the whole
+ * reference (#477), which put a registry path in a row labelled with a tag and, via
+ * `resolveServiceVersion`, into `service.version` on every span. `@lightbridge/otel`'s
+ * `resolveImageStamp` is the single place that split is decided, so this card and Tempo can never
+ * disagree about what the version of this image is.
  *
  * Every field is independently optional. A `next dev` server has none of them and reports only its
  * package version, which is the honest answer for a build that was never packaged.
@@ -203,12 +211,14 @@ export function consoleBuildFacts(
   environment: Record<string, string | undefined> = process.env
 ): ServiceBuildFacts {
   const commitSha = asString(environment.NEXT_PUBLIC_BUILD_SHA);
+  const image = resolveImageStamp(environment);
   return {
     version,
     commitSha,
     commitShortSha: commitSha ? commitSha.slice(0, 7) : undefined,
     imageSha: asString(environment.IMAGE_BUILD_SHA),
-    imageTag: asString(environment.IMAGE_TAG),
+    imageTag: image.tag,
+    imageReference: image.reference,
     imageBuiltAt: asString(environment.IMAGE_BUILD_TIME),
   };
 }

@@ -23,7 +23,7 @@
 //  - Spend over time (the family TOTAL, `dimension: none`, previous period dashed) and — family
 //    only — Spend by account, one line per account off the SAME request;
 //  - the account page's four breakdowns, unchanged in shape: Spend by project, the model share,
-//    Spend by model over time (log axis), Latency by model, Spend by API key;
+//    Spend by model over time (stacked bars), Latency by model, Spend by API key;
 //  - the account page's four rings — Cost / Tokens / Requests by channel, Cost by project — plus
 //    the fifth only a family can draw, **Cost by account**. A single-account page has exactly one
 //    `account_id`, so its version of that ring would be one full circle.

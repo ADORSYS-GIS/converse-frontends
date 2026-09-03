@@ -46,9 +46,11 @@ import { useIntlLocale, useTranslation } from '../i18n/client';
  *  2. **Refill queue depth** — `listPendingAugmentationRequests`, likewise an RPC, and likewise
  *     pending-only (`REFILL_DECISIONS_UNAVAILABLE_CAPTION` states the gap).
  *  3. **The estate's comparison cadence** — `getEffectiveResetSchedule` (lane A6). Not a zone at
- *     all: it is what tells `comparisonWindow` whether "vs previous" on this page means a week or
- *     a month (decision D-F, owner Q8). See `resetCadence` below for why an estate page probes it
- *     the way it does.
+ *     all: it is what tells `comparisonWindow` whether "vs previous" on this page shifts by a
+ *     calendar month or by the page's own window span (decision D-F, owner Q8) — `daily` and
+ *     `weekly` resolve to the identical shift since #483 deleted the one-week floor, so only
+ *     `monthly` vs everything else is the real distinction now. See `resetCadence` below for why
+ *     an estate page probes it the way it does.
  *
  * Deliberately NOT a second `use-admin-overview-screen.ts`: it owns no chart series, no scale
  * knobs, no range state and no adapters for anything the engine can draw. If a future backend adds
@@ -227,7 +229,9 @@ export function useAdminEstateOperations(): AdminEstateOperations {
    *     genuinely can answer differently and there is no estate-wide read that could answer for
    *     all of them at once.
    *  2. **The estate comparison cadence** (decision D-F, owner Q8), which is what tells
-   *     `comparisonWindow` whether "vs previous" on this page means a week or a month.
+   *     `comparisonWindow` whether "vs previous" on this page shifts by a calendar month or by
+   *     the page's own window span — `daily` and `weekly` resolve to the identical shift since
+   *     #483 deleted the one-week floor, so only `monthly` behaves differently.
    *
    * Capped by construction: the id list is `includedIds`, already `MAX_FANNED_OUT_ACCOUNTS`-capped
    * by `budgetPressureAccountIds`, plus the probe account. The key is the shared

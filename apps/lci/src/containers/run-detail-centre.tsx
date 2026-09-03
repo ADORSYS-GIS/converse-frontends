@@ -3,6 +3,7 @@ import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { DATA_CLASS, LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import {
@@ -18,9 +19,20 @@ import type { ApiResult } from '../lib/server/api';
 import { GrafanaPanel } from './grafana-panel';
 import { ReviewOutput } from './review-output';
 
-/** Run detail: status, trigger, the persisted review, and this run's logs — live from Grafana/
- *  Loki when `NEXT_PUBLIC_GRAFANA_URL` is set, always available as a `kubectl logs` command
- *  either way. */
+/**
+ * Run detail: status, trigger, the persisted review, and this run's logs — live from Grafana/Loki
+ * when `NEXT_PUBLIC_GRAFANA_URL` is set, always available as a `kubectl logs` command either way.
+ *
+ * The outcome badge is a `PageControls` row on the floor, not `PageHeader.controls` — that slot is
+ * gone (owner directive 2026-09-03, "filters are outside cards"; ADR 0015 amendment A2), and the
+ * title row now carries a title, a subtitle and at most one action. It is deliberately NOT folded
+ * into the subtitle string beside the repository and the timings: `StatusText` carries a TONE, and
+ * "Failed" rendered as one more grey fragment in a `·`-joined line is the single fact on this
+ * screen that must not read like the rest.
+ *
+ * A row holding one readout and no knob is the honest shape here — this screen has no parameters
+ * at all, and `label` says what the row is rather than pretending it filters something.
+ */
 export function RunDetailCentre({
   taskResult,
   reviewResult,
@@ -60,7 +72,22 @@ export function RunDetailCentre({
       <PageHeader
         title={triggerLabel(task)}
         subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}${duration(task, now) ? ` · ${duration(task, now)}` : ''}`}
-        controls={<StatusText tone={tone}>{label}</StatusText>}
+      />
+
+      <PageControls
+        label="Run status"
+        groups={[
+          {
+            id: 'outcome',
+            // `end`, like `RepositoryShell`'s approval group: the outcome keeps the trailing edge
+            // it read from before `PageHeader.controls` was deleted, so the eye still finds the
+            // run's verdict where it has always been rather than as an orphan word under the
+            // subtitle.
+            align: 'end',
+            label: 'Outcome',
+            children: <StatusText tone={tone}>{label}</StatusText>,
+          },
+        ]}
       />
 
       <Card title="Review">

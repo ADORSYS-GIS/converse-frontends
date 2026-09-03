@@ -4,6 +4,12 @@
 // browser adapter: typing in the search field really does rewrite the preview iframe's query
 // string. What it cannot do is re-fetch — the server component owns that — so `Filtered` passes
 // the already-filtered page the app would have received, with `q` set to match.
+//
+// Since converse-frontends#504 (ADR 0015 amendment A2, owner directive "filters are outside
+// cards") the search box lives in a `PageControls` row on the FLOOR between the title and the
+// ledger's `Card`, not in a toolbar inside the card it filters. Two stories carry the consequences:
+// `NoMatches` is the only one with a search actually applied, so it is the only one that draws
+// `Reset filters`; `Unavailable` shows the row outliving the table it narrows.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { RepositoriesCentre } from './repositories-centre';
@@ -50,7 +56,8 @@ export const Paged: Story = {
   },
 };
 
-/** A search that matched nothing — the empty line quotes the query back. */
+/** A search that matched nothing — the empty line quotes the query back, and `Reset filters`
+ *  appears in the control row, which it does not in any story where nothing is being narrowed. */
 export const NoMatches: Story = {
   args: {
     q: 'kubernetes',

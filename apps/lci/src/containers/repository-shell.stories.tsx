@@ -2,6 +2,11 @@
 // approve/deny actions (which act on the repository, so they stay reachable from every tab), plus
 // the Overview/Graph/Settings tab strip.
 //
+// Since converse-frontends#504 (ADR 0015 amendment A2) approval is a trailing `PageControls` group
+// rather than `PageHeader.controls`, which no longer exists — the title row carries a title and at
+// most one action, and this cluster is three things. `Mobile` is the story that pays for the
+// change: at 390px the row wraps under the title instead of fighting it for the same edge.
+//
 // `withPathname` is what makes the tab strip honest — `RepoTabsNav` matches the tab EXACTLY (a
 // prefix match would light Overview on every nested route), so a story that does not pin the
 // pathname would always show Overview active.

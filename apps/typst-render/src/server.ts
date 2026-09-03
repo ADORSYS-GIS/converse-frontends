@@ -9,6 +9,7 @@ import http from 'node:http';
 import type { ServiceConfig } from './config.js';
 import { parseRenderRequest } from './render-request.js';
 import { checkTypst, renderPdf } from './render.js';
+import { parseTraceparent, traceLogSuffix } from './trace-context.js';
 
 /** The JSON error envelope every non-2xx response uses. */
 interface ErrorBody {
@@ -82,6 +83,16 @@ async function handleRender(
   res: http.ServerResponse,
   config: ServiceConfig
 ): Promise<void> {
+  // One line per render, carrying the caller's trace id when it sent one — see
+  // `trace-context.ts` for why this service correlates logs rather than emitting spans.
+  // Captured BEFORE the body is read so a 413 or a malformed payload is logged too: the requests
+  // that fail are the ones an operator is holding a trace id to look up.
+  const trace = traceLogSuffix(parseTraceparent(req.headers.traceparent));
+  const startedAt = Date.now();
+  const done = (outcome: string): void => {
+    console.log(`[typst-render] render ${outcome} in ${Date.now() - startedAt}ms${trace}`);
+  };
+
   const read = await readBody(req, config.maxRequestBytes);
   if (!read.ok) {
     if (read.tooLarge) {
@@ -89,8 +100,10 @@ async function handleRender(
       // follow-up request — say so, and let Node close it after the response is flushed.
       res.setHeader('connection', 'close');
       sendError(res, 413, 'payload_too_large', read.message);
+      done('payload_too_large');
     } else {
       sendError(res, 400, 'bad_request', read.message);
+      done('bad_request');
     }
     return;
   }
@@ -100,16 +113,19 @@ async function handleRender(
     raw = JSON.parse(read.body.toString('utf8')) as unknown;
   } catch (error) {
     sendError(res, 400, 'bad_request', error instanceof Error ? error.message : 'invalid JSON');
+    done('bad_request');
     return;
   }
 
   const parsed = parseRenderRequest(raw);
   if (!parsed.ok) {
     sendError(res, 400, 'bad_request', parsed.message);
+    done('bad_request');
     return;
   }
 
   const outcome = await renderPdf(parsed.request, config);
+  done(outcome.kind);
   switch (outcome.kind) {
     case 'pdf':
       res.writeHead(200, {

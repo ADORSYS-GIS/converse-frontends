@@ -77,7 +77,7 @@ const nextConfig = {
   //
   // Getting the actual `@cratestack/cbor*` package FILES into the image is, as of this change, NOT
   // this file's job any more — it moved to `apps/console/Dockerfile` (a `COPY` of the pnpm store
-  // dirs from the build context, plus `scripts/link-standalone-cratestack.mjs` re-run at image-build
+  // dirs from the build context, plus `scripts/link-standalone-scopes.mjs` re-run at image-build
   // time to re-materialize the top-level `node_modules/@cratestack/*` scope links). This file used
   // to also carry an `outputFileTracingIncludes` block doing the equivalent job via Next's own
   // standalone tracer (`'../../node_modules/.pnpm/@cratestack+cbor*/**'` and siblings). That block
@@ -119,18 +119,55 @@ const nextConfig = {
   // Predates this change entirely (same base image, same cratestack pin, since the Dockerfile's
   // first commit) — this migration didn't introduce it, and fixing it (a musl build from
   // cratestack upstream, or moving off Alpine) is a separate, larger decision than a bundler swap.
+  // ── OpenTelemetry (`src/instrumentation.node.ts` -> `@lightbridge/otel/start`) must stay
+  // UNBUNDLED, for two independent reasons:
+  //
+  //  1. `@opentelemetry/instrumentation-http` patches Node's `http`/`https` modules through
+  //     `require-in-the-middle`, which hooks module RESOLUTION. Code the bundler has already
+  //     inlined never goes through a resolver, so a bundled instrumentation silently patches
+  //     nothing and every inbound request loses its server span — a failure with no error message
+  //     anywhere, which is the worst kind to ship.
+  //  2. `@opentelemetry/api` holds the global tracer provider in module state. Next's own
+  //     render/route spans go through ITS copy of `@opentelemetry/api`
+  //     (`build/create-compiler-aliases.js` only aliases in Next's vendored copy when the app has
+  //     no `@opentelemetry/api` of its own — this app now does), so app and framework must resolve
+  //     to ONE instance. Two bundled copies means the provider registered by one is invisible to
+  //     the other and Next's spans are dropped on the floor.
+  //
+  // `serverExternalPackages` is bundler-independent (webpack or Turbopack) and the standalone
+  // output tracer follows real `require`s out of these packages, so listing them here is also what
+  // gets the files into the container image — unlike `outputFileTracingIncludes`, which crashes
+  // Turbopack outright on this workspace (see the block below).
   serverExternalPackages: [
     '@cratestack/cbor',
     '@cratestack/cbor-node',
     '@cratestack/cbor-web',
     'esbuild-wasm',
+    '@opentelemetry/api',
+    '@opentelemetry/core',
+    '@opentelemetry/exporter-trace-otlp-proto',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/instrumentation-http',
+    '@opentelemetry/instrumentation-undici',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-trace-node',
+    '@opentelemetry/semantic-conventions',
   ],
   outputFileTracingRoot: new URL('../../', import.meta.url).pathname,
   // The workspace packages ship raw TypeScript (`main: src/index.ts`), so Next has to compile
   // them itself. `@lightbridge/chart-core` is the DOM-free chart math package `ui-web` consumes
   // directly (ADR 0009 Decision 5) — the React Native UI package is no longer part of the
   // console's dependency graph at all.
-  transpilePackages: ['@lightbridge/ui-web', '@lightbridge/chart-core', '@lightbridge/authz-rpc'],
+  transpilePackages: [
+    '@lightbridge/ui-web',
+    '@lightbridge/chart-core',
+    '@lightbridge/authz-rpc',
+    // Ships raw TypeScript like its siblings. Only the package's OWN source is compiled here; its
+    // `@opentelemetry/*` dependencies stay external (see `serverExternalPackages` above), which is
+    // the combination that makes the instrumentation actually patch anything.
+    '@lightbridge/otel',
+  ],
   env: {
     // Busts the persisted IndexedDB query cache on every version bump — see
     // `src/client/query-persister.ts`. The app version is not a secret; nothing else about the

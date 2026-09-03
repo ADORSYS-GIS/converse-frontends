@@ -220,6 +220,31 @@ Two routes, one content type in, two out. The runtime image ships `dist/` with *
 which is why `npm`/`npx` are deleted from the base image. Every import is either `node:*` or a
 relative `./*.js`.
 
+## Tracing: log correlation, not spans
+
+This service runs **no OpenTelemetry SDK**, unlike its `apps/console` and `apps/lci` siblings
+(converse-frontends#443). `@opentelemetry/sdk-node` plus an exporter is roughly forty packages;
+shipping them here means reintroducing `node_modules` to the image and re-expanding exactly the
+surface the section above exists to shrink — in the one container that executes request-supplied
+document programs. That is a redesign of this service, not a bonus feature.
+
+What happens instead: the console's `POST /render` already carries a W3C `traceparent` (its undici
+instrumentation injects one into every outbound `fetch`), and its CLIENT span for the call is in
+Tempo regardless of what this process does. This service parses that header — a ~40-line anchored,
+hex-only reader in `src/trace-context.ts`, so a malformed or hostile value degrades to "no ids in
+the log line", never to a thrown error or an injected second line — and prints the ids with each
+render:
+
+```
+[typst-render] render pdf in 83ms trace=ecf8e109f0ea249b4eca30a565f35fb7 span=a536db1c81253283
+```
+
+One line per render, including the failures (`bad_request`, `payload_too_large`, `compile_error`,
+`render_timeout`), because the requests that fail are the ones an operator is holding a trace id to
+look up. There is no span for `typst compile` itself, so the console's client span stays a leaf in
+the trace — named honestly rather than sold as instrumentation. See
+[`docs/knowledge/observability.md`](../../docs/knowledge/observability.md).
+
 ## Image
 
 `ghcr.io/adorsys-gis/converse-frontends/typst-render` — same registry and naming pattern as the

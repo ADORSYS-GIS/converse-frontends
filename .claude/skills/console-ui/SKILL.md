@@ -284,11 +284,20 @@ decimals.
   or omitted, never marked: no `adminItems`/`showAdmin`/`roleLabel` axis, and a gated row's own
   label IS the marker. Never resurrect a `ROLE` badge/marker component.
 
-  | Area                           | Rows, in order                                                                                     | Gate                                                          |
-  | ------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-  | account (`navGroups`)          | `Workspace`: Overview, API keys (hrefs off the path account) - `Account`: Settings                 | none — the Operator group is deleted outright                 |
-  | settings (`settingsNavGroups`) | Overview, Accounts, Roles → `/admin/roles`, Tier configs, Project policies, Info, **Admin** (last) | Roles: `rbac:manage` - Admin: ANY of `ADMIN_AREA_PERMISSIONS` |
-  | admin (`adminNavGroups`)       | see the destination table below                                                                    | per row, see below                                            |
+  | Area                           | Rows, in order                                                                                                                  | Gate                                            |
+  | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+  | account (`navGroups`)          | `Workspace`: Overview, API keys (hrefs off the path account) - `Account`: Settings - `Operator`: **Admin** → `adminLandingHref` | Operator group: ANY of `ADMIN_AREA_PERMISSIONS` |
+  | settings (`settingsNavGroups`) | Overview, Accounts, Tier configs, Project policies, Info                                                                        | none — every row is a live `/settings/*` route  |
+  | admin (`adminNavGroups`)       | see the destination table below                                                                                                 | per row, see below                              |
+
+  **The Admin row lives on the MAIN account rail** (owner directive, 2026-09-03: "The Admin button
+  doesn't need to be hidden now, since it's gated by permission. So it can appear on the main left
+  rail. The Roles button in Settings' left rail can safely be removed."). It is its own labelled
+  `Operator` group, last, and it never carries `active` (reaching `/admin/*` swaps the whole rail)
+  and never carries the pending-refill count (that numeral's one home is the admin area's own
+  "Refills queue" row). This supersedes the 2026-08-31 placement that had it inside settings; the
+  settings rail's Admin and Roles rows are both deleted, so no destination has two nav homes.
+  `settingsNavGroups` takes no permission set at all now.
 
   The settings and admin areas replace `navGroups`' content in the same mount and carry a
   `← Back to console` row instead of the workspace switcher.
@@ -318,14 +327,16 @@ decimals.
   `procedure.getMyAccess` resolved server-side — `useCan()` in the chrome, `can()` in the route.
   Admin is not one thing: seven destinations behind six independent grants, independently
   filtered rows (`ADMIN_DESTINATIONS` declares the row and its gate together), and
-  `adminLandingHref` aims the settings "Admin" row at the first destination _this_ caller can
-  actually open rather than at a dashboard they would 404 on.
+  `adminLandingHref` aims the account rail's "Admin" row at the first destination _this_ caller can
+  actually open rather than at a dashboard they would 404 on. That real gate is exactly why the row
+  is allowed on the main rail: the ruling that once buried it one level in was aimed at a
+  dishonestly-labelled row gated on a role production minted for everybody.
 
   A nav row may still ship `disabled` with a stated reason rather than being omitted — the honesty
   doctrine extends to navigation, and a row that looks live but 404s is its own kind of fabrication
   — but that treatment is for a destination that is genuinely **not built**, never for one the
-  caller merely lacks permission for. (The Roles row used it while no read API existed; it is a live
-  `/admin/roles` link now.)
+  caller merely lacks permission for. (No row uses it today: the Roles row did while no read API
+  existed, and it is a plain `/admin/roles` link in the admin area's own list now.)
 
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.

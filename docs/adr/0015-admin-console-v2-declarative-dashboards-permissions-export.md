@@ -296,19 +296,32 @@ it is exactly the re-derivation this decision ends.
 | Refill policies  | `/admin/refill-policies`  | `budget:policy-write`    | + `/create`, `?edit=`, `?simulate=`                         |
 | Budget schedules | `/admin/budget-schedules` | `budget:schedule-manage` | + `/create`, `?edit=`, `?preview=`, `?delete=`              |
 | Sessions         | `/admin/sessions`         | `session:read`           | The **estate** widening, never the `session:read-own` floor |
-| Roles            | `/admin/roles`            | `rbac:manage`            | The settings-area "Roles" row now points here               |
+| Roles            | `/admin/roles`            | `rbac:manage`            | One nav home — the settings-rail duplicate is gone (below)  |
 
 Three properties of that table matter more than its contents:
 
 1. **Rows are omitted, never disabled.** Each route segment answers `notFound()` for the same
    permission set the nav filters on, so a visible-but-dead row would advertise a URL the server
    denies. One `admin-*-route-gate.test.ts` per segment holds the row and the gate together.
-2. **Admin is not one indivisible thing.** `adminNavGroups` (`console-chrome.tsx:575`) filters
-   **per row**: a reviewer holding only `budget:review` sees exactly one row and reaches it.
-   `adminLandingHref` (`console-chrome.tsx:528`) sends them to the first destination they can
-   actually open, rather than to a dashboard they would 404 on. The settings area's "Admin" row
-   appears when the caller holds **any one** of `ADMIN_AREA_PERMISSIONS`
-   (`apps/console/src/shared/permissions.ts:85`).
+2. **Admin is not one indivisible thing.** `adminNavGroups` filters **per row**: a reviewer holding
+   only `budget:review` sees exactly one row and reaches it. `adminLandingHref` sends them to the
+   first destination they can actually open, rather than to a dashboard they would 404 on. The
+   **account rail's** "Admin" row (`navGroups`' own `Operator` group) appears when the caller holds
+   **any one** of `ADMIN_AREA_PERMISSIONS` (`apps/console/src/shared/permissions.ts`).
+
+   **Amendment, 2026-09-03 (owner directive, converse-frontends#443).** That row used to live in
+   the settings area, one level in. It is on the account area's **main left rail** now — verbatim:
+   "The Admin button doesn't need to be hidden now, since it's gated by permission. So it can
+   appear on the main left rail. The Roles button in Settings' left rail can safely be removed."
+   THIS decision is what unblocked the move: the row's gate is a permission `lightbridge-authz`
+   enforces, not `isAdmin` (a role production minted for everyone), so hiding the row behind an
+   extra hop no longer buys anything. The settings rail's "Roles" row went in the same change —
+   `/admin/roles` is an admin destination and the table above is its one nav home. The full
+   reasoning, the superseded clause and the diagrams live in
+   `docs/adr/0013-console-information-architecture-v3.md`'s 2026-09-03 amendment; nothing in D4
+   itself changes — same permissions, same `ADMIN_DESTINATIONS`, same per-row filtering, same
+   `notFound()` gates.
+
 3. **`user:read` is deliberately not an admin-area permission.** It is a supporting read — it
    resolves a name for somebody else's row — never a destination. Holding it alone must not conjure
    an admin area with nothing in it.

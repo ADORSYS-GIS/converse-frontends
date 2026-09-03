@@ -79,12 +79,16 @@ interface OverviewScreenProps {
   statCards?: OverviewStatCardData[];
   statCardsLoading?: boolean;
   budget?: BudgetSummary;
+  /** The account rail's permission-gated Operator group (owner directive, 2026-09-03) — see the
+   *  `AdminNav` story below. Nothing on the PAGE differs by it; only the sidebar does. */
+  showAdmin?: boolean;
 }
 
 function OverviewScreen({
   statCards = overviewStatCards,
   statCardsLoading = false,
   budget = overviewBudget,
+  showAdmin = false,
 }: OverviewScreenProps) {
   // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
   const [rangePreset, setRangePreset] = useState<string | null>('mtd');
@@ -99,7 +103,7 @@ function OverviewScreen({
   ]);
 
   return (
-    <ConsoleShell sidebar={storySidebar('overview')} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('overview', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Overview"
@@ -190,6 +194,25 @@ type Story = StoryObj<typeof OverviewScreen>;
 // `lg` (≥1024, the default story viewport — see .storybook/preview.tsx). Fluid (console-ui skill
 // "Fluid always") — the page follows the iframe's real width rather than a fixed 1440 wrapper.
 export const Populated: Story = { render: () => <OverviewScreen /> };
+
+// Owner directive, 2026-09-03, verbatim: "The Admin button doesn't need to be hidden now, since
+// it's gated by permission. So it can appear on the main left rail." The account rail's third
+// group, Operator, holding one row — "Admin" — rendered only for a caller holding any one of
+// `ADMIN_AREA_PERMISSIONS`, and pointed at the first admin destination THAT caller can open
+// (`navGroups`/`adminLandingHref`, `apps/console/src/client/console-chrome.tsx`). It replaces the
+// settings rail's own Admin row, which is deleted: the row has one home, never two.
+export const AdminNav: Story = {
+  name: 'Nav — admin (Operator group on the main rail)',
+  render: () => <OverviewScreen showAdmin />,
+};
+
+// The same rail in the light theme. A group label is one of the few rail elements the two palettes
+// treat differently enough to be worth reviewing on its own.
+export const AdminNavLight: Story = {
+  name: 'Nav — admin, wireframe (light)',
+  render: () => <OverviewScreen showAdmin />,
+  globals: { theme: 'wireframe' },
+};
 
 // ADR 0010 phase 4: the `wireframe` (light) counterpart of `Populated`, same fixtures.
 export const PopulatedLight: Story = {

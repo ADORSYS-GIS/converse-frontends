@@ -232,16 +232,18 @@ export const RevokeOutcome: Story = {
  *
  * `/admin/roles` answers `notFound()` for a caller without `rbac:manage` — never a 403 page, never
  * a disabled screen — so a person who lacks the permission sees Next's own 404, and the chrome has
- * already omitted both nav rows that point here. This story is the CALLER-side proof: the admin
- * sidebar with no rows at all, which is exactly what a plain `lightbridge-viewer` gets.
+ * already omitted the one nav row that points here. This story is the CALLER-side proof, and it
+ * shows the ACCOUNT rail because that is where the gated row now lives (owner directive,
+ * 2026-09-03 — the settings rail carries no gated row at all any more): Workspace and Account, no
+ * Operator group, which is exactly what a plain `lightbridge-viewer` gets.
  */
 export const NoAdminAccess: Story = {
   render: () => (
-    <ConsoleShell sidebar={storySidebar('settings', { showAdmin: false })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('overview', { showAdmin: false })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Settings"
-          subtitle="An account owner with no platform grant sees no Admin row, and every /admin/* URL returns a 404."
+          title="Overview"
+          subtitle="An account owner with no platform grant sees no Operator group, and every /admin/* URL returns a 404."
         />
       </div>
     </ConsoleShell>

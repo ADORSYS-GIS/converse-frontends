@@ -225,7 +225,10 @@ export const FullShellMember: Story = {
   render: () => <Shell showAdmin={false} />,
 };
 
-// Same composition with the Operator group visible (lightbridge-admin grant).
+// Same composition with the Operator group visible. In `apps/console` that group appears when the
+// caller holds any one of `ADMIN_AREA_PERMISSIONS` (never a role — `isAdmin` is deleted,
+// converse-frontends#452) and its one row points wherever `adminLandingHref` resolves for them;
+// this component story only needs the SHAPE, so it takes a boolean.
 export const FullShellAdmin: Story = {
   render: () => <Shell showAdmin />,
 };

@@ -201,13 +201,13 @@ the settings area) — `apps/console/src/client/console-chrome.tsx`.
 │ ACCOUNT (/accounts/<id>/*, /) │ SETTINGS (/settings/*)      │ ADMIN (/admin/*)        │
 │ ─ brand row                   │ ─ brand row                 │ ─ brand row             │
 │ ─ workspace switcher          │ ─ "← Back to console" row   │ ─ "← Back to console"   │
-│ ─ Workspace: Overview·API keys│ ─ flat nav: Overview·       │ ─ flat nav, per-row     │
-│ ─ Account: Settings           │   Accounts·Roles(rbac)·     │   permission-filtered:  │
-│   (no Operator group — the    │   Tiers·Project policies·   │   Overview·Usage·       │
-│    account rail is not an     │   Info · Admin (exit row,   │   Refills queue·Refill  │
-│    admin shortcut)            │   any admin permission)     │   policies·Budget       │
-│                               │                             │   schedules·Sessions·   │
-│                               │                             │   Roles                 │
+│ ─ Workspace: Overview·API keys│ ─ flat nav, ungated:        │ ─ flat nav, per-row     │
+│ ─ Account: Settings           │   Overview·Accounts·        │   permission-filtered:  │
+│ ─ Operator: Admin (exit row,  │   Tiers·Project policies·   │   Overview·Usage·       │
+│   any admin permission,       │   Info                      │   Refills queue·Refill  │
+│   → adminLandingHref)         │   (no Admin, no Roles —     │   policies·Budget       │
+│                               │    neither row pointed at   │   schedules·Sessions·   │
+│                               │    a settings destination)  │   Roles                 │
 │ ─ footer (⌘K · theme · offline · id) — identical on all three                          │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │  CONTENT COLUMN — fluid, max-w-1120, floor — the ONLY column; no right rail anywhere  │
@@ -234,18 +234,24 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`) —
   `min-w-0` is mandatory so a wide table or chart cannot blow the row open into horizontal page
   scroll.
-- **Account-area nav groups, exactly two** (`navGroups`): `Workspace` (Overview, API keys — hrefs
-  built off the path account, `navHrefs(accountId)`; narrowed from three items to two in ADR 0013's
-  phase E amendment, which moved Projects to `/settings/accounts/<id>/projects`) and `Account`
-  (Settings). The old `Operator` group is deleted outright (ADR 0013's 2026-08-31 owner review round
-  2 — the account rail is not an admin shortcut); this function takes no permission argument at all
-  and is not gated.
-- **Settings-area nav is a flat, ungrouped list** (`settingsNavGroups`): Overview, Accounts,
-  **Roles** (live, gated on `rbac:manage`, pointing at `/admin/roles`), Tier configs, Project
-  policies, Info — plus an **Admin** exit row appended last when the caller holds any one of
-  `ADMIN_AREA_PERMISSIONS`, aimed by `adminLandingHref` at the first admin destination _this_
-  caller can actually open. The Roles row is no longer `disabled` with `ROLES_DISABLED_REASON`
-  (`lightbridge-authz#571`): the read API landed and an honest row is a working one. See §5.5.
+- **Account-area nav groups: two fixed, one gated** (`navGroups`): `Workspace` (Overview, API keys
+  — hrefs built off the path account, `navHrefs(accountId)`; narrowed from three items to two in
+  ADR 0013's phase E amendment, which moved Projects to `/settings/accounts/<id>/projects`),
+  `Account` (Settings), and — for a caller holding any one of `ADMIN_AREA_PERMISSIONS` — `Operator`
+  (**Admin**, aimed by `adminLandingHref` at the first admin destination _this_ caller can actually
+  open). The Operator group is back on the main rail per the **2026-09-03 owner directive** ("The
+  Admin button doesn't need to be hidden now, since it's gated by permission"), superseding ADR
+  0013's 2026-08-31 round-2 placement inside settings. What that earlier ruling rejected was a
+  dishonest row ("Refill requests", landing on `/admin/overview`) gated on `isAdmin`, a role
+  production minted for every signed-in person; this row says where it goes and is gated on a
+  permission the backend enforces. It never carries `active` (reaching `/admin/*` swaps the whole
+  rail) and never carries the pending-refill count.
+- **Settings-area nav is a flat, ungrouped, ungated list** (`settingsNavGroups`): Overview,
+  Accounts, Tier configs, Project policies, Info. Two rows left in the 2026-09-03 directive, both
+  because each pointed OUT of the settings area: **Admin** moved to the account rail's Operator
+  group, and **Roles** was removed outright ("The Roles button in Settings' left rail can safely be
+  removed") — `/admin/roles` keeps its one nav home in the admin area's own list. The function
+  takes no permission argument at all now. See §5.5.
 - **Admin-area nav is a flat list of seven, filtered per row against the caller's own permission
   set** (`adminNavGroups`, over `ADMIN_DESTINATIONS`). Rows are **omitted, never disabled**: each
   route segment answers `notFound()` for the same permission, so a visible-but-dead row would
@@ -317,13 +323,12 @@ those pages used to be.
 | Overview                     | Workspace                                                                            | —                        | `/accounts/<id>/overview`                                                         |
 | API keys                     | Workspace                                                                            | —                        | `/accounts/<id>/api-keys`                                                         |
 | Settings                     | Account                                                                              | —                        | `/settings` (redirects → `/settings/overview` → `/settings/overview/usage`)       |
+| Admin                        | Operator (the account rail's own last group — an exit door, never `active`)          | any of the seven below   | `adminLandingHref(permissions)` — the first admin row this caller can open        |
 | — Settings: Overview         | Settings area                                                                        | —                        | `/settings/overview` → lens picker (§5.5)                                         |
 | — Settings: Accounts         | Settings area                                                                        | —                        | `/settings/accounts` → `/settings/accounts/<id>`                                  |
-| — Settings: Roles            | Settings area                                                                        | `rbac:manage`            | `/admin/roles` (the row lives in settings, the screen in admin — §5.11)           |
 | — Settings: Tier configs     | Settings area                                                                        | —                        | `/settings/tiers`                                                                 |
 | — Settings: Project policies | Settings area                                                                        | —                        | `/settings/policies`                                                              |
 | — Settings: Info             | Settings area                                                                        | —                        | `/settings/info`                                                                  |
-| — Settings: Admin            | Settings area (appended last — an exit door, never `active`)                         | any of the six below     | `adminLandingHref(permissions)` — the first admin row this caller can open        |
 | — Admin: Overview            | Admin area                                                                           | `usage:read-all`         | `/admin/overview` (§5.9)                                                          |
 | — Admin: Usage               | Admin area                                                                           | `usage:read-all`         | `/admin/usage` (§5.10) (+ `/actors/<id>`, `/channels/<azp>`, `/chats`)            |
 | — Admin: Refills queue       | Admin area                                                                           | `budget:review`          | `/admin/refills-queue` — carries the pending-count numeral                        |
@@ -540,7 +545,7 @@ added.
 ### 5.5 Settings — `/settings/*` (`settings.stories.tsx`)
 
 A second navigable area (ADR 0013 D2), not a route dangling off the account shell: its own flat,
-eight-row left nav (§3 "Nav destinations") replaces the account area's Workspace/Account/Operator
+five-row left nav (§3 "Nav destinations") replaces the account area's Workspace/Account/Operator
 groups in the same sidebar mount, and a `← Back to console` row replaces the workspace switcher.
 `/settings` itself has no centre of its own — it redirects to `/settings/overview`, which redirects
 to `/settings/overview/usage`, the designated landing lens.
@@ -609,14 +614,17 @@ account` is the `PageHeader` action, moved here off `/settings/policies`.
   two siblings, `/settings/accounts/<id>/projects` (§5.3) and `/settings/accounts/<id>/request-refill`
   (§5.4) — the SAME three-tab row renders on all three.
 
-**Roles** — **live since 2026-09-02**, gated on `rbac:manage`, pointing at `/admin/roles` (§5.11).
-It spent one phase as a permanent `href`-less row rendered `disabled` with a stated reason
-(`ROLES_DISABLED_REASON`, `lightbridge-authz#571`) — ADR 0013 D2's honesty-doctrine extension to
-navigation, the honest middle ground while no read API existed. The read API landed
-(`listPlatformRoleGrants`, lightbridge-authz#656), so the row is a working link and the disabled
-variant plus its reason string are **deleted**, not kept as a fallback. The disabled treatment
-remains the right answer for a destination that is genuinely not built (see **Members** above) —
-never for one the caller merely lacks permission for, which is omitted instead.
+**Roles** — **removed from this rail on 2026-09-03** (owner directive: "The Roles button in
+Settings' left rail can safely be removed"). The screen it pointed at, `/admin/roles` (§5.11), is
+an admin destination and keeps its one nav home in the admin area's own list; a second entrance
+here made a settings row that was never a settings destination. Its short history is worth
+recording because it is the honesty doctrine's own worked example: it spent one phase as a
+permanent `href`-less row rendered `disabled` with a stated reason (`ROLES_DISABLED_REASON`,
+`lightbridge-authz#571`) — ADR 0013 D2's honesty-doctrine extension to navigation while no read API
+existed — then became a live `rbac:manage`-gated link when `listPlatformRoleGrants` landed
+(lightbridge-authz#656), the disabled variant deleted rather than kept as a fallback. The disabled
+treatment remains the right answer for a destination that is genuinely not built (see **Members**
+above) — never for one the caller merely lacks permission for, which is omitted instead.
 
 **Tier configs** — `/settings/tiers`: two read-only catalogues, no picker. "Billing plans" is a
 `ZoneHeading` directly on the floor above one `Card` _per plan_ (never nested inside a wrapping
@@ -1049,11 +1057,12 @@ files, reached from this page's own linked rows rather than from the admin rail.
 
 ### 5.11 Platform roles — `/admin/roles` (`admin-roles.stories.tsx`)
 
-Gated on **`rbac:manage`**. Reached from the admin area's own "Roles" row _or_ from the settings
-area's "Roles" row, which stopped being a `disabled` placeholder the moment
+Gated on **`rbac:manage`**. Reached from the admin area's own "Roles" row — its only nav home since
+the 2026-09-03 directive removed the settings rail's duplicate entrance (§5.5). That settings row
+had stopped being a `disabled` placeholder the moment
 `listPlatformRoleGrants`/`grantPlatformRole`/`revokePlatformRole` became real
-(lightbridge-authz#656 / ADR-0033). The disabled variant and `ROLES_DISABLED_REASON` are deleted,
-not kept as a fallback: once the destination is real, an honest row is a working one.
+(lightbridge-authz#656 / ADR-0033); the disabled variant and `ROLES_DISABLED_REASON` are deleted,
+not kept as a fallback.
 
 `PageHeader` ("Platform roles", "Grant role" as the one primary) → an optional `InlineStatus`
 outcome line → one `Card` holding `PlatformRoleGrants` (toolbar + table + pager). `?grant=` and

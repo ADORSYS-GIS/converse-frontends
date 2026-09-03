@@ -51,7 +51,7 @@ function ShelledPage({ page }: { page: SpecPage }) {
 }
 
 const meta: Meta = {
-  title: 'Pages/FromSpec',
+  title: 'Dashboard/FromSpec',
   parameters: { layout: 'fullscreen' },
 };
 

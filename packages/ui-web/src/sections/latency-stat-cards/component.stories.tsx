@@ -5,7 +5,7 @@ import { LatencyStatCards } from './component';
 import { latencyStatRows, latencyStatRowsEmpty } from './fixtures';
 
 const meta: Meta<typeof LatencyStatCards> = {
-  title: 'Sections/LatencyStatCards',
+  title: 'Sections/Usage/LatencyStatCards',
   component: LatencyStatCards,
   parameters: { layout: 'fullscreen' },
   args: { rows: latencyStatRows },

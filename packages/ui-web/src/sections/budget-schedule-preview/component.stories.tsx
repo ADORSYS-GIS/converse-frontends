@@ -27,7 +27,7 @@ function PreviewSheet(props: React.ComponentProps<typeof BudgetSchedulePreview>)
 }
 
 const meta: Meta<typeof PreviewSheet> = {
-  title: 'Sections/BudgetSchedulePreview',
+  title: 'Sections/Budget/BudgetSchedulePreview',
   component: PreviewSheet,
   parameters: { layout: 'fullscreen' },
   args: {

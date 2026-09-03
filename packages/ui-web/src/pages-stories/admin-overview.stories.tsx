@@ -171,7 +171,7 @@ function AdminOverviewScreen() {
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminOverview',
+  title: 'Pages/Admin/Overview',
   parameters: { layout: 'fullscreen' },
 };
 

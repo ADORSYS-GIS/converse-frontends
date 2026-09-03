@@ -5,7 +5,7 @@ import { ApiKeysControls } from './component';
 import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
 
 const meta: Meta<typeof ApiKeysControls> = {
-  title: 'Sections/ApiKeysControls',
+  title: 'Sections/Account/ApiKeysControls',
   component: ApiKeysControls,
   parameters: { layout: 'padded' },
   args: {

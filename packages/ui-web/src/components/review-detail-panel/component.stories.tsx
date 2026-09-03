@@ -5,7 +5,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ReviewDetailPanel } from './component';
 
 const meta: Meta<typeof ReviewDetailPanel> = {
-  title: 'Forms & actions/ReviewDetailPanel',
+  title: 'Primitives/Overlays/ReviewDetailPanel',
   component: ReviewDetailPanel,
 };
 

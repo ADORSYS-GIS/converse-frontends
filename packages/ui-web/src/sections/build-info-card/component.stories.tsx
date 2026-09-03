@@ -10,7 +10,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof BuildInfoCard> = {
-  title: 'Sections/BuildInfoCard',
+  title: 'Sections/Settings/BuildInfoCard',
   component: BuildInfoCard,
   parameters: { layout: 'fullscreen' },
   args: buildInfoAllKnown,

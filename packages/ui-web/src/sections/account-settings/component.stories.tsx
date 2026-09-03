@@ -11,7 +11,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof AccountSettings> = {
-  title: 'Sections/AccountSettings',
+  title: 'Sections/Account/AccountSettings',
   component: AccountSettings,
   args: {
     panel: namedAccountPanelFixture,

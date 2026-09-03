@@ -221,7 +221,7 @@ function AdminBudgetSchedulesScreen({
 }
 
 const meta: Meta<typeof AdminBudgetSchedulesScreen> = {
-  title: 'Pages/AdminBudgetSchedules',
+  title: 'Pages/Admin/BudgetSchedules',
   component: AdminBudgetSchedulesScreen,
   parameters: { layout: 'fullscreen' },
 };

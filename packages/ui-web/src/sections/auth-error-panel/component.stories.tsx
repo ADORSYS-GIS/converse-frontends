@@ -4,7 +4,7 @@ import { AuthErrorPanel } from './component';
 import { authErrorPanelRetryHref } from './fixtures';
 
 const meta: Meta<typeof AuthErrorPanel> = {
-  title: 'Sections/AuthErrorPanel',
+  title: 'Sections/Auth/AuthErrorPanel',
   component: AuthErrorPanel,
   parameters: { layout: 'fullscreen' },
 };

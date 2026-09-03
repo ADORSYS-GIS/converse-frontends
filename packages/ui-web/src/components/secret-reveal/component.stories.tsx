@@ -5,7 +5,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { SecretReveal } from './component';
 
 const meta: Meta<typeof SecretReveal> = {
-  title: 'Forms & actions/SecretReveal',
+  title: 'Primitives/Actions/SecretReveal',
   component: SecretReveal,
   args: {
     heading: 'New key created — shown once',

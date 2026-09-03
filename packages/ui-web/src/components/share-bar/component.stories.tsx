@@ -12,7 +12,7 @@ const segments: ShareBarSegment[] = [
 ];
 
 const meta: Meta<typeof ShareBar> = {
-  title: 'Components/ShareBar',
+  title: 'Charts/ShareBar',
   component: ShareBar,
   parameters: { layout: 'padded' },
   args: { segments },

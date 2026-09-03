@@ -5,7 +5,7 @@ import { Button } from '../button';
 import { Card } from './component';
 
 const meta: Meta<typeof Card> = {
-  title: 'Data display/Card',
+  title: 'Primitives/Data/Card',
   component: Card,
 };
 

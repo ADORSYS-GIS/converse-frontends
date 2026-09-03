@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Meter } from './component';
 
 const meta: Meta<typeof Meter> = {
-  title: 'Data display/Meter',
+  title: 'Primitives/Data/Meter',
   component: Meter,
 };
 

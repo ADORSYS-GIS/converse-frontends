@@ -8,7 +8,7 @@ import { withRefineMock } from './refine-decorator';
 // `useCustom({ url: 'overview' })` against the mock provider's aggregation endpoint — console-ui
 // skill "Refine-driven mock screens": "useCustom or useList aggregations from fixtures".
 const meta: Meta<typeof RefineOverviewScreen> = {
-  title: 'Refine/Overview',
+  title: 'Legacy/Refine/Overview',
   component: RefineOverviewScreen,
   parameters: { layout: 'fullscreen' },
 };

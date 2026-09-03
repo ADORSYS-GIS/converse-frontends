@@ -5,7 +5,7 @@ import { fn } from 'storybook/test';
 import { Pagination } from './component';
 
 const meta: Meta<typeof Pagination> = {
-  title: 'Data display/Pagination',
+  title: 'Primitives/Data/Pagination',
   component: Pagination,
   args: {
     shown: 12,

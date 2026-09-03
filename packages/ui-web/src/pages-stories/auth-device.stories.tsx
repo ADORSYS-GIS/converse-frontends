@@ -84,7 +84,7 @@ function DeviceSuccessScreen() {
 }
 
 const meta: Meta = {
-  title: 'Pages/AuthDevice',
+  title: 'Pages/Auth/Device',
   parameters: { layout: 'fullscreen' },
 };
 

@@ -80,7 +80,7 @@ function AdminUsageChatsScreen({ state = 'loaded' }: { state?: SpecPageState }) 
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminUsageChats',
+  title: 'Pages/Admin/UsageByChat',
   parameters: { layout: 'fullscreen' },
 };
 

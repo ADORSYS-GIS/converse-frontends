@@ -5,7 +5,7 @@ import { AccountDirectory } from './component';
 import { accountDirectoryFixture, accountDirectoryPropsFixture } from './fixtures';
 
 const meta: Meta<typeof AccountDirectory> = {
-  title: 'Sections/AccountDirectory',
+  title: 'Sections/Account/AccountDirectory',
   component: AccountDirectory,
   args: { ...accountDirectoryPropsFixture, onRetry: fn(), onCreate: fn(), onSelectAccount: fn() },
 };

@@ -174,7 +174,7 @@ overrides untouched.
 Everything else in an entry stays machine vocabulary: scopes, dimensions, limits, panel types. None
 of it is copy, and translating any of it would break the query.
 
-Storybook's `Pages/FromSpec` reads the same YAML and resolves against `locales/en/dashboards.json`
+Storybook's `Dashboard/FromSpec` reads the same YAML and resolves against `locales/en/dashboards.json`
 directly, so "the fixture path IS the YAML" now holds for the copy as well as the structure.
 
 ### D5 — Money keeps ONE convention and ONE home; only the notation follows the language

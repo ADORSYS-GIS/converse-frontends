@@ -22,7 +22,7 @@ function Controlled({ initial, errors }: { initial: RuleSetValue; errors?: RuleS
 }
 
 const meta: Meta<typeof Controlled> = {
-  title: 'Sections/RuleSetForm',
+  title: 'Sections/Admin/RuleSetForm',
   component: Controlled,
   parameters: { layout: 'fullscreen' },
 };

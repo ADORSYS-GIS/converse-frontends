@@ -5,7 +5,7 @@ import { AuthPanelShell } from './component';
 import { authPanelShellDeviceEntryLead, authPanelShellDeviceEntryTitle } from './fixtures';
 
 const meta: Meta<typeof AuthPanelShell> = {
-  title: 'Sections/AuthPanelShell',
+  title: 'Sections/Auth/AuthPanelShell',
   component: AuthPanelShell,
   parameters: { layout: 'fullscreen' },
   args: {

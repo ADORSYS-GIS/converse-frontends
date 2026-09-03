@@ -16,7 +16,7 @@ import { DashboardPanel } from './component';
  * expanded (the Base UI dialog at ~1280 x 80vh, drawing the SAME body at `size: 'expanded'`).
  */
 const meta: Meta<typeof DashboardPanel> = {
-  title: 'Sections/DashboardPanel',
+  title: 'Dashboard/DashboardPanel',
   component: DashboardPanel,
   parameters: { layout: 'padded' },
 };

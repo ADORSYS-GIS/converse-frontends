@@ -5,7 +5,7 @@ import { OverviewStatRow } from './component';
 import { overviewEmptyStatCards, overviewStatCards, overviewUnwiredStatCards } from './fixtures';
 
 const meta: Meta<typeof OverviewStatRow> = {
-  title: 'Sections/OverviewStatRow',
+  title: 'Sections/Usage/OverviewStatRow',
   component: OverviewStatRow,
   parameters: { layout: 'fullscreen' },
   decorators: [

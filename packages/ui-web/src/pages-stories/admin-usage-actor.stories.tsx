@@ -142,7 +142,7 @@ function AdminUsageActorScreen({
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminUsageActor',
+  title: 'Pages/Admin/UsageByActor',
   parameters: { layout: 'fullscreen' },
 };
 

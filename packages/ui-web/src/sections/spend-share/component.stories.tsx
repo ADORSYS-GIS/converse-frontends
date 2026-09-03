@@ -5,7 +5,7 @@ import { SpendShareSection } from './component';
 import { formatOverviewSpendShareTotal, overviewSpendShareSegments } from './fixtures';
 
 const meta: Meta<typeof SpendShareSection> = {
-  title: 'Sections/SpendShareSection',
+  title: 'Sections/Usage/SpendShareSection',
   component: SpendShareSection,
   parameters: { layout: 'padded' },
   args: {

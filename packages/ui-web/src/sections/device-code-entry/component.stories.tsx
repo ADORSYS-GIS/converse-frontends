@@ -8,7 +8,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof DeviceCodeEntry> = {
-  title: 'Sections/DeviceCodeEntry',
+  title: 'Sections/Auth/DeviceCodeEntry',
   component: DeviceCodeEntry,
   parameters: { layout: 'fullscreen' },
   args: { action: deviceCodeEntryAction },

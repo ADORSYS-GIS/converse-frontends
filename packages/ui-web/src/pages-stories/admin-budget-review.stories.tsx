@@ -146,7 +146,7 @@ function AdminBudgetReviewScreen({
 }
 
 const meta: Meta<typeof AdminBudgetReviewScreen> = {
-  title: 'Pages/AdminBudgetReview',
+  title: 'Pages/Admin/BudgetReview',
   component: AdminBudgetReviewScreen,
   parameters: { layout: 'fullscreen' },
 };

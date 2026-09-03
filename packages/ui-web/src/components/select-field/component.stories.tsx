@@ -8,7 +8,7 @@ const meta: Meta<typeof SelectField> = {
   // `Forms & actions/*`, matching every other control in this group (`Field`, `SegmentedControl`,
   // `ScopeSelect`, the four dialogs) — this component's own title used to be the lone `Forms/*`
   // outlier in the sidebar, one more small inconsistency the unify-select pass (issue #368) closes.
-  title: 'Forms & actions/SelectField',
+  title: 'Primitives/Fields/SelectField',
   component: SelectField,
 };
 

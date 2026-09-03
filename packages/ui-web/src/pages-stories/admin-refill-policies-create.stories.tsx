@@ -132,7 +132,7 @@ function AdminRefillPolicyCreateScreen({
 }
 
 const meta: Meta<typeof AdminRefillPolicyCreateScreen> = {
-  title: 'Pages/AdminRefillPoliciesCreate',
+  title: 'Pages/Admin/RefillPolicyCreate',
   component: AdminRefillPolicyCreateScreen,
   parameters: { layout: 'fullscreen' },
 };

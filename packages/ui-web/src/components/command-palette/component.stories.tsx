@@ -124,7 +124,7 @@ function KeyboardOnlyNavigationHarness() {
 }
 
 const meta: Meta<typeof CommandPalette> = {
-  title: 'Forms & actions/CommandPalette',
+  title: 'Primitives/Overlays/CommandPalette',
   component: CommandPalette,
   decorators: [
     (Story) => (

@@ -219,7 +219,7 @@ function germanTopBar() {
 }
 
 const meta: Meta = {
-  title: 'Pages/I18n Deutsch',
+  title: 'Pages/Platform/I18nGerman',
   parameters: { layout: 'fullscreen' },
 };
 export default meta;

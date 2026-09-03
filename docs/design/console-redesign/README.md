@@ -375,6 +375,38 @@ directory. Superseded/deleted rows from the pre-revamp shell (`ConsoleHeader`, `
 entirely — see [ADR 0012](../../adr/0012-console-visual-revamp.md) "Consequences" for the deletion
 list.
 
+### 4.0 Where each of these is in Storybook
+
+Reorganised 2026-09-03 (owner directive: "smaller folders, and include the LCI samples too"). The
+sidebar reads top-down — what a thing is made of, then what it is made into, then where it ships —
+and the tree below is the whole of it. Full rules, including how to add a story and why a
+duplicate title is dangerous: [`packages/ui-web/STORYBOOK.md`](../../../packages/ui-web/STORYBOOK.md).
+
+| Folder                                                 | This section's rows                                                                      |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `Foundations/`                                         | the money ladder                                                                         |
+| `Primitives/Actions/`                                  | `Button`, `Checkbox`, `Toggle`, `SegmentedControl`, `RowActionGroup`, `SecretReveal`, …  |
+| `Primitives/Fields/`                                   | `Field`, `SelectField`, `ScopeSelect`, `DateRangeField`                                  |
+| `Primitives/Overlays/`                                 | every dialog, `CommandPalette`, `Tooltip`, `BottomSheet`, `ReportExportPanel`            |
+| `Primitives/Data/`                                     | `Card`, `LedgerTable`, `StatCard`, `Meter`, `Pagination`, `StatusText`, `Sparkline`, …   |
+| `Primitives/States/`                                   | `EmptyState`, `ErrorLine`, `InlineStatus`, `MutationFailureBanner`, the two skeletons    |
+| `Charts/`                                              | the chart marks and chart furniture, `ShareBar` included                                 |
+| `Shell/`                                               | `ConsoleShell`, `ConsoleSidebar`, `ConsoleTopBar`, `NavSpine`, `SubNav`, `PageHeader`, … |
+| `Dashboard/`                                           | `DashboardGrid`, `DashboardPanel`, `PanelRenderers`, and `FromSpec` (the real YAML)      |
+| `Sections/{Account,Usage,Budget,Admin,Auth,Settings}/` | the screen zones §5 composes, filed by the surface that mounts them                      |
+| `Pages/{Account,Settings,Admin,Auth,LCI,Platform}/`    | §5's screens, one folder per area                                                        |
+| `LCI/`                                                 | `apps/lci`'s app-local components — code graph, Grafana embed, review output, tab strip  |
+| `Legacy/`                                              | `src/refine-mock/`, parked pending the #472 ruling — kept, not deleted                   |
+
+Two names moved that other documents cite, so their story ids changed with them:
+`Pages/FromSpec` → **`Dashboard/FromSpec`** (`dashboard-fromspec--*`) and `Pages/AdminOverview` →
+**`Pages/Admin/Overview`** (`pages-admin-overview--*`).
+
+`apps/lci`'s stories live in `apps/lci/src`, not here — its screens are app-local by
+[ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) and moving them into `ui-web`
+would invert the dependency. `packages/ui-web/.storybook/main.ts` globs both trees into one
+sidebar.
+
 **Shell**
 
 | Component                                  | Contract                                                                                                                                                                             |
@@ -829,7 +861,7 @@ what fills every row with no holes: **Platform** spans both columns (and lays it
 groups out two-across at `lg`+, which is where most of the height went), **Backend configuration**
 and **Session** share the second row at three rows each, and **Client state** spans both columns
 again. Every row the single-column version rendered is still there — nothing was dropped to make
-the grid come out even. Story: `Pages/SettingsInfo`.
+the grid come out even. Story: `Pages/Settings/Info`.
 
 ### 5.6 Auth
 

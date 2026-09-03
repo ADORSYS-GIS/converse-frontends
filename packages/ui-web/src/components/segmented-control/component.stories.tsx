@@ -5,7 +5,7 @@ import { SegmentedControl } from './component';
 import type { SegmentedOption } from './types';
 
 const meta: Meta<typeof SegmentedControl> = {
-  title: 'Forms & actions/SegmentedControl',
+  title: 'Primitives/Actions/SegmentedControl',
   component: SegmentedControl,
 };
 

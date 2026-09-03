@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Sparkline } from './component';
 
 const meta: Meta<typeof Sparkline> = {
-  title: 'Data display/Sparkline',
+  title: 'Primitives/Data/Sparkline',
   component: Sparkline,
 };
 

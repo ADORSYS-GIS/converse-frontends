@@ -524,7 +524,7 @@ story. Adding an `if (panelId === …)` to a page is the thing this engine exist
 
 ### The story is the oracle
 
-Every panel type has a story with fixtures, and `Pages/FromSpec` renders **any** YAML page entry
+Every panel type has a story with fixtures, and `Dashboard/FromSpec` renders **any** YAML page entry
 against a mocked query layer — the fixture path _is_ the YAML. So a page is reviewable in Storybook
 before the backend column behind it exists, and a page migrated onto the engine proves parity
 against its own existing page story **before** the hand-written container is deleted. Storybook is
@@ -693,6 +693,14 @@ anti-pattern) — **unchanged by the 2026-08-30 shell revamp**:
   for checking a feature per page without starting the app, and are the ground truth in place of
   the deleted SVG mockups; and (2) `apps/console`'s route implementations. There is **no `*Page`**
   component in the package barrel.
+- **The sidebar has a fixed, small set of folders** (`Foundations` · `Primitives` · `Charts` ·
+  `Shell` · `Dashboard` · `Sections/<Area>` · `Pages/<Area>` · `LCI` · `Legacy`), asserted by
+  `src/story-taxonomy.test.ts`. A new story titles itself under one of them; inventing a tenth root
+  is a design conversation, not a story edit. The map, and why a duplicate title silently deletes a
+  story from the sidebar, is `packages/ui-web/STORYBOOK.md`.
+- **`apps/lci`'s screens are in the same Storybook** (`Pages/LCI/*`, `LCI/*`) but their story files
+  live in `apps/lci/src` — those screens are app-local by ADR 0014, and `ui-web` importing them
+  would invert the workspace dependency.
 - **One style pipeline**: `apps/console`'s `globals.css` imports the package's stylesheet
   (`@lightbridge/ui-web/styles.css`, which imports `theme.css`); the app never re-declares
   fonts/tokens or runs a duplicate base layer.
@@ -703,10 +711,16 @@ Beside the fixture-driven page stories, `src/refine-mock/` hosts a Storybook-onl
 `@refinedev/core`'s `<Refine>` with a **mock data provider** over the section fixtures (simulated
 latency, optional error mode), plus thin container components that drive the pure sections
 from refine hooks (`useTable`/`useList`/`useForm`/`useOne`) exactly the way `apps/console` will.
-Stories under the `Refine` title group (`Refine/Projects`, `Refine/ApiKeys`, …) demonstrate live
-list→selection→edit/decide flows. Rules: the sections stay pure (containers adapt hook state
-to props); the mock provider is never exported from the package barrel; deps on `@refinedev/*`
-are devDependencies only.
+Its stories demonstrate live list→selection→edit/decide flows. Rules: the sections stay pure
+(containers adapt hook state to props); the mock provider is never exported from the package
+barrel; deps on `@refinedev/*` are devDependencies only.
+
+**They sit under `Legacy/Refine/` in the sidebar** (`Legacy/Refine/Projects`,
+`Legacy/Refine/ApiKeys`, …). `apps/console` shipped, so this harness is no longer prior art for
+anything, and [#472](https://github.com/ADORSYS-GIS/converse-frontends/issues/472) classifies the
+whole directory as class B — referenced only by its own stories and tests, and the last consumer of
+`@refinedev/core` here. **The owner has not ruled on deleting it, so it is parked, not removed**:
+browsable, out of the live tree's way, and awaiting that decision. Do not build anything new on it.
 
 ## State — URL-first via nuqs (ADR 0011), account via path (ADR 0013)
 

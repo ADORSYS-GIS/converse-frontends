@@ -84,7 +84,7 @@ function AdminUsageModelScreen({ state = 'loaded' }: { state?: SpecPageState }) 
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminUsageModel',
+  title: 'Pages/Admin/UsageByModel',
   parameters: { layout: 'fullscreen' },
 };
 

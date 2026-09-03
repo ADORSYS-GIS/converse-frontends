@@ -174,7 +174,7 @@ const columns: LedgerColumn<ApiKeyRow>[] = [
 ];
 
 const meta: Meta<typeof LedgerTable> = {
-  title: 'Data display/LedgerTable',
+  title: 'Primitives/Data/LedgerTable',
 };
 
 export default meta;

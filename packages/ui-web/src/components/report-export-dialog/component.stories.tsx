@@ -7,7 +7,7 @@ import { scopeAccounts, scopeProjects, scopeSelectValue } from '../scope-select/
 import { ReportExportDialog } from './component';
 
 const meta: Meta<typeof ReportExportDialog> = {
-  title: 'Forms & actions/ReportExportDialog',
+  title: 'Primitives/Overlays/ReportExportDialog',
   component: ReportExportDialog,
   args: {
     open: true,

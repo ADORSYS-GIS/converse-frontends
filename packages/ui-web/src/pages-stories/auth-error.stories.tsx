@@ -31,7 +31,7 @@ function AuthErrorScreen({ retryHref }: AuthErrorScreenProps) {
 }
 
 const meta: Meta = {
-  title: 'Pages/AuthError',
+  title: 'Pages/Auth/Error',
   parameters: { layout: 'fullscreen' },
 };
 

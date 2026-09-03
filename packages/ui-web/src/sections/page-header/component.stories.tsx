@@ -5,7 +5,7 @@ import { Button } from '../../components/button';
 import { PageHeader } from './component';
 
 const meta: Meta<typeof PageHeader> = {
-  title: 'Sections/PageHeader',
+  title: 'Shell/PageHeader',
   component: PageHeader,
 };
 

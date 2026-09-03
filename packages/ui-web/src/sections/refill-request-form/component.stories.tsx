@@ -13,7 +13,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof RefillRequestForm> = {
-  title: 'Sections/RefillRequestForm',
+  title: 'Sections/Admin/RefillRequestForm',
   component: RefillRequestForm,
   parameters: { layout: 'fullscreen' },
   args: { state: refillFormReady },

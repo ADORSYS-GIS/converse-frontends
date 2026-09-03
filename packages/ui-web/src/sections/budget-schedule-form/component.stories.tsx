@@ -53,7 +53,7 @@ function Controlled({
 }
 
 const meta: Meta<typeof Controlled> = {
-  title: 'Sections/BudgetScheduleForm',
+  title: 'Sections/Budget/BudgetScheduleForm',
   component: Controlled,
   parameters: { layout: 'fullscreen' },
 };

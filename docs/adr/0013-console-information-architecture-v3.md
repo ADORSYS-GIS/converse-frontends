@@ -329,7 +329,7 @@ narrowing the glob to only the cbor packages still panicked, on a different pack
 safe glob to write). The fix moved the concern out of `next.config.mjs` entirely — getting the
 actual `@cratestack/cbor*` package files into the image is now `apps/console/Dockerfile`'s job (a
 `COPY` of the pnpm store dirs from the build context, plus re-running
-`scripts/link-standalone-cratestack.mjs` at image-build time to re-materialize the top-level
+`scripts/link-standalone-scopes.mjs` at image-build time to re-materialize the top-level
 `node_modules/@cratestack/*` scope links); `serverExternalPackages` (a Next feature independent of
 bundler choice) still keeps the bundler from inlining the native addon.
 

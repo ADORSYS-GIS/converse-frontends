@@ -677,6 +677,56 @@ Rendering the _disabled_ fixture is the regression check that matters: its outpu
 the pre-#346 chart by exactly the two new console env vars (`CONSOLE_TEMPLATES_DIR`,
 `TYPST_RENDER_URL`) and nothing else — no extra container, no NetworkPolicy, no extra volume.
 
+## Tracing (OpenTelemetry)
+
+`apps/console` exports traces as `service.name=converse-console` (converse-frontends#443). This
+chart ships three keys under `console.controllers.main.containers.frontend.env`:
+
+| Key                           | Chart default   | Meaning                                                                                                           |
+| ----------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `''`            | **The only switch.** Blank ⇒ the app starts no SDK and logs one line saying so.                                   |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | Validated by the app — `grpc` or `http/json` makes it refuse to start rather than send a format nobody asked for. |
+| `DEPLOYMENT_ENVIRONMENT`      | `''`            | `deployment.environment.name` on every span; omitted from the resource when blank.                                |
+
+There is deliberately **no `otel.enabled` flag**. A toggle that can disagree with the endpoint is a
+way to ship the feature switched off; the app treats `''` and unset identically.
+
+`OTEL_SERVICE_NAME` and `OTEL_TRACES_SAMPLER_ARG` are **read but not defaulted here** —
+`converse-console` and `1.0` are compiled into the image, and a second copy in a values file is a
+second place for them to be wrong. Set either from your own values file when you need to.
+
+In this estate the endpoint is Grafana Alloy's OTLP/HTTP receiver:
+
+```yaml
+console:
+  controllers:
+    main:
+      containers:
+        frontend:
+          env:
+            OTEL_EXPORTER_OTLP_ENDPOINT: 'http://alloy.observability.svc.cluster.local:4318'
+            DEPLOYMENT_ENVIRONMENT: 'prod'
+```
+
+Alloy's own `CiliumNetworkPolicy` admits `fromEntities: cluster` on 4317/4318 and the `converse`
+namespace has no egress default-deny, so no network-policy work is needed on either side.
+
+**The `typst-render` sidecar gets no `OTEL_*` keys, and that is a decision.** It runs no SDK:
+`apps/typst-render` has zero npm dependencies by construction — its image ships `dist/` with no
+`node_modules` and deletes npm/npx — precisely because it is the container that executes
+request-supplied document programs. It is not invisible in a trace: the console's CLIENT span for
+`POST /render` is in Tempo either way, and the sidecar reads the propagated `traceparent` and prints
+the trace id with each render, so an operator holding a trace id can find its log lines. See
+[`docs/knowledge/observability.md`](../../docs/knowledge/observability.md).
+
+> [!IMPORTANT]
+> `ai-helm`'s `console-ui` Application pins this chart with a **tilde** range (`~0.2.4`). Published
+> versions are `MAJOR.MINOR` from `Chart.yaml` plus a commit-count patch, so bumping the MINOR here
+> publishes a version that pin does not resolve — ArgoCD then keeps serving the last version it can
+> while a values file written for the new chart is already merged (this estate's 2026-09-02
+> incident). Widen the pin in `ai-helm` first, in its own merged change, or keep the minor where it
+> is.
+
 ## Ingress
 
 This chart deliberately ships with `console.ingress.frontend.enabled: false` and no host. The

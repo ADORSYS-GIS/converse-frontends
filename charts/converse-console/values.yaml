@@ -60,6 +60,43 @@ console:
             # `reports.typstRenderUrl` in config.yaml still wins when it is present.
             TYPST_RENDER_URL: http://127.0.0.1:8080
 
+            # ── OpenTelemetry (converse-frontends#443) ──────────────────────────────────────
+            # The console starts a Node OTel SDK from `src/instrumentation.ts` and exports OTLP
+            # over HTTP. Setting an endpoint is the ONLY thing that turns it on: with this blank
+            # the app logs one line saying so and starts no SDK at all. There is deliberately no
+            # second `otel.enabled`-style toggle — a flag that can disagree with the endpoint is a
+            # way to ship the feature switched off, and the app treats "" and unset identically
+            # (`packages/otel/src/config.ts`, covered by its own test).
+            #
+            # A deployment fills this in from its own values file. In this estate that is
+            # `http://alloy.observability.svc.cluster.local:4318` — Grafana Alloy's OTLP receiver,
+            # the same one lightbridge-code-intelligence's backends already push to, which forwards
+            # to Tempo. Alloy's own CiliumNetworkPolicy admits `fromEntities: cluster` on 4317/4318,
+            # and the `converse` namespace has no egress default-deny, so no policy work is needed
+            # on either side.
+            OTEL_EXPORTER_OTLP_ENDPOINT: ''
+
+            # OTLP/HTTP with protobuf bodies — the OTLP spec default, and the only wire format
+            # `@lightbridge/otel` implements. It is VALIDATED, not merely read: `grpc` (:4317) or
+            # `http/json` here makes the app refuse to start the SDK and say why, rather than send
+            # a format the operator did not ask for. Stated explicitly so a reader of this file can
+            # see which of Alloy's two ports the pod is aimed at.
+            OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+
+            # `deployment.environment.name` on every span. Blank here because this chart genuinely
+            # does not know — only the deployment does. Omitted from the resource entirely when
+            # unset, rather than reported as "unknown".
+            DEPLOYMENT_ENVIRONMENT: ''
+
+            # NOT set here, on purpose:
+            #  * `OTEL_SERVICE_NAME` — `converse-console` is compiled into the image
+            #    (`src/instrumentation.node.ts`). Repeating it in a values file creates a second
+            #    place for the name to be wrong, and a deployment that renames one instance can
+            #    still set it from its own file; the variable is read, it is just not defaulted
+            #    twice.
+            #  * `OTEL_TRACES_SAMPLER_ARG` — defaults to 1.0 in the app. A deployment that wants
+            #    less sets it; see charts/converse-console/README.md.
+
           resources:
             # A Node SSR server, not nginx serving static files — every request runs application
             # code (session decrypt, RPC proxying, React server rendering), so both floors sit
@@ -151,6 +188,19 @@ console:
             # node. It needs no NetworkPolicy to be true and no CNI to enforce it.
             TYPST_RENDER_HOST: 127.0.0.1
             TYPST_RENDER_PORT: '8080'
+
+            # NO `OTEL_*` here, and that is a decision rather than an oversight
+            # (converse-frontends#443). This container runs no OpenTelemetry SDK: `apps/typst-
+            # render` has ZERO npm dependencies by construction — its Dockerfile ships `dist/` with
+            # no `node_modules` and deletes npm/npx from the base image, precisely because this is
+            # the container that executes request-supplied document programs. Adding the ~40-package
+            # Node SDK would undo that, which is a redesign of this service, not a chart change.
+            #
+            # It is not invisible in a trace either way. The console's CLIENT span for
+            # `POST /render` is already in Tempo (its undici instrumentation emits it and injects
+            # `traceparent`), and this service reads that header and prints the trace id with each
+            # render — so an operator holding a trace id can find the renderer's own log lines for
+            # it. See `apps/typst-render/src/trace-context.ts`, which states the same trade in full.
 
           resources:
             # `typst compile` is a short CPU burst, not a resident workload: the service holds no

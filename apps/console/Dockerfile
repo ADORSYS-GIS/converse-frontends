@@ -99,16 +99,26 @@ COPY apps/console/public/ ./apps/console/public/
 # traced package landed in.
 COPY apps/console/.docker-stage/cratestack-cbor/ ./node_modules/.pnpm/
 
-# `scripts/link-standalone-cratestack.mjs` re-materializes the top-level `node_modules/@cratestack/*`
+# `scripts/link-standalone-scopes.mjs` re-materializes the top-level `node_modules/@cratestack/*`
 # scope symlinks (what Node's resolver actually walks) that the plain COPY above only put the
 # *targets* of into `.pnpm/`, glob-driven off whatever `@cratestack+cbor*` store dirs actually
-# landed above so a cratestack version bump changes nothing here. Passed `/app/node_modules`
-# explicitly: this script's own no-arg default resolves relative to *its own* file location
-# (`.next/standalone/node_modules`, the local post-`next build` layout), which is not this image's
-# layout. Fails the image build hard (non-zero exit) if it links zero packages, so a regression in
-# either this COPY or the upstream store layout is a CI failure, not a silent runtime 500.
-COPY apps/console/scripts/link-standalone-cratestack.mjs ./apps/console/scripts/link-standalone-cratestack.mjs
-RUN node ./apps/console/scripts/link-standalone-cratestack.mjs /app/node_modules
+# landed above so a cratestack version bump changes nothing here. Fails the image build hard
+# (non-zero exit) if it links zero packages, so a regression in either this COPY or the upstream
+# store layout is a CI failure, not a silent runtime 500.
+#
+# ONLY `@cratestack` here, on purpose. The identical treatment for `@opentelemetry`
+# (converse-frontends#443 — the standalone tracer copies those store dirs but no more materializes
+# their scope links than it did cratestack's) already ran on the RUNNER, as the last step of
+# `apps/console`'s `build:web`, because Next's own tracer put those store dirs into the bundle and
+# the links it writes are relative and travel with the `COPY .next/standalone/` above. Cratestack
+# cannot be done there: its store dirs are COPYed in by THIS file, after the bundle, so no
+# build-time run could have seen them.
+#
+# `--root /app/node_modules` explicitly: the standalone COPY already flattened the bundle root onto
+# `/app`, so the image's node_modules is not at the `.next/standalone/node_modules` path the
+# runner-side invocation uses.
+COPY scripts/link-standalone-scopes.mjs ./scripts/link-standalone-scopes.mjs
+RUN node ./scripts/link-standalone-scopes.mjs --root /app/node_modules --scope @cratestack
 
 # Ship the repo's own dev-shaped config.yaml as the image default, so the image is runnable
 # out-of-the-box for a smoke test (`docker run` with no other configuration). This is NOT how a

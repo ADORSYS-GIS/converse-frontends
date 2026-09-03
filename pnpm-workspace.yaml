@@ -14,6 +14,13 @@ allowBuilds:
   # Its postinstall only prints a donation-request banner (wrapped in try/catch, so it can never
   # fail the install) -- no functional side effect, so there is nothing to gain by running it.
   core-js: false
+  # Pulled in transitively by @opentelemetry/otlp-transformer (the protobuf serializer behind
+  # @lightbridge/otel's OTLP/HTTP exporter). Its postinstall script (scripts/postinstall.js) only
+  # reads the PARENT package.json and prints a "use ^7.x instead of ~7.x" advisory to stderr when
+  # a direct dependent pinned it with the wrong range prefix -- read it: there is no codegen, no
+  # native build and no file written. Nothing about the exporter depends on it having run, which
+  # was confirmed end-to-end against a real collector (see docs/knowledge/observability.md).
+  protobufjs: false
 
 minimumReleaseAgeExclude:
   - '@cratestack/adapter-rtk@0.10.0'

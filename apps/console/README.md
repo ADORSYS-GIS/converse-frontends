@@ -813,6 +813,38 @@ that says so.
   `offline · showing cached data` status line in the header. Mutations require connectivity — no
   offline mutation queue (ADR 0009 Decision 7, explicitly).
 
+## Tracing (OpenTelemetry)
+
+`src/instrumentation.ts` — Next's stable `register()` convention, no experimental flag on 16.3.2 —
+starts a Node OTel SDK through the shared `@lightbridge/otel` package. `service.name` is
+**`converse-console`**, compiled in and overridable with `OTEL_SERVICE_NAME`.
+
+**The environment is the only switch.** With no `OTEL_EXPORTER_OTLP_ENDPOINT` the app starts no SDK
+and logs one line saying so — the ordinary state of `next dev`, `next build` and every test. Set it
+and traces flow:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
+DEPLOYMENT_ENVIRONMENT=local pnpm dev
+# [otel] converse-console exporting traces to http://127.0.0.1:4318/v1/traces (…)
+```
+
+What you get: a server span per request (kubelet probes on `/robots.txt` excluded), Next's own
+render/route spans nested under it, and a client span with an injected `traceparent` for every
+outbound `fetch` — the RPC/usage proxies, `/version` reads, and the `POST /render` to the
+typst-render sidecar — so these traces join the backends'. The Edge runtime (`src/middleware.ts`)
+is deliberately not instrumented.
+
+Two build-time details this depends on, both silent when broken: the `@opentelemetry/*` packages are
+in `next.config.mjs`'s `serverExternalPackages` (bundling them stops the HTTP patching and splits
+the `@opentelemetry/api` singleton), and `build:web` runs
+`scripts/link-standalone-scopes.mjs` because `output: 'standalone'` copies those packages without
+creating the scope symlinks Node resolves through.
+
+Full contract, both mermaid diagrams and the cluster wiring:
+[`docs/knowledge/observability.md`](../../docs/knowledge/observability.md).
+
 ## Known gaps in this scaffold
 
 Each is visible in the UI as an inline status line, never a fake number:

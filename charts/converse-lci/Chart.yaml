@@ -6,6 +6,19 @@ type: application
 # Its own chart directory gets its own GHCR package via publish-charts-oci.yml's `for cf in
 # charts/*/Chart.yaml` glob, so nothing here can collide with another chart's consumer floating a
 # broad semver range against it.
+# MAJOR.MINOR only — `publish-charts-oci.yml` DERIVES the published patch at push time as
+# `git rev-list --count HEAD -- charts/converse-lci` and never writes it back here. The number in
+# this file is a FLOOR; the registry currently holds 0.1.1.
+#
+# NOT bumped by the OpenTelemetry change (converse-frontends#443), deliberately: `ai-helm`'s
+# `lci-ui` Application pins `targetRevision: "~0.1.0"`, i.e. `>=0.1.0 <0.2.0`. A minor bump here
+# publishes 0.2.0, which that range does NOT resolve — ArgoCD would keep serving the last version
+# it can resolve while a values file written for the new chart is already merged (the incident this
+# estate had on 2026-09-02 with the console). Adding a commit under `charts/` is enough: this
+# change publishes 0.1.2, inside the range, and adds only new env keys with inert defaults.
+#
+# Bump the minor when the chart's SHAPE changes in a way a consumer must opt into — and widen the
+# pin in ai-helm in the same change, before merging any values that depend on it.
 version: 0.1.0
 
 # Tracks the container image tag by default

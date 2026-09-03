@@ -19,8 +19,35 @@ const nextConfig = {
   // start`'s Node server, not a static export.
   output: 'standalone',
   outputFileTracingRoot: new URL('../../', import.meta.url).pathname,
-  // The workspace package ships raw TypeScript (`main: src/index.ts`); Next has to compile it.
-  transpilePackages: ['@lightbridge/ui-web'],
+  // ── OpenTelemetry (`src/instrumentation.node.ts` -> `@lightbridge/otel/start`) must stay
+  // UNBUNDLED, for two independent reasons — the same two `apps/console/next.config.mjs` records
+  // at length:
+  //
+  //  1. `@opentelemetry/instrumentation-http` patches Node's `http`/`https` through
+  //     `require-in-the-middle`, which hooks module RESOLUTION; inlined code never reaches a
+  //     resolver, so a bundled instrumentation patches nothing and drops every server span with no
+  //     error anywhere.
+  //  2. `@opentelemetry/api` holds the global tracer provider in module state, and Next's own
+  //     render/route spans go through its copy — app and framework must resolve to ONE instance.
+  //
+  // Listing them here is also what pulls the real files into the standalone output the container
+  // image ships.
+  serverExternalPackages: [
+    '@opentelemetry/api',
+    '@opentelemetry/core',
+    '@opentelemetry/exporter-trace-otlp-proto',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/instrumentation-http',
+    '@opentelemetry/instrumentation-undici',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-trace-node',
+    '@opentelemetry/semantic-conventions',
+  ],
+  // The workspace packages ship raw TypeScript (`main: src/index.ts`); Next has to compile them.
+  // Only `@lightbridge/otel`'s OWN source is compiled — its `@opentelemetry/*` dependencies stay
+  // external, per the block above.
+  transpilePackages: ['@lightbridge/ui-web', '@lightbridge/otel'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

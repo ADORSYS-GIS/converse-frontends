@@ -30,6 +30,7 @@ Drill-downs, reachable from `/admin/usage` rather than from the rail:
 | ----------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------- |
 | `/admin/usage/actors/[actorId]?type=user\|account\|project` | 9 → 5             | `scope: $type`, `scope_id: $actorId`; `type=account` also renders a hand-written "Budget & next reset" zone |
 | `/admin/usage/channels/[channelId]`                         | 7 → 6             | An estate query **narrowed by `filters.azp`** — a channel is not a usage scope                              |
+| `/admin/usage/models/[model]`                               | 8 → 6             | An estate query narrowed by `filters.model`, for the same reason — a model is not a usage scope             |
 | `/admin/usage/chats`                                        | 5 → 4             | Every panel filtered with `operation_in` in **one** query; an Estate \| Chats sub-nav, not a sixth rail row |
 
 `/admin` itself redirects to `adminLandingHref` (`apps/console/src/client/console-chrome.tsx:572`) — the first destination

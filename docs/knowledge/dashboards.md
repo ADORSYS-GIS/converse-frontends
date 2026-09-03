@@ -10,8 +10,14 @@ D3) and [ADR 0017](../adr/0017-i18n-app-router-i18next.md) D4. This page is the 
 how-to**: what a page entry may say, what the engine does with it, and what you must run before
 claiming a panel works. Do not re-derive the reasoning here — link it.
 
-Ten page entries, 102 panels, in
-[`apps/console/dashboards.yaml`](../../apps/console/dashboards.yaml).
+**Eleven page entries, 110 panels**, in
+[`apps/console/dashboards.yaml`](../../apps/console/dashboards.yaml). Both numbers move whenever a
+panel lands; re-derive them rather than trusting them:
+
+```sh
+grep -c '^  - route:' apps/console/dashboards.yaml   # pages
+grep -c '^      - id:' apps/console/dashboards.yaml  # panels
+```
 
 ---
 
@@ -19,15 +25,15 @@ Ten page entries, 102 panels, in
 
 | Module (`apps/console/src/dashboards/`) | Owns                                                                                                                                                 |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dashboard-spec.ts`                     | The zod schema and every closed vocabulary (`dashboardQuerySchema:174`, `panelOptionsSchema:207`, `panelSpecSchema:280`, `pageSpecSchema:300`)       |
+| `dashboard-spec.ts`                     | The zod schema and every closed vocabulary (`dashboardQuerySchema:174`, `panelOptionsSchema:207`, `panelSpecSchema:300`, `pageSpecSchema:320`)       |
 | `load-dashboards.ts`                    | Lookup order, read, parse, cache, fail loud (`consoleConfigDir:51`, `dashboardsLookupPaths:63`, `loadDashboards:104`)                                |
 | `resolve-dashboard.ts`                  | Spec + filters + window → a deduplicated query list. **React-free, DOM-free, clock-free** (`resolveDashboard:406`, `queryKey:367`, `autoBucket:176`) |
-| `use-dashboard.ts`                      | One `useQueries` over that list, plus per-panel selection (`useDashboard:217`)                                                                       |
-| `dashboard-renderer.tsx`                | Registry lookup → `DashboardPanel` inside `DashboardGrid` (`DashboardRenderer:58`)                                                                   |
+| `use-dashboard.ts`                      | One `useQueries` over that list, plus per-panel selection (`useDashboard:229`)                                                                       |
+| `dashboard-renderer.tsx`                | Registry lookup → `DashboardPanel` inside `DashboardGrid` (`DashboardRenderer:59`)                                                                   |
 
 `page-entry.ts` sits in front of the loader for server components: `dashboardPage(route)`
 (`page-entry.ts:22`) loads, finds and **translates** the entry, and `translateDashboardPage`
-(`page-entry.ts:63`) resolves the i18n keys the YAML carries (ADR 0017 D4) before the spec ever
+(`apps/console/src/dashboards/page-entry.ts:65`) resolves the i18n keys the YAML carries (ADR 0017 D4) before the spec ever
 reaches a client centre.
 
 `resolve-dashboard.ts` being the dullest module in the console is load-bearing, not tidiness: the
@@ -194,11 +200,12 @@ The counts are **tests, not claims**:
 
 | Page                                | Panels | Requests | Test                                   |
 | ----------------------------------- | ------ | -------- | -------------------------------------- |
-| `/admin/usage`                      | 19     | 7        | `admin-usage-page.test.ts:216`         |
+| `/admin/usage`                      | 19     | 7        | `admin-usage-page.test.ts:351`         |
 | `/admin/overview`                   | 11     | 4        | `admin-overview-page.test.ts:172`      |
-| `/admin/usage/actors/[actorId]`     | 9      | 5        | `admin-usage-detail-pages.test.ts:140` |
-| `/admin/usage/channels/[channelId]` | 7      | 6        | `admin-usage-detail-pages.test.ts:256` |
-| `/admin/usage/chats`                | 5      | 4        | `admin-usage-detail-pages.test.ts:330` |
+| `/admin/usage/actors/[actorId]`     | 9      | 5        | `admin-usage-detail-pages.test.ts:142` |
+| `/admin/usage/channels/[channelId]` | 7      | 6        | `admin-usage-detail-pages.test.ts:258` |
+| `/admin/usage/models/[model]`       | 8      | 6        | `admin-usage-detail-pages.test.ts:357` |
+| `/admin/usage/chats`                | 5      | 4        | `admin-usage-detail-pages.test.ts:439` |
 | `/accounts/[accountId]/overview`    | 12     | 5        | `overview-pages.test.ts:117`           |
 | `/settings/overview/*` (each lens)  | —      | 3        | `overview-pages.test.ts:477`           |
 
@@ -272,7 +279,7 @@ console agree on `style`, `topN` and `link` — that test exists because they on
 
 An unknown panel type, an unknown `derived:` name, a `span` of 3, a missing `limit`, a duplicate
 panel id, a duplicate route: each is a parse error naming the page and the panel id
-(`formatDashboardIssues`, `dashboard-spec.ts:366`).
+(`formatDashboardIssues`, `dashboard-spec.ts:386`).
 
 **Panel ids are prefixed per page** (`actor-*`, `channel-*`, `chat-*`), never reused across pages.
 Three things need an id to be unambiguous document-wide: the report walk resolves a route to a panel

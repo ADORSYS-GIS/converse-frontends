@@ -1142,10 +1142,12 @@ pages:
   # `/admin/overview` draws for its budget-pressure zone. They render in their own grid ABOVE this
   # one, with the honesty caption that says which window they are about.
   #
-  # Request count: eleven panels resolve to FIVE requests — the ungrouped one (three panels), its
-  # comparison twin, one `[project_id, model]` grouping (four panels, each reading its own
+  # Request count: TWELVE panels resolve to FIVE requests — the ungrouped one (three panels), its
+  # comparison twin, one `[project_id, model]` grouping (FIVE panels, each reading its own
   # dimension), one by-API-key grouping, and one `[azp]` grouping shared by the three channel
-  # rings. The hand-written page fired four for three boards, and none of them were shared.
+  # rings. The hand-written page fired four for three boards, and none of them were shared. The
+  # fourth ring (Cost by project, owner correction 2026-09-03) cost NOTHING: it reads a dimension
+  # of a grouping the page was already firing.
   # ═══════════════════════════════════════════════════════════════════════════════════════════
   - route: /accounts/[accountId]/overview
     # `accountId` is the route segment; `project` is the console-wide `?project=` scope, whose
@@ -1392,6 +1394,49 @@ pages:
           bucket: auto
           limit: 2000
 
+      # ── the fourth ring: the PROJECT split ──────────────────────────────────────────────────
+      # Owner correction, 2026-09-03: the ring asked for alongside the three above was "Cost by
+      # PROJECT", not a fourth channel reading. The three channel rings stay exactly as they are;
+      # this is the fourth, and it is the one that answers "where did this account's money go"
+      # in the vocabulary the account's own people use.
+      #
+      # It READS the `[project_id, model]` grouping the four breakdown panels above already fire
+      # (`options.dimension: project_id`) rather than firing a `[project_id]` query of its own, and
+      # that is a CORRECTNESS decision before it is a saving. "Spend by project" (the ranked panel)
+      # and "Cost by project" (this ring) are the same reading in two shapes; served by two
+      # different requests they would each meet the 2,000-row limit at a different point, and a
+      # truncated ring beside an untruncated list is two disagreeing answers to one question on one
+      # page. Sharing the grouping also keeps this page at FIVE requests for twelve panels.
+      #
+      # **`project_id` IS an actor dimension**, unlike `azp`: `labelOf` resolves it through the
+      # page's own project names first (`useDashboardLabels` — already in memory for the project
+      # picker, and available to readers who do not hold `user:read`) and `resolveActorLabels`
+      # second, so a segment carries the project's NAME rather than a cuid. Spend the backend
+      # attributed to no project keeps its labelled `Unassigned` segment, never dropped.
+      #
+      # **Segments link to nothing**, like the three rings above. The only thing a project segment
+      # could open is this same page with `?project=` set — a second, hidden entrance to the picker
+      # already sitting in the header.
+      - id: account-cost-by-project
+        type: donut
+        title: Cost by project
+        subtitle: The project split of the same spend the ranked list above orders, off the same request. Values are in the tooltip on screen, and in the panel's own table in an exported report.
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
   # ═══════════════════════════════════════════════════════════════════════════════════════════
   # /settings/overview/usage — the operator's own ACCOUNT FAMILY overview (converse-frontends#455,
   # story C12). The landing lens under "Overview" in the settings area.
@@ -1402,16 +1447,46 @@ pages:
   # asks that question. What this page has always shown is the accounts the signed-in identity can
   # actually see, and the usage API has no scope for "every account I can see" (filed as
   # lightbridge-authz#578). So the resolver expands each panel below into one `scope: account`
-  # query per family account — capped, and the cap stated in the page's own caption — and merges
-  # the responses before the adapters see them. That is exactly what `use-usage-overview-screen.ts`
-  # did by hand; it is YAML now.
+  # query per family account — capped at `MAX_FANNED_OUT_ACCOUNTS = 25`, and the cap stated in the
+  # page's own caption — and merges the responses before the adapters see them. That is exactly
+  # what `use-usage-overview-screen.ts` did by hand; it is YAML now.
   #
-  # **Every panel shares ONE `[account_id, model]` grouping, on purpose.** Under a fan-out each
-  # distinct query shape costs N requests rather than one, so a second, ungrouped fan-out for the
-  # family total would have doubled the page's request count. `options.dimension` is what makes one
-  # grouping serve all six panels: `account_id` for the by-account board, `model` for the share,
-  # `none` for the family total. Request count is therefore the fan-out plus its comparison twin —
-  # the same 25 + 25 the hand-written screen fired, for three more panels.
+  # ── PARITY WITH `/accounts/<id>/overview` (owner directive, 2026-09-03) ──────────────────────
+  # "It should have the same amount of dashboards as /accounts/:id/overview but cross accounts."
+  # So this entry now declares the account page's WHOLE panel set — the two comparing stats, spend
+  # over time, the by-project / by-model / by-API-key breakdowns, latency by model and all four
+  # rings — resolved across the family instead of against one account, plus the panels only a
+  # family can draw: the Accounts and Cost-per-request stats, "Spend by account" over time, and a
+  # fifth ring, **Cost by account**, which is a dimension a single-account page has no rows for.
+  # Sixteen panels against the account page's twelve.
+  #
+  # **What does NOT cross over, and why.** The account page's Budget card, its API-key expiry
+  # reading and its refill CTA are not usage queries at all: they are per-account RPCs
+  # (`getMyBudgetBalance`, which structurally answers for the caller's own account only) against a
+  # BILLING PERIOD rather than this page's range. Summing 25 accounts' ceilings would invent an
+  # allowance nobody granted, and picking one account's would label it as the family's. They stay
+  # account-only, and `usage-overview-centre.tsx` says so in a caption on the page rather than
+  # leaving a reader to notice the absence.
+  #
+  # ── REQUEST COUNT: FIVE query SHAPES × N accounts (N = min(family, 25)) ⇒ at most 125 ────────
+  # Under a fan-out every distinct query shape costs N requests rather than one, so the shapes are
+  # the whole budget and `options.dimension` is what keeps them down to the same FIVE the account
+  # page fires:
+  #   1. `[account_id]`        — the four stats (`dimension: none`, or `account_id` for the
+  #                              Accounts count), the family total chart, Spend by account, and the
+  #                              Cost-by-account ring. It replaces the ungrouped query the account
+  #                              page uses: this page needs the account dimension, and a total read
+  #                              off it (`dimension: none`) is the same sum with no second fan-out.
+  #   2. its COMPARISON TWIN   — the previous window, for the two stats and the total chart.
+  #   3. `[project_id, model]` — Spend by project, the model share, Spend by model over time,
+  #                              Latency by model and the Cost-by-project ring: five panels, five
+  #                              dimensions read off one shape, exactly as on the account page.
+  #   4. `[api_key_id]`        — its own shape for the same reason it is one on the account page:
+  #                              crossing keys with the two dimensions above multiplies the row
+  #                              count past the 2,000 limit on any account with real key usage.
+  #   5. `[azp]`               — the three channel rings.
+  # Sixteen panels, five shapes. The entry this replaces was seven panels over two shapes (2 × N);
+  # nine more panels cost three more shapes, not nine.
   # ═══════════════════════════════════════════════════════════════════════════════════════════
   - route: /settings/overview/usage
     # No route params: the family is a fact about the session, not about the URL. The account cap
@@ -1419,30 +1494,39 @@ pages:
     filters: []
 
     panels:
+      # ── the stat row ────────────────────────────────────────────────────────────────────────
+      # Four stats where the account page has two, because two of them are only askable of a
+      # family. All four read the `[account_id]` shape; the two that carry a figure the previous
+      # window can be compared against carry `compare: true`, so their delta names its own window
+      # ("12% vs previous month") exactly as the account page's pair does.
       - id: family-requests
         type: stat
         title: Requests
         span: 1
         metric: requests
+        compare: true
+        options:
+          dimension: none
         query:
           scope: family
           group_by:
             - account_id
-            - model
           bucket: auto
           limit: 2000
 
       - id: family-cost
         type: stat
         title: Cost
+        subtitle: Every account in your family, summed over the range picked above. There is no family BUDGET figure to put beside it — a ceiling is per-account.
         span: 1
         metric: cost
         compare: true
+        options:
+          dimension: none
         query:
           scope: family
           group_by:
             - account_id
-            - model
           bucket: auto
           limit: 2000
 
@@ -1452,11 +1536,12 @@ pages:
         subtitle: Blank when the window carries no requests at all — a mean over nothing is not a number.
         span: 1
         metric: derived:costPerRequest
+        options:
+          dimension: none
         query:
           scope: family
           group_by:
             - account_id
-            - model
           bucket: auto
           limit: 2000
 
@@ -1474,13 +1559,14 @@ pages:
           scope: family
           group_by:
             - account_id
-            - model
           bucket: auto
           limit: 2000
 
-      # `dimension: none` — the family TOTAL, summed across every account and model in the merged
-      # response, rather than one line per account (that is the board below). The dashed line is
-      # the previous period, re-based forward so the two overlay instead of doubling the x-domain.
+      # ── spend over time, twice ──────────────────────────────────────────────────────────────
+      # `dimension: none` — the family TOTAL, summed across every account in the merged response,
+      # rather than one line per account (that is the board below). The dashed line is the previous
+      # period, re-based forward so the two overlay instead of doubling the x-domain. This is the
+      # account page's "Spend over time" with a family under it.
       - id: family-spend
         type: series
         title: Spend over time
@@ -1495,10 +1581,11 @@ pages:
           scope: family
           group_by:
             - account_id
-            - model
           bucket: auto
           limit: 2000
 
+      # The first of the panels the single-account page cannot have at all: one line per ACCOUNT.
+      # Same request as the total above — only the dimension it reads differs.
       - id: spend-by-account
         type: series
         title: Spend by account
@@ -1513,13 +1600,34 @@ pages:
           scope: family
           group_by:
             - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── the breakdowns, in the account page's own order ─────────────────────────────────────
+      # One `[project_id, model]` fan-out serves the next four panels and the Cost-by-project ring
+      # below, each declaring the dimension it reads. Under a fan-out this is worth 4 × N requests,
+      # which is why every one of them states `options.dimension` rather than relying on
+      # `group_by[0]`.
+      - id: family-spend-by-project
+        type: ranked
+        title: Spend by project
+        subtitle: Across every account in your family. Two accounts' projects are different projects, even when they share a name. Spend attributed to no project is a labelled Unassigned row, never dropped.
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - project_id
             - model
           bucket: auto
           limit: 2000
 
       - id: family-model-share
         type: share
-        title: Spend by model
+        title: Spend by model — share
         subtitle: The share across every account in your family. Spend the backend attributed to no model is a labelled Unassigned segment, never dropped.
         span: 1
         metric: cost
@@ -1529,8 +1637,148 @@ pages:
         query:
           scope: family
           group_by:
-            - account_id
+            - project_id
             - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-spend-by-model
+        type: series
+        title: Spend by model over time
+        subtitle: Log axis by default — one model at ~100% share flattens every other line on a linear one.
+        span: 2
+        metric: cost
+        options:
+          dimension: model
+          scale: log
+          topN: 5
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-latency-by-model
+        type: latency-cards
+        title: Latency by model
+        subtitle: Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window across your whole family, never an average of percentiles. p99 is hidden below 100 samples.
+        span: 1
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # Its own shape, for the account page's own reason: an api-key grouping crossed with the two
+      # dimensions above would multiply the row count past the limit on any account with a real
+      # number of keys — and here that would truncate 25 responses, not one.
+      - id: family-spend-by-api-key
+        type: ranked
+        title: Spend by API key
+        subtitle: Across every account in your family. Spend the backend attributed to no key is a labelled Unassigned row.
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - api_key_id
+          bucket: auto
+          limit: 2000
+
+      # ── the rings ───────────────────────────────────────────────────────────────────────────
+      # The account page's four, over the family, plus the fifth only a family can draw. Rings,
+      # never filled disks (owner ruling, 2026-09-02, amending ADR 0013 D5). Segments link to
+      # nothing — a `donut` carries no row href at all, and the two dimensions that could lead
+      # somewhere (`azp` → `/admin/usage/channels/<azp>`) are gated on `usage:read-all`, which this
+      # page's readers do not hold.
+      - id: family-cost-by-channel
+        type: donut
+        title: Cost by channel
+        subtitle: Which OAuth client (azp) the spend arrived on, across your whole family. Values are in the tooltip on screen, and in the panel's own table in an exported report.
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-tokens-by-channel
+        type: donut
+        title: Tokens by channel
+        subtitle: Tokens by OAuth client (azp) — the same window and the same fan-out as the cost ring.
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-requests-by-channel
+        type: donut
+        title: Requests by channel
+        subtitle: Requests by OAuth client (azp) — a channel can be a large share of the calls and a small share of the cost.
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost-by-project
+        type: donut
+        title: Cost by project
+        subtitle: The project split of the same spend the ranked list above orders, off the same fan-out. Projects are not shared between accounts, so a family with 25 accounts has 25 disjoint sets of them here.
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # The one ring `/accounts/<id>/overview` structurally cannot draw: a single-account page has
+      # exactly one `account_id`, so its ring would be a single full circle. It reads the same
+      # `[account_id]` shape the stats and the two charts above do.
+      - id: family-cost-by-account
+        type: donut
+        title: Cost by account
+        subtitle: The account split of the family total above — the reading this page exists for, and the one a single account's overview has no rows to draw.
+        span: 1
+        metric: cost
+        options:
+          dimension: account_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - account_id
           bucket: auto
           limit: 2000
 

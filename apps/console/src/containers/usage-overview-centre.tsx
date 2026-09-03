@@ -35,8 +35,19 @@ import { useDashboardLabels } from './use-dashboard-labels';
  * silently truncate one — a page that queried 25 of 61 accounts and said nothing would be
  * reporting a family total that is not the family's total.
  *
- * Seven panels, one fan-out plus its comparison twin — the same request count the hand-written
- * screen fired for three panels.
+ * **Sixteen panels since the 2026-09-03 parity directive** ("it should have the same amount of
+ * dashboards as /accounts/:id/overview but cross accounts"): the account page's whole set —
+ * comparing stats, spend over time, the by-project / by-model / by-API-key breakdowns, latency by
+ * model, all four rings — plus the four only a family can draw (Accounts, Cost / request, Spend by
+ * account, and the Cost-by-account ring). FIVE query shapes × N accounts (N ≤ 25), the same five
+ * the account page fires; `options.dimension` is what keeps sixteen panels down to five shapes.
+ *
+ * **What did NOT cross over is stated on the page, not left to be noticed.** The account overview's
+ * BUDGET card, its API-key expiry reading and its refill CTA are RPCs against a billing period, not
+ * usage queries over this range — and `getMyBudgetBalance` structurally answers for one account.
+ * Summing 25 ceilings would invent an allowance nobody granted; showing one would label it as the
+ * family's. `ACCOUNT_ONLY_ZONES_CAPTION` below says so where the absence is, and points at the
+ * per-account page that does answer it.
  *
  * **No Export action here, and that is a decision rather than an omission.** C10's
  * `/api/reports/page` re-resolves a page's YAML entry server-side, and a `scope: family` panel
@@ -47,6 +58,16 @@ import { useDashboardLabels } from './use-dashboard-labels';
  * Exporting one account at a time (`/accounts/<id>/overview`) is the honest alternative, and it
  * works today.
  */
+
+/**
+ * Why this page carries every usage panel `/accounts/<id>/overview` has and none of its
+ * budget-shaped ones — stated once, on the page, where a reader would otherwise notice an absence
+ * and guess at it.
+ */
+export const ACCOUNT_ONLY_ZONES_CAPTION =
+  'Budget, API-key expiry and refills are per-account and are not on this page: a ceiling belongs ' +
+  'to one account’s budget period, so a family has no single figure to state. Open an account’s ' +
+  'own overview for those.';
 
 export interface UsageOverviewCentreProps {
   /** The validated `/settings/overview/usage` entry, read by the route's server component. */
@@ -105,6 +126,8 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
       />
 
       {truncationCaption ? <InlineStatus>{truncationCaption}</InlineStatus> : null}
+
+      <InlineStatus>{ACCOUNT_ONLY_ZONES_CAPTION}</InlineStatus>
 
       <DashboardRenderer state={dashboard} />
     </div>

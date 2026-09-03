@@ -73,6 +73,10 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
       'account-cost-by-channel',
       'account-tokens-by-channel',
       'account-requests-by-channel',
+      // The FOURTH ring (owner correction, same day): the ring beside the channel three was meant
+      // to be "Cost by PROJECT". It reads the `[project_id, model]` grouping the breakdowns above
+      // already fire, so it cost no request at all.
+      'account-cost-by-project',
     ]);
   });
 
@@ -99,7 +103,7 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
     }
   });
 
-  it('resolves eleven panels to five requests, one of them the comparison twin', () => {
+  it('resolves twelve panels to five requests, one of them the comparison twin', () => {
     const page = pageFor(ACCOUNT_ROUTE);
     const resolved = resolveDashboard({
       page,
@@ -107,8 +111,10 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
       filters: { accountId: 'acct_1' },
     });
 
-    expect(page.panels).toHaveLength(11);
-    // The hand-written page fired four (total, previous, share, by-model) for three boards.
+    expect(page.panels).toHaveLength(12);
+    // The hand-written page fired four (total, previous, share, by-model) for three boards. The
+    // fourth ring added on 2026-09-03 did not move this number: it reads a dimension of a grouping
+    // the page was already firing.
     expect(resolved.queries).toHaveLength(5);
 
     const indexOf = (id: string) => resolved.panels.find((p) => p.spec.id === id)?.queryIndex;
@@ -117,10 +123,18 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
     expect(indexOf('spend-total')).toBe(indexOf('request-total'));
     expect(indexOf('spend-total')).toBe(indexOf('spend-over-time'));
 
-    // …and the four `[project_id, model]` panels share a second, each reading its own dimension.
-    const grouped = ['spend-by-project', 'model-share', 'spend-by-model', 'latency-by-model'].map(
-      indexOf
-    );
+    // …and the FIVE `[project_id, model]` panels share a second, each reading its own dimension.
+    // `account-cost-by-project` is in this set deliberately: the ranked "Spend by project" and the
+    // "Cost by project" ring are one reading in two shapes, and two requests would each meet the
+    // 2,000-row limit at a different point — a truncated ring beside an untruncated list is two
+    // disagreeing answers to one question on one page.
+    const grouped = [
+      'spend-by-project',
+      'model-share',
+      'spend-by-model',
+      'latency-by-model',
+      'account-cost-by-project',
+    ].map(indexOf);
     expect(new Set(grouped).size).toBe(1);
 
     // The API-key grouping is deliberately its own request — crossing it with the two dimensions
@@ -169,6 +183,24 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
     }
   });
 
+  /**
+   * The FOURTH ring (owner correction, 2026-09-03: the ring meant beside the channel three was
+   * "Cost by PROJECT"). Unlike `azp`, `project_id` IS an actor dimension, so its segments carry
+   * project NAMES — the page's own project labels first, `resolveActorLabels` second.
+   */
+  it('gives the fourth ring the project dimension, off the grouping the page already fires', () => {
+    const ring = pageFor(ACCOUNT_ROUTE).panels.find((p) => p.id === 'account-cost-by-project');
+    expect(ring?.type).toBe('donut');
+    expect(ring?.span).toBe(1);
+    expect(ring?.metric).toBe('cost');
+    expect(ring?.options?.dimension).toBe('project_id');
+    // NOT its own `[project_id]` query — the grouping the four breakdown panels already share.
+    expect(ring?.query.group_by).toEqual(['project_id', 'model']);
+    // Segments open nothing: the only thing a project segment could lead to is this same page with
+    // `?project=` set, which is the picker already in the header.
+    expect(ring?.options?.link).toBeUndefined();
+  });
+
   it('drops the project filter entirely when the scope is on All projects', () => {
     const resolved = resolveDashboard({
       page: pageFor(ACCOUNT_ROUTE),
@@ -206,18 +238,92 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
 });
 
 describe('/settings/overview/usage (the account-family fan-out) in dashboards.yaml', () => {
-  it('declares the estate screen’s boards plus the stat row it did not have', () => {
+  it('declares the account page’s whole panel set, plus the panels only a family can draw', () => {
     expect(pageFor(FAMILY_ROUTE).panels.map((panel) => panel.id)).toEqual([
       // Requests / Cost were the estate screen's own cards; Cost-per-request and the honest
-      // "accounts WITH USAGE" count are new, and both come free off the one fan-out below.
+      // "accounts WITH USAGE" count are the two stats only a family can ask for.
       'family-requests',
       'family-cost',
       'family-cost-per-request',
       'family-accounts',
       'family-spend',
+      // Family-only: one line per ACCOUNT, off the same request as the total above.
       'spend-by-account',
+      // From here down, the account page's own reading order, resolved across the family
+      // (owner directive, 2026-09-03: "the same amount of dashboards as /accounts/:id/overview
+      // but cross accounts").
+      'family-spend-by-project',
       'family-model-share',
+      'family-spend-by-model',
+      'family-latency-by-model',
+      'family-spend-by-api-key',
+      'family-cost-by-channel',
+      'family-tokens-by-channel',
+      'family-requests-by-channel',
+      'family-cost-by-project',
+      // The fifth ring, and the one `/accounts/<id>/overview` structurally cannot draw: a
+      // single-account page has exactly one `account_id`, so its ring would be a full circle.
+      'family-cost-by-account',
     ]);
+  });
+
+  /**
+   * The parity claim itself, asserted against the account page rather than against a list a reader
+   * has to diff by eye. Every panel the account page draws has a family counterpart of the SAME
+   * type, metric and dimension — the ids differ (`family-` prefix) because a panel id is a URL
+   * knob (`?<panel-id>-scale=`) and the two pages are two documents' worth of them.
+   */
+  it('mirrors every account-page panel, by type, metric and dimension', () => {
+    const account = pageFor(ACCOUNT_ROUTE);
+    const family = pageFor(FAMILY_ROUTE);
+    const byId = (page: DashboardPageSpec, id: string) => page.panels.find((p) => p.id === id);
+
+    const COUNTERPART: Record<string, string> = {
+      'spend-total': 'family-cost',
+      'request-total': 'family-requests',
+      'spend-over-time': 'family-spend',
+      'spend-by-project': 'family-spend-by-project',
+      'model-share': 'family-model-share',
+      'spend-by-model': 'family-spend-by-model',
+      'latency-by-model': 'family-latency-by-model',
+      'spend-by-api-key': 'family-spend-by-api-key',
+      'account-cost-by-channel': 'family-cost-by-channel',
+      'account-tokens-by-channel': 'family-tokens-by-channel',
+      'account-requests-by-channel': 'family-requests-by-channel',
+      'account-cost-by-project': 'family-cost-by-project',
+    };
+    // Every panel on the account page is accounted for — a panel added there without a family
+    // twin fails HERE rather than quietly leaving the two pages out of parity again.
+    expect(Object.keys(COUNTERPART).sort()).toEqual(account.panels.map((p) => p.id).sort());
+
+    for (const [accountId, familyId] of Object.entries(COUNTERPART)) {
+      const here = byId(account, accountId);
+      const there = byId(family, familyId);
+      expect(there, familyId).toBeDefined();
+      expect(there?.type, familyId).toBe(here?.type);
+      expect(there?.metric, familyId).toBe(here?.metric);
+      expect(there?.span, familyId).toBe(here?.span);
+      expect(there?.compare ?? false, familyId).toBe(here?.compare ?? false);
+      // The account page's ungrouped panels become `dimension: none` readings of the family's
+      // `[account_id]` fan-out — the same sum, without a second fan-out of N more requests.
+      const dimensionHere = here?.options?.dimension ?? here?.query.group_by?.[0];
+      const dimensionThere = there?.options?.dimension ?? there?.query.group_by?.[0];
+      expect(dimensionThere === 'none' ? undefined : dimensionThere, familyId).toBe(
+        dimensionHere === undefined ? undefined : dimensionHere
+      );
+    }
+  });
+
+  /** The dimension only this page has rows for, and the reason it is a page at all. */
+  it('adds the account-dimension ring the single-account page cannot have', () => {
+    const ring = pageFor(FAMILY_ROUTE).panels.find((p) => p.id === 'family-cost-by-account');
+    expect(ring?.type).toBe('donut');
+    expect(ring?.metric).toBe('cost');
+    expect(ring?.options?.dimension).toBe('account_id');
+    expect(ring?.query.group_by).toEqual(['account_id']);
+    expect(pageFor(ACCOUNT_ROUTE).panels.some((p) => p.options?.dimension === 'account_id')).toBe(
+      false
+    );
   });
 
   /**
@@ -233,21 +339,51 @@ describe('/settings/overview/usage (the account-family fan-out) in dashboards.ya
     }
   });
 
-  it('expands into one account-scoped query per family account, plus the comparison twin', () => {
+  /**
+   * **The page's request count, stated as the product it actually is: FAN-OUT × DISTINCT
+   * GROUPINGS.**
+   *
+   * Under `scope: family` a page's cost is not "one request per panel" and not "one request" — it
+   * is one request per (account × query shape). Sixteen panels resolve to FIVE shapes, the same
+   * five `/accounts/<id>/overview` fires:
+   *
+   *   `[account_id]` · its comparison twin · `[project_id, model]` · `[api_key_id]` · `[azp]`
+   *
+   * so the page is `5 × N`, N = `min(family accounts, MAX_FANNED_OUT_ACCOUNTS = 25)` ⇒ at most
+   * 125 requests. `options.dimension` is the entire reason it is five and not sixteen: eleven of
+   * the sixteen panels read a dimension of a grouping another panel already asked for.
+   */
+  it('expands into five query shapes per family account — the fan-out × the groupings', () => {
     const accounts = ['acct_1', 'acct_2', 'acct_3'];
-    const resolved = resolveDashboard({
-      page: pageFor(FAMILY_ROUTE),
-      window: WINDOW,
-      familyAccountIds: accounts,
-    });
+    const page = pageFor(FAMILY_ROUTE);
+    const resolved = resolveDashboard({ page, window: WINDOW, familyAccountIds: accounts });
 
-    // Six panels, ONE fan-out (six panels share one query shape) plus its twin.
-    expect(resolved.queries).toHaveLength(accounts.length * 2);
-    expect(resolved.queries.filter((q) => q.scope === 'account')).toHaveLength(accounts.length * 2);
+    const SHAPES = 5;
+    expect(page.panels).toHaveLength(16);
+    expect(resolved.queries).toHaveLength(accounts.length * SHAPES);
+    expect(resolved.queries.filter((q) => q.scope === 'account')).toHaveLength(
+      accounts.length * SHAPES
+    );
     expect(resolved.queries.some((q) => q.scope === 'family')).toBe(false);
 
+    // The distinct GROUPINGS in the current window — four, one of which the twin repeats.
     const current = resolved.queries.filter((q) => q.start_time === WINDOW.start.toISOString());
-    expect(current.map((q) => q.scope_id)).toEqual(accounts);
+    expect(current).toHaveLength(accounts.length * 4);
+    expect(new Set(current.map((q) => (q.group_by ?? []).join(',')))).toEqual(
+      new Set(['account_id', 'project_id,model', 'api_key_id', 'azp'])
+    );
+    // Every account is asked every question — a family total that skipped an account would be a
+    // wrong number, not a partial one.
+    for (const groupBy of ['account_id', 'project_id,model', 'api_key_id', 'azp']) {
+      const shape = current.filter((q) => (q.group_by ?? []).join(',') === groupBy);
+      expect(shape.map((q) => q.scope_id), groupBy).toEqual(accounts);
+    }
+
+    // The comparison twin is fired for ONE shape only — the `[account_id]` one the two comparing
+    // stats and the total chart share. A twin per shape would have made the page `8 × N`.
+    const previous = resolved.queries.filter((q) => q.start_time !== WINDOW.start.toISOString());
+    expect(previous).toHaveLength(accounts.length);
+    expect(previous.every((q) => (q.group_by ?? []).join(',') === 'account_id')).toBe(true);
   });
 
   it('gives every panel the whole fan-out, so a family total is never a partial sum', () => {
@@ -277,15 +413,27 @@ describe('/settings/overview/usage (the account-family fan-out) in dashboards.ya
    * requests, so the family total, the by-account board and the model share all read one grouped
    * query — `none`, `account_id` and `model` respectively.
    */
-  it('serves the family total, the by-account board and the model share off ONE grouping', () => {
+  it('serves the family total, the by-account board and the account ring off ONE grouping', () => {
     const page = pageFor(FAMILY_ROUTE);
     const dimensionOf = (id: string) =>
       page.panels.find((panel) => panel.id === id)?.options?.dimension;
     expect(dimensionOf('family-spend')).toBe('none');
     expect(dimensionOf('spend-by-account')).toBe('account_id');
+    expect(dimensionOf('family-cost-by-account')).toBe('account_id');
     expect(dimensionOf('family-model-share')).toBe('model');
+
+    // Four groupings for sixteen panels, and EVERY panel declares which dimension it reads —
+    // relying on `group_by[0]` would make a panel's cost invisible in its own YAML, which is the
+    // one thing a fan-out page cannot afford.
+    const groupings = new Set(page.panels.map((panel) => (panel.query.group_by ?? []).join(',')));
+    expect(groupings).toEqual(
+      new Set(['account_id', 'project_id,model', 'api_key_id', 'azp'])
+    );
     for (const panel of page.panels) {
-      expect(panel.query.group_by, panel.id).toEqual(['account_id', 'model']);
+      // The three channel rings are the exception the account page also makes: a single-dimension
+      // `[azp]` grouping read by its own `group_by[0]` needs no restatement.
+      if ((panel.query.group_by ?? []).join(',') === 'azp') continue;
+      expect(panel.options?.dimension, panel.id).toBeDefined();
     }
   });
 });

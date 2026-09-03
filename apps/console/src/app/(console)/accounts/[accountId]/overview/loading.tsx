@@ -40,9 +40,9 @@ export default function OverviewLoading() {
       </DashboardGrid>
 
       <DashboardGrid>
-        {/* Two half-width stats, a full-width chart, then the breakdowns and the three channel
-            rings — the shape this page entry has, without claiming to know their titles. */}
-        {[1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1].map((span, index) => (
+        {/* Two half-width stats, a full-width chart, then the breakdowns and the FOUR rings —
+            the shape this page entry has, without claiming to know their titles. */}
+        {[1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1].map((span, index) => (
           <Card key={index} data-span={span === 2 ? '2' : undefined}>
             <div className="skeleton h-4 w-48" />
             <SkeletonMetric />

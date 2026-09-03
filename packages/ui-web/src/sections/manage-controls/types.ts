@@ -10,5 +10,4 @@ export interface ManageControlsProps {
   budgetStateValue: string;
   budgetStateOptions: ManageOption[];
   onBudgetStateChange: (value: string) => void;
-  className?: string;
 }

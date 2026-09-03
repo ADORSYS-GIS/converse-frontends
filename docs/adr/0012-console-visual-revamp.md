@@ -75,8 +75,9 @@ live in it.
 This supersedes ADR 0008 Decision 3's shell inversion (the floating-panel-over-floor read, and its
 2026-08-25 flush-full-height-rails revision) and the "right rail owns the action that consumes its
 own parameters" boundary clarification that same ADR recorded — there is no right rail left to own
-anything. Parameters that used to live there now sit in each screen's `PageHeader.controls`
-(inline, `h-8` cluster) or inside the `Card` whose data they filter.
+anything. Parameters that used to live there sit in each screen's own control row
+(`PageControls` — a floor-level row under the title; it was `PageHeader.controls` until the
+2026-09-03 amendment recorded under D3 below).
 
 ### D2 — Sans-first type; mono is data only
 
@@ -121,6 +122,17 @@ This reverses ADR 0008 Decision 3's "centre never gets a card" rule and the cons
 "never a card" language it produced. The reference lock is unanimous on this point — Anthropic
 Console, fal.ai, Cartesia and Attio all wrap their dashboard content in cards on a floor, none of
 them run the bordered-chrome-over-carded-floor inversion ADR 0008 specified.
+
+> **Amended 2026-09-03 — the parenthesis above is superseded.** Owner directive: _"Re-touch the UI
+> so that filters are outside cards."_ A ledger is **table + pager** inside one card; its toolbar is
+> not. Every control that decides WHICH data a page shows — range, lens, status, search, page size,
+> export, reset — is a `PageControls` row standing on the floor between `PageHeader` and the first
+> card, and `PageHeader.controls` is deleted outright. See
+> [ADR 0015 §A2](0015-admin-console-v2-declarative-dashboards-permissions-export.md) for the full
+> decision, its reference lock and what deliberately did **not** move (panel-scoped knobs stay on
+> their panel). Everything else in D3 stands: `Card` is still the default zone container, and
+> `PageHeader`, `PageControls` and a bare `InlineStatus`/`ErrorLine` are now the elements that sit
+> on the floor.
 
 ### D4 — Radius 8 / 4
 
@@ -167,8 +179,9 @@ one surface for "show me more about this row" — project detail, refill review.
 persistent-right-rail retarget mechanic ADR 0008/the design spec specified for Manage and Admin:
 instead of a column that is always present and swaps its content, a sheet opens over the content
 column on selection and closes when the user is done. Screen-level parameters (range, bucket,
-group-by, project/model filters, search) that used to be "right-rail knobs" are inline controls in
-each screen's `PageHeader.controls` — never a parameter sheet, never a second column.
+group-by, project/model filters, search) that used to be "right-rail knobs" are a row of inline
+controls on the floor under the title (`PageControls`; `PageHeader.controls` until the 2026-09-03
+amendment under D3) — never a parameter sheet, never a second column.
 
 Report export (month-consumption CSV/PDF, ADR 0009 Decision 8) is a `Dialog`, reachable from
 Overview and Projects, not a rail panel — the same "the surface that used to be a persistent
@@ -237,7 +250,7 @@ dropped:
 
 ```mermaid
 flowchart LR
-    A["Right rail (ADR 0008/deleted)"] -.superseded.-> B1["Screen params\n(PageHeader.controls, inline)"]
+    A["Right rail (ADR 0008/deleted)"] -.superseded.-> B1["Screen params\n(PageControls, floor row)"]
     A -.superseded.-> B2["Row detail\n(DetailSheet, on-demand)"]
     A -.superseded.-> B3["Report export\n(Dialog, on-demand)"]
     A -.superseded.-> B4["Review decision\n(DetailSheet, on-demand)"]

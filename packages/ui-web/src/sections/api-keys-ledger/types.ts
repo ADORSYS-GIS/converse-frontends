@@ -97,7 +97,5 @@ export interface ApiKeysLedgerProps {
 
   pagination?: ApiKeysPagination;
 
-  /** Compact-tier trigger slot in the table toolbar — where the FILTERS trigger sits. */
-  toolbarActions?: ReactNode;
   className?: string;
 }

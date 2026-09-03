@@ -63,7 +63,7 @@ Stack, Inngest, Neon, Checkly, Linear changelog, Trunk/Dovetail — unchanged, n
 | **Cursor** — usage & billing (dark) | [screen](https://refero.design/pages/7573ea52-2410-4886-930a-bc76b11943ae)                                                                                  | Card grid → full-width chart → full-width usage table reading order; right-aligned numeric columns; date-range + quick-range controls sitting _with_ the chart                                                                                                                         |
 | **fal.ai** — usage-billing (dark)   | [screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8)                                                                                  | KPI tile row above the fold with _money-first_ labels; `Export CSV` as an outlined control near the section it exports — re-confirmed 2026-08-30 as part of the revamp's own reference lock (ADR 0012), where it grounds the card-per-zone shell directly, not only the export control |
 | **OpenAI** — platform usage         | [screen](https://refero.design/pages/a81bb53c-e070-48c3-82d5-34b2eb1e561e)                                                                                  | `$0.60 of $120.00` + **Increase limit** placed immediately beside the number (ADR 0008 D7)                                                                                                                                                                                             |
-| **Gladia** — settings/usage (dark)  | [screen](https://refero.design/pages/27a8c8d9-c095-4a87-8f8e-c18ecc28176d)                                                                                  | Three-control filter row: **API key · date · granularity** — the shape `OverviewControls`/`ApiKeysControls` inline toolbars follow, now in `PageHeader.controls` rather than a side panel                                                                                              |
+| **Gladia** — settings/usage (dark)  | [screen](https://refero.design/pages/27a8c8d9-c095-4a87-8f8e-c18ecc28176d)                                                                                  | Three-control filter row: **API key · date · granularity** — the shape `OverviewControls`/`ApiKeysControls` follow — a `PageControls` row on the floor since 2026-09-03, never a side panel and never the title row                                                                    |
 | **Mercury** — transactions (dark)   | [screen](https://refero.design/pages/ad0fd5c1-c21c-476f-9f8c-72f4e4ec758a)                                                                                  | Row-select drives a detail surface; summary metrics inline above the table; dense rows for a review queue vs a browse list                                                                                                                                                             |
 | **Coinbase** — download report      | [screen](https://refero.design/pages/339214d7-5cea-4e01-9a5e-4ae46421c788) · [statements](https://refero.design/pages/4c255140-dde9-4931-9614-97cbe65fd127) | Report export as **scope + period + format + generate**; now a `Dialog` (ADR 0012 D7) rather than a rail form                                                                                                                                                                          |
 | **Fingerprint** — team members      | [screen](https://refero.design/pages/936c3653-4aaf-4219-b990-502d0f01644d)                                                                                  | `Members / Pending` text-tab split with a count in the label                                                                                                                                                                                                                           |
@@ -211,8 +211,10 @@ the settings area) — `apps/console/src/client/console-chrome.tsx`.
 │ ─ footer (⌘K · theme · offline · id) — identical on all three                          │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │  CONTENT COLUMN — fluid, max-w-1120, floor — the ONLY column; no right rail anywhere  │
-│  PageHeader (title · subtitle · controls · action)                                    │
-│  Card  Card  Card  …  (every self-contained zone)                                     │
+│  PageHeader   (title · subtitle · ONE action)                                         │
+│  PageControls (range · lens/status · search · page size · export · reset) — on the    │
+│               FLOOR, never inside a Card, never in the title row                      │
+│  Card  Card  Card  …  (every self-contained zone; CONTENT only, no toolbars)          │
 │  DashboardGrid of DashboardPanels on every dashboard page (1 col, 2 at `lg`+)         │
 │  Selection opens BottomSheet, at EVERY tier — the right rail has no live case left    │
 └──────────────────────────────────────────────────────────────────────────────────────┘
@@ -222,6 +224,24 @@ Below `md` (600px), the sidebar is replaced by a 48px `ConsoleTopBar` (brand, co
 switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation dock —
 `ConsoleSidebar` renders both the persistent `sidebar` layout and the `bottom-bar` dock from one
 `groups` prop, so a page never mounts navigation twice.
+
+- **Filters are OUTSIDE cards** — owner directive 2026-09-03, [ADR 0015 §A2](../../adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md),
+  which supersedes ADR 0012 D3's "ledgers = toolbar + table + pager inside one `Card`" clause.
+  `PageControls` is a full-width row of labelled groups parted by `--color-raised` hairlines
+  (`sm`+ only — the row wraps below that, and a divider at the start of a wrapped line separates
+  nothing), with `align: 'end'` pushing the trailing group (Export, Per-page, Reset) to the far
+  edge. It is **not sticky**: the row has no fill of its own, so pinning it would mean inventing an
+  opaque band and a shadow, and the state it shows is in the URL anyway (ADR 0011). `Reset filters`
+  is rendered only while a filter is actually narrowing something.
+
+  **Reference lock** (Refero, 2026-09-03) — two screens the row is modelled on, one it is modelled
+  against:
+
+  | Screen                                                                                   | What it settled                                                                                                                                                          |
+  | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | [Chargetrip Analytics](https://refero.design/pages/a9a5bb32-86b1-40ff-acd9-5f65f370aec3) | A bare, unboxed control row under the header — range leading, view toggles and Export trailing — then the metric-card grid. Dark, which is this console's default theme. |
+  | [Dub Analytics](https://refero.design/pages/ca73bf7d-b644-4b08-9961-643b70fed7e0)        | Title and controls as two separate rows; "Clear Filters" appears only once a filter is applied.                                                                          |
+  | [Anam session history](https://refero.design/pages/bbf62efd-f05e-476d-bca0-ccc7cb887e80) | **Rejected**: title, tabs, filter bar, table and pagination all in one card — the shape this row replaces.                                                               |
 
 - **The sidebar is sticky and independently scrollable** (`SIDEBAR_CLASS`): full viewport height,
   its own `overflow-y-auto`, a trailing hairline (`border-raised`) instead of a gap.
@@ -275,9 +295,10 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
   along with the route itself — and settings has never had a right rail, at any tier (ADR 0013
   D2). The `ConsoleShell.rail` primitive still exists (`packages/ui-web`'s own stories exercise
   it), `apps/console` simply mounts nothing into it any more. Every selection opens `BottomSheet`
-  instead, at every tier. Every screen parameter (range, bucket, group-by, filters, search) lives
-  inline in `PageHeader.controls` regardless of tier — the rail was never for knobs, and no
-  screen has one to put them in now regardless.
+  instead, at every tier. Every screen parameter (range, lens/status, search, page size, export,
+  reset) lives in `PageControls` — a row on the FLOOR, at every tier — the rail was never for
+  knobs, no screen has one to put them in now, and since 2026-09-03 the title row does not hold
+  them either (ADR 0015 A2).
 - **`Card` is the default zone container** (ADR 0012 D3): stat rows, charts, ledgers (toolbar +
   table + pager inside one `Card`), and settings sections all wrap in `Card`. The page header and a
   bare `InlineStatus`/`ErrorLine` are the only elements that sit directly on the floor.
@@ -461,7 +482,8 @@ sidebar.
 
 | Component                                  | Contract                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PageHeader`                               | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `controls` (inline screen parameters), `action` (the one emphasised control)                                                                                                                                                                                                                                    |
+| `PageHeader`                               | Every screen's opening block: `title`, optional `subtitle` (scope/context line), `action` (the ONE emphasised control). No `controls` slot since 2026-09-03 — parameters are `PageControls`                                                                                                                                                                                                      |
+| `PageControls`                             | The screen's parameter row, on the floor between `PageHeader` and the first `Card` (ADR 0015 A2). `groups: {id, label, children, align?}[]` — each a `role="group"` with a visually-hidden name, parted by a hairline at `sm`+; `onReset` adds a trailing `Reset filters`, passed only while a filter is active. Not sticky                                                                      |
 | `EmptyState`                               | First-run empty (ADR 0012 D6): headline, explainer, CTA, centred inside a `Card`                                                                                                                                                                                                                                                                                                                 |
 | `InlineStatus`                             | Filtered-to-nothing or unavailable (ADR 0012 D6): one mono/sans line above still-rendered structure — headers and axes stay                                                                                                                                                                                                                                                                      |
 | `ErrorLine`                                | `signal`-coloured line in place of a value, with an inline `Retry` ghost on the same line                                                                                                                                                                                                                                                                                                        |
@@ -507,10 +529,14 @@ RPC ceiling (`getMyBudgetBalance`), so neither is a panel; they render in their 
 above the engine's, with the caption that states which window they are about. "How much of my
 allowance is left" is what a person opens this page to check.
 
-Top to bottom: `PageHeader` (title "Overview", scope subline, range picker + project scope inline,
-`mtd`/"This month" default, and an `Export` action opening `ReportExportDialog`) → the
-budget-period zones (`OverviewStatRow`, self-panelled; `Card` "Budget" with `BudgetPanel`) → the
-YAML grid.
+Top to bottom: `PageHeader` (title "Overview", scope subline — nothing else) → `PageControls`
+(`window`: the range picker, `mtd`/"This month" default · `scope`: the project select · trailing
+`report`: `Export`, opening `ReportExportDialog`) → the budget-period zones (`OverviewStatRow`,
+self-panelled; `Card` "Budget" with `BudgetPanel`) → the YAML grid.
+
+The control row is on the FLOOR, and Export sits at its trailing edge rather than on the title row
+(owner directive 2026-09-03, ADR 0015 A2 — see §3's reference lock): a report is a rendering of
+exactly the window and filters beside it.
 
 #### Ceiling vs reset period
 
@@ -647,17 +673,23 @@ project_id`) rather than a `[project_id]` query of its own, and that is a **corr
 
 ### 5.2 API keys — `/accounts/<id>/api-keys` (`api-keys.stories.tsx`)
 
-- `PageHeader.controls` carries `ApiKeysControls` (project filter · status segmented · search),
-  inline — no rail. `PageHeader.action` is `+ New key`, appearing exactly once; the same button is
-  reused verbatim as the `EmptyState` CTA when a project has no keys at all.
+- `PageControls` carries the screen's parameters in two groups, on the floor: `scope` (the project
+  select — which project's keys these are) and `slice` (`ApiKeysControls`: status segmented ·
+  search). They are parted by a hairline because they are different questions, and `Reset filters`
+  clears only the second — re-scoping to another project is not what that button says.
+  `PageHeader.action` is `+ New key`, appearing exactly once; the same button is reused verbatim as
+  the `EmptyState` CTA when a project has no keys at all.
 - **Scope is split by what it actually is**: account is the path segment, rendered once as
   `AccountBadge` in the sidebar's workspace switcher (a name, or `acct_49534505` when unnamed,
   never a raw UUID); project is a genuine `?project=` parameter and leads the toolbar, filtered to
   the path account only (ADR 0013 D3 — the project picker never leaks another account's projects).
 - `SecretReveal` occupies the top of the centre after create _or_ rotate — both return the same
   one-time secret, so they share one component and contract.
-- The ledger's toolbar + table + pager sit inside **one `Card`**. Columns: `NAME · PREFIX · STATUS
-· CREATED · LAST USED · EXPIRES`, `RowActionGroup` always visible in the trailing column.
+- The ledger's **table + pager** sit inside one `Card` — content only, no toolbar (ADR 0015 A2;
+  `ApiKeysLedger`'s `toolbarActions` slot, which held the compact-tier FILTERS trigger, is deleted,
+  because the row is on the floor at every tier and there is no compact variant left to open).
+  Columns: `NAME · PREFIX · STATUS · CREATED · LAST USED · EXPIRES`, `RowActionGroup` always
+  visible in the trailing column.
 - **Revoke is the emphasised action** (ADR 0003): `ink` text, while `Rotate` is `body` and `Del` is
   `muted`.
 - `ApiKeysHygieneNotes` is an inline-status block above the table: expiring keys in `signal`,
@@ -1028,10 +1060,11 @@ enumerable by nobody: `revokeOwnSessions` ("log out everywhere") and `revokeSubj
 (offboard this person) were the only ways to touch it, both write-only and both all-or-nothing. A
 revocable table nobody can list is not a control.
 
-Top to bottom: `PageHeader` (title "Sessions", "N sessions on this page", and
-`SessionLedgerControls` in `controls` — status segmented · kind segmented · user search · the
-picked-user select) → one `Card` holding `SessionLedger` (the table, the offline caption and
-`Pagination`). Row detail opens `SessionDetailPanel` inside a `BottomSheet` **at every tier** — no
+Top to bottom: `PageHeader` (title "Sessions", "N sessions on this page") → `PageControls`
+(`slice`: `SessionLedgerControls` — status segmented · kind segmented · user search · the
+picked-user select; trailing `paging`: the per-page select, which is not a filter and never was;
+plus `Reset filters` while anything is narrowing the ledger) → one `Card` holding `SessionLedger`
+(the table, the offline caption and `Pagination`). Row detail opens `SessionDetailPanel` inside a `BottomSheet` **at every tier** — no
 `portalClassName` tier gate, because no `/admin/*` route mounts a rail at any tier (§5.5) and there
 is nothing to hand off to.
 
@@ -1155,9 +1188,9 @@ Gated on **`usage:read-all`**. The admin area's landing destination, and the fir
 onto the declarative engine (ADR 0015 D1): eleven panels in `dashboards.yaml`, three usage requests
 plus one comparison twin, where its eight hand-written boards fired six.
 
-Top to bottom: `PageHeader` (title, range picker in `controls`, `DashboardExportButton` in
-`action`) → **a first `DashboardGrid` of the two hand-written zones** → **the engine's
-`DashboardGrid`**.
+Top to bottom: `PageHeader` (title and subtitle only) → `PageControls` (`window`: the range picker
+· trailing `report`: `DashboardExportButton`) → **a first `DashboardGrid` of the two hand-written
+zones** → **the engine's `DashboardGrid`**.
 
 - **Two zones stay hand-written, and it is not an escape hatch.** `dashboards.yaml` describes usage
   queries. Estate budget pressure reads `getBudgetBalance` (an RPC, one call per account) against
@@ -1195,8 +1228,9 @@ There is no per-panel query code in `apps/console` for this page; `admin-usage-p
 the exact panel-id list, in order, because those ids are a cross-slice contract (the actor/channel/
 chat routes reuse them and the report renderer walks them).
 
-`PageHeader` carries the three things a **page** owns and a panel cannot: the range picker, the
-lens `SegmentedControl`, and the URL knobs that make both — plus every panel's own axis, sort and
+`PageControls` carries the three things a **page** owns and a panel cannot: the lens
+`SegmentedControl` (group `slice`), the range picker (group `window`), and — at the trailing edge —
+`DashboardExportButton` (group `report`), plus the URL knobs that make all of them — plus every panel's own axis, sort and
 page — restorable from a pasted link (ADR 0011). Those knobs are declared **from the spec**, not
 from a hand-written table, so a panel a deployment adds through the config-volume override gets a
 real `?<panel-id>-scale=` knob like every other.
@@ -1261,9 +1295,11 @@ had stopped being a `disabled` placeholder the moment
 (lightbridge-authz#656 / ADR-0033); the disabled variant and `ROLES_DISABLED_REASON` are deleted,
 not kept as a fallback.
 
-`PageHeader` ("Platform roles", "Grant role" as the one primary) → an optional `InlineStatus`
-outcome line → one `Card` holding `PlatformRoleGrants` (toolbar + table + pager). `?grant=` and
-`?revoke=` are its two dialogs.
+`PageHeader` ("Platform roles", "Grant role" as the one primary) → `PageControls`
+(`PlatformRoleGrantsControls`: the role select and the include-revoked switch, both keeping their
+visible labels because neither self-describes through its own value; plus `Reset filters` while
+either is set) → an optional `InlineStatus` outcome line → one `Card` holding `PlatformRoleGrants`
+(table + ordering caption + pager). `?grant=` and `?revoke=` are its two dialogs.
 
 - **The subtitle states the propagation rule permanently, not only after a mutation.** A grant
   reaches its holder at their **next token mint** — the single most surprising property of this
@@ -1339,10 +1375,10 @@ load. No parallax, no reveal-on-scroll.
 
 ## 7. Responsive behaviour
 
-| Tier               | Navigation                                                                                    | Content column                                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **≥`md` (600px+)** | Persistent 296px sidebar, sticky, independently scrollable                                    | Fluid, `max-w-[1120px]` — which only ENGAGES from 1480px up (`296 + 2×32 + 1120`); at the 1440 reference viewport the measure is 1080px. `PageHeader` + `Card`s stacked vertically |
-| **<`md`**          | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageHeader.controls` wraps; ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
+| Tier               | Navigation                                                                                    | Content column                                                                                                                                                                                                                                                         |
+| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **≥`md` (600px+)** | Persistent 296px sidebar, sticky, independently scrollable                                    | Fluid, `max-w-[1120px]` — which only ENGAGES from 1480px up (`296 + 2×32 + 1120`); at the 1440 reference viewport the measure is 1080px. `PageHeader` + `Card`s stacked vertically                                                                                     |
+| **<`md`**          | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageControls` wraps and drops its group hairlines (a divider at the start of a wrapped line separates nothing); ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
 
 There is no third, "compact rail" tier — the old three-tier (full/compact/guard-rail) breakpoint
 table described a right rail with a different contract than today's, and ADR 0013's phase E
@@ -1923,8 +1959,8 @@ the empty set, which fails closed.
 
 _Historical tensions recorded in the pre-revamp version of this document have been resolved by
 [ADR 0012](../../adr/0012-console-visual-revamp.md) and are removed rather than kept as dead
-entries_: the right-panel-as-actions-vs-parameters question (screen parameters live in
-`PageHeader.controls` at every tier, unconditionally), the scalar-panel-vs-distribution-floor
+entries_: the right-panel-as-actions-vs-parameters question (screen parameters live in `PageControls`, a
+row on the floor, at every tier, unconditionally — ADR 0015 A2), the scalar-panel-vs-distribution-floor
 boundary (subsumed by "every zone gets a `Card`"), refine's `list/show/edit` route shape vs a
 persistent rail (resolved by the situational rail/`BottomSheet` pair, neither of which needs a
 persistent mount), and the `maxContentWidth` token's meaning (resolved: it is

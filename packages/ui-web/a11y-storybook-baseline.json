@@ -651,6 +651,12 @@
       "color-contrast"
     ]
   },
+  "packages/ui-web/src/sections/page-controls/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
   "packages/ui-web/src/sections/page-header/component.stories.tsx": {
     "failing": 6,
     "rules": [

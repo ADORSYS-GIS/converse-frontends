@@ -50,21 +50,21 @@ Reading order top-down: what a thing is made of, then what it is made into, then
 `.storybook/preview.tsx`'s `storySort` pins it; alphabetical would put `Charts` above `Dashboard`
 above `Foundations`, which is noise.
 
-| Folder                                                 | What belongs here                                                                                        | Count |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----- |
-| `Foundations/`                                         | Tokens and formatting primitives with no UI of their own — the money ladder                              | 1     |
-| `Primitives/Actions/`                                  | Clicked or typed into, no domain meaning: `Button`, `Checkbox`, `Toggle`, `SegmentedControl`, …          | 7     |
-| `Primitives/Fields/`                                   | Labelled inputs: `Field`, `SelectField`, `ScopeSelect`, `DateRangeField`                                 | 4     |
-| `Primitives/Overlays/`                                 | Renders over the page, plus the panels that are only ever a dialog's body                                | 12    |
-| `Primitives/Data/`                                     | Reads a value out, takes no input: `Card`, `LedgerTable`, `StatCard`, `Meter`, `StatusText`, …           | 10    |
-| `Primitives/States/`                                   | The empty / loading / error vocabulary, together so it reads as one set                                  | 6     |
-| `Charts/`                                              | Chart marks and chart furniture, `ShareBar` included                                                     | 9     |
-| `Shell/`                                               | Persistent chrome: `ConsoleShell`, `ConsoleSidebar`, `ConsoleTopBar`, `NavSpine`, `SubNav`, `PageHeader` | 8     |
-| `Dashboard/`                                           | The declarative engine (ADR 0015): `DashboardGrid`, `DashboardPanel`, `PanelRenderers`, `FromSpec`       | 4     |
-| `Sections/{Account,Usage,Budget,Admin,Auth,Settings}/` | Screen zones, filed by the product surface that mounts them                                              | 39    |
-| `Pages/{Account,Settings,Admin,Auth,LCI,Platform}/`    | Whole-screen compositions, one per route (11 of them LCI's)                                              | 35    |
-| `LCI/`                                                 | LCI's app-local components: the code graph, the Grafana embed, the review output, the repo tab strip     | 6     |
-| `Legacy/`                                              | Kept, browsable, and out of the way — see below                                                          | 4     |
+| Folder                                                 | What belongs here                                                                                                        | Count |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----- |
+| `Foundations/`                                         | Tokens and formatting primitives with no UI of their own — the money ladder                                              | 1     |
+| `Primitives/Actions/`                                  | Clicked or typed into, no domain meaning: `Button`, `Checkbox`, `Toggle`, `SegmentedControl`, …                          | 7     |
+| `Primitives/Fields/`                                   | Labelled inputs: `Field`, `SelectField`, `ScopeSelect`, `DateRangeField`                                                 | 4     |
+| `Primitives/Overlays/`                                 | Renders over the page, plus the panels that are only ever a dialog's body                                                | 12    |
+| `Primitives/Data/`                                     | Reads a value out, takes no input: `Card`, `LedgerTable`, `StatCard`, `Meter`, `StatusText`, …                           | 10    |
+| `Primitives/States/`                                   | The empty / loading / error vocabulary, together so it reads as one set                                                  | 6     |
+| `Charts/`                                              | Chart marks and chart furniture, `ShareBar` included                                                                     | 9     |
+| `Shell/`                                               | Persistent chrome: `ConsoleShell`, `ConsoleSidebar`, `ConsoleTopBar`, `NavSpine`, `SubNav`, `PageHeader`, `PageControls` | 9     |
+| `Dashboard/`                                           | The declarative engine (ADR 0015): `DashboardGrid`, `DashboardPanel`, `PanelRenderers`, `FromSpec`                       | 4     |
+| `Sections/{Account,Usage,Budget,Admin,Auth,Settings}/` | Screen zones, filed by the product surface that mounts them                                                              | 39    |
+| `Pages/{Account,Settings,Admin,Auth,LCI,Platform}/`    | Whole-screen compositions, one per route (11 of them LCI's)                                                              | 35    |
+| `LCI/`                                                 | LCI's app-local components: the code graph, the Grafana embed, the review output, the repo tab strip                     | 6     |
+| `Legacy/`                                              | Kept, browsable, and out of the way — see below                                                                          | 4     |
 
 `Pages/Platform/` is the cross-cutting pair that is about the app rather than one screen:
 `ShellPersistence` (rail width, tier behaviour) and `I18nGerman` (German strings are longer and

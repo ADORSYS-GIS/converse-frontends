@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { Card } from '../../components/card';
+import { PageControls } from '../page-controls';
 import { PlatformRoleGrants } from './component';
+import { PlatformRoleGrantsControls } from './controls';
 import {
   grantUserSearchFixture,
   platformRoleGrantsFixture,
@@ -50,18 +52,43 @@ function Demo({
   const [includeRevoked, setIncludeRevoked] = useState(initialIncludeRevoked);
 
   return (
-    <div className="p-6">
+    <div className="flex flex-col gap-6 p-6">
+      {/* The filters stand OUTSIDE the card (ADR 0015 amendment A2) — this story renders them in
+          the same `PageControls` row `/admin/roles` mounts, so the story shows the real shape of
+          the screen rather than a card with a toolbar the console no longer draws. */}
+      <PageControls
+        onReset={
+          roleFilter !== '' || includeRevoked
+            ? () => {
+                setRoleFilter('');
+                setIncludeRevoked(false);
+              }
+            : undefined
+        }
+        groups={[
+          {
+            id: 'slice',
+            label: 'Filters',
+            children: (
+              <PlatformRoleGrantsControls
+                roleFilter={roleFilter}
+                onRoleFilterChange={setRoleFilter}
+                roles={ROLES}
+                includeRevoked={includeRevoked}
+                onIncludeRevokedChange={setIncludeRevoked}
+              />
+            ),
+          },
+        ]}
+      />
       <Card>
         <PlatformRoleGrants
           grants={grants}
           loading={loading}
           error={error}
           onRetry={() => {}}
-          roleFilter={roleFilter}
-          onRoleFilterChange={setRoleFilter}
-          roles={ROLES}
           includeRevoked={includeRevoked}
-          onIncludeRevokedChange={setIncludeRevoked}
+          filtered={roleFilter !== '' || includeRevoked}
           onRequestRevoke={() => {}}
           identityStatus={identityStatus}
           pagination={

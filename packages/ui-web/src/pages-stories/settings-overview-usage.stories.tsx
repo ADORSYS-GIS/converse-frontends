@@ -46,6 +46,7 @@ import { ConsoleShell } from '../components/console-shell';
 import { DateRangeField, presetRange } from '../components/date-range-field';
 import { InlineStatus } from '../components/inline-status';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { SpecPanels, specPage } from './spec-page';
 import { storySidebar, storyTopBar } from './shell-fixtures';
@@ -101,29 +102,35 @@ function UsageOverviewScreen({ showAdmin = false, truncationCaption }: UsageOver
   return (
     <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Usage overview"
-          subtitle="Your account family · This month · UTC"
-          controls={
-            <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
-              preset={rangePreset}
-              value={range}
-              today={STORY_TODAY}
-              onPresetChange={(next) => {
-                setRangePreset(next);
-                const preset = RANGE_PRESETS.find((p) => p.value === next);
-                if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-              }}
-              onRangeChange={(next) => {
-                setRangePreset(null);
-                setRange(next);
-              }}
-              layout="inline"
-              hideLabel
-            />
-          }
+        <PageHeader title="Usage overview" subtitle="Your account family · This month · UTC" />
+
+        <PageControls
+          groups={[
+            {
+              id: 'controls',
+              label: 'Filters',
+              children: (
+                <DateRangeField
+                  label="Range"
+                  presets={RANGE_PRESETS}
+                  preset={rangePreset}
+                  value={range}
+                  today={STORY_TODAY}
+                  onPresetChange={(next) => {
+                    setRangePreset(next);
+                    const preset = RANGE_PRESETS.find((p) => p.value === next);
+                    if (preset) setRange(presetRange(preset.days, STORY_TODAY));
+                  }}
+                  onRangeChange={(next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  }}
+                  layout="inline"
+                  hideLabel
+                />
+              ),
+            },
+          ]}
         />
 
         {truncationCaption ? <InlineStatus>{truncationCaption}</InlineStatus> : null}

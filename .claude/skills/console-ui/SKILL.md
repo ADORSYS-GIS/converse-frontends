@@ -68,8 +68,8 @@ mutation it hosted now has a better home: the switcher's own `+ New account`, `/
 selection-driven detail across the whole console — the projects ledger's row, the refills queue's
 review — opens as a `BottomSheet` docked to the BOTTOM of the viewport, never from a side, at
 every tier including `lg`+, since there is no rail anywhere left to hand it off to. Every screen
-opens with `PageHeader` (title, subtitle, inline controls, one action), then a stack of `Card`s —
-one per self-contained zone.
+opens with `PageHeader` (title, subtitle, at most one action), then `PageControls` (the screen's
+parameter row, on the floor), then a stack of `Card`s — one per self-contained zone.
 Sans type (Inter) is the default everywhere structural; mono (IBM Plex Mono) is reserved for data
 values — currency, counts, ids, timestamps — never for prose or chrome. A single orange signal
 appears only when something is actionable or needs attention.
@@ -272,16 +272,25 @@ decimals.
     — `min-w-0` is mandatory, without it a wide table/chart blows the row open into page-level
     horizontal scroll). Anything intrinsically wide scrolls inside its own `overflow-x-auto`
     container instead.
-  - Screen PARAMETERS (range/bucket/group-by, filters, search) stay inline in `PageHeader.controls`
-    at every tier. Every SELECTION-driven detail across the console opens as a `BottomSheet`
-    instead (bottom-docked, never from a side — see "Primitive
-    stack" above).
+  - Screen PARAMETERS (range/lens/status, search, page size, export, reset) live in
+    **`PageControls`** at every tier — a full-width row on the FLOOR between `PageHeader` and the
+    first `Card`, never inside one, and never in the title row (owner directive 2026-09-03,
+    ADR 0015 A2 — `PageHeader.controls` is deleted, not deprecated). Every SELECTION-driven detail
+    across the console opens as a `BottomSheet` instead (bottom-docked, never from a side — see
+    "Primitive stack" above).
 - **`Card` is the default zone container** (ADR 0012 D3, kills ADR 0008's "centre is never a
   card"/"a scalar gets a panel, a distribution gets the floor" boundary): stat rows, charts,
-  ledgers (toolbar + table + pager inside **one** `Card`), settings sections and forms all wrap in
-  `Card`. `PageHeader` and a bare `InlineStatus`/`ErrorLine` are the only things that sit directly
-  on the floor. `StatCard`/`BudgetHero` stay self-panelled (their own `surface` fill) even when a
-  `Card` also wraps the row they sit in.
+  ledgers, settings sections and forms all wrap in `Card`. `PageHeader`, `PageControls` and a bare
+  `InlineStatus`/`ErrorLine` are the only things that sit directly on the floor.
+  `StatCard`/`BudgetHero` stay self-panelled (their own `surface` fill) even when a `Card` also
+  wraps the row they sit in.
+- **A `Card` holds CONTENT, never filters** (owner directive 2026-09-03; ADR 0015 A2 supersedes
+  D3's "ledgers = toolbar + table + pager inside one `Card`"). A ledger card is **table + pager**.
+  Its toolbar is `PageControls`, on the floor above it — `ProjectsLedger` has no `search`/`filters`
+  props, `ApiKeysLedger` has no `toolbarActions`, `PlatformRoleGrants` has no filter selects, and
+  none of them may grow one back. What stays ON a panel is only what is panel-SCOPED: a
+  `ZoneHeading`'s scale toggle, a `DashboardPanel`'s Expand. The test: if moving the control to the
+  row would leave two panels disagreeing about what it did, it belongs to the panel.
 - **Three nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
   `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`). Every gated row is included
   or omitted, never marked: no `adminItems`/`showAdmin`/`roleLabel` axis, and a gated row's own
@@ -565,7 +574,11 @@ where a dashboard change is verified; the live deploy is confirmation, not disco
 
 ### The export button
 
-`DashboardExportButton` goes in `PageHeader.actions` on every dashboard page and opens the shared
+`DashboardExportButton` goes in a TRAILING `PageControls` group (`align: 'end'`) on every dashboard
+page — not `PageHeader.action`, since 2026-09-03: it is a page-scoped action over exactly the window
+and filters beside it, which is where both reference screens draw it. A drill-down page's
+"← Usage" link is the one thing that stays on the title row, because it is navigation rather than a
+parameter. It opens the shared
 `ReportExportDialog` (format, range echo, "include tables"). It composes; it is not a per-page
 button. The route is `GET /api/reports/page?path=<route>&range=&format=pdf|csv|html`, and `path` is
 matched by **equality** against the routes `dashboards.yaml` declares — never joined into a file

@@ -26,7 +26,6 @@ function Demo({
   loading?: boolean;
   error?: string;
 }) {
-  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ProjectRow | null>(null);
   const [sort, setSort] = useState<LedgerSort | undefined>();
 
@@ -37,8 +36,6 @@ function Demo({
         loading={loading}
         error={error}
         onRetry={() => {}}
-        search={search}
-        onSearchChange={setSearch}
         sort={sort}
         onSortChange={setSort}
         selectedRowKeys={selected ? [selected.id] : []}
@@ -69,8 +66,6 @@ export const EmptyCollection: Story = {
     <div className="p-6">
       <ProjectsLedger
         projects={[]}
-        search=""
-        onSearchChange={() => {}}
         onSelectRow={() => {}}
         emptyState={
           <EmptyState
@@ -94,8 +89,6 @@ export const FilteredEmpty: Story = {
     <div className="p-6">
       <ProjectsLedger
         projects={[]}
-        search="zzz"
-        onSearchChange={() => {}}
         onSelectRow={() => {}}
         filteredEmptyMessage="No projects match “zzz”."
       />

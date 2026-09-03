@@ -107,6 +107,10 @@ export interface AdminSessionsScreen {
   /** Degraded, non-blocking — rendered above the table as a status line, never in place of it. */
   status: string | undefined;
   emptyMessage: string;
+  /** Whether anything is currently narrowing the ledger — what decides whether `PageControls`
+   *  renders a `Reset filters` affordance at all (a reset that is always on screen is a control
+   *  that usually does nothing). `limit` is not a filter and does not count. */
+  filtersActive: boolean;
   resetFilters: () => void;
 
   statusFilter: SessionStatusFilter;
@@ -366,6 +370,7 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
     emptyMessage: filtersAreDefault
       ? t('sessions.empty.no-active')
       : t('sessions.empty.no-filter-match'),
+    filtersActive: !filtersAreDefault,
     resetFilters: () => {
       setCursorStack([]);
       // `limit` is deliberately NOT reset: it is how much of the table the operator wants to see

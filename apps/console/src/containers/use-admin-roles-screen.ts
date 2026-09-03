@@ -1,10 +1,12 @@
 'use client';
 
 import type { PlatformRoleGrant, PlatformRoleGrantPage, UserProfile } from '@lightbridge/authz-rpc';
+import { ALL_ROLES } from '@lightbridge/ui-web';
 import type {
   GrantRoleDialogProps,
   GrantUserOption,
   PlatformRoleGrantRow,
+  PlatformRoleGrantsControlsProps,
   PlatformRoleGrantsProps,
   RevokeRoleDialogProps,
 } from '@lightbridge/ui-web';
@@ -67,6 +69,14 @@ const REVOKE_MUTATION_KEY = ['authz', 'revokePlatformRole'];
 
 export interface AdminRolesScreen {
   ledger: PlatformRoleGrantsProps;
+  /** The two filters `listPlatformRoleGrants` supports, as a `PageControls` group on the floor
+   *  (ADR 0015 amendment A2 — filters are outside cards; they were this ledger's own in-card
+   *  toolbar until 2026-09-03). */
+  filters: PlatformRoleGrantsControlsProps;
+  /** Whether either of them is currently narrowing the list — decides whether the row renders a
+   *  `Reset filters` affordance at all. */
+  filtersActive: boolean;
+  resetFilters: () => void;
   grantDialog: GrantRoleDialogProps;
   revokeDialog: RevokeRoleDialogProps;
   /** Opens the grant dialog — wired to `PageHeader.action`. */
@@ -253,19 +263,10 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       loadingRowCount: 6,
       error: grantsQuery.isError ? t('roles.load-failed') : undefined,
       onRetry: () => void grantsQuery.refetch(),
-      roleFilter: view.role,
-      onRoleFilterChange: (next) => {
-        // A new filter is a new collection: the cursor from the old one names a row that may not
-        // be in it at all, so both the URL cursor and the local trail reset together.
-        setCursorStack([]);
-        void setView({ role: next, after: '' });
-      },
-      roles: PLATFORM_ROLES,
+      // A DISPLAY flag, not a control: it decides whether the `Revoked` column is drawn. The
+      // switch that writes it is in `filters` below.
       includeRevoked: view.includeRevoked,
-      onIncludeRevokedChange: (next) => {
-        setCursorStack([]);
-        void setView({ includeRevoked: next, after: '' });
-      },
+      filtered: view.role !== ALL_ROLES || view.includeRevoked,
       onRequestRevoke: (row) => {
         revoke.dismiss();
         revokeDialogUrl.openDialog(row.id);
@@ -287,6 +288,27 @@ export function useAdminRolesScreen(): AdminRolesScreen {
         },
       },
     },
+    filters: {
+      roleFilter: view.role,
+      onRoleFilterChange: (next) => {
+        // A new filter is a new collection: the cursor from the old one names a row that may not
+        // be in it at all, so both the URL cursor and the local trail reset together.
+        setCursorStack([]);
+        void setView({ role: next, after: '' });
+      },
+      roles: PLATFORM_ROLES,
+      includeRevoked: view.includeRevoked,
+      onIncludeRevokedChange: (next) => {
+        setCursorStack([]);
+        void setView({ includeRevoked: next, after: '' });
+      },
+    },
+    filtersActive: view.role !== ALL_ROLES || view.includeRevoked,
+    resetFilters: () => {
+      setCursorStack([]);
+      void setView({ role: ALL_ROLES, includeRevoked: false, after: '' });
+    },
+
     grantDialog: {
       open: grantDialogUrl.open,
       query,

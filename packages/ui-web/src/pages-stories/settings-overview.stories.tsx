@@ -62,6 +62,7 @@ import {
 } from '../sections/budget-pressure/fixtures';
 import { DashboardGrid } from '../sections/dashboard-grid';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { DashboardStatus } from '../sections/spend-dashboard';
@@ -170,38 +171,53 @@ function SettingsOverviewLensScreen({
         <PageHeader
           title={LENS_TITLE[lens]}
           subtitle={ready ? LENS_SUBTITLE[lens] : 'No project selected'}
-          controls={
-            <div className="flex flex-wrap items-end gap-3">
-              <DateRangeField
-                label="Range"
-                presets={RANGE_PRESETS}
-                preset={rangePreset}
-                value={range}
-                today={STORY_TODAY}
-                onPresetChange={(next) => {
-                  setRangePreset(next);
-                  const preset = RANGE_PRESETS.find((p) => p.value === next);
-                  if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-                }}
-                onRangeChange={(next) => {
-                  setRangePreset(null);
-                  setRange(next);
-                }}
-                layout="inline"
-                hideLabel
-              />
-              {lens === 'project' ? (
-                <SelectField
-                  label="Project"
-                  value={projectValue}
-                  options={PROJECT_PICKER_OPTIONS}
-                  onChange={setProjectValue}
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'window',
+              label: 'Time window',
+              children: (
+                <DateRangeField
+                  label="Range"
+                  presets={RANGE_PRESETS}
+                  preset={rangePreset}
+                  value={range}
+                  today={STORY_TODAY}
+                  onPresetChange={(next) => {
+                    setRangePreset(next);
+                    const preset = RANGE_PRESETS.find((p) => p.value === next);
+                    if (preset) setRange(presetRange(preset.days, STORY_TODAY));
+                  }}
+                  onRangeChange={(next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  }}
                   layout="inline"
                   hideLabel
                 />
-              ) : null}
-            </div>
-          }
+              ),
+            },
+            ...(lens === 'project'
+              ? [
+                  {
+                    id: 'scope',
+                    label: 'Scope',
+                    children: (
+                      <SelectField
+                        label="Project"
+                        value={projectValue}
+                        options={PROJECT_PICKER_OPTIONS}
+                        onChange={setProjectValue}
+                        layout="inline"
+                        hideLabel
+                      />
+                    ),
+                  },
+                ]
+              : []),
+          ]}
         />
 
         {!ready ? (

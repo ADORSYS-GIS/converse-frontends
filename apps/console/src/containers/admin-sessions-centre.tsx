@@ -2,6 +2,8 @@
 
 import { BottomSheet } from '@lightbridge/ui-web/src/components/bottom-sheet';
 import { Card } from '@lightbridge/ui-web/src/components/card';
+import { SelectField } from '@lightbridge/ui-web/src/components/select-field';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import {
   SessionDetailPanel,
@@ -15,8 +17,8 @@ import { useAdminSessionsScreen } from './use-admin-sessions-screen';
 
 /**
  * `/admin/sessions` — the centre column, and the WHOLE of this route (converse-frontends#450,
- * story C7): the estate-wide session ledger, its filters in `PageHeader.controls`, and the row
- * detail that closes one session or every session for a person.
+ * story C7): the estate-wide session ledger, its filters in `PageControls`, and the row detail
+ * that closes one session or every session for a person.
  *
  * It closes the console half of lightbridge-authz ADR-0020 Follow-up 4. Before this the sessions
  * table was revocable but not enumerable — `revokeOwnSessions` ("log out everywhere") and
@@ -30,9 +32,21 @@ import { useAdminSessionsScreen } from './use-admin-sessions-screen';
  * tier, so there is no `lg`+ surface to hand this off to and no `portalClassName` tier gate to
  * write. The sheet is keyed by session id so switching rows remounts the panel rather than
  * carrying a stale confirmation onto a different session.
+ *
+ * **Filters are OUTSIDE the card** (owner directive 2026-09-03, ADR 0015 amendment A2). They were
+ * never inside this one — this screen was the pattern the directive generalised — but they have
+ * moved out of `PageHeader.controls` into a `PageControls` row of their own, in three groups:
+ *
+ *  1. `slice` — status, kind, and the two-control user picker (`SessionLedgerControls`).
+ *  2. `paging` — rows per page, on the trailing edge. NOT a filter: it changes how much of the
+ *     same set you see, never which set, which is why it sat behind an `sm:ms-auto` inside the old
+ *     cluster and is a group of its own now.
+ *  3. `reset`, added by `PageControls` itself, and only while something is actually narrowing the
+ *     ledger (`screen.filtersActive`).
  */
 export function AdminSessionsCentre() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const screen = useAdminSessionsScreen();
 
   return (
@@ -41,22 +55,48 @@ export function AdminSessionsCentre() {
         <PageHeader
           title={t('sessions.title')}
           subtitle={t('sessions.subtitle', { count: screen.pagination.shown })}
-          controls={
-            <SessionLedgerControls
-              status={screen.statusFilter}
-              onStatusChange={screen.setStatusFilter}
-              kind={screen.kindFilter}
-              onKindChange={screen.setKindFilter}
-              search={screen.search}
-              onSearchChange={screen.setSearch}
-              userOptions={screen.userOptions}
-              selectedUser={screen.selectedUser}
-              onSelectedUserChange={screen.setSelectedUser}
-              pageSize={screen.pageSize}
-              onPageSizeChange={screen.setPageSize}
-              pageSizeOptions={SESSION_PAGE_SIZES}
-            />
-          }
+        />
+
+        <PageControls
+          label={tCommon('controls.row-filters')}
+          resetLabel={tCommon('controls.reset')}
+          onReset={screen.filtersActive ? screen.resetFilters : undefined}
+          groups={[
+            {
+              id: 'slice',
+              label: tCommon('controls.slice'),
+              children: (
+                <SessionLedgerControls
+                  status={screen.statusFilter}
+                  onStatusChange={screen.setStatusFilter}
+                  kind={screen.kindFilter}
+                  onKindChange={screen.setKindFilter}
+                  search={screen.search}
+                  onSearchChange={screen.setSearch}
+                  userOptions={screen.userOptions}
+                  selectedUser={screen.selectedUser}
+                  onSelectedUserChange={screen.setSelectedUser}
+                />
+              ),
+            },
+            {
+              id: 'paging',
+              label: tCommon('controls.paging'),
+              align: 'end',
+              children: (
+                <SelectField
+                  label={tCommon('controls.per-page')}
+                  layout="inline"
+                  value={String(screen.pageSize)}
+                  options={SESSION_PAGE_SIZES.map((size) => ({
+                    value: String(size),
+                    label: String(size),
+                  }))}
+                  onChange={(next) => screen.setPageSize(Number(next))}
+                />
+              ),
+            },
+          ]}
         />
 
         <Card>
@@ -67,7 +107,6 @@ export function AdminSessionsCentre() {
             onRetry={screen.retry}
             status={screen.status}
             emptyMessage={screen.emptyMessage}
-            onResetFilters={screen.resetFilters}
             selectedSessionId={screen.selectedSessionId}
             onSelectSession={screen.selectSession}
             pagination={screen.pagination}

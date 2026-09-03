@@ -8,16 +8,9 @@ import { REVOKE_SELF_WARNING, REVOKE_SESSION_NOTE, RevokeRoleDialog } from './re
 import { GRANT_AUTHOR_CLI_LABEL } from './types';
 import type { PlatformRoleGrantsProps } from './types';
 
-const ROLES = ['lightbridge-admin', 'lightbridge-editor', 'lightbridge-viewer'] as const;
-
 function makeProps(overrides: Partial<PlatformRoleGrantsProps> = {}): PlatformRoleGrantsProps {
   return {
     grants: platformRoleGrantsFixture,
-    roleFilter: '',
-    onRoleFilterChange: vi.fn(),
-    roles: ROLES,
-    includeRevoked: false,
-    onIncludeRevokedChange: vi.fn(),
     onRequestRevoke: vi.fn(),
     ...overrides,
   };
@@ -97,14 +90,23 @@ describe('PlatformRoleGrants', () => {
     );
   });
 
+  // An empty COLLECTION is a placard; an empty RESULT is an inline line, because the filters that
+  // emptied it — and the `Reset filters` that undoes them — are one row above this card
+  // (ADR 0015 amendment A2). Only the caller knows which reading applies, hence `filtered`.
   it('distinguishes an empty directory from an empty filter', () => {
     const { rerender } = render(<PlatformRoleGrants {...makeProps({ grants: [] })} />);
     expect(screen.getByText('No platform roles are granted')).toBeInTheDocument();
 
-    rerender(
-      <PlatformRoleGrants {...makeProps({ grants: [], roleFilter: 'lightbridge-admin' })} />
-    );
-    expect(screen.getByText('No grants match this filter')).toBeInTheDocument();
+    rerender(<PlatformRoleGrants {...makeProps({ grants: [], filtered: true })} />);
+    expect(screen.getByRole('status')).toHaveTextContent('No grants match this filter');
+  });
+
+  // The two filters were a toolbar row inside this card until 2026-09-03.
+  it('renders no toolbar of its own — the card is content only', () => {
+    const { container } = render(<PlatformRoleGrants {...makeProps()} />);
+
+    expect(screen.queryByLabelText('Role')).not.toBeInTheDocument();
+    expect(container.querySelector('input')).toBeNull();
   });
 
   // The grants and the names come from two different calls; the second failing must never blank a

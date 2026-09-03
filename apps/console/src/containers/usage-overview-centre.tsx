@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { OVERVIEW_RANGES, useSettingsOverviewParams } from '../client/url-state';
@@ -113,22 +114,40 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
           range: labels[view.range],
           timezone: tCommon('timezone.utc'),
         })}
-        controls={
-          <DateRangeField
-            label={tCommon('range.label')}
-            presets={rangePresets(tCommon)}
-            preset={view.from && view.to ? null : view.range}
-            value={{ from: window.start, to: window.end }}
-            onPresetChange={(range) => {
-              void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
-            }}
-            onRangeChange={({ from, to }) => {
-              void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-            }}
-            layout="inline"
-            hideLabel
-          />
-        }
+      />
+
+      {/* One parameter, still a row of its own (owner directive 2026-09-03, ADR 0015 amendment
+          A2): the shape stays the same on every screen whether it carries one control or six, so
+          a reader always knows where the knobs are. No Export group here — see this file's own
+          doc comment for why a `scope: family` page cannot be exported. */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+        ]}
       />
 
       {truncatedAt !== null ? (

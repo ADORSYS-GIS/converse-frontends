@@ -2,19 +2,13 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { ApiKeysControls } from './component';
-import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
+import { API_KEY_STATUS_OPTIONS } from './fixtures';
 
 const meta: Meta<typeof ApiKeysControls> = {
   title: 'Sections/Account/ApiKeysControls',
   component: ApiKeysControls,
   parameters: { layout: 'padded' },
   args: {
-    projectField: {
-      label: 'Project',
-      value: 'gateway-prod',
-      options: API_KEY_PROJECT_OPTIONS,
-      onChange: () => {},
-    },
     statusOptions: API_KEY_STATUS_OPTIONS,
     statusValue: 'all',
     onStatusChange: () => {},

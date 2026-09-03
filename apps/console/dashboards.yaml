@@ -877,12 +877,20 @@ pages:
           bucket: auto
           limit: 2000
 
+      # Every segment is an anchor into the model page (owner feedback, carried over from #496 —
+      # the estate page's own `model-cost-share`/`model-distribution-*` panels already link this
+      # way, and a drill path that dead-ends one level down is worse than no drill path). The
+      # collapsed `Other (N)` segment is never a link: it is several models at once, and there is
+      # no page for "several" — `DonutChart`/`ShareBar` refuse it themselves, so no page can
+      # forget.
       - id: actor-model-cost-share
         type: share
         title: admin-usage-actors-actorId.actor-model-cost-share.title
         subtitle: admin-usage-actors-actorId.actor-model-cost-share.subtitle
         span: 1
         metric: cost
+        options:
+          link: /admin/usage/models/:key
         query:
           scope: $type
           scope_id: $actorId
@@ -919,6 +927,7 @@ pages:
         metric: requests
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: $type
           scope_id: $actorId
@@ -934,6 +943,7 @@ pages:
         metric: cost
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: $type
           scope_id: $actorId
@@ -949,6 +959,7 @@ pages:
         metric: tokens
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: $type
           scope_id: $actorId
@@ -1023,12 +1034,15 @@ pages:
           bucket: auto
           limit: 2000
 
+      # Segments are anchors into the model page, same drill path the actor page's share offers.
       - id: channel-model-cost-share
         type: share
         title: admin-usage-channels-channelId.channel-model-cost-share.title
         subtitle: admin-usage-channels-channelId.channel-model-cost-share.subtitle
         span: 1
         metric: cost
+        options:
+          link: /admin/usage/models/:key
         query:
           scope: all
           group_by:

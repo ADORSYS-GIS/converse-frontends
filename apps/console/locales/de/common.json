@@ -9,6 +9,22 @@
     "expand-panel": "{{title}} vergrößern",
     "back-to-usage": "← Nutzung"
   },
+  "controls": {
+    "row-view": "Ansicht",
+    "row-filters": "Filter",
+    "window": "Zeitraum",
+    "slice": "Ausschnitt",
+    "scope": "Bereich",
+    "report": "Bericht",
+    "paging": "Zeilen pro Seite",
+    "per-page": "Pro Seite",
+    "search": "Suche",
+    "search-projects": "Projekt finden…",
+    "reset": "Filter zurücksetzen"
+  },
+  "page": {
+    "overview": "Übersicht"
+  },
   "pagination": {
     "showing-of-total": "{{shown}} von {{total}} {{unit}} angezeigt",
     "per-page": "{{shown}} von {{pageSize}} {{unit}} pro Seite",

@@ -10,8 +10,6 @@ import type { ProjectsLedgerProps } from './types';
 function makeProps(overrides: Partial<ProjectsLedgerProps> = {}): ProjectsLedgerProps {
   return {
     projects: projectsFixture,
-    search: '',
-    onSearchChange: vi.fn(),
     onSelectRow: vi.fn(),
     ...overrides,
   };
@@ -24,7 +22,7 @@ describe('ProjectsLedger', () => {
     expect(screen.getByText('gateway-prod')).toBeInTheDocument();
   });
 
-  it('renders no Account column — every row is already scoped to one account by the toolbar filter', () => {
+  it('renders no Account column — every row is already scoped to one account by the control row', () => {
     render(<ProjectsLedger {...makeProps()} />);
 
     expect(screen.queryByRole('columnheader', { name: 'Account' })).not.toBeInTheDocument();
@@ -96,20 +94,15 @@ describe('ProjectsLedger', () => {
     expect(onSortChange).toHaveBeenCalledWith({ key: 'name', direction: 'asc' });
   });
 
-  it('renders the search field, left of any filters slot', () => {
-    const onSearchChange = vi.fn();
-    render(<ProjectsLedger {...makeProps({ search: 'gate', onSearchChange })} />);
+  // 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): the search
+  // box and the `filters` slot are gone from this section entirely. They are `PageControls` groups
+  // on the floor above the `Card`, so what this section renders inside it is the table and its
+  // pager — content, no controls.
+  it('renders no toolbar of its own — no search box, no filter slot', () => {
+    const { container } = render(<ProjectsLedger {...makeProps()} />);
 
-    const input = screen.getByLabelText('Search');
-    expect(input).toHaveValue('gate');
-    fireEvent.change(input, { target: { value: 'gateway' } });
-    expect(onSearchChange).toHaveBeenCalledWith('gateway');
-  });
-
-  it('renders the filters slot', () => {
-    render(<ProjectsLedger {...makeProps({ filters: <button type="button">Status</button> })} />);
-
-    expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
+    expect(container.querySelector('input')).toBeNull();
   });
 
   it('renders EmptyState (with its CTA) instead of the table for a true empty collection', () => {

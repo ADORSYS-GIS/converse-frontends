@@ -31,6 +31,7 @@ import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { BottomSheet } from '../components/bottom-sheet';
 import { EmptyState } from '../components/empty-state';
+import { Field } from '../components/field';
 import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
@@ -51,6 +52,7 @@ import {
   scopeProjects,
   scopeSelectValue,
 } from '../components/scope-select/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
@@ -206,24 +208,56 @@ function ProjectsScreen({
           }}
         />
 
+        {/* Filters on the floor, above the card (ADR 0015 amendment A2) — the ledger's own
+            toolbar is gone. */}
+        <PageControls
+          onReset={
+            filtersActive
+              ? () => {
+                  setSearch('');
+                  setStatusValue('all');
+                  setBudgetStateValue('all');
+                }
+              : undefined
+          }
+          groups={[
+            {
+              id: 'search',
+              label: 'Scope',
+              children: (
+                <Field
+                  label="Search"
+                  layout="inline"
+                  hideLabel
+                  placeholder="Find a project…"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ManageControls
+                  statusOptions={manageStatusOptions}
+                  statusValue={statusValue}
+                  onStatusChange={setStatusValue}
+                  budgetStateValue={budgetStateValue}
+                  budgetStateOptions={manageBudgetStateOptions}
+                  onBudgetStateChange={setBudgetStateValue}
+                />
+              ),
+            },
+          ]}
+        />
+
         <Card>
           <ProjectsLedger
             projects={projects}
             loading={loading}
             error={error}
             onRetry={() => {}}
-            search={search}
-            onSearchChange={setSearch}
-            filters={
-              <ManageControls
-                statusOptions={manageStatusOptions}
-                statusValue={statusValue}
-                onStatusChange={setStatusValue}
-                budgetStateValue={budgetStateValue}
-                budgetStateOptions={manageBudgetStateOptions}
-                onBudgetStateChange={setBudgetStateValue}
-              />
-            }
             emptyState={
               filtersActive ? undefined : (
                 <EmptyState

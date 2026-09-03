@@ -132,6 +132,11 @@ export interface ProjectsScreen {
    *  "no matches" line, same "empty collection vs empty result" split `ProjectsLedger`'s own doc
    *  comment draws). */
   filtersActive: boolean;
+  /** Clears search, status and budget state, and returns to page 1 — `PageControls`' own trailing
+   *  affordance, rendered only while {@link ProjectsScreen.filtersActive}. Account SCOPE is not
+   *  touched: it is owned by the sidebar's workspace switcher, and "reset filters" must not
+   *  silently move the reader to a different account. */
+  resetFilters: () => void;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
   /** Closes the row-detail surface (rail at `lg`+, `BottomSheet` below it) — clears `?row=`. */
@@ -147,12 +152,12 @@ export interface ProjectsScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  /** `ManageControls` — the table-scoped status/budget-state filter cluster, rendered in
-   *  `ProjectsLedger`'s own toolbar now (2026-08-30: moved off `PageHeader.controls`, where phase
-   *  3 had put it, alongside the ledger's own search field). No longer carries an Account field
-   *  (live findings #6, 2026-08-30) — that duplicated the sidebar workspace switcher, which owns
-   *  account scope exclusively now. */
-  filters: Omit<ManageControlsProps, 'className'>;
+  /** `ManageControls` — the status/budget-state filter cluster. A `PageControls` group on the
+   *  floor since 2026-09-03 (ADR 0015 amendment A2 — filters are outside cards); it was
+   *  `ProjectsLedger`'s own in-card toolbar before that, and `PageHeader.controls` before that. No
+   *  Account field (live findings #6, 2026-08-30) — that duplicated the sidebar workspace switcher,
+   *  which owns account scope exclusively. */
+  filters: ManageControlsProps;
   /** `ReportExportDialog` — opened from the `Monthly report` button in `PageHeader.action`
    *  (shell revamp phase 3: replaces the deleted right rail's MONTHLY REPORT section). */
   report: ReportExportDialogProps;
@@ -318,6 +323,9 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     },
     filtersActive:
       Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
+    resetFilters: () => {
+      void setView({ search: '', status: 'all', budgetState: 'all', page: 1 });
+    },
     selectedProject,
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);

@@ -65,15 +65,19 @@ export interface PlatformRoleGrantsProps {
   error?: string;
   onRetry?: () => void;
 
-  /** `''` means "every role" — the filter's own all-values sentinel, not a role. */
-  roleFilter: string;
-  onRoleFilterChange: (role: string) => void;
-  /** The deployment's platform-role catalogue, in the order the console states it. */
-  roles: readonly string[];
-
-  /** Off = active grants only, the "who can do what right now" view. On = the audit view. */
-  includeRevoked: boolean;
-  onIncludeRevokedChange: (includeRevoked: boolean) => void;
+  /**
+   * Whether the audit view is on — a DISPLAY flag here, not a control: it decides whether the
+   * `Revoked` column is drawn at all (a column reading "—" on every row of the default view is
+   * noise). The switch that writes it is `PlatformRoleGrantsControls`, a `PageControls` group on
+   * the floor (ADR 0015 amendment A2 — filters are outside cards).
+   */
+  includeRevoked?: boolean;
+  /**
+   * Whether ANY filter is currently narrowing the list. Zero rows under a filter is an empty
+   * RESULT (an `InlineStatus`, table kept); zero rows with no filter is an empty COLLECTION (an
+   * `EmptyState`). Only the caller knows which, now that the filters live a row above this card.
+   */
+  filtered?: boolean;
 
   /** Opens the revoke confirmation for this row. Omitted from an already-revoked row. */
   onRequestRevoke: (row: PlatformRoleGrantRow) => void;

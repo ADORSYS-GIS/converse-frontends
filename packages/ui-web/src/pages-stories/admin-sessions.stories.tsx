@@ -15,8 +15,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { BottomSheet } from '../components/bottom-sheet';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
+import { SelectField } from '../components/select-field';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import {
+  DEFAULT_SESSION_PAGE_SIZES,
   SessionLedger,
   SessionDetailPanel,
   SessionLedgerControls,
@@ -87,25 +90,64 @@ function AdminSessionsScreen({
         <PageHeader
           title="Sessions"
           subtitle={`${visible.length} session${visible.length === 1 ? '' : 's'} on this page`}
-          controls={
-            <SessionLedgerControls
-              status={statusFilter}
-              onStatusChange={setStatusFilter}
-              kind={kind}
-              onKindChange={setKind}
-              search={search}
-              onSearchChange={setSearch}
-              userOptions={
-                search.length >= 2
-                  ? [{ value: 'acc_5f2b81c07d3e', label: 'Maria Okonkwo · maria@brightline.dev' }]
-                  : []
-              }
-              selectedUser={user}
-              onSelectedUserChange={setUser}
-              pageSize={pageSize}
-              onPageSizeChange={setPageSize}
-            />
+        />
+
+        <PageControls
+          onReset={
+            statusFilter !== 'active' || kind !== 'all' || search !== '' || user !== ''
+              ? () => {
+                  setStatusFilter('active');
+                  setKind('all');
+                  setSearch('');
+                  setUser('');
+                }
+              : undefined
           }
+          groups={[
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <SessionLedgerControls
+                  status={statusFilter}
+                  onStatusChange={setStatusFilter}
+                  kind={kind}
+                  onKindChange={setKind}
+                  search={search}
+                  onSearchChange={setSearch}
+                  userOptions={
+                    search.length >= 2
+                      ? [
+                          {
+                            value: 'acc_5f2b81c07d3e',
+                            label: 'Maria Okonkwo · maria@brightline.dev',
+                          },
+                        ]
+                      : []
+                  }
+                  selectedUser={user}
+                  onSelectedUserChange={setUser}
+                />
+              ),
+            },
+            {
+              id: 'paging',
+              label: 'Rows per page',
+              align: 'end',
+              children: (
+                <SelectField
+                  label="Per page"
+                  layout="inline"
+                  value={String(pageSize)}
+                  options={DEFAULT_SESSION_PAGE_SIZES.map((size) => ({
+                    value: String(size),
+                    label: String(size),
+                  }))}
+                  onChange={(next) => setPageSize(Number(next))}
+                />
+              ),
+            },
+          ]}
         />
 
         <Card>
@@ -116,12 +158,6 @@ function AdminSessionsScreen({
             onRetry={() => {}}
             status={status}
             emptyMessage="No sessions match these filters."
-            onResetFilters={() => {
-              setStatusFilter('active');
-              setKind('all');
-              setSearch('');
-              setUser('');
-            }}
             selectedSessionId={selectedId}
             onSelectSession={(row) => setSelectedId(row.id)}
             pagination={{

@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { cn } from '../../cn';
 import { Field } from '../../components/field';
 import { SegmentedControl } from '../../components/segmented-control';
 import { SelectField } from '../../components/select-field';
@@ -30,8 +29,7 @@ const KIND_OPTIONS = [
  * The values are the caller's business — `apps/console` owns the URL contract
  * (`SESSION_PAGE_SIZES` in `client/url-state.ts`, capped at `querySessions`' own clamp of 100) and
  * passes them in. This list is the DEFAULT so a story or a second embedder does not have to
- * restate three numbers to render the control; a caller that offers a different set passes
- * `pageSizeOptions`.
+ * restate three numbers to render the control.
  */
 export const DEFAULT_SESSION_PAGE_SIZES = [25, 50, 100] as const;
 
@@ -53,17 +51,23 @@ export interface SessionLedgerControlsProps {
   /** The picked person's subject, or `''` for "no user filter". */
   selectedUser: string;
   onSelectedUserChange: (subject: string) => void;
-  /** Rows per `querySessions` call — the `?limit=` in the URL. */
-  pageSize: number;
-  onPageSizeChange: (pageSize: number) => void;
-  /** The sizes offered. Defaults to {@link DEFAULT_SESSION_PAGE_SIZES}. */
-  pageSizeOptions?: readonly number[];
-  className?: string;
 }
 
 /**
- * `/admin/sessions`' filters, mounted in `PageHeader.controls` — the same horizontal cluster
- * `ApiKeysControls` established, never a rail (there is no rail on any `/admin/*` route).
+ * `/admin/sessions`' FILTERS — status, kind, and the two-control user picker.
+ *
+ * 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): a FRAGMENT, not
+ * a `<section>` with its own flex row, dropped into one `PageControlsGroup` by the container. Two
+ * things left this component in the same change:
+ *
+ *  - its own `flex flex-wrap items-end gap-3` — that row is `PageControls` now, and the same four
+ *    utilities were spelled in four sibling `*Controls` files;
+ *  - **page size**, which was never a filter. It changes how much of the same set you see, never
+ *    which set, and it wore `sm:ms-auto` precisely to hold itself apart from the three real
+ *    filters beside it. It is its own trailing `PageControls` group now
+ *    (`admin-sessions-centre.tsx`), which is what that `ms-auto` was trying to say. The sizes
+ *    themselves stay here as {@link DEFAULT_SESSION_PAGE_SIZES}, since the vocabulary is this
+ *    ledger's, not the row's.
  *
  * The user filter is TWO controls on purpose. The text box is the query `searchUsers` runs; the
  * select beside it is which of the matches the ledger is actually filtered by. They are separate
@@ -83,15 +87,9 @@ export function SessionLedgerControls({
   userOptions,
   selectedUser,
   onSelectedUserChange,
-  pageSize,
-  onPageSizeChange,
-  pageSizeOptions = DEFAULT_SESSION_PAGE_SIZES,
-  className,
 }: SessionLedgerControlsProps) {
   return (
-    <section
-      aria-label="Session filters"
-      className={cn('flex flex-wrap items-end gap-3', className)}>
+    <>
       <SegmentedControl
         aria-label="Session status filter"
         options={STATUS_OPTIONS}
@@ -128,23 +126,6 @@ export function SessionLedgerControls({
           onChange={onSelectedUserChange}
         />
       ) : null}
-
-      {/* Page size, NOT a fourth filter — it changes how much of the same set you see, never
-          which set. Three reasons it is a labelled `SelectField` rather than a third
-          `SegmentedControl`: a third 3-cell strip would put nine identical-looking cells in one
-          row and make the two real filters harder to find; "25 | 50 | 100" carries no meaning
-          without a word beside it (the one case `SelectField`'s `hideLabel` doc explicitly
-          excludes — "a select's chosen option already says what it is" is true of a person's
-          name, not of a bare number); and `ms-auto` pushes it to the trailing edge so the
-          filter cluster stays one visual group instead of four peers. */}
-      <SelectField
-        label="Per page"
-        layout="inline"
-        className="sm:ms-auto"
-        value={String(pageSize)}
-        options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
-        onChange={(next) => onPageSizeChange(Number(next))}
-      />
-    </section>
+    </>
   );
 }

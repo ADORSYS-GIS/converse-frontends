@@ -202,6 +202,14 @@ export interface ApiKeysScreen {
   setStatusFilter: (value: string) => void;
   search: string;
   setSearch: (value: string) => void;
+  /** Whether a status or search filter is currently narrowing the ledger. Project SCOPE is not a
+   *  filter (it is identity-adjacent, owned by the sidebar's switcher and the header's project
+   *  select) and deliberately does not count — `Reset filters` must not silently re-scope the
+   *  screen to a different project. */
+  filtersActive: boolean;
+  /** Clears status and search, and returns to page 1. Rendered as `PageControls`' own trailing
+   *  affordance, only while {@link ApiKeysScreen.filtersActive}. */
+  resetFilters: () => void;
 }
 
 export function useApiKeysScreen(): ApiKeysScreen {
@@ -231,11 +239,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
   );
 
   const filters = useMemo(() => {
-    const active: Array<
+    const active: (
       | ApiKeysFilter
       | { field: 'status'; operator: 'eq'; value: string }
       | { field: 'name'; operator: 'contains'; value: string }
-    > = [...(accountFilters ?? [])];
+    )[] = [...(accountFilters ?? [])];
     if (view.status !== 'all') {
       active.push({ field: 'status', operator: 'eq' as const, value: view.status });
     }
@@ -635,6 +643,10 @@ export function useApiKeysScreen(): ApiKeysScreen {
     search: view.search,
     setSearch: (search) => {
       void setView({ search, page: 1 });
+    },
+    filtersActive: view.status !== 'all' || view.search.trim().length > 0,
+    resetFilters: () => {
+      void setView({ status: 'all', search: '', page: 1 });
     },
   };
 }

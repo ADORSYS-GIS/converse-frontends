@@ -8,9 +8,6 @@ import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { Pagination } from '../../components/pagination';
 import { RowActionGroup } from '../../components/row-action-group';
-import { SelectField } from '../../components/select-field';
-import { Toggle } from '../../components/toggle';
-import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { RequesterLines } from '../../lib/requester-lines';
 import { META_CLASS } from '../../lib/type-roles';
 import { GRANT_AUTHOR_CLI_LABEL } from './types';
@@ -41,11 +38,18 @@ function GrantAuthorCell({ author }: { author: PlatformGrantAuthor }) {
 /**
  * `/admin/roles`' ledger: who holds which platform role, who granted it, when, and why.
  *
- * The toolbar carries the two knobs the backend's own filter supports and nothing invented beside
- * them — a role filter and `includeRevoked`. The "Grant role" primary is NOT here: it is the
- * screen's action and lives in `PageHeader.action`, the same split `+ New key` and `+ New project`
- * already use, so the card holds exactly toolbar + table + pager (console-ui skill "Card is the
- * default zone container", supplied by the container).
+ * 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): THE TOOLBAR IS
+ * GONE from this card. The two knobs the backend's own filter supports — a role filter and
+ * `includeRevoked` — are `PlatformRoleGrantsControls` now, a fragment the container drops into a
+ * `PageControls` group on the floor. What is left in the card is the table, its caption and its
+ * pager. The "Grant role" primary was never here either: it is `PageHeader.action`, the same split
+ * `+ New key` and `+ New project` already use.
+ *
+ * This section keeps `filtered` (a boolean, not the filter values) because the two zero-row
+ * readings are different statements and only the caller knows which applies — and it now says so
+ * as an `InlineStatus` above a still-rendered table rather than as a centred placard, which is the
+ * console's rule for an empty RESULT (the `Reset filters` affordance that pairs with it lives in
+ * the same `PageControls` row as the filters themselves).
  *
  * **The Revoked column appears only when revoked rows can be present.** A `Status` column reading
  * "Active" on every row of the default view is noise that says nothing; when `includeRevoked` is
@@ -60,11 +64,8 @@ export function PlatformRoleGrants({
   loadingRowCount = 5,
   error,
   onRetry,
-  roleFilter,
-  onRoleFilterChange,
-  roles,
-  includeRevoked,
-  onIncludeRevokedChange,
+  includeRevoked = false,
+  filtered = false,
   onRequestRevoke,
   identityStatus,
   pagination,
@@ -134,41 +135,25 @@ export function PlatformRoleGrants({
     },
   ];
 
-  // A true empty COLLECTION versus an empty FILTER are different statements, and the toolbar above
-  // is what tells them apart — so the explainer names the filter when one is applied.
-  const filtered = roleFilter !== ALL_ROLES || includeRevoked;
+  // A true empty COLLECTION versus an empty FILTER are different statements, and only the caller
+  // knows which applies now that the filters themselves live a row above this card.
   const isEmpty = !loading && !error && grants.length === 0;
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      <div className={INLINE_ROW_CLASS}>
-        <SelectField
-          label="Role"
-          layout="inline"
-          value={roleFilter}
-          options={[
-            { value: ALL_ROLES, label: 'All roles' },
-            ...roles.map((role) => ({ value: role, label: role })),
-          ]}
-          onChange={onRoleFilterChange}
-        />
-        <Toggle
-          label="Include revoked"
-          checked={includeRevoked}
-          onCheckedChange={onIncludeRevokedChange}
-        />
-      </div>
-
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />
+      ) : isEmpty && filtered ? (
+        // An empty RESULT: the filters are what emptied it, and `PageControls`' own `Reset
+        // filters` is the way back — an inline line, never a placard.
+        <InlineStatus>
+          No grants match this filter. Clear the role filter, or include revoked grants, to widen
+          the view.
+        </InlineStatus>
       ) : isEmpty ? (
         <EmptyState
-          headline={filtered ? 'No grants match this filter' : 'No platform roles are granted'}
-          explainer={
-            filtered
-              ? 'Clear the role filter, or include revoked grants, to widen the view.'
-              : 'Every signed-in person holds whatever their account membership maps to. Grant a platform role to give someone more than that.'
-          }
+          headline="No platform roles are granted"
+          explainer="Every signed-in person holds whatever their account membership maps to. Grant a platform role to give someone more than that."
         />
       ) : (
         <>

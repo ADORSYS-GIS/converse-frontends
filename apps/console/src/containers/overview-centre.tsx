@@ -17,7 +17,8 @@ import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { useAccountId } from '../client/use-account-id';
-import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAccountOverviewZones } from './use-account-overview-zones';
 import { useDashboardLabels } from './use-dashboard-labels';
@@ -69,6 +70,8 @@ export interface OverviewCentreProps {
 }
 
 export function OverviewCentre({ page }: OverviewCentreProps) {
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const accountId = useAccountId();
   const [view, setView] = useOverviewParams();
   const zones = useAccountOverviewZones();
@@ -98,7 +101,7 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
   });
 
   const subtitle = zones.scopeAccountLabel
-    ? `${zones.scopeAccountLabel} · ${zones.scopeProjectLabel} · ${RANGE_LABELS[view.range]} · UTC`
+    ? `${zones.scopeAccountLabel} · ${zones.scopeProjectLabel} · ${labels[view.range]} · ${tCommon('timezone.utc')}`
     : undefined;
 
   return (
@@ -109,8 +112,8 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
         controls={
           <div className="flex flex-wrap items-end gap-3">
             <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
+              label={tCommon('range.label')}
+              presets={rangePresets(tCommon)}
               preset={view.from && view.to ? null : view.range}
               value={{ from: window.start, to: window.end }}
               onPresetChange={(range) => {
@@ -139,7 +142,7 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
             route={page.route}
             title="Overview"
             range={view.range}
-            rangeLabel={RANGE_LABELS[view.range]}
+            rangeLabel={labels[view.range]}
             window={window}
             from={view.from}
             to={view.to}

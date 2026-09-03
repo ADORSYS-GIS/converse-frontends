@@ -2,6 +2,8 @@
 
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+
+import { useTranslation } from '../../../../i18n/client';
 import { SessionLedger } from '@lightbridge/ui-web/src/sections/session-ledger';
 
 /**
@@ -18,9 +20,10 @@ import { SessionLedger } from '@lightbridge/ui-web/src/sections/session-ledger';
  * flickering between two different "active" cells on every navigation.
  */
 export default function AdminSessionsLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Sessions" subtitle="loading sessions…" />
+      <PageHeader title={t('sessions.title')} subtitle={t('sessions.loading')} />
 
       <Card>
         <SessionLedger sessions={[]} loading loadingRowCount={8} emptyMessage="" />

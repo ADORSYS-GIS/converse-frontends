@@ -6,6 +6,8 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme';
 
 import { Providers } from '../client/providers';
+import { loadLocaleBundle } from '../i18n/resources';
+import { getServerLocale } from '../i18n/server';
 import { chunkCookieName } from '../server/cookie-names';
 import { serverEnv } from '../server/env';
 import { readSession } from '../server/session-store';
@@ -79,6 +81,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const staleSessionTarget = await redirectTargetForStaleSession(session);
   if (staleSessionTarget) redirect(staleSessionTarget);
 
+  // ADR 0017 (i18n). The locale is resolved ONCE per request, here, from the `lb.locale` cookie
+  // then `Accept-Language` then `en` — there is no `/[locale]/…` path segment (ADR 0013 keeps
+  // console paths stable), so this layout is the only place that resolution can happen. It sits
+  // AFTER the stale-session redirect on purpose: a request that is about to be bounced to
+  // `/auth/login` renders nothing, so loading a message bundle for it would be work thrown away.
+  // The whole bundle for the resolved locale then travels down with the tree, so the client
+  // instance initializes SYNCHRONOUSLY and the first client paint is already translated (see
+  // `i18n/client.tsx`).
+  const locale = await getServerLocale();
+  const messages = await loadLocaleBundle(locale);
   const sessionResponse: SessionResponse = session
     ? {
         authenticated: true,
@@ -109,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // warn): browser extensions inject attributes like `data-google-analytics-opt-out` on <html>
     // before React hydrates, and Next dev re-logs the false mismatch on every render -- the same
     // reason it also covers the no-flash script below setting `data-theme` pre-hydration.
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Blocking (no `async`/`defer`) and first in `<head>`: runs before any paint, so
             `data-theme` is already correct by the time the stylesheet's `[data-theme]` rules
@@ -141,7 +153,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `ssr: false`-dynamic, so the query string is readable on the server render too. It is
             not a store: the URL is the state, this only wires the reads and writes to it. */}
         <NuqsAdapter>
-          <Providers session={sessionResponse} hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
+          <Providers
+            session={sessionResponse}
+            hasLogo={hasLogo}
+            hasLogoLight={hasLogoLight}
+            locale={locale}
+            messages={messages}>
             {children}
           </Providers>
         </NuqsAdapter>

@@ -15,7 +15,9 @@ import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { ADMIN_USAGE_ROUTE } from '../dashboards/usage-routes';
-import { RANGE_DAYS, RANGE_LABELS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 
 /**
  * `/admin/usage/channels/[channelId]` — ONE OAuth client's usage, rendered entirely from
@@ -32,12 +34,6 @@ import { RANGE_DAYS, RANGE_LABELS, resolveOverviewWindow, toUrlDate } from './ov
  * engine already uses for estate windows (decision D-F, owner Q8).
  */
 
-const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
-}));
-
 export interface AdminUsageChannelCentreProps {
   /** The validated `/admin/usage/channels/[channelId]` entry from `dashboards.yaml`. */
   page: DashboardPageSpec;
@@ -46,6 +42,9 @@ export interface AdminUsageChannelCentreProps {
 }
 
 export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCentreProps) {
+  const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const [view, setView] = useAdminUsageWindowParams();
 
   const window = useMemo(
@@ -74,11 +73,14 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
     <div className="flex flex-col gap-6">
       <PageHeader
         title={channelId}
-        subtitle={`Channel · OAuth client (azp) · Every account · ${RANGE_LABELS[view.range]} · UTC`}
+        subtitle={t('usage.channel.subtitle', {
+          range: labels[view.range],
+          timezone: tCommon('timezone.utc'),
+        })}
         controls={
           <DateRangeField
-            label="Range"
-            presets={RANGE_PRESETS}
+            label={tCommon('range.label')}
+            presets={rangePresets(tCommon)}
             preset={view.from && view.to ? null : view.range}
             value={{ from: window.start, to: window.end }}
             onPresetChange={(range) => {
@@ -98,13 +100,13 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
               size="sm"
               nativeButton={false}
               render={<Link href={ADMIN_USAGE_ROUTE} />}>
-              ← Usage
+              {tCommon('actions.back-to-usage')}
             </Button>
             <DashboardExportButton
               route={page.route}
               title={channelId}
               range={view.range}
-              rangeLabel={RANGE_LABELS[view.range]}
+              rangeLabel={labels[view.range]}
               window={window}
               from={view.from}
               to={view.to}

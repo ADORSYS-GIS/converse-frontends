@@ -5,6 +5,7 @@ import { Button } from '../../components/button';
 import { Card } from '../../components/card';
 import { cn } from '../../cn';
 import { DIALOG_BACKDROP_CLASS, DIALOG_POPUP_CLASS, DIALOG_TITLE_CLASS } from '../../lib/dialog';
+import { fillCopy, useCopy } from '../../lib/copy';
 import { ExpandIcon } from '../../lib/icons';
 import { META_CLASS } from '../../lib/type-roles';
 import { usePanelHotkey } from '../../lib/use-panel-hotkey';
@@ -51,6 +52,9 @@ export function DashboardPanel({
   className,
 }: DashboardPanelProps) {
   const rootRef = useRef<HTMLElement>(null);
+  // The zoom affordance's accessible name (ADR 0017's ui-web copy contract) — English unless a
+  // consumer mounts a `CopyProvider`.
+  const copy = useCopy();
   const [internalExpanded, setInternalExpanded] = useState(false);
   const isControlled = expanded !== undefined;
   const isExpanded = isControlled ? expanded : internalExpanded;
@@ -124,7 +128,7 @@ export function DashboardPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={`Expand ${title}`}
+                  aria-label={fillCopy(copy.expandPanel, { title })}
                   onClick={openExpanded}>
                   <ExpandIcon />
                 </Button>

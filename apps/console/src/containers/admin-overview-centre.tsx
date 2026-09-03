@@ -17,8 +17,8 @@ import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
-import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
-import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
@@ -66,8 +66,11 @@ export interface AdminOverviewCentreProps {
 }
 
 export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
+  const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const [view, setView] = useAdminOverviewParams();
   const operations = useAdminEstateOperations();
+  const labels = rangeLabels(tCommon);
 
   const window = useMemo(
     () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
@@ -88,12 +91,15 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Overview"
-        subtitle={`Operator · All accounts with usage this period · ${RANGE_LABELS[view.range]} · UTC`}
+        title={t('overview.title')}
+        subtitle={t('overview.subtitle', {
+          range: labels[view.range],
+          timezone: tCommon('timezone.utc'),
+        })}
         controls={
           <DateRangeField
-            label="Range"
-            presets={RANGE_PRESETS}
+            label={tCommon('range.label')}
+            presets={rangePresets(tCommon)}
             preset={view.from && view.to ? null : view.range}
             value={{ from: window.start, to: window.end }}
             onPresetChange={(range) => {
@@ -114,9 +120,9 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
         action={
           <DashboardExportButton
             route={page.route}
-            title="Overview"
+            title={t('overview.title')}
             range={view.range}
-            rangeLabel={RANGE_LABELS[view.range]}
+            rangeLabel={labels[view.range]}
             window={window}
             from={view.from}
             to={view.to}
@@ -124,8 +130,13 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
         }
       />
 
-      {operations.truncationCaption ? (
-        <InlineStatus>{operations.truncationCaption}</InlineStatus>
+      {operations.truncation ? (
+        <InlineStatus>
+          {t('overview.pressure-truncated', {
+            shown: operations.truncation.shown,
+            total: operations.truncation.total,
+          })}
+        </InlineStatus>
       ) : null}
 
       {/* The two RPC-backed zones. Plain `Card`s rather than `DashboardPanel`s: each already
@@ -139,14 +150,16 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
             status={operations.budgetPressureStatus}
             errorMessage={operations.budgetPressureError}
             onRetry={operations.onRetryBudgetPressure}
-            emptyMessage="No account with a readable budget ceiling drew anything this period."
+            emptyMessage={t('overview.no-budget-pressure')}
           />
         </Card>
 
         {operations.worstBudgetPressureAccount ? (
           <Card data-span="2">
             <SpendDashboard
-              label={`Budget burn-down — ${operations.worstBudgetPressureAccount.name}`}
+              label={t('overview.burn-down-label', {
+                account: operations.worstBudgetPressureAccount.name,
+              })}
               series={operations.worstAccountBurnDown}
               cumulative
               ceiling={operations.worstBudgetPressureAccount.ceiling}
@@ -170,7 +183,11 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
             cards={operations.refillStatCards}
             loading={operations.refillStatCardsLoading}
           />
-          <InlineStatus className="mt-2">{REFILL_DECISIONS_UNAVAILABLE_CAPTION}</InlineStatus>
+          <InlineStatus className="mt-2">{t('overview.decisions-unavailable')}</InlineStatus>
+          {/* Still English: `budgetPeriodCaption` (converse-frontends#479) composes its sentence
+              from a cadence clause, a relative "next …" phrase and a per-mode tick clause, which is
+              a genuinely harder i18n shape than a template with placeholders. It is named in
+              ADR 0017's "What is not translated yet" rather than half-translated here. */}
           <InlineStatus className="mt-1">{operations.budgetPeriodCaption}</InlineStatus>
         </div>
       </DashboardGrid>

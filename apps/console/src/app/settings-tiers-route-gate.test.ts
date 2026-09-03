@@ -4,6 +4,11 @@ import { join } from 'node:path';
 
 import { settingsNavGroups } from '../client/console-chrome';
 import { PERMISSION } from '../shared/permissions';
+import { englishT } from '../test/english-t';
+
+/** Real English copy, resolved from the shipped bundle — see `englishT`'s own doc comment for
+ *  why this is not a `(key) => key` stub. */
+const NAV_T = englishT('nav');
 
 /**
  * `/settings/tiers` — "Tier configs", gated on `project:update` (owner ruling, 2026-09-03,
@@ -76,7 +81,7 @@ describe('the /settings/tiers permission gate', () => {
   });
 
   it('hides the row from a viewer, exactly as the route hides the page', () => {
-    const [group] = settingsNavGroups('overview', VIEWER_PERMISSIONS);
+    const [group] = settingsNavGroups('overview', VIEWER_PERMISSIONS, NAV_T);
     expect(group.items.find((item) => item.key === 'tiers')).toBeUndefined();
     // Omitted, never disabled — the included-or-omitted contract every gated row in the chrome
     // follows, because a visible row here would advertise a URL the segment above answers 404 for.
@@ -84,7 +89,7 @@ describe('the /settings/tiers permission gate', () => {
   });
 
   it('keeps the row for an editor, who can actually change a tier', () => {
-    const [group] = settingsNavGroups('overview', EDITOR_PERMISSIONS);
+    const [group] = settingsNavGroups('overview', EDITOR_PERMISSIONS, NAV_T);
     const tiers = group.items.find((item) => item.key === 'tiers');
 
     expect(tiers?.href).toBe('/settings/tiers');

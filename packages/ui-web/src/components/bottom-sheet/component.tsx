@@ -2,10 +2,11 @@ import React from 'react';
 import { Drawer } from '@base-ui/react/drawer';
 
 import { cn } from '../../cn';
+import { useCopy } from '../../lib/copy';
+import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from '../../lib/overlay';
+import { META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import type { BottomSheetProps } from './types';
-import { META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
-import { OVERLAY_BACKDROP_CLASS, OVERLAY_CLASS } from '../../lib/overlay';
 
 // Contract: docs/design/console-redesign/README.md §4 BottomSheet / ADR 0009 Decision 6 — one
 // drawer primitive for the console, no hand-rolled sheets. That primitive is Base UI's Drawer
@@ -41,6 +42,8 @@ export function BottomSheet({
   className,
   portalClassName,
 }: BottomSheetProps) {
+  // `Close`'s accessible name comes from the copy context (ADR 0017's ui-web contract).
+  const copy = useCopy();
   const titleLabel = title ? (
     <Drawer.Title className={SECTION_TITLE_CLASS}>{title}</Drawer.Title>
   ) : (
@@ -48,7 +51,10 @@ export function BottomSheet({
   );
 
   return (
-    <Drawer.Root open={open} onOpenChange={(nextOpen) => onOpenChange(nextOpen)} swipeDirection="down">
+    <Drawer.Root
+      open={open}
+      onOpenChange={(nextOpen) => onOpenChange(nextOpen)}
+      swipeDirection="down">
       <Drawer.Portal className={portalClassName}>
         <Drawer.Backdrop className={OVERLAY_BACKDROP_CLASS} />
         {/* The viewport is Base UI's swipe and scroll-lock host and is required around the popup,
@@ -64,7 +70,9 @@ export function BottomSheet({
             <div className="sheet-header">
               <div className="sheet-header-title">
                 {titleLabel}
-                {subtitle ? <Drawer.Description className={META_CLASS}>{subtitle}</Drawer.Description> : null}
+                {subtitle ? (
+                  <Drawer.Description className={META_CLASS}>{subtitle}</Drawer.Description>
+                ) : null}
               </div>
               <div className="sheet-header-actions">
                 {/* Addition E (2026-08-30 owner round): "primary action (Rename) as a small
@@ -76,7 +84,8 @@ export function BottomSheet({
                     That pair is `sheet-header`'s, not this call site's: it is what the header's
                     trailing control IS, and stating it here made a two-part treatment that only
                     ever appears inside this one header look like a prop of the button. */}
-                <Drawer.Close render={<Button variant="ghost" size="icon" aria-label="Close" />}>
+                <Drawer.Close
+                  render={<Button variant="ghost" size="icon" aria-label={copy.close} />}>
                   ×
                 </Drawer.Close>
               </div>

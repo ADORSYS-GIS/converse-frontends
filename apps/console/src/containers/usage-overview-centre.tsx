@@ -11,8 +11,9 @@ import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
-import { familyAccountIds, familyTruncationCaption } from './account-family';
-import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { useTranslation } from '../i18n/client';
+import { familyAccountIds, familyTruncationCap } from './account-family';
+import { rangeLabels, rangePresets } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useDashboardLabels } from './use-dashboard-labels';
 
@@ -46,7 +47,7 @@ import { useDashboardLabels } from './use-dashboard-labels';
  * BUDGET card, its API-key expiry reading and its refill CTA are RPCs against a billing period, not
  * usage queries over this range — and `getMyBudgetBalance` structurally answers for one account.
  * Summing 25 ceilings would invent an allowance nobody granted; showing one would label it as the
- * family's. `ACCOUNT_ONLY_ZONES_CAPTION` below says so where the absence is, and points at the
+ * family's. `ACCOUNT_ONLY_ZONES_CAPTION_KEY` below says so where the absence is, and points at the
  * per-account page that does answer it.
  *
  * **No Export action here, and that is a decision rather than an omission.** C10's
@@ -62,12 +63,10 @@ import { useDashboardLabels } from './use-dashboard-labels';
 /**
  * Why this page carries every usage panel `/accounts/<id>/overview` has and none of its
  * budget-shaped ones — stated once, on the page, where a reader would otherwise notice an absence
- * and guess at it.
+ * and guess at it. The sentence itself lives in the `settings` bundle (ADR 0017); this is the KEY,
+ * so the two exports that used to be one constant stay one thing to change.
  */
-export const ACCOUNT_ONLY_ZONES_CAPTION =
-  'Budget, API-key expiry and refills are per-account and are not on this page: a ceiling belongs ' +
-  'to one account’s budget period, so a family has no single figure to state. Open an account’s ' +
-  'own overview for those.';
+export const ACCOUNT_ONLY_ZONES_CAPTION_KEY = 'usage-overview.account-only-zones';
 
 export interface UsageOverviewCentreProps {
   /** The validated `/settings/overview/usage` entry, read by the route's server component. */
@@ -75,6 +74,9 @@ export interface UsageOverviewCentreProps {
 }
 
 export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
+  const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const scope = useConsoleScope();
   const [view, setView] = useSettingsOverviewParams();
   const localLabels = useDashboardLabels();
@@ -89,7 +91,9 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
     [scope.allAccounts]
   );
   const includedIds = useMemo(() => familyAccountIds(allAccountIds), [allAccountIds]);
-  const truncationCaption = familyTruncationCaption(allAccountIds.length);
+  // The CAP, not a finished sentence: the caption is copy and belongs in the bundle, while
+  // "did we truncate, and at what number" is the fact `account-family.ts` owns.
+  const truncatedAt = familyTruncationCap(allAccountIds.length);
 
   const knobs = useDashboardKnobs(page);
 
@@ -104,12 +108,15 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Usage overview"
-        subtitle={`Your account family · ${RANGE_LABELS[view.range]} · UTC`}
+        title={t('usage-overview.title')}
+        subtitle={t('usage-overview.subtitle', {
+          range: labels[view.range],
+          timezone: tCommon('timezone.utc'),
+        })}
         controls={
           <DateRangeField
-            label="Range"
-            presets={RANGE_PRESETS}
+            label={tCommon('range.label')}
+            presets={rangePresets(tCommon)}
             preset={view.from && view.to ? null : view.range}
             value={{ from: window.start, to: window.end }}
             onPresetChange={(range) => {
@@ -124,9 +131,16 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
         }
       />
 
-      {truncationCaption ? <InlineStatus>{truncationCaption}</InlineStatus> : null}
+      {truncatedAt !== null ? (
+        <InlineStatus>
+          {t('usage-overview.family-truncated', {
+            cap: truncatedAt,
+            total: allAccountIds.length,
+          })}
+        </InlineStatus>
+      ) : null}
 
-      <InlineStatus>{ACCOUNT_ONLY_ZONES_CAPTION}</InlineStatus>
+      <InlineStatus>{t(ACCOUNT_ONLY_ZONES_CAPTION_KEY)}</InlineStatus>
 
       <DashboardRenderer state={dashboard} />
     </div>

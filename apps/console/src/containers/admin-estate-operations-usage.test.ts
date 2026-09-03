@@ -4,13 +4,13 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import {
   budgetPressureAccountIds,
-  budgetPressureTruncationCaption,
+  budgetPressureTruncation,
   buildEstateMtdRequest,
   estateAccountLabel,
-  REFILL_DECISIONS_UNAVAILABLE_CAPTION,
   splitResponseByAccount,
   summarizeMtdSpend,
 } from './admin-estate-operations-usage';
+import { englishT } from '../test/english-t';
 
 /**
  * The surviving half of `admin-overview-usage.test.ts` (converse-frontends#447, story C4). The
@@ -179,26 +179,35 @@ describe('budgetPressureAccountIds', () => {
   });
 });
 
-describe('budgetPressureTruncationCaption', () => {
-  it('is undefined when nothing was truncated', () => {
+describe('budgetPressureTruncation', () => {
+  it('is null when nothing was truncated', () => {
     expect(
-      budgetPressureTruncationCaption({ ids: ['acct_1'], totalCandidates: 1, truncated: false })
-    ).toBeUndefined();
+      budgetPressureTruncation({ ids: ['acct_1'], totalCandidates: 1, truncated: false })
+    ).toBeNull();
   });
 
   it('states the real candidate total when truncated', () => {
-    const caption = budgetPressureTruncationCaption({
-      ids: ['acct_1', 'acct_2'],
-      totalCandidates: 5,
-      truncated: true,
-    });
-    expect(caption).toContain('Showing budget pressure for 2 of 5 accounts');
+    expect(
+      budgetPressureTruncation({ ids: ['acct_1', 'acct_2'], totalCandidates: 5, truncated: true })
+    ).toEqual({ shown: 2, total: 5 });
+  });
+
+  // ADR 0017 split the FACT above from the SENTENCE, which now lives in the `admin` bundle. The
+  // wording is still pinned, one layer over: a truncation the page failed to state would be a
+  // silently short reading, which is exactly what this pair exists to prevent.
+  it('has a caption that names both numbers', () => {
+    expect(englishT('admin')('overview.pressure-truncated', { shown: 2, total: 5 })).toContain(
+      'Showing budget pressure for 2 of 5 accounts'
+    );
   });
 });
 
-describe('REFILL_DECISIONS_UNAVAILABLE_CAPTION', () => {
+describe('the refill-decisions honesty caption', () => {
   it('names the real backend gap rather than hiding the missing board', () => {
-    expect(REFILL_DECISIONS_UNAVAILABLE_CAPTION).toContain('lightbridge-authz#556');
-    expect(REFILL_DECISIONS_UNAVAILABLE_CAPTION).toContain('pending queue');
+    // Moved into the `admin` bundle by ADR 0017 (`overview.decisions-unavailable`); the claim it
+    // has to keep making is unchanged.
+    const caption = englishT('admin')('overview.decisions-unavailable');
+    expect(caption).toContain('lightbridge-authz#556');
+    expect(caption).toContain('pending queue');
   });
 });

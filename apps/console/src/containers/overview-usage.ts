@@ -9,6 +9,7 @@ import type { ShareBarSegment } from '@lightbridge/ui-web/src/components/share-b
 import type { OVERVIEW_GROUP_BYS, OVERVIEW_RANGES } from '../client/url-state';
 import { microUsdToUsd } from '../server/consumption-csv';
 import { apiKeysAccountFilters, type ApiKeysFilter } from './api-key-rows';
+import type { Translate } from '../i18n/config';
 
 /**
  * The console's shared usage-query vocabulary: how a `?range=`/`?from=`/`?to=` selection becomes
@@ -80,22 +81,38 @@ export function resolveOverviewWindow(
 }
 
 /**
+ * Is `raw` one of the four presets? The membership check `parseRange` needs, kept separate from
+ * the WORDING below because validating a URL param must not depend on a locale — a `?range=7d`
+ * link written by a German-reading operator has to parse identically for an English-reading one.
+ */
+export function isOverviewRange(raw: string | null | undefined): raw is OverviewRange {
+  return raw != null && (['mtd', '7d', '30d', '90d'] as readonly string[]).includes(raw);
+}
+
+/**
  * How a range preset is WORDED — the sentence a page's subtitle and a report's header both state.
  *
  * Lives here, in the module that already owns `OverviewRange`/`resolveOverviewWindow`, because
  * converse-frontends#453 needs it on the SERVER (the export route has no screen hook to read it
- * from) and a fifth private copy would be a fifth thing to keep in step. The four container hooks
- * that still declare their own identical copy (`use-overview-screen.ts`,
- * `use-admin-overview-screen.ts`, `use-usage-overview-screen.ts`,
- * `use-settings-overview-screen.ts`) are deleted by the `dashboards.yaml` migration (C4/C12);
- * this is where the surviving definition lives.
+ * from) and a fifth private copy would be a fifth thing to keep in step.
+ *
+ * ADR 0017 makes it a FUNCTION rather than the module-level `Record` it was: the labels are copy, and copy
+ * cannot be a module constant once the console speaks two languages — a constant is resolved once
+ * at import time, before any request has a locale. Every caller already had a `t` in hand (the
+ * containers through `useTranslation`, the report route through `getServerTranslation`), so this
+ * is one argument, not a new dependency for anyone.
+ *
+ * The KEYS are `OverviewRange`'s own values, so the map stays total by construction and a preset
+ * the picker can offer but the URL parser would reject still cannot exist.
  */
-export const RANGE_LABELS: Record<OverviewRange, string> = {
-  mtd: 'This month',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-};
+export function rangeLabels(t: Translate): Record<OverviewRange, string> {
+  return {
+    mtd: t('range.mtd'),
+    '7d': t('range.7d'),
+    '30d': t('range.30d'),
+    '90d': t('range.90d'),
+  };
+}
 
 /** `YYYY-MM-DD` in UTC — the form `from`/`to` take in the URL. */
 export function toUrlDate(date: Date): string {

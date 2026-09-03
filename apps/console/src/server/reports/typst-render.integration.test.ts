@@ -13,6 +13,7 @@ import { buildReport } from './report-data';
 import { collectTemplateAssets } from './template-assets';
 import { readTemplateLibrary, resolveReportTemplate } from './template-resolver';
 import { renderPdf, type RenderAsset } from './typst-client';
+import { englishT } from '../../test/english-t';
 
 /**
  * The end-to-end render, against a REAL `typst-render` (converse-frontends#453's integration test
@@ -115,6 +116,8 @@ function usagePage() {
   );
 
   return buildReport({
+    t: englishT('reports'),
+    locale: 'en',
     resolved,
     responses,
     title: 'Admin · Usage',
@@ -151,6 +154,8 @@ function overviewPage(branding?: ReportBranding) {
   );
 
   return buildReport({
+    t: englishT('reports'),
+    locale: 'en',
     resolved,
     responses,
     title: 'Admin · Overview',
@@ -246,6 +251,7 @@ describe('typst-render — the real thing', () => {
     if (!reachable) return;
 
     const document = buildConsumptionReport({
+      t: englishT('reports'),
       rows: [
         {
           projectId: 'prj_alpha',

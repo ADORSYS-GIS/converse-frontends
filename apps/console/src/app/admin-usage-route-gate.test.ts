@@ -35,13 +35,15 @@ describe('the /admin/usage permission gate', () => {
   it('reads its panel list server-side and fails LOUD on a missing entry', () => {
     const source = read(USAGE_SEGMENT);
 
-    // `loadDashboards()` is `node:fs` and prefers the config-volume override (owner ruling Q11), so
-    // it can only run in the server component.
-    expect(source).toContain('loadDashboards()');
-    expect(source).toContain('findPage(loadDashboards(), ADMIN_USAGE_ROUTE)');
-    // A missing entry throws rather than rendering an empty dashboard — this page IS its YAML
-    // entry, so there is nothing to fall back to.
-    expect(source).toContain('throw new Error(');
+    // `dashboardPage()` wraps `loadDashboards()` — `node:fs`, preferring the config-volume
+    // override (owner ruling Q11) — so it can only run in the server component, and it is
+    // fail-loud by contract: a missing entry throws with the route named rather than rendering an
+    // empty dashboard. ADR 0017 made it the shared helper for all six dashboard routes (it also
+    // resolves the entry's i18n keys against the request's locale), replacing the hand-copied
+    // `findPage` + `throw` this file used to pin per route — the throw is asserted once, on the
+    // helper itself, below.
+    expect(source).toContain('await dashboardPage(ADMIN_USAGE_ROUTE)');
+    expect(read(join('src', 'dashboards', 'page-entry.ts'))).toContain('throw new Error(');
   });
 
   it('links to the page from the admin nav, which is never rendered for a non-admin', () => {

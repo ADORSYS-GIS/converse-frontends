@@ -10,6 +10,7 @@ import {
 } from '@lightbridge/ui-web/src/sections/session-ledger';
 
 import { SESSION_PAGE_SIZES } from '../client/url-state';
+import { useTranslation } from '../i18n/client';
 import { useAdminSessionsScreen } from './use-admin-sessions-screen';
 
 /**
@@ -31,14 +32,15 @@ import { useAdminSessionsScreen } from './use-admin-sessions-screen';
  * carrying a stale confirmation onto a different session.
  */
 export function AdminSessionsCentre() {
+  const { t } = useTranslation('admin');
   const screen = useAdminSessionsScreen();
 
   return (
     <>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Sessions"
-          subtitle={`${screen.pagination.shown} session${screen.pagination.shown === 1 ? '' : 's'} on this page`}
+          title={t('sessions.title')}
+          subtitle={t('sessions.subtitle', { count: screen.pagination.shown })}
           controls={
             <SessionLedgerControls
               status={screen.statusFilter}
@@ -78,7 +80,7 @@ export function AdminSessionsCentre() {
         onOpenChange={(open) => {
           if (!open) screen.clearSelection();
         }}
-        title="Session"
+        title={t('sessions.sheet-title')}
         subtitle={screen.detail?.id}>
         {screen.detail ? (
           <SessionDetailPanel

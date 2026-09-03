@@ -18,6 +18,7 @@ import { CONSOLE_DIALOGS, useAdminRolesParams, useUrlDialog } from '../client/ur
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { PLATFORM_ROLES } from '../shared/permissions';
 import { grantIdentityIdsOf, toPlatformRoleGrantRow } from './role-grant-rows';
+import { useTranslation } from '../i18n/client';
 
 /**
  * `/admin/roles` — the platform-role grant directory's data adapter (converse-frontends#452,
@@ -81,6 +82,7 @@ export interface AdminRolesScreen {
 }
 
 export function useAdminRolesScreen(): AdminRolesScreen {
+  const { t } = useTranslation('admin');
   const client = useConsoleAuthzClient();
   const queryClient = useQueryClient();
   const session = useConsoleSession();
@@ -241,7 +243,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
         revoke.data.revokedSessionCount === 1 ? '' : 's'
       } closed, so the change applies now.`
     : grant.data
-      ? `Granted ${grant.data.role} · it reaches them at their next token mint.`
+      ? t('roles.granted', { role: grant.data.role })
       : undefined;
 
   return {
@@ -249,7 +251,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       grants: rows,
       loading: grantsQuery.isPending,
       loadingRowCount: 6,
-      error: grantsQuery.isError ? 'Could not load platform role grants.' : undefined,
+      error: grantsQuery.isError ? t('roles.load-failed') : undefined,
       onRetry: () => void grantsQuery.refetch(),
       roleFilter: view.role,
       onRoleFilterChange: (next) => {
@@ -292,7 +294,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       minQueryLength: USER_SEARCH_MIN_LENGTH,
       results,
       searching: searchEnabled && searchQuery.isPending,
-      searchError: searchQuery.isError ? 'User search is unavailable.' : undefined,
+      searchError: searchQuery.isError ? t('roles.search-unavailable') : undefined,
       selectedUser,
       onSelectUser: setSelectedUser,
       role,

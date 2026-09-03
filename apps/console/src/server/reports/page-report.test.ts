@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { resetDashboardsCache } from '../../dashboards/load-dashboards';
+import { englishT } from '../../test/english-t';
 import {
   deriveReportTitle,
   knownReportRoutes,
@@ -25,6 +26,8 @@ function resolve(path: string | null, params: Record<string, string> = {}) {
     to: params.to ?? null,
     param: (name) => params[name] ?? null,
     now: NOW,
+    t: englishT('common'),
+    tDashboards: englishT('dashboards'),
   });
 }
 

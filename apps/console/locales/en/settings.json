@@ -1,0 +1,109 @@
+{
+  "area": {
+    "title": "Settings",
+    "loading": "Loading…"
+  },
+  "info": {
+    "title": "Info",
+    "subtitle": "Build, configuration and session diagnostics",
+    "console-entry": {
+      "label": "Console",
+      "description": "this app"
+    },
+    "backend": {
+      "title": "Backend configuration",
+      "backend-path": "Backend API path",
+      "budget-path": "Budget API path",
+      "usage-backend": "Usage backend",
+      "not-configured": "Not configured"
+    },
+    "session": {
+      "title": "Session",
+      "signed-in-as": "Signed in as",
+      "subject": "Subject",
+      "roles": "Roles",
+      "no-roles": "None"
+    },
+    "client": {
+      "title": "Client state",
+      "theme-preference": "Theme preference",
+      "active-theme": "Active theme",
+      "language": "Language",
+      "connectivity": "Connectivity",
+      "online": "Online",
+      "offline": "Offline · cached data"
+    }
+  },
+  "tiers": {
+    "title": "Tier configs",
+    "billing-plans": "Billing plans",
+    "no-billing-plans": "No billing plans are configured.",
+    "plan-id": "Plan id",
+    "limits": "Limits",
+    "assigned-tiers": "Assigned quota tiers",
+    "no-account-selected": "Select an account to see its assigned quota tiers.",
+    "no-catalogue-note": "No quota-tier catalogue exists to pick from yet — only assigned tiers are shown, never a picker (lightbridge-authz#572)."
+  },
+  "policies": {
+    "title": "Project policies"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "count_one": "{{count}} account",
+    "count_other": "{{count}} accounts",
+    "new-account": "+ New account",
+    "detail": {
+      "fallback-title": "Account",
+      "budget": "Budget",
+      "ceiling-line": "{{ceiling}} budget ceiling this period",
+      "request-refill": "Request refill…",
+      "members": "Members"
+    },
+    "projects": {
+      "title": "Projects",
+      "loading": "loading account…"
+    },
+    "request-refill": {
+      "title": "Request a budget refill",
+      "loading": "loading scope…"
+    }
+  },
+  "overview": {
+    "lens": {
+      "account": "Account overview",
+      "project": "Project overview",
+      "user": "Your usage"
+    },
+    "no-project-selected": "No project selected",
+    "project-field": {
+      "label": "Project",
+      "placeholder": "Select a project…"
+    },
+    "select-project": "Select a project above to see its usage.",
+    "resolving-identity": "Resolving your identity…",
+    "burn-down": {
+      "label": "Budget burn-down this period",
+      "caption": "Measured over the billing period, not the range picked above — a ceiling is a fact about this calendar month.",
+      "series": "This account"
+    },
+    "pressure": {
+      "label": "Budget pressure",
+      "note": "Each bar is the project’s draw on the account’s single ceiling for this billing period. Projects have no ceiling of their own — a project’s quota is a governance tier, not a currency amount — so this ranks pressure, it does not report per-project headroom."
+    },
+    "hygiene": {
+      "title": "Key hygiene",
+      "caveat": "Counted over the first {{shown}} of {{total}} keys in this account — the rest are beyond this page."
+    },
+    "unassigned": "Unassigned"
+  },
+  "usage-overview": {
+    "title": "Usage overview",
+    "subtitle": "Your account family · {{range}} · {{timezone}}",
+    "family-truncated": "Showing the top {{cap}} of {{total}} accounts.",
+    "account-only-zones": "Budget, API-key expiry and refills are per-account and are not on this page: a ceiling belongs to one account’s budget period, so a family has no single figure to state. Open an account’s own overview for those."
+  },
+  "resolver": {
+    "load-failed": "Could not load your accounts.",
+    "finding-account": "Finding your account…"
+  }
+}

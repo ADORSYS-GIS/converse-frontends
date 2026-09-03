@@ -6,6 +6,13 @@ import { parse as parseYaml } from 'yaml';
 // would certify a page nobody ships. This is a DATA import; nothing here imports `apps/console`
 // code, so the package dependency direction is unchanged (see `src/vite-raw-imports.d.ts`).
 import dashboardsYaml from '../../../../apps/console/dashboards.yaml?raw';
+// ADR 0017: `dashboards.yaml` carries i18n KEYS for `title`/`subtitle`/`rowLabel`/`unit`, and the
+// console's engine resolves them per request. A story has no request, so it resolves against the
+// SOURCE-OF-TRUTH bundle, English — the same file `locales/en/dashboards.json` the console reads.
+// Reading the real bundle rather than restating the copy keeps the "the fixture path IS the YAML"
+// property intact for the copy as well as for the structure: a renamed key surfaces here as a
+// visible key on the card, not as a story quietly certifying stale wording.
+import dashboardsEn from '../../../../apps/console/locales/en/dashboards.json';
 
 import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
@@ -105,6 +112,24 @@ function readDimension(query: unknown, options: Record<string, unknown>): string
   return Array.isArray(groupBy) && groupBy.length > 0 ? String(groupBy[0]) : undefined;
 }
 
+/**
+ * `admin-overview.estate-spend.title` -> the English string, or the key itself when the bundle has
+ * no entry for it.
+ *
+ * Returning the KEY on a miss is deliberate and matches i18next's own behaviour in the console: an
+ * untranslated panel shows a dotted path on the card, which a reviewer cannot miss. A silent
+ * fallback to the id, or to an empty string, would let a missing key ship.
+ */
+function englishCopy(key: string): string {
+  const parts = key.split('.');
+  let node: unknown = dashboardsEn;
+  for (const part of parts) {
+    if (typeof node !== 'object' || node === null) return key;
+    node = (node as Record<string, unknown>)[part];
+  }
+  return typeof node === 'string' ? node : key;
+}
+
 export function readPages(text: string = dashboardsYaml): SpecPage[] {
   const document = parseYaml(text) as { pages?: unknown } | null;
   const pages = Array.isArray(document?.pages) ? document.pages : [];
@@ -125,11 +150,12 @@ export function readPages(text: string = dashboardsYaml): SpecPage[] {
         return {
           id: String(p.id),
           type,
-          title: String(p.title),
-          subtitle: p.subtitle === undefined ? undefined : String(p.subtitle),
+          title: englishCopy(String(p.title)),
+          subtitle: p.subtitle === undefined ? undefined : englishCopy(String(p.subtitle)),
           span: p.span === 2 ? 2 : 1,
-          rowLabel: options.rowLabel === undefined ? undefined : String(options.rowLabel),
-          unit: options.unit === undefined ? undefined : String(options.unit),
+          rowLabel:
+            options.rowLabel === undefined ? undefined : englishCopy(String(options.rowLabel)),
+          unit: options.unit === undefined ? undefined : englishCopy(String(options.unit)),
           columns: Array.isArray(options.columns) ? options.columns.map(String) : undefined,
           lens: options.lens === undefined ? undefined : String(options.lens),
           metric: p.metric === undefined ? undefined : String(p.metric),

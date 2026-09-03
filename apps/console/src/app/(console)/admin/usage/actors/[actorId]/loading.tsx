@@ -1,7 +1,11 @@
+'use client';
+
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+
+import { useTranslation } from '../../../../../../i18n/client';
 
 /**
  * `/admin/usage/actors/[actorId]` — the App Router `loading.tsx` Suspense fallback (the route
@@ -16,9 +20,10 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 const PANEL_SPANS = [1, 1, 2, 1, 1, 1, 1, 1, 1];
 
 export default function AdminUsageActorLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Actor" subtitle="loading this actor’s usage…" />
+      <PageHeader title={t('usage.actor.fallback-title')} subtitle={t('usage.actor.loading')} />
 
       <DashboardGrid>
         {PANEL_SPANS.map((span, index) => (

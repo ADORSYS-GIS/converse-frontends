@@ -22,7 +22,7 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
  * usage API has no bulk per-account spend summary — filed as `lightbridge-authz#578`. Until it
  * lands, a family page takes the first `MAX_FANNED_OUT_ACCOUNTS` accounts in whatever order
  * `GET /accounts` returns them (real accounts, a real if not spend-ranked selection, never
- * fabricated) and says so plainly through `familyTruncationCaption` rather than claiming a ranking
+ * fabricated) and says so plainly through `familyTruncationCap` + its caption rather than claiming a ranking
  * it cannot honestly produce.
  */
 export const MAX_FANNED_OUT_ACCOUNTS = 25;
@@ -35,14 +35,21 @@ export function familyAccountIds(
   return allAccountIds.slice(0, cap);
 }
 
-/** e.g. "Showing the top 25 of 61 accounts." — `undefined` when nothing was actually dropped, so a
- *  page never renders a caption apologising for a truncation that did not happen. */
-export function familyTruncationCaption(
+/**
+ * The cap a page actually truncated at, or `null` when nothing was dropped — so a page never
+ * renders a caption apologising for a truncation that did not happen.
+ *
+ * ADR 0017 turned this from a caption builder into a FACT: the sentence
+ * ("Showing the top 25 of 61 accounts.") is copy and lives in `settings:usage-overview.
+ * family-truncated`, while whether-and-at-what-number is the only part this module can decide. A
+ * pure module returning an English sentence would have been the one string on the page a German
+ * reader still met in English.
+ */
+export function familyTruncationCap(
   totalAccounts: number,
   cap: number = MAX_FANNED_OUT_ACCOUNTS
-): string | undefined {
-  if (totalAccounts <= cap) return undefined;
-  return `Showing the top ${cap} of ${totalAccounts} accounts.`;
+): number | null {
+  return totalAccounts <= cap ? null : cap;
 }
 
 /** One account's slice of a fanned-out or estate-wide usage response — the shape

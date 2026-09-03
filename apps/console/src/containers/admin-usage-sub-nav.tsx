@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { ADMIN_USAGE_CHATS_ROUTE, ADMIN_USAGE_ROUTE } from '../dashboards/usage-routes';
+import { useTranslation } from '../i18n/client';
 
 /**
  * The horizontal tab row under `/admin/usage`'s own header — Estate and Chats
@@ -26,6 +27,7 @@ import { ADMIN_USAGE_CHATS_ROUTE, ADMIN_USAGE_ROUTE } from '../dashboards/usage-
  * have no tab that could be `active`, which is worse than none.
  */
 export function AdminUsageSubNav() {
+  const { t } = useTranslation('nav');
   // `usePathname()` reads `null` outside a mounted app router (a container-level test with no
   // router context) rather than throwing — normalized so `active` degrades to "nothing is active"
   // instead of crashing, the same guard `AccountDetailSubNav` carries.
@@ -34,13 +36,13 @@ export function AdminUsageSubNav() {
   const items: SubNavItem[] = [
     {
       key: 'estate',
-      label: 'Estate',
+      label: t('sub-nav.usage-estate'),
       href: ADMIN_USAGE_ROUTE,
       active: pathname === ADMIN_USAGE_ROUTE,
     },
     {
       key: 'chats',
-      label: 'Chats',
+      label: t('sub-nav.usage-chats'),
       href: ADMIN_USAGE_CHATS_ROUTE,
       active: pathname.startsWith(ADMIN_USAGE_CHATS_ROUTE),
     },

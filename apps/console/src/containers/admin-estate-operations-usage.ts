@@ -156,23 +156,19 @@ export function budgetPressureAccountIds(
   };
 }
 
-/** The zone's truncation caption — only rendered when the cap actually dropped real candidates.
- *  `undefined` when nothing was truncated. */
-export function budgetPressureTruncationCaption(
-  estate: BudgetPressureAccountIdsResult
-): string | undefined {
-  if (!estate.truncated) return undefined;
-  return (
-    `Showing budget pressure for ${estate.ids.length} of ${estate.totalCandidates} accounts ` +
-    'with usage this period or in your account family.'
-  );
-}
-
 /**
- * Dashboard 5's honesty caption, unchanged by the migration: the refill zone states a queue depth
- * and nothing else, because `listPendingAugmentationRequests` is a PENDING-only read path and
- * there is no procedure anywhere that lists DECIDED requests or their decision timestamps.
+ * The zone's truncation FACT — `{shown, total}` when the cap actually dropped real candidates, and
+ * `null` when nothing was truncated so a page never renders a caption apologising for a truncation
+ * that did not happen.
+ *
+ * ADR 0017 turned this from a caption builder into a pair of numbers. The sentence lives in
+ * `admin:overview.pressure-truncated`; what this pure module can decide is only whether-and-by-how-
+ * much, and a pure module returning an English sentence would have been one line of the operator
+ * dashboard that a German reader still met in English.
  */
-export const REFILL_DECISIONS_UNAVAILABLE_CAPTION =
-  'Decision history and median time to decision are not available — the budget service only ' +
-  'exposes the pending queue, not a listing of past decisions (lightbridge-authz#556).';
+export function budgetPressureTruncation(
+  estate: BudgetPressureAccountIdsResult
+): { shown: number; total: number } | null {
+  if (!estate.truncated) return null;
+  return { shown: estate.ids.length, total: estate.totalCandidates };
+}

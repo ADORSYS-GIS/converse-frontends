@@ -21,6 +21,7 @@ import {
 import { renderPdf, type RenderAsset } from '../../../../server/reports/typst-client';
 import { fetchUsageQueries } from '../../../../server/reports/usage-fetch';
 import { clearSession, writeSession } from '../../../../server/session-store';
+import { getServerTranslation } from '../../../../i18n/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -163,6 +164,10 @@ export async function GET(request: NextRequest) {
   }
   const branding = resolveReportBranding(serverEnv().branding);
 
+  // ADR 0017: the document is read by a person — often the person paying the bill — so its
+  // headings follow the reader's own locale, resolved per request like every other server render.
+  const { t } = await getServerTranslation(undefined, 'reports');
+
   const document = buildConsumptionReport({
     rows,
     month,
@@ -171,6 +176,7 @@ export async function GET(request: NextRequest) {
     templateOrigin: template.origin,
     generatedAt: new Date(),
     branding: branding.branding,
+    t,
   });
 
   const library = readTemplateLibrary();

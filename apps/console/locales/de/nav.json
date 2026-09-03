@@ -1,0 +1,47 @@
+{
+  "brand": {
+    "home": "Lightbridge — zur Konsolen-Startseite"
+  },
+  "group": {
+    "workspace": "Arbeitsbereich",
+    "account": "Konto",
+    "operator": "Betrieb"
+  },
+  "item": {
+    "overview": "Übersicht",
+    "api-keys": "API-Schlüssel",
+    "settings": "Einstellungen",
+    "admin": "Administration",
+    "accounts": "Konten",
+    "tiers": "Tarifstufen",
+    "policies": "Projektrichtlinien",
+    "info": "Info",
+    "usage": "Nutzung",
+    "refills-queue": "Aufladungs-Warteschlange",
+    "refill-policies": "Aufladungsrichtlinien",
+    "budget-schedules": "Guthaben-Zeitpläne",
+    "sessions": "Sitzungen",
+    "roles": "Rollen"
+  },
+  "footer": {
+    "back-to-console": "Zurück zur Konsole",
+    "search": "Suchen",
+    "theme": "Design",
+    "sign-out": "Abmelden"
+  },
+  "palette": {
+    "navigate": "Navigieren",
+    "scope": "Kontext",
+    "actions": "Aktionen",
+    "admin-overview": "Administrations-Übersicht",
+    "role-hint": "ROLLE",
+    "sign-out": "Abmelden"
+  },
+  "sub-nav": {
+    "account-overview": "Übersicht",
+    "account-projects": "Projekte",
+    "account-request-refill": "Aufladung anfragen",
+    "usage-estate": "Gesamtbestand",
+    "usage-chats": "Chats"
+  }
+}

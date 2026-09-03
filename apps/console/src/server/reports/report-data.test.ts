@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import { findPage } from '../../dashboards/dashboard-spec';
+import { translateDashboardPage } from '../../dashboards/page-entry';
+import { englishT } from '../../test/english-t';
 import { loadDashboards } from '../../dashboards/load-dashboards';
 import { resolveDashboard, type ResolvedDashboard } from '../../dashboards/resolve-dashboard';
 import { buildReport } from './report-data';
@@ -63,11 +65,19 @@ const ALL_FAILED: MakeResponses = (resolved) => resolved.queries.map(() => null)
 function build(makeResponses: MakeResponses, includeTables = true) {
   const page = findPage(loadDashboards(), '/admin/usage');
   if (!page) throw new Error('fixture page missing from dashboards.yaml');
-  const resolved = resolveDashboard({ page, window: WINDOW, filters: { lens: 'user' } });
+  // ADR 0017: `dashboards.yaml` carries i18n keys, and the report route resolves them against the
+  // reader's own locale before building the document. English here, the same as on screen.
+  const resolved = resolveDashboard({
+    page: translateDashboardPage(page, englishT('dashboards')),
+    window: WINDOW,
+    filters: { lens: 'user' },
+  });
   return {
     page,
     resolved,
     built: buildReport({
+      t: englishT('reports'),
+      locale: 'en',
       resolved,
       responses: makeResponses(resolved),
       title: 'Admin · Usage',

@@ -1,0 +1,47 @@
+{
+  "brand": {
+    "home": "Lightbridge — go to console home"
+  },
+  "group": {
+    "workspace": "Workspace",
+    "account": "Account",
+    "operator": "Operator"
+  },
+  "item": {
+    "overview": "Overview",
+    "api-keys": "API keys",
+    "settings": "Settings",
+    "admin": "Admin",
+    "accounts": "Accounts",
+    "tiers": "Tier configs",
+    "policies": "Project policies",
+    "info": "Info",
+    "usage": "Usage",
+    "refills-queue": "Refills queue",
+    "refill-policies": "Refill policies",
+    "budget-schedules": "Budget schedules",
+    "sessions": "Sessions",
+    "roles": "Roles"
+  },
+  "footer": {
+    "back-to-console": "Back to console",
+    "search": "Search",
+    "theme": "Theme",
+    "sign-out": "Sign out"
+  },
+  "palette": {
+    "navigate": "Navigate",
+    "scope": "Scope",
+    "actions": "Actions",
+    "admin-overview": "Admin overview",
+    "role-hint": "ROLE",
+    "sign-out": "Sign out"
+  },
+  "sub-nav": {
+    "account-overview": "Overview",
+    "account-projects": "Projects",
+    "account-request-refill": "Request refill",
+    "usage-estate": "Estate",
+    "usage-chats": "Chats"
+  }
+}

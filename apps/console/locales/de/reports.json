@@ -1,0 +1,45 @@
+{
+  "chrome": {
+    "generated": "Erstellt",
+    "template": "Vorlage",
+    "no-rows": "Keine Zeilen in diesem Zeitraum."
+  },
+  "panel": {
+    "unavailable": "Die Daten dieses Panels konnten nicht geladen werden."
+  },
+  "column": {
+    "series": "Reihe",
+    "worst-bucket": "Schlechtestes Intervall",
+    "total": "Gesamt",
+    "share": "Anteil",
+    "name": "Name",
+    "value": "Wert",
+    "model": "Modell",
+    "p50": "p50",
+    "p95": "p95",
+    "p99": "p99",
+    "samples": "Messwerte"
+  },
+  "delta": {
+    "up": "hoch",
+    "down": "runter"
+  },
+  "consumption": {
+    "title": "Verbrauchsbericht",
+    "totals": "Summen",
+    "requests": "Anfragen",
+    "total-tokens": "Token gesamt",
+    "cost": "Kosten",
+    "by-project-model": "Nach Projekt × Modell",
+    "total-row": "GESAMT",
+    "column": {
+      "project": "Projekt",
+      "model": "Modell",
+      "requests": "Anfragen",
+      "prompt-tokens": "Prompt-Token",
+      "completion-tokens": "Antwort-Token",
+      "total-tokens": "Token gesamt",
+      "cost-usd": "Kosten (USD)"
+    }
+  }
+}

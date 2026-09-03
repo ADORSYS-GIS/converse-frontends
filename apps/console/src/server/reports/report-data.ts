@@ -7,6 +7,7 @@ import { toPanelView } from '../../dashboards/panel-adapters';
 import type { ResolvedDashboard } from '../../dashboards/resolve-dashboard';
 import { isChartPanelView, renderPanelSvg } from './panel-svg';
 import type { ReportBranding } from './report-branding';
+import type { Translate } from '../../i18n/config';
 
 /**
  * `data.json` — everything a `.typ` template is allowed to know (converse-frontends#453).
@@ -94,7 +95,27 @@ export interface ReportDocument {
   /** The reader's own "Include tables" choice. Templates honour it; the data is present either
    *  way so a customised template can decide differently for its own route. */
   includeTables: boolean;
+  /**
+   * The template's OWN fixed labels, already translated (ADR 0017).
+   *
+   * A `.typ` template is Typst source with no i18n runtime and no way to reach one — it can read
+   * `data.json` and nothing else — so every word a template prints on its own behalf has to
+   * arrive in the data. That is the whole of the report i18n contract: **the console translates,
+   * the template renders.** It also means an operator's own override
+   * (`${CONSOLE_TEMPLATES_DIR}/<route>/report.typ`) gets translated chrome for free, without
+   * having to know a locale exists — it reads `report.labels.generated` exactly as the shipped
+   * template does.
+   */
+  labels: ReportLabels;
   panels: ReportPanel[];
+}
+
+/** The fixed words `_lib/report.typ` prints that are not data: the header's "Generated", the
+ *  footer's "template", and the empty-table line. */
+export interface ReportLabels {
+  generated: string;
+  template: string;
+  noRows: string;
 }
 
 /** Renders a share as the console's own wording — `<1%` rather than `0%`, which would claim a
@@ -121,13 +142,17 @@ function sum(values: number[]): number {
  * "Include tables" toggle, which is exactly the choice that toggle exists to offer. The rule is
  * unchanged where it applies; this is the medium changing, not the doctrine.
  */
-export function panelTable(view: DashboardPanelView): ReportTable | undefined {
+export function panelTable(
+  view: DashboardPanelView,
+  t: Translate,
+  locale: string
+): ReportTable | undefined {
   switch (view.kind) {
     // A latency series has no honest "share of total" — percentiles do not add up — so it states
     // each series' WORST bucket rather than a sum that would mean nothing.
     case 'latency-series':
       return {
-        columns: ['Series', 'Worst bucket'],
+        columns: [t('column.series'), t('column.worst-bucket')],
         rows: view.series.map((entry) => [
           entry.label,
           `${Math.round(Math.max(0, ...entry.points.map((point) => point.y)))} ms`,
@@ -142,7 +167,7 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
       }));
       const grand = sum(totals.map((entry) => entry.value));
       return {
-        columns: ['Series', 'Total', 'Share'],
+        columns: [t('column.series'), t('column.total'), t('column.share')],
         rows: totals.map((entry) => [
           entry.label,
           format(entry.value),
@@ -154,7 +179,7 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
     case 'ranked': {
       const grand = sum(view.rows.map((row) => Math.max(row.value, 0)));
       return {
-        columns: ['Name', 'Value', 'Share'],
+        columns: [t('column.name'), t('column.value'), t('column.share')],
         rows: view.rows.map((row) => [
           row.label,
           row.formattedValue ?? String(row.value),
@@ -167,7 +192,7 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
     case 'donut': {
       const grand = sum(view.segments.map((segment) => Math.max(segment.value, 0)));
       return {
-        columns: ['Name', 'Value', 'Share'],
+        columns: [t('column.name'), t('column.value'), t('column.share')],
         rows: view.segments.map((segment) => [
           segment.label,
           segment.formattedValue ?? String(segment.value),
@@ -192,7 +217,13 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
 
     case 'latency-cards':
       return {
-        columns: ['Model', 'p50', 'p95', 'p99', 'Samples'],
+        columns: [
+          t('column.model'),
+          t('column.p50'),
+          t('column.p95'),
+          t('column.p99'),
+          t('column.samples'),
+        ],
         rows: view.rows.map((row) => [
           row.model,
           `${Math.round(row.p50Ms)} ms`,
@@ -200,7 +231,8 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
           // `null`/absent is "not enough samples to state a p99", which is not the same fact as
           // `0 ms` — a dash, never a fabricated zero.
           row.p99Ms == null ? '—' : `${Math.round(row.p99Ms)} ms`,
-          row.samples.toLocaleString('en-US'),
+          // The reader's own locale, like every other figure in the document (ADR 0017).
+          row.samples.toLocaleString(locale),
         ]),
       };
 
@@ -210,13 +242,13 @@ export function panelTable(view: DashboardPanelView): ReportTable | undefined {
 }
 
 /** The stat cards a `stat`/`stat-group` panel shows. */
-export function panelStats(view: DashboardPanelView): ReportStat[] | undefined {
+export function panelStats(view: DashboardPanelView, t: Translate): ReportStat[] | undefined {
   if (view.kind === 'stat') {
     return [
       {
         label: view.label,
         value: view.metric,
-        delta: view.delta ? deltaWording(view.delta.direction, view.delta.label) : undefined,
+        delta: view.delta ? deltaWording(view.delta.direction, view.delta.label, t) : undefined,
       },
     ];
   }
@@ -224,7 +256,7 @@ export function panelStats(view: DashboardPanelView): ReportStat[] | undefined {
     return view.stats.map((stat) => ({
       label: stat.label,
       value: stat.metric,
-      delta: stat.delta ? deltaWording(stat.delta.direction, stat.delta.label) : undefined,
+      delta: stat.delta ? deltaWording(stat.delta.direction, stat.delta.label, t) : undefined,
     }));
   }
   return undefined;
@@ -232,8 +264,8 @@ export function panelStats(view: DashboardPanelView): ReportStat[] | undefined {
 
 /** `StatCard`'s glyph is a shape on screen; on paper it is a word, because a lone `▲` beside a
  *  number in a forwarded PDF reads as decoration. Never a colour, on either medium. */
-function deltaWording(direction: 'up' | 'down' | 'flat', label: string): string {
-  const prefix = direction === 'up' ? 'up' : direction === 'down' ? 'down' : '';
+function deltaWording(direction: 'up' | 'down' | 'flat', label: string, t: Translate): string {
+  const prefix = direction === 'up' ? t('delta.up') : direction === 'down' ? t('delta.down') : '';
   return prefix ? `${prefix} ${label}` : label;
 }
 
@@ -249,6 +281,11 @@ export interface BuildReportInput {
   generatedAt: Date;
   /** The configured brand, from `resolveReportBranding`. Omitted when none is configured. */
   branding?: ReportBranding;
+  /** The `reports` namespace bound to THIS request's locale (ADR 0017) — column headers, the
+   *  delta wording, the unavailable line, and the fixed labels the `.typ` templates print. */
+  t: Translate;
+  /** The BCP-47 tag every `toLocaleString` in the document formats against. */
+  locale: string;
 }
 
 export interface BuiltReport {
@@ -286,7 +323,7 @@ export function buildReport(input: BuildReportInput): BuiltReport {
     // point, so this is the same "could not be loaded" branch a failed query already takes.
     const response = panel.queryIndex === undefined ? undefined : input.responses[panel.queryIndex];
     if (!response) {
-      return { ...base, unavailable: 'This panel’s data could not be loaded.' };
+      return { ...base, unavailable: input.t('panel.unavailable') };
     }
 
     const compareResponse =
@@ -317,8 +354,8 @@ export function buildReport(input: BuildReportInput): BuiltReport {
       caption: chart?.caption,
       chart: chart ? panelAssetPath(spec.id) : undefined,
       chartAspect: chart ? chart.width / chart.height : undefined,
-      stats: panelStats(view),
-      table: panelTable(view),
+      stats: panelStats(view, input.t),
+      table: panelTable(view, input.t, input.locale),
     };
   });
 
@@ -336,6 +373,11 @@ export function buildReport(input: BuildReportInput): BuiltReport {
       filters: input.filters,
       template: input.template,
       includeTables: input.includeTables,
+      labels: {
+        generated: input.t('chrome.generated'),
+        template: input.t('chrome.template'),
+        noRows: input.t('chrome.no-rows'),
+      },
       panels,
     },
     assets,

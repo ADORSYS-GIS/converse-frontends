@@ -13,6 +13,17 @@ import {
   ADMIN_USAGE_CHANNEL_ROUTE,
   ADMIN_USAGE_CHATS_ROUTE,
 } from './usage-routes';
+import { englishT } from '../test/english-t';
+import { translateDashboardPage } from './page-entry';
+
+/**
+ * ADR 0017: `dashboards.yaml` carries i18n KEYS for `title`/`subtitle`/`rowLabel`/`unit`, and the
+ * engine resolves them per request. These assertions are about the COPY a reader sees, so they run
+ * the same resolver the server does, bound to English — which makes each of them a check on two
+ * things at once: that the panel still says what it used to say, and that its key still exists in
+ * `locales/en/dashboards.json`.
+ */
+const T = englishT('dashboards');
 
 /**
  * The three `/admin/usage` drill-down entries (converse-frontends#449, story C6).
@@ -40,7 +51,7 @@ function dashboards(): DashboardsFile {
 function pageAt(route: string): DashboardPageSpec {
   const page = findPage(dashboards(), route);
   if (!page) throw new Error(`dashboards.yaml has no "${route}" entry`);
-  return page;
+  return translateDashboardPage(page, T);
 }
 
 const CHAT_OPERATIONS = ['chat_completions', 'responses', 'messages'];

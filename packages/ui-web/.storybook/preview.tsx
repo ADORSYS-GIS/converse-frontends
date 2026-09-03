@@ -34,6 +34,16 @@ const CONSOLE_VIEWPORTS = {
 
 const preview: Preview = {
   parameters: {
+    // Accessibility is a GATE, not a panel (owner directive 2026-09-03, issue #443). `'error'`
+    // makes every story's axe run a FAILING test under `pnpm --filter @lightbridge/ui-web
+    // test:a11y` (`vitest.storybook.config.ts`) as well as a red badge in the addon panel;
+    // `'todo'` — the addon's own suggested first step — would leave violations as warnings nobody
+    // has to act on, which is the panel this directive replaced.
+    //
+    // Note the rule set differs from the jsdom sweep on purpose: this runs in real Chromium, so
+    // `color-contrast` is ENABLED here and is the only place in the repo that can measure it. Both
+    // themes are covered by the two projects in that config, not by per-story light variants.
+    a11y: { test: 'error' },
     backgrounds: { disable: true },
     controls: { expanded: false },
     viewport: { options: CONSOLE_VIEWPORTS },

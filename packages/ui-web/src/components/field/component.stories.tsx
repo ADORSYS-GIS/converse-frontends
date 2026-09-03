@@ -26,7 +26,10 @@ export const Default: Story = {
 export const Focused: Story = {
   render: (args) => (
     <div className="w-[280px]">
-      {/* autoFocus demonstrates the focus → primary border treatment */}
+      {/* autoFocus demonstrates the focus → primary border treatment. Story-only: it is the whole
+          subject of this story, and a Storybook iframe is not a page a user lands on. `Field`
+          itself never sets it. */}
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
       <Field {...args} autoFocus />
     </div>
   ),

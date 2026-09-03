@@ -2,7 +2,29 @@
 
 ## Status
 
-Accepted
+Accepted — **amended 2026-09-03: accessibility joins the baseline gate** (owner directive, issue
+[#443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443)).
+
+This ADR's "Consequences" listed visual regression and broader coverage as explicitly out of scope,
+to follow "once the harness is proven." The harness is proven — 3171 tests across five DOM
+workspaces, a failing CI gate on every one — and the first extension to land is accessibility, on
+the same terms this ADR set for tests: a **failing** gate, not a report.
+
+Three layers, none of them optional, all wired into the same `pnpm lint` / `pnpm test` / CI checks
+this ADR established:
+
+1. `eslint-plugin-jsx-a11y` at `error` for every DOM workspace, in the shared `eslint.config.js`.
+2. `axe-core` (WCAG 2.1 AA) in an automatic `afterEach`, so **every render test is also an
+   accessibility test** with no assertion to remember — the same "no manual claims" principle this
+   ADR applied to verification evidence.
+3. `@storybook/addon-a11y` with `parameters.a11y.test = 'error'`, every story in real Chromium in
+   both themes, in its own CI job — the one place colour contrast can be measured.
+
+What this ADR said about evidence now reads across unchanged: an accessibility claim on a PR means
+a green gate, not an assertion that someone looked at the addon panel.
+
+Full stack, exceptions policy and the measured findings:
+`docs/knowledge/accessibility.md`.
 
 ## Context
 

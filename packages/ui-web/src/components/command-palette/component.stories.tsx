@@ -180,7 +180,12 @@ export const Filtering: Story = {
   name: 'Typing filters both groups down to matches',
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
+    // `.ownerDocument.body`, not `canvasElement`, in every play in this file: the palette is a
+    // cmdk/Radix DIALOG and its content is PORTALLED to `document.body`, outside the story canvas.
+    // A `within(canvasElement)` query can never see it. The browser-mode a11y run
+    // (`vitest.storybook.config.mts`) is what surfaced this — all four plays failed with "Unable
+    // to find an element with the placeholder text".
+    const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.type(canvas.getByPlaceholderText('Jump to a page or run an action…'), 'key');
 
     await waitFor(() => {
@@ -196,7 +201,7 @@ export const NoResults: Story = {
   name: 'An unmatched query shows the empty message, not an empty list',
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
+    const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.type(
       canvas.getByPlaceholderText('Jump to a page or run an action…'),
       'nonexistent-command'
@@ -210,7 +215,7 @@ export const KeyboardOnlyNavigation: Story = {
   name: 'Arrow keys move selection, Enter fires the selected item — no pointer involved',
   render: () => <KeyboardOnlyNavigationHarness />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
+    const canvas = within(canvasElement.ownerDocument.body);
     const input = canvas.getByPlaceholderText('Jump to a page or run an action…');
     await userEvent.click(input);
     // First item (Overview) is selected by default; move down to Api-Keys.
@@ -227,7 +232,7 @@ export const KeyboardOnlyNavigation: Story = {
 export const EscapeCloses: Story = {
   render: () => <ControlledPalette initialOpen onSelect={fn()} />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
+    const canvas = within(canvasElement.ownerDocument.body);
     expect(canvas.getByPlaceholderText('Jump to a page or run an action…')).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');

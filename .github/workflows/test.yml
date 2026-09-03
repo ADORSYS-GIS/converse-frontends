@@ -10,6 +10,48 @@ permissions:
   contents: read
 
 jobs:
+  # The BROWSER half of the accessibility gate (#443). Its own job, not a step on `test`, for one
+  # reason: it needs a real Chromium. Folding it into `Unit tests` would put a ~150 MB Playwright
+  # download on the critical path of a job that runs in seconds, and would merge two distinctly
+  # attributable failures into one red X — the same argument `typecheck` makes below.
+  #
+  # The jsdom half needs nothing extra: it is an `afterEach` inside the ordinary suites and already
+  # runs in `test`. Both halves, plus the eslint-plugin-jsx-a11y half, are mapped in
+  # docs/knowledge/accessibility.md.
+  a11y:
+    name: Accessibility (Storybook, both themes)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `--with-deps` installs the shared libraries headless Chromium needs on a bare
+      # `ubuntu-latest` image; `chromium` alone, because `vitest.storybook.config.mts` asks for
+      # exactly one browser and pulling Firefox and WebKit as well would triple the download for
+      # nothing. The version comes from the lockfile's `playwright`, so the browser and the driver
+      # can never drift apart.
+      - name: Install the Playwright browser
+        run: pnpm --filter @lightbridge/ui-web exec playwright install --with-deps chromium
+
+      # Every story, both themes, `parameters.a11y.test = 'error'`, `color-contrast` ON. The script
+      # compares the result against packages/ui-web/a11y-storybook-baseline.json and fails on any
+      # finding that is not already recorded there — and equally on a recorded finding that has
+      # stopped firing, which is what makes the list a ratchet rather than a graveyard.
+      - name: Storybook accessibility gate
+        run: pnpm --filter @lightbridge/ui-web run test:a11y
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest

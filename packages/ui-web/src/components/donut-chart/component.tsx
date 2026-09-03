@@ -169,7 +169,12 @@ export function DonutChart({
         const selectable =
           !isStatic && !href && Boolean(onSelectSegment) && slice.datum.key !== OTHER_KEY;
         const interactive = isStatic
-          ? {}
+          ? // `role="img"` even with no interaction: the wedge carries an `aria-label`, and ARIA
+            // prohibits naming an element whose role does not support a name — a bare SVG `<path>`
+            // is one (axe `aria-prohibited-attr`, serious, found by the Storybook a11y run on both
+            // `Static (report SVG)` stories). The label is the only thing that makes a wedge
+            // readable, so the role goes in rather than the label coming out.
+            { role: 'img' as const }
           : {
               // A linked wedge's tab stop is the `<a>` that wraps it — the path itself must not be
               // a second one, or every model on the ring would take two tabs to walk past.
@@ -275,7 +280,15 @@ export function DonutChart({
         ref={setSvgElement}
         width={width}
         height={height}
-        role={empty ? 'presentation' : 'img'}
+        // `group`, NOT `img`, whenever wedges are rendered. `img` is a LEAF role: it promises
+        // assistive tech that nothing inside is reachable, and axe's `nested-interactive`
+        // (WCAG 4.1.2, serious) fails it the moment something inside is — which is always here,
+        // because every non-`static` wedge carries `tabIndex={0}` so a keyboard user can bring up
+        // the tooltip, and a linked one is wrapped in an SVG `<a>`. Caught by the axe sweep in
+        // `src/test/setup.ts` on 7 of this component's own tests (#443). The `static` branch above
+        // keeps no interaction at all, so it needs no role; `empty` keeps `presentation`, since a
+        // ring with no data has nothing to announce and the sentence beside it does the telling.
+        role={empty ? 'presentation' : 'group'}
         aria-hidden={empty ? 'true' : undefined}
         aria-label={
           empty

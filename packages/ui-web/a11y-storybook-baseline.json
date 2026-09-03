@@ -1,0 +1,762 @@
+{
+  "apps/lci/src/client/lci-shell.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/admin-centre.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/graph/node-inspector.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/overview-centre.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repo-settings-form.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repo-tabs-nav.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repositories-centre.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repository-overview-centre.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repository-settings-centre.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/repository-shell.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/review-output.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/run-detail-centre.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/runs-centre.stories.tsx": {
+    "failing": 16,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/settings-centre.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/account-badge/component.stories.tsx": {
+    "failing": 32,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/account-name-dialog/component.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/bottom-sheet/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/budget-hero/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/chart-legend/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/chart-tooltip/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/checkbox/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/command-palette/component.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/command-snippet/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/console-shell/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/console-top-bar/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/create-api-key-dialog/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/create-project-dialog/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/date-range-field/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/empty-state/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/error-line/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/field/component.stories.tsx": {
+    "failing": 16,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/inline-status/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/ledger-table/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/multi-series-spend-chart/component.stories.tsx": {
+    "failing": 28,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/mutation-failure-banner/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/nav-spine/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/pagination/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/project-name-dialog/component.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/rail-resizer/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/report-export-dialog/component.stories.tsx": {
+    "failing": 16,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/report-export-panel/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/review-detail-panel/component.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/row-action-group/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/scope-select/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/secret-reveal/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/segmented-control/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/select-field/component.stories.tsx": {
+    "failing": 16,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/settings-row/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/share-bar/component.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/spend-series-chart/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/stacked-bar-chart/component.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/stat-card/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/status-text/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/sub-nav/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/toggle/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/tooltip/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/components/typed-confirm-dialog/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/lib/money.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-budget-review.stories.tsx": {
+    "failing": 22,
+    "rules": [
+      "aria-hidden-focus",
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-budget-schedules.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-overview.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-refill-policies-create.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-refill-policies.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-roles.stories.tsx": {
+    "failing": 30,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-sessions.stories.tsx": {
+    "failing": 22,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-usage-actor.stories.tsx": {
+    "failing": 28,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-usage-channel.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-usage-chats.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-usage-model.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/admin-usage.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/api-keys.stories.tsx": {
+    "failing": 30,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/auth-device.stories.tsx": {
+    "failing": 16,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/dashboard-from-spec.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/i18n-german.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/overview.stories.tsx": {
+    "failing": 28,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings-accounts-projects.stories.tsx": {
+    "failing": 26,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings-accounts.stories.tsx": {
+    "failing": 34,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings-info.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings-overview-usage.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings-overview.stories.tsx": {
+    "failing": 36,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/settings.stories.tsx": {
+    "failing": 26,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/pages-stories/shell-persistence.stories.tsx": {
+    "failing": 2,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/refine-mock/refine-admin-budget-review-screen.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast",
+      "story-did-not-run"
+    ]
+  },
+  "packages/ui-web/src/refine-mock/refine-api-keys-screen.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast",
+      "story-did-not-run"
+    ]
+  },
+  "packages/ui-web/src/refine-mock/refine-overview-screen.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/refine-mock/refine-projects-screen.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast",
+      "story-did-not-run"
+    ]
+  },
+  "packages/ui-web/src/sections/account-directory/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/account-settings/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/api-keys-controls/component.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/api-keys-hygiene-notes/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/api-keys-ledger/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/auth-screen/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/budget-panel/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/budget-pressure/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/budget-schedule-form/component.stories.tsx": {
+    "failing": 30,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/budget-schedule-preview/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/build-info-card/component.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/console-sidebar/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/dashboard-grid/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/dashboard-panel/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/dashboard-panels/panel-renderers.stories.tsx": {
+    "failing": 62,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/device-code-entry/component.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/device-confirmation/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/estate-budget-pressure/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/latency-stat-cards/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/manage-controls/component.stories.tsx": {
+    "failing": 14,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/multi-series-spend-board/component.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/overview-stat-row/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/page-header/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/platform-role-grants/component.stories.tsx": {
+    "failing": 44,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/policy-simulator/component.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/project-policy-controls/component.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/project-settings/component.stories.tsx": {
+    "failing": 18,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/projects-ledger/component.stories.tsx": {
+    "failing": 12,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/ranked-series-rows/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-history/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-policy-lookup/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-policy-manual/component.stories.tsx": {
+    "failing": 6,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-policy-status-strip/component.stories.tsx": {
+    "failing": 4,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-request-form/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/refill-scenario-form/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/review-queue/component.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/rule-set-form/component.stories.tsx": {
+    "failing": 20,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/session-ledger/component.stories.tsx": {
+    "failing": 34,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/spend-dashboard/component.stories.tsx": {
+    "failing": 8,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "packages/ui-web/src/sections/spend-share/component.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  }
+}

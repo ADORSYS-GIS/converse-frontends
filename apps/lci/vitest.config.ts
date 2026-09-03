@@ -12,6 +12,12 @@ const uiWebAlias = {
 
 export default defineConfig({
   test: {
+    // Root-level, NOT inside the `dom` project entry: Vitest reads `sequence` from the root config
+    // only, and silently ignores a per-project one. It is required by the axe sweep
+    // `src/test/setup.ts` installs (#443) — under the default `'stack'` order, Testing Library's
+    // auto-cleanup runs before the sweep, which then inspects an empty `<body>` and passes
+    // everything. See `packages/ui-web/src/test/a11y-sweep.ts`.
+    sequence: { hooks: 'list' },
     projects: [
       {
         resolve: { alias: [uiWebAlias] },

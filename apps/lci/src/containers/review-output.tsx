@@ -74,6 +74,10 @@ export function ReviewOutput({
   );
 }
 
+/** The suggested-patch block's paint. Hoisted only so the `<pre>` fits on one line — see its
+ *  `eslint-disable-next-line` for why that matters. */
+const SUGGESTION_CLASS = 'bg-chrome rounded-field mt-2 overflow-x-auto p-2 font-mono text-xs';
+
 function FindingItem({ finding }: { finding: ReviewFinding }) {
   const hasDetail = Boolean(finding.body || finding.suggestion || finding.resources?.length);
   const defaultOpen = priorityOf(finding) === 'P0' || isSecurity(finding);
@@ -99,7 +103,15 @@ function FindingItem({ finding }: { finding: ReviewFinding }) {
             <p className="text-subtle text-sm whitespace-pre-wrap">{finding.body}</p>
           ) : null}
           {finding.suggestion ? (
-            <pre className="bg-chrome rounded-field mt-2 overflow-x-auto p-2 font-mono text-xs">
+            // `tabIndex={0}` because this scrolls: axe `scrollable-region-focusable` (WCAG 2.1.1)
+            // — a suggested patch can be wider than the panel, and without a tab stop a keyboard
+            // user cannot reach the rest of the line. Same treatment, same reason as
+            // `LedgerTable`'s `ledger-scroll` box; no `role`, so it adds no landmark. The class
+            // list is hoisted so the attribute fits on the element's own line — an
+            // `eslint-disable-next-line` targets a LINE, and jsx-a11y reports at the `tabIndex`
+            // attribute, not at the tag.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            <pre tabIndex={0} className={SUGGESTION_CLASS}>
               {finding.suggestion}
             </pre>
           ) : null}

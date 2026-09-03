@@ -9,7 +9,15 @@ import { displayName } from '../lib/server/session';
 /** GitHub App install URL — env-configurable, falls back to the registered app so it works out
  *  of the box. */
 function githubAppInstallUrl(): string {
-  return process.env.GITHUB_APP_INSTALL_URL ?? 'https://github.com/apps/lightbridge-assistant';
+  // `globalThis.process?.`, not a bare `process.`: this is a client component, and it renders in
+  // one environment where `process` is genuinely undefined — the Storybook browser-mode a11y run
+  // (`packages/ui-web/vitest.storybook.config.mts`), where all five of this file's stories died
+  // with `ReferenceError: process is not defined`. Next inlines the value at build time in the
+  // real app, so nothing about production behaviour changes.
+  return (
+    globalThis.process?.env?.GITHUB_APP_INSTALL_URL ??
+    'https://github.com/apps/lightbridge-assistant'
+  );
 }
 
 /** App-level settings: account identity, GitHub App install link, and granted permissions.
@@ -53,7 +61,12 @@ export function SettingsCentre({
             <Button
               variant="secondary"
               size="sm"
-              render={<a href={githubAppInstallUrl()} target="_blank" rel="noopener noreferrer" />}
+              render={
+                // Base UI `render` takes a template that is cloned WITH this Button's children —
+                // see `packages/ui-web/src/components/button/component.tsx`'s note on these rules.
+                // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+                <a href={githubAppInstallUrl()} target="_blank" rel="noopener noreferrer" />
+              }
               nativeButton={false}>
               Open
             </Button>
@@ -79,7 +92,12 @@ export function SettingsCentre({
             <Button
               variant="secondary"
               size="sm"
-              render={<a href="/repositories" />}
+              render={
+                // Base UI `render` takes a template that is cloned WITH this Button's children —
+                // see `packages/ui-web/src/components/button/component.tsx`'s note on these rules.
+                // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+                <a href="/repositories" />
+              }
               nativeButton={false}>
               Repositories
             </Button>
@@ -88,7 +106,15 @@ export function SettingsCentre({
       </Card>
 
       <div>
-        <Button variant="secondary" render={<a href="/api/auth/logout" />} nativeButton={false}>
+        <Button
+          variant="secondary"
+          render={
+            // Base UI `render` takes a template that is cloned WITH this Button's children — see
+            // `packages/ui-web/src/components/button/component.tsx`'s note on these two rules.
+            // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+            <a href="/api/auth/logout" />
+          }
+          nativeButton={false}>
           Sign out
         </Button>
       </div>

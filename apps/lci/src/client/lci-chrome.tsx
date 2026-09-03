@@ -161,7 +161,12 @@ export function LciSidebarContent({
               variant="ghost"
               size="sm"
               className="ml-auto"
-              render={<a href="/api/auth/logout" />}
+              render={
+                // Base UI `render` takes a template that is cloned WITH this Button's children —
+                // see `packages/ui-web/src/components/button/component.tsx`'s note on these rules.
+                // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+                <a href="/api/auth/logout" />
+              }
               nativeButton={false}>
               Sign out
             </Button>

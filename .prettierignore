@@ -25,3 +25,19 @@ apps/typst-render/dist/
 packages/authz-rpc/generated/
 packages/api-rest/src/client/
 **/storybook-static/
+
+# `apps/lci`'s Next.js type shim, same case as `apps/console/next-env.d.ts` above -- written by the
+# toolchain on every build, gitignored, in a format Prettier disagrees with. It was missing from
+# this list only because it did not exist yet when the console entry was added.
+apps/lci/next-env.d.ts
+
+# `apps/governance-auth`'s single-file build output (vite-plugin-singlefile inlines every asset
+# into one HTML file). Same reasoning as the `apps/authz-ui/dist/` block above.
+apps/governance-auth/dist/
+
+# The Storybook accessibility baseline (#443). MACHINE-WRITTEN by
+# `packages/ui-web/scripts/a11y-storybook-gate.mjs --update`, which emits `JSON.stringify(…, 2)`.
+# Prettier would collapse its one-element `rules` arrays onto a single line, so every regeneration
+# would leave the tree unformatted and `pnpm lint` red until someone ran `pnpm format` — a trap for
+# exactly the person who just did the right thing and ratcheted the baseline down.
+packages/ui-web/a11y-storybook-baseline.json

@@ -8,10 +8,19 @@ function Panel({ name, onTrigger }: { name: string; onTrigger: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   usePanelHotkey('v', ref, onTrigger);
   return (
+    // Test fixture: a focusable non-interactive container is precisely the subject under test
+    // (`usePanelHotkey` arms only while focus is inside its ref'd panel). Real panels get the
+    // tabIndex from a Base UI primitive that also supplies a role; this fixture must not.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
     <div ref={ref} tabIndex={0} data-testid={name}>
       <button type="button">{name} button</button>
       <input aria-label={`${name} filter`} />
-      <div contentEditable aria-label={`${name} notes`} suppressContentEditableWarning />
+      {/* `data-testid`, not `aria-label`: a bare `contenteditable` div has no role, and ARIA
+          prohibits naming a role-less element (axe `aria-prohibited-attr`, serious). The point of
+          this fixture is precisely a contenteditable region WITHOUT `role="textbox"` — the sibling
+          below is the role-bearing case — so giving it a role to justify the label would delete
+          the distinction the two cases exist to draw. */}
+      <div contentEditable data-testid={`${name}-notes`} suppressContentEditableWarning />
       <div role="textbox" tabIndex={0} aria-label={`${name} combobox`} />
     </div>
   );
@@ -68,13 +77,16 @@ describe('usePanelHotkey', () => {
 
   /** The AC: "a user types `v` into a field inside a panel → nothing expands." */
   it.each([
-    ['an input', 'a filter'],
-    ['a contenteditable region', 'a notes'],
-    ['a role=textbox element', 'a combobox'],
-  ])('refuses to fire while text is being entered into %s', (_label, label) => {
+    // The contenteditable case is found by test id rather than by label: naming a role-less
+    // element is prohibited ARIA (see the fixture's own note), and that case is not allowed to
+    // grow a role without becoming the third case instead of the second.
+    ['an input', () => screen.getByLabelText('a filter')],
+    ['a contenteditable region', () => screen.getByTestId('a-notes')],
+    ['a role=textbox element', () => screen.getByLabelText('a combobox')],
+  ])('refuses to fire while text is being entered into %s', (_label, locate) => {
     const onTrigger = vi.fn();
     render(<Panel name="a" onTrigger={onTrigger} />);
-    screen.getByLabelText(label).focus();
+    (locate() as HTMLElement).focus();
     press('v');
     expect(onTrigger).not.toHaveBeenCalled();
   });
@@ -121,6 +133,8 @@ describe('usePanelHotkey', () => {
       const [enabled, setEnabled] = useState(true);
       usePanelHotkey('v', ref, onTrigger, enabled);
       return (
+        // Same fixture shape, same reason as `Panel` above.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         <div ref={ref} tabIndex={0} data-testid="d">
           <button type="button" onClick={() => setEnabled(false)}>
             disarm

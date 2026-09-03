@@ -90,6 +90,11 @@ export function LedgerTable<T>({
     // two or more `LedgerTable`s (e.g. Admin's pending queue + recent decisions) would otherwise
     // trip landmark-unique, since every instance shares the same generic label -- found during
     // the ADR 0010 phase 4 sweep.
+    // Two a11y tools disagree here and axe wins: `scrollable-region-focusable` (a WCAG 2.1.1
+    // failure) REQUIRES this tabIndex, and jsx-a11y's static rule cannot tell a scroll container
+    // from a decorative div. Removing it to satisfy the linter would trade a real, tested
+    // violation for a silent one.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
     <div className="ledger-scroll" tabIndex={0}>
       {/* `role="grid"` — only when rows are the control (`onSelectRow`): the `aria-selected` a
           selectable row already carries is valid only on a `row` descended from a grid/treegrid.
@@ -166,6 +171,11 @@ export function LedgerTable<T>({
                   aria-hidden="true"
                   className={ledgerRowVariants({ density, selectable: false })}>
                   {Array.from({ length: columnCount }, (_, cellIndex) => (
+                    // A `<td>` under `role="grid"` maps to `gridcell`, a widget role the rule wants
+                    // labelled — but this whole `<tr>` is `role="presentation" aria-hidden="true"`
+                    // (the skeleton contract two comments up), so it is not in the a11y tree at all
+                    // and there is nothing to label.
+                    // eslint-disable-next-line jsx-a11y/control-has-associated-label
                     <td key={cellIndex}>
                       <span
                         className={SKELETON_BLOCK_CLASS}
@@ -243,6 +253,11 @@ export function LedgerTable<T>({
                   {totals[column.key]}
                 </td>
               ))}
+              {/* The spacer that keeps the totals row's cell count equal to the header's. It is
+                  the actions column, which has no total and never will; dropping it would leave a
+                  `tfoot` row narrower than every other row, which is a worse a11y outcome than an
+                  unlabelled spacer. */}
+              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
               {hasActions ? <td /> : null}
             </tr>
           </tfoot>

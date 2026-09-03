@@ -31,7 +31,14 @@ export const PreCopy: Story = {
 export const PostCopy: Story = {
   name: 'After copy (confirmation shown)',
   beforeEach: () => {
-    Object.assign(navigator, { clipboard: { writeText: fn().mockResolvedValue(undefined) } });
+    // `defineProperty`, not `Object.assign`: in a real browser `navigator.clipboard` is an
+    // accessor with no setter, and assigning to it throws `Cannot set property clipboard of
+    // #<Navigator> which has only a getter`. jsdom happens to allow the assignment, which is why
+    // this only surfaced under the browser-mode a11y run (`vitest.storybook.config.mts`).
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: fn().mockResolvedValue(undefined) },
+    });
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

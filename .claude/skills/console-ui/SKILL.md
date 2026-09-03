@@ -622,8 +622,10 @@ itself gets wrapped.
 - Files kebab-case; components PascalCase; props typed and exported from `types.ts`.
 - Every component ships stories covering its real states (default, empty, loading, error,
   breached/selected where applicable) — stories are the acceptance surface and must pass
-  `addon-a11y` (contrast findings on `subtle` text are acceptable only for non-load-bearing
-  metadata).
+  `addon-a11y`. As of 2026-09-03 that is a GATE, not a panel: `parameters.a11y.test = 'error'`,
+  every story run in real Chromium in BOTH themes by
+  `pnpm --filter @lightbridge/ui-web test:a11y`. `subtle`-text contrast is the ONE recorded
+  deviation (see the accessibility section below); every other finding fails the build.
 - Barrel `src/index.ts` is region-structured (one commented region per component family);
   add exports only inside your region to keep parallel PRs conflict-free.
 - No React Native imports of any kind. Client components only where interaction requires it.
@@ -631,6 +633,45 @@ itself gets wrapped.
   written Tailwind utilities per component, `DEFAULT_BUDGET` 3, `BUDGET` map stays empty —
   entries are debt) and `base-ui-adoption.test.ts` (`KNOWN_GAPS` — entries may only shrink, never
   grow; `section-class-audit.test.ts` extends the same discipline to `sections/`).
+
+## Accessibility is a gate, not a panel
+
+Owner directive 2026-09-03 ([#443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443)).
+`@storybook/addon-a11y` had been installed since the ADR 0010 phase-4 work but only as a VIEWER —
+a badge a reviewer had to open. Three enforcing layers replaced that; the full map, including how
+to justify an exception and how to wire a new workspace in, is
+**`docs/knowledge/accessibility.md`** — read it before reaching for a disable.
+
+The bar is WCAG 2.1 A + AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`).
+
+| Layer                                               | What runs                                                    | When        |
+| --------------------------------------------------- | ------------------------------------------------------------ | ----------- |
+| `eslint-plugin-jsx-a11y` (recommended, all `error`) | root `eslint.config.js`, every DOM workspace                 | `pnpm lint` |
+| `axe-core` in an automatic `afterEach`              | `packages/ui-web/src/test/a11y-sweep.ts` — EVERY render test | `pnpm test` |
+| `@storybook/addon-a11y` with `test: 'error'`        | every story × both themes, real Chromium, contrast ON        | `test:a11y` |
+
+What this means when writing a component:
+
+- **You do not add an axe assertion.** The sweep is an `afterEach` in each package's Vitest setup;
+  writing a render test is writing an accessibility test. It is at ZERO findings across all five
+  workspaces and stays there.
+- **`color-contrast` is off under jsdom and on in Storybook.** jsdom has no layout and no cascade,
+  so it cannot compute a contrast ratio. Never "fix" a contrast finding by editing the test helper.
+- **`role="img"` on an `<svg>` is a LEAF promise.** If anything inside is focusable — a wedge with
+  `tabIndex`, a hit region, an SVG `<a>` — the root must be `role="group"` with an `aria-label`.
+  `DonutChart` failed exactly this (`nested-interactive`, serious) until #443.
+- **An `aria-label` needs a role that supports naming.** A bare `<div>`, `<span>` or SVG `<path>`
+  has none, and labelling one is `aria-prohibited-attr`. Give it the role or drop the label.
+- **A scroll container needs `tabIndex={0}`** (axe `scrollable-region-focusable`, WCAG 2.1.1) and
+  deliberately no `role`, so two ledgers on one page do not both claim a landmark. jsx-a11y
+  disagrees; the disable at that site carries the reason.
+- **Every disable states what the rule cannot see.** The one sanctioned repo-wide reason is Base
+  UI's `render` prop, which takes a TEMPLATE element cloned with the parent's children — so a
+  `render={<a href="…" />}` looks childless to a static rule and is not. Anything else argues for
+  itself at its own call site.
+- **Dev-time findings appear in the browser console** in all four apps, dev builds only
+  (`packages/ui-web/src/dev/axe-reporter.ts`). `@axe-core/react` is NOT used and must not be added:
+  its mechanism is `ReactDOM.findDOMNode`, which React 19 removed, and its failure is silent.
 
 ## authz-ui — the strict-CSP surface (no daisy, ever)
 
@@ -775,7 +816,9 @@ D1; there are zero left and it stays that way) · hex colours in components ·
 React Native imports · a chart framework dependency · `dark:` variants or a `.dark` class ·
 `tailwind.config.js` in `ui-web` or `apps/console` (Tailwind v4 is CSS-first) ·
 importing `@radix-ui/*` directly · `vaul`, anywhere · hand-written focus traps or roving
-`tabIndex` · a `cva.ts` that only encodes boolean state · pagers rendered with no `onPrev`/
+`tabIndex` · an `eslint-disable` of a `jsx-a11y` rule with no reason at the call site ·
+`@axe-core/react` (its `findDOMNode` mechanism is gone in React 19 and it fails silently) ·
+a new entry in `a11y-storybook-baseline.json` to make a red build green · a `cva.ts` that only encodes boolean state · pagers rendered with no `onPrev`/
 `onNext` wired · a fabricated or permanently-null figure where an em dash or an omitted block
 (plus a filed backend issue) is the honest answer · a nav row silently omitted instead of shipped
 `disabled` with a stated reason · a second `ConsoleShell`/sidebar mount for the settings area ·

@@ -35,6 +35,17 @@ function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
 
 const response = (points: UsageSeriesPoint[]): UsageQueryResponse => ({ truncated: false, points });
 
+/** Two comparison windows to hand `metricDelta`, which names the span it compared against by date
+ *  rather than by cadence (converse-frontends#448). */
+const PREVIOUS_WEEK = {
+  start: new Date('2026-08-25T00:00:00.000Z'),
+  end: new Date('2026-09-01T00:00:00.000Z'),
+};
+const PREVIOUS_MONTH = {
+  start: new Date('2026-08-01T00:00:00.000Z'),
+  end: new Date('2026-09-01T00:00:00.000Z'),
+};
+
 const spec = (overrides: Partial<DashboardPanelSpec>): DashboardPanelSpec =>
   ({
     id: 'p',
@@ -92,23 +103,26 @@ describe('sumMetric', () => {
 
 describe('metricDelta', () => {
   it('names the comparison window explicitly', () => {
-    expect(metricDelta(112, 100, 'weekly')).toEqual({
+    expect(metricDelta(112, 100, PREVIOUS_WEEK)).toEqual({
       direction: 'up',
-      label: '12% vs previous week',
+      label: '12% vs Aug 25 – Aug 31',
     });
-    expect(metricDelta(88, 100, 'monthly')).toEqual({
+    expect(metricDelta(88, 100, PREVIOUS_MONTH)).toEqual({
       direction: 'down',
-      label: '12% vs previous month',
+      label: '12% vs Aug 1 – Aug 31',
     });
   });
 
   it('reads a zero base as "new this period", never a percentage of nothing', () => {
-    expect(metricDelta(5, 0, 'monthly')).toEqual({ direction: 'up', label: 'new this period' });
-    expect(metricDelta(0, 0, 'monthly')).toEqual({ direction: 'flat', label: 'no change' });
+    expect(metricDelta(5, 0, PREVIOUS_MONTH)).toEqual({
+      direction: 'up',
+      label: 'new this period',
+    });
+    expect(metricDelta(0, 0, PREVIOUS_MONTH)).toEqual({ direction: 'flat', label: 'no change' });
   });
 
   it('calls a sub-half-percent move flat rather than "0%"', () => {
-    expect(metricDelta(100.2, 100, 'weekly').direction).toBe('flat');
+    expect(metricDelta(100.2, 100, PREVIOUS_WEEK).direction).toBe('flat');
   });
 });
 
@@ -193,11 +207,11 @@ describe('toPanelView', () => {
         spec: spec({ compare: true }),
         response: response([point({ total_cost: 2_000_000 })]),
         compareResponse: response([point({ total_cost: 1_000_000 })]),
-        compareCadence: 'monthly',
+        compareWindow: PREVIOUS_MONTH,
       })
     );
     expect(view).toMatchObject({ kind: 'stat', metric: '$2.00' });
-    expect(view.kind === 'stat' && view.delta?.label).toBe('100% vs previous month');
+    expect(view.kind === 'stat' && view.delta?.label).toBe('100% vs Aug 1 – Aug 31');
 
     const noCompare = toPanelView(
       input({ response: response([point({ total_cost: 2_000_000 })]) })

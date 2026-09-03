@@ -38,7 +38,7 @@ export const panelFixtures: Record<DashboardPanelType, DashboardPanelView> = {
     kind: 'stat',
     label: 'Total cost',
     metric: '$943.60',
-    delta: { direction: 'up', label: '12% vs previous month' },
+    delta: { direction: 'up', label: '12% vs Aug 1 – Aug 31' },
   },
 
   'stat-group': {

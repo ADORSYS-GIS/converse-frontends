@@ -43,7 +43,9 @@ import { useActorBudget } from './use-actor-budget';
  * **The comparison cadence is the actor's own** (decision D-F, owner Q8): for an account, the
  * effective reset schedule the backend resolves for it (account > billing_plan > global); for a
  * user or a project, the monthly default — neither has a budget, so neither has a reset period a
- * "vs previous" could honestly snap to.
+ * "vs previous" could honestly be measured against. The cadence chooses the COMPARISON window and
+ * nothing else: the page's own window is always the one the range picker shows
+ * (converse-frontends#448).
  */
 
 const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({

@@ -705,10 +705,15 @@ pages:
       # ── The two totals, against the previous comparison window (D-F) ──────────────────────
       # The cadence is the ACCOUNT's own effective reset schedule when `type=account`, and the
       # global/monthly rule otherwise — resolved by the container, applied by the engine.
+      # The RANGE PICKER's window, not the billing period the "Budget & next reset" zone beside
+      # it reads (`use-actor-budget.ts`) — a ceiling is a fact about a reset period and this is a
+      # fact about the window on screen. The two agree whenever the picker is on `mtd`, and the
+      # subtitles say which is which; they disagreed catastrophically until #448, when the engine
+      # was silently widening this panel's window to a seven-day floor.
       - id: actor-total-cost
         type: stat
         title: Total cost
-        subtitle: This actor's own spend in the window.
+        subtitle: This actor's own spend in the window picked above, not in the budget period.
         span: 1
         metric: cost
         compare: true
@@ -1153,8 +1158,9 @@ pages:
     panels:
       # ── the money-first pair ────────────────────────────────────────────────────────────────
       # Both read the SAME ungrouped query as the chart below, and both carry the D-F comparison,
-      # so the delta's wording names its window ("12% vs previous month") instead of the vague
-      # "vs prev period" the deleted per-container helpers used.
+      # so the delta's wording names the window it compared against BY DATE
+      # ("12% vs Aug 1 – Aug 31") instead of the vague "vs prev period" the deleted per-container
+      # helpers used.
       - id: spend-total
         type: stat
         title: Spend in this range

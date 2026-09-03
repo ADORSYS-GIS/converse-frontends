@@ -117,9 +117,9 @@ describe('resolvePageReport — window and filters', () => {
     const spanDays =
       (outcome.resolved.window.end.getTime() - outcome.resolved.window.start.getTime()) /
       86_400_000;
-    // `/admin/usage` has `compare: true` panels, so the window is snapped by the comparison rule
-    // (D-F's one-week floor). It is never SHORTER than the preset asked for.
-    expect(spanDays).toBeGreaterThanOrEqual(7);
+    // The preset's own span, exactly — a `compare: true` panel adds a twin query and never moves
+    // the window the report is drawn over (converse-frontends#448).
+    expect(spanDays).toBe(7);
     expect(outcome.context.rangeLabel).toBe('Last 7 days');
   });
 

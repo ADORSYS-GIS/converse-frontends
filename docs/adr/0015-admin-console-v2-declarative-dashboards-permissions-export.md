@@ -237,26 +237,46 @@ window totals, and both appear on the same page for exactly that reason. An **un
 two things being summed, which is why the chart primitive takes an explicit `summable` flag rather
 than assuming every multi-series board adds up.
 
-### D3 — Comparison windows follow the reset cadence, with a seven-day floor
+### D3 — Comparison windows are additive; the picked window is never moved
 
-One helper, `comparisonWindow` (`apps/console/src/containers/comparison-window.ts:80`), replacing
-the two half-implementations that existed before (`previousWindow` in `usage-overview-usage.ts`,
-`spendDelta` in `admin-overview-usage.ts`) — both deleted with their containers. The rule, in the
-owner's words, _"vs previous per reset period and at least a week"_:
+**Amended 2026-09-03 (converse-frontends#448).** As first written, this decision also carried a
+seven-day floor, and `comparisonWindow` implemented it by widening the **current** window and
+handing the widened window back for `resolveDashboard` to query. Every panel on the page moved with
+it, comparing panels and their neighbours alike. On
+`/admin/usage/actors/<account>?type=account&from=2026-09-01&to=2026-09-03` that made
+`actor-total-cost` read **$11.92** — a real seven-day total (28 Aug $2.74 + 29 Aug $0.08 + 31 Aug
+$5.51 + 1 Sep $1.39 + 2 Sep $2.20) — under a header that said 1–3 Sep, where the true three-day
+total was **$3.59**. The "Budget & next reset" zone next to it, which reads the billing period
+directly and never went through this helper, said $3.59 and was right. The floor is removed; what
+follows is the rule as it now stands.
 
+One helper, `comparisonWindow` (`apps/console/src/containers/comparison-window.ts`), replacing the
+two half-implementations that existed before (`previousWindow` in `usage-overview-usage.ts`,
+`spendDelta` in `admin-overview-usage.ts`) — both deleted with their containers:
+
+- **The current window is exactly the window the page was given** — the range picker's own. Nothing
+  in the comparison path may move it. `resolveDashboard` asserts this structurally by querying the
+  window it was passed rather than anything the comparison helper returns.
+- A comparison is **additive**: it adds one twin query over its own window and changes nothing else.
 - The comparison window is the **previous window of the same length**, ending exactly where the
-  current one begins. Never overlapping, so a figure is never compared partly with itself.
-- The current window is first **snapped to the actor's reset cadence**: `weekly` → whole 7-day
-  spans; `monthly` → the same span shifted back one _calendar_ month, so month-to-date compares
-  against the same days of the previous month rather than a rolling 30 days; `daily` → widened.
-- **The minimum comparison span is one week** (`MIN_COMPARISON_SPAN_MS`, `comparison-window.ts:55`).
-  A one-day window against the day before is noise, not a trend, so a daily-resetting actor's
-  comparison widens to the trailing seven days on both sides — and the delta label says which
-  window it used ("vs previous week"), rather than showing a different window than the picker does.
+  current one begins. Never overlapping, so a figure is never compared partly with itself; never a
+  different length, so the delta is a real ratio and the `compareShiftMs` overlay below lands
+  inside the chart's own x-domain.
+- `monthly` shifts by a **calendar month** instead, so month-to-date compares against the same days
+  of the previous month rather than a rolling 30 days.
+- The **delta names its window by date** — "12% vs Aug 1 – Aug 31" (`comparisonLabel`) — rather than
+  the cadence phrase "vs previous month" it used to carry. A phrase cannot be checked against the
+  ledger; two dates can.
 - Estate-wide pages have no single actor and therefore no cadence to read. They get `monthly`
-  (`DEFAULT_COMPARISON_CADENCE`, `comparison-window.ts:50`) — which matches the console's `mtd`
-  default range (ADR 0013 D6) and the budget domain's own calendar-month `Period`, rather than an
-  arbitrary rolling span.
+  (`DEFAULT_COMPARISON_CADENCE`) — which matches the console's `mtd` default range (ADR 0013 D6)
+  and the budget domain's own calendar-month `Period`, rather than an arbitrary rolling span.
+
+**Why the floor could not simply move to the comparison side.** A three-day current window against
+a widened seven-day previous one makes the delta percentage a ratio of unequal spans, and
+`compareShiftMs` would plot a seven-day dashed line across a three-day chart — doubling the
+x-domain, the exact defect that shift exists to prevent. The owner's original concern ("a one-day
+window against the day before is noise") is answered instead by the delta stating its window
+explicitly, so a reader can see how short the comparison was rather than being told a cadence.
 
 `monthly` is the one cadence whose previous window is not a fixed millisecond shift, and that is
 deliberate: months are 28–31 days, so "the same days of the previous month" is computed on the

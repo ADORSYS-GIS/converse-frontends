@@ -17,7 +17,7 @@ import type {
 } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 import type { StatCardDelta } from '@lightbridge/ui-web/src/components/stat-card';
 
-import { comparisonLabel, type ResetCadence } from '../containers/comparison-window';
+import { comparisonLabel, type UsageWindow } from '../containers/comparison-window';
 import { safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
 import { IDENTITY_LABEL_FOR, type ActorKind, type LabelFor } from './actor-labels';
 import {
@@ -242,8 +242,11 @@ export function sumMetric(response: UsageQueryResponse, metric: DashboardMetric)
 
 /**
  * The delta a `compare: true` panel carries. Never green/red (console-ui skill) — direction is the
- * glyph and the wording, and the wording NAMES the window ("12% vs previous week") rather than the
- * vague "vs prev period" the pre-#446 per-container helpers used.
+ * glyph and the wording, and the wording NAMES the comparison window BY DATE ("12% vs Aug 25 –
+ * Aug 31") rather than the vague "vs prev period" the pre-#446 per-container helpers used, or the
+ * cadence phrase ("vs previous week") that replaced it — a phrase cannot be checked against the
+ * ledger, and while the engine could still silently widen a window it was not always even true
+ * (converse-frontends#448).
  *
  * `previous <= 0` with real current activity reads as "new this period"; a percentage off a zero
  * base is not a number.
@@ -251,9 +254,9 @@ export function sumMetric(response: UsageQueryResponse, metric: DashboardMetric)
 export function metricDelta(
   current: number,
   previous: number,
-  cadence: ResetCadence
+  compareWindow: UsageWindow
 ): StatCardDelta {
-  const window = comparisonLabel(cadence);
+  const window = comparisonLabel(compareWindow);
   if (previous <= 0) {
     return current > 0
       ? { direction: 'up', label: 'new this period' }
@@ -479,7 +482,8 @@ export interface PanelViewInput {
   response: UsageQueryResponse;
   /** The comparison twin's response, when `compare: true` and it resolved. */
   compareResponse?: UsageQueryResponse;
-  compareCadence?: ResetCadence;
+  /** `ResolvedPanel.compareWindow` — the twin's own window, which the delta names by date. */
+  compareWindow?: UsageWindow;
   /** `ResolvedPanel.compareShiftMs` — how far forward to re-base the twin's timestamps so a
    *  SERIES overlay lands under the current window. Irrelevant to a `stat`, which sums a scalar. */
   compareShiftMs?: number;
@@ -940,7 +944,7 @@ const countFormatter = (value: number) => Math.round(value).toLocaleString('en-U
 
 /** A `stat` panel — the one type whose metric can be DERIVED rather than summed. */
 function statView(input: PanelViewInput): DashboardPanelView {
-  const { spec, response, compareResponse, compareCadence } = input;
+  const { spec, response, compareResponse, compareWindow } = input;
   const derived = derivedMetricName(spec.metric);
 
   if (derived === 'avgCostPerMillionTokens') {
@@ -987,8 +991,8 @@ function statView(input: PanelViewInput): DashboardPanelView {
     label: spec.title,
     metric: formatMetric(current, spec.metric),
     delta:
-      compareResponse && compareCadence
-        ? metricDelta(current, sumMetric(compareResponse, spec.metric), compareCadence)
+      compareResponse && compareWindow
+        ? metricDelta(current, sumMetric(compareResponse, spec.metric), compareWindow)
         : undefined,
   };
 }

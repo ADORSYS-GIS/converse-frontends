@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import { parse as parseYaml } from 'yaml';
 
 import { FAMILY_SCOPE, findPage, parseDashboardsFile, usageScopes } from './dashboard-spec';
 import type { DashboardPageSpec, DashboardsFile } from './dashboard-spec';
+import { toPanelView } from './panel-adapters';
 import { resolveDashboard } from './resolve-dashboard';
 import {
   ADMIN_USAGE_ACTOR_ROUTE,
@@ -43,8 +45,8 @@ function pageAt(route: string): DashboardPageSpec {
 
 const CHAT_OPERATIONS = ['chat_completions', 'responses', 'messages'];
 
-/** A 30-day window: long enough that the one-week comparison floor never widens it, so these
- *  assertions are about the SPEC rather than about calendar arithmetic. */
+/** A 30-day window, so these assertions are about the SPEC rather than about calendar
+ *  arithmetic. */
 const WINDOW = {
   start: new Date('2026-08-01T00:00:00.000Z'),
   end: new Date('2026-08-29T00:00:00.000Z'),
@@ -327,6 +329,157 @@ describe('/admin/usage/chats in dashboards.yaml', () => {
     for (const query of resolved.queries) {
       expect(query.filters?.operation_in).toEqual(CHAT_OPERATIONS);
     }
+  });
+});
+
+// ── The 2026-09-03 spend-inflation regression ────────────────────────────────────────────────
+
+/**
+ * `/admin/usage/actors/2ae81c83-…?type=account&from=2026-09-01&to=2026-09-03` printed **$11.92**
+ * in `actor-total-cost` while the account's own ledger — and the "Budget & next reset" zone
+ * beside it — said **$3.59** (converse-frontends#448).
+ *
+ * The read-only check against the prod usage replica gave the account's daily totals below. Their
+ * sum over 28 Aug – 3 Sep is $11.92 to the cent, and over 1–3 Sep is $3.59: the page was querying
+ * a SEVEN-day window under a header that said three days, because `comparisonWindow`'s one-week
+ * floor widened the CURRENT window and `resolveDashboard` handed that widened window to every
+ * panel — the comparing ones and their neighbours alike.
+ *
+ * This test is the incident, end to end and in its own numbers: the resolved window, the stat the
+ * shared adapter builds from it, and the delta naming the window it actually compared against.
+ */
+const INCIDENT_DAILY_MICRO_USD: Record<string, number> = {
+  '2026-08-28': 2_740_000,
+  '2026-08-29': 80_000,
+  '2026-08-30': 0,
+  '2026-08-31': 5_510_000,
+  '2026-09-01': 1_390_000,
+  '2026-09-02': 2_200_000,
+  '2026-09-03': 0,
+};
+
+function dailyPoint(day: string, microUsd: number): UsageSeriesPoint {
+  return {
+    bucket_start: `${day}T00:00:00.000Z`,
+    completion_tokens: 0,
+    latency_samples: 0,
+    prompt_tokens: 0,
+    requests: 0,
+    total_cost: microUsd,
+    total_tokens: 0,
+    usage_value: 0,
+  };
+}
+
+/** The replica's rows for one window — what the usage backend would answer for that query. */
+function ledger(startIso: string, endIso: string): UsageQueryResponse {
+  const start = Date.parse(startIso);
+  const end = Date.parse(endIso);
+  return {
+    truncated: false,
+    points: Object.entries(INCIDENT_DAILY_MICRO_USD)
+      .filter(([day]) => {
+        const at = Date.parse(`${day}T00:00:00.000Z`);
+        return at >= start && at <= end;
+      })
+      .map(([day, microUsd]) => dailyPoint(day, microUsd)),
+  };
+}
+
+describe('the 2026-09-03 actor-total-cost inflation', () => {
+  // Exactly what `resolveOverviewWindow('mtd', '2026-09-01', '2026-09-03', …)` produces: the `to`
+  // day is INCLUSIVE, so the window runs to the last millisecond of 3 September.
+  const PICKED = {
+    start: new Date('2026-09-01T00:00:00.000Z'),
+    end: new Date('2026-09-03T23:59:59.999Z'),
+  };
+
+  const resolve = () =>
+    resolveDashboard({
+      page: pageAt(ADMIN_USAGE_ACTOR_ROUTE),
+      window: PICKED,
+      filters: { actorId: '2ae81c83-b75b-41ee-98d0-8791af1560e9', type: 'account' },
+      // The account's own effective cadence. The current window is not a cadence's business, so
+      // every cadence must behave identically here.
+      resetCadence: 'monthly',
+    });
+
+  it('queries the picked three days, never a widened week', () => {
+    const resolved = resolve();
+    const totalCost = resolved.panels.find((panel) => panel.spec.id === 'actor-total-cost');
+    const query = resolved.queries[totalCost!.queryIndex!];
+
+    expect(query.start_time).toBe('2026-09-01T00:00:00.000Z');
+    expect(query.end_time).toBe('2026-09-03T23:59:59.999Z');
+    // The bug, stated as the thing that must not happen again: 28 August was never in the picker.
+    expect(Date.parse(query.start_time)).toBeGreaterThan(Date.parse('2026-08-28T00:00:00.000Z'));
+    expect(resolved.window.start.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+  });
+
+  it('moves NO panel’s window — not the comparing one, not its neighbours', () => {
+    const resolved = resolve();
+    for (const panel of resolved.panels) {
+      for (const index of panel.queryIndices) {
+        expect(resolved.queries[index].start_time, panel.spec.id).toBe('2026-09-01T00:00:00.000Z');
+        expect(resolved.queries[index].end_time, panel.spec.id).toBe('2026-09-03T23:59:59.999Z');
+      }
+    }
+  });
+
+  it('states $3.59, not $11.92, through the same adapter the page renders with', () => {
+    const resolved = resolve();
+    const panel = resolved.panels.find((entry) => entry.spec.id === 'actor-total-cost')!;
+    const query = resolved.queries[panel.queryIndex!];
+    const twin = resolved.queries[panel.compareQueryIndex!];
+
+    // The seven-day sum the page used to print, kept here so the fixture is checkable against the
+    // incident: a real total of real rows — just not the ones the picker asked for.
+    const widened = ledger('2026-08-28T00:00:00.000Z', '2026-09-03T23:59:59.999Z');
+    expect(
+      widened.points.reduce((sum, entry) => sum + entry.total_cost, 0) / 1_000_000
+    ).toBeCloseTo(11.92, 10);
+
+    const view = toPanelView({
+      spec: panel.spec,
+      response: ledger(query.start_time, query.end_time),
+      compareResponse: ledger(twin.start_time, twin.end_time),
+      compareWindow: panel.compareWindow,
+      scale: 'linear',
+      onScaleChange: () => undefined,
+      groupBy: query.group_by,
+    });
+
+    expect(view).toMatchObject({ kind: 'stat', metric: '$3.59' });
+    // A calendar-month shift of 1–3 Sep is 1–3 Aug, which this account had no usage in at all —
+    // and a percentage off a zero base is not a number.
+    expect(view.kind === 'stat' && view.delta?.label).toBe('new this period');
+  });
+
+  it('compares against an equally long window that never overlaps the current one', () => {
+    const resolved = resolve();
+    const panel = resolved.panels.find((entry) => entry.spec.id === 'actor-total-cost')!;
+    const twin = resolved.queries[panel.compareQueryIndex!];
+    const current = resolved.queries[panel.queryIndex!];
+
+    expect(Date.parse(twin.end_time) - Date.parse(twin.start_time)).toBe(
+      Date.parse(current.end_time) - Date.parse(current.start_time)
+    );
+    expect(Date.parse(twin.end_time)).toBeLessThanOrEqual(PICKED.start.getTime());
+  });
+
+  /** A daily-resetting account's window is not widened either — the floor is gone for every
+   *  cadence, not just the monthly default. */
+  it('leaves a daily-cadence account’s three days alone too', () => {
+    const resolved = resolveDashboard({
+      page: pageAt(ADMIN_USAGE_ACTOR_ROUTE),
+      window: PICKED,
+      filters: { actorId: '2ae81c83-b75b-41ee-98d0-8791af1560e9', type: 'account' },
+      resetCadence: 'daily',
+    });
+    const panel = resolved.panels.find((entry) => entry.spec.id === 'actor-total-cost')!;
+    expect(resolved.queries[panel.queryIndex!].start_time).toBe('2026-09-01T00:00:00.000Z');
+    // 29 Aug 00:00:00.001 – 1 Sep 00:00:00.000: the same three days, immediately before.
+    expect(resolved.queries[panel.compareQueryIndex!].end_time).toBe('2026-09-01T00:00:00.000Z');
   });
 });
 

@@ -233,7 +233,7 @@ describe('compare twins', () => {
     expect(resolved.queries).toHaveLength(2);
     const [withCompare, plain] = resolved.panels;
     expect(withCompare.compareQueryIndex).toBe(1);
-    expect(withCompare.compareCadence).toBe('weekly');
+    expect(withCompare.compareWindow?.end.toISOString()).toBe(resolved.queries[0].start_time);
     expect(plain.compareQueryIndex).toBeUndefined();
 
     const twin = resolved.queries[1];
@@ -255,8 +255,10 @@ describe('compare twins', () => {
     const current = resolved.queries[panel.queryIndices[0]];
     const twin = resolved.queries[panel.compareQueryIndex as number];
     expect(panel.compareShiftMs).toBe(Date.parse(current.start_time) - Date.parse(twin.start_time));
-    // Weekly snapping rounds 30 days up to 35, so the shift is that snapped span, not 30 days.
-    expect(panel.compareShiftMs).toBe(35 * 86_400_000);
+    // The picked window's OWN span — 30 days, never rounded up to whole weeks. Rounding it
+    // would have meant querying 35 days under a header that said 30
+    // (converse-frontends#448).
+    expect(panel.compareShiftMs).toBe(30 * 86_400_000);
   });
 
   it('leaves the shift undefined for a panel that does not compare', () => {
@@ -277,22 +279,34 @@ describe('compare twins', () => {
   });
 
   /**
-   * Both sides of a comparison must be the same length, so a widened current window moves the
-   * NON-comparing panels too — otherwise two panels on one page would report different totals for
-   * what the range picker calls the same window.
+   * The 2026-09-03 money incident, as an invariant (converse-frontends#448). Adding a comparison
+   * used to WIDEN the page's current window to the one-week floor and move every panel onto it,
+   * comparing and non-comparing alike — which is how a three-day $3.59 total was printed as the
+   * seven-day $11.92 one under a header that said three days. A comparison is additive: it adds a
+   * twin query over its own window and touches nothing else.
    */
-  it('moves every panel onto the widened window when the comparison widened it', () => {
+  it('never widens the current window, not even for a one-day selection', () => {
     const oneDay = windowOf(1);
     const resolved = resolveDashboard({
       page: page([statPanel('a', { compare: true }), statPanel('b')]),
       window: oneDay,
       resetCadence: 'daily',
     });
-    expect(resolved.window.end.getTime() - resolved.window.start.getTime()).toBe(7 * DAY);
-    for (const query of resolved.queries) {
-      expect(new Date(query.end_time).getTime()).toBeLessThanOrEqual(oneDay.end.getTime());
-    }
-    expect(resolved.queries[0].start_time).toBe(resolved.window.start.toISOString());
+    expect(resolved.window.start.toISOString()).toBe(oneDay.start.toISOString());
+    expect(resolved.window.end.toISOString()).toBe(oneDay.end.toISOString());
+    expect(resolved.window.end.getTime() - resolved.window.start.getTime()).toBe(DAY);
+
+    // Both panels — the one that compares and the one that does not — query the picked day.
+    const current = resolved.queries.filter(
+      (query) => query.start_time === oneDay.start.toISOString()
+    );
+    expect(current).toHaveLength(1);
+    expect(resolved.panels[0].queryIndex).toBe(resolved.panels[1].queryIndex);
+
+    // …and the twin is the day BEFORE, of the same length, never overlapping.
+    const twin = resolved.queries[resolved.panels[0].compareQueryIndex as number];
+    expect(twin.end_time).toBe(oneDay.start.toISOString());
+    expect(Date.parse(twin.end_time) - Date.parse(twin.start_time)).toBe(DAY);
   });
 
   it('leaves the page window untouched when no panel compares', () => {

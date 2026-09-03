@@ -508,8 +508,10 @@ same function server-side and get the same queries the browser issued.
 2. Apply the page's range to every panel.
 3. Resolve `bucket: auto`; always emit an explicit `limit`.
 4. Add the comparison-window twin for `compare: true` (`containers/comparison-window.ts` — the one
-   "vs previous" rule in the console: previous window of the same length, snapped to the reset
-   cadence, floor of one week).
+   "vs previous" rule in the console: the previous window of the same length, calendar-shifted
+   under a `monthly` cadence). The twin is **additive**: it never moves the page's own window.
+   A one-week floor used to widen the current window here and was the cause of the 2026-09-03
+   spend-inflation incident (converse-frontends#448); it is gone.
 5. Apply the lens — swap the first `group_by` dimension, resolve `$lens` in `options.link`.
 6. Expand `scope: family` into one `scope: account` query per account in the session's own family.
 7. **Deduplicate** on a stable key derived from the fully-resolved query (`group_by` sorted).

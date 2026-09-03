@@ -44,7 +44,7 @@ walked back anywhere else in this repo's docs:
 | `authz-ui-image.yml`               | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
 | `governance-auth-callback-oci.yml` | ❌ **never**                            | —                   | ✅ (paths: `apps/governance-auth/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, own file)                                                        | ❌ **never** ⁴ | —                         | ✅                  |
 | `publish-charts-oci.yml`           | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
-| `storybook-pages.yml`              | —                                       | —                   | ✅ (paths: `packages/ui/**`)                                                                                                                   | —              | —                         | ✅                  |
+| `storybook-pages.yml`              | —                                       | —                   | ✅ (paths: `packages/ui-web/**`, own file)                                                                                                     | —              | —                         | ✅                  |
 
 ¹ `opencode.yml` also runs on `issue_comment` and `pull_request_review_comment` (for the
 `/oc` slash-command path), and is a no-op unless the `OPENCODE_GATEWAY_AUDIENCE` repo/org
@@ -308,9 +308,45 @@ re-trigger itself. Idempotent — skips a version already published. Uses the bu
 
 ### `storybook-pages.yml` — Storybook → GitHub Pages
 
-Triggers: `push` to `main` with `paths: packages/ui/**` (or the workflow file itself),
+Triggers: `push` to `main` with `paths: packages/ui-web/**` (or the workflow file itself),
 `workflow_dispatch`. Builds Storybook via `pnpm turbo run build-storybook` and deploys the
 static output to GitHub Pages via `actions/deploy-pages`.
+
+**GitHub Pages is currently DISABLED on this repository**, and a workflow cannot enable it — it
+is a repo setting. `actions/configure-pages` hard-fails on that ("Get Pages site failed. Please
+verify that the repository has Pages enabled"), which used to paint every `main` run of this
+workflow red for a reason no code change could fix, drowning out real failures. Since
+[#443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443) a `preflight` job probes
+`GET /repos/{owner}/{repo}/pages` (404 while Pages is off, verified against this repo) and
+publishes a `pages-enabled` output:
+
+- **Pages off** — `configure-pages`/`upload-pages-artifact` and the whole `deploy` job report as
+  **skipped**, and the run emits a `::notice` saying why. Not `continue-on-error`: that would
+  equally hide a genuine deploy failure, which is the opposite of what we want.
+- **Pages on** — everything runs, with no edit to the workflow. Enabling Pages in
+  _Settings → Pages_ (source: GitHub Actions) is all that is needed; the next push publishes.
+
+The Storybook **build** runs unconditionally either way, so a broken story still fails `main`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Preflight: push to main touching packages/ui-web/**
+    Preflight --> PagesOn: GET /repos/:owner/:repo/pages -> 200
+    Preflight --> PagesOff: 404 (or any non-200) + ::notice
+    PagesOn --> BuildAndUpload: build-storybook, configure-pages, upload-pages-artifact
+    PagesOff --> BuildOnly: build-storybook only
+    BuildAndUpload --> Deploy: deploy job runs
+    BuildOnly --> Skipped: deploy job skipped, run stays green
+    Deploy --> [*]
+    Skipped --> [*]
+    BuildOnly --> RedRun: a story fails to build
+    BuildAndUpload --> RedRun
+    RedRun --> [*]
+    note right of Skipped
+      "Pages is off" is no longer expressible as a red run --
+      only a real build or deploy failure is.
+    end note
+```
 
 ---
 

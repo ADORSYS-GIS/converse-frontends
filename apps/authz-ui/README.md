@@ -123,12 +123,72 @@ decision, converse-frontends#407) **no `data:` carve-out**. That single strict `
 governs scripts, styles, and every URL scheme, which rules out inline `<script>`, inline
 `style=`, and any `data:`-URI-backed rule that is actually _applied_ to a rendered element (CSP
 blocks the fetch of an applied `data:` background even when its computed size is `0%` -- #407's
-own evidence). daisyUI's `--fx-noise`-set component classes (`alert`/`btn`/`badge`/`checkbox`/
-`radio`/`toggle`/`menu`/`loading`/`tooltip`/`card`/`input`/`select`/`table`/`tabs`/`skeleton`)
-unconditionally set a `data:` background, so they -- and every `packages/ui-web` component that
-renders one -- are **unusable anywhere in this app's render tree**, including inside an imported
-`ui-web` section. Only native elements plus semantic tokens (`bg-surface`, `text-soft`,
-`border-border`, ...) are allowed.
+own evidence). daisyUI's component classes (`alert`/`btn`/`badge`/`checkbox`/`radio`/`toggle`/
+`menu`/`loading`/`tooltip`/`card`/`input`/`select`/`table`/`tabs`/`skeleton`) are the historical
+carrier: each composites a `--fx-noise` `data:` background in, so they -- and every
+`packages/ui-web` component that renders one -- are **unusable anywhere in this app's render
+tree**, including inside an imported `ui-web` section. Only native elements plus semantic tokens
+(`bg-surface`, `text-soft`, `border-border`, ...) are allowed.
+
+Since converse-frontends#443 the `data:` URIs are also switched off at the SOURCE:
+`packages/ui-web/src/theme.css`'s `@plugin 'daisyui'` block carries
+`exclude: chat, loading, mask, mockup, svg, tooltip` -- the six (and only six) daisy parts whose
+CSS contains a `data:` URI, none of them used anywhere in this workspace. `svg` is the base that
+declares `:root{--fx-noise:url("data:...")}`; without it the noise layer is
+invalid-at-computed-value-time, i.e. `none` -- which is what both themes already rendered, since
+each sets `--noise: 0` (ADR 0008). The built login bundle therefore carries **zero** `data:`
+occurrences, and that is what `verify-css-csp.mjs` asserts. The class ban above is unchanged: it
+is #407's owner posture and the defence-in-depth layer, and reopening it is a separate decision.
+
+**Why source-side and not a pinned count.** Tailwind v4's scanner token-matches raw text, and
+`theme.css` `@source`s `packages/ui-web/src`, `apps/console/src` and `apps/lci/src` for every
+consumer of the stylesheet -- this app inherits all three even though it has no `@source` line of
+its own. So an ordinary English word in an ordinary code comment in another app compiles a daisy
+component, and its `data:` URI, into the login bundle. That is exactly what happened: #459's
+`apps/console/src/dashboards/derived-metrics.ts` doc comment ("Total chat completions count")
+pulled `.chat` and its `--mask-chat` `data:` URI in, moved the pinned count 10 -> 11, and turned
+`main`'s `test` job and the `authz-ui-image` workflow red on a comment (#443). A count that is a
+function of unrelated prose cannot be a gate; a daisy config that emits nothing can.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as Any dev, any app
+    participant Src as apps/console/src · apps/lci/src · packages/ui-web/src
+    participant TW as Tailwind v4 scan (@source, theme.css:29-31)
+    participant Daisy as daisyUI 5 plugin (theme.css:86-92)
+    participant CSS as apps/authz-ui/dist/assets/*.css
+    participant Gate as scripts/verify-css-csp.mjs
+    Dev->>Src: writes the word "chat" in a doc comment
+    Src->>TW: raw text scanned for candidates
+    TW->>Daisy: candidate `chat`
+    alt `chat` is in `exclude:` (the case today)
+        Daisy--xCSS: nothing emitted
+        CSS->>Gate: 0 data: occurrences
+        Gate-->>Dev: ok
+    else not excluded (pre-#443)
+        Daisy->>CSS: .chat { --mask-chat: url("data:image/svg+xml,...") }
+        CSS->>Gate: 11 data: occurrences
+        Gate-->>Dev: FAIL, expected exactly 10
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Excluded: theme.css `exclude:` names all six data:-emitting daisy parts
+    Excluded --> CleanBundle: vite build
+    CleanBundle --> GateGreen: verify-css-csp.mjs sees 0 data:
+    GateGreen --> [*]
+    Excluded --> Reintroduced: a daisy upgrade adds a 7th data: part,\nor our own CSS inlines a data: URI
+    Reintroduced --> GateRed: verify-css-csp.mjs names the selector + property
+    GateRed --> Excluded: add it to `exclude:` (after checking console/lci don't render it)
+    GateRed --> SelfHosted: our own asset -> ship it under /ui/assets, never data:
+    SelfHosted --> CleanBundle
+    note right of GateRed
+      Unreachable by design: "prose in another app moved the number".
+      The gate no longer counts, so an unrelated comment cannot enter this state.
+    end note
+```
 
 Five gates enforce this so a regression fails CI instead of surfacing as a runtime CSP violation:
 
@@ -137,7 +197,7 @@ Five gates enforce this so a regression fails CI instead of surfacing as a runti
 | `src/no-daisy-component-classes.test.ts`                                               | this app's own `src/**/*.tsx`                                                                                   | a forbidden class literal in a `className=` here                                                                                                                                                                                                                        |
 | `packages/ui-web/src/csp-safe-sections.test.ts` + `section-class-audit.test.ts`'s pins | the four CSP-safe sections (`auth-panel-shell`, `device-code-entry`, `device-confirmation`, `auth-error-panel`) | the first: a forbidden class, or an import reaching outside `lib/`/`cn`/a sibling CSP-safe section (i.e. a pull-in of a daisy-backed component). The second: pinned hand-written-utility/daisy-token counts per section, so an unnoticed class addition shows as a diff |
 | `src/csp-safe-render.test.tsx`                                                         | every route element, rendered via `@testing-library/react`                                                      | a forbidden class contributed **at render time** by an imported `ui-web` section -- a source scan can't see this; DOM inspection can                                                                                                                                    |
-| `scripts/verify-css-csp.mjs`                                                           | the real built `dist/assets/*.css`                                                                              | zero external `url()` references, and the `data:` occurrence count pinned exactly at 10 (inert daisy declarations that compile in from Tailwind's prose scan regardless of usage -- a count _change_ forces a human to re-verify reachability)                          |
+| `scripts/verify-css-csp.mjs`                                                           | the real built `dist/assets/*.css`                                                                              | zero external `url()` references and **zero** `data:` occurrences (#443 -- the six data:-emitting daisy parts are excluded at source in `theme.css`, so this is a config property, not a pinned count). A failure names the selector and property that carries it       |
 | `scripts/verify-service-worker-scope.mjs`                                              | `src/sw.ts` source + built `dist/sw.js`                                                                         | a different concern riding the same `static_assets.rs` infrastructure -- see "PWA / service worker" below, not a CSP/daisy check itself                                                                                                                                 |
 
 `scripts/verify-routes-manifest.mjs` (above, "The manifest is the cross-repo allowlist contract")

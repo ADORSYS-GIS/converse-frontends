@@ -642,8 +642,16 @@ The CSP-safe set is exactly four sections — `auth-panel-shell`, `device-code-e
 sibling in that set, never `components/`. Five gates hold this mechanically:
 `no-daisy-component-classes.test.ts` (authz-ui `src/**/*.tsx`), `csp-safe-sections.test.ts` +
 `section-class-audit.test.ts` pins (these four sections), `csp-safe-render.test.tsx` (DOM-level,
-catches a class contributed only at render time), `verify-css-csp.mjs` (built CSS `data:` count
-pinned). Full table: `apps/authz-ui/README.md`'s "CSP posture".
+catches a class contributed only at render time), `verify-css-csp.mjs` (built CSS must contain
+**zero** `data:` URIs). Full table: `apps/authz-ui/README.md`'s "CSP posture".
+
+The `data:` URIs are switched off at the source, not counted downstream (#443):
+`packages/ui-web/src/theme.css`'s `@plugin 'daisyui'` block carries
+`exclude: chat, loading, mask, mockup, svg, tooltip` — the only six daisy parts whose CSS contains
+a `data:` URI, none of them used here. **Do not use those six**, and if a daisy upgrade adds a
+seventh, add it to that list rather than relaxing the gate. Tailwind v4 token-matches raw prose and
+`theme.css` `@source`s all three app trees for every consumer, so before #443 a doc comment in
+`apps/console` could compile a daisy component into the hosted-login bundle and turn `main` red.
 
 These sections take submission targets as props (`device-code-entry`/`device-confirmation` take
 the form `action`/continue URL — never import `authz-idp` paths themselves). Pages-first applies

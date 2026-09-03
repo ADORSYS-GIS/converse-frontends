@@ -40,6 +40,11 @@ export default defineConfig({
     // Next). Building it here means a fresh checkout can run `pnpm test` with no separate build
     // step, and that a test run can never be exercising a stale bundle.
     globalSetup: ['./src/test/build-report-charts-setup.ts'],
+    // Root-level, unlike `testTimeout` above: Vitest resolves `sequence` from the ROOT config, not
+    // per project (a `sequence` inside a `projects` entry is silently ignored — verified against
+    // the `dom` project, where the axe sweep still saw a body Testing Library had already
+    // emptied). See `packages/ui-web/src/test/a11y-sweep.ts` for why the order matters.
+    sequence: { hooks: 'list' },
     projects: [
       {
         resolve: {

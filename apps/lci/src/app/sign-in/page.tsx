@@ -12,7 +12,15 @@ export default function SignInPage() {
         Repository-aware code review and Q&amp;A. Sign in with your Lightbridge identity to see task
         runs across your connected repositories.
       </p>
-      <Button variant="primary" render={<a href="/api/auth/login" />} nativeButton={false}>
+      <Button
+        variant="primary"
+        render={
+          // Base UI `render` takes a template that is cloned WITH this Button's children — see
+          // `packages/ui-web/src/components/button/component.tsx`'s note on these two rules.
+          // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+          <a href="/api/auth/login" />
+        }
+        nativeButton={false}>
         Continue with Keycloak
       </Button>
     </div>

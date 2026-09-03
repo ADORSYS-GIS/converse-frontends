@@ -323,13 +323,18 @@ export const DashedComparisonOverlay: Story = {
  * `<svg>`: no wrapper, no captions, no hit regions, no tooltip. Reviewable here so a regression in
  * the export's picture is visible without opening a PDF.
  */
+// Both of these carried `args: { static: true }` and NOTHING else — no `series`. `meta.args` only
+// supplies `width`/`height`, so the component threw `TypeError: series is not iterable` on mount
+// and these two stories had never rendered anything at all. Nothing caught it: a story that throws
+// is only a red panel in the Storybook UI until something runs it, and the a11y run (#443) is the
+// first thing that does.
 export const StaticForReport: Story = {
   name: 'Static (report SVG)',
-  args: { static: true },
+  args: { series: DOMINANT_MODEL_SERIES, formatXTick: dayTick, scale: 'linear', static: true },
 };
 
 export const StaticForReportLight: Story = {
   name: 'Static (report SVG) — wireframe (light)',
-  args: { static: true },
+  args: { series: DOMINANT_MODEL_SERIES, formatXTick: dayTick, scale: 'linear', static: true },
   globals: { theme: 'wireframe' },
 };

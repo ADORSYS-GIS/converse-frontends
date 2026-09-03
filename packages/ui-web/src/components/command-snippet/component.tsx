@@ -21,7 +21,15 @@ export function CommandSnippet({ command, label, className }: CommandSnippetProp
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label ? <span className={LABEL_CLASS}>{label}</span> : null}
       <div className="command-snippet">
-        <code className={DATA_CLASS}>{command}</code>
+        {/* `tabIndex={0}` because `theme.css`'s `command-snippet` gives this `code` its own
+            `overflow-x: auto`: a command longer than the strip scrolls, and axe
+            `scrollable-region-focusable` (WCAG 2.1.1) fails a scroll container a keyboard user
+            cannot enter. No `role` — a landmark here would be noise, and several snippets on one
+            page would all claim the same one. */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+        <code className={DATA_CLASS} tabIndex={0}>
+          {command}
+        </code>
         <Button
           type="button"
           variant="ghost"

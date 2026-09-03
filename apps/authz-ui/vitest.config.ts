@@ -36,5 +36,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./src/test/setup.ts'],
+    // REQUIRED by the axe sweep that setup file installs (#443) — see
+    // `packages/ui-web/src/test/a11y-sweep.ts`: under Vitest's default `'stack'` order, Testing
+    // Library's auto-cleanup runs first and the sweep sees an empty `<body>`.
+    sequence: { hooks: 'list' },
   },
 });

@@ -13,6 +13,9 @@
     "storybook": "storybook dev -p 6007",
     "build-storybook": "storybook build -o storybook-static",
     "test": "vitest run",
+    "test:a11y": "node scripts/a11y-storybook-gate.mjs",
+    "test:a11y:raw": "vitest run --config vitest.storybook.config.mts",
+    "test:a11y:update-baseline": "node scripts/a11y-storybook-gate.mjs --update",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -39,6 +42,8 @@
   "devDependencies": {
     "@refinedev/core": "^5.0.12",
     "@storybook/addon-a11y": "^10.5.10",
+    "@storybook/addon-vitest": "10.5.10",
+    "@storybook/react": "10.5.10",
     "@storybook/react-vite": "^10.5.10",
     "@tanstack/react-query": "^5.101.4",
     "@testing-library/jest-dom": "^7.0.1",
@@ -48,7 +53,10 @@
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.5",
     "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/browser": "^3.2.7",
+    "axe-core": "^4.13.0",
     "jsdom": "^30.0.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.5.18",
     "react": "19.2.8",
     "react-dom": "19.2.8",

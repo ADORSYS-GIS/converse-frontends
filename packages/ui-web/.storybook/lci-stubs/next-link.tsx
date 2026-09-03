@@ -23,6 +23,9 @@ const NextLink = React.forwardRef<HTMLAnchorElement, LinkProps>(function NextLin
 ) {
   const resolved = typeof href === 'string' ? href : (href?.pathname ?? '#');
   return (
+    // `rest` carries `children` (this is a pass-through stub, not a leaf), which the rule cannot
+    // see through a spread — the same false positive Base UI's `render` prop produces.
+    // eslint-disable-next-line jsx-a11y/anchor-has-content
     <a
       {...rest}
       ref={ref}

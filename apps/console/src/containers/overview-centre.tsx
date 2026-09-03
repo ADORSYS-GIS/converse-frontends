@@ -8,6 +8,7 @@ import { SelectField } from '@lightbridge/ui-web/src/components/select-field';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { OVERVIEW_RANGES, useOverviewParams } from '../client/url-state';
@@ -106,49 +107,68 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Overview"
-        subtitle={subtitle}
-        controls={
-          <div className="flex flex-wrap items-end gap-3">
-            <DateRangeField
-              label={tCommon('range.label')}
-              presets={rangePresets(tCommon)}
-              preset={view.from && view.to ? null : view.range}
-              value={{ from: window.start, to: window.end }}
-              onPresetChange={(range) => {
-                void setView({
-                  range: range as (typeof OVERVIEW_RANGES)[number],
-                  from: '',
-                  to: '',
-                });
-              }}
-              onRangeChange={({ from, to }) => {
-                void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-              }}
-              layout="inline"
-              hideLabel
-            />
-            <SelectField {...zones.projectField} layout="inline" hideLabel />
-          </div>
-        }
-        // The export (converse-frontends#453, C10). It takes this page's own identity — the
-        // `dashboards.yaml` route, the resolved window, the filters — rather than a pre-built URL,
-        // so the report is a rendering of exactly the entry this page just queried. It replaced
-        // the consumption-report dialog this page used to open, which knew nothing about the
-        // panels beside it: one export path, walking the same resolved panel list.
-        action={
-          <DashboardExportButton
-            route={page.route}
-            title="Overview"
-            range={view.range}
-            rangeLabel={labels[view.range]}
-            window={window}
-            from={view.from}
-            to={view.to}
-            filters={filters}
-          />
-        }
+      <PageHeader title={tCommon('page.overview')} subtitle={subtitle} />
+
+      {/* Every screen parameter, on the floor above the cards (owner directive 2026-09-03, ADR
+          0015 amendment A2 — filters are outside cards). Export rides the TRAILING edge of this
+          row rather than the title row: it is a page-scoped action over exactly the window and
+          filters beside it, and both reference screens this row is modelled on (Chargetrip, Dub)
+          draw it in the same place. */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+          {
+            id: 'scope',
+            label: tCommon('controls.scope'),
+            children: <SelectField {...zones.projectField} layout="inline" hideLabel />,
+          },
+          {
+            // The export (converse-frontends#453, C10). It takes this page's own identity — the
+            // `dashboards.yaml` route, the resolved window, the filters — rather than a pre-built
+            // URL, so the report is a rendering of exactly the entry this page just queried. It
+            // replaced the consumption-report dialog this page used to open, which knew nothing
+            // about the panels beside it: one export path, walking the same resolved panel list.
+            id: 'report',
+            label: tCommon('controls.report'),
+            align: 'end',
+            children: (
+              <DashboardExportButton
+                route={page.route}
+                title={tCommon('page.overview')}
+                range={view.range}
+                rangeLabel={labels[view.range]}
+                window={window}
+                from={view.from}
+                to={view.to}
+                filters={filters}
+              />
+            ),
+          },
+        ]}
       />
 
       {/* The BILLING-PERIOD zones. `OverviewStatRow` is self-panelling (its cards carry their own

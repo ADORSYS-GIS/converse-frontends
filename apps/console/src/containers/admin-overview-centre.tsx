@@ -8,6 +8,7 @@ import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { EstateBudgetPressure } from '@lightbridge/ui-web/src/sections/estate-budget-pressure';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 
@@ -96,38 +97,56 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
           range: labels[view.range],
           timezone: tCommon('timezone.utc'),
         })}
-        controls={
-          <DateRangeField
-            label={tCommon('range.label')}
-            presets={rangePresets(tCommon)}
-            preset={view.from && view.to ? null : view.range}
-            value={{ from: window.start, to: window.end }}
-            onPresetChange={(range) => {
-              void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
-            }}
-            onRangeChange={({ from, to }) => {
-              void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-            }}
-            layout="inline"
-            hideLabel
-          />
-        }
-        // The export (converse-frontends#453). It takes this page's own identity — the
-        // `dashboards.yaml` route, the resolved window, the filters — rather than a pre-built URL,
-        // so the report is a rendering of exactly the entry this page just queried and cannot go
-        // stale when a panel is added to the YAML. Every YAML-driven page composes these same
-        // three lines; there is one component, not one per page.
-        action={
-          <DashboardExportButton
-            route={page.route}
-            title={t('overview.title')}
-            range={view.range}
-            rangeLabel={labels[view.range]}
-            window={window}
-            from={view.from}
-            to={view.to}
-          />
-        }
+      />
+
+      {/* The screen's parameters, on the floor above the cards (owner directive 2026-09-03,
+          ADR 0015 amendment A2 — filters are outside cards). Export rides the TRAILING edge of
+          this row: it is a page-scoped action over exactly the window beside it, drawn the same
+          way on both reference screens (Chargetrip, Dub). */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+          {
+            id: 'report',
+            label: tCommon('controls.report'),
+            align: 'end',
+            children: (
+              <DashboardExportButton
+                route={page.route}
+                title={t('overview.title')}
+                range={view.range}
+                rangeLabel={labels[view.range]}
+                window={window}
+                from={view.from}
+                to={view.to}
+              />
+            ),
+          },
+        ]}
       />
 
       {operations.truncation ? (

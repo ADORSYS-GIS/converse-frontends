@@ -97,16 +97,16 @@ describe('SessionLedger', () => {
     expect(screen.getByText('Never')).toBeInTheDocument();
   });
 
-  it('renders an empty result as an inline status line with a reset, never a centred placard', () => {
-    const onResetFilters = vi.fn();
-    render(<SessionLedger {...ledgerProps({ sessions: [], onResetFilters })} />);
+  // The reset moved OUT with the filters (2026-09-03, ADR 0015 amendment A2): it is a
+  // `PageControls` group, visible whenever a filter is active rather than only once the table has
+  // already come back empty. So this line is a line, and nothing else.
+  it('renders an empty result as an inline status line, never a centred placard', () => {
+    render(<SessionLedger {...ledgerProps({ sessions: [] })} />);
 
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('No sessions match these filters.');
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
-    expect(onResetFilters).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Reset filters' })).not.toBeInTheDocument();
   });
 
   it('renders a degraded lookup as a status above a table that still lists every row', () => {
@@ -201,33 +201,18 @@ describe('SessionLedgerControls', () => {
       userOptions: [],
       selectedUser: '',
       onSelectedUserChange: vi.fn(),
-      pageSize: 25,
-      onPageSizeChange: vi.fn(),
       ...overrides,
     };
   }
 
-  it('offers the page size as a labelled control, not a bare row of numbers', () => {
+  // Page size left this cluster on 2026-09-03 (ADR 0015 amendment A2): it was never a filter — it
+  // changes how much of the same set you see, never which set — and the `sm:ms-auto` it wore to
+  // hold itself apart from the three real filters is now a trailing `PageControls` group in
+  // `admin-sessions-centre.tsx`.
+  it('renders no page-size control — that is not a filter, and is a group of its own', () => {
     render(<SessionLedgerControls {...controlsProps()} />);
 
-    // A visible label, unlike the User select beside it: "25" says nothing on its own, whereas a
-    // person's name does — which is exactly the case `SelectField`'s `hideLabel` doc excludes.
-    expect(screen.getByText('Per page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Per page')).toHaveTextContent('25');
-  });
-
-  it('reports the picked size as a number, never the option string', async () => {
-    const onPageSizeChange = vi.fn();
-    render(<SessionLedgerControls {...controlsProps({ onPageSizeChange })} />);
-
-    fireEvent.click(screen.getByLabelText('Per page'));
-    // Base UI `Select.Item` commits only when a real `pointerdown` preceded the click on the same
-    // item — the same helper `select-field/component.test.tsx` documents.
-    const option = await screen.findByRole('option', { name: '100' });
-    fireEvent.pointerDown(option, { pointerId: 1, pointerType: 'mouse', isPrimary: true });
-    fireEvent.click(option);
-
-    expect(onPageSizeChange).toHaveBeenCalledWith(100);
+    expect(screen.queryByText('Per page')).not.toBeInTheDocument();
   });
 });
 

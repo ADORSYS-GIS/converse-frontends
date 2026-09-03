@@ -3,10 +3,12 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import {
   GrantRoleDialog,
   PlatformRoleGrants,
+  PlatformRoleGrantsControls,
   RevokeRoleDialog,
 } from '@lightbridge/ui-web/src/sections/platform-role-grants';
 
@@ -22,9 +24,10 @@ import { useAdminRolesScreen } from './use-admin-roles-screen';
  *
  * The shell is NOT here — it is mounted once by `app/(console)/layout.tsx`.
  *
- * One `Card` holding toolbar + table + pager (the split `ProjectsLedger`/`ReviewQueue` established:
- * the section supplies the contents, this file supplies the card), with "Grant role" in
- * `PageHeader.action` — the screen's one primary, the same slot `+ New key` uses.
+ * Filters on the floor, then one `Card` holding table + caption + pager (owner directive
+ * 2026-09-03, ADR 0015 amendment A2 — the two filters were inside that card until this change),
+ * with "Grant role" in `PageHeader.action` — the screen's one primary, the same slot `+ New key`
+ * uses.
  *
  * **The subtitle states the propagation rule, permanently, not only after a mutation.** A grant
  * reaches its holder at their next token mint (`ClaimSource::PlatformRoles` stamps the claim at
@@ -39,6 +42,7 @@ import { useAdminRolesScreen } from './use-admin-roles-screen';
  */
 export function AdminRolesCentre() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const screen = useAdminRolesScreen();
 
   return (
@@ -52,6 +56,22 @@ export function AdminRolesCentre() {
               {t('roles.grant')}
             </Button>
           }
+        />
+
+        {/* The role filter and the include-revoked switch were this card's own toolbar until
+            2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2). The
+            `Card` below holds the table, its ordering caption and its pager — content only. */}
+        <PageControls
+          label={tCommon('controls.row-filters')}
+          resetLabel={tCommon('controls.reset')}
+          onReset={screen.filtersActive ? screen.resetFilters : undefined}
+          groups={[
+            {
+              id: 'slice',
+              label: tCommon('controls.slice'),
+              children: <PlatformRoleGrantsControls {...screen.filters} />,
+            },
+          ]}
         />
 
         {screen.outcome ? <InlineStatus>{screen.outcome}</InlineStatus> : null}

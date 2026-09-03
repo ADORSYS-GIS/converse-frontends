@@ -23,7 +23,6 @@ function Demo({
   canDelete = true,
   loading = false,
   error,
-  toolbarActions,
 }: {
   keys?: ApiKeyRow[];
   revokeInitial?: ApiKeysRevokeTarget | null;
@@ -31,7 +30,6 @@ function Demo({
   canDelete?: boolean;
   loading?: boolean;
   error?: string;
-  toolbarActions?: React.ReactNode;
 }) {
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(revokeInitial);
   const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(deleteInitial);
@@ -65,7 +63,6 @@ function Demo({
         onConfirmDelete={() => setDeleteTarget(null)}
         onCancelDelete={() => setDeleteTarget(null)}
         pagination={{ shown: 11, total: 27, hasPrev: false, hasNext: true }}
-        toolbarActions={toolbarActions}
       />
     </div>
   );

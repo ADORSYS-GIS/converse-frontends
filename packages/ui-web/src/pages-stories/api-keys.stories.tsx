@@ -31,6 +31,8 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
+import { SelectField } from '../components/select-field';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
@@ -110,21 +112,6 @@ function ApiKeysScreen({
             which disagreed with the nav item sitting right beside it. */}
         <PageHeader
           title="API keys"
-          controls={
-            <ApiKeysControls
-              projectField={{
-                label: 'Project',
-                value: project,
-                options: API_KEY_PROJECT_OPTIONS,
-                onChange: setProject,
-              }}
-              statusOptions={API_KEY_STATUS_OPTIONS}
-              statusValue={statusFilterValue}
-              onStatusChange={setStatusFilterValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             <Button
               type="button"
@@ -135,6 +122,48 @@ function ApiKeysScreen({
               + New key
             </Button>
           }
+        />
+
+        <PageControls
+          onReset={
+            statusFilterValue !== 'all' || search !== ''
+              ? () => {
+                  setStatusFilterValue('all');
+                  setSearch('');
+                }
+              : undefined
+          }
+          groups={[
+            {
+              // SCOPE, not a filter — which project's keys these are. `Reset filters` leaves it
+              // alone (ADR 0015 amendment A2).
+              id: 'scope',
+              label: 'Scope',
+              children: (
+                <SelectField
+                  label="Project"
+                  layout="inline"
+                  hideLabel
+                  value={project}
+                  options={API_KEY_PROJECT_OPTIONS}
+                  onChange={setProject}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ApiKeysControls
+                  statusOptions={API_KEY_STATUS_OPTIONS}
+                  statusValue={statusFilterValue}
+                  onStatusChange={setStatusFilterValue}
+                  search={search}
+                  onSearchChange={setSearch}
+                />
+              ),
+            },
+          ]}
         />
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}

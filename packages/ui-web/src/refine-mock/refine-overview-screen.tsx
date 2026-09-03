@@ -34,6 +34,7 @@ import {
   PROJECT_FILTER_OPTIONS,
   RANGE_PRESETS,
 } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { RankedSeriesRows } from '../sections/ranked-series-rows';
 import { SpendDashboard } from '../sections/spend-dashboard';
@@ -83,33 +84,39 @@ export function RefineOverviewScreen() {
   return (
     <RefineMockShell active="overview">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Overview"
-          subtitle="This month · UTC"
-          controls={
-            <OverviewControls
-              rangeField={{
-                label: 'Range',
-                preset: rangePreset,
-                presets: RANGE_PRESETS,
-                value: range,
-                today: MOCK_TODAY,
-                onPresetChange: (next) => {
-                  setRangePreset(next);
-                  setRange(
-                    presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY)
-                  );
-                },
-                onRangeChange: (next) => {
-                  setRangePreset(null);
-                  setRange(next);
-                },
-              }}
-              bucketField={bucketField}
-              groupByField={groupByField}
-              projectField={projectField}
-            />
-          }
+        <PageHeader title="Overview" subtitle="This month · UTC" />
+
+        <PageControls
+          groups={[
+            {
+              id: 'controls',
+              label: 'Filters',
+              children: (
+                <OverviewControls
+                  rangeField={{
+                    label: 'Range',
+                    preset: rangePreset,
+                    presets: RANGE_PRESETS,
+                    value: range,
+                    today: MOCK_TODAY,
+                    onPresetChange: (next) => {
+                      setRangePreset(next);
+                      setRange(
+                        presetRange(RANGE_PRESETS.find((p) => p.value === next)!.days, MOCK_TODAY)
+                      );
+                    },
+                    onRangeChange: (next) => {
+                      setRangePreset(null);
+                      setRange(next);
+                    },
+                  }}
+                  bucketField={bucketField}
+                  groupByField={groupByField}
+                  projectField={projectField}
+                />
+              ),
+            },
+          ]}
         />
 
         {isError ? <InlineStatus>{errorMessage}</InlineStatus> : null}

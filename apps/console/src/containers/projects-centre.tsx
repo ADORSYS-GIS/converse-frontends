@@ -4,10 +4,12 @@ import { BottomSheet } from '@lightbridge/ui-web/src/components/bottom-sheet';
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { EmptyState } from '@lightbridge/ui-web/src/components/empty-state';
+import { Field } from '@lightbridge/ui-web/src/components/field';
 import { ProjectNameDialog } from '@lightbridge/ui-web/src/components/project-name-dialog';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
 import { ManageControls } from '@lightbridge/ui-web/src/sections/manage-controls';
 import { ProjectsLedger } from '@lightbridge/ui-web/src/sections/projects-ledger';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { ProjectDetail } from '@lightbridge/ui-web/src/sections/project-detail';
 import { useEffect } from 'react';
@@ -17,6 +19,7 @@ import { AccountDetailSubNav } from './account-detail-sub-nav';
 import { ManageScopeSlot } from './manage-scope-slot';
 import { useOpenCreateProjectDialog } from './use-create-project-dialog';
 import { useProjectRename } from './use-project-rename';
+import { useTranslation } from '../i18n/client';
 import { useProjectsScreen } from './use-projects-screen';
 
 /**
@@ -44,11 +47,17 @@ import { useProjectsScreen } from './use-projects-screen';
  * this screen is purely a filtering and browsing surface, and `+ New project` is the one write
  * left, shared cross-route the same way account creation is.
  *
- * The table + its toolbar (search left, the account/status/budget-state filter cluster right) +
- * pager all live inside ONE `Card` — `ProjectsLedger` supplies the toolbar/table/pager, this file
- * supplies the card, the same split `OverviewCentre` established for its own dashboard zones.
+ * **Filters are outside the card** (owner directive 2026-09-03, ADR 0015 amendment A2). The search
+ * box and the status/budget-state cluster were `ProjectsLedger`'s own in-card toolbar until this
+ * change — a control row inside the very card it filtered. They are `PageControls` groups on the
+ * floor now, and the `Card` holds the table and its pager: content, not controls. That supersedes
+ * ADR 0012 D3's "ledgers = toolbar + table + pager inside one Card" clause.
  */
 export function ProjectsCentre() {
+  // Only the control row's group names — the rest of this screen is English still (ADR 0017's
+  // "not translated yet" list, converse-frontends#490), but `common:controls.*` already exists for
+  // exactly these words and spelling them in English here would be new untranslated copy.
+  const { t: tCommon } = useTranslation('common');
   const screen = useProjectsScreen(<ManageScopeSlot />);
   const subtitle = screen.scopeLabel
     ? `${screen.scopeLabel} · browse and filter projects`
@@ -99,6 +108,38 @@ export function ProjectsCentre() {
 
         <AccountDetailSubNav accountId={screen.accountId} />
 
+        {/* Filters on the FLOOR, above the card (owner directive 2026-09-03, ADR 0015 amendment
+            A2). The search box and the status/budget-state cluster were `ProjectsLedger`'s own
+            in-card toolbar until this change; the `Card` below now holds the table and its pager
+            and nothing else. Search leads and the two selects follow, parted by a hairline: one is
+            "which project am I looking for", the others are "which projects count at all". */}
+        <PageControls
+          label={tCommon('controls.row-filters')}
+          resetLabel={tCommon('controls.reset')}
+          onReset={screen.filtersActive ? screen.resetFilters : undefined}
+          groups={[
+            {
+              id: 'search',
+              label: tCommon('controls.scope'),
+              children: (
+                <Field
+                  label={tCommon('controls.search')}
+                  layout="inline"
+                  hideLabel
+                  placeholder={tCommon('controls.search-projects')}
+                  value={screen.search}
+                  onChange={(event) => screen.setSearch(event.target.value)}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: tCommon('controls.slice'),
+              children: <ManageControls {...screen.filters} />,
+            },
+          ]}
+        />
+
         <ReportExportDialog {...screen.report} />
 
         <Card>
@@ -108,9 +149,6 @@ export function ProjectsCentre() {
             loadingRowCount={8}
             error={screen.errorMessage}
             onRetry={screen.retry}
-            search={screen.search}
-            onSearchChange={screen.setSearch}
-            filters={<ManageControls {...screen.filters} />}
             emptyState={
               screen.filtersActive ? undefined : (
                 <EmptyState

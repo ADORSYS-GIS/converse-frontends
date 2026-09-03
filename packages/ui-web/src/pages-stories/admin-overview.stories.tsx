@@ -50,6 +50,7 @@ import {
 import { OverviewStatRow } from '../sections/overview-stat-row';
 import type { OverviewStatCardData } from '../sections/overview-stat-row';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { SpendDashboard } from '../sections/spend-dashboard';
 import type { SpendSeriesSeries } from '../components/spend-series-chart';
@@ -111,26 +112,35 @@ function AdminOverviewScreen() {
         <PageHeader
           title="Overview"
           subtitle="Operator · All accounts with usage this period · This month · UTC"
-          controls={
-            <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
-              preset={rangePreset}
-              value={range}
-              today={STORY_TODAY}
-              onPresetChange={(next) => {
-                setRangePreset(next);
-                const preset = RANGE_PRESETS.find((p) => p.value === next);
-                if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-              }}
-              onRangeChange={(next) => {
-                setRangePreset(null);
-                setRange(next);
-              }}
-              layout="inline"
-              hideLabel
-            />
-          }
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'controls',
+              label: 'Filters',
+              children: (
+                <DateRangeField
+                  label="Range"
+                  presets={RANGE_PRESETS}
+                  preset={rangePreset}
+                  value={range}
+                  today={STORY_TODAY}
+                  onPresetChange={(next) => {
+                    setRangePreset(next);
+                    const preset = RANGE_PRESETS.find((p) => p.value === next);
+                    if (preset) setRange(presetRange(preset.days, STORY_TODAY));
+                  }}
+                  onRangeChange={(next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  }}
+                  layout="inline"
+                  hideLabel
+                />
+              ),
+            },
+          ]}
         />
 
         {/* The budget-pressure fan-out's own CONDITIONAL truncation caption — only rendered when

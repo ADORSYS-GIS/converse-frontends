@@ -53,7 +53,6 @@ function Demo({
           onRetry={() => {}}
           status={status}
           emptyMessage={emptyMessage}
-          onResetFilters={() => {}}
           selectedSessionId={selected}
           onSelectSession={(row) => setSelected(row.id)}
           pagination={
@@ -150,7 +149,6 @@ function ControlsDemo({ withMatches = false }: { withMatches?: boolean }) {
   const [kind, setKind] = useState<SessionKindFilter>('all');
   const [search, setSearch] = useState(withMatches ? 'okon' : '');
   const [user, setUser] = useState('');
-  const [pageSize, setPageSize] = useState(25);
 
   return (
     <div className="p-6">
@@ -171,8 +169,6 @@ function ControlsDemo({ withMatches = false }: { withMatches?: boolean }) {
         }
         selectedUser={user}
         onSelectedUserChange={setUser}
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
       />
     </div>
   );

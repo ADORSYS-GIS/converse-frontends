@@ -1,39 +1,36 @@
 import React from 'react';
 
-import { cn } from '../../cn';
 import { Field } from '../../components/field';
 import { SegmentedControl } from '../../components/segmented-control';
-import { SelectField } from '../../components/select-field';
 import type { ApiKeysControlsProps } from './types';
 
-// Shell brief (2026-08-30) — the Api-Keys screen's parameters, now a HORIZONTAL compact cluster in
-// `PageHeader.controls` rather than a stack in the left rail: the rail is gone, and every screen's
-// own knobs move to its `PageHeader` instead. `+ New key` is no longer here at all — it is
-// `PageHeader.action`, the emphasised, right-most control on the title row, not one filter among
-// several.
+// The API-keys screen's FILTERS — status and search. (Project is SCOPE, a `PageControls` group of
+// its own — see `ApiKeysControlsProps`.)
+//
+// 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): a FRAGMENT, not
+// a `<section>` with its own flex row. The row is `PageControls`, on the floor between `PageHeader`
+// and the ledger's `Card`; a caller drops this cluster into one `PageControlsGroup` and the row
+// owns the geometry and the group's accessible name. See `OverviewControls` for the same note.
+//
+// `+ New key` is not here at all — it is `PageHeader.action`, the screen's one primary action, not
+// one filter among several. Account is not here either: it is identity, and lives in the sidebar's
+// workspace switcher.
 //
 // Where the old right-rail sections went: KEY HYGIENE -> `ApiKeysHygieneNotes`, inline above the
 // table; LIFECYCLE -> deleted, since `TypedConfirmDialog` carries that copy at the moment it
-// matters. Account is not here: it is identity, and lives in the sidebar's workspace switcher.
+// matters.
 export function ApiKeysControls({
-  projectField,
   statusOptions,
   statusValue,
   onStatusChange,
   search,
   onSearchChange,
-  className,
 }: ApiKeysControlsProps) {
-  // Phase 9 — no external "Project"/"Status"/"Search" labels: the project select shows the
-  // chosen project's own name, the segmented control's cells already read `Active`/`Revoked`/…,
-  // and the search field's placeholder says what it searches. Every `label`/`aria-label` stays
-  // for a11y (`hideLabel` only hides the visible text).
+  // Phase 9 — no external "Status"/"Search" labels: the segmented control's cells already read
+  // `Active`/`Revoked`/…, and the search field's placeholder says what it searches. Every
+  // `label`/`aria-label` stays for a11y (`hideLabel` only hides the visible text).
   return (
-    <section
-      aria-label="Filters and actions"
-      className={cn('flex flex-wrap items-end gap-3', className)}>
-      <SelectField {...projectField} layout="inline" hideLabel />
-
+    <>
       <SegmentedControl
         aria-label="Status filter"
         options={statusOptions}
@@ -49,6 +46,6 @@ export function ApiKeysControls({
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
       />
-    </section>
+    </>
   );
 }

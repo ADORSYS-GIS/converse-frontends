@@ -9,6 +9,22 @@
     "expand-panel": "Expand {{title}}",
     "back-to-usage": "← Usage"
   },
+  "controls": {
+    "row-view": "View",
+    "row-filters": "Filters",
+    "window": "Time window",
+    "slice": "Slice",
+    "scope": "Scope",
+    "report": "Report",
+    "paging": "Rows per page",
+    "per-page": "Per page",
+    "search": "Search",
+    "search-projects": "Find a project…",
+    "reset": "Reset filters"
+  },
+  "page": {
+    "overview": "Overview"
+  },
   "pagination": {
     "showing-of-total": "Showing {{shown}} of {{total}} {{unit}}",
     "per-page": "{{shown}} of {{pageSize}} {{unit}} per page",

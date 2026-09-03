@@ -9,6 +9,7 @@ import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
 import { ApiKeysHygieneNotes } from '@lightbridge/ui-web/src/sections/api-keys-hygiene-notes';
 import { BudgetPressure } from '@lightbridge/ui-web/src/sections/budget-pressure';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
 
@@ -92,52 +93,76 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title={zones.title}
-        subtitle={zones.subtitle}
-        controls={
-          <div className="flex flex-wrap items-end gap-3">
-            <DateRangeField
-              label={tCommon('range.label')}
-              presets={rangePresets(tCommon)}
-              preset={view.from && view.to ? null : view.range}
-              value={{ from: window.start, to: window.end }}
-              onPresetChange={(range) => {
-                void setView({
-                  range: range as (typeof OVERVIEW_RANGES)[number],
-                  from: '',
-                  to: '',
-                });
-              }}
-              onRangeChange={({ from, to }) => {
-                void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-              }}
-              layout="inline"
-              hideLabel
-            />
-            {zones.projectField ? (
-              <SelectField {...zones.projectField} layout="inline" hideLabel />
-            ) : null}
-          </div>
-        }
-        // The same one export component every YAML-driven page composes (converse-frontends#453):
-        // it takes this lens's route, window and filter values, and `/api/reports/page` re-resolves
-        // that entry server-side. Suppressed until the lens is scoped — a report of a page that
-        // fired no query would be a document of unavailable panels.
-        action={
-          zones.ready ? (
-            <DashboardExportButton
-              route={page.route}
-              title={zones.title}
-              range={view.range}
-              rangeLabel={labels[view.range]}
-              window={window}
-              from={view.from}
-              to={view.to}
-              filters={filters}
-            />
-          ) : undefined
-        }
+      <PageHeader title={zones.title} subtitle={zones.subtitle} />
+
+      {/* The lens's parameters, on the floor above the panels (owner directive 2026-09-03, ADR
+          0015 amendment A2). The project select is omitted entirely on a lens that has no project
+          to pick — never rendered disabled — so this group can be absent, which is why the array
+          is filtered rather than carrying a `null` child. */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+          ...(zones.projectField
+            ? [
+                {
+                  id: 'scope',
+                  label: tCommon('controls.scope'),
+                  children: <SelectField {...zones.projectField} layout="inline" hideLabel />,
+                },
+              ]
+            : []),
+          // The same one export component every YAML-driven page composes
+          // (converse-frontends#453): it takes this lens's route, window and filter values, and
+          // `/api/reports/page` re-resolves that entry server-side. Suppressed until the lens is
+          // scoped — a report of a page that fired no query would be a document of unavailable
+          // panels — and the whole GROUP goes with it, so the row never carries an empty trailing
+          // cluster.
+          ...(zones.ready
+            ? [
+                {
+                  id: 'report',
+                  label: tCommon('controls.report'),
+                  align: 'end' as const,
+                  children: (
+                    <DashboardExportButton
+                      route={page.route}
+                      title={zones.title}
+                      range={view.range}
+                      rangeLabel={labels[view.range]}
+                      window={window}
+                      from={view.from}
+                      to={view.to}
+                      filters={filters}
+                    />
+                  ),
+                },
+              ]
+            : []),
+        ]}
       />
 
       {!zones.ready ? (

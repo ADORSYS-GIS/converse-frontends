@@ -3055,20 +3055,88 @@
   padding-top: 0.75rem;
 }
 
-/* `PageHeader` — the title block a screen opens with, and the controls row beside it. */
+/* `PageHeader` — the title block a screen opens with, and its ONE action beside it.
+ *
+ * Filters used to ride here too, in a trailing `page-header-controls` cluster. They do not any
+ * more (owner directive 2026-09-03, "filters are outside cards" — ADR 0015 amendment A2): a
+ * screen's parameters are a row of their own, `page-controls` below, so the title row carries a
+ * title and at most one action and nothing competes with either.
+ *
+ * NO `margin-bottom`. Every screen mounts this inside a `flex flex-col gap-6` stack, so a margin
+ * here was a second, invisible rhythm stacked on top of the gap — 3rem under the title where every
+ * other pair of siblings on the page is parted by 1.5rem. The gap is now the only source of
+ * vertical rhythm on a console screen, which is what lets `PageControls` sit as an ordinary
+ * sibling between the title and the first `Card` at the same 1.5rem on both sides. */
 @utility page-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
 
-  & .page-header-controls {
+  & .page-header-action {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+}
+
+/*
+ * ─── Page controls ────────────────────────────────────────────────────────────────────────────
+ *
+ * `PageControls` — the screen's parameter row, on the floor, between `PageHeader` and the first
+ * `Card` (ADR 0015 amendment A2; owner directive 2026-09-03: "Re-touch the UI so that filters are
+ * outside cards").
+ *
+ * Reference lock (Refero, 2026-09-03): Chargetrip Analytics
+ * (refero.design/pages/a9a5bb32-86b1-40ff-acd9-5f65f370aec3) and Dub Analytics
+ * (refero.design/pages/ca73bf7d-b644-4b08-9961-643b70fed7e0) both draw exactly this: a bare,
+ * unboxed control row under the title, filters leading and page-scoped actions trailing, with the
+ * metric cards starting below it. Neither wraps the row in a panel and neither pins it — the
+ * rejected shape is Anam's session history (refero.design/pages/bbf62efd-f05e-476d-bca0-ccc7cb887e80),
+ * where the filter bar lives inside the same card as the table, which is the pattern this row
+ * replaces.
+ *
+ * NOT STICKY, deliberately. A row that sits directly on the floor has no fill of its own; pinning
+ * it would mean inventing an opaque band plus a shadow so the panels could scroll under it — decor
+ * that earns its keep on neither reference and reads as chrome the console does not otherwise
+ * have. Every screen's range and lens are also in the URL (ADR 0011), so the state the row shows
+ * survives a reload and a paste without the row itself having to stay on screen.
+ *
+ * Groups are parted by a hairline at `sm`+ only: below that the row WRAPS, and a divider that
+ * lands at the start of a wrapped line separates nothing. `--color-raised` rather than
+ * `--color-border` — inside a run of chrome, group separation is the quieter of the two rules
+ * (the same choice `rail-section` and `console-footer` make). */
+@utility page-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+
+  & .page-controls-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+
+  & .page-controls-divider {
+    display: none;
+    align-self: center;
+    inline-size: 1px;
+    block-size: 1.25rem;
+    background-color: var(--color-raised);
+  }
+
+  @media (width >= 40rem) {
+    & .page-controls-divider {
+      display: block;
+    }
+
+    & .page-controls-group[data-align='end'] {
+      margin-inline-start: auto;
+    }
   }
 }
 

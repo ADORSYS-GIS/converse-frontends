@@ -22,14 +22,7 @@ export default function ProjectsLoading() {
       <PageHeader title={t('accounts.projects.title')} subtitle={t('accounts.projects.loading')} />
 
       <Card>
-        <ProjectsLedger
-          projects={[]}
-          loading
-          loadingRowCount={8}
-          search=""
-          onSearchChange={noop}
-          onSelectRow={noop}
-        />
+        <ProjectsLedger projects={[]} loading loadingRowCount={8} onSelectRow={noop} />
       </Card>
     </div>
   );

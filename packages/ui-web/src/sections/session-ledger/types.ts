@@ -86,8 +86,6 @@ export interface SessionLedgerProps {
    * the filters and not a first-run state (owner rule: "empty states are inline status lines").
    */
   emptyMessage: string;
-  /** Clears the filters that produced an empty result — rendered beside `emptyMessage`. */
-  onResetFilters?: () => void;
   selectedSessionId?: string | null;
   onSelectSession?: (row: SessionLedgerRow) => void;
   pagination?: SessionLedgerPagination;

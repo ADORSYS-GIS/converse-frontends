@@ -19,6 +19,7 @@ import { Button } from '../components/button';
 import { ConsoleShell } from '../components/console-shell';
 import { DateRangeField, presetRange } from '../components/date-range-field';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { SpecPanels, specPage } from './spec-page';
 import type { SpecPageState } from './spec-page';
@@ -40,26 +41,6 @@ function AdminUsageChannelScreen({ state = 'loaded' }: { state?: SpecPageState }
         <PageHeader
           title={CHANNEL_ID}
           subtitle="Channel · OAuth client (azp) · Every account · This month · UTC"
-          controls={
-            <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
-              preset={rangePreset}
-              value={range}
-              today={STORY_TODAY}
-              onPresetChange={(next) => {
-                setRangePreset(next);
-                const preset = RANGE_PRESETS.find((p) => p.value === next);
-                if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-              }}
-              onRangeChange={(next) => {
-                setRangePreset(null);
-                setRange(next);
-              }}
-              layout="inline"
-              hideLabel
-            />
-          }
           action={
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="ghost" size="sm">
@@ -68,6 +49,35 @@ function AdminUsageChannelScreen({ state = 'loaded' }: { state?: SpecPageState }
               <Button variant="secondary">Export</Button>
             </div>
           }
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'controls',
+              label: 'Filters',
+              children: (
+                <DateRangeField
+                  label="Range"
+                  presets={RANGE_PRESETS}
+                  preset={rangePreset}
+                  value={range}
+                  today={STORY_TODAY}
+                  onPresetChange={(next) => {
+                    setRangePreset(next);
+                    const preset = RANGE_PRESETS.find((p) => p.value === next);
+                    if (preset) setRange(presetRange(preset.days, STORY_TODAY));
+                  }}
+                  onRangeChange={(next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  }}
+                  layout="inline"
+                  hideLabel
+                />
+              ),
+            },
+          ]}
         />
 
         <SpecPanels page={PAGE} state={state} />

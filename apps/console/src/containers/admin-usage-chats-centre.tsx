@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import type { DateRangePreset } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { OVERVIEW_RANGES, useAdminUsageWindowParams } from '../client/url-state';
@@ -78,33 +79,56 @@ export function AdminUsageChatsCentre({ page }: AdminUsageChatsCentreProps) {
           range: labels[view.range],
           timezone: tCommon('timezone.utc'),
         })}
-        controls={
-          <DateRangeField
-            label={tCommon('range.label')}
-            presets={rangePresets(tCommon)}
-            preset={view.from && view.to ? null : view.range}
-            value={{ from: window.start, to: window.end }}
-            onPresetChange={(range) => {
-              void setView({ range: range as (typeof OVERVIEW_RANGES)[number], from: '', to: '' });
-            }}
-            onRangeChange={({ from, to }) => {
-              void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-            }}
-            layout="inline"
-            hideLabel
-          />
-        }
-        action={
-          <DashboardExportButton
-            route={page.route}
-            title={t('usage.chats.title')}
-            range={view.range}
-            rangeLabel={labels[view.range]}
-            window={window}
-            from={view.from}
-            to={view.to}
-          />
-        }
+      />
+
+      {/* The screen's parameters, on the floor above the cards (owner directive 2026-09-03,
+          ADR 0015 amendment A2 — filters are outside cards). Export rides the TRAILING edge of
+          this row: it is a page-scoped action over exactly the window beside it, drawn the same
+          way on both reference screens (Chargetrip, Dub). */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+          {
+            id: 'report',
+            label: tCommon('controls.report'),
+            align: 'end',
+            children: (
+              <DashboardExportButton
+                route={page.route}
+                title={t('usage.chats.title')}
+                range={view.range}
+                rangeLabel={labels[view.range]}
+                window={window}
+                from={view.from}
+                to={view.to}
+              />
+            ),
+          },
+        ]}
       />
 
       <AdminUsageSubNav />

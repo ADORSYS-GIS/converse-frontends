@@ -20,8 +20,9 @@ import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { InlineStatus } from '../components/inline-status';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
-import { PlatformRoleGrants } from '../sections/platform-role-grants';
+import { PlatformRoleGrants, PlatformRoleGrantsControls } from '../sections/platform-role-grants';
 import {
   grantUserSearchFixture,
   platformRoleGrantsFixture,
@@ -88,6 +89,33 @@ function AdminRolesScreen({
           }
         />
 
+        {/* Filters on the floor, above the card (ADR 0015 amendment A2). */}
+        <PageControls
+          onReset={
+            roleFilter !== '' || includeRevoked
+              ? () => {
+                  setRoleFilter('');
+                  setIncludeRevoked(false);
+                }
+              : undefined
+          }
+          groups={[
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <PlatformRoleGrantsControls
+                  roleFilter={roleFilter}
+                  onRoleFilterChange={setRoleFilter}
+                  roles={ROLES}
+                  includeRevoked={includeRevoked}
+                  onIncludeRevokedChange={setIncludeRevoked}
+                />
+              ),
+            },
+          ]}
+        />
+
         {outcome ? <InlineStatus>{outcome}</InlineStatus> : null}
 
         <Card>
@@ -97,11 +125,8 @@ function AdminRolesScreen({
             loadingRowCount={6}
             error={error}
             onRetry={() => {}}
-            roleFilter={roleFilter}
-            onRoleFilterChange={setRoleFilter}
-            roles={ROLES}
             includeRevoked={includeRevoked}
-            onIncludeRevokedChange={setIncludeRevoked}
+            filtered={roleFilter !== '' || includeRevoked}
             onRequestRevoke={() => {}}
             identityStatus={identityStatus}
             pagination={{

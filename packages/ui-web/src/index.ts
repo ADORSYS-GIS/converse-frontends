@@ -275,6 +275,11 @@ export type { ErrorLineProps } from './components/error-line';
 export { PageHeader } from './sections/page-header';
 export type { PageHeaderProps } from './sections/page-header';
 
+// The screen's parameter row, on the floor under `PageHeader` (ADR 0015 amendment A2 — filters are
+// outside cards). Exported beside the header it always follows.
+export { PageControls } from './sections/page-controls';
+export type { PageControlsGroup, PageControlsProps } from './sections/page-controls';
+
 export { ConsoleSidebar } from './sections/console-sidebar';
 export type { ConsoleSidebarProps } from './sections/console-sidebar';
 
@@ -510,6 +515,7 @@ export {
   GRANT_MINT_DELAY_NOTE,
   GrantRoleDialog,
   PlatformRoleGrants,
+  PlatformRoleGrantsControls,
   REVOKE_SELF_WARNING,
   REVOKE_SESSION_NOTE,
   RevokeRoleDialog,
@@ -519,6 +525,7 @@ export type {
   GrantUserOption,
   PlatformGrantAuthor,
   PlatformRoleGrantRow,
+  PlatformRoleGrantsControlsProps,
   PlatformRoleGrantsPagination,
   PlatformRoleGrantsProps,
   RevokeRoleDialogProps,

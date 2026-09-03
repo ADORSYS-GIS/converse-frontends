@@ -115,24 +115,29 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
       <PageHeader
         title={title}
         subtitle={form.mode === 'edit' ? undefined : t('refill-policies.create.subtitle')}
-        controls={
-          // Create-only, by construction: `startFromExample` only exists on
-          // `useRefillPolicyCreateScreen`'s return value. The edit route authors a replacement
-          // revision for a policy set that already exists and has no business offering a sample.
-          form.startFromExample ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={form.startFromExample.onStart}>
-              {t('refill-policies.create.start-from-example')}
-            </Button>
-          ) : null
-        }
+        // Both of these are ACTIONS on the form, not screen parameters, so they stay on the title
+        // row rather than moving to `PageControls` with the console's filters (ADR 0015 amendment
+        // A2): this route is an authoring form and has nothing to filter. `PageHeader.action`
+        // takes a cluster, and `page-header-action` lays it out as one.
         action={
-          <Button type="button" variant="ghost" size="sm" onClick={form.onCancel}>
-            {t('refill-policies.form.cancel')}
-          </Button>
+          <>
+            {/* Create-only, by construction: `startFromExample` only exists on
+                `useRefillPolicyCreateScreen`'s return value. The edit route authors a replacement
+                revision for a policy set that already exists and has no business offering a
+                sample. */}
+            {form.startFromExample ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={form.startFromExample.onStart}>
+                {t('refill-policies.create.start-from-example')}
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" size="sm" onClick={form.onCancel}>
+              {t('refill-policies.form.cancel')}
+            </Button>
+          </>
         }
       />
 

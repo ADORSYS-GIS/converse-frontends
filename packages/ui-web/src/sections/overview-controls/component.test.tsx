@@ -107,11 +107,14 @@ describe('OverviewControls', () => {
     expect(onPresetChange).toHaveBeenCalledWith('7d');
   });
 
-  it('is one landmark region, and a horizontal cluster (PageHeader.controls), not a stacked rail', () => {
-    render(<OverviewControls {...base} />);
+  // 2026-09-03 (ADR 0015 amendment A2): this cluster is a FRAGMENT now, not its own landmark. The
+  // `<section aria-label>` and the `flex flex-wrap items-end gap-3` it used to carry are
+  // `PageControls`' — the page-level control row — so four sibling clusters stopped spelling the
+  // same four utilities. What this asserts is that it did NOT keep a wrapper of its own.
+  it('renders no wrapper of its own — `PageControls` owns the row', () => {
+    const { container } = render(<OverviewControls {...base} />);
 
-    const region = screen.getByRole('region', { name: 'View and filters' });
-    expect(region).toHaveClass('flex-wrap', 'items-end');
-    expect(region).not.toHaveClass('flex-col');
+    expect(container.querySelector('section')).toBeNull();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
   });
 });

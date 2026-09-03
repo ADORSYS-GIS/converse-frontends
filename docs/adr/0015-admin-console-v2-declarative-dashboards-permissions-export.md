@@ -18,9 +18,15 @@ and D5's "explicit limits" clause is unchanged but now enforced by schema rather
 Extends ADR 0013's admin-area amendment (2026-08-31) with four further nav destinations plus the
 `/admin/usage` drill-downs, and replaces its role gate wholesale (D4). Supersedes nothing in
 [ADR 0010](0010-ui-primitive-stack-and-theming.md),
-[ADR 0011](0011-url-first-state-nuqs.md) or [ADR 0012](0012-console-visual-revamp.md): the
-primitive stack, the URL-first state rule and the visual direction all hold unchanged, and the
-engine is built out of them.
+[ADR 0011](0011-url-first-state-nuqs.md): the primitive stack and the URL-first state rule hold
+unchanged, and the engine is built out of them.
+
+**Amends [ADR 0012](0012-console-visual-revamp.md) D3 (2026-09-03, owner directive "Re-touch the UI
+so that filters are outside cards").** Its ledger clause — "toolbar + table + pager inside **one**
+`Card`" — is superseded by **A2** below: a `Card` holds content, and every screen parameter is a
+`PageControls` row on the floor. The rest of D3 (`Card` as the default zone container, the
+self-panelling exemption for `StatCard`/`BudgetHero`) holds, as does the whole of ADR 0012's visual
+direction.
 
 Backend counterparts, decided in their own repository and referenced here rather than restated:
 [lightbridge-authz ADR-0032](https://github.com/ADORSYS-GIS/lightbridge-authz/blob/main/docs/adr/0032-budget-reset-schedules.md)
@@ -278,6 +284,144 @@ window totals, and both appear on the same page for exactly that reason. An **un
 `apps/console/src/dashboards/panel-adapters.tsx:397`) — two percentiles of the same bucket, not
 two things being summed, which is why the chart primitive takes an explicit `summable` flag rather
 than assuming every multi-series board adds up.
+
+### A2 — Filters are outside cards: `PageControls`, the page's own parameter row (2026-09-03)
+
+**Owner directive, 2026-09-03: _"Re-touch the UI so that filters are outside cards."_**
+
+ADR 0012 D3 made `Card` the default zone container and spelled out one shape for ledgers:
+
+> ledgers (toolbar + table + pager inside **one** `Card`)
+
+**That clause is superseded.** A `Card` holds CONTENT. Every control that decides WHICH data the
+page is showing now stands on the floor, in a `PageControls` row between `PageHeader` and the first
+card. The rest of D3 is untouched: stat rows, charts, settings sections and forms still wrap in
+`Card`, and `StatCard`/`BudgetHero` are still self-panelling.
+
+**Reference lock** (Refero, 2026-09-03 — the two screens the row is modelled on, and the one it is
+modelled against; recorded again in `docs/design/console-redesign/README.md` §3):
+
+| Screen                                                                                   | What it settles                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Chargetrip Analytics](https://refero.design/pages/a9a5bb32-86b1-40ff-acd9-5f65f370aec3) | A bare, unboxed control row under the header — range leading, view toggles and Export trailing — then the metric cards. Dark theme, which is this console's default. |
+| [Dub Analytics](https://refero.design/pages/ca73bf7d-b644-4b08-9961-643b70fed7e0)        | Title and control row as two separate rows; a reset ("Clear Filters") that appears only once a filter is applied.                                                    |
+| [Anam session history](https://refero.design/pages/bbf62efd-f05e-476d-bca0-ccc7cb887e80) | **Rejected.** Title, tabs, filter bar, table and pagination all inside one card — the exact shape this decision removes.                                             |
+
+**What moved, and it is a hard cutover — no compatibility slot was left on either side:**
+
+- **`PageHeader.controls` is deleted.** The title row is a title, a subtitle and at most one
+  action. `page-header-controls` became the singular `page-header-action` in `theme.css`, and
+  `page-header`'s own `margin-bottom` went with it: every screen mounts the header inside a
+  `flex flex-col gap-6` stack, so the margin was a second, invisible rhythm on top of the gap.
+- **Every ledger's in-card toolbar is deleted.** `ProjectsLedger` no longer draws a search box or a
+  `filters` slot, `ApiKeysLedger` has no `toolbarActions` (its compact-tier FILTERS trigger has
+  nothing left to open — the row is on the floor at every tier), and `PlatformRoleGrants` has no
+  role select or include-revoked switch. Each of those is a `PageControls` group now.
+- **Four `*Controls` sections stopped being `<section>`s.** `OverviewControls`, `ApiKeysControls`,
+  `ManageControls` and `SessionLedgerControls` each hand-wrote the same
+  `flex flex-wrap items-end gap-3` and its own `aria-label`. They are fragments; the row owns the
+  geometry, the hairline that parts one group from the next, and each group's accessible name.
+- **`DashboardExportButton` moved from `PageHeader.action` to a trailing `PageControls` group** on
+  every YAML-driven page. It is a page-scoped action over exactly the window and filters beside it,
+  which is where both references put it. A drill-down page's "← Usage" link stays on the title row:
+  that is navigation, not a parameter.
+- **The `Reset filters` button has ONE home.** `SessionLedger` no longer hangs one off its empty
+  line. `PageControls` renders it, and only while a filter is actually narrowing something — Dub's
+  rule, and the reason every screen hook grew a `filtersActive`. A reset that is always on screen
+  is a control that usually does nothing.
+
+**What is NOT a filter, and therefore did not move.** A `ZoneHeading`'s own knobs — a chart's
+linear/log scale toggle, a panel's Expand — stay on the panel: they change how ONE card draws data
+it already has, while everything in the row changes which data every card is drawing. The test for
+a new control is whether moving it to the row would leave two panels disagreeing about what it did.
+`/admin/refill-policies`' `RefillPolicyLookup` also stays in its card for the same reason plus one
+more: it is a lookup ZONE (heading, explainer, status strip, two actions), not a control — pulling
+its input into the row would leave the explanation behind.
+
+**The row is NOT sticky, and that is a decision.** Sitting directly on the floor, it has no fill of
+its own; pinning it would mean inventing an opaque band and a shadow so panels could scroll under
+it — chrome neither reference has, and decoration that does not earn its keep. Every screen's range
+and lens are in the URL anyway (ADR 0011), so the state the row shows survives a reload and a paste
+without the row staying on screen. Group hairlines are `--color-raised` and appear at `sm`+ only:
+below that the row wraps, and a divider at the start of a wrapped line separates nothing.
+
+Contract: `packages/ui-web/src/sections/page-controls`, geometry in `theme.css`'s `page-controls`
+block, pinned at zero hand-written utilities in `section-class-audit.test.ts`.
+
+**One recorded deviation, stated rather than buried.** `page-controls/component.stories.tsx` is a
+127th entry in `a11y-storybook-baseline.json`, with the same single rule (`color-contrast`) and the
+same single cause as the other 126: the `subtle` token, `#606060` on `#111111`/`#000000`, measured
+at 3.00–3.33:1 where WCAG 2.1 AA wants 4.5:1. Every failing node is a primitive that is already in
+the baseline through its own story — `SegmentedControl`'s inactive cells, `SelectField`'s visible
+label, `PageHeader`'s subtitle — so this is not a new class of defect arriving with a new
+component; it is the documented palette deviation arriving on a new FILE because a new primitive
+got a story, which the per-file ratchet cannot tell apart. The remedy is the owner ruling already
+filed for the `subtle` token (#502), which retires all 127 entries together. Changing the token
+here, in a layout change, would be making that ruling by the back door.
+
+#### Where a filter write goes now
+
+The path is one hop shorter than it was: a control no longer sits inside the card it narrows, so
+nothing has to travel back up through the ledger section to reach the URL.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operator
+    participant Row as PageControls (floor)
+    participant Cluster as *Controls fragment
+    participant Screen as use-*-screen hook
+    participant Url as nuqs (?status=, ?range=, …)
+    participant Card as Card (content only)
+
+    Operator->>Row: pick a value in a group
+    Row->>Cluster: the group renders the cluster verbatim
+    Cluster->>Screen: onStatusChange / onPresetChange / onSearchChange
+    Screen->>Url: setView({ …, page: 1 / after: '' })
+    Note over Screen,Url: paging state resets — a new filter is a new collection
+    Url-->>Screen: re-render with the new params
+    Screen-->>Card: rows, emptyMessage, filtered
+    Screen-->>Row: filtersActive → Reset filters appears
+    Operator->>Row: Reset filters
+    Row->>Screen: resetFilters()
+    Screen->>Url: filters back to defaults (page size and SCOPE untouched)
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unfiltered: screen mounts at its param defaults
+
+    Unfiltered --> Filtered: any group writes a non-default value
+    Filtered --> Filtered: another group writes
+    Filtered --> Unfiltered: Reset filters, or every group back to its default
+
+    state Filtered {
+        [*] --> HasRows
+        HasRows --> EmptyResult: query returns nothing
+        EmptyResult --> HasRows: widen a filter
+        note right of EmptyResult
+            InlineStatus in the card ("nothing matched").
+            Never an EmptyState placard — the collection
+            is not empty, the filter emptied the view.
+        end note
+    }
+
+    state Unfiltered {
+        [*] --> HasRows2
+        HasRows2 --> EmptyCollection: there genuinely are none
+        note right of EmptyCollection
+            EmptyState placard, with the screen's own CTA.
+        end note
+    }
+
+    Unfiltered --> ResetVisible: BLOCKED — onReset is undefined here
+    note right of ResetVisible
+        A visible Reset filters with nothing to reset. The one
+        state this machine deliberately cannot enter: the
+        container passes onReset only while filtersActive, and
+        PageControls renders the group only when it is given.
+    end note
+```
 
 ### D3 — Comparison windows are additive; the picked window is never moved
 

@@ -26,6 +26,8 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
+import { SelectField } from '../components/select-field';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { RefineMockShell } from './shared-chrome';
 
@@ -124,21 +126,6 @@ export function RefineApiKeysScreen() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="API keys"
-          controls={
-            <ApiKeysControls
-              projectField={{
-                label: 'Project',
-                value: project,
-                options: API_KEY_PROJECT_OPTIONS,
-                onChange: setProject,
-              }}
-              statusOptions={API_KEY_STATUS_OPTIONS}
-              statusValue={statusFilterValue}
-              onStatusChange={setStatusFilterValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             // `+ New key` stays enabled at "All projects" (live findings #4, 2026-08-30): a key
             // belongs to exactly one project, but which one is the real dialog's own question
@@ -149,6 +136,38 @@ export function RefineApiKeysScreen() {
               + New key
             </Button>
           }
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'scope',
+              label: 'Scope',
+              children: (
+                <SelectField
+                  label="Project"
+                  layout="inline"
+                  hideLabel
+                  value={project}
+                  options={API_KEY_PROJECT_OPTIONS}
+                  onChange={setProject}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ApiKeysControls
+                  statusOptions={API_KEY_STATUS_OPTIONS}
+                  statusValue={statusFilterValue}
+                  onStatusChange={setStatusFilterValue}
+                  search={search}
+                  onSearchChange={setSearch}
+                />
+              ),
+            },
+          ]}
         />
 
         {rows.length > 0 ? <ApiKeysHygieneNotes hygiene={apiKeysHygiene} /> : null}

@@ -16,15 +16,11 @@ export const Default: Story = {
   args: { title: 'Overview', subtitle: 'adorsys-gis · last 30 days · UTC' },
 };
 
-export const WithControlsAndAction: Story = {
+// One action, never a cluster of parameters — those are `Shell/PageControls`, the row below.
+export const WithAction: Story = {
   args: {
-    title: 'Api-Keys',
+    title: 'API keys',
     subtitle: 'adorsys-gis / gateway-prod',
-    controls: (
-      <Button type="button" variant="secondary" size="sm">
-        Scope: gateway-prod
-      </Button>
-    ),
     action: (
       <Button type="button" variant="primary">
         + New key

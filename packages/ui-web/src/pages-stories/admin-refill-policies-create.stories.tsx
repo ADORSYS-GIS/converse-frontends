@@ -20,6 +20,7 @@ import { ConfirmDialog } from '../components/confirm-dialog';
 import { ConsoleShell } from '../components/console-shell';
 import { Field } from '../components/field';
 import { InlineStatus } from '../components/inline-status';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import {
   createExampleRuleSet,
@@ -66,20 +67,29 @@ function AdminRefillPolicyCreateScreen({
         <PageHeader
           title="New refill policy"
           subtitle="Author a brand-new policy set from scratch — or start from the example and edit it."
-          controls={
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setConfirmOpen(true)}>
-              Start from example policy
-            </Button>
-          }
           action={
             <Button type="button" variant="ghost" size="sm">
               Cancel
             </Button>
           }
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'controls',
+              label: 'Filters',
+              children: (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmOpen(true)}>
+                  Start from example policy
+                </Button>
+              ),
+            },
+          ]}
         />
 
         <ConfirmDialog

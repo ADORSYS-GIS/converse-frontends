@@ -1,7 +1,6 @@
 import React from 'react';
 
 import { cn } from '../../cn';
-import { Button } from '../../components/button';
 import { ErrorLine } from '../../components/error-line';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
@@ -48,9 +47,14 @@ const statusTone = (status: SessionStatus): 'active' | 'muted' =>
  * `model.Session.list` verb, so a procedure by that name is a hard codegen collision. The name is
  * the one thing that moved between the story and the shipped surface.
  *
- * Presentational only. Filters live in `PageHeader.controls` (the container's own
- * `SessionLedgerControls`), row detail is a `BottomSheet` the container mounts, and every revoke is
- * a callback — this section neither reads a clock nor holds a target of its own.
+ * Presentational only. Filters live in `PageControls` — the page-level control row on the floor
+ * above this card (ADR 0015 amendment A2; the container composes `SessionLedgerControls` into it),
+ * row detail is a `BottomSheet` the container mounts, and every revoke is a callback — this section
+ * neither reads a clock nor holds a target of its own.
+ *
+ * The `Reset filters` button that used to hang off the empty line went with them. It is a
+ * `PageControls` group now, visible whenever a filter is active rather than only once the table has
+ * already come back empty — one reset, in the same row as the filters it clears.
  *
  * EMPTY IS AN INLINE LINE, NOT A PLACARD (owner rule, and the D6 split in the design spec §6):
  * this table always has a status/kind/user filter above it, so "no sessions matched" is a fact
@@ -65,7 +69,6 @@ export function SessionLedger({
   onRetry,
   status,
   emptyMessage,
-  onResetFilters,
   selectedSessionId,
   onSelectSession,
   pagination,
@@ -163,16 +166,7 @@ export function SessionLedger({
       {status ? <InlineStatus>{status}</InlineStatus> : null}
 
       {isEmpty ? (
-        <InlineStatus
-          action={
-            onResetFilters ? (
-              <Button type="button" variant="ghost" size="sm" onClick={onResetFilters}>
-                Reset filters
-              </Button>
-            ) : undefined
-          }>
-          {emptyMessage}
-        </InlineStatus>
+        <InlineStatus>{emptyMessage}</InlineStatus>
       ) : (
         <>
           <LedgerTable

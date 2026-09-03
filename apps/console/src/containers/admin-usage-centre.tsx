@@ -5,6 +5,7 @@ import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-fi
 import type { DateRangePreset } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SegmentedControl } from '@lightbridge/ui-web/src/components/segmented-control';
+import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { ADMIN_USAGE_LENSES, OVERVIEW_RANGES, useAdminUsageParams } from '../client/url-state';
@@ -114,51 +115,75 @@ export function AdminUsageCentre({ page }: AdminUsageCentreProps) {
           range: labels[view.range],
           timezone: tCommon('timezone.utc'),
         })}
-        controls={
-          <div className="flex flex-wrap items-center gap-3">
-            <SegmentedControl
-              aria-label={t('usage.lens.label')}
-              options={lensOptions(t)}
-              value={view.lens}
-              onChange={(lens) => {
-                // Changing the lens invalidates every table's page cursor for the same reason a
-                // re-sort does: the rows are different rows now.
-                void setView({ lens: lens as AdminUsageLens });
-                knobs.resetTablePages();
-              }}
-            />
-            <DateRangeField
-              label={tCommon('range.label')}
-              presets={rangePresets(tCommon)}
-              preset={view.from && view.to ? null : view.range}
-              value={{ from: window.start, to: window.end }}
-              onPresetChange={(range) => {
-                void setView({
-                  range: range as (typeof OVERVIEW_RANGES)[number],
-                  from: '',
-                  to: '',
-                });
-              }}
-              onRangeChange={({ from, to }) => {
-                void setView({ from: toUrlDate(from), to: toUrlDate(to) });
-              }}
-              layout="inline"
-              hideLabel
-            />
-          </div>
-        }
-        action={
-          <DashboardExportButton
-            route={page.route}
-            title={t('usage.title')}
-            range={view.range}
-            rangeLabel={labels[view.range]}
-            window={window}
-            from={view.from}
-            to={view.to}
-            filters={filters}
-          />
-        }
+      />
+
+      {/* The page's three parameters, on the floor above the panels (owner directive 2026-09-03,
+          ADR 0015 amendment A2 — filters are outside cards): the LENS (which entity the actor
+          panels are about), the WINDOW, and Export on the trailing edge. Lens and window are
+          parted by a hairline because they answer different questions — one re-groups five panels
+          and rewrites every row link, the other moves the whole page in time. */}
+      <PageControls
+        label={tCommon('controls.row-view')}
+        groups={[
+          {
+            id: 'slice',
+            label: tCommon('controls.slice'),
+            children: (
+              <SegmentedControl
+                aria-label={t('usage.lens.label')}
+                options={lensOptions(t)}
+                value={view.lens}
+                onChange={(lens) => {
+                  // Changing the lens invalidates every table's page cursor for the same reason a
+                  // re-sort does: the rows are different rows now.
+                  void setView({ lens: lens as AdminUsageLens });
+                  knobs.resetTablePages();
+                }}
+              />
+            ),
+          },
+          {
+            id: 'window',
+            label: tCommon('controls.window'),
+            children: (
+              <DateRangeField
+                label={tCommon('range.label')}
+                presets={rangePresets(tCommon)}
+                preset={view.from && view.to ? null : view.range}
+                value={{ from: window.start, to: window.end }}
+                onPresetChange={(range) => {
+                  void setView({
+                    range: range as (typeof OVERVIEW_RANGES)[number],
+                    from: '',
+                    to: '',
+                  });
+                }}
+                onRangeChange={({ from, to }) => {
+                  void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+                }}
+                layout="inline"
+                hideLabel
+              />
+            ),
+          },
+          {
+            id: 'report',
+            label: tCommon('controls.report'),
+            align: 'end',
+            children: (
+              <DashboardExportButton
+                route={page.route}
+                title={t('usage.title')}
+                range={view.range}
+                rangeLabel={labels[view.range]}
+                window={window}
+                from={view.from}
+                to={view.to}
+                filters={filters}
+              />
+            ),
+          },
+        ]}
       />
 
       {/* Estate | Chats. `/admin/usage/chats` is a LENS on this page, not a sibling destination —

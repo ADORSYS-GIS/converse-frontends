@@ -148,6 +148,24 @@ describe('section class budget', () => {
     ['refill-scenario-form', 8],
     ['refill-policy-manual', 13],
     ['refill-policy-status-strip', 2],
+    // ── the page's two chrome rows (ADR 0015 amendment A2 — filters are outside cards) ───────
+    //
+    // Both at ZERO, measured not guessed, and both deliberately pinned there: they are the two
+    // rows EVERY console screen opens with, so the first hand-written utility in either is worth a
+    // visible diff on this file.
+    //
+    // `page-controls` is the new one (2026-09-03) — the screen's parameter row, standing on the
+    // floor between `PageHeader` and the first `Card`. Its geometry, its group hairlines and its
+    // trailing-edge rule are all the `page-controls` `@utility` and its two named descendant parts
+    // in `theme.css`, which is the sanctioned destination; the component writes no class of its
+    // own. That is also what let four sibling `*Controls` sections DROP a hand-written `flex
+    // flex-wrap items-end gap-3` each — the row they were all describing is this one now.
+    //
+    // `page-header` is pinned for the first time in the same change, because the same change is
+    // what emptied it: the `controls` slot is gone and `page-header-controls` became the singular
+    // `page-header-action`. It hand-writes nothing either.
+    ['page-controls', 0],
+    ['page-header', 0],
     // ── declarative dashboard engine (converse-frontends#446) ────────────────────────────────
     //
     // Both come in at ZERO hand-written utilities, which is the bar this file exists to hold, not

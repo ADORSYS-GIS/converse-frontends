@@ -29,6 +29,7 @@ import { ConsoleShell } from '../components/console-shell';
 import { DateRangeField, presetRange } from '../components/date-range-field';
 import { SegmentedControl } from '../components/segmented-control';
 import { RANGE_PRESETS } from '../sections/overview-controls/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { SpecPanels, specPage } from './spec-page';
 import type { SpecPageState } from './spec-page';
@@ -55,34 +56,47 @@ function AdminUsageScreen({ state = 'loaded' }: { state?: SpecPageState }) {
         <PageHeader
           title="Usage"
           subtitle="Operator · Every account with usage · This month · UTC"
-          controls={
-            <div className="flex flex-wrap items-center gap-3">
-              <SegmentedControl
-                aria-label="Actor lens"
-                options={LENS_OPTIONS}
-                value={lens}
-                onChange={setLens}
-              />
-              <DateRangeField
-                label="Range"
-                presets={RANGE_PRESETS}
-                preset={rangePreset}
-                value={range}
-                today={STORY_TODAY}
-                onPresetChange={(next) => {
-                  setRangePreset(next);
-                  const preset = RANGE_PRESETS.find((p) => p.value === next);
-                  if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-                }}
-                onRangeChange={(next) => {
-                  setRangePreset(null);
-                  setRange(next);
-                }}
-                layout="inline"
-                hideLabel
-              />
-            </div>
-          }
+        />
+
+        <PageControls
+          groups={[
+            {
+              id: 'slice',
+              label: 'Slice',
+              children: (
+                <SegmentedControl
+                  aria-label="Actor lens"
+                  options={LENS_OPTIONS}
+                  value={lens}
+                  onChange={setLens}
+                />
+              ),
+            },
+            {
+              id: 'window',
+              label: 'Time window',
+              children: (
+                <DateRangeField
+                  label="Range"
+                  presets={RANGE_PRESETS}
+                  preset={rangePreset}
+                  value={range}
+                  today={STORY_TODAY}
+                  onPresetChange={(next) => {
+                    setRangePreset(next);
+                    const preset = RANGE_PRESETS.find((p) => p.value === next);
+                    if (preset) setRange(presetRange(preset.days, STORY_TODAY));
+                  }}
+                  onRangeChange={(next) => {
+                    setRangePreset(null);
+                    setRange(next);
+                  }}
+                  layout="inline"
+                  hideLabel
+                />
+              ),
+            },
+          ]}
         />
 
         <SpecPanels page={PAGE} state={state} />

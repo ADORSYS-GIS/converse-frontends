@@ -179,13 +179,27 @@ describe('consoleBuildFacts', () => {
     const facts = consoleBuildFacts('0.1.0', {
       NEXT_PUBLIC_BUILD_SHA: 'f95d35ea1c4b90d3f0a2b7e6c8419d5a3b2e7f01',
       IMAGE_BUILD_SHA: 'f95d35ea1c4b90d3f0a2b7e6c8419d5a3b2e7f01',
-      IMAGE_TAG: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e',
+      IMAGE_TAG: 'sha-f95d35e',
+      IMAGE_REF: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e',
       IMAGE_BUILD_TIME: '2026-09-03T05:41:00Z',
     });
 
     expect(facts.version).toBe('0.1.0');
     expect(facts.commitShortSha).toBe('f95d35e');
-    expect(facts.imageTag).toBe('ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e');
+    // Tag and reference are separate facts, and the tag row is a tag.
+    expect(facts.imageTag).toBe('sha-f95d35e');
+    expect(facts.imageReference).toBe('ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e');
+  });
+
+  it('never puts a full image reference in the tag', () => {
+    // #477 stamped the whole reference into IMAGE_TAG, so `/settings/info`'s Image row printed a
+    // registry path where a tag belongs. Held down here as well as in @lightbridge/otel's own
+    // suite, because this is the function the screen actually calls.
+    const facts = consoleBuildFacts('0.1.0', {
+      IMAGE_TAG: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e',
+    });
+    expect(facts.imageTag).toBe('sha-f95d35e');
+    expect(facts.imageReference).toBeUndefined();
   });
 
   it('reports only the package version for a build that was never packaged', () => {
@@ -198,6 +212,7 @@ describe('consoleBuildFacts', () => {
       commitShortSha: undefined,
       imageSha: undefined,
       imageTag: undefined,
+      imageReference: undefined,
       imageBuiltAt: undefined,
     });
   });

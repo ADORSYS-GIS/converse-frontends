@@ -133,6 +133,33 @@ describe('BuildInfoCard', () => {
     expect(screen.getAllByText('Built').length).toBe(1);
   });
 
+  it('shows the tag and the full reference as two rows, and copies the reference', async () => {
+    // They answer different questions — "which build is this" vs "what do I type to pull it" —
+    // and collapsing them is exactly how a registry path ended up rendered under "Image".
+    const writeText = stubClipboard();
+    render(<BuildInfoCard {...buildInfoAllKnown} />);
+
+    const consoleGroup = screen.getByText('Console').closest('div') as HTMLElement;
+    expect(within(consoleGroup).getByText('sha-f95d35e')).toBeInTheDocument();
+    expect(
+      within(consoleGroup).getByText('ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e')
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Console image reference' }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e'
+      )
+    );
+  });
+
+  it('omits the Reference row for a service that reports no reference', () => {
+    // The backends do not: `lightbridge-authz`'s `/version` shape has no such field, and inventing
+    // one from its tag would be a fabricated pull command.
+    render(<BuildInfoCard {...buildInfoAllKnown} />);
+    expect(screen.getAllByText('Reference').length).toBe(1);
+  });
+
   it("keeps the console's own row readable while every backend is still loading", () => {
     render(<BuildInfoCard {...buildInfoLoading} />);
     // The console reads its build from its own bundle, so it can never be blocked on a backend.

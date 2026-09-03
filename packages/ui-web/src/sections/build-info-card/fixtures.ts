@@ -14,7 +14,8 @@ const consoleEntry: BuildInfoEntry = {
       commitSha: 'f95d35ea1c4b90d3f0a2b7e6c8419d5a3b2e7f01',
       commitShortSha: 'f95d35e',
       imageSha: 'f95d35ea1c4b90d3f0a2b7e6c8419d5a3b2e7f01',
-      imageTag: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e',
+      imageTag: 'sha-f95d35e',
+      imageReference: 'ghcr.io/adorsys-gis/converse-frontends/console:sha-f95d35e',
       imageBuiltAt: '2026-09-03T05:41:00Z',
     },
   },
@@ -39,6 +40,9 @@ function backendEntry(id: string, description: string): BuildInfoEntry {
         toolchain: 'rustc 1.98.0 (88d9e12ae 2026-08-18)',
         builtAt: '2026-09-03T04:44:10Z',
         imageSha: '509005ede47ed13cd2fbb3be0f7bb5bfbf029039',
+        // No `imageReference`: `lightbridge-authz`'s `GET /version` shape has no such field and is
+        // deliberately not changed from this side. Its `imageTag` is whatever that backend stamps,
+        // rendered verbatim.
         imageTag: 'ghcr.io/adorsys-gis/lightbridge-authz:509005e',
         imageBuiltAt: '2026-09-03T04:58:31Z',
       },

@@ -103,18 +103,21 @@ jobs:
           LABELS: ${{ steps.meta.outputs.labels }}
           # The build stamp every image in this estate carries (lightbridge-authz#573) — see
           # apps/typst-render/Dockerfile's own ARG -> ENV block, and docker-image.yml's identical
-          # pair, for why this is the commit rather than the pushed digest, and why `IMAGE_TAG` is
-          # read out of `$TAGS` below instead of being rebuilt from `github.sha`.
+          # pair, for why this is the commit rather than the pushed digest, why `IMAGE_TAG` /
+          # `IMAGE_REF` are read out of `$TAGS` below instead of being rebuilt from `github.sha`,
+          # and why the tag and the full reference are two separate values.
           IMAGE_BUILD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
           tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
-          # The immutable, actually-pushed `:sha-<short>` tag, taken from the tag list rather than
-          # rebuilt from `github.sha` — see the IMAGE_TAG note above.
-          image_tag="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
-          [ -n "$image_tag" ] || image_tag="$(head -n1 <<<"$TAGS")"
-          echo "build stamp: IMAGE_TAG=${image_tag}"
+          # The immutable, actually-pushed `…:sha-<short>` reference, taken from the tag list
+          # rather than rebuilt from `github.sha` — see the note above — and the TAG split off it,
+          # so the two can never name different builds.
+          image_ref="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
+          [ -n "$image_ref" ] || image_ref="$(head -n1 <<<"$TAGS")"
+          image_tag="${image_ref##*:}"
+          echo "build stamp: IMAGE_TAG=${image_tag} IMAGE_REF=${image_ref}"
           # No --layers / --cache-from / --cache-to: the Docker build is deliberately uncached
           # (caching lives in Turbo). Build context is the repo root to match the sibling app
           # Dockerfiles' documented invocation, even though this image only needs
@@ -122,6 +125,7 @@ jobs:
           buildah build --format docker --platform linux/amd64 \
             --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
             --build-arg "IMAGE_TAG=${image_tag}" \
+            --build-arg "IMAGE_REF=${image_ref}" \
             --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/typst-render/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.

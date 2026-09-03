@@ -82,6 +82,41 @@ Install/upgrade:
 
 - `helm upgrade --install -n ai lci ./charts/converse-lci -f my-values.yaml`
 
+## Branding (optional)
+
+Disabled by default — the app renders its own built-in mark. To supply a real logo, enable
+`lci.configMaps.branding-logo`/`branding-logo-light` with the base64-encoded file, enable
+`lci.persistence.branding-logo`/`branding-logo-light`, and point `LCI_BRANDING_LOGO_PATH`/
+`LCI_BRANDING_LOGO_LIGHT_PATH` at the mounted paths:
+
+```yaml
+lci:
+  controllers:
+    main:
+      containers:
+        frontend:
+          env:
+            LCI_BRANDING_LOGO_PATH: /tmp/branding/logo.png
+            LCI_BRANDING_LOGO_LIGHT_PATH: /tmp/branding/logo-light.png
+  configMaps:
+    branding-logo:
+      enabled: true
+      binaryData:
+        logo.png: <base64-encoded logo>
+    branding-logo-light:
+      enabled: true
+      binaryData:
+        logo-light.png: <base64-encoded light-theme logo>
+  persistence:
+    branding-logo:
+      enabled: true
+    branding-logo-light:
+      enabled: true
+```
+
+`branding-logo-light` only matters alongside `branding-logo` — set without it, no mark renders
+under `black`, this app's default theme.
+
 ## Ingress
 
 This chart deliberately ships with `lci.ingress.frontend.enabled: false` and no host. This app's

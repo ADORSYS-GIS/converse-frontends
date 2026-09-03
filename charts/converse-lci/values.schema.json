@@ -84,6 +84,42 @@
             }
           },
           "required": ["main"]
+        },
+        "configMaps": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "branding-logo": {
+              "description": "Runtime white-label logo. Optional, disabled by default. Base64-encoded logo file, mounted at /tmp/branding/logo.png. Accepts .png/.svg/.jpg/.jpeg/.webp — LCI_BRANDING_LOGO_PATH's extension decides the served Content-Type.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo.png": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "branding-logo-light": {
+              "description": "Light-theme counterpart to branding-logo. Optional, disabled by default; only meaningful when branding-logo is also enabled. Base64-encoded logo file, mounted at /tmp/branding/logo-light.png.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "logo-light.png": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
         }
       },
       "required": ["controllers"]

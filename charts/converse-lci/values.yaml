@@ -136,6 +136,38 @@ lci:
           port: 80
           targetPort: http
 
+  # Runtime white-label logo — disabled by default, so the app renders its own built-in mark.
+  # Two ConfigMaps, not one: an entry can't carry both `data` and `binaryData`. Both mount into
+  # /tmp/branding/. Enabling logo-light without logo renders no mark at all under `black`, this
+  # app's default theme.
+  persistence:
+    branding-logo:
+      enabled: false
+      type: configMap
+      identifier: branding-logo
+      globalMounts:
+        - path: /tmp/branding/logo.png
+          subPath: logo.png
+          readOnly: true
+    branding-logo-light:
+      enabled: false
+      type: configMap
+      identifier: branding-logo-light
+      globalMounts:
+        - path: /tmp/branding/logo-light.png
+          subPath: logo-light.png
+          readOnly: true
+
+  configMaps:
+    branding-logo:
+      enabled: false
+      binaryData:
+        logo.png: ''
+    branding-logo-light:
+      enabled: false
+      binaryData:
+        logo-light.png: ''
+
   # Deliberately disabled with no host: this app's public hostname is decided and owned by the
   # private ai-helm-values repo (this chart does not set it — see that repo's converse-lci values
   # / Application for the real value), not this chart. Set `enabled: true` and populate `hosts`

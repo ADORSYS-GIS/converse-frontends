@@ -67,27 +67,38 @@ function storyPrimaryItems(active: StoryRoute): NavSpineItem[] {
 }
 
 /**
- * The nav items every page story's `ConsoleSidebar` renders — ONE flat group, no separate
- * "Operator" group any more (owner review round 2, 2026-08-31, converse-frontends#368 finding #1,
- * verbatim: "Which button leads to the admin pages? ... Please remove that. Instead, inside of
- * the settings, place a permission gated button 'Admin' that leads to admin."). The gated "Admin"
- * row is appended to the flat item list — matching `settingsNavGroups`' own real shape, which is
- * one ungrouped list with "Admin" as its own last, showAdmin-gated row, not a labelled group — and
- * only when `active` is `'settings'` or `'admin'`: the account area's own rail (`'overview'`/
- * `'api-keys'`) never shows it at all any more, gated role or not, since the real `navGroups` no
- * longer has anywhere for it to go there (see `console-chrome.tsx`'s own doc comment).
+ * The nav items every page story's `ConsoleSidebar` renders: one flat group of destinations, plus
+ * the permission-gated "Admin" row as its OWN labelled group when `showAdmin` is set.
+ *
+ * **The Admin row is back on the ACCOUNT rail (owner directive, 2026-09-03, verbatim: "The Admin
+ * button doesn't need to be hidden now, since it's gated by permission. So it can appear on the
+ * main left rail. The Roles button in Settings' left rail can safely be removed.")** — so it is
+ * shown for every area EXCEPT `'settings'`, mirroring the real `navGroups`' own Operator group
+ * (`console-chrome.tsx`). The settings rail (`settingsNavGroups`) carries no Admin row and no
+ * Roles row at all any more; both pointed out of that area, and neither has a second home there.
+ *
+ * The one deliberate simplification left: `'admin'` here still renders the account-shaped rows
+ * with Admin lit, where production swaps the entire rail to `adminNavGroups`' own seven
+ * destinations. A page story is exercising the SCREEN, not the rail's area swap — the chrome
+ * tests (`apps/console/src/client/console-chrome.test.ts`) own that.
  */
 export function storyNavGroups(active: StoryRoute, showAdmin = false): NavGroup[] {
-  const items = storyPrimaryItems(active);
-  if (showAdmin && (active === 'settings' || active === 'admin')) {
-    items.push({
-      key: 'admin',
-      label: 'Admin',
-      icon: <NavGlyph shape="admin" />,
-      active: active === 'admin',
+  const groups: NavGroup[] = [{ key: 'primary', items: storyPrimaryItems(active) }];
+  if (showAdmin && active !== 'settings') {
+    groups.push({
+      key: 'operator',
+      label: 'Operator',
+      items: [
+        {
+          key: 'admin',
+          label: 'Admin',
+          icon: <NavGlyph shape="admin" />,
+          active: active === 'admin',
+        },
+      ],
     });
   }
-  return [{ key: 'primary', items }];
+  return groups;
 }
 
 // The sidebar footer stack -- Search, Theme, then the identity row -- mirrors

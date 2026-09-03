@@ -186,12 +186,13 @@ export const ErrorState: Story = {
   render: () => <SettingsScreen projects={[]} error="Could not load projects." />,
 };
 
-// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
-// showAdmin-gated "Admin" row (`settingsNavGroups`, linking to `/admin/overview`) — the ONE way an
-// admin now reaches the admin area from the chrome, replacing the account-area rail's deleted
-// Operator row.
+// The settings rail's own gated "Admin" row is DELETED (owner directive, 2026-09-03: "The Admin
+// button doesn't need to be hidden now, since it's gated by permission. So it can appear on the
+// main left rail."), and so is its "Roles" row. This story stands where the old `AdminNav` one
+// did, asserting the opposite: an admin's settings rail is identical to a viewer's — the Operator
+// group lives on the account rail now (`Pages/Overview`'s own `AdminNav` story).
 export const AdminNav: Story = {
-  name: 'Nav — admin (Admin row visible)',
+  name: 'Nav — admin (settings rail is unchanged by permission)',
   render: () => <SettingsScreen showAdmin />,
 };
 

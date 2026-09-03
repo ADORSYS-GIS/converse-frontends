@@ -400,8 +400,10 @@ export const ProjectMobileBaseTierLight: Story = {
 
 // ── user lens ─────────────────────────────────────────────────────────────────────────────────
 
-// No admin-only card exists on this lens at all — `showAdmin` is exercised on the sidebar's Operator
-// nav group only, never as a second populated variant.
+// No admin-only card exists on this lens at all, and since the 2026-09-03 directive the settings
+// rail no longer differs by permission either — `showAdmin` changes nothing visible on this story,
+// and is left set only so the prop's default is never the thing under review here. The Operator
+// group it used to drive lives on the account rail now (`Pages/Overview`'s `AdminNav` story).
 export const UserPopulated: Story = {
   name: 'User — populated',
   render: () => <SettingsOverviewLensScreen lens="user" showAdmin />,

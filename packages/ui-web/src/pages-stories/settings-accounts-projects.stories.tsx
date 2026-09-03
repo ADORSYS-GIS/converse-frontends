@@ -336,11 +336,11 @@ export const ErrorState: Story = {
   render: () => <ProjectsScreen projects={[]} error="Failed to load projects for this account." />,
 };
 
-// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
-// showAdmin-gated "Admin" row (`settingsNavGroups`), not an "Operator group" any more — that group
-// is deleted outright from the account-area rail (`console-chrome.tsx`'s `navGroups`).
+// The settings rail carries no permission-gated row at all any more (owner directive, 2026-09-03
+// — the Admin row moved to the account rail's Operator group, the Roles row was removed outright),
+// so this story pins that an admin's settings rail is identical to a viewer's.
 export const AdminNav: Story = {
-  name: 'Nav — admin (Admin row visible)',
+  name: 'Nav — admin (settings rail is unchanged by permission)',
   render: () => <ProjectsScreen showAdmin />,
 };
 

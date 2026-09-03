@@ -880,6 +880,13 @@ AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugment
 
 ## Amendment (2026-08-31, owner review round 2): the account-area rail's admin shortcut moves into settings, and refill-policy creation moves off a query param onto its own route
 
+> **Finding #1's PLACEMENT is SUPERSEDED by the 2026-09-03 amendment at the end of this file
+> ("the Admin row returns to the main rail; the settings rail loses Roles").** The Admin row is on
+> the account area's own rail again, in its own `Operator` group. What survives from finding #1 is
+> the reason it was moved in the first place — a nav row must say where it goes, and must be gated
+> on something real — both of which the current row satisfies. Read that amendment before this
+> section's finding #1; finding #4 (the create route) is untouched.
+
 A second owner review pass on the same day as the two amendments above, issue #368, findings #1
 and #4 verbatim, addressed together here because both are "an entry point moved off where this ADR
 last put it, onto a plainer surface":
@@ -1056,3 +1063,147 @@ what is actually true) — applied here to the one gap in that chain that has no
   `/settings/overview/usage` estate lens keeps its own family-only fan-out — this amendment scopes
   strictly to `/admin/overview`, not a second estate surface).
 - Backend source of truth: `lightbridge-authz` PR `#605` (composes on `#603`), merged `a9bf3ed`.
+
+## Amendment (2026-09-03, owner directive): the Admin row returns to the main rail; the settings rail loses Roles
+
+Owner directive, verbatim:
+
+> "The Admin button doesn't need to be hidden now, since it's gated by permission. So it can appear
+> on the main left rail. The Roles button in Settings' left rail can safely be removed."
+
+Source of truth: converse-frontends#443.
+
+This **supersedes the placement half of the 2026-08-31 owner-review-round-2 amendment's finding
+#1** (marked as such inline above). It does not reopen D1 (account-scoped paths), D2 (the settings
+area, one shell mount, three nav surfaces) or the admin-area amendment: the areas, the swap
+mechanism and the destinations are all unchanged. Exactly one row moves, and one row is deleted.
+
+### What changed, and why the earlier ruling does not block it
+
+Finding #1's objection was never "the account rail must not reach admin". It was aimed at a
+specific dishonest row: a group labelled `Operator` whose one item read **"Refill requests"** and
+silently landed on `/admin/overview` — "Which button leads to the admin pages? Oh wait, it's the
+button 'Refill queue' that leads to 'admin'?" — and which was gated on `isAdmin`, i.e.
+`roles.includes('lightbridge-admin')`, a role production minted for **every** signed-in person
+(ADR-0026), so it was not gated at all. Both defects were fixed by other work:
+
+- the row says exactly where it goes (**"Admin"**, ADR 0013's 2026-08-31 amendment), and
+- it is gated on `ADMIN_AREA_PERMISSIONS` — permissions `lightbridge-authz` actually enforces,
+  resolved server-side by `procedure.getMyAccess` (converse-frontends#452 / ADR 0015 D4).
+
+With both true, the extra hop (Account → Settings → Admin) buys nothing and costs an operator a
+click on every visit. The directive's own reasoning — "since it's gated by permission" — names
+precisely that.
+
+- **`navGroups` gains a third group.** `Operator`, last, one row: **Admin**, `href` =
+  `adminLandingHref(permissions)` (the first destination in `ADMIN_DESTINATIONS` order that THIS
+  caller can open — a reviewer holding only `budget:review` lands on `/admin/refills-queue`, never
+  a 404 at `/admin/overview`). Included or omitted, never disabled and never marked with a badge,
+  the same contract every gated row in the file follows. The function takes `permissions` as its
+  third parameter; it still takes no count.
+- **Its own labelled group, not a third row in `Account`.** `SidebarGroup` draws a heading only for
+  a group with a `label`, so a label-less group would render flush against Account's rows and read
+  as a third account destination rather than as an exit door into a different area.
+- **No `active` flag and no trailing count.** Reaching `/admin/*` swaps the whole rail to
+  `adminNavGroups`, so the row is never rendered beside its own destination; and the pending-refill
+  numeral keeps its single honest home on the admin area's own "Refills queue" row — a count
+  hanging off a row labelled "Admin" would be the 2026-08-31 dishonesty in a new place.
+- **`settingsNavGroups` loses two rows and its parameter.** The **Admin** row moves to the rail
+  above (never both places at once). The **Roles** row is deleted outright per the directive's
+  second sentence: it pointed at `/admin/roles`, an admin destination the admin area's own nav
+  already lists, so it was a second entrance to somebody else's screen rather than a settings
+  destination. With both gone, nothing in the settings area is permission-gated, so the function
+  takes no permission set at all — every visitor sees the identical five live `/settings/*` rows.
+  `SettingsRoute` drops `'roles'`.
+- **`/admin/roles` is unaffected.** It keeps its `rbac:manage` gate, its route segment's own
+  `readSession()` + `can()` + `notFound()`, and its row in `ADMIN_DESTINATIONS` — one nav home
+  instead of two.
+- **The command palette needed no change.** It already enumerates `ADMIN_DESTINATIONS` filtered by
+  the caller's own permission set (one entry per real destination), which is the same gate the rail
+  now applies; the palette never had a lumped "Admin" row to move.
+
+### Diagrams
+
+How the rail decides what to draw, and where the Admin row points:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Person
+    participant L as app/(console)/layout.tsx
+    participant S as ConsoleSidebarContent
+    participant C as useCan()<br/>(client/use-can.ts)
+    participant N as navGroups /<br/>settingsNavGroups / adminNavGroups
+    participant G as Route segment gate<br/>(server/access.ts · can())
+
+    P->>L: GET /accounts/<id>/overview
+    L->>S: render chrome once (never per route)
+    S->>C: permissions (seeded from getMyAccess, session cookie)
+    C-->>S: ['budget:review']  %% a reviewer, not a full admin
+    S->>N: areaFromPathname('/accounts/…') === 'account'
+    N->>N: hasAnyPermission(perms, ADMIN_AREA_PERMISSIONS) → true
+    N->>N: adminLandingHref(perms) → '/admin/refills-queue'
+    N-->>S: [Workspace, Account, Operator{Admin → /admin/refills-queue}]
+    P->>L: click Admin
+    L->>G: GET /admin/refills-queue
+    G->>G: can(session, PERMISSION.budgetReview) → true
+    G-->>P: the queue (rail swaps to adminNavGroups, filtered per row)
+
+    Note over N,G: A viewer holding none of ADMIN_AREA_PERMISSIONS gets no Operator<br/>group at all, so the 404 branch below is only ever reached by hand-typed URL.
+    P->>G: hand-typed GET /admin/overview
+    G-->>P: notFound() — usage:read-all not held
+```
+
+The Admin row's own lifecycle, including the states nothing can enter:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unverified: session built, getMyAccess unreachable
+    [*] --> Resolved: permissions resolved
+
+    Unverified --> NoRow: fail-closed empty set
+    note right of Unverified
+      The footer's "Access could not be verified" InlineStatus
+      is what keeps this distinguishable from NoRow's honest
+      "you hold nothing" (converse-frontends#452, negative AC 1).
+    end note
+
+    Resolved --> NoRow: holds none of ADMIN_AREA_PERMISSIONS
+    Resolved --> RowShown: holds ANY ONE of them
+
+    RowShown --> AdminArea: click → adminLandingHref(permissions)
+    AdminArea --> RowShown: "← Back to console"
+
+    state "Row shown, disabled" as RowDisabled
+    state "Row shown while on /admin/*" as RowActive
+    NoRow --> RowDisabled: unreachable — gated rows are omitted, never disabled
+    AdminArea --> RowActive: unreachable — the rail swaps to adminNavGroups
+
+    NoRow --> [*]
+```
+
+### Consequences (2026-09-03)
+
+- `apps/console/src/client/console-chrome.tsx`: `navGroups` takes a third `permissions` param and
+  appends the gated `operator` group; `NAV_ICON` regains an `admin` entry (`AdminIcon`, the same
+  glyph the admin area's "Refills queue" row draws — the shield names a concept, not an area);
+  `settingsNavGroups` drops its `permissions` param, its "Admin" row and its "Roles" row;
+  `SettingsRoute` drops `'roles'`; `SETTINGS_NAV_ICON` drops `roles`/`admin`;
+  `ConsoleSidebarContent`'s call sites follow. `adminLandingHref`/`ADMIN_DESTINATIONS`/
+  `adminNavGroups` and the palette are unchanged in behaviour.
+- `apps/console/src/client/console-chrome.test.ts`: the `settingsNavGroups` block asserts the five
+  ungated rows and the absence of both removed rows; the `navGroups` block gains the viewer /
+  reviewer / full-admin cases, plus the never-`active` and never-counted pins.
+- `apps/console/src/app/admin-roles-route-gate.test.ts`: now asserts ONE gated nav row pointing at
+  `/admin/roles` and the absence of the settings row, rather than two.
+- `packages/ui-web/src/pages-stories/shell-fixtures.tsx`: `storyNavGroups` renders the Admin row as
+  its own `Operator` group for every area except `settings`.
+- `packages/ui-web/src/pages-stories/overview.stories.tsx`: `AdminNav` / `AdminNav — wireframe
+(light)` are the account rail's own stories. `settings.stories.tsx` and
+  `settings-accounts-projects.stories.tsx` keep an `AdminNav` story asserting the opposite — an
+  admin's settings rail is identical to a viewer's; `admin-roles.stories.tsx`' `NoAdminAccess`
+  story now shows the ACCOUNT rail, where the gated row actually lives.
+- `.claude/skills/console-ui/SKILL.md` and `docs/design/console-redesign/README.md`: nav tables,
+  the rail diagram, §5.5 and §5.11 updated.
+- No route, redirect, permission string or backend contract changes. `middleware.ts`'s legacy
+  redirect table is untouched.

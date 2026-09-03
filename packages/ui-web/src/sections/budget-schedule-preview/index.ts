@@ -3,4 +3,5 @@ export type {
   BudgetSchedulePreviewEntry,
   BudgetSchedulePreviewProps,
   BudgetSchedulePreviewStatus,
+  BudgetScheduleTiming,
 } from './types';

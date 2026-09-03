@@ -21,8 +21,29 @@ export interface BudgetSchedulePreviewEntry {
 
 export type BudgetSchedulePreviewStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+/**
+ * When the schedule fires next and when it last fired — the two facts a reader needs to judge a
+ * plan, and the two the list's own relative cells ("in 6 h", "2 days ago") deliberately round off.
+ *
+ * ABSOLUTE here, relative there, on purpose: a column of UTC timestamps is a subtraction the reader
+ * has to do for every row, but a sheet opened on ONE schedule — about to fire an estate-wide grant
+ * — is where the exact instant matters. `forced` says the next window is not one the cadence
+ * produced; an operator put it there, and it applies once.
+ */
+export interface BudgetScheduleTiming {
+  /** Pre-formatted by the caller (`formatUtcInstant`), e.g. `2026-09-15 09:30 UTC`. */
+  nextRun: string;
+  /** `true` when `nextRun` is off the schedule's own cadence grid — an operator forced it. */
+  nextRunForced: boolean;
+  /** Pre-formatted, or the em dash for a schedule that has never fired. */
+  lastRun: string;
+}
+
 export interface BudgetSchedulePreviewProps {
   status: BudgetSchedulePreviewStatus;
+  /** The schedule's own timing, shown in every status — it is a fact about the rule, not about the
+   *  run that is or is not in flight. Absent only where the caller has no schedule in hand. */
+  timing?: BudgetScheduleTiming;
   /**
    * Whether the run that produced this result wrote nothing. The preview states it either way:
    * "wrote nothing" for a dry run, "written to the ledger" for a real one — the same component

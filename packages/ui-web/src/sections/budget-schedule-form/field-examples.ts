@@ -17,6 +17,7 @@ export type BudgetScheduleFieldName =
   | 'anchor'
   | 'runAtUtc'
   | 'amount'
+  | 'nextRunAt'
   | 'mode'
   | 'enabled';
 
@@ -52,6 +53,10 @@ export const BUDGET_SCHEDULE_FIELD_EXAMPLES: Readonly<
   cadence: { example: 'e.g. Every day' },
   anchor: { omitted: ANCHOR_DEPENDS_ON_CADENCE },
   runAtUtc: { example: 'e.g. 00:00 — always UTC, never the operator’s local time' },
+  nextRunAt: {
+    example:
+      'e.g. 2026-09-15 00:00 — UTC, and in the future. Leave blank to let the cadence pick the next window.',
+  },
   amount: { example: 'e.g. 2 — plain USD, converted to micro-USD on save' },
   mode: { example: 'e.g. Reset remaining to the amount' },
   enabled: { omitted: ENABLED_IS_A_TOGGLE },
@@ -97,6 +102,24 @@ export const MODE_EXPLANATIONS: Readonly<Record<'reset' | 'top_up', string>> = {
 export const CREATED_DISABLED_NOTICE =
   'Saved disabled. A new schedule never fires until you enable it from the list — preview it ' +
   'first, then switch it on.';
+
+/**
+ * The line under the "Next execution" field, on BOTH routes.
+ *
+ * It states the one thing an operator cannot infer from the control: forcing a date is a ONE-OFF.
+ * The backend fires that window once and then hands the schedule straight back to its own cadence
+ * at its own run time (ADR-0032's 2026-09-03 amendment), so this is not "move the schedule to
+ * Tuesdays" and must not read as if it were.
+ */
+export const NEXT_RUN_AT_EXPLANATION =
+  'Forces the next window onto this instant instead of the cadence’s own. It applies once — after ' +
+  'that run the schedule goes back to its normal cadence and run time.';
+
+/** The "Next execution" field's example line on the EDIT route, where the field starts empty and
+ *  an empty field means "keep the stored window". */
+export function currentNextRunExample(currentNextRunAt: string): string {
+  return `Currently ${currentNextRunAt} — leave blank to keep it.`;
+}
 
 /** The prose under the enabled toggle on the edit route. */
 export const ENABLED_EXPLANATION =

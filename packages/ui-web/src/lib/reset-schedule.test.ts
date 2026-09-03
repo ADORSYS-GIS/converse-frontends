@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  datetimeLocalUtcToIso,
   DAY_OF_MONTH_OPTIONS,
+  formatUtcInstant,
+  isoToDatetimeLocalUtc,
+  isOnResetScheduleGrid,
   MAX_DAY_OF_MONTH,
   relativeWhen,
+  resetScheduleNextRunCell,
   resetScheduleCadenceSentence,
   resetScheduleModePhrase,
   resetScheduleModeWord,
@@ -204,5 +209,100 @@ describe('resetScheduleModeWord', () => {
   it('maps the wire enum onto prose', () => {
     expect(resetScheduleModeWord('reset')).toBe('reset');
     expect(resetScheduleModeWord('top_up')).toBe('top up');
+  });
+});
+
+// ── the forced next execution (backend ADR-0032's 2026-09-03 amendment) ──────────────────────
+
+describe('isOnResetScheduleGrid', () => {
+  const daily = { cadence: 'daily', anchor: null, runAtUtc: '00:00' };
+  // 2026-09-16 is a Wednesday (ISO 3); 2026-09-15 is a Tuesday.
+  const weekly = { cadence: 'weekly', anchor: 3, runAtUtc: '06:00' };
+  const monthly = { cadence: 'monthly', anchor: 1, runAtUtc: '00:00' };
+
+  it('accepts a window the cadence itself would have produced', () => {
+    expect(isOnResetScheduleGrid(daily, '2026-09-16T00:00:00Z')).toBe(true);
+    expect(isOnResetScheduleGrid(weekly, '2026-09-16T06:00:00Z')).toBe(true);
+    expect(isOnResetScheduleGrid(monthly, '2026-10-01T00:00:00Z')).toBe(true);
+  });
+
+  it('rejects a window at the wrong time of day', () => {
+    expect(isOnResetScheduleGrid(daily, '2026-09-15T09:30:00Z')).toBe(false);
+    expect(isOnResetScheduleGrid(weekly, '2026-09-16T00:00:00Z')).toBe(false);
+  });
+
+  it('rejects a weekly window on the wrong weekday and a monthly one on the wrong day', () => {
+    // Tuesday, not the anchored Wednesday.
+    expect(isOnResetScheduleGrid(weekly, '2026-09-15T06:00:00Z')).toBe(false);
+    expect(isOnResetScheduleGrid(monthly, '2026-10-15T00:00:00Z')).toBe(false);
+  });
+
+  it('reads seconds as off-grid — a computed window is always minute-granular', () => {
+    expect(isOnResetScheduleGrid(daily, '2026-09-16T00:00:30Z')).toBe(false);
+  });
+
+  // Claiming "forced" is a claim about what an operator did. Every case this function cannot
+  // actually decide answers `true`, so the console never asserts it on a guess.
+  it('answers true for everything it cannot decide', () => {
+    expect(isOnResetScheduleGrid(daily, 'not a date')).toBe(true);
+    expect(isOnResetScheduleGrid({ ...daily, cadence: 'hourly' }, '2026-09-16T00:00:00Z')).toBe(
+      true
+    );
+    expect(isOnResetScheduleGrid({ ...weekly, anchor: null }, '2026-09-15T06:00:00Z')).toBe(true);
+  });
+});
+
+describe('resetScheduleNextRunCell', () => {
+  const now = Date.parse('2026-09-03T00:00:00Z');
+  const daily = { cadence: 'daily', anchor: null, runAtUtc: '00:00', enabled: true };
+
+  it('is the relative time for an on-grid window', () => {
+    expect(resetScheduleNextRunCell({ ...daily, nextRunAt: '2026-09-04T00:00:00Z' }, now)).toBe(
+      'in 1 day'
+    );
+  });
+
+  it('marks an off-grid window as forced', () => {
+    expect(resetScheduleNextRunCell({ ...daily, nextRunAt: '2026-09-15T09:30:00Z' }, now)).toBe(
+      'in 12 days · forced'
+    );
+  });
+
+  // A disabled schedule's stored window is one the scheduler will never reach, forced or not.
+  it('says paused for a disabled schedule, forced or not', () => {
+    expect(
+      resetScheduleNextRunCell({ ...daily, enabled: false, nextRunAt: '2026-09-15T09:30:00Z' }, now)
+    ).toBe('paused');
+  });
+});
+
+describe('the UTC datetime helpers', () => {
+  it('renders an absolute instant with its zone named', () => {
+    expect(formatUtcInstant('2026-09-15T09:30:00Z')).toBe('2026-09-15 09:30 UTC');
+  });
+
+  it('returns the raw value rather than a fabricated date for an unparseable instant', () => {
+    expect(formatUtcInstant('never')).toBe('never');
+  });
+
+  // The form's control holds a naive local-looking string; this console reads and writes it as UTC
+  // and labels the field so. A round trip must not shift the instant by the viewer's offset.
+  it('round-trips an instant through the datetime-local value shape, in UTC', () => {
+    expect(isoToDatetimeLocalUtc('2026-09-15T09:30:00Z')).toBe('2026-09-15T09:30');
+    expect(datetimeLocalUtcToIso('2026-09-15T09:30')).toBe('2026-09-15T09:30:00.000Z');
+    expect(datetimeLocalUtcToIso(isoToDatetimeLocalUtc('2026-09-15T09:30:00Z'))).toBe(
+      '2026-09-15T09:30:00.000Z'
+    );
+  });
+
+  it('accepts the seconds-bearing form the control emits with a step', () => {
+    expect(datetimeLocalUtcToIso('2026-09-15T09:30:15')).toBe('2026-09-15T09:30:15.000Z');
+  });
+
+  it('is null for blank and for a half-typed value — never a guessed date', () => {
+    expect(datetimeLocalUtcToIso('')).toBeNull();
+    expect(datetimeLocalUtcToIso('   ')).toBeNull();
+    expect(datetimeLocalUtcToIso('2026-09-15')).toBeNull();
+    expect(datetimeLocalUtcToIso('soon')).toBeNull();
   });
 });

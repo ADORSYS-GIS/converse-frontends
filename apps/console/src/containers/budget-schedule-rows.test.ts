@@ -10,6 +10,7 @@ import {
   effectiveResetLabel,
   runResultAccountIds,
   scheduleScopeLabel,
+  scheduleTiming,
   toBudgetScheduleRow,
   toPreviewEntries,
 } from './budget-schedule-rows';
@@ -24,7 +25,10 @@ function schedule(overrides: Partial<BudgetResetSchedule> = {}): BudgetResetSche
     scopeId: null,
     cadence: 'daily',
     anchor: null,
-    runAtUtc: '00:00',
+    // 18:00 so the fixture is internally coherent: a daily schedule's computed window sits exactly
+    // on its own `runAtUtc`, which is what makes it NOT a forced one. `nextRunAt` below is
+    // 2026-09-02T18:00Z.
+    runAtUtc: '18:00',
     amountMicros: '2000000',
     mode: 'reset',
     enabled: true,
@@ -89,7 +93,7 @@ describe('toBudgetScheduleRow', () => {
       id: 'sched_1',
       name: 'estate-daily-reset',
       scope: 'All accounts',
-      cadence: 'Reset remaining to $2.00 every day at 00:00 UTC',
+      cadence: 'Reset remaining to $2.00 every day at 18:00 UTC',
       nextRun: 'in 6 h',
       lastRun: '1 day ago',
       enabled: true,
@@ -124,6 +128,54 @@ describe('toBudgetScheduleRow', () => {
       ACCOUNT_LABELS
     );
     expect(row.cadence).toBe('Add $15.00 every Monday at 06:00 UTC');
+  });
+
+  // A window an operator pinned by hand sits off the cadence grid. Saying so is more honest than
+  // letting the reader infer a cadence that does not exist — the row still says "every day at 18:00
+  // UTC" beside it.
+  it('marks a window that is not on the cadence grid as forced', () => {
+    const row = toBudgetScheduleRow(
+      schedule({ nextRunAt: '2026-09-14T09:30:00Z' }),
+      NOW,
+      PLANS,
+      ACCOUNT_LABELS
+    );
+    expect(row.nextRun).toBe('in 11 days · forced');
+  });
+
+  it('does not call an on-grid window forced', () => {
+    const row = toBudgetScheduleRow(
+      schedule({ nextRunAt: '2026-09-14T18:00:00Z' }),
+      NOW,
+      PLANS,
+      ACCOUNT_LABELS
+    );
+    expect(row.nextRun).toBe('in 12 days');
+  });
+});
+
+describe('scheduleTiming', () => {
+  // ABSOLUTE, unlike the list's relative cells: the preview sheet is the last screen before an
+  // estate-wide grant, and "in 6 h" is not the same answer as the instant it will fire on.
+  it('renders the next window absolutely and the last run relatively', () => {
+    expect(scheduleTiming(schedule(), NOW)).toEqual({
+      nextRun: '2026-09-02 18:00 UTC',
+      nextRunForced: false,
+      lastRun: '1 day ago',
+    });
+  });
+
+  it('flags a forced window, and uses the same off-grid test the list cell does', () => {
+    const timing = scheduleTiming(schedule({ nextRunAt: '2026-09-14T09:30:00Z' }), NOW);
+    expect(timing).toEqual({
+      nextRun: '2026-09-14 09:30 UTC',
+      nextRunForced: true,
+      lastRun: '1 day ago',
+    });
+  });
+
+  it('shows an em dash for a schedule that has never fired', () => {
+    expect(scheduleTiming(schedule({ lastRunAt: null }), NOW).lastRun).toBe('—');
   });
 });
 

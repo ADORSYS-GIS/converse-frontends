@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BUDGET_SCHEDULE_INVALID_NOW,
   budgetScheduleFormDailyGlobal,
   budgetScheduleFormInvalid,
   budgetScheduleFormInvalidErrors,
@@ -23,27 +24,37 @@ function draft(overrides: Partial<BudgetScheduleFormValue> = {}): BudgetSchedule
   return { ...budgetScheduleFormDailyGlobal, ...overrides };
 }
 
+/**
+ * `validateBudgetSchedule` against a PINNED instant.
+ *
+ * The forced-window rule ("must be in the future") is the one rule on this form that depends on a
+ * clock, so every assertion below is made at 2026-09-03T12:00:00Z rather than at whatever moment
+ * the suite happens to run — the same instant `budgetScheduleFormInvalidErrors` was computed at.
+ */
+function validate(value: BudgetScheduleFormValue) {
+  return validateBudgetSchedule(value, BUDGET_SCHEDULE_INVALID_NOW);
+}
+
 describe('validateBudgetSchedule', () => {
   it('accepts every fixture the stories present as valid', () => {
-    expect(validateBudgetSchedule(budgetScheduleFormDailyGlobal)).toBeUndefined();
-    expect(validateBudgetSchedule(budgetScheduleFormWeeklyTopUp)).toBeUndefined();
-    expect(validateBudgetSchedule(budgetScheduleFormMonthlyAccount)).toBeUndefined();
+    expect(validate(budgetScheduleFormDailyGlobal)).toBeUndefined();
+    expect(validate(budgetScheduleFormWeeklyTopUp)).toBeUndefined();
+    expect(validate(budgetScheduleFormMonthlyAccount)).toBeUndefined();
   });
 
   // The invalid story renders the errors this fixture asserts — so a story can never display a
   // message the validator would not actually produce.
   it('produces exactly the errors the invalid fixture claims', () => {
-    expect(validateBudgetSchedule(budgetScheduleFormInvalid)).toEqual(
-      budgetScheduleFormInvalidErrors
-    );
+    expect(validate(budgetScheduleFormInvalid)).toEqual(budgetScheduleFormInvalidErrors);
   });
 
   it('reports every field at once rather than first-error-wins', () => {
-    const errors = validateBudgetSchedule(budgetScheduleFormInvalid);
+    const errors = validate(budgetScheduleFormInvalid);
     expect(Object.keys(errors ?? {}).sort()).toEqual([
       'amount',
       'anchor',
       'name',
+      'nextRunAt',
       'runAtUtc',
       'scopeId',
     ]);
@@ -51,26 +62,26 @@ describe('validateBudgetSchedule', () => {
 
   describe('name', () => {
     it('refuses a blank name', () => {
-      expect(validateBudgetSchedule(draft({ name: '  ' }))?.name).toBeDefined();
+      expect(validate(draft({ name: '  ' }))?.name).toBeDefined();
     });
   });
 
   describe('scope', () => {
     it('needs no scope id for a global schedule', () => {
-      expect(validateBudgetSchedule(draft({ scopeKind: 'global', scopeId: '' }))).toBeUndefined();
+      expect(validate(draft({ scopeKind: 'global', scopeId: '' }))).toBeUndefined();
     });
 
     it.each(['billing_plan', 'account'] as const)('requires a scope id for %s', (scopeKind) => {
-      expect(validateBudgetSchedule(draft({ scopeKind, scopeId: '' }))?.scopeId).toBeDefined();
-      expect(validateBudgetSchedule(draft({ scopeKind, scopeId: 'x' }))?.scopeId).toBeUndefined();
+      expect(validate(draft({ scopeKind, scopeId: '' }))?.scopeId).toBeDefined();
+      expect(validate(draft({ scopeKind, scopeId: 'x' }))?.scopeId).toBeUndefined();
     });
   });
 
   describe('anchor', () => {
     it('ignores the anchor entirely for a daily cadence', () => {
-      expect(validateBudgetSchedule(draft({ cadence: 'daily', anchor: '' }))).toBeUndefined();
+      expect(validate(draft({ cadence: 'daily', anchor: '' }))).toBeUndefined();
       // Even a nonsense leftover anchor is fine — daily never sends it.
-      expect(validateBudgetSchedule(draft({ cadence: 'daily', anchor: '99' }))).toBeUndefined();
+      expect(validate(draft({ cadence: 'daily', anchor: '99' }))).toBeUndefined();
     });
 
     it.each([
@@ -80,7 +91,7 @@ describe('validateBudgetSchedule', () => {
       ['0', 'error'],
       ['8', 'error'],
     ])('weekly anchor %s', (anchor, outcome) => {
-      const errors = validateBudgetSchedule(draft({ cadence: 'weekly', anchor }));
+      const errors = validate(draft({ cadence: 'weekly', anchor }));
       expect(errors?.anchor === undefined ? undefined : 'error').toBe(outcome);
     });
 
@@ -93,39 +104,37 @@ describe('validateBudgetSchedule', () => {
       ['0', 'error'],
       ['', 'error'],
     ])('monthly anchor %s', (anchor, outcome) => {
-      const errors = validateBudgetSchedule(draft({ cadence: 'monthly', anchor }));
+      const errors = validate(draft({ cadence: 'monthly', anchor }));
       expect(errors?.anchor === undefined ? undefined : 'error').toBe(outcome);
     });
 
     it('explains WHY a monthly anchor is capped at 28', () => {
-      expect(validateBudgetSchedule(draft({ cadence: 'monthly', anchor: '31' }))?.anchor).toContain(
-        'February'
-      );
+      expect(validate(draft({ cadence: 'monthly', anchor: '31' }))?.anchor).toContain('February');
     });
   });
 
   describe('runAtUtc', () => {
     it.each(['00:00', '06:00', '23:59', '09:05'])('accepts %s', (runAtUtc) => {
-      expect(validateBudgetSchedule(draft({ runAtUtc }))?.runAtUtc).toBeUndefined();
+      expect(validate(draft({ runAtUtc }))?.runAtUtc).toBeUndefined();
     });
 
     it.each(['', '7:30', '24:00', '23:60', '0600', '06:00:00', 'noon'])(
       'refuses %s',
       (runAtUtc) => {
-        expect(validateBudgetSchedule(draft({ runAtUtc }))?.runAtUtc).toBeDefined();
+        expect(validate(draft({ runAtUtc }))?.runAtUtc).toBeDefined();
       }
     );
   });
 
   describe('amount', () => {
     it.each(['2', '15.50', '0.000001', '1234.56'])('accepts %s', (amount) => {
-      expect(validateBudgetSchedule(draft({ amount }))?.amount).toBeUndefined();
+      expect(validate(draft({ amount }))?.amount).toBeUndefined();
     });
 
     // A zero amount would zero every matching account under `reset`, and write no-op rows forever
     // under `top_up`. The backend refuses it; so does the form.
     it.each(['0', '0.00', '-1', '', 'abc', '1e6', '2.0000001'])('refuses %s', (amount) => {
-      expect(validateBudgetSchedule(draft({ amount }))?.amount).toBeDefined();
+      expect(validate(draft({ amount }))?.amount).toBeDefined();
     });
   });
 });
@@ -188,6 +197,9 @@ describe('fromStoredBudgetSchedule', () => {
       runAtUtc: stored.runAtUtc,
       amountMicros: stored.amountMicros,
       mode: stored.mode,
+      // `null`, not the stored window: an omitted `nextRunAt` on `updateBudgetResetSchedule` is
+      // what leaves the column alone, so a round trip that changed nothing must not move it.
+      nextRunAt: null,
     });
   });
 
@@ -237,6 +249,66 @@ describe('createBlankBudgetSchedule', () => {
   // A blank draft is not submittable: the name and the amount both have to be typed. Asserting it
   // keeps a future "helpful" default amount from making an empty form saveable.
   it('is not submittable as-is', () => {
-    expect(validateBudgetSchedule(createBlankBudgetSchedule())).toBeDefined();
+    expect(validate(createBlankBudgetSchedule())).toBeDefined();
+  });
+});
+
+describe('the forced next execution', () => {
+  const FUTURE = '2026-09-15T09:30';
+  const PAST = '2026-09-01T09:30';
+
+  // The ordinary case, and the reason the field is optional at all: an empty value is "let the
+  // cadence decide", not a validation failure.
+  it('accepts a blank value', () => {
+    expect(validate(draft({ nextRunAt: '' }))?.nextRunAt).toBeUndefined();
+    expect(validate(draft({ nextRunAt: '   ' }))?.nextRunAt).toBeUndefined();
+  });
+
+  it('accepts an instant in the future', () => {
+    expect(validate(draft({ nextRunAt: FUTURE }))?.nextRunAt).toBeUndefined();
+  });
+
+  // The backend refuses this independently (`validate_forced_next_run`), because a backdated window
+  // fires on the very next 60-second tick across every account the schedule matches.
+  it('refuses an instant in the past', () => {
+    expect(validate(draft({ nextRunAt: PAST }))?.nextRunAt).toContain('in the future');
+  });
+
+  it('refuses the current instant — "now" is not the future', () => {
+    const now = new Date(BUDGET_SCHEDULE_INVALID_NOW).toISOString().slice(0, 16);
+    expect(validate(draft({ nextRunAt: now }))?.nextRunAt).toBeDefined();
+  });
+
+  it('refuses a half-typed value rather than silently ignoring it', () => {
+    expect(validate(draft({ nextRunAt: '2026-09-15' }))?.nextRunAt).toBeDefined();
+    expect(validate(draft({ nextRunAt: 'soon' }))?.nextRunAt).toBeDefined();
+  });
+
+  // The whole crossing point: the form holds a naive `datetime-local` string, the wire carries an
+  // ISO-8601 instant, and this console reads and writes that string as UTC.
+  it('serializes to a UTC ISO instant, and to null when blank', () => {
+    expect(toBudgetScheduleWire(draft({ nextRunAt: FUTURE })).nextRunAt).toBe(
+      '2026-09-15T09:30:00.000Z'
+    );
+    expect(toBudgetScheduleWire(draft({ nextRunAt: '' })).nextRunAt).toBeNull();
+  });
+
+  /**
+   * The edit route opens this control EMPTY even for a schedule that already carries a forced
+   * window. Omitting `nextRunAt` on `updateBudgetResetSchedule` is what leaves the stored column
+   * alone, so blank means "keep it" — and prefilling a stored, already-past window would produce a
+   * form that cannot be submitted without moving a date nobody asked to move.
+   */
+  it('never prefills the stored window on edit', () => {
+    const prefilled = fromStoredBudgetSchedule({
+      name: 'forced',
+      scopeKind: 'global',
+      cadence: 'daily',
+      runAtUtc: '00:00',
+      amountMicros: '2000000',
+      mode: 'reset',
+      enabled: true,
+    });
+    expect(prefilled.nextRunAt).toBe('');
   });
 });

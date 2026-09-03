@@ -5,8 +5,13 @@ import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { formatUsd } from '../../lib/money';
-import { META_CLASS } from '../../lib/type-roles';
-import type { BudgetSchedulePreviewEntry, BudgetSchedulePreviewProps } from './types';
+import { FORCED_WINDOW_MARKER } from '../../lib/reset-schedule';
+import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
+import type {
+  BudgetSchedulePreviewEntry,
+  BudgetSchedulePreviewProps,
+  BudgetScheduleTiming,
+} from './types';
 
 /**
  * What a budget reset schedule would do, before it does it (converse-frontends#451, story C8).
@@ -76,8 +81,34 @@ const COLUMNS: LedgerColumn<BudgetSchedulePreviewEntry>[] = [
   },
 ];
 
+/**
+ * The schedule's own next/last run, above whatever the run status is.
+ *
+ * Rendered in EVERY status, including `idle` and `error`: it describes the rule, not the dry run,
+ * and a sheet that showed it only on success would hide the one fact an operator opening a failed
+ * preview most wants — when this thing is going to fire regardless.
+ */
+function ScheduleTiming({ timing }: { timing: BudgetScheduleTiming }) {
+  return (
+    <dl className="mb-3 flex flex-wrap gap-x-6 gap-y-1">
+      <div className="flex gap-2">
+        <dt className={LABEL_CLASS}>Next execution</dt>
+        <dd className={META_CLASS}>
+          {timing.nextRun}
+          {timing.nextRunForced ? ` · ${FORCED_WINDOW_MARKER}` : ''}
+        </dd>
+      </div>
+      <div className="flex gap-2">
+        <dt className={LABEL_CLASS}>Last run</dt>
+        <dd className={META_CLASS}>{timing.lastRun}</dd>
+      </div>
+    </dl>
+  );
+}
+
 export function BudgetSchedulePreview({
   status,
+  timing,
   dryRun,
   windowLabel,
   entries,
@@ -92,6 +123,7 @@ export function BudgetSchedulePreview({
   if (status === 'idle') {
     return (
       <div className={className}>
+        {timing ? <ScheduleTiming timing={timing} /> : null}
         <InlineStatus>
           Preview a schedule to see the exact ledger rows its next window would write.
         </InlineStatus>
@@ -102,6 +134,7 @@ export function BudgetSchedulePreview({
   if (status === 'error') {
     return (
       <div className={className}>
+        {timing ? <ScheduleTiming timing={timing} /> : null}
         <ErrorLine message={errorMessage ?? 'The preview run failed.'} onRetry={onRetry} />
       </div>
     );
@@ -111,6 +144,7 @@ export function BudgetSchedulePreview({
 
   return (
     <div className={className}>
+      {timing ? <ScheduleTiming timing={timing} /> : null}
       <InlineStatus>{dryRun ? DRY_RUN_LINE : REAL_RUN_LINE}</InlineStatus>
 
       {windowLabel ? <p className={META_CLASS}>Window starting {windowLabel}.</p> : null}

@@ -4,8 +4,10 @@ export {
   BUDGET_SCHEDULE_FIELD_EXAMPLES,
   budgetScheduleFieldExample,
   CREATED_DISABLED_NOTICE,
+  currentNextRunExample,
   ENABLED_EXPLANATION,
   MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
 } from './field-examples';
 export type { BudgetScheduleFieldName, FieldExample } from './field-examples';
 export {

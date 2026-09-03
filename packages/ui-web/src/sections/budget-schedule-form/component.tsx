@@ -13,8 +13,10 @@ import {
   anchorFieldExample,
   budgetScheduleFieldExample,
   CREATED_DISABLED_NOTICE,
+  currentNextRunExample,
   ENABLED_EXPLANATION,
   MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
 } from './field-examples';
 import { cadenceUsesAnchor, scopeKindUsesScopeId } from './schedule-validation';
 import type { BudgetScheduleFormProps, BudgetScheduleFormValue } from './types';
@@ -36,6 +38,13 @@ import type { BudgetScheduleFormProps, BudgetScheduleFormValue } from './types';
  *    that carries one, so offering the field would be offering an invalid state.
  * Their values survive a cadence/scope switch in the caller's state, so flipping weekly → daily →
  * weekly does not silently lose a chosen weekday.
+ *
+ * "NEXT EXECUTION" IS AN OVERRIDE, NOT A SETTING. Left blank — the ordinary case — the cadence
+ * picks the window and this control has no effect at all. Filled in, it forces ONE window onto that
+ * instant and the schedule returns to its own cadence afterwards, which is the sentence under the
+ * field, because nothing about a date picker says it. It is UTC, like `runAtUtc` beside it: an
+ * `<input type="datetime-local">` has no zone of its own, and mixing the operator's local zone
+ * into one of two adjacent time fields would be the worst of both.
  *
  * The MODE explanations are rendered for BOTH modes at once, always, not just the selected one.
  * The owner's binding Q3 ruling is that a `reset` clamps DOWN as well as up, which is the single
@@ -79,6 +88,7 @@ export function BudgetScheduleForm({
   errors,
   formMode,
   billingPlans,
+  currentNextRunAt,
   className,
 }: BudgetScheduleFormProps) {
   const patch = (next: Partial<BudgetScheduleFormValue>) => onChange({ ...value, ...next });
@@ -181,6 +191,26 @@ export function BudgetScheduleForm({
             inputMode="decimal"
             onChange={(event) => patch({ amount: event.target.value })}
           />
+        </div>
+
+        {/* Half-width inside the same two-column grid the pairs above use, so it aligns with the
+            run-time field it belongs beside rather than stretching across the form. */}
+        <div className={PAIR_CLASS}>
+          <div>
+            <Field
+              label="Next execution (UTC)"
+              type="datetime-local"
+              example={
+                currentNextRunAt
+                  ? currentNextRunExample(currentNextRunAt)
+                  : budgetScheduleFieldExample('nextRunAt')
+              }
+              value={value.nextRunAt}
+              error={errors?.nextRunAt}
+              onChange={(event) => patch({ nextRunAt: event.target.value })}
+            />
+            <p className={META_CLASS}>{NEXT_RUN_AT_EXPLANATION}</p>
+          </div>
         </div>
 
         <div>

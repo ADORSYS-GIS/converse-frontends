@@ -1,11 +1,13 @@
 import {
+  formatUtcInstant,
+  isOnResetScheduleGrid,
   microsToUsdNumber,
-  relativeWhen,
   resetScheduleCadenceSentence,
+  resetScheduleNextRunCell,
   resetScheduleNextRunLabel,
   resetScheduleScopeSentence,
 } from '@lightbridge/ui-web';
-import type { BudgetSchedulePreviewEntry } from '@lightbridge/ui-web';
+import type { BudgetSchedulePreviewEntry, BudgetScheduleTiming } from '@lightbridge/ui-web';
 import type {
   ActorAccountLabel,
   BillingPlanInfo,
@@ -48,8 +50,9 @@ export interface BudgetScheduleRow {
   scope: string;
   /** "Reset remaining to $2.00 every day at 00:00 UTC". */
   cadence: string;
-  /** "in 6 h" / "overdue" — relative, because an absolute UTC timestamp in a table cell is a
-   *  subtraction the reader has to do. */
+  /** "in 6 h" / "overdue" / "in 12 days · forced" / "paused" — relative, because an absolute UTC
+   *  timestamp in a table cell is a subtraction the reader has to do for every row. `forced` marks
+   *  a window an operator pinned rather than one the cadence produced. */
   nextRun: string;
   /** "2 days ago", or the em dash for a schedule that has never fired. */
   lastRun: string;
@@ -96,11 +99,28 @@ export function toBudgetScheduleRow(
     name: schedule.name,
     scope: scheduleScopeLabel(schedule, plans, accountLabels),
     cadence: resetScheduleCadenceSentence(schedule),
-    // A DISABLED schedule has a stored `nextRunAt` the scheduler will never reach — rendering it
-    // as "in 6 h" would promise a run that is not going to happen.
-    nextRun: schedule.enabled ? relativeWhen(schedule.nextRunAt, now) : 'paused',
+    // "paused" for a disabled schedule (its stored `nextRunAt` is a window the scheduler will never
+    // reach), and "· forced" when the window is not one this cadence would have produced — see
+    // `resetScheduleNextRunCell`.
+    nextRun: resetScheduleNextRunCell(schedule, now),
     lastRun: schedule.lastRunAt ? relativeAge(schedule.lastRunAt, now) : NEVER_RUN,
     enabled: schedule.enabled,
+  };
+}
+
+/**
+ * One schedule's next/last run for the preview sheet — ABSOLUTE, unlike the list's relative cells.
+ *
+ * The sheet is opened on a single schedule and is the last screen before an estate-wide grant, so
+ * the exact instant is what matters there; a table column of UTC timestamps is not. `nextRunForced`
+ * is the same off-the-grid test the list's cell uses, so the two surfaces can never disagree about
+ * whether a window was pinned by hand.
+ */
+export function scheduleTiming(schedule: BudgetResetSchedule, now: number): BudgetScheduleTiming {
+  return {
+    nextRun: formatUtcInstant(schedule.nextRunAt),
+    nextRunForced: !isOnResetScheduleGrid(schedule, schedule.nextRunAt),
+    lastRun: schedule.lastRunAt ? relativeAge(schedule.lastRunAt, now) : NEVER_RUN,
   };
 }
 

@@ -83,11 +83,13 @@ function BudgetSchedulesListView({
     // The whole schedule as one sentence — six enum columns is a table nobody can read.
     { key: 'cadence', header: 'What it does', accessor: (row) => row.cadence },
     {
+      // Wider than 'Last run' beside it: a forced window's cell carries "· forced" as well as the
+      // relative time, and wrapping that onto two lines would make one row taller than every other.
       key: 'nextRun',
       header: 'Next run',
       accessor: (row) => row.nextRun,
       kind: 'data',
-      width: '96px',
+      width: '140px',
     },
     {
       key: 'lastRun',
@@ -204,6 +206,7 @@ function BudgetSchedulesListView({
         }>
         <BudgetSchedulePreview
           status={screen.preview.status}
+          timing={screen.preview.timing}
           dryRun={screen.preview.dryRun}
           windowLabel={screen.preview.windowLabel}
           entries={screen.preview.entries}

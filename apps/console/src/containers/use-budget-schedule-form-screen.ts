@@ -4,6 +4,7 @@ import { getApiErrorMessage } from '@lightbridge/hooks/api-error';
 import {
   budgetScheduleUnknownFields,
   createBlankBudgetSchedule,
+  formatUtcInstant,
   fromStoredBudgetSchedule,
   toBudgetScheduleWire,
   validateBudgetSchedule,
@@ -55,6 +56,14 @@ export interface BudgetScheduleFormScreen {
   value: BudgetScheduleFormValue;
   onChange: (value: BudgetScheduleFormValue) => void;
   errors?: BudgetScheduleFormErrors;
+  /**
+   * The stored schedule's current window, rendered absolute — edit route only.
+   *
+   * The "Next execution" control starts EMPTY on edit, because omitting `nextRunAt` on
+   * `updateBudgetResetSchedule` is what leaves the stored column alone. This is what stops that
+   * from being a decision made blind.
+   */
+  currentNextRunAt?: string;
   billingPlans: BillingPlanChoice[];
   canSubmit: boolean;
   submitting: boolean;
@@ -85,6 +94,13 @@ export function useBudgetScheduleFormScreen(scheduleId: string | null): BudgetSc
     value: BudgetScheduleFormValue;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+
+  // SANCTIONED LOCAL STATE (ADR 0011 Decision 3) — the clock, read ONCE when the form mounts, in a
+  // `useState` initialiser so it is not a read during render. It is not view state and it must not
+  // reach the URL. The only rule that needs it is "a forced window must be in the future"; a
+  // timestamp minutes old cannot make a genuinely-future instant look past, and the backend
+  // re-checks against its own clock at submit and is the authority either way.
+  const [openedAt] = useState(() => Date.now());
 
   // The whole list, not a single-schedule read: there is no `getBudgetResetSchedule` procedure, and
   // the list is unpaginated operator configuration measured in tens of rows. Same query key the
@@ -129,7 +145,7 @@ export function useBudgetScheduleFormScreen(scheduleId: string | null): BudgetSc
     [scheduleId]
   );
 
-  const errors = validateBudgetSchedule(value);
+  const errors = validateBudgetSchedule(value, openedAt);
 
   const billingPlans = useMemo<BillingPlanChoice[]>(
     () => (plansQuery.data ?? []).map((plan) => ({ id: plan.id, label: plan.name })),
@@ -144,13 +160,22 @@ export function useBudgetScheduleFormScreen(scheduleId: string | null): BudgetSc
       if (scheduleId) {
         // `enabled` rides along on edit because the form owns the toggle there — the list's own
         // optimistic switch writes the same field through the same procedure.
+        // `nextRunAt` rides along as `null` when the operator left the field blank, and the
+        // generated client omits it — which is exactly the "leave the stored window alone" case.
         return budgetClient.procedures.updateBudgetResetSchedule({
-          args: { id: scheduleId, ...wire, enabled: value.enabled },
+          args: {
+            id: scheduleId,
+            ...wire,
+            nextRunAt: wire.nextRunAt ?? undefined,
+            enabled: value.enabled,
+          },
         });
       }
       // No `enabled` on create: the procedure has no such field — every schedule is created
       // disabled so a misconfigured global one cannot fire on its first window.
-      return budgetClient.procedures.createBudgetResetSchedule({ args: wire });
+      return budgetClient.procedures.createBudgetResetSchedule({
+        args: { ...wire, nextRunAt: wire.nextRunAt ?? undefined },
+      });
     },
     onSuccess: () => {
       setSubmitError(undefined);
@@ -184,6 +209,7 @@ export function useBudgetScheduleFormScreen(scheduleId: string | null): BudgetSc
     value,
     onChange,
     errors,
+    currentNextRunAt: stored ? formatUtcInstant(stored.nextRunAt) : undefined,
     billingPlans,
     canSubmit: errors === undefined && !submitMutation.isPending && !loading && !loadError,
     submitting: submitMutation.isPending,

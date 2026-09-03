@@ -17,9 +17,14 @@
 //     `scopeId` and a scoped one must" — `UpdateBudgetResetScheduleInput`'s own doc comment).
 //   - `amountMicros` is a string-carried i64 — converted here, once, in integer minor units
 //     (`lib/micro-usd.ts`), never by multiplying a double.
+//   - `nextRunAt` is optional and, when present, must be STRICTLY in the future — the backend's
+//     own `validate_forced_next_run` (ADR-0032's 2026-09-03 amendment), which exists because a
+//     backdated window fires on the very next 60-second tick, across every account the schedule
+//     matches. Mirrored here so the operator learns it while the date picker is still open.
 
 import { microsToUsdInput, usdToMicros } from '../../lib/micro-usd';
 import {
+  datetimeLocalUtcToIso,
   MAX_DAY_OF_MONTH,
   MIN_DAY_OF_MONTH,
   type ResetScheduleCadence,
@@ -53,6 +58,7 @@ export function createBlankBudgetSchedule(): BudgetScheduleFormValue {
     runAtUtc: DEFAULT_RUN_AT_UTC,
     amount: '',
     mode: 'reset',
+    nextRunAt: '',
     enabled: false,
   };
 }
@@ -88,9 +94,15 @@ function parseAnchor(input: string): number | null {
  *
  * `undefined` (not an empty object) means submittable, matching `validateRuleSet`'s contract so a
  * container can write `canSubmit = validate(value) === undefined` either way.
+ *
+ * `now` is a PARAMETER, never `Date.now()` read in here — the forced-window check is the one rule
+ * on this form that depends on a clock, and a pure function of `(value, now)` is what makes it
+ * testable at a pinned instant instead of relative to whenever the suite happens to run. The
+ * container reads the clock once, when the form opens.
  */
 export function validateBudgetSchedule(
-  value: BudgetScheduleFormValue
+  value: BudgetScheduleFormValue,
+  now: number
 ): BudgetScheduleFormErrors | undefined {
   const errors: BudgetScheduleFormErrors = {};
 
@@ -130,6 +142,17 @@ export function validateBudgetSchedule(
     errors.amount = 'Enter an amount greater than $0.00.';
   }
 
+  if (value.nextRunAt.trim() !== '') {
+    const iso = datetimeLocalUtcToIso(value.nextRunAt);
+    if (iso === null) {
+      errors.nextRunAt = 'Enter a date and time, or leave this blank to use the cadence.';
+    } else if (Date.parse(iso) <= now) {
+      // The backend refuses this independently; saying it here is what stops an operator authoring
+      // a whole standing rule before learning the date is unusable.
+      errors.nextRunAt = 'Choose a time in the future — a past window would fire immediately.';
+    }
+  }
+
   return Object.keys(errors).length > 0 ? errors : undefined;
 }
 
@@ -158,6 +181,15 @@ export interface BudgetScheduleWire {
   /** String-carried micro-USD, converted in integer minor units. */
   amountMicros: string;
   mode: string;
+  /**
+   * The forced window as an ISO-8601 instant, or `null` for "let the cadence decide".
+   *
+   * `null` is meaningful on BOTH procedures, and means something different on each: on create the
+   * backend computes the first window from the cadence, on update it leaves the stored column
+   * alone. That is exactly why this is `null` and never `''` — an empty string is a value the
+   * backend would have to interpret.
+   */
+  nextRunAt: string | null;
 }
 
 export function toBudgetScheduleWire(value: BudgetScheduleFormValue): BudgetScheduleWire {
@@ -170,6 +202,7 @@ export function toBudgetScheduleWire(value: BudgetScheduleFormValue): BudgetSche
     runAtUtc: value.runAtUtc.trim(),
     amountMicros: usdToMicros(value.amount) ?? '0',
     mode: value.mode,
+    nextRunAt: datetimeLocalUtcToIso(value.nextRunAt),
   };
 }
 
@@ -217,6 +250,12 @@ export function fromStoredBudgetSchedule(stored: StoredBudgetSchedule): BudgetSc
     // The integer-only inverse of `usdToMicros` — see `lib/micro-usd.ts`.
     amount: microsToUsdInput(stored.amountMicros),
     mode: stored.mode === 'reset' || stored.mode === 'top_up' ? stored.mode : blank.mode,
+    // DELIBERATELY blank, never the stored window. Omitting `nextRunAt` on
+    // `updateBudgetResetSchedule` leaves the column alone, so an empty field means "keep it" — and
+    // prefilling the stored value would both re-force a window nobody asked to move and, for an
+    // overdue or paused schedule, prefill a PAST instant the form would then refuse to submit.
+    // What the operator is shown instead is `currentNextRunAt`, beside the empty control.
+    nextRunAt: '',
     enabled: stored.enabled,
   };
 }

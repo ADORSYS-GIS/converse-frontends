@@ -579,6 +579,22 @@ export type { RefillPolicyLookupProps } from './sections/refill-policy-lookup';
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
+// `/settings/info`'s "Platform" card (lightbridge-authz#573): the console's own build stamp beside
+// every backend's, so a "the console says X, the server does Y" mismatch has a surface to be seen
+// on. Presentational — the app fetches (`getBuildInfo` over the RPC clients for authz-api/budget,
+// `GET /api/build-info` server-side for authz-idp/usage) and passes typed entries down.
+export {
+  BuildInfoCard,
+  NOT_CONFIGURED_CAPTION,
+  UNKNOWN_BUILD_VALUE,
+} from './sections/build-info-card';
+export type {
+  BuildInfoCardProps,
+  BuildInfoEntry,
+  BuildInfoEntryState,
+  BuildInfoFacts,
+} from './sections/build-info-card';
+
 // authz-idp's human plane (lightbridge-authz#478, converse-frontends#409). CSP-SAFE SECTIONS:
 // these render into apps/authz-ui, which authz-idp serves under `default-src 'self'` with no
 // `data:` allowance. They use native elements + token utilities ONLY — never `Button`,

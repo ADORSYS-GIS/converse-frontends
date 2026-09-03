@@ -101,6 +101,11 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           LABELS: ${{ steps.meta.outputs.labels }}
+          # The build stamp every image in this estate carries (lightbridge-authz#573) — see
+          # apps/typst-render/Dockerfile's own ARG -> ENV block, and docker-image.yml's identical
+          # pair, for why this is the commit rather than the pushed digest.
+          IMAGE_BUILD_SHA: ${{ github.sha }}
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
@@ -110,6 +115,9 @@ jobs:
           # Dockerfiles' documented invocation, even though this image only needs
           # apps/typst-render/dist and its package.json.
           buildah build --format docker --platform linux/amd64 \
+            --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
+            --build-arg "IMAGE_TAG=${IMAGE_TAG}" \
+            --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/typst-render/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.
           primary="$(head -n1 <<<"$TAGS")"

@@ -1,14 +1,16 @@
 'use client';
 
 import { Card } from '@lightbridge/ui-web/src/components/card';
-import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SettingsRow } from '@lightbridge/ui-web/src/components/settings-row';
 import { resolveConsoleTheme } from '@lightbridge/ui-web/src/lib/theme';
+import { BuildInfoCard } from '@lightbridge/ui-web/src/sections/build-info-card';
+import type { BuildInfoFacts } from '@lightbridge/ui-web/src/sections/build-info-card';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleTheme } from '../client/use-console-theme';
 import { useOnlineStatus } from '../client/use-online-status';
+import { useBuildInfo } from './use-build-info';
 
 /**
  * `/settings/info` — the client half: everything that is genuinely client-only state (identity,
@@ -25,9 +27,12 @@ import { useOnlineStatus } from '../client/use-online-status';
  * (not its value) is the one fact from that set this screen does surface, resolved server-side
  * (`settings/info/page.tsx`).
  *
- * **No backend-version row** — no endpoint exists to answer it (lightbridge-authz#573, filed from
- * this phase's own work). Omitted with an `InlineStatus` naming the gap, never a fabricated or
- * permanently-null value (console-ui skill's "never fabricate" states clause).
+ * **The backend-version gap is closed** (lightbridge-authz#573, filed from this phase's own work
+ * and shipped in lightbridge-authz PR #663). The `InlineStatus` that used to name the gap is gone
+ * — a hard cutover, not a fallback beside the real thing — replaced by the `Platform` card, which
+ * reports the console's own build stamp beside every backend's. `useBuildInfo` fetches; this view
+ * only prepends the console's own entry, which comes from server props rather than a query because
+ * a build stamp compiled into this very bundle cannot be fetched from anywhere.
  */
 
 const BASE_PATHS = {
@@ -37,16 +42,24 @@ const BASE_PATHS = {
 };
 
 export function InfoCentre({
-  consoleVersion,
+  consoleBuild,
   usageConfigured,
 }: {
-  consoleVersion: string;
+  /**
+   * The console's OWN build stamp, resolved server-side (`server/build-info.ts`'s
+   * `consoleBuildFacts`): package version, the commit `next build` inlined, and the image
+   * identity the Dockerfile promoted out of build-args. Passed as a prop rather than read here
+   * because two of the three are server-only environment variables — only `NEXT_PUBLIC_BUILD_SHA`
+   * would survive into the bundle, and reading one of three in one place and two in another is
+   * how a screen ends up reporting a half-truth.
+   */
+  consoleBuild: BuildInfoFacts;
   usageConfigured: boolean;
 }) {
   const session = useConsoleSession();
   const online = useOnlineStatus();
   const { preference } = useConsoleTheme();
-  const buildSha = process.env.NEXT_PUBLIC_BUILD_SHA;
+  const backends = useBuildInfo();
 
   const roles = session.user?.roles ?? [];
 
@@ -54,14 +67,21 @@ export function InfoCentre({
     <div className="flex flex-col gap-6">
       <PageHeader title="Info" subtitle="Build, configuration and session diagnostics" />
 
-      <Card title="Console build">
-        <div className="settings-list">
-          <SettingsRow label="Console version" value={consoleVersion} valueKind="data" />
-          {/* Omitted entirely, never a fabricated placeholder, when unset — no build pipeline
-              sets `NEXT_PUBLIC_BUILD_SHA` for every deployment target yet. */}
-          {buildSha ? <SettingsRow label="Build SHA" value={buildSha} valueKind="data" /> : null}
-        </div>
-      </Card>
+      {/* Replaces the old "Console build" card outright: that card answered half the question
+          (this app's own version and SHA) and the screen then had to admit, in an `InlineStatus`,
+          that it could say nothing about the other half. One card now answers both, with the
+          console's own row first — the reference point a reader compares the rest against. */}
+      <BuildInfoCard
+        entries={[
+          {
+            id: 'console',
+            label: 'Console',
+            description: 'this app',
+            state: { status: 'ready', facts: consoleBuild },
+          },
+          ...backends.entries,
+        ]}
+      />
 
       <Card title="Backend configuration">
         <div className="settings-list">
@@ -74,9 +94,6 @@ export function InfoCentre({
             valueMuted={!usageConfigured}
           />
         </div>
-        <InlineStatus className="mt-4">
-          Backend version has no read endpoint yet (lightbridge-authz#573).
-        </InlineStatus>
       </Card>
 
       <Card title="Session">

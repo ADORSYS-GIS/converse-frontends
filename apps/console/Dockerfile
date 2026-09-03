@@ -149,6 +149,26 @@ RUN rm -f ./apps/console/.env
 RUN chown -R node:node /app
 USER node
 
+
+# Build stamp (lightbridge-authz#573), promoted from ARG to ENV so the running process can report
+# the identity of the IMAGE it is inside. The bundle already carries the COMMIT it was compiled
+# from (`NEXT_PUBLIC_BUILD_SHA`, inlined by `next build` on the runner); the image does not exist
+# at that point, so its own identity arrives here instead and is read at runtime by
+# `src/server/build-info.ts`'s `consoleBuildFacts`.
+#
+# Empty defaults are load-bearing: an image built without them reports these fields as absent
+# rather than as a fabricated value, and `/settings/info` simply omits the rows.
+#
+# Not the image DIGEST, deliberately — a digest cannot be baked into the artifact it identifies.
+# `IMAGE_TAG` carries the immutable `:sha-<gitsha>` tag, which resolves to exactly one digest, and
+# is the tag argocd-image-updater promotes against.
+ARG IMAGE_BUILD_SHA=""
+ARG IMAGE_TAG=""
+ARG IMAGE_BUILD_TIME=""
+ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
+    IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
+
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0

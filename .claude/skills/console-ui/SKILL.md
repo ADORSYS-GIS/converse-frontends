@@ -42,7 +42,7 @@ projects` (renamed from `projects.stories.tsx`, phase E — the route it fixture
 
 Cards sit on a floor, inside a shell with a persistent LEFT sidebar and a stretching centre column.
 In dark the floor is `#000` and cards (`base-200`) carry stats, charts, tables and forms; in light
-the floor is grey and cards are white. The sidebar (240px, `md`+) carries navigation, a workspace
+the floor is grey and cards are white. The sidebar (296px, `md`+) carries navigation, a workspace
 switcher and a footer stack; below `md` a 48px top bar plus a bottom nav dock replace it. **Every
 real screen is account-scoped by path** (`/accounts/[accountId]/{overview,api-keys}`, ADR 0013
 D1, narrowed by ADR 0013's phase E amendment — `projects`/`refill` moved to
@@ -246,10 +246,13 @@ decimals.
   `/accounts/<id>/projects` with a row selected, into the settings area, which has never had a
   right rail at any tier (ADR 0013 D2) — so no route in the console feeds `ConsoleShell.rail`
   anything any more; see that ADR's phase E amendment for the full move):
-  - `≥md` (600px+): a persistent 240px `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
-    footer stack: `⌘K` · theme · offline · identity), sticky and independently scrollable, beside
-    a single fluid content column capped at `max-w-[1120px]` (`CONTENT_MAX_WIDTH_CLASS`,
-    `lib/shell-grid.ts`).
+  - `≥md` (600px+): a persistent **296px** `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
+    footer stack: `⌘K` · theme · language · offline · identity), sticky and independently
+    scrollable, beside a single fluid content column capped at `max-w-[1120px]`
+    (`CONTENT_MAX_WIDTH_CLASS`, `lib/shell-grid.ts`). 240px until the owner's 2026-09-03 directive
+    ("240px is too small for the left rail. Increase it to 296px"). The cap now only ENGAGES from
+    1480px (`296 + 2×32 + 1120`); at the 1440 reference viewport the measure is 1080px and the cap
+    does nothing — say that rather than claiming a 1120px column at 1440.
   - `<md`: the sidebar is replaced by a 48px `ConsoleTopBar` (brand, compact switcher, `⌘K`
     trigger, identity) plus the existing bottom navigation dock. `ConsoleSidebar` itself renders
     both the persistent `sidebar` layout and the `bottom-bar` dock from one `groups` prop, so a

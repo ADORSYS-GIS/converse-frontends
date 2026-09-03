@@ -221,7 +221,14 @@ export function BuildInfoCard({
 
   return (
     <Card title={title} className={className}>
-      <div className="flex flex-col gap-6">
+      {/* TWO COLUMNS at `lg`+ (owner directive, 2026-09-03: "/settings/info can be done in smaller
+          panels in a Grid"). This was one flex column, which made the Platform card roughly as
+          tall as the rest of the screen put together — five services × four ragged rows — and left
+          the page reading as "one enormous card, then a grid". The groups are independent readings
+          of independent services, so there is nothing to lose by setting them side by side and a
+          screen's worth of height to gain. One column below `lg`, where a settings row's own
+          label/value pair already uses the width. */}
+      <div className="grid gap-6 lg:grid-cols-2">
         {entries.map((entry) => (
           <div key={entry.id} className="flex flex-col gap-2">
             {/* Label and its caption on ONE line, not stacked: the caption says how the answer was

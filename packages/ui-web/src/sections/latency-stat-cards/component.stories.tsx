@@ -28,6 +28,18 @@ export const PopulatedLight: Story = {
   globals: { theme: 'wireframe' },
 };
 
+/** The 390px tier — the cards stack to one column, and the three figure columns keep their grid
+ *  inside a full-width card. The legibility check the owner's 2026-09-03 directive asks for is at
+ *  BOTH ends: 1440 (four cards across, the tightest the figures ever get) and this. */
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+};
+
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
+};
+
 /** Every row has zero latency-bearing samples — the whole zone renders one inline status line. */
 export const Empty: Story = {
   args: { rows: latencyStatRowsEmpty },

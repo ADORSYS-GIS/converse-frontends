@@ -8,12 +8,18 @@
       "title": "Spend by account",
       "subtitle": "The twelve highest-spending accounts. Values on hover."
     },
-    "model-mix-share": {
-      "title": "Spend by model — estate share"
-    },
     "spend-by-model": {
       "title": "Spend by model over time",
       "subtitle": "Daily spend, split by model. Bar height is the day's total; the tail past the top five is one summed Other segment, never dropped."
+    },
+    "model-mix-share": {
+      "title": "Spend by model — estate share"
+    },
+    "top-spender-users": {
+      "title": "Top spenders — users",
+      "subtitle": "Name and email where the directory could resolve the id; an id that resolved to nothing keeps its row under its own value rather than being dropped. Rows open that person's own usage.",
+      "rowLabel": "User",
+      "unit": "users"
     },
     "top-spender-accounts": {
       "title": "Top spenders — accounts",

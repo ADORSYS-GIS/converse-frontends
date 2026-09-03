@@ -468,6 +468,22 @@ function tableRowHref(panel: SpecPanel, key: string): string | undefined {
   return applyLinkTemplate(link, key);
 }
 
+/**
+ * Whether a `table` panel's rows are PEOPLE-SHAPED — an identity with an optional second line (a
+ * name over an email, an account over its owner) — rather than a flat vocabulary value.
+ *
+ * `TABLE_ROWS` below is the people-shaped fixture — a resolved name over an email, an email alone,
+ * a service principal, a raw id nothing resolved — so it is the right one for a lens-driven panel
+ * (whose declared default lens is `user` throughout `dashboards.yaml`) and for a panel grouped by
+ * `user_id` with no lens knob above it, which is what `/admin/overview`'s `top-spender-users`
+ * table is. Deliberately NOT widened to `account_id`/`project_id`: those are actor dimensions too,
+ * but a fixture of PERSON names under a column headed "Account" is the mislabelling this story
+ * exists to catch, and those keys have their own entries in `DIMENSION_KEYS`.
+ */
+function isActorTableDimension(panel: SpecPanel): boolean {
+  return Boolean(panel.lens) || panel.dimension === 'user_id';
+}
+
 function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardPanelView {
   const base = panelFixtures.table;
   if (base.kind !== 'table' || !panel.columns) {
@@ -489,12 +505,19 @@ function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardP
   // A CHANNEL table's rows are OAuth clients, not people — the actor identities below would be a
   // straight mislabelling, which is the one thing this story is here to catch. Every non-actor
   // dimension takes its own key set and drops the identity's second line with it.
-  const channelKeys = panel.lens ? undefined : keysFor(panel);
-  const rows = channelKeys
-    ? TABLE_ROWS.slice(0, channelKeys.length).map((row, index) => ({
+  //
+  // "Actor" is the DIMENSION's property, not the lens knob's. This used to read
+  // `panel.lens ? undefined : keysFor(panel)`, which was right while every people-shaped table on
+  // the page was lens-driven and wrong the moment one was not: `/admin/overview`'s
+  // `top-spender-users` (owner directive, 2026-09-03) groups by `user_id` with no lens at all, and
+  // under the old test it re-keyed onto bare names and dropped the EMAIL second line — the exact
+  // fact the owner asked that table's `label` column to carry.
+  const nonActorKeys = isActorTableDimension(panel) ? undefined : keysFor(panel);
+  const rows = nonActorKeys
+    ? TABLE_ROWS.slice(0, nonActorKeys.length).map((row, index) => ({
         ...row,
-        key: channelKeys[index],
-        label: channelKeys[index],
+        key: nonActorKeys[index],
+        label: nonActorKeys[index],
         detail: undefined,
         subtle: false,
       }))

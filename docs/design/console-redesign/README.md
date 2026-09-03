@@ -196,7 +196,7 @@ the settings area) — `apps/console/src/client/console-chrome.tsx`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│ SIDEBAR (md+, 240px, chrome) — ONE mount, THREE nav surfaces, swapped by pathname     │
+│ SIDEBAR (md+, 296px, chrome) — ONE mount, THREE nav surfaces, swapped by pathname     │
 │                                                                                       │
 │ ACCOUNT (/accounts/<id>/*, /) │ SETTINGS (/settings/*)      │ ADMIN (/admin/*)        │
 │ ─ brand row                   │ ─ brand row                 │ ─ brand row             │
@@ -225,6 +225,17 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
 
 - **The sidebar is sticky and independently scrollable** (`SIDEBAR_CLASS`): full viewport height,
   its own `overflow-y-auto`, a trailing hairline (`border-raised`) instead of a gap.
+- **The sidebar is 296px** (`SIDEBAR_WIDTH`) — 240px until the **2026-09-03 owner directive**
+  ("240px is too small for the left rail. Increase it to 296px"). 240 was the width at which the
+  longest real nav labels and an account name in the workspace switcher had to truncate; the extra
+  56px also lets the footer's trailing controls (theme toggle, and the language `SelectField` that
+  replaced its segmented strip the same day) sit beside their labels rather than under them.
+  **What this does to the content measure, stated rather than implied:** the centre column is
+  `viewport − 296 − 2×32` (`SHELL_CENTRE_CLASS`'s `md:px-8`), so `max-w-[1120px]` now only engages
+  from 1480px up. At the 1440 reference viewport the measure is 1080px and the cap does nothing —
+  it bound there by 16px while the sidebar was 240px. The cap was deliberately **not** lowered to
+  1080 to hold that one viewport constant; that would narrow every wider viewport to preserve a
+  number in a document.
 - **One shell mount, two nav surfaces** (ADR 0013 D2): `app/(console)/layout.tsx` mounts
   `ConsoleShell` exactly once for every route in the `(console)` group, account-scoped and
   settings alike. `areaFromPathname(pathname)` picks which `groups`/workspace-switcher-slot
@@ -807,9 +818,18 @@ somewhere real:
 - Approve **names the amount** — `Approve` alone would be ambiguous once the reviewer changes the
   tier.
 
-**Info** — `/settings/info`: identity, theme, connectivity, plus base proxy paths (`/api`,
-`/api/budget`, `/api/usage`) shown as literal same-origin paths, never the backend origins they
-proxy to.
+**Info** — `/settings/info`: identity, theme, language, connectivity, plus base proxy paths
+(`/api`, `/api/budget`, `/api/usage`) shown as literal same-origin paths, never the backend origins
+they proxy to, and the **Platform** card (this console's build stamp beside every backend's,
+lightbridge-authz#573).
+
+Laid out in a **`DashboardGrid`**, not a single column (owner directive, 2026-09-03: "/settings/info
+can be done in smaller panels in a Grid"). The grid has no `dense` flow, so the order below is also
+what fills every row with no holes: **Platform** spans both columns (and lays its own five service
+groups out two-across at `lg`+, which is where most of the height went), **Backend configuration**
+and **Session** share the second row at three rows each, and **Client state** spans both columns
+again. Every row the single-column version rendered is still there — nothing was dropped to make
+the grid come out even. Story: `Pages/SettingsInfo`.
 
 ### 5.6 Auth
 
@@ -1289,7 +1309,7 @@ load. No parallax, no reveal-on-scroll.
 
 | Tier               | Navigation                                                                                    | Content column                                                                                                                                                                     |
 | ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **≥`md` (600px+)** | Persistent 240px sidebar, sticky, independently scrollable                                    | Fluid, `max-w-[1120px]`, `PageHeader` + `Card`s stacked vertically                                                                                                                 |
+| **≥`md` (600px+)** | Persistent 296px sidebar, sticky, independently scrollable                                    | Fluid, `max-w-[1120px]` — which only ENGAGES from 1480px up (`296 + 2×32 + 1120`); at the 1440 reference viewport the measure is 1080px. `PageHeader` + `Card`s stacked vertically |
 | **<`md`**          | 48px `ConsoleTopBar` + bottom navigation dock (same `NavSpine` `groups`, `bottom-bar` layout) | Single column, 16px gutters; `PageHeader.controls` wraps; ledgers/charts scroll horizontally inside their own `overflow-x-auto` container — the page itself never scrolls sideways |
 
 There is no third, "compact rail" tier — the old three-tier (full/compact/guard-rail) breakpoint

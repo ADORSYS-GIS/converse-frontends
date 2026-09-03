@@ -83,11 +83,15 @@ pages:
   # (`listPendingAugmentationRequests`). Both render in their own `DashboardGrid` above this one,
   # with their honesty captions intact.
   #
-  # Request count: eleven panels resolve to THREE usage requests plus the one previous-window twin
-  # `compare: true` adds — four. The eight-board page this replaces fired SIX, one per board
+  # Request count: twelve panels resolve to FOUR usage requests plus the one previous-window twin
+  # `compare: true` adds — five. The eight-board page this replaces fired SIX, one per board
   # family, none of them shared. Adding the budget-pressure zone's own billing-period request
-  # (one now; it used to be two, current and previous month) the whole page is five where it was
-  # six, for three more panels.
+  # (one now; it used to be two, current and previous month) the whole page is six where it was
+  # six, for four more panels.
+  #
+  # The fourth grouping is `[user_id]`, added with the `top-spender-users` table on 2026-09-03 and
+  # shared with nothing — see that panel's own comment for why crossing it into the existing
+  # account/project grouping was rejected rather than merely not done.
   # ═══════════════════════════════════════════════════════════════════════════════════════════
   - route: /admin/overview
     # No route params and no lens toggle — this page is the whole estate, always. `range` (with
@@ -135,6 +139,36 @@ pages:
 
       # ── 2. Model mix ───────────────────────────────────────────────────────────────────────
       # Both halves read the SAME per-model query — one request, two panels.
+      #
+      # Owner ruling 2026-09-03: this board is a STACK. "What did we spend that day" is the first
+      # question here, and only a stack states it (as bar height) — a superposed line board states
+      # no total at all. ADR 0015 D5's stacked-bar ban is amended for exactly this question; the
+      # 95%-top-1 caveat travels with the mark as its own caption. No `scale` here: a log stack
+      # does not sum, so the panel renders no axis toggle.
+      #
+      # And it takes the whole row, on the SAME day's second directive: "'Spend by model over time'
+      # should have its own row." A stack of five-plus models over a month of daily buckets is the
+      # densest mark on this page; at half width the segments a reader is comparing are a few
+      # pixels tall each. It moved ABOVE the share bar to get that row without leaving a hole:
+      # `dashboard-grid` has no `dense` flow, so a half-width panel followed by a full-width one
+      # strands the other half of its row — the share bar now leads the row the first top-spender
+      # table finishes.
+      - id: spend-by-model
+        type: series
+        title: admin-overview.spend-by-model.title
+        subtitle: admin-overview.spend-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          style: stacked-bars
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
       - id: model-mix-share
         type: share
         title: admin-overview.model-mix-share.title
@@ -147,31 +181,52 @@ pages:
           bucket: auto
           limit: 2000
 
-      # Owner ruling 2026-09-03: this board is a STACK. "What did we spend that day" is the first
-      # question here, and only a stack states it (as bar height) — a superposed line board states
-      # no total at all. ADR 0015 D5's stacked-bar ban is amended for exactly this question; the
-      # 95%-top-1 caveat travels with the mark as its own caption. No `scale` here: a log stack
-      # does not sum, so the panel renders no axis toggle.
-      - id: spend-by-model
-        type: series
-        title: admin-overview.spend-by-model.title
-        subtitle: admin-overview.spend-by-model.subtitle
+      # ── 3. Top spenders ────────────────────────────────────────────────────────────────────
+      # THREE tables, not one mixed ranking: a user row, an account row and a project row lead to
+      # different places (`?type=user` / `?type=account` / `?type=project`), and a table has one
+      # group-by dimension. `/admin/usage/actors/<id>` ships in C5 — the hrefs here are already the
+      # final URLs, and every one of these tables pages client-side over its grouped response
+      # (converse-frontends#487: paging is a property of the `table` TYPE, so no `pageSize` is
+      # needed to get it).
+      #
+      # ── The USERS table (owner directive, 2026-09-03: "we miss a 'Top spenders — user'") ────
+      # It is FIRST of the three, which is the owner's own actor-identity rule — the same reason
+      # `/admin/usage`'s lens knob defaults to `user` rather than `account`. Money is spent by
+      # people; an account is where it is billed.
+      #
+      # It is the one panel on this page that costs a REQUEST rather than sharing one. Nothing else
+      # here groups by `user_id` — the account/project family groups by `[account_id, project_id]`,
+      # which cannot answer a per-user question — so this takes the page from four usage requests
+      # to five, for its twelfth panel. Crossing `user_id` into that existing grouping was the
+      # alternative and is worse in both directions: it multiplies the row count (a user is not
+      # functionally determined by a project, unlike account-by-project) and would truncate the
+      # panels that already read that response.
+      #
+      # `columns` is stated rather than defaulted: the default four end in `tokens`, and a token
+      # column is a reading of the MODELS a person called rather than of the person. Name and
+      # email arrive as the two lines of the `label` cell (`IdentityLines`) — one column, two
+      # facts, never concatenated.
+      - id: top-spender-users
+        type: table
+        title: admin-overview.top-spender-users.title
+        subtitle: admin-overview.top-spender-users.subtitle
         span: 1
         metric: cost
         options:
-          style: stacked-bars
-          topN: 5
+          rowLabel: admin-overview.top-spender-users.rowLabel
+          unit: admin-overview.top-spender-users.unit
+          columns:
+            - label
+            - cost
+            - requests
+          link: /admin/usage/actors/:key?type=user
         query:
           scope: all
           group_by:
-            - model
+            - user_id
           bucket: auto
           limit: 2000
 
-      # ── 3. Top spenders ────────────────────────────────────────────────────────────────────
-      # Two tables, not one mixed ranking: an account row and a project row lead to different
-      # places (`?type=account` vs `?type=project`), and a table has one group-by dimension.
-      # `/admin/usage/actors/<id>` ships in C5 — the href here is already the final URL.
       - id: top-spender-accounts
         type: table
         title: admin-overview.top-spender-accounts.title
@@ -1520,11 +1575,16 @@ pages:
           bucket: auto
           limit: 2000
 
+      # `span: 2` on EVERY `latency-cards` panel in this file (owner directive, 2026-09-03:
+      # "Everywhere where it appears, 'Latency by model' shall be full width. Those numbers should
+      # appear clear"). A latency card carries three figures — p50, p95, p99 — not one, and at half
+      # width four of them share a column meant for a single numeral; the width is what lets each
+      # percentile keep a labelled figure column of its own rather than a run-on meta line.
       - id: latency-by-model
         type: latency-cards
         title: accounts-accountId-overview.latency-by-model.title
         subtitle: accounts-accountId-overview.latency-by-model.subtitle
-        span: 1
+        span: 2
         metric: latency
         options:
           dimension: model
@@ -1901,11 +1961,13 @@ pages:
           bucket: auto
           limit: 2000
 
+      # Full width, like every other `latency-cards` panel in this file — owner directive,
+      # 2026-09-03. See `/accounts/[accountId]/overview`'s own comment on the same panel.
       - id: family-latency-by-model
         type: latency-cards
         title: settings-overview-usage.family-latency-by-model.title
         subtitle: settings-overview-usage.family-latency-by-model.subtitle
-        span: 1
+        span: 2
         metric: latency
         options:
           dimension: model
@@ -2365,14 +2427,22 @@ pages:
           bucket: auto
           limit: 2000
 
-      - id: spend-by-model
-        type: ranked
-        title: settings-overview-user.spend-by-model.title
-        span: 1
-        metric: cost
+      # Full width, like every other `latency-cards` panel in this file — owner directive,
+      # 2026-09-03. See `/accounts/[accountId]/overview`'s own comment on the same panel.
+      #
+      # It moved AHEAD of `spend-by-model` in the same pass, and that is a layout fact rather than
+      # a reading preference: `dashboard-grid` has no `dense` flow, so a half-width panel sitting
+      # between two full-width ones leaves the other half of its row empty. This lens has exactly
+      # one half-width breakdown (the user lens has no secondary dimension — see
+      # `overview-pages.test.ts`), so the only placement that costs no hole is LAST.
+      - id: latency-by-model
+        type: latency-cards
+        title: settings-overview-user.latency-by-model.title
+        subtitle: settings-overview-user.latency-by-model.subtitle
+        span: 2
+        metric: latency
         options:
           dimension: model
-          topN: 6
         query:
           scope: user
           scope_id: $sub
@@ -2381,14 +2451,14 @@ pages:
           bucket: auto
           limit: 2000
 
-      - id: latency-by-model
-        type: latency-cards
-        title: settings-overview-user.latency-by-model.title
-        subtitle: settings-overview-user.latency-by-model.subtitle
+      - id: spend-by-model
+        type: ranked
+        title: settings-overview-user.spend-by-model.title
         span: 1
-        metric: latency
+        metric: cost
         options:
           dimension: model
+          topN: 6
         query:
           scope: user
           scope_id: $sub

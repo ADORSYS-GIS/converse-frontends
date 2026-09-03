@@ -19,6 +19,7 @@ import { ConsoleTopBar } from '../components/console-top-bar';
 import type { NavGroup, NavSpineItem } from '../components/nav-spine';
 import { SearchIcon, SignOutIcon } from '../lib/icons';
 import { RAIL_ICON_COLUMN_CLASS } from '../lib/rail-grid';
+import { SelectField } from '../components/select-field';
 import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 
@@ -111,8 +112,18 @@ export function storyNavGroups(active: StoryRoute, showAdmin = false): NavGroup[
 // left rail" -- `AccountMenu` is deleted outright): it is the SAME icon-column/label/trailing-
 // control shape as the Theme row above it, with a plain trailing `Button` for the one row-scoped
 // action (sign out) instead of a click-to-discover popup.
+//
+// The LANGUAGE row (ADR 0017) sits directly under Theme, exactly as `ConsoleSidebarContent` mounts
+// it -- it was missing here while the file's own comment claimed the footer mirrored the console
+// "exactly", so every page story reviewed a rail one row shorter than the one that ships. Its
+// control is a `SelectField` since the owner's 2026-09-03 directive ("Language selection should be
+// a dropdown"), `layout="inline"` so the trigger sizes to its own content in the trailing slot and
+// `hideLabel` so the row's visible label is the only one on screen. The console's real one is
+// `apps/console/src/i18n/locale-switcher.tsx`; this is the same control against a local `useState`,
+// because `packages/ui-web` owns no translations (ADR 0017 D3).
 function StoryFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
+  const [locale, setLocale] = useState('en');
   return (
     <>
       <button type="button" className="sidebar-footer-row">
@@ -128,6 +139,22 @@ function StoryFooter() {
         <ThemeToggle
           preference={preference}
           onPreferenceChange={setPreference}
+          className="ml-auto"
+        />
+      </div>
+      <div className="sidebar-footer-row">
+        <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+        <span className="text-subtle font-sans text-[13px]">Language</span>
+        <SelectField
+          label="Language"
+          hideLabel
+          layout="inline"
+          options={[
+            { value: 'en', label: 'English' },
+            { value: 'de', label: 'Deutsch' },
+          ]}
+          value={locale}
+          onChange={setLocale}
           className="ml-auto"
         />
       </div>

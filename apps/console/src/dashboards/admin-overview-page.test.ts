@@ -57,10 +57,14 @@ describe('/admin/overview in dashboards.yaml', () => {
       // 1 — estate spend over time (both halves)
       'estate-spend',
       'spend-by-account',
-      // 2 — model mix (share + over time)
-      'model-mix-share',
+      // 2 — model mix (over time, then the share). The stack leads its own full-width row since
+      // the owner's 2026-09-03 directive; the share bar that used to precede it now opens the row
+      // the first top-spender table closes, so no half-row is stranded.
       'spend-by-model',
-      // 3 — top spenders, split by what a row IS so each links to the right actor type
+      'model-mix-share',
+      // 3 — top spenders, split by what a row IS so each links to the right actor type. Users
+      // first (the owner's actor-identity rule) — the table added 2026-09-03.
+      'top-spender-users',
       'top-spender-accounts',
       'top-spender-projects',
       // 6 — request volume
@@ -114,6 +118,7 @@ describe('/admin/overview in dashboards.yaml', () => {
   it('links top-spender rows at the FINAL /admin/usage URLs, by actor type', () => {
     const linkOf = (id: string) =>
       adminOverview().panels.find((panel) => panel.id === id)?.options?.link;
+    expect(linkOf('top-spender-users')).toBe('/admin/usage/actors/:key?type=user');
     expect(linkOf('top-spender-accounts')).toBe('/admin/usage/actors/:key?type=account');
     expect(linkOf('top-spender-projects')).toBe('/admin/usage/actors/:key?type=project');
   });
@@ -121,6 +126,7 @@ describe('/admin/overview in dashboards.yaml', () => {
   it('says what a top-spender row IS rather than calling an account an "actor"', () => {
     const options = (id: string) =>
       adminOverview().panels.find((panel) => panel.id === id)?.options;
+    expect(options('top-spender-users')).toMatchObject({ rowLabel: 'User', unit: 'users' });
     expect(options('top-spender-accounts')).toMatchObject({
       rowLabel: 'Account',
       unit: 'accounts',
@@ -129,6 +135,47 @@ describe('/admin/overview in dashboards.yaml', () => {
       rowLabel: 'Project',
       unit: 'projects',
     });
+  });
+
+  /**
+   * The users table's own shape (owner directive, 2026-09-03: "we miss a 'Top spenders — user'").
+   *
+   * `columns` is asserted because it is stated rather than defaulted, and the reason is a claim
+   * about the data: the default four end in `tokens`, which is a reading of the models a person
+   * called rather than of the person. Name AND email arrive as the two lines of the ONE `label`
+   * cell (`panel-adapters.tsx`'s `IdentityLines`), never as two columns and never concatenated.
+   */
+  it('gives the users table its own columns and groups by user_id alone', () => {
+    const panel = adminOverview().panels.find((entry) => entry.id === 'top-spender-users');
+    expect(panel?.type).toBe('table');
+    expect(panel?.options?.columns).toEqual(['label', 'cost', 'requests']);
+    expect(panel?.query.group_by).toEqual(['user_id']);
+    // Paging is a property of the `table` TYPE since converse-frontends#487 — no `pageSize` here
+    // means the engine default, not an unpaged table.
+    expect(panel?.options?.pageSize).toBeUndefined();
+  });
+
+  /**
+   * Owner directive, 2026-09-03: "'Spend by model over time' should have its own row." Asserted as
+   * the SPAN rather than as a screenshot, because the grid has no `dense` flow — a full-width
+   * panel takes a row of its own by construction once it says `span: 2`.
+   */
+  it('gives spend-by-model its own full-width row', () => {
+    const panels = adminOverview().panels;
+    expect(panels.find((entry) => entry.id === 'spend-by-model')?.span).toBe(2);
+    // …and the half-width share bar that used to precede it now FOLLOWS it, so the row above the
+    // stack is not left half empty. Order is the layout here.
+    const idx = (id: string) => panels.findIndex((entry) => entry.id === id);
+    expect(idx('spend-by-model')).toBeLessThan(idx('model-mix-share'));
+  });
+
+  /**
+   * Every `latency-cards` panel in the document is full width (owner directive, same day:
+   * "Everywhere where it appears, 'Latency by model' shall be full width"). Asserted for this
+   * page here; `overview-pages.test.ts` covers the account/settings entries.
+   */
+  it('keeps the latency cards full width', () => {
+    expect(adminOverview().panels.find((entry) => entry.id === 'latency-by-model')?.span).toBe(2);
   });
 
   /**
@@ -165,16 +212,21 @@ describe('/admin/overview in dashboards.yaml', () => {
    * BEFORE: the deleted `use-admin-overview-screen.ts` declared six `useQuery` calls for eight
    * boards — `modelQuery`, `previousQuery`, `projectActivityQuery`, `mtdQuery`, `prevMtdQuery`,
    * `latencyQuery` — none shared, several differing only by `group_by`.
-   * AFTER: eleven panels resolve to FOUR, one of which is the comparison twin the old page also
+   * AFTER: twelve panels resolve to FIVE, one of which is the comparison twin the old page also
    * fetched. The budget-pressure zone's own billing-period request (one now, two before) is not
    * part of this page entry at all — see `admin-estate-operations-usage.ts`.
+   *
+   * The fifth is `[user_id]`, which arrived with `top-spender-users` on 2026-09-03 and shares with
+   * nothing on this page: no other panel here groups by a person, and the account/project family's
+   * `[account_id, project_id]` grouping structurally cannot answer a per-user question. One more
+   * request for one more panel, stated rather than buried.
    */
-  it('resolves eleven panels to four requests, one of them the comparison twin', () => {
+  it('resolves twelve panels to five requests, one of them the comparison twin', () => {
     const page = adminOverview();
     const resolved = resolveDashboard({ page, window: WINDOW });
 
-    expect(page.panels).toHaveLength(11);
-    expect(resolved.queries).toHaveLength(4);
+    expect(page.panels).toHaveLength(12);
+    expect(resolved.queries).toHaveLength(5);
 
     const indexOf = (id: string) =>
       resolved.panels.find((panel) => panel.spec.id === id)?.queryIndex;
@@ -197,6 +249,14 @@ describe('/admin/overview in dashboards.yaml', () => {
       'adoption-over-time',
     ].map(indexOf);
     expect(new Set(accountGrained).size).toBe(1);
+
+    // …while the users table is on a request of its OWN. Asserted rather than left implied: the
+    // whole reason this panel costs a fifth request is that `[user_id]` cannot be read off the
+    // account/project grouping, and a future "optimisation" that folded it in there would be a
+    // correctness regression, not a saving.
+    expect(indexOf('top-spender-users')).not.toBe(indexOf('top-spender-accounts'));
+    expect(indexOf('top-spender-users')).not.toBe(indexOf('estate-spend'));
+    expect(indexOf('top-spender-users')).not.toBe(indexOf('model-mix-share'));
 
     // Exactly one panel compares, and its twin is a real, separate query.
     const comparing = resolved.panels.filter((panel) => panel.compareQueryIndex !== undefined);

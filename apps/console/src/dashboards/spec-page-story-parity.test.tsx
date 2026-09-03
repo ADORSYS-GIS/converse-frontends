@@ -7,6 +7,7 @@ import {
   specPage,
   type SpecPanel,
 } from '@lightbridge/ui-web/src/pages-stories/spec-page';
+import type React from 'react';
 import { describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
@@ -227,4 +228,33 @@ describe('options.linkAll parity', () => {
       expect(story.linkAllLabel).toBe('View models');
     }
   );
+});
+
+/**
+ * `top-spender-users` (owner directive, 2026-09-03) is the first `columns`-declaring table in
+ * `dashboards.yaml` that is grouped by an actor dimension WITHOUT a lens knob above it. The story
+ * oracle used to decide "are these rows people?" from `panel.lens`, so this panel would have
+ * re-keyed onto bare names and dropped the identity's second line — the email the owner asked the
+ * `label` column to carry — while `apps/console` rendered it. Exactly the class of silent drift
+ * this file exists for.
+ */
+describe('actor-table identity parity', () => {
+  it('keeps the email second line on a lens-less user table, in both paths', () => {
+    const app = realView('/admin/overview', 'top-spender-users');
+    const story = storyView('/admin/overview', 'top-spender-users');
+    if (app.kind !== 'table' || story.kind !== 'table') throw new Error('expected a table view');
+
+    expect(app.columns.map((column) => column.key)).toEqual(['label', 'cost', 'requests']);
+    expect(story.columns.map((column) => column.key)).toEqual(app.columns.map((c) => c.key));
+
+    // Both build the label cell as `IdentityLines`, which is the component that renders a name
+    // over its email. The story's fixture is the one that actually HAS a second line to show.
+    const detailed = story.rows.find(
+      (row) => (row.cells.label as React.ReactElement<{ detail?: string }>).props.detail
+    );
+    expect(detailed, 'the story fixture must keep at least one row with an email').toBeDefined();
+    for (const row of story.rows) {
+      expect(row.href).toMatch(/\?type=user$/);
+    }
+  });
 });

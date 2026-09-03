@@ -132,7 +132,13 @@ describe('section class budget', () => {
     ['spend-dashboard', 7],
     ['budget-panel', 23],
     ['ranked-series-rows', 1],
-    ['latency-stat-cards', 4],
+    // 4 -> 0 (2026-09-03, the owner's "those numbers should appear clear" pass): the card's own
+    // `bg-surface rounded-[2px] p-4` plus its two `mt-*` rhythm offsets moved into `theme.css`'s
+    // `latency-card` part and its three descendant hooks, which is the sanctioned destination
+    // rather than a saving trick — the block also had to grow real internal structure (a
+    // three-track figure grid, a baseline value row) that would have been four more hand-written
+    // utilities at the call site. Pinned at the honest 0 it now measures.
+    ['latency-stat-cards', 0],
     ['refill-history', 1],
     ['refill-request-form', 3],
     ['policy-simulator', 13],

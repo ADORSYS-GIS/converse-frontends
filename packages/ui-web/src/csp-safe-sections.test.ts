@@ -8,13 +8,17 @@ import { describe, expect, it } from 'vitest';
 // `default-src 'self'; frame-ancestors 'none'` with no `data:` allowance
 // (crates/lightbridge-authz-rest/src/static_assets.rs). Every daisyUI 5 component class in the
 // `--fx-noise` set — `alert`/`btn`/`badge`/`checkbox`/`radio`/`toggle`/`menu`/`loading`/`tooltip`/
-// `card`/`input`/`select`/`table`/`tabs`/`skeleton` — unconditionally sets a `data:image/svg+xml`
-// background regardless of whether it is visually reachable, and a `data:` URI referenced by an
+// `card`/`input`/`select`/`table`/`tabs`/`skeleton` — composites a `data:image/svg+xml` noise
+// background in regardless of whether it is visually reachable, and a `data:` URI referenced by an
 // APPLIED rule is fetched and CSP-blocked even at `background-size: 0%` (converse-frontends#407's
-// evidence, recorded in `sections/notice-panel/component.tsx`'s own doc comment). Crucially,
-// `verify-css-csp.mjs` cannot see a NEW occurrence caused by these sections — the rule is already
-// compiled in from Tailwind's prose-matching scan, so its `data:` count stays unchanged whether or
-// not anything renders the class (`EXPECTED_DATA_URI_COUNT` measures presence, not reachability).
+// evidence, recorded in `sections/notice-panel/component.tsx`'s own doc comment).
+//
+// `theme.css`'s `@plugin 'daisyui'` block now excludes the six parts that carry a `data:` URI at
+// all (converse-frontends#443), so the built login bundle contains none — but that is an EMIT-side
+// property, and this file is still the gate that stops a REACHABILITY regression: a section here
+// pulling in a daisy-backed component would light up daisy classes in the render tree, which is a
+// posture violation whether or not the CSS currently ships a `data:` URI. `verify-css-csp.mjs`
+// cannot see that: it reads the built stylesheet, never the DOM.
 // So this file, not that script, is the gate that actually stops a regression here.
 //
 // `apps/authz-ui/src/no-daisy-component-classes.test.ts` scans `apps/authz-ui/src/**/*.tsx` only
@@ -143,8 +147,8 @@ describe('CSP-safe sections', () => {
               `${file}: import "${specifier}" does not resolve under ../../lib/, ../../cn, or a ` +
                 `sibling CSP-safe section. If this names a component under ../../components/, ` +
                 `restore the native-element implementation instead -- that component's daisy class ` +
-                `pulls in the --fx-noise data: background (converse-frontends#407) and CSP-blocks ` +
-                `at runtime even though verify-css-csp.mjs's data: count stays unchanged.`
+                `is banned on this surface (converse-frontends#407) and verify-css-csp.mjs cannot ` +
+                `see it: that script reads the built stylesheet, never the render tree.`
             );
           }
         }

@@ -82,12 +82,38 @@
  * `package.json` pins a development browserslist with `firefox 121` for exactly this reason; see
  * that app's README ("The `browserslist` block is load-bearing"). Keep this in mind before adding a
  * pipeline that touches selectors.
+ *
+ * `exclude:` — the six daisyUI parts that emit a `data:` URI, switched off at the SOURCE.
+ * `apps/authz-ui` is served under `default-src 'self'` with no `data:` carve-out (owner decision,
+ * converse-frontends#407), and it imports this stylesheet, so every `data:` daisy emits lands in
+ * the hosted-login bundle. `grep -l 'data:' node_modules/daisyui/{components,base,utilities}/*.css`
+ * names exactly six: the `chat`/`loading`/`mask`/`mockup`/`tooltip` components (each hard-codes an
+ * `url("data:image/svg+xml,…")` mask) and the `svg` BASE, whose only job is to declare
+ * `:root{--fx-noise:url("data:…")}` — the noise layer `btn`/`badge`/`alert`/`checkbox`/`radio`/
+ * `toggle`/`menu`/`fileinput` composite in via `background-image: none, var(--fx-noise)`.
+ *
+ * None of the six is used anywhere in this workspace: tooltips are Floating UI (ADR 0010), the
+ * loading/skeleton treatment is our own, and BOTH theme blocks below set `--noise: 0` (ADR 0008 —
+ * "no depth/noise"), so the noise layer already composited at `background-size: 0%`. Dropping
+ * `--fx-noise` makes those `background-image` declarations invalid-at-computed-value-time, i.e.
+ * `none` — the same pixels, minus a `data:` URI the CSP would otherwise fetch and block.
+ *
+ * WHY AT THE SOURCE rather than pinning a count downstream: Tailwind v4's scanner token-matches
+ * RAW TEXT, and this file `@source`s three trees (`.`, `apps/console/src`, `apps/lci/src`) for
+ * every consumer — including `apps/authz-ui`, which has no `@source` line of its own but inherits
+ * these. So an ordinary English word in an ordinary code comment compiles a daisy component into
+ * the login bundle: #459's `apps/console/src/dashboards/derived-metrics.ts` doc comment ("Total
+ * chat completions count") is what pulled `.chat`, and its `--mask-chat` `data:` URI, into
+ * `apps/authz-ui/dist/assets/*.css` and turned `scripts/verify-css-csp.mjs` red on `main`. With
+ * these six excluded the built CSS carries ZERO `data:` occurrences, which is a property of the
+ * config rather than of anyone's prose — see that script's header for the invariant it now checks.
  */
 @plugin 'daisyui' {
   themes:
     black --default,
     wireframe;
   logs: false;
+  exclude: chat, loading, mask, mockup, svg, tooltip;
 }
 
 /*

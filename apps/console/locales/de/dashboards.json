@@ -74,14 +74,16 @@
     },
     "cost-by-model": {
       "title": "Kosten je Periode nach Modell",
-      "subtitle": "Die Balkenhöhe sind die Gesamtkosten der Periode; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“."
+      "subtitle": "Die Balkenhöhe sind die Gesamtkosten der Periode; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“.",
+      "linkAll": "Modelle ansehen"
     },
     "cost-by-actor": {
       "title": "Kosten je Periode nach Akteur",
       "subtitle": "Folgt der Perspektive oben — Nutzer, Konten oder Projekte."
     },
     "tokens-by-model": {
-      "title": "Token je Periode nach Modell"
+      "title": "Token je Periode nach Modell",
+      "linkAll": "Modelle ansehen"
     },
     "tokens-by-actor": {
       "title": "Token je Periode nach Akteur"
@@ -189,6 +191,40 @@
     "channel-requests-by-operation": {
       "title": "Anfragen nach Operation",
       "subtitle": "Welche API-Schnittstelle dieser Client aufruft."
+    }
+  },
+  "admin-usage-models-model": {
+    "model-total-cost": {
+      "title": "Gesamtkosten",
+      "subtitle": "Kosten für dieses Modell, über alle Konten der Installation hinweg."
+    },
+    "model-total-requests": {
+      "title": "Anfragen gesamt",
+      "subtitle": "Eine Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen kein Fehler-/Statussignal (lightbridge-authz#597)."
+    },
+    "model-total-tokens": {
+      "title": "Token gesamt",
+      "subtitle": "Prompt und Completion zusammen — die Menge, nach der dieses Modell abgerechnet wird."
+    },
+    "model-cost-over-time": {
+      "title": "Kosten je Periode",
+      "subtitle": "Eine Linie, denn diese Seite ist ein Modell. Lineare Achse — die Zahl ist die Aussage."
+    },
+    "model-actors": {
+      "title": "Wer es nutzt",
+      "subtitle": "Kosten je Nutzer für dieses Modell. Zeilen öffnen den jeweiligen Akteur."
+    },
+    "model-channels": {
+      "title": "Woher es kommt",
+      "subtitle": "Kosten je OAuth-Client (azp). Zeilen öffnen den jeweiligen Kanal."
+    },
+    "model-latency": {
+      "title": "Latenz",
+      "subtitle": "p50 und p95 über die Zeitfenster dieses Bereichs, mit der jeweiligen Stichprobenzahl — leer, wenn die Installation überhaupt keine Latenz aufzeichnet."
+    },
+    "model-requests-by-operation": {
+      "title": "Anfragen nach Operation",
+      "subtitle": "Über welche API-Oberfläche dieses Modell aufgerufen wird."
     }
   },
   "admin-usage-chats": {

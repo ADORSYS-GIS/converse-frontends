@@ -14,9 +14,12 @@ import dashboardsYaml from '../../../../apps/console/dashboards.yaml?raw';
 // visible key on the card, not as a story quietly certifying stale wording.
 import dashboardsEn from '../../../../apps/console/locales/en/dashboards.json';
 
+import type { DonutSegment } from '../components/donut-chart';
 import { ErrorLine } from '../components/error-line';
 import { InlineStatus } from '../components/inline-status';
 import type { MultiSeriesSpendScale } from '../components/multi-series-spend-chart';
+import type { ShareBarSegment } from '../components/share-bar';
+import type { RankedSeriesRow } from '../sections/ranked-series-rows';
 import {
   applyLinkTemplate,
   collapseSegmentsTail,
@@ -26,7 +29,8 @@ import {
 } from '../lib/dashboard-view-mapping';
 import { formatUsd } from '../lib/money';
 import { IdentityLines } from '../lib/identity-lines';
-import { LABEL_CLASS } from '../lib/type-roles';
+import { cn } from '../cn';
+import { LABEL_CLASS, META_CLASS } from '../lib/type-roles';
 import { DashboardGrid } from '../sections/dashboard-grid';
 import { DashboardPanel } from '../sections/dashboard-panel';
 import { emptyPanelFixtures, panelFixtures } from '../sections/dashboard-panels/fixtures';
@@ -96,6 +100,12 @@ export interface SpecPanel {
    *  top-spender ledgers on `/admin/overview` (`?type=account` and `?type=project`) used to both
    *  link to `?type=user` — the same fixture's own baked-in href, unread against the YAML. */
   link?: string;
+  /** `options.linkAll` / `options.linkAllLabel` — the ONE key-less destination a panel whose marks
+   *  cannot carry links of their own puts in its heading actions slot (`/admin/usage`'s two
+   *  model series boards). Read here so the story draws the same heading row the console does; the
+   *  label is resolved through the same English bundle as every other copy field. */
+  linkAll?: string;
+  linkAllLabel?: string;
   /** The panel's own `metric` (`cost` | `requests` | `tokens` | `latency` | `derived:<name>`).
    *  A `stat` panel's FIGURE has to follow it, or a page of stats all reads "$943.60" and a
    *  reviewer cannot tell a count panel from a money one — which is half of what a page story is
@@ -194,6 +204,11 @@ export function readPages(text: string = dashboardsYaml): SpecPage[] {
           style: resolveDashboardSeriesStyle(options.style),
           topN: typeof options.topN === 'number' ? options.topN : undefined,
           link: options.link === undefined ? undefined : String(options.link),
+          linkAll: options.linkAll === undefined ? undefined : String(options.linkAll),
+          linkAllLabel:
+            options.linkAllLabel === undefined
+              ? undefined
+              : englishCopy(String(options.linkAllLabel)),
           compare: p.compare === true,
         };
       }),
@@ -418,6 +433,21 @@ const EMPTY_STAT_FIXTURE: Record<string, string> = {
  * the panel's OWN `options.lens`, since a page story has no separate lens knob of its own to read
  * a resolved value from.
  */
+/**
+ * `options.link` applied to one row / share segment / ring wedge.
+ *
+ * Typed and named once because THREE view arms carry an `hrefFor` now (ranked, share, donut) and
+ * `buildSpecPanelView` declares the union as its return type — an inline arrow in any of them gets
+ * no contextual parameter type, since the compiler cannot pick an arm before the object is
+ * complete. The type argument at each call site is what supplies it.
+ */
+function specHrefFor<T extends { key: string }>(
+  link: string | undefined
+): ((item: T) => string | undefined) | undefined {
+  if (!link) return undefined;
+  return (item: T) => applyLinkTemplate(link, item.key);
+}
+
 function tableRowHref(panel: SpecPanel, key: string): string | undefined {
   const link = panel.lens ? panel.link?.split('$lens').join(panel.lens) : panel.link;
   return applyLinkTemplate(link, key);
@@ -584,13 +614,14 @@ export function buildSpecPanelView(
       // this.
       rows: rankedUnit(reKey(fixture.rows, keysFor(panel)), panel.metric),
       topN: panel.topN,
-      hrefFor: panel.link ? (row) => applyLinkTemplate(panel.link, row.key) : undefined,
+      hrefFor: specHrefFor<RankedSeriesRow>(panel.link),
     };
   }
 
   if (fixture.kind === 'share') {
     return {
       ...fixture,
+      hrefFor: specHrefFor<ShareBarSegment>(panel.link),
       // `ShareBar` has no Top-N notion of its own — the console's own adapter folds the tail into
       // ONE summed `Other (N)` segment before the primitive ever sees it; so does this
       // (`/accounts/<id>/overview` and `/settings/overview/usage` both cap their model-share ring
@@ -608,11 +639,28 @@ export function buildSpecPanelView(
       ...fixture,
       segments: reKey(fixture.segments, keysFor(panel)),
       topN: panel.topN,
+      hrefFor: specHrefFor<DonutSegment>(panel.link),
       // The ring's centre states the TOTAL of what the ring measures — a requests ring centred on
       // a dollar figure would be a fabricated unit, the same failure `formatYTick` exists to
       // prevent on a chart axis.
       centreMetric: (panel.metric && STAT_METRIC_FIXTURE[panel.metric]) || fixture.centreMetric,
     };
+  }
+
+  if (fixture.kind === 'latency-cards') {
+    // Re-keyed like every other breakdown: the console's own adapter labels each card from the
+    // panel's resolved dimension, so a page whose query is filtered to ONE model draws exactly one
+    // card. Without this, `/admin/usage/models/<model>` would review a three-card zone it can
+    // never have (`DimensionKeyOverrides`).
+    const keys = keysFor(panel);
+    return keys
+      ? {
+          ...fixture,
+          rows: fixture.rows
+            .slice(0, keys.length)
+            .map((row, index) => ({ ...row, key: keys[index], model: keys[index] })),
+        }
+      : fixture;
   }
 
   return fixture;
@@ -672,8 +720,18 @@ export function SpecPanels({
             chrome={panelChrome(panel.type)}
             // An errored panel has no view to draw actions from — the card, its title and its
             // Expand button all stay, which is the console's own behaviour and the reason the page
-            // never reflows as panels resolve.
-            actions={state === 'error' ? null : renderPanelActions(view, 'panel')}>
+            // never reflows as panels resolve. `linkAll` survives every state for the same reason
+            // `dashboard-renderer.tsx` keeps it: it is a route, not a control over absent data.
+            actions={
+              <>
+                {panel.linkAll && panel.linkAllLabel ? (
+                  <a className={cn(META_CLASS, 'dashboard-panel-link-all')} href={panel.linkAll}>
+                    {panel.linkAllLabel}
+                  </a>
+                ) : null}
+                {state === 'error' ? null : renderPanelActions(view, 'panel')}
+              </>
+            }>
             {({ size }) =>
               state === 'error' ? (
                 // A BARE panel's title is its `StatCard`'s own label, which does not exist when

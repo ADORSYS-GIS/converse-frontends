@@ -171,6 +171,76 @@ describe('DonutChart', () => {
     expect(wedges(container)[2].getAttribute('fill')).toBe('var(--color-primary)');
     expect(wedges(container)[0].getAttribute('fill')).not.toBe('var(--color-primary)');
   });
+
+  /**
+   * `hrefFor` (2026-09-03) — `/admin/usage`'s three model rings open a model's own page. An SVG
+   * `<a>` is the same element an HTML anchor is, in the SVG namespace: focusable and
+   * Enter-activated with nothing of ours attached, and it WRAPS the path rather than replacing it,
+   * so the hover tooltip keeps working.
+   */
+  describe('hrefFor', () => {
+    const linked = (extra: Partial<React.ComponentProps<typeof DonutChart>> = {}) =>
+      render(
+        <DonutChart
+          segments={segments}
+          width={240}
+          height={240}
+          hrefFor={(segment) => `/admin/usage/models/${encodeURIComponent(segment.key)}`}
+          {...extra}
+        />
+      );
+
+    it('wraps each wedge in an SVG anchor, keeping the path and its label', () => {
+      const { container } = linked();
+      const anchors = Array.from(container.querySelectorAll('a.donut-wedge-link'));
+      expect(anchors).toHaveLength(3);
+      expect(anchors[0].getAttribute('href')).toBe('/admin/usage/models/gpt-4o');
+      // The path survives inside it — the mark is unchanged, only reachable.
+      expect(anchors[0].querySelector('path.donut-wedge')).not.toBeNull();
+      expect(wedges(container)).toHaveLength(3);
+    });
+
+    it('leaves the tab stop on the anchor, never on the path inside it', () => {
+      const { container } = linked();
+      for (const wedge of wedges(container)) {
+        expect(wedge.hasAttribute('tabindex')).toBe(false);
+      }
+    });
+
+    /** A LINK wins over selection: a wedge that navigated and toggled on one click would do two
+     *  things the reader asked for one of. */
+    it('does not also toggle selection', () => {
+      const onSelectSegment = vi.fn();
+      const { container } = linked({ onSelectSegment, selectedKey: null });
+      const wedge = wedges(container)[0];
+      expect(wedge.getAttribute('role')).toBe('img');
+      fireEvent.click(wedge);
+      expect(onSelectSegment).not.toHaveBeenCalled();
+    });
+
+    /** `Other` folds several models into one wedge — same reason it is never selectable. */
+    it('never links the collapsed Other wedge', () => {
+      const { container } = linked({ topN: 2 });
+      const anchors = Array.from(container.querySelectorAll('a.donut-wedge-link'));
+      expect(anchors).toHaveLength(2);
+      expect(wedges(container)).toHaveLength(3); // two linked + the Other wedge
+    });
+
+    /** A PDF has no navigation — `static` strips the anchor with every other interaction. */
+    it('drops the anchor entirely in static mode', () => {
+      const html = renderToStaticMarkup(
+        <DonutChart
+          segments={segments}
+          width={240}
+          height={240}
+          hrefFor={(segment) => `/admin/usage/models/${segment.key}`}
+          static
+        />
+      );
+      expect(html).not.toContain('donut-wedge-link');
+      expect(html).not.toContain('href=');
+    });
+  });
 });
 
 /** `static` mode — the same export/print contract `MultiSeriesSpendChart` holds

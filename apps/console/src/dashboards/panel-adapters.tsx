@@ -634,6 +634,11 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
           topN,
           (value) => formatMetric(value, spec.metric)
         ),
+        // Same `options.link` the ranked branch above reads — a share bar's rows name real
+        // entities (models), and until the owner's 2026-09-03 feedback the only way to open one
+        // was to find it again somewhere else on the page. `ShareBar` refuses the collapsed
+        // `Other (N)` segment itself; `panelRowHref` refuses the `Unassigned` sentinel.
+        hrefFor: link ? (segment) => panelRowHref(link, segment.key) : undefined,
       };
 
     case 'donut': {
@@ -651,6 +656,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         topN,
         centreMetric: formatMetric(total, spec.metric),
         centreLabel: 'TOTAL',
+        hrefFor: link ? (segment) => panelRowHref(link, segment.key) : undefined,
         emptyMessage: donutEmptyMessage(donutDimension),
       };
     }

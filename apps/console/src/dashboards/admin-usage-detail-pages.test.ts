@@ -12,6 +12,7 @@ import {
   ADMIN_USAGE_ACTOR_ROUTE,
   ADMIN_USAGE_CHANNEL_ROUTE,
   ADMIN_USAGE_CHATS_ROUTE,
+  ADMIN_USAGE_MODEL_ROUTE,
 } from './usage-routes';
 import { englishT } from '../test/english-t';
 import { translateDashboardPage } from './page-entry';
@@ -26,7 +27,8 @@ import { translateDashboardPage } from './page-entry';
 const T = englishT('dashboards');
 
 /**
- * The three `/admin/usage` drill-down entries (converse-frontends#449, story C6).
+ * The four `/admin/usage` drill-down entries (converse-frontends#449, story C6; the model page
+ * added by the owner's 2026-09-03 feedback on that issue).
  *
  * These pages have no per-panel query code anywhere in `apps/console`, so this file is where their
  * CONTRACT lives — the same job `admin-usage-page.test.ts` does for the estate page. Four things
@@ -272,6 +274,113 @@ describe('/admin/usage/channels/[channelId] in dashboards.yaml', () => {
   it('REFUSES to resolve without its channel id', () => {
     expect(() => resolveDashboard({ page: channels(), window: WINDOW })).toThrow(
       /Unresolved dashboard placeholder "\$channelId"/
+    );
+  });
+});
+
+// ── /admin/usage/models/[model] ──────────────────────────────────────────────────────────────
+
+describe('/admin/usage/models/[model] in dashboards.yaml', () => {
+  const models = () => pageAt(ADMIN_USAGE_MODEL_ROUTE);
+
+  it('declares exactly the eight contracted panel ids, in order', () => {
+    expect(models().panels.map((panel) => panel.id)).toEqual([
+      'model-total-cost',
+      'model-total-requests',
+      'model-total-tokens',
+      'model-cost-over-time',
+      'model-actors',
+      'model-channels',
+      'model-latency',
+      'model-requests-by-operation',
+    ]);
+  });
+
+  it('owns exactly its one route param', () => {
+    expect(models().filters).toEqual(['model']);
+  });
+
+  it('is an ESTATE query narrowed by model — a model is not a usage scope', () => {
+    for (const panel of models().panels) {
+      expect(panel.query.scope, panel.id).toBe('all');
+      expect(panel.query.scope_id, panel.id).toBeUndefined();
+      expect(panel.query.filters?.model, panel.id).toBe('$model');
+    }
+  });
+
+  it('sets an explicit limit on every panel — never a server default', () => {
+    for (const panel of models().panels) {
+      expect(panel.query.limit, panel.id).toBeGreaterThan(0);
+    }
+  });
+
+  /** THREE compared totals, not the estate page's two: a model is the one subject where the token
+   *  count is a headline reading — it is what the price is charged on. */
+  it('compares all three headline totals against the previous window', () => {
+    expect(
+      models()
+        .panels.filter((panel) => panel.compare)
+        .map((panel) => panel.id)
+    ).toEqual(['model-total-cost', 'model-total-requests', 'model-total-tokens']);
+    expect(models().panels.find((p) => p.id === 'model-total-tokens')?.metric).toBe('tokens');
+  });
+
+  it('continues the drill path into actors and channels rather than dead-ending', () => {
+    const actorsPanel = models().panels.find((panel) => panel.id === 'model-actors');
+    expect(actorsPanel?.query.group_by).toEqual(['user_id']);
+    expect(actorsPanel?.options?.link).toBe('/admin/usage/actors/:key?type=user');
+    // NOT lens-driven: this page has no lens knob, so a `$lens` here would never be substituted.
+    expect(actorsPanel?.options?.lens).toBeUndefined();
+
+    const channelsPanel = models().panels.find((panel) => panel.id === 'model-channels');
+    expect(channelsPanel?.query.group_by).toEqual(['azp']);
+    expect(channelsPanel?.options?.link).toBe('/admin/usage/channels/:key');
+  });
+
+  it('carries the latency cards at full width, off the same filtered query', () => {
+    const latency = models().panels.find((panel) => panel.id === 'model-latency');
+    expect(latency?.type).toBe('latency-cards');
+    expect(latency?.span).toBe(2);
+    expect(latency?.metric).toBe('latency');
+    expect(latency?.query.group_by).toEqual(['model']);
+  });
+
+  /** LINES, never a stack: the 2026-09-03 ruling that lifted D5's stacked-bar ban was for daily
+   *  spend × model, where the bar height states a total the lines cannot. One model has nothing to
+   *  stack. */
+  it('draws its cost board as lines, not a single-series stack', () => {
+    const series = models().panels.find((panel) => panel.id === 'model-cost-over-time');
+    expect(series?.type).toBe('series');
+    expect(series?.options?.style).toBeUndefined();
+  });
+
+  it('resolves eight panels to six requests, the model filter on every one', () => {
+    const resolved = resolveDashboard({
+      page: models(),
+      window: WINDOW,
+      filters: { model: 'gpt-4o' },
+    });
+    expect(models().panels).toHaveLength(8);
+    expect(resolved.queries).toHaveLength(6);
+    for (const query of resolved.queries) {
+      expect(query.filters?.model).toBe('gpt-4o');
+    }
+
+    const indexOf = (id: string) => resolved.panels.find((p) => p.spec.id === id)?.queryIndex;
+    // All three totals share the one ungrouped request…
+    expect(indexOf('model-total-cost')).toBe(indexOf('model-total-requests'));
+    expect(indexOf('model-total-cost')).toBe(indexOf('model-total-tokens'));
+    // …and share ONE comparison twin between them, not one each.
+    const comparing = resolved.panels.filter((panel) => panel.compareQueryIndex !== undefined);
+    expect(comparing).toHaveLength(3);
+    expect(new Set(comparing.map((p) => p.compareQueryIndex)).size).toBe(1);
+    // The series and the latency cards read the same `[model]` grouping from different columns.
+    expect(indexOf('model-cost-over-time')).toBe(indexOf('model-latency'));
+  });
+
+  it('REFUSES to resolve without its model', () => {
+    expect(() => resolveDashboard({ page: models(), window: WINDOW })).toThrow(
+      /Unresolved dashboard placeholder "\$model"/
     );
   });
 });

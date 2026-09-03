@@ -4,7 +4,8 @@ import React from 'react';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
-import { LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
+import { cn } from '@lightbridge/ui-web/src/cn';
+import { LABEL_CLASS, META_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { DashboardPanel } from '@lightbridge/ui-web/src/sections/dashboard-panel';
 import {
@@ -105,7 +106,22 @@ function DashboardPanelSlot({
       chrome={panelChrome(panel.type)}
       expanded={expanded}
       onExpandedChange={onExpandedChange}
-      actions={panel.view ? renderPanelActions(panel.view, 'panel') : null}>
+      actions={
+        <>
+          {/* `options.linkAll` — see `DashboardPanelState.linkAll`. Present in EVERY status, unlike
+              the type registry's own actions: it is a route, not a control over data that has not
+              landed, and a heading row that gains a link only after the query resolves would move
+              under the reader's pointer. A plain anchor rather than `next/link`: the two targets it
+              has today are same-page fragments, which the App Router router would treat as a
+              navigation. */}
+          {panel.linkAll ? (
+            <a className={cn(META_CLASS, 'dashboard-panel-link-all')} href={panel.linkAll.href}>
+              {panel.linkAll.label}
+            </a>
+          ) : null}
+          {panel.view ? renderPanelActions(panel.view, 'panel') : null}
+        </>
+      }>
       {({ size }) => {
         if (panel.status === 'error') {
           return (

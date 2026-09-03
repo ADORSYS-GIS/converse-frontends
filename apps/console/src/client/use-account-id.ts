@@ -2,6 +2,8 @@
 
 import { useParams } from 'next/navigation';
 
+import { decodeRouteParam } from '../shared/route-params';
+
 /**
  * The account id path segment — `/accounts/[accountId]/*` (IA v3 phase 1, "account into the
  * path"). Every screen in the console now lives under this segment, so `accountId` is never
@@ -21,10 +23,18 @@ import { useParams } from 'next/navigation';
  * all — Next.js does not backfill an absent dynamic segment. Throwing here turns that misrouting
  * into a loud, developer-facing error at the call site instead of every downstream consumer
  * quietly treating `''` as "no account."
+ *
+ * **The value is percent-DECODED here** (`decodeRouteParam`, 2026-09-03). `useParams()` reads the
+ * Flight router tree's raw segment values (Next's own `getSelectedParams`), exactly as a Server
+ * Component's `params` does — so an account id carrying a `/` or a `:` arrives encoded, and every
+ * RPC issued with it would name an account that exists nowhere. Account ids are cuid2 today, which
+ * is why nothing has broken here yet; the estate pages take arbitrary backend-supplied ids and
+ * that is where it DID break, so the decode is applied at every route boundary rather than only at
+ * the one that has already failed.
  */
 export function useAccountId(): string {
   const params = useParams<{ accountId: string }>();
-  const accountId = params?.accountId;
+  const accountId = params?.accountId ? decodeRouteParam(params.accountId) : params?.accountId;
   if (!accountId) {
     throw new Error(
       'useAccountId() called outside /accounts/[accountId]/* — accountId is never optional there. ' +

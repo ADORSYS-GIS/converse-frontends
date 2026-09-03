@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
-import type { DateRangePreset } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
@@ -20,29 +19,35 @@ import { rangeLabels, rangePresets } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 
 /**
- * `/admin/usage/channels/[channelId]` — ONE OAuth client's usage, rendered entirely from
- * `dashboards.yaml` (converse-frontends#449, story C6).
+ * `/admin/usage/models/[model]` — ONE model's usage across the estate, rendered entirely from
+ * `dashboards.yaml` (converse-frontends#449, owner feedback 2026-09-03).
  *
- * **The header IS the azp string, and that is deliberate.** A channel has no profile to resolve:
- * `azp` is the OAuth client id the gateway stamped on the request (lane A3's bridge column), and
- * there is no procedure that maps one to a display name. Printing it verbatim is the honest
- * reading — inventing "Console UI" for `console-ui` would be a name this console made up, and the
- * id is what an operator will match against the IdP's own client list anyway.
+ * **This page cost one YAML entry and this file, and this file is almost entirely NOT about
+ * panels.** Eight panels — three compared totals, a cost series, two rankings that continue the
+ * drill path into actors and channels, a latency card and an operation breakdown — are declared in
+ * the document; what is left here is the three things a PAGE owns and a panel cannot: its window,
+ * its identity (the header), and its way back.
  *
- * There is no lens on this page and no `resetCadence` of its own: a channel spans every account,
- * so no single reset schedule governs it and "vs previous" falls back to the monthly default the
- * engine already uses for estate windows (decision D-F, owner Q8).
+ * **The header IS the model string, and that is deliberate** — the same ruling
+ * `admin-usage-channel-centre.tsx` states for an `azp`. A model name is what the gateway recorded
+ * and what an operator will match against a provider's own model list; prettifying `gpt-4o` into
+ * "GPT-4o" would be a name this console made up, and it would stop matching the value in every
+ * chart on the page it was opened from.
+ *
+ * There is no lens knob and no `resetCadence` of its own: a model spans every account, so no single
+ * reset schedule governs it and "vs previous" falls back to the monthly default the engine already
+ * uses for estate windows (decision D-F, owner Q8).
  */
 
-export interface AdminUsageChannelCentreProps {
-  /** The validated `/admin/usage/channels/[channelId]` entry from `dashboards.yaml`. */
+export interface AdminUsageModelCentreProps {
+  /** The validated `/admin/usage/models/[model]` entry from `dashboards.yaml`. */
   page: DashboardPageSpec;
-  /** The path segment, already percent-decoded by the ROUTE (`decodeRouteParam`) — the real `azp`
-   *  value, not the encoded segment Next hands a page. */
-  channelId: string;
+  /** The path segment, already percent-decoded by the ROUTE (`decodeRouteParam`) — the real model
+   *  string, not the encoded segment Next hands a page. */
+  model: string;
 }
 
-export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCentreProps) {
+export function AdminUsageModelCentre({ page, model }: AdminUsageModelCentreProps) {
   const { t } = useTranslation('admin');
   const { t: tCommon } = useTranslation('common');
   const labels = rangeLabels(tCommon);
@@ -55,8 +60,8 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
 
   const knobs = useDashboardKnobs(page);
 
-  // The one `$param` every panel's `filters.azp` resolves from.
-  const filters = useMemo(() => ({ channelId }), [channelId]);
+  // The one `$param` every panel's `filters.model` resolves from.
+  const filters = useMemo(() => ({ model }), [model]);
 
   const dashboard = useDashboard({
     page,
@@ -73,8 +78,8 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={channelId}
-        subtitle={t('usage.channel.subtitle', {
+        title={model}
+        subtitle={t('usage.model.subtitle', {
           range: labels[view.range],
           timezone: tCommon('timezone.utc'),
         })}
@@ -96,6 +101,9 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
         }
         action={
           <div className="flex flex-wrap items-center gap-3">
+            {/* The way back to the ring or share row this page was opened from. A real anchor
+                rather than a history-pop handler: this page is linkable and routinely arrived at by
+                pasted URL, where there is no "back" to pop. */}
             <Button
               variant="ghost"
               size="sm"
@@ -105,7 +113,7 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
             </Button>
             <DashboardExportButton
               route={page.route}
-              title={channelId}
+              title={model}
               range={view.range}
               rangeLabel={labels[view.range]}
               window={window}
@@ -117,6 +125,8 @@ export function AdminUsageChannelCentre({ page, channelId }: AdminUsageChannelCe
         }
       />
 
+      {/* The batch identity lookup's own failure line — this page has two actor-grained panels
+          (`model-actors` labels users), so it owes the same caption every other page does. */}
       {dashboard.actorLabelsErrorMessage ? (
         <InlineStatus>{dashboard.actorLabelsErrorMessage}</InlineStatus>
       ) : null}

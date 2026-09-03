@@ -164,6 +164,32 @@ describe('options.link parity', () => {
     expect(story.hrefFor?.(sampleRow)).toBe('/admin/usage/channels/sample-key');
   });
 
+  /** The two marks that gained an href on 2026-09-03. Both are part-to-whole shapes whose rows
+   *  name real entities, and until then the only way to open one was to find it again in a table
+   *  somewhere else on the page. */
+  it('links a share segment through the same template in both', () => {
+    const app = realView('/admin/usage', 'model-cost-share');
+    const story = storyView('/admin/usage', 'model-cost-share');
+    if (app.kind !== 'share' || story.kind !== 'share') throw new Error('expected a share view');
+    const segment = { key: 'gpt-4o', label: 'gpt-4o', value: 1, formattedValue: '$1.00' };
+    expect(app.hrefFor?.(segment)).toBe('/admin/usage/models/gpt-4o');
+    expect(story.hrefFor?.(segment)).toBe(app.hrefFor?.(segment));
+  });
+
+  it.each([
+    'model-distribution-requests',
+    'model-distribution-cost',
+    'model-distribution-tokens',
+  ] as const)('links every wedge of %s through the same template in both', (id) => {
+    const app = realView('/admin/usage', id);
+    const story = storyView('/admin/usage', id);
+    if (app.kind !== 'donut' || story.kind !== 'donut') throw new Error('expected a donut view');
+    // A model name that would invent a path segment if it were not encoded.
+    const segment = { key: 'openai/gpt-4o-mini', label: 'openai/gpt-4o-mini', value: 1 };
+    expect(app.hrefFor?.(segment)).toBe('/admin/usage/models/openai%2Fgpt-4o-mini');
+    expect(story.hrefFor?.(segment)).toBe(app.hrefFor?.(segment));
+  });
+
   it('links a table row through its own options.link rather than a hardcoded template', () => {
     // `top-spender-accounts` has no `options.columns` — the four-column shape whose fixture used
     // to bake in `?type=user` regardless of what the panel's own `options.link` said.
@@ -176,4 +202,29 @@ describe('options.link parity', () => {
       expect(row.href).toMatch(/\?type=account$/);
     }
   });
+});
+
+/**
+ * `options.linkAll` is read by the CONSOLE in `use-dashboard.ts` and by the STORY in
+ * `spec-page.tsx`, from the same YAML — the exact split that let `options.style` drift. Both sides
+ * must see the same href and the same (translated) label, or the story certifies a heading row the
+ * console does not draw.
+ */
+describe('options.linkAll parity', () => {
+  it.each(['cost-by-model', 'tokens-by-model'] as const)(
+    'carries %s’s View models affordance to both the app and the story',
+    (id) => {
+      const spec = realPanelSpec('/admin/usage', id);
+      const story = storyPanel('/admin/usage', id);
+      expect(spec.options?.linkAll).toBe('#model-cost-share');
+      expect(story.linkAll).toBe(spec.options?.linkAll);
+      // The console resolves the KEY through the request's locale (`translateDashboardPage`); the
+      // story resolves the same key through the English bundle. Both must land on real copy, never
+      // on the dotted key itself.
+      expect(spec.options?.linkAllLabel).toBe(
+        'admin-usage.cost-by-model.linkAll'.replace('cost-by-model', id)
+      );
+      expect(story.linkAllLabel).toBe('View models');
+    }
+  );
 });

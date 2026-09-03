@@ -73,6 +73,7 @@ export function DonutChart({
   otherLabel = defaultOtherLabel,
   selectedKey,
   onSelectSegment,
+  hrefFor,
   centreMetric,
   centreLabel,
   formatTooltipValue = defaultFormatTooltipValue,
@@ -161,11 +162,18 @@ export function DonutChart({
       {arcs.map((slice) => {
         const isAccent = slice.datum.key === accentKey;
         const isSelected = slice.datum.key === selectedKey;
-        const selectable = !isStatic && Boolean(onSelectSegment) && slice.datum.key !== OTHER_KEY;
+        // A LINK wins over selection: a wedge that navigated and toggled on one click would do
+        // two things the reader asked for one of. `Other` folds several entities into one wedge,
+        // so it is never linked — same reason it is never selectable.
+        const href = isStatic || slice.datum.key === OTHER_KEY ? undefined : hrefFor?.(slice.datum);
+        const selectable =
+          !isStatic && !href && Boolean(onSelectSegment) && slice.datum.key !== OTHER_KEY;
         const interactive = isStatic
           ? {}
           : {
-              tabIndex: 0,
+              // A linked wedge's tab stop is the `<a>` that wraps it — the path itself must not be
+              // a second one, or every model on the ring would take two tabs to walk past.
+              tabIndex: href ? undefined : 0,
               role: selectable ? ('button' as const) : ('img' as const),
               'aria-pressed': selectable ? isSelected : undefined,
               onClick: selectable
@@ -180,9 +188,8 @@ export function DonutChart({
                 : undefined,
               ...getReferenceProps(getHoverProps(slice.datum.key)),
             };
-        return (
+        const wedge = (
           <path
-            key={slice.datum.key}
             d={slice.path}
             fill={isAccent ? SPEC_ACCENT : specSeriesColor(slice.index)}
             stroke={SPEC_FLOOR}
@@ -194,6 +201,17 @@ export function DonutChart({
             }`}
             {...interactive}
           />
+        );
+
+        // An SVG `<a>` — the same element an HTML anchor is, in the SVG namespace: focusable and
+        // Enter-activated with no handler of our own, and it WRAPS the path rather than replacing
+        // it, so the hover tooltip's reference props stay exactly where they were.
+        return href ? (
+          <a key={slice.datum.key} href={href} className="donut-wedge-link">
+            {wedge}
+          </a>
+        ) : (
+          <React.Fragment key={slice.datum.key}>{wedge}</React.Fragment>
         );
       })}
     </g>

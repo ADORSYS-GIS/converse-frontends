@@ -18,12 +18,14 @@
 # to this file.
 #
 # ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
-# TEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
+# ELEVEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
 # sketch; C4 migrated `/admin/overview` onto it; C5 replaced the sketch with the full
 # nineteen-panel `/admin/usage` contract; C6 (converse-frontends#449) added the three DRILL-DOWN
 # routes — `/admin/usage/actors/[actorId]`, `/admin/usage/channels/[channelId]` and
 # `/admin/usage/chats` — the engine's proof that a PARAMETERISED page needs no code of its own
-# either; C12 (converse-frontends#455) brought the account dashboard and all four
+# either, and the owner's 2026-09-03 feedback on that issue added a FOURTH,
+# `/admin/usage/models/[model]`, which cost one YAML entry and no engine change at all;
+# C12 (converse-frontends#455) brought the account dashboard and all four
 # `/settings/overview/*` lenses across and deleted their hand-written containers
 # (`use-overview-screen.ts`, `use-settings-overview-screen.ts`, `use-usage-overview-screen.ts`,
 # `usage-overview-usage.ts`). **No hand-written dashboard container remains in this console** —
@@ -427,6 +429,13 @@ pages:
       # ── 7. Cost per period by model ───────────────────────────────────────────────────────
       # A STACK since the owner's 2026-09-03 ruling (see `/admin/overview`'s spend-by-model): the
       # per-bucket TOTAL is the primary reading on this board and a line chart cannot state it.
+      #
+      # `linkAll` rather than `link`: a stack band is not a row, and there is nowhere honest to
+      # hang a per-series href on a chart whose values live in a hover tooltip. So the panel gets
+      # ONE affordance pointing at `model-cost-share` below — the panel on this same page where
+      # every model IS clickable — rather than at an `/admin/usage/models` index that does not
+      # exist. (Owner feedback 2026-09-03: "a 'View models' affordance if series lines cannot
+      # link.")
       - id: cost-by-model
         type: series
         title: admin-usage.cost-by-model.title
@@ -436,6 +445,8 @@ pages:
         options:
           style: stacked-bars
           topN: 5
+          linkAll: '#model-cost-share'
+          linkAllLabel: admin-usage.cost-by-model.linkAll
         query:
           scope: all
           group_by:
@@ -472,6 +483,8 @@ pages:
         options:
           scale: log
           topN: 5
+          linkAll: '#model-cost-share'
+          linkAllLabel: admin-usage.tokens-by-model.linkAll
         query:
           scope: all
           group_by:
@@ -517,12 +530,19 @@ pages:
       # ── 12. Which models (cost share) ─────────────────────────────────────────────────────
       # The ONE `share` on this page — ShareBar keeps the single sanctioned part-to-whole job it
       # was given on 2026-08-29 (ADR 0013 D5).
+      #
+      # Its ROWS are anchors into the model page (owner feedback 2026-09-03: "'Which models' ...
+      # link to the model page"). This is also the panel the two series boards above point their
+      # `linkAll` affordance at, so it is the one place on this page where "open this model" is a
+      # click rather than a search.
       - id: model-cost-share
         type: share
         title: admin-usage.model-cost-share.title
         subtitle: admin-usage.model-cost-share.subtitle
         span: 1
         metric: cost
+        options:
+          link: /admin/usage/models/:key
         query:
           scope: all
           group_by:
@@ -576,6 +596,10 @@ pages:
       # three share the `[model]` request panels 7, 9 and 12 already issue; only which column each
       # reads differs, which is the whole reason they are three panels rather than one with a
       # metric toggle — a toggle would hide two of the three readings behind a click.
+      #
+      # All three WEDGES are anchors into the model page (owner feedback 2026-09-03). The collapsed
+      # `Other (N)` wedge is never one — it is several models at once, and there is no page for
+      # "several" (`DonutChart` refuses it itself, so no page can forget).
       - id: model-distribution-requests
         type: donut
         title: admin-usage.model-distribution-requests.title
@@ -587,6 +611,7 @@ pages:
         metric: requests
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: all
           group_by:
@@ -601,6 +626,7 @@ pages:
         metric: cost
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: all
           group_by:
@@ -615,6 +641,7 @@ pages:
         metric: tokens
         options:
           topN: 6
+          link: /admin/usage/models/:key
         query:
           scope: all
           group_by:
@@ -1013,6 +1040,197 @@ pages:
             - operation
           filters:
             azp: $channelId
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/models/[model] — ONE model's usage across the estate (converse-frontends#449,
+  # owner feedback 2026-09-03: "/admin/usage should have panels with navigations too, the same
+  # way. E.g 'Top actors by cost', 'Which models'.").
+  #
+  # A model is NOT a usage scope: the backend's scope enum knows users, projects, accounts, API
+  # keys and the estate, and nothing else. So every panel here is `scope: all` narrowed by the
+  # EQUALITY FILTER `model: $model` — structurally the same page `/admin/usage/channels/[channelId]`
+  # is, one filter column over. That is also why it needs `usage:read-all` exactly as the estate
+  # page does: it is an estate query with one more filter on it, not a narrower permission.
+  #
+  # ── THE PARAM ──────────────────────────────────────────────────────────────────────────────
+  # `$model` is the raw vendor string the gateway recorded — `gpt-4o`, but also
+  # `openai/gpt-4o-mini` on a router-style gateway and `anthropic.claude-sonnet-4:0` on Bedrock.
+  # The link builder percent-encodes it (`modelHref`) and the ROUTE decodes it exactly once
+  # (`decodeRouteParam`); nothing in between touches it. There is no closed vocabulary to validate
+  # against, so — exactly as on the channel page — an unknown model is not a 404: it renders a page
+  # whose panels all say "no usage in this window", which is the same, honest answer a real model
+  # with a quiet month gets.
+  #
+  # ── WHERE ITS ROWS GO ──────────────────────────────────────────────────────────────────────
+  # The drill path CONTINUES rather than dead-ending: `model-actors` rows open the actor page (as
+  # users — this page has no lens knob, and "which accounts use gpt-4o" is a question the estate
+  # page's own lens already answers), and `model-channels` rows open the channel page.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Eight panels resolve to SIX requests:
+  #   1. the ungrouped model query (all three totals)
+  #   2. its previous-window twin (`compare: true` on all three)
+  #   3. `[model]` — the cost-over-time series AND the latency cards, which read the same grouping
+  #      of the same filtered query from different columns
+  #   4. `[user_id]`
+  #   5. `[azp]`
+  #   6. `[operation]`
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/models/[model]
+    filters:
+      - model
+
+    panels:
+      # ── The three totals, each against the previous comparison window (D-F) ────────────────
+      # THREE rather than the estate page's two: a model is the one subject where the token count
+      # is a headline reading rather than a detail — it is what the price is charged on, and the
+      # pair (cost, tokens) is what an operator compares between two models. All three share ONE
+      # ungrouped request and ONE comparison twin.
+      - id: model-total-cost
+        type: stat
+        title: admin-usage-models-model.model-total-cost.title
+        subtitle: admin-usage-models-model.model-total-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      - id: model-total-requests
+        type: stat
+        title: admin-usage-models-model.model-total-requests.title
+        subtitle: admin-usage-models-model.model-total-requests.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      - id: model-total-tokens
+        type: stat
+        title: admin-usage-models-model.model-total-tokens.title
+        subtitle: admin-usage-models-model.model-total-tokens.subtitle
+        span: 1
+        metric: tokens
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── What it costs, over the window ────────────────────────────────────────────────────
+      # LINES, not a stack: the ruling that lifted D5's stacked-bar ban was for daily spend × model,
+      # where the bar height states a total the lines cannot. This board is ONE model — there is
+      # nothing to stack, and a single-series stack would be a bar chart pretending to be a
+      # part-to-whole mark.
+      - id: model-cost-over-time
+        type: series
+        title: admin-usage-models-model.model-cost-over-time.title
+        subtitle: admin-usage-models-model.model-cost-over-time.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 1
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── Who is using it ───────────────────────────────────────────────────────────────────
+      # Always USERS, never a lens: this page has no lens knob (its one filter is the model), and
+      # rows link back to the actor page with the matching `?type=user` — the same shape
+      # `channel-actors` holds, for the same reason.
+      - id: model-actors
+        type: ranked
+        title: admin-usage-models-model.model-actors.title
+        subtitle: admin-usage-models-model.model-actors.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── Where it arrives from ─────────────────────────────────────────────────────────────
+      - id: model-channels
+        type: ranked
+        title: admin-usage-models-model.model-channels.title
+        subtitle: admin-usage-models-model.model-channels.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/channels/:key
+        query:
+          scope: all
+          group_by:
+            - azp
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── How fast it answers ───────────────────────────────────────────────────────────────
+      # `group_by: [model]` under a query already filtered to one model resolves to exactly ONE
+      # card — which is the point: the cards state p50/p95/samples off the same rows every figure
+      # above is drawn from, so "is this model slow" is answered on the page where "is this model
+      # expensive" is, rather than on `/admin/usage/chats` where it only ever covered chat traffic.
+      - id: model-latency
+        type: latency-cards
+        title: admin-usage-models-model.model-latency.title
+        subtitle: admin-usage-models-model.model-latency.subtitle
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── What it is used FOR ───────────────────────────────────────────────────────────────
+      # `operation` is A3's derived column, humanised once in `panel-adapters.tsx` — the rows read
+      # "Chat completions", never `chat_completions`.
+      - id: model-requests-by-operation
+        type: ranked
+        title: admin-usage-models-model.model-requests-by-operation.title
+        subtitle: admin-usage-models-model.model-requests-by-operation.subtitle
+        span: 2
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            model: $model
           bucket: auto
           limit: 2000
 

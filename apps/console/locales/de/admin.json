@@ -42,7 +42,12 @@
       "loading": "Nutzung dieses Clients wird geladen…",
       "subtitle": "Kanal · OAuth-Client (azp) · Jedes Konto · {{range}} · {{timezone}}"
     },
-    "labels-unresolved": "Nutzernamen konnten nicht aufgelöst werden — es wird stattdessen die rohe Nutzer-ID angezeigt."
+    "labels-unresolved": "Nutzernamen konnten nicht aufgelöst werden — es wird stattdessen die rohe Nutzer-ID angezeigt.",
+    "model": {
+      "fallback-title": "Modell",
+      "loading": "Nutzung dieses Modells wird geladen…",
+      "subtitle": "Modell · Jedes Konto · {{range}} · {{timezone}}"
+    }
   },
   "refills-queue": {
     "title": "Prüfung von Guthaben-Aufladungen",

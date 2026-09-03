@@ -18,8 +18,17 @@ export interface DashboardPanelBodyContext {
 }
 
 export interface DashboardPanelProps {
-  /** Stable identity — the panel id from `dashboards.yaml`. Used for the heading's element ids so
-   *  the expanded dialog can point `aria-labelledby` at a real title. */
+  /**
+   * Stable identity — the panel id from `dashboards.yaml`. Used for the heading's element ids so
+   * the expanded dialog can point `aria-labelledby` at a real title, AND rendered as the grid
+   * item's own DOM `id`, which makes it a real in-page anchor target (`#model-cost-share`).
+   *
+   * That second use is what `options.linkAll` needs: a `series` board's lines cannot each carry a
+   * href, so its one affordance points at the panel on the same page where the same entities ARE
+   * clickable. An id already required to be unique within its page is exactly the right thing for
+   * that, and inventing a second identifier beside it would only be a second thing to keep in
+   * sync.
+   */
   id: string;
   title: string;
   /** One quiet line under the title stating what the panel is measuring, its window, or an honest

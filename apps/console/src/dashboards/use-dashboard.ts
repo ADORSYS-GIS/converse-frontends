@@ -53,6 +53,18 @@ export interface DashboardPanelState {
   errorMessage?: string;
   onRetry: () => void;
   /**
+   * `options.linkAll` + its already-translated `options.linkAllLabel` — the ONE key-less
+   * destination a panel whose marks cannot carry links of their own puts in its heading actions
+   * slot (a `series` board grouped by a dimension that has a detail page).
+   *
+   * Carried on the panel STATE rather than derived inside the renderer for the same reason `type`
+   * is: it must be stable across loading and error, so the heading row does not gain a link only
+   * once the data lands. Rendered by `dashboard-renderer.tsx`, beside `renderPanelActions` —
+   * `packages/ui-web`'s per-type registry stays ignorant of it, because it is a page-level route
+   * fact and not a property of the panel SHAPE.
+   */
+  linkAll?: { href: string; label: string };
+  /**
    * Set only when the backend actually dropped buckets to fit this panel's own `limit`
    * (`UsageQueryResponse.truncated`, lightbridge-authz#578). It NAMES the limit, because "some data
    * is missing" without a number is not something an operator can act on — ADR 0013 D5's
@@ -311,6 +323,12 @@ export function useDashboard({
       title: panel.spec.title,
       subtitle: panel.spec.subtitle,
       span: panel.spec.span,
+      // Both halves or neither: a href with no words is an unlabelled link, and a label with no
+      // href is a control that steers nothing.
+      linkAll:
+        panel.spec.options?.linkAll && panel.spec.options?.linkAllLabel
+          ? { href: panel.spec.options.linkAll, label: panel.spec.options.linkAllLabel }
+          : undefined,
       onRetry: () => {
         for (const index of panel.queryIndices) void results[index]?.refetch();
         for (const index of panel.compareQueryIndices ?? []) void results[index]?.refetch();

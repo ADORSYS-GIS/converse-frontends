@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 
 import { accountScopeLabel } from '../containers/account-label';
 import { readLastAccountId } from '../containers/use-account-resolver';
+import { decodeRouteParam } from '../shared/route-params';
 import { useProjectScopeParams } from './url-state';
 
 /**
@@ -97,7 +98,11 @@ export function useConsoleScope(): ConsoleScope {
   // rather than crash the whole shell. `useAccountId()` stays reserved for call sites that can
   // assert they are always inside `/accounts/[accountId]/*`.
   const routeParams = useParams<{ accountId?: string }>();
-  const pathAccountId = routeParams?.accountId;
+  // Percent-decoded, for the reason `useAccountId` states: `useParams()` hands back the RAW
+  // pathname segment, not the value the link encoded.
+  const pathAccountId = routeParams?.accountId
+    ? decodeRouteParam(routeParams.accountId)
+    : routeParams?.accountId;
   const [params, setParams] = useProjectScopeParams();
 
   const accountsQuery = useList<Account>({

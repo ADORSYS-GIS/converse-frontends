@@ -113,23 +113,34 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
           LABELS: ${{ steps.meta.outputs.labels }}
           # The IMAGE half of the build stamp (lightbridge-authz#573). The bundle already carries
-          # the commit it was compiled from; these three describe the container, which did not
-          # exist when `next build` ran. `IMAGE_BUILD_SHA` is the commit this image build ran at,
-          # NOT the pushed digest — a digest cannot be baked into the artifact it identifies —
-          # and `IMAGE_TAG` carries the immutable `sha-<gitsha>` tag, which resolves to one digest.
+          # the commit it was compiled from; these describe the container, which did not exist
+          # when `next build` ran. `IMAGE_BUILD_SHA` is the commit this image build ran at, NOT
+          # the pushed digest — a digest cannot be baked into the artifact it identifies.
+          #
+          # `IMAGE_TAG` is NOT constructed here: it is read out of `$TAGS` below, because
+          # `docker/metadata-action`'s `type=sha` produces the SHORT form (`sha-52c0522`) and
+          # lowercases the owner, and a hand-built `:sha-${{ github.sha }}` against
+          # `${{ env.IMAGE_NAME }}` produced neither — it named a tag that does not exist, on a
+          # mixed-case path GHCR does not serve. `/settings/info` prints this string verbatim, so
+          # an unpullable reference there is exactly the fabrication that screen exists to avoid.
           IMAGE_BUILD_SHA: ${{ github.sha }}
-          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
           tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # The immutable, actually-pushed `:sha-<short>` tag, taken from the tag list rather than
+          # rebuilt from `github.sha` — see the IMAGE_TAG note above. Falls back to the first tag
+          # only if the `type=sha` entry ever disappears from the metadata config.
+          image_tag="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
+          [ -n "$image_tag" ] || image_tag="$(head -n1 <<<"$TAGS")"
+          echo "build stamp: IMAGE_TAG=${image_tag}"
           # No --layers / --cache-from / --cache-to: the Docker build is deliberately
           # uncached (caching lives in Turbo). Single amd64 platform. Build context is the
           # repo root (not apps/console/) — the standalone bundle's node_modules is hoisted to
           # the pnpm workspace root, so apps/console/Dockerfile needs the whole tree visible.
           buildah build --format docker --platform linux/amd64 \
             --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
-            --build-arg "IMAGE_TAG=${IMAGE_TAG}" \
+            --build-arg "IMAGE_TAG=${image_tag}" \
             --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/console/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.

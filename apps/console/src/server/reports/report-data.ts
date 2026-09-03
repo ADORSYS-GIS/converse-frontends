@@ -7,6 +7,7 @@ import type { DashboardPanelSpec } from '../../dashboards/dashboard-spec';
 import { toPanelView } from '../../dashboards/panel-adapters';
 import type { ResolvedDashboard } from '../../dashboards/resolve-dashboard';
 import { isChartPanelView, renderPanelSvg } from './panel-svg';
+import type { ReportBranding } from './report-branding';
 
 /**
  * `data.json` — everything a `.typ` template is allowed to know (converse-frontends#453).
@@ -71,6 +72,13 @@ export interface ReportPanel {
 export interface ReportDocument {
   /** The report's own title — the page's title, not the file name. */
   title: string;
+  /**
+   * The configured brand — `{logo?, name?}` — absent entirely when this deployment configured
+   * none (owner feedback 2026-09-03). `logo` is an asset path inside the render root, written
+   * there from the SAME file the console header serves; `_lib/report.typ` draws it left of the
+   * title and falls back to the name, then to the title alone. See `report-branding.ts`.
+   */
+  branding?: ReportBranding;
   /** The router path this report is a rendering of. */
   route: string;
   /** Human wording for the window, e.g. `This month`. */
@@ -240,6 +248,8 @@ export interface BuildReportInput {
   template: { route: string; origin: string };
   includeTables: boolean;
   generatedAt: Date;
+  /** The configured brand, from `resolveReportBranding`. Omitted when none is configured. */
+  branding?: ReportBranding;
 }
 
 export interface BuiltReport {
@@ -312,6 +322,7 @@ export function buildReport(input: BuildReportInput): BuiltReport {
   return {
     document: {
       title: input.title,
+      ...(input.branding ? { branding: input.branding } : {}),
       route: input.resolved.route,
       rangeLabel: input.rangeLabel,
       window: {

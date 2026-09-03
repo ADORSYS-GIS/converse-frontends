@@ -12,11 +12,13 @@ import {
   CONSUMPTION_TEMPLATE_ROUTE,
 } from '../../../../server/reports/consumption-report';
 import { serverEnv } from '../../../../server/env';
+import { resolveReportBranding } from '../../../../server/reports/report-branding';
+import { collectTemplateAssets } from '../../../../server/reports/template-assets';
 import {
   readTemplateLibrary,
   resolveReportTemplate,
 } from '../../../../server/reports/template-resolver';
-import { renderPdf } from '../../../../server/reports/typst-client';
+import { renderPdf, type RenderAsset } from '../../../../server/reports/typst-client';
 import { fetchUsageQueries } from '../../../../server/reports/usage-fetch';
 import { clearSession, writeSession } from '../../../../server/session-store';
 
@@ -146,6 +148,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // The consumption report gets the same letterhead and the same template-sibling assets as every
+  // dashboard report — it shares `_lib/report.typ`'s header, so branding it separately would mean
+  // two answers to one question.
+  const templateAssets = collectTemplateAssets(CONSUMPTION_TEMPLATE_ROUTE);
+  if (!templateAssets.ok) {
+    console.error('[console] Consumption template assets over budget:', templateAssets);
+    return noStore(
+      NextResponse.json(
+        { error: 'template_assets_too_large', message: templateAssets.message },
+        { status: 413 }
+      )
+    );
+  }
+  const branding = resolveReportBranding(serverEnv().branding);
+
   const document = buildConsumptionReport({
     rows,
     month,
@@ -153,12 +170,18 @@ export async function GET(request: NextRequest) {
     projectId,
     templateOrigin: template.origin,
     generatedAt: new Date(),
+    branding: branding.branding,
   });
 
   const library = readTemplateLibrary();
+  const assets: Record<string, RenderAsset> = {};
+  for (const file of templateAssets.files) assets[file.path] = file.bytes;
+  if (branding.asset) assets[branding.asset.path] = branding.asset.bytes;
+  assets[library.path] = library.source;
+
   const outcome = await renderPdf(
     renderUrl,
-    { template: template.source, data: document, assets: { [library.path]: library.source } },
+    { template: template.source, data: document, assets },
     request.signal
   );
 

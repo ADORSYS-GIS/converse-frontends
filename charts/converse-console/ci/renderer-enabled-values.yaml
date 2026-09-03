@@ -12,6 +12,13 @@
 #   * persistence.console-dashboards.enabled  ⇄  configMaps.console-config.data['dashboards.yaml']
 #     (a subPath naming an absent ConfigMap key does not fall back — the kubelet refuses to mount)
 #   * persistence.report-templates.enabled  ⇄  configMaps.report-templates.enabled
+#   * persistence.report-template-assets.enabled  ⇄  configMaps.report-template-assets.enabled
+#
+# The template mounts here are the REAL prod shape (owner feedback 2026-09-03, "custom templates
+# WITH embedded logos"): one route bundle — `admin/overview/report.typ` plus its own `logo.png` —
+# assembled from TWO ConfigMaps into one directory tree by per-file `path` + `subPath` mounts,
+# because app-template forbids one ConfigMap from carrying both `data` and `binaryData` and a
+# ConfigMap key cannot contain `/`.
 console:
   controllers:
     main:
@@ -25,6 +32,22 @@ console:
       enabled: true
     report-templates:
       enabled: true
+      # Per-FILE, not the default directory mount: a directory mount would occupy
+      # /config/console/templates and leave no mount point for the binary assets below.
+      advancedMounts:
+        main:
+          frontend:
+            - path: /config/console/templates/admin/overview/report.typ
+              subPath: admin-overview-report.typ
+              readOnly: true
+    report-template-assets:
+      enabled: true
+      advancedMounts:
+        main:
+          frontend:
+            - path: /config/console/templates/admin/overview/logo.png
+              subPath: admin-overview-logo.png
+              readOnly: true
   networkpolicies:
     typst-render-isolation:
       enabled: true
@@ -44,6 +67,17 @@ console:
     report-templates:
       enabled: true
       data:
-        report.typ: |
-          #set page(width: 210mm, height: 297mm)
-          = Overridden report
+        # Key names are flat and arbitrary — the MOUNT decides where each one lands in the route
+        # tree. `image("logo.png")` with no leading slash: a per-route template compiles as
+        # `main.typ` at the render root, so its siblings are relative to it.
+        admin-overview-report.typ: |
+          #import "_lib/report.typ": *
+          #let report = json(sys.inputs.at("data"))
+          #show: report-page.with(report)
+          #align(right, image("logo.png", height: 20pt))
+          #panels-in-order(report)
+    report-template-assets:
+      enabled: true
+      binaryData:
+        # A 1×1 PNG — this fixture exists to prove the MOUNT renders, not to be looked at.
+        admin-overview-logo.png: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AAoMBgDTD2qgAAAAASUVORK5CYII=

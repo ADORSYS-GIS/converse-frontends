@@ -1,4 +1,5 @@
 import type { ReportDocument } from './report-data';
+import type { RenderAsset } from './typst-client';
 
 /**
  * `format=html` — a preview of the same report, opened in a new tab, with **no Typst involved**
@@ -47,7 +48,35 @@ function renderTable(columns: string[], rows: string[][]): string {
   ].join('');
 }
 
-export function reportHtml(document: ReportDocument, assets: Record<string, string>): string {
+const DATA_URI_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+/**
+ * The branding logo as a `data:` URI.
+ *
+ * The preview is a single self-contained file with no server behind it, so the logo has to travel
+ * inside it — the same bytes the PDF embeds, encoded rather than fetched. Absent asset, absent
+ * logo: the header then reads exactly as it did before branding existed.
+ */
+function logoDataUri(assets: Record<string, RenderAsset>, path: string): string | undefined {
+  const asset = assets[path];
+  if (asset === undefined) return undefined;
+  const extension = path.slice(path.lastIndexOf('.')).toLowerCase();
+  const type = DATA_URI_TYPES[extension];
+  if (!type) return undefined;
+  const base64 = (
+    typeof asset === 'string' ? Buffer.from(asset, 'utf8') : Buffer.from(asset)
+  ).toString('base64');
+  return `data:${type};base64,${base64}`;
+}
+
+export function reportHtml(document: ReportDocument, assets: Record<string, RenderAsset>): string {
   const sections = document.panels.map((panel) => {
     const parts: string[] = [
       `<h2>${escapeHtml(panel.title)}</h2>`,
@@ -59,8 +88,12 @@ export function reportHtml(document: ReportDocument, assets: Record<string, stri
       return `<section>${parts.join('')}</section>`;
     }
 
-    if (panel.chart && assets[panel.chart]) {
-      parts.push(`<div class="chart">${assets[panel.chart]}</div>`);
+    // Only a TEXT asset is inlined as markup. Every chart is one (`renderPanelSvg` returns SVG
+    // source); a binary asset reaching this branch would be a bug, and pasting its bytes into the
+    // document is not the way to find out about it.
+    const chart = panel.chart ? assets[panel.chart] : undefined;
+    if (typeof chart === 'string') {
+      parts.push(`<div class="chart">${chart}</div>`);
     }
     if (panel.caption) parts.push(`<p class="caption">${escapeHtml(panel.caption)}</p>`);
     if (panel.stats) {
@@ -81,6 +114,14 @@ export function reportHtml(document: ReportDocument, assets: Record<string, stri
     .map((filter) => `${escapeHtml(filter.label)}: ${escapeHtml(filter.value)}`)
     .join(' · ');
 
+  const logo = document.branding?.logo ? logoDataUri(assets, document.branding.logo) : undefined;
+  const brandName = document.branding?.name;
+  const brand = logo
+    ? `<img class="logo" src="${logo}" alt="${escapeHtml(brandName ?? 'Brand logo')}">`
+    : brandName
+      ? `<p class="brand">${escapeHtml(brandName)}</p>`
+      : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -92,6 +133,11 @@ export function reportHtml(document: ReportDocument, assets: Record<string, stri
          color: #1a1a1a; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
   header { border-bottom: 1px solid #cfcfcf; padding-bottom: 1rem; margin-bottom: 2rem; }
   h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  /* The same ~28pt cap the .typ header uses, so the preview and the PDF agree on the mark's
+     weight in the page rather than each picking its own. */
+  .logo { display: block; height: 37px; width: auto; margin: 0 0 .75rem; }
+  .brand { font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+           color: #6b6b6b; margin: 0 0 .5rem; }
   .meta, .sub, .caption { color: #6b6b6b; font-size: 12px; margin: .25rem 0; }
   section { border-top: 1px solid #dedede; padding-top: 1.25rem; margin-top: 1.75rem; }
   h2 { font-size: 1rem; margin: 0 0 .25rem; }
@@ -105,6 +151,7 @@ export function reportHtml(document: ReportDocument, assets: Record<string, stri
 </head>
 <body>
 <header>
+  ${brand}
   <h1>${escapeHtml(document.title)}</h1>
   <p class="meta">${escapeHtml(document.rangeLabel)} · ${escapeHtml(document.window.start)} – ${escapeHtml(document.window.end)} · UTC</p>
   ${filters ? `<p class="meta">${filters}</p>` : ''}

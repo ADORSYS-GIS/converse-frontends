@@ -49,11 +49,15 @@ console:
             # pod and never touches the cluster network.
             #
             # This is an environment variable rather than a config.yaml field on purpose: the
-            # console is YAML-first, and config.yaml's `{env:VAR}` placeholder syntax
-            # (config-loader.ts) is exactly the seam a deployment uses to let the chart own a
-            # value the chart alone knows. Console story C10 adds `reports.typstRenderUrl:
-            # "{env:TYPST_RENDER_URL}"` to its own document; nothing in apps/console reads this
-            # yet, and an unread env var costs a deployment nothing.
+            # console is YAML-first, and the URL is the chart's to know, not the document's.
+            #
+            # apps/console reads this variable DIRECTLY (env.ts `resolveTypstRenderUrl`), not only
+            # through config.yaml's `{env:VAR}` placeholder syntax — a correction made after this
+            # exact configuration shipped and PDF export was still refused in prod (owner feedback
+            # 2026-09-03). The placeholder lives in a document the DEPLOYMENT owns, and prod's own
+            # config.yaml predates the export story and carries no `reports:` block at all, so the
+            # placeholder that would have read this variable was never in the parsed document. A
+            # `reports.typstRenderUrl` in config.yaml still wins when it is present.
             TYPST_RENDER_URL: http://127.0.0.1:8080
 
           resources:
@@ -338,15 +342,62 @@ console:
     # storage class; a deployment with templates too large for a ConfigMap's 1 MiB ceiling
     # overrides `type: persistentVolumeClaim` (+ `existingClaim`) in its own values file — the
     # mount path and the read-only-ness are what this chart is asserting, not the source.
+    #
+    # THE DIRECTORY MOUNT BELOW ONLY CARRIES A FLAT LAYOUT. A ConfigMap key cannot contain `/`, so
+    # `admin/overview/report.typ` is not expressible as a key, and mounting the whole ConfigMap as
+    # a directory therefore lands every key at the root of `/config/console/templates` — where the
+    # console looks for nothing. Two ways to carry a real route tree, both verified with
+    # `helm template` (README, "Report template overrides"):
+    #
+    #   a. TEXT ONLY — `items:` below maps flat keys onto nested paths INSIDE this one volume
+    #      (`{key: admin-overview-report.typ, path: admin/overview/report.typ}`), keeping the
+    #      single directory mount. Right when a route bundle is nothing but `.typ` chrome. It
+    #      CANNOT carry an image: every file would have to live in this same ConfigMap, a PNG
+    #      cannot go in `data`, and this entry ships `data: {}` — app-template's schema rejects a
+    #      ConfigMap that has both `data` and `binaryData` and refuses `data: null` outright, so
+    #      there is no values-file route to a binaryData-only variant of THIS entry.
+    #   b. MIXED — per-FILE `advancedMounts` entries with an explicit `path` + `subPath`, which is
+    #      what lets `.typ` files stay readable `data` here while images ride in
+    #      `report-template-assets` below as `binaryData`. Replace the directory mount below with
+    #      one entry per file; leave `items` empty. This is the shape the README works through and
+    #      the shape `ci/renderer-enabled-values.yaml` renders.
+    #
+    # Nesting a second DIRECTORY mount inside this one does not work and is not an option: a
+    # ConfigMap volume is read-only, so the kubelet cannot create a mount point inside it.
     report-templates:
       enabled: false
       type: configMap
       identifier: report-templates
+      # Flat keys -> nested paths within this volume. Empty by default; see (a) above.
+      items: []
       advancedMounts:
         main:
           frontend:
             - path: /config/console/templates
               readOnly: true
+
+    # Binary files that ship WITH a report template — a customer logo, a watermark, a typeface
+    # (converse-frontends#453, owner feedback 2026-09-03 "custom templates WITH embedded logos in
+    # prod"). The console sends every non-`.typ` file sitting beside the resolved `report.typ` to
+    # the renderer as an asset keyed by its path relative to that directory, so a template can
+    # simply `#image("logo.png")`.
+    #
+    # A SEPARATE ConfigMap from `report-templates` above for exactly the reason `branding-logo` is
+    # separate from `branding-style`: app-template's values schema
+    # (`configMaps.<id>` `oneOf: [required: [data]], [required: [binaryData]]`) forbids one entry
+    # from carrying both text and base64, and a PNG cannot live in `data`.
+    #
+    # `advancedMounts.main.frontend` is EMPTY by default and the operator supplies one entry per
+    # file — `path: /config/console/templates/<route>/<file>`, `subPath: <the flat ConfigMap key>`.
+    # There is no directory mount here, because the `.typ` files are mounted per-file too and two
+    # directory mounts cannot share `/config/console/templates`.
+    report-template-assets:
+      enabled: false
+      type: configMap
+      identifier: report-template-assets
+      advancedMounts:
+        main:
+          frontend: []
 
     # Scratch space for the typst-render sidecar, so its container can run with
     # `readOnlyRootFilesystem: true`. apps/typst-render/src/render.ts creates one throwaway
@@ -503,11 +554,23 @@ console:
     # as every branding pair). Disabled by default: with no override present the console renders
     # the templates baked into its image, which is the shape every deployment starts in.
     #
-    # Keys are paths relative to CONSOLE_TEMPLATES_DIR. A ConfigMap key cannot contain `/`, so a
-    # nested layout (`consumption/report.typ`) needs `persistence.report-templates` to carry
-    # explicit `subPath` mounts, or a PVC instead — see that entry's comment. Templates are plain
-    # Typst source, so `data` (text), never `binaryData`; a typeface a template needs is shipped
-    # as a render asset by the console, not mounted here.
+    # A ConfigMap key cannot contain `/`, so a nested route layout
+    # (`admin/overview/report.typ`) is expressed by the MOUNT, not by the key: either
+    # `persistence.report-templates.items` (flat key -> nested path) or per-file `advancedMounts`
+    # entries with an explicit `path` + `subPath`. See that entry's comment and the README's
+    # worked example; a deployment past a ConfigMap's 1 MiB ceiling uses a PVC instead.
+    #
+    # `data` (text), so the `.typ` sources stay readable and diffable in the values file. Anything
+    # binary a template needs — a logo, a watermark, a typeface — goes in
+    # `configMaps.report-template-assets` below, because app-template forbids one ConfigMap from
+    # carrying both `data` and `binaryData`.
     report-templates:
       enabled: false
       data: {}
+
+    # Binary companions to the templates above (owner feedback 2026-09-03). Keys are flat; the
+    # `persistence.report-template-assets` mount decides where each one lands in the route tree.
+    # Values are base64 — a PNG/SVG/typeface cannot go in `data`.
+    report-template-assets:
+      enabled: false
+      binaryData: {}

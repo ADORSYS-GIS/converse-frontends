@@ -1,16 +1,18 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { findPage } from '../../dashboards/dashboard-spec';
 import { loadDashboards } from '../../dashboards/load-dashboards';
 import { resolveDashboard } from '../../dashboards/resolve-dashboard';
 import { buildConsumptionReport } from './consumption-report';
+import { resolveReportBranding, type ReportBranding } from './report-branding';
 import { buildReport } from './report-data';
+import { collectTemplateAssets } from './template-assets';
 import { readTemplateLibrary, resolveReportTemplate } from './template-resolver';
-import { renderPdf } from './typst-client';
+import { renderPdf, type RenderAsset } from './typst-client';
 
 /**
  * The end-to-end render, against a REAL `typst-render` (converse-frontends#453's integration test
@@ -55,6 +57,20 @@ beforeAll(async () => {
 });
 
 const WINDOW = { start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-09-14T00:00:00Z') };
+
+/** Temp trees a case created, plus the template-override variable it may have set. Cleaned after
+ *  every test so a case that points `CONSOLE_TEMPLATES_DIR` at a fixture cannot leak into the
+ *  next one. */
+const scratch: string[] = [];
+const ORIGINAL_TEMPLATES_DIR = process.env.CONSOLE_TEMPLATES_DIR;
+
+afterEach(() => {
+  while (scratch.length > 0) {
+    rmSync(scratch.pop() as string, { recursive: true, force: true });
+  }
+  if (ORIGINAL_TEMPLATES_DIR === undefined) delete process.env.CONSOLE_TEMPLATES_DIR;
+  else process.env.CONSOLE_TEMPLATES_DIR = ORIGINAL_TEMPLATES_DIR;
+});
 
 function point(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -108,6 +124,62 @@ function usagePage() {
     includeTables: true,
     generatedAt: new Date('2026-09-14T09:00:00Z'),
   });
+}
+
+/**
+ * `/admin/overview` — the route the owner actually exported when they reported "the PDF has no
+ * custom logo" (2026-09-03).
+ */
+function overviewPage(branding?: ReportBranding) {
+  const page = findPage(loadDashboards(), '/admin/overview');
+  if (!page) throw new Error('/admin/overview missing from dashboards.yaml');
+  const resolved = resolveDashboard({ page, window: WINDOW, filters: {} });
+  const responses = resolved.queries.map(
+    () =>
+      ({
+        points: [
+          point({ model: 'gpt-4o', account_id: 'acc_alpha', user_id: 'usr_alpha' }),
+          point({
+            model: 'claude-sonnet-4',
+            account_id: 'acc_beta',
+            user_id: 'usr_beta',
+            total_cost: 640_000,
+            bucket_start: '2026-09-04T00:00:00Z',
+          }),
+        ],
+      }) as unknown as UsageQueryResponse
+  );
+
+  return buildReport({
+    resolved,
+    responses,
+    title: 'Admin · Overview',
+    rangeLabel: 'This month',
+    filters: [],
+    template: { route: '/admin/overview', origin: 'shipped' },
+    includeTables: true,
+    generatedAt: new Date('2026-09-14T09:00:00Z'),
+    branding,
+  });
+}
+
+/**
+ * A 96×32 two-tone PNG, built byte by byte so this file has no binary fixture and no image
+ * dependency. Small enough to read as a constant, real enough that Typst decodes it and the PDF
+ * carries an actual `/Image` XObject — which is the assertion that separates "the template did not
+ * crash" from "the logo is in the document".
+ */
+const LOGO_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAGAAAAAgCAIAAABiouoDAAAAc0lEQVR42u3YMRGAAADDwOjg0IF/OcjAANQA3+u' +
+    'YKWM6PnZf5+v/xsfO5mNn87Gz+djZfOxsPnY2Hzubj53Nx87mY2fzsbP52Nl87Gw+djYfO5uPHT1ID9KD9CA9' +
+    'SA/Sg/QgdvQgPUgP0oP0ID1ID/oV/wCmLzCIMP9m+gAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+/** Does the PDF carry a raster image XObject? `pdfimages -list` answers the same question from
+ *  outside; this asks it with no external binary so the assertion runs everywhere the test does. */
+function embedsRasterImage(pdf: ArrayBuffer): boolean {
+  return Buffer.from(pdf).includes('/Image');
 }
 
 /** Saved beside the test run so a real artefact can be attached to the PR, not just asserted on. */
@@ -239,6 +311,125 @@ describe('typst-render — the real thing', () => {
     // Typst's own stderr, line number included — the thing an operator with a broken override
     // needs and cannot get any other way.
     expect(outcome.detail).toMatch(/this-function-does-not-exist/);
+  }, 60_000);
+
+  /**
+   * The owner's second finding, end to end: a configured branding logo has to reach the paper.
+   *
+   * Everything except the file on disk is the production path — `resolveReportBranding` picks the
+   * light-background variant, `buildReport` puts `branding.logo` in `data.json`, and
+   * `_lib/report.typ` draws it left of the title. The assertion is on the PDF's own bytes, not on
+   * "the render succeeded": a template that silently skipped the `image()` call would still
+   * produce a perfectly good PDF.
+   */
+  it('embeds the configured branding logo in the header', async () => {
+    if (!reachable) return;
+
+    const dir = mkdtempSync(join(tmpdir(), 'branding-'));
+    scratch.push(dir);
+    const logoLightPath = join(dir, 'logo-light.png');
+    writeFileSync(logoLightPath, LOGO_PNG);
+    // `logo` is the DARK-theme (white) mark, `logoLight` the light-background one. Both are
+    // configured, exactly as prod configures them, so this also pins which of the two prints.
+    writeFileSync(join(dir, 'logo.png'), Buffer.alloc(8));
+
+    const branding = resolveReportBranding({
+      logoPath: join(dir, 'logo.png'),
+      logoLightPath,
+      name: 'adorsys',
+    });
+    expect(branding.asset?.bytes.equals(LOGO_PNG)).toBe(true);
+
+    const built = overviewPage(branding.branding);
+    const template = resolveReportTemplate('/admin/overview');
+    const library = readTemplateLibrary();
+
+    const assets: Record<string, RenderAsset> = { ...built.assets };
+    if (branding.asset) assets[branding.asset.path] = branding.asset.bytes;
+    assets[library.path] = library.source;
+
+    const outcome = await renderPdf(RENDER_URL, {
+      template: template.source,
+      data: built.document,
+      assets,
+    });
+    if (!outcome.ok) throw new Error(`render failed: ${JSON.stringify(outcome)}`);
+
+    expect(Buffer.from(outcome.pdf.slice(0, 5)).toString('latin1')).toBe('%PDF-');
+    expect(embedsRasterImage(outcome.pdf)).toBe(true);
+
+    const { pages, text } = await readPdf(outcome.pdf);
+    expect(text).toContain('Admin · Overview');
+    console.log(
+      `[report] /admin/overview + branding logo -> ${outcome.pdf.byteLength} bytes, ${pages} ` +
+        `page(s), raster image embedded -> ${saveArtefact('admin-overview-branded.pdf', outcome.pdf)}`
+    );
+  }, 60_000);
+
+  /**
+   * The owner's third ask: a customer template that ships its OWN logo beside it
+   * ("custom templates WITH embedded logos in prod").
+   *
+   * The override directory here is what a `report-templates` ConfigMap mounts to. Note the
+   * template's `image("logo.png")` — no leading slash, because a per-route template compiles as
+   * `main.typ` AT the render root, unlike `_lib/report.typ`, which needs `image("/" + …)`. That
+   * asymmetry is the whole reason this case is an integration test and not a unit test.
+   */
+  it('renders an override template that draws its own sibling logo', async () => {
+    if (!reachable) return;
+
+    const overrideRoot = mkdtempSync(join(tmpdir(), 'console-templates-'));
+    scratch.push(overrideRoot);
+    const routeDir = join(overrideRoot, 'admin', 'overview');
+    mkdirSync(routeDir, { recursive: true });
+    writeFileSync(
+      join(routeDir, 'report.typ'),
+      [
+        '#import "_lib/report.typ": *',
+        '#let report = json(sys.inputs.at("data"))',
+        '#show: report-page.with(report)',
+        '#align(right, image("logo.png", height: 20pt))',
+        '#text(size: 9pt)[Contoso quarterly estate report]',
+        '#panels-in-order(report)',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+    writeFileSync(join(routeDir, 'logo.png'), LOGO_PNG);
+
+    process.env.CONSOLE_TEMPLATES_DIR = overrideRoot;
+
+    const template = resolveReportTemplate('/admin/overview');
+    expect(template.origin).toBe('override');
+
+    const templateAssets = collectTemplateAssets('/admin/overview');
+    if (!templateAssets.ok) throw new Error(templateAssets.message);
+    expect(templateAssets.files.map((file) => file.path)).toContain('logo.png');
+
+    const built = overviewPage();
+    const library = readTemplateLibrary();
+    const assets: Record<string, RenderAsset> = {};
+    for (const file of templateAssets.files) assets[file.path] = file.bytes;
+    Object.assign(assets, built.assets);
+    assets[library.path] = library.source;
+
+    const outcome = await renderPdf(RENDER_URL, {
+      template: template.source,
+      data: built.document,
+      assets,
+    });
+    if (!outcome.ok) throw new Error(`render failed: ${JSON.stringify(outcome)}`);
+
+    expect(Buffer.from(outcome.pdf.slice(0, 5)).toString('latin1')).toBe('%PDF-');
+    expect(embedsRasterImage(outcome.pdf)).toBe(true);
+
+    const { pages, text } = await readPdf(outcome.pdf);
+    expect(text).toContain('Contoso quarterly estate report');
+    console.log(
+      `[report] /admin/overview + override template with its own logo -> ` +
+        `${outcome.pdf.byteLength} bytes, ${pages} page(s), raster image embedded -> ` +
+        saveArtefact('admin-overview-override-logo.pdf', outcome.pdf)
+    );
   }, 60_000);
 
   it('reports an unreachable renderer as unreachable, never as a compile error', async () => {

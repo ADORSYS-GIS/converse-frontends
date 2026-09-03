@@ -154,6 +154,32 @@
                   }
                 }
               }
+            },
+            "report-templates": {
+              "description": "Per-route Typst report template overrides (converse-frontends#453). Optional -- disabled by default; with no override the console renders the templates baked into its image. Keys are FLAT: a ConfigMap key cannot contain '/', so the route tree (admin/overview/report.typ) comes from the MOUNT -- either console.persistence.report-templates.items (flat key -> nested path, text-only bundles) or per-file advancedMounts entries with an explicit path + subPath (the shape that also carries binary assets). See README.md, 'The route tree, and why the key name is not the path'.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "data": {
+                  "description": "Typst sources as text, one key per template file. Kept as data (not binaryData) so the .typ stays readable and diffable in the values file; binary companions go in report-template-assets, because app-template's own values schema forbids one ConfigMap entry from carrying both.",
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              }
+            },
+            "report-template-assets": {
+              "description": "Binary files that ship WITH a report template -- a customer logo, a watermark, a typeface (owner feedback 2026-09-03, 'custom templates WITH embedded logos in prod'). The console sends every non-.typ file sitting beside the resolved report.typ to the renderer as an asset keyed by its path relative to that directory, so a template draws it with image(\"logo.png\") -- no leading slash, because a per-route template compiles as main.typ AT the render root. A separate ConfigMap from report-templates for the same reason branding-logo is separate from branding-style: app-template forbids one entry from carrying both data and binaryData, and a PNG cannot live in data. Requires console.persistence.report-template-assets with one advancedMounts entry per file.",
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "binaryData": {
+                  "description": "Base64-encoded files, one key per asset. Keys are flat; the mount decides where each lands in the route tree.",
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              }
             }
           },
           "required": ["console-config"]

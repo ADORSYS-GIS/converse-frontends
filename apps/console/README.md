@@ -743,6 +743,41 @@ template of its own is a styling gap rather than an error: a page added to `dash
 exportable the day it is added. `_lib/report.typ` itself is deliberately **not** overridable — an
 override of it would restyle every report at once, which is not a per-route decision.
 
+### Files that ship with a template
+
+Every **non-`.typ`** file sitting beside the resolved `report.typ` is sent to the renderer as an
+asset keyed by its path **relative to that directory**, so a template can ship its own artwork:
+
+```
+${CONSOLE_TEMPLATES_DIR}/admin/overview/report.typ    →  #image("logo.png")
+${CONSOLE_TEMPLATES_DIR}/admin/overview/logo.png
+```
+
+No leading slash: a per-route template compiles as `main.typ` **at** the render root, so its
+siblings are relative to it. (`_lib/report.typ` is the exception and uses `image("/" + …)`, because
+Typst resolves a relative path against the file that calls it and the library lives in `_lib/`.)
+
+Same per-file precedence as the template itself — the override directory first, then
+`apps/console/templates/<route>/` — so mounting only `logo.png` gives you your artwork with the
+shipped template. `.typ` files are never shipped this way: the template is resolved by name and the
+library is not overridable, and a second silent import surface would have neither rule applied.
+
+The total is capped at **8 MiB** (`apps/typst-render`'s own request cap). Over it, the route answers
+`413` naming the largest file rather than spending a round-trip on an anonymous `payload_too_large`.
+
+### Branding
+
+`_lib/report.typ` draws the deployment's configured mark left of the title, at ~28 pt, on **every**
+report — no template change, and the consumption report too. It is the same file the console header
+serves: a report cannot fetch a URL, so `report-branding.ts` reads it off disk and ships the bytes
+as the asset `branding/logo.<ext>`, named in `data.json` as `report.branding.logo`.
+
+`branding.logoLight` is what prints, falling back to `branding.logo` — paper is white, and
+`branding.logo` is the dark-theme mark. With no readable logo the header falls back to
+`branding.name`, then to the title alone; a missing letterhead never fails a report. See
+`docs/knowledge/console-configuration.md`, "Report export", and `charts/converse-console/README.md`
+for the prod mounts.
+
 ### The consumption report
 
 `GET /api/reports/consumption?month&account[&project][&format=csv|pdf]` renders through the same
@@ -758,7 +793,9 @@ it previously did not apply at all, and a 502 rather than a silently chartless P
 ```sh
 pnpm turbo run build:web --filter=typst-render
 docker compose up typst-render            # or: node apps/typst-render/dist/index.js
-# then set TYPST_RENDER_URL=http://127.0.0.1:8080 (config.yaml reads it)
+# then set TYPST_RENDER_URL=http://127.0.0.1:8080 — read either through config.yaml's
+# `reports.typstRenderUrl: '{env:TYPST_RENDER_URL}'` placeholder or, for a deployment whose own
+# config.yaml has no `reports:` block, directly (env.ts `resolveTypstRenderUrl`; YAML wins)
 pnpm --filter console test                # the live-renderer tests run; without it they SKIP loudly
 ```
 

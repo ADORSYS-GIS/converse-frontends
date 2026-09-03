@@ -118,6 +118,17 @@ publicBaseUrl: 'http://localhost:3000'
 # console image carries NO PDF toolchain — no Typst binary, no browser engine — which is an
 # explicit acceptance criterion of that story.
 #
+# THE ENVIRONMENT VARIABLE IS ALSO READ DIRECTLY, not only through the placeholder below (owner
+# feedback 2026-09-03; env.ts `resolveTypstRenderUrl`). This document is the console's own; a real
+# deployment ships ITS OWN config.yaml, and prod's predates this story and carries no `reports:`
+# block — so the placeholder that would have read the variable was never in the parsed document,
+# and a correctly-deployed sidecar was still refused with "PDF export needs the typst-render
+# service". The placeholder lives in a file the deployment owns; the variable lives on a container
+# the chart owns, which is why the fallback is a direct read and not another placeholder.
+#
+# YAML still wins when this key is set, so a document naming a different renderer is never
+# overridden by a stale variable. A deployment values file needs no `reports:` block at all.
+#
 # `{env:TYPST_RENDER_URL}` because the URL is the DEPLOYMENT's to know, not this document's: the
 # Helm chart runs the renderer as a loopback-only sidecar and sets `TYPST_RENDER_URL:
 # http://127.0.0.1:8080` on the console container (charts/converse-console/values.yaml). Locally,
@@ -128,6 +139,12 @@ publicBaseUrl: 'http://localhost:3000'
 # `format=html` keep working and `format=pdf` answers a 502 that SAYS the renderer is not
 # configured. It never falls back to a chartless PDF — the story calls that failure mode out by
 # name.
+#
+# Report BRANDING is not configured here either — the `branding:` block below is the single source
+# for both the console header and the report letterhead. `_lib/report.typ` draws the configured
+# mark left of the title on every report; the LIGHT-background variant prints (`branding.logoLight`
+# when set, else `branding.logo`), because paper is white and `branding.logo` is the dark-theme
+# mark. See docs/knowledge/console-configuration.md, "Report export".
 #
 # Template overrides are NOT configured here. They are read from the `CONSOLE_TEMPLATES_DIR`
 # environment variable (default `/config/console/templates`), which the chart always sets, because
@@ -168,10 +185,21 @@ reports:
 # `logo`/`logoLight`'s extension decides their response `Content-Type` (`env.ts` fails fast on
 # anything other than `.png`/`.svg`/`.jpg`/`.jpeg`/`.webp` -- an operator typo here is a deploy-time
 # config error, not a request-time 500).
+#
+# THIS BLOCK IS ALSO THE REPORT LETTERHEAD (owner feedback 2026-09-03, "the PDF has no custom
+# logo"). `_lib/report.typ` draws the configured mark left of the title on every exported report,
+# with no template change: the same file is read off disk and shipped with the render job as the
+# asset `branding/logo.<ext>` (a report cannot fetch a URL -- the sidecar has no egress).
+# `logoLight` is what PRINTS, falling back to `logo`: paper is white, `logo` is the dark-theme
+# mark, and a white mark on white paper is an empty rectangle.
+#
+# `name` is the one branding key that needs no volume: a plain string, printed in a report's header
+# when no logo is configured or readable. It carries none of the path validation above.
 # branding:
 #   logo: /tmp/branding/logo.png
 #   logoLight: /tmp/branding/logo-light.png
 #   style: /tmp/branding/override.style
+#   name: adorsys
 
 # ── Permissions (seam only — no engine yet) ───────────────────────────────────────────────────
 # Empty on purpose. This is where a lightbridge-authz-style permission model (see that repo's

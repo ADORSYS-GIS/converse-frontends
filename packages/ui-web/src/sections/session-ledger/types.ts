@@ -33,8 +33,17 @@ export interface SessionLedgerRow {
    * ledger's own caption rather than left to the reader to guess.
    */
   offline: boolean;
-  /** The OAuth client the session was minted for (`clientId`, the `azp`). Absent for a browser
-   *  session that records none. */
+  /**
+   * The OAuth client this session belongs to — `SessionRow.clientId`, the `azp`.
+   *
+   * For a token session it is the client the grant was issued to. For a browser session it is the
+   * client whose `/authorize` request STARTED the login (lightbridge-authz#659; ADR-0021 Decision
+   * 3 amended — provenance, not scope: a browser session is still reusable by every client).
+   *
+   * Absent only for a browser row minted before
+   * `migrations/20260903000001_sessions_browser_client_id.sql`, which no backfill can recover —
+   * the ledger says "None recorded" rather than rendering a blank cell or guessing one.
+   */
   client?: string;
   created: string;
   /** Absent when the session has never been used since it was minted. */
@@ -45,6 +54,13 @@ export interface SessionLedgerRow {
 
 export interface SessionLedgerPagination {
   shown: number;
+  /**
+   * How many rows this page can hold — the caption's second number ("12 of 25 sessions per
+   * page"). It is the page's real capacity, which is NOT always the `?limit=` the operator
+   * picked: the "Inactive" filter is two `querySessions` calls merged, so its page holds up to
+   * twice the per-call limit. The container computes it; this section only renders it.
+   */
+  pageSize?: number;
   hasPrev: boolean;
   hasNext: boolean;
   onPrev: () => void;

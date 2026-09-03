@@ -5,6 +5,7 @@ import {
   parseAsArrayOf,
   parseAsBoolean,
   parseAsInteger,
+  parseAsNumberLiteral,
   parseAsString,
   parseAsStringLiteral,
   useQueryStates,
@@ -779,6 +780,23 @@ export const SESSION_STATUS_FILTERS = ['active', 'inactive', 'all'] as const;
 export const SESSION_KIND_FILTERS = ['all', 'browser', 'token'] as const;
 
 /**
+ * The page sizes `/admin/sessions` offers, and the only values `?limit=` accepts.
+ *
+ * `25` is `querySessions`' own default; `100` is its own clamp ("`limit` defaults to 25 and is
+ * CLAMPED at 100", `authz.cstack`). Asking for more is not an error there — it is silently
+ * reduced — so offering a fourth, larger option would put a number in the URL the server
+ * quietly ignores, and the pager would then report a page size nobody actually got. Three
+ * values, all of them real.
+ *
+ * A literal list rather than `parseAsInteger`, for the same reason every other filter on this
+ * screen is a literal: `?limit=99999` must not reach the wire and must not need a clamp on this
+ * side to stop it — an unrecognised value falls back to the default by construction.
+ */
+export const SESSION_PAGE_SIZES = [25, 50, 100] as const;
+
+export type SessionPageSize = (typeof SESSION_PAGE_SIZES)[number];
+
+/**
  * `/admin/sessions`' view params (converse-frontends#450, story C7).
  *
  * `q` is the free-text query handed to `searchUsers`, debounced onto the URL exactly as
@@ -791,6 +809,12 @@ export const SESSION_KIND_FILTERS = ['all', 'browser', 'token'] as const;
  * EXACT subject, so a typed string can never be the filter itself, and collapsing them would make
  * "typed three characters, still seeing everyone" look like a bug instead of the honest "pick
  * which of these four people you meant".
+ *
+ * `limit` is the page size, in the same units `querySessions.limit` takes — rows PER CALL. It is a
+ * view param, not a preference: two operators comparing the same page must see the same page, and
+ * a `?limit=` in a pasted URL is what makes that true. Changing it resets `after` to nothing,
+ * because a cursor names a position in a page sequence and a different page size is a different
+ * sequence — resuming an old cursor under a new size would skip or repeat rows.
  *
  * `after` is the opaque page cursor `SessionPage.next` hands back — passed through verbatim, never
  * constructed. `use-admin-sessions-screen.ts` keeps the stack of cursors a `Previous` press needs
@@ -808,6 +832,7 @@ export const SESSION_KIND_FILTERS = ['all', 'browser', 'token'] as const;
 export const adminSessionsParsers = {
   status: parseAsStringLiteral(SESSION_STATUS_FILTERS).withDefault('active'),
   kind: parseAsStringLiteral(SESSION_KIND_FILTERS).withDefault('all'),
+  limit: parseAsNumberLiteral(SESSION_PAGE_SIZES).withDefault(25),
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   subject: parseAsString.withDefault(''),
   after: parseAsString.withDefault(''),

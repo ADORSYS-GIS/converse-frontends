@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SessionLedger } from './component';
+import { SessionLedgerControls } from './controls';
+import type { SessionLedgerControlsProps } from './controls';
 import { SessionDetailPanel } from './detail-panel';
 import {
   activeSessionRowsFixture,
@@ -44,7 +46,10 @@ describe('SessionLedger', () => {
       'User',
       'Account',
       'Kind',
-      'Client',
+      // The header names the CLAIM, not just the concept: an operator cross-checking a token or a
+      // log line is looking for `azp`, and "Client" alone left them to guess the two were the
+      // same field (owner feedback, 2026-09-03).
+      'Client \\(azp\\)',
       'Created',
       'Last used',
       'Expires',
@@ -150,6 +155,79 @@ describe('SessionLedger', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
     expect(onNext).toHaveBeenCalled();
+  });
+
+  it('states the page size beside the count, so a short page reads as short', () => {
+    render(
+      <SessionLedger
+        {...ledgerProps({
+          pagination: {
+            shown: 5,
+            pageSize: 25,
+            hasPrev: false,
+            hasNext: true,
+            onPrev: vi.fn(),
+            onNext: vi.fn(),
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByText('5 of 25 sessions per page')).toBeInTheDocument();
+  });
+
+  it('falls back to the bare count when the caller states no page size', () => {
+    render(
+      <SessionLedger
+        {...ledgerProps({
+          pagination: { shown: 5, hasPrev: false, hasNext: true, onPrev: vi.fn(), onNext: vi.fn() },
+        })}
+      />
+    );
+
+    expect(screen.getByText('5 sessions')).toBeInTheDocument();
+  });
+});
+
+describe('SessionLedgerControls', () => {
+  function controlsProps(overrides: Partial<SessionLedgerControlsProps> = {}) {
+    return {
+      status: 'active' as const,
+      onStatusChange: vi.fn(),
+      kind: 'all' as const,
+      onKindChange: vi.fn(),
+      search: '',
+      onSearchChange: vi.fn(),
+      userOptions: [],
+      selectedUser: '',
+      onSelectedUserChange: vi.fn(),
+      pageSize: 25,
+      onPageSizeChange: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('offers the page size as a labelled control, not a bare row of numbers', () => {
+    render(<SessionLedgerControls {...controlsProps()} />);
+
+    // A visible label, unlike the User select beside it: "25" says nothing on its own, whereas a
+    // person's name does — which is exactly the case `SelectField`'s `hideLabel` doc excludes.
+    expect(screen.getByText('Per page')).toBeInTheDocument();
+    expect(screen.getByLabelText('Per page')).toHaveTextContent('25');
+  });
+
+  it('reports the picked size as a number, never the option string', async () => {
+    const onPageSizeChange = vi.fn();
+    render(<SessionLedgerControls {...controlsProps({ onPageSizeChange })} />);
+
+    fireEvent.click(screen.getByLabelText('Per page'));
+    // Base UI `Select.Item` commits only when a real `pointerdown` preceded the click on the same
+    // item — the same helper `select-field/component.test.tsx` documents.
+    const option = await screen.findByRole('option', { name: '100' });
+    fireEvent.pointerDown(option, { pointerId: 1, pointerType: 'mouse', isPrimary: true });
+    fireEvent.click(option);
+
+    expect(onPageSizeChange).toHaveBeenCalledWith(100);
   });
 });
 

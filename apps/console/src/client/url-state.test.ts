@@ -150,7 +150,10 @@ describe('the URL param contract', () => {
       // that `querySessions` is actually filtered by. A typed string can never be the filter, so
       // collapsing them would hide that a choice is being made. `after` is the opaque page cursor
       // `SessionPage.next` hands back — passed through verbatim, never constructed.
-      adminSessions: ['after', 'kind', 'q', 'selected', 'status', 'user'],
+      // `limit` is the page size, in `querySessions`' own units (rows per call). It is a view
+      // param, not a stored preference: two operators comparing the same page must see the same
+      // page, and a `?limit=` in a pasted URL is what makes that true.
+      adminSessions: ['after', 'kind', 'limit', 'q', 'selected', 'status', 'user'],
       // The four `/settings/overview/*` lenses (`usage`/`account`/`project`/`user`) share one
       // vocabulary, and every deletion from it has the same reason — a knob wired to nothing is a
       // defect: `bucket` went in 2026-08-31 (no request builder read it), `account-sort` with the
@@ -244,6 +247,11 @@ describe('the URL param contract', () => {
     expect(sessions({ kind: 'token' })).toBe('?kind=token');
     expect(sessions({ search: 'maria', subject: 'acc_1' })).toBe('?q=maria&user=acc_1');
     expect(sessions({ selectedSessionId: 'ses_9' })).toBe('?selected=ses_9');
+    // 25 is `querySessions`' own default, so the landing URL stays clean; the other two are the
+    // only values `?limit=` accepts, and 100 is that procedure's own clamp.
+    expect(sessions({ limit: 25 })).toBe('');
+    expect(sessions({ limit: 50 })).toBe('?limit=50');
+    expect(sessions({ limit: 100 })).toBe('?limit=100');
 
     const manage = createSerializer(manageParsers, { urlKeys: URL_PARAM_CONTRACT.manage.urlKeys });
     expect(manage({ search: 'alpha', budgetState: 'no-quota' })).toBe(

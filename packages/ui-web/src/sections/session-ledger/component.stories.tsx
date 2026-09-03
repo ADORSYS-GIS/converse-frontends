@@ -30,6 +30,7 @@ function Demo({
   error,
   status,
   withPagination = false,
+  pageSize = 25,
   emptyMessage = 'No sessions match these filters.',
 }: {
   sessions?: SessionLedgerRow[];
@@ -37,6 +38,7 @@ function Demo({
   error?: string;
   status?: string;
   withPagination?: boolean;
+  pageSize?: number;
   emptyMessage?: string;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -58,6 +60,7 @@ function Demo({
             withPagination
               ? {
                   shown: sessions.length,
+                  pageSize,
                   hasPrev: false,
                   hasNext: true,
                   onPrev: () => {},
@@ -121,6 +124,14 @@ export const SearchMatchedNobody: Story = {
   ),
 };
 
+// The pager states the page's CAPACITY beside the count, so a short page reads as "this is the
+// end" rather than "there are only five sessions in the estate". The second number is what the
+// page could hold at the current `?limit=`, not a total — a cursor pager never knows a total.
+export const PartialPage: Story = {
+  name: 'Short page — count against page size',
+  render: () => <Demo sessions={activeSessionRowsFixture} withPagination pageSize={100} />,
+};
+
 export const Loading: Story = { render: () => <Demo sessions={[]} loading /> };
 
 export const ErrorState: Story = {
@@ -139,6 +150,7 @@ function ControlsDemo({ withMatches = false }: { withMatches?: boolean }) {
   const [kind, setKind] = useState<SessionKindFilter>('all');
   const [search, setSearch] = useState(withMatches ? 'okon' : '');
   const [user, setUser] = useState('');
+  const [pageSize, setPageSize] = useState(25);
 
   return (
     <div className="p-6">
@@ -159,6 +171,8 @@ function ControlsDemo({ withMatches = false }: { withMatches?: boolean }) {
         }
         selectedUser={user}
         onSelectedUserChange={setUser}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
       />
     </div>
   );

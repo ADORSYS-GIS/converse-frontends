@@ -100,11 +100,16 @@ export function SessionLedger({
     },
     {
       key: 'client',
-      header: 'Client',
+      header: 'Client (azp)',
       width: '150px',
       kind: 'data',
-      // An absent `clientId` is a real, permitted state for a browser session
-      // (`sessions_kind_client_id_check`), so the cell says so rather than rendering blank.
+      // The header names the claim, not just the concept: an operator reading this screen is
+      // usually holding a token (or a log line) that spells the same fact `azp`, and "Client"
+      // alone left them to guess whether the two were the same field. They are.
+      //
+      // An absent value is still a real, permitted state — a browser row minted before
+      // lightbridge-authz#659 has no recoverable client id — so the cell says so rather than
+      // rendering blank.
       accessor: (row) => row.client ?? <span className="text-subtle">None recorded</span>,
     },
     {
@@ -191,6 +196,7 @@ export function SessionLedger({
       {pagination ? (
         <Pagination
           shown={pagination.shown}
+          pageSize={pagination.pageSize}
           unit="sessions"
           hasPrev={pagination.hasPrev}
           hasNext={pagination.hasNext}

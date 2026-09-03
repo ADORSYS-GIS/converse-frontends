@@ -455,6 +455,7 @@ export type {
 // `/admin/sessions` (converse-frontends#450, story C7) — the estate-wide session ledger, its
 // filter cluster, and the body of the row-detail `BottomSheet` that carries both revoke actions.
 export {
+  DEFAULT_SESSION_PAGE_SIZES,
   SessionDetailPanel,
   SessionLedger,
   SessionLedgerControls,

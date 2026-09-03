@@ -199,9 +199,9 @@ describe('/accounts/[accountId]/overview in dashboards.yaml', () => {
 
   it('says the two spend figures on this page are over different windows', () => {
     const total = pageFor(ACCOUNT_ROUTE).panels.find((p) => p.id === 'spend-total');
-    // The BUDGET card above the grid is the billing period; this one is the range picker. Two
+    // The BUDGET card above the grid is the budget period; this one is the range picker. Two
     // spend numbers on one page have to say which is which.
-    expect(total?.subtitle).toMatch(/billing period/i);
+    expect(total?.subtitle).toMatch(/budget period/i);
   });
 });
 

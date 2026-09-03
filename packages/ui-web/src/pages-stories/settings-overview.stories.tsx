@@ -115,9 +115,19 @@ const ACCOUNT_BURN_DOWN_SERIES: SpendSeriesSeries[] = [
   },
 ];
 
+/**
+ * The burn-down's caption, verbatim from `budgetPeriodCaption`
+ * (`apps/console/src/containers/budget-period-caption.ts`) — one shared sentence across the four
+ * surfaces that show a ceiling, replacing four local wordings of "a ceiling is a fact about this
+ * calendar month" (owner question, 2026-09-03; that claim is false under a reset schedule, which
+ * steps the ceiling up at every tick).
+ *
+ * The no-schedule shape, because this deployment fixture has none. The SCHEDULED shape is on
+ * `Pages/Overview`'s "under a daily reset" story.
+ */
 const BURN_DOWN_CAPTION =
-  'Measured over the billing period, not the range picked above — a ceiling is a fact about this ' +
-  'calendar month.';
+  "Budget figures follow the account's budget period (calendar month, 2026-08-01 → today); the " +
+  'range picker above only changes the usage charts.';
 
 interface SettingsOverviewLensScreenProps {
   lens: SettingsLens;

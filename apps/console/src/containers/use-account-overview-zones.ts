@@ -5,6 +5,7 @@ import { currentBudgetPeriod } from '@lightbridge/hooks/budget-tiers';
 import { formatUsd } from '@lightbridge/ui-web';
 import type {
   BudgetNextReset,
+  BudgetSinceReset,
   BudgetSummary,
   OverviewStatCardData,
   SelectFieldProps,
@@ -18,16 +19,22 @@ import { useConsoleSession } from '../client/session-context';
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import { accountScopeLabel } from './account-label';
+import {
+  budgetPeriodCaption,
+  SINCE_PERIOD_START_LABEL,
+  spentSinceResetLabel,
+} from './budget-period-caption';
 import { effectiveResetLabel, effectiveResetScheduleQueryKey } from './budget-schedule-rows';
 import { isHomeAccount } from './account-ownership';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionRequest,
+  buildSinceResetConsumptionRequest,
   currentPeriodRange,
   sumTotalCost,
   toUrlDate,
 } from './overview-usage';
-import { microsToAmount } from './refill-rows';
+import { microsToAmount, relativeAge } from './refill-rows';
 import { BUDGET_HOME_ACCOUNT_ONLY_NOTE } from './use-budget-refill';
 
 /**
@@ -40,15 +47,18 @@ import { BUDGET_HOME_ACCOUNT_ONLY_NOTE } from './use-budget-refill';
  * what is not that:
  *
  *  1. **BUDGET** — `getMyBudgetBalance` (an RPC) for the ceiling, beside consumption measured over
- *     the BILLING PERIOD. Two reasons it cannot be a panel: half of it is not a usage query at
- *     all, and the half that is must not follow the range picker — a ceiling is a fact about this
- *     calendar month, so moving it with a `?range=7d` would compare a week's spend against a
- *     month's allowance.
- *  2. **The stat row** — the same billing-period spend, the remaining budget derived from it, and
+ *     the BUDGET PERIOD. Two reasons it cannot be a panel: half of it is not a usage query at all,
+ *     and the half that is must not follow the range picker — the ceiling is the sum of the grants
+ *     booked into this month, so moving the spend beside it with a `?range=7d` would compare a
+ *     week's spend against a month's grants. (What the ceiling is NOT is "a fact about this
+ *     calendar month": under a reset schedule it steps up at every tick — see
+ *     `budget-period-caption.ts`, which is where this console now says so.)
+ *  2. **The stat row** — the same budget-period spend, the remaining budget derived from it, and
  *     two refine COUNTS (projects, active API keys). Counts of rows in the authz database are not
  *     usage at all.
- *  3. **The next reset** — `getEffectiveResetSchedule`, likewise an RPC, and likewise a fact
- *     about the billing period rather than about the range (story C8).
+ *  3. **The next reset, and the spend since the last one** — `getEffectiveResetSchedule` (an RPC)
+ *     plus one extra ungrouped usage query over the window since it last fired (story C8; owner
+ *     question, 2026-09-03). Both are facts about the reset cadence rather than about the range.
  *  4. **The project picker**, which is a page FILTER (the `?project=` scope every panel's
  *     `filters.project_id: $project?` reads), not a zone.
  *
@@ -73,15 +83,25 @@ export interface AccountOverviewZones {
    *  "All projects", which drops the filter rather than sending an empty one. */
   projectId: string | undefined;
   projectField: Omit<SelectFieldProps, 'layout'>;
-  /** Billing-period figures — see this module's doc comment for why they are not panels. */
+  /** Budget-period figures — see this module's doc comment for why they are not panels. */
   statCards: OverviewStatCardData[];
   statCardsLoading: boolean;
   budget: BudgetSummary;
   /** The account's next budget reset, under the hero (story C8). Four states, none of which is
    *  "render nothing because there is no schedule" — see `BudgetNextReset`. */
   nextReset: BudgetNextReset;
-  /** The billing period these zones are measured over, for the caption that says so. */
-  billingPeriodCaption: string;
+  /**
+   * "Spent since last reset $0.84 · 2 h ago" — the row beside "Budget remaining" under a schedule
+   * (owner question, 2026-09-03).
+   *
+   * `'none'` (render nothing) whenever there is no schedule: "since last reset" has no window at
+   * all without one, and a line naming the period start would be the month-to-date figure already
+   * on the card under a second, wrong name.
+   */
+  sinceReset: BudgetSinceReset;
+  /** What window these zones are measured over, and what a reset does to the ceiling — see
+   *  `budget-period-caption.ts` for why this is one shared sentence and not four. */
+  budgetPeriodCaption: string;
 }
 
 export function useAccountOverviewZones(): AccountOverviewZones {
@@ -202,6 +222,80 @@ export function useAccountOverviewZones(): AccountOverviewZones {
     retry: false,
   });
 
+  /**
+   * The winning schedule itself, once the read has answered — the caption and the "since last
+   * reset" window both need the FACTS, not the rendered line `effectiveResetLabel` returns.
+   *
+   * A DISABLED schedule is treated as no schedule: the scheduler will never reach it, so promising
+   * a cadence for it would be the same lie as `toBudgetScheduleRow`'s "paused" cell exists to
+   * avoid.
+   */
+  const activeSchedule = useMemo(() => {
+    const schedule = resetScheduleQuery.data?.schedule;
+    if (!schedule || !schedule.enabled) return null;
+    return { schedule, nextRunAt: resetScheduleQuery.data?.nextRunAt ?? schedule.nextRunAt };
+  }, [resetScheduleQuery.data]);
+
+  /**
+   * "Spent since last reset" (owner question, 2026-09-03).
+   *
+   * ONE extra ungrouped `scope: account` query, fired only when a schedule actually governs this
+   * account, from the schedule's `lastRunAt` to now. When the schedule has not fired yet in this
+   * period the window IS the period, so the request is byte-identical to the month-to-date one
+   * above and TanStack Query's own dedup serves it from that entry rather than issuing a second.
+   *
+   * The window start is part of the key: a tick that lands while the page is open must produce a
+   * new figure, not a stale one keyed only on the account.
+   */
+  const sinceResetStart = useMemo(() => {
+    if (!activeSchedule) return null;
+    const lastRunAt = activeSchedule.schedule.lastRunAt;
+    if (!lastRunAt) return billingPeriod.start;
+    const parsed = new Date(lastRunAt);
+    // An unparseable timestamp is a backend state this console cannot window on — fall back to the
+    // period start rather than sending `Invalid Date` and getting a 400 (or worse, a silent one).
+    if (Number.isNaN(parsed.getTime())) return billingPeriod.start;
+    return parsed;
+  }, [activeSchedule, billingPeriod.start]);
+
+  const sinceResetQuery = useQuery({
+    queryKey: ['usage', 'budget-since-reset', accountId, sinceResetStart?.toISOString() ?? ''],
+    queryFn: () =>
+      queryUsage(
+        buildSinceResetConsumptionRequest(accountId as string, sinceResetStart as Date, new Date())
+      ),
+    enabled: Boolean(accountId) && sinceResetStart !== null,
+    staleTime: 30_000,
+  });
+
+  const sinceReset = useMemo<BudgetSinceReset>(() => {
+    if (!activeSchedule || !sinceResetStart) return { status: 'none' };
+    if (sinceResetQuery.isError) {
+      return {
+        status: 'unavailable',
+        caption: 'Spend since the last reset could not be read.',
+      };
+    }
+    if (sinceResetQuery.isPending) return { status: 'loading' };
+    const lastRunAt = activeSchedule.schedule.lastRunAt;
+    // The FETCH timestamp, not `Date.now()` — the house idiom; "2 h ago" is relative to when the
+    // schedule was read.
+    const since = lastRunAt
+      ? relativeAge(lastRunAt, resetScheduleQuery.dataUpdatedAt)
+      : SINCE_PERIOD_START_LABEL;
+    return {
+      status: 'ready',
+      label: spentSinceResetLabel(formatUsd(sumTotalCost(sinceResetQuery.data)), since),
+    };
+  }, [
+    activeSchedule,
+    sinceResetStart,
+    sinceResetQuery.isError,
+    sinceResetQuery.isPending,
+    sinceResetQuery.data,
+    resetScheduleQuery.dataUpdatedAt,
+  ]);
+
   const nextReset = useMemo<BudgetNextReset>(() => {
     if (!accountId || resetScheduleQuery.isPending) return { status: 'loading' };
     if (resetScheduleQuery.isError) {
@@ -270,9 +364,13 @@ export function useAccountOverviewZones(): AccountOverviewZones {
     statCardsLoading: projects.query.isLoading || apiKeys.query.isLoading || scope.loading,
     budget,
     nextReset,
-    billingPeriodCaption:
-      `Spend this period, the remaining budget and the ceiling above are measured over the ` +
-      `billing period (${toUrlDate(billingPeriod.start)} → today), not the range picked above — ` +
-      'a ceiling is a fact about this calendar month.',
+    sinceReset,
+    budgetPeriodCaption: budgetPeriodCaption({
+      periodStart: toUrlDate(billingPeriod.start),
+      schedule: activeSchedule?.schedule
+        ? { ...activeSchedule.schedule, nextRunAt: activeSchedule.nextRunAt }
+        : null,
+      now: resetScheduleQuery.dataUpdatedAt,
+    }),
   };
 }

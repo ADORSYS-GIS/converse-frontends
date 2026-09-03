@@ -24,8 +24,9 @@ import {
   splitResponseByAccount,
   summarizeMtdSpend,
 } from './admin-estate-operations-usage';
+import { budgetPeriodCaption } from './budget-period-caption';
 import { effectiveResetLabel, effectiveResetScheduleQueryKey } from './budget-schedule-rows';
-import { currentPeriodRange } from './overview-usage';
+import { currentPeriodRange, toUrlDate } from './overview-usage';
 import { toAggregateDaySeries } from './settings-overview-usage';
 import { MAX_FANNED_OUT_ACCOUNTS } from './account-family';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
@@ -74,6 +75,17 @@ export interface AdminEstateOperations {
    * `undefined` — an estate page with no resolvable schedule falls back to monthly.
    */
   resetCadence: ResetCadence;
+
+  /**
+   * What window the budget zones above are measured over, and what a reset does to a ceiling —
+   * the one shared sentence (`budget-period-caption.ts`), built here from the same GLOBAL probe
+   * that sets `resetCadence`.
+   *
+   * A global schedule only, for the identical reason: an account- or plan-scoped schedule governs
+   * one account, and stating its cadence on a page showing every account's ceilings would describe
+   * the estate by one member of it.
+   */
+  budgetPeriodCaption: string;
 }
 
 /** Said when the per-account schedule read itself failed. Deliberately NOT `NO_RESET_SCHEDULED_LINE`:
@@ -253,15 +265,24 @@ export function useAdminEstateOperations(): AdminEstateOperations {
    * to monthly, which is the budget domain's own calendar-month `Period` and this console's default
    * `mtd` range.
    */
-  const resetCadence = useMemo<ResetCadence>(() => {
-    const schedule = probeAccountId
-      ? scheduleByAccount.get(probeAccountId)?.data?.schedule
-      : undefined;
-    if (!schedule || schedule.scopeKind !== 'global' || !schedule.enabled) {
-      return DEFAULT_COMPARISON_CADENCE;
-    }
-    return toResetCadence(schedule.cadence) ?? DEFAULT_COMPARISON_CADENCE;
+  const globalProbe = useMemo(() => {
+    const query = probeAccountId ? scheduleByAccount.get(probeAccountId) : undefined;
+    const schedule = query?.data?.schedule;
+    if (!schedule || schedule.scopeKind !== 'global' || !schedule.enabled) return null;
+    return {
+      schedule,
+      nextRunAt: query?.data?.nextRunAt ?? schedule.nextRunAt,
+      readAt: query?.dataUpdatedAt,
+    };
   }, [scheduleByAccount, probeAccountId]);
+
+  const resetCadence = useMemo<ResetCadence>(
+    () =>
+      globalProbe
+        ? (toResetCadence(globalProbe.schedule.cadence) ?? DEFAULT_COMPARISON_CADENCE)
+        : DEFAULT_COMPARISON_CADENCE,
+    [globalProbe]
+  );
 
   /**
    * The rows the zone actually renders — the pressure rows above, each carrying its own next-reset
@@ -310,5 +331,10 @@ export function useAdminEstateOperations(): AdminEstateOperations {
     refillStatCardsLoading: queue.loading,
 
     resetCadence,
+    budgetPeriodCaption: budgetPeriodCaption({
+      periodStart: toUrlDate(mtdWindow.start),
+      schedule: globalProbe ? { ...globalProbe.schedule, nextRunAt: globalProbe.nextRunAt } : null,
+      now: globalProbe?.readAt,
+    }),
   };
 }

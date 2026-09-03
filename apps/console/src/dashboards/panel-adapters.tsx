@@ -627,7 +627,8 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
       };
 
     case 'donut': {
-      const groups = totalsByGroup(response, dimension ?? 'model', spec.metric);
+      const donutDimension = dimension ?? 'model';
+      const groups = totalsByGroup(response, donutDimension, spec.metric);
       const total = groups.reduce((sum, group) => sum + Math.max(group.value, 0), 0);
       return {
         kind: 'donut',
@@ -640,6 +641,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
         topN,
         centreMetric: formatMetric(total, spec.metric),
         centreLabel: 'TOTAL',
+        emptyMessage: donutEmptyMessage(donutDimension),
       };
     }
 
@@ -655,6 +657,31 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
     case 'table':
       return tableView(input, groupBy);
   }
+}
+
+/**
+ * What a ring says when the grouped response came back with no rows at all.
+ *
+ * `DonutChart`'s own default is "No spend in this range." — right for a cost ring and WRONG for the
+ * two beside it: a `tokens` or `requests` ring that reports on spend states a unit it never
+ * measured. And on the three channel rings the honest reading is narrower still (owner check,
+ * 2026-09-03): the events may well exist and simply carry no `azp`, in which case "no spend" would
+ * send a reader looking for missing traffic rather than for a gateway that stopped stamping the
+ * client id.
+ *
+ * Keyed on the DIMENSION, not the metric, because that is what the sentence is about. Anything not
+ * listed keeps the primitive's default — a message this module cannot word honestly is one it
+ * should not word at all.
+ */
+const DONUT_EMPTY_MESSAGE: Record<string, string> = {
+  azp: 'No channel recorded on these events.',
+  model: 'No model recorded on these events.',
+  operation: 'No operation recorded on these events.',
+  billing_plan: 'No billing plan recorded on these events.',
+};
+
+function donutEmptyMessage(dimension: string): string | undefined {
+  return DONUT_EMPTY_MESSAGE[dimension];
 }
 
 /** Top-N + one summed `Other (N)` tail segment, for the one panel type whose primitive cannot cap

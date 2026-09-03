@@ -233,6 +233,42 @@ describe('toPanelView', () => {
     expect(view.kind === 'donut' && view.segments.map((s) => s.key)).toEqual(['gpt-4o', 'claude']);
   });
 
+  // Owner check, 2026-09-03: the three channel rings on `/accounts/<id>/overview` must never come
+  // back as blank space, and must never claim a unit they did not measure. `DonutChart`'s own
+  // default is "No spend in this range." — right for a cost ring, wrong for the tokens and requests
+  // rings beside it, and wrong for all three when the events exist but carry no `azp` at all.
+  it('tells an empty channel ring what is missing, not that there was no spend', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'donut',
+          metric: 'requests',
+          query: { scope: 'account', scope_id: 'a1', group_by: ['azp'], limit: 10 },
+        }),
+        groupBy: ['azp'],
+        response: response([]),
+      })
+    );
+    expect(view).toMatchObject({
+      kind: 'donut',
+      emptyMessage: 'No channel recorded on these events.',
+    });
+  });
+
+  it('leaves a dimension it cannot word honestly on the primitive default', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'donut',
+          query: { scope: 'all', group_by: ['user_id'], limit: 10 },
+        }),
+        groupBy: ['user_id'],
+        response: response([]),
+      })
+    );
+    expect(view.kind === 'donut' && view.emptyMessage).toBeUndefined();
+  });
+
   it('links ranked rows through options.link', () => {
     const view = toPanelView(
       input({

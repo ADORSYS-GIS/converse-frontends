@@ -245,6 +245,33 @@ export function buildBudgetConsumptionRequest(accountId: string, now: Date): Usa
 }
 
 /**
+ * The same account-scoped, ungrouped consumption request, but over the window since the account's
+ * reset schedule LAST FIRED — the Budget card's "Spent since last reset" row (owner question,
+ * 2026-09-03).
+ *
+ * A second query rather than a slice of the month-to-date one above, because the usage API's
+ * buckets do not align to an arbitrary `run_at_utc` and re-deriving the boundary client-side from
+ * day buckets would attribute a whole day's spend to the wrong side of a 06:00 tick.
+ *
+ * `since` is the schedule's `lastRunAt`; the caller passes the period start when the schedule has
+ * never fired in this period, in which case this request IS `buildBudgetConsumptionRequest` and
+ * TanStack Query dedupes it away — the same figure, stated twice, is not two claims.
+ */
+export function buildSinceResetConsumptionRequest(
+  accountId: string,
+  since: Date,
+  now: Date
+): UsageQueryRequest {
+  return {
+    scope: 'account',
+    scope_id: accountId,
+    start_time: since.toISOString(),
+    end_time: now.toISOString(),
+    limit: USAGE_QUERY_LIMIT,
+  };
+}
+
+/**
  * The same billing-period, account-scoped consumption request as `buildBudgetConsumptionRequest`,
  * but broken down **by project** — the admin overview's budget-pressure zone.
  *

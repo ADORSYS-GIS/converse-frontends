@@ -157,17 +157,20 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
           <OverviewStatRow cards={zones.statCards} loading={zones.statCardsLoading} />
         </div>
         <Card data-span="2">
-          {/* `nextReset` (story C8) rides on the hand-written card, not on a panel: it reads
-              `getEffectiveResetSchedule`, an RPC, and it is a fact about the BILLING PERIOD rather
-              than about the range picked above — the same two reasons the ceiling beside it is not
-              a panel either. */}
+          {/* `sinceReset` and `nextReset` (story C8; owner question 2026-09-03) ride on the
+              hand-written card, not on a panel: both read `getEffectiveResetSchedule`, an RPC, and
+              both are facts about the BUDGET PERIOD and its reset cadence rather than about the
+              range picked above — the same two reasons the ceiling beside them is not a panel
+              either. The pair reads as one: what this reset cycle has drawn, then when the next
+              cycle starts. */}
           <BudgetPanel
             className="w-full"
             label="Budget"
             budget={zones.budget}
+            sinceReset={zones.sinceReset}
             nextReset={zones.nextReset}
           />
-          <InlineStatus className="mt-2">{zones.billingPeriodCaption}</InlineStatus>
+          <InlineStatus className="mt-2">{zones.budgetPeriodCaption}</InlineStatus>
         </Card>
       </DashboardGrid>
 

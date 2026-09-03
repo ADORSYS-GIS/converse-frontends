@@ -80,10 +80,17 @@ export function estateAccountLabel(
 /**
  * The budget-pressure zone's own spend query: estate-wide, day-bucketed, grouped by account.
  *
- * Always the BILLING PERIOD (`currentPeriodRange`), never the page's range picker — a budget
- * ceiling is a fact about this calendar month, and comparing month-to-date spend against it is
- * the only reading that means anything. That is why this zone does not simply reuse one of the
- * engine's panels: every panel on the page follows the range picker, and this one must not.
+ * Always the BUDGET PERIOD (`currentPeriodRange`), never the page's range picker — the ledger's
+ * ceiling (`budget_balances.effective_budget_micros`) is the SUM of the grants booked into this
+ * calendar month, so month-to-date spend is the only spend figure it can honestly be compared
+ * against. That is why this zone does not simply reuse one of the engine's panels: every panel on
+ * the page follows the range picker, and this one must not.
+ *
+ * Note what the ceiling is NOT: "a fact about this calendar month", the way this comment and four
+ * captions used to put it. Under a reset schedule (ADR-0032) the scheduler writes an `automatic`
+ * grant INTO the current month at every tick, so the ceiling STEPS UP with the cadence while
+ * `remaining` saw-tooths back to the configured amount. `budget-period-caption.ts` is where the
+ * console now says that, once, for every surface that shows a ceiling.
  */
 export function buildEstateMtdRequest(window: { start: Date; end: Date }): UsageQueryRequest {
   return {

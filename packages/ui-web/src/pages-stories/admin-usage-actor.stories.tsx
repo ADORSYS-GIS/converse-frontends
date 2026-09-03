@@ -127,7 +127,7 @@ function AdminUsageActorScreen({
                   value: 41.2,
                   ceiling: 60,
                   threshold: 0.9,
-                  caption: 'account ceiling · 69% used this billing period (not the range above)',
+                  caption: 'account ceiling · 69% used this budget period (not the range above)',
                 }}
                 nextReset={{ status: 'scheduled', label: 'Next reset in 3 days → $60.00 (reset)' }}
               />

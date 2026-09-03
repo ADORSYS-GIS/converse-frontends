@@ -20,9 +20,13 @@ import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
 import { useConsoleScope } from '../client/use-console-scope';
 import { apiKeysAccountFilters, apiKeysHygiene, apiKeysStatusSummary } from './api-key-rows';
 import { isHomeAccount } from './account-ownership';
+import { budgetPeriodCaption } from './budget-period-caption';
+import { effectiveResetScheduleQueryKey } from './budget-schedule-rows';
 import {
   buildBudgetConsumptionByProjectRequest,
+  currentPeriodRange,
   toSpendShareSegments,
+  toUrlDate,
   type SeriesLabeller,
 } from './overview-usage';
 import { microsToAmount } from './refill-rows';
@@ -40,11 +44,11 @@ import { UNASSIGNED_KEY } from './overview-usage';
  * row, the spend chart, the by-model ranking, each lens's secondary breakdown and the latency
  * cards. Three zones are NOT that, and stay here:
  *
- *  1. **Budget burn-down** (account lens) — a cumulative chart over the BILLING PERIOD, against a
+ *  1. **Budget burn-down** (account lens) — a cumulative chart over the BUDGET PERIOD, against a
  *     ceiling that is an RPC (`getMyBudgetBalance`). Both halves disqualify it as a panel: it does
  *     not follow the range picker, and half of it is not usage data at all.
  *  2. **Budget pressure** (project lens, admin only) — the account-wide per-project draw on that
- *     same single ceiling, likewise over the billing period.
+ *     same single ceiling, likewise over the budget period.
  *  3. **Key hygiene** (account lens, admin only) — a refine listing of the account's API keys.
  *     Rows in the authz database, not usage.
  *
@@ -116,6 +120,9 @@ export interface SettingsOverviewZones {
   adminPressure: AdminPressureCard | undefined;
   /** Account lens, admin only. Same "undefined, never loading" contract. */
   adminHygiene: AdminHygieneCard | undefined;
+  /** What window the budget zones are measured over, and what a reset does to the ceiling — the
+   *  one shared sentence (`budget-period-caption.ts`). */
+  budgetPeriodCaption: string;
 }
 
 export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOverviewZones {
@@ -176,6 +183,26 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
 
   // Always account-wide, never narrowed to the ONE project this lens's picker has scoped: an
   // operator's cross-project picture is exactly the narrowing this card exists to refuse.
+  /**
+   * The account's winning reset schedule, for the caption alone (owner question, 2026-09-03).
+   *
+   * Same SHARED key as `/accounts/[id]/overview` and `/admin/overview`
+   * (`effectiveResetScheduleQueryKey`), so an operator moving between those pages in one session
+   * fires no second request and can never be told two different cadences for one account. Only the
+   * account lens asks — the project and user lenses show no ceiling to qualify. `retry: false`: a
+   * refused read must not retry-storm a page that works fine without the clause.
+   */
+  const resetScheduleQuery = useQuery({
+    queryKey: effectiveResetScheduleQueryKey(accountId ?? ''),
+    queryFn: () =>
+      budgetClient.procedures.getEffectiveResetSchedule({
+        args: { budgetAccountId: accountId as string },
+      }),
+    enabled: lens === 'account' && Boolean(accountId),
+    staleTime: 300_000,
+    retry: false,
+  });
+
   const pressureQuery = useQuery({
     queryKey: ['usage', 'budget-consumption-by-project', accountId, period],
     queryFn: () => queryUsage(buildBudgetConsumptionByProjectRequest(accountId, new Date())),
@@ -321,5 +348,19 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
                 : undefined,
           }
         : undefined,
+    budgetPeriodCaption: budgetPeriodCaption({
+      periodStart: toUrlDate(currentPeriodRange(new Date()).start),
+      // A DISABLED schedule is treated as none: the scheduler will never reach it, so naming its
+      // cadence here would describe a reset that is not going to happen.
+      schedule:
+        resetScheduleQuery.data?.schedule && resetScheduleQuery.data.schedule.enabled
+          ? {
+              ...resetScheduleQuery.data.schedule,
+              nextRunAt:
+                resetScheduleQuery.data.nextRunAt ?? resetScheduleQuery.data.schedule.nextRunAt,
+            }
+          : null,
+      now: resetScheduleQuery.dataUpdatedAt,
+    }),
   };
 }

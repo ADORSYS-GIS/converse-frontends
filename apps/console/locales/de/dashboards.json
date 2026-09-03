@@ -295,7 +295,7 @@
     },
     "family-spend-by-model": {
       "title": "Kosten nach Modell im Zeitverlauf",
-      "subtitle": "Standardmäßig logarithmische Achse — ein Modell mit rund 100 % Anteil drückt auf einer linearen Achse jede andere Linie flach."
+      "subtitle": "Die Balkenhöhe ist die Tagessumme über jedes Konto Ihrer Kontofamilie; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“."
     },
     "family-latency-by-model": {
       "title": "Latenz nach Modell",

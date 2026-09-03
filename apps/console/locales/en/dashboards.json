@@ -295,7 +295,7 @@
     },
     "family-spend-by-model": {
       "title": "Spend by model over time",
-      "subtitle": "Log axis by default — one model at ~100% share flattens every other line on a linear one."
+      "subtitle": "Bar height is the day's total across every account in your family; segments are the top five models plus one summed Other."
     },
     "family-latency-by-model": {
       "title": "Latency by model",

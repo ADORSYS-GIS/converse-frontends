@@ -1673,7 +1673,7 @@ pages:
         metric: cost
         options:
           dimension: model
-          scale: log
+          style: stacked-bars
           topN: 5
         query:
           scope: family

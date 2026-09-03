@@ -8,6 +8,7 @@ import {
 } from '../consumption-csv';
 import type { ReportBranding } from './report-branding';
 import type { ReportDocument } from './report-data';
+import type { Translate } from '../../i18n/config';
 
 /**
  * The consumption report as a `ReportDocument` — the hard cutover from the hand-rolled PDF writer
@@ -67,24 +68,32 @@ export interface ConsumptionReportInput {
   /** The configured brand (`resolveReportBranding`). The consumption report shares `_lib/report.typ`'s
    *  header with every dashboard report, so it gets the letterhead on the same terms. */
   branding?: ReportBranding;
+  /** The `reports` namespace bound to the REQUEST's locale (ADR 0017). This document is read by a
+   *  person — often the person who pays the bill — so its headings follow the reader, exactly as
+   *  the dashboard reports' do. The FIGURES are unchanged: money still goes through the shared
+   *  `formatUsd`, and the counts still use the console's own thin-space grouping. */
+  t: Translate;
 }
 
-const COLUMNS = [
-  'Project',
-  'Model',
-  'Requests',
-  'Prompt tokens',
-  'Completion tokens',
-  'Total tokens',
-  'Cost (USD)',
-];
+function columns(t: Translate): string[] {
+  return [
+    t('consumption.column.project'),
+    t('consumption.column.model'),
+    t('consumption.column.requests'),
+    t('consumption.column.prompt-tokens'),
+    t('consumption.column.completion-tokens'),
+    t('consumption.column.total-tokens'),
+    t('consumption.column.cost-usd'),
+  ];
+}
 
 export function buildConsumptionReport(input: ConsumptionReportInput): ReportDocument {
   const totals = consumptionTotals(input.rows);
   const { startTime, endTime } = monthRange(input.month);
+  const t = input.t;
 
   return {
-    title: 'Consumption report',
+    title: t('consumption.title'),
     ...(input.branding ? { branding: input.branding } : {}),
     route: CONSUMPTION_TEMPLATE_ROUTE,
     rangeLabel: input.month,
@@ -97,25 +106,33 @@ export function buildConsumptionReport(input: ConsumptionReportInput): ReportDoc
     template: { route: CONSUMPTION_TEMPLATE_ROUTE, origin: input.templateOrigin },
     // The consumption report IS its table. There is no toggle for it and never was one.
     includeTables: true,
+    labels: {
+      generated: t('chrome.generated'),
+      template: t('chrome.template'),
+      noRows: t('chrome.no-rows'),
+    },
     panels: [
       {
         id: 'totals',
         type: 'stat-group',
-        title: 'Totals',
+        title: t('consumption.totals'),
         span: 2,
         stats: [
-          { label: 'Requests', value: formatConsumptionCount(totals.requests) },
-          { label: 'Total tokens', value: formatConsumptionCount(totals.totalTokens) },
-          { label: 'Cost', value: formatConsumptionMoney(totals.totalCostMicroUsd) },
+          { label: t('consumption.requests'), value: formatConsumptionCount(totals.requests) },
+          {
+            label: t('consumption.total-tokens'),
+            value: formatConsumptionCount(totals.totalTokens),
+          },
+          { label: t('consumption.cost'), value: formatConsumptionMoney(totals.totalCostMicroUsd) },
         ],
       },
       {
         id: 'by-project-model',
         type: 'table',
-        title: 'By project × model',
+        title: t('consumption.by-project-model'),
         span: 2,
         table: {
-          columns: COLUMNS,
+          columns: columns(t),
           rows: [
             ...input.rows.map((row) => [
               row.projectId,
@@ -130,7 +147,7 @@ export function buildConsumptionReport(input: ConsumptionReportInput): ReportDoc
             // and it is present even for a month with no usage, where every figure is a genuine
             // zero rather than a missing one.
             [
-              'TOTAL',
+              t('consumption.total-row'),
               '',
               formatConsumptionCount(totals.requests),
               formatConsumptionCount(totals.promptTokens),

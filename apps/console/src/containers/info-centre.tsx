@@ -10,6 +10,8 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleTheme } from '../client/use-console-theme';
 import { useOnlineStatus } from '../client/use-online-status';
+import { useTranslation } from '../i18n/client';
+import { LocaleSwitcher } from '../i18n/locale-switcher';
 import { useBuildInfo } from './use-build-info';
 
 /**
@@ -56,6 +58,7 @@ export function InfoCentre({
   consoleBuild: BuildInfoFacts;
   usageConfigured: boolean;
 }) {
+  const { t } = useTranslation('settings');
   const session = useConsoleSession();
   const online = useOnlineStatus();
   const { preference } = useConsoleTheme();
@@ -65,7 +68,7 @@ export function InfoCentre({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Info" subtitle="Build, configuration and session diagnostics" />
+      <PageHeader title={t('info.title')} subtitle={t('info.subtitle')} />
 
       {/* Replaces the old "Console build" card outright: that card answered half the question
           (this app's own version and SHA) and the screen then had to admit, in an `InlineStatus`,
@@ -75,45 +78,73 @@ export function InfoCentre({
         entries={[
           {
             id: 'console',
-            label: 'Console',
-            description: 'this app',
+            label: t('info.console-entry.label'),
+            description: t('info.console-entry.description'),
             state: { status: 'ready', facts: consoleBuild },
           },
           ...backends.entries,
         ]}
       />
 
-      <Card title="Backend configuration">
+      <Card title={t('info.backend.title')}>
         <div className="settings-list">
-          <SettingsRow label="Backend API path" value={BASE_PATHS.backend} valueKind="data" />
-          <SettingsRow label="Budget API path" value={BASE_PATHS.budget} valueKind="data" />
           <SettingsRow
-            label="Usage backend"
-            value={usageConfigured ? BASE_PATHS.usage : 'Not configured'}
+            label={t('info.backend.backend-path')}
+            value={BASE_PATHS.backend}
+            valueKind="data"
+          />
+          <SettingsRow
+            label={t('info.backend.budget-path')}
+            value={BASE_PATHS.budget}
+            valueKind="data"
+          />
+          <SettingsRow
+            label={t('info.backend.usage-backend')}
+            value={usageConfigured ? BASE_PATHS.usage : t('info.backend.not-configured')}
             valueKind={usageConfigured ? 'data' : 'text'}
             valueMuted={!usageConfigured}
           />
         </div>
       </Card>
 
-      <Card title="Session">
+      <Card title={t('info.session.title')}>
         <div className="settings-list">
           <SettingsRow
-            label="Signed in as"
+            label={t('info.session.signed-in-as')}
             value={
               session.user?.email ?? session.user?.preferredUsername ?? session.user?.name ?? '—'
             }
           />
-          <SettingsRow label="Subject" value={session.user?.sub ?? '—'} valueKind="data" />
-          <SettingsRow label="Roles" value={roles.length > 0 ? roles.join(', ') : 'None'} />
+          <SettingsRow
+            label={t('info.session.subject')}
+            value={session.user?.sub ?? '—'}
+            valueKind="data"
+          />
+          <SettingsRow
+            label={t('info.session.roles')}
+            value={roles.length > 0 ? roles.join(', ') : t('info.session.no-roles')}
+          />
         </div>
       </Card>
 
-      <Card title="Client state">
+      <Card title={t('info.client.title')}>
         <div className="settings-list">
-          <SettingsRow label="Theme preference" value={preference} />
-          <SettingsRow label="Active theme" value={resolveConsoleTheme(preference)} />
-          <SettingsRow label="Connectivity" value={online ? 'Online' : 'Offline · cached data'} />
+          <SettingsRow label={t('info.client.theme-preference')} value={preference} />
+          <SettingsRow
+            label={t('info.client.active-theme')}
+            value={resolveConsoleTheme(preference)}
+          />
+          {/* The SECOND home of the language control (ADR 0017), beside the theme and connectivity
+              readings it belongs with. The sidebar's own row is the one a person reaches for; this
+              is where they come to see what this browser currently thinks — so it is a live
+              control here too rather than a printed value, for the same reason the theme row above
+              is not a read-only string either. `SettingsRow` renders a `value` slot, so the
+              switcher goes in it. */}
+          <SettingsRow label={t('info.client.language')} value={<LocaleSwitcher />} />
+          <SettingsRow
+            label={t('info.client.connectivity')}
+            value={online ? t('info.client.online') : t('info.client.offline')}
+          />
         </div>
       </Card>
     </div>

@@ -14,17 +14,9 @@ import { RefillPolicyManual } from '@lightbridge/ui-web/src/sections/refill-poli
 import { RuleSetForm, ruleSetFieldExample } from '@lightbridge/ui-web/src/sections/rule-set-form';
 import Link from 'next/link';
 
+import { useTranslation } from '../i18n/client';
 import type { AdminRefillPoliciesFormScreen } from './use-refill-policies-screen';
 import { useRefillPoliciesScreen } from './use-refill-policies-screen';
-
-const EDIT_NO_PREFILL_NOTE =
-  'This starts from a blank draft, not a copy of the current revision — there is no read API ' +
-  'for stored rule content today (converse-frontends#368).';
-
-const EXAMPLE_OVERWRITE_TITLE = 'Replace this draft with the example policy?';
-const EXAMPLE_OVERWRITE_BODY =
-  'The example policy overwrites every field on this form, the policy set id included. Nothing ' +
-  'you have typed here has been saved yet, so it cannot be recovered afterwards.';
 
 /**
  * `/admin/refill-policies` — admin-only (owner ruling, verbatim: "Refill options are for admins
@@ -49,10 +41,11 @@ export function AdminRefillPoliciesCentre() {
 }
 
 function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillPoliciesScreen> }) {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Refill policies"
+        title={t('refill-policies.title')}
         subtitle={screen.scopeLabel}
         action={
           <Button
@@ -61,7 +54,7 @@ function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillP
             size="sm"
             nativeButton={false}
             render={<Link href="/admin/refill-policies/create" />}>
-            + New policy
+            {t('refill-policies.new-policy')}
           </Button>
         }
       />
@@ -76,12 +69,12 @@ function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillP
         />
       </Card>
 
-      <Card title="Your current ladder">
+      <Card title={t('refill-policies.ladder-title')}>
         {screen.list.ladder.status === 'loading' ? (
           <SkeletonMetric width={160} />
         ) : screen.list.ladder.status === 'error' ? (
           <ErrorLine
-            message={screen.list.ladder.errorMessage ?? 'Could not load the refill policy.'}
+            message={screen.list.ladder.errorMessage ?? t('refill-policies.ladder-load-failed')}
             onRetry={screen.list.ladder.onRetry}
           />
         ) : screen.list.ladder.status === 'unavailable' || screen.list.ladder.status === 'empty' ? (
@@ -111,20 +104,17 @@ function RefillPolicyListView({ screen }: { screen: ReturnType<typeof useRefillP
  * Exported for that second caller.
  */
 export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormScreen }) {
+  const { t } = useTranslation('admin');
   const title =
     form.mode === 'edit'
-      ? `Author a replacement revision for ${form.policySetId}`
-      : 'New refill policy';
+      ? t('refill-policies.edit.title', { policySetId: form.policySetId })
+      : t('refill-policies.create.title');
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
-        subtitle={
-          form.mode === 'edit'
-            ? undefined
-            : 'Author a brand-new policy set from scratch — or start from the example and edit it.'
-        }
+        subtitle={form.mode === 'edit' ? undefined : t('refill-policies.create.subtitle')}
         controls={
           // Create-only, by construction: `startFromExample` only exists on
           // `useRefillPolicyCreateScreen`'s return value. The edit route authors a replacement
@@ -135,13 +125,13 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
               variant="secondary"
               size="sm"
               onClick={form.startFromExample.onStart}>
-              Start from example policy
+              {t('refill-policies.create.start-from-example')}
             </Button>
           ) : null
         }
         action={
           <Button type="button" variant="ghost" size="sm" onClick={form.onCancel}>
-            Cancel
+            {t('refill-policies.form.cancel')}
           </Button>
         }
       />
@@ -149,19 +139,21 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
       {form.startFromExample ? (
         <ConfirmDialog
           open={form.startFromExample.confirmOpen}
-          title={EXAMPLE_OVERWRITE_TITLE}
-          description={EXAMPLE_OVERWRITE_BODY}
-          confirmLabel="Replace my draft"
+          title={t('refill-policies.create.overwrite-title')}
+          description={t('refill-policies.create.overwrite-body')}
+          confirmLabel={t('refill-policies.create.overwrite-confirm')}
           onConfirm={form.startFromExample.onConfirm}
           onCancel={form.startFromExample.onCancelConfirm}
         />
       ) : null}
 
-      {form.mode === 'edit' ? <InlineStatus>{EDIT_NO_PREFILL_NOTE}</InlineStatus> : null}
+      {form.mode === 'edit' ? (
+        <InlineStatus>{t('refill-policies.edit.no-prefill-note')}</InlineStatus>
+      ) : null}
 
       <Card>
         <Field
-          label="Policy set id"
+          label={t('refill-policies.form.policy-set-id')}
           example={ruleSetFieldExample('policySetId')}
           value={form.policySetId}
           onChange={(event) => form.onPolicySetIdChange?.(event.target.value)}
@@ -182,7 +174,10 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
         ) : null}
         {form.savedRevision ? (
           <InlineStatus className="mt-4">
-            {`Revision ${form.savedRevision.revisionId} created (policy revision "${form.savedRevision.policyRevision}") — not yet active.`}
+            {t('refill-policies.form.saved-revision', {
+              revisionId: form.savedRevision.revisionId,
+              policyRevision: form.savedRevision.policyRevision,
+            })}
           </InlineStatus>
         ) : null}
 
@@ -192,14 +187,18 @@ export function RefillPolicyFormView({ form }: { form: AdminRefillPoliciesFormSc
             variant="primary"
             disabled={!form.canSubmit}
             onClick={form.onActivate}>
-            {form.activating ? 'Activating…' : 'Create & activate'}
+            {form.activating
+              ? t('refill-policies.form.activating')
+              : t('refill-policies.form.activate')}
           </Button>
           <Button
             type="button"
             variant="secondary"
             disabled={!form.canSubmit}
             onClick={form.onSaveRevisionOnly}>
-            {form.savingRevision ? 'Saving…' : 'Save as revision only'}
+            {form.savingRevision
+              ? t('refill-policies.form.saving-revision')
+              : t('refill-policies.form.save-revision')}
           </Button>
         </div>
       </Card>
@@ -212,16 +211,17 @@ function RefillPolicySimulateView({
 }: {
   screen: ReturnType<typeof useRefillPoliciesScreen>;
 }) {
+  const { t } = useTranslation('admin');
   const { simulate } = screen;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={`Simulate against ${simulate.policySetId}`}
-        subtitle="Nothing here reads or changes this policy's actual, active revision."
+        title={t('refill-policies.simulate.title', { policySetId: simulate.policySetId })}
+        subtitle={t('refill-policies.simulate.subtitle')}
         action={
           <Button type="button" variant="ghost" size="sm" onClick={simulate.onBack}>
-            Back to list
+            {t('refill-policies.simulate.back')}
           </Button>
         }
       />

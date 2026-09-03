@@ -24,6 +24,7 @@ import {
   toSessionLedgerRow,
   toSessionUser,
 } from './session-rows';
+import { useTranslation } from '../i18n/client';
 
 /**
  * `/admin/sessions` — the estate-wide session ledger's data adapter (converse-frontends#450,
@@ -91,10 +92,6 @@ const USER_SEARCH_QUERY_KEY = ['authz', 'searchUsers'];
  *  with extra steps") — the console does not fire one rather than collecting a `BadRequest`. */
 const MIN_SEARCH_LENGTH = 2;
 
-const PROFILES_DEGRADED_MESSAGE =
-  'User names could not be resolved — showing the raw user id instead.';
-const SEARCH_FAILED_MESSAGE = 'The user search failed — showing every user’s sessions.';
-
 /** The wire `status` values each filter maps to. `inactive` is the two-call case. */
 const STATUS_QUERIES: Record<SessionStatusFilter, string[]> = {
   active: ['active'],
@@ -161,6 +158,7 @@ function byCreatedDesc(a: SessionRow, b: SessionRow): number {
 }
 
 export function useAdminSessionsScreen(): AdminSessionsScreen {
+  const { t } = useTranslation('admin');
   const client = useConsoleAuthzClient();
   const queryClient = useQueryClient();
   const [view, setView] = useAdminSessionsParams();
@@ -339,13 +337,13 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
   const revokeSuccess = useMemo(() => {
     if (!revoke.isSuccess || !revoke.data) return undefined;
     if ('revoked' in revoke.data) {
-      return revoke.data.revoked ? 'Session closed.' : 'That session was already closed.';
+      return revoke.data.revoked ? t('sessions.revoked.one') : t('sessions.revoked.already');
     }
     const { revokedCount } = revoke.data;
     return revokedCount === 0
-      ? 'That user had no active sessions left to close.'
-      : `Closed ${revokedCount} session${revokedCount === 1 ? '' : 's'} for this user.`;
-  }, [revoke.data, revoke.isSuccess]);
+      ? t('sessions.revoked.none-left')
+      : t('sessions.revoked.count', { count: revokedCount });
+  }, [revoke.data, revoke.isSuccess, t]);
 
   const filtersAreDefault =
     view.status === 'active' && view.kind === 'all' && !view.subject && !view.search;
@@ -353,21 +351,21 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
   return {
     sessions: ledgerRows,
     loading: sessionsQuery.isLoading,
-    errorMessage: sessionsQuery.isError ? 'Could not load sessions.' : undefined,
+    errorMessage: sessionsQuery.isError ? t('sessions.load-failed') : undefined,
     retry: () => {
       revoke.reset();
       void sessionsQuery.refetch();
     },
     status: profilesQuery.isError
-      ? PROFILES_DEGRADED_MESSAGE
+      ? t('sessions.labels-unresolved')
       : searchQuery.isError
-        ? SEARCH_FAILED_MESSAGE
+        ? t('sessions.search-failed')
         : searchEnabled && !searchQuery.isLoading && userOptions.length === 0
-          ? `No user matches “${searchTerm}” — narrow the search or clear it to see every session.`
+          ? t('sessions.empty.no-match', { search: searchTerm })
           : undefined,
     emptyMessage: filtersAreDefault
-      ? 'No active sessions right now.'
-      : 'No sessions match these filters.',
+      ? t('sessions.empty.no-active')
+      : t('sessions.empty.no-filter-match'),
     resetFilters: () => {
       setCursorStack([]);
       // `limit` is deliberately NOT reset: it is how much of the table the operator wants to see

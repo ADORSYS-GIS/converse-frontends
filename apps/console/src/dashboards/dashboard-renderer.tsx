@@ -17,6 +17,7 @@ import {
 } from '@lightbridge/ui-web/src/sections/dashboard-panels';
 
 import { dashboardExpandParsers, useDashboardExpandParams } from '../client/url-state';
+import { useTranslation } from '../i18n/client';
 import type { DashboardPanelState, DashboardState } from './use-dashboard';
 
 /**
@@ -84,6 +85,7 @@ function DashboardPanelSlot({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
 }) {
+  const { t } = useTranslation('common');
   // A BARE panel has no heading row of its own — its title is the `StatCard`'s own label, which
   // only exists once the data lands (`DashboardPanelProps.chrome`). So while it is loading or
   // failed, the panel would carry no title at all: a column of six identical "the usage service
@@ -108,10 +110,12 @@ function DashboardPanelSlot({
         if (panel.status === 'error') {
           return (
             <PanelStateBody title={needsOwnTitle ? panel.title : undefined}>
+              {/* No `retryLabel`: `ErrorLine`'s own default now comes from the ui-web copy
+                  context, which `ConsoleCopyProvider` fills from this same bundle (ADR 0017), so
+                  restating it here would be the word declared twice. */}
               <ErrorLine
-                message={panel.errorMessage ?? 'Failed to load this panel.'}
+                message={panel.errorMessage ?? t('state.panel-failed')}
                 onRetry={panel.onRetry}
-                retryLabel="Retry"
               />
             </PanelStateBody>
           );

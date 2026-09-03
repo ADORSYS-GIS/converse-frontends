@@ -6,6 +6,7 @@ import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-ex
 import type { ReportExportFormat } from '@lightbridge/ui-web/src/components/report-export-panel';
 
 import { CONSOLE_DIALOGS, useDashboardExportParams, useUrlDialog } from '../client/url-state';
+import { useTranslation } from '../i18n/client';
 import type { UsageWindow } from '../containers/comparison-window';
 import { downloadBlob, filenameFromContentDisposition } from '../containers/download-file';
 import {
@@ -75,6 +76,7 @@ export function DashboardExportButton({
   to,
   filters,
 }: DashboardExportButtonProps) {
+  const { t } = useTranslation('common');
   // The dialog and its two knobs are real view state (ADR 0011): Back closes the dialog, and
   // `format`/`tables` decide WHICH DOCUMENT Generate produces — the route reads the same two names,
   // which is what makes an exported report reproducible from a pasted URL.
@@ -115,7 +117,7 @@ export function DashboardExportButton({
           typeof body === 'object' &&
           typeof (body as { message?: unknown }).message === 'string'
             ? (body as { message: string }).message
-            : 'Could not generate the report. Try again.';
+            : t('export.failed');
         // The renderer's own compile-error detail (Typst's stderr, line and column) is carried on
         // `detail`. It goes to the console, not into the dialog: it is a template author's
         // diagnostic, and a reader who pressed Export cannot act on a line number.
@@ -145,7 +147,7 @@ export function DashboardExportButton({
   return (
     <>
       <Button type="button" variant="secondary" onClick={() => dialog.openDialog()}>
-        Export
+        {t('export.action')}
       </Button>
       <ReportExportDialog
         open={dialog.open}
@@ -156,9 +158,11 @@ export function DashboardExportButton({
           // the dialog for a window that may since have changed.
           if (!next) setError(null);
         }}
-        title={`Export · ${title}`}
+        title={t('export.dialog-title', { title })}
         rangeEcho={exportRangeEcho(rangeLabel, usageWindow)}
-        includeToggles={[{ id: 'tables', label: 'Include tables', checked: includeTables }]}
+        includeToggles={[
+          { id: 'tables', label: t('export.include-tables'), checked: includeTables },
+        ]}
         onToggleInclude={(_id, checked) => void setView({ tables: checked })}
         format={format}
         onFormatChange={(next) => void setView({ format: next })}

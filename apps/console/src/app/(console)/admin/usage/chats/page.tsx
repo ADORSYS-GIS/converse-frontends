@@ -1,12 +1,11 @@
 import { notFound } from 'next/navigation';
 
 import { AdminUsageChatsCentre } from '../../../../../containers/admin-usage-chats-centre';
-import { findPage } from '../../../../../dashboards/dashboard-spec';
-import { loadDashboards } from '../../../../../dashboards/load-dashboards';
 import { ADMIN_USAGE_CHATS_ROUTE } from '../../../../../dashboards/usage-routes';
 import { can } from '../../../../../server/access';
 import { readSession } from '../../../../../server/session-store';
 import { PERMISSION } from '../../../../../shared/permissions';
+import { dashboardPage } from '../../../../../dashboards/page-entry';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,14 +26,11 @@ export default async function AdminUsageChatsRoute() {
     notFound();
   }
 
-  const page = findPage(loadDashboards(), ADMIN_USAGE_CHATS_ROUTE);
-  if (!page) {
-    throw new Error(
-      `[console] dashboards.yaml has no entry for "${ADMIN_USAGE_CHATS_ROUTE}". The page is ` +
-        'defined entirely by that entry, so there is nothing to render — fix the document (or ' +
-        'the override mounted at CONSOLE_CONFIG_DIR) rather than shipping an empty dashboard.'
-    );
-  }
+  // Read AND translated by the shared helper (ADR 0017): `dashboards.yaml` carries i18n
+  // keys, and `dashboardPage` resolves them against this request's own locale before the
+  // spec reaches a client component. It is also fail-loud on a missing entry, which is
+  // exactly the throw four routes used to carry a hand-copied version of.
+  const page = await dashboardPage(ADMIN_USAGE_CHATS_ROUTE);
 
   return <AdminUsageChatsCentre page={page} />;
 }

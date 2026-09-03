@@ -16,6 +16,7 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import Link from 'next/link';
 import React from 'react';
 
+import { useTranslation } from '../i18n/client';
 import type { BudgetScheduleRow } from './budget-schedule-rows';
 import { BudgetScheduleFormView } from './budget-schedule-form-view';
 import { useBudgetScheduleFormScreen } from './use-budget-schedule-form-screen';
@@ -70,6 +71,7 @@ function BudgetSchedulesListView({
 }: {
   screen: ReturnType<typeof useAdminBudgetSchedulesScreen>;
 }) {
+  const { t } = useTranslation('admin');
   // `console-table` is `min-width: max-content` by contract — the ledger keeps its natural width
   // and scrolls inside its own box rather than wrapping cells (theme.css's own note). The cadence
   // SENTENCE is therefore the column that sets this table's width, and it is the one column that
@@ -78,35 +80,49 @@ function BudgetSchedulesListView({
   // the enabled toggle and the row actions stay on screen without a scroll at ordinary console
   // widths, rather than being pushed off by generous tracks nothing fills.
   const columns: LedgerColumn<BudgetScheduleRow>[] = [
-    { key: 'name', header: 'Name', accessor: (row) => row.name, width: '150px' },
-    { key: 'scope', header: 'Applies to', accessor: (row) => row.scope, width: '140px' },
+    {
+      key: 'name',
+      header: t('budget-schedules.column.name'),
+      accessor: (row) => row.name,
+      width: '150px',
+    },
+    {
+      key: 'scope',
+      header: t('budget-schedules.column.scope'),
+      accessor: (row) => row.scope,
+      width: '140px',
+    },
     // The whole schedule as one sentence — six enum columns is a table nobody can read.
-    { key: 'cadence', header: 'What it does', accessor: (row) => row.cadence },
+    {
+      key: 'cadence',
+      header: t('budget-schedules.column.cadence'),
+      accessor: (row) => row.cadence,
+    },
     {
       // Wider than 'Last run' beside it: a forced window's cell carries "· forced" as well as the
       // relative time, and wrapping that onto two lines would make one row taller than every other.
       key: 'nextRun',
-      header: 'Next run',
+      header: t('budget-schedules.column.next-run'),
       accessor: (row) => row.nextRun,
       kind: 'data',
       width: '140px',
     },
     {
       key: 'lastRun',
-      header: 'Last run',
+      header: t('budget-schedules.column.last-run'),
       accessor: (row) => row.lastRun,
       kind: 'data',
       width: '96px',
     },
     {
       key: 'enabled',
-      header: 'Enabled',
+      header: t('budget-schedules.column.enabled'),
       width: '72px',
       accessor: (row) => (
         <Toggle
           checked={row.enabled}
           onCheckedChange={(enabled) => screen.onToggleEnabled(row.id, enabled)}
-          aria-label={`${row.name} enabled`}
+          aria-label={t('budget-schedules.row.enabled-label', { name: row.name })}
         />
       ),
     },
@@ -116,7 +132,7 @@ function BudgetSchedulesListView({
     <>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Budget schedules"
+          title={t('budget-schedules.title')}
           subtitle={RESET_SCHEDULE_ENFORCEMENT_CAPTION}
           action={
             <Button
@@ -125,7 +141,7 @@ function BudgetSchedulesListView({
               size="sm"
               nativeButton={false}
               render={<Link href="/admin/budget-schedules/create" />}>
-              + New schedule
+              {t('budget-schedules.new-schedule')}
             </Button>
           }
         />
@@ -133,7 +149,7 @@ function BudgetSchedulesListView({
         <Card>
           {screen.status === 'error' ? (
             <ErrorLine
-              message={screen.errorMessage ?? 'Could not load the reset schedules.'}
+              message={screen.errorMessage ?? t('budget-schedules.load-failed')}
               onRetry={screen.onRetry}
             />
           ) : (
@@ -156,9 +172,13 @@ function BudgetSchedulesListView({
                 loadingRowCount={4}
                 renderRowActions={(row) => (
                   <RowActionGroup
-                    aria-label={`${row.name} actions`}
+                    aria-label={t('budget-schedules.row.actions-label', { name: row.name })}
                     actions={[
-                      { key: 'edit', label: 'Edit', onClick: () => screen.onEdit(row.id) },
+                      {
+                        key: 'edit',
+                        label: t('budget-schedules.row.edit'),
+                        onClick: () => screen.onEdit(row.id),
+                      },
                       {
                         key: 'preview',
                         // One word, like every other row action in this console ("Edit", "Del",
@@ -166,13 +186,13 @@ function BudgetSchedulesListView({
                         // to two lines inside it. The sheet it opens is titled "Preview — <name>"
                         // and leads with what a dry run does, so nothing is lost by the shorter
                         // label.
-                        label: 'Preview',
+                        label: t('budget-schedules.row.preview'),
                         emphasis: 'strong',
                         onClick: () => screen.onPreview(row.id),
                       },
                       {
                         key: 'delete',
-                        label: 'Del',
+                        label: t('budget-schedules.row.delete'),
                         emphasis: 'muted',
                         onClick: () => screen.onRequestDelete(row.id),
                       },
@@ -201,7 +221,9 @@ function BudgetSchedulesListView({
             size="sm"
             disabled={!screen.preview.canRunForReal}
             onClick={screen.preview.onRunForReal}>
-            {screen.preview.runningForReal ? 'Running…' : 'Run now, for real'}
+            {screen.preview.runningForReal
+              ? t('budget-schedules.preview.running')
+              : t('budget-schedules.preview.run-for-real')}
           </Button>
         }>
         <BudgetSchedulePreview
@@ -222,14 +244,14 @@ function BudgetSchedulesListView({
       {screen.deleteTarget ? (
         <TypedConfirmDialog
           open
-          title={`Delete ${screen.deleteTarget.name}?`}
-          description={
-            'This removes the standing rule, so it never fires again. The grants it already wrote ' +
-            'stay on the ledger — that is append-only and nothing here touches it. There is no ' +
-            'read path to recover the rule’s own settings afterwards.'
-          }
+          title={t('budget-schedules.delete.title', { name: screen.deleteTarget.name })}
+          description={t('budget-schedules.delete.description')}
           objectName={screen.deleteTarget.name}
-          confirmLabel={screen.deleting ? 'Deleting…' : 'Delete schedule'}
+          confirmLabel={
+            screen.deleting
+              ? t('budget-schedules.delete.deleting')
+              : t('budget-schedules.delete.confirm')
+          }
           error={screen.deleteErrorMessage}
           onConfirm={screen.onConfirmDelete}
           onCancel={screen.onCancelDelete}

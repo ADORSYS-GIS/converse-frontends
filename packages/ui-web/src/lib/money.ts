@@ -64,8 +64,84 @@
 // console's typographic contract is a THIN SPACE thousands separator (§2.2 above), which no
 // `en-US` locale produces — `Intl` gives `$1,234.00`. There is exactly one currency convention in
 // this codebase and it lives here; do not introduce a second.
+//
+// ---------------------------------------------------------------------------------------------
+// GERMAN (ADR 0017 — i18n)
+// ---------------------------------------------------------------------------------------------
+// The console ships `de` as of ADR 0017, and the owner's ruling is explicit: the CURRENCY does not
+// change with the language. Every figure is still USD — a German-reading operator and an
+// English-reading one are looking at the same ledger, and swapping the symbol for `€` would be
+// this console inventing an exchange rate it does not have. What changes is only the NOTATION:
+//
+//     en   $1 131.80    $0.0063    <$0.000001
+//     de   1.131,80 $   0,0063 $   <0,000001 $
+//
+// German writes the group separator as `.`, the decimal as `,`, and puts the symbol AFTER the
+// number with a non-breaking space (DIN 5008). The adaptive ladder above is untouched — the same
+// decimal COUNT is chosen for both locales and only rendered differently — so `formatUsdOf`'s
+// per-value laddering, the six-decimal floor and the pad-zero trim all behave identically. This is
+// still one currency convention with one home; `NOTATION` below is the whole of the difference.
 
 const THIN_SPACE = ' ';
+
+const NON_BREAKING_SPACE = ' ';
+
+/** The locales this formatter knows. Deliberately its own union rather than an import of the
+ *  console's `Locale`: `packages/ui-web` stays framework- and app-agnostic (ADR 0017's ui-web
+ *  contract), so it must not depend on `apps/console`. An unknown locale renders as `en`. */
+export type MoneyLocale = 'en' | 'de';
+
+interface Notation {
+  group: string;
+  decimal: string;
+  /** `(sign, digits) => the finished string` — the symbol's SIDE is part of the notation. */
+  wrap: (sign: string, digits: string) => string;
+}
+
+const NOTATION: Record<MoneyLocale, Notation> = {
+  en: { group: THIN_SPACE, decimal: '.', wrap: (sign, digits) => `${sign}$${digits}` },
+  de: {
+    group: '.',
+    decimal: ',',
+    wrap: (sign, digits) => `${sign}${digits}${NON_BREAKING_SPACE}$`,
+  },
+};
+
+/**
+ * The locale every un-parameterised `formatUsd()` call renders in.
+ *
+ * Deliberately AMBIENT rather than a parameter threaded through the 100+ call sites, and safe here
+ * for one specific, checkable reason: money is only ever formatted in two places, and neither is a
+ * concurrent server render.
+ *
+ *  1. **In the browser**, where a document has exactly one locale for its lifetime. The console's
+ *     whole data layer is `ssr: false` by construction (ADR 0009 Decision 7,
+ *     `apps/console/src/client/providers.tsx`), so no on-screen figure is ever formatted during a
+ *     server render.
+ *  2. **In the report pipeline**, which runs per request on the server and therefore passes its
+ *     locale EXPLICITLY (`formatUsd(amount, locale)`) — see
+ *     `apps/console/src/server/reports/report-data.ts`.
+ *
+ * A third caller that formats money during a concurrent server render must pass its locale
+ * explicitly too. This is a default, not a request-scoped store, and must never be used as one.
+ */
+let ambientLocale: MoneyLocale = 'en';
+
+/** Set once by the console's i18n provider, before the first money-rendering component paints.
+ *  Returns the previous value so a test (or a story) can restore it. */
+export function setMoneyLocale(locale: MoneyLocale): MoneyLocale {
+  const previous = ambientLocale;
+  ambientLocale = locale;
+  return previous;
+}
+
+export function getMoneyLocale(): MoneyLocale {
+  return ambientLocale;
+}
+
+function notationFor(locale: MoneyLocale | undefined): Notation {
+  return NOTATION[locale ?? ambientLocale] ?? NOTATION.en;
+}
 
 /** Cents — the convention the reader arrives with. The ladder extends past it, never behind it. */
 const MIN_DECIMALS = 2;
@@ -81,13 +157,18 @@ const SIGNIFICANT_DIGITS = 2;
  *  `<$0.000001` — an honest "smaller than we can say", never a fabricated `$0.00`. */
 export const USD_DISPLAY_FLOOR = 10 ** -MAX_DECIMALS;
 
-const BELOW_FLOOR = `<$${USD_DISPLAY_FLOOR.toFixed(MAX_DECIMALS)}`;
-/** The negative counterpart. `-<$0.000001` would read as a typo; `>-$0.000001` is the same claim
- *  stated the way an inequality is normally written. */
-const ABOVE_NEGATIVE_FLOOR = `>-$${USD_DISPLAY_FLOOR.toFixed(MAX_DECIMALS)}`;
-
-function belowFloorMarker(amount: number): string {
-  return amount < 0 ? ABOVE_NEGATIVE_FLOOR : BELOW_FLOOR;
+/**
+ * `<$0.000001` / `<0,000001 $` — the honest "smaller than we can say".
+ *
+ * The comparison operator sits OUTSIDE the notation's own wrapping in both locales, so the German
+ * form keeps the symbol trailing (`<0,000001 $`) rather than growing a second convention. The
+ * negative counterpart reads `>-$0.000001`: `-<$0.000001` looks like a typo, while an inequality
+ * written the normal way around does not.
+ */
+function belowFloorMarker(amount: number, locale: MoneyLocale | undefined): string {
+  const notation = notationFor(locale);
+  const digits = USD_DISPLAY_FLOOR.toFixed(MAX_DECIMALS).replace('.', notation.decimal);
+  return amount < 0 ? `>${notation.wrap('-', digits)}` : `<${notation.wrap('', digits)}`;
 }
 
 /**
@@ -114,28 +195,30 @@ function trimPadZeros(fraction: string, floor: number): string {
   return fraction.slice(0, end);
 }
 
-/** `1131.8` -> `1 131` — the console's thin-space grouping, never a comma. */
-function groupThousands(integerPart: string): string {
-  return integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, THIN_SPACE);
+/** `1131.8` -> `1 131` (en, thin space) / `1.131` (de). Never a comma in `en` — §2.2. */
+function groupThousands(integerPart: string, notation: Notation): string {
+  return integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, notation.group);
 }
 
-function format(amount: number, decimalFloor: number): string {
+function format(amount: number, decimalFloor: number, locale: MoneyLocale | undefined): string {
   const magnitude = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
+  const notation = notationFor(locale);
 
-  if (magnitude > 0 && magnitude < USD_DISPLAY_FLOOR) return belowFloorMarker(amount);
+  if (magnitude > 0 && magnitude < USD_DISPLAY_FLOOR) return belowFloorMarker(amount, locale);
 
   const fixed = magnitude.toFixed(decimalsFor(magnitude));
   const [integerPart, fractionPart = ''] = fixed.split('.');
 
   // Rounding at the cap can still land on all-zeros for an amount that is not zero (a value just
   // under the floor that `toFixed` rounds down). Name it rather than print `$0.000000`.
-  if (magnitude > 0 && Number(fixed) === 0) return belowFloorMarker(amount);
+  if (magnitude > 0 && Number(fixed) === 0) return belowFloorMarker(amount, locale);
 
   const fraction = trimPadZeros(fractionPart, decimalFloor);
-  const grouped = groupThousands(integerPart);
+  const grouped = groupThousands(integerPart, notation);
+  const digits = fraction.length > 0 ? `${grouped}${notation.decimal}${fraction}` : grouped;
 
-  return fraction.length > 0 ? `${sign}$${grouped}.${fraction}` : `${sign}$${grouped}`;
+  return notation.wrap(sign, digits);
 }
 
 /**
@@ -145,8 +228,8 @@ function format(amount: number, decimalFloor: number): string {
  * Use this everywhere a figure is being ASSERTED. The only exception is a chart's axis, where the
  * label marks a gridline rather than states a value — see `formatUsdAxis`.
  */
-export function formatUsd(amount: number): string {
-  return format(amount, MIN_DECIMALS);
+export function formatUsd(amount: number, locale?: MoneyLocale): string {
+  return format(amount, MIN_DECIMALS, locale);
 }
 
 /**
@@ -154,9 +237,19 @@ export function formatUsd(amount: number): string {
  *
  * Each side is laddered on its own magnitude — see "Why per-value and not harmonised across a
  * pair" at the top of this file.
+ *
+ * The joining word is a PARAMETER, not a locale lookup, and that is the ui-web copy contract in
+ * miniature (ADR 0017): this package never owns translated prose. `apps/console` passes
+ * `t('common:money.of')` (`von` in German); Storybook and every other consumer take the English
+ * default, so nothing here needs an i18n runtime to render.
  */
-export function formatUsdOf(value: number, ceiling: number): string {
-  return `${formatUsd(value)} of ${formatUsd(ceiling)}`;
+export function formatUsdOf(
+  value: number,
+  ceiling: number,
+  options: { locale?: MoneyLocale; ofWord?: string } = {}
+): string {
+  const { locale, ofWord = 'of' } = options;
+  return `${formatUsd(value, locale)} ${ofWord} ${formatUsd(ceiling, locale)}`;
 }
 
 /**
@@ -174,20 +267,23 @@ export function formatUsdOf(value: number, ceiling: number): string {
  * what the console shipped: `SpendSeriesChart`'s default tick formatter is
  * `String(Math.round(v))`, which labels an entire real spend axis `0`.
  */
-export function formatUsdAxis(amount: number): string {
+export function formatUsdAxis(amount: number, locale?: MoneyLocale): string {
   const magnitude = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
+  const notation = notationFor(locale);
 
-  if (magnitude === 0) return '$0';
-  if (magnitude >= 1_000_000) return `${sign}$${abbreviate(magnitude / 1_000_000)}M`;
-  if (magnitude >= 1_000) return `${sign}$${abbreviate(magnitude / 1_000)}k`;
+  if (magnitude === 0) return notation.wrap('', '0');
+  if (magnitude >= 1_000_000)
+    return notation.wrap(sign, `${abbreviate(magnitude / 1_000_000, notation)}M`);
+  if (magnitude >= 1_000) return notation.wrap(sign, `${abbreviate(magnitude / 1_000, notation)}k`);
 
-  return format(amount, 0);
+  return format(amount, 0, locale);
 }
 
-/** The mantissa of an abbreviated tick: at most two decimals, no pad zeros (`2.25`, `1.2`, `3`). */
-function abbreviate(value: number): string {
+/** The mantissa of an abbreviated tick: at most two decimals, no pad zeros (`2.25`, `1.2`, `3`);
+ *  `2,25` under a locale whose decimal mark is a comma. */
+function abbreviate(value: number, notation: Notation): string {
   const [integerPart, fractionPart = ''] = value.toFixed(2).split('.');
   const fraction = trimPadZeros(fractionPart, 0);
-  return fraction.length > 0 ? `${integerPart}.${fraction}` : integerPart;
+  return fraction.length > 0 ? `${integerPart}${notation.decimal}${fraction}` : integerPart;
 }

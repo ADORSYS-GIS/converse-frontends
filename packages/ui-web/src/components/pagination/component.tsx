@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { fillCopy, useCopy } from '../../lib/copy';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { META_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
@@ -20,6 +21,10 @@ export function Pagination({
   onPrev,
   onNext,
 }: PaginationProps) {
+  // The three captions and both direction labels come from the copy context (ADR 0017's ui-web
+  // contract) — English by default, so Storybook and every non-console consumer are unchanged.
+  const copy = useCopy();
+
   if (!onPrev && !onNext) return null;
 
   // Three captions, in descending order of how much they can honestly claim: a real total, then
@@ -28,20 +33,20 @@ export function Pagination({
   // list.
   const caption =
     total != null
-      ? `Showing ${shown} of ${total} ${unit}`
+      ? fillCopy(copy.paginationShowingOfTotal, { shown, total, unit })
       : pageSize != null
-        ? `${shown} of ${pageSize} ${unit} per page`
-        : `${shown} ${unit}`;
+        ? fillCopy(copy.paginationPerPage, { shown, pageSize, unit })
+        : fillCopy(copy.paginationCount, { shown, unit });
 
   return (
     <div className="pagination-bar">
       <span className={META_CLASS}>{caption}</span>
       <div className={INLINE_ROW_CLASS}>
         <Button type="button" variant="ghost" size="sm" disabled={!hasPrev} onClick={onPrev}>
-          ‹ Previous
+          {`‹ ${copy.paginationPrevious}`}
         </Button>
         <Button type="button" variant="ghost" size="sm" disabled={!hasNext} onClick={onNext}>
-          Next ›
+          {`${copy.paginationNext} ›`}
         </Button>
       </div>
     </div>

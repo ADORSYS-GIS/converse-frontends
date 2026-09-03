@@ -18,7 +18,7 @@ import type { ResetCadence } from './comparison-window';
 import { DEFAULT_COMPARISON_CADENCE } from './comparison-window';
 import {
   budgetPressureAccountIds,
-  budgetPressureTruncationCaption,
+  budgetPressureTruncation,
   buildEstateMtdRequest,
   estateAccountLabel,
   splitResponseByAccount,
@@ -30,6 +30,7 @@ import { currentPeriodRange, toUrlDate } from './overview-usage';
 import { toAggregateDaySeries } from './settings-overview-usage';
 import { MAX_FANNED_OUT_ACCOUNTS } from './account-family';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
+import { useIntlLocale, useTranslation } from '../i18n/client';
 
 /**
  * The two `/admin/overview` zones the declarative engine does NOT draw, plus the one page-level
@@ -64,7 +65,9 @@ export interface AdminEstateOperations {
   worstBudgetPressureAccount: EstateBudgetPressureAccount | null;
   worstAccountBurnDown: SpendSeriesSeries[];
   /** Only present when the RPC fan-out's cap actually dropped real candidates. */
-  truncationCaption: string | undefined;
+  /** `{shown, total}` when the fan-out cap dropped real candidates, else `null`. The SENTENCE is
+   *  the page's (`admin:overview.pressure-truncated`); this is the fact behind it. */
+  truncation: { shown: number; total: number } | null;
 
   /** Dashboard 5, the pending refill queue's depth. */
   refillStatCards: OverviewStatCardData[];
@@ -90,8 +93,9 @@ export interface AdminEstateOperations {
 
 /** Said when the per-account schedule read itself failed. Deliberately NOT `NO_RESET_SCHEDULED_LINE`:
  *  "we could not ask" and "there is none" are different claims, and only one of them is a reason to
- *  go write a schedule. */
-export const SCHEDULE_UNREADABLE_LINE = 'Next reset unknown — the schedule read failed';
+ *  go write a schedule. A KEY into the `admin` namespace since ADR 0017 — the line is copy, and a
+ *  module constant is resolved before any request has a locale. */
+export const SCHEDULE_UNREADABLE_KEY = 'overview.schedule-unreadable';
 
 /** `budget_reset_schedules.cadence` is a plain wire string (the schema keeps the Rust enum's own
  *  rendering rather than a generated union), so it is narrowed here rather than trusted. */
@@ -100,6 +104,8 @@ function toResetCadence(cadence: string | undefined): ResetCadence | null {
 }
 
 export function useAdminEstateOperations(): AdminEstateOperations {
+  const { t } = useTranslation('admin');
+  const intlLocale = useIntlLocale();
   const scope = useConsoleScope();
   const budgetClient = useConsoleBudgetClient();
   const queue = useRefillsQueueScreen(true);
@@ -300,7 +306,7 @@ export function useAdminEstateOperations(): AdminEstateOperations {
       budgetPressureAccounts.map((row) => {
         const query = scheduleByAccount.get(row.key);
         if (!query || query.isPending) return row;
-        if (query.isError) return { ...row, nextReset: SCHEDULE_UNREADABLE_LINE };
+        if (query.isError) return { ...row, nextReset: t(SCHEDULE_UNREADABLE_KEY) };
         // Each row's own FETCH timestamp, not `Date.now()` — the house idiom
         // (`use-refills-queue-screen.ts`): reading the clock during render is impure, and "in 6 h"
         // is relative to when THAT account's schedule was read.
@@ -323,10 +329,16 @@ export function useAdminEstateOperations(): AdminEstateOperations {
     },
     worstBudgetPressureAccount,
     worstAccountBurnDown,
-    truncationCaption: budgetPressureTruncationCaption(estateIds),
+    truncation: budgetPressureTruncation(estateIds),
 
     refillStatCards: [
-      { key: 'queue-depth', label: 'Queue depth', metric: queue.pendingCount.toLocaleString() },
+      {
+        key: 'queue-depth',
+        label: t('overview.queue-depth'),
+        // `toLocaleString` with the ACTIVE locale, not the runtime's: `1.234` in German,
+        // `1,234` in English (ADR 0017's Intl rule).
+        metric: queue.pendingCount.toLocaleString(intlLocale),
+      },
     ],
     refillStatCardsLoading: queue.loading,
 

@@ -12,8 +12,10 @@ import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
+import { useTranslation } from '../i18n/client';
 import { AdminUsageSubNav } from './admin-usage-sub-nav';
-import { RANGE_DAYS, RANGE_LABELS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { rangeLabels, rangePresets } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
@@ -35,18 +37,15 @@ import { useAdminEstateOperations } from './use-admin-estate-operations';
  * if one governs the estate, else monthly (decision D-F, owner Q8).
  */
 
-const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
-}));
-
 export interface AdminUsageChatsCentreProps {
   /** The validated `/admin/usage/chats` entry from `dashboards.yaml`. */
   page: DashboardPageSpec;
 }
 
 export function AdminUsageChatsCentre({ page }: AdminUsageChatsCentreProps) {
+  const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const [view, setView] = useAdminUsageWindowParams();
   // Only for the comparison cadence the chat-count total measures against. This page draws neither
   // of that hook's zones, exactly as `/admin/usage` does not.
@@ -74,12 +73,15 @@ export function AdminUsageChatsCentre({ page }: AdminUsageChatsCentreProps) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Chats"
-        subtitle={`Operator · /v1/chat/completions, /v1/responses and /v1/messages · ${RANGE_LABELS[view.range]} · UTC`}
+        title={t('usage.chats.title')}
+        subtitle={t('usage.chats.subtitle', {
+          range: labels[view.range],
+          timezone: tCommon('timezone.utc'),
+        })}
         controls={
           <DateRangeField
-            label="Range"
-            presets={RANGE_PRESETS}
+            label={tCommon('range.label')}
+            presets={rangePresets(tCommon)}
             preset={view.from && view.to ? null : view.range}
             value={{ from: window.start, to: window.end }}
             onPresetChange={(range) => {
@@ -95,9 +97,9 @@ export function AdminUsageChatsCentre({ page }: AdminUsageChatsCentreProps) {
         action={
           <DashboardExportButton
             route={page.route}
-            title="Chats"
+            title={t('usage.chats.title')}
             range={view.range}
-            rangeLabel={RANGE_LABELS[view.range]}
+            rangeLabel={labels[view.range]}
             window={window}
             from={view.from}
             to={view.to}

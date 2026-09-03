@@ -10,6 +10,7 @@ import {
   RevokeRoleDialog,
 } from '@lightbridge/ui-web/src/sections/platform-role-grants';
 
+import { useTranslation } from '../i18n/client';
 import { useAdminRolesScreen } from './use-admin-roles-screen';
 
 /**
@@ -37,17 +38,18 @@ import { useAdminRolesScreen } from './use-admin-roles-screen';
  * screen rather than one that fades after four seconds.
  */
 export function AdminRolesCentre() {
+  const { t } = useTranslation('admin');
   const screen = useAdminRolesScreen();
 
   return (
     <>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Platform roles"
-          subtitle="A platform role follows the person across every account they own. Grants take effect at the holder’s next token mint; revocations close their sessions and apply immediately."
+          title={t('roles.title')}
+          subtitle={t('roles.subtitle')}
           action={
             <Button type="button" variant="primary" onClick={screen.openGrantDialog}>
-              Grant role
+              {t('roles.grant')}
             </Button>
           }
         />

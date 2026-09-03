@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
+import { getServerLocale, getServerTranslation } from '../../../../i18n/server';
 import { serverEnv } from '../../../../server/env';
 import { assemblePageReport, resolvePageReport } from '../../../../server/reports/page-report';
 import { resolveReportBranding } from '../../../../server/reports/report-branding';
@@ -99,6 +100,17 @@ export async function GET(request: NextRequest) {
   // can hover states nothing without its values (see `report-data.ts`'s `panelTable`).
   const includeTables = params.get('tables') !== 'false';
 
+  // ADR 0017: the document comes out in the READER's language. The locale is this request's own
+  // (`lb.locale` cookie -> `Accept-Language` -> `en`) and both namespaces are bound to it here,
+  // per request, rather than read from any ambient state — a Route Handler serves concurrent
+  // requests, and a module-level locale would leak one reader's language into another's PDF.
+  const locale = await getServerLocale();
+  const [common, dashboards, reports] = await Promise.all([
+    getServerTranslation(locale, 'common'),
+    getServerTranslation(locale, 'dashboards'),
+    getServerTranslation(locale, 'reports'),
+  ]);
+
   const resolution = resolvePageReport({
     path: params.get('path'),
     range: params.get('range'),
@@ -106,6 +118,8 @@ export async function GET(request: NextRequest) {
     to: params.get('to'),
     param: (name) => params.get(name),
     now: new Date(),
+    t: common.t,
+    tDashboards: dashboards.t,
   });
 
   if (!resolution.ok) {
@@ -167,6 +181,8 @@ export async function GET(request: NextRequest) {
     includeTables,
     generatedAt: new Date(),
     branding: branding.branding,
+    t: reports.t,
+    locale,
   });
 
   // Precedence, least specific first: the template's own sibling files, then the configured

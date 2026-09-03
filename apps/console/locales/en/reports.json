@@ -1,0 +1,45 @@
+{
+  "chrome": {
+    "generated": "Generated",
+    "template": "template",
+    "no-rows": "No rows in this window."
+  },
+  "panel": {
+    "unavailable": "This panel’s data could not be loaded."
+  },
+  "column": {
+    "series": "Series",
+    "worst-bucket": "Worst bucket",
+    "total": "Total",
+    "share": "Share",
+    "name": "Name",
+    "value": "Value",
+    "model": "Model",
+    "p50": "p50",
+    "p95": "p95",
+    "p99": "p99",
+    "samples": "Samples"
+  },
+  "delta": {
+    "up": "up",
+    "down": "down"
+  },
+  "consumption": {
+    "title": "Consumption report",
+    "totals": "Totals",
+    "requests": "Requests",
+    "total-tokens": "Total tokens",
+    "cost": "Cost",
+    "by-project-model": "By project × model",
+    "total-row": "TOTAL",
+    "column": {
+      "project": "Project",
+      "model": "Model",
+      "requests": "Requests",
+      "prompt-tokens": "Prompt tokens",
+      "completion-tokens": "Completion tokens",
+      "total-tokens": "Total tokens",
+      "cost-usd": "Cost (USD)"
+    }
+  }
+}

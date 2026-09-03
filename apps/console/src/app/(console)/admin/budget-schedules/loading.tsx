@@ -5,6 +5,8 @@ import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metr
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { RESET_SCHEDULE_ENFORCEMENT_CAPTION } from '@lightbridge/ui-web/src/lib/reset-schedule';
 
+import { useTranslation } from '../../../../i18n/client';
+
 /**
  * `/admin/budget-schedules` centre loading skeleton. The route itself is `async` (`readSession()`
  * before the role gate), so this boundary also covers that real server-side latency, not just the
@@ -15,9 +17,13 @@ import { RESET_SCHEDULE_ENFORCEMENT_CAPTION } from '@lightbridge/ui-web/src/lib/
  * the first row appears, not after.
  */
 export default function AdminBudgetSchedulesLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Budget schedules" subtitle={RESET_SCHEDULE_ENFORCEMENT_CAPTION} />
+      <PageHeader
+        title={t('budget-schedules.title')}
+        subtitle={RESET_SCHEDULE_ENFORCEMENT_CAPTION}
+      />
 
       <Card>
         <SkeletonMetric width={280} />

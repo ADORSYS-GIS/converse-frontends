@@ -1,0 +1,63 @@
+{
+  "money": {
+    "of": "von"
+  },
+  "actions": {
+    "retry": "Erneut versuchen",
+    "close": "Schließen",
+    "rename": "Umbenennen",
+    "expand-panel": "{{title}} vergrößern",
+    "back-to-usage": "← Nutzung"
+  },
+  "pagination": {
+    "showing-of-total": "{{shown}} von {{total}} {{unit}} angezeigt",
+    "per-page": "{{shown}} von {{pageSize}} {{unit}} pro Seite",
+    "count": "{{shown}} {{unit}}",
+    "previous": "Zurück",
+    "next": "Weiter"
+  },
+  "state": {
+    "loading": "Wird geladen…",
+    "offline": "offline · zwischengespeicherte Daten",
+    "panel-failed": "Dieses Panel konnte nicht geladen werden.",
+    "access-unverified": "Berechtigungen konnten nicht geprüft werden — bitte erneut anmelden",
+    "truncated-buckets": "Angezeigt werden die jüngsten {{limit}} Zeitintervalle — ältere Intervalle in diesem Zeitraum wurden verworfen, um das Abfragelimit einzuhalten; die Summen hier liegen daher unter den tatsächlichen Periodensummen. Grenzen Sie den Zeitraum ein, um eine vollständige Auswertung zu erhalten.",
+    "truncated-table-paging": "Sortierung und Blättern unten laufen über die Zeilen, die diese Abfrage zurückgegeben hat, nicht über den gesamten Zeitraum: die Nutzungs-API kennt keinen Offset, die Seiten, die Sie hier durchblättern können, sind also Seiten der gekürzten Auswertung."
+  },
+  "range": {
+    "label": "Zeitraum",
+    "mtd": "Dieser Monat",
+    "7d": "Letzte 7 Tage",
+    "30d": "Letzte 30 Tage",
+    "90d": "Letzte 90 Tage"
+  },
+  "timezone": {
+    "utc": "UTC"
+  },
+  "language": {
+    "label": "Sprache",
+    "en": "English",
+    "de": "Deutsch",
+    "switch": "Sprache wechseln"
+  },
+  "dashboard": {
+    "unassigned": "Nicht zugeordnet",
+    "delta": {
+      "new-this-period": "neu in dieser Periode",
+      "no-change": "keine Änderung",
+      "no-change-vs": "keine Änderung {{window}}",
+      "percent-vs": "{{percent}} % {{window}}"
+    },
+    "comparison": {
+      "weekly": "gegenüber der Vorwoche",
+      "monthly": "gegenüber dem Vormonat"
+    },
+    "previous-period": "Vorperiode"
+  },
+  "export": {
+    "include-tables": "Tabellen einschließen",
+    "failed": "Der Bericht konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "action": "Exportieren",
+    "dialog-title": "Export · {{title}}"
+  }
+}

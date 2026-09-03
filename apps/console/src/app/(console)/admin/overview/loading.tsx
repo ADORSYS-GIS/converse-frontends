@@ -1,9 +1,13 @@
+'use client';
+
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
 import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { EstateBudgetPressure } from '@lightbridge/ui-web/src/sections/estate-budget-pressure';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+
+import { useTranslation } from '../../../../i18n/client';
 
 /**
  * `/admin/overview` centre — the App Router `loading.tsx` Suspense fallback (the route carries
@@ -20,9 +24,10 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
  * real geometry, so the layout does not jump when the document lands.
  */
 export default function AdminOverviewLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" subtitle="loading estate…" />
+      <PageHeader title={t('overview.title')} subtitle={t('overview.loading')} />
 
       <DashboardGrid>
         <Card data-span="2">

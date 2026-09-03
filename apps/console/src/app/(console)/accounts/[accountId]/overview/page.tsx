@@ -16,6 +16,6 @@ export const ACCOUNT_OVERVIEW_ROUTE = '/accounts/[accountId]/overview';
  * deployment can add or remove a panel without a rebuild — owner ruling Q11) and fail-loud by
  * contract.
  */
-export default function OverviewRoute() {
-  return <OverviewCentre page={dashboardPage(ACCOUNT_OVERVIEW_ROUTE)} />;
+export default async function OverviewRoute() {
+  return <OverviewCentre page={await dashboardPage(ACCOUNT_OVERVIEW_ROUTE)} />;
 }

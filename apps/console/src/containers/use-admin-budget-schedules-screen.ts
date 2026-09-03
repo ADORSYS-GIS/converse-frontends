@@ -25,6 +25,7 @@ import {
   toPreviewEntries,
   type BudgetScheduleRow,
 } from './budget-schedule-rows';
+import { useTranslation } from '../i18n/client';
 
 /**
  * `/admin/budget-schedules` — the list screen's data adapter (converse-frontends#451, story C8;
@@ -128,6 +129,7 @@ export const NO_SCHEDULES_MESSAGE =
   'its last grant left — nothing resets on its own.';
 
 export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
+  const { t } = useTranslation('admin');
   const budgetClient = useConsoleBudgetClient();
   // `resolveActorLabels` is a `crud`-scope procedure (`authz.cstack`), so it goes to the authz
   // client, not the budget one — the two proxies have different base paths.
@@ -310,7 +312,9 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
 
     preview: {
       scheduleId: previewScheduleId,
-      title: previewRow ? `Preview — ${previewRow.name}` : 'Preview',
+      title: previewRow
+        ? t('budget-schedules.preview.title', { name: previewRow.name })
+        : t('budget-schedules.preview.fallback-title'),
       subtitle: previewRow?.cadence ?? '',
       // Absolute here, relative in the list: this sheet is the last screen before an estate-wide
       // grant, and "in 6 h" is not the same answer as the instant it will actually fire on.

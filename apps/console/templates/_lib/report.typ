@@ -12,6 +12,13 @@
 // library is sent with every render job as the asset `_lib/report.typ`, so the import resolves
 // inside the service's per-request sandbox.
 //
+// LANGUAGE: a template renders, the console translates. Typst has no i18n runtime and this file
+// can read nothing but `data.json`, so every word printed on the DOCUMENT's own behalf — not the
+// data's — arrives pre-translated in `report.labels` (`generated`, `template`, `noRows`), resolved
+// server-side against the reader's own locale (ADR 0017, `src/server/reports/report-data.ts`).
+// An operator's own override gets translated chrome for free: it reads `report.labels.generated`
+// exactly as this file does, without having to know a locale exists.
+//
 // WHAT A TEMPLATE MAY DECIDE: document chrome — the header, the order of the sections, which
 // captions to print, page size, fonts. That is the whole of it. It cannot decide which panels
 // exist or what they queried: `report.panels` arrives already resolved, already queried, already
@@ -96,7 +103,7 @@
       #v(2pt)
       #grid(
         columns: (1fr, auto),
-        align(left)[#report.route · template: #report.template.origin],
+        align(left)[#report.route · #report.labels.template: #report.template.origin],
         align(right)[#counter(page).display("1 / 1", both: true)],
       )
     ],
@@ -121,7 +128,7 @@
       ]
     }
     linebreak()
-    text(size: 8.5pt, fill: subtle)[Generated #utc-stamp(report.generatedAt)]
+    text(size: 8.5pt, fill: subtle)[#report.labels.generated #utc-stamp(report.generatedAt)]
   }
 
   if has-brand-mark(report) {
@@ -198,9 +205,9 @@
 // its cells reads as a quantity. `docs/design/console-redesign/README.md` §2.2 — "numeric columns
 // are right-aligned; the digits line up as a ledger" — and a right-aligned MODEL column, which is
 // what a fixed "first column left, rest right" rule produces, is not that.
-#let table-from-rows(t) = {
+#let table-from-rows(report, t) = {
   if t.rows.len() == 0 {
-    return text(size: 8pt, fill: subtle)[No rows in this window.]
+    return text(size: 8pt, fill: subtle)[#report.labels.noRows]
   }
   let numeric = range(t.columns.len()).map(col => t.rows.all(row => quantity-cell(row.at(col))))
   table(
@@ -263,7 +270,7 @@
     if "stats" in p and p.stats != none { stat-grid(p.stats) }
     if report.includeTables and "table" in p and p.table != none {
       if "chart" in p and p.chart != none { v(6pt) }
-      table-from-rows(p.table)
+      table-from-rows(report, p.table)
     }
   }
 }

@@ -6,6 +6,17 @@ import { parse as parseYaml } from 'yaml';
 import { findPage, parseDashboardsFile } from './dashboard-spec';
 import type { DashboardPageSpec } from './dashboard-spec';
 import { resolveDashboard } from './resolve-dashboard';
+import { englishT } from '../test/english-t';
+import { translateDashboardPage } from './page-entry';
+
+/**
+ * ADR 0017: `dashboards.yaml` carries i18n KEYS for `title`/`subtitle`/`rowLabel`/`unit`, and the
+ * engine resolves them per request. These assertions are about the COPY a reader sees, so they run
+ * the same resolver the server does, bound to English — which makes each of them a check on two
+ * things at once: that the panel still says what it used to say, and that its key still exists in
+ * `locales/en/dashboards.json`.
+ */
+const T = englishT('dashboards');
 
 /**
  * The five page entries C12 (converse-frontends#455) migrated, asserted against what the
@@ -36,7 +47,7 @@ function pageFor(route: string): DashboardPageSpec {
   );
   const page = findPage(file, route);
   if (!page) throw new Error(`dashboards.yaml has no "${route}" entry`);
-  return page;
+  return translateDashboardPage(page, T);
 }
 
 /** A 28-day window — long enough that the one-week comparison floor never widens it, so the

@@ -4,6 +4,8 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import { useTranslation } from '../../../../i18n/client';
+
 /**
  * `/admin/refill-policies` centre loading skeleton. The route itself is `async`
  * (`readSession()` before the role gate), so this boundary also covers that real server-side
@@ -18,15 +20,16 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
  * loading.tsx` — so it is no longer one of the modes this skeleton needs to cover.
  */
 export default function AdminRefillPoliciesLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Refill policies" subtitle="loading…" />
+      <PageHeader title={t('refill-policies.title')} subtitle={t('refill-policies.loading')} />
 
       <Card>
         <SkeletonMetric width={240} />
       </Card>
 
-      <Card title="Your current ladder">
+      <Card title={t('refill-policies.ladder-title')}>
         <SkeletonMetric width={160} />
       </Card>
 

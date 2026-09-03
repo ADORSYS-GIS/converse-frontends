@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { aggregateConsumptionRows, consumptionCsvLines } from '../consumption-csv';
 import type { UsageSeriesPoint } from '../consumption-csv';
 import { buildConsumptionReport } from './consumption-report';
+import { englishT } from '../../test/english-t';
 
 /**
  * The migration's regression check (converse-frontends#453): "the same figures appear — a
@@ -39,6 +40,7 @@ const ROWS = aggregateConsumptionRows([
 
 function report() {
   return buildConsumptionReport({
+    t: englishT('reports'),
     rows: ROWS,
     month: '2026-02',
     accountId: 'acc_123',
@@ -95,6 +97,7 @@ describe('buildConsumptionReport', () => {
 
   it('renders a month with no usage as genuine zeroes, not a missing table', () => {
     const empty = buildConsumptionReport({
+      t: englishT('reports'),
       rows: [],
       month: '2026-02',
       accountId: 'acc_123',

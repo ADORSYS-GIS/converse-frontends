@@ -64,7 +64,19 @@ export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
 
 // ── data display
-export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
+export {
+  USD_DISPLAY_FLOOR,
+  formatUsd,
+  formatUsdAxis,
+  formatUsdOf,
+  getMoneyLocale,
+  setMoneyLocale,
+} from './lib/money';
+export type { MoneyLocale } from './lib/money';
+// ADR 0017 — the ui-web copy contract. English defaults; a consumer with an i18n runtime mounts
+// `CopyProvider` to override them.
+export { CopyProvider, DEFAULT_UI_COPY, fillCopy, useCopy } from './lib/copy';
+export type { UiCopy } from './lib/copy';
 export { formatMs, formatMsAxis } from './lib/duration';
 export { dollarsToMicros, microsToDollars, parseNonNegativeInt } from './lib/parse-amount';
 export { StatCard } from './components/stat-card';

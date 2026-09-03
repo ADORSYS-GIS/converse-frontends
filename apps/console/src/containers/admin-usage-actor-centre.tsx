@@ -19,7 +19,9 @@ import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { ADMIN_USAGE_ROUTE, type AdminUsageActorType } from '../dashboards/usage-routes';
-import { RANGE_DAYS, RANGE_LABELS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useActorBudget } from './use-actor-budget';
 
 /**
@@ -48,19 +50,6 @@ import { useActorBudget } from './use-actor-budget';
  * (converse-frontends#448).
  */
 
-const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
-}));
-
-/** What a `?type=` reads as in the header's own kicker line. */
-const TYPE_NOUN: Record<AdminUsageActorType, string> = {
-  user: 'User',
-  account: 'Account',
-  project: 'Project',
-};
-
 export interface AdminUsageActorCentreProps {
   /** The validated `/admin/usage/actors/[actorId]` entry, read from `dashboards.yaml` by the
    *  route's server component (the loader is `node:fs`). */
@@ -72,6 +61,12 @@ export interface AdminUsageActorCentreProps {
 }
 
 export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCentreProps) {
+  const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
+  // What a `?type=` reads as in the header's own kicker line, and — lowercased — in the
+  // "no profile resolved" line below.
+  const typeNoun = t(`usage.actor.type.${type}`);
   const [view, setView] = useAdminUsageActorParams();
 
   const window = useMemo(
@@ -104,7 +99,7 @@ export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCe
   // The resolved identity, from the page's own batch. `labelFor` falls back to `sentinelLabel`
   // while the lookup is in flight and after it fails, so this is never blank and never invented.
   const identity = dashboard.labelFor(type, actorId);
-  const subtitle = [TYPE_NOUN[type], identity.secondary, RANGE_LABELS[view.range], 'UTC']
+  const subtitle = [typeNoun, identity.secondary, labels[view.range], tCommon('timezone.utc')]
     .filter(Boolean)
     .join(' · ');
 
@@ -115,8 +110,8 @@ export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCe
         subtitle={subtitle}
         controls={
           <DateRangeField
-            label="Range"
-            presets={RANGE_PRESETS}
+            label={tCommon('range.label')}
+            presets={rangePresets(tCommon)}
             preset={view.from && view.to ? null : view.range}
             value={{ from: window.start, to: window.end }}
             onPresetChange={(range) => {
@@ -139,13 +134,13 @@ export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCe
               size="sm"
               nativeButton={false}
               render={<Link href={ADMIN_USAGE_ROUTE} />}>
-              ← Usage
+              {tCommon('actions.back-to-usage')}
             </Button>
             <DashboardExportButton
               route={page.route}
               title={identity.label}
               range={view.range}
-              rangeLabel={RANGE_LABELS[view.range]}
+              rangeLabel={labels[view.range]}
               window={window}
               from={view.from}
               to={view.to}
@@ -160,7 +155,7 @@ export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCe
           about the identity data. */}
       {identity.subtle ? (
         <InlineStatus>
-          {`No profile resolved for this ${TYPE_NOUN[type].toLowerCase()} id — the spend, request and token figures below are still this id's own.`}
+          {t('usage.actor.unresolved', { type: typeNoun.toLocaleLowerCase() })}
         </InlineStatus>
       ) : null}
 
@@ -177,7 +172,7 @@ export function AdminUsageActorCentre({ page, actorId, type }: AdminUsageActorCe
         <DashboardGrid>
           <Card data-span="2">
             <BudgetPanel
-              label="Budget & next reset"
+              label={t('usage.actor.budget-label')}
               budget={budget.budget}
               nextReset={budget.nextReset}
             />

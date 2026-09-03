@@ -9,13 +9,16 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import { ADMIN_USAGE_LENSES, OVERVIEW_RANGES, useAdminUsageParams } from '../client/url-state';
 import type { AdminUsageLens } from '../client/url-state';
+import type { Translate } from '../i18n/config';
 import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
+import { useTranslation } from '../i18n/client';
 import { AdminUsageSubNav } from './admin-usage-sub-nav';
-import { RANGE_DAYS, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { rangeLabels, rangePresets } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
@@ -53,24 +56,13 @@ import { useAdminEstateOperations } from './use-admin-estate-operations';
  * `AdminUsageSubNav`'s own doc comment.
  */
 
-const RANGE_LABELS: Record<(typeof OVERVIEW_RANGES)[number], string> = {
-  mtd: 'This month',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-};
-
-const RANGE_PRESETS: DateRangePreset[] = OVERVIEW_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-  days: value === 'mtd' ? 'mtd' : RANGE_DAYS[value],
-}));
-
-/** The lens control's own wording — "Users", not "user_id". Ordered by the constant, so User leads. */
-const LENS_OPTIONS = ADMIN_USAGE_LENSES.map((value) => ({
-  value,
-  label: { user: 'Users', account: 'Accounts', project: 'Projects' }[value],
-}));
+/** The lens control's own wording — "Users", not "user_id". Ordered by the constant, so User
+ *  leads. Built per render from the `admin` namespace (ADR 0017) rather than declared at module
+ *  scope, for the same reason `rangePresets` is: a label is copy, and a module constant is resolved
+ *  before any request has a locale. */
+function lensOptions(t: Translate) {
+  return ADMIN_USAGE_LENSES.map((value) => ({ value, label: t(`usage.lens.${value}`) }));
+}
 
 export interface AdminUsageCentreProps {
   /** The validated `/admin/usage` entry, read from `dashboards.yaml` by the route's server
@@ -80,6 +72,9 @@ export interface AdminUsageCentreProps {
 }
 
 export function AdminUsageCentre({ page }: AdminUsageCentreProps) {
+  const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const [view, setView] = useAdminUsageParams();
   // Only for the comparison cadence the two `compare: true` totals measure against (D-F, owner
   // Q8). This page draws neither of that hook's zones — an estate usage page is not a budget page.
@@ -114,13 +109,16 @@ export function AdminUsageCentre({ page }: AdminUsageCentreProps) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Usage"
-        subtitle={`Operator · Every account with usage · ${RANGE_LABELS[view.range]} · UTC`}
+        title={t('usage.title')}
+        subtitle={t('usage.subtitle', {
+          range: labels[view.range],
+          timezone: tCommon('timezone.utc'),
+        })}
         controls={
           <div className="flex flex-wrap items-center gap-3">
             <SegmentedControl
-              aria-label="Actor lens"
-              options={LENS_OPTIONS}
+              aria-label={t('usage.lens.label')}
+              options={lensOptions(t)}
               value={view.lens}
               onChange={(lens) => {
                 // Changing the lens invalidates every table's page cursor for the same reason a
@@ -130,8 +128,8 @@ export function AdminUsageCentre({ page }: AdminUsageCentreProps) {
               }}
             />
             <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
+              label={tCommon('range.label')}
+              presets={rangePresets(tCommon)}
               preset={view.from && view.to ? null : view.range}
               value={{ from: window.start, to: window.end }}
               onPresetChange={(range) => {
@@ -152,9 +150,9 @@ export function AdminUsageCentre({ page }: AdminUsageCentreProps) {
         action={
           <DashboardExportButton
             route={page.route}
-            title="Usage"
+            title={t('usage.title')}
             range={view.range}
-            rangeLabel={RANGE_LABELS[view.range]}
+            rangeLabel={labels[view.range]}
             window={window}
             from={view.from}
             to={view.to}

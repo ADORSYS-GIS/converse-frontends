@@ -13,6 +13,6 @@ export const SETTINGS_OVERVIEW_USAGE_ROUTE = '/settings/overview/usage';
  * identity's own account family, capped and captioned by the container. See
  * `usage-overview-centre.tsx` for why that is not `scope: all`.
  */
-export default function SettingsOverviewUsageRoute() {
-  return <UsageOverviewCentre page={dashboardPage(SETTINGS_OVERVIEW_USAGE_ROUTE)} />;
+export default async function SettingsOverviewUsageRoute() {
+  return <UsageOverviewCentre page={await dashboardPage(SETTINGS_OVERVIEW_USAGE_ROUTE)} />;
 }

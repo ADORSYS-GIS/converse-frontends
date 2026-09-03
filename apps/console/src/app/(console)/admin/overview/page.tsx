@@ -39,5 +39,5 @@ export default async function AdminOverviewRoute() {
     notFound();
   }
 
-  return <AdminOverviewCentre page={dashboardPage(ADMIN_OVERVIEW_ROUTE)} />;
+  return <AdminOverviewCentre page={await dashboardPage(ADMIN_OVERVIEW_ROUTE)} />;
 }

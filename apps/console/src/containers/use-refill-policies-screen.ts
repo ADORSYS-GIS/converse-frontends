@@ -36,6 +36,7 @@ import {
   sortedAllowedAmountsMicros,
   useBudgetRefillLadder,
 } from './use-budget-refill';
+import { useTranslation } from '../i18n/client';
 
 /**
  * `/admin/refill-policies` (owner ruling, verbatim: "Refill options are for admins only. Not
@@ -154,6 +155,7 @@ export interface AdminRefillPoliciesScreen {
 }
 
 export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
+  const { t } = useTranslation('admin');
   const scope = useConsoleScope();
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
@@ -288,13 +290,13 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   } else if (ladderQuery.error) {
     ladder = {
       status: 'error',
-      errorMessage: 'Could not load the refill policy.',
+      errorMessage: t('refill-policies.ladder-load-failed'),
       onRetry: ladderQuery.refetch,
     };
   } else if (sortedAmounts.length === 0) {
     ladder = {
       status: 'empty',
-      caption: 'The active refill policy currently offers no amount for this account.',
+      caption: t('refill-policies.ladder-no-amount'),
     };
   } else {
     ladder = {

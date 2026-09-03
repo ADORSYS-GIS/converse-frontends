@@ -43,6 +43,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
+import { useTranslation } from '../i18n/client';
+import type { Translate } from '../i18n/config';
+import { LocaleSwitcher } from '../i18n/locale-switcher';
 import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
@@ -233,24 +236,25 @@ const NAV_ICON: Record<'overview' | 'keys' | 'settings' | 'admin', React.ReactNo
 export function navGroups(
   active: ConsoleRoute,
   accountId: string,
-  permissions: readonly string[]
+  permissions: readonly string[],
+  t: Translate
 ): NavGroup[] {
   const hrefs = navHrefs(accountId);
   return [
     {
       key: 'workspace',
-      label: 'Workspace',
+      label: t('group.workspace'),
       items: [
         {
           key: 'overview',
-          label: 'Overview',
+          label: t('item.overview'),
           href: hrefs.overview,
           icon: NAV_ICON.overview,
           active: active === 'overview',
         },
         {
           key: 'api-keys',
-          label: 'API keys',
+          label: t('item.api-keys'),
           href: hrefs['api-keys'],
           icon: NAV_ICON.keys,
           active: active === 'api-keys',
@@ -259,11 +263,11 @@ export function navGroups(
     },
     {
       key: 'account',
-      label: 'Account',
+      label: t('group.account'),
       items: [
         {
           key: 'settings',
-          label: 'Settings',
+          label: t('item.settings'),
           href: hrefs.settings,
           icon: NAV_ICON.settings,
           active: active === 'settings',
@@ -279,11 +283,11 @@ export function navGroups(
       ? [
           {
             key: 'operator',
-            label: 'Operator',
+            label: t('group.operator'),
             items: [
               {
                 key: 'admin',
-                label: 'Admin',
+                label: t('item.admin'),
                 href: adminLandingHref(permissions),
                 icon: NAV_ICON.admin,
                 // Never `active`: once the visitor is actually on `/admin/*`,
@@ -384,19 +388,20 @@ const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
  */
 export function settingsNavGroups(
   active: SettingsRoute,
-  permissions: readonly string[]
+  permissions: readonly string[],
+  t: Translate
 ): NavGroup[] {
   const items: NavGroup['items'] = [
     {
       key: 'overview',
-      label: 'Overview',
+      label: t('item.overview'),
       href: '/settings/overview',
       icon: SETTINGS_NAV_ICON.overview,
       active: active === 'overview',
     },
     {
       key: 'accounts',
-      label: 'Accounts',
+      label: t('item.accounts'),
       href: '/settings/accounts',
       icon: SETTINGS_NAV_ICON.accounts,
       active: active === 'accounts',
@@ -411,7 +416,7 @@ export function settingsNavGroups(
       ? [
           {
             key: 'tiers',
-            label: 'Tier configs',
+            label: t('item.tiers'),
             href: '/settings/tiers',
             icon: SETTINGS_NAV_ICON.tiers,
             active: active === 'tiers',
@@ -420,14 +425,14 @@ export function settingsNavGroups(
       : []),
     {
       key: 'policies',
-      label: 'Project policies',
+      label: t('item.policies'),
       href: '/settings/policies',
       icon: SETTINGS_NAV_ICON.policies,
       active: active === 'policies',
     },
     {
       key: 'info',
-      label: 'Info',
+      label: t('item.info'),
       href: '/settings/info',
       icon: SETTINGS_NAV_ICON.info,
       active: active === 'info',
@@ -497,35 +502,42 @@ export function adminRouteFromPathname(pathname: string): AdminRoute {
  */
 const ADMIN_DESTINATIONS: readonly {
   route: AdminRoute;
-  label: string;
+  /** A `nav` namespace KEY, never a literal (ADR 0017). This table feeds the rail AND the command
+   *  palette, so a literal here would be one English string with two renderers. */
+  labelKey: string;
   href: string;
   permission: (typeof PERMISSION)[keyof typeof PERMISSION];
 }[] = [
   {
     route: 'overview',
-    label: 'Overview',
+    labelKey: 'item.overview',
     href: '/admin/overview',
     permission: PERMISSION.usageReadAll,
   },
   // The estate usage surface reads `scope: 'all'`, the same query the dashboard fires, so it needs
   // the same permission — one grant, two destinations, which is exactly why the table is keyed on
   // the permission rather than on the row.
-  { route: 'usage', label: 'Usage', href: '/admin/usage', permission: PERMISSION.usageReadAll },
+  {
+    route: 'usage',
+    labelKey: 'item.usage',
+    href: '/admin/usage',
+    permission: PERMISSION.usageReadAll,
+  },
   {
     route: 'refills-queue',
-    label: 'Refills queue',
+    labelKey: 'item.refills-queue',
     href: '/admin/refills-queue',
     permission: PERMISSION.budgetReview,
   },
   {
     route: 'refill-policies',
-    label: 'Refill policies',
+    labelKey: 'item.refill-policies',
     href: '/admin/refill-policies',
     permission: PERMISSION.budgetPolicyWrite,
   },
   {
     route: 'budget-schedules',
-    label: 'Budget schedules',
+    labelKey: 'item.budget-schedules',
     href: '/admin/budget-schedules',
     permission: PERMISSION.budgetScheduleManage,
   },
@@ -534,11 +546,16 @@ const ADMIN_DESTINATIONS: readonly {
   // this screen and see their own two rows, which is not what an operator ledger is for.
   {
     route: 'sessions',
-    label: 'Sessions',
+    labelKey: 'item.sessions',
     href: '/admin/sessions',
     permission: PERMISSION.sessionRead,
   },
-  { route: 'roles', label: 'Roles', href: '/admin/roles', permission: PERMISSION.rbacManage },
+  {
+    route: 'roles',
+    labelKey: 'item.roles',
+    href: '/admin/roles',
+    permission: PERMISSION.rbacManage,
+  },
 ];
 
 /**
@@ -602,13 +619,14 @@ const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
 export function adminNavGroups(
   active: AdminRoute,
   permissions: readonly string[],
+  t: Translate,
   refillCount?: number
 ): NavGroup[] {
   const items = ADMIN_DESTINATIONS.filter((destination) =>
     hasPermission(permissions, destination.permission)
   ).map((destination) => ({
     key: destination.route,
-    label: destination.label,
+    label: t(destination.labelKey),
     href: destination.href,
     icon: ADMIN_NAV_ICON[destination.route],
     active: active === destination.route,
@@ -679,12 +697,10 @@ export function initialsFor(
 // accessible name) -- `display: none` on the hidden one is belt-and-suspenders on top of that, not
 // what makes it unannounced.
 export function BrandMark({ hasLogo, hasLogoLight }: { hasLogo: boolean; hasLogoLight?: boolean }) {
+  const { t } = useTranslation('nav');
   const bothConfigured = hasLogo && hasLogoLight;
   return (
-    <Link
-      href="/"
-      aria-label="Lightbridge — go to console home"
-      className="header-brand focus-ring">
+    <Link href="/" aria-label={t('brand.home')} className="header-brand focus-ring">
       {hasLogo ? (
         bothConfigured ? (
           <>
@@ -787,6 +803,9 @@ function useWorkspaceSwitcher() {
 export function useConsolePalette() {
   const router = useRouter();
   const pathname = usePathname();
+  // The palette is one of the two nav surfaces (the rail is the other) and reads the SAME `nav`
+  // namespace, so a destination cannot be named one thing in the rail and another here.
+  const { t } = useTranslation('nav');
   // The permission ARRAY, not `useCan()`'s object: the array comes straight off the session
   // context and is referentially stable across renders, whereas the hook's returned object is a
   // fresh memo the React Compiler cannot see through — depending on it here makes the compiler
@@ -809,13 +828,21 @@ export function useConsolePalette() {
 
   const groups: CommandPaletteGroup[] = useMemo(() => {
     const navigate: CommandPaletteItem[] = [
-      { key: 'overview', label: 'Overview', onSelect: () => router.push(hrefs.overview) },
-      { key: 'api-keys', label: 'API keys', onSelect: () => router.push(hrefs['api-keys']) },
+      { key: 'overview', label: t('item.overview'), onSelect: () => router.push(hrefs.overview) },
+      {
+        key: 'api-keys',
+        label: t('item.api-keys'),
+        onSelect: () => router.push(hrefs['api-keys']),
+      },
       // IA v3 phase E: Projects moved to `/settings/accounts/<id>/projects` — not account-scoped
       // by this table any more (see `navHrefs`'s own doc comment), so the palette entry points at
       // the settings area's own "Accounts" list instead of a per-account projects href.
-      { key: 'accounts', label: 'Accounts', onSelect: () => router.push('/settings/accounts') },
-      { key: 'settings', label: 'Settings', onSelect: () => router.push(hrefs.settings) },
+      {
+        key: 'accounts',
+        label: t('item.accounts'),
+        onSelect: () => router.push('/settings/accounts'),
+      },
+      { key: 'settings', label: t('item.settings'), onSelect: () => router.push(hrefs.settings) },
     ];
     // ADR 0013's same-day "the admin area" amendment gave each admin destination its own palette
     // entry rather than one lumped "Admin" row — the same "one entry per real destination" split
@@ -838,8 +865,9 @@ export function useConsolePalette() {
         hasPermission(permissions, destination.permission)
       ).map((destination) => ({
         key: destination.route,
-        label: destination.route === 'overview' ? 'Admin overview' : destination.label,
-        hint: 'ROLE',
+        label:
+          destination.route === 'overview' ? t('palette.admin-overview') : t(destination.labelKey),
+        hint: t('palette.role-hint'),
         onSelect: () => router.push(destination.href),
       }))
     );
@@ -869,15 +897,17 @@ export function useConsolePalette() {
     // empty-placeholder pattern the console-ui skill bans for the inspector rail; the palette
     // gets the same treatment, omit the group entirely rather than render it hollow.
     return [
-      { key: 'navigate', heading: 'Navigate', items: navigate },
-      ...(scopeItems.length > 0 ? [{ key: 'scope', heading: 'Scope', items: scopeItems }] : []),
+      { key: 'navigate', heading: t('palette.navigate'), items: navigate },
+      ...(scopeItems.length > 0
+        ? [{ key: 'scope', heading: t('palette.scope'), items: scopeItems }]
+        : []),
       {
         key: 'actions',
-        heading: 'Actions',
-        items: [{ key: 'sign-out', label: 'Sign out', onSelect: signOut }],
+        heading: t('palette.actions'),
+        items: [{ key: 'sign-out', label: t('palette.sign-out'), onSelect: signOut }],
       },
     ];
-  }, [router, permissions, hrefs, pathname, scope.allAccounts, scope.value.accountId]);
+  }, [router, permissions, hrefs, pathname, scope.allAccounts, scope.value.accountId, t]);
 
   return { open, setOpen, groups };
 }
@@ -950,12 +980,13 @@ function useOperatorRefillCount(canReviewRefills: boolean): number | undefined {
  * approach `console-sidebar/geometry.test.ts` uses for the same reason (jsdom drops `@layer`).
  */
 export function BackToConsoleRow({ accountId }: { accountId: string }) {
+  const { t } = useTranslation('nav');
   return (
     <Link href={navHrefs(accountId).overview} className="sidebar-footer-row">
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
         <BackIcon />
       </span>
-      <span className="text-soft font-sans text-[13px]">Back to console</span>
+      <span className="text-soft font-sans text-[13px]">{t('footer.back-to-console')}</span>
     </Link>
   );
 }
@@ -964,17 +995,20 @@ export function BackToConsoleRow({ accountId }: { accountId: string }) {
  *  (`ConsoleTopBar`'s doc comment — a pure layout band, no row chrome of its own), so this is the
  *  same swap as `BackToConsoleRow` above without that row's block-level padding. */
 function BackToConsoleCompact({ accountId }: { accountId: string }) {
+  const { t } = useTranslation('nav');
   return (
     <Link
       href={navHrefs(accountId).overview}
       className="text-soft focus-ring font-sans text-[13px]">
-      ← Back to console
+      {`← ${t('footer.back-to-console')}`}
     </Link>
   );
 }
 
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
+  const { t } = useTranslation('nav');
+  const { t: tCommon } = useTranslation('common');
   const session = useConsoleSession();
   const access = useCan();
   const branding = useConsoleBranding();
@@ -1028,10 +1062,10 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
       }
       groups={
         showAdminChrome
-          ? adminNavGroups(adminRoute, access.permissions, refillCount)
+          ? adminNavGroups(adminRoute, access.permissions, t, refillCount)
           : area === 'settings'
-            ? settingsNavGroups(settingsRoute, access.permissions)
-            : navGroups(route, switcher.accountId, access.permissions)
+            ? settingsNavGroups(settingsRoute, access.permissions, t)
+            : navGroups(route, switcher.accountId, access.permissions, t)
       }
       linkComponent={Link}
       footer={
@@ -1043,7 +1077,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
               <SearchIcon />
             </span>
-            <span className="text-subtle font-sans text-[13px]">Search</span>
+            <span className="text-subtle font-sans text-[13px]">{t('footer.search')}</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
           {/* Standalone Theme row IS BACK (owner finding, 2026-08-31: "I don't see the usage,
@@ -1059,12 +1093,23 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               too. */}
           <div className="sidebar-footer-row">
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-            <span className="text-subtle font-sans text-[13px]">Theme</span>
+            <span className="text-subtle font-sans text-[13px]">{t('footer.theme')}</span>
             <ThemeToggle
               preference={preference}
               onPreferenceChange={setPreference}
               className="ml-auto"
             />
+          </div>
+          {/* Language, directly under Theme (ADR 0017). The owner's own 2026-08-31 ruling on the
+              theme control — "I don't see the usage, for the theme to be hidden behind the account
+              dropdown. Please put it outside" — applies verbatim to a second preference of exactly
+              the same kind: a language switcher buried behind a trigger is one nobody finds when
+              they need it, which for a language switcher is precisely the moment they cannot read
+              the trigger either. Same row anatomy as Theme, same trailing-control slot. */}
+          <div className="sidebar-footer-row">
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+            <span className="text-subtle font-sans text-[13px]">{tCommon('language.label')}</span>
+            <LocaleSwitcher className="ml-auto" />
           </div>
           {online ? null : (
             <div className="sidebar-footer-row">
@@ -1072,7 +1117,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
                   the same 16px column every other footer/nav row's glyph sits in, so its text
                   starts at the one shared label x rather than flush at the row's own padding. */}
               <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-              <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
+              <InlineStatus className="text-subtle">{tCommon('state.offline')}</InlineStatus>
             </div>
           )}
           {/* converse-frontends#452, negative AC 1: `getMyAccess` could not be reached while this
@@ -1088,7 +1133,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <div className="sidebar-footer-row">
               <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
               <InlineStatus className="text-subtle">
-                Access could not be verified — retry sign-in
+                {tCommon('state.access-unverified')}
               </InlineStatus>
             </div>
           )}
@@ -1114,7 +1159,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               type="button"
               variant="ghost"
               size="icon"
-              aria-label="Sign out"
+              aria-label={t('footer.sign-out')}
               onClick={signOut}
               className="ml-auto">
               <SignOutIcon />

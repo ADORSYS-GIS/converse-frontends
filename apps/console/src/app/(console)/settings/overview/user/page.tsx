@@ -12,6 +12,8 @@ export const SETTINGS_OVERVIEW_USER_ROUTE = '/settings/overview/user';
  * token subject — no admin bypass, no user picker — so this lens's `$sub` placeholder can never
  * resolve to anyone else's id.
  */
-export default function SettingsOverviewUserRoute() {
-  return <SettingsOverviewCentre lens="user" page={dashboardPage(SETTINGS_OVERVIEW_USER_ROUTE)} />;
+export default async function SettingsOverviewUserRoute() {
+  return (
+    <SettingsOverviewCentre lens="user" page={await dashboardPage(SETTINGS_OVERVIEW_USER_ROUTE)} />
+  );
 }

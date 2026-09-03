@@ -1,13 +1,16 @@
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import {
-  RANGE_LABELS,
+  isOverviewRange,
+  rangeLabels,
   resolveOverviewWindow,
   type OverviewRange,
 } from '../../containers/overview-usage';
+import type { Translate } from '../../i18n/config';
 import { loadDashboards } from '../../dashboards/load-dashboards';
 import { FAMILY_SCOPE, findPage, type DashboardPageSpec } from '../../dashboards/dashboard-spec';
 import { resolveDashboard, type ResolvedDashboard } from '../../dashboards/resolve-dashboard';
+import { translateDashboardPage } from '../../dashboards/page-entry';
 import { assertSafeRouteSegments } from './template-resolver';
 import type { ReportBranding } from './report-branding';
 import { buildReport, type BuiltReport } from './report-data';
@@ -103,16 +106,19 @@ export function reportSlug(route: string, filters: Record<string, string | undef
 /**
  * `range` from the URL, defaulted the same way every dashboard page defaults it (`mtd`).
  *
- * Validated against `RANGE_LABELS`' own keys — `overview-usage.ts`, a pure module — rather than
- * against `client/url-state.ts`'s `OVERVIEW_RANGES`. The two lists are the same vocabulary (that
- * file's `Record<OverviewRange, string>` type makes the compiler say so), but `url-state.ts` pulls
- * `nuqs` in, and a Route Handler that imports it does not get a plain array back: the built
- * standalone server threw `OVERVIEW_RANGES.includes is not a function` on the first real request.
- * Found by running the real `next build` output, not by any unit test — every test here imports
- * the module directly, where it is an ordinary array.
+ * Validated by `isOverviewRange` — `overview-usage.ts`, a pure module — rather than against
+ * `client/url-state.ts`'s `OVERVIEW_RANGES`. The two lists are the same vocabulary, but
+ * `url-state.ts` pulls `nuqs` in, and a Route Handler that imports it does not get a plain array
+ * back: the built standalone server threw `OVERVIEW_RANGES.includes is not a function` on the
+ * first real request. Found by running the real `next build` output, not by any unit test — every
+ * test here imports the module directly, where it is an ordinary array.
+ *
+ * The check is deliberately against the KEY vocabulary, never against the translated labels
+ * (ADR 0017): a `?range=7d` link must parse identically for every reader, whatever language the
+ * report comes out in.
  */
 export function parseRange(raw: string | null): OverviewRange {
-  return raw !== null && Object.hasOwn(RANGE_LABELS, raw) ? (raw as OverviewRange) : 'mtd';
+  return isOverviewRange(raw) ? raw : 'mtd';
 }
 
 export interface ResolvePageReportInput {
@@ -124,6 +130,17 @@ export interface ResolvePageReportInput {
   /** Reads any other query param by name — the page's own declared filters. */
   param: (name: string) => string | null;
   now: Date;
+  /**
+   * The `common` namespace bound to the REQUEST's locale (ADR 0017) — the report's range label is
+   * copy, and a report is read by a person, so it comes out in their language. The route resolves
+   * it with `getServerTranslation` before calling; there is no ambient default here on purpose,
+   * because a Route Handler serves concurrent requests and a module-level locale would leak one
+   * reader's language into another's document.
+   */
+  t: Translate;
+  /** The `dashboards` namespace, same request, same locale — panel titles and subtitles are i18n
+   *  keys in `dashboards.yaml` and are resolved here so the document carries finished copy. */
+  tDashboards: Translate;
 }
 
 export function resolvePageReport(input: ResolvePageReportInput): PageReportResolution {
@@ -169,6 +186,7 @@ export function resolvePageReport(input: ResolvePageReportInput): PageReportReso
     };
   }
 
+  const translatedPage = translateDashboardPage(page, input.tDashboards);
   const range = parseRange(input.range);
   const window = resolveOverviewWindow(range, input.from ?? '', input.to ?? '', input.now);
 
@@ -183,7 +201,7 @@ export function resolvePageReport(input: ResolvePageReportInput): PageReportReso
 
   let resolved: ResolvedDashboard;
   try {
-    resolved = resolveDashboard({ page, window, filters });
+    resolved = resolveDashboard({ page: translatedPage, window, filters });
   } catch (error) {
     // The one thing that throws here is an unresolved `$param` — a caller that asked for an
     // actor page without naming the actor. That is a malformed REQUEST, not a server fault.
@@ -192,12 +210,12 @@ export function resolvePageReport(input: ResolvePageReportInput): PageReportReso
 
   return {
     ok: true,
-    page,
+    page: translatedPage,
     resolved,
     context: {
       route,
       title: deriveReportTitle(route),
-      rangeLabel: RANGE_LABELS[range],
+      rangeLabel: rangeLabels(input.t)[range],
       filters: page.filters
         .filter((name) => filters[name])
         .map((name) => ({ label: name, value: filters[name] as string })),
@@ -215,6 +233,10 @@ export interface AssemblePageReportInput {
   generatedAt: Date;
   /** The configured brand (`resolveReportBranding`), threaded through unchanged. */
   branding?: ReportBranding;
+  /** The `reports` namespace and the BCP-47 tag for this request's locale (ADR 0017) — the
+   *  document's column headers, delta wording and template labels. */
+  t: Translate;
+  locale: string;
 }
 
 /** The last step both `format=pdf` and `format=html` share: the resolved dashboard plus its
@@ -231,5 +253,7 @@ export function assemblePageReport(input: AssemblePageReportInput): BuiltReport 
     includeTables: input.includeTables,
     generatedAt: input.generatedAt,
     branding: input.branding,
+    t: input.t,
+    locale: input.locale,
   });
 }

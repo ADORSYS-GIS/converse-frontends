@@ -34,6 +34,8 @@ import { sentinelLabel } from './sentinel-labels';
 import { PERMISSION, hasPermission } from '../shared/permissions';
 import { buildBurnDownRequest, toAggregateDaySeries } from './settings-overview-usage';
 import { UNASSIGNED_KEY } from './overview-usage';
+import { useTranslation } from '../i18n/client';
+import type { Translate } from '../i18n/config';
 
 /**
  * The `/settings/overview/{account,project,user}` zones the declarative engine does NOT draw
@@ -61,11 +63,11 @@ import { UNASSIGNED_KEY } from './overview-usage';
 
 export type SettingsOverviewLens = 'account' | 'project' | 'user';
 
-export const LENS_TITLE: Record<SettingsOverviewLens, string> = {
-  account: 'Account overview',
-  project: 'Project overview',
-  user: 'Your usage',
-};
+/** Each lens's page title. A FUNCTION over the `settings` namespace since ADR 0017 — a title is
+ *  copy, and a module constant is resolved before any request has a locale. */
+export function lensTitle(lens: SettingsOverviewLens, t: Translate): string {
+  return t(`overview.lens.${lens}`);
+}
 
 /** How many API keys the hygiene block reads in one page, and how many projects it resolves names
  *  against. `ApiKey` carries `projectId`, never `accountId`, so the account-wide fetch below is
@@ -78,10 +80,7 @@ const PROJECTS_PAGE_SIZE = 100;
  * There is no per-project budget ceiling anywhere in the authz schema, so what this shows is each
  * project's draw on the account's ONE ceiling, never a per-project headroom.
  */
-export const BUDGET_PRESSURE_SCOPE_NOTE =
-  'Each bar is the project’s draw on the account’s single ceiling for this billing period. ' +
-  'Projects have no ceiling of their own — a project’s quota is a governance tier, not a ' +
-  'currency amount — so this ranks pressure, it does not report per-project headroom.';
+export const BUDGET_PRESSURE_SCOPE_NOTE_KEY = 'overview.pressure.note';
 
 /** The admin-only "Budget pressure" card's data — project lens only. */
 export interface AdminPressureCard {
@@ -126,6 +125,7 @@ export interface SettingsOverviewZones {
 }
 
 export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOverviewZones {
+  const { t } = useTranslation('settings');
   const scope = useConsoleScope();
   const session = useConsoleSession();
   // converse-frontends#452: these two additive cards used to hang on one `session.isAdmin` flag —
@@ -153,8 +153,8 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
     [scope.allProjects]
   );
   const labelForProject: SeriesLabeller = useMemo(
-    () => (key) => (key === UNASSIGNED_KEY ? 'Unassigned' : namesById.get(key) || key),
-    [namesById]
+    () => (key) => (key === UNASSIGNED_KEY ? t('overview.unassigned') : namesById.get(key) || key),
+    [namesById, t]
   );
 
   // Resolved once per mount, not per render — the same "moving default, resolved once" pattern
@@ -272,7 +272,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
           ? 'loading'
           : 'ready';
     const series = burnDownQuery.data
-      ? [toAggregateDaySeries(burnDownQuery.data, 'This account')]
+      ? [toAggregateDaySeries(burnDownQuery.data, t('overview.burn-down.series'))]
       : [];
     const ceiling =
       accountIsHome && balanceQuery.data
@@ -296,7 +296,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
       return account ? account.name || sentinelLabel(account.id).label : undefined;
     }
     if (lens === 'project') {
-      if (!scopeId) return 'No project selected';
+      if (!scopeId) return t('overview.no-project-selected');
       const project = scope.projects.find((p) => p.id === scopeId);
       return project?.label ?? sentinelLabel(scopeId).label;
     }
@@ -304,17 +304,17 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
   }, [lens, scope.allAccounts, scope.projects, accountId, scopeId, userId, session.user]);
 
   return {
-    title: LENS_TITLE[lens],
+    title: lensTitle(lens, t),
     subtitle,
     ready,
     scopeId,
     projectField:
       lens === 'project'
         ? {
-            label: 'Project',
+            label: t('overview.project-field.label'),
             value: scope.value.projectId ?? '',
             options: [
-              { value: '', label: 'Select a project…' },
+              { value: '', label: t('overview.project-field.placeholder') },
               ...scope.projects.map((project) => ({ value: project.id, label: project.label })),
             ],
             onChange: (projectId) =>
@@ -332,7 +332,7 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
               ? getUsageErrorMessage(pressureQuery.error)
               : undefined,
             onRetry: () => void pressureQuery.refetch(),
-            note: BUDGET_PRESSURE_SCOPE_NOTE,
+            note: t(BUDGET_PRESSURE_SCOPE_NOTE_KEY),
           }
         : undefined,
     adminHygiene:
@@ -344,7 +344,10 @@ export function useSettingsOverviewZones(lens: SettingsOverviewLens): SettingsOv
             // remaining truncation is genuine pagination.
             caveat:
               adminKeysTotal > accountKeys.length
-                ? `Counted over the first ${accountKeys.length} of ${adminKeysTotal} keys in this account — the rest are beyond this page.`
+                ? t('overview.hygiene.caveat', {
+                    shown: accountKeys.length,
+                    total: adminKeysTotal,
+                  })
                 : undefined,
           }
         : undefined,

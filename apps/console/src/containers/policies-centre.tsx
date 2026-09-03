@@ -11,6 +11,7 @@ import {
   ProjectSettingsDetail,
 } from '@lightbridge/ui-web/src/sections/project-settings';
 
+import { useTranslation } from '../i18n/client';
 import { usePoliciesScreen } from './use-policies-screen';
 
 /**
@@ -33,12 +34,14 @@ import { usePoliciesScreen } from './use-policies-screen';
  * up in the shell rather than a second nav strip inside the centre column.
  */
 export function PoliciesCentre() {
+  const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const screen = usePoliciesScreen();
   const project = screen.projectDetail.project;
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Project policies" subtitle={screen.scopeLabel} />
+      <PageHeader title={t('policies.title')} subtitle={screen.scopeLabel} />
 
       <Card>
         <ProjectSettings {...screen.projectSettings} />
@@ -57,7 +60,7 @@ export function PoliciesCentre() {
             disabled={screen.projectDetail.renameDisabled}
             title={screen.projectDetail.renameReason}
             onClick={screen.projectDetail.onRename}>
-            Rename
+            {tCommon('actions.rename')}
           </Button>
         }>
         {project ? (

@@ -7,6 +7,17 @@ import { ADMIN_USAGE_LENSES } from '../client/url-state';
 import { DASHBOARD_LENSES, findPage, parseDashboardsFile } from './dashboard-spec';
 import type { DashboardPageSpec } from './dashboard-spec';
 import { resolveDashboard } from './resolve-dashboard';
+import { englishT } from '../test/english-t';
+import { translateDashboardPage } from './page-entry';
+
+/**
+ * ADR 0017: `dashboards.yaml` carries i18n KEYS for `title`/`subtitle`/`rowLabel`/`unit`, and the
+ * engine resolves them per request. These assertions are about the COPY a reader sees, so they run
+ * the same resolver the server does, bound to English — which makes each of them a check on two
+ * things at once: that the panel still says what it used to say, and that its key still exists in
+ * `locales/en/dashboards.json`.
+ */
+const T = englishT('dashboards');
 
 /**
  * `/admin/usage`'s own YAML entry (converse-frontends#448, story C5).
@@ -34,7 +45,7 @@ function adminUsage(): DashboardPageSpec {
   );
   const page = findPage(file, ROUTE);
   if (!page) throw new Error(`dashboards.yaml has no "${ROUTE}" entry`);
-  return page;
+  return translateDashboardPage(page, T);
 }
 
 const panelOf = (id: string) => adminUsage().panels.find((panel) => panel.id === id);

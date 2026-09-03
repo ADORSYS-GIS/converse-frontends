@@ -6,6 +6,7 @@ import { ReviewDetailPanel } from '@lightbridge/ui-web/src/components/review-det
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
+import { useTranslation } from '../i18n/client';
 import { useRefillsQueueScreen } from './use-refills-queue-screen';
 
 /**
@@ -38,18 +39,23 @@ import { useRefillsQueueScreen } from './use-refills-queue-screen';
  * there is no `lg`+ surface left to hand this off to.
  */
 export function RefillsQueueCentre() {
+  const { t } = useTranslation('admin');
   const screen = useRefillsQueueScreen();
 
   return (
     <>
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Budget refill review"
-          subtitle={`${screen.pendingCount} request${screen.pendingCount === 1 ? '' : 's'} awaiting a decision${
-            screen.pending.length > 0
-              ? ` · oldest submitted ${screen.pending[0]?.submittedAgo}`
-              : ''
-          }`}
+          title={t('refills-queue.title')}
+          subtitle={
+            // Two sentences, composed rather than concatenated in one key: the count carries a
+            // plural rule (i18next resolves `_one`/`_other`), and the "oldest submitted" clause is
+            // conditional on there being a queue at all.
+            t('refills-queue.subtitle', { count: screen.pendingCount }) +
+            (screen.pending.length > 0
+              ? t('refills-queue.oldest-suffix', { age: screen.pending[0]?.submittedAgo })
+              : '')
+          }
         />
 
         <Card>

@@ -18,7 +18,8 @@ import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
-import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useDashboardLabels } from './use-dashboard-labels';
 import { useSettingsOverviewZones, type SettingsOverviewLens } from './use-settings-overview-zones';
@@ -57,6 +58,9 @@ export interface SettingsOverviewCentreProps {
 }
 
 export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentreProps) {
+  const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
   const [view, setView] = useSettingsOverviewParams();
   const zones = useSettingsOverviewZones(lens);
   const localLabels = useDashboardLabels({
@@ -96,8 +100,8 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
         controls={
           <div className="flex flex-wrap items-end gap-3">
             <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
+              label={tCommon('range.label')}
+              presets={rangePresets(tCommon)}
               preset={view.from && view.to ? null : view.range}
               value={{ from: window.start, to: window.end }}
               onPresetChange={(range) => {
@@ -128,7 +132,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
               route={page.route}
               title={zones.title}
               range={view.range}
-              rangeLabel={RANGE_LABELS[view.range]}
+              rangeLabel={labels[view.range]}
               window={window}
               from={view.from}
               to={view.to}
@@ -140,9 +144,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
 
       {!zones.ready ? (
         <InlineStatus>
-          {lens === 'project'
-            ? 'Select a project above to see its usage.'
-            : 'Resolving your identity…'}
+          {lens === 'project' ? t('overview.select-project') : t('overview.resolving-identity')}
         </InlineStatus>
       ) : (
         <>
@@ -157,7 +159,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
               {zones.burnDown ? (
                 <Card data-span="2">
                   <SpendDashboard
-                    label="Budget burn-down this period"
+                    label={t('overview.burn-down.label')}
                     series={zones.burnDown.series}
                     status={zones.burnDown.status}
                     cumulative
@@ -167,6 +169,8 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
                     formatYTick={formatUsdAxis}
                     formatTooltipValue={formatUsd}
                   />
+                  {/* Still English — the same composed cadence sentence `/admin/overview` shows
+                      (converse-frontends#479); see ADR 0017's "What is not translated yet". */}
                   <InlineStatus className="mt-2">{zones.budgetPeriodCaption}</InlineStatus>
                 </Card>
               ) : null}
@@ -174,7 +178,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
               {zones.adminPressure ? (
                 <Card data-span="2">
                   <BudgetPressure
-                    label="Budget pressure"
+                    label={t('overview.pressure.label')}
                     projects={zones.adminPressure.projects}
                     ceiling={zones.adminPressure.ceiling}
                     status={zones.adminPressure.status}
@@ -186,7 +190,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
               ) : null}
 
               {zones.adminHygiene ? (
-                <Card data-span="2" title="Key hygiene">
+                <Card data-span="2" title={t('overview.hygiene.title')}>
                   <InlineStatus>{zones.adminHygiene.summary}</InlineStatus>
                   <ApiKeysHygieneNotes className="mt-3" hygiene={zones.adminHygiene.hygiene} />
                   {zones.adminHygiene.caveat ? (

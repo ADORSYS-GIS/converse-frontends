@@ -1,0 +1,155 @@
+{
+  "overview": {
+    "title": "Übersicht",
+    "subtitle": "Betrieb · Alle Konten mit Nutzung in dieser Periode · {{range}} · {{timezone}}",
+    "loading": "Bestand wird geladen…",
+    "no-budget-pressure": "Kein Konto mit lesbarer Guthabengrenze hat in dieser Periode etwas verbraucht.",
+    "burn-down-label": "Guthabenverbrauch — {{account}}",
+    "queue-depth": "Warteschlangenlänge",
+    "billing-period-note": "Guthaben-Auslastung und die Warteschlange oben werden über die Abrechnungsperiode gemessen ({{start}} → heute), nicht über den oben gewählten Zeitraum — eine Guthabengrenze ist eine Tatsache über diesen Kalendermonat.",
+    "pressure-truncated": "Guthaben-Auslastung für {{shown}} von {{total}} Konten angezeigt, die in dieser Periode Nutzung hatten oder zu Ihrer Kontofamilie gehören.",
+    "decisions-unavailable": "Entscheidungsverlauf und mediane Entscheidungsdauer sind nicht verfügbar — der Guthabendienst stellt nur die offene Warteschlange bereit, keine Auflistung vergangener Entscheidungen (lightbridge-authz#556).",
+    "schedule-unreadable": "Nächste Zurücksetzung unbekannt — der Zeitplan konnte nicht gelesen werden"
+  },
+  "usage": {
+    "title": "Nutzung",
+    "subtitle": "Betrieb · Jedes Konto mit Nutzung · {{range}} · {{timezone}}",
+    "loading": "Bestandsnutzung wird geladen…",
+    "lens": {
+      "label": "Akteursperspektive",
+      "user": "Nutzer",
+      "account": "Konten",
+      "project": "Projekte"
+    },
+    "chats": {
+      "title": "Chats",
+      "subtitle": "Betrieb · /v1/chat/completions, /v1/responses und /v1/messages · {{range}} · {{timezone}}",
+      "loading": "Chat-Verkehr wird geladen…"
+    },
+    "actor": {
+      "fallback-title": "Akteur",
+      "loading": "Nutzung dieses Akteurs wird geladen…",
+      "type": {
+        "user": "Nutzer",
+        "account": "Konto",
+        "project": "Projekt"
+      },
+      "unresolved": "Zu dieser {{type}}-ID konnte kein Profil aufgelöst werden — die Kosten-, Anfrage- und Token-Zahlen unten gehören dennoch genau dieser ID.",
+      "budget-label": "Guthaben & nächste Zurücksetzung"
+    },
+    "channel": {
+      "fallback-title": "Kanal",
+      "loading": "Nutzung dieses Clients wird geladen…",
+      "subtitle": "Kanal · OAuth-Client (azp) · Jedes Konto · {{range}} · {{timezone}}"
+    },
+    "labels-unresolved": "Nutzernamen konnten nicht aufgelöst werden — es wird stattdessen die rohe Nutzer-ID angezeigt."
+  },
+  "refills-queue": {
+    "title": "Prüfung von Guthaben-Aufladungen",
+    "loading": "Warteschlange wird geladen…",
+    "subtitle_one": "{{count}} Anfrage wartet auf eine Entscheidung",
+    "subtitle_other": "{{count}} Anfragen warten auf eine Entscheidung",
+    "oldest-suffix": " · älteste eingereicht {{age}}"
+  },
+  "refill-policies": {
+    "title": "Aufladungsrichtlinien",
+    "loading": "Wird geladen…",
+    "new-policy": "+ Neue Richtlinie",
+    "ladder-title": "Ihre aktuelle Staffel",
+    "ladder-load-failed": "Die Aufladungsrichtlinie konnte nicht geladen werden.",
+    "ladder-no-amount": "Die aktive Aufladungsrichtlinie bietet für dieses Konto derzeit keinen Betrag an.",
+    "create": {
+      "title": "Neue Aufladungsrichtlinie",
+      "loading": "Wird geladen…",
+      "subtitle": "Erstellen Sie einen neuen Richtliniensatz von Grund auf — oder beginnen Sie mit dem Beispiel und passen Sie es an.",
+      "start-from-example": "Mit Beispielrichtlinie beginnen",
+      "overwrite-title": "Diesen Entwurf durch die Beispielrichtlinie ersetzen?",
+      "overwrite-body": "Die Beispielrichtlinie überschreibt jedes Feld dieses Formulars, einschließlich der Richtliniensatz-ID. Nichts von dem, was Sie hier eingegeben haben, wurde bisher gespeichert, es lässt sich danach also nicht wiederherstellen.",
+      "overwrite-confirm": "Meinen Entwurf ersetzen"
+    },
+    "edit": {
+      "title": "Ersatzrevision für {{policySetId}} erstellen",
+      "no-prefill-note": "Dies beginnt mit einem leeren Entwurf, nicht mit einer Kopie der aktuellen Revision — für gespeicherte Regelinhalte gibt es derzeit keine Lese-API (converse-frontends#368)."
+    },
+    "form": {
+      "policy-set-id": "Richtliniensatz-ID",
+      "cancel": "Abbrechen",
+      "activate": "Erstellen & aktivieren",
+      "activating": "Wird aktiviert…",
+      "save-revision": "Nur als Revision speichern",
+      "saving-revision": "Wird gespeichert…",
+      "saved-revision": "Revision {{revisionId}} erstellt (Richtlinienrevision \"{{policyRevision}}\") — noch nicht aktiv."
+    },
+    "simulate": {
+      "title": "Simulation gegen {{policySetId}}",
+      "subtitle": "Nichts hier liest oder verändert die tatsächlich aktive Revision dieser Richtlinie.",
+      "back": "Zurück zur Liste"
+    }
+  },
+  "budget-schedules": {
+    "title": "Guthaben-Zeitpläne",
+    "new-schedule": "+ Neuer Zeitplan",
+    "create-title": "Neuer Zeitplan zur Guthaben-Zurücksetzung",
+    "create-loading": "Wird geladen…",
+    "load-failed": "Die Zurücksetzungs-Zeitpläne konnten nicht geladen werden.",
+    "empty": "Noch keine Zurücksetzungs-Zeitpläne. Solange keiner existiert, beginnt jede neue Abrechnungsperiode für jedes Konto mit dem Guthaben, mit dem die vorige geendet hat.",
+    "column": {
+      "name": "Name",
+      "scope": "Gilt für",
+      "cadence": "Was er bewirkt",
+      "next-run": "Nächster Lauf",
+      "last-run": "Letzter Lauf",
+      "enabled": "Aktiv"
+    },
+    "row": {
+      "enabled-label": "{{name}} aktiv",
+      "actions-label": "Aktionen für {{name}}",
+      "edit": "Bearbeiten",
+      "preview": "Vorschau",
+      "delete": "Lösch."
+    },
+    "preview": {
+      "title": "Vorschau — {{name}}",
+      "fallback-title": "Vorschau",
+      "run-for-real": "Jetzt wirklich ausführen",
+      "running": "Wird ausgeführt…"
+    },
+    "delete": {
+      "title": "{{name}} löschen?",
+      "description": "Damit wird die feste Regel entfernt, sie wird also nie wieder ausgelöst. Die bereits gebuchten Gutschriften bleiben im Journal — dieses ist rein anfügend und wird hiervon nicht berührt. Es gibt danach keinen Lesepfad, um die Einstellungen der Regel wiederherzustellen.",
+      "confirm": "Zeitplan löschen",
+      "deleting": "Wird gelöscht…"
+    }
+  },
+  "sessions": {
+    "title": "Sitzungen",
+    "loading": "Sitzungen werden geladen…",
+    "subtitle_one": "{{count}} Sitzung auf dieser Seite",
+    "subtitle_other": "{{count}} Sitzungen auf dieser Seite",
+    "sheet-title": "Sitzung",
+    "load-failed": "Sitzungen konnten nicht geladen werden.",
+    "labels-unresolved": "Nutzernamen konnten nicht aufgelöst werden — es wird stattdessen die rohe Nutzer-ID angezeigt.",
+    "search-failed": "Die Nutzersuche ist fehlgeschlagen — es werden die Sitzungen aller Nutzer angezeigt.",
+    "empty": {
+      "no-match": "Kein Nutzer passt zu „{{search}}“ — grenzen Sie die Suche ein oder leeren Sie sie, um alle Sitzungen zu sehen.",
+      "no-active": "Derzeit keine aktiven Sitzungen.",
+      "no-filter-match": "Keine Sitzungen passen zu diesen Filtern."
+    },
+    "revoked": {
+      "one": "Sitzung geschlossen.",
+      "already": "Diese Sitzung war bereits geschlossen.",
+      "none-left": "Dieser Nutzer hatte keine aktiven Sitzungen mehr zum Schließen.",
+      "count_one": "{{count}} Sitzung für diesen Nutzer geschlossen.",
+      "count_other": "{{count}} Sitzungen für diesen Nutzer geschlossen."
+    }
+  },
+  "roles": {
+    "title": "Plattformrollen",
+    "subtitle": "Eine Plattformrolle folgt der Person über jedes Konto hinweg, das sie besitzt. Zuweisungen greifen beim nächsten Token-Ausstellen der Person; Entzüge schließen deren Sitzungen und wirken sofort.",
+    "grant": "Rolle zuweisen",
+    "load-failed": "Plattformrollen-Zuweisungen konnten nicht geladen werden.",
+    "search-unavailable": "Die Nutzersuche ist nicht verfügbar.",
+    "labels-unresolved": "Nutzernamen konnten nicht aufgelöst werden — es wird stattdessen die rohe Nutzer-ID angezeigt.",
+    "granted": "{{role}} zugewiesen · greift beim nächsten Token-Ausstellen der Person."
+  }
+}

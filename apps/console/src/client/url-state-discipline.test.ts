@@ -185,6 +185,12 @@ describe('ADR 0011 discipline', () => {
     //    selection (`?selected=<session id>` IS in the URL), and a link that reopened a stranger's
     //    half-confirmed "close every session for this person" is precisely what a shared URL must
     //    not do — the same shape every unsent-dialog carve-out on this list has.
+    //  - ADR 0017 (i18n): `i18n/client.tsx` holds the i18next INSTANCE. It is the one entry on
+    //    this list that is not a draft or an in-flight flag — it is a long-lived object with a
+    //    resource store, not a fact about what the visitor is looking at. The fact that IS one,
+    //    the chosen locale, lives in the `lb.locale` cookie rather than the URL on purpose: ADR
+    //    0013 keeps console paths stable so a pasted link opens the same screen for whoever
+    //    follows it, whatever language either of them reads in.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('client', 'use-debounced-value.ts'),
@@ -204,6 +210,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-refills-queue-screen.ts'),
       join('containers', 'use-rename-account-dialog.ts'),
       join('dashboards', 'dashboard-export-button.tsx'),
+      join('i18n', 'client.tsx'),
     ]);
   });
 

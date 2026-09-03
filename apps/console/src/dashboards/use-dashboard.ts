@@ -11,6 +11,8 @@ import type { LedgerSort } from '@lightbridge/ui-web/src/components/ledger-table
 import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 
 import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
+import { useIntlLocale, useTranslation } from '../i18n/client';
+import type { Translate } from '../i18n/config';
 import type { ResetCadence, UsageWindow } from '../containers/comparison-window';
 import { actorIdsKey, collectActorIds, EMPTY_ACTOR_IDS, withSeedActorIds } from './actor-labels';
 import type { ActorIds, LabelFor } from './actor-labels';
@@ -134,13 +136,14 @@ export interface UseDashboardInput {
   seedActorIds?: ActorIds;
 }
 
-/** The caption a `truncated: true` response gets, naming the panel's own limit. */
-export function truncationCaption(limit: number): string {
-  return (
-    `Showing the most recent ${limit.toLocaleString('en-US')} time buckets — older buckets in ` +
-    'this window were dropped to fit the query limit, so totals here are lower than the true ' +
-    'period totals. Narrow the range for a complete reading.'
-  );
+/**
+ * The caption a `truncated: true` response gets, naming the panel's own limit.
+ *
+ * Takes the caller's `t` and locale (ADR 0017): the sentence is copy, and the LIMIT is a number —
+ * `2,000` in English, `2.000` in German — so both halves have to follow the reader.
+ */
+export function truncationCaption(limit: number, t: Translate, locale: string): string {
+  return t('state.truncated-buckets', { limit: limit.toLocaleString(locale) });
 }
 
 /**
@@ -152,13 +155,12 @@ export function truncationCaption(limit: number): string {
  * quietly wrong the moment it is not: page 4 of a truncated response is page 4 of what came back,
  * not of what exists. So when — and only when — the backend set `truncated`, the panel says which
  * of the two it is showing.
+ *
+ * Two keys rather than one long one (ADR 0017): the first sentence is the one every panel type
+ * shares, and duplicating it into a table-specific key would be the same claim maintained twice.
  */
-export function tableTruncationCaption(limit: number): string {
-  return (
-    `${truncationCaption(limit)} Sorting and paging below run over the rows this query returned, ` +
-    'not over the whole period: the usage API has no offset, so the pages you can walk here are ' +
-    'pages of the truncated reading.'
-  );
+export function tableTruncationCaption(limit: number, t: Translate, locale: string): string {
+  return `${truncationCaption(limit, t, locale)} ${t('state.truncated-table-paging')}`;
 }
 
 /**
@@ -228,6 +230,11 @@ export function useDashboard({
   localLabels,
   seedActorIds,
 }: UseDashboardInput): DashboardState {
+  // The engine's own two lines of copy — the per-panel truncation caption and the per-panel error
+  // line — resolved here rather than in each of the six centres, so every YAML-driven page states
+  // them identically (ADR 0017).
+  const { t: tCommon } = useTranslation('common');
+  const intlLocale = useIntlLocale();
   const resolved = useMemo(
     () => resolveDashboard({ page, window, filters, resetCadence, familyAccountIds }),
     [page, window, filters, resetCadence, familyAccountIds]
@@ -339,8 +346,8 @@ export function useDashboard({
       truncationCaption:
         response.truncated && query
           ? panel.spec.type === 'table'
-            ? tableTruncationCaption(query.limit)
-            : truncationCaption(query.limit)
+            ? tableTruncationCaption(query.limit, tCommon, intlLocale)
+            : truncationCaption(query.limit, tCommon, intlLocale)
           : undefined,
       view: toPanelView({
         spec: panel.spec,

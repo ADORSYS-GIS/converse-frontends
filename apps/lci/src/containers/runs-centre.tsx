@@ -41,16 +41,23 @@ const FILTERS: { value: FilterValue; label: string }[] = [
  * The Runs screen: title, a status filter, a text search, and a paged table — every field updates
  * live in the URL as the user types or clicks, with no separate submit step.
  *
- * Filters live in `PageControls`, the full-width row below the title (owner directive
- * 2026-09-03, ADR 0015 amendment A2 — same pattern the console's API-keys screen uses): the
- * `Card` below holds the list and only the list, not a mix of controls and rows in one box.
+ * The status segments and the search box are a `PageControls` row on the FLOOR, between the title
+ * and the table's `Card` — not a toolbar inside that card (owner directive 2026-09-03, "filters
+ * are outside cards"; ADR 0015 amendment A2, the same cutover `apps/console` made in #504). Two
+ * things follow from that and are worth stating, because both were regressions before:
+ *
+ *  - The filter state is owned HERE, not inside `RunsList`, so the row renders on the error branch
+ *    too. A reader whose query failed used to lose the very controls that would let them narrow it
+ *    to something the control plane could answer.
+ *  - `Reset filters` appears only while something is actually being narrowed — the Dub rule
+ *    `PageControls` documents. A reset that is always on screen usually does nothing, and the
+ *    reader has to press it to find that out.
  *
  * **Simplification, stated not hidden**: a day-grouped timeline view is a distinct visual form
  * worth its own follow-up once this table view is confirmed against real data; only the table
  * view renders here for now.
  */
 export function RunsCentre({ result, now }: { result: ApiResult<TasksPageResponse>; now: number }) {
-  const router = useRouter();
   const [status, setStatus] = useQueryState(
     'status',
     parseAsStringLiteral(FILTER_VALUES).withDefault('all').withOptions({ shallow: false })
@@ -67,38 +74,54 @@ export function RunsCentre({ result, now }: { result: ApiResult<TasksPageRespons
 
   // Any filter change invalidates the current page offset, so reset to the first page.
   const resetPage = () => setPage(null);
-
   const filtersActive = status !== 'all' || query !== '';
-  const resetFilters = () => {
-    setStatus(null);
-    setQuery(null);
-    resetPage();
-  };
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Runs" subtitle="Every task run, most recent first." />
 
       <PageControls
-        label="Filter runs"
-        onReset={filtersActive ? resetFilters : undefined}
+        label="Filters"
+        onReset={
+          filtersActive
+            ? () => {
+                void setStatus(null);
+                void setQuery(null);
+                resetPage();
+              }
+            : undefined
+        }
         groups={[
           {
-            id: 'filters',
-            label: 'Filter runs',
+            id: 'slice',
+            label: 'Slice',
+            // One group, not two: "which runs am I looking at" is a single question the status
+            // segments and the search box answer together, and a hairline between them would draw
+            // a distinction that does not exist.
             children: (
-              <RunsControls
-                status={status}
-                onStatusChange={(value) => {
-                  setStatus(value);
-                  resetPage();
-                }}
-                query={query}
-                onQueryChange={(value) => {
-                  setQuery(value || null);
-                  resetPage();
-                }}
-              />
+              <>
+                <SegmentedControl<FilterValue>
+                  aria-label="Filter by status"
+                  options={FILTERS}
+                  value={status}
+                  onChange={(value) => {
+                    void setStatus(value);
+                    resetPage();
+                  }}
+                />
+                <Field
+                  label="Search runs"
+                  layout="inline"
+                  hideLabel
+                  type="search"
+                  placeholder="Search runs"
+                  value={query}
+                  onChange={(e) => {
+                    void setQuery(e.target.value || null);
+                    resetPage();
+                  }}
+                />
+              </>
             ),
           },
         ]}
@@ -123,8 +146,7 @@ export function RunsCentre({ result, now }: { result: ApiResult<TasksPageRespons
             total={result.data.total}
             now={now}
             page={page}
-            onPageChange={setPage}
-            onSelectRow={(id) => router.push(`/runs/${id}`)}
+            onPageChange={(target) => void setPage(target)}
           />
         </Card>
       )}
@@ -132,53 +154,23 @@ export function RunsCentre({ result, now }: { result: ApiResult<TasksPageRespons
   );
 }
 
-function RunsControls({
-  status,
-  onStatusChange,
-  query,
-  onQueryChange,
-}: {
-  status: FilterValue;
-  onStatusChange: (value: FilterValue) => void;
-  query: string;
-  onQueryChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <SegmentedControl<FilterValue>
-        aria-label="Filter by status"
-        options={FILTERS}
-        value={status}
-        onChange={onStatusChange}
-      />
-      <Field
-        label="Search runs"
-        hideLabel
-        type="search"
-        placeholder="Search runs"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        containerClassName="max-w-xs"
-      />
-    </div>
-  );
-}
-
+/** Content only — the table, its pager and the range line. Every knob that decides WHICH runs
+ *  reach this component lives in the `PageControls` row above the card. */
 function RunsList({
   tasks,
   total,
   now,
   page,
   onPageChange,
-  onSelectRow,
 }: {
   tasks: Task[];
   total: number;
   now: number;
   page: number;
-  onPageChange: (page: number) => void;
-  onSelectRow: (id: string) => void;
+  onPageChange: (target: number) => void;
 }) {
+  const router = useRouter();
+
   const pageCount = Math.max(1, Math.ceil(total / RUNS_PAGE_SIZE));
   const current = Math.min(Math.max(0, page), pageCount - 1);
   const start = current * RUNS_PAGE_SIZE;
@@ -232,7 +224,7 @@ function RunsList({
           // The whole row opens the run — a reader shouldn't have to land a click on one narrow
           // column just to see what happened. This also makes every row a keyboard stop (Enter
           // or Space opens it), not only the pointer target.
-          onSelectRow={(t) => onSelectRow(t.id)}
+          onSelectRow={(t) => router.push(`/runs/${t.id}`)}
         />
       )}
 

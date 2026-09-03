@@ -214,6 +214,70 @@ in all three.
 
 ---
 
+## A query key and its payload are declared together
+
+**A TanStack query key is a shared address, not a local label.** Two hooks that build the same key
+share one cache entry, and a disabled `useQuery` still reads whatever already sits under its key —
+so two hooks that build the same key and disagree on the payload shape produce a crash in whichever
+one reads second, on whichever route mounts it.
+
+That is not hypothetical. On 2026-09-03 three console hooks each declared their own
+`['authz', 'resolveUserProfiles']` prefix over the same sorted id list: two cached the unwrapped
+`UserProfile[]`, one cached the `{ profiles: [...] }` envelope. The console shell mounts the refills
+queue on **every** route, so one visit to `/admin/roles` made `data.map is not a function` the first
+thing every page did.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Roles as /admin/roles hook
+    participant QC as QueryClient cache
+    participant Shell as console shell (every route)
+    participant IDB as IndexedDB persister
+
+    Roles->>QC: fetch key ['authz','resolveUserProfiles', ids]
+    QC-->>Roles: writes whatever queryFn returned
+    QC->>IDB: persistClient(buster = QUERY_CACHE_BUSTER)
+    Note over Shell: navigates anywhere — the shell remounts nothing,<br/>but re-reads the SAME key
+    Shell->>QC: getQueryData(same key)
+    QC-->>Shell: the entry Roles wrote
+    alt one declaration (containers/user-profiles-query.ts)
+        Shell->>Shell: UserProfile[] — .map() succeeds
+    else two declarations disagreeing on shape
+        Shell--xShell: TypeError: data.map is not a function
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Absent: no entry under the key
+    Absent --> Array: any caller writes through the shared helper
+    Array --> Array: another caller re-reads or refetches
+    Array --> Absent: gcTime / maxAge expiry, or a buster change
+    Absent --> Envelope: a SECOND hand-written declaration of the key
+    Envelope --> Crash: any array-shaped consumer reads it
+    Crash --> Crash: survives reload — the entry is persisted
+    Crash --> Absent: only on buster change or 24h maxAge
+    note right of Envelope
+      Unreachable by construction now: the only writer of these
+      keys is containers/user-profiles-query.ts, and a test in
+      user-profiles-query.test.tsx fails the build if a second
+      declaration appears.
+    end note
+```
+
+Two rules follow, both enforced by tests:
+
+1. **One module declares a key and its `queryFn` together**, and every caller spreads it
+   (`useQuery({ ...userProfilesQuery(client, ids), enabled })`). Unwrap the RPC envelope inside that
+   `queryFn`, never at the call site — a key must have exactly one payload type.
+2. **The persisted cache's buster must actually change per deploy.** `QUERY_CACHE_BUSTER` keys on
+   `NEXT_PUBLIC_BUILD_SHA`; keying it on a `package.json` version that never moves (as it did until
+   this incident) means a shape change is never discarded and a poisoned entry outlives every
+   deploy that could have cleared it.
+
+---
+
 ## Error handling
 
 - Structured, typed errors; a `code` the caller can branch on.

@@ -24,6 +24,7 @@ import {
   toSessionLedgerRow,
   toSessionUser,
 } from './session-rows';
+import { userProfilesQuery, userSearchQuery } from './user-profiles-query';
 import { useTranslation } from '../i18n/client';
 
 /**
@@ -85,8 +86,6 @@ import { useTranslation } from '../i18n/client';
  */
 
 const SESSIONS_QUERY_KEY = ['authz', 'querySessions'];
-const PROFILES_QUERY_KEY = ['authz', 'resolveUserProfiles'];
-const USER_SEARCH_QUERY_KEY = ['authz', 'searchUsers'];
 
 /** `searchUsers` refuses a shorter query outright ("a 1-character substring search is a table dump
  *  with extra steps") — the console does not fire one rather than collecting a `BadRequest`. */
@@ -222,13 +221,7 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
   const subjectUserIds = useMemo(() => subjectUserIdsOf(rows), [rows]);
 
   const profilesQuery = useQuery({
-    queryKey: [...PROFILES_QUERY_KEY, subjectUserIds],
-    queryFn: async (): Promise<UserProfile[]> => {
-      const result = await client.procedures.resolveUserProfiles({
-        args: { userIds: subjectUserIds },
-      });
-      return result.profiles;
-    },
+    ...userProfilesQuery(client, subjectUserIds),
     // Nothing to ask for: a page whose every row predates the subject column has no id to resolve,
     // and firing an empty batch would be a request that cannot answer anything. The page holds at
     // most `?limit=` rows (twice that for the two-call `inactive` case), and `?limit=` is capped
@@ -250,11 +243,7 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
   const searchEnabled = searchTerm.length >= MIN_SEARCH_LENGTH;
 
   const searchQuery = useQuery({
-    queryKey: [...USER_SEARCH_QUERY_KEY, searchTerm],
-    queryFn: async (): Promise<UserProfile[]> => {
-      const result = await client.procedures.searchUsers({ args: { query: searchTerm } });
-      return result.users;
-    },
+    ...userSearchQuery(client, searchTerm),
     enabled: searchEnabled,
   });
 

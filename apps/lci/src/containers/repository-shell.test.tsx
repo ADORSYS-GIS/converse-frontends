@@ -84,6 +84,50 @@ describe('RepositoryShell', () => {
     expect(screen.getByRole('button', { name: 'Deny…' })).toBeInTheDocument();
   });
 
+  // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
+  //
+  // `PageHeader.controls` is deleted. Approval — a state readout, a form and a link — is a
+  // trailing group in the control row, the same place `apps/console` puts `DashboardExportButton`,
+  // because it acts on the SUBJECT of the page rather than on any one card in it. Asserted
+  // structurally: every one of these elements rendered before this change too, just in a slot that
+  // no longer exists, which is exactly the failure a text-only assertion could not see.
+  it('carries the approval status and both actions in the controls row, not on the title row', () => {
+    const { container } = render(
+      <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })} canApprove canDeny>
+        <p>tab content</p>
+      </RepositoryShell>
+    );
+
+    const approval = screen.getByRole('group', { name: 'Approval' });
+    expect(approval).toContainElement(screen.getByText('Pending approval'));
+    expect(approval).toContainElement(screen.getByRole('button', { name: 'Approve' }));
+    expect(approval).toContainElement(screen.getByRole('button', { name: 'Deny…' }));
+    expect(approval.closest('.page-controls')).not.toBeNull();
+    expect(approval).toHaveAttribute('data-align', 'end');
+
+    // The title row is a title and nothing else — no action cluster competing with it.
+    const header = container.querySelector('.page-header');
+    expect(header).not.toBeNull();
+    expect(header).toHaveTextContent('platform-team/platform-team-repo-21');
+    expect(header?.querySelector('.page-header-action')).toBeNull();
+  });
+
+  // Deny navigates; it does not submit. The one-click deny that used to sit beside routine status
+  // text on every tab is gone — the button is an anchor into the Settings tab's Danger zone, and
+  // this asserts the href because "it says Deny…" would pass just as well if it still submitted.
+  it('renders Deny as a link into the settings Danger zone, not a submit', () => {
+    render(
+      <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })} canApprove canDeny>
+        <p>tab content</p>
+      </RepositoryShell>
+    );
+
+    const deny = screen.getByRole('button', { name: 'Deny…' });
+    expect(deny.tagName).toBe('A');
+    expect(deny).toHaveAttribute('href', '/repositories/81/settings#danger');
+    expect(deny).not.toHaveAttribute('type', 'submit');
+  });
+
   it('hides Deny for an already-disabled repo even with canDeny, since there is nothing to deny', () => {
     render(
       <RepositoryShell id={81} repo={baseRepo({ status: 'disabled' })} canApprove canDeny>

@@ -79,7 +79,7 @@ flowchart LR
     TAG["Tag push v*"]
     SCHED["Weekly schedule<br/>Sun 02:00 UTC"]
 
-    TEST["test.yml<br/>pnpm test"]
+    TEST["test.yml<br/>.ci/test/run.sh (every package, no bail)"]
     QUALITY["quality.yml<br/>ESLint + tsc + Prettier scan"]
     SECURITY["security.yml<br/>Trivy fs scan"]
     GOV["governance.yml<br/>AI usage declaration check"]
@@ -166,7 +166,15 @@ either — Gap 1) does not type-check. So `pnpm build` (`turbo run build:web`) s
 code `tsc` rejects, and no CI step gated on a PR currently disagrees. A dependency-bump PR
 nearly shipped a type regression today for exactly this combination of reasons.
 
-### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time
+### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time (CLOSED, converse-frontends#412, see below)
+
+> **Update, 2026-09-03 (`main` @ `b6d3c42` → this fix):** `pnpm lint` exits `0` on `main`
+> (0 errors, 39 warnings; the earlier reformat landed in #494) and `test.yml` now has a
+> dedicated `lint` job that runs `pnpm lint` and fails the PR check on it — verified by a
+> falsification run (a deliberately mis-formatted throwaway file made the job's command
+> exit 1; removing it restored exit 0). See `docs/ROADMAP.md`'s CI & quality gates table.
+> The numbers and analysis below are the history of how this gap was found and are left
+> as-is; they no longer describe the current state.
 
 The root `lint` script (`package.json`) is:
 
@@ -235,8 +243,92 @@ currently absent, not merely miscalibrated.
 
 Triggers: `pull_request` → `main`, `push` to any branch. Installs deps (`pnpm install
 --frozen-lockfile`, which also regenerates the gitignored RPC/REST clients via
-`postinstall` — see [Codegen](#codegen)) and runs `pnpm test` (`pnpm -r --if-present run
-test`, i.e. Jest per-workspace).
+`postinstall` — see [Codegen](#codegen)) and runs **`.ci/test/run.sh`**, which drives
+`pnpm test` (`pnpm -r --no-bail --if-present run test`, vitest per workspace) and then proves
+every package that declares a `test` script actually produced a result.
+
+#### Why the gate is a script and not a bare `pnpm test`
+
+`pnpm -r` **bails on the first failing package**, and it walks the workspaces in order —
+`apps/*` before `packages/*`, alphabetically within each. `apps/lci` therefore sorts before
+`apps/console`. When #504 broke five `apps/lci` suites, that one package ended the run:
+`apps/console`'s ~1490 tests never executed on any PR until the break was fixed, and nothing
+in the job said so. The check was red for one honest reason and silent about N unknowns —
+the worst possible shape for a gate, because "red" and "red plus 9 packages never tried"
+look identical in the PR list.
+
+Two changes, and both are load-bearing:
+
+1. **`--no-bail`**, baked into the ROOT `test` script rather than passed only in the
+   workflow — a developer's local `pnpm test` and CI's must not disagree about whether one
+   failure ends the run.
+2. **`.ci/test/run.sh`**, which enumerates the packages that _should_ run (from pnpm's own
+   workspace listing plus each manifest's `scripts.test` — never a second hardcoded list),
+   then reads pnpm's per-package `… test: Done` / `… test: Failed` markers back out of the
+   log and writes the verdict table to `$GITHUB_STEP_SUMMARY`. A package that declares a
+   `test` script and produces NO marker is a hard failure even when pnpm itself exits 0:
+   `--no-bail` alone would still let a suite silently disappear from the run, and a gate that
+   executes zero tests goes green exactly like one that executes all of them.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GHA as test.yml<br/>(Unit tests job)
+    participant Sh as .ci/test/run.sh
+    participant Pnpm as pnpm -r --no-bail
+    participant Pkg as each workspace<br/>(vitest run)
+    participant Sum as $GITHUB_STEP_SUMMARY
+
+    GHA->>Sh: bash .ci/test/run.sh
+    Sh->>Pnpm: pnpm list -r --depth -1 --json
+    Pnpm-->>Sh: 13 projects
+    Note over Sh: keep those whose package.json<br/>declares scripts.test → EXPECTED
+    alt EXPECTED is empty
+        Sh-->>GHA: ::error:: gate would be a no-op → exit 1
+    end
+    Sh->>Pnpm: pnpm test
+    loop every package, failures included
+        Pnpm->>Pkg: run test
+        Pkg-->>Pnpm: pass / fail
+        Pnpm-->>Sh: "<dir> test: Done" | "<dir> test: Failed"
+    end
+    Pnpm-->>Sh: exit 0 if all passed, else 1
+    loop every EXPECTED package
+        Sh->>Sh: grep its marker in the log
+    end
+    Sh->>Sum: | package | path | result | table
+    Sh-->>GHA: exit 0 only if every package RAN and PASSED
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Enumerating
+    Enumerating --> NoOp: no package declares scripts.test
+    Enumerating --> Running: EXPECTED ≥ 1
+    Running --> Reconciling: pnpm finished (all packages attempted)
+    Reconciling --> Missing: an EXPECTED package produced no marker
+    Reconciling --> Failing: ≥ 1 package reported Failed
+    Reconciling --> Passing: every package reported Done
+    NoOp --> [*]: exit 1
+    Missing --> [*]: exit 1
+    Failing --> [*]: exit 1
+    Passing --> [*]: exit 0
+
+    note right of NoOp
+      Unreachable in practice today, and
+      deliberately kept as a state: it is
+      what a broken filter or a dropped
+      test script would land in, and it
+      used to be indistinguishable from
+      Passing.
+    end note
+    note right of Missing
+      The state --no-bail alone cannot
+      reach a verdict on. pnpm exits 0
+      here; only the reconciliation step
+      turns it red.
+    end note
+```
 
 ### `quality.yml` — Code Quality Scan
 

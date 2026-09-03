@@ -20,6 +20,7 @@ import { CONSOLE_DIALOGS, useAdminRolesParams, useUrlDialog } from '../client/ur
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { PLATFORM_ROLES } from '../shared/permissions';
 import { grantIdentityIdsOf, toPlatformRoleGrantRow } from './role-grant-rows';
+import { userProfilesQuery, userSearchQuery } from './user-profiles-query';
 import { useTranslation } from '../i18n/client';
 
 /**
@@ -42,9 +43,6 @@ import { useTranslation } from '../i18n/client';
 
 const PAGE_SIZE = 50;
 const GRANTS_QUERY_KEY = ['authz', 'platformRoleGrants', PAGE_SIZE];
-/** Sorted, de-duplicated id list as the variable part — see `grantIdentityIdsOf`'s own comment. */
-const IDENTITY_QUERY_KEY = ['authz', 'resolveUserProfiles'];
-const USER_SEARCH_QUERY_KEY = ['authz', 'searchUsers'];
 
 /** `searchUsers` REFUSES a shorter query outright (`SearchUsersInput`'s own contract), so the
  *  dialog states this number rather than firing a call it knows will fail. */
@@ -148,8 +146,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
   const identityIds = useMemo(() => grantIdentityIdsOf(grants), [grants]);
 
   const identityQuery = useQuery({
-    queryKey: [...IDENTITY_QUERY_KEY, identityIds],
-    queryFn: async () => client.procedures.resolveUserProfiles({ args: { userIds: identityIds } }),
+    ...userProfilesQuery(client, identityIds),
     enabled: identityIds.length > 0,
   });
 
@@ -159,9 +156,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
   const profiles = useMemo<ReadonlyMap<string, UserProfile> | undefined>(() => {
     if (identityIds.length === 0) return new Map();
     if (identityQuery.isPending) return undefined;
-    return new Map(
-      (identityQuery.data?.profiles ?? []).map((profile) => [profile.userId, profile])
-    );
+    return new Map((identityQuery.data ?? []).map((profile) => [profile.userId, profile]));
   }, [identityIds.length, identityQuery.isPending, identityQuery.data]);
 
   const rows = useMemo<PlatformRoleGrantRow[]>(
@@ -181,15 +176,13 @@ export function useAdminRolesScreen(): AdminRolesScreen {
     grantDialogUrl.open && selectedUser === null && debouncedQuery.length >= USER_SEARCH_MIN_LENGTH;
 
   const searchQuery = useQuery({
-    queryKey: [...USER_SEARCH_QUERY_KEY, debouncedQuery, USER_SEARCH_LIMIT],
-    queryFn: async () =>
-      client.procedures.searchUsers({ args: { query: debouncedQuery, limit: USER_SEARCH_LIMIT } }),
+    ...userSearchQuery(client, debouncedQuery, USER_SEARCH_LIMIT),
     enabled: searchEnabled,
   });
 
   const results = useMemo<GrantUserOption[]>(
     () =>
-      (searchQuery.data?.users ?? []).map((profile) => ({
+      (searchQuery.data ?? []).map((profile) => ({
         userId: profile.userId,
         // Same precedence `toRequester` uses: an email is a fallback identity, not a preferred
         // one. The raw id is the last resort — a row that exists but names nobody still has to be

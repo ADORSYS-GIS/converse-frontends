@@ -26,6 +26,7 @@ import {
   toRefillRequestRow,
   toRequester,
 } from './refill-rows';
+import { userProfilesQuery } from './user-profiles-query';
 
 /**
  * `/admin/refills-queue` — the budget refill review queue's data adapter, shared by its centre
@@ -63,15 +64,6 @@ import {
 const PROJECT_LABEL_FALLBACK = '—';
 const PAGE_SIZE = 25;
 const QUERY_KEY = ['budget', 'pendingAugmentationRequests', PAGE_SIZE];
-
-/**
- * The requester-profile batch's own key prefix. The variable part is the SORTED, de-duplicated id
- * list (`requesterIdsOf`), which is what makes this ONE query per page rather than one per row:
- * two renders of the same page produce the same key, and react-query serves the second from cache
- * instead of refetching. Sorting matters — `['b','a']` and `['a','b']` are the same request but
- * two different cache entries otherwise.
- */
-const REQUESTER_QUERY_KEY = ['authz', 'resolveUserProfiles'];
 
 /**
  * Requester resolution failed but the queue itself did not (converse-frontends#444). Rendered as
@@ -197,13 +189,7 @@ export function useRefillsQueueScreen(enabled = true): RefillsQueueScreen {
   const requesterIds = useMemo(() => requesterIdsOf(requests), [requests]);
 
   const requesterQuery = useQuery({
-    queryKey: [...REQUESTER_QUERY_KEY, requesterIds],
-    queryFn: async (): Promise<UserProfile[]> => {
-      const page = await authzClient.procedures.resolveUserProfiles({
-        args: { userIds: requesterIds },
-      });
-      return page.profiles;
-    },
+    ...userProfilesQuery(authzClient, requesterIds),
     // Nothing to ask for: a page whose every row predates the migration has no id to resolve, and
     // firing an empty batch would be a request that cannot answer anything.
     enabled: enabled && requesterIds.length > 0,

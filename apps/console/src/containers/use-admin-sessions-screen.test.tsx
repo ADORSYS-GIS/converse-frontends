@@ -13,7 +13,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  *     (`revoked` + `expired`) rather than one `all` narrowed on the client,
  *  2. one `resolveUserProfiles` batch per PAGE, never one per row,
  *  3. the optimistic revoke and its rollback — a failed call must leave the row exactly as it was,
- *  4. the user search filtering by an exact `subject`, server-side, not by string matching.
+ *  4. the user search filtering by an exact `subject`, server-side, not by string matching,
+ *  5. the page size: `?limit=` reaches the wire verbatim, changing it clears the cursor, and the
+ *     pager reports the page's real capacity (twice `limit` under the two-call "Inactive").
  *
  * react-query is NOT mocked; only the RPC client and the URL-state hook are.
  */
@@ -41,6 +43,7 @@ let view = {
   search: '',
   subject: '',
   after: '',
+  limit: 25 as 25 | 50 | 100,
   selectedSessionId: '',
 };
 const setView = vi.fn();
@@ -48,6 +51,7 @@ const setView = vi.fn();
 vi.mock('../client/url-state', () => ({
   useAdminSessionsParams: () => [view, setView],
   ADMIN_SESSIONS_NAVIGATION_OPTIONS: { history: 'push' as const },
+  SESSION_PAGE_SIZES: [25, 50, 100] as const,
 }));
 
 const { useAdminSessionsScreen } = await import('./use-admin-sessions-screen');
@@ -93,6 +97,7 @@ describe('useAdminSessionsScreen', () => {
       search: '',
       subject: '',
       after: '',
+      limit: 25,
       selectedSessionId: '',
     };
     querySessions.mockResolvedValue({ rows: [session()], next: null });
@@ -254,6 +259,59 @@ describe('useAdminSessionsScreen', () => {
     await waitFor(() =>
       expect(result.current.revokeSuccess).toBe('Closed 3 sessions for this user.')
     );
+  });
+
+  it('sends the page size the URL names, verbatim — never a hardcoded 25', async () => {
+    view = { ...view, limit: 100 };
+    await renderScreen();
+
+    expect(querySessions).toHaveBeenCalledWith({
+      args: {
+        status: 'active',
+        kind: undefined,
+        subject: undefined,
+        after: undefined,
+        limit: 100,
+      },
+    });
+  });
+
+  it('clears the cursor when the page size changes — a new size is a new page sequence', async () => {
+    view = { ...view, after: 'cursor_page_3' };
+    const { result } = await renderScreen();
+
+    act(() => result.current.setPageSize(50));
+
+    expect(setView).toHaveBeenCalledWith({ limit: 50, after: '' });
+  });
+
+  it('leaves the page size alone when the filters are reset — it is not one of them', async () => {
+    view = { ...view, limit: 100, status: 'all' };
+    const { result } = await renderScreen();
+
+    act(() => result.current.resetFilters());
+
+    const [args] = setView.mock.calls.at(-1) as [Record<string, unknown>];
+    expect(args).not.toHaveProperty('limit');
+    expect(args).toMatchObject({ status: 'active', after: '' });
+  });
+
+  it('reports the page’s REAL capacity, which under Inactive is twice the per-call limit', async () => {
+    view = { ...view, status: 'inactive', limit: 50 };
+    const { result } = await renderScreen();
+
+    // Two calls of 50 each, merged into one page — so the pager must say 100, not the 50 the
+    // operator picked. Saying 50 would make a 73-row page look impossible.
+    expect(querySessions).toHaveBeenCalledTimes(2);
+    expect(result.current.pageSize).toBe(50);
+    expect(result.current.pagination.pageSize).toBe(100);
+  });
+
+  it('reports the per-call limit as the capacity for a single-query filter', async () => {
+    view = { ...view, limit: 50 };
+    const { result } = await renderScreen();
+
+    expect(result.current.pagination.pageSize).toBe(50);
   });
 
   it('reports a no-op revoke honestly rather than as a success it did not cause', async () => {

@@ -10,10 +10,28 @@ import type { PaginationProps } from './types';
 // `Button` rather than a second control treatment. Renders nothing at all when the caller has
 // wired neither direction — a ledger with no more pages to reach has no pagination row, not a
 // row of two disabled buttons.
-export function Pagination({ shown, total, unit, hasPrev, hasNext, onPrev, onNext }: PaginationProps) {
+export function Pagination({
+  shown,
+  total,
+  pageSize,
+  unit,
+  hasPrev,
+  hasNext,
+  onPrev,
+  onNext,
+}: PaginationProps) {
   if (!onPrev && !onNext) return null;
 
-  const caption = total != null ? `Showing ${shown} of ${total} ${unit}` : `${shown} ${unit}`;
+  // Three captions, in descending order of how much they can honestly claim: a real total, then
+  // the page's own capacity (`shown / pageSize`, for a cursor-paged source that cannot count),
+  // then the bare count. A cursor pager never knows the total, so inventing one is not on the
+  // list.
+  const caption =
+    total != null
+      ? `Showing ${shown} of ${total} ${unit}`
+      : pageSize != null
+        ? `${shown} of ${pageSize} ${unit} per page`
+        : `${shown} ${unit}`;
 
   return (
     <div className="pagination-bar">

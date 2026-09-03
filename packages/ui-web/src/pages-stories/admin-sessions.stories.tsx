@@ -63,6 +63,7 @@ function AdminSessionsScreen({
   const [kind, setKind] = useState<SessionKindFilter>('all');
   const [search, setSearch] = useState('');
   const [user, setUser] = useState('');
+  const [pageSize, setPageSize] = useState(25);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [closeOpen, setCloseOpen] = useState(false);
   const [closeAllOpen, setCloseAllOpen] = useState(false);
@@ -101,6 +102,8 @@ function AdminSessionsScreen({
               }
               selectedUser={user}
               onSelectedUserChange={setUser}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           }
         />
@@ -123,6 +126,10 @@ function AdminSessionsScreen({
             onSelectSession={(row) => setSelectedId(row.id)}
             pagination={{
               shown: visible.length,
+              // The page's real capacity: "Inactive" is two `querySessions` calls merged, so its
+              // page holds up to twice the per-call `?limit=` — the container computes this, the
+              // section only renders it.
+              pageSize: statusFilter === 'inactive' ? pageSize * 2 : pageSize,
               hasPrev: false,
               hasNext: true,
               onPrev: () => {},

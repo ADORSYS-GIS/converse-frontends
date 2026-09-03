@@ -9,6 +9,7 @@ import {
   SessionLedgerControls,
 } from '@lightbridge/ui-web/src/sections/session-ledger';
 
+import { SESSION_PAGE_SIZES } from '../client/url-state';
 import { useAdminSessionsScreen } from './use-admin-sessions-screen';
 
 /**
@@ -49,6 +50,9 @@ export function AdminSessionsCentre() {
               userOptions={screen.userOptions}
               selectedUser={screen.selectedUser}
               onSelectedUserChange={screen.setSelectedUser}
+              pageSize={screen.pageSize}
+              onPageSizeChange={screen.setPageSize}
+              pageSizeOptions={SESSION_PAGE_SIZES}
             />
           }
         />

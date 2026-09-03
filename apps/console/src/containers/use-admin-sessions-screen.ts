@@ -12,7 +12,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { useConsoleAuthzClient } from '../client/rpc-clients';
-import { ADMIN_SESSIONS_NAVIGATION_OPTIONS, useAdminSessionsParams } from '../client/url-state';
+import {
+  ADMIN_SESSIONS_NAVIGATION_OPTIONS,
+  useAdminSessionsParams,
+  type SessionPageSize,
+} from '../client/url-state';
 import { getApiErrorMessage } from '@lightbridge/hooks/api-error';
 import {
   subjectUserIdsOf,
@@ -64,10 +68,22 @@ import {
  * ADDITIONAL owned accounts get a different id, but they are not what a session's subject names.
  * So the picked `userId` IS the subject to filter on, and the filter runs in the database rather
  * than over a partial page.
+ *
+ * ### Page size is `?limit=`, per call — and the pager says what the page really holds
+ *
+ * `querySessions.limit` is rows PER CALL (default 25, clamped at 100), so under the two-call
+ * "Inactive" filter a page holds up to twice it. `pagination.pageSize` therefore reports
+ * `limit × (number of calls)` — the page's real capacity — rather than the raw `?limit=`: the
+ * caption's job is to make "12 rows" readable as "this page is not full", and a second number the
+ * page could never reach would not do that. It is the same honesty `hasNext` already applies
+ * ("true when EITHER half has more").
+ *
+ * Changing the size clears the cursor stack and `?after=`. A cursor names a position in a page
+ * sequence; a different page size is a different sequence, so resuming an old cursor under a new
+ * size would silently skip or repeat rows.
  */
 
-const PAGE_SIZE = 25;
-const SESSIONS_QUERY_KEY = ['authz', 'querySessions', PAGE_SIZE];
+const SESSIONS_QUERY_KEY = ['authz', 'querySessions'];
 const PROFILES_QUERY_KEY = ['authz', 'resolveUserProfiles'];
 const USER_SEARCH_QUERY_KEY = ['authz', 'searchUsers'];
 
@@ -105,9 +121,14 @@ export interface AdminSessionsScreen {
   userOptions: SelectFieldOption[];
   selectedUser: string;
   setSelectedUser: (subject: string) => void;
+  /** Rows per `querySessions` call — the `?limit=` in the URL, one of `SESSION_PAGE_SIZES`. */
+  pageSize: number;
+  setPageSize: (pageSize: number) => void;
 
   pagination: {
     shown: number;
+    /** The page's real capacity — `pageSize` times the number of calls this filter fires. */
+    pageSize: number;
     hasPrev: boolean;
     hasNext: boolean;
     onPrev: () => void;
@@ -164,7 +185,7 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
   const wireStatuses = STATUS_QUERIES[view.status];
 
   const sessionsQuery = useQuery({
-    queryKey: [...SESSIONS_QUERY_KEY, view.status, view.kind, view.subject, view.after],
+    queryKey: [...SESSIONS_QUERY_KEY, view.status, view.kind, view.subject, view.after, view.limit],
     queryFn: async (): Promise<SessionPage[]> => {
       // One call per wire status — one for `active`/`all`, two for `inactive`. `Promise.all`
       // rather than sequential: they are independent reads and the pager treats them as one page.
@@ -176,7 +197,7 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
               kind: view.kind === 'all' ? undefined : view.kind,
               subject: view.subject || undefined,
               after: view.after || undefined,
-              limit: PAGE_SIZE,
+              limit: view.limit,
             },
           })
         )
@@ -207,8 +228,11 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
       return result.profiles;
     },
     // Nothing to ask for: a page whose every row predates the subject column has no id to resolve,
-    // and firing an empty batch would be a request that cannot answer anything. `PAGE_SIZE` is 25
-    // (50 for the two-call `inactive` case), so the 200-id cap is unreachable from here.
+    // and firing an empty batch would be a request that cannot answer anything. The page holds at
+    // most `?limit=` rows (twice that for the two-call `inactive` case), and `?limit=` is capped
+    // at 100 by `SESSION_PAGE_SIZES`, so the worst case is 200 ids — exactly the cap, never over
+    // it. Widening `SESSION_PAGE_SIZES` past 100 would break that; `querySessions` clamps there
+    // too, which is why it does not.
     enabled: subjectUserIds.length > 0,
   });
 
@@ -346,6 +370,9 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
       : 'No sessions match these filters.',
     resetFilters: () => {
       setCursorStack([]);
+      // `limit` is deliberately NOT reset: it is how much of the table the operator wants to see
+      // at once, not one of the filters that produced an empty result. Resetting it would answer
+      // "nothing matched" by also changing the page size, which is not what the button says.
       void setView({ status: 'active', kind: 'all', search: '', subject: '', after: '' });
     },
 
@@ -369,9 +396,20 @@ export function useAdminSessionsScreen(): AdminSessionsScreen {
       setCursorStack([]);
       void setView({ subject, after: '' });
     },
+    pageSize: view.limit,
+    setPageSize: (limit) => {
+      // Same reset every other filter setter performs, for a sharper reason: a cursor is a
+      // position in a page sequence, and a new size is a new sequence. Resuming the old cursor
+      // would skip or repeat rows rather than merely showing a stale filter.
+      setCursorStack([]);
+      void setView({ limit: limit as SessionPageSize, after: '' });
+    },
 
     pagination: {
       shown: ledgerRows.length,
+      // The page's real capacity, not the raw `?limit=`: `inactive` fires two calls and merges
+      // them, so its page holds up to twice the per-call limit. See this hook's own doc comment.
+      pageSize: view.limit * wireStatuses.length,
       hasPrev: cursorStack.length > 0,
       hasNext: nextCursor !== null,
       onPrev: () => {

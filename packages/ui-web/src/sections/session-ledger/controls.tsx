@@ -24,6 +24,17 @@ const KIND_OPTIONS = [
   { value: 'token' as const, label: 'Token' },
 ];
 
+/**
+ * The page sizes offered, as `SelectField` options.
+ *
+ * The values are the caller's business — `apps/console` owns the URL contract
+ * (`SESSION_PAGE_SIZES` in `client/url-state.ts`, capped at `querySessions`' own clamp of 100) and
+ * passes them in. This list is the DEFAULT so a story or a second embedder does not have to
+ * restate three numbers to render the control; a caller that offers a different set passes
+ * `pageSizeOptions`.
+ */
+export const DEFAULT_SESSION_PAGE_SIZES = [25, 50, 100] as const;
+
 export interface SessionLedgerControlsProps {
   status: SessionStatusFilter;
   onStatusChange: (status: SessionStatusFilter) => void;
@@ -42,6 +53,11 @@ export interface SessionLedgerControlsProps {
   /** The picked person's subject, or `''` for "no user filter". */
   selectedUser: string;
   onSelectedUserChange: (subject: string) => void;
+  /** Rows per `querySessions` call — the `?limit=` in the URL. */
+  pageSize: number;
+  onPageSizeChange: (pageSize: number) => void;
+  /** The sizes offered. Defaults to {@link DEFAULT_SESSION_PAGE_SIZES}. */
+  pageSizeOptions?: readonly number[];
   className?: string;
 }
 
@@ -67,6 +83,9 @@ export function SessionLedgerControls({
   userOptions,
   selectedUser,
   onSelectedUserChange,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = DEFAULT_SESSION_PAGE_SIZES,
   className,
 }: SessionLedgerControlsProps) {
   return (
@@ -109,6 +128,23 @@ export function SessionLedgerControls({
           onChange={onSelectedUserChange}
         />
       ) : null}
+
+      {/* Page size, NOT a fourth filter — it changes how much of the same set you see, never
+          which set. Three reasons it is a labelled `SelectField` rather than a third
+          `SegmentedControl`: a third 3-cell strip would put nine identical-looking cells in one
+          row and make the two real filters harder to find; "25 | 50 | 100" carries no meaning
+          without a word beside it (the one case `SelectField`'s `hideLabel` doc explicitly
+          excludes — "a select's chosen option already says what it is" is true of a person's
+          name, not of a bare number); and `ms-auto` pushes it to the trailing edge so the
+          filter cluster stays one visual group instead of four peers. */}
+      <SelectField
+        label="Per page"
+        layout="inline"
+        className="sm:ms-auto"
+        value={String(pageSize)}
+        options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
+        onChange={(next) => onPageSizeChange(Number(next))}
+      />
     </section>
   );
 }

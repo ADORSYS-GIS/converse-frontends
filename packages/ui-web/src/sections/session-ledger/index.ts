@@ -1,6 +1,6 @@
 export { SessionLedger } from './component';
 export { SessionDetailPanel } from './detail-panel';
-export { SessionLedgerControls } from './controls';
+export { DEFAULT_SESSION_PAGE_SIZES, SessionLedgerControls } from './controls';
 export type {
   SessionKindFilter,
   SessionLedgerControlsProps,

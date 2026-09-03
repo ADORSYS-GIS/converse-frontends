@@ -26,7 +26,16 @@ import type { DashboardLens } from './dashboard-spec';
  *    because "Production" is not a distinguishing name on an estate-wide page.
  */
 
-export type ActorKind = DashboardLens;
+/**
+ * The four kinds `resolveActorLabels` answers for — the three lenses, plus API KEYS.
+ *
+ * API keys are a kind but NOT a lens (`DASHBOARD_LENSES` is unchanged): nothing offers "group this
+ * page by API key" in the lens `SegmentedControl`, and a `group_by: [api_key_id]` panel declares
+ * that dimension directly. They are here because a "Spend by API key" panel groups by an ID and
+ * had, until lightbridge-authz#674, nowhere to turn it into a name unless the page happened to be
+ * scoped to exactly one project.
+ */
+export type ActorKind = DashboardLens | 'api_key';
 
 export interface ResolvedActorLabel {
   /** The primary line — a real name, or the sentinel for an id nothing resolved. */
@@ -39,15 +48,16 @@ export interface ResolvedActorLabel {
   subtle: boolean;
 }
 
-/** Every actor id one page needs resolving, split by kind. All three lists are required by the
+/** Every actor id one page needs resolving, split by kind. All four lists are required by the
  *  procedure and may be empty (cratestack has no optional-list arity). */
 export interface ActorIds {
   users: string[];
   accounts: string[];
   projects: string[];
+  apiKeys: string[];
 }
 
-export const EMPTY_ACTOR_IDS: ActorIds = { users: [], accounts: [], projects: [] };
+export const EMPTY_ACTOR_IDS: ActorIds = { users: [], accounts: [], projects: [], apiKeys: [] };
 
 /**
  * `resolveActorLabels` caps each list at 200 and REJECTS a longer batch outright rather than
@@ -64,6 +74,7 @@ const KIND_FIELD: Record<ActorKind, string> = {
   user: 'user_id',
   account: 'account_id',
   project: 'project_id',
+  api_key: 'api_key_id',
 };
 
 /**
@@ -80,6 +91,7 @@ export function collectActorIds(responses: readonly (UsageQueryResponse | undefi
     user: new Map(),
     account: new Map(),
     project: new Map(),
+    api_key: new Map(),
   };
 
   for (const response of responses) {
@@ -102,7 +114,12 @@ export function collectActorIds(responses: readonly (UsageQueryResponse | undefi
       .slice(0, ACTOR_ID_BATCH_CAP)
       .map(([key]) => key);
 
-  return { users: top('user'), accounts: top('account'), projects: top('project') };
+  return {
+    users: top('user'),
+    accounts: top('account'),
+    projects: top('project'),
+    apiKeys: top('api_key'),
+  };
 }
 
 /**
@@ -126,6 +143,7 @@ export function withSeedActorIds(seed: ActorIds | undefined, collected: ActorIds
     users: merge(seed.users, collected.users),
     accounts: merge(seed.accounts, collected.accounts),
     projects: merge(seed.projects, collected.projects),
+    apiKeys: merge(seed.apiKeys, collected.apiKeys),
   };
 }
 
@@ -135,6 +153,7 @@ export function actorIdsOf(kind: ActorKind, id: string): ActorIds {
     users: kind === 'user' ? [id] : [],
     accounts: kind === 'account' ? [id] : [],
     projects: kind === 'project' ? [id] : [],
+    apiKeys: kind === 'api_key' ? [id] : [],
   };
 }
 
@@ -145,11 +164,31 @@ export function actorIdsKey(ids: ActorIds): string {
     [...ids.users].sort().join(','),
     [...ids.accounts].sort().join(','),
     [...ids.projects].sort().join(','),
+    [...ids.apiKeys].sort().join(','),
   ].join('|');
 }
 
 export function hasActorIds(ids: ActorIds): boolean {
-  return ids.users.length > 0 || ids.accounts.length > 0 || ids.projects.length > 0;
+  return (
+    ids.users.length > 0 ||
+    ids.accounts.length > 0 ||
+    ids.projects.length > 0 ||
+    ids.apiKeys.length > 0
+  );
+}
+
+/**
+ * `ids` with the three estate-wide kinds emptied — what a caller WITHOUT `user:read` may ask
+ * `resolveActorLabels` for without being refused.
+ *
+ * The procedure is gated per kind (lightbridge-authz#674): `apiKeyIds` is row-scoped through
+ * `ApiKey`'s own read policy and served to anyone, while the other three still need `user:read`
+ * and come back as a 403 — taking the API-key labels in the same batch down with them. Dropping
+ * them here is not the console deciding authorization (the backend enforces both halves); it is the
+ * console declining to send a request it knows will fail.
+ */
+export function apiKeyIdsOnly(ids: ActorIds): ActorIds {
+  return { users: [], accounts: [], projects: [], apiKeys: ids.apiKeys };
 }
 
 /** `labelFor(kind, id)` — the adapter every ranked/table/donut/series renderer resolves a group
@@ -165,9 +204,12 @@ export function buildLabelFor(labels: ActorLabels | undefined): LabelFor {
   const users = new Map((labels?.users ?? []).map((user) => [user.userId, user]));
   const accounts = new Map((labels?.accounts ?? []).map((account) => [account.accountId, account]));
   const projects = new Map((labels?.projects ?? []).map((project) => [project.projectId, project]));
+  const apiKeys = new Map((labels?.apiKeys ?? []).map((key) => [key.apiKeyId, key]));
 
   const accountName = (accountId: string): string | undefined =>
     accounts.get(accountId)?.name ?? undefined;
+  const projectName = (projectId: string): string | undefined =>
+    projects.get(projectId)?.name ?? undefined;
 
   return (kind, id) => {
     if (kind === 'user') {
@@ -180,6 +222,21 @@ export function buildLabelFor(labels: ActorLabels | undefined): LabelFor {
         ...resolved,
         secondary: user?.email && user.email !== resolved.label ? user.email : undefined,
       };
+    }
+
+    if (kind === 'api_key') {
+      const key = apiKeys.get(id);
+      // A revoked key keeps its NAME and says so, rather than falling back to a sentinel: the
+      // spend it drew is real and still has to be attributable to something a person recognises.
+      // `(revoked)` is appended to the label rather than left to the second line because the
+      // second line is already carrying the key's parent, and a reader scanning a ranked list
+      // reads the first line only.
+      const primary = key ? (key.revoked ? `${key.name} (revoked)` : key.name) : null;
+      const resolved = sentinelLabel(id, primary);
+      // The PROJECT, not the account: two keys called "ingest" in one account are told apart by
+      // which project they belong to, and the project is the scope a person manages keys in.
+      const parent = key ? (projectName(key.projectId) ?? key.projectId) : undefined;
+      return { ...resolved, secondary: parent ? `in ${parent}` : undefined };
     }
 
     if (kind === 'account') {

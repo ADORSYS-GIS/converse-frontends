@@ -63,9 +63,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
   const labels = rangeLabels(tCommon);
   const [view, setView] = useSettingsOverviewParams();
   const zones = useSettingsOverviewZones(lens);
-  const localLabels = useDashboardLabels({
-    projectId: lens === 'project' ? zones.scopeId : null,
-  });
+  const localLabels = useDashboardLabels();
 
   const window = useMemo(
     () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),

@@ -75,7 +75,7 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
   const accountId = useAccountId();
   const [view, setView] = useOverviewParams();
   const zones = useAccountOverviewZones();
-  const localLabels = useDashboardLabels({ projectId: zones.projectId ?? null });
+  const localLabels = useDashboardLabels();
 
   const window = useMemo(
     () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),

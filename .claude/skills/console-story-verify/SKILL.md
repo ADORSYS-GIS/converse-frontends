@@ -10,25 +10,39 @@ is confirmation, not discovery. A passing unit test is not a screenshot.
 
 Every console screen is Keycloak-gated, so the browser cannot reach it locally without a session.
 Storybook renders the same `packages/ui-web` sections against fixtures with no auth at all — that is
-why it is the verification surface.
+why it is the verification surface. `apps/lci`'s screens are in the same Storybook (its stories live
+in `apps/lci/src`; `.storybook/main.ts` globs both trees).
 
 ## Find the story first
 
-| What changed                               | Story                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------ |
-| A `dashboards.yaml` panel                  | `Pages/FromSpec` (`packages/ui-web/src/pages-stories/spec-page.tsx`)     |
-| A whole admin/settings screen              | `packages/ui-web/src/pages-stories/<screen>.stories.tsx`                 |
-| One primitive or section                   | `packages/ui-web/src/{components,sections}/<name>/component.stories.tsx` |
-| German rendering                           | `packages/ui-web/src/pages-stories/i18n-german.stories.tsx`              |
-| The shell itself (rail, footer, switchers) | `shell-fixtures.tsx` and `shell-persistence.stories.tsx`                 |
-| Loading / empty / error state              | The same story file — every screen story carries those variants          |
+Sidebar folders and the rules for adding a story: `packages/ui-web/STORYBOOK.md`.
 
-Every console screen has a page story; if you cannot find one for the screen you changed, look
-again before concluding it has none (`ls packages/ui-web/src/pages-stories/`).
+| What changed                               | Story title                       | File                                                            |
+| ------------------------------------------ | --------------------------------- | --------------------------------------------------------------- |
+| A `dashboards.yaml` panel                  | `Dashboard/FromSpec`              | `packages/ui-web/src/pages-stories/spec-page.tsx`               |
+| A whole admin/settings screen              | `Pages/<Area>/<Screen>`           | `packages/ui-web/src/pages-stories/<screen>.stories.tsx`        |
+| One primitive                              | `Primitives/<Group>/<Name>`       | `packages/ui-web/src/components/<name>/component.stories.tsx`   |
+| One section                                | `Sections/<Area>/<Name>`          | `packages/ui-web/src/sections/<name>/component.stories.tsx`     |
+| A chart mark                               | `Charts/<Name>`                   | `packages/ui-web/src/components/<name>/component.stories.tsx`   |
+| German rendering                           | `Pages/Platform/I18nGerman`       | `packages/ui-web/src/pages-stories/i18n-german.stories.tsx`     |
+| The shell itself (rail, footer, switchers) | `Pages/Platform/ShellPersistence` | `shell-fixtures.tsx` and `shell-persistence.stories.tsx`        |
+| An LCI screen                              | `Pages/LCI/<Screen>`              | `apps/lci/src/containers/<screen>.stories.tsx`                  |
+| An LCI component                           | `LCI/<Name>`                      | same directory as the component                                 |
+| Loading / empty / error state              | —                                 | The same story file — every screen story carries those variants |
 
-`Pages/FromSpec` reads the **real** `apps/console/dashboards.yaml` and the **real**
+Every console and LCI screen has a page story; if you cannot find one for the screen you changed,
+look again before concluding it has none (`ls packages/ui-web/src/pages-stories/`,
+`ls apps/lci/src/containers/*.stories.tsx`).
+
+`Dashboard/FromSpec` reads the **real** `apps/console/dashboards.yaml` and the **real**
 `apps/console/locales/en/dashboards.json`. There is no fixture to update, and a panel showing a raw
 i18n key means the locale files are incomplete.
+
+**LCI stories run against bundler stubs, not a Next server.** `next/link`, `next/navigation`, the
+Server Action modules and `lib/server/session` are aliased in `.storybook/main.ts` — so navigation
+and writes are inert in a story. That is deliberate: a story certifies that a control exists and is
+enabled/disabled correctly for the given permissions; what the action does to the control plane is
+`apps/lci`'s own vitest suites' job.
 
 ## Method A — dev server (interactive, fastest to iterate)
 
@@ -64,7 +78,9 @@ http://localhost:6100/iframe.html?id=<story-id>&viewMode=story
 ```
 
 Story ids come from `packages/ui-web/storybook-static/index.json` — grep it rather than guessing
-(`Pages/FromSpec` → `pages-fromspec--<variant>`).
+(`Dashboard/FromSpec` → `dashboard-fromspec--<variant>`; `Pages/LCI/Overview` →
+`pages-lci-overview--<variant>`). Ids are derived from the title, so the 2026-09-03 folder
+reorganisation changed every one of them — never reuse an id from an older document.
 
 Screenshot it with the browser tooling available in your harness. Both themes matter: the console is
 **dark by default (`black`) with a first-class light theme (`wireframe`)**. Check both, and check a
@@ -88,10 +104,13 @@ Stop the server when done.
 Claim "verified" only with all of these, and paste the real output:
 
 ```sh
-pnpm --filter @lightbridge/ui-web test
+pnpm --filter @lightbridge/ui-web test          # includes the story-taxonomy guard
 pnpm --filter @lightbridge/ui-web typecheck
 pnpm --filter @lightbridge/ui-web build-storybook
 ```
+
+If you touched an LCI story, `pnpm --filter lci test` and `pnpm --filter lci typecheck` too — those
+story files are inside `apps/lci`'s tsconfig.
 
 plus **a screenshot path in the PR body's `## Screenshots / Evidence` section**. "Looks right" with
 no image is not evidence.
@@ -115,3 +134,7 @@ pnpm --filter console build:web
 - **`pnpm --filter console build` is not a script.** It is `build:web`.
 - **Do not add a story that duplicates fixture data the YAML already carries.** For dashboards, the
   fixture path IS the YAML.
+- **A duplicate `title:` silently merges two stories into one sidebar entry** — no warning, and
+  `build-storybook` still passes while one of them stops being reachable.
+  `packages/ui-web/src/story-taxonomy.test.ts` (and `node scripts/storybook-taxonomy.mjs --check`)
+  is the gate for that; do not work around it by renaming to something outside the taxonomy.

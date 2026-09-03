@@ -152,7 +152,7 @@ function AdminRolesScreen({
 }
 
 const meta: Meta<typeof AdminRolesScreen> = {
-  title: 'Pages/AdminRoles',
+  title: 'Pages/Admin/Roles',
   component: AdminRolesScreen,
   parameters: { layout: 'fullscreen' },
 };

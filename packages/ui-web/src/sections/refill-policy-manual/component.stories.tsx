@@ -13,7 +13,7 @@ function Controlled({ initialOpen }: { initialOpen: boolean }) {
 }
 
 const meta: Meta<typeof Controlled> = {
-  title: 'Sections/RefillPolicyManual',
+  title: 'Sections/Admin/RefillPolicyManual',
   component: Controlled,
   parameters: { layout: 'fullscreen' },
 };

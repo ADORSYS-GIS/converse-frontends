@@ -5,7 +5,7 @@ import { Sparkline } from '../sparkline';
 import { StatCard } from './component';
 
 const meta: Meta<typeof StatCard> = {
-  title: 'Data display/StatCard',
+  title: 'Primitives/Data/StatCard',
   component: StatCard,
 };
 

@@ -77,7 +77,7 @@ function AdminUsageChannelScreen({ state = 'loaded' }: { state?: SpecPageState }
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminUsageChannel',
+  title: 'Pages/Admin/UsageByChannel',
   parameters: { layout: 'fullscreen' },
 };
 

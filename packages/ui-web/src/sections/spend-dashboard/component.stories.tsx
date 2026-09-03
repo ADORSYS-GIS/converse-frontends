@@ -13,7 +13,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof SpendDashboard> = {
-  title: 'Sections/SpendDashboard',
+  title: 'Sections/Usage/SpendDashboard',
   component: SpendDashboard,
   parameters: { layout: 'fullscreen' },
   args: {

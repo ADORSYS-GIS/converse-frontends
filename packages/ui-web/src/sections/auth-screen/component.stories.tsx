@@ -5,7 +5,7 @@ import { AuthScreen } from './component';
 import { authCallbackErrorMessage, authSignedOutMessage } from './fixtures';
 
 const meta: Meta<typeof AuthScreen> = {
-  title: 'Sections/AuthScreen',
+  title: 'Sections/Auth/AuthScreen',
   component: AuthScreen,
   parameters: { layout: 'fullscreen' },
   args: { onSignIn: () => {} },

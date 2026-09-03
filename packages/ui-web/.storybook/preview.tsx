@@ -37,6 +37,41 @@ const preview: Preview = {
     backgrounds: { disable: true },
     controls: { expanded: false },
     viewport: { options: CONSOLE_VIEWPORTS },
+    // The sidebar's reading order, top-down: what a thing is made of, then what it is made into,
+    // then where it ships. Plain alphabetical put `Charts` above `Dashboard` above `Foundations`
+    // above `Pages`, which reads as noise; this pins the roots (and the second level where it
+    // matters) and lets everything unnamed fall through alphabetically after them.
+    //
+    // `Legacy` is last on purpose — `src/refine-mock/` is #472 class B (referenced only by its own
+    // stories) and awaiting an owner ruling on deletion. It stays browsable; it stops competing
+    // for attention with the live tree.
+    //
+    // **Written out inline, not hoisted to a `const`.** Storybook statically analyses this file
+    // and rejects an identifier here ("Parameter 'options.storySort' should be defined inline") —
+    // `build-storybook` fails outright, so this is not a style choice. The roots below are
+    // asserted against `scripts/storybook-taxonomy.mjs`'s `TAXONOMY_ROOTS` by
+    // `src/story-taxonomy.test.ts`, which is what keeps the two lists from drifting.
+    //
+    // Full map + the rules for adding a story: `packages/ui-web/STORYBOOK.md`.
+    options: {
+      storySort: {
+        method: 'alphabetical',
+        order: [
+          'Foundations',
+          'Primitives',
+          ['Actions', 'Fields', 'Overlays', 'Data', 'States'],
+          'Charts',
+          'Shell',
+          'Dashboard',
+          'Sections',
+          ['Account', 'Usage', 'Budget', 'Admin', 'Auth', 'Settings'],
+          'Pages',
+          ['Account', 'Settings', 'Admin', 'Auth', 'LCI', 'Platform'],
+          'LCI',
+          'Legacy',
+        ],
+      },
+    },
   },
   // A toolbar entry (Storybook's `globalTypes`) rather than a fixed decorator: reviewers switch
   // `black`/`wireframe` per the phase-4 acceptance surface without editing a story.

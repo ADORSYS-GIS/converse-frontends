@@ -220,7 +220,7 @@ function ApiKeysScreen({
 }
 
 const meta: Meta<typeof ApiKeysScreen> = {
-  title: 'Pages/ApiKeys',
+  title: 'Pages/Account/ApiKeys',
   component: ApiKeysScreen,
   parameters: { layout: 'fullscreen' },
 };

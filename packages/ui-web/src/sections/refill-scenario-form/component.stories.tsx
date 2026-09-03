@@ -20,7 +20,7 @@ function Controlled({ initial, errors }: { initial: ScenarioValue; errors?: Scen
 }
 
 const meta: Meta<typeof Controlled> = {
-  title: 'Sections/ScenarioForm',
+  title: 'Sections/Admin/RefillScenarioForm',
   component: Controlled,
   parameters: { layout: 'fullscreen' },
 };

@@ -8,7 +8,7 @@ import { apiKeysFixture } from './fixtures';
 import type { ApiKeyRow, ApiKeysDeleteTarget, ApiKeysRevokeTarget } from './types';
 
 const meta: Meta<typeof ApiKeysLedger> = {
-  title: 'Sections/ApiKeysLedger',
+  title: 'Sections/Account/ApiKeysLedger',
   component: ApiKeysLedger,
   parameters: { layout: 'fullscreen' },
 };

@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SkeletonMetric } from './component';
 
 const meta: Meta<typeof SkeletonMetric> = {
-  title: 'States/SkeletonMetric',
+  title: 'Primitives/States/SkeletonMetric',
   component: SkeletonMetric,
 };
 

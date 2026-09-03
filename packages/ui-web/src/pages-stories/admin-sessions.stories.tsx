@@ -168,7 +168,7 @@ function AdminSessionsScreen({
 }
 
 const meta: Meta<typeof AdminSessionsScreen> = {
-  title: 'Pages/AdminSessions',
+  title: 'Pages/Admin/Sessions',
   component: AdminSessionsScreen,
   parameters: { layout: 'fullscreen' },
 };

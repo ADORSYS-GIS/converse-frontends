@@ -33,6 +33,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@storybook/react-vite": "^10.5.10",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",

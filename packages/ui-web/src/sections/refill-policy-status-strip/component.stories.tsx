@@ -10,7 +10,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof RefillPolicyStatusStrip> = {
-  title: 'Sections/RefillPolicyStatusStrip',
+  title: 'Sections/Admin/RefillPolicyStatusStrip',
   component: RefillPolicyStatusStrip,
   parameters: { layout: 'fullscreen' },
   args: refillPolicyStatusReady,

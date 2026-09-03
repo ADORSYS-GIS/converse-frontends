@@ -263,7 +263,7 @@ function SettingsOverviewLensScreen({
 }
 
 const meta: Meta = {
-  title: 'Pages/SettingsOverview',
+  title: 'Pages/Settings/Overview',
   parameters: { layout: 'fullscreen' },
 };
 

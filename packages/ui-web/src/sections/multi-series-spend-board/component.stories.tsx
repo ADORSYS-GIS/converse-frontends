@@ -49,7 +49,7 @@ const MODEL_SERIES: MultiSeriesSpendSeries[] = [
 const dayTick = (d: Date) => `${String(d.getDate()).padStart(2, '0')} Feb`;
 
 const meta: Meta<typeof MultiSeriesSpendBoard> = {
-  title: 'Sections/MultiSeriesSpendBoard',
+  title: 'Sections/Usage/MultiSeriesSpendBoard',
   component: MultiSeriesSpendBoard,
   parameters: { layout: 'fullscreen' },
   args: {

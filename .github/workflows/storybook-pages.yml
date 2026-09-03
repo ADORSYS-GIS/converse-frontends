@@ -18,6 +18,11 @@ on:
     branches: ['main']
     paths:
       - 'packages/ui-web/**'
+      # `apps/lci` is a second story root (`packages/ui-web/.storybook/main.ts` globs both trees --
+      # LCI's screens are app-local by ADR 0014 and do not move into `ui-web`). Without this line a
+      # broken LCI story would land on `main` with this workflow never running.
+      - 'apps/lci/**'
+      - 'scripts/storybook-taxonomy.mjs'
       - '.github/workflows/storybook-pages.yml'
   workflow_dispatch:
 

@@ -8,7 +8,7 @@ import { withRefineMock } from './refine-decorator';
 // `useTable` over `refill-requests` (pending), `useOne` for the selected request's detail, decide
 // via `useCustomMutation` — console-ui skill "Refine-driven mock screens".
 const meta: Meta<typeof RefineAdminBudgetReviewScreen> = {
-  title: 'Refine/AdminBudgetReview',
+  title: 'Legacy/Refine/AdminBudgetReview',
   component: RefineAdminBudgetReviewScreen,
   parameters: { layout: 'fullscreen' },
 };

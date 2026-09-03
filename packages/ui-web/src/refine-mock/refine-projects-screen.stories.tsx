@@ -10,7 +10,7 @@ import { withRefineMock } from './refine-decorator';
 // provider — console-ui skill "Refine-driven mock screens" / docs/adr/0009-nextjs-console-
 // replacement.md Decision 4.
 const meta: Meta<typeof RefineProjectsScreen> = {
-  title: 'Refine/Projects',
+  title: 'Legacy/Refine/Projects',
   component: RefineProjectsScreen,
   parameters: { layout: 'fullscreen' },
 };

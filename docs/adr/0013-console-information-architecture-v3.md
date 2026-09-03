@@ -648,7 +648,7 @@ tab loop inside `AccountsSettings`.
 
 A further owner directive, on top of the original ask that opened issue #368 ("Since I'm an admin,
 I should also have a block /admin for admin stuffs...") and the design batch it produced: eight
-operator dashboards, built as a Storybook-only page story (`Pages/AdminOverview`,
+operator dashboards, built as a Storybook-only page story (`Pages/Admin/Overview`,
 `claude/sb-admin-dashboards`@aaf3fe6) and approved verbatim — _"Approved, build the /admin area."_
 
 This does not reopen D1 or D2 — it adds **a third navigable area** (`ConsoleArea = 'account' |

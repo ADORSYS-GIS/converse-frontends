@@ -9,7 +9,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof DeviceConfirmation> = {
-  title: 'Sections/DeviceConfirmation',
+  title: 'Sections/Auth/DeviceConfirmation',
   component: DeviceConfirmation,
   parameters: { layout: 'fullscreen' },
   args: {

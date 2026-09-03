@@ -4,7 +4,7 @@ import { fn } from 'storybook/test';
 import { ConfirmDialog } from './component';
 
 const meta: Meta<typeof ConfirmDialog> = {
-  title: 'Forms & actions/ConfirmDialog',
+  title: 'Primitives/Overlays/ConfirmDialog',
   component: ConfirmDialog,
   args: {
     open: true,

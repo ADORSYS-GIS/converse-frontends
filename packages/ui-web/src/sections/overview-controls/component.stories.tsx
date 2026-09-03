@@ -22,7 +22,7 @@ function field(
 const TODAY = new Date(Date.UTC(2026, 7, 29));
 
 const meta: Meta<typeof OverviewControls> = {
-  title: 'Sections/OverviewControls',
+  title: 'Sections/Usage/OverviewControls',
   component: OverviewControls,
   parameters: { layout: 'padded' },
   args: {

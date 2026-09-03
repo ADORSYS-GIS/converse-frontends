@@ -8,7 +8,7 @@ import { pendingRequestsFixture } from './fixtures';
 import type { RefillRequestRow } from './types';
 
 const meta: Meta<typeof ReviewQueue> = {
-  title: 'Sections/ReviewQueue',
+  title: 'Sections/Admin/ReviewQueue',
   component: ReviewQueue,
   parameters: { layout: 'fullscreen' },
 };

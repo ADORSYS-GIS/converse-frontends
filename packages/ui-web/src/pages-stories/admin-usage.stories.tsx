@@ -92,7 +92,7 @@ function AdminUsageScreen({ state = 'loaded' }: { state?: SpecPageState }) {
 }
 
 const meta: Meta = {
-  title: 'Pages/AdminUsage',
+  title: 'Pages/Admin/Usage',
   parameters: { layout: 'fullscreen' },
 };
 

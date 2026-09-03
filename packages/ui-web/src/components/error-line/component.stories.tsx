@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ErrorLine } from './component';
 
 const meta: Meta<typeof ErrorLine> = {
-  title: 'States/ErrorLine',
+  title: 'Primitives/States/ErrorLine',
   component: ErrorLine,
 };
 

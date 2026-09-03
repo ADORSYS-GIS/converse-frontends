@@ -34,7 +34,7 @@ function Controlled(initialProps: PolicySimulatorProps) {
 }
 
 const meta: Meta<typeof Controlled> = {
-  title: 'Sections/PolicySimulator',
+  title: 'Sections/Admin/PolicySimulator',
   component: Controlled,
   parameters: { layout: 'fullscreen' },
   args: policySimulatorBase,

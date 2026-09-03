@@ -252,7 +252,7 @@ function OverviewScreen({
 }
 
 const meta: Meta<typeof OverviewScreen> = {
-  title: 'Pages/Overview',
+  title: 'Pages/Account/Overview',
   component: OverviewScreen,
   parameters: { layout: 'fullscreen' },
 };

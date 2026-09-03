@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CommandSnippet } from './component';
 
 const meta: Meta<typeof CommandSnippet> = {
-  title: 'Forms & actions/CommandSnippet',
+  title: 'Primitives/Actions/CommandSnippet',
   component: CommandSnippet,
   args: {
     command: 'kubectl logs -f lci-run-4f21ac --namespace lightbridge',

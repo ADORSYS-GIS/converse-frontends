@@ -16,7 +16,7 @@ import {
 import type { SessionDetail, SessionLedgerRow } from './types';
 
 const meta: Meta<typeof SessionLedger> = {
-  title: 'Sections/SessionLedger',
+  title: 'Sections/Admin/SessionLedger',
   component: SessionLedger,
   parameters: { layout: 'fullscreen' },
 };

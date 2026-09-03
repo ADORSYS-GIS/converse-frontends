@@ -127,7 +127,7 @@ function InfoScreen({
 }
 
 const meta: Meta = {
-  title: 'Pages/SettingsInfo',
+  title: 'Pages/Settings/Info',
   parameters: { layout: 'fullscreen' },
 };
 

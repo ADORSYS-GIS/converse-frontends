@@ -9,7 +9,7 @@ import { projectsFixture } from './fixtures';
 import type { ProjectRow } from './types';
 
 const meta: Meta<typeof ProjectsLedger> = {
-  title: 'Sections/ProjectsLedger',
+  title: 'Sections/Account/ProjectsLedger',
   component: ProjectsLedger,
   parameters: { layout: 'fullscreen' },
 };

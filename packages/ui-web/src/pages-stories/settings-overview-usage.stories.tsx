@@ -137,7 +137,7 @@ function UsageOverviewScreen({ showAdmin = false, truncationCaption }: UsageOver
 }
 
 const meta: Meta<typeof UsageOverviewScreen> = {
-  title: 'Pages/SettingsOverviewUsage',
+  title: 'Pages/Settings/OverviewUsage',
   component: UsageOverviewScreen,
   parameters: { layout: 'fullscreen' },
 };

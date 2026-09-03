@@ -7,7 +7,7 @@ import { withRefineMock } from './refine-decorator';
 
 // `useTable` over the `api-keys` resource — console-ui skill "Refine-driven mock screens".
 const meta: Meta<typeof RefineApiKeysScreen> = {
-  title: 'Refine/ApiKeys',
+  title: 'Legacy/Refine/ApiKeys',
   component: RefineApiKeysScreen,
   parameters: { layout: 'fullscreen' },
 };

@@ -23,7 +23,7 @@ import type { GrantUserOption, PlatformRoleGrantRow } from './types';
 const ROLES = ['lightbridge-admin', 'lightbridge-editor', 'lightbridge-viewer'] as const;
 
 const meta: Meta<typeof PlatformRoleGrants> = {
-  title: 'Sections/PlatformRoleGrants',
+  title: 'Sections/Admin/PlatformRoleGrants',
   component: PlatformRoleGrants,
   parameters: { layout: 'fullscreen' },
 };

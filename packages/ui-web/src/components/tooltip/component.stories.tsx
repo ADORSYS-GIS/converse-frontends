@@ -6,7 +6,7 @@ import { Button } from '../button';
 import { LABEL_CLASS } from '../../lib/type-roles';
 
 const meta: Meta<typeof Tooltip> = {
-  title: 'Components/Tooltip',
+  title: 'Primitives/Overlays/Tooltip',
   component: Tooltip,
   parameters: { layout: 'padded' },
   decorators: [

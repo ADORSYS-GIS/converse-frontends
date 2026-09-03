@@ -70,7 +70,7 @@ If the count did NOT go up, that is the dedupe working — state that too.
 ### 4. The story needs nothing
 
 `packages/ui-web/src/pages-stories/spec-page.tsx` imports the real `dashboards.yaml` and the real
-`locales/en/dashboards.json`. Your panel appears in `Pages/FromSpec` automatically. If it renders
+`locales/en/dashboards.json`. Your panel appears in `Dashboard/FromSpec` automatically. If it renders
 with a visible i18n key, step 2 is incomplete.
 
 If you added a new `options.*` knob, thread it through `SpecPanel` in `spec-page.tsx` and add a case
@@ -93,7 +93,7 @@ pnpm --filter @lightbridge/ui-web test
 pnpm --filter console build:web     # the REAL Next build (not `build`)
 ```
 
-Then look at it: `pnpm --filter @lightbridge/ui-web storybook` → `Pages/FromSpec`. See the
+Then look at it: `pnpm --filter @lightbridge/ui-web storybook` → `Dashboard/FromSpec`. See the
 `console-story-verify` skill.
 
 ## Pitfalls that have actually bitten

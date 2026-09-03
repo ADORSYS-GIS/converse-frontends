@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { StatusText } from './component';
 
 const meta: Meta<typeof StatusText> = {
-  title: 'Data display/StatusText',
+  title: 'Primitives/Data/StatusText',
   component: StatusText,
   args: { children: 'active' },
 };

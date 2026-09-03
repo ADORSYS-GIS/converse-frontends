@@ -6,7 +6,7 @@ import { StatusText } from '../status-text';
 import { InlineStatus } from './component';
 
 const meta: Meta<typeof InlineStatus> = {
-  title: 'States/InlineStatus',
+  title: 'Primitives/States/InlineStatus',
   component: InlineStatus,
 };
 

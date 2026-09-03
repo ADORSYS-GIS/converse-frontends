@@ -15,7 +15,7 @@ import { DashboardGrid } from './component';
  * migration; this story is what it is migrating ONTO.
  */
 const meta: Meta<typeof DashboardGrid> = {
-  title: 'Sections/DashboardGrid',
+  title: 'Dashboard/DashboardGrid',
   component: DashboardGrid,
   parameters: { layout: 'padded' },
 };

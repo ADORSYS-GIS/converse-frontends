@@ -45,7 +45,7 @@ pnpm --filter @lightbridge/ui-web test
 pnpm --filter console build:web
 ```
 
-Then look at `Pages/FromSpec` in Storybook — see `.claude/skills/console-story-verify/SKILL.md` —
+Then look at `Dashboard/FromSpec` in Storybook — see `.claude/skills/console-story-verify/SKILL.md` —
 and put the screenshot path in the PR body.
 
 PRs follow `.github/PULL_REQUEST_TEMPLATE.md` in full; see

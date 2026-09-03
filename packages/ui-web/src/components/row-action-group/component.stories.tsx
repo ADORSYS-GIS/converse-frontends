@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { RowActionGroup } from './component';
 
 const meta: Meta<typeof RowActionGroup> = {
-  title: 'Data display/RowActionGroup',
+  title: 'Primitives/Actions/RowActionGroup',
   component: RowActionGroup,
 };
 

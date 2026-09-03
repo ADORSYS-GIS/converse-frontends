@@ -25,7 +25,7 @@ import type { DashboardPanelType, DashboardPanelView } from './types';
  * layout the page never renders.
  */
 const meta: Meta = {
-  title: 'Panels',
+  title: 'Dashboard/PanelRenderers',
   parameters: { layout: 'padded' },
 };
 

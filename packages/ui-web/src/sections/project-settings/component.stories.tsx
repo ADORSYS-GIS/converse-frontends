@@ -5,7 +5,7 @@ import { ProjectSettings, ProjectSettingsDetail } from './component';
 import { defaultProjectFixture, projectSettingsFixture } from './fixtures';
 
 const meta: Meta<typeof ProjectSettings> = {
-  title: 'Sections/ProjectSettings',
+  title: 'Sections/Account/ProjectSettings',
   component: ProjectSettings,
   args: {
     projects: projectSettingsFixture,

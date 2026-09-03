@@ -15,7 +15,7 @@ describe('HistogramChart', () => {
 
   it('renders every bar in the rank-0 grey ramp colour when not breached', () => {
     const { container } = render(
-      <HistogramChart values={[10, 20, 30, 40, 50, 60, 70, 80]} width={400} height={200} />,
+      <HistogramChart values={[10, 20, 30, 40, 50, 60, 70, 80]} width={400} height={200} />
     );
 
     const bars = container.querySelectorAll('rect');
@@ -27,7 +27,7 @@ describe('HistogramChart', () => {
 
   it('renders every bar in the accent colour when breached, and no legend (single series)', () => {
     const { container } = render(
-      <HistogramChart values={[10, 20, 30, 40, 50, 60, 70, 80]} width={400} height={200} breached />,
+      <HistogramChart values={[10, 20, 30, 40, 50, 60, 70, 80]} width={400} height={200} breached />
     );
 
     const bars = container.querySelectorAll('rect');
@@ -52,7 +52,7 @@ describe('HistogramChart', () => {
         width={400}
         height={200}
         formatXTick={(v) => `${Math.round(v)}ms`}
-      />,
+      />
     );
 
     const ticks = screen.getAllByText(/ms$/);

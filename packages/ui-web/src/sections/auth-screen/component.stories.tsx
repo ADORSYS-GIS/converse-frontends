@@ -18,7 +18,7 @@ type Story = StoryObj<typeof AuthScreen>;
 // nothing else. Outside the shell entirely, `#000` floor, no rails.
 export const Default: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen {...args} />
     </div>
   ),
@@ -28,7 +28,7 @@ export const Default: Story = {
 // Not a modal, not a toast.
 export const SignedOut: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen {...args} signedOutMessage={authSignedOutMessage} />
     </div>
   ),
@@ -37,7 +37,7 @@ export const SignedOut: Story = {
 // README §5.5 redirect-in-flight: the button turns `--muted` with "Redirecting…"; no spinner.
 export const Redirecting: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen {...args} status="redirecting" />
     </div>
   ),
@@ -49,7 +49,7 @@ export const Redirecting: Story = {
 // error code.
 export const CallbackError: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen
         {...args}
         status="error"
@@ -65,7 +65,7 @@ export const CallbackError: Story = {
 // proving the link itself renders correctly once a caller has a real URL to pass.
 export const WithSupportLink: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen {...args} supportHref="https://docs.example.com/console/sign-in" />
     </div>
   ),
@@ -74,7 +74,7 @@ export const WithSupportLink: Story = {
 // Config-driven logo slot (ADR 0008 Decision 8) -- falls back to the wordmark when unset.
 export const WithConfiguredLogo: Story = {
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen
         {...args}
         logoSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' rx='2' fill='%23DA5C2C'/%3E%3C/svg%3E"
@@ -91,7 +91,7 @@ export const WithConfiguredLogo: Story = {
 export const MobileBaseTier: Story = {
   globals: { viewport: { value: 'base390' } },
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
+    <div className="bg-muted min-h-screen w-full">
       <AuthScreen {...args} />
     </div>
   ),
@@ -104,8 +104,13 @@ export const CallbackErrorLight: Story = {
   name: 'Callback error — wireframe (light)',
   globals: { theme: 'wireframe' },
   render: (args) => (
-    <div className="min-h-screen w-full bg-muted">
-      <AuthScreen {...args} status="error" errorMessage={authCallbackErrorMessage} onRetry={() => {}} />
+    <div className="bg-muted min-h-screen w-full">
+      <AuthScreen
+        {...args}
+        status="error"
+        errorMessage={authCallbackErrorMessage}
+        onRetry={() => {}}
+      />
     </div>
   ),
 };

@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { ScenarioForm } from './component';
-import { scenarioFormEmpty, scenarioFormErrors, scenarioFormPopulated, scenarioFormWithErrors } from './fixtures';
+import {
+  scenarioFormEmpty,
+  scenarioFormErrors,
+  scenarioFormPopulated,
+  scenarioFormWithErrors,
+} from './fixtures';
 import type { ScenarioErrors, ScenarioValue } from './types';
 
 function Controlled({ initial, errors }: { initial: ScenarioValue; errors?: ScenarioErrors }) {

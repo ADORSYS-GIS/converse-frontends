@@ -14,9 +14,9 @@ import { useConsoleScope } from '../client/use-console-scope';
  * same `?account=`/`?project=` params — not because a provider is holding a value for them
  * (ADR 0011 Decision 2).
  *
- * `accounts` is narrowed to the one currently-scoped account — see `OverviewScopeSlot`'s own doc
- * comment (Phase 2d, account-scoping audit, converse-frontends#368/#392) for why offering every
- * other account here was a dead affordance: `scope.setValue` silently ignores an account change.
+ * `accounts` is narrowed to the one currently-scoped account (Phase 2d, account-scoping audit,
+ * converse-frontends#368/#392): offering every other account here was a dead affordance, since
+ * `scope.setValue` silently ignores an account change.
  */
 export function ManageScopeSlot() {
   const scope = useConsoleScope();

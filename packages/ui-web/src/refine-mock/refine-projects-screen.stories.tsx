@@ -29,7 +29,9 @@ export const Populated: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
   },
 };
 
@@ -45,7 +47,9 @@ export const RowSelected: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
 
     const rows = canvas.getAllByRole('row').slice(1);
     rows[0].click();
@@ -60,7 +64,12 @@ export const RowSelected: Story = {
 // The `projects` resource rejects every `getList` call — `ErrorLine` + Retry renders in place of
 // the ledger, exactly like the fixture-driven `Pages/Projects`'s `ErrorState` story.
 export const ErrorMode: Story = {
-  decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } })],
+  decorators: [
+    withRefineMock({
+      latencyMs: [10, 20],
+      errorResources: { projects: 'Failed to load projects for this account.' },
+    }),
+  ],
   render: () => (
     <div className="w-full">
       <RefineProjectsScreen />
@@ -68,8 +77,14 @@ export const ErrorMode: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByRole('alert')).toHaveTextContent('Failed to load projects for this account.'), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () =>
+        expect(canvas.getByRole('alert')).toHaveTextContent(
+          'Failed to load projects for this account.'
+        ),
+      {
+        timeout: 3000,
+      }
+    );
   },
 };

@@ -4,31 +4,19 @@
     {
       "name": "ui-web-storybook",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "packages/ui-web",
-        "storybook"
-      ],
+      "runtimeArgs": ["--dir", "packages/ui-web", "storybook"],
       "port": 6007
     },
     {
       "name": "console-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "apps/console",
-        "dev"
-      ],
+      "runtimeArgs": ["--dir", "apps/console", "dev"],
       "port": 3000
     },
     {
       "name": "authz-ui-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "apps/authz-ui",
-        "dev"
-      ],
+      "runtimeArgs": ["--dir", "apps/authz-ui", "dev"],
       "port": 5173
     },
     {

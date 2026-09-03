@@ -307,7 +307,9 @@ describe('CreateApiKeyDialog', () => {
       );
       await screen.findByRole('dialog');
 
-      const backdrop = container.ownerDocument.querySelector('[data-base-ui-backdrop], .bg-muted\\/80');
+      const backdrop = container.ownerDocument.querySelector(
+        '[data-base-ui-backdrop], .bg-muted\\/80'
+      );
       if (backdrop) fireEvent.click(backdrop);
 
       expect(await screen.findByRole('dialog')).toBeInTheDocument();

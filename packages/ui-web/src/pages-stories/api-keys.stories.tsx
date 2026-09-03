@@ -57,12 +57,13 @@ const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value 
 
 // The composition `apps/console`'s `(console)` layout + the `/accounts/[accountId]/api-keys` route perform for real.
 //
-// `showAdmin` is the ledger's own `isAdmin` (ticket #321): the console-side container reads the
-// same `lightbridge-admin` grant to decide whether `Del` renders at all. It no longer changes
-// anything about the sidebar (owner review round 2, 2026-08-31, converse-frontends#368 finding
-// #1) — the account-area rail's Operator/Admin group is deleted outright, not role-gated any
-// more, so `storySidebar('api-keys', { isAdmin: showAdmin })` renders identical nav content
-// either way; only the ledger's own `Del` column differs now.
+// `showAdmin` is the ledger's own `canDelete` (ticket #321; renamed from `isAdmin` by
+// converse-frontends#452, which replaced the `lightbridge-admin` role flag with the `apikey:delete`
+// permission the backend actually enforces). It no longer changes anything about the sidebar
+// (owner review round 2, 2026-08-31, converse-frontends#368 finding #1) — the account-area rail's
+// Operator/Admin group is deleted outright, not gated any more, so
+// `storySidebar('api-keys', { showAdmin })` renders identical nav content either way; only the
+// ledger's own `Del` column differs now.
 function ApiKeysScreen({
   keys = apiKeysFixture,
   initialResult = null,
@@ -98,7 +99,7 @@ function ApiKeysScreen({
   const hygiene = useMemo(() => (keys.length > 0 ? apiKeysHygiene : undefined), [keys.length]);
 
   return (
-    <ConsoleShell sidebar={storySidebar('api-keys', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('api-keys', { showAdmin })} topBar={storyTopBar()}>
       {/* No aside column here either — this screen has no rail content at any tier (owner review
           2026-08-29). Scope is the sidebar's (account) and the toolbar's (project); there is
           nothing left for a rail to hold. Filters live in `PageHeader.controls`; `+ New key` is
@@ -203,7 +204,7 @@ function ApiKeysScreen({
             revokeTarget={revokeTarget}
             onConfirmRevoke={() => setRevokeTarget(null)}
             onCancelRevoke={() => setRevokeTarget(null)}
-            isAdmin={showAdmin}
+            canDelete={showAdmin}
             onRequestDelete={(row) => setDeleteTarget({ row })}
             deleteTarget={deleteTarget}
             onConfirmDelete={() => setDeleteTarget(null)}

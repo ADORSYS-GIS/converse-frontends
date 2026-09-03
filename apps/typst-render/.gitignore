@@ -1,0 +1,4 @@
+# `tsc -p tsconfig.build.json` output — the only thing the runtime image copies in, rebuilt on
+# every CI run by `pnpm turbo run build:web --filter=typst-render`. Never committed.
+dist/
+*.tsbuildinfo

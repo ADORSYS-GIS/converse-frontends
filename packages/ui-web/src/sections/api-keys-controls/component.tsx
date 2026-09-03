@@ -29,7 +29,9 @@ export function ApiKeysControls({
   // and the search field's placeholder says what it searches. Every `label`/`aria-label` stays
   // for a11y (`hideLabel` only hides the visible text).
   return (
-    <section aria-label="Filters and actions" className={cn('flex flex-wrap items-end gap-3', className)}>
+    <section
+      aria-label="Filters and actions"
+      className={cn('flex flex-wrap items-end gap-3', className)}>
       <SelectField {...projectField} layout="inline" hideLabel />
 
       <SegmentedControl

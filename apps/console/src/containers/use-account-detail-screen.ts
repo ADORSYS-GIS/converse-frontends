@@ -114,7 +114,11 @@ export function useAccountDetailScreen(): AccountDetailScreen {
     details:
       account === null || scope.loading || scope.error
         ? null
-        : { id: account.id, status: account.status, defaultQuotaTier: account.defaultQuota ?? null },
+        : {
+            id: account.id,
+            status: account.status,
+            defaultQuotaTier: account.defaultQuota ?? null,
+          },
     onCopyId: (id: string) => {
       void navigator.clipboard?.writeText?.(id).catch(() => undefined);
     },

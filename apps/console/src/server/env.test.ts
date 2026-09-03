@@ -9,6 +9,7 @@ import {
   __resetServerEnvCacheForTests,
   buildConsoleEnv,
   normalizeBasePath,
+  resolveTypstRenderUrl,
   serverEnv,
   trimTrailingSlash,
 } from './env';
@@ -28,6 +29,21 @@ const VALID_CONFIG = {
 };
 
 describe('buildConsoleEnv', () => {
+  /**
+   * `typstRenderUrl` now falls back to `TYPST_RENDER_URL` (owner feedback 2026-09-03), so every
+   * test in this block that asserts on a WHOLE `ConsoleEnv` depends on that variable being
+   * absent — and a developer running the live-renderer integration test exports it. Cleared here
+   * so the assertions are about the document, not about the shell they were run from.
+   */
+  const ORIGINAL_RENDER_URL = process.env.TYPST_RENDER_URL;
+  beforeEach(() => {
+    delete process.env.TYPST_RENDER_URL;
+  });
+  afterEach(() => {
+    if (ORIGINAL_RENDER_URL === undefined) delete process.env.TYPST_RENDER_URL;
+    else process.env.TYPST_RENDER_URL = ORIGINAL_RENDER_URL;
+  });
+
   /**
    * The usage query listener requires mTLS and has no bearer-token auth of its own
    * (lightbridge-authz#347/#361), so a half-configured cert block is not "partly working" -- it
@@ -238,7 +254,9 @@ describe('buildConsoleEnv', () => {
       apiBasePath: '/api',
       budgetUrl: 'http://localhost:13000', // falls back to backendUrl
       usageUrl: undefined,
-      sessionSecret: 'a'.repeat(48),
+      sessionSecrets: ['a'.repeat(48)],
+      sessionMaxAgeSeconds: 12 * 60 * 60,
+      sessionAbsoluteMaxAgeSeconds: 7 * 24 * 60 * 60,
       publicBaseUrl: undefined,
     });
   });
@@ -327,6 +345,101 @@ describe('buildConsoleEnv', () => {
     );
   });
 
+  describe('session.secret as a rotation list (ADR 0016, D3.2)', () => {
+    it('normalises a plain string to a one-entry list', () => {
+      const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+      expect(env.sessionSecrets).toEqual(['a'.repeat(48)]);
+    });
+
+    it('keeps a list in order — the first entry is what seals', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { secret: ['n'.repeat(48), 'o'.repeat(48)] },
+        })
+      );
+      expect(env.sessionSecrets).toEqual(['n'.repeat(48), 'o'.repeat(48)]);
+    });
+
+    it('drops a list entry whose {env:VAR} is unset, so a retired line can stay in the document', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { secret: ['n'.repeat(48), undefined] },
+        })
+      );
+      expect(env.sessionSecrets).toEqual(['n'.repeat(48)]);
+    });
+
+    it('rejects a short entry, naming its index', () => {
+      expect(() =>
+        buildConsoleEnv(
+          parsedFrom({ ...VALID_CONFIG, session: { secret: ['n'.repeat(48), 'too-short'] } })
+        )
+      ).toThrow(/"session\.secret\[1\]" must resolve to at least 32 characters/);
+    });
+
+    it('rejects a list that resolves to nothing at all', () => {
+      expect(() =>
+        buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, session: { secret: [undefined] } }))
+      ).toThrow(/"session\.secret"/);
+    });
+  });
+
+  describe('session TTL keys (ADR 0016, D3.1)', () => {
+    it('defaults to a 12-hour sliding window inside a 7-day cap', () => {
+      const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+      expect(env.sessionMaxAgeSeconds).toBe(43_200);
+      expect(env.sessionAbsoluteMaxAgeSeconds).toBe(604_800);
+    });
+
+    it('reads both keys off the document', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({
+          ...VALID_CONFIG,
+          session: { ...VALID_CONFIG.session, maxAgeSeconds: 900, absoluteMaxAgeSeconds: 3600 },
+        })
+      );
+      expect(env.sessionMaxAgeSeconds).toBe(900);
+      expect(env.sessionAbsoluteMaxAgeSeconds).toBe(3600);
+    });
+
+    it('accepts a numeric string, which is what a {env:VAR} placeholder resolves to', () => {
+      const env = buildConsoleEnv(
+        parsedFrom({ ...VALID_CONFIG, session: { ...VALID_CONFIG.session, maxAgeSeconds: '900' } })
+      );
+      expect(env.sessionMaxAgeSeconds).toBe(900);
+    });
+
+    it('rejects a non-positive or non-integer value instead of silently defaulting', () => {
+      for (const bad of [0, -60, 1.5, 'soon']) {
+        expect(() =>
+          buildConsoleEnv(
+            parsedFrom({
+              ...VALID_CONFIG,
+              session: { ...VALID_CONFIG.session, maxAgeSeconds: bad },
+            })
+          )
+        ).toThrow(/"session\.maxAgeSeconds" must be a positive whole number/);
+      }
+    });
+
+    it('rejects a sliding window longer than the absolute cap it slides within', () => {
+      expect(() =>
+        buildConsoleEnv(
+          parsedFrom({
+            ...VALID_CONFIG,
+            session: {
+              ...VALID_CONFIG.session,
+              maxAgeSeconds: 7200,
+              absoluteMaxAgeSeconds: 3600,
+            },
+          })
+        )
+      ).toThrow(/must not exceed/);
+    });
+  });
+
   it('fails fast on a missing idp.issuer', () => {
     const { idp, ...rest } = VALID_CONFIG;
     const { issuer: _omit, ...idpWithoutIssuer } = idp;
@@ -338,6 +451,77 @@ describe('buildConsoleEnv', () => {
   it('fails fast on a missing backendUrl', () => {
     const { backendUrl: _omit, ...rest } = VALID_CONFIG;
     expect(() => buildConsoleEnv(parsedFrom(rest))).toThrow(/"backendUrl"/);
+  });
+
+  /**
+   * `reports.typstRenderUrl` (owner feedback 2026-09-03).
+   *
+   * The refusal this fixes was NOT a missing renderer: prod runs the sidecar and the chart sets
+   * `TYPST_RENDER_URL` on the console container, but prod supplies its own `config.yaml` text and
+   * that document has no `reports:` block, so the `{env:…}` placeholder that would have read the
+   * variable never existed in the document being parsed. The variable is therefore read directly,
+   * YAML still first.
+   */
+  it('reads reports.typstRenderUrl from the document, trimming a trailing slash', () => {
+    process.env.TYPST_RENDER_URL = 'http://from-the-environment:8080';
+    const env = buildConsoleEnv(
+      parsedFrom({ ...VALID_CONFIG, reports: { typstRenderUrl: 'http://from-the-document:9090/' } })
+    );
+    expect(env.typstRenderUrl).toBe('http://from-the-document:9090');
+  });
+
+  it('falls back to TYPST_RENDER_URL when the document carries no reports block at all', () => {
+    process.env.TYPST_RENDER_URL = 'http://127.0.0.1:8080/';
+    const env = buildConsoleEnv(parsedFrom(VALID_CONFIG));
+    expect(env.typstRenderUrl).toBe('http://127.0.0.1:8080');
+  });
+
+  it.each([
+    ['an empty reports block', {}],
+    ['a blank value', { typstRenderUrl: '   ' }],
+    // The shape a deployment gets when its document DOES carry the placeholder but the chart
+    // never set the variable: the loader resolves a bare, wholly-unset `{env:VAR}` to undefined.
+    ['an unresolved placeholder', { typstRenderUrl: undefined }],
+  ])('falls back to TYPST_RENDER_URL with %s', (_label, reports) => {
+    process.env.TYPST_RENDER_URL = 'http://127.0.0.1:8080';
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, reports }));
+    expect(env.typstRenderUrl).toBe('http://127.0.0.1:8080');
+  });
+
+  it.each([
+    ['unset', undefined],
+    ['blank', '   '],
+  ])(
+    'stays unconfigured when the document is silent and TYPST_RENDER_URL is %s',
+    (_label, value) => {
+      if (value === undefined) delete process.env.TYPST_RENDER_URL;
+      else process.env.TYPST_RENDER_URL = value;
+      expect(buildConsoleEnv(parsedFrom(VALID_CONFIG)).typstRenderUrl).toBeUndefined();
+    }
+  );
+
+  it('reads branding.name, which is not a path and gets none of the path validation', () => {
+    const env = buildConsoleEnv(parsedFrom({ ...VALID_CONFIG, branding: { name: '  adorsys  ' } }));
+    expect(env.branding).toEqual({ name: 'adorsys' });
+  });
+});
+
+describe('resolveTypstRenderUrl', () => {
+  it('prefers the document over the environment', () => {
+    expect(
+      resolveTypstRenderUrl('http://document:1/', { TYPST_RENDER_URL: 'http://environment:2' })
+    ).toBe('http://document:1');
+  });
+
+  it('uses the environment when the document has nothing', () => {
+    expect(resolveTypstRenderUrl(undefined, { TYPST_RENDER_URL: ' http://environment:2/ ' })).toBe(
+      'http://environment:2'
+    );
+  });
+
+  it('is undefined when neither side has anything', () => {
+    expect(resolveTypstRenderUrl(undefined, {})).toBeUndefined();
+    expect(resolveTypstRenderUrl('  ', { TYPST_RENDER_URL: '  ' })).toBeUndefined();
   });
 });
 
@@ -377,7 +561,7 @@ describe('serverEnv (end-to-end, via a real fixture file)', () => {
     );
 
     const env = serverEnv();
-    expect(env.sessionSecret).toBe('b'.repeat(40));
+    expect(env.sessionSecrets).toEqual(['b'.repeat(40)]);
     expect(env.idp.issuer).toBe('http://localhost:13444/realms/dev');
   });
 

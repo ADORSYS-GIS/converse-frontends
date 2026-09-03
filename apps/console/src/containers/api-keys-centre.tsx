@@ -107,7 +107,7 @@ export function ApiKeysCentre() {
           revokeTarget={screen.revokeTarget}
           onConfirmRevoke={screen.confirmRevoke}
           onCancelRevoke={screen.cancelRevoke}
-          isAdmin={screen.isAdmin}
+          canDelete={screen.canDelete}
           onRequestDelete={screen.requestDelete}
           deleteTarget={screen.deleteTarget}
           onConfirmDelete={screen.confirmDelete}

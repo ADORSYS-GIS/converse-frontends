@@ -1,0 +1,457 @@
+{
+  "admin-overview": {
+    "estate-spend": {
+      "title": "Total spend vs previous period",
+      "subtitle": "Every account with usage in this window. The dashed line is the previous period, laid under this one."
+    },
+    "spend-by-account": {
+      "title": "Spend by account",
+      "subtitle": "The twelve highest-spending accounts. Values on hover."
+    },
+    "spend-by-model": {
+      "title": "Spend by model over time",
+      "subtitle": "Daily spend, split by model. Bar height is the day's total; the tail past the top five is one summed Other segment, never dropped."
+    },
+    "model-mix-share": {
+      "title": "Spend by model — estate share"
+    },
+    "top-spender-users": {
+      "title": "Top spenders — users",
+      "subtitle": "Name and email where the directory could resolve the id; an id that resolved to nothing keeps its row under its own value rather than being dropped. Rows open that person's own usage.",
+      "rowLabel": "User",
+      "unit": "users"
+    },
+    "top-spender-accounts": {
+      "title": "Top spenders — accounts",
+      "rowLabel": "Account",
+      "unit": "accounts"
+    },
+    "top-spender-projects": {
+      "title": "Top spenders — projects",
+      "subtitle": "Spend the backend attributed to no project is folded into a labelled Unassigned row, never dropped.",
+      "rowLabel": "Project",
+      "unit": "projects"
+    },
+    "request-volume": {
+      "title": "Request volume",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal today (lightbridge-authz#597)."
+    },
+    "latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    },
+    "active-accounts": {
+      "title": "Active accounts",
+      "subtitle": "Only counts accounts with usage in this window — an account with zero usage never appears in an estate-wide usage query at all."
+    },
+    "active-projects": {
+      "title": "Active projects",
+      "subtitle": "Same window and the same limit; spend attributed to no project is not counted as one."
+    },
+    "adoption-over-time": {
+      "title": "Active accounts & projects per day",
+      "subtitle": "Distinct accounts and projects with at least one request in each bucket."
+    }
+  },
+  "admin-usage": {
+    "total-cost": {
+      "title": "Total cost",
+      "subtitle": "Every account with usage in this window"
+    },
+    "total-requests": {
+      "title": "Total requests",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597)."
+    },
+    "accounts-by-plan": {
+      "title": "Accounts with usage, by plan",
+      "subtitle": "Distinct accounts that drew something in this window. An account with no usage never appears in a usage query at all, so this is not a census of the estate."
+    },
+    "plan-in-use": {
+      "title": "Plans in use",
+      "subtitle": "Cost per billing plan, ranked."
+    },
+    "avg-cost-per-million-tokens": {
+      "title": "Average cost per million tokens",
+      "subtitle": "A dash, not $0.00, when the window carries no token counts — an embeddings or image call has none, and \"free\" would be a fabricated reading."
+    },
+    "active-actors": {
+      "title": "Active actors",
+      "subtitle": "Only counts actors with usage in this window. Follows the lens."
+    },
+    "cost-by-model": {
+      "title": "Cost per period by model",
+      "subtitle": "Bar height is the period's total spend; segments are the top five models plus one summed Other.",
+      "linkAll": "View models"
+    },
+    "cost-by-actor": {
+      "title": "Cost per period by actor",
+      "subtitle": "Follows the lens above — users, accounts or projects."
+    },
+    "tokens-by-model": {
+      "title": "Tokens per period by model",
+      "linkAll": "View models"
+    },
+    "tokens-by-actor": {
+      "title": "Tokens per period by actor"
+    },
+    "cost-by-channel": {
+      "title": "Cost by channel",
+      "subtitle": "Which OAuth client the spend arrived on. Rows open the channel."
+    },
+    "model-cost-share": {
+      "title": "Which models",
+      "subtitle": "Cost share across the window"
+    },
+    "top-actor-cost": {
+      "title": "Top actors by cost",
+      "subtitle": "Rows open that actor's own usage. Follows the lens."
+    },
+    "chat-completions-count": {
+      "title": "Chat completions",
+      "subtitle": "Requests on the chat-shaped surfaces — /v1/chat/completions, /v1/responses and /v1/messages."
+    },
+    "model-distribution-requests": {
+      "title": "Model distribution — requests",
+      "subtitle": "Requests by model"
+    },
+    "model-distribution-cost": {
+      "title": "Model distribution — cost"
+    },
+    "model-distribution-tokens": {
+      "title": "Model distribution — tokens"
+    },
+    "actors-table": {
+      "title": "Actors",
+      "subtitle": "Cost, requests, tokens and last activity per actor. Rows open that actor. Last activity is the start of the most recent bucket with usage, not an event timestamp.",
+      "rowLabel": "Actor",
+      "unit": "actors"
+    },
+    "channels-table": {
+      "title": "Channels",
+      "subtitle": "Cost and requests per OAuth client. Rows open the channel.",
+      "rowLabel": "Channel",
+      "unit": "channels"
+    }
+  },
+  "admin-usage-actors-actorId": {
+    "actor-total-cost": {
+      "title": "Total cost",
+      "subtitle": "This actor's own spend in the window picked above, not in the budget period."
+    },
+    "actor-total-requests": {
+      "title": "Total requests",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597)."
+    },
+    "actor-cost-by-model": {
+      "title": "Cost per period by model",
+      "subtitle": "Log axis by default — one dominant model flattens every other line on a linear one."
+    },
+    "actor-cost-by-channel": {
+      "title": "Cost by channel",
+      "subtitle": "Which OAuth client this actor's spend arrived on. Rows open the channel."
+    },
+    "actor-model-cost-share": {
+      "title": "Which models",
+      "subtitle": "Cost share across the window"
+    },
+    "actor-chat-completions-count": {
+      "title": "Chat completions",
+      "subtitle": "Requests on the chat-shaped surfaces — /v1/chat/completions, /v1/responses and /v1/messages."
+    },
+    "actor-model-distribution-requests": {
+      "title": "Model distribution — requests",
+      "subtitle": "Requests by model"
+    },
+    "actor-model-distribution-cost": {
+      "title": "Model distribution — cost"
+    },
+    "actor-model-distribution-tokens": {
+      "title": "Model distribution — tokens"
+    }
+  },
+  "admin-usage-channels-channelId": {
+    "channel-total-cost": {
+      "title": "Total cost",
+      "subtitle": "Spend that arrived on this OAuth client, across every account."
+    },
+    "channel-total-requests": {
+      "title": "Total requests",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597)."
+    },
+    "channel-cost-by-model": {
+      "title": "Cost per period by model",
+      "subtitle": "Log axis by default — one dominant model flattens every other line on a linear one."
+    },
+    "channel-model-cost-share": {
+      "title": "Which models",
+      "subtitle": "Cost share across the window"
+    },
+    "channel-chat-completions-count": {
+      "title": "Chat completions",
+      "subtitle": "Requests on the chat-shaped surfaces — /v1/chat/completions, /v1/responses and /v1/messages."
+    },
+    "channel-actors": {
+      "title": "Actors on this channel",
+      "subtitle": "Cost per user on this client. Rows open that actor."
+    },
+    "channel-requests-by-operation": {
+      "title": "Requests by operation",
+      "subtitle": "Which API surface this client calls."
+    }
+  },
+  "admin-usage-models-model": {
+    "model-total-cost": {
+      "title": "Total cost",
+      "subtitle": "Spend on this model, across every account on the deployment."
+    },
+    "model-total-requests": {
+      "title": "Total requests",
+      "subtitle": "Error rate is not shown — usage events carry no error/status signal (lightbridge-authz#597)."
+    },
+    "model-total-tokens": {
+      "title": "Total tokens",
+      "subtitle": "Prompt and completion together — the quantity this model is priced on."
+    },
+    "model-cost-over-time": {
+      "title": "Cost per period",
+      "subtitle": "One line, because this page is one model. Linear axis — the figure is the reading."
+    },
+    "model-actors": {
+      "title": "Who is using it",
+      "subtitle": "Cost per user on this model. Rows open that actor."
+    },
+    "model-channels": {
+      "title": "Where it arrives from",
+      "subtitle": "Cost per OAuth client (azp). Rows open that channel."
+    },
+    "model-latency": {
+      "title": "Latency",
+      "subtitle": "p50 and p95 over the buckets in this window, with the sample count each is drawn from — blank when the deployment records no latency at all."
+    },
+    "model-requests-by-operation": {
+      "title": "Requests by operation",
+      "subtitle": "Which API surface this model is called through."
+    }
+  },
+  "admin-usage-chats": {
+    "chat-latency-series": {
+      "title": "Chat latency over time",
+      "subtitle": "p50 and p95 per bucket, computed by the usage backend at query time — never an average of percentiles. No TTFT is emitted by the gateway, so first-token latency is absent rather than estimated."
+    },
+    "chat-latency-cards": {
+      "title": "Latency by model",
+      "subtitle": "Each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    },
+    "chat-total-count": {
+      "title": "Chat requests",
+      "subtitle": "Requests on /v1/chat/completions, /v1/responses and /v1/messages."
+    },
+    "chat-requests-by-operation": {
+      "title": "Requests per period by operation",
+      "subtitle": "The three chat surfaces plotted apart — a migration from one to another is visible here and nowhere else."
+    },
+    "chat-cost-by-model": {
+      "title": "Chat cost per period by model",
+      "subtitle": "Log axis by default — one dominant model flattens every other line on a linear one."
+    }
+  },
+  "accounts-accountId-overview": {
+    "spend-total": {
+      "title": "Spend in this range",
+      "subtitle": "The range picked above, not the budget period the BUDGET card states."
+    },
+    "request-total": {
+      "title": "Requests in this range"
+    },
+    "spend-over-time": {
+      "title": "Spend over time",
+      "subtitle": "The account total, with the previous period dashed underneath it."
+    },
+    "spend-by-project": {
+      "title": "Spend by project",
+      "subtitle": "Spend the backend attributed to no project is a labelled Unassigned row, never dropped."
+    },
+    "model-share": {
+      "title": "Spend by model — share"
+    },
+    "spend-by-model": {
+      "title": "Spend by model over time",
+      "subtitle": "Bar height is the day's total for this account; segments are the top five models plus one summed Other."
+    },
+    "latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    },
+    "spend-by-api-key": {
+      "title": "Spend by API key",
+      "subtitle": "Spend the backend attributed to no key is a labelled Unassigned row."
+    },
+    "account-cost-by-channel": {
+      "title": "Cost by channel",
+      "subtitle": "Which OAuth client (azp) the spend arrived on. Values are in the tooltip on screen, and in the panel's own table in an exported report."
+    },
+    "account-tokens-by-channel": {
+      "title": "Tokens by channel",
+      "subtitle": "Tokens by OAuth client (azp) — the same window and the same request as the cost ring."
+    },
+    "account-requests-by-channel": {
+      "title": "Requests by channel",
+      "subtitle": "Requests by OAuth client (azp) — a channel can be a large share of the calls and a small share of the cost."
+    },
+    "account-cost-by-project": {
+      "title": "Cost by project",
+      "subtitle": "The project split of the same spend the ranked list above orders, off the same request. Values are in the tooltip on screen, and in the panel's own table in an exported report."
+    }
+  },
+  "settings-overview-usage": {
+    "family-requests": {
+      "title": "Requests"
+    },
+    "family-cost": {
+      "title": "Cost",
+      "subtitle": "Every account in your family, summed over the range picked above. There is no family BUDGET figure to put beside it — a ceiling is per-account."
+    },
+    "family-cost-per-request": {
+      "title": "Cost / request",
+      "subtitle": "Blank when the window carries no requests at all — a mean over nothing is not a number."
+    },
+    "family-accounts": {
+      "title": "Accounts",
+      "subtitle": "Only accounts with usage in this window — an account that drew nothing never appears in a usage query at all."
+    },
+    "family-spend": {
+      "title": "Spend over time",
+      "subtitle": "Every account in your family, summed. The dashed line is the previous period."
+    },
+    "spend-by-account": {
+      "title": "Spend by account",
+      "subtitle": "One line per account, values on hover."
+    },
+    "family-spend-by-project": {
+      "title": "Spend by project",
+      "subtitle": "Across every account in your family. Two accounts' projects are different projects, even when they share a name. Spend attributed to no project is a labelled Unassigned row, never dropped."
+    },
+    "family-model-share": {
+      "title": "Spend by model — share",
+      "subtitle": "The share across every account in your family. Spend the backend attributed to no model is a labelled Unassigned segment, never dropped."
+    },
+    "family-spend-by-model": {
+      "title": "Spend by model over time",
+      "subtitle": "Bar height is the day's total across every account in your family; segments are the top five models plus one summed Other."
+    },
+    "family-latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window across your whole family, never an average of percentiles. p99 is hidden below 100 samples."
+    },
+    "family-spend-by-api-key": {
+      "title": "Spend by API key",
+      "subtitle": "Across every account in your family. Spend the backend attributed to no key is a labelled Unassigned row."
+    },
+    "family-cost-by-channel": {
+      "title": "Cost by channel",
+      "subtitle": "Which OAuth client (azp) the spend arrived on, across your whole family. Values are in the tooltip on screen, and in the panel's own table in an exported report."
+    },
+    "family-tokens-by-channel": {
+      "title": "Tokens by channel",
+      "subtitle": "Tokens by OAuth client (azp) — the same window and the same fan-out as the cost ring."
+    },
+    "family-requests-by-channel": {
+      "title": "Requests by channel",
+      "subtitle": "Requests by OAuth client (azp) — a channel can be a large share of the calls and a small share of the cost."
+    },
+    "family-cost-by-project": {
+      "title": "Cost by project",
+      "subtitle": "The project split of the same spend the ranked list above orders, off the same fan-out. Projects are not shared between accounts, so a family with 25 accounts has 25 disjoint sets of them here."
+    },
+    "family-cost-by-account": {
+      "title": "Cost by account",
+      "subtitle": "The account split of the family total above — the reading this page exists for, and the one a single account's overview has no rows to draw."
+    }
+  },
+  "settings-overview-account": {
+    "requests": {
+      "title": "Requests"
+    },
+    "cost": {
+      "title": "Cost"
+    },
+    "cost-per-request": {
+      "title": "Cost / request",
+      "subtitle": "Blank when the window carries no requests at all — a mean over nothing is not a number."
+    },
+    "models-in-use": {
+      "title": "Models in use"
+    },
+    "spend-over-time": {
+      "title": "Spend over time",
+      "subtitle": "The account total across every project and model."
+    },
+    "spend-by-model": {
+      "title": "Spend by model"
+    },
+    "spend-by-project": {
+      "title": "Spend by project",
+      "subtitle": "Spend the backend attributed to no project is a labelled Unassigned row, never dropped."
+    },
+    "latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    }
+  },
+  "settings-overview-project": {
+    "requests": {
+      "title": "Requests"
+    },
+    "cost": {
+      "title": "Cost"
+    },
+    "cost-per-request": {
+      "title": "Cost / request",
+      "subtitle": "Blank when the window carries no requests at all — a mean over nothing is not a number."
+    },
+    "models-in-use": {
+      "title": "Models in use"
+    },
+    "spend-over-time": {
+      "title": "Spend over time",
+      "subtitle": "This project's total across every key and model."
+    },
+    "spend-by-model": {
+      "title": "Spend by model"
+    },
+    "spend-by-api-key": {
+      "title": "Spend by API key",
+      "subtitle": "Spend the backend attributed to no key is a labelled Unassigned row, never dropped."
+    },
+    "latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    }
+  },
+  "settings-overview-user": {
+    "requests": {
+      "title": "Requests"
+    },
+    "cost": {
+      "title": "Cost"
+    },
+    "cost-per-request": {
+      "title": "Cost / request",
+      "subtitle": "Blank when the window carries no requests at all — a mean over nothing is not a number."
+    },
+    "models-in-use": {
+      "title": "Models in use"
+    },
+    "spend-over-time": {
+      "title": "Spend over time",
+      "subtitle": "Your own usage, across every account and project you drew from."
+    },
+    "spend-by-model": {
+      "title": "Spend by model"
+    },
+    "latency-by-model": {
+      "title": "Latency by model",
+      "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    }
+  }
+}

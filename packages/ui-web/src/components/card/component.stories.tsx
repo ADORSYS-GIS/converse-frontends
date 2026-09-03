@@ -15,7 +15,7 @@ type Story = StoryObj<typeof Card>;
 export const Default: Story = {
   args: {
     title: 'Usage this month',
-    children: <p className="font-sans text-[13px] text-soft">$1,204.50 across 3 projects.</p>,
+    children: <p className="text-soft font-sans text-[13px]">$1,204.50 across 3 projects.</p>,
   },
 };
 
@@ -27,14 +27,14 @@ export const WithActions: Story = {
         Export
       </Button>
     ),
-    children: <p className="font-sans text-[13px] text-soft">14 active keys.</p>,
+    children: <p className="text-soft font-sans text-[13px]">14 active keys.</p>,
   },
 };
 
 export const NoHead: Story = {
   name: 'No title or actions',
   args: {
-    children: <p className="font-sans text-[13px] text-soft">A card with body content only.</p>,
+    children: <p className="text-soft font-sans text-[13px]">A card with body content only.</p>,
   },
 };
 

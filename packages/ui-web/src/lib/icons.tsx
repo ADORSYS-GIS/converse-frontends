@@ -45,6 +45,23 @@ export function OverviewIcon(props: IconProps) {
   );
 }
 
+/**
+ * Admin area — Usage: an axis pair with a trend line rising across it.
+ *
+ * Deliberately NOT `OverviewIcon`'s bar chart, even though both rows are "charts": the two sit
+ * adjacent in the admin rail, and two chart glyphs a stroke apart would make the pair unreadable at
+ * 16px. A LINE over an axis is the distinct half of the pairing — overview is a set of readings,
+ * usage is what happened over time.
+ */
+export function UsageIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 2.5v11h11" />
+      <path d="M5 10.5 7.5 7l2.5 2 3-4.5" />
+    </IconBase>
+  );
+}
+
 /** Projects — a folder. */
 export function ProjectsIcon(props: IconProps) {
   return (
@@ -104,6 +121,18 @@ export function AdminIcon(props: IconProps) {
   );
 }
 
+/** Admin area — Sessions: a screen on a stand, the "signed in from somewhere" glyph
+ *  (converse-frontends#450). Deliberately a DEVICE and not a second person-shaped mark: `RolesIcon`
+ *  already owns "who somebody is", and this row is about where they are signed in FROM. */
+export function SessionsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="2" y="3" width="12" height="8" rx="1" />
+      <path d="M6.5 13.5h3M8 11v2.5" />
+    </IconBase>
+  );
+}
+
 /** Settings area — Roles: two people, the roster-and-permissions glyph. */
 export function RolesIcon(props: IconProps) {
   return (
@@ -147,6 +176,23 @@ export function RefillOptionsIcon(props: IconProps) {
   );
 }
 
+/**
+ * Admin area — Budget schedules (converse-frontends#451): a clock face, the recurrence glyph.
+ *
+ * Deliberately NOT `RefillOptionsIcon`'s gauge, and not a variant of it: a refill policy decides
+ * whether to grant when someone ASKS, a reset schedule grants on a CLOCK whether or not anyone
+ * asks. Two neighbouring nav rows wearing the same glyph family would say those are the same kind
+ * of thing, which is precisely the confusion this feature is easiest to fall into.
+ */
+export function ScheduleIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5V8l2.5 1.8" />
+    </IconBase>
+  );
+}
+
 /** Settings area — Info: a lowercase "i" in a circle. */
 export function InfoIcon(props: IconProps) {
   return (
@@ -163,6 +209,19 @@ export function SearchIcon(props: IconProps) {
     <IconBase {...props}>
       <circle cx="7" cy="7" r="4.5" />
       <path d="M13.5 13.5 10.3 10.3" />
+    </IconBase>
+  );
+}
+
+/** Expand — `DashboardPanel`'s zoom affordance (converse-frontends#446, decision D-E): two
+ *  opposite corner brackets with an arrow into each, the conventional "make this bigger" mark.
+ *  Drawn in the same 16-unit box at the same 1.5 stroke as every glyph here, so a panel's heading
+ *  action reads as the same family as a nav row's icon. */
+export function ExpandIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9.5 2.5h4v4M13.5 2.5 9.25 6.75" />
+      <path d="M6.5 13.5h-4v-4M2.5 13.5l4.25-4.25" />
     </IconBase>
   );
 }

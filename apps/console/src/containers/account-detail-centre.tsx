@@ -9,6 +9,7 @@ import { AccountSettings } from '@lightbridge/ui-web/src/sections/account-settin
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import Link from 'next/link';
 
+import { useTranslation } from '../i18n/client';
 import { AccountDetailSubNav } from './account-detail-sub-nav';
 import { useAccountDetailScreen } from './use-account-detail-screen';
 
@@ -24,17 +25,21 @@ import { useAccountDetailScreen } from './use-account-detail-screen';
  *     membership concept today, only `Project` does.
  */
 export function AccountDetailCentre() {
+  const { t } = useTranslation('settings');
   const screen = useAccountDetailScreen();
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={screen.accountLabel ?? 'Account'} subtitle={screen.accountId} />
+      <PageHeader
+        title={screen.accountLabel ?? t('accounts.detail.fallback-title')}
+        subtitle={screen.accountId}
+      />
 
       <AccountDetailSubNav accountId={screen.accountId} />
 
       <AccountSettings {...screen.accountSettings} />
 
-      <Card title="Budget">
+      <Card title={t('accounts.detail.budget')}>
         <div className="flex flex-col gap-4">
           {screen.budget.status === 'loading' ? (
             <SkeletonMetric width={140} />
@@ -44,7 +49,7 @@ export function AccountDetailCentre() {
             <InlineStatus>{screen.budget.caption}</InlineStatus>
           ) : (
             <p className="text-ink font-mono text-[13px]" data-numeral>
-              {screen.budget.ceilingLabel} budget ceiling this period
+              {t('accounts.detail.ceiling-line', { ceiling: screen.budget.ceilingLabel })}
             </p>
           )}
           <Button
@@ -54,12 +59,12 @@ export function AccountDetailCentre() {
             nativeButton={false}
             render={<Link href={screen.requestRefillHref} />}
             className="self-start">
-            Request refill…
+            {t('accounts.detail.request-refill')}
           </Button>
         </div>
       </Card>
 
-      <Card title="Members">
+      <Card title={t('accounts.detail.members')}>
         <InlineStatus>{screen.membersReason}</InlineStatus>
       </Card>
     </div>

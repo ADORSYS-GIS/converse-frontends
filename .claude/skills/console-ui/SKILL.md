@@ -31,7 +31,8 @@ The full contracts live in the repo — **read them before writing components**:
   alone since phase E, `settings-accounts` — the new `/settings/accounts` list and
   `/settings/accounts/<id>` detail, `settings-accounts-projects` — `/settings/accounts/<id>/
 projects` (renamed from `projects.stories.tsx`, phase E — the route it fixtures moved),
-  `settings-overview` — the estate/analytics lenses, `shell-persistence`) are the rendered ground
+  `settings-overview` — the estate/analytics lenses, `admin-roles` — the platform-role grant
+  directory and its two dialogs, `shell-persistence`) are the rendered ground
   truth — match them. There is no story yet for `/settings/accounts/<id>/request-refill`
   specifically (it reuses `RefillCentre` unchanged from the pre-phase-E `/accounts/<id>/refill`,
   which likewise has none). There are no SVG mockups any more; a stale mockup was judged worse
@@ -41,7 +42,7 @@ projects` (renamed from `projects.stories.tsx`, phase E — the route it fixture
 
 Cards sit on a floor, inside a shell with a persistent LEFT sidebar and a stretching centre column.
 In dark the floor is `#000` and cards (`base-200`) carry stats, charts, tables and forms; in light
-the floor is grey and cards are white. The sidebar (240px, `md`+) carries navigation, a workspace
+the floor is grey and cards are white. The sidebar (296px, `md`+) carries navigation, a workspace
 switcher and a footer stack; below `md` a 48px top bar plus a bottom nav dock replace it. **Every
 real screen is account-scoped by path** (`/accounts/[accountId]/{overview,api-keys}`, ADR 0013
 D1, narrowed by ADR 0013's phase E amendment — `projects`/`refill` moved to
@@ -245,10 +246,13 @@ decimals.
   `/accounts/<id>/projects` with a row selected, into the settings area, which has never had a
   right rail at any tier (ADR 0013 D2) — so no route in the console feeds `ConsoleShell.rail`
   anything any more; see that ADR's phase E amendment for the full move):
-  - `≥md` (600px+): a persistent 240px `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
-    footer stack: `⌘K` · theme · offline · identity), sticky and independently scrollable, beside
-    a single fluid content column capped at `max-w-[1120px]` (`CONTENT_MAX_WIDTH_CLASS`,
-    `lib/shell-grid.ts`).
+  - `≥md` (600px+): a persistent **296px** `ConsoleSidebar` (brand, workspace switcher, `NavSpine`,
+    footer stack: `⌘K` · theme · language · offline · identity), sticky and independently
+    scrollable, beside a single fluid content column capped at `max-w-[1120px]`
+    (`CONTENT_MAX_WIDTH_CLASS`, `lib/shell-grid.ts`). 240px until the owner's 2026-09-03 directive
+    ("240px is too small for the left rail. Increase it to 296px"). The cap now only ENGAGES from
+    1480px (`296 + 2×32 + 1120`); at the 1440 reference viewport the measure is 1080px and the cap
+    does nothing — say that rather than claiming a 1120px column at 1440.
   - `<md`: the sidebar is replaced by a 48px `ConsoleTopBar` (brand, compact switcher, `⌘K`
     trigger, identity) plus the existing bottom navigation dock. `ConsoleSidebar` itself renders
     both the persistent `sidebar` layout and the `bottom-bar` dock from one `groups` prop, so a
@@ -278,20 +282,73 @@ decimals.
   `Card`. `PageHeader` and a bare `InlineStatus`/`ErrorLine` are the only things that sit directly
   on the floor. `StatCard`/`BudgetHero` stay self-panelled (their own `surface` fill) even when a
   `Card` also wraps the row they sit in.
-- **Two nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
-  `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`): the **account area**'s
-  `navGroups` — `Workspace` (Overview, API keys only, hrefs built off the path account — phase E
-  narrowed this from three items to two, Projects moved to `/settings/accounts/<id>/projects`),
-  `Account` (Settings), `Operator` (Refill requests → `/settings/refills-queue`, included only for
-  `session.isAdmin`) — versus the **settings area**'s `settingsNavGroups`, a flat, ungrouped list
-  of eight (Overview, Accounts [phase E, NEW], Roles [disabled], Tier configs, Project policies
-  [renamed from "Account / Project policies" once the account half moved out], Refill options
-  policies, Refills queue [admin only], Info), with a `← Back to console` row replacing the
-  workspace switcher. Both are role-gated by inclusion, not by a marker prop — no
-  `adminItems`/`showAdmin`/`roleLabel` axis; a gated row/group's own label IS the role marker.
-  Never resurrect a `ROLE` badge/marker component. A nav row may ship `disabled` with a stated
-  reason (Roles — `lightbridge-authz#571`) rather than being omitted: the honesty doctrine (below)
-  extends to navigation — a row that looks live but 404s is its own kind of fabrication.
+- **Three nav surfaces, one sidebar mount, swapped by pathname** (ADR 0013 D2 —
+  `apps/console/src/client/console-chrome.tsx`'s `areaFromPathname`). Every gated row is included
+  or omitted, never marked: no `adminItems`/`showAdmin`/`roleLabel` axis, and a gated row's own
+  label IS the marker. Never resurrect a `ROLE` badge/marker component.
+
+  | Area                           | Rows, in order                                                                                                                  | Gate                                            |
+  | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+  | account (`navGroups`)          | `Workspace`: Overview, API keys (hrefs off the path account) - `Account`: Settings - `Operator`: **Admin** → `adminLandingHref` | Operator group: ANY of `ADMIN_AREA_PERMISSIONS` |
+  | settings (`settingsNavGroups`) | Overview, Accounts, Tier configs, Project policies, Info                                                                        | Tier configs: `project:update` - the rest: none |
+  | admin (`adminNavGroups`)       | see the destination table below                                                                                                 | per row, see below                              |
+
+  **The Admin row lives on the MAIN account rail** (owner directive, 2026-09-03: "The Admin button
+  doesn't need to be hidden now, since it's gated by permission. So it can appear on the main left
+  rail. The Roles button in Settings' left rail can safely be removed."). It is its own labelled
+  `Operator` group, last, and it never carries `active` (reaching `/admin/*` swaps the whole rail)
+  and never carries the pending-refill count (that numeral's one home is the admin area's own
+  "Refills queue" row). This supersedes the 2026-08-31 placement that had it inside settings; the
+  settings rail's Admin and Roles rows are both deleted, so no destination has two nav homes.
+  `settingsNavGroups` still takes a permission set, for exactly one row — see below.
+
+  The settings and admin areas replace `navGroups`' content in the same mount and carry a
+  `← Back to console` row instead of the workspace switcher.
+
+  **Tier configs is gated on a WRITE permission even though the screen is read-only**
+  (owner ruling, 2026-09-03: "users with the role -viewer should not even see tiers"). The gate is
+  `project:update` — what `procedure.setProjectQuota` requires — because a tier catalogue read by
+  someone who can never assign a tier is a menu they may not order from. `lightbridge-editor` holds
+  it through `project:*`; `lightbridge-viewer` holds `project:read` only and loses both the row and
+  the page (`/settings/tiers` answers `notFound()` on the same string). Do not "helpfully" re-gate
+  it on a read permission a viewer holds.
+
+  The admin area's seven destinations, in nav order — READINGS first, then ACTIONS, then the two
+  rows about the OPERATORS rather than the estate. `ADMIN_DESTINATIONS` declares each row's href
+  and its permission together, which is what keeps the row and its route segment's own
+  `notFound()` from drifting into "shown and then 404s":
+
+  | Row              | Route                     | Permission               | Notes                                                                                                                |
+  | ---------------- | ------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+  | Overview         | `/admin/overview`         | `usage:read-all`         | The operator dashboard; its boards come from `dashboards.yaml` (ADR 0013 / story C4)                                 |
+  | Usage            | `/admin/usage`            | `usage:read-all`         | Story C5 — the estate usage surface; same `scope: 'all'` read, so the same one grant unlocks both                    |
+  | Refills queue    | `/admin/refills-queue`    | `budget:review`          | Carries the pending-count numeral — its ONLY home; never a fabricated `0` while it loads                             |
+  | Refill policies  | `/admin/refill-policies`  | `budget:policy-write`    | `create` is its own route segment; `?edit=`/`?simulate=` are modes                                                   |
+  | Budget schedules | `/admin/budget-schedules` | `budget:schedule-manage` | Story C8 — `create` is its own segment; `?edit=`/`?preview=`/`?delete=` are modes. A clock glyph, not a second gauge |
+  | Sessions         | `/admin/sessions`         | `session:read`           | Story C7 — `querySessions`, never `listSessions`; the ESTATE widening, never the `session:read-own` floor            |
+  | Roles            | `/admin/roles`            | `rbac:manage`            | Story C9 — the platform-role grant directory; `?grant=`/`?revoke=` are its two dialogs                               |
+
+  `AdminRoute`/`adminRouteFromPathname` is the closed union behind the active flag; anything
+  unrecognised (the bare `/admin`, mid-redirect) reads as `overview`, the same "unmatched reads as
+  the first destination" contract the other two areas use.
+
+  **Gate on a PERMISSION, never on a role** (converse-frontends#452). `session.isAdmin` is deleted:
+  it was `roles.includes('lightbridge-admin')`, a role production minted for every signed-in person,
+  so it gated nothing. Nav rows and route segments both read the permission set
+  `procedure.getMyAccess` resolved server-side — `useCan()` in the chrome, `can()` in the route.
+  Admin is not one thing: seven destinations behind six independent grants, independently
+  filtered rows (`ADMIN_DESTINATIONS` declares the row and its gate together), and
+  `adminLandingHref` aims the account rail's "Admin" row at the first destination _this_ caller can
+  actually open rather than at a dashboard they would 404 on. That real gate is exactly why the row
+  is allowed on the main rail: the ruling that once buried it one level in was aimed at a
+  dishonestly-labelled row gated on a role production minted for everybody.
+
+  A nav row may still ship `disabled` with a stated reason rather than being omitted — the honesty
+  doctrine extends to navigation, and a row that looks live but 404s is its own kind of fabrication
+  — but that treatment is for a destination that is genuinely **not built**, never for one the
+  caller merely lacks permission for. (No row uses it today: the Roles row did while no read API
+  existed, and it is a plain `/admin/roles` link in the admin area's own list now.)
+
 - **Fluid always**: the shell and every page view are `w-full` — never a fixed pixel width
   (`w-[1440px]` wrappers are banned). Stories render fluid and follow the iframe width.
 - **Row detail is `BottomSheet`, at every tier, everywhere — never a side sheet, and never the
@@ -343,9 +400,10 @@ chart `<svg>` as `contextElement`), never by hand-computed `left`/`top` arithmet
 
 ## Analytics doctrine — chart choice for usage/spend breakdowns
 
-**ADR 0013 D5**, grounded in a 726k-prod-usage-row measurement: the common shape is one series
-dominating the rest (top-1 ≥95% share for roughly half of accounts), so every choice below follows
-from what reads honestly against that shape, not house taste.
+**ADR 0013 D5, as amended by [ADR 0015](../../../docs/adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+D2** (owner ruling, 2026-09-02), grounded in a 726k-prod-usage-row measurement: the common shape is
+one series dominating the rest (top-1 ≥95% share for roughly half of accounts), so every choice
+below follows from what reads honestly against that shape, not house taste.
 
 - **Default breakdown: `RankedSeriesRows`** (rank swatch, label, value, a share micro-bar, a
   per-row sparkline, optional `Meter`/delta) — for every per-key breakdown (accounts, projects,
@@ -354,18 +412,43 @@ from what reads honestly against that shape, not house taste.
   hairlines communicates nothing a number doesn't say better.
 - **`ShareBar` survives in exactly one place**: a genuine "how does this whole add up" question
   with no per-row ranking involved (today: the estate overview's global model mix,
-  `/settings/overview/usage`). Everywhere else, reach for `RankedSeriesRows` — never a donut, ever.
-- **Never build a stacked bar or an area fill for a usage/spend breakdown.** Tried against the same
-  sample and rejected for three measured reasons (ADR 0013 D5): top-1 dominance collapses
-  non-leading bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage
-  backend buckets by day, not continuously, so an area fill implies a slope between real gaps that
-  isn't there; and a stacked/layered chart needs a legend that scales with series count, which the
-  same measurement shows routinely running past a dozen entries.
-- **Columns (a plain stat grid), not a time series, for a sparse single metric** — `LatencyStatCards`
-  is the shipped instance: per-model p50/p95/n (p99 only past a minimum sample count), because the
-  usage backend's percentiles are whole-window aggregates that cannot be validly combined across
-  days into a trend line. Revisit only if the backend starts emitting per-bucket percentiles with
-  real history depth — not by building the time series speculatively now.
+  `/settings/overview/usage`, and `model-cost-share` on `/admin/usage`). Everywhere else, reach for
+  `RankedSeriesRows`.
+- **Rings are allowed; filled disks never** (owner ruling 2026-09-02, ADR 0015 D2 — this replaces
+  the older "never a donut, ever" absolute, which is retired, not softened). `DonutChart` is a
+  **hollow ring**: `donutGeometry` (`packages/chart-core/src/arcs.ts`) clamps the inner radius into
+  `[MIN_INNER_RADIUS_RATIO, MAX_INNER_RADIUS_RATIO]` = `[0.35, 0.85]` of the outer radius for every
+  input, including a non-finite one — so a caller **cannot** produce a filled disk through
+  `innerRadiusRatio`, and "disks never" is enforced by the math package rather than by review. Top-N
+  - `Other (N)` collapse (default 6), values on hover only, and the formatted total in the hole —
+    which is a large part of the point: a filled disk has nowhere to put that number. The sanctioned
+    use is exactly three panels, `model-distribution-{requests,cost,tokens}` on `/admin/usage`; a
+    fourth ring is a decision, not a default.
+- **Never build an area fill for a usage/spend breakdown**, and **stacked bars only for daily
+  spend x model** (owner ruling 2026-09-03, ADR 0015 D2b — this narrows, and does not retire, ADR
+  0013 D5's ban). The three measured reasons still stand: top-1 dominance collapses non-leading
+  bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage backend buckets by
+  day, not continuously, so an area fill implies a slope between real gaps that isn't there; and a
+  stacked/layered chart needs a legend that scales with series count, which the same measurement
+  shows routinely running past a dozen entries. The exception is granted for the one question where
+  the bucket TOTAL is the primary reading and the split is secondary — a stack states the total as
+  bar height, a line board cannot state it at all. Reach for it through `series` +
+  `options.style: stacked-bars`, never a new panel type, and know what the mark holds for you:
+  no scale toggle (a log stack does not sum), the tail SUMMED into `Other (N)` rather than dropped
+  (short bars would contradict the total beside them), values on hover listing every segment of the
+  hovered bucket plus that bucket's total, and `stackDominanceCaption` printing the 95%-top-1 caveat
+  above the board whenever the top series exceeds it — on screen and in the Typst report. The
+  sanctioned use is exactly three panels: `/admin/overview`'s `spend-by-model`, `/admin/usage`'s
+  `cost-by-model`, and the account overview's `spend-by-model`. A fourth stack is a decision, not a
+  default.
+- **Latency: cards for the window totals, and a series is now honest too** (amended 2026-09-02, ADR
+  0015 D2). `LatencyStatCards` still owns per-model p50/p95/n (p99 only past a minimum sample
+  count) for the whole window. The old "never a latency time series" clause rested on those
+  percentiles being whole-window aggregates that cannot be combined across days — that premise is
+  gone: the usage query API computes `latency_p50/p95/p99_ms` with `percentile_cont` **per bucket
+  group at query time**, so each bucket's percentile is a real percentile of that bucket's own
+  samples and plotting them in order composes nothing. Use the `latency-series` panel type for the
+  trend and `latency-cards` for the totals; both belong on the same page.
 - **Sentinel identities are labelled, never dropped or fabricated** (`sentinelLabel` —
   `missing:keycloak:preferred_username`, `missing:github:preferred_username`, and repo-slug-shaped
   ids all get a de-emphasized real label, never an invented name, never silent exclusion from a
@@ -378,6 +461,120 @@ from what reads honestly against that shape, not house taste.
   the account's own budget ceiling and refill cadence are billing-window-denominated. Every other
   preset in the same picker stays a plain rolling window.
 
+## Declarative dashboards — `dashboards.yaml` is the page
+
+**ADR 0015 D1.** There are **zero** hand-written dashboard containers in this console and it stays
+that way. A dashboard page is one entry in `apps/console/dashboards.yaml`, keyed by its router path,
+plus a route file that calls `useDashboard(route)` and renders `DashboardRenderer`. Ten entries ship
+today: `/admin/overview`, `/admin/usage` and its three drill-downs, `/accounts/[accountId]/overview`
+and the four `/settings/overview/*` lenses. The report
+(`/api/reports/page`) walks the **same** entry through the **same** resolver, so the page and the
+PDF are two renderings of one document — which is why `resolve-dashboard.ts` is React-free, DOM-free
+and clock-free, and must stay that way.
+
+### How to add a panel: YAML first
+
+```yaml
+- id: cost-by-channel # unique on the page: React key, dedupe attribution, heading id,
+  type: ranked #   and what a validation error names
+  title: Cost by channel
+  subtitle: Which client each request came through. # optional; rendered on screen AND in the PDF
+  span: 1 # 1 = one grid column, 2 = both
+  metric: cost # cost | requests | tokens | latency | derived:<name>
+  compare: false # optional — adds the comparison-window twin and a delta
+  options: # per-type: scale, lens, topN, link, columns, rowLabel, unit, dimension
+    topN: 8
+    link: /admin/usage/channels/:key # `:key` is the row's own group-by value
+  query:
+    scope: all # user | api_key | project | account | all | family
+    group_by: [azp]
+    bucket: auto # ≤7d → 1 hour, ≤90d → 1 day, else 7 days
+    limit: 2000 # ALWAYS explicit — never a server default
+```
+
+- **`$param` placeholders** are substituted from the page's own `filters` — `scope_id: $actorId`,
+  `scope: $type`, `filters.azp: $channelId`. An **unresolved placeholder is an error**, never an
+  empty string: `scope_id: ""` is not "no actor", it is a different question than the title claims.
+  `$name?` (optional) is legal **only** inside `filters.<key>` and drops the filter when the page has
+  no value — a project picker on "All projects". Never on `scope`/`scope_id`.
+- **`range` is implicit** on every page and is never listed in `filters`.
+- **Dedupe is the payoff.** Identical resolved queries share one request (`queryKey` sorts the
+  `group_by` dimensions), so listing the same two dimensions in a different order gives two
+  different distinct-counts off one response. `/admin/usage`'s nineteen panels are six requests plus
+  one comparison twin.
+- **`scope: family`** fans out one `scope: account` query per account in the session's own family and
+  merges them client-side — the honest reading of "the accounts I can see", which is neither
+  `account` nor `all` (`all` is the whole deployment, gated on `usage:read-all`). A fan-out panel is
+  loading while **any** member is and fails when **any** member does: a half-summed total is a wrong
+  number, not a partial one.
+- **Validation is fail-loud, twice** — a unit test at build time and `loadDashboards()` at startup.
+  An unknown type, an unknown `derived:` name, a `span` of 3, a missing `limit`, a duplicate id: the
+  console refuses to boot, naming the page and the panel. Override lookup is
+  `${CONSOLE_CONFIG_DIR}/dashboards.yaml` first, the in-repo file as fallback; an override that
+  exists but is invalid is a hard failure, never a silent fallback.
+
+### A new **type** is a renderer plus a story — never an inline escape hatch
+
+Nine types exist: `stat`, `stat-group`, `series`, `ranked`, `share`, `donut`, `table`,
+`latency-cards`, `latency-series`. `DASHBOARD_PANEL_TYPES`
+(`packages/ui-web/src/sections/dashboard-panels/types.ts`) is the **one** vocabulary: the console's
+zod enum is built from it and `panelRenderers` is keyed on it, with a test asserting both cover it
+exactly. Adding a type means an entry there, a renderer in `panel-renderers.tsx`, and a Storybook
+story. Adding an `if (panelId === …)` to a page is the thing this engine exists to remove.
+
+### The story is the oracle
+
+Every panel type has a story with fixtures, and `Pages/FromSpec` renders **any** YAML page entry
+against a mocked query layer — the fixture path _is_ the YAML. So a page is reviewable in Storybook
+before the backend column behind it exists, and a page migrated onto the engine proves parity
+against its own existing page story **before** the hand-written container is deleted. Storybook is
+where a dashboard change is verified; the live deploy is confirmation, not discovery.
+
+### Layout and zoom
+
+- **`DashboardGrid`** — one column below `lg`, two at `lg`+, `gap-6`. A panel declaring `span: 2`
+  lands as `data-span="2"` on its own card and the grid's CSS reads that attribute; there is no
+  responsive JS and the grid knows nothing about panel types.
+- **`DashboardPanel`** — `Card` + `ZoneHeading` (title, subtitle, actions slot, and an Expand button
+  the caller cannot opt out of) around a **body render-prop** `(ctx: { size }) => ReactNode`. It is a
+  render-prop, not a node, because `'panel'` and `'expanded'` differ in **data** density, not only
+  pixels: chart height 200 → 460, top-N 6 → 12, table page 10 → 25 (`sizes.ts`; 25 rather than 50
+  so the dialog's pager stays above the fold of an 80vh dialog). **Which panel is expanded is in
+  the URL** — `?expand=<panel-id>`, `history: 'push'` (owner directive 2026-09-03, ADR 0011 D8):
+  a deep link opens the panel expanded, a reload keeps it open, and the dialog's contents are
+  steered by the page's OWN per-panel knobs, so `?expand=actors-table&actors-table-page=1` opens
+  the table on page 2 and sorting inside the dialog writes the same `-sort`/`-dir` the panel behind
+  it reads. `DashboardRenderer` holds one subscription for the whole grid; never a hook per panel.
+- **`usePanelHotkey`** (`packages/ui-web/src/lib/use-panel-hotkey.ts`) — `v` expands while focus is
+  inside the panel; ignored while an input is focused, so typing "v" in a search box does nothing.
+  Esc closes and focus returns to the panel. Base UI `Dialog` owns the modal behaviour.
+- **`chrome: 'bare'`** for `SELF_PANELLING_TYPES` (`stat`, `stat-group`): `StatCard` carries its own
+  `surface` fill and must never be wrapped in an outer `Card` — that would be a card inside a card
+  stating its label twice. A bare panel has no heading row and therefore **no Expand button**: a
+  single numeral has nothing to reveal at 1280 × 80vh.
+- **`LedgerTable.rowHref`** turns the label cell into a real anchor (keyboard semantics intact),
+  driven from `options.link`'s `:key` template. Use it instead of an `onClick` that pushes a route.
+- **Every `table` panel pages — there is no opt-in** (owner directive 2026-09-03). 10 rows per page,
+  25 in the dialog, overridable per panel with `options.pageSize` (stated at panel size, scaled for
+  the dialog). The cursor is `?<panel-id>-page=` beside the existing `-sort`/`-dir`, all three
+  declared FROM the spec by `useDashboardKnobs` — which every YAML page now goes through, because
+  `UseDashboardInput`'s sort/page knobs are required rather than optional. Sorting and paging are
+  CLIENT-side over the grouped rows (the usage API has no `OFFSET` and no `ORDER BY`), so a
+  `truncated: true` response says so in the panel's own caption: the pages you can walk are pages
+  of the truncated reading, not of the period.
+
+### The export button
+
+`DashboardExportButton` goes in `PageHeader.actions` on every dashboard page and opens the shared
+`ReportExportDialog` (format, range echo, "include tables"). It composes; it is not a per-page
+button. The route is `GET /api/reports/page?path=<route>&range=&format=pdf|csv|html`, and `path` is
+matched by **equality** against the routes `dashboards.yaml` declares — never joined into a file
+path. Templates are `.typ` files mirroring the route (`apps/console/templates/<route>/report.typ`,
+`[param]` segments written literally), resolved **per file**: operator override → shipped →
+`_lib/default.typ`. A template decides **document chrome only**; it never decides which panels exist
+or what they query. `csv`/`html` never touch the sidecar; a `pdf` whose renderer is unreachable is a
+502, never a chartless PDF.
+
 ## States — `EmptyState` for first-run, `InlineStatus` for filtered/unavailable
 
 **2026-08-31 note (owner ruling, verbatim: "How come we're using cards almost everywhere, but not
@@ -385,7 +582,8 @@ in the admin pages?"):** the `/admin/overview` batch (`claude/sb-admin-dashboard
 shipped one page-specific carve-out — "charts and tables render on the floor, not in cards" — that
 narrowed ADR 0012 D3's general "`Card` is the default zone container" rule below for that page
 alone. That carve-out is gone: **`Card` is the zone treatment console-wide, no exceptions by
-page.** `/admin/overview`, `/admin/refill-policies` and `/admin/refills-queue` all wrap their zones
+page.** `/admin/overview`, `/admin/refill-policies`, `/admin/refills-queue` and
+`/admin/budget-schedules` all wrap their zones
 in `Card` now, at the same granularity `overview-centre.tsx` established (one `Card` per rendered
 board/section; `PageHeader`, a bare page-level `InlineStatus` not tied to one board, and
 `OverviewStatRow`'s self-panelled stat cards stay on the floor, same as everywhere else). The
@@ -447,8 +645,16 @@ The CSP-safe set is exactly four sections — `auth-panel-shell`, `device-code-e
 sibling in that set, never `components/`. Five gates hold this mechanically:
 `no-daisy-component-classes.test.ts` (authz-ui `src/**/*.tsx`), `csp-safe-sections.test.ts` +
 `section-class-audit.test.ts` pins (these four sections), `csp-safe-render.test.tsx` (DOM-level,
-catches a class contributed only at render time), `verify-css-csp.mjs` (built CSS `data:` count
-pinned). Full table: `apps/authz-ui/README.md`'s "CSP posture".
+catches a class contributed only at render time), `verify-css-csp.mjs` (built CSS must contain
+**zero** `data:` URIs). Full table: `apps/authz-ui/README.md`'s "CSP posture".
+
+The `data:` URIs are switched off at the source, not counted downstream (#443):
+`packages/ui-web/src/theme.css`'s `@plugin 'daisyui'` block carries
+`exclude: chat, loading, mask, mockup, svg, tooltip` — the only six daisy parts whose CSS contains
+a `data:` URI, none of them used here. **Do not use those six**, and if a daisy upgrade adds a
+seventh, add it to that list rather than relaxing the gate. Tailwind v4 token-matches raw prose and
+`theme.css` `@source`s all three app trees for every consumer, so before #443 a doc comment in
+`apps/console` could compile a daisy component into the hosted-login bundle and turn `main` red.
 
 These sections take submission targets as props (`device-code-entry`/`device-confirmation` take
 the form `action`/continue URL — never import `authz-idp` paths themselves). Pages-first applies
@@ -509,9 +715,16 @@ are devDependencies only.
   else through nuqs (`useQueryState`/`useQueryStates`, typed parsers, defaults kept out of the
   URL): `?project=` (absent means every project in the account — a query param, not a path
   segment, precisely because "absent means all" has no path vocabulary), filters,
-  range/bucket/group-by, selections, active tabs, `BottomSheet`/dialog open state. There is no
-  provider/context for either half — a route reads `useParams()` for the account and its own nuqs
-  params for everything else.
+  range/bucket/group-by, selections, active tabs, and modal state. There is no provider/context for
+  either half — a route reads `useParams()` for the account and its own nuqs params for everything
+  else.
+- **Every modal is `?dialog=<name>` (+ optional `?dialog-id=<id>`), through `useUrlDialog`** — ADR
+  0011 D7, owner directive 2026-09-03. `CONSOLE_DIALOGS` (`url-state.ts`) is the name registry; one
+  modal can be open at a time by construction. What is NOT a `?dialog=`: a row SELECTION that fills
+  the inspector rail (`?request=`, `?selected=`, `?key=`, `?row=` — at `lg+` that is a persistent
+  rail, not a modal), and a MODE that swaps the page's own content for a form
+  (`/admin/refill-policies`' `?edit=`/`?simulate=`, `/admin/budget-schedules`' `?edit=`). The
+  expanded dashboard panel keeps `?expand=<panel-id>` — see `DashboardPanel` above for why.
 - **`useState` in view code is a defect unless it is one of the sanctioned exceptions**:
   hover/tooltip tracking, focus management, pre-submit form drafts that must not enter URL or
   history (typed-confirm text, decision notes), animation/measurement state. Every surviving
@@ -534,11 +747,17 @@ a centered empty-state placard for anything OTHER than a settled, genuinely firs
 a native `<select>` (use `SelectField`) · a floating overlay without the shared overlay class ·
 a hand-drawn chevron (use `Chevron`) ·
 re-declaring a type-role class instead of importing its `type-roles.ts` constant · a raw account
-UUID as a visible label · pie/donut charts, or a NEW `ShareBar` use site for a per-row ranking
-(use `RankedSeriesRows` — `ShareBar` stays pinned to its one screen, ADR 0013 D5) · a stacked bar
-or area fill for a usage/spend breakdown (ADR 0013 D5's three rejected-for-cause reasons) ·
-a per-request latency time series (columns/`LatencyStatCards` until the backend can honestly trend
-it) · hex colours in components ·
+UUID as a visible label · a **filled** pie/disk of any kind (rings only — `DonutChart`, whose hole
+`chart-core`'s `donutGeometry` clamps open, ADR 0015 D2) · a fourth `donut` use site, or a NEW
+`ShareBar` use site for a per-row ranking (use `RankedSeriesRows`; `ShareBar` and the three
+`model-distribution-*` rings are the whole sanctioned part-to-whole set, ADR 0013 D5 as amended) ·
+an area fill for a usage/spend breakdown, or a stacked bar for anything but daily spend x model
+(ADR 0013 D5 as narrowed by ADR 0015 D2b — three panels, named above) · a `?dialog=`-shaped param
+declared anywhere but `url-state.ts`, or a `const [open, setOpen] = useState(false)` behind a modal
+(ADR 0011 D7 — every modal is `?dialog=<name>` through `useUrlDialog`) · a latency series built from **whole-window** percentiles (the sanctioned
+`latency-series` reads the backend's per-bucket `percentile_cont` figures — never averaged or
+re-combined ones) · a hand-written dashboard container (add a `dashboards.yaml` entry — ADR 0015
+D1; there are zero left and it stays that way) · hex colours in components ·
 React Native imports · a chart framework dependency · `dark:` variants or a `.dark` class ·
 `tailwind.config.js` in `ui-web` or `apps/console` (Tailwind v4 is CSS-first) ·
 importing `@radix-ui/*` directly · `vaul`, anywhere · hand-written focus traps or roving

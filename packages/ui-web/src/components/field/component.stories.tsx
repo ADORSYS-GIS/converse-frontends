@@ -40,6 +40,31 @@ export const WithError: Story = {
   ),
 };
 
+// Issue #445 — the example slot: a muted line BETWEEN the label and the control, wired into the
+// control's `aria-describedby`. Never a placeholder, so it survives the first keystroke.
+export const WithExample: Story = {
+  render: (args) => (
+    <div className="w-[280px]">
+      <Field {...args} label="Refill ladder" example="e.g. 2, 5, 10, 25" defaultValue="2" />
+    </div>
+  ),
+};
+
+export const WithExampleAndError: Story = {
+  name: 'Example and error together',
+  render: (args) => (
+    <div className="w-[280px]">
+      <Field
+        {...args}
+        label="Refill ladder"
+        example="e.g. 2, 5, 10, 25"
+        error="Enter a positive amount."
+        defaultValue="-5"
+      />
+    </div>
+  ),
+};
+
 export const Disabled: Story = {
   render: (args) => (
     <div className="w-[280px]">
@@ -51,7 +76,12 @@ export const Disabled: Story = {
 export const Textarea: Story = {
   render: () => (
     <div className="w-[280px]">
-      <Field label="Decision note" multiline placeholder="Optional · visible to requester" rows={3} />
+      <Field
+        label="Decision note"
+        multiline
+        placeholder="Optional · visible to requester"
+        rows={3}
+      />
     </div>
   ),
 };

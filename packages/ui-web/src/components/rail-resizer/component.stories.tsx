@@ -16,8 +16,10 @@ function Demo() {
   return (
     <div className="flex h-[240px] w-[480px]">
       <div className="bg-muted flex-1" />
-      <div className="bg-chrome relative flex flex-none items-center justify-center border-l border-raised" style={{ width }}>
-        <span className="font-mono text-[11px] text-subtle">{width}px</span>
+      <div
+        className="bg-chrome border-raised relative flex flex-none items-center justify-center border-l"
+        style={{ width }}>
+        <span className="text-subtle font-mono text-[11px]">{width}px</span>
         <RailResizer value={width} onChange={setWidth} min={240} max={480} />
       </div>
     </div>

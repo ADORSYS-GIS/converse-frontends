@@ -7,7 +7,7 @@
 
 ## Pipeline Overview
 
-CI/CD is implemented with **GitHub Actions**, eight workflows under `.github/workflows/`.
+CI/CD is implemented with **GitHub Actions**, ten workflows under `.github/workflows/`.
 
 **Runner:** every job in every workflow runs on GitHub-hosted **`ubuntu-latest`**
 (`runs-on: ubuntu-latest`, confirmed in each workflow file). This repo ran on a
@@ -33,17 +33,18 @@ walked back anywhere else in this repo's docs:
 
 ## Trigger Matrix
 
-| Workflow                 | `pull_request` → `main`                 | `push` (any branch) | `push` → `main` only                                                                                                                           | Tag `v*`       | Schedule                  | `workflow_dispatch` |
-| ------------------------ | --------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------- | ------------------- |
-| `test.yml`               | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
-| `quality.yml`            | ✅                                      | ✅                  | —                                                                                                                                              | —              | ✅ weekly (Sun 02:00 UTC) | ✅                  |
-| `security.yml`           | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
-| `governance.yml`         | ✅ (opened/edited/synchronize/reopened) | —                   | —                                                                                                                                              | —              | —                         | —                   |
-| `opencode.yml`           | ✅ (opened/synchronize)¹                | —                   | —                                                                                                                                              | —              | —                         | —                   |
-| `docker-image.yml`       | ❌ **never**                            | —                   | ✅                                                                                                                                             | ✅             | —                         | ✅                  |
-| `authz-ui-image.yml`     | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
-| `publish-charts-oci.yml` | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
-| `storybook-pages.yml`    | —                                       | —                   | ✅ (paths: `packages/ui/**`)                                                                                                                   | —              | —                         | ✅                  |
+| Workflow                           | `pull_request` → `main`                 | `push` (any branch) | `push` → `main` only                                                                                                                           | Tag `v*`       | Schedule                  | `workflow_dispatch` |
+| ---------------------------------- | --------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------- | ------------------- |
+| `test.yml`                         | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `quality.yml`                      | ✅                                      | ✅                  | —                                                                                                                                              | —              | ✅ weekly (Sun 02:00 UTC) | ✅                  |
+| `security.yml`                     | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `governance.yml`                   | ✅ (opened/edited/synchronize/reopened) | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `opencode.yml`                     | ✅ (opened/synchronize)¹                | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `docker-image.yml`                 | ❌ **never**                            | —                   | ✅                                                                                                                                             | ✅             | —                         | ✅                  |
+| `authz-ui-image.yml`               | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
+| `governance-auth-callback-oci.yml` | ❌ **never**                            | —                   | ✅ (paths: `apps/governance-auth/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, own file)                                                        | ❌ **never** ⁴ | —                         | ✅                  |
+| `publish-charts-oci.yml`           | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
+| `storybook-pages.yml`              | —                                       | —                   | ✅ (paths: `packages/ui-web/**`, own file)                                                                                                     | —              | —                         | ✅                  |
 
 ¹ `opencode.yml` also runs on `issue_comment` and `pull_request_review_comment` (for the
 `/oc` slash-command path), and is a no-op unless the `OPENCODE_GATEWAY_AUDIENCE` repo/org
@@ -63,6 +64,12 @@ tag cut on a commit that did not touch `apps/authz-ui/` would silently produce n
 bundle is consumed by digest (never by semver) and every commit that changes it already gets a
 `sha-` image on `main`, the tag trigger would buy nothing and cost a silent gap.
 `workflow_dispatch` is the manual escape hatch.
+
+⁴ `governance-auth-callback-oci.yml` publishes **no container image** — only the app's single
+self-contained `dist/index.html` as an OCI _artifact_ (via `oras`), pinned by full commit `sha`.
+It has no `v*` tag trigger (the `latest` tag it does carry is called out in
+`apps/governance-auth/README.md` as a footgun, not a shortcut), matching the `authz-ui-image.yml`
+contract of never publishing an unbounded tag from a feature branch.
 
 ```mermaid
 flowchart LR
@@ -101,8 +108,10 @@ flowchart LR
 
     PUSHFEAT["Push → feat/authz-ui-**"]
     AUTHZUI["authz-ui-image.yml<br/>turbo build:web --filter=authz-ui<br/>+ Buildah scratch + GHCR push"]
+    GOVAUTH["governance-auth-callback-oci.yml<br/>turbo build:web --filter=governance-auth<br/>+ oras OCI artifact push"]
     PUSHMAIN --> AUTHZUI
     PUSHFEAT --> AUTHZUI
+    PUSHMAIN --> GOVAUTH
 ```
 
 The dashed edge is the load-bearing line in this diagram: **no event a PR can raise ever
@@ -299,9 +308,45 @@ re-trigger itself. Idempotent — skips a version already published. Uses the bu
 
 ### `storybook-pages.yml` — Storybook → GitHub Pages
 
-Triggers: `push` to `main` with `paths: packages/ui/**` (or the workflow file itself),
+Triggers: `push` to `main` with `paths: packages/ui-web/**` (or the workflow file itself),
 `workflow_dispatch`. Builds Storybook via `pnpm turbo run build-storybook` and deploys the
 static output to GitHub Pages via `actions/deploy-pages`.
+
+**GitHub Pages is currently DISABLED on this repository**, and a workflow cannot enable it — it
+is a repo setting. `actions/configure-pages` hard-fails on that ("Get Pages site failed. Please
+verify that the repository has Pages enabled"), which used to paint every `main` run of this
+workflow red for a reason no code change could fix, drowning out real failures. Since
+[#443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443) a `preflight` job probes
+`GET /repos/{owner}/{repo}/pages` (404 while Pages is off, verified against this repo) and
+publishes a `pages-enabled` output:
+
+- **Pages off** — `configure-pages`/`upload-pages-artifact` and the whole `deploy` job report as
+  **skipped**, and the run emits a `::notice` saying why. Not `continue-on-error`: that would
+  equally hide a genuine deploy failure, which is the opposite of what we want.
+- **Pages on** — everything runs, with no edit to the workflow. Enabling Pages in
+  _Settings → Pages_ (source: GitHub Actions) is all that is needed; the next push publishes.
+
+The Storybook **build** runs unconditionally either way, so a broken story still fails `main`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Preflight: push to main touching packages/ui-web/**
+    Preflight --> PagesOn: GET /repos/:owner/:repo/pages -> 200
+    Preflight --> PagesOff: 404 (or any non-200) + ::notice
+    PagesOn --> BuildAndUpload: build-storybook, configure-pages, upload-pages-artifact
+    PagesOff --> BuildOnly: build-storybook only
+    BuildAndUpload --> Deploy: deploy job runs
+    BuildOnly --> Skipped: deploy job skipped, run stays green
+    Deploy --> [*]
+    Skipped --> [*]
+    BuildOnly --> RedRun: a story fails to build
+    BuildAndUpload --> RedRun
+    RedRun --> [*]
+    note right of Skipped
+      "Pages is off" is no longer expressible as a red run --
+      only a real build or deploy failure is.
+    end note
+```
 
 ---
 
@@ -428,6 +473,12 @@ the container image tag. Both are driven by ArgoCD reconciling against the `home
     inspected layer-by-layer ("Verify the pushed image contains the bundle") — a bundle that only
     existed on the runner's disk fails the second check. It is never deployed as a workload;
     `lightbridge-authz` pulls it at container-build time at a digest pin.
+- **OCI artifacts** (not images) are also published via `oras`:
+  - `ghcr.io/adorsys-gis/governance-auth-callback` — `governance-auth-callback-oci.yml`; carries
+    only `apps/governance-auth/dist/index.html` — the single self-contained callback page
+    `lightbridge-governance` `include_str!`s at compile time. Pinned by full commit `sha-<40-char>`
+    (the `latest` tag it also carries is a footgun, per `apps/governance-auth/README.md`), no `v*`
+    tag, never a container image (there is no Dockerfile).
 - **Image tags** generated per build:
   - `branch-name` — for branch pushes (in practice, only `main` and the dead branch above)
   - `v*` — for version tags (semver)
@@ -454,6 +505,12 @@ The one exception is `authz-ui-image.yml`, which publishes from `feat/authz-ui-*
 (footnote ² above). It has no ArgoCD Application and no `argocd-image-updater` watch — the artifact
 is a build-time input to another repo, not a deployable workload — so a feature-branch image there
 cannot reach any cluster.
+
+`governance-auth-callback-oci.yml` is similar but stricter still: it publishes only on `main` (no
+feature-branch trigger at all) as a digest-pinned OCI artifact, consumed at compile time by
+`lightbridge-governance`'s `scripts/vendor-callback-page.sh <sha>`. Like `authz-ui-image.yml` it
+has no ArgoCD Application and no image-updater watch, so its artifact can never reach a cluster
+either.
 
 Deployment to Kubernetes is driven by a separate GitOps process (ArgoCD in the `ai-helm`
 repo, targeting the `home-os` cluster) — see [Build-and-Deploy Chain](#build-and-deploy-chain)

@@ -1,0 +1,160 @@
+{
+  "overview": {
+    "title": "Overview",
+    "subtitle": "Operator · All accounts with usage this period · {{range}} · {{timezone}}",
+    "loading": "loading estate…",
+    "no-budget-pressure": "No account with a readable budget ceiling drew anything this period.",
+    "burn-down-label": "Budget burn-down — {{account}}",
+    "queue-depth": "Queue depth",
+    "billing-period-note": "Budget pressure and the queue above are measured over the billing period ({{start}} → today), not the range picked above — a ceiling is a fact about this calendar month.",
+    "pressure-truncated": "Showing budget pressure for {{shown}} of {{total}} accounts with usage this period or in your account family.",
+    "decisions-unavailable": "Decision history and median time to decision are not available — the budget service only exposes the pending queue, not a listing of past decisions (lightbridge-authz#556).",
+    "schedule-unreadable": "Next reset unknown — the schedule read failed"
+  },
+  "usage": {
+    "title": "Usage",
+    "subtitle": "Operator · Every account with usage · {{range}} · {{timezone}}",
+    "loading": "loading estate usage…",
+    "lens": {
+      "label": "Actor lens",
+      "user": "Users",
+      "account": "Accounts",
+      "project": "Projects"
+    },
+    "chats": {
+      "title": "Chats",
+      "subtitle": "Operator · /v1/chat/completions, /v1/responses and /v1/messages · {{range}} · {{timezone}}",
+      "loading": "loading chat traffic…"
+    },
+    "actor": {
+      "fallback-title": "Actor",
+      "loading": "loading this actor’s usage…",
+      "type": {
+        "user": "User",
+        "account": "Account",
+        "project": "Project"
+      },
+      "unresolved": "No profile resolved for this {{type}} id — the spend, request and token figures below are still this id's own.",
+      "budget-label": "Budget & next reset"
+    },
+    "channel": {
+      "fallback-title": "Channel",
+      "loading": "loading this client’s usage…",
+      "subtitle": "Channel · OAuth client (azp) · Every account · {{range}} · {{timezone}}"
+    },
+    "labels-unresolved": "User names could not be resolved — showing the raw user id instead.",
+    "model": {
+      "fallback-title": "Model",
+      "loading": "loading this model’s usage…",
+      "subtitle": "Model · Every account · {{range}} · {{timezone}}"
+    }
+  },
+  "refills-queue": {
+    "title": "Budget refill review",
+    "loading": "loading queue…",
+    "subtitle_one": "{{count}} request awaiting a decision",
+    "subtitle_other": "{{count}} requests awaiting a decision",
+    "oldest-suffix": " · oldest submitted {{age}}"
+  },
+  "refill-policies": {
+    "title": "Refill policies",
+    "loading": "loading…",
+    "new-policy": "+ New policy",
+    "ladder-title": "Your current ladder",
+    "ladder-load-failed": "Could not load the refill policy.",
+    "ladder-no-amount": "The active refill policy currently offers no amount for this account.",
+    "create": {
+      "title": "New refill policy",
+      "loading": "loading…",
+      "subtitle": "Author a brand-new policy set from scratch — or start from the example and edit it.",
+      "start-from-example": "Start from example policy",
+      "overwrite-title": "Replace this draft with the example policy?",
+      "overwrite-body": "The example policy overwrites every field on this form, the policy set id included. Nothing you have typed here has been saved yet, so it cannot be recovered afterwards.",
+      "overwrite-confirm": "Replace my draft"
+    },
+    "edit": {
+      "title": "Author a replacement revision for {{policySetId}}",
+      "no-prefill-note": "This starts from a blank draft, not a copy of the current revision — there is no read API for stored rule content today (converse-frontends#368)."
+    },
+    "form": {
+      "policy-set-id": "Policy set id",
+      "cancel": "Cancel",
+      "activate": "Create & activate",
+      "activating": "Activating…",
+      "save-revision": "Save as revision only",
+      "saving-revision": "Saving…",
+      "saved-revision": "Revision {{revisionId}} created (policy revision \"{{policyRevision}}\") — not yet active."
+    },
+    "simulate": {
+      "title": "Simulate against {{policySetId}}",
+      "subtitle": "Nothing here reads or changes this policy's actual, active revision.",
+      "back": "Back to list"
+    }
+  },
+  "budget-schedules": {
+    "title": "Budget schedules",
+    "new-schedule": "+ New schedule",
+    "create-title": "New budget reset schedule",
+    "create-loading": "loading…",
+    "load-failed": "Could not load the reset schedules.",
+    "empty": "No reset schedules yet. Until one exists, a new billing period starts every account at whatever balance the last one ended on.",
+    "column": {
+      "name": "Name",
+      "scope": "Applies to",
+      "cadence": "What it does",
+      "next-run": "Next run",
+      "last-run": "Last run",
+      "enabled": "Enabled"
+    },
+    "row": {
+      "enabled-label": "{{name}} enabled",
+      "actions-label": "{{name}} actions",
+      "edit": "Edit",
+      "preview": "Preview",
+      "delete": "Del"
+    },
+    "preview": {
+      "title": "Preview — {{name}}",
+      "fallback-title": "Preview",
+      "run-for-real": "Run now, for real",
+      "running": "Running…"
+    },
+    "delete": {
+      "title": "Delete {{name}}?",
+      "description": "This removes the standing rule, so it never fires again. The grants it already wrote stay on the ledger — that is append-only and nothing here touches it. There is no read path to recover the rule’s own settings afterwards.",
+      "confirm": "Delete schedule",
+      "deleting": "Deleting…"
+    }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "loading": "loading sessions…",
+    "subtitle_one": "{{count}} session on this page",
+    "subtitle_other": "{{count}} sessions on this page",
+    "sheet-title": "Session",
+    "load-failed": "Could not load sessions.",
+    "labels-unresolved": "User names could not be resolved — showing the raw user id instead.",
+    "search-failed": "The user search failed — showing every user’s sessions.",
+    "empty": {
+      "no-match": "No user matches “{{search}}” — narrow the search or clear it to see every session.",
+      "no-active": "No active sessions right now.",
+      "no-filter-match": "No sessions match these filters."
+    },
+    "revoked": {
+      "one": "Session closed.",
+      "already": "That session was already closed.",
+      "none-left": "That user had no active sessions left to close.",
+      "count_one": "Closed {{count}} session for this user.",
+      "count_other": "Closed {{count}} sessions for this user."
+    }
+  },
+  "roles": {
+    "title": "Platform roles",
+    "subtitle": "A platform role follows the person across every account they own. Grants take effect at the holder’s next token mint; revocations close their sessions and apply immediately.",
+    "grant": "Grant role",
+    "load-failed": "Could not load platform role grants.",
+    "search-unavailable": "User search is unavailable.",
+    "labels-unresolved": "User names could not be resolved — showing the raw user id instead.",
+    "granted": "Granted {{role}} · it reaches them at their next token mint."
+  }
+}

@@ -31,7 +31,12 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    // `spec-page.tsx`'s own `?raw` YAML import (see that file's doc comment) needs this ambient
+    // declaration to typecheck. `ui-web`'s own tsconfig already includes it via `"src"`; this app's
+    // does not reach into `packages/ui-web/src` on its own, and `spec-page-story-parity.test.ts`
+    // (converse-frontends#487/#492 follow-up) is the first file here to import that module.
+    "../../packages/ui-web/src/vite-raw-imports.d.ts"
   ],
   // `src/sw.ts` is a service worker: it needs `lib: webworker`, whose `self` typing is
   // irreconcilable with the `DOM` lib this app needs everywhere else. `@serwist/turbopack`'s

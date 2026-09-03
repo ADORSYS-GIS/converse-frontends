@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { useResolverParams } from '../../client/url-state';
+import { useTranslation } from '../../i18n/client';
 import { useOpenCreateAccountDialog } from '../../containers/use-create-account-dialog';
 import { useAccountResolver, writeLastAccountId } from '../../containers/use-account-resolver';
 
@@ -43,6 +44,7 @@ export const dynamic = 'force-dynamic';
  * costs no extra network traffic over sharing one hook would have.
  */
 export default function AccountResolverRoute() {
+  const { t } = useTranslation('settings');
   const router = useRouter();
   const resolver = useAccountResolver();
   const [params] = useResolverParams();
@@ -61,7 +63,7 @@ export default function AccountResolverRoute() {
   if (resolver.error) {
     return (
       <div className="p-5">
-        <ErrorLine message="Could not load your accounts." onRetry={resolver.retry} />
+        <ErrorLine message={t('resolver.load-failed')} onRetry={resolver.retry} />
       </div>
     );
   }
@@ -85,7 +87,7 @@ export default function AccountResolverRoute() {
 
   return (
     <div className="p-5">
-      <InlineStatus>Finding your account…</InlineStatus>
+      <InlineStatus>{t('resolver.finding-account')}</InlineStatus>
     </div>
   );
 }

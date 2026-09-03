@@ -5,7 +5,6 @@ export * from './authz-types';
 export * from './auth-session';
 export * from './budget';
 export * from './keycloak-login';
-export * from './locale-sync';
 export * from './pagination';
 export * from './projects';
 export * from './sync/use-backend-sync';

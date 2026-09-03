@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       codeVerifier: authorization.codeVerifier,
       returnTo,
     },
-    env.sessionSecret
+    env.sessionSecrets
   );
 
   const response = NextResponse.redirect(authorization.authorizationUrl);

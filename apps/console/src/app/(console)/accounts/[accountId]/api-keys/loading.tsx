@@ -29,7 +29,7 @@ export default function ApiKeysLoading() {
           onRequestRevoke={noop}
           onConfirmRevoke={noop}
           onCancelRevoke={noop}
-          isAdmin={false}
+          canDelete={false}
           onRequestDelete={noop}
           onConfirmDelete={noop}
           onCancelDelete={noop}

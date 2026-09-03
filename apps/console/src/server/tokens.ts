@@ -1,3 +1,4 @@
+import type { MyAccessSnapshot } from './access';
 import type { SessionUser } from './session';
 
 /**
@@ -11,9 +12,14 @@ import type { SessionUser } from './session';
  *
  * Signature verification is deliberately NOT done here. These tokens arrive over TLS directly from
  * the token endpoint of a discovered issuer, and the resource servers (`authz-api`, `authz-budget`,
- * the usage backend) each verify the signature themselves. Decoding is used only to read claims the
- * console needs for UI gating — which, per `packages/hooks/src/rbac.ts`, is a convenience and never
- * a security boundary.
+ * the usage backend) each verify the signature themselves. Decoding is used only to read the
+ * identity claims the chrome displays.
+ *
+ * **No authorization is derived here any more** (converse-frontends#452). `ADMIN_ROLE` and
+ * `isAdmin(roles)` are deleted: prod minted `lightbridge-admin` for every signed-in person, so a
+ * role read off a claim was never a decision anybody made. Gating now asks the backend
+ * (`server/access.ts`'s `fetchMyAccess` -> `can()`); `extractRoles` survives only as the degraded
+ * display fallback documented on `buildSessionUser`.
  */
 
 export type JwtClaims = {
@@ -112,12 +118,14 @@ function toRoleArray(value: unknown): string[] {
 /**
  * Collects the caller's role strings from an access token.
  *
- * `rolesClaim` (`lightbridge_api_roles` by default) is the claim the backend's own RBAC reads and
- * the one `getJwtRoles()` uses today — it is the authoritative one. Keycloak's native
- * `realm_access.roles` and `resource_access[clientId].roles` are merged in as well so a realm that
- * grants `lightbridge-admin` natively (rather than through the dedicated mapper) still lights up
- * the Admin nav. Over-including here can only reveal a screen whose every operation the backend
- * still refuses; it can never grant access.
+ * `rolesClaim` (`lightbridge_api_roles` by default) is the claim the backend's own RBAC reads;
+ * Keycloak's native `realm_access.roles` and `resource_access[clientId].roles` are merged in as
+ * well so a realm that grants a role natively (rather than through the dedicated mapper) is still
+ * reported honestly.
+ *
+ * Since converse-frontends#452 this feeds NOTHING but display, and only when `getMyAccess` could
+ * not be reached: the permission set every gate reads is the backend's own answer, so
+ * over-including here can no longer reveal anything at all.
  */
 export function extractRoles(token: string, rolesClaim: string, clientId?: string): string[] {
   const claims = decodeJwtClaims(token);
@@ -132,13 +140,6 @@ export function extractRoles(token: string, rolesClaim: string, clientId?: strin
   return [...roles];
 }
 
-/** The single role that unlocks the Admin nav group and `/admin` (see `packages/hooks/src/rbac.ts`). */
-export const ADMIN_ROLE = 'lightbridge-admin';
-
-export function isAdmin(roles: string[]): boolean {
-  return roles.includes(ADMIN_ROLE);
-}
-
 export type UserInfoLike = {
   sub?: string;
   name?: string;
@@ -149,10 +150,21 @@ export type UserInfoLike = {
 /**
  * Builds the session's user record from the access token's own claims, letting a `/userinfo`
  * response fill in anything the token omits. `sub` always comes from the token.
+ *
+ * `access` is `getMyAccess`'s answer (`server/access.ts`), fetched by the caller with this very
+ * token. It is a REQUIRED argument, not an optional enrichment: a session without a resolved
+ * permission set is a session no gate can evaluate, and making the caller pass one — even the
+ * fail-closed unverified snapshot — is what keeps "we forgot to ask" from silently reading as
+ * "this person holds nothing".
+ *
+ * `roles` come from the backend's own echo when the call succeeded, and from the token claim when
+ * it did not, so the identity row still has something honest to show in the degraded case. Nothing
+ * gates on them either way (converse-frontends#452 deleted `isAdmin`/`ADMIN_ROLE` outright).
  */
 export function buildSessionUser(
   accessToken: string,
   rolesClaim: string,
+  access: MyAccessSnapshot,
   clientId?: string,
   userInfo?: UserInfoLike
 ): SessionUser | null {
@@ -165,6 +177,9 @@ export function buildSessionUser(
     name: claims?.name ?? userInfo?.name,
     preferredUsername: claims?.preferred_username ?? userInfo?.preferred_username,
     email: claims?.email ?? userInfo?.email,
-    roles: extractRoles(accessToken, rolesClaim, clientId),
+    platformUserId: access.userId,
+    roles: access.accessVerified ? access.roles : extractRoles(accessToken, rolesClaim, clientId),
+    permissions: access.permissions,
+    accessVerified: access.accessVerified,
   };
 }

@@ -38,9 +38,7 @@ export function SpendShareSection({
       <ZoneHeading
         label={label}
         trailing={
-          total && status === 'ready' ? (
-            <span className={DATA_INK_CLASS}>{total}</span>
-          ) : undefined
+          total && status === 'ready' ? <span className={DATA_INK_CLASS}>{total}</span> : undefined
         }
       />
 

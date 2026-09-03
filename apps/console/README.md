@@ -29,10 +29,15 @@ src/
   server/                   server-only: config loading, OIDC, session crypto, refresh policy, proxy
   client/                   'use client': refine root, cratestack clients, shell chrome, view state
   containers/               per-route `use-*-screen` adapters (refine hooks -> section props) and
-                            the thin centre/rail components that compose ui-web sections from them
+                            the thin centre components that compose ui-web sections from them
+  dashboards/               the declarative dashboard engine: zod spec, loader, resolver, hook,
+                            renderer registry, derived metrics, export button — see below
+  shared/                   permission vocabulary shared by the server gates and the client chrome
   sw.ts                     service worker (bundled by @serwist/turbopack's route handler; see
                             app/serwist/[path]/route.ts — registered client-side in production only)
 config.yaml                 the primary server config document — see Configuration below
+dashboards.yaml             the declarative dashboard definition — see "Declarative dashboards"
+templates/<route>/report.typ  per-route Typst report templates — see "Report export"
 ```
 
 ## The shell is mounted once
@@ -54,7 +59,7 @@ The property this buys: **navigating does not remount the header or the nav**. T
 regression-tested claim, in two halves —
 `src/app/console-shell-mount.test.ts` asserts the route tree's shape (the shell is imported in
 exactly one file; no `page.tsx` mounts any part of it; every centre route has a matching segment in
-both slots; every `/admin` segment carries the server-side role gate), and
+both slots; every `/admin` segment carries its server-side permission gate — a permission from `getMyAccess`, never a role string; see ADR 0015 D4), and
 `packages/ui-web/src/pages-stories/shell-persistence.stories.tsx` asserts the runtime half by
 object identity: stash the nav DOM node, navigate, and it is still the same node.
 
@@ -241,14 +246,14 @@ browser session (Keycloak cookie) — `curl` alone can't drive the OIDC login fl
 
 ## Scripts
 
-| Script                            | What it does                                                     |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                  |
-| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"  |
+| Script                            | What it does                                                       |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `pnpm --filter console dev`       | `next dev --turbopack` on :3000                                    |
+| `pnpm --filter console dev:https` | same, over HTTPS (self-signed) — see "Testing on a real device"    |
 | `pnpm --filter console build:web` | `next build --turbopack` — the task `turbo run build:web` picks up |
-| `pnpm --filter console start`     | serve the production build                                       |
-| `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)           |
-| `pnpm --filter console typecheck` | `tsc --noEmit`                                                   |
+| `pnpm --filter console start`     | serve the production build                                         |
+| `pnpm --filter console test`      | vitest (node environment; server logic + row adapters)             |
+| `pnpm --filter console typecheck` | `tsc --noEmit`                                                     |
 
 ### Turbopack for both dev and the build
 
@@ -258,7 +263,7 @@ compiled `src/sw.ts` into `public/sw.js`, was a webpack plugin, and Turbopack ne
 `next.config.mjs` `webpack()` function at all. That reason is gone — the console now runs
 `@serwist/turbopack` instead, whose `createSerwistRoute` bundles `src/sw.ts` with `esbuild-wasm`
 inside a normal route handler (`src/app/serwist/[path]/route.ts`), so there is no webpack-only
-build step left to keep production on. `src/client/providers.tsx` still gates SW *registration* on
+build step left to keep production on. `src/client/providers.tsx` still gates SW _registration_ on
 `NODE_ENV === 'production'` (ADR 0009 Decision 7 — in development it would serve a stale precached
 shell over every edit), but the route itself, and thus the bundler, is no longer the reason.
 
@@ -351,7 +356,7 @@ pipeline never had the problem — it does not run Lightning CSS over the Tailwi
 ### Other dev-speed notes
 
 - **Serwist registration is already fully dev-disabled** (`register={process.env.NODE_ENV ===
-  'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
+'production'}` on `SerwistProvider` in `src/client/providers.tsx`). The service worker route
   itself (`src/app/serwist/[path]/route.ts`) still exists and can be fetched in dev — unlike the old
   `@serwist/next` webpack plugin, `@serwist/turbopack` has no build-wide `disable` switch — but a
   route nothing registers against never runs, so this has no dev-speed cost either.
@@ -414,6 +419,457 @@ client-supplied `Authorization` can never reach a backend. Path segments are val
 The request body is buffered rather than streamed, because the reactive-401 path has to replay the
 exact same bytes with a fresh token. Responses are streamed.
 
+## Declarative dashboards — `dashboards.yaml`
+
+converse-frontends#446 / #447 / #448 / #455, recorded in
+[ADR 0015](../../docs/adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md) D1.
+Owner, 2026-09-02: _"the dashboards are basically fetch(filters × type × parameters) = data. The
+page handles the filters; we externalize the list of type × parameters into a dashboards.yaml (per
+page); Next reads those and does the mapping."_
+
+**There are zero hand-written dashboard containers in this app.** A dashboard page is one entry in
+`apps/console/dashboards.yaml` keyed by its router path, plus a route file that reads the entry,
+calls `useDashboard(route)` and renders `DashboardRenderer`. **Eleven** entries ship today:
+`/admin/overview`, `/admin/usage` and its four drill-downs (`/admin/usage/actors/[actorId]`,
+`/admin/usage/channels/[channelId]`, `/admin/usage/models/[model]`, `/admin/usage/chats`),
+`/accounts/[accountId]/overview`, and the four `/settings/overview/*` lenses.
+
+Panel ids are **prefixed per page** (`actor-*`, `channel-*`, `model-*`, `chat-*`), never reused
+across pages:
+the report walk resolves a route to a panel list, the per-panel URL knob is `?<panel-id>-scale=`,
+and this file is read across pages, so an id has to be unambiguous document-wide. Types and
+readings are shared freely; only identities are distinct.
+
+### The schema
+
+Validated by zod (`src/dashboards/dashboard-spec.ts`) at **build time** (`dashboard-spec.test.ts`
+parses the real document) **and at startup** (`loadDashboards()`), fail-loud both times.
+
+```yaml
+pages:
+  - route: /admin/usage # the App Router path; `[param]` segments written literally
+    filters: [lens] # which $params panels here may use; `range` is implicit
+    panels:
+      - id: cost-by-channel # unique on the page: React key, dedupe attribution,
+        type: ranked #   heading id, and what a validation error names
+        title: Cost by channel
+        subtitle: Which client each request came through. # optional; screen AND report
+        span: 1 # 1 = one grid column, 2 = both
+        metric: cost # cost | requests | tokens | latency | derived:<name>
+        compare: false # optional; adds the comparison-window twin + a delta
+        options: # optional, per type
+          topN: 8
+          link: /admin/usage/channels/:key # `:key` = the row's own group-by value
+          # `linkAll`/`linkAllLabel`: ONE key-less destination in the heading actions slot, for a
+          # panel whose marks cannot carry links of their own (a `series` board's lines). The label
+          # is an i18n key like every other copy field; the href is not.
+        query:
+          scope: all # user | api_key | project | account | all | family
+          scope_id: '' # optional; a literal or a $placeholder
+          group_by: [azp]
+          filters: {} # equality strings, plus the one list filter (`operation_in`)
+          bucket: auto # ≤7d → 1 hour, ≤90d → 1 day, else 7 days
+          limit: 2000 # ALWAYS explicit — never a server default
+```
+
+Closed vocabularies, each stated once and shared with `packages/ui-web` so YAML and the renderer
+registry cannot disagree:
+
+| Field               | Values                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `type`              | `stat` · `stat-group` · `series` · `ranked` · `share` · `donut` · `table` · `latency-cards` · `latency-series` |
+| `metric`            | `cost` · `requests` · `tokens` · `latency`, or `derived:<name>`                                                |
+| `derived:<name>`    | `avgCostPerMillionTokens` · `costPerRequest` · `activeActors` · `chatCount` · `activeActorsPerBucket`          |
+| `options.scale`     | `linear` · `log` · `indexed` (`series`/`latency-series`)                                                       |
+| `options.lens`      | `user` · `account` · `project` — swaps the first `group_by` dimension and resolves `$lens` in `options.link`   |
+| `options.columns`   | `label` · `type` · `cost` · `requests` · `tokens` · `lastActive` (`table`)                                     |
+| `options.dimension` | any `group_by` entry, or `none` for the ungrouped total                                                        |
+| `scope`             | `user` · `api_key` · `project` · `account` · `all`, plus the resolver's own `family`                           |
+
+### Placeholders
+
+`$name` in any query string field is substituted from the page's own `filters` — `scope_id:
+$actorId`, `scope: $type`, `filters.azp: $channelId`. **An unresolved placeholder is an error**,
+never an empty string: `scope_id: ''` on an account-scoped panel is not "no actor", it is a
+different question than the panel's title claims, and on `scope: all` it would silently widen a
+per-actor panel to the whole deployment.
+
+`$name?` is the **optional** form and is legal **only inside `filters.<key>`**: it drops the filter
+when the page has no value for it — what an account dashboard's project picker needs when it rests
+on "All projects". It is deliberately not legal on `scope`/`scope_id`: a dropped scope is not a
+narrower query, it is a different one.
+
+`range` (with `from`/`to`) is applied to every panel on every page and is never listed in
+`filters`.
+
+### Route params are percent-decoded exactly once, at the route
+
+**Next.js does not decode a page's route params.** Measured against this repo's own Next (16.3.2,
+Turbopack) with a throwaway probe route on 2026-09-03: a **Route Handler** gets
+`params.id === 'cratestack/cratestack'` for `/…/cratestack%2Fcratestack` (it goes through
+`getRouteMatcher`, which decodes per group), while a **page** — and `useParams()` on the client,
+which reads the same Flight router tree — gets the raw `cratestack%2Fcratestack`.
+
+That produced a real defect, reported by the owner on 2026-09-03: an account id that is a repo slug
+(`cratestack/cratestack`) was correctly encoded by `actorHref`, passed through verbatim by the
+route, and queried as `scope_id: "cratestack%2Fcratestack"` — an id that exists nowhere. Nothing
+failed. The page rendered a complete, confident, empty dashboard.
+
+The rule is now one function (`src/shared/route-params.ts`) called once per parameterised route,
+and `admin-usage-detail-route-gate.test.ts` asserts every such route calls it **exactly once** — a
+second decode would corrupt an id containing a literal `%` (`a%20b` → `a b`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Row as Ranked row / ring wedge
+    participant Href as modelHref()<br/>encodeURIComponent
+    participant Next as Next App Router
+    participant Page as page.tsx (Server Component)
+    participant Res as resolveDashboard
+    participant API as usage backend
+
+    Row->>Href: key = "openai/gpt-4o-mini"
+    Href-->>Row: /admin/usage/models/openai%2Fgpt-4o-mini
+    Row->>Next: navigate
+    Next->>Page: params.model = "openai%2Fgpt-4o-mini" (RAW — never decoded)
+    Page->>Page: decodeRouteParam() → "openai/gpt-4o-mini"
+    Page->>Res: filters = { model: "openai/gpt-4o-mini" }
+    Res->>API: scope=all, filters.model="openai/gpt-4o-mini"
+    API-->>Res: the model's real points
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Encoded: link built by modelHref / actorHref / channelHref
+    Encoded --> RawSegment: Next hands the page params (no decode)
+    RawSegment --> Decoded: decodeRouteParam(), once, in page.tsx
+    RawSegment --> Corrupt: passed through (the pre-2026-09-03 path)
+    Decoded --> Queried: $param substituted into scope_id / filters
+    Decoded --> Corrupt: decoded a SECOND time (a%20b → a b)
+    Corrupt --> EmptyDashboard: backend answers for an id that exists nowhere
+    Queried --> [*]
+    EmptyDashboard --> [*]
+
+    note right of Corrupt
+        No error, no 404, no empty state —
+        real panels over an id nobody has.
+        This is the state the single decode
+        makes unreachable.
+    end note
+```
+
+A **malformed** escape (`100%`, `%zz`) is returned unchanged rather than thrown: that is a
+hand-typed URL, and the honest outcome is the same "no usage in this window" reading any unknown id
+gets. Throwing would turn a typo into a 500; returning `''` would silently widen a scoped query.
+
+### Resolution, in order
+
+`resolveDashboard` (`src/dashboards/resolve-dashboard.ts`) is **React-free, DOM-free and
+clock-free** — it takes the window it is told about — precisely so `/api/reports/page` can run the
+same function server-side and get the same queries the browser issued.
+
+1. Substitute `$param` placeholders (error on an unresolved one).
+2. Apply the page's range to every panel.
+3. Resolve `bucket: auto`; always emit an explicit `limit`.
+4. Add the comparison-window twin for `compare: true` (`containers/comparison-window.ts` — the one
+   "vs previous" rule in the console: the previous window of the same length, calendar-shifted
+   under a `monthly` cadence). The twin is **additive**: it never moves the page's own window.
+   A one-week floor used to widen the current window here and was the cause of the 2026-09-03
+   spend-inflation incident (converse-frontends#448); it is gone.
+5. Apply the lens — swap the first `group_by` dimension, resolve `$lens` in `options.link`.
+6. Expand `scope: family` into one `scope: account` query per account in the session's own family.
+7. **Deduplicate** on a stable key derived from the fully-resolved query (`group_by` sorted).
+
+A **substituted** `scope` is additionally validated against the closed usage-scope enum
+(`assertUsageScope`). It is the one field whose value a URL a person can type decides, and an
+invalid `?type=` must not reach the backend as a 400 arriving under a page that has already printed
+an actor's name. The route 404s it first — this is the structural second line, so a page entry is
+safe to read on its own.
+
+Dedupe is the measured payoff: `/admin/usage`'s nineteen panels are **six** requests plus one
+twin; `/admin/overview`'s eleven are **three** plus one, where its eight hand-written boards fired
+six.
+
+### Adding a panel vs adding a type
+
+- **A panel is YAML.** Add an entry under the page's `panels:` and it renders, exports and gets its
+  own URL knobs. No code.
+- **A type is a renderer plus a Storybook story**, in `packages/ui-web/src/sections/dashboard-panels`
+  — an entry in `DASHBOARD_PANEL_TYPES`, an entry in `panelRenderers`, and a story. The console's
+  zod enum is built from that array and the registry is keyed on it, with a test asserting both
+  cover it exactly, so a type cannot exist in YAML without a renderer or vice versa. An
+  `if (panelId === …)` in a page is the thing this engine exists to remove.
+- **Storybook is the oracle.** `Pages/FromSpec` renders any YAML page entry against a mocked query
+  layer, so a page is reviewable before the backend column behind it exists — and a page migrated
+  onto the engine proves parity against its own existing page story before any container is
+  deleted.
+
+### Where the file is read from
+
+```
+1. ${CONSOLE_CONFIG_DIR}/dashboards.yaml   # the deployment's own copy (operator override)
+2. ./dashboards.yaml                       # the in-repo file shipped in the image
+```
+
+`CONSOLE_CONFIG_DIR` is **derived**, not a second independently-wired variable: an explicit
+`CONSOLE_CONFIG_DIR`, else the directory holding `CONSOLE_CONFIG`, else none (a dev checkout with
+no `CONSOLE_CONFIG` has no override root and must not treat the repo root as one). That is why the
+Helm chart needed only one more optional ConfigMap (`console-dashboards`, mounted at
+`/config/console/dashboards.yaml`) beside the config and branding it already mounts.
+
+`CONSOLE_DASHBOARDS` overrides the in-repo path itself, and exists for tests.
+
+### Validation is fail-loud, and an invalid override never falls back
+
+An unreadable, unparseable or invalid document **throws at startup**, listing every problem and
+naming the offending **page route and panel id** — the console refuses to boot rather than
+rendering an empty dashboard, which is exactly the failure mode hand-written containers had. An
+override that exists but is invalid is a hard failure: an operator who mounted a broken file is
+told, not quietly served a different dashboard than the one they deployed.
+
+```
+[console] Invalid dashboards document at "/config/console/dashboards.yaml":
+  - page "/admin/usage", panel "cost-by-channel", at pages.1.panels.11.query.limit: Required
+  - page "/admin/usage", panel "model-mix", at pages.1.panels.12.type: Invalid enum value
+```
+
+The document is cached for the process lifetime, like `serverEnv()` — it cannot change without a
+restart.
+
+## Report export — `.typ` templates and the `typst-render` sidecar
+
+converse-frontends#453. Every `dashboards.yaml`-driven page exports to PDF, CSV or an HTML preview,
+and **the report walks the SAME resolved panel list the page renders**: `resolveDashboard`
+(`src/dashboards/`, React-free precisely so it can run here) produces one deduplicated query list,
+`toPanelView` turns the responses into the same views the browser draws, and the `.typ` template
+mirroring the route path decides only the document's chrome. A panel added to the YAML appears in
+the report with no template change and no code change.
+
+The console image carries **no PDF toolchain** — no Typst binary, no browser engine. It builds
+`data.json` plus one standalone SVG per chart panel and POSTs them to `apps/typst-render`, a
+loopback-only sidecar (`charts/converse-console`), whose wire contract is in that app's README.
+
+### The route
+
+```
+GET /api/reports/page
+  ?path=<dashboards.yaml route, [param] segments LITERAL>
+  &range=mtd|7d|30d|90d[&from=YYYY-MM-DD&to=YYYY-MM-DD]
+  &<each filter the page declares>=<value>
+  &format=pdf|csv|html          (default pdf)
+  &tables=true|false            (default true)
+```
+
+`path` is the **route pattern**, not the browser's URL: the page already knows which YAML entry it
+renders, so the route validates `path` by EQUALITY against its own document and the param values
+travel beside it as ordinary filters. That is also the whole path-traversal story — `../../etc`
+cannot equal a declared route, so it is refused before anything touches the filesystem.
+
+| Outcome                                            | Status | When                                                                                           |
+| -------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------- |
+| the report                                         | `200`  | `Content-Disposition: attachment; filename="<route-slug>-<range>.<ext>"` (`inline` for `html`) |
+| `unknown_route`                                    | `404`  | `path` is not a declared page. The message names every route it would have accepted.           |
+| `invalid_filter`                                   | `400`  | a `$param` a panel needs was not supplied — an actor report with no actor                      |
+| `template_compile_error`                           | `422`  | Typst's **stderr verbatim** on `detail`, plus which file and which route                       |
+| `renderer_unreachable` / `renderer_not_configured` | `502`  | it never degrades to a chartless PDF                                                           |
+
+`format=csv` returns the underlying grouped rows, **one section per panel** (a dashboard is not one
+table, so this is not one table), and never touches Typst. `format=html` is a preview of the same
+assembled document and also works with no sidecar running — which is what makes the sidecar
+optional for local development.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Operator
+    participant D as DashboardExportButton<br/>(PageHeader action)
+    participant R as GET /api/reports/page
+    participant Y as dashboards.yaml
+    participant G as usage-scope-guard
+    participant B as usage backend
+    participant T as typst-render (sidecar)
+
+    U->>D: Export -> format · include tables
+    D->>R: path=<route> · range · filters · format
+    R->>Y: findPage(path) — equality, never a file join
+    Y-->>R: 404 unknown_route (every traversal lands here)
+    R->>R: resolveDashboard -> deduplicated query list
+    R->>G: guard every query BEFORE any is sent
+    G-->>R: 403 scope_not_owned (all-or-nothing)
+    R->>B: POST /usage/v1/usage/query (once per deduplicated query)
+    B-->>R: points
+    R->>R: toPanelView -> data.json + one static SVG per chart panel
+    alt format=csv
+        R-->>U: 200 text/csv — one section per panel
+    else format=html
+        R-->>U: 200 text/html preview — no sidecar needed
+    else format=pdf
+        R->>T: POST /render {template, data, assets}
+        T-->>R: 200 application/pdf
+        T-->>R: 422 + typst stderr
+        R-->>U: 200 the PDF · 422 naming the template · 502 if unreachable
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> Requested
+
+    Requested --> Rejected404: path is not a declared route
+    Requested --> Rejected400: unresolved $param / bad format
+    Requested --> Resolved: page found, window + filters applied
+
+    Resolved --> Refused403: a query's scope is not the caller's
+    Resolved --> Queried: every query guarded, then sent
+    Queried --> Failed502Upstream: usage backend unreachable or refusing
+
+    Queried --> Assembled: data.json + one SVG per chart panel
+
+    Assembled --> DeliveredCsv: format=csv (Typst never involved)
+    Assembled --> DeliveredHtml: format=html (no sidecar needed)
+    Assembled --> Rendering: format=pdf
+
+    Rendering --> Failed502Renderer: unreachable / not configured
+    Rendering --> Failed422: template did not compile
+    Rendering --> DeliveredPdf: 200 application/pdf
+
+    note right of Failed502Renderer
+      There is NO state in which a PDF is produced
+      without its charts. A renderer that cannot be
+      reached is an error the dialog shows, never a
+      silently degraded document.
+    end note
+
+    DeliveredCsv --> [*]
+    DeliveredHtml --> [*]
+    DeliveredPdf --> [*]
+```
+
+### The template contract
+
+Templates live at `apps/console/templates/<route>/report.typ`, where `<route>` mirrors the page path
+with `[param]` segments kept **literally**:
+
+```
+templates/
+  _lib/report.typ                                  the shared library — NOT overridable
+  _lib/default.typ                                 the generic report, last rung of the lookup
+  admin/overview/report.typ
+  admin/usage/report.typ
+  admin/usage/actors/[actorId]/report.typ
+  admin/usage/channels/[channelId]/report.typ
+  admin/usage/models/[model]/report.typ
+  admin/usage/chats/report.typ
+  accounts/[accountId]/overview/report.typ
+  reports/consumption/report.typ                   not a page — see "the consumption report" below
+```
+
+A template starts:
+
+```typst
+#import "_lib/report.typ": *
+#let report = json(sys.inputs.at("data"))   // sys.inputs.data is a FILENAME, not the payload
+#show: report-page.with(report)
+#panels-in-order(report)
+```
+
+It receives `report.panels[]` — `{id, type, title, subtitle?, span, caption?, chart?, chartAspect?,
+stats?, table?, unavailable?}` — plus the header fields (`title`, `route`, `rangeLabel`, `window`,
+`generatedAt`, `filters`, `template`, `includeTables`). **That is all it can know.** No query, no
+scope, no URL and no credential reaches `data.json`, so a template decides document chrome — header,
+section order, captions, page size — and cannot change which panels exist or what they queried.
+
+`_lib/report.typ` gives it `report-page`, `panel`, `stat-grid`, `table-from-rows`, `panel-chart`,
+`panel-body` and `panels-in-order`. Two things there are load-bearing rather than stylistic, and
+both were found by rendering against the real compiler rather than by reading the docs:
+
+- `panel-chart` uses `image("/" + p.chart)`. A **relative** `image()` path resolves against the file
+  doing the calling — this library, in `_lib/` — so a bare `panels/x.svg` looks for
+  `_lib/panels/x.svg` and fails. The leading `/` resolves against the render root, which is what the
+  asset paths are relative to.
+- it bounds a chart by width or by height according to `chartAspect`. `width: 100%` alone scales a
+  square ring to the full text width, which on A4 is a 174 mm circle that eats a whole page.
+
+Templates must be **self-contained** — no `@preview` imports. The sidecar's package path is an empty
+per-request directory and it is expected to run without egress, so an import surfaces as a `422`
+naming the package.
+
+### Overriding a template
+
+Lookup is **per file**, in this order:
+
+1. `${CONSOLE_TEMPLATES_DIR}/<route>/report.typ` — the operator's override
+   (`charts/converse-console`'s `report-templates` volume; the variable is always set on the console
+   container, mounted or not).
+2. `apps/console/templates/<route>/report.typ` — the template shipped in the image.
+3. `apps/console/templates/_lib/default.typ` — the generic report.
+
+So overriding one route leaves every other report on its shipped template, and a route with no
+template of its own is a styling gap rather than an error: a page added to `dashboards.yaml` is
+exportable the day it is added. `_lib/report.typ` itself is deliberately **not** overridable — an
+override of it would restyle every report at once, which is not a per-route decision.
+
+### Files that ship with a template
+
+Every **non-`.typ`** file sitting beside the resolved `report.typ` is sent to the renderer as an
+asset keyed by its path **relative to that directory**, so a template can ship its own artwork:
+
+```
+${CONSOLE_TEMPLATES_DIR}/admin/overview/report.typ    →  #image("logo.png")
+${CONSOLE_TEMPLATES_DIR}/admin/overview/logo.png
+```
+
+No leading slash: a per-route template compiles as `main.typ` **at** the render root, so its
+siblings are relative to it. (`_lib/report.typ` is the exception and uses `image("/" + …)`, because
+Typst resolves a relative path against the file that calls it and the library lives in `_lib/`.)
+
+Same per-file precedence as the template itself — the override directory first, then
+`apps/console/templates/<route>/` — so mounting only `logo.png` gives you your artwork with the
+shipped template. `.typ` files are never shipped this way: the template is resolved by name and the
+library is not overridable, and a second silent import surface would have neither rule applied.
+
+The total is capped at **8 MiB** (`apps/typst-render`'s own request cap). Over it, the route answers
+`413` naming the largest file rather than spending a round-trip on an anonymous `payload_too_large`.
+
+### Branding
+
+`_lib/report.typ` draws the deployment's configured mark left of the title, at ~28 pt, on **every**
+report — no template change, and the consumption report too. It is the same file the console header
+serves: a report cannot fetch a URL, so `report-branding.ts` reads it off disk and ships the bytes
+as the asset `branding/logo.<ext>`, named in `data.json` as `report.branding.logo`.
+
+`branding.logoLight` is what prints, falling back to `branding.logo` — paper is white, and
+`branding.logo` is the dark-theme mark. With no readable logo the header falls back to
+`branding.name`, then to the title alone; a missing letterhead never fails a report. See
+`docs/knowledge/console-configuration.md`, "Report export", and `charts/converse-console/README.md`
+for the prod mounts.
+
+### The consumption report
+
+`GET /api/reports/consumption?month&account[&project][&format=csv|pdf]` renders through the same
+pipeline, from `templates/reports/consumption/report.typ`. The hand-rolled PDF 1.4 writer that
+preceded it (`src/server/pdf-document.ts` + `consumption-pdf.ts`) is **deleted** — a hard cutover,
+no parallel path — because a writer that cannot embed an image was a dead end for a story about
+charts in a report. The CSV path is untouched and byte-identical; the figures are unchanged in both
+formats (`consumption-report.test.ts` pins them). Two things it gained: the usage scope guard, which
+it previously did not apply at all, and a 502 rather than a silently chartless PDF.
+
+### Running it locally
+
+```sh
+pnpm turbo run build:web --filter=typst-render
+docker compose up typst-render            # or: node apps/typst-render/dist/index.js
+# then set TYPST_RENDER_URL=http://127.0.0.1:8080 — read either through config.yaml's
+# `reports.typstRenderUrl: '{env:TYPST_RENDER_URL}'` placeholder or, for a deployment whose own
+# config.yaml has no `reports:` block, directly (env.ts `resolveTypstRenderUrl`; YAML wins)
+pnpm --filter console test                # the live-renderer tests run; without it they SKIP loudly
+```
+
+Without the sidecar, `format=csv` and `format=html` work unchanged and `format=pdf` answers a 502
+that says so.
+
 ## Offline-first
 
 - **Service worker** via `@serwist/turbopack`: precached app shell plus Next-aware runtime caching.
@@ -424,6 +880,38 @@ exact same bytes with a fresh token. Responses are streamed.
   24h max age, busted on the app version. Previously-loaded screens render from cache with an inline
   `offline · showing cached data` status line in the header. Mutations require connectivity — no
   offline mutation queue (ADR 0009 Decision 7, explicitly).
+
+## Tracing (OpenTelemetry)
+
+`src/instrumentation.ts` — Next's stable `register()` convention, no experimental flag on 16.3.2 —
+starts a Node OTel SDK through the shared `@lightbridge/otel` package. `service.name` is
+**`converse-console`**, compiled in and overridable with `OTEL_SERVICE_NAME`.
+
+**The environment is the only switch.** With no `OTEL_EXPORTER_OTLP_ENDPOINT` the app starts no SDK
+and logs one line saying so — the ordinary state of `next dev`, `next build` and every test. Set it
+and traces flow:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
+DEPLOYMENT_ENVIRONMENT=local pnpm dev
+# [otel] converse-console exporting traces to http://127.0.0.1:4318/v1/traces (…)
+```
+
+What you get: a server span per request (kubelet probes on `/robots.txt` excluded), Next's own
+render/route spans nested under it, and a client span with an injected `traceparent` for every
+outbound `fetch` — the RPC/usage proxies, `/version` reads, and the `POST /render` to the
+typst-render sidecar — so these traces join the backends'. The Edge runtime (`src/middleware.ts`)
+is deliberately not instrumented.
+
+Two build-time details this depends on, both silent when broken: the `@opentelemetry/*` packages are
+in `next.config.mjs`'s `serverExternalPackages` (bundling them stops the HTTP patching and splits
+the `@opentelemetry/api` singleton), and `build:web` runs
+`scripts/link-standalone-scopes.mjs` because `output: 'standalone'` copies those packages without
+creating the scope symlinks Node resolves through.
+
+Full contract, both mermaid diagrams and the cluster wiring:
+[`docs/knowledge/observability.md`](../../docs/knowledge/observability.md).
 
 ## Known gaps in this scaffold
 

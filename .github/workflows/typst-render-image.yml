@@ -1,0 +1,149 @@
+name: typst-render-image
+
+# Builds and publishes the apps/typst-render (Typst PDF sidecar) container image. A separate
+# workflow, not a shared/matrixed one, so this pipeline can never touch another app's images or
+# GHCR packages — same reasoning as lci-docker-image.yml.
+#
+# apps/typst-render is a plain node:http service with ZERO npm dependencies: `pnpm turbo run
+# build:web --filter=typst-render` is a single `tsc` invocation producing `dist/`, which the
+# Dockerfile copies alongside the pinned Typst binary. There is no bundler and no standalone
+# tracer in this path.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # Its own GHCR package, sibling to `.../console` and `.../lci` and named the same way
+  # (`${{ github.repository }}/<app>`), so argocd-image-updater in the private ai-helm-values repo
+  # can watch this exact name and commit the newest `sha-<gitsha>` tag. Story B2 wires the
+  # sidecar; nothing in THIS repo's charts/ references it yet, by design.
+  IMAGE_NAME: ${{ github.repository }}/typst-render
+
+jobs:
+  build-and-push:
+    # Rootless Buildah on the runner (daemonless — no Docker/dind). Single-arch: every cluster
+    # node is amd64.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # Also regenerates the gitignored packages/authz-rpc/generated/ via the root postinstall
+      # (`codegen:all`). typst-render itself needs none of it, but the install is workspace-wide.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The golden render test shells out to the real compiler, so the binary has to be here
+      # BEFORE `pnpm --filter typst-render test` runs. It is taken from the exact image the
+      # Dockerfile pins, not from a distro package or a `latest` download — otherwise CI would be
+      # testing a different Typst than the one that ships, which is the whole class of bug
+      # pinning exists to prevent. The suite skips (loudly) without it; that must never be how
+      # this job passes.
+      - name: Install the pinned Typst binary
+        run: |
+          set -euo pipefail
+          # $HOME/.local/bin, not /usr/local/bin: the latter is root-owned on the hosted runner
+          # and this job has no reason to need sudo just to place one file.
+          mkdir -p "$HOME/.local/bin"
+          container="$(podman create ghcr.io/typst/typst:0.15.1)"
+          podman cp "$container:/bin/typst" "$HOME/.local/bin/typst"
+          podman rm "$container"
+          chmod +x "$HOME/.local/bin/typst"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/typst" --version
+
+      - name: Typecheck
+        run: pnpm --filter typst-render exec tsc --noEmit -p tsconfig.json
+
+      - name: Test (golden render against the pinned Typst)
+        run: pnpm --filter typst-render test
+
+      # `--filter=typst-render` deliberately: this keeps building exactly one package regardless
+      # of how many workspaces gain a `build:web` task later.
+      - name: Build typst-render (Turbo)
+        run: pnpm turbo run build:web --filter=typst-render
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to GHCR (Buildah)
+        # Direct `buildah login` writes the podman/buildah auth.json the build + push steps read.
+        # (redhat-actions/podman-login mirrors creds to ~/.docker/config.json, which ENOENTs on
+        # daemonless runners.)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | buildah login --username "${{ github.actor }}" --password-stdin "${{ env.REGISTRY }}"
+
+      - name: Build image (Buildah, amd64, no layer cache)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          LABELS: ${{ steps.meta.outputs.labels }}
+          # The build stamp every image in this estate carries (lightbridge-authz#573) — see
+          # apps/typst-render/Dockerfile's own ARG -> ENV block, and docker-image.yml's identical
+          # pair, for why this is the commit rather than the pushed digest, why `IMAGE_TAG` /
+          # `IMAGE_REF` are read out of `$TAGS` below instead of being rebuilt from `github.sha`,
+          # and why the tag and the full reference are two separate values.
+          IMAGE_BUILD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
+          tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # The immutable, actually-pushed `…:sha-<short>` reference, taken from the tag list
+          # rather than rebuilt from `github.sha` — see the note above — and the TAG split off it,
+          # so the two can never name different builds.
+          image_ref="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
+          [ -n "$image_ref" ] || image_ref="$(head -n1 <<<"$TAGS")"
+          image_tag="${image_ref##*:}"
+          echo "build stamp: IMAGE_TAG=${image_tag} IMAGE_REF=${image_ref}"
+          # No --layers / --cache-from / --cache-to: the Docker build is deliberately uncached
+          # (caching lives in Turbo). Build context is the repo root to match the sibling app
+          # Dockerfiles' documented invocation, even though this image only needs
+          # apps/typst-render/dist and its package.json.
+          buildah build --format docker --platform linux/amd64 \
+            --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
+            --build-arg "IMAGE_TAG=${image_tag}" \
+            --build-arg "IMAGE_REF=${image_ref}" \
+            --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -f apps/typst-render/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
+          # Export the first tag as a tarball so Trivy can scan it daemonless.
+          primary="$(head -n1 <<<"$TAGS")"
+          buildah push "$primary" docker-archive:/tmp/image.tar
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: /tmp/image.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Push image (all tags)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r t; do [ -n "$t" ] && buildah push "$t"; done <<<"$TAGS"

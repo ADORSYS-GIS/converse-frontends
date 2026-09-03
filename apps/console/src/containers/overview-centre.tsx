@@ -1,180 +1,182 @@
 'use client';
 
-import { Button } from '@lightbridge/ui-web/src/components/button';
+import { useMemo } from 'react';
 import { Card } from '@lightbridge/ui-web/src/components/card';
-import { formatUsd, formatUsdAxis } from '@lightbridge/ui-web/src/lib/money';
+import { DateRangeField } from '@lightbridge/ui-web/src/components/date-range-field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
+import { SelectField } from '@lightbridge/ui-web/src/components/select-field';
 import { BudgetPanel } from '@lightbridge/ui-web/src/sections/budget-panel';
-import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
-import { OverviewControls } from '@lightbridge/ui-web/src/sections/overview-controls';
+import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import { SpendDashboard } from '@lightbridge/ui-web/src/sections/spend-dashboard';
-import { SpendShareSection } from '@lightbridge/ui-web/src/sections/spend-share';
 
-import { USAGE_QUERY_LIMIT } from './overview-usage';
-import { OverviewScopeSlot } from './overview-scope-slot';
-import { useOverviewScreen } from './use-overview-screen';
+import { OVERVIEW_RANGES, useOverviewParams } from '../client/url-state';
+import { DashboardExportButton } from '../dashboards/dashboard-export-button';
+import { DashboardRenderer } from '../dashboards/dashboard-renderer';
+import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
+import { useDashboard } from '../dashboards/use-dashboard';
+import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
+import { useAccountId } from '../client/use-account-id';
+import { useTranslation } from '../i18n/client';
+import { rangeLabels, rangePresets } from './overview-range';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { useAccountOverviewZones } from './use-account-overview-zones';
+import { useDashboardLabels } from './use-dashboard-labels';
 
 /**
- * `/` — the account-scoped user dashboard (IA v3 phase 4, build brief §7: "`/` becomes purely the
- * account-scoped user dashboard — that is the point of the phase"). This route supplies no
- * `@rail`/`@scope` slot at any tier — the shell is mounted once by `app/(console)/layout.tsx`.
+ * `/accounts/[accountId]/overview` — the account-scoped user dashboard, rendered from
+ * `dashboards.yaml` (converse-frontends#455, story C12; decision D-K).
  *
- * Composition, top to bottom: `PageHeader` (controls + the `Export` action) → the money-first stat
- * row → SPEND OVER TIME → SPEND BY PROJECT → SPEND BY MODEL → BUDGET — real for every signed-in
- * user, admin or not.
+ * **What this file no longer is.** Until 2026-09-02 it hand-composed five zones fed by an 810-line
+ * screen hook: a spend chart, a share bar whose DIMENSION changed under a `?group-by=` select, a
+ * by-model board, a budget card and a stat row — four usage queries, none shared, plus a toolbar
+ * of three knobs (`bucket`, `group-by`, `model`) that existed to reshape those zones. All of it is
+ * gone. `use-overview-screen.ts` is deleted, the boards are eight panels in `dashboards.yaml`, and
+ * the page's usage data comes from one `useDashboard` call over a DEDUPLICATED query list — four
+ * requests for eight panels. Adding a board here is now adding YAML.
  *
- * **SPEND OVER TIME plots the account's UNGROUPED total** (2026-08-31 owner-round parity fix,
- * finding #1 — "why is the 'Spend over time' in the settings and on the home page different?...
- * They should normally be exactly the same, right?"): it used to plot one line PER PROJECT while
- * silently dropping every unassigned-spend point (often 88-99% of real spend), drawing a
- * completely different curve than the estate overview's own summed total for the same account.
- * `screen.spendSeries` is now `[account total, dashed previous period]` — the SAME summing
- * semantics `/settings/overview/usage` already uses — and the per-project/model split lives on in
- * SPEND BY PROJECT alone (`screen.spendSegments`, its own independently-queried `spendShareStatus`
- * now that chart and share bar no longer share one grouped query). **No admin-only zone renders here any more**: BUDGET PRESSURE moved to
- * `/settings/overview/project` and KEY HYGIENE to `/settings/overview/account`
- * (`settings-overview-centre.tsx`, `use-settings-overview-screen.ts`'s own `adminPressure`/
- * `adminHygiene`) — the pending-refill count that used to sit beside them is gone outright, not
- * moved, since it already lives in the settings nav's own numeral. `/admin` was already, before
- * this move, just the refill-review queue.
+ * **The `?group-by=` select went with it, deliberately.** A breakdown whose dimension is a knob is
+ * one board pretending to be four; the four are panels now (by project, by model, by API key, and
+ * the model share), each visible at once instead of one at a time behind a select. `bucket` went
+ * because the engine resolves bucket width from the range (`bucket: auto`), and `model` because it
+ * only ever offered a single inert "All models" entry. A knob that steers nothing is a defect —
+ * the same rule that took `bucket` out of the settings lenses' own param table.
  *
- * LATENCY is gone (phase 9.2, 2026-08-30 owner directive): the usage backend's events are
- * aggregate metric signals with no per-request duration, so that panel could never fill. SPEND BY
- * MODEL replaces it — a second, model-grouped consumption query scoped identically to SPEND above
- * (`use-overview-screen.ts`'s `modelSpendSeries`), for every user, not admin-gated.
+ * **The zones that stay hand-written, and why.** `dashboards.yaml` describes usage queries over
+ * the page's RANGE. BUDGET reads an RPC ceiling against BILLING-PERIOD consumption, and the stat
+ * row beside it counts projects and keys through refine — neither is a range-scoped usage query,
+ * so neither is a panel (the same line `/admin/overview` draws for its budget-pressure zone). They
+ * render in their own `DashboardGrid` FIRST, with the caption that states which window they are
+ * about, because "how much of my allowance is left" is what a person opens this page to check.
  *
- * **SPEND BY MODEL renders through `MultiSeriesSpendBoard`/`MultiSeriesSpendChart` now**
- * (2026-08-31, owner ruling — see that component's own doc comment): one line per model,
- * superposed on shared axes, defaulting to a LOG scale (`screen.modelSpendScale`'s own default —
- * the owner's real account data is one ~100%-share model beside several sub-1%-share ones, and log
- * was the reviewed recommendation for that shape). It had briefly rendered through
- * `RankedSeriesRows` (IA v3 phase 4, build brief §7) before that, replacing `SpendShareSection`/
- * `ShareBar`'s flat share-of-total reading, which the phase's own measurement found breaks down
- * the moment one series dominates — `RankedSeriesRows`'s dominance-threshold share-bar suppression
- * addressed the same problem `MultiSeriesSpendChart`'s `log`/`indexed` scales now address more
- * directly, by keeping every series visibly plotted rather than suppressing a bar. SPEND BY
- * PROJECT keeps `SpendShareSection` (a project split reads fine as a flat share) and drops any
- * NULL-project bucket in favour of `spendUnassignedCaption` rather than rendering an "Unassigned"
- * segment.
+ * **Export is C10's `DashboardExportButton`** (converse-frontends#453), which walks the SAME
+ * resolved panel list this page renders — `/api/reports/page` re-resolves this route's own
+ * `dashboards.yaml` entry server-side through the same `resolveDashboard`. The consumption-report
+ * dialog this page used to open is gone with the hook that built it: it produced a document that
+ * knew nothing about the panels beside it, and keeping both would have been two export paths for
+ * one page.
  *
- * `Card` wraps every zone below the stat row (phase 4 supersedes the earlier "render uncontained
- * on the floor" reading for these dashboard zones specifically — see `Card`'s own doc comment for
- * the precedent). Several sections already render their own tracked heading (`SpendDashboard`,
- * `SpendShareSection`, `BudgetPanel`, `MultiSeriesSpendBoard` all default their own `label`); those
- * `Card`s carry no `title` of their own; only the section's `label` is overridden to the name this
- * composition wants, so each zone has exactly ONE heading, never two stacked.
- *
- * **BUDGET carries no refill entry point of any kind here any more** (owner review round 2,
- * 2026-08-31, converse-frontends#368 finding #3, verbatim): "Remove the 'request refill' from
- * overview at /accounts/<account-id>/overview and keep it ONLY inside
- * /settings/accounts/<account-id>." Both the standing header "Request refill…" action
- * (`BudgetPanel.actions`) and the breach-only inline CTA beside the numeral
- * (`BudgetPanel.heroAction`) are gone — `BudgetPanel` renders with `budget` alone. The one
- * remaining entry point is `/settings/accounts/<id>/request-refill`
- * (`settings-accounts.stories.tsx`/`account-detail-centre.tsx`), which already had it. Everything
- * that only existed to compute an href/CTA for this screen (`refillHref`, `refillAction`, the
- * breach ladder lookup) is deleted from `use-overview-screen.ts` along with it — see that module's
- * own doc comment.
+ * Panel scale knobs stay in the URL (ADR 0011), one per series panel, declared FROM the spec
+ * (`useDashboardKnobs`) — so a panel a deployment adds through the config-volume override gets a
+ * real, shareable `?<panel-id>-scale=` knob like every other, and this container holds no local
+ * state at all.
  */
-const formatSpendTooltip = (value: number) => formatUsd(value);
 
-export function OverviewCentre() {
-  const screen = useOverviewScreen(<OverviewScopeSlot />);
+export interface OverviewCentreProps {
+  /** The validated `/accounts/[accountId]/overview` entry, read from `dashboards.yaml` by the
+   *  route's server component. Passed in rather than loaded here because the loader is `node:fs` —
+   *  and because a page that takes its spec as a prop is the same page a story can render. */
+  page: DashboardPageSpec;
+}
 
-  const spendTotal = screen.spendSegments.reduce((sum: number, segment) => sum + segment.value, 0);
-  const subtitle = screen.scopeAccountLabel
-    ? `${screen.scopeAccountLabel} · ${screen.scopeProjectLabel} · ${screen.subline}`
+export function OverviewCentre({ page }: OverviewCentreProps) {
+  const { t: tCommon } = useTranslation('common');
+  const labels = rangeLabels(tCommon);
+  const accountId = useAccountId();
+  const [view, setView] = useOverviewParams();
+  const zones = useAccountOverviewZones();
+  const localLabels = useDashboardLabels();
+
+  const window = useMemo(
+    () => resolveOverviewWindow(view.range, view.from, view.to, new Date()),
+    [view.range, view.from, view.to]
+  );
+
+  // The page's own `$param` values. `project` is deliberately allowed to be absent: the panels
+  // read it through the OPTIONAL `$project?` placeholder, which drops the filter rather than
+  // sending an empty `project_id` that would match nothing.
+  const filters = useMemo(
+    () => ({ accountId, project: zones.projectId }),
+    [accountId, zones.projectId]
+  );
+
+  const knobs = useDashboardKnobs(page);
+
+  const dashboard = useDashboard({
+    page,
+    window,
+    filters,
+    ...knobs,
+    localLabels,
+  });
+
+  const subtitle = zones.scopeAccountLabel
+    ? `${zones.scopeAccountLabel} · ${zones.scopeProjectLabel} · ${labels[view.range]} · ${tCommon('timezone.utc')}`
     : undefined;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Overview"
         subtitle={subtitle}
         controls={
-          <OverviewControls
-            rangeField={screen.rangeField}
-            bucketField={screen.bucketField}
-            groupByField={screen.groupByField}
-            projectField={screen.projectField}
-          />
+          <div className="flex flex-wrap items-end gap-3">
+            <DateRangeField
+              label={tCommon('range.label')}
+              presets={rangePresets(tCommon)}
+              preset={view.from && view.to ? null : view.range}
+              value={{ from: window.start, to: window.end }}
+              onPresetChange={(range) => {
+                void setView({
+                  range: range as (typeof OVERVIEW_RANGES)[number],
+                  from: '',
+                  to: '',
+                });
+              }}
+              onRangeChange={({ from, to }) => {
+                void setView({ from: toUrlDate(from), to: toUrlDate(to) });
+              }}
+              layout="inline"
+              hideLabel
+            />
+            <SelectField {...zones.projectField} layout="inline" hideLabel />
+          </div>
         }
+        // The export (converse-frontends#453, C10). It takes this page's own identity — the
+        // `dashboards.yaml` route, the resolved window, the filters — rather than a pre-built URL,
+        // so the report is a rendering of exactly the entry this page just queried. It replaced
+        // the consumption-report dialog this page used to open, which knew nothing about the
+        // panels beside it: one export path, walking the same resolved panel list.
         action={
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => screen.report.onOpenChange(true)}>
-            Export
-          </Button>
+          <DashboardExportButton
+            route={page.route}
+            title="Overview"
+            range={view.range}
+            rangeLabel={labels[view.range]}
+            window={window}
+            from={view.from}
+            to={view.to}
+            filters={filters}
+          />
         }
       />
 
-      <OverviewStatRow cards={screen.statCards} loading={screen.statCardsLoading} />
+      {/* The BILLING-PERIOD zones. `OverviewStatRow` is self-panelling (its cards carry their own
+          surface), so it takes no `Card` — the same exemption `DashboardPanel`'s `chrome: 'bare'`
+          encodes for the engine's own stat panels. */}
+      <DashboardGrid>
+        <div data-span="2">
+          <OverviewStatRow cards={zones.statCards} loading={zones.statCardsLoading} />
+        </div>
+        <Card data-span="2">
+          {/* `sinceReset` and `nextReset` (story C8; owner question 2026-09-03) ride on the
+              hand-written card, not on a panel: both read `getEffectiveResetSchedule`, an RPC, and
+              both are facts about the BUDGET PERIOD and its reset cadence rather than about the
+              range picked above — the same two reasons the ceiling beside them is not a panel
+              either. The pair reads as one: what this reset cycle has drawn, then when the next
+              cycle starts. */}
+          <BudgetPanel
+            className="w-full"
+            label="Budget"
+            budget={zones.budget}
+            sinceReset={zones.sinceReset}
+            nextReset={zones.nextReset}
+          />
+          <InlineStatus className="mt-2">{zones.budgetPeriodCaption}</InlineStatus>
+        </Card>
+      </DashboardGrid>
 
-      <ReportExportDialog {...screen.report} />
-
-      <Card>
-        <SpendDashboard
-          label="Spend over time"
-          series={screen.spendSeries}
-          status={screen.spendStatus}
-          errorMessage={screen.spendErrorMessage}
-          onRetry={screen.spendRetry}
-          fallbackWidth={840}
-          height={220}
-          formatYTick={formatUsdAxis}
-          formatTooltipValue={formatSpendTooltip}
-          formatLegendValue={(series) =>
-            formatUsd(series.points.reduce((sum, point) => sum + point.y, 0))
-          }
-          onSelectSeries={screen.setSelectedSeriesKey}
-        />
-        {screen.spendTruncated ? (
-          <InlineStatus className="mt-2">
-            {`This range returned more points than one query can carry — showing the first ${USAGE_QUERY_LIMIT.toLocaleString()}.`}
-          </InlineStatus>
-        ) : null}
-      </Card>
-
-      <Card>
-        <SpendShareSection
-          label="Spend by project"
-          segments={screen.spendSegments}
-          status={screen.spendShareStatus}
-          errorMessage={screen.spendShareErrorMessage}
-          onRetry={screen.spendShareRetry}
-          selectedKey={screen.selectedSeriesKey}
-          onSelectSegment={screen.setSelectedSeriesKey}
-          total={spendTotal > 0 ? formatUsd(spendTotal) : undefined}
-          degenerateMessage={screen.spendDegenerateMessage}
-        />
-        {screen.spendUnassignedCaption ? (
-          <InlineStatus className="mt-2">{screen.spendUnassignedCaption}</InlineStatus>
-        ) : null}
-      </Card>
-
-      <Card>
-        <MultiSeriesSpendBoard
-          label="Spend by model"
-          series={screen.modelSpendSeries}
-          scale={screen.modelSpendScale}
-          onScaleChange={screen.setModelSpendScale}
-          fallbackWidth={840}
-          height={220}
-          status={screen.modelSpendStatus}
-          errorMessage={screen.modelSpendErrorMessage}
-          onRetry={screen.modelSpendRetry}
-          onSelectSeries={screen.setSelectedSeriesKey}
-          emptyMessage="No usage in this range."
-        />
-      </Card>
-
-      <Card>
-        <BudgetPanel className="w-full" label="Budget" budget={screen.budget} />
-      </Card>
+      <DashboardRenderer state={dashboard} />
     </div>
   );
 }

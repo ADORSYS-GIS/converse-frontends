@@ -23,6 +23,8 @@ This repository exists to:
 
 - Next.js (App Router) + React 19, Node runtime (`apps/console`)
 - Vite + React 19 + react-router, static SPA, no server code (`apps/authz-ui`)
+- Vite + React 19, single self-contained HTML page embedded at compile time into
+  `lightbridge-governance` (`apps/governance-auth`)
 - Tailwind v4 + daisyUI + Base UI + cmdk + Floating UI (see ADR 0010)
 - refine.dev for CRUD scaffolding against cratestack-generated RPC resources
 - TanStack Query
@@ -38,6 +40,10 @@ apps/
                        #   device-pairing flow (routes/manifest, forms post to authz-idp
                        #   endpoints), built with base /ui/ and served same-origin by
                        #   lightbridge-authz's authz-idp (ADR-0021)
+  governance-auth/     # Vite + React 19 — single self-contained HTTP callback page that
+                       #   lightbridge-governance include_str!s at compile time into its
+                       #   OAuth2 loopback redirect (no server, no CSP); shipped as an
+                       #   OCI artifact, not a container image
 packages/
   ui-web/              # DOM UI primitives + screen sections
   chart-core/          # DOM-free chart math (scales, bins, colour ramp)
@@ -51,7 +57,9 @@ openapi/
 packages/authz-rpc/schema/
   authz.cstack          # cratestack schema source for authz-rpc codegen
 .github/workflows/
-  docker-image.yml     # Build + push apps/console's container to GHCR
+  docker-image.yml           # Build + push apps/console's container to GHCR
+  authz-ui-image.yml         # Build + push apps/authz-ui's assets-only image to GHCR
+  governance-auth-callback-oci.yml  # Publish apps/governance-auth's single HTML as an OCI artifact
 apps/console/Dockerfile # Production Next.js image build
 compose.yml            # Local Keycloak + wiremock helpers
 ```

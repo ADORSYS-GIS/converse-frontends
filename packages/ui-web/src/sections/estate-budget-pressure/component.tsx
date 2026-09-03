@@ -5,7 +5,7 @@ import { InlineStatus } from '../../components/inline-status';
 import { Meter } from '../../components/meter';
 import { INLINE_ROW_CLASS } from '../../lib/inline-row';
 import { formatUsdOf } from '../../lib/money';
-import { DATA_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
+import { DATA_CLASS, META_CLASS, SECTION_TITLE_CLASS } from '../../lib/type-roles';
 import type { EstateBudgetPressureProps } from './types';
 
 // Contract: the operator overview's budget-pressure zone (admin-overview design batch, dashboard
@@ -77,6 +77,11 @@ export function EstateBudgetPressure({
                 showCaption={false}
                 label={`${account.name} draw on its own ceiling`}
               />
+              {/* The row's own next reset (story C8) — per ROW, not per section: each account
+                  resolves its own winning schedule, and two neighbouring rows genuinely can answer
+                  differently. Omitted only while the read is still in flight; a resolved "none" is
+                  a stated line, worded by the caller. */}
+              {account.nextReset ? <p className={META_CLASS}>{account.nextReset}</p> : null}
             </div>
           ))
         )}

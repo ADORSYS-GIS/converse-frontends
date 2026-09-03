@@ -6,11 +6,11 @@
 
 ## Environments
 
-| Environment | Purpose | Image Source |
-|-------------|---------|-------------|
-| **Local dev** | Developer workstation | `pnpm web` (Expo dev server) |
-| **Local services** | Mock backends via Docker Compose | `compose.yml` |
-| **Production** | Kubernetes cluster | `ghcr.io/adorsys-gis/converse-frontends:<tag>` |
+| Environment        | Purpose                          | Image Source                                   |
+| ------------------ | -------------------------------- | ---------------------------------------------- |
+| **Local dev**      | Developer workstation            | `pnpm web` (Expo dev server)                   |
+| **Local services** | Mock backends via Docker Compose | `compose.yml`                                  |
+| **Production**     | Kubernetes cluster               | `ghcr.io/adorsys-gis/converse-frontends:<tag>` |
 
 No staging environment is defined in the codebase. Production is the only declared Kubernetes target.
 
@@ -40,13 +40,13 @@ helm upgrade --install converse-frontend \
 
 The chart uses **app-template** style values (from the `conversefrontend` key). Key Helm values:
 
-| Value Path | Default | Description |
-|-----------|---------|-------------|
-| `conversefrontend.controllers.main.replicas` | `2` | Number of pod replicas |
-| `conversefrontend.controllers.main.strategy` | `RollingUpdate` | Deployment strategy |
-| `conversefrontend.controllers.main.containers.frontend.image.repository` | `ghcr.io/adorsys-gis/converse-frontends` | Container image |
-| `conversefrontend.controllers.main.containers.frontend.image.tag` | `sha-9d48` | Image tag (override per deploy) |
-| `conversefrontend.controllers.main.containers.frontend.image.pullPolicy` | `IfNotPresent` | Image pull policy |
+| Value Path                                                               | Default                                  | Description                     |
+| ------------------------------------------------------------------------ | ---------------------------------------- | ------------------------------- |
+| `conversefrontend.controllers.main.replicas`                             | `2`                                      | Number of pod replicas          |
+| `conversefrontend.controllers.main.strategy`                             | `RollingUpdate`                          | Deployment strategy             |
+| `conversefrontend.controllers.main.containers.frontend.image.repository` | `ghcr.io/adorsys-gis/converse-frontends` | Container image                 |
+| `conversefrontend.controllers.main.containers.frontend.image.tag`        | `sha-9d48`                               | Image tag (override per deploy) |
+| `conversefrontend.controllers.main.containers.frontend.image.pullPolicy` | `IfNotPresent`                           | Image pull policy               |
 
 ---
 
@@ -56,15 +56,15 @@ The container uses an `entrypoint.sh` script (`/docker-entrypoint.d/40-runtime-c
 
 Variables injected at runtime (set in Helm values or Kubernetes Secret/ConfigMap):
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `EXPO_PUBLIC_BACKEND_URL` | **Yes** | LightBridge AuthZ API base URL |
-| `EXPO_PUBLIC_USAGE_URL` | **Yes** | LightBridge Usage API base URL |
-| `EXPO_PUBLIC_GATEWAY_URL` | No | Converse AI gateway URL (display only) |
-| `EXPO_PUBLIC_ANALYTICS_URL` | No | Analytics endpoint URL |
-| `EXPO_PUBLIC_KEYCLOAK_ISSUER` | **Yes** | Keycloak realm issuer URL |
-| `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID` | **Yes** | Keycloak client ID |
-| `EXPO_PUBLIC_KEYCLOAK_SCHEME` | No | URI scheme for redirect (default `https`) |
+| Variable                         | Required | Description                               |
+| -------------------------------- | -------- | ----------------------------------------- |
+| `EXPO_PUBLIC_BACKEND_URL`        | **Yes**  | LightBridge AuthZ API base URL            |
+| `EXPO_PUBLIC_USAGE_URL`          | **Yes**  | LightBridge Usage API base URL            |
+| `EXPO_PUBLIC_GATEWAY_URL`        | No       | Converse AI gateway URL (display only)    |
+| `EXPO_PUBLIC_ANALYTICS_URL`      | No       | Analytics endpoint URL                    |
+| `EXPO_PUBLIC_KEYCLOAK_ISSUER`    | **Yes**  | Keycloak realm issuer URL                 |
+| `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID` | **Yes**  | Keycloak client ID                        |
+| `EXPO_PUBLIC_KEYCLOAK_SCHEME`    | No       | URI scheme for redirect (default `https`) |
 
 These variables are **not** baked into the image at build time. They are injected via `envsubst` at container startup, allowing the same image to run in any environment.
 
@@ -74,11 +74,11 @@ These variables are **not** baked into the image at build time. They are injecte
 
 ### Kubernetes Service
 
-| Field | Value |
-|-------|-------|
-| Service type | `ClusterIP` |
-| Container port | `8080` (HTTP, nginx — named port `http`) |
-| Service port | `80` → `targetPort: http` (i.e. routes to container port `8080`) |
+| Field          | Value                                                            |
+| -------------- | ---------------------------------------------------------------- |
+| Service type   | `ClusterIP`                                                      |
+| Container port | `8080` (HTTP, nginx — named port `http`)                         |
+| Service port   | `80` → `targetPort: http` (i.e. routes to container port `8080`) |
 
 nginx listens on `8080`, not `80` (non-privileged port, see `KUBERNETES_DEPLOYMENT.md`) —
 `charts/converse-frontend/values.yaml`'s `conversefrontend.controllers.main.containers.frontend.ports`
@@ -88,10 +88,10 @@ ingress/load-balancer level (not defined in this chart).
 
 ### Local Docker Compose
 
-| Service | Port Mapping | Description |
-|---------|------------|-------------|
-| `keycloak-26` | `13444:13444` | Keycloak dev server |
-| `wiremock` | `18888:8080` | WireMock mock API server |
+| Service       | Port Mapping  | Description              |
+| ------------- | ------------- | ------------------------ |
+| `keycloak-26` | `13444:13444` | Keycloak dev server      |
+| `wiremock`    | `18888:8080`  | WireMock mock API server |
 
 ---
 
@@ -106,10 +106,10 @@ ingress/load-balancer level (not defined in this chart).
 
 ## Resource Limits (Helm defaults)
 
-| Resource | Request | Limit |
-|----------|---------|-------|
-| CPU | `50m` | `250m` |
-| Memory | `64Mi` | `256Mi` |
+| Resource | Request | Limit   |
+| -------- | ------- | ------- |
+| CPU      | `50m`   | `250m`  |
+| Memory   | `64Mi`  | `256Mi` |
 
 ---
 
@@ -117,11 +117,11 @@ ingress/load-balancer level (not defined in this chart).
 
 All three probe types are configured with HTTP GET on the `http` port (container port `8080`) at path `/`:
 
-| Probe | Enabled | Type | Path |
-|-------|---------|------|------|
-| Liveness | Yes | HTTP | `/` |
-| Readiness | Yes | HTTP | `/` |
-| Startup | Yes | HTTP | `/` (failureThreshold: 30, periodSeconds: 5) |
+| Probe     | Enabled | Type | Path                                         |
+| --------- | ------- | ---- | -------------------------------------------- |
+| Liveness  | Yes     | HTTP | `/`                                          |
+| Readiness | Yes     | HTTP | `/`                                          |
+| Startup   | Yes     | HTTP | `/` (failureThreshold: 30, periodSeconds: 5) |
 
 ---
 

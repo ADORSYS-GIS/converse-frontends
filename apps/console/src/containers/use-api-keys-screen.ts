@@ -19,11 +19,14 @@ import { useMemo, useState } from 'react';
 import { useConsoleScope } from '../client/use-console-scope';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
+import { PERMISSION, hasPermission } from '../shared/permissions';
 import {
   API_KEYS_SELECTION_OPTIONS,
   API_KEY_SORT_KEYS,
   API_KEY_STATUSES,
   useApiKeysParams,
+  CONSOLE_DIALOGS,
+  useUrlDialog,
 } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
@@ -60,10 +63,12 @@ import {
  * **Delete (ticket #321)**: `Del` is gated exactly like Revoke — a `TypedConfirmDialog` retargeted
  * by `?delete=<id>`, gone through `useDelete()`'s own `mutation` (a full react-query
  * `UseMutationResult`) rather than the shared cache, because unlike Revoke this mutation has no
- * other zone to share its outcome with — the dialog only ever renders in the centre. `isAdmin`
- * comes straight from the session (`useConsoleSession()`) the root layout already decrypted
- * server-side; it is presentation only — see `ApiKeysLedgerProps.isAdmin`'s doc comment for why
- * this is not the security boundary.
+ * other zone to share its outcome with — the dialog only ever renders in the centre. `canDelete`
+ * comes from the permission set `getMyAccess` resolved into the session the root layout already
+ * decrypted server-side (converse-frontends#452 replaced the old `session.isAdmin` role flag with
+ * `apikey:delete`, the permission the backend actually enforces on the mutation); it is
+ * presentation only — see `ApiKeysLedgerProps.canDelete`'s doc comment for why this is not the
+ * security boundary.
  *
  * **Create (tickets #317/#319/#320, redesigned live findings #4, 2026-08-30)**: `+ New key` now
  * opens `CreateApiKeyDialog` (`?create=1`) instead of firing `createApiKey` straight off with an
@@ -84,7 +89,7 @@ import {
  * first project the account can read) and `createKeyEligible`/`createKeyReason` mirror
  * `createApiKey`'s lead/owner gate (`authz.cstack:520-528`) is now evaluated against THAT
  * selection (`draftProjectId`) as the dialog's own `projectReason` caption, not against the
- * trigger. Both checks stay presentation only, same disclaimer as `isAdmin` above:
+ * trigger. Both checks stay presentation only, same disclaimer as `canDelete` above:
  * `lightbridge-authz`'s hand-written SQL check is the actual enforcement
  * (`packages/hooks/src/rbac.ts` documents the same pattern for the coarser role grants).
  */
@@ -162,7 +167,7 @@ export interface ApiKeysScreen {
   confirmRevoke: (row: ApiKeyRow) => void;
   cancelRevoke: () => void;
   rotate: (row: ApiKeyRow) => void;
-  isAdmin: boolean;
+  canDelete: boolean;
   deleteTarget: ApiKeysDeleteTarget | null;
   requestDelete: (row: ApiKeyRow) => void;
   confirmDelete: (row: ApiKeyRow) => void;
@@ -204,13 +209,21 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const session = useConsoleSession();
   const client = useConsoleAuthzClient();
   const [view, setView] = useApiKeysParams();
+  // The screen's three MODALS, all through the console's one `?dialog=` contract (owner directive
+  // 2026-09-03). Mutually exclusive by construction now — the old `?revoke=`/`?delete=` pair could
+  // both be set at once, which is why `requestRevoke`/`requestDelete` used to clear each other by
+  // hand.
+  const createDialog = useUrlDialog(CONSOLE_DIALOGS.createApiKey);
+  const revokeDialog = useUrlDialog(CONSOLE_DIALOGS.revokeApiKey);
+  const deleteDialog = useUrlDialog(CONSOLE_DIALOGS.deleteApiKey);
 
   // The account's own project ids — `scope.projects` is already scoped to `scope.value.accountId`
   // (`use-console-scope.ts`'s Phase 2d fix), so mapping it to ids is all `apiKeysAccountFilters`
   // needs to build the `projectId in […]` filter below.
-  const accountProjectIds = useMemo(() => scope.projects.map((project) => project.id), [
-    scope.projects,
-  ]);
+  const accountProjectIds = useMemo(
+    () => scope.projects.map((project) => project.id),
+    [scope.projects]
+  );
 
   const accountFilters = useMemo(
     () => apiKeysAccountFilters({ projectId: scope.value.projectId, accountProjectIds }),
@@ -261,7 +274,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
    * leak into URLs or history"): the create-key form's typed-but-unsent name/expiry/plan.
-   * `createOpen` — WHETHER the dialog is showing — is real view state and lives in the URL
+   * `?dialog=create-api-key` — WHETHER the dialog is showing — is real view state, in the URL
    * (`?create=1`, `url-state.ts`); this is its CONTENTS, which are not, for the same reason the
    * admin review's rejection-note draft is not (`use-refills-queue-screen.ts`): typed prose ahead of a
    * submit, discarded either way, and `?create=1&name=ci-deploy` would write every keystroke into
@@ -408,7 +421,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
       await client.procedures.revokeApiKey({ args: { keyId } });
     },
     onSuccess: () => {
-      void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      revokeDialog.close();
       refresh();
     },
   });
@@ -421,12 +434,11 @@ export function useApiKeysScreen(): ApiKeysScreen {
   const now = list.query.dataUpdatedAt;
   const rows = useMemo(() => toApiKeyRows(keys, now), [keys, now]);
 
-  // The revoke DIALOG is view state (`?revoke=<id>`), so Back closes it and the confirmation is
-  // linkable; the row it points at is looked up in the data, and the failure reason it may carry
-  // comes from the mutation, never from the URL. The delete dialog (`?delete=<id>`) is the same
-  // shape.
-  const revokeRow = rows.find((row) => row.id === view.revokeKeyId) ?? null;
-  const deleteRow = rows.find((row) => row.id === view.deleteKeyId) ?? null;
+  // The revoke DIALOG is view state (`?dialog=revoke-key&dialog-id=<id>`), so Back closes it and
+  // the confirmation is linkable; the row it points at is looked up in the data, and the failure
+  // reason it may carry comes from the mutation, never from the URL. Delete is the same shape.
+  const revokeRow = rows.find((row) => row.id === revokeDialog.id) ?? null;
+  const deleteRow = rows.find((row) => row.id === deleteDialog.id) ?? null;
   const deleteErrorMessage = deleteMutation.error?.message;
 
   const canSubmitCreate =
@@ -438,7 +450,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
     !plansQuery.isError;
 
   const createKeyDialog: CreateApiKeyDialogProps = {
-    open: view.createOpen,
+    open: createDialog.open,
     // Always non-empty by the time the dialog can open — `createKeyEligible` already refused the
     // trigger when `scope.projects` is empty.
     projectOptions: scope.projects.map((project) => ({ value: project.id, label: project.label })),
@@ -475,15 +487,15 @@ export function useApiKeysScreen(): ApiKeysScreen {
       // showing secret from an unrelated, already-succeeded rotate.
       if (secret.errorMessage) secret.dismiss();
       resetDraft();
-      void setView({ createOpen: false }, API_KEYS_SELECTION_OPTIONS);
+      createDialog.close();
     },
     // Addition D — while the dialog is open, a populated `secret.data` can only be THIS create's
     // own result: the dialog is modal, so the background ledger's own Rotate action is unreachable
     // while it is showing, and `createKey` (below) dismisses any stale outcome before opening.
-    result: view.createOpen ? (secret.data ?? null) : null,
+    result: createDialog.open ? (secret.data ?? null) : null,
     onDone: () => {
       secret.dismiss();
-      void setView({ createOpen: false }, API_KEYS_SELECTION_OPTIONS);
+      createDialog.close();
     },
   };
 
@@ -506,28 +518,28 @@ export function useApiKeysScreen(): ApiKeysScreen {
     // itself while it is open (`result` above), so this floor-level slot is for ROTATE's own
     // result only: suppressed while the create dialog is showing, so the two surfaces never
     // display the same secret at once.
-    secretReveal: !view.createOpen && secret.data ? secret.data : null,
+    secretReveal: !createDialog.open && secret.data ? secret.data : null,
     dismissSecret: secret.dismiss,
     revokeTarget: revokeRow ? { row: revokeRow, error: revoke.errorMessage } : null,
     requestRevoke: (row) => {
       revoke.dismiss();
-      // Only one destructive dialog can be open at once — clearing the other target here means
-      // Revoke and Delete can never both be `?revoke=…&delete=…` at the same time.
-      void setView({ revokeKeyId: row.id, deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      // Only one destructive dialog can be open at once — and now by construction rather than by
+      // this call site remembering to clear the other target (`?dialog=` holds ONE name).
+      revokeDialog.openDialog(row.id);
     },
     confirmRevoke: (row) => revoke.mutate({ keyId: row.id }),
     cancelRevoke: () => {
       revoke.dismiss();
-      void setView({ revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      revokeDialog.close();
     },
     rotate: (row) => secret.mutate({ kind: 'rotate', keyId: row.id, name: row.name }),
-    // Presentation only (see `ApiKeysLedgerProps.isAdmin`'s doc comment): `lightbridge-authz`
-    // refuses `apiKeys:delete` server-side regardless of what this renders.
-    isAdmin: session.isAdmin,
+    // Presentation only (see `ApiKeysLedgerProps.canDelete`'s doc comment): `lightbridge-authz`
+    // refuses `apikey:delete` server-side regardless of what this renders.
+    canDelete: hasPermission(session.permissions, PERMISSION.apiKeyDelete),
     deleteTarget: deleteRow ? { row: deleteRow, error: deleteErrorMessage } : null,
     requestDelete: (row) => {
       deleteMutation.reset();
-      void setView({ deleteKeyId: row.id, revokeKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      deleteDialog.openDialog(row.id);
     },
     confirmDelete: (row) => {
       deleteKeyMutate(
@@ -542,7 +554,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
         { resource: 'apiKeys', id: row.id, errorNotification: false, successNotification: false },
         {
           onSuccess: () => {
-            void setView({ deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+            deleteDialog.close();
             refresh();
           },
         }
@@ -550,7 +562,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
     },
     cancelDelete: () => {
       deleteMutation.reset();
-      void setView({ deleteKeyId: '' }, API_KEYS_SELECTION_OPTIONS);
+      deleteDialog.close();
     },
     createKey: () => {
       if (!createKeyEligible) return;
@@ -567,7 +579,7 @@ export function useApiKeysScreen(): ApiKeysScreen {
         ...prev,
         projectId: scope.value.projectId ?? scope.projects[0]?.id ?? null,
       }));
-      void setView({ createOpen: true }, API_KEYS_SELECTION_OPTIONS);
+      createDialog.openDialog();
     },
     createKeyEligible,
     createKeyReason,

@@ -25,7 +25,9 @@ export const Populated: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
   },
 };
 
@@ -41,7 +43,9 @@ export const ApproveFlow: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
 
     const rows = canvas.getAllByRole('row').slice(1);
     await userEvent.click(rows[0]);
@@ -49,13 +53,19 @@ export const ApproveFlow: Story = {
     const approveButton = await canvas.findByRole('button', { name: /Approve/ }, { timeout: 3000 });
     await userEvent.click(approveButton);
 
-    await waitFor(() => expect(canvas.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument(), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () => expect(canvas.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument(),
+      {
+        timeout: 3000,
+      }
+    );
     // The pending ledger's header row alone would leave 1 `row`; a decided request keeps a
     // shrinking-but-still-populated pending queue, so assert the request is simply gone from it.
     await waitFor(() => {
-      const remaining = canvas.getAllByRole('row').slice(1).map((row) => row.textContent);
+      const remaining = canvas
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.textContent);
       expect(remaining.some((text) => text?.includes('gateway-prod'))).toBe(false);
     });
   },
@@ -63,7 +73,12 @@ export const ApproveFlow: Story = {
 
 // The `refill-requests` resource rejects every `getList` call.
 export const ErrorMode: Story = {
-  decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { 'refill-requests': 'Failed to load the review queue.' } })],
+  decorators: [
+    withRefineMock({
+      latencyMs: [10, 20],
+      errorResources: { 'refill-requests': 'Failed to load the review queue.' },
+    }),
+  ],
   render: () => (
     <div className="w-full">
       <RefineAdminBudgetReviewScreen />
@@ -71,8 +86,11 @@ export const ErrorMode: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByRole('alert')).toHaveTextContent('Failed to load the review queue.'), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () => expect(canvas.getByRole('alert')).toHaveTextContent('Failed to load the review queue.'),
+      {
+        timeout: 3000,
+      }
+    );
   },
 };

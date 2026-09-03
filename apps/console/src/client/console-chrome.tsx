@@ -25,10 +25,13 @@ import {
   PoliciesIcon,
   RefillOptionsIcon,
   RolesIcon,
+  ScheduleIcon,
   SearchIcon,
+  SessionsIcon,
   SettingsIcon,
   SignOutIcon,
   TiersIcon,
+  UsageIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -40,12 +43,22 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo, useState } from 'react';
 
+import { useTranslation } from '../i18n/client';
+import type { Translate } from '../i18n/config';
+import { LocaleSwitcher } from '../i18n/locale-switcher';
 import { useRefillsQueueScreen } from '../containers/use-refills-queue-screen';
 import { useOpenCreateAccountDialog } from '../containers/use-create-account-dialog';
 import { writeLastAccountId } from '../containers/use-account-resolver';
 import { accountScopeLabel } from '../containers/account-label';
+import {
+  ADMIN_AREA_PERMISSIONS,
+  PERMISSION,
+  hasAnyPermission,
+  hasPermission,
+} from '../shared/permissions';
 import { useConsoleBranding } from './branding-context';
 import { useConsoleSession } from './session-context';
+import { useCan } from './use-can';
 import { useConsoleScope } from './use-console-scope';
 import { useConsoleTheme } from './use-console-theme';
 import { signOut } from './sign-out';
@@ -74,9 +87,9 @@ export type ConsoleRoute = 'overview' | 'api-keys' | 'settings' | 'admin';
 
 /**
  * The chrome's THREE nav surfaces (IA v3 phase 2 — "the settings area"; ADR 0013's same-day "the
- * admin area" amendment adds the third): `account` is the Workspace/Account nav `navGroups` below
- * builds (its former third group, Operator, is deleted outright — owner review round 2,
- * 2026-08-31, converse-frontends#368 finding #1, `navGroups`' own doc comment); `settings` is
+ * admin area" amendment adds the third): `account` is the Workspace/Account/Operator nav
+ * `navGroups` below builds (the Operator group is one permission-gated "Admin" row — owner
+ * directive 2026-09-03, `navGroups`' own doc comment); `settings` is
  * `/settings/*`'s OWN nav (`settingsNavGroups`); `admin`
  * is `/admin/*`'s own nav (`adminNavGroups`). Each REPLACES the others in the same sidebar mount
  * — never a second nav surface, never a remount of `ConsoleShell` itself (that stays
@@ -121,12 +134,13 @@ export function areaFromPathname(pathname: string): ConsoleArea {
  * operator dashboard, the admin area's own landing destination — not the budget refill review
  * queue directly. The queue moved a second time alongside it, to `/admin/refills-queue`, reached
  * one click further in (dashboard 5's own "Queue depth" stat, or the admin area's own "Refills
- * queue" nav row) rather than through this field. Every existing caller of this field — the
- * settings area's own gated "Admin" row (`settingsNavGroups`), the command palette's "Admin
- * overview" item — follows the new target without needing its own change. (The account-area rail
- * used to carry a third caller, an Operator nav row pointed at this same href — owner review
- * round 2, 2026-08-31, converse-frontends#368 finding #1, deleted it outright rather than
- * updating it; see `navGroups`' own doc comment.)
+ * queue" nav row) rather than through this field. Nothing NAVIGATES through this field any more:
+ * the account rail's own gated "Admin" row (`navGroups`' Operator group) and the palette's admin
+ * entries both go through `adminLandingHref`/`ADMIN_DESTINATIONS`, which aim at what the CALLER
+ * can open rather than at a fixed dashboard. It survives because `ConsoleRoute` is a total map and
+ * the palette's Scope group re-pushes `navHrefs(otherAccount)[currentRoute]` when switching
+ * accounts from anywhere — including from `/admin/*`, where the honest answer is "stay in the
+ * admin area", which is not account-scoped at all.
  */
 export function navHrefs(accountId: string): Record<ConsoleRoute, string> {
   if (!accountId) {
@@ -173,18 +187,21 @@ export function routeFromPathname(pathname: string): ConsoleRoute {
 /** One shared icon per nav destination — `lib/icons.tsx`'s coherent set (phase 9), all drawn in
  *  the same 16px box at the same 1.5 stroke, replacing the ad hoc 10x10/stroke-1 glyphs this used
  *  to draw inline (the "odd glyphs" the owner's review flagged). No `admin` entry any more (owner
- *  review round 2, 2026-08-31, converse-frontends#368 finding #1 — see `navGroups`' own doc
- *  comment for why the Operator row is gone from this set entirely). */
-const NAV_ICON: Record<'overview' | 'keys' | 'settings', React.ReactNode> = {
+ *  review round 2, 2026-08-31, converse-frontends#368 finding #1; `admin` came BACK with the
+ *  2026-09-03 directive — see `navGroups`' own doc comment). The `admin` entry reuses the exact
+ *  glyph `adminNavGroups`' own "Refills queue" row draws: the shield names a CONCEPT (operator
+ *  authority), not the area a given row happens to render in. */
+const NAV_ICON: Record<'overview' | 'keys' | 'settings' | 'admin', React.ReactNode> = {
   overview: <OverviewIcon />,
   keys: <KeysIcon />,
   settings: <SettingsIcon />,
+  admin: <AdminIcon />,
 };
 
 /**
- * The account area's two fixed groups — shell brief (2026-08-30) "Nav groups". There is no more
+ * The account area's groups — shell brief (2026-08-30) "Nav groups". There is no
  * `adminItems`/`showAdmin`/`roleLabel` axis: a gated group is simply included or omitted from the
- * array, and its own label row IS the role marker.
+ * array, and its own label row IS the marker.
  *
  * **IA v3 phase E ("the settings/accounts move") narrows Workspace to Overview/API keys.** The
  * Projects row (and the unrouted refill destination) both moved to
@@ -193,35 +210,51 @@ const NAV_ICON: Record<'overview' | 'keys' | 'settings', React.ReactNode> = {
  * and this group is honest about that rather than keeping a row for a segment the account area no
  * longer serves.
  *
- * **The Operator group is GONE (owner review round 2, 2026-08-31, converse-frontends#368 finding
- * #1, verbatim): "Which button leads to the admin pages? Oh wait, it's the button 'Refill queue'
- * that leads to 'admin'? Please remove that. Instead, inside of the settings, place a permission
- * gated button 'Admin' that leads to admin."** The row used to read "Refill requests" and land on
- * `/admin/overview` — a console-rail entry point into the admin area the owner does not want here
- * at all, not even relabelled. There is no replacement row in this function: the ONE way an admin
- * reaches `/admin` from the chrome now is `settingsNavGroups`' own gated "Admin" row, one level in
- * (Account -> Settings -> Admin), never a shortcut straight off the account-area rail. This
- * function therefore takes no `isAdmin`/`refillCount` params any more — nothing here reads a role
- * or a count. The pending-refill figure stays honestly visible for admins regardless: the admin
- * area's own "Refills queue" nav row (`adminNavGroups`, below) already carries it.
+ * **The Operator group is BACK, as one permission-gated "Admin" row (owner directive, 2026-09-03,
+ * verbatim): "The Admin button doesn't need to be hidden now, since it's gated by permission. So
+ * it can appear on the main left rail. The Roles button in Settings' left rail can safely be
+ * removed."** This supersedes the 2026-08-31 owner-review-round-2 ruling that moved the shortcut
+ * one level in (Account -> Settings -> Admin) and is recorded as such in
+ * `docs/adr/0013-console-information-architecture-v3.md`'s own 2026-09-03 amendment. What that
+ * earlier ruling actually objected to was a DISHONEST row: a group labelled "Operator" whose one
+ * item read "Refill requests" and silently landed on `/admin/overview` ("Which button leads to
+ * the admin pages? Oh wait, it's the button 'Refill queue' that leads to 'admin'?"). The row
+ * below says exactly where it goes, and — unlike the deleted one — it is gated on a permission
+ * `lightbridge-authz` actually enforces (`ADMIN_AREA_PERMISSIONS`, converse-frontends#452) rather
+ * than on `isAdmin`, a role production minted for every signed-in person. Those two facts are the
+ * whole reason it can sit on the main rail now.
+ *
+ * `adminLandingHref` aims it at the first destination THIS caller can open, so a reviewer holding
+ * only `budget:review` lands on `/admin/refills-queue` rather than 404ing on a dashboard gated on
+ * `usage:read-all`.
+ *
+ * It carries no `refillCount`, and this function still takes no count param: the pending-refill
+ * numeral has exactly one honest home, `adminNavGroups`' own "Refills queue" row, one click in.
+ * A count on a row labelled "Admin" would be the old dishonesty in a new place — a number about
+ * refills hanging off a word that promises an area.
  */
-export function navGroups(active: ConsoleRoute, accountId: string): NavGroup[] {
+export function navGroups(
+  active: ConsoleRoute,
+  accountId: string,
+  permissions: readonly string[],
+  t: Translate
+): NavGroup[] {
   const hrefs = navHrefs(accountId);
   return [
     {
       key: 'workspace',
-      label: 'Workspace',
+      label: t('group.workspace'),
       items: [
         {
           key: 'overview',
-          label: 'Overview',
+          label: t('item.overview'),
           href: hrefs.overview,
           icon: NAV_ICON.overview,
           active: active === 'overview',
         },
         {
           key: 'api-keys',
-          label: 'API keys',
+          label: t('item.api-keys'),
           href: hrefs['api-keys'],
           icon: NAV_ICON.keys,
           active: active === 'api-keys',
@@ -230,24 +263,49 @@ export function navGroups(active: ConsoleRoute, accountId: string): NavGroup[] {
     },
     {
       key: 'account',
-      label: 'Account',
+      label: t('group.account'),
       items: [
         {
           key: 'settings',
-          label: 'Settings',
+          label: t('item.settings'),
           href: hrefs.settings,
           icon: NAV_ICON.settings,
           active: active === 'settings',
         },
       ],
     },
+    // Its OWN group, last — the same "included or omitted, never marked" contract every gated row
+    // in this file follows, with the group label doing the work a `ROLE` badge is banned from
+    // doing. A label-less group would render flush against Account's rows (`SidebarGroup` draws a
+    // heading only when `label` is set), reading as a third Account destination rather than as an
+    // exit door into a different area.
+    ...(hasAnyPermission(permissions, ADMIN_AREA_PERMISSIONS)
+      ? [
+          {
+            key: 'operator',
+            label: t('group.operator'),
+            items: [
+              {
+                key: 'admin',
+                label: t('item.admin'),
+                href: adminLandingHref(permissions),
+                icon: NAV_ICON.admin,
+                // Never `active`: once the visitor is actually on `/admin/*`,
+                // `ConsoleSidebarContent` has swapped the whole rail to `adminNavGroups`, so this
+                // row is never rendered alongside its own destination.
+                active: false,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 }
 
 // ── `/settings/*` — the settings area's own nav (IA v3 phase 2) ────────────────────────────────
 
 /**
- * The settings area's six destinations, in the owner-dictated nav order. `accounts` was new in
+ * The settings area's five destinations, in the owner-dictated nav order. `accounts` was new in
  * IA v3 phase E ("the settings/accounts move" — owner: "add /settings/accounts... And
  * /settings/accounts/<account-id> would be for account related settings"), placed right after
  * `overview` per that directive. **`refills-queue` moved OUT** (ADR 0013's same-day "the admin
@@ -255,19 +313,17 @@ export function navGroups(active: ConsoleRoute, accountId: string): NavGroup[] {
  * the operator dashboard, not in this flat settings list. **`refill-options` moved OUT too**
  * (owner ruling, verbatim: "Refill options are for admins only. Not normal users." —
  * converse-frontends#368) — it is `/admin/refill-policies` now, alongside the other two admin-only
- * destinations, not a row every settings visitor sees. Five of the six are live routes
- * (`overview`, `accounts`, `tiers`, `policies`, `info`); `roles` alone stays a real, permanent row
- * that renders `disabled` rather than being omitted — omitting it would hide that the destination
- * exists at all, and a disabled row with a stated reason is the honest middle ground between "not
- * built" and "silently missing" (console-ui skill's "never fabricate" clause extends to
- * navigation: a row that LOOKS live but 404s is its own kind of fabrication).
+ * destinations, not a row every settings visitor sees. **`roles` moved OUT too** (owner directive,
+ * 2026-09-03, verbatim: "The Roles button in Settings' left rail can safely be removed.") — the
+ * screen has always lived at `/admin/roles`, and the admin area's own "Roles" row
+ * (`ADMIN_DESTINATIONS`) is now its only nav home, so the settings rail no longer carries a row
+ * that points out of its own area. Every remaining destination is a live `/settings/*` route.
  */
-export type SettingsRoute = 'overview' | 'accounts' | 'roles' | 'tiers' | 'policies' | 'info';
+export type SettingsRoute = 'overview' | 'accounts' | 'tiers' | 'policies' | 'info';
 
 /**
- * `/settings/<segment>` -> which nav row is active. Every LIVE segment gets its own prefix match;
- * `roles` alone has no route to match (it is the one remaining disabled, `href`-less row — see
- * `settingsNavGroups`) and so never appears here. The bare `/settings` segment (mid-redirect to
+ * `/settings/<segment>` -> which nav row is active. Every segment left is LIVE and gets its own
+ * prefix match. The bare `/settings` segment (mid-redirect to
  * `/settings/overview/usage`, `app/(console)/settings/page.tsx`) and anything unrecognised default
  * to `overview`, the same "unmatched reads as the first destination" contract
  * `routeFromPathname` uses for `/`. `accounts` matches the WHOLE
@@ -285,25 +341,15 @@ export function settingsRouteFromPathname(pathname: string): SettingsRoute {
 
 /** One shared icon per settings destination, the same 16px/1.5-stroke family `NAV_ICON` draws
  *  from (`lib/icons.tsx`) — never a second, differently-weighted glyph set for the second area.
- *  `admin` (owner review round 2, 2026-08-31, finding #1) reuses the exact glyph `adminNavGroups`'
- *  own "Refills queue" row used to draw here before it moved out — the shield names a CONCEPT
- *  (operator authority), not the area a given row happens to render in. */
-const SETTINGS_NAV_ICON: Record<SettingsRoute | 'admin', React.ReactNode> = {
+ *  No `admin` and no `roles` entry any more (owner directive, 2026-09-03): the Admin row moved to
+ *  the account rail's own Operator group (`NAV_ICON.admin`) and the Roles row is gone outright. */
+const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
   accounts: <AccountsIcon />,
-  roles: <RolesIcon />,
   tiers: <TiersIcon />,
   policies: <PoliciesIcon />,
   info: <InfoIcon />,
-  admin: <AdminIcon />,
 };
-
-/** The honest reason `/settings/roles` renders disabled — no `lightbridge-authz` read API exists
- *  for role/permission mappings today, so a real screen would have nothing to fetch. Filed as
- *  lightbridge-authz#571 (converse-frontends#368's IA v3 phase 2 ticket is the source of truth
- *  for the phase itself). */
-export const ROLES_DISABLED_REASON =
-  'Role and permission mapping is operator config today; no read API exists (lightbridge-authz#571).';
 
 /**
  * The settings area's nav — REPLACES `navGroups`' Workspace/Account groups in the same sidebar
@@ -312,102 +358,222 @@ export const ROLES_DISABLED_REASON =
  * is not enough to need a section heading the way the account area's two groups do, and the
  * owner's own nav order names it as a flat sequence, not grouped families.
  *
- * **`isAdmin` is back (owner review round 2, 2026-08-31, converse-frontends#368 finding #1,
- * verbatim): "Instead, inside of the settings, place a permission gated button 'Admin' that leads
- * to admin."** This is now the ONLY way the console chrome reaches `/admin` from outside the admin
- * area itself — `navGroups`' own Operator row (which used to shortcut straight there from the
- * account-area rail) is deleted outright, not relabelled (see that function's own doc comment).
- * The row is appended LAST, after every real settings destination: it is an exit door into a
- * different area, the same relationship `BackToConsoleRow` has to the account area, not a settings
- * destination of its own — it never carries `active` (there is no settings pathname it corresponds
- * to; once the visitor is actually on `/admin/*`, `ConsoleSidebarContent` has already swapped to
- * `adminNavGroups` instead, so this row is never rendered alongside its own destination). Omitted
- * outright for a non-admin, matching the included-or-omitted contract every other gated row/group
- * in this file already follows — never a disabled row with a role-gate reason the way `roles`
- * (unbuilt, not unauthorized) uses one. No trailing count here: the pending-refill figure already
- * has an honest home in `adminNavGroups`' own "Refills queue" row, one click further in.
+ * **Every row here is a live `/settings/*` destination, and NOTHING here is permission gated any
+ * more (owner directive, 2026-09-03, verbatim): "The Admin button doesn't need to be hidden now,
+ * since it's gated by permission. So it can appear on the main left rail. The Roles button in
+ * Settings' left rail can safely be removed."** Two rows left in the same change, and both left
+ * for the same reason — each pointed OUT of the settings area:
+ *
+ *  - **"Admin"** (added 2026-08-31 by owner review round 2, when the account rail's dishonest
+ *    "Refill requests" row was deleted) moved to the account area's own rail, `navGroups`'
+ *    Operator group. It is the same row, the same `adminLandingHref` target and the same
+ *    `ADMIN_AREA_PERMISSIONS` gate — only one level less deep. See `navGroups`' doc comment for
+ *    why the earlier "never a shortcut off the account rail" clause no longer holds.
+ *  - **"Roles"** is gone outright, with no replacement here: the screen it pointed at is
+ *    `/admin/roles`, which the admin area's own nav already lists (`ADMIN_DESTINATIONS`), so the
+ *    row was a second entrance to somebody else's destination rather than a settings one.
+ *    (Its earlier history — a `disabled` row carrying "no read API exists", made live by
+ *    lightbridge-authz#656 — ends here.)
+ *
+ * **One row here IS gated, and it is the only one: "Tier configs", on `project:update`** (owner
+ * ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers"). That is
+ * why this builder still takes a `permissions` set even though both rows that USED to need one are
+ * gone — it is a deliberate decision, not a leftover parameter. `/settings/tiers` is read-only, so
+ * the gate is deliberately the WRITE permission the tier-changing RPC (`procedure.setProjectQuota`)
+ * requires rather than a read a viewer holds; see `PERMISSION.projectUpdate`'s own doc comment.
+ * `lightbridge-editor` holds it through `project:*` and keeps the row; `lightbridge-viewer` holds
+ * `project:read` only and loses both the row and the page, which answers `notFound()` on the same
+ * string. Omitted, never disabled — the same included-or-omitted contract every gated row in this
+ * file follows.
  */
-export function settingsNavGroups(active: SettingsRoute, isAdmin: boolean): NavGroup[] {
+export function settingsNavGroups(
+  active: SettingsRoute,
+  permissions: readonly string[],
+  t: Translate
+): NavGroup[] {
   const items: NavGroup['items'] = [
     {
       key: 'overview',
-      label: 'Overview',
+      label: t('item.overview'),
       href: '/settings/overview',
       icon: SETTINGS_NAV_ICON.overview,
       active: active === 'overview',
     },
     {
       key: 'accounts',
-      label: 'Accounts',
+      label: t('item.accounts'),
       href: '/settings/accounts',
       icon: SETTINGS_NAV_ICON.accounts,
       active: active === 'accounts',
     },
-    {
-      key: 'roles',
-      label: 'Roles',
-      icon: SETTINGS_NAV_ICON.roles,
-      disabled: true,
-      reason: ROLES_DISABLED_REASON,
-    },
-    {
-      key: 'tiers',
-      label: 'Tier configs',
-      href: '/settings/tiers',
-      icon: SETTINGS_NAV_ICON.tiers,
-      active: active === 'tiers',
-    },
+    // Owner ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers."
+    // Gated on `project:update` — the permission `procedure.setProjectQuota` requires, which is
+    // what makes an assigned tier changeable at all — and OMITTED, never disabled, exactly like
+    // Roles above: `/settings/tiers` answers `notFound()` for the same string, so a visible row
+    // would advertise a URL the server denies. See `PERMISSION.projectUpdate`'s own doc comment
+    // for why a read-only screen is gated on a write permission.
+    ...(hasPermission(permissions, PERMISSION.projectUpdate)
+      ? [
+          {
+            key: 'tiers',
+            label: t('item.tiers'),
+            href: '/settings/tiers',
+            icon: SETTINGS_NAV_ICON.tiers,
+            active: active === 'tiers',
+          },
+        ]
+      : []),
     {
       key: 'policies',
-      label: 'Project policies',
+      label: t('item.policies'),
       href: '/settings/policies',
       icon: SETTINGS_NAV_ICON.policies,
       active: active === 'policies',
     },
     {
       key: 'info',
-      label: 'Info',
+      label: t('item.info'),
       href: '/settings/info',
       icon: SETTINGS_NAV_ICON.info,
       active: active === 'info',
     },
   ];
-  if (isAdmin) {
-    items.push({
-      key: 'admin',
-      label: 'Admin',
-      href: '/admin/overview',
-      icon: SETTINGS_NAV_ICON.admin,
-    });
-  }
   return [{ key: 'settings', items }];
 }
 
 // ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
 
 /**
- * The admin area's three destinations, in the same "dashboard first, drill-down after" order the
- * settings area's own gated "Admin" row (`settingsNavGroups`) links into: `/admin/overview` (the
- * eight-board operator dashboard), `/admin/refills-queue` (the budget refill review queue, moved
- * here from
- * `/settings/refills-queue`), then `/admin/refill-policies` (the policy authoring/simulation
- * surface, moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options
- * are for admins only. Not normal users.", converse-frontends#368). All three are real for every
- * visitor who reaches this nav at all — the whole area is gated server-side
- * (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`, `admin/refill-policies/page.tsx`)
- * and `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
- * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
+ * The admin area's seven destinations, in the same "dashboard first, drill-down after" order the
+ * account rail's own gated "Admin" row (`navGroups`' Operator group) links into: `/admin/overview` (the
+ * operator dashboard), `/admin/usage` (the estate's usage surface — nineteen panels answering
+ * "who spent what, on which channel, with which model", converse-frontends#448), then
+ * `/admin/refills-queue` (the budget refill review queue, moved here from
+ * `/settings/refills-queue`), `/admin/refill-policies` (the policy authoring/simulation surface,
+ * moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options are for
+ * admins only. Not normal users.", converse-frontends#368), then `/admin/budget-schedules`
+ * (converse-frontends#451).
+ *
+ * The order is READINGS, then ACTIONS. Usage sits SECOND, immediately after the dashboard and
+ * before the queue: overview answers "is anything wrong", usage answers "where did it come from",
+ * and the three budget rows are things an operator DOES rather than reads. `/admin/sessions`
+ * (converse-frontends#450) and `/admin/roles` (converse-frontends#452) come LAST, in that order —
+ * both are facts about the OPERATORS rather than about the estate, and of the two, closing a
+ * session is the one an operator reaches for on an ordinary day.
+ *
+ * A row is real for a visitor only when they hold ITS OWN permission: each route file gates on one
+ * (`readSession` + `can(session, …)` + `notFound()`), and `adminNavGroups` filters against the
+ * same string, so no row can be shown to someone the segment would 404.
  */
-export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
+export type AdminRoute =
+  | 'overview'
+  | 'usage'
+  | 'refills-queue'
+  | 'refill-policies'
+  | 'budget-schedules'
+  | 'sessions'
+  | 'roles';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
  *  "unmatched reads as the first destination" contract `settingsRouteFromPathname`/
- *  `routeFromPathname` use for their own bare segments. */
+ *  `routeFromPathname` use for their own bare segments.
+ *
+ *  `/admin/usage` matches by PREFIX, so C6's drill-downs (`/admin/usage/actors/<id>`,
+ *  `/admin/usage/channels/<azp>`, `/admin/usage/chats`) keep the Usage row lit rather than falling
+ *  through to Overview — the same reason `refill-policies` matches its own `/create` child. */
 export function adminRouteFromPathname(pathname: string): AdminRoute {
+  if (pathname.startsWith('/admin/usage')) return 'usage';
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
+  if (pathname.startsWith('/admin/budget-schedules')) return 'budget-schedules';
+  if (pathname.startsWith('/admin/sessions')) return 'sessions';
+  if (pathname.startsWith('/admin/roles')) return 'roles';
   return 'overview';
+}
+
+/**
+ * Which permission each admin destination requires — the SAME string that destination's own route
+ * segment gates on server-side (`can(session, …)` + `notFound()`), stated once so the nav and the
+ * gate cannot drift into "row shown, page 404s".
+ *
+ * The order is the nav order, and it is also the fallback order `adminLandingHref` walks: dashboard
+ * first, then the two review/authoring surfaces, then the role directory.
+ */
+const ADMIN_DESTINATIONS: readonly {
+  route: AdminRoute;
+  /** A `nav` namespace KEY, never a literal (ADR 0017). This table feeds the rail AND the command
+   *  palette, so a literal here would be one English string with two renderers. */
+  labelKey: string;
+  href: string;
+  permission: (typeof PERMISSION)[keyof typeof PERMISSION];
+}[] = [
+  {
+    route: 'overview',
+    labelKey: 'item.overview',
+    href: '/admin/overview',
+    permission: PERMISSION.usageReadAll,
+  },
+  // The estate usage surface reads `scope: 'all'`, the same query the dashboard fires, so it needs
+  // the same permission — one grant, two destinations, which is exactly why the table is keyed on
+  // the permission rather than on the row.
+  {
+    route: 'usage',
+    labelKey: 'item.usage',
+    href: '/admin/usage',
+    permission: PERMISSION.usageReadAll,
+  },
+  {
+    route: 'refills-queue',
+    labelKey: 'item.refills-queue',
+    href: '/admin/refills-queue',
+    permission: PERMISSION.budgetReview,
+  },
+  {
+    route: 'refill-policies',
+    labelKey: 'item.refill-policies',
+    href: '/admin/refill-policies',
+    permission: PERMISSION.budgetPolicyWrite,
+  },
+  {
+    route: 'budget-schedules',
+    labelKey: 'item.budget-schedules',
+    href: '/admin/budget-schedules',
+    permission: PERMISSION.budgetScheduleManage,
+  },
+  // converse-frontends#450 (story C7). `session:read` is the ESTATE widening, never the
+  // `session:read-own` floor every default role holds — a caller with only the floor would reach
+  // this screen and see their own two rows, which is not what an operator ledger is for.
+  {
+    route: 'sessions',
+    labelKey: 'item.sessions',
+    href: '/admin/sessions',
+    permission: PERMISSION.sessionRead,
+  },
+  {
+    route: 'roles',
+    labelKey: 'item.roles',
+    href: '/admin/roles',
+    permission: PERMISSION.rbacManage,
+  },
+];
+
+/**
+ * Where the account rail's "Admin" row (`navGroups`' Operator group) points for THIS caller: the
+ * first destination in nav order whose permission they hold.
+ *
+ * `/admin/overview` used to be hardcoded, which was correct while admin was one indivisible role.
+ * It no longer is: a reviewer may hold `budget:review` and nothing else, and sending them to a
+ * dashboard gated on `usage:read-all` would hand them a 404 from a row the same permission set
+ * decided to render. The `/admin/overview` fallback is unreachable in practice — the row itself
+ * only renders when at least one of these permissions is held — and exists so the return type is
+ * a `string`, not a `string | undefined` every caller would have to re-handle.
+ */
+export function adminLandingHref(permissions: readonly string[]): string {
+  return (
+    ADMIN_DESTINATIONS.find((destination) => hasPermission(permissions, destination.permission))
+      ?.href ?? '/admin/overview'
+  );
 }
 
 /** One shared icon per admin destination, the same 16px/1.5-stroke family `NAV_ICON`/
@@ -416,51 +582,60 @@ export function adminRouteFromPathname(pathname: string): AdminRoute {
  *  used — the glyph names a CONCEPT (a refill ladder), not the area it lives in. */
 const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
+  usage: <UsageIcon />,
   'refills-queue': <AdminIcon />,
   'refill-policies': <RefillOptionsIcon />,
+  // A clock, not a second gauge — see `ScheduleIcon`'s own doc comment for why the two
+  // budget-rule rows deliberately do not share a glyph family.
+  'budget-schedules': <ScheduleIcon />,
+  // A DEVICE, deliberately not a second person-shaped mark: `RolesIcon` below already owns "who
+  // somebody is", and this row is about where they are signed in FROM.
+  sessions: <SessionsIcon />,
+  // The SAME glyph the settings area's own "Roles" row draws — the row moved area, the concept
+  // (who holds which platform role) did not.
+  roles: <RolesIcon />,
 };
 
 /**
  * The admin area's nav — REPLACES `navGroups`'/`settingsNavGroups`' content in the same sidebar
- * mount when `ConsoleSidebarContent` has already confirmed `session.isAdmin` (see that
- * component's own doc comment for why the check lives there, not here): this function itself
- * takes no `isAdmin` param because it is never called for a non-admin at all — there is no
- * disabled-row case to model, unlike `settingsNavGroups`' `roles`. `refillCount` is
- * `useOperatorRefillCount`'s own trailing numeral — the account-area rail used to carry a second
- * caller of the same count (the Operator row `navGroups` deleted, owner review round 2,
- * 2026-08-31, converse-frontends#368 finding #1), but this row is now its ONLY home — never `0`
- * while it's still loading.
+ * mount when `ConsoleSidebarContent` has confirmed the caller holds at least one admin-area
+ * permission (see that component's own doc comment for why that check lives there).
+ *
+ * **Per-row permission filtering (converse-frontends#452, story C9).** The old signature took no
+ * gate at all: it was "never called for a non-admin", which was sound while admin was one
+ * indivisible role that unlocked all three destinations at once. It is not one thing any more —
+ * `usage:read-all`, `budget:review`, `budget:policy-write` and `rbac:manage` are four independent
+ * grants — so this function filters `ADMIN_DESTINATIONS` per row against the caller's own
+ * permission set. A reviewer holding only `budget:review` sees exactly one row.
+ *
+ * Rows are OMITTED, never disabled: each destination's route segment answers `notFound()` for the
+ * same permission set, so a visible-but-dead row would advertise a URL the server denies — the
+ * "shown and then 404s" failure `admin-*-route-gate.test.ts` exists to prevent.
+ *
+ * `refillCount` is `useOperatorRefillCount`'s own trailing numeral, and it only ever decorates the
+ * Refills queue row — which is only present when the caller can review at all — never `0` while
+ * it is still loading.
  */
-export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGroup[] {
-  return [
-    {
-      key: 'admin',
-      items: [
-        {
-          key: 'overview',
-          label: 'Overview',
-          href: '/admin/overview',
-          icon: ADMIN_NAV_ICON.overview,
-          active: active === 'overview',
-        },
-        {
-          key: 'refills-queue',
-          label: 'Refills queue',
-          href: '/admin/refills-queue',
-          icon: ADMIN_NAV_ICON['refills-queue'],
-          active: active === 'refills-queue',
-          count: refillCount && refillCount > 0 ? refillCount : undefined,
-        },
-        {
-          key: 'refill-policies',
-          label: 'Refill policies',
-          href: '/admin/refill-policies',
-          icon: ADMIN_NAV_ICON['refill-policies'],
-          active: active === 'refill-policies',
-        },
-      ],
-    },
-  ];
+export function adminNavGroups(
+  active: AdminRoute,
+  permissions: readonly string[],
+  t: Translate,
+  refillCount?: number
+): NavGroup[] {
+  const items = ADMIN_DESTINATIONS.filter((destination) =>
+    hasPermission(permissions, destination.permission)
+  ).map((destination) => ({
+    key: destination.route,
+    label: t(destination.labelKey),
+    href: destination.href,
+    icon: ADMIN_NAV_ICON[destination.route],
+    active: active === destination.route,
+    ...(destination.route === 'refills-queue' && refillCount && refillCount > 0
+      ? { count: refillCount }
+      : {}),
+  }));
+
+  return [{ key: 'admin', items }];
 }
 
 /**
@@ -522,12 +697,10 @@ export function initialsFor(
 // accessible name) -- `display: none` on the hidden one is belt-and-suspenders on top of that, not
 // what makes it unannounced.
 export function BrandMark({ hasLogo, hasLogoLight }: { hasLogo: boolean; hasLogoLight?: boolean }) {
+  const { t } = useTranslation('nav');
   const bothConfigured = hasLogo && hasLogoLight;
   return (
-    <Link
-      href="/"
-      aria-label="Lightbridge — go to console home"
-      className="header-brand focus-ring">
+    <Link href="/" aria-label={t('brand.home')} className="header-brand focus-ring">
       {hasLogo ? (
         bothConfigured ? (
           <>
@@ -630,7 +803,14 @@ function useWorkspaceSwitcher() {
 export function useConsolePalette() {
   const router = useRouter();
   const pathname = usePathname();
-  const session = useConsoleSession();
+  // The palette is one of the two nav surfaces (the rail is the other) and reads the SAME `nav`
+  // namespace, so a destination cannot be named one thing in the rail and another here.
+  const { t } = useTranslation('nav');
+  // The permission ARRAY, not `useCan()`'s object: the array comes straight off the session
+  // context and is referentially stable across renders, whereas the hook's returned object is a
+  // fresh memo the React Compiler cannot see through — depending on it here makes the compiler
+  // give up on this `useMemo` entirely (`react-hooks/preserve-manual-memoization`).
+  const { permissions } = useCan();
   // Same accountId resolution the sidebar's own hrefs use (`useWorkspaceSwitcher`) — path first,
   // then the last-account/first-account fallback (`use-console-scope.ts`) — so the palette's
   // "Navigate" items always land on a real account, even when the palette is opened from `/` or
@@ -648,43 +828,49 @@ export function useConsolePalette() {
 
   const groups: CommandPaletteGroup[] = useMemo(() => {
     const navigate: CommandPaletteItem[] = [
-      { key: 'overview', label: 'Overview', onSelect: () => router.push(hrefs.overview) },
-      { key: 'api-keys', label: 'API keys', onSelect: () => router.push(hrefs['api-keys']) },
+      { key: 'overview', label: t('item.overview'), onSelect: () => router.push(hrefs.overview) },
+      {
+        key: 'api-keys',
+        label: t('item.api-keys'),
+        onSelect: () => router.push(hrefs['api-keys']),
+      },
       // IA v3 phase E: Projects moved to `/settings/accounts/<id>/projects` — not account-scoped
       // by this table any more (see `navHrefs`'s own doc comment), so the palette entry points at
       // the settings area's own "Accounts" list instead of a per-account projects href.
-      { key: 'accounts', label: 'Accounts', onSelect: () => router.push('/settings/accounts') },
-      { key: 'settings', label: 'Settings', onSelect: () => router.push(hrefs.settings) },
+      {
+        key: 'accounts',
+        label: t('item.accounts'),
+        onSelect: () => router.push('/settings/accounts'),
+      },
+      { key: 'settings', label: t('item.settings'), onSelect: () => router.push(hrefs.settings) },
     ];
-    if (session.isAdmin) {
-      // ADR 0013's same-day "the admin area" amendment: `hrefs.admin` now names the operator
-      // dashboard (`/admin/overview`), not the refills queue directly, so this gets its own
-      // entry rather than the queue's own label — the same "one entry per real destination" split
-      // the `accounts`/`settings` pair above already uses. `refills-queue` links straight into the
-      // queue for a reviewer who wants it without the dashboard first. `refill-policies` is the
-      // same shape again, added when the admin-only surface moved off `/settings/refill-options`
-      // (owner ruling, converse-frontends#368).
-      navigate.push(
-        {
-          key: 'admin',
-          label: 'Admin overview',
-          hint: 'ROLE',
-          onSelect: () => router.push(hrefs.admin),
-        },
-        {
-          key: 'refills-queue',
-          label: 'Refill requests',
-          hint: 'ROLE',
-          onSelect: () => router.push('/admin/refills-queue'),
-        },
-        {
-          key: 'refill-policies',
-          label: 'Refill policies',
-          hint: 'ROLE',
-          onSelect: () => router.push('/admin/refill-policies'),
-        }
-      );
-    }
+    // ADR 0013's same-day "the admin area" amendment gave each admin destination its own palette
+    // entry rather than one lumped "Admin" row — the same "one entry per real destination" split
+    // the `accounts`/`settings` pair above already uses. converse-frontends#452 makes the GATE
+    // per-entry too: the palette is a navigation surface like the rail, so it offers exactly the
+    // destinations this caller's own permission set can actually open. Offering one it cannot
+    // would be the "shown and then 404s" failure, just reached by keyboard.
+    //
+    // `hint: 'ROLE'` is retained verbatim: it is the palette's own marker for "this row is not
+    // universal", and it stays accurate — a permission is still something granted rather than
+    // something everyone has. (It is a hint string, not the banned `ROLE` badge component.)
+    //
+    // `filter().map()` and NOT a `for…of` with `continue`, which is what this was first written
+    // as: the React Compiler cannot infer dependencies through that loop and widens
+    // `scope.value.accountId` (used further down) to `scope.value`, which trips
+    // `react-hooks/preserve-manual-memoization` and makes it skip optimizing this hook entirely.
+    // The expression form keeps the memo compilable. Do not "simplify" it back into a loop.
+    navigate.push(
+      ...ADMIN_DESTINATIONS.filter((destination) =>
+        hasPermission(permissions, destination.permission)
+      ).map((destination) => ({
+        key: destination.route,
+        label:
+          destination.route === 'overview' ? t('palette.admin-overview') : t(destination.labelKey),
+        hint: t('palette.role-hint'),
+        onSelect: () => router.push(destination.href),
+      }))
+    );
 
     // Scope group (console-ui#310/#302): switching account from the palette re-uses the exact
     // same navigation mechanism `useWorkspaceSwitcher.onSelectAccount` already drives for the
@@ -711,15 +897,17 @@ export function useConsolePalette() {
     // empty-placeholder pattern the console-ui skill bans for the inspector rail; the palette
     // gets the same treatment, omit the group entirely rather than render it hollow.
     return [
-      { key: 'navigate', heading: 'Navigate', items: navigate },
-      ...(scopeItems.length > 0 ? [{ key: 'scope', heading: 'Scope', items: scopeItems }] : []),
+      { key: 'navigate', heading: t('palette.navigate'), items: navigate },
+      ...(scopeItems.length > 0
+        ? [{ key: 'scope', heading: t('palette.scope'), items: scopeItems }]
+        : []),
       {
         key: 'actions',
-        heading: 'Actions',
-        items: [{ key: 'sign-out', label: 'Sign out', onSelect: signOut }],
+        heading: t('palette.actions'),
+        items: [{ key: 'sign-out', label: t('palette.sign-out'), onSelect: signOut }],
       },
     ];
-  }, [router, session.isAdmin, hrefs, pathname, scope.allAccounts, scope.value.accountId]);
+  }, [router, permissions, hrefs, pathname, scope.allAccounts, scope.value.accountId, t]);
 
   return { open, setOpen, groups };
 }
@@ -744,20 +932,22 @@ export function ConsolePaletteDialog({
 /**
  * The pending-refill trailing count `adminNavGroups`' own "Refills queue" row shows — the same
  * query `/admin/refills-queue` itself reads (shared by query key,
- * `use-refills-queue-screen.ts`'s own doc comment), fired only for an admin ("fire NO extra query
- * for non-admins" — shell revamp phase 4 brief). Owner review round 2 (2026-08-31,
- * converse-frontends#368 finding #1) deleted this figure's OTHER home, the account-area rail's
- * Operator row (`navGroups`' own doc comment) — the admin area's own row is now the only place it
- * renders, which is sufficient: the finding only asked that the count stay honestly visible for
- * admins SOMEWHERE, not that it survive on the rail specifically.
+ * `use-refills-queue-screen.ts`'s own doc comment), fired only for a caller who holds
+ * `budget:review` ("fire NO extra query for non-admins" — shell revamp phase 4 brief; now stated
+ * as the permission the backend would refuse the query without, converse-frontends#452). Owner
+ * review round 2 (2026-08-31, converse-frontends#368 finding #1) deleted this figure's OTHER home,
+ * the account-area rail's old Operator row, and the 2026-09-03 directive that put an "Admin" row
+ * back on that rail deliberately did NOT give it a count (`navGroups`' own doc comment) — the
+ * admin area's own row is the only place this renders, which is sufficient: the finding only asked
+ * that the count stay honestly visible SOMEWHERE, not that it survive on the rail specifically.
  *
- * `undefined` while the query hasn't resolved (or for a non-admin) rather than `0`: the row must
- * "not block nav rendering on it — show nothing while loading" (shell brief), and a `0` shown
- * before the real count is known would be a fabricated figure, not an honest one.
+ * `undefined` while the query hasn't resolved (or for a caller without the permission) rather than
+ * `0`: the row must "not block nav rendering on it — show nothing while loading" (shell brief),
+ * and a `0` shown before the real count is known would be a fabricated figure, not an honest one.
  */
-function useOperatorRefillCount(isAdmin: boolean): number | undefined {
-  const queue = useRefillsQueueScreen(isAdmin);
-  if (!isAdmin || queue.loading) return undefined;
+function useOperatorRefillCount(canReviewRefills: boolean): number | undefined {
+  const queue = useRefillsQueueScreen(canReviewRefills);
+  if (!canReviewRefills || queue.loading) return undefined;
   return queue.pendingCount;
 }
 
@@ -790,12 +980,13 @@ function useOperatorRefillCount(isAdmin: boolean): number | undefined {
  * approach `console-sidebar/geometry.test.ts` uses for the same reason (jsdom drops `@layer`).
  */
 export function BackToConsoleRow({ accountId }: { accountId: string }) {
+  const { t } = useTranslation('nav');
   return (
     <Link href={navHrefs(accountId).overview} className="sidebar-footer-row">
       <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
         <BackIcon />
       </span>
-      <span className="text-soft font-sans text-[13px]">Back to console</span>
+      <span className="text-soft font-sans text-[13px]">{t('footer.back-to-console')}</span>
     </Link>
   );
 }
@@ -804,18 +995,22 @@ export function BackToConsoleRow({ accountId }: { accountId: string }) {
  *  (`ConsoleTopBar`'s doc comment — a pure layout band, no row chrome of its own), so this is the
  *  same swap as `BackToConsoleRow` above without that row's block-level padding. */
 function BackToConsoleCompact({ accountId }: { accountId: string }) {
+  const { t } = useTranslation('nav');
   return (
     <Link
       href={navHrefs(accountId).overview}
       className="text-soft focus-ring font-sans text-[13px]">
-      ← Back to console
+      {`← ${t('footer.back-to-console')}`}
     </Link>
   );
 }
 
 export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
+  const { t } = useTranslation('nav');
+  const { t: tCommon } = useTranslation('common');
   const session = useConsoleSession();
+  const access = useCan();
   const branding = useConsoleBranding();
   const online = useOnlineStatus();
   const { preference, setPreference } = useConsoleTheme();
@@ -833,16 +1028,18 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
     session.user?.preferredUsername ??
     session.user?.name ??
     (session.user ? shortAccountId(session.user.sub) : undefined);
-  const refillCount = useOperatorRefillCount(session.isAdmin);
-  // `session.isAdmin` gates the admin nav content itself, not only its own routes' server-side
-  // gate: a non-admin who hand-navigates to `/admin/*` still gets `notFound()` from the route
-  // (`admin/overview/page.tsx`), but the CHROME is mounted regardless (`app/(console)/layout.tsx`
-  // wraps every route, 404s included) and reads its nav content off the pathname alone
-  // (`areaFromPathname`) — so without this check, a non-admin visiting that dead URL would see
-  // real admin-shaped nav rows around their own 404. Falls back to the ordinary account-area nav,
-  // the same "never shown, not disabled" contract every other admin-only nav row in this file
-  // already follows.
-  const showAdminChrome = area === 'admin' && session.isAdmin;
+  const refillCount = useOperatorRefillCount(access.can(PERMISSION.budgetReview));
+  // The permission set gates the admin nav CONTENT, not only its own routes' server-side gate: a
+  // caller who hand-navigates to `/admin/*` without the permission still gets `notFound()` from the
+  // route (`admin/overview/page.tsx`), but the CHROME is mounted regardless
+  // (`app/(console)/layout.tsx` wraps every route, 404s included) and reads its nav content off
+  // the pathname alone (`areaFromPathname`) — so without this check, they would see real
+  // admin-shaped nav rows around their own 404. Falls back to the ordinary account-area nav, the
+  // same "never shown, not disabled" contract every gated nav row in this file already follows.
+  //
+  // `canReachAdminArea` (ANY admin-area permission), not one specific permission: the area is what
+  // is being decided here, and `adminNavGroups` filters the individual rows inside it.
+  const showAdminChrome = area === 'admin' && access.canReachAdminArea;
 
   return (
     <ConsoleSidebar
@@ -865,10 +1062,10 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
       }
       groups={
         showAdminChrome
-          ? adminNavGroups(adminRoute, refillCount)
+          ? adminNavGroups(adminRoute, access.permissions, t, refillCount)
           : area === 'settings'
-            ? settingsNavGroups(settingsRoute, session.isAdmin)
-            : navGroups(route, switcher.accountId)
+            ? settingsNavGroups(settingsRoute, access.permissions, t)
+            : navGroups(route, switcher.accountId, access.permissions, t)
       }
       linkComponent={Link}
       footer={
@@ -880,7 +1077,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS}>
               <SearchIcon />
             </span>
-            <span className="text-subtle font-sans text-[13px]">Search</span>
+            <span className="text-subtle font-sans text-[13px]">{t('footer.search')}</span>
             <kbd className="kbd kbd-sm ml-auto">⌘K</kbd>
           </button>
           {/* Standalone Theme row IS BACK (owner finding, 2026-08-31: "I don't see the usage,
@@ -896,12 +1093,23 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               too. */}
           <div className="sidebar-footer-row">
             <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-            <span className="text-subtle font-sans text-[13px]">Theme</span>
+            <span className="text-subtle font-sans text-[13px]">{t('footer.theme')}</span>
             <ThemeToggle
               preference={preference}
               onPreferenceChange={setPreference}
               className="ml-auto"
             />
+          </div>
+          {/* Language, directly under Theme (ADR 0017). The owner's own 2026-08-31 ruling on the
+              theme control — "I don't see the usage, for the theme to be hidden behind the account
+              dropdown. Please put it outside" — applies verbatim to a second preference of exactly
+              the same kind: a language switcher buried behind a trigger is one nobody finds when
+              they need it, which for a language switcher is precisely the moment they cannot read
+              the trigger either. Same row anatomy as Theme, same trailing-control slot. */}
+          <div className="sidebar-footer-row">
+            <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+            <span className="text-subtle font-sans text-[13px]">{tCommon('language.label')}</span>
+            <LocaleSwitcher className="ml-auto" />
           </div>
           {online ? null : (
             <div className="sidebar-footer-row">
@@ -909,7 +1117,24 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
                   the same 16px column every other footer/nav row's glyph sits in, so its text
                   starts at the one shared label x rather than flush at the row's own padding. */}
               <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
-              <InlineStatus className="text-subtle">offline · showing cached data</InlineStatus>
+              <InlineStatus className="text-subtle">{tCommon('state.offline')}</InlineStatus>
+            </div>
+          )}
+          {/* converse-frontends#452, negative AC 1: `getMyAccess` could not be reached while this
+              session was built, so the permission set is the fail-closed EMPTY one and every gated
+              nav row above is absent. Without this line that is indistinguishable from "you simply
+              hold nothing" — the honest difference between an answer and a missing answer, which
+              the console-ui skill's honesty doctrine says must be stated rather than implied. An
+              `InlineStatus` (`role="status"`), not an `ErrorLine`: nothing the person is looking at
+              is broken, and the fix is theirs to take (sign in again), not a retry button this row
+              could wire. Rendered in the SAME footer slot as the offline line — both are ambient
+              facts about the session, not about the screen. */}
+          {access.accessVerified ? null : (
+            <div className="sidebar-footer-row">
+              <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
+              <InlineStatus className="text-subtle">
+                {tCommon('state.access-unverified')}
+              </InlineStatus>
             </div>
           )}
           {/* The identity row — owner ruling, 2026-08-31 (issue #368, `claude/sb-overlay-
@@ -934,7 +1159,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
               type="button"
               variant="ghost"
               size="icon"
-              aria-label="Sign out"
+              aria-label={t('footer.sign-out')}
               onClick={signOut}
               className="ml-auto">
               <SignOutIcon />
@@ -959,15 +1184,15 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
  */
 export function ConsoleTopBarContent({ onOpenPalette }: { onOpenPalette: () => void }) {
   const pathname = usePathname();
-  const session = useConsoleSession();
+  const access = useCan();
   const branding = useConsoleBranding();
   const { preference, setPreference } = useConsoleTheme();
   const switcher = useWorkspaceSwitcher();
   const area = areaFromPathname(pathname);
   // Same fallback `ConsoleSidebarContent` applies to its own workspace-switcher slot — see that
-  // component's own doc comment for why a non-admin's dead `/admin/*` visit must never show
-  // admin-shaped chrome around its 404.
-  const showAdminChrome = area === 'admin' && session.isAdmin;
+  // component's own doc comment for why a dead `/admin/*` visit by a caller who holds no
+  // admin-area permission must never show admin-shaped chrome around its 404.
+  const showAdminChrome = area === 'admin' && access.canReachAdminArea;
 
   return (
     <ConsoleTopBar

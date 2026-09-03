@@ -31,7 +31,7 @@ describe('SpendSeriesChart', () => {
 
   it('renders a custom empty message when supplied', () => {
     render(
-      <SpendSeriesChart series={[]} width={400} height={200} emptyMessage="Nothing here yet." />,
+      <SpendSeriesChart series={[]} width={400} height={200} emptyMessage="Nothing here yet." />
     );
 
     expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('SpendSeriesChart', () => {
 
   it('colours each series line by rank via the spec ramp when nothing is selected/breached', () => {
     const { container } = render(
-      <SpendSeriesChart series={THREE_SERIES} width={400} height={200} />,
+      <SpendSeriesChart series={THREE_SERIES} width={400} height={200} />
     );
 
     const paths = container.querySelectorAll('path[stroke]');
@@ -54,11 +54,11 @@ describe('SpendSeriesChart', () => {
         series={[THREE_SERIES[0], { ...THREE_SERIES[1], breached: true }, THREE_SERIES[2]]}
         width={400}
         height={200}
-      />,
+      />
     );
 
     const accentPaths = Array.from(container.querySelectorAll('path[stroke]')).filter(
-      (el) => el.getAttribute('stroke') === SPEC_ACCENT,
+      (el) => el.getAttribute('stroke') === SPEC_ACCENT
     );
     expect(accentPaths).toHaveLength(1);
   });
@@ -80,14 +80,14 @@ describe('SpendSeriesChart', () => {
         onSelectSeries={(key) => {
           selected = key;
         }}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'project-b' }));
     expect(selected).toBe('b');
 
     const accentPaths = Array.from(container.querySelectorAll('path[stroke]')).filter(
-      (el) => el.getAttribute('stroke') === SPEC_ACCENT,
+      (el) => el.getAttribute('stroke') === SPEC_ACCENT
     );
     expect(accentPaths).toHaveLength(1);
   });
@@ -99,7 +99,7 @@ describe('SpendSeriesChart', () => {
         width={400}
         height={200}
         formatXTick={(d) => String(d.getDate())}
-      />,
+      />
     );
 
     const tick = screen.getByText('1');
@@ -109,7 +109,7 @@ describe('SpendSeriesChart', () => {
 
   it('renders grouped bars in the bars variant instead of lines', () => {
     const { container } = render(
-      <SpendSeriesChart series={THREE_SERIES} width={400} height={200} variant="bars" />,
+      <SpendSeriesChart series={THREE_SERIES} width={400} height={200} variant="bars" />
     );
 
     expect(container.querySelectorAll('rect').length).toBeGreaterThan(0);
@@ -167,7 +167,7 @@ describe('SpendSeriesChart', () => {
         onSelectSeries={(key) => {
           selected = key;
         }}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: '2/1' }));
@@ -263,13 +263,7 @@ describe('SpendSeriesChart', () => {
     };
 
     const { container } = render(
-      <SpendSeriesChart
-        series={[overCeiling]}
-        width={400}
-        height={200}
-        cumulative
-        ceiling={12}
-      />
+      <SpendSeriesChart series={[overCeiling]} width={400} height={200} cumulative ceiling={12} />
     );
 
     // The dashed ceiling rule itself.

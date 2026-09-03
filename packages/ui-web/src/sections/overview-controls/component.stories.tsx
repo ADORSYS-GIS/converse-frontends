@@ -4,7 +4,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { presetRange } from '../../components/date-range-field';
 import { OverviewControls } from './component';
 import type { OverviewControlsField } from './types';
-import { BUCKET_OPTIONS, GROUP_BY_OPTIONS, PROJECT_FILTER_OPTIONS, RANGE_PRESETS } from './fixtures';
+import {
+  BUCKET_OPTIONS,
+  GROUP_BY_OPTIONS,
+  PROJECT_FILTER_OPTIONS,
+  RANGE_PRESETS,
+} from './fixtures';
 
 function field(
   label: string,

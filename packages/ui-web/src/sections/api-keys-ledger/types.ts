@@ -72,12 +72,17 @@ export interface ApiKeysLedgerProps {
   onCancelRevoke: () => void;
 
   /**
-   * Client-side presentation gate only (ticket #321) — it hides the `Del` row action for a
-   * non-admin so the LIFECYCLE rail's "admin only" copy stays true of what is actually on
-   * screen. It is **not** a security boundary: `lightbridge-authz` enforces `apiKeys:delete`
-   * server-side regardless of what this flag renders (`packages/hooks/src/rbac.ts`).
+   * Client-side presentation gate only (ticket #321) — it hides the `Del` row action for a caller
+   * who does not hold `apikey:delete`, so the LIFECYCLE rail's "admin only" copy stays true of what
+   * is actually on screen. It is **not** a security boundary: `lightbridge-authz` enforces
+   * `apikey:delete` server-side regardless of what this flag renders.
+   *
+   * It was `isAdmin` until converse-frontends#452, fed from a session flag that was really
+   * `roles.includes('lightbridge-admin')` — a role production minted for everyone, so the gate
+   * never actually hid anything. The console now names the permission the mutation needs and reads
+   * the backend's own answer for it (`getMyAccess`).
    */
-  isAdmin: boolean;
+  canDelete: boolean;
   /** Opens the `TypedConfirmDialog` for this row, gating Delete exactly like Revoke. */
   onRequestDelete: (row: ApiKeyRow) => void;
   deleteTarget?: ApiKeysDeleteTarget | null;

@@ -69,7 +69,15 @@ jobs:
       # overrides the root task's `dist/**` outputs with `.next/**` (excluding `.next/cache/**`)
       # for this package specifically, so Turbo caches and restores the standalone bundle
       # correctly; verified locally with two consecutive runs (second one reports `>>> FULL TURBO`).
+      # `NEXT_PUBLIC_BUILD_SHA` is INLINED by `next build`, so it must be set here rather than at
+      # image-build time (lightbridge-authz#573) — it is what `/settings/info`'s Platform card
+      # reports as the console's own commit. `apps/console/turbo.json` lists it in this task's
+      # `env`, which is not optional: without it the variable is outside Turbo's hash and a cache
+      # hit would happily serve a bundle stamped with some earlier commit's SHA — a diagnostics
+      # screen confidently reporting the wrong build is worse than one reporting none.
       - name: Build console (Turbo)
+        env:
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
         run: pnpm turbo run build:web --filter=console
 
       # `next.config.mjs` no longer has an `outputFileTracingIncludes` block for the CBOR codec
@@ -104,15 +112,42 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           LABELS: ${{ steps.meta.outputs.labels }}
+          # The IMAGE half of the build stamp (lightbridge-authz#573). The bundle already carries
+          # the commit it was compiled from; these describe the container, which did not exist
+          # when `next build` ran. `IMAGE_BUILD_SHA` is the commit this image build ran at, NOT
+          # the pushed digest — a digest cannot be baked into the artifact it identifies.
+          #
+          # Neither `IMAGE_REF` nor `IMAGE_TAG` is constructed here: both are read out of `$TAGS`
+          # below, because `docker/metadata-action`'s `type=sha` produces the SHORT form
+          # (`sha-52c0522`) and lowercases the owner, and a hand-built `:sha-${{ github.sha }}`
+          # against `${{ env.IMAGE_NAME }}` produced neither — it named a tag that does not exist,
+          # on a mixed-case path GHCR does not serve. `/settings/info` prints these strings
+          # verbatim, so an unpullable reference there is exactly the fabrication that screen
+          # exists to avoid.
+          IMAGE_BUILD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           label_args=(); while IFS= read -r l; do [ -n "$l" ] && label_args+=(--label "$l"); done <<<"$LABELS"
           tag_args=();   while IFS= read -r t; do [ -n "$t" ] && tag_args+=(-t "$t");      done <<<"$TAGS"
+          # The immutable, actually-pushed `…:sha-<short>` REFERENCE, taken from the tag list
+          # rather than rebuilt from `github.sha` — see the note above. Falls back to the first
+          # entry only if `type=sha` ever disappears from the metadata config.
+          image_ref="$(grep -m1 -- ':sha-' <<<"$TAGS" || true)"
+          [ -n "$image_ref" ] || image_ref="$(head -n1 <<<"$TAGS")"
+          # …and the TAG alone, split off that same reference so the two can never name different
+          # builds. `##*:` is safe against a registry port (`localhost:5000/x:tag`) because the
+          # tag is always last; the metadata action never emits a digest reference here.
+          image_tag="${image_ref##*:}"
+          echo "build stamp: IMAGE_TAG=${image_tag} IMAGE_REF=${image_ref}"
           # No --layers / --cache-from / --cache-to: the Docker build is deliberately
           # uncached (caching lives in Turbo). Single amd64 platform. Build context is the
           # repo root (not apps/console/) — the standalone bundle's node_modules is hoisted to
           # the pnpm workspace root, so apps/console/Dockerfile needs the whole tree visible.
           buildah build --format docker --platform linux/amd64 \
+            --build-arg "IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA}" \
+            --build-arg "IMAGE_TAG=${image_tag}" \
+            --build-arg "IMAGE_REF=${image_ref}" \
+            --build-arg "IMAGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -f apps/console/Dockerfile "${label_args[@]}" "${tag_args[@]}" .
           # Export the first tag as a tarball so Trivy can scan it daemonless.
           primary="$(head -n1 <<<"$TAGS")"

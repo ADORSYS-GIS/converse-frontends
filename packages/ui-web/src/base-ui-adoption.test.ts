@@ -58,7 +58,7 @@ describe('Base UI adoption', () => {
     expect(
       row.verdict,
       `${row.component} should be built on @base-ui/react/${row.expected} but imports ` +
-        `${row.imports.length ? row.imports.join(', ') : 'no Base UI at all'}.`,
+        `${row.imports.length ? row.imports.join(', ') : 'no Base UI at all'}.`
     ).toBe('ok');
   });
 
@@ -66,7 +66,7 @@ describe('Base UI adoption', () => {
     const open = rows.filter((r) => r.verdict === 'gap').map((r) => r.component);
     for (const closed of open) {
       expect(KNOWN_GAPS.has(closed), `${closed} regressed: it is a gap but not in KNOWN_GAPS`).toBe(
-        true,
+        true
       );
     }
   });

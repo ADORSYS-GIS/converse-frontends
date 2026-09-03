@@ -30,6 +30,9 @@ interface AdminScreenProps {
   loading?: boolean;
   error?: string;
   initialSelectedId?: string | null;
+  /** converse-frontends#444 — the degraded requester-resolution line the real container passes
+   *  when the `resolveUserProfiles` batch fails while the queue itself loaded fine. */
+  requesterStatus?: string;
 }
 
 // The composition `apps/console`'s `(console)` layout + `/admin` route perform for real.
@@ -38,6 +41,7 @@ function AdminBudgetReviewScreen({
   loading = false,
   error,
   initialSelectedId = null,
+  requesterStatus,
 }: AdminScreenProps) {
   const [sort, setSort] = useState<LedgerSort>({ key: 'submitted', direction: 'asc' });
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
@@ -64,11 +68,12 @@ function AdminBudgetReviewScreen({
   const rail = selected ? (
     <div className="flex flex-col gap-4 p-5">
       <div>
-        <div className="font-sans text-[15px] font-medium text-ink">{selected.project}</div>
+        <div className="text-ink font-sans text-[15px] font-medium">{selected.project}</div>
         <div className="text-subtle font-sans text-[12px]">{selected.account}</div>
       </div>
       <ReviewDetailPanel
         key={selected.id}
+        requester={selected.requester}
         projectLabel={selected.project}
         accountLabel={selected.account}
         submittedAt={selected.submittedAgo}
@@ -83,7 +88,7 @@ function AdminBudgetReviewScreen({
 
   return (
     <ConsoleShell
-      sidebar={storySidebar('admin', { isAdmin: true })}
+      sidebar={storySidebar('admin', { showAdmin: true })}
       topBar={storyTopBar()}
       rail={rail}
       railWidth={280}
@@ -106,6 +111,7 @@ function AdminBudgetReviewScreen({
             onSortChange={setSort}
             selectedRequestId={selectedId}
             onSelectRequest={(row) => setSelectedId(row.id)}
+            requesterStatus={requesterStatus}
           />
         </Card>
       </div>
@@ -122,6 +128,7 @@ function AdminBudgetReviewScreen({
         {selected ? (
           <ReviewDetailPanel
             key={selected.id}
+            requester={selected.requester}
             projectLabel={selected.project}
             accountLabel={selected.account}
             submittedAt={selected.submittedAgo}
@@ -158,6 +165,29 @@ export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
   globals: { theme: 'wireframe' },
+};
+
+// converse-frontends#444: the whole page with the Requester column populated — the fixture mixes
+// a resolved identity with an email, one without, a pre-migration NULL and an unresolved id, which
+// is exactly the mix a real queue shows. This is the screenshot the story's PR evidence uses.
+export const PopulatedWithRequesters: Story = {
+  name: 'Populated — requesters (resolved · unknown · unresolved)',
+  render: () => <AdminBudgetReviewScreen initialSelectedId="gateway-prod" />,
+};
+
+// The degraded path at page level: names could not be resolved, the queue still lists and still
+// decides, and the reason sits above the table as a status line rather than replacing it.
+export const RequesterResolutionFailed: Story = {
+  name: 'Requester resolution failed (degraded, not blocking)',
+  render: () => (
+    <AdminBudgetReviewScreen
+      pending={pendingRequestsFixture.map((row, index) => ({
+        ...row,
+        requester: { kind: 'unresolved', userId: `usr_k3m9x1qp0z7${index}` },
+      }))}
+      requesterStatus="Requester names could not be resolved — showing the raw user id instead."
+    />
+  ),
 };
 
 // A different request selected — confirms the sheet retargets per row.

@@ -29,9 +29,16 @@ describe('AuthScreen', () => {
   });
 
   it('renders the signed-out status line above the button, not a modal or toast', () => {
-    render(<AuthScreen onSignIn={() => {}} signedOutMessage="Your session ended · signed out 2 minutes ago" />);
+    render(
+      <AuthScreen
+        onSignIn={() => {}}
+        signedOutMessage="Your session ended · signed out 2 minutes ago"
+      />
+    );
 
-    expect(screen.getByRole('status')).toHaveTextContent('Your session ended · signed out 2 minutes ago');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Your session ended · signed out 2 minutes ago'
+    );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -51,7 +58,7 @@ describe('AuthScreen', () => {
         status="error"
         errorMessage="adorsys-gis declined the sign-in request."
         onRetry={onRetry}
-      />,
+      />
     );
 
     const alert = screen.getByRole('alert');

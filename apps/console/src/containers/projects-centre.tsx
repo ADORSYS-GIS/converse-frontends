@@ -50,7 +50,9 @@ import { useProjectsScreen } from './use-projects-screen';
  */
 export function ProjectsCentre() {
   const screen = useProjectsScreen(<ManageScopeSlot />);
-  const subtitle = screen.scopeLabel ? `${screen.scopeLabel} · browse and filter projects` : undefined;
+  const subtitle = screen.scopeLabel
+    ? `${screen.scopeLabel} · browse and filter projects`
+    : undefined;
   const createProject = useOpenCreateProjectDialog();
   const rename = useProjectRename(screen.selectedProject);
   const [entry, setEntry] = useProjectsEntryParams();
@@ -139,7 +141,11 @@ export function ProjectsCentre() {
           if (!open) screen.clearSelection();
         }}
         title={screen.selectedProject?.name ?? ''}
-        subtitle={screen.selectedProject ? `${screen.selectedProject.account} · ${screen.selectedProject.statusLabel}` : undefined}
+        subtitle={
+          screen.selectedProject
+            ? `${screen.selectedProject.account} · ${screen.selectedProject.statusLabel}`
+            : undefined
+        }
         headerAction={
           <Button type="button" variant="secondary" size="sm" onClick={rename.open}>
             Rename

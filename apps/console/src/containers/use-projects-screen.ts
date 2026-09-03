@@ -252,9 +252,10 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
    * every `format === 'pdf'` press — an honest refusal, but the defect was never the message: the
    * UI offered PDF as a peer of CSV (the `ReportExportPanel` format toggle, taken from Coinbase's
    * download-report pattern in `docs/design/console-redesign/README.md` §1.2) and then refused
-   * every second choice. The route now renders the same project × model report as a paginated PDF
-   * server-side (`server/consumption-pdf.ts`), so `format` is passed straight through instead of
-   * being intercepted here.
+   * every second choice. The route now renders the same project × model report as a PDF
+   * server-side — since converse-frontends#453, through the `typst-render` sidecar and
+   * `templates/reports/consumption/report.typ` (`server/reports/consumption-report.ts`) — so
+   * `format` is passed straight through instead of being intercepted here.
    */
   const reportAction = useSharedMutation<ReportExportParams, void>({
     mutationKey: REPORT_MUTATION_KEY,
@@ -262,8 +263,13 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
       if (!scope.value.accountId) {
         throw new Error('Select an account before generating a report.');
       }
+      // `period` is OPTIONAL on `ReportExportParams` since converse-frontends#453 (a dashboard-page
+      // export has no month to pick). This dialog always renders the month picker, so the fallback
+      // is a type guard, not a real branch — and it falls back to the SAME value the picker is
+      // bound to, so it can never query a month other than the shown one.
+      const month = params.period ?? view.period;
       const query = new URLSearchParams({
-        month: params.period,
+        month,
         account: scope.value.accountId,
         format: params.format,
       });
@@ -284,7 +290,7 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
       const blob = await response.blob();
       const filename =
         filenameFromContentDisposition(response.headers.get('content-disposition')) ??
-        `consumption-${params.period}.${params.format}`;
+        `consumption-${month}.${params.format}`;
       downloadBlob(blob, filename);
     },
   });

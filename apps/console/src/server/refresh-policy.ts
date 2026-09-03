@@ -88,14 +88,24 @@ export function shouldRefreshReactively({
  * de-dup/cooldown maps, and a refresh continues the same login rather than starting a new one.
  * A rotated refresh token replaces the old one; Keycloak omitting one means "keep using the
  * current one", the same fallback `refreshAccessToken()` makes today.
+ *
+ * `access` is `refreshSession`'s freshly re-asked `getMyAccess` answer (converse-frontends#452).
+ * It REPLACES the stored roles and permissions wholesale rather than merging: a revoked grant is
+ * expressed as an absence, and merging would keep the removed permission alive forever. Omitting
+ * the argument keeps the previous user record untouched — the shape a caller that only rotated
+ * tokens (nothing does today) would want.
  */
 export function rotateSession(
   session: ConsoleSession,
   tokens: SessionTokens,
-  roles?: string[]
+  access?: { userId: string; roles: string[]; permissions: string[]; accessVerified: boolean }
 ): ConsoleSession {
   return {
     sid: session.sid,
+    // Preserved for the same reason `sid` is, and with more teeth: `startedAt` is what
+    // `session.absoluteMaxAgeSeconds` is measured from, so re-stamping it here would let a session
+    // slide forever on refreshes alone and quietly delete the absolute cap (ADR 0016, D3.1).
+    startedAt: session.startedAt,
     tokens: {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken ?? session.tokens.refreshToken,
@@ -103,7 +113,18 @@ export function rotateSession(
       expiresAt: tokens.expiresAt,
       audience: tokens.audience,
     },
-    user: roles ? { ...session.user, roles } : session.user,
+    user: access
+      ? {
+          ...session.user,
+          // `userId` only when the call actually answered: the fail-closed snapshot carries an
+          // empty string, and overwriting a known person id with it would lose a fact the refresh
+          // did not disprove — `sub` never changes across a refresh, so neither does the person.
+          platformUserId: access.accessVerified ? access.userId : session.user.platformUserId,
+          roles: access.roles,
+          permissions: access.permissions,
+          accessVerified: access.accessVerified,
+        }
+      : session.user,
   };
 }
 

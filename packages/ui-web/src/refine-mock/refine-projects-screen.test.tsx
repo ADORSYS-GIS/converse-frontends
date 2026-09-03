@@ -11,7 +11,7 @@ describe('RefineProjectsScreen', () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineProjectsScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     // Loading: only the header row renders (LedgerTable's loading state has no `role="row"` data
@@ -19,7 +19,9 @@ describe('RefineProjectsScreen', () => {
     expect(screen.queryByText('gateway-prod')).not.toBeInTheDocument();
     expect(screen.getAllByRole('row')).toHaveLength(1);
 
-    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
     expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
   });
 
@@ -27,7 +29,7 @@ describe('RefineProjectsScreen', () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20] }}>
         <RefineProjectsScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());
@@ -42,21 +44,31 @@ describe('RefineProjectsScreen', () => {
 
   it('adapts a getList failure into the Projects sections’ error props (ErrorLine + Retry)', async () => {
     render(
-      <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { projects: 'Failed to load projects for this account.' } }}>
+      <RefineMockRoot
+        providerConfig={{
+          latencyMs: [10, 20],
+          errorResources: { projects: 'Failed to load projects for this account.' },
+        }}>
         <RefineProjectsScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Failed to load projects for this account.'), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () =>
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'Failed to load projects for this account.'
+        ),
+      {
+        timeout: 3000,
+      }
+    );
   });
 
   it('sorts the ledger by Name when the column header is pressed', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [10, 20] }}>
         <RefineProjectsScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());

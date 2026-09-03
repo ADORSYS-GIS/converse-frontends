@@ -3,6 +3,7 @@
 ## Configuration Status
 
 ### ✅ Core Files Verified
+
 - [x] `.npmrc` - Simple config with `node-linker=hoisted`
 - [x] `metro.config.js` - Symlink support enabled
 - [x] `babel.config.js` - Correct jsxImportSource for NativeWind v4
@@ -10,11 +11,13 @@
 - [x] `packages/i18n/src/index.ts` - Re-exports useTranslation
 
 ### ✅ Import Hygiene
+
 - [x] No direct imports from `react-i18next` in app code
 - [x] No direct imports from `react-i18next` in hooks package
 - [x] All imports use workspace packages (`@lightbridge/*`)
 
 ### ✅ Dependencies
+
 - [x] No peer dependency conflicts (`pnpm peers check` passes)
 - [x] All required Babel plugins installed
 - [x] NativeWind v4 properly configured

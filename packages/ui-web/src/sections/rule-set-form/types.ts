@@ -31,7 +31,8 @@ export type ComparisonOperator = 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
 
 /** `Effect` (`decision.rs`), verbatim — the snake_case wire value both `Rule.effect` and
  *  `RuleSet.default_effect` carry. */
-export type RuleEffect = 'auto_approve' | 'auto_approve_capped' | 'manual_review' | 'deny' | 'no_action';
+export type RuleEffect =
+  'auto_approve' | 'auto_approve_capped' | 'manual_review' | 'deny' | 'no_action';
 
 /** One `Condition::Threshold` — always typed as USD text for a money field, a plain integer text
  *  for the grant-count field; `rule-set-serialize.ts` decides which conversion applies from

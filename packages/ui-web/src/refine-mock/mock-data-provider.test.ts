@@ -17,8 +17,14 @@ describe('createMockDataProvider', () => {
 
     it('paginates when a pagination mode other than "off" is given', async () => {
       const provider = createMockDataProvider(FAST);
-      const page1 = await provider.getList({ resource: 'projects', pagination: { currentPage: 1, pageSize: 5 } });
-      const page2 = await provider.getList({ resource: 'projects', pagination: { currentPage: 2, pageSize: 5 } });
+      const page1 = await provider.getList({
+        resource: 'projects',
+        pagination: { currentPage: 1, pageSize: 5 },
+      });
+      const page2 = await provider.getList({
+        resource: 'projects',
+        pagination: { currentPage: 2, pageSize: 5 },
+      });
 
       expect(page1.data).toHaveLength(5);
       expect(page2.data).toHaveLength(5);
@@ -72,7 +78,9 @@ describe('createMockDataProvider', () => {
 
     it('throws for an unknown id', async () => {
       const provider = createMockDataProvider(FAST);
-      await expect(provider.getOne({ resource: 'api-keys', id: 'does-not-exist' })).rejects.toThrow();
+      await expect(
+        provider.getOne({ resource: 'api-keys', id: 'does-not-exist' })
+      ).rejects.toThrow();
     });
   });
 
@@ -81,7 +89,12 @@ describe('createMockDataProvider', () => {
       const provider = createMockDataProvider(FAST);
       const { data: created } = await provider.create({
         resource: 'api-keys',
-        variables: { name: 'new-key', prefix: 'lb_live_zzzz…', status: 'active', statusLabel: 'active' },
+        variables: {
+          name: 'new-key',
+          prefix: 'lb_live_zzzz…',
+          status: 'active',
+          statusLabel: 'active',
+        },
       });
       expect(created.id).toBeDefined();
 

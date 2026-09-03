@@ -64,7 +64,19 @@ export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
 
 // ── data display
-export { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './lib/money';
+export {
+  USD_DISPLAY_FLOOR,
+  formatUsd,
+  formatUsdAxis,
+  formatUsdOf,
+  getMoneyLocale,
+  setMoneyLocale,
+} from './lib/money';
+export type { MoneyLocale } from './lib/money';
+// ADR 0017 — the ui-web copy contract. English defaults; a consumer with an i18n runtime mounts
+// `CopyProvider` to override them.
+export { CopyProvider, DEFAULT_UI_COPY, fillCopy, useCopy } from './lib/copy';
+export type { UiCopy } from './lib/copy';
 export { formatMs, formatMsAxis } from './lib/duration';
 export { dollarsToMicros, microsToDollars, parseNonNegativeInt } from './lib/parse-amount';
 export { StatCard } from './components/stat-card';
@@ -110,6 +122,11 @@ export { HistogramChart } from './components/histogram-chart';
 export type { HistogramChartProps } from './components/histogram-chart';
 export { ShareBar } from './components/share-bar';
 export type { ShareBarProps, ShareBarSegment } from './components/share-bar';
+// The RING (converse-frontends#446 — owner ruling 2026-09-02 amending ADR 0013 D5: rings allowed,
+// filled disks never). It stands BESIDE `ShareBar`, which keeps the one part-to-whole job it was
+// given on 2026-08-29, rather than replacing it.
+export { DonutChart } from './components/donut-chart';
+export type { DonutChartProps, DonutSegment } from './components/donut-chart';
 export { MultiSeriesSpendChart } from './components/multi-series-spend-chart';
 export type {
   MultiSeriesSpendChartProps,
@@ -117,6 +134,11 @@ export type {
   MultiSeriesSpendScale,
   MultiSeriesSpendSeries,
 } from './components/multi-series-spend-chart';
+// Daily spend × model as a stack — the ONE mark ADR 0013/0015 D5's stacked-bar ban is lifted for
+// (owner ruling 2026-09-03). The 95%-top-1 caveat travels with it as a caption; see the
+// component's own doc comment.
+export { StackedBarChart, stackedBarCaption } from './components/stacked-bar-chart';
+export type { StackedBarChartProps, StackedBarSeries } from './components/stacked-bar-chart';
 
 // ── forms & actions
 export { Button } from './components/button';
@@ -157,6 +179,12 @@ export type { SecretRevealProps } from './components/secret-reveal';
 export { TypedConfirmDialog } from './components/typed-confirm-dialog';
 export type { TypedConfirmDialogProps } from './components/typed-confirm-dialog';
 
+// The light sibling of the gate above — a plain yes/no confirmation for discarding unsaved local
+// work (e.g. "Start from example policy" overwriting a draft). See its own `types.ts` for the rule
+// on which of the two a destructive action deserves.
+export { ConfirmDialog } from './components/confirm-dialog';
+export type { ConfirmDialogProps } from './components/confirm-dialog';
+
 export { ReportExportPanel } from './components/report-export-panel';
 export type {
   ReportExportPanelProps,
@@ -167,6 +195,27 @@ export type {
 
 export { ReportExportDialog } from './components/report-export-dialog';
 export type { ReportExportDialogProps } from './components/report-export-dialog';
+
+// The refill requester union + its labelled sentinels — shared by the review queue's Requester
+// column and `ReviewDetailPanel`'s header block (converse-frontends#444).
+export {
+  REQUESTER_RESOLVING_LABEL,
+  REQUESTER_UNKNOWN_LABEL,
+  REQUESTER_UNRESOLVED_LABEL,
+  requesterDisplay,
+} from './lib/refill-requester';
+export type { RefillRequester, RequesterDisplay } from './lib/refill-requester';
+// The two-line renderer both of the above feed (converse-frontends#448), plus the generic PERSON
+// union `/admin/sessions` resolves into it (converse-frontends#450) — same treatment, its own
+// dated "unknown" sentence.
+export {
+  IDENTITY_RESOLVING_LABEL,
+  IDENTITY_UNRESOLVED_LABEL,
+  IdentityLines,
+  identityDisplay,
+} from './lib/identity-lines';
+export type { ConsoleIdentity, IdentityDisplay } from './lib/identity-lines';
+export { RequesterLines } from './lib/requester-lines';
 
 export { ReviewDetailPanel } from './components/review-detail-panel';
 export type { ReviewDetailPanelProps, ReviewDecision } from './components/review-detail-panel';
@@ -251,13 +300,138 @@ export type {
 export { LatencyStatCards } from './sections/latency-stat-cards';
 export type { LatencyStatCardsProps, LatencyStatRow } from './sections/latency-stat-cards';
 
+// ── declarative dashboards (converse-frontends#446, decision D-K)
+// The grid a YAML page lays out in, the panel every board renders through (Card + ZoneHeading +
+// zoom), and the nine-entry renderer registry `apps/console`'s `dashboard-renderer.tsx` drives.
+export { DashboardGrid } from './sections/dashboard-grid';
+export type { DashboardGridProps } from './sections/dashboard-grid';
+export { DashboardPanel } from './sections/dashboard-panel';
+export type {
+  DashboardPanelBodyContext,
+  DashboardPanelProps,
+  DashboardPanelSize,
+} from './sections/dashboard-panel';
+export {
+  DASHBOARD_PANEL_TYPES,
+  PANEL_CHART_FALLBACK_WIDTH,
+  PANEL_CHART_HEIGHT,
+  PANEL_TABLE_PAGE_SIZE,
+  PANEL_TOP_N,
+  panelActionRenderers,
+  panelRenderers,
+  renderPanelActions,
+  renderPanelBody,
+} from './sections/dashboard-panels';
+export type {
+  DashboardPanelType,
+  DashboardPanelView,
+  DashboardTableColumn,
+  DashboardTableRow,
+  PanelRenderer,
+  PanelRendererProps,
+  PanelViewOf,
+} from './sections/dashboard-panels';
+export { usePanelHotkey } from './lib/use-panel-hotkey';
+
 export { BudgetPanel } from './sections/budget-panel';
 export type {
   BudgetNeedsAttentionProject,
+  BudgetNextReset,
+  BudgetSinceReset,
   BudgetPanelProps,
   BudgetRefillRequestStatus,
   BudgetSummary,
 } from './sections/budget-panel';
+
+// ── budget reset schedules (converse-frontends#451, story C8; backend ADR-0032) ─────────────
+// The shared vocabulary first: `/admin/budget-schedules`' ledger, the form's own copy, the account
+// Budget card and `/admin/overview`'s budget-pressure rows all render the same six wire fields, and
+// a second wording of "Reset remaining to $2.00 every day at 00:00 UTC" anywhere would be a second
+// claim about what the scheduler does.
+export {
+  datetimeLocalUtcToIso,
+  DAY_OF_MONTH_OPTIONS,
+  FORCED_WINDOW_MARKER,
+  formatUtcInstant,
+  isoToDatetimeLocalUtc,
+  isOnResetScheduleGrid,
+  MAX_DAY_OF_MONTH,
+  MIN_DAY_OF_MONTH,
+  NO_RESET_SCHEDULED_LINE,
+  RESET_SCHEDULE_CADENCES,
+  RESET_SCHEDULE_ENFORCEMENT_CAPTION,
+  RESET_SCHEDULE_MODES,
+  RESET_SCHEDULE_SCOPE_KINDS,
+  isResetScheduleCadence,
+  isResetScheduleMode,
+  isResetScheduleScopeKind,
+  relativeWhen,
+  resetScheduleCadenceSentence,
+  resetScheduleModePhrase,
+  resetScheduleModeWord,
+  resetScheduleNextRunCell,
+  resetScheduleNextRunLabel,
+  resetScheduleScopeSentence,
+  WEEKDAY_OPTIONS,
+} from './lib/reset-schedule';
+export type {
+  ResetScheduleCadence,
+  ResetScheduleFacts,
+  ResetScheduleGrid,
+  ResetScheduleMode,
+  ResetScheduleNextRun,
+  ResetScheduleScope,
+  ResetScheduleScopeKind,
+} from './lib/reset-schedule';
+
+// Integer-minor-unit money, for the string-carried i64 `amountMicros` the schedule RPCs use. Not a
+// fork of `parse-amount.ts` — that one converts to the NUMBER-shaped amounts the rule-data JSON
+// carries; this one converts to the STRING-shaped ones. See `lib/micro-usd.ts`'s own header.
+export {
+  MICRO_USD_DECIMALS,
+  MICROS_PER_USD,
+  microsToUsdInput,
+  microsToUsdNumber,
+  usdToMicros,
+} from './lib/micro-usd';
+
+export { BudgetScheduleForm } from './sections/budget-schedule-form';
+export {
+  anchorFieldExample,
+  anchorRange,
+  BUDGET_SCHEDULE_FIELD_EXAMPLES,
+  budgetScheduleFieldExample,
+  budgetScheduleUnknownFields,
+  cadenceUsesAnchor,
+  createBlankBudgetSchedule,
+  CREATED_DISABLED_NOTICE,
+  currentNextRunExample,
+  DEFAULT_RUN_AT_UTC,
+  ENABLED_EXPLANATION,
+  fromStoredBudgetSchedule,
+  MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
+  scopeKindUsesScopeId,
+  toBudgetScheduleWire,
+  validateBudgetSchedule,
+} from './sections/budget-schedule-form';
+export type {
+  BillingPlanChoice,
+  BudgetScheduleFieldName,
+  BudgetScheduleFormErrors,
+  BudgetScheduleFormProps,
+  BudgetScheduleFormValue,
+  BudgetScheduleWire,
+  StoredBudgetSchedule,
+} from './sections/budget-schedule-form';
+
+export { BudgetSchedulePreview, PREVIEW_ENTRY_LIMIT } from './sections/budget-schedule-preview';
+export type {
+  BudgetSchedulePreviewEntry,
+  BudgetSchedulePreviewProps,
+  BudgetSchedulePreviewStatus,
+  BudgetScheduleTiming,
+} from './sections/budget-schedule-preview';
 
 // Phase 4 — `/` now renders this section too (admin-only "Budget pressure" card), so it earns its
 // barrel lines: `use-overview-screen.ts`/`use-admin-screen.ts` callers no longer need the
@@ -306,6 +480,50 @@ export type {
   ReviewQueueProps,
 } from './sections/review-queue';
 
+// `/admin/sessions` (converse-frontends#450, story C7) — the estate-wide session ledger, its
+// filter cluster, and the body of the row-detail `BottomSheet` that carries both revoke actions.
+export {
+  DEFAULT_SESSION_PAGE_SIZES,
+  SessionDetailPanel,
+  SessionLedger,
+  SessionLedgerControls,
+} from './sections/session-ledger';
+export type {
+  SessionDetail,
+  SessionDetailPanelProps,
+  SessionKind,
+  SessionKindFilter,
+  SessionLedgerControlsProps,
+  SessionLedgerPagination,
+  SessionLedgerProps,
+  SessionLedgerRow,
+  SessionStatus,
+  SessionStatusFilter,
+} from './sections/session-ledger';
+
+// `/admin/roles` (converse-frontends#452, story C9): the platform-role grant directory and its two
+// mutations. `platform_role_grants` (lightbridge-authz#656) is what decides who holds a platform
+// role, replacing the prod claim mapper that minted `lightbridge-admin` for every signed-in person.
+export {
+  ALL_ROLES,
+  GRANT_AUTHOR_CLI_LABEL,
+  GRANT_MINT_DELAY_NOTE,
+  GrantRoleDialog,
+  PlatformRoleGrants,
+  REVOKE_SELF_WARNING,
+  REVOKE_SESSION_NOTE,
+  RevokeRoleDialog,
+} from './sections/platform-role-grants';
+export type {
+  GrantRoleDialogProps,
+  GrantUserOption,
+  PlatformGrantAuthor,
+  PlatformRoleGrantRow,
+  PlatformRoleGrantsPagination,
+  PlatformRoleGrantsProps,
+  RevokeRoleDialogProps,
+} from './sections/platform-role-grants';
+
 // `/accounts/<id>/refill` (IA v3 phase 3 — refill moved from `RequestRefillDialog` to its own
 // page): the amount-choice form and the caller's own request history, each a standalone Card zone.
 export { RefillRequestForm } from './sections/refill-request-form';
@@ -335,12 +553,18 @@ export type { PolicySimulationResult, PolicySimulatorProps } from './sections/po
 
 export {
   createBlankRuleSet,
+  createExampleRuleSet,
+  EXAMPLE_POLICY_SET_ID,
+  RULE_SET_FIELD_EXAMPLES,
+  ruleSetFieldExample,
   RuleSetForm,
   toRuleDataJson,
   validateRuleSet,
 } from './sections/rule-set-form';
 export type {
   ComparisonOperator,
+  FieldExample,
+  RuleSetFieldName,
   RuleConditionValue,
   RuleEffect,
   RuleErrors,
@@ -383,6 +607,22 @@ export type { RefillPolicyLookupProps } from './sections/refill-policy-lookup';
 export { AuthScreen } from './sections/auth-screen';
 export type { AuthScreenProps, AuthScreenStatus } from './sections/auth-screen';
 
+// `/settings/info`'s "Platform" card (lightbridge-authz#573): the console's own build stamp beside
+// every backend's, so a "the console says X, the server does Y" mismatch has a surface to be seen
+// on. Presentational — the app fetches (`getBuildInfo` over the RPC clients for authz-api/budget,
+// `GET /api/build-info` server-side for authz-idp/usage) and passes typed entries down.
+export {
+  BuildInfoCard,
+  NOT_CONFIGURED_CAPTION,
+  UNKNOWN_BUILD_VALUE,
+} from './sections/build-info-card';
+export type {
+  BuildInfoCardProps,
+  BuildInfoEntry,
+  BuildInfoEntryState,
+  BuildInfoFacts,
+} from './sections/build-info-card';
+
 // authz-idp's human plane (lightbridge-authz#478, converse-frontends#409). CSP-SAFE SECTIONS:
 // these render into apps/authz-ui, which authz-idp serves under `default-src 'self'` with no
 // `data:` allowance. They use native elements + token utilities ONLY — never `Button`,
@@ -401,14 +641,11 @@ export type {
 export { AuthErrorPanel } from './sections/auth-error-panel';
 export type { AuthErrorPanelProps } from './sections/auth-error-panel';
 
-// The operator overview's own "who is drawing the most" ledger (admin-overview design batch,
-// dashboard 3) — accounts and projects on one ranking.
-export { TopSpendersLedger } from './sections/top-spenders-ledger';
-export type {
-  TopSpenderRow,
-  TopSpenderScope,
-  TopSpendersLedgerProps,
-} from './sections/top-spenders-ledger';
+// `TopSpendersLedger` lived here until 2026-09-02 (converse-frontends#447, story C4). Its one
+// consumer, `/admin/overview`'s dashboard 3, is a `dashboards.yaml` `table` panel now — two of
+// them, split by what a row IS, so an account row and a project row can link to their own actor
+// pages. That section was a static ranking with no links and no onClick at all, which is the
+// defect the migration set out to fix, so it was deleted rather than left standing unused.
 
 // ── toolbar sections
 // Shell revamp phase 3 (right rail out) put every screen's PARAMETERS — range/bucket/group-by,

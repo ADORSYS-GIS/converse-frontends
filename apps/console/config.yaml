@@ -16,9 +16,36 @@
 session:
   # Cookie-session JWE key material (A256GCM via an HKDF of this value). At least 32 characters.
   # ALWAYS a placeholder, never a literal, even in dev — it's a secret regardless of how low-stakes
-  # the local value is. Deploy-time secret: rotating it invalidates every live session. Generate
-  # with: openssl rand -base64 48
+  # the local value is. Generate with: openssl rand -base64 48
+  #
+  # Accepts a STRING (this form) or a LIST, newest first — that is the rotation mechanism
+  # (ADR 0016, D3.2). New seals always use the first entry; every entry is tried on open, so a
+  # session sealed under the outgoing secret keeps working while the rotation rolls out:
+  #
+  #   secret:
+  #     - '{env:SESSION_SECRET}'           # seals; tried first
+  #     - '{env:SESSION_SECRET_PREVIOUS}'  # only opens; drop once nobody is on it
+  #
+  # A list entry whose variable is unset is dropped, so the two-line form above is safe to leave
+  # in a document permanently. The full procedure (add → deploy → promote → deploy → drop) is in
+  # docs/knowledge/console-configuration.md, "Rotating `session.secret`".
   secret: '{env:SESSION_SECRET}'
+
+  # Sliding session lifetime, seconds. Stamped BOTH as the seal's JWE `exp` (server-enforced, with
+  # 30s clock tolerance) and as the cookie's `Max-Age`, so the two can never disagree — before
+  # ADR 0016 the seal had no `exp` at all and a 30-day `Max-Age` was the only "expiry", which is
+  # advice to a browser, not a check. Every token refresh re-seals and pushes this out, so an
+  # actively-used session is not logged out mid-work.
+  #
+  # Default when absent: 43200 (12 h). Must be a positive whole number and must not exceed
+  # `absoluteMaxAgeSeconds` — env.ts fails fast at boot on either.
+  maxAgeSeconds: 43200
+
+  # The ceiling the sliding window slides within, seconds, measured from the ORIGINAL login
+  # (`ConsoleSession.startedAt`, carried unchanged through every refresh) — not from the last
+  # refresh. This is what stops a copied cookie from being kept alive indefinitely just by being
+  # used. Default when absent: 604800 (7 days).
+  absoluteMaxAgeSeconds: 604800
 
 # ── IdP (OIDC) ────────────────────────────────────────────────────────────────────────────────
 # The OIDC provider this console authenticates against. Deliberately NOT named `keycloak`: in a
@@ -112,6 +139,48 @@ budgetUrl: 'http://localhost:13005'
 # behind a proxy that rewrites Host — a real deployment's own config.yaml sets this explicitly.
 publicBaseUrl: 'http://localhost:3000'
 
+# ── Report export (converse-frontends#453) ────────────────────────────────────────────────────
+# `GET /api/reports/page` builds a JSON data file plus one SVG per chart panel and POSTs them,
+# with the route's own `.typ` template, to the `typst-render` sidecar (apps/typst-render). The
+# console image carries NO PDF toolchain — no Typst binary, no browser engine — which is an
+# explicit acceptance criterion of that story.
+#
+# THE ENVIRONMENT VARIABLE IS ALSO READ DIRECTLY, not only through the placeholder below (owner
+# feedback 2026-09-03; env.ts `resolveTypstRenderUrl`). This document is the console's own; a real
+# deployment ships ITS OWN config.yaml, and prod's predates this story and carries no `reports:`
+# block — so the placeholder that would have read the variable was never in the parsed document,
+# and a correctly-deployed sidecar was still refused with "PDF export needs the typst-render
+# service". The placeholder lives in a file the deployment owns; the variable lives on a container
+# the chart owns, which is why the fallback is a direct read and not another placeholder.
+#
+# YAML still wins when this key is set, so a document naming a different renderer is never
+# overridden by a stale variable. A deployment values file needs no `reports:` block at all.
+#
+# `{env:TYPST_RENDER_URL}` because the URL is the DEPLOYMENT's to know, not this document's: the
+# Helm chart runs the renderer as a loopback-only sidecar and sets `TYPST_RENDER_URL:
+# http://127.0.0.1:8080` on the console container (charts/converse-console/values.yaml). Locally,
+# `compose.yml`'s `typst-render` service publishes the same port, so the default below is the
+# right one for a dev checkout.
+#
+# UNSET is a real, supported deployment state, not a misconfiguration: `format=csv` and
+# `format=html` keep working and `format=pdf` answers a 502 that SAYS the renderer is not
+# configured. It never falls back to a chartless PDF — the story calls that failure mode out by
+# name.
+#
+# Report BRANDING is not configured here either — the `branding:` block below is the single source
+# for both the console header and the report letterhead. `_lib/report.typ` draws the configured
+# mark left of the title on every report; the LIGHT-background variant prints (`branding.logoLight`
+# when set, else `branding.logo`), because paper is white and `branding.logo` is the dark-theme
+# mark. See docs/knowledge/console-configuration.md, "Report export".
+#
+# Template overrides are NOT configured here. They are read from the `CONSOLE_TEMPLATES_DIR`
+# environment variable (default `/config/console/templates`), which the chart always sets, because
+# it is a mount path the chart alone owns — same reasoning as `CONSOLE_CONFIG` itself. Lookup is
+# per FILE: `${CONSOLE_TEMPLATES_DIR}/<route>/report.typ` wins for that one report, and a route
+# with no override file falls back to the template baked into the image.
+reports:
+  typstRenderUrl: '{env:TYPST_RENDER_URL}'
+
 # ── Branding (runtime white-label, optional) ──────────────────────────────────────────────────
 # Owner design (issue #368, Phase H): "a .branding key inside the config, that will hold .logo: a
 # host absolute path to the logo file... .style: a host absolute path to the css file. This should
@@ -143,10 +212,21 @@ publicBaseUrl: 'http://localhost:3000'
 # `logo`/`logoLight`'s extension decides their response `Content-Type` (`env.ts` fails fast on
 # anything other than `.png`/`.svg`/`.jpg`/`.jpeg`/`.webp` -- an operator typo here is a deploy-time
 # config error, not a request-time 500).
+#
+# THIS BLOCK IS ALSO THE REPORT LETTERHEAD (owner feedback 2026-09-03, "the PDF has no custom
+# logo"). `_lib/report.typ` draws the configured mark left of the title on every exported report,
+# with no template change: the same file is read off disk and shipped with the render job as the
+# asset `branding/logo.<ext>` (a report cannot fetch a URL -- the sidecar has no egress).
+# `logoLight` is what PRINTS, falling back to `logo`: paper is white, `logo` is the dark-theme
+# mark, and a white mark on white paper is an empty rectangle.
+#
+# `name` is the one branding key that needs no volume: a plain string, printed in a report's header
+# when no logo is configured or readable. It carries none of the path validation above.
 # branding:
 #   logo: /tmp/branding/logo.png
 #   logoLight: /tmp/branding/logo-light.png
 #   style: /tmp/branding/override.style
+#   name: adorsys
 
 # ── Permissions (seam only — no engine yet) ───────────────────────────────────────────────────
 # Empty on purpose. This is where a lightbridge-authz-style permission model (see that repo's

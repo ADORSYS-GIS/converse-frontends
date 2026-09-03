@@ -51,6 +51,32 @@ COPY apps/lci/.next/static/ ./apps/lci/.next/static/
 RUN chown -R node:node /app
 USER node
 
+
+# Build stamp (lightbridge-authz#573) — the same ARG -> ENV pair the console and typst-render
+# images carry, promoted so the running process can report the identity of the IMAGE it is inside.
+# Missing here until now, which is why `converse-lci` spans reached Tempo with no
+# `service.version` at all: `@lightbridge/otel`'s `resolveServiceVersion` reads exactly these, and
+# an image that sets none of them has nothing to report.
+#
+# TWO values, not one. `IMAGE_TAG` is the tag ALONE (`sha-5fed3ad`) — short, immutable, resolves
+# to one digest, and the thing argocd-image-updater promotes against; it is what `service.version`
+# carries, because a full registry path is not something anyone can group a Tempo query by.
+# `IMAGE_REF` is the full reference, for the one consumer that wants a pasteable `docker pull`
+# argument. The workflow derives the tag from the reference so the two can never disagree.
+#
+# Empty defaults are load-bearing: an image built without them reports these fields as absent
+# rather than as a fabricated value.
+#
+# Not the image DIGEST, deliberately — a digest cannot be baked into the artifact it identifies.
+ARG IMAGE_BUILD_SHA=""
+ARG IMAGE_TAG=""
+ARG IMAGE_REF=""
+ARG IMAGE_BUILD_TIME=""
+ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
+    IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_REF=${IMAGE_REF} \
+    IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
+
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0

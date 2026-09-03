@@ -13,7 +13,7 @@ import {
   makeTimeScale,
 } from '@lightbridge/chart-core';
 import { cn } from '../../cn';
-import { SPEC_FLOOR, specSeriesColor } from '../../chart-tokens';
+import { SPEC_FLOOR, SPEC_TEXT_MUTED, specSeriesColor } from '../../chart-tokens';
 import { ChartTooltip } from '../chart-tooltip';
 import type { ChartTooltipRow } from '../chart-tooltip';
 import { ChartEmptyMessage } from '../../lib/chart-empty-message';
@@ -46,7 +46,13 @@ const POINT_HIT_RADIUS = 12;
 
 const identityFormatDate = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
 
-function axisCaption(scale: MultiSeriesSpendScale): string | null {
+/**
+ * The honesty caption a non-linear axis carries. Exported (converse-frontends#453) because
+ * `static` mode drops every DOM caption from the chart itself, and the Typst report has to state
+ * the same thing in its own chrome — a log axis in a PDF with no note is exactly as misleading as
+ * one on screen.
+ */
+export function scaleAxisCaption(scale: MultiSeriesSpendScale): string | null {
   if (scale === 'log') {
     return 'Log scale — equal steps are equal ratios, not equal dollars.';
   }
@@ -116,6 +122,8 @@ export function MultiSeriesSpendChart({
   onSelectSeries,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   truncationCaption,
+  summable = true,
+  static: isStatic = false,
   className,
 }: MultiSeriesSpendChartProps) {
   // Click-pinned selection (persists) — same contract as `SpendSeriesChart.onSelectSeries`.
@@ -133,10 +141,7 @@ export function MultiSeriesSpendChart({
   );
   // Rank order — by TRUE total, descending — drives colour and the tooltip's row order at once,
   // so neither can disagree about "which series is #1".
-  const ranked = useMemo(
-    () => [...transformed].sort((a, b) => b.total - a.total),
-    [transformed]
-  );
+  const ranked = useMemo(() => [...transformed].sort((a, b) => b.total - a.total), [transformed]);
   // A series with no spend at all this period plots no line (every scale transform already gaps
   // every one of its buckets in `transformSeries` for `log`/`indexed`; `linear` is the one scale
   // where a genuine all-zero series COULD still draw a flat line at the baseline, and this drops
@@ -242,19 +247,144 @@ export function MultiSeriesSpendChart({
 
   const { setFloating, floatingStyles, getFloatingProps, getReferenceProps } =
     useChartTooltipFloating({
-      open: activeIndex !== null && svgElement !== null,
+      // `static` never opens: a report has no pointer, so the tooltip is inert by construction
+      // rather than by a caller remembering not to hover it (converse-frontends#453 AC-1, "no
+      // Floating UI tooltip attached").
+      open: !isStatic && activeIndex !== null && svgElement !== null,
       anchorElement: svgElement,
       pinnedPoint: activeInput === 'hover' ? null : pinnedPoint,
     });
 
-  const caption = axisCaption(scale);
+  const caption = scaleAxisCaption(scale);
   const summaryCaption = buildSummaryCaption(
     grandTotal,
     series.length,
     noSpend.length,
     formatValue,
-    truncationCaption
+    truncationCaption,
+    summable
   );
+
+  /**
+   * The MARK itself — axes plus one `<g>` per series. Extracted so the interactive board and
+   * `static` mode draw the same picture from the same code: the only thing `static` removes is
+   * the interaction layered ON TOP of this (hit regions, the hover overlay, the tooltip), never
+   * anything that carries data (converse-frontends#453).
+   */
+  const plotBody = (
+    <>
+      <ChartAxisLeft
+        x={MARGIN.left}
+        y1={MARGIN.top}
+        y2={MARGIN.top + plotHeight}
+        gridWidth={plotWidth}
+        ticks={yTicks}
+      />
+      <ChartAxisBottom
+        y={MARGIN.top + plotHeight}
+        x1={MARGIN.left}
+        x2={MARGIN.left + plotWidth}
+        ticks={xTicks}
+      />
+      <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
+        {withSpend.map((s: TransformedSeries, index) => {
+          const selected = s.key === selectedKey;
+          const emphasized = s.key === emphasizedKey;
+          const dim = emphasizedKey !== null && !emphasized && !s.breached;
+          const color = specSeriesColor(index, { selected: emphasized, breached: s.breached });
+          const defined = s.points.filter((p) => Number.isFinite(p.y));
+          const lineGen = d3Line<(typeof s.points)[number]>()
+            .defined((p) => Number.isFinite(p.y))
+            .x((p) => xScale?.(p.x) ?? 0)
+            .y((p) => yScale(p.y))
+            .curve(curveMonotoneX);
+          const areaGen = d3Area<(typeof s.points)[number]>()
+            .defined((p) => Number.isFinite(p.y))
+            .x((p) => xScale?.(p.x) ?? 0)
+            .y0(yScale.range()[0])
+            .y1((p) => yScale(p.y))
+            .curve(curveMonotoneX);
+          const d = lineGen(s.points) ?? undefined;
+          return (
+            <g key={s.key} style={{ opacity: dim ? 0.35 : 1 }}>
+              {selected && defined.length > 1 ? (
+                <path d={areaGen(s.points) ?? undefined} fill={color} fillOpacity={0.1} />
+              ) : null}
+              {defined.length > 1 ? (
+                <path
+                  d={d}
+                  stroke={color}
+                  strokeWidth={2}
+                  // `butt` caps on a dashed line, round on a solid one: round caps on a 5px
+                  // dash close most of the 4px gap and the line reads solid again at panel
+                  // size, which would defeat the only thing the dash is for.
+                  strokeLinecap={s.dashed ? 'butt' : 'round'}
+                  strokeLinejoin="round"
+                  // A comparison overlay is the ONLY dashed line on this chart — see
+                  // `MultiSeriesSpendSeries.dashed`.
+                  strokeDasharray={s.dashed ? '5 4' : undefined}
+                  fill="none"
+                />
+              ) : null}
+              {defined.map((p) => (
+                <circle
+                  key={p.x.toISOString()}
+                  cx={xScale?.(p.x) ?? 0}
+                  cy={yScale(p.y)}
+                  r={defined.length === 1 ? 5 : 3.5}
+                  fill={color}
+                  stroke={SPEC_FLOOR}
+                  strokeWidth={2}
+                />
+              ))}
+            </g>
+          );
+        })}
+      </g>
+    </>
+  );
+
+  // ── `static`: a STANDALONE `<svg>` document, and nothing else ─────────────────────────────
+  // The root is the `<svg>` itself (with `xmlns`, which a file-embedded SVG needs and an inline
+  // one does not), so `renderToStaticMarkup` output can be written straight to `<panel>.svg` and
+  // pulled in by `image()` from a `.typ` template. Everything the wrapper `<div>` carried —
+  // captions, hit regions, the hover overlay, the tooltip portal — is either interaction the
+  // paper cannot use, or content the report states in its own chrome (`scaleAxisCaption` /
+  // `buildSummaryCaption`, both exported for exactly that).
+  if (isStatic) {
+    const empty = series.length === 0 || timestamps.length === 0;
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className={className}>
+        {empty ? (
+          <>
+            <ChartAxisLeft
+              x={MARGIN.left}
+              y1={MARGIN.top}
+              y2={MARGIN.top + plotHeight}
+              ticks={yTicks}
+            />
+            {/* SVG `<text>` rather than `ChartEmptyMessage`'s wrapping `<div>`: there is no DOM
+                to wrap in, and an empty-state sentence is one short line. */}
+            <text
+              x={MARGIN.left + plotWidth / 2}
+              y={MARGIN.top + plotHeight / 2}
+              fontSize={11}
+              fill={SPEC_TEXT_MUTED}
+              textAnchor="middle">
+              {emptyMessage}
+            </text>
+          </>
+        ) : (
+          plotBody
+        )}
+      </svg>
+    );
+  }
 
   if (series.length === 0 || timestamps.length === 0) {
     return (
@@ -267,7 +397,10 @@ export function MultiSeriesSpendChart({
             ticks={yTicks}
           />
         </svg>
-        <ChartEmptyMessage left={MARGIN.left} right={MARGIN.right} top={MARGIN.top + plotHeight / 2}>
+        <ChartEmptyMessage
+          left={MARGIN.left}
+          right={MARGIN.right}
+          top={MARGIN.top + plotHeight / 2}>
           {emptyMessage}
         </ChartEmptyMessage>
       </div>
@@ -279,68 +412,7 @@ export function MultiSeriesSpendChart({
       {caption ? <p className={cn(META_CLASS, 'mb-2')}>{caption}</p> : null}
       <div style={{ width, height, position: 'relative' }}>
         <svg ref={setSvgElement} width={width} height={height}>
-          <ChartAxisLeft
-            x={MARGIN.left}
-            y1={MARGIN.top}
-            y2={MARGIN.top + plotHeight}
-            gridWidth={plotWidth}
-            ticks={yTicks}
-          />
-          <ChartAxisBottom
-            y={MARGIN.top + plotHeight}
-            x1={MARGIN.left}
-            x2={MARGIN.left + plotWidth}
-            ticks={xTicks}
-          />
-          <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-            {withSpend.map((s: TransformedSeries, index) => {
-              const selected = s.key === selectedKey;
-              const emphasized = s.key === emphasizedKey;
-              const dim = emphasizedKey !== null && !emphasized && !s.breached;
-              const color = specSeriesColor(index, { selected: emphasized, breached: s.breached });
-              const defined = s.points.filter((p) => Number.isFinite(p.y));
-              const lineGen = d3Line<(typeof s.points)[number]>()
-                .defined((p) => Number.isFinite(p.y))
-                .x((p) => xScale?.(p.x) ?? 0)
-                .y((p) => yScale(p.y))
-                .curve(curveMonotoneX);
-              const areaGen = d3Area<(typeof s.points)[number]>()
-                .defined((p) => Number.isFinite(p.y))
-                .x((p) => xScale?.(p.x) ?? 0)
-                .y0(yScale.range()[0])
-                .y1((p) => yScale(p.y))
-                .curve(curveMonotoneX);
-              const d = lineGen(s.points) ?? undefined;
-              return (
-                <g key={s.key} style={{ opacity: dim ? 0.35 : 1 }}>
-                  {selected && defined.length > 1 ? (
-                    <path d={areaGen(s.points) ?? undefined} fill={color} fillOpacity={0.1} />
-                  ) : null}
-                  {defined.length > 1 ? (
-                    <path
-                      d={d}
-                      stroke={color}
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  ) : null}
-                  {defined.map((p) => (
-                    <circle
-                      key={p.x.toISOString()}
-                      cx={xScale?.(p.x) ?? 0}
-                      cy={yScale(p.y)}
-                      r={defined.length === 1 ? 5 : 3.5}
-                      fill={color}
-                      stroke={SPEC_FLOOR}
-                      strokeWidth={2}
-                    />
-                  ))}
-                </g>
-              );
-            })}
-          </g>
+          {plotBody}
         </svg>
         {timestamps.map((d, index) => {
           const rawX = xScale?.(d) ?? 0;
@@ -442,7 +514,9 @@ export function MultiSeriesSpendChart({
           getFloatingProps={getFloatingProps}
         />
       </div>
-      <p className={cn(META_CLASS, 'mt-2')}>{summaryCaption}</p>
+      {/* Omitted entirely when there is nothing true to say — a non-summable board with no tail
+          and no truncation has no summary, and an empty line would reserve space for one. */}
+      {summaryCaption ? <p className={cn(META_CLASS, 'mt-2')}>{summaryCaption}</p> : null}
     </div>
   );
 }

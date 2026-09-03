@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import * as overviewScreenModule from './use-overview-screen';
+import * as overviewZonesModule from './use-account-overview-zones';
 import * as projectsScreenModule from './use-projects-screen';
 
 /**
@@ -31,6 +31,12 @@ import * as projectsScreenModule from './use-projects-screen';
  * Overview EXPORT control it captioned is deleted outright rather than left permanently disabled;
  * export gets wired for real in phase 4, at which point it becomes a live `PageHeader.action`
  * with no disabled-reason caption to test at all.
+ *
+ * The Overview subject is `use-account-overview-zones.ts` since C12 (converse-frontends#455):
+ * `use-overview-screen.ts` was deleted when the page moved onto `dashboards.yaml`, and what is
+ * left of it — the budget card, the billing-period stat row and the export dialog — is where any
+ * such caption would now have to live. The assertions are unchanged: this module must not export
+ * a blanket "isn't available" claim about a zone at all.
  */
 describe('placeholder copy (console-ui#326)', () => {
   it('no longer exports a permanent "spend is unwired" message — Spend MTD is a real column now', () => {
@@ -44,7 +50,7 @@ describe('placeholder copy (console-ui#326)', () => {
   });
 
   it('no longer exports an Overview export-unavailable caption — the control is deleted, not disabled', () => {
-    expect('OVERVIEW_EXPORT_UNAVAILABLE_CAPTION' in overviewScreenModule).toBe(false);
+    expect('OVERVIEW_EXPORT_UNAVAILABLE_CAPTION' in overviewZonesModule).toBe(false);
   });
 
   // #304-#307 (Epic 4 Story 4.2), extended by this story to LATENCY: SPEND/SPEND SHARE/BUDGET/
@@ -52,8 +58,8 @@ describe('placeholder copy (console-ui#326)', () => {
   // blanket "isn't available"/"unwired" copy for the Overview screen at all — the panel is
   // honest PER SERIES (`latencyFootnote`) rather than through a permanent blocked-panel message.
   it('no longer exports a blanket latency-unavailable/blocked message', () => {
-    expect('LATENCY_BLOCKED_MESSAGE' in overviewScreenModule).toBe(false);
-    const values: unknown[] = Object.values(overviewScreenModule);
+    expect('LATENCY_BLOCKED_MESSAGE' in overviewZonesModule).toBe(false);
+    const values: unknown[] = Object.values(overviewZonesModule);
     for (const value of values) {
       if (typeof value !== 'string') continue;
       expect(value).not.toMatch(/latency.{0,40}isn'?t available/i);

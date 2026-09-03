@@ -10,6 +10,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReviewDetail
 
   render(
     <ReviewDetailPanel
+      requester={{ kind: 'user', name: 'Maria Okonkwo', email: 'maria@brightline.dev' }}
       projectLabel="gateway-prod"
       accountLabel="adorsys-gis"
       submittedAt="3 days ago"

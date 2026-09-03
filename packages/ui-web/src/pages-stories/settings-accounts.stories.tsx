@@ -47,7 +47,12 @@ const MEMBERS_REASON =
 
 function accountDetailTabs(active: 'overview' | 'projects' | 'request-refill'): SubNavItem[] {
   return [
-    { key: 'overview', label: 'Overview', href: `/settings/accounts/${ACCOUNT_ID}`, active: active === 'overview' },
+    {
+      key: 'overview',
+      label: 'Overview',
+      href: `/settings/accounts/${ACCOUNT_ID}`,
+      active: active === 'overview',
+    },
     {
       key: 'projects',
       label: 'Projects',
@@ -105,7 +110,7 @@ function SettingsAccountsScreen({
   const [accountName, setAccountName] = useState(account?.name ?? '');
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         {screen === 'list' ? (
           <>
@@ -207,7 +212,10 @@ type Story = StoryObj<typeof SettingsAccountsScreen>;
 
 // ── /settings/accounts — the list ────────────────────────────────────────────────────────────
 
-export const List: Story = { name: '/settings/accounts — the account family', render: () => <SettingsAccountsScreen /> };
+export const List: Story = {
+  name: '/settings/accounts — the account family',
+  render: () => <SettingsAccountsScreen />,
+};
 
 export const ListLight: Story = {
   name: '/settings/accounts — wireframe (light)',
@@ -239,9 +247,7 @@ export const ListNoAccounts: Story = {
  *  `?new-account=true` landing produces for a brand-new identity. */
 export const ListNoAccountsDialogOpen: Story = {
   name: '/settings/accounts — none yet, create dialog open',
-  render: () => (
-    <SettingsAccountsScreen accounts={[]} account={null} initialAccountDialogOpen />
-  ),
+  render: () => <SettingsAccountsScreen accounts={[]} account={null} initialAccountDialogOpen />,
 };
 
 /**

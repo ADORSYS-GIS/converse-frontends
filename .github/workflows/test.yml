@@ -34,6 +34,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # apps/typst-render's golden test shells out to the real compiler — a mocked one would
+      # prove nothing about the only thing that service does. Without the binary the suite skips
+      # (loudly), so this step is what stops a PR from regressing the render path unnoticed
+      # between merges to main. The binary is taken from the exact image
+      # apps/typst-render/Dockerfile pins, so CI tests the Typst that actually ships; $HOME/.local
+      # /bin rather than /usr/local/bin because the latter is root-owned on the hosted runner.
+      - name: Install the pinned Typst binary (apps/typst-render)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          container="$(podman create ghcr.io/typst/typst:0.15.1)"
+          podman cp "$container:/bin/typst" "$HOME/.local/bin/typst"
+          podman rm "$container"
+          chmod +x "$HOME/.local/bin/typst"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/typst" --version
+
       - name: Run tests
         run: pnpm test
 

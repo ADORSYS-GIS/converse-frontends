@@ -14,8 +14,9 @@
 ```
 converse-frontends/
 ├── apps/
-│   ├── console/       # Next.js 16 App Router console (server runtime, OIDC, proxy legs)
-│   └── authz-ui/      # Vite static SPA — authz-idp's human plane, served under /ui
+│   ├── console/           # Next.js 16 App Router console (server runtime, OIDC, proxy legs)
+│   ├── authz-ui/          # Vite static SPA — authz-idp's human plane, served under /ui
+│   └── governance-auth/   # Vite static page — loopback OAuth2 callback embedded into lightbridge-governance
 ├── packages/
 │   ├── ui-web/        # Design system + screen sections + the single theme pipeline
 │   ├── chart-core/    # DOM-free chart math consumed by ui-web
@@ -45,13 +46,14 @@ Mechanics and the lockstep version pin: `rpc-and-codegen.md`.
 
 ## Layering
 
-There is no single layering table any more, because the two apps are different kinds of program.
+There is no single layering table any more, because the apps are different kinds of program.
 Each owns its own, and each is documented where it is enforced:
 
-| App             | Shape                                                                                                                                                                                                                                   | Authoritative source                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `apps/console`  | Route (App Router) → container (data/orchestration, refine hooks) → section (presentational, from `ui-web`). Server-only code lives in `src/server/` and never reaches the client bundle                                                | `AGENTS.md` §2, the `console-ui` skill |
-| `apps/authz-ui` | Route component → section (presentational, from `ui-web`). No data layer; native form posts and one cookie-bound fetch. The route set is declared once in `src/routes/route-table.ts` and published to the server as `dist/routes.json` | `apps/authz-ui/README.md`              |
+| App                    | Shape                                                                                                                                                                                                                                   | Authoritative source                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `apps/console`         | Route (App Router) → container (data/orchestration, refine hooks) → section (presentational, from `ui-web`). Server-only code lives in `src/server/` and never reaches the client bundle                                                | `AGENTS.md` §2, the `console-ui` skill |
+| `apps/authz-ui`        | Route component → section (presentational, from `ui-web`). No data layer; native form posts and one cookie-bound fetch. The route set is declared once in `src/routes/route-table.ts` and published to the server as `dist/routes.json` | `apps/authz-ui/README.md`              |
+| `apps/governance-auth` | One page → composed only of `ui-web` sections. No router, no data layer, no i18n. The build emits exactly one self-contained `index.html` that `lightbridge-governance` embeds at compile time                                          | `apps/governance-auth/README.md`       |
 
 What holds for **both**, and is the load-bearing part:
 
@@ -62,6 +64,19 @@ What holds for **both**, and is the load-bearing part:
 - **Full-page compositions exist in exactly two places**: Storybook page stories
   (`packages/ui-web/src/pages-stories/`) and the consuming app's own routes.
 - **The shell mounts once**, in the console's persistent layout. Navigating must not remount it.
+- **A dashboard page is DECLARED, not written** (ADR 0015 D1). The route → container → section
+  layering above is the rule for every screen that is _not_ a dashboard. A usage/spend dashboard is
+  an entry in `apps/console/dashboards.yaml` plus a thin route file: the container holds only what a
+  page owns and a panel cannot (its window, its lens, its URL knobs) and calls
+  `useDashboard(route)`. There are **zero** hand-written dashboard containers left, a ratchet keeps
+  it that way, and adding a panel is adding YAML. Adding a panel _type_ is a renderer plus a
+  Storybook story in `packages/ui-web`, never an inline branch in a page. See
+  `apps/console/README.md` § "Declarative dashboards".
+- **The console never re-derives authorization** (ADR 0015 D4). Gates read the permission set
+  `procedure.getMyAccess` resolved server-side, never a role string off the token claim. There is no
+  role → permission map in the console and no `isAdmin`; a ratchet
+  (`apps/console/src/no-role-derived-gates.test.ts`) fails the build if one returns. See
+  `authorization-and-permissions.md`.
 
 ---
 
@@ -83,20 +98,23 @@ Three rules from it that are repo-wide enough to restate:
    `default-src 'self'; frame-ancestors 'none'` with no `data:` allowance, so daisyUI component
    classes — and every `ui-web` component that renders one — are **banned** there; it uses the
    CSP-safe section set instead. Five gates enforce the CSP rule and a sixth covers the routes
-   contract. See `apps/authz-ui/README.md` and the skill's authz-ui section.
+   contract. See `apps/authz-ui/README.md` and the skill's authz-ui section. (`apps/governance-auth`
+   is the opposite edge of the same spectrum: nothing serves it, so it has **no CSP** and may inline
+   its theme script — see its README.)
 
 ---
 
 ## Internationalisation — read this before adding `t()`
 
-**Neither application uses i18n today.** `packages/i18n` has no importer in `apps/`; every
-user-visible string in both apps is a literal. Older documents in this repo (and `AGENTS.md` §1)
-state a "no plain visible text, all copy through `t('key')`" rule — that rule describes the deleted
-Expo app and is **not** the practice of this codebase.
+**None of the applications uses i18n today.** `packages/i18n` has no importer in `apps/`; every
+user-visible string in the console, `apps/authz-ui`, and `apps/governance-auth` is a literal. Older
+documents in this repo (and `AGENTS.md` §1) state a "no plain visible text, all copy through
+`t('key')`" rule — that rule describes the deleted Expo app and is **not** the practice of this
+codebase.
 
 Do not half-adopt it. Adding `useTranslation` to one component makes the codebase inconsistent
 without making it translatable. If i18n is wanted for the web surface, it needs a deliberate
-decision (an ADR) covering both apps, the key namespace, and who owns the resource files.
+decision (an ADR) covering the apps, the key namespace, and who owns the resource files.
 
 ---
 
@@ -106,11 +124,12 @@ decision (an ADR) covering both apps, the key namespace, and who owns the resour
 no `*.spec.ts` browser suite, no Playwright config or dependency. (Both claims appeared in earlier
 versions of these docs; both were false.)
 
-| Surface         | Runner                                                                | Notes                                                                    |
-| --------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `apps/console`  | Vitest, two projects: `node` (`*.test.ts`) and `jsdom` (`*.test.tsx`) | Both set their own `testTimeout` — a root-level timeout is not inherited |
-| `apps/authz-ui` | Vitest (jsdom)                                                        | Plus three build-time verifier scripts chained into `build:web`          |
-| `packages/*`    | Vitest                                                                | `ui-web` additionally treats Storybook stories as the acceptance surface |
+| Surface                | Runner                                                                | Notes                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `apps/console`         | Vitest, two projects: `node` (`*.test.ts`) and `jsdom` (`*.test.tsx`) | Both set their own `testTimeout` — a root-level timeout is not inherited                                            |
+| `apps/authz-ui`        | Vitest (jsdom)                                                        | Plus three build-time verifier scripts chained into `build:web`                                                     |
+| `apps/governance-auth` | Vitest (jsdom)                                                        | Plus `scripts/verify-single-file.mjs`, which fails the build if the output stops being one self-contained HTML file |
+| `packages/*`           | Vitest                                                                | `ui-web` additionally treats Storybook stories as the acceptance surface                                            |
 
 Conventions:
 
@@ -163,9 +182,10 @@ Separated by blank lines:
 
 Prefer **named exports**. Note that `apps/console` and `apps/authz-ui` import `ui-web` through deep
 subpaths (`@lightbridge/ui-web/src/components/<name>`) as well as the barrel — deliberately, to keep
-the barrel's chart/`cmdk` re-exports out of bundles that never render them. That mapping is
-duplicated in three places per app (`tsconfig` paths, Vite/Next resolution, and the Vitest alias);
-if you add a resolution mode, add it in all three.
+the barrel's chart/`cmdk` re-exports out of bundles that never render them (`apps/governance-auth`
+composes only `ui-web` sections the same way). That mapping is duplicated in three places per app
+(`tsconfig` paths, Vite/Next resolution, and the Vitest alias); if you add a resolution mode, add it
+in all three.
 
 ---
 

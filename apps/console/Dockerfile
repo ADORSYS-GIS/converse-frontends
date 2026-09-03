@@ -99,16 +99,26 @@ COPY apps/console/public/ ./apps/console/public/
 # traced package landed in.
 COPY apps/console/.docker-stage/cratestack-cbor/ ./node_modules/.pnpm/
 
-# `scripts/link-standalone-cratestack.mjs` re-materializes the top-level `node_modules/@cratestack/*`
+# `scripts/link-standalone-scopes.mjs` re-materializes the top-level `node_modules/@cratestack/*`
 # scope symlinks (what Node's resolver actually walks) that the plain COPY above only put the
 # *targets* of into `.pnpm/`, glob-driven off whatever `@cratestack+cbor*` store dirs actually
-# landed above so a cratestack version bump changes nothing here. Passed `/app/node_modules`
-# explicitly: this script's own no-arg default resolves relative to *its own* file location
-# (`.next/standalone/node_modules`, the local post-`next build` layout), which is not this image's
-# layout. Fails the image build hard (non-zero exit) if it links zero packages, so a regression in
-# either this COPY or the upstream store layout is a CI failure, not a silent runtime 500.
-COPY apps/console/scripts/link-standalone-cratestack.mjs ./apps/console/scripts/link-standalone-cratestack.mjs
-RUN node ./apps/console/scripts/link-standalone-cratestack.mjs /app/node_modules
+# landed above so a cratestack version bump changes nothing here. Fails the image build hard
+# (non-zero exit) if it links zero packages, so a regression in either this COPY or the upstream
+# store layout is a CI failure, not a silent runtime 500.
+#
+# ONLY `@cratestack` here, on purpose. The identical treatment for `@opentelemetry`
+# (converse-frontends#443 — the standalone tracer copies those store dirs but no more materializes
+# their scope links than it did cratestack's) already ran on the RUNNER, as the last step of
+# `apps/console`'s `build:web`, because Next's own tracer put those store dirs into the bundle and
+# the links it writes are relative and travel with the `COPY .next/standalone/` above. Cratestack
+# cannot be done there: its store dirs are COPYed in by THIS file, after the bundle, so no
+# build-time run could have seen them.
+#
+# `--root /app/node_modules` explicitly: the standalone COPY already flattened the bundle root onto
+# `/app`, so the image's node_modules is not at the `.next/standalone/node_modules` path the
+# runner-side invocation uses.
+COPY scripts/link-standalone-scopes.mjs ./scripts/link-standalone-scopes.mjs
+RUN node ./scripts/link-standalone-scopes.mjs --root /app/node_modules --scope @cratestack
 
 # Ship the repo's own dev-shaped config.yaml as the image default, so the image is runnable
 # out-of-the-box for a smoke test (`docker run` with no other configuration). This is NOT how a
@@ -117,6 +127,23 @@ RUN node ./apps/console/scripts/link-standalone-cratestack.mjs /app/node_modules
 # literals (a real Keycloak issuer, real backend URLs, ...) ships its own config.yaml and points
 # CONSOLE_CONFIG at it — see charts/converse-frontend, which mounts one via a ConfigMap.
 COPY apps/console/config.yaml ./apps/console/config.yaml
+
+# Report export (converse-frontends#453) — two runtime artifacts the app reads off disk, COPYed
+# explicitly for the same reason config.yaml above is: the standalone tracer DOES currently pick
+# both up (it traces the whole project, because `load-dashboards.ts`/`config-loader.ts` resolve
+# paths against `process.cwd()` — Turbopack warns about exactly that on every build), but that is a
+# side effect of a warning, not a contract. A missing template directory would surface as a 500 on
+# an export; a missing chart bundle as an export that cannot draw. Both are worth two COPY lines.
+#
+#  - `templates/` — the per-route `.typ` report templates plus `_lib/`. Operator overrides mount
+#    OVER these at CONSOLE_TEMPLATES_DIR; lookup is per file, so these stay the fallback.
+#  - `report-charts/` — `scripts/build-report-charts.mjs`'s output: the chart renderer, bundled out
+#    of Next's react-server layer (see `src/server/reports/render-charts.tsx` for why it cannot be
+#    compiled by Next). One dependency-free CJS file, produced by `build:web` on the CI runner
+#    alongside `.next/`. It is NOT a Typst binary or a browser engine — the console image still
+#    carries no PDF toolchain, which is an acceptance criterion of that story.
+COPY apps/console/templates/ ./apps/console/templates/
+COPY apps/console/report-charts/ ./apps/console/report-charts/
 
 # `next build`'s standalone tracer copies apps/console/.env verbatim into the bundle — it's a
 # tracked source file, not a build artifact, and it carries a committed, published, dev-only
@@ -131,6 +158,34 @@ RUN rm -f ./apps/console/.env
 # Non-root: the base image's own built-in `node` user (uid/gid 1000), not root.
 RUN chown -R node:node /app
 USER node
+
+
+# Build stamp (lightbridge-authz#573), promoted from ARG to ENV so the running process can report
+# the identity of the IMAGE it is inside. The bundle already carries the COMMIT it was compiled
+# from (`NEXT_PUBLIC_BUILD_SHA`, inlined by `next build` on the runner); the image does not exist
+# at that point, so its own identity arrives here instead and is read at runtime by
+# `src/server/build-info.ts`'s `consoleBuildFacts`.
+#
+# Empty defaults are load-bearing: an image built without them reports these fields as absent
+# rather than as a fabricated value, and `/settings/info` simply omits the rows.
+#
+# Not the image DIGEST, deliberately — a digest cannot be baked into the artifact it identifies.
+#
+# TWO values, not one. `IMAGE_TAG` carries the immutable `sha-<gitsha>` tag ALONE, which resolves
+# to exactly one digest and is the tag argocd-image-updater promotes against; `IMAGE_REF` carries
+# the full `ghcr.io/…/console:sha-<gitsha>` reference. They were one field until #480's follow-up,
+# which is how the whole reference ended up rendered under a `/settings/info` row labelled "Image"
+# and, worse, stamped onto every span as `service.version` — where a 60-character registry path is
+# not something anyone can group a Tempo query by. The workflow derives the tag FROM the reference,
+# so the two can never name different builds.
+ARG IMAGE_BUILD_SHA=""
+ARG IMAGE_TAG=""
+ARG IMAGE_REF=""
+ARG IMAGE_BUILD_TIME=""
+ENV IMAGE_BUILD_SHA=${IMAGE_BUILD_SHA} \
+    IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_REF=${IMAGE_REF} \
+    IMAGE_BUILD_TIME=${IMAGE_BUILD_TIME}
 
 ENV NODE_ENV=production \
     PORT=3000 \

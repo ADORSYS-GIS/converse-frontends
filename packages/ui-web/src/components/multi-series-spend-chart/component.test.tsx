@@ -1,9 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { SPEC_ACCENT, SPEC_GREY_RAMP } from '../../chart-tokens';
-import { MultiSeriesSpendChart } from './component';
+import { MultiSeriesSpendChart, scaleAxisCaption } from './component';
 import type { MultiSeriesSpendSeries } from './types';
 
 function days(count: number) {
@@ -11,7 +12,12 @@ function days(count: number) {
   return Array.from({ length: count }, (_, i) => new Date(base + i * 86_400_000));
 }
 
-function series(key: string, label: string, values: number[], breached = false): MultiSeriesSpendSeries {
+function series(
+  key: string,
+  label: string,
+  values: number[],
+  breached = false
+): MultiSeriesSpendSeries {
   const d = days(values.length);
   return { key, label, breached, points: values.map((y, i) => ({ x: d[i], y })) };
 }
@@ -30,7 +36,12 @@ describe('MultiSeriesSpendChart', () => {
 
   it('renders a custom empty message when supplied', () => {
     render(
-      <MultiSeriesSpendChart series={[]} width={400} height={200} emptyMessage="Nothing here yet." />
+      <MultiSeriesSpendChart
+        series={[]}
+        width={400}
+        height={200}
+        emptyMessage="Nothing here yet."
+      />
     );
     expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
   });
@@ -147,7 +158,9 @@ describe('MultiSeriesSpendChart', () => {
     it('collapses an all-zero series into the caption instead of a flat line or a row', () => {
       const withZero = [...THREE_SERIES, { key: 'd', label: 'model-d', points: [] }];
       render(<MultiSeriesSpendChart series={withZero} width={400} height={200} />);
-      expect(screen.getByText('1 more · no spend this period', { exact: false })).toBeInTheDocument();
+      expect(
+        screen.getByText('1 more · no spend this period', { exact: false })
+      ).toBeInTheDocument();
       expect(screen.queryByText('model-d')).not.toBeInTheDocument();
     });
 
@@ -262,12 +275,95 @@ describe('MultiSeriesSpendChart', () => {
     expect(tooltipCard()).not.toHaveTextContent('2/1');
   });
 
+  it('strokes only a `dashed` series with a dash array, and gives it butt caps', () => {
+    const { container } = render(
+      <MultiSeriesSpendChart
+        series={[
+          series('current', 'This period', [40, 50, 60]),
+          { ...series('previous', 'Previous period', [30, 35, 45]), dashed: true },
+        ]}
+        width={400}
+        height={200}
+      />
+    );
+    const lines = Array.from(container.querySelectorAll('path[stroke-width="2"]'));
+    expect(lines).toHaveLength(2);
+    expect(lines[0].getAttribute('stroke-dasharray')).toBeNull();
+    expect(lines[0].getAttribute('stroke-linecap')).toBe('round');
+    expect(lines[1].getAttribute('stroke-dasharray')).toBe('5 4');
+    expect(lines[1].getAttribute('stroke-linecap')).toBe('butt');
+  });
+
   it('renders the empty message as wrapping DOM text, never SVG text', () => {
     const longMessage =
       'A message longer than the plot is wide, which must wrap rather than spill off both ends.';
-    render(<MultiSeriesSpendChart series={[]} width={400} height={200} emptyMessage={longMessage} />);
+    render(
+      <MultiSeriesSpendChart series={[]} width={400} height={200} emptyMessage={longMessage} />
+    );
     const node = screen.getByText(longMessage);
     expect(node.tagName).toBe('P');
     expect(node.closest('svg')).toBeNull();
+  });
+});
+
+/**
+ * `static` mode — the export/print contract (converse-frontends#453 AC-1: "the output is valid
+ * standalone SVG with no DOM-API access and no Floating UI tooltip attached").
+ *
+ * Asserted through the SERVER renderer, not through `render()`, because that is where the report
+ * route runs it: `renderToStaticMarkup` fires no effect and touches no `document`, so a component
+ * that only draws once mounted would pass a jsdom test and produce an empty box in the PDF.
+ */
+describe('MultiSeriesSpendChart — static', () => {
+  const markup = () =>
+    renderToStaticMarkup(
+      <MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} static />
+    );
+
+  it('renders an <svg> carrying an xmlns as its ROOT element — a standalone document', () => {
+    const html = markup();
+    expect(html.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
+    expect(html.endsWith('</svg>')).toBe(true);
+  });
+
+  it('draws every series it would draw interactively', () => {
+    const html = markup();
+    // `stroke-linecap="round"` is carried by the series line path and by nothing else here.
+    expect(html.match(/stroke-linecap="round"/g) ?? []).toHaveLength(3);
+    expect(html).toContain('<circle');
+  });
+
+  it('attaches no hit regions, no hover overlay and no tooltip', () => {
+    const html = markup();
+    expect(html).not.toContain('chart-hit-region');
+    expect(html).not.toContain('chart-tooltip-card');
+    expect(html).not.toContain('pointer-events');
+    expect(html).not.toContain('tabindex');
+    // Exactly ONE <svg>: the interactive board renders a second, absolutely-positioned one to
+    // carry the per-line hit targets.
+    expect(html.match(/<svg/g) ?? []).toHaveLength(1);
+  });
+
+  it('states an empty window inside the SVG rather than dropping the mark', () => {
+    const html = renderToStaticMarkup(
+      <MultiSeriesSpendChart series={[]} width={400} height={200} static emptyMessage="No usage." />
+    );
+    expect(html.startsWith('<svg')).toBe(true);
+    expect(html).toContain('No usage.');
+  });
+
+  it('leaves the interactive board untouched when `static` is not set', () => {
+    render(<MultiSeriesSpendChart series={THREE_SERIES} width={400} height={200} />);
+    expect(screen.getByRole('button', { name: '2/1' })).toBeInTheDocument();
+  });
+});
+
+describe('scaleAxisCaption', () => {
+  // The captions `static` drops are CONTENT, not chrome — the report restates them in its own
+  // chrome, so the wording is exported rather than trapped inside the component.
+  it('names the honesty trade-off of each non-linear scale, and nothing for linear', () => {
+    expect(scaleAxisCaption('linear')).toBeNull();
+    expect(scaleAxisCaption('log')).toContain('equal ratios');
+    expect(scaleAxisCaption('indexed')).toContain('shape only');
   });
 });

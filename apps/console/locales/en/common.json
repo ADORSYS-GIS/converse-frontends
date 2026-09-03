@@ -1,0 +1,62 @@
+{
+  "money": {
+    "of": "of"
+  },
+  "actions": {
+    "retry": "Retry",
+    "close": "Close",
+    "rename": "Rename",
+    "expand-panel": "Expand {{title}}",
+    "back-to-usage": "← Usage"
+  },
+  "pagination": {
+    "showing-of-total": "Showing {{shown}} of {{total}} {{unit}}",
+    "per-page": "{{shown}} of {{pageSize}} {{unit}} per page",
+    "count": "{{shown}} {{unit}}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "state": {
+    "loading": "Loading…",
+    "offline": "offline · showing cached data",
+    "panel-failed": "Failed to load this panel.",
+    "access-unverified": "Access could not be verified — retry sign-in",
+    "truncated-buckets": "Showing the most recent {{limit}} time buckets — older buckets in this window were dropped to fit the query limit, so totals here are lower than the true period totals. Narrow the range for a complete reading.",
+    "truncated-table-paging": "Sorting and paging below run over the rows this query returned, not over the whole period: the usage API has no offset, so the pages you can walk here are pages of the truncated reading."
+  },
+  "range": {
+    "label": "Range",
+    "mtd": "This month",
+    "7d": "Last 7 days",
+    "30d": "Last 30 days",
+    "90d": "Last 90 days"
+  },
+  "timezone": {
+    "utc": "UTC"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "dashboard": {
+    "unassigned": "Unassigned",
+    "delta": {
+      "new-this-period": "new this period",
+      "no-change": "no change",
+      "no-change-vs": "no change {{window}}",
+      "percent-vs": "{{percent}}% {{window}}"
+    },
+    "comparison": {
+      "weekly": "vs previous week",
+      "monthly": "vs previous month"
+    },
+    "previous-period": "Previous period"
+  },
+  "export": {
+    "include-tables": "Include tables",
+    "failed": "Could not generate the report. Try again.",
+    "action": "Export",
+    "dialog-title": "Export · {{title}}"
+  }
+}

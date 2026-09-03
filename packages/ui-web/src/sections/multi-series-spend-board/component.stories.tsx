@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import type { MultiSeriesSpendScale, MultiSeriesSpendSeries } from '../../components/multi-series-spend-chart';
+import type {
+  MultiSeriesSpendScale,
+  MultiSeriesSpendSeries,
+} from '../../components/multi-series-spend-chart';
 import { MultiSeriesSpendBoard } from './component';
 
 function days(count: number, base = '2026-02-01') {
@@ -27,9 +30,11 @@ function sparseSeries(
 // Same real fixture shape `MultiSeriesSpendChart`'s own stories use — one dominant model beside
 // several sub-1%-share ones (ADR 0013 D5's measured production shape).
 const MODEL_SERIES: MultiSeriesSpendSeries[] = [
-  denseSeries('deepseek-v4-flash-0731', 'deepseek-v4-flash-0731', [
-    0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.1, 0.115, 0.12, 0.1, 0.095, 0.09, 0.085, 0.145,
-  ]),
+  denseSeries(
+    'deepseek-v4-flash-0731',
+    'deepseek-v4-flash-0731',
+    [0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.1, 0.115, 0.12, 0.1, 0.095, 0.09, 0.085, 0.145]
+  ),
   sparseSeries('adorsys-researcher', 'adorsys-researcher', 14, [
     [2, 0.002],
     [7, 0.0015],

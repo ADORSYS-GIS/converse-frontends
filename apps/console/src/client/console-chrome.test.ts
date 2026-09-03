@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  adminLandingHref,
   adminNavGroups,
   adminRouteFromPathname,
   areaFromPathname,
@@ -11,6 +12,11 @@ import {
   settingsNavGroups,
   settingsRouteFromPathname,
 } from './console-chrome';
+import { englishT } from '../test/english-t';
+
+/** Real English copy, resolved from the shipped bundle — see `englishT`'s own doc comment for
+ *  why this is not a `(key) => key` stub. */
+const NAV_T = englishT('nav');
 
 describe('initialsFor', () => {
   it('builds a two-letter monogram from a real name', () => {
@@ -133,22 +139,86 @@ describe('settingsRouteFromPathname', () => {
   });
 });
 
+// Owner directive, 2026-09-03, verbatim: "The Admin button doesn't need to be hidden now, since
+// it's gated by permission. So it can appear on the main left rail. The Roles button in Settings'
+// left rail can safely be removed." Both rows that pointed OUT of the settings area are gone.
+//
+// The builder still takes a permission set, for ONE row: "Tier configs", gated on `project:update`
+// (owner ruling the same day, verbatim: "users with the role -viewer should not even see tiers").
 describe('settingsNavGroups', () => {
-  it('lists all six real destinations in the owner-dictated order for a non-admin — no gated Admin row', () => {
-    const [group] = settingsNavGroups('overview', false);
+  /** `default_role_permissions()` (`lightbridge-authz-core/src/authz.rs`), verbatim — the two role
+   *  shapes the tiers ruling draws its line between. `project:*`/`apikey:*` are already expanded
+   *  by the backend before `getMyAccess` answers with them, so the editor set names its members. */
+  const VIEWER = [
+    'account:create',
+    'account:read',
+    'project:read',
+    'apikey:read',
+    'session:revoke-own',
+    'budget:read-own',
+  ];
+  const EDITOR = [
+    'account:create',
+    'account:read',
+    'project:create',
+    'project:read',
+    'project:update',
+    'project:delete',
+    'project:disable',
+    'project:member',
+    'apikey:create',
+    'apikey:read',
+    'apikey:update',
+    'apikey:delete',
+    'apikey:revoke',
+    'apikey:rotate',
+    'apikey:validate',
+    'session:revoke-own',
+    'budget:read-own',
+  ];
+
+  it('lists the five live settings destinations, in the owner-dictated order', () => {
+    const [group] = settingsNavGroups('overview', EDITOR, NAV_T);
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
       'accounts',
-      'roles',
       'tiers',
       'policies',
       'info',
     ]);
+    // Every row is a destination of THIS area now — no row links out of `/settings/*`.
+    expect(group.items.every((item) => item.href?.startsWith('/settings/'))).toBe(true);
+  });
+
+  // Owner ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers."
+  // The gate is `project:update` — the permission `setProjectQuota` requires — so it lands exactly
+  // between the two default roles rather than on a role string.
+  it('omits Tier configs for a lightbridge-viewer — never a disabled placeholder', () => {
+    const [group] = settingsNavGroups('overview', VIEWER, NAV_T);
+
+    expect(group.items.find((item) => item.key === 'tiers')).toBeUndefined();
+    // …and the rest of the settings area is untouched: this narrows one row, not the area.
+    expect(group.items.map((item) => item.key)).toEqual([
+      'overview',
+      'accounts',
+      'policies',
+      'info',
+    ]);
+    expect(group.items.filter((item) => item.disabled)).toEqual([]);
+  });
+
+  it('keeps Tier configs for a lightbridge-editor, in its usual slot', () => {
+    const [group] = settingsNavGroups('tiers', EDITOR, NAV_T);
+    const tiers = group.items.find((item) => item.key === 'tiers');
+
+    expect(tiers?.href).toBe('/settings/tiers');
+    expect(tiers?.active).toBe(true);
+    expect(tiers?.disabled).toBeUndefined();
   });
 
   it('places Accounts right after Overview, and navigates to /settings/accounts', () => {
-    const [group] = settingsNavGroups('accounts', false);
+    const [group] = settingsNavGroups('accounts', EDITOR, NAV_T);
     const accounts = group.items.find((item) => item.key === 'accounts');
 
     expect(group.items[1]?.key).toBe('accounts');
@@ -157,56 +227,64 @@ describe('settingsNavGroups', () => {
     expect(accounts?.disabled).toBeUndefined();
   });
 
-  it('disables roles alone, with a stated, non-navigable reason', () => {
-    const [group] = settingsNavGroups('overview', false);
-    const roles = group.items.find((item) => item.key === 'roles');
-
-    expect(roles?.disabled).toBe(true);
-    expect(roles?.href).toBeUndefined();
-    expect(roles?.reason).toMatch(/lightbridge-authz#571/);
+  // The row was live and gated on `rbac:manage` (converse-frontends#452) after a spell as a
+  // `disabled` placeholder. It is deleted outright now — `/admin/roles` keeps its one nav home in
+  // the admin area's own list (`adminNavGroups`), so this was a second entrance to somebody else's
+  // destination rather than a settings one.
+  it('lists no Roles row at all — /admin/roles belongs to the admin area only', () => {
+    const [group] = settingsNavGroups('overview', EDITOR, NAV_T);
+    expect(group.items.find((item) => item.key === 'roles')).toBeUndefined();
   });
 
   it('no longer lists a refills-queue or refill-options row at all — both moved to the admin area', () => {
-    const [group] = settingsNavGroups('overview', false);
+    const [group] = settingsNavGroups('overview', EDITOR, NAV_T);
     expect(group.items.find((item) => item.key === 'refills-queue')).toBeUndefined();
     expect(group.items.find((item) => item.key === 'refill-options')).toBeUndefined();
   });
 
-  // Owner review round 2 (2026-08-31, converse-frontends#368 finding #1, verbatim): "Instead,
-  // inside of the settings, place a permission gated button 'Admin' that leads to admin." — the
-  // ONE way an admin now reaches `/admin` from the chrome (the account-area rail's Operator row
-  // that used to shortcut there directly is deleted outright, `navGroups`' own tests below).
-  it('appends a gated Admin row LAST, linking to /admin/overview, only for an admin', () => {
-    const [group] = settingsNavGroups('overview', true);
-
-    expect(group.items.map((item) => item.key)).toEqual([
-      'overview',
-      'accounts',
-      'roles',
-      'tiers',
-      'policies',
-      'info',
-      'admin',
-    ]);
-    const admin = group.items.find((item) => item.key === 'admin');
-    expect(admin?.href).toBe('/admin/overview');
-    expect(admin?.disabled).toBeUndefined();
+  // The 2026-08-31 "the admin shortcut lives in settings" placement is superseded: the row sits on
+  // the account area's main rail now (`navGroups`' own tests below), never in both places at once.
+  it('lists no Admin row any more — it moved to the account rail', () => {
+    const [group] = settingsNavGroups('overview', EDITOR, NAV_T);
+    expect(group.items.find((item) => item.key === 'admin')).toBeUndefined();
   });
 
-  it('omits the Admin row entirely for a non-admin, never a disabled placeholder', () => {
-    const [group] = settingsNavGroups('overview', false);
-    expect(group.items.find((item) => item.key === 'admin')).toBeUndefined();
+  it('points every row at a live route — no disabled placeholder survives', () => {
+    const [group] = settingsNavGroups('overview', EDITOR, NAV_T);
+    expect(group.items.filter((item) => item.disabled)).toEqual([]);
+    expect(group.items.filter((item) => !item.href)).toEqual([]);
   });
 });
 
-// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1, verbatim): "Which button
-// leads to the admin pages? Oh wait, it's the button 'Refill queue' that leads to 'admin'? Please
-// remove that." — the account-area rail's Operator group is deleted outright, not relabelled or
-// re-gated: `navGroups` now takes no `isAdmin`/`refillCount` params at all, since nothing here
-// reads a role or a count any more.
+describe('adminLandingHref', () => {
+  it('walks the nav order and returns the first destination the caller can open', () => {
+    expect(adminLandingHref(['usage:read-all', 'rbac:manage'])).toBe('/admin/overview');
+    expect(adminLandingHref(['budget:policy-write', 'rbac:manage'])).toBe('/admin/refill-policies');
+    expect(adminLandingHref(['rbac:manage'])).toBe('/admin/roles');
+  });
+});
+
+// Owner directive, 2026-09-03, verbatim: "The Admin button doesn't need to be hidden now, since
+// it's gated by permission. So it can appear on the main left rail." The account rail gains a
+// third group, Operator, holding one permission-gated "Admin" row — superseding the 2026-08-31
+// owner-review-round-2 ruling that had put that row one level in, inside settings. What that
+// earlier ruling rejected was a DISHONEST row ("Refill requests", landing on `/admin/overview`)
+// gated on `isAdmin`, a role production minted for every signed-in person; this one says where it
+// goes and is gated on `ADMIN_AREA_PERMISSIONS`, which the backend actually enforces.
 describe('navGroups', () => {
-  it('lists exactly the two fixed groups, Workspace and Account — no Operator group, ever', () => {
-    const groups = navGroups('overview', 'acct_1');
+  const NONE: string[] = [];
+  const REVIEWER_ONLY = ['budget:review'];
+  const FULL = [
+    'usage:read-all',
+    'budget:review',
+    'budget:policy-write',
+    'budget:schedule-manage',
+    'session:read',
+    'rbac:manage',
+  ];
+
+  it('lists exactly Workspace and Account for a viewer with no admin-area permission', () => {
+    const groups = navGroups('overview', 'acct_1', NONE, NAV_T);
 
     expect(groups.map((group) => group.key)).toEqual(['workspace', 'account']);
     expect(groups.flatMap((group) => group.items).map((item) => item.key)).toEqual([
@@ -216,8 +294,57 @@ describe('navGroups', () => {
     ]);
   });
 
+  it('adds the Operator group, with its one Admin row, for a full admin', () => {
+    const groups = navGroups('overview', 'acct_1', FULL, NAV_T);
+
+    expect(groups.map((group) => group.key)).toEqual(['workspace', 'account', 'operator']);
+    const operator = groups[2];
+    expect(operator.label).toBe('Operator');
+    expect(operator.items.map((item) => item.key)).toEqual(['admin']);
+    expect(operator.items[0]?.label).toBe('Admin');
+    expect(operator.items[0]?.href).toBe('/admin/overview');
+  });
+
+  // ANY one admin-area permission is enough, and the row aims at what THAT permission opens: a
+  // reviewer holding only `budget:review` would 404 on `/admin/overview` (gated on
+  // `usage:read-all`), which is the "shown and then 404s" failure the gate tests exist to prevent.
+  it('shows the row for a lone budget:review grant, aimed at the refills queue', () => {
+    const groups = navGroups('overview', 'acct_1', REVIEWER_ONLY, NAV_T);
+    const admin = groups.flatMap((group) => group.items).find((item) => item.key === 'admin');
+
+    expect(admin).toBeDefined();
+    expect(admin?.href).toBe('/admin/refills-queue');
+  });
+
+  it('omits the Operator group entirely for a viewer — never a disabled placeholder', () => {
+    const groups = navGroups('overview', 'acct_1', NONE, NAV_T);
+
+    expect(groups.find((group) => group.key === 'operator')).toBeUndefined();
+    expect(
+      groups.flatMap((group) => group.items).find((item) => item.key === 'admin')
+    ).toBeUndefined();
+  });
+
+  // The pending-refill numeral keeps exactly one home, `adminNavGroups`' own "Refills queue" row.
+  // A count hanging off a row labelled "Admin" would be the old dishonesty in a new place.
+  it('never carries a trailing count on the Admin row', () => {
+    const groups = navGroups('overview', 'acct_1', FULL, NAV_T);
+    const admin = groups.flatMap((group) => group.items).find((item) => item.key === 'admin');
+
+    expect(admin?.count).toBeUndefined();
+  });
+
+  // Never `active`: once the visitor is on `/admin/*`, `ConsoleSidebarContent` has swapped the
+  // whole rail to `adminNavGroups`, so this row is never rendered alongside its own destination.
+  it('never marks the Admin row active, even on the admin route', () => {
+    const groups = navGroups('admin', 'acct_1', FULL, NAV_T);
+    const admin = groups.flatMap((group) => group.items).find((item) => item.key === 'admin');
+
+    expect(admin?.active).toBe(false);
+  });
+
   it('marks the active row off the given ConsoleRoute', () => {
-    const groups = navGroups('api-keys', 'acct_1');
+    const groups = navGroups('api-keys', 'acct_1', NONE, NAV_T);
     const items = groups.flatMap((group) => group.items);
 
     expect(items.find((item) => item.key === 'api-keys')?.active).toBe(true);
@@ -225,7 +352,7 @@ describe('navGroups', () => {
   });
 
   it('builds every href off the given account id', () => {
-    const groups = navGroups('overview', 'acct_1');
+    const groups = navGroups('overview', 'acct_1', NONE, NAV_T);
     const items = groups.flatMap((group) => group.items);
 
     expect(items.find((item) => item.key === 'overview')?.href).toBe('/accounts/acct_1/overview');
@@ -240,8 +367,32 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/refills-queue')).toBe('refills-queue');
   });
 
+  // converse-frontends#448 — and by PREFIX, so C6's drill-downs keep the Usage row lit instead of
+  // falling through to Overview.
+  it('matches /admin/usage and every route below it', () => {
+    expect(adminRouteFromPathname('/admin/usage')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/actors/usr_1?type=user')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/channels/console')).toBe('usage');
+    expect(adminRouteFromPathname('/admin/usage/chats')).toBe('usage');
+  });
+
   it('matches /admin/refill-policies by its own prefix', () => {
     expect(adminRouteFromPathname('/admin/refill-policies')).toBe('refill-policies');
+  });
+
+  it('matches /admin/budget-schedules by its own prefix, create route included', () => {
+    expect(adminRouteFromPathname('/admin/budget-schedules')).toBe('budget-schedules');
+    expect(adminRouteFromPathname('/admin/budget-schedules/create')).toBe('budget-schedules');
+  });
+
+  // converse-frontends#450 (story C7).
+  it('matches /admin/sessions by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/sessions')).toBe('sessions');
+    expect(adminRouteFromPathname('/admin/sessions?status=all')).toBe('sessions');
+  });
+
+  it('matches /admin/roles by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/roles')).toBe('roles');
   });
 
   it('defaults to overview for the bare /admin segment (mid-redirect) or anything unrecognised', () => {
@@ -251,21 +402,84 @@ describe('adminRouteFromPathname', () => {
 });
 
 describe('adminNavGroups', () => {
-  it('lists all three admin destinations, dashboard first', () => {
-    const [group] = adminNavGroups('overview');
+  const FULL = [
+    'usage:read-all',
+    'budget:review',
+    'budget:policy-write',
+    'budget:schedule-manage',
+    'session:read',
+    'rbac:manage',
+  ];
+
+  // Readings first, then actions. Usage sits SECOND, between the dashboard and the three budget
+  // rows: overview answers "is anything wrong", usage answers "where did it come from", and the
+  // rest are things an operator DOES (converse-frontends#448). Sessions (converse-frontends#450)
+  // and Roles (converse-frontends#452) are last, in that order — both are facts about the
+  // operators rather than the estate, and closing a session is the one reached for more often.
+  it('lists all seven admin destinations, dashboard first and usage second', () => {
+    const [group] = adminNavGroups('overview', FULL, NAV_T);
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
+      'usage',
       'refills-queue',
       'refill-policies',
+      'budget-schedules',
+      'sessions',
+      'roles',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
-    expect(group.items[1]?.href).toBe('/admin/refills-queue');
-    expect(group.items[2]?.href).toBe('/admin/refill-policies');
+    expect(group.items[1]?.href).toBe('/admin/usage');
+    expect(group.items[2]?.href).toBe('/admin/refills-queue');
+    expect(group.items[3]?.href).toBe('/admin/refill-policies');
+    expect(group.items[4]?.href).toBe('/admin/budget-schedules');
+    expect(group.items[5]?.href).toBe('/admin/sessions');
+    expect(group.items[6]?.href).toBe('/admin/roles');
+  });
+
+  // converse-frontends#450: `session:read` is a destination of its own, so it must unlock the
+  // Sessions row on its own — someone granted nothing but the ability to close sessions still has
+  // one real screen. It must NOT unlock any other row.
+  it('unlocks the Sessions row, and only that row, from a lone session:read grant', () => {
+    const [group] = adminNavGroups('sessions', ['session:read'], NAV_T);
+
+    expect(group.items.map((item) => item.key)).toEqual(['sessions']);
+    expect(group.items[0]?.label).toBe('Sessions');
+    expect(group.items[0]?.active).toBe(true);
+    expect(group.items[0]?.count).toBeUndefined();
+  });
+
+  it('marks the usage row active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('usage', FULL, NAV_T, 4);
+    const usage = group.items.find((item) => item.key === 'usage');
+
+    expect(usage?.active).toBe(true);
+    expect(usage?.count).toBeUndefined();
+  });
+
+  // converse-frontends#452: admin is not one indivisible role any more. Five independent grants,
+  // independently-filtered rows — and each row's route segment answers `notFound()` for the same
+  // permission set, so a visible row must never point at a URL the server denies.
+  it('shows only the rows whose permission the caller holds', () => {
+    const [group] = adminNavGroups('refills-queue', ['budget:review'], NAV_T);
+
+    expect(group.items.map((item) => item.key)).toEqual(['refills-queue']);
+  });
+
+  // One grant, two destinations: `/admin/overview` and `/admin/usage` both read `scope: 'all'`.
+  it('unlocks both estate-read rows from the single usage:read-all grant', () => {
+    const [group] = adminNavGroups('overview', ['usage:read-all'], NAV_T);
+
+    expect(group.items.map((item) => item.key)).toEqual(['overview', 'usage']);
+  });
+
+  it('renders no rows at all for a caller holding no admin-area permission', () => {
+    const [group] = adminNavGroups('overview', [], NAV_T);
+    expect(group.items).toEqual([]);
   });
 
   it('marks the active row off the given AdminRoute', () => {
-    const [group] = adminNavGroups('refills-queue');
+    const [group] = adminNavGroups('refills-queue', FULL, NAV_T);
     const refillsQueue = group.items.find((item) => item.key === 'refills-queue');
     const overview = group.items.find((item) => item.key === 'overview');
 
@@ -274,7 +488,7 @@ describe('adminNavGroups', () => {
   });
 
   it('carries the trailing refill count on refills-queue only', () => {
-    const [group] = adminNavGroups('overview', 4);
+    const [group] = adminNavGroups('overview', FULL, NAV_T, 4);
     const refillsQueue = group.items.find((item) => item.key === 'refills-queue');
     const overview = group.items.find((item) => item.key === 'overview');
 
@@ -283,17 +497,27 @@ describe('adminNavGroups', () => {
   });
 
   it('shows no count while it is loading/zero — never a fabricated 0', () => {
-    const [group] = adminNavGroups('overview', undefined);
+    const [group] = adminNavGroups('overview', FULL, NAV_T, undefined);
     const refillsQueue = group.items.find((item) => item.key === 'refills-queue');
 
     expect(refillsQueue?.count).toBeUndefined();
   });
 
   it('marks refill-policies active off the given AdminRoute, and carries no count', () => {
-    const [group] = adminNavGroups('refill-policies', 4);
+    const [group] = adminNavGroups('refill-policies', FULL, NAV_T, 4);
     const refillPolicies = group.items.find((item) => item.key === 'refill-policies');
 
     expect(refillPolicies?.active).toBe(true);
     expect(refillPolicies?.count).toBeUndefined();
+  });
+
+  // converse-frontends#451 (story C8).
+  it('marks budget-schedules active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('budget-schedules', FULL, NAV_T, 4);
+    const schedules = group.items.find((item) => item.key === 'budget-schedules');
+
+    expect(schedules?.active).toBe(true);
+    expect(schedules?.count).toBeUndefined();
+    expect(group.items.find((item) => item.key === 'overview')?.active).toBe(false);
   });
 });

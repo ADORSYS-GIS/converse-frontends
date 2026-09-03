@@ -40,7 +40,13 @@ describe('PolicySimulator', () => {
     expect(screen.getByText('$25.00')).toBeInTheDocument();
     expect(screen.getByText('$50.00')).toBeInTheDocument();
     expect(screen.getByText('budget-policy-v1')).toBeInTheDocument();
-    expect(screen.getByText(/within_unaided_allowance/)).toBeInTheDocument();
+    // `RuleSetForm`'s reason-code field now shows `e.g. within_unaided_allowance` as its example
+    // line (issue #445), so the token appears twice on this screen. The decision's own copy is the
+    // one that is not an example.
+    const decisionReasons = screen
+      .getAllByText(/within_unaided_allowance/)
+      .filter((element) => !element.textContent?.startsWith('e.g. '));
+    expect(decisionReasons).toHaveLength(1);
   });
 
   it('surfaces a submit-time error inline', () => {

@@ -61,7 +61,7 @@ function sessionExpired(): NextResponse {
 async function performRefresh(session: ConsoleSession): Promise<ConsoleSession | null> {
   const refreshed = await refreshSession(session);
   if (!refreshed) return null;
-  return rotateSession(session, refreshed.tokens, refreshed.roles);
+  return rotateSession(session, refreshed.tokens, refreshed.access);
 }
 
 async function forward(

@@ -30,6 +30,20 @@ choice, and its own "offline-first PWA" language never named webpack; the bundle
 is new ground, not a correction. Both ADR 0011 and ADR 0012 carry status-note amendments pointing
 here.
 
+**Amended by [ADR 0015](0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+(2026-09-02) in three places, each marked inline below.** ADR 0015 D2 amends **D5**: rings (hollow
+donuts) are now allowed and filled disks are still banned, so D5's "not a donut" clause no longer
+states an absolute prohibition; and a latency **series** is now sanctioned, because the usage query
+API computes `latency_p50/p95/p99_ms` with `percentile_cont` per bucket group at query time, which
+removes the premise D5's "stat cards until history depth justifies a series" clause rested on. ADR
+0015 D4 replaces this ADR's admin-area gate wholesale — every `isAdmin(session.user.roles)` +
+`notFound()` mechanism described in the amendments below is deleted and replaced by a permission
+read from `procedure.getMyAccess`; the mechanism is recorded here as history, not as current code.
+ADR 0015 D1 supersedes the hand-written dashboard containers this ADR's amendments describe
+(`admin-overview-usage.ts`, `use-admin-overview-screen.ts`, `overview-usage.ts`,
+`usage-overview-usage.ts` and their hooks are all deleted): every dashboard page in the console now
+renders from `apps/console/dashboards.yaml`. Everything else in this ADR stands.
+
 ## Context
 
 By ADR 0012 (2026-08-30), the console had a working two-column shell, but the account/project
@@ -184,6 +198,30 @@ that back into a first-class URL and let the dialog concept shrink back to what 
 
 ### D5 — The analytics doctrine
 
+> **Amended 2026-09-02 by [ADR 0015](0015-admin-console-v2-declarative-dashboards-permissions-export.md)
+> D2 — read that first for the two clauses below that no longer hold.**
+>
+> 1. **Rings are allowed; filled disks never.** The part-to-whole clause below reads "not a donut"
+>    and the console-ui skill used to restate it as "never a donut, ever". That absolute is
+>    **removed**. A `donut` panel type ships (`packages/ui-web/src/components/donut-chart`) and
+>    draws a **hollow ring**: `donutGeometry` (`packages/chart-core/src/arcs.ts:54`) clamps the
+>    inner radius into `[0.35, 0.85]` of the outer radius for every input, so a filled disk is
+>    unreachable through the API rather than merely discouraged. Top-N + `Other (N)`, values on
+>    hover, the total in the hole. The sanctioned use is exactly three panels —
+>    `model-distribution-{requests,cost,tokens}` on `/admin/usage`. `ShareBar` keeps the single
+>    part-to-whole and `RankedSeriesRows` stays the default breakdown; everything else in this
+>    clause stands.
+> 2. **A latency series is now honest.** The "stat cards until history depth justifies a series"
+>    clause below rested on whole-window aggregate percentiles being uncombinable across days. The
+>    usage query API computes `latency_p50/p95/p99_ms` with `percentile_cont` **per bucket group at
+>    query time**, so each bucket's percentile is a real percentile of that bucket's own samples and
+>    plotting them in order composes nothing. A `latency-series` panel type is sanctioned;
+>    `latency-cards` stays for the window totals.
+>
+> Every other bullet in D5 — the ranked-row default, the rejection of stacked bars and area fills,
+> labelled sentinels, explicit limits and surfaced truncation, the capped estate fan-out — is
+> unchanged, and is now enforced by the `dashboards.yaml` schema rather than by review.
+
 The phase 4 usage/spend screens are grounded in a **measured prod distribution**, not house taste:
 scanning 726k prod usage rows, the dominant shape across accounts is one series overwhelming the
 rest — "top-1 ≥95% of an account's spend" is the _common_ case, not an edge case. Every choice
@@ -203,7 +241,9 @@ data:
   overview's global model mix (`/settings/overview/usage`, `combineAccountModelResponses`'s
   `modelTotals`). `ShareBar` — a 100%-stacked bar over a ranked list, not a donut (replaced
   2026-08-29: a monochrome ramp reads badly as adjacent arcs, and a real 99/1/0.4 split produced
-  sub-pixel donut slivers) — is right exactly once, when the question genuinely is "how does this
+  sub-pixel donut slivers; **that replacement stands, but it is no longer a blanket ban on arcs —
+  see the amendment above, rings allowed / disks never**) — is right exactly once, when the
+  question genuinely is "how does this
   whole add up," not "which of these rows matters." Every per-row breakdown elsewhere uses
   `RankedSeriesRows` instead, specifically _because_ of the measured top-1-dominance shape: a
   ranked list survives a 95/5/0.4 split by showing the 95% as a number and the 5%/0.4% as smaller
@@ -230,7 +270,10 @@ data:
   named in the build brief's "DO NOT BUILD" list for exactly this reason. The day this backend
   starts emitting per-bucket percentiles with enough history to trend honestly, this doctrine's
   own "stat cards until…" clause is what tells a future implementer to revisit it — not a silent
-  reversal.
+  reversal. **That day arrived (2026-09-02): the usage query API computes the percentiles with
+  `percentile_cont` per bucket group at query time, so the `latency-series` panel type is
+  sanctioned and this clause is revisited, out loud, in ADR 0015 D2. `LatencyStatCards` keeps the
+  window totals.**
 - **Sentinel identities are labelled, never dropped or fabricated.** `sentinelLabel`
   (`apps/console/src/containers/sentinel-labels.ts`) resolves two backend-emitted sentinel keys
   (`missing:keycloak:preferred_username`, `missing:github:preferred_username`) to de-emphasized
@@ -286,7 +329,7 @@ narrowing the glob to only the cbor packages still panicked, on a different pack
 safe glob to write). The fix moved the concern out of `next.config.mjs` entirely — getting the
 actual `@cratestack/cbor*` package files into the image is now `apps/console/Dockerfile`'s job (a
 `COPY` of the pnpm store dirs from the build context, plus re-running
-`scripts/link-standalone-cratestack.mjs` at image-build time to re-materialize the top-level
+`scripts/link-standalone-scopes.mjs` at image-build time to re-materialize the top-level
 `node_modules/@cratestack/*` scope links); `serverExternalPackages` (a Next feature independent of
 bundler choice) still keeps the bundler from inlining the native addon.
 
@@ -765,8 +808,8 @@ render.
 
 ## Amendment (2026-08-31, later still): `/admin/overview`'s account enumeration is honest, not estate-wide
 
-A direct owner review finding on the admin-area amendment above, verbatim: *"/admin/overview is
-overview for ALL account, not just the one the user is bound to. ALL of them."* The dashboard's own
+A direct owner review finding on the admin-area amendment above, verbatim: _"/admin/overview is
+overview for ALL account, not just the one the user is bound to. ALL of them."_ The dashboard's own
 subtitle already claimed "Estate-wide"; the fan-out behind it (`use-admin-overview-screen.ts`)
 enumerated only the operator's own account family (`scope.allAccounts`, `model.Account.list`) —
 because that listing was the only account enumeration the console had any RPC path to. The
@@ -820,8 +863,8 @@ more application of it, this time to the page's own header rather than one dashb
   `admin-overview-usage.test.ts`).
 - `apps/console/src/containers/use-admin-overview-screen.ts`'s fan-out source changes from
   `allAccounts.slice(0, MAX_FANNED_OUT_ACCOUNTS)` to `estateAccountIds(allAccounts, pendingQueue
-  AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugmentationRequests
-  ({budgetAccountId: null})` scan (`PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) separate from
+AccountIds, MAX_FANNED_OUT_ACCOUNTS)`, fed by a new one-shot `listPendingAugmentationRequests
+({budgetAccountId: null})` scan (`PENDING_QUEUE_ACCOUNT_SCAN_LIMIT`) separate from
   `useRefillsQueueScreen`'s own UI-paginated queue-screen query.
 - `apps/console/src/server/usage-scope-guard.ts`'s `guardUsageScope` gains an optional 5th
   parameter, `isAdmin?: boolean`, defaulting to non-admin behavior when omitted — every pre-
@@ -836,6 +879,13 @@ more application of it, this time to the page's own header rather than one dashb
   tracked there, not here.
 
 ## Amendment (2026-08-31, owner review round 2): the account-area rail's admin shortcut moves into settings, and refill-policy creation moves off a query param onto its own route
+
+> **Finding #1's PLACEMENT is SUPERSEDED by the 2026-09-03 amendment at the end of this file
+> ("the Admin row returns to the main rail; the settings rail loses Roles").** The Admin row is on
+> the account area's own rail again, in its own `Operator` group. What survives from finding #1 is
+> the reason it was moved in the first place — a nav row must say where it goes, and must be gated
+> on something real — both of which the current row satisfies. Read that amendment before this
+> section's finding #1; finding #4 (the create route) is untouched.
 
 A second owner review pass on the same day as the two amendments above, issue #368, findings #1
 and #4 verbatim, addressed together here because both are "an entry point moved off where this ADR
@@ -906,9 +956,9 @@ tsx`'s `storyNavGroups` fixture follows the same shape — no separate "Operator
 
 ## Amendment (2026-08-31, later still): `/admin/overview` becomes one real `scope: 'all'` query per board — the estate-wide chain closes
 
-The final link in the chain the previous amendment left open: *"Once it ships, `estateAccountIds`'s
+The final link in the chain the previous amendment left open: _"Once it ships, `estateAccountIds`'s
 pending-queue half becomes unnecessary and the fan-out can call the real enumeration directly —
-tracked there, not here."* `lightbridge-authz#602` asked for an account-ENUMERATION endpoint;
+tracked there, not here."_ `lightbridge-authz#602` asked for an account-ENUMERATION endpoint;
 what actually shipped, `lightbridge-authz#605` (`PR #605`, composing on `#603`), is a different but
 sufficient mechanism for this page's purpose — a genuine estate-wide USAGE query (`scope: 'all'`,
 no `account_id`/`project_id`/`user_id`/`api_key_id` filter at all), gated server-side on a new
@@ -917,9 +967,9 @@ grant. `#605` also fixed `scope: 'user'`, unconditionally `403` since `#603`: al
 `scope_id` equals the caller's own validated token subject (self-ownership) — closing the gap
 `#570` originally left for `/settings/overview/user`.
 
-Owner ruling this amendment implements, verbatim: *"/admin/overview is overview for ALL account,
-not just the one the user is bound to. ALL of them."* + *"Just not mention you're fetching for a
-specific account."* The same finding the account-enumeration-honesty amendment above answered
+Owner ruling this amendment implements, verbatim: _"/admin/overview is overview for ALL account,
+not just the one the user is bound to. ALL of them."_ + _"Just not mention you're fetching for a
+specific account."_ The same finding the account-enumeration-honesty amendment above answered
 partially (family∪pending-queue, honestly captioned as partial) is now answered for real: every
 board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, varying only the
 `group_by` dimension it needs, instead of fanning out to a pre-enumerated account-id list at all.
@@ -930,7 +980,7 @@ board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, v
   `UsageScope` and `UsageQueryRequest.scope_id` stating the wire contract `#605`'s merged Rust
   documents: `scope_id` is required-but-IGNORED for `scope: all` (send `""`); `scope: user` is
   allowed only for the caller's own subject. `packages/api-rest`'s generated client (`pnpm --filter
-  @lightbridge/api-rest codegen`, gitignored `src/client/`) picks up `'all'` in the `UsageScope`
+@lightbridge/api-rest codegen`, gitignored `src/client/`) picks up `'all'` in the `UsageScope`
   union from this regeneration.
 - **`admin-overview-usage.ts`** loses `estateAccountIds`/`estateCoverageCaption`/
   `ESTATE_SUBTITLE_SCOPE` (the family∪pending-queue id-harvesting this amendment replaces) and
@@ -976,7 +1026,7 @@ board on this page fires exactly ONE `scope: 'all', scope_id: ''` usage query, v
   drew nothing in either compared window never appears as an `account_id` group at all, so "gone
   quiet" and "active accounts" only ever count accounts with SOME usage in the compared windows;
   and account creation dates remain resolvable only for the operator's own family (`scope.
-  allAccounts`), since usage events carry no creation-date field for anyone. Both are structural
+allAccounts`), since usage events carry no creation-date field for anyone. Both are structural
   properties of what a usage-events query can answer, not something a wider scope removes.
 - **`/settings/overview/user`** (the self-service user lens, `use-settings-overview-screen.ts:224`)
   already sends `scope_id: session.user?.sub ?? ''` for `lens === 'user'` — exactly `#605`'s
@@ -992,7 +1042,7 @@ what is actually true) — applied here to the one gap in that chain that has no
 - `openapi/usage.backend.yaml`: `UsageScope` enum gains `all`; `scope`/`scope_id` gain
   authorization-note `description`s. `packages/api-rest/src/client/` (gitignored, regenerated via
   `pnpm install`'s `postinstall` → `codegen:all`) picks up `UsageScope = 'user' | 'api_key' |
-  'project' | 'account' | 'all'`.
+'project' | 'account' | 'all'`.
 - `apps/console/src/containers/admin-overview-usage.ts` / `admin-overview-usage.test.ts`: see the
   function list above; `estateAccountIds`/`estateCoverageCaption`/`ESTATE_SUBTITLE_SCOPE` and their
   tests are deleted, not deprecated.
@@ -1013,3 +1063,147 @@ what is actually true) — applied here to the one gap in that chain that has no
   `/settings/overview/usage` estate lens keeps its own family-only fan-out — this amendment scopes
   strictly to `/admin/overview`, not a second estate surface).
 - Backend source of truth: `lightbridge-authz` PR `#605` (composes on `#603`), merged `a9bf3ed`.
+
+## Amendment (2026-09-03, owner directive): the Admin row returns to the main rail; the settings rail loses Roles
+
+Owner directive, verbatim:
+
+> "The Admin button doesn't need to be hidden now, since it's gated by permission. So it can appear
+> on the main left rail. The Roles button in Settings' left rail can safely be removed."
+
+Source of truth: converse-frontends#443.
+
+This **supersedes the placement half of the 2026-08-31 owner-review-round-2 amendment's finding
+#1** (marked as such inline above). It does not reopen D1 (account-scoped paths), D2 (the settings
+area, one shell mount, three nav surfaces) or the admin-area amendment: the areas, the swap
+mechanism and the destinations are all unchanged. Exactly one row moves, and one row is deleted.
+
+### What changed, and why the earlier ruling does not block it
+
+Finding #1's objection was never "the account rail must not reach admin". It was aimed at a
+specific dishonest row: a group labelled `Operator` whose one item read **"Refill requests"** and
+silently landed on `/admin/overview` — "Which button leads to the admin pages? Oh wait, it's the
+button 'Refill queue' that leads to 'admin'?" — and which was gated on `isAdmin`, i.e.
+`roles.includes('lightbridge-admin')`, a role production minted for **every** signed-in person
+(ADR-0026), so it was not gated at all. Both defects were fixed by other work:
+
+- the row says exactly where it goes (**"Admin"**, ADR 0013's 2026-08-31 amendment), and
+- it is gated on `ADMIN_AREA_PERMISSIONS` — permissions `lightbridge-authz` actually enforces,
+  resolved server-side by `procedure.getMyAccess` (converse-frontends#452 / ADR 0015 D4).
+
+With both true, the extra hop (Account → Settings → Admin) buys nothing and costs an operator a
+click on every visit. The directive's own reasoning — "since it's gated by permission" — names
+precisely that.
+
+- **`navGroups` gains a third group.** `Operator`, last, one row: **Admin**, `href` =
+  `adminLandingHref(permissions)` (the first destination in `ADMIN_DESTINATIONS` order that THIS
+  caller can open — a reviewer holding only `budget:review` lands on `/admin/refills-queue`, never
+  a 404 at `/admin/overview`). Included or omitted, never disabled and never marked with a badge,
+  the same contract every gated row in the file follows. The function takes `permissions` as its
+  third parameter; it still takes no count.
+- **Its own labelled group, not a third row in `Account`.** `SidebarGroup` draws a heading only for
+  a group with a `label`, so a label-less group would render flush against Account's rows and read
+  as a third account destination rather than as an exit door into a different area.
+- **No `active` flag and no trailing count.** Reaching `/admin/*` swaps the whole rail to
+  `adminNavGroups`, so the row is never rendered beside its own destination; and the pending-refill
+  numeral keeps its single honest home on the admin area's own "Refills queue" row — a count
+  hanging off a row labelled "Admin" would be the 2026-08-31 dishonesty in a new place.
+- **`settingsNavGroups` loses two rows and its parameter.** The **Admin** row moves to the rail
+  above (never both places at once). The **Roles** row is deleted outright per the directive's
+  second sentence: it pointed at `/admin/roles`, an admin destination the admin area's own nav
+  already lists, so it was a second entrance to somebody else's screen rather than a settings
+  destination. With both gone, nothing in the settings area is permission-gated, so the function
+  takes no permission set at all — every visitor sees the identical five live `/settings/*` rows.
+  `SettingsRoute` drops `'roles'`.
+- **`/admin/roles` is unaffected.** It keeps its `rbac:manage` gate, its route segment's own
+  `readSession()` + `can()` + `notFound()`, and its row in `ADMIN_DESTINATIONS` — one nav home
+  instead of two.
+- **The command palette needed no change.** It already enumerates `ADMIN_DESTINATIONS` filtered by
+  the caller's own permission set (one entry per real destination), which is the same gate the rail
+  now applies; the palette never had a lumped "Admin" row to move.
+
+### Diagrams
+
+How the rail decides what to draw, and where the Admin row points:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Person
+    participant L as app/(console)/layout.tsx
+    participant S as ConsoleSidebarContent
+    participant C as useCan()<br/>(client/use-can.ts)
+    participant N as navGroups /<br/>settingsNavGroups / adminNavGroups
+    participant G as Route segment gate<br/>(server/access.ts · can())
+
+    P->>L: GET /accounts/<id>/overview
+    L->>S: render chrome once (never per route)
+    S->>C: permissions (seeded from getMyAccess, session cookie)
+    C-->>S: ['budget:review']  %% a reviewer, not a full admin
+    S->>N: areaFromPathname('/accounts/…') === 'account'
+    N->>N: hasAnyPermission(perms, ADMIN_AREA_PERMISSIONS) → true
+    N->>N: adminLandingHref(perms) → '/admin/refills-queue'
+    N-->>S: [Workspace, Account, Operator{Admin → /admin/refills-queue}]
+    P->>L: click Admin
+    L->>G: GET /admin/refills-queue
+    G->>G: can(session, PERMISSION.budgetReview) → true
+    G-->>P: the queue (rail swaps to adminNavGroups, filtered per row)
+
+    Note over N,G: A viewer holding none of ADMIN_AREA_PERMISSIONS gets no Operator<br/>group at all, so the 404 branch below is only ever reached by hand-typed URL.
+    P->>G: hand-typed GET /admin/overview
+    G-->>P: notFound() — usage:read-all not held
+```
+
+The Admin row's own lifecycle, including the states nothing can enter:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unverified: session built, getMyAccess unreachable
+    [*] --> Resolved: permissions resolved
+
+    Unverified --> NoRow: fail-closed empty set
+    note right of Unverified
+      The footer's "Access could not be verified" InlineStatus
+      is what keeps this distinguishable from NoRow's honest
+      "you hold nothing" (converse-frontends#452, negative AC 1).
+    end note
+
+    Resolved --> NoRow: holds none of ADMIN_AREA_PERMISSIONS
+    Resolved --> RowShown: holds ANY ONE of them
+
+    RowShown --> AdminArea: click → adminLandingHref(permissions)
+    AdminArea --> RowShown: "← Back to console"
+
+    state "Row shown, disabled" as RowDisabled
+    state "Row shown while on /admin/*" as RowActive
+    NoRow --> RowDisabled: unreachable — gated rows are omitted, never disabled
+    AdminArea --> RowActive: unreachable — the rail swaps to adminNavGroups
+
+    NoRow --> [*]
+```
+
+### Consequences (2026-09-03)
+
+- `apps/console/src/client/console-chrome.tsx`: `navGroups` takes a third `permissions` param and
+  appends the gated `operator` group; `NAV_ICON` regains an `admin` entry (`AdminIcon`, the same
+  glyph the admin area's "Refills queue" row draws — the shield names a concept, not an area);
+  `settingsNavGroups` drops its `permissions` param, its "Admin" row and its "Roles" row;
+  `SettingsRoute` drops `'roles'`; `SETTINGS_NAV_ICON` drops `roles`/`admin`;
+  `ConsoleSidebarContent`'s call sites follow. `adminLandingHref`/`ADMIN_DESTINATIONS`/
+  `adminNavGroups` and the palette are unchanged in behaviour.
+- `apps/console/src/client/console-chrome.test.ts`: the `settingsNavGroups` block asserts the five
+  ungated rows and the absence of both removed rows; the `navGroups` block gains the viewer /
+  reviewer / full-admin cases, plus the never-`active` and never-counted pins.
+- `apps/console/src/app/admin-roles-route-gate.test.ts`: now asserts ONE gated nav row pointing at
+  `/admin/roles` and the absence of the settings row, rather than two.
+- `packages/ui-web/src/pages-stories/shell-fixtures.tsx`: `storyNavGroups` renders the Admin row as
+  its own `Operator` group for every area except `settings`.
+- `packages/ui-web/src/pages-stories/overview.stories.tsx`: `AdminNav` / `AdminNav — wireframe
+(light)` are the account rail's own stories. `settings.stories.tsx` and
+  `settings-accounts-projects.stories.tsx` keep an `AdminNav` story asserting the opposite — an
+  admin's settings rail is identical to a viewer's; `admin-roles.stories.tsx`' `NoAdminAccess`
+  story now shows the ACCOUNT rail, where the gated row actually lives.
+- `.claude/skills/console-ui/SKILL.md` and `docs/design/console-redesign/README.md`: nav tables,
+  the rail diagram, §5.5 and §5.11 updated.
+- No route, redirect, permission string or backend contract changes. `middleware.ts`'s legacy
+  redirect table is untouched.

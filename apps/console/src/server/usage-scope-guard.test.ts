@@ -118,10 +118,7 @@ describe('guardUsageScope', () => {
     owned: ReadonlySet<string> | null,
     projectAccount: Record<string, string | null> = {}
   ): [ResolveOwnedAccountIds, ResolveProjectAccountId] {
-    return [
-      async () => owned,
-      async (projectId: string) => projectAccount[projectId] ?? null,
-    ];
+    return [async () => owned, async (projectId: string) => projectAccount[projectId] ?? null];
   }
 
   it('an owned account scope passes', async () => {
@@ -262,7 +259,7 @@ describe('home-account fast path', () => {
 // bypass this widening added to close the gap between what `/admin/overview`'s fan-out can
 // legitimately DISCOVER (family + refill-queue account ids, `estateAccountIds`) and what this
 // guard would actually let it QUERY. Every case here also asserts the resolver is never called
-// on the admin path, and that the non-admin path is untouched by `isAdmin`'s mere presence. ────
+// on the admin path, and that the non-admin path is untouched by `canReadAllUsage`'s mere presence. ────
 describe('admin fast path', () => {
   const neverResolve = () => {
     throw new Error('resolver must not be called on the admin fast path');
@@ -279,7 +276,7 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: true });
   });
 
-  it('isAdmin: false behaves exactly like the pre-existing signature — resolver still runs, foreign scope still 403s', async () => {
+  it('canReadAllUsage: false behaves exactly like the pre-existing signature — resolver still runs, foreign scope still 403s', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account', scope_id: 'acct-foreign' },
       async () => new Set(['acct-owned']),
@@ -290,7 +287,7 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('isAdmin omitted (undefined) is treated as non-admin — the existing five-arg call sites are unaffected', async () => {
+  it('canReadAllUsage omitted (undefined) is treated as non-admin — the existing five-arg call sites are unaffected', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account', scope_id: 'acct-foreign' },
       async () => new Set(['acct-owned']),
@@ -299,7 +296,45 @@ describe('admin fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('does NOT bypass a project scope even for an admin — resolver still runs, foreign project still 403s', async () => {
+  // ── #448: the fast path now covers `user` and `project` too, mirroring the backend's own
+  // `usage:read-all` rule (lightbridge-authz PR #652). These are the two `/admin/usage` needs:
+  // its actor lens queries `scope: user` for a subject that is NOT the operator's own, and its
+  // project lens queries a project outside the operator's family. Both are strictly narrower than
+  // the `scope: all` this same session is already entitled to.
+  it('an admin session queries a user scope_id that is not its own subject, without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'user', scope_id: 'user-someone-else' },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('an admin session queries a project outside its own family, without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'project', scope_id: 'proj-foreign' },
+      neverResolve as never,
+      neverResolve as never,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('a NON-admin user scope still fails closed — the widening is the role, not the scope', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'user', scope_id: 'user-someone-else' },
+      async () => new Set(['acct-owned']),
+      async () => null,
+      undefined,
+      false
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('a NON-admin project scope still resolves real ownership and 403s on a foreign project', async () => {
     let resolverCalled = false;
     const outcome = await guardUsageScope(
       { scope: 'project', scope_id: 'proj-foreign' },
@@ -310,13 +345,27 @@ describe('admin fast path', () => {
         return 'acct-foreign';
       },
       undefined,
-      true
+      false
     );
     expect(resolverCalled).toBe(true);
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('an admin body still 400s on a malformed request, before isAdmin is ever consulted', async () => {
+  // `api_key` is the one scope the backend refuses for EVERY caller — it has no resolvable
+  // ownership authority at all — so passing it here would only buy a guard pass followed by a
+  // backend 403. Admin is not an exception, and this pins that.
+  it('does NOT bypass api_key even for an admin — the backend refuses that scope unconditionally', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'api_key', scope_id: 'key-1' },
+      async () => new Set(['acct-owned']),
+      async () => null,
+      undefined,
+      true
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('an admin body still 400s on a malformed request, before canReadAllUsage is ever consulted', async () => {
     const outcome = await guardUsageScope(
       { scope: 'account' },
       neverResolve as never,
@@ -377,7 +426,7 @@ describe('admin scope=all fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
   });
 
-  it('isAdmin omitted (undefined) refuses scope=all — the existing five-arg call sites are unaffected', async () => {
+  it('canReadAllUsage omitted (undefined) refuses scope=all — the existing five-arg call sites are unaffected', async () => {
     const outcome = await guardUsageScope(
       { scope: 'all', scope_id: '' },
       async () => new Set(['acct-owned']),

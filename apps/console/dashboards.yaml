@@ -1,0 +1,2468 @@
+# Declarative dashboards — converse-frontends#446 (decision D-K).
+#
+# "The dashboards are basically fetch(filters × type × parameters) = data. The page handles the
+# filters; we externalize the list of type × parameters into a dashboards.yaml (per page); Next
+# reads those and does the mapping." — owner, 2026-09-02.
+#
+# One entry per page ROUTE (the same path string the App Router uses). A page declares which
+# filters it owns; each panel declares its type, its query, and which metric it reads. Adding a
+# panel is adding YAML — never another hand-written container.
+#
+# Validated against `src/dashboards/dashboard-spec.ts` at startup AND by a unit test
+# (`dashboard-spec.test.ts`). An invalid document fails LOUD, naming the page and the panel id —
+# the console refuses to start rather than rendering an empty dashboard.
+#
+# Overridable in production: `${CONSOLE_CONFIG_DIR}/dashboards.yaml` wins over this file when it
+# exists (owner ruling Q11), on the same volume the console already mounts `config.yaml` and its
+# branding from. An override that exists but is invalid is a hard failure, never a silent fallback
+# to this file.
+#
+# ── SCOPE OF THIS FILE TODAY ─────────────────────────────────────────────────────────────────
+# ELEVEN page entries, every one of them complete. C3 shipped the ENGINE and a first `/admin/usage`
+# sketch; C4 migrated `/admin/overview` onto it; C5 replaced the sketch with the full
+# nineteen-panel `/admin/usage` contract; C6 (converse-frontends#449) added the three DRILL-DOWN
+# routes — `/admin/usage/actors/[actorId]`, `/admin/usage/channels/[channelId]` and
+# `/admin/usage/chats` — the engine's proof that a PARAMETERISED page needs no code of its own
+# either, and the owner's 2026-09-03 feedback on that issue added a FOURTH,
+# `/admin/usage/models/[model]`, which cost one YAML entry and no engine change at all;
+# C12 (converse-frontends#455) brought the account dashboard and all four
+# `/settings/overview/*` lenses across and deleted their hand-written containers
+# (`use-overview-screen.ts`, `use-settings-overview-screen.ts`, `use-usage-overview-screen.ts`,
+# `usage-overview-usage.ts`). **No hand-written dashboard container remains in this console** —
+# what is left beside a grid is only what is not a usage query (RPC-backed budget zones, refine
+# listings), each named in its page's own comment below.
+#
+# ── COPY IS KEYS, NOT PROSE (ADR 0017) ───────────────────────────────────────────────────────
+# `title`, `subtitle`, `options.rowLabel` and `options.unit` are **i18n keys**, never English
+# text: `admin-overview.estate-spend.title` resolves against `locales/<locale>/dashboards.json`,
+# whose `en` file is the source of truth. `dashboardPage()` resolves them server-side, once per
+# request, before the spec reaches any component — so a panel's title arrives at the renderer as
+# finished copy exactly like every other prop.
+#
+# The key shape is `<page>.<panel id>.<field>`, where `<page>` is the route with `/` turned into
+# `-` and `[param]` brackets dropped (`/admin/usage/actors/[actorId]` -> `admin-usage-actors-
+# actorId`). Adding a panel means adding its four-ish keys to BOTH locale files; `i18n/
+# resources.test.ts` fails the build if `de` is missing one, and a key with no entry renders as the
+# key itself rather than silently falling back to English.
+#
+# Everything else here stays machine vocabulary — scopes, dimensions, limits, panel types. None of
+# it is copy, and translating any of it would break the query.
+#
+# ── PLACEHOLDERS ─────────────────────────────────────────────────────────────────────────────
+# `$name` in any query string field is substituted from the page's own filters (a route param or
+# a URL knob). An unresolved placeholder is an ERROR, never an empty string — `scope_id: ""` on an
+# account-scoped panel would silently query something other than what the panel's title says.
+# `$name?` (C12) is the OPTIONAL form, legal ONLY inside `filters.<key>`: it DROPS the filter when
+# the page has no value for it, which is what a project picker sitting on "All projects" needs.
+#
+# ── SCOPES ───────────────────────────────────────────────────────────────────────────────────
+# `scope` is a `UsageScope` (`user`/`api_key`/`project`/`account`/`all`), or the resolver's own
+# `family` (C12): one `scope: account` query per account in the SESSION's own account family,
+# merged client-side. `family` is what `/settings/overview/usage` means — the accounts this
+# identity can see — and is deliberately not `all`, which is the whole deployment and is gated on
+# `usage:read-all`.
+#
+# ── WHICH DIMENSION A PANEL READS ────────────────────────────────────────────────────────────
+# By default, its query's FIRST `group_by` entry — which is what lets several panels share one
+# request, since the dedupe key sorts the dimensions. `options.dimension` names a different one
+# explicitly, and `dimension: none` reads no dimension at all (the ungrouped total). That matters
+# most under a `family` fan-out, where a second query shape costs N requests rather than one.
+#
+# ── BUCKET AND LIMIT ─────────────────────────────────────────────────────────────────────────
+# `bucket: auto` resolves from the page's range: ≤7d → 1 hour, ≤90d → 1 day, else 7 days.
+# `limit` is ALWAYS explicit (console-ui skill) — never left to a server default.
+
+pages:
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/overview — the operator dashboard (converse-frontends#447, story C4).
+  #
+  # These panels ARE the eight boards the hand-written page drew until 2026-09-02. Two zones are
+  # deliberately absent and stay hand-written in `admin-overview-centre.tsx`, because neither is a
+  # usage query and this file only describes usage queries: dashboard 4's budget pressure (the
+  # `getBudgetBalance` RPC, one call per account) and dashboard 5's refill queue depth
+  # (`listPendingAugmentationRequests`). Both render in their own `DashboardGrid` above this one,
+  # with their honesty captions intact.
+  #
+  # Request count: twelve panels resolve to FOUR usage requests plus the one previous-window twin
+  # `compare: true` adds — five. The eight-board page this replaces fired SIX, one per board
+  # family, none of them shared. Adding the budget-pressure zone's own billing-period request
+  # (one now; it used to be two, current and previous month) the whole page is six where it was
+  # six, for four more panels.
+  #
+  # The fourth grouping is `[user_id]`, added with the `top-spender-users` table on 2026-09-03 and
+  # shared with nothing — see that panel's own comment for why crossing it into the existing
+  # account/project grouping was rejected rather than merely not done.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/overview
+    # No route params and no lens toggle — this page is the whole estate, always. `range` (with
+    # `from`/`to`) is implicit and never listed.
+    filters: []
+
+    panels:
+      # ── 1. Estate spend over time ──────────────────────────────────────────────────────────
+      - id: estate-spend
+        type: series
+        title: admin-overview.estate-spend.title
+        subtitle: admin-overview.estate-spend.subtitle
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          scale: linear
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # `group_by` is `[account_id, project_id]` on this panel and on both top-spender tables, not
+      # the single dimension each of them actually reads. That is not redundancy — it is what
+      # makes them, and all three adoption panels, ONE request. Adding `project_id` beside
+      # `account_id` costs nothing in rows either: a project belongs to exactly one account, so
+      # the account is functionally determined by the project and the grouping is exactly as
+      # coarse as `[project_id]` alone. Which dimension a panel READS is its own first one.
+      - id: spend-by-account
+        type: series
+        title: admin-overview.spend-by-account.title
+        subtitle: admin-overview.spend-by-account.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 12
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      # ── 2. Model mix ───────────────────────────────────────────────────────────────────────
+      # Both halves read the SAME per-model query — one request, two panels.
+      #
+      # Owner ruling 2026-09-03: this board is a STACK. "What did we spend that day" is the first
+      # question here, and only a stack states it (as bar height) — a superposed line board states
+      # no total at all. ADR 0015 D5's stacked-bar ban is amended for exactly this question; the
+      # 95%-top-1 caveat travels with the mark as its own caption. No `scale` here: a log stack
+      # does not sum, so the panel renders no axis toggle.
+      #
+      # And it takes the whole row, on the SAME day's second directive: "'Spend by model over time'
+      # should have its own row." A stack of five-plus models over a month of daily buckets is the
+      # densest mark on this page; at half width the segments a reader is comparing are a few
+      # pixels tall each. It moved ABOVE the share bar to get that row without leaving a hole:
+      # `dashboard-grid` has no `dense` flow, so a half-width panel followed by a full-width one
+      # strands the other half of its row — the share bar now leads the row the first top-spender
+      # table finishes.
+      - id: spend-by-model
+        type: series
+        title: admin-overview.spend-by-model.title
+        subtitle: admin-overview.spend-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          style: stacked-bars
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: model-mix-share
+        type: share
+        title: admin-overview.model-mix-share.title
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 3. Top spenders ────────────────────────────────────────────────────────────────────
+      # THREE tables, not one mixed ranking: a user row, an account row and a project row lead to
+      # different places (`?type=user` / `?type=account` / `?type=project`), and a table has one
+      # group-by dimension. `/admin/usage/actors/<id>` ships in C5 — the hrefs here are already the
+      # final URLs, and every one of these tables pages client-side over its grouped response
+      # (converse-frontends#487: paging is a property of the `table` TYPE, so no `pageSize` is
+      # needed to get it).
+      #
+      # ── The USERS table (owner directive, 2026-09-03: "we miss a 'Top spenders — user'") ────
+      # It is FIRST of the three, which is the owner's own actor-identity rule — the same reason
+      # `/admin/usage`'s lens knob defaults to `user` rather than `account`. Money is spent by
+      # people; an account is where it is billed.
+      #
+      # It is the one panel on this page that costs a REQUEST rather than sharing one. Nothing else
+      # here groups by `user_id` — the account/project family groups by `[account_id, project_id]`,
+      # which cannot answer a per-user question — so this takes the page from four usage requests
+      # to five, for its twelfth panel. Crossing `user_id` into that existing grouping was the
+      # alternative and is worse in both directions: it multiplies the row count (a user is not
+      # functionally determined by a project, unlike account-by-project) and would truncate the
+      # panels that already read that response.
+      #
+      # `columns` is stated rather than defaulted: the default four end in `tokens`, and a token
+      # column is a reading of the MODELS a person called rather than of the person. Name and
+      # email arrive as the two lines of the `label` cell (`IdentityLines`) — one column, two
+      # facts, never concatenated.
+      - id: top-spender-users
+        type: table
+        title: admin-overview.top-spender-users.title
+        subtitle: admin-overview.top-spender-users.subtitle
+        span: 1
+        metric: cost
+        options:
+          rowLabel: admin-overview.top-spender-users.rowLabel
+          unit: admin-overview.top-spender-users.unit
+          columns:
+            - label
+            - cost
+            - requests
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      - id: top-spender-accounts
+        type: table
+        title: admin-overview.top-spender-accounts.title
+        span: 1
+        metric: cost
+        options:
+          rowLabel: admin-overview.top-spender-accounts.rowLabel
+          unit: admin-overview.top-spender-accounts.unit
+          link: /admin/usage/actors/:key?type=account
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      - id: top-spender-projects
+        type: table
+        title: admin-overview.top-spender-projects.title
+        subtitle: admin-overview.top-spender-projects.subtitle
+        span: 1
+        metric: cost
+        options:
+          rowLabel: admin-overview.top-spender-projects.rowLabel
+          unit: admin-overview.top-spender-projects.unit
+          link: /admin/usage/actors/:key?type=project
+        query:
+          scope: all
+          group_by:
+            - project_id
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── 6. Request volume ──────────────────────────────────────────────────────────────────
+      # Shares the ungrouped query with panel 1 — same scope, same window, same bucket.
+      - id: request-volume
+        type: series
+        title: admin-overview.request-volume.title
+        subtitle: admin-overview.request-volume.subtitle
+        span: 2
+        metric: requests
+        options:
+          scale: indexed
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # ── 7. Latency ─────────────────────────────────────────────────────────────────────────
+      - id: latency-by-model
+        type: latency-cards
+        title: admin-overview.latency-by-model.title
+        subtitle: admin-overview.latency-by-model.subtitle
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 8. Adoption ────────────────────────────────────────────────────────────────────────
+      # All three panels here resolve to ONE request. `group_by` is order-INSENSITIVE for the
+      # dedupe key (`queryKey` sorts it) but order-SENSITIVE for a distinct count: a
+      # `derived:activeActors` stat counts its query's FIRST dimension. So listing the same two
+      # dimensions in a different order gives two different counts off one shared response, which
+      # is exactly what "identical queries are deduplicated" is supposed to buy.
+      - id: active-accounts
+        type: stat
+        title: admin-overview.active-accounts.title
+        subtitle: admin-overview.active-accounts.subtitle
+        span: 1
+        metric: derived:activeActors
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+      - id: active-projects
+        type: stat
+        title: admin-overview.active-projects.title
+        subtitle: admin-overview.active-projects.subtitle
+        span: 1
+        metric: derived:activeActors
+        query:
+          scope: all
+          group_by:
+            - project_id
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      - id: adoption-over-time
+        type: series
+        title: admin-overview.adoption-over-time.title
+        subtitle: admin-overview.adoption-over-time.subtitle
+        span: 2
+        metric: derived:activeActorsPerBucket
+        options:
+          scale: linear
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - project_id
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage — the estate's usage surface (converse-frontends#448, story C5).
+  #
+  # NINETEEN panels, and the whole page is this entry plus a route file that renders
+  # `useDashboard('/admin/usage')` into `DashboardGrid`. There is no per-panel query code anywhere
+  # in `apps/console` for this page — that claim is the point of the slice, and
+  # `admin-usage-page.test.ts` checks it from the data side while `Pages/AdminUsage` does from the
+  # visual one.
+  #
+  # ── THE PANEL IDS ARE A CROSS-SLICE CONTRACT ───────────────────────────────────────────────
+  # C6 reuses them on the actor/channel/chat routes, C10's report renderer walks them, and C11
+  # documents them. They are not renamed casually. `admin-usage-page.test.ts` pins the exact list,
+  # in order, so a rename is a failing test rather than a quiet break in three other slices.
+  #
+  # ── LENS ───────────────────────────────────────────────────────────────────────────────────
+  # `lens` is this page's own knob (`?lens=user|account|project`, USER FIRST — the owner's
+  # actor-identity rule). A panel that declares `options.lens` has the first dimension of its
+  # `group_by` swapped for that lens's own (`user_id`/`account_id`/`project_id`) and `$lens` in its
+  # `options.link` resolved to the same value. That is why the five lens-driven panels below all
+  # say `group_by: [user_id]`: it is the honest DEFAULT, readable on its own, not a placeholder.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Nineteen panels resolve to SIX usage requests plus one comparison twin — seven:
+  #   1. the ungrouped estate query (total cost, total requests, avg cost/MTok)
+  #   2. its previous-window twin (`compare: true` on the two totals)
+  #   3. `[account_id, billing_plan]`  (accounts-by-plan, plan-in-use)
+  #   4. `[user_id]` under the current lens (active actors, cost/tokens by actor, top actor cost,
+  #      actors table — five panels, one request)
+  #   5. `[model]` (cost/tokens by model, model cost share, all three model-distribution rings)
+  #   6. `[azp]` (cost by channel, channels table)
+  #   7. the ungrouped estate query filtered to the three chat operations (chat completions count)
+  # Nineteen hand-written containers would have fired nineteen.
+  #
+  # ── LIMITS ─────────────────────────────────────────────────────────────────────────────────
+  # Every panel sets `limit` explicitly, and it bounds the BUCKET count (lightbridge-authz#578),
+  # not the row count. A response the backend had to truncate sets `truncated: true` and the panel
+  # renders a caption naming this number — never a quietly short chart.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage
+    # `range` is implicit on every page and never listed. `lens` is this page's own.
+    filters:
+      - lens
+
+    panels:
+      # ── 1-2. The two totals, each against the previous comparison window (D-F) ─────────────
+      # Both share ONE ungrouped request with panel 5; only the twin below is extra.
+      - id: total-cost
+        type: stat
+        title: admin-usage.total-cost.title
+        subtitle: admin-usage.total-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      - id: total-requests
+        type: stat
+        title: admin-usage.total-requests.title
+        subtitle: admin-usage.total-requests.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # ── 3. Accounts with usage, per billing plan (owner Q4, confirmed) ─────────────────────
+      # `derived:activeActors` on a `stat-group` counts DISTINCT values of the FIRST dimension,
+      # broken down by the SECOND. The cards do not sum to the estate's account count and no total
+      # is printed: one account can appear under two plans in a window, because a plan change
+      # mid-month is a real event.
+      - id: accounts-by-plan
+        type: stat-group
+        title: admin-usage.accounts-by-plan.title
+        subtitle: admin-usage.accounts-by-plan.subtitle
+        span: 2
+        metric: derived:activeActors
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - account_id
+            - billing_plan
+          bucket: auto
+          limit: 2000
+
+      # ── 4. Which plans the spend is on ────────────────────────────────────────────────────
+      # Shares panel 3's request — same two dimensions, read from the other end.
+      - id: plan-in-use
+        type: ranked
+        title: admin-usage.plan-in-use.title
+        subtitle: admin-usage.plan-in-use.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - billing_plan
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── 5. Average cost per million tokens ────────────────────────────────────────────────
+      - id: avg-cost-per-million-tokens
+        type: stat
+        title: admin-usage.avg-cost-per-million-tokens.title
+        subtitle: admin-usage.avg-cost-per-million-tokens.subtitle
+        span: 1
+        metric: derived:avgCostPerMillionTokens
+        query:
+          scope: all
+          bucket: auto
+          limit: 2000
+
+      # ── 6. Active actors ──────────────────────────────────────────────────────────────────
+      # A distinct count needs the dimension it counts as a group key, so this is NOT the ungrouped
+      # query above — it is the head of the lens-driven family, and shares its request with panels
+      # 8, 10, 13 and 18.
+      - id: active-actors
+        type: stat
+        title: admin-usage.active-actors.title
+        subtitle: admin-usage.active-actors.subtitle
+        span: 1
+        metric: derived:activeActors
+        options:
+          lens: user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      # ── 7. Cost per period by model ───────────────────────────────────────────────────────
+      # A STACK since the owner's 2026-09-03 ruling (see `/admin/overview`'s spend-by-model): the
+      # per-bucket TOTAL is the primary reading on this board and a line chart cannot state it.
+      #
+      # `linkAll` rather than `link`: a stack band is not a row, and there is nowhere honest to
+      # hang a per-series href on a chart whose values live in a hover tooltip. So the panel gets
+      # ONE affordance pointing at `model-cost-share` below — the panel on this same page where
+      # every model IS clickable — rather than at an `/admin/usage/models` index that does not
+      # exist. (Owner feedback 2026-09-03: "a 'View models' affordance if series lines cannot
+      # link.")
+      - id: cost-by-model
+        type: series
+        title: admin-usage.cost-by-model.title
+        subtitle: admin-usage.cost-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          style: stacked-bars
+          topN: 5
+          linkAll: '#model-cost-share'
+          linkAllLabel: admin-usage.cost-by-model.linkAll
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 8. Cost per period by actor (lens-driven) ─────────────────────────────────────────
+      - id: cost-by-actor
+        type: series
+        title: admin-usage.cost-by-actor.title
+        subtitle: admin-usage.cost-by-actor.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 6
+          lens: user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      # ── 9-10. The same two readings in TOKENS ─────────────────────────────────────────────
+      # Both share their cost twin's request: same scope, same window, same grouping — only the
+      # column each reads off a point differs.
+      - id: tokens-by-model
+        type: series
+        title: admin-usage.tokens-by-model.title
+        span: 1
+        metric: tokens
+        options:
+          scale: log
+          topN: 5
+          linkAll: '#model-cost-share'
+          linkAllLabel: admin-usage.tokens-by-model.linkAll
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: tokens-by-actor
+        type: series
+        title: admin-usage.tokens-by-actor.title
+        span: 1
+        metric: tokens
+        options:
+          scale: linear
+          topN: 6
+          lens: user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      # ── 11. Cost by channel (azp) ─────────────────────────────────────────────────────────
+      # `azp` is one of lane A3's bridge columns (lightbridge-authz#648/PR#652): the OAuth client
+      # the request arrived on. Rows are real anchors into C6's channel route.
+      - id: cost-by-channel
+        type: ranked
+        title: admin-usage.cost-by-channel.title
+        subtitle: admin-usage.cost-by-channel.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/channels/:key
+        query:
+          scope: all
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      # ── 12. Which models (cost share) ─────────────────────────────────────────────────────
+      # The ONE `share` on this page — ShareBar keeps the single sanctioned part-to-whole job it
+      # was given on 2026-08-29 (ADR 0013 D5).
+      #
+      # Its ROWS are anchors into the model page (owner feedback 2026-09-03: "'Which models' ...
+      # link to the model page"). This is also the panel the two series boards above point their
+      # `linkAll` affordance at, so it is the one place on this page where "open this model" is a
+      # click rather than a search.
+      - id: model-cost-share
+        type: share
+        title: admin-usage.model-cost-share.title
+        subtitle: admin-usage.model-cost-share.subtitle
+        span: 1
+        metric: cost
+        options:
+          link: /admin/usage/models/:key
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 13. Top actors by cost (lens-driven, links out) ───────────────────────────────────
+      # `$lens` in the link resolves to the effective lens, so a row always lands on the actor page
+      # with the right `?type=`.
+      - id: top-actor-cost
+        type: ranked
+        title: admin-usage.top-actor-cost.title
+        subtitle: admin-usage.top-actor-cost.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          lens: user
+          link: /admin/usage/actors/:key?type=$lens
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      # ── 14. Chat completions ──────────────────────────────────────────────────────────────
+      # `operation_in` is the backend's one set-membership filter (lightbridge-authz#648): the
+      # console's chat question is inherently three-valued, and three separate queries would triple
+      # the load AND disagree with themselves whenever a bucket boundary fell differently between
+      # them. Its own request, because a filtered query is a different question.
+      - id: chat-completions-count
+        type: stat
+        title: admin-usage.chat-completions-count.title
+        subtitle: admin-usage.chat-completions-count.subtitle
+        span: 1
+        metric: derived:chatCount
+        query:
+          scope: all
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── 15-17. Model distribution — three RINGS ───────────────────────────────────────────
+      # Owner ruling, 2026-09-02, amending ADR 0013 D5: "rings allowed, filled disks never." All
+      # three share the `[model]` request panels 7, 9 and 12 already issue; only which column each
+      # reads differs, which is the whole reason they are three panels rather than one with a
+      # metric toggle — a toggle would hide two of the three readings behind a click.
+      #
+      # All three WEDGES are anchors into the model page (owner feedback 2026-09-03). The collapsed
+      # `Other (N)` wedge is never one — it is several models at once, and there is no page for
+      # "several" (`DonutChart` refuses it itself, so no page can forget).
+      - id: model-distribution-requests
+        type: donut
+        title: admin-usage.model-distribution-requests.title
+        # NOT "values on hover": a `subtitle` is rendered by the screen AND by the report
+        # (converse-frontends#453), and paper has no pointer. On screen the values are in the
+        # tooltip; in the PDF they are in the panel's own table.
+        subtitle: admin-usage.model-distribution-requests.subtitle
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+          link: /admin/usage/models/:key
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: model-distribution-cost
+        type: donut
+        title: admin-usage.model-distribution-cost.title
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+          link: /admin/usage/models/:key
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: model-distribution-tokens
+        type: donut
+        title: admin-usage.model-distribution-tokens.title
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+          link: /admin/usage/models/:key
+        query:
+          scope: all
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── 18. Actors table ──────────────────────────────────────────────────────────────────
+      # Sorting and paging are CLIENT-SIDE over the grouped response, because the query API has no
+      # ordering and no offset (owner-accepted, provided the truncation caption stays visible
+      # beside the table). Both are URL knobs, so a sorted page is a shareable link.
+      - id: actors-table
+        type: table
+        title: admin-usage.actors-table.title
+        subtitle: admin-usage.actors-table.subtitle
+        span: 2
+        metric: cost
+        options:
+          lens: user
+          rowLabel: admin-usage.actors-table.rowLabel
+          unit: admin-usage.actors-table.unit
+          columns:
+            - label
+            - type
+            - cost
+            - requests
+            - tokens
+            - lastActive
+          link: /admin/usage/actors/:key?type=$lens
+        query:
+          scope: all
+          group_by:
+            - user_id
+          bucket: auto
+          limit: 2000
+
+      # ── 19. Channels table ────────────────────────────────────────────────────────────────
+      # No token column: a channel is an OAuth client, and "tokens per client" is a reading of the
+      # models it called, not of the client. Shares panel 11's request.
+      - id: channels-table
+        type: table
+        title: admin-usage.channels-table.title
+        subtitle: admin-usage.channels-table.subtitle
+        span: 2
+        metric: cost
+        options:
+          rowLabel: admin-usage.channels-table.rowLabel
+          unit: admin-usage.channels-table.unit
+          columns:
+            - label
+            - cost
+            - requests
+          link: /admin/usage/channels/:key
+        query:
+          scope: all
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/actors/[actorId] — ONE actor's own usage (converse-frontends#449, story C6).
+  #
+  # This entry is the proof that the engine handles PARAMETERISED pages, not just static ones:
+  # there is no per-actor container anywhere in `apps/console`, and no panel type this page
+  # introduced. Every panel is a type C3 shipped and a shape C5 already draws estate-wide; what
+  # differs is two `$param` placeholders.
+  #
+  # ── THE PLACEHOLDERS ───────────────────────────────────────────────────────────────────────
+  # `scope: $type` and `scope_id: $actorId`. `$type` is the closed usage-scope enum
+  # (`user|account|project`) and `resolve-dashboard.ts` validates the SUBSTITUTED value against it
+  # — a `?type=everything` cannot reach the backend as a malformed scope with an actor's name
+  # already printed above it. An unresolved placeholder throws rather than substituting an empty
+  # string: `scope_id: ""` under `scope: account` is not "no actor", it is a query that would
+  # return something other than what every title on this page claims.
+  #
+  # The route itself 404s an invalid or missing `?type=` before any markup is generated. An
+  # unresolved LABEL is a different matter entirely and is NOT a 404 — an id with real usage rows
+  # keeps its data under a labelled sentinel header (an explicit AC).
+  #
+  # ── PANEL IDS ──────────────────────────────────────────────────────────────────────────────
+  # Prefixed `actor-`. They are the same panel TYPES and the same readings as `/admin/usage`'s,
+  # but a distinct identity per page is what keeps three things unambiguous: C10's report walk
+  # (`/api/reports/page` resolves a route to a panel list), the per-panel URL knobs
+  # (`?<panel-id>-scale=`), and this file's own cross-page reading.
+  # `admin-usage-detail-pages.test.ts` pins the list, in order.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Nine panels resolve to FIVE requests:
+  #   1. the ungrouped actor query (total cost, total requests)
+  #   2. its previous-window twin (`compare: true` on both totals)
+  #   3. `[model]` (cost by model, model cost share, all three distribution rings)
+  #   4. `[azp]` (cost by channel)
+  #   5. the ungrouped actor query filtered to the three chat operations
+  #
+  # ── THE BUDGET ZONE ────────────────────────────────────────────────────────────────────────
+  # `type=account` additionally renders a hand-written "Budget & next reset" zone above this grid
+  # (`admin-usage-actor-centre.tsx`). It is deliberately NOT a panel: it reads `getBudgetBalance`
+  # and `getEffectiveResetSchedule`, both RPCs, over the BILLING PERIOD rather than the page's
+  # range — the same two reasons `/admin/overview`'s budget-pressure zone stays hand-written.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/actors/[actorId]
+    # Both are ROUTE params rather than view knobs, and both are required. `range` is implicit.
+    filters:
+      - actorId
+      - type
+
+    panels:
+      # ── The two totals, against the previous comparison window (D-F) ──────────────────────
+      # The cadence is the ACCOUNT's own effective reset schedule when `type=account`, and the
+      # global/monthly rule otherwise — resolved by the container, applied by the engine.
+      # The RANGE PICKER's window, not the billing period the "Budget & next reset" zone beside
+      # it reads (`use-actor-budget.ts`) — a ceiling is a fact about a reset period and this is a
+      # fact about the window on screen. The two agree whenever the picker is on `mtd`, and the
+      # subtitles say which is which; they disagreed catastrophically until #448, when the engine
+      # was silently widening this panel's window to a seven-day floor.
+      - id: actor-total-cost
+        type: stat
+        title: admin-usage-actors-actorId.actor-total-cost.title
+        subtitle: admin-usage-actors-actorId.actor-total-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: $type
+          scope_id: $actorId
+          bucket: auto
+          limit: 2000
+
+      - id: actor-total-requests
+        type: stat
+        title: admin-usage-actors-actorId.actor-total-requests.title
+        subtitle: admin-usage-actors-actorId.actor-total-requests.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: $type
+          scope_id: $actorId
+          bucket: auto
+          limit: 2000
+
+      # ── What this actor spends it on ──────────────────────────────────────────────────────
+      - id: actor-cost-by-model
+        type: series
+        title: admin-usage-actors-actorId.actor-cost-by-model.title
+        subtitle: admin-usage-actors-actorId.actor-cost-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      # ── Where it arrives from ─────────────────────────────────────────────────────────────
+      # Rows are real anchors into the channel page — the drill path continues rather than
+      # dead-ending at the actor.
+      - id: actor-cost-by-channel
+        type: ranked
+        title: admin-usage-actors-actorId.actor-cost-by-channel.title
+        subtitle: admin-usage-actors-actorId.actor-cost-by-channel.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/channels/:key
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-cost-share
+        type: share
+        title: admin-usage-actors-actorId.actor-model-cost-share.title
+        subtitle: admin-usage-actors-actorId.actor-model-cost-share.subtitle
+        span: 1
+        metric: cost
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-chat-completions-count
+        type: stat
+        title: admin-usage-actors-actorId.actor-chat-completions-count.title
+        subtitle: admin-usage-actors-actorId.actor-chat-completions-count.subtitle
+        span: 1
+        metric: derived:chatCount
+        query:
+          scope: $type
+          scope_id: $actorId
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── Model distribution — three RINGS ──────────────────────────────────────────────────
+      # Owner ruling, 2026-09-02, amending ADR 0013 D5: "rings allowed, filled disks never." All
+      # three share the `[model]` request the two panels above already issue.
+      - id: actor-model-distribution-requests
+        type: donut
+        title: admin-usage-actors-actorId.actor-model-distribution-requests.title
+        subtitle: admin-usage-actors-actorId.actor-model-distribution-requests.subtitle
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-distribution-cost
+        type: donut
+        title: admin-usage-actors-actorId.actor-model-distribution-cost.title
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: actor-model-distribution-tokens
+        type: donut
+        title: admin-usage-actors-actorId.actor-model-distribution-tokens.title
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: $type
+          scope_id: $actorId
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/channels/[channelId] — ONE OAuth client's usage (converse-frontends#449, C6).
+  #
+  # A channel is NOT a usage scope: the backend's scope enum knows users, projects, accounts, API
+  # keys and the estate, and nothing else. So every panel here is `scope: all` narrowed by the
+  # EQUALITY FILTER `azp: $channelId` — lane A3's bridge column (lightbridge-authz#648). That is
+  # also why this page needs `usage:read-all` exactly as the estate page does: it is an estate
+  # query with one more filter on it, not a narrower permission.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Seven panels resolve to SIX requests: the ungrouped channel query (both totals), its
+  # comparison twin, `[model]` (series + share), the chat-filtered query, `[user_id]` and
+  # `[operation]`. Nothing shares beyond those two pairs because each of the last three asks a
+  # genuinely different question.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/channels/[channelId]
+    filters:
+      - channelId
+
+    panels:
+      - id: channel-total-cost
+        type: stat
+        title: admin-usage-channels-channelId.channel-total-cost.title
+        subtitle: admin-usage-channels-channelId.channel-total-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-total-requests
+        type: stat
+        title: admin-usage-channels-channelId.channel-total-requests.title
+        subtitle: admin-usage-channels-channelId.channel-total-requests.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-cost-by-model
+        type: series
+        title: admin-usage-channels-channelId.channel-cost-by-model.title
+        subtitle: admin-usage-channels-channelId.channel-cost-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-model-cost-share
+        type: share
+        title: admin-usage-channels-channelId.channel-model-cost-share.title
+        subtitle: admin-usage-channels-channelId.channel-model-cost-share.subtitle
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      - id: channel-chat-completions-count
+        type: stat
+        title: admin-usage-channels-channelId.channel-chat-completions-count.title
+        subtitle: admin-usage-channels-channelId.channel-chat-completions-count.subtitle
+        span: 1
+        metric: derived:chatCount
+        query:
+          scope: all
+          filters:
+            azp: $channelId
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── Who is on this channel ────────────────────────────────────────────────────────────
+      # Always USERS, never a lens: this page has no lens knob, and a channel is a client people
+      # sign in through — "which accounts use the CLI" is a question the estate page's own lens
+      # already answers. Rows link back to the actor page with the matching `?type=user`.
+      - id: channel-actors
+        type: ranked
+        title: admin-usage-channels-channelId.channel-actors.title
+        subtitle: admin-usage-channels-channelId.channel-actors.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+      # ── What it is used FOR ───────────────────────────────────────────────────────────────
+      # `operation` is A3's derived column: the request path folded into a closed vocabulary
+      # (chat_completions / responses / messages / embeddings / other). The wire values are
+      # snake_case and the rows are humanised by `panel-adapters.tsx`, in one place.
+      - id: channel-requests-by-operation
+        type: ranked
+        title: admin-usage-channels-channelId.channel-requests-by-operation.title
+        subtitle: admin-usage-channels-channelId.channel-requests-by-operation.subtitle
+        span: 2
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            azp: $channelId
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/models/[model] — ONE model's usage across the estate (converse-frontends#449,
+  # owner feedback 2026-09-03: "/admin/usage should have panels with navigations too, the same
+  # way. E.g 'Top actors by cost', 'Which models'.").
+  #
+  # A model is NOT a usage scope: the backend's scope enum knows users, projects, accounts, API
+  # keys and the estate, and nothing else. So every panel here is `scope: all` narrowed by the
+  # EQUALITY FILTER `model: $model` — structurally the same page `/admin/usage/channels/[channelId]`
+  # is, one filter column over. That is also why it needs `usage:read-all` exactly as the estate
+  # page does: it is an estate query with one more filter on it, not a narrower permission.
+  #
+  # ── THE PARAM ──────────────────────────────────────────────────────────────────────────────
+  # `$model` is the raw vendor string the gateway recorded — `gpt-4o`, but also
+  # `openai/gpt-4o-mini` on a router-style gateway and `anthropic.claude-sonnet-4:0` on Bedrock.
+  # The link builder percent-encodes it (`modelHref`) and the ROUTE decodes it exactly once
+  # (`decodeRouteParam`); nothing in between touches it. There is no closed vocabulary to validate
+  # against, so — exactly as on the channel page — an unknown model is not a 404: it renders a page
+  # whose panels all say "no usage in this window", which is the same, honest answer a real model
+  # with a quiet month gets.
+  #
+  # ── WHERE ITS ROWS GO ──────────────────────────────────────────────────────────────────────
+  # The drill path CONTINUES rather than dead-ending: `model-actors` rows open the actor page (as
+  # users — this page has no lens knob, and "which accounts use gpt-4o" is a question the estate
+  # page's own lens already answers), and `model-channels` rows open the channel page.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Eight panels resolve to SIX requests:
+  #   1. the ungrouped model query (all three totals)
+  #   2. its previous-window twin (`compare: true` on all three)
+  #   3. `[model]` — the cost-over-time series AND the latency cards, which read the same grouping
+  #      of the same filtered query from different columns
+  #   4. `[user_id]`
+  #   5. `[azp]`
+  #   6. `[operation]`
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/models/[model]
+    filters:
+      - model
+
+    panels:
+      # ── The three totals, each against the previous comparison window (D-F) ────────────────
+      # THREE rather than the estate page's two: a model is the one subject where the token count
+      # is a headline reading rather than a detail — it is what the price is charged on, and the
+      # pair (cost, tokens) is what an operator compares between two models. All three share ONE
+      # ungrouped request and ONE comparison twin.
+      - id: model-total-cost
+        type: stat
+        title: admin-usage-models-model.model-total-cost.title
+        subtitle: admin-usage-models-model.model-total-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      - id: model-total-requests
+        type: stat
+        title: admin-usage-models-model.model-total-requests.title
+        subtitle: admin-usage-models-model.model-total-requests.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      - id: model-total-tokens
+        type: stat
+        title: admin-usage-models-model.model-total-tokens.title
+        subtitle: admin-usage-models-model.model-total-tokens.subtitle
+        span: 1
+        metric: tokens
+        compare: true
+        query:
+          scope: all
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── What it costs, over the window ────────────────────────────────────────────────────
+      # LINES, not a stack: the ruling that lifted D5's stacked-bar ban was for daily spend × model,
+      # where the bar height states a total the lines cannot. This board is ONE model — there is
+      # nothing to stack, and a single-series stack would be a bar chart pretending to be a
+      # part-to-whole mark.
+      - id: model-cost-over-time
+        type: series
+        title: admin-usage-models-model.model-cost-over-time.title
+        subtitle: admin-usage-models-model.model-cost-over-time.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+          topN: 1
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── Who is using it ───────────────────────────────────────────────────────────────────
+      # Always USERS, never a lens: this page has no lens knob (its one filter is the model), and
+      # rows link back to the actor page with the matching `?type=user` — the same shape
+      # `channel-actors` holds, for the same reason.
+      - id: model-actors
+        type: ranked
+        title: admin-usage-models-model.model-actors.title
+        subtitle: admin-usage-models-model.model-actors.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/actors/:key?type=user
+        query:
+          scope: all
+          group_by:
+            - user_id
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── Where it arrives from ─────────────────────────────────────────────────────────────
+      - id: model-channels
+        type: ranked
+        title: admin-usage-models-model.model-channels.title
+        subtitle: admin-usage-models-model.model-channels.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 8
+          link: /admin/usage/channels/:key
+        query:
+          scope: all
+          group_by:
+            - azp
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── How fast it answers ───────────────────────────────────────────────────────────────
+      # `group_by: [model]` under a query already filtered to one model resolves to exactly ONE
+      # card — which is the point: the cards state p50/p95/samples off the same rows every figure
+      # above is drawn from, so "is this model slow" is answered on the page where "is this model
+      # expensive" is, rather than on `/admin/usage/chats` where it only ever covered chat traffic.
+      - id: model-latency
+        type: latency-cards
+        title: admin-usage-models-model.model-latency.title
+        subtitle: admin-usage-models-model.model-latency.subtitle
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+      # ── What it is used FOR ───────────────────────────────────────────────────────────────
+      # `operation` is A3's derived column, humanised once in `panel-adapters.tsx` — the rows read
+      # "Chat completions", never `chat_completions`.
+      - id: model-requests-by-operation
+        type: ranked
+        title: admin-usage-models-model.model-requests-by-operation.title
+        subtitle: admin-usage-models-model.model-requests-by-operation.subtitle
+        span: 2
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            model: $model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /admin/usage/chats — the chat-shaped operations across the estate (C6).
+  #
+  # ── ONE QUERY PER PANEL, NOT THREE ─────────────────────────────────────────────────────────
+  # Every panel carries `operation_in: [chat_completions, responses, messages]`, A3's single
+  # set-membership filter (lightbridge-authz#648). Three equality queries unioned in the browser
+  # would triple the load AND disagree with themselves whenever a bucket boundary fell differently
+  # between them — and a latency percentile cannot be unioned at all.
+  #
+  # ── THE LATENCY SERIES IS HONEST, AND THIS IS WHY ──────────────────────────────────────────
+  # ADR 0013 D5 limited latency to stat cards "until history depth justifies a series". That limit
+  # is amended here (C11 carries the write-up): the usage backend computes `percentile_cont` PER
+  # BUCKET GROUP at query time, so each plotted point is a real percentile of that bucket's own
+  # samples — not an interpolation between window aggregates, and not an average of percentiles,
+  # which is not a percentile of anything. `latency-cards` still states the window's WORST bucket
+  # rather than a mean, for the same reason.
+  #
+  # ── REQUEST COUNT ──────────────────────────────────────────────────────────────────────────
+  # Five panels resolve to FOUR requests: the ungrouped chat query (latency series + the count),
+  # its comparison twin, `[model]` (latency cards + cost by model), and `[operation]`.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /admin/usage/chats
+    # No route params and no lens — this page is the estate's chat traffic, always.
+    filters: []
+
+    panels:
+      # ── Latency over time, p50 and p95 ────────────────────────────────────────────────────
+      # UNGROUPED on purpose: the two lines are the two PERCENTILES, not two models. A grouped
+      # latency series would plot one p50 line per model and drop p95 entirely, which is the
+      # reading `latency-cards` below already gives per model.
+      - id: chat-latency-series
+        type: latency-series
+        title: admin-usage-chats.chat-latency-series.title
+        subtitle: admin-usage-chats.chat-latency-series.subtitle
+        span: 2
+        metric: latency
+        options:
+          scale: linear
+        query:
+          scope: all
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-latency-cards
+        type: latency-cards
+        title: admin-usage-chats.chat-latency-cards.title
+        subtitle: admin-usage-chats.chat-latency-cards.subtitle
+        span: 2
+        metric: latency
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      # ── How many ──────────────────────────────────────────────────────────────────────────
+      # `metric: requests`, not `derived:chatCount`: every query on this page is ALREADY filtered
+      # to the three chat surfaces, so a request here IS a chat request — and unlike the derived
+      # count, a plain metric carries an honest previous-window delta. The estate page's own
+      # `chat-completions-count` stat keeps `derived:chatCount` because its page is unfiltered and
+      # the panel is what does the narrowing.
+      - id: chat-total-count
+        type: stat
+        title: admin-usage-chats.chat-total-count.title
+        subtitle: admin-usage-chats.chat-total-count.subtitle
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: all
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-requests-by-operation
+        type: series
+        title: admin-usage-chats.chat-requests-by-operation.title
+        subtitle: admin-usage-chats.chat-requests-by-operation.subtitle
+        span: 1
+        metric: requests
+        options:
+          scale: linear
+          topN: 3
+        query:
+          scope: all
+          group_by:
+            - operation
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+      - id: chat-cost-by-model
+        type: series
+        title: admin-usage-chats.chat-cost-by-model.title
+        subtitle: admin-usage-chats.chat-cost-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: log
+          topN: 5
+        query:
+          scope: all
+          group_by:
+            - model
+          filters:
+            operation_in:
+              - chat_completions
+              - responses
+              - messages
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /accounts/[accountId]/overview — the account-scoped user dashboard (converse-frontends#455,
+  # story C12).
+  #
+  # These panels ARE the boards `overview-centre.tsx` drew by hand until 2026-09-02 (spend over
+  # time with its previous-period overlay, the per-project breakdown, the by-model board), plus
+  # the two the toolbar's `?group-by=` knob used to reach — by API key, and the model share —
+  # which are now their own panels rather than one board changing shape under a select.
+  #
+  # **What stays hand-written, and why.** `dashboards.yaml` describes usage queries. The BUDGET
+  # card reads `getMyBudgetBalance` (an RPC) against BILLING-PERIOD consumption that must not
+  # follow the range picker, and the stat row beside it counts projects and active API keys
+  # through refine. None of those is a usage query, so none is a panel — the same line
+  # `/admin/overview` draws for its budget-pressure zone. They render in their own grid ABOVE this
+  # one, with the honesty caption that says which window they are about.
+  #
+  # Request count: TWELVE panels resolve to FIVE requests — the ungrouped one (three panels), its
+  # comparison twin, one `[project_id, model]` grouping (FIVE panels, each reading its own
+  # dimension), one by-API-key grouping, and one `[azp]` grouping shared by the three channel
+  # rings. The hand-written page fired four for three boards, and none of them were shared. The
+  # fourth ring (Cost by project, owner correction 2026-09-03) cost NOTHING: it reads a dimension
+  # of a grouping the page was already firing.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /accounts/[accountId]/overview
+    # `accountId` is the route segment; `project` is the console-wide `?project=` scope, whose
+    # neutral position is "All projects" — hence the OPTIONAL `$project?` placeholder below, which
+    # drops the filter entirely rather than sending an empty one.
+    filters:
+      - accountId
+      - project
+
+    panels:
+      # ── the money-first pair ────────────────────────────────────────────────────────────────
+      # Both read the SAME ungrouped query as the chart below, and both carry the D-F comparison,
+      # so the delta's wording names the window it compared against BY DATE
+      # ("12% vs Aug 1 – Aug 31") instead of the vague "vs prev period" the deleted per-container
+      # helpers used.
+      - id: spend-total
+        type: stat
+        title: accounts-accountId-overview.spend-total.title
+        subtitle: accounts-accountId-overview.spend-total.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: request-total
+        type: stat
+        title: accounts-accountId-overview.request-total.title
+        span: 1
+        metric: requests
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── spend over time ─────────────────────────────────────────────────────────────────────
+      # UNGROUPED, deliberately: it plots the account TOTAL, summing every project/model/key
+      # including spend the backend attributed to nothing. It used to plot one line per project
+      # while silently dropping every unassigned point (often 88-99% of real spend), which is what
+      # made this chart and the estate overview's own draw different curves for the same account
+      # (owner finding, 2026-08-31). The dashed line is the previous period, re-based forward so
+      # the two overlay.
+      - id: spend-over-time
+        type: series
+        title: accounts-accountId-overview.spend-over-time.title
+        subtitle: accounts-accountId-overview.spend-over-time.subtitle
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          scale: linear
+        query:
+          scope: account
+          scope_id: $accountId
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── the breakdowns ──────────────────────────────────────────────────────────────────────
+      # One `[project_id, model]` query serves all four panels below: each declares which
+      # dimension it READS (`options.dimension`), and the request is interned once.
+      - id: spend-by-project
+        type: ranked
+        title: accounts-accountId-overview.spend-by-project.title
+        subtitle: accounts-accountId-overview.spend-by-project.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: model-share
+        type: share
+        title: accounts-accountId-overview.model-share.title
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 5
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # A STACK (owner ruling 2026-09-03). This account's spend per day, split by model — the
+      # height answers "what did this account cost that day", the segments answer "on what".
+      - id: spend-by-model
+        type: series
+        title: accounts-accountId-overview.spend-by-model.title
+        subtitle: accounts-accountId-overview.spend-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          dimension: model
+          style: stacked-bars
+          topN: 5
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # `span: 2` on EVERY `latency-cards` panel in this file (owner directive, 2026-09-03:
+      # "Everywhere where it appears, 'Latency by model' shall be full width. Those numbers should
+      # appear clear"). A latency card carries three figures — p50, p95, p99 — not one, and at half
+      # width four of them share a column meant for a single numeral; the width is what lets each
+      # percentile keep a labelled figure column of its own rather than a run-on meta line.
+      - id: latency-by-model
+        type: latency-cards
+        title: accounts-accountId-overview.latency-by-model.title
+        subtitle: accounts-accountId-overview.latency-by-model.subtitle
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # Its own request: an api-key grouping crossed with the two above would multiply the row
+      # count past the limit on any account with a real number of keys.
+      - id: spend-by-api-key
+        type: ranked
+        title: accounts-accountId-overview.spend-by-api-key.title
+        subtitle: accounts-accountId-overview.spend-by-api-key.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - api_key_id
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── the three channel RINGS ─────────────────────────────────────────────────────────────
+      # Owner request, 2026-09-03: "/accounts/:id/overview is missing three pie-charts: cost by
+      # channels, tokens by channels, requests by channels." Rings, never filled disks — the same
+      # owner ruling (2026-09-02) that amended ADR 0013 D5 and that `/admin/usage`'s own three
+      # model-distribution rings already follow.
+      #
+      # All three share ONE `[azp]` request: only which column each READS differs, which is the
+      # whole reason they are three panels rather than one with a metric toggle — a toggle would
+      # hide two of the three readings behind a click. Adding them takes this page from four
+      # requests to five.
+      #
+      # **`azp` is a raw OAuth client id and stays one.** It is not an actor dimension, so
+      # `labelOf` finds no `resolveActorLabels` kind and no closed vocabulary for it and prints the
+      # value verbatim — exactly what `/admin/usage`'s `cost-by-channel` ranked panel does. Client
+      # ids are already human-chosen strings (`console-ui`, `opencode-cli`); title-casing them
+      # would invent a name the deployment never configured. Spend the gateway attributed to no
+      # client keeps its labelled `Unassigned` segment rather than being dropped.
+      #
+      # **Rows link to nothing, deliberately.** `/admin/usage/channels/<azp>` is gated on
+      # `usage:read-all`, which the readers of this page do not hold — a segment that opened a 404
+      # would be worse than one that opens nothing.
+      - id: account-cost-by-channel
+        type: donut
+        title: accounts-accountId-overview.account-cost-by-channel.title
+        subtitle: accounts-accountId-overview.account-cost-by-channel.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: account-tokens-by-channel
+        type: donut
+        title: accounts-accountId-overview.account-tokens-by-channel.title
+        subtitle: accounts-accountId-overview.account-tokens-by-channel.subtitle
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: account-requests-by-channel
+        type: donut
+        title: accounts-accountId-overview.account-requests-by-channel.title
+        subtitle: accounts-accountId-overview.account-requests-by-channel.subtitle
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── the fourth ring: the PROJECT split ──────────────────────────────────────────────────
+      # Owner correction, 2026-09-03: the ring asked for alongside the three above was "Cost by
+      # PROJECT", not a fourth channel reading. The three channel rings stay exactly as they are;
+      # this is the fourth, and it is the one that answers "where did this account's money go"
+      # in the vocabulary the account's own people use.
+      #
+      # It READS the `[project_id, model]` grouping the four breakdown panels above already fire
+      # (`options.dimension: project_id`) rather than firing a `[project_id]` query of its own, and
+      # that is a CORRECTNESS decision before it is a saving. "Spend by project" (the ranked panel)
+      # and "Cost by project" (this ring) are the same reading in two shapes; served by two
+      # different requests they would each meet the 2,000-row limit at a different point, and a
+      # truncated ring beside an untruncated list is two disagreeing answers to one question on one
+      # page. Sharing the grouping also keeps this page at FIVE requests for twelve panels.
+      #
+      # **`project_id` IS an actor dimension**, unlike `azp`: `labelOf` resolves it through the
+      # page's own project names first (`useDashboardLabels` — already in memory for the project
+      # picker, and available to readers who do not hold `user:read`) and `resolveActorLabels`
+      # second, so a segment carries the project's NAME rather than a cuid. Spend the backend
+      # attributed to no project keeps its labelled `Unassigned` segment, never dropped.
+      #
+      # **Segments link to nothing**, like the three rings above. The only thing a project segment
+      # could open is this same page with `?project=` set — a second, hidden entrance to the picker
+      # already sitting in the header.
+      - id: account-cost-by-project
+        type: donut
+        title: accounts-accountId-overview.account-cost-by-project.title
+        subtitle: accounts-accountId-overview.account-cost-by-project.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/usage — the operator's own ACCOUNT FAMILY overview (converse-frontends#455,
+  # story C12). The landing lens under "Overview" in the settings area.
+  #
+  # **This page is a `scope: family` FAN-OUT, and that is the whole design decision here.** It is
+  # NOT `scope: all`: that scope is the estate (every account on the deployment) and is gated on
+  # `usage:read-all`, which most signed-in people do not hold — `/admin/overview` is the page that
+  # asks that question. What this page has always shown is the accounts the signed-in identity can
+  # actually see, and the usage API has no scope for "every account I can see" (filed as
+  # lightbridge-authz#578). So the resolver expands each panel below into one `scope: account`
+  # query per family account — capped at `MAX_FANNED_OUT_ACCOUNTS = 25`, and the cap stated in the
+  # page's own caption — and merges the responses before the adapters see them. That is exactly
+  # what `use-usage-overview-screen.ts` did by hand; it is YAML now.
+  #
+  # ── PARITY WITH `/accounts/<id>/overview` (owner directive, 2026-09-03) ──────────────────────
+  # "It should have the same amount of dashboards as /accounts/:id/overview but cross accounts."
+  # So this entry now declares the account page's WHOLE panel set — the two comparing stats, spend
+  # over time, the by-project / by-model / by-API-key breakdowns, latency by model and all four
+  # rings — resolved across the family instead of against one account, plus the panels only a
+  # family can draw: the Accounts and Cost-per-request stats, "Spend by account" over time, and a
+  # fifth ring, **Cost by account**, which is a dimension a single-account page has no rows for.
+  # Sixteen panels against the account page's twelve.
+  #
+  # **What does NOT cross over, and why.** The account page's Budget card, its API-key expiry
+  # reading and its refill CTA are not usage queries at all: they are per-account RPCs
+  # (`getMyBudgetBalance`, which structurally answers for the caller's own account only) against a
+  # BILLING PERIOD rather than this page's range. Summing 25 accounts' ceilings would invent an
+  # allowance nobody granted, and picking one account's would label it as the family's. They stay
+  # account-only, and `usage-overview-centre.tsx` says so in a caption on the page rather than
+  # leaving a reader to notice the absence.
+  #
+  # ── REQUEST COUNT: FIVE query SHAPES × N accounts (N = min(family, 25)) ⇒ at most 125 ────────
+  # Under a fan-out every distinct query shape costs N requests rather than one, so the shapes are
+  # the whole budget and `options.dimension` is what keeps them down to the same FIVE the account
+  # page fires:
+  #   1. `[account_id]`        — the four stats (`dimension: none`, or `account_id` for the
+  #                              Accounts count), the family total chart, Spend by account, and the
+  #                              Cost-by-account ring. It replaces the ungrouped query the account
+  #                              page uses: this page needs the account dimension, and a total read
+  #                              off it (`dimension: none`) is the same sum with no second fan-out.
+  #   2. its COMPARISON TWIN   — the previous window, for the two stats and the total chart.
+  #   3. `[project_id, model]` — Spend by project, the model share, Spend by model over time,
+  #                              Latency by model and the Cost-by-project ring: five panels, five
+  #                              dimensions read off one shape, exactly as on the account page.
+  #   4. `[api_key_id]`        — its own shape for the same reason it is one on the account page:
+  #                              crossing keys with the two dimensions above multiplies the row
+  #                              count past the 2,000 limit on any account with real key usage.
+  #   5. `[azp]`               — the three channel rings.
+  # Sixteen panels, five shapes. The entry this replaces was seven panels over two shapes (2 × N);
+  # nine more panels cost three more shapes, not nine.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/usage
+    # No route params: the family is a fact about the session, not about the URL. The account cap
+    # and its caption belong to the page, not to a panel.
+    filters: []
+
+    panels:
+      # ── the stat row ────────────────────────────────────────────────────────────────────────
+      # Four stats where the account page has two, because two of them are only askable of a
+      # family. All four read the `[account_id]` shape; the two that carry a figure the previous
+      # window can be compared against carry `compare: true`, so their delta names its own window
+      # ("12% vs previous month") exactly as the account page's pair does.
+      - id: family-requests
+        type: stat
+        title: settings-overview-usage.family-requests.title
+        span: 1
+        metric: requests
+        compare: true
+        options:
+          dimension: none
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost
+        type: stat
+        title: settings-overview-usage.family-cost.title
+        subtitle: settings-overview-usage.family-cost.subtitle
+        span: 1
+        metric: cost
+        compare: true
+        options:
+          dimension: none
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost-per-request
+        type: stat
+        title: settings-overview-usage.family-cost-per-request.title
+        subtitle: settings-overview-usage.family-cost-per-request.subtitle
+        span: 1
+        metric: derived:costPerRequest
+        options:
+          dimension: none
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # Last of the four, because its caption is the one an operator has to read: a usage query can
+      # only ever see accounts that DREW something.
+      - id: family-accounts
+        type: stat
+        title: settings-overview-usage.family-accounts.title
+        subtitle: settings-overview-usage.family-accounts.subtitle
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: account_id
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── spend over time, twice ──────────────────────────────────────────────────────────────
+      # `dimension: none` — the family TOTAL, summed across every account in the merged response,
+      # rather than one line per account (that is the board below). The dashed line is the previous
+      # period, re-based forward so the two overlay instead of doubling the x-domain. This is the
+      # account page's "Spend over time" with a family under it.
+      - id: family-spend
+        type: series
+        title: settings-overview-usage.family-spend.title
+        subtitle: settings-overview-usage.family-spend.subtitle
+        span: 2
+        metric: cost
+        compare: true
+        options:
+          dimension: none
+          scale: linear
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # The first of the panels the single-account page cannot have at all: one line per ACCOUNT.
+      # Same request as the total above — only the dimension it reads differs.
+      - id: spend-by-account
+        type: series
+        title: settings-overview-usage.spend-by-account.title
+        subtitle: settings-overview-usage.spend-by-account.subtitle
+        span: 2
+        metric: cost
+        options:
+          dimension: account_id
+          scale: linear
+          topN: 12
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+      # ── the breakdowns, in the account page's own order ─────────────────────────────────────
+      # One `[project_id, model]` fan-out serves the next four panels and the Cost-by-project ring
+      # below, each declaring the dimension it reads. Under a fan-out this is worth 4 × N requests,
+      # which is why every one of them states `options.dimension` rather than relying on
+      # `group_by[0]`.
+      - id: family-spend-by-project
+        type: ranked
+        title: settings-overview-usage.family-spend-by-project.title
+        subtitle: settings-overview-usage.family-spend-by-project.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-model-share
+        type: share
+        title: settings-overview-usage.family-model-share.title
+        subtitle: settings-overview-usage.family-model-share.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 5
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: family-spend-by-model
+        type: series
+        title: settings-overview-usage.family-spend-by-model.title
+        subtitle: settings-overview-usage.family-spend-by-model.subtitle
+        span: 2
+        metric: cost
+        options:
+          dimension: model
+          style: stacked-bars
+          topN: 5
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # Full width, like every other `latency-cards` panel in this file — owner directive,
+      # 2026-09-03. See `/accounts/[accountId]/overview`'s own comment on the same panel.
+      - id: family-latency-by-model
+        type: latency-cards
+        title: settings-overview-usage.family-latency-by-model.title
+        subtitle: settings-overview-usage.family-latency-by-model.subtitle
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # Its own shape, for the account page's own reason: an api-key grouping crossed with the two
+      # dimensions above would multiply the row count past the limit on any account with a real
+      # number of keys — and here that would truncate 25 responses, not one.
+      - id: family-spend-by-api-key
+        type: ranked
+        title: settings-overview-usage.family-spend-by-api-key.title
+        subtitle: settings-overview-usage.family-spend-by-api-key.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - api_key_id
+          bucket: auto
+          limit: 2000
+
+      # ── the rings ───────────────────────────────────────────────────────────────────────────
+      # The account page's four, over the family, plus the fifth only a family can draw. Rings,
+      # never filled disks (owner ruling, 2026-09-02, amending ADR 0013 D5). Segments link to
+      # nothing — a `donut` carries no row href at all, and the two dimensions that could lead
+      # somewhere (`azp` → `/admin/usage/channels/<azp>`) are gated on `usage:read-all`, which this
+      # page's readers do not hold.
+      - id: family-cost-by-channel
+        type: donut
+        title: settings-overview-usage.family-cost-by-channel.title
+        subtitle: settings-overview-usage.family-cost-by-channel.subtitle
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-tokens-by-channel
+        type: donut
+        title: settings-overview-usage.family-tokens-by-channel.title
+        subtitle: settings-overview-usage.family-tokens-by-channel.subtitle
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-requests-by-channel
+        type: donut
+        title: settings-overview-usage.family-requests-by-channel.title
+        subtitle: settings-overview-usage.family-requests-by-channel.subtitle
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - azp
+          bucket: auto
+          limit: 2000
+
+      - id: family-cost-by-project
+        type: donut
+        title: settings-overview-usage.family-cost-by-project.title
+        subtitle: settings-overview-usage.family-cost-by-project.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      # The one ring `/accounts/<id>/overview` structurally cannot draw: a single-account page has
+      # exactly one `account_id`, so its ring would be a single full circle. It reads the same
+      # `[account_id]` shape the stats and the two charts above do.
+      - id: family-cost-by-account
+        type: donut
+        title: settings-overview-usage.family-cost-by-account.title
+        subtitle: settings-overview-usage.family-cost-by-account.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: account_id
+          topN: 6
+        query:
+          scope: family
+          group_by:
+            - account_id
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/account — the account analytics lens (converse-frontends#455, story C12).
+  #
+  # One of the three "scope-parameterised" lenses `use-settings-overview-screen.ts` drove by hand
+  # until 2026-09-02. Each is now its own YAML entry rather than one hook keyed by a `lens`
+  # literal: what actually differed between them was the scope and one breakdown dimension, which
+  # is precisely what a page entry states.
+  #
+  # Hand-written beside this grid, because neither is a usage query over the page's range: the
+  # cumulative BUDGET BURN-DOWN (its ceiling is `getMyBudgetBalance`, its window the billing
+  # period) and, for an admin, KEY HYGIENE (a refine listing of the account's API keys).
+  #
+  # Eight panels, TWO requests — the ungrouped one and one `[project_id, model]` grouping. The
+  # hand-written lens fired four (day, model-day, model-totals, secondary).
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/account
+    filters:
+      - accountId
+
+    panels:
+      - id: requests
+        type: stat
+        title: settings-overview-account.requests.title
+        span: 1
+        metric: requests
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: settings-overview-account.cost.title
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: settings-overview-account.cost-per-request.title
+        subtitle: settings-overview-account.cost-per-request.subtitle
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: settings-overview-account.models-in-use.title
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: settings-overview-account.spend-over-time.title
+        subtitle: settings-overview-account.spend-over-time.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: account
+          scope_id: $accountId
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: settings-overview-account.spend-by-model.title
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-project
+        type: ranked
+        title: settings-overview-account.spend-by-project.title
+        subtitle: settings-overview-account.spend-by-project.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: project_id
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: settings-overview-account.latency-by-model.title
+        subtitle: settings-overview-account.latency-by-model.subtitle
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - project_id
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/project — the project analytics lens (converse-frontends#455, story C12).
+  # Same shape as the account lens, with the secondary breakdown on API KEYS rather than projects
+  # (a project's sub-dimension is which key drew the spend). Hand-written beside the grid, for an
+  # admin only: BUDGET PRESSURE, which reads the account's single ceiling through an RPC.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/project
+    filters:
+      - projectId
+
+    panels:
+      - id: requests
+        type: stat
+        title: settings-overview-project.requests.title
+        span: 1
+        metric: requests
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: settings-overview-project.cost.title
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: settings-overview-project.cost-per-request.title
+        subtitle: settings-overview-project.cost-per-request.subtitle
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: settings-overview-project.models-in-use.title
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: settings-overview-project.spend-over-time.title
+        subtitle: settings-overview-project.spend-over-time.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: project
+          scope_id: $projectId
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: settings-overview-project.spend-by-model.title
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-api-key
+        type: ranked
+        title: settings-overview-project.spend-by-api-key.title
+        subtitle: settings-overview-project.spend-by-api-key.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: api_key_id
+          topN: 6
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: latency-by-model
+        type: latency-cards
+        title: settings-overview-project.latency-by-model.title
+        subtitle: settings-overview-project.latency-by-model.subtitle
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: project
+          scope_id: $projectId
+          group_by:
+            - api_key_id
+            - model
+          bucket: auto
+          limit: 2000
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # /settings/overview/user — "Your usage" (converse-frontends#455, story C12).
+  #
+  # `scope: user` is the one scope the usage backend allows ONLY for the caller's own token
+  # subject — there is no admin bypass and no user picker, so `$sub` can never be anyone else's
+  # id, and this lens carries no secondary breakdown: a single identity's usage has no natural
+  # sub-dimension beyond the model. No hand-written zone at all.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  - route: /settings/overview/user
+    filters:
+      - sub
+
+    panels:
+      - id: requests
+        type: stat
+        title: settings-overview-user.requests.title
+        span: 1
+        metric: requests
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: cost
+        type: stat
+        title: settings-overview-user.cost.title
+        span: 1
+        metric: cost
+        compare: true
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: cost-per-request
+        type: stat
+        title: settings-overview-user.cost-per-request.title
+        subtitle: settings-overview-user.cost-per-request.subtitle
+        span: 1
+        metric: derived:costPerRequest
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      - id: models-in-use
+        type: stat
+        title: settings-overview-user.models-in-use.title
+        span: 1
+        metric: derived:activeActors
+        options:
+          dimension: model
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-over-time
+        type: series
+        title: settings-overview-user.spend-over-time.title
+        subtitle: settings-overview-user.spend-over-time.subtitle
+        span: 2
+        metric: cost
+        options:
+          scale: linear
+        query:
+          scope: user
+          scope_id: $sub
+          bucket: auto
+          limit: 2000
+
+      # Full width, like every other `latency-cards` panel in this file — owner directive,
+      # 2026-09-03. See `/accounts/[accountId]/overview`'s own comment on the same panel.
+      #
+      # It moved AHEAD of `spend-by-model` in the same pass, and that is a layout fact rather than
+      # a reading preference: `dashboard-grid` has no `dense` flow, so a half-width panel sitting
+      # between two full-width ones leaves the other half of its row empty. This lens has exactly
+      # one half-width breakdown (the user lens has no secondary dimension — see
+      # `overview-pages.test.ts`), so the only placement that costs no hole is LAST.
+      - id: latency-by-model
+        type: latency-cards
+        title: settings-overview-user.latency-by-model.title
+        subtitle: settings-overview-user.latency-by-model.subtitle
+        span: 2
+        metric: latency
+        options:
+          dimension: model
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000
+
+      - id: spend-by-model
+        type: ranked
+        title: settings-overview-user.spend-by-model.title
+        span: 1
+        metric: cost
+        options:
+          dimension: model
+          topN: 6
+        query:
+          scope: user
+          scope_id: $sub
+          group_by:
+            - model
+          bucket: auto
+          limit: 2000

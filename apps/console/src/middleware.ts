@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { chunkCookieName } from './server/cookie-names';
+import { GUARDED_PATHNAME_HEADER } from './shared/request-headers';
 
 /**
  * `/<legacy path>[?account=<id>]` -> `/accounts/<id>/<segment>[?<other params>]` (IA v3 phase 1,
@@ -213,6 +214,8 @@ export function legacyRedirectTarget(
  * `401 {"error":"unauthenticated"}` its route handler returns, not a `302` to an HTML login page.
  */
 export function middleware(request: NextRequest) {
+  const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+
   if (request.cookies.has(chunkCookieName(0))) {
     // The legacy-deep-link redirect table runs only for an authenticated visitor — an
     // unauthenticated one is about to be sent to `/auth/login` below regardless, and rewriting
@@ -221,11 +224,17 @@ export function middleware(request: NextRequest) {
     if (target) {
       return NextResponse.redirect(new URL(target, request.url), 308);
     }
-    return NextResponse.next();
+    // Hands the root layout the path it is rendering, which a server component has no other way to
+    // learn. It is what `layout.tsx` sends a STALE cookie back to after sign-in, and its presence
+    // is also the signal that this request came through this guard at all — see that layout's
+    // own comment. Set here, not in the branch below, because a request with no cookie never
+    // reaches a page.
+    const headers = new Headers(request.headers);
+    headers.set(GUARDED_PATHNAME_HEADER, returnTo);
+    return NextResponse.next({ request: { headers } });
   }
 
   const loginUrl = new URL('/auth/login', request.url);
-  const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
   if (returnTo && returnTo !== '/') {
     loginUrl.searchParams.set('returnTo', returnTo);
   }

@@ -102,6 +102,10 @@ export function rotateSession(
 ): ConsoleSession {
   return {
     sid: session.sid,
+    // Preserved for the same reason `sid` is, and with more teeth: `startedAt` is what
+    // `session.absoluteMaxAgeSeconds` is measured from, so re-stamping it here would let a session
+    // slide forever on refreshes alone and quietly delete the absolute cap (ADR 0016, D3.1).
+    startedAt: session.startedAt,
     tokens: {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken ?? session.tokens.refreshToken,

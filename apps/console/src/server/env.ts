@@ -49,7 +49,23 @@ export type ConsoleEnv = {
    * usage routes answer their honest 503.
    */
   usageClientCert?: { certPath: string; keyPath: string };
-  sessionSecret: string;
+  /**
+   * JWE key material for the session and login-state cookies, newest first (ADR 0016, D3.2).
+   *
+   * A LIST, always — a plain `session.secret: '<string>'` in the YAML normalises to a one-entry
+   * list here. `sessionSecrets[0]` seals; every entry is tried on open, in order. That is what
+   * makes rotating the secret a two-deploy procedure instead of a mass sign-out; see
+   * `docs/knowledge/console-configuration.md`, "Rotating `session.secret`".
+   */
+  sessionSecrets: string[];
+  /**
+   * Sliding session lifetime, in seconds. Stamped as the seal's `exp` AND as the cookie's
+   * `Max-Age`, so the server-enforced expiry and the browser's own hint agree instead of the
+   * 30-day `Max-Age` standing alone as it did before ADR 0016.
+   */
+  sessionMaxAgeSeconds: number;
+  /** Ceiling on the sliding window, measured from the original login (`ConsoleSession.startedAt`). */
+  sessionAbsoluteMaxAgeSeconds: number;
   /**
    * Where `GET /api/reports/page` POSTs its render jobs — the `typst-render` sidecar
    * (converse-frontends#453, `apps/typst-render/README.md` for the wire contract). Unset is a
@@ -105,7 +121,7 @@ type RawKeycloakConfig = {
 };
 
 type RawConsoleConfig = {
-  session?: { secret?: unknown };
+  session?: { secret?: unknown; maxAgeSeconds?: unknown; absoluteMaxAgeSeconds?: unknown };
   idp?: RawKeycloakConfig;
   backendUrl?: unknown;
   apiBasePath?: unknown;
@@ -177,6 +193,78 @@ function parseAudienceList(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+/** Minimum length of any one `session.secret` entry — an HKDF input below this is not key material. */
+export const MIN_SESSION_SECRET_LENGTH = 32;
+
+/** 12 hours. A working day, so a person signing in each morning is not asked again before lunch. */
+export const DEFAULT_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+
+/** 7 days. The ceiling no amount of activity extends past — a stolen cookie dies within a week. */
+export const DEFAULT_SESSION_ABSOLUTE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * `session.secret`, accepted as a string OR a list, normalised to a list, newest first
+ * (ADR 0016, D3.2). One entry is the steady state; more than one only during a rotation.
+ *
+ * `{env:VAR}` placeholder semantics are untouched — `config-loader.ts` resolves string leaves
+ * inside an array exactly as it resolves a scalar, so both
+ * `secret: '{env:SESSION_SECRET}'` and `secret: ['{env:SESSION_SECRET}', '{env:SESSION_SECRET_PREVIOUS}']`
+ * work, and an unset variable in the list collapses to `undefined` and is dropped rather than
+ * becoming an empty-string "secret" that would open nothing and cost an HKDF per request.
+ */
+export function parseSessionSecrets(value: unknown, parsed: ParsedConfigFile): string[] {
+  const entries = Array.isArray(value) ? value : [value];
+  const secrets: string[] = [];
+
+  entries.forEach((entry, index) => {
+    // Dropped, not rejected: a list entry whose `{env:VAR}` is unset resolves to `undefined`, and
+    // that is the normal shape of "the previous secret has been retired but the line is still in
+    // the document". An entry that is present but WRONG (too short, not a string) still fails.
+    if (entry === undefined || entry === null || entry === '') return;
+    const label = Array.isArray(value) ? `session.secret[${index}]` : 'session.secret';
+    if (typeof entry !== 'string') {
+      throw new Error(
+        `[console] config.yaml key "${label}" must be a string, got ${typeof entry} ` +
+          `(${parsed.absolutePath})`
+      );
+    }
+    if (entry.length < MIN_SESSION_SECRET_LENGTH) {
+      throw new Error(
+        `[console] config.yaml key "${label}" must resolve to at least ` +
+          `${MIN_SESSION_SECRET_LENGTH} characters (${parsed.absolutePath})`
+      );
+    }
+    secrets.push(entry);
+  });
+
+  if (secrets.length === 0) {
+    // Reuses `requiredField`'s message so a bare `secret: '{env:SESSION_SECRET}'` with the
+    // variable unset still names the variable, which is the common misconfiguration.
+    requiredField(parsed, ['session', 'secret']);
+  }
+  return secrets;
+}
+
+/** A positive-integer seconds field, with a default. Rejects 0, negatives and non-numbers loudly:
+ *  a `maxAgeSeconds: 0` typo would expire every session the instant it was written, and silently
+ *  falling back to the default would hide that from whoever wrote it. */
+function parsePositiveSeconds(
+  value: unknown,
+  fieldLabel: string,
+  fallback: number,
+  parsed: ParsedConfigFile
+): number {
+  if (value === undefined || value === null || value === '') return fallback;
+  const numeric = typeof value === 'string' ? Number(value) : value;
+  if (typeof numeric !== 'number' || !Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(
+      `[console] config.yaml key "${fieldLabel}" must be a positive whole number of seconds, ` +
+        `got ${JSON.stringify(value)} (${parsed.absolutePath})`
+    );
+  }
+  return numeric;
 }
 
 /**
@@ -331,11 +419,26 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
   const raw = (parsed.resolved ?? {}) as RawConsoleConfig;
 
   const backendUrl = trimTrailingSlash(requiredField(parsed, ['backendUrl']));
-  const sessionSecret = requiredField(parsed, ['session', 'secret']);
-  if (sessionSecret.length < 32) {
+  const sessionSecrets = parseSessionSecrets(raw.session?.secret, parsed);
+  const sessionMaxAgeSeconds = parsePositiveSeconds(
+    raw.session?.maxAgeSeconds,
+    'session.maxAgeSeconds',
+    DEFAULT_SESSION_MAX_AGE_SECONDS,
+    parsed
+  );
+  const sessionAbsoluteMaxAgeSeconds = parsePositiveSeconds(
+    raw.session?.absoluteMaxAgeSeconds,
+    'session.absoluteMaxAgeSeconds',
+    DEFAULT_SESSION_ABSOLUTE_MAX_AGE_SECONDS,
+    parsed
+  );
+  // A sliding window longer than the cap it slides within is a contradiction, and the silent
+  // outcome — the cap quietly wins on every seal — reads as "my maxAgeSeconds is ignored".
+  if (sessionMaxAgeSeconds > sessionAbsoluteMaxAgeSeconds) {
     throw new Error(
-      `[console] config.yaml key "session.secret" must resolve to at least 32 characters ` +
-        `(${parsed.absolutePath})`
+      `[console] config.yaml key "session.maxAgeSeconds" (${sessionMaxAgeSeconds}) must not exceed ` +
+        `"session.absoluteMaxAgeSeconds" (${sessionAbsoluteMaxAgeSeconds}) — the sliding window ` +
+        `cannot be longer than the absolute cap it slides within (${parsed.absolutePath})`
     );
   }
 
@@ -370,7 +473,9 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     budgetUrl: trimTrailingSlash(asStringWithFallback(raw.budgetUrl, backendUrl)),
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
     usageClientCert,
-    sessionSecret,
+    sessionSecrets,
+    sessionMaxAgeSeconds,
+    sessionAbsoluteMaxAgeSeconds,
     typstRenderUrl: resolveTypstRenderUrl(raw.reports?.typstRenderUrl),
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)

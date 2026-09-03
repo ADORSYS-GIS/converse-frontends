@@ -129,14 +129,14 @@ importers:
   apps/console:
     dependencies:
       '@cratestack/api':
-        specifier: 0.10.0
-        version: 0.10.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+        specifier: 0.11.0
+        version: 0.11.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
       '@cratestack/link-logger':
-        specifier: 0.10.0
-        version: 0.10.0
+        specifier: 0.11.0
+        version: 0.11.0
       '@cratestack/refine':
-        specifier: 0.10.0
-        version: 0.10.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: 0.11.0
+        version: 0.11.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
@@ -217,7 +217,7 @@ importers:
         version: 16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       nuqs:
         specifier: ^2.10.1
-        version: 2.10.1(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+        version: 2.10.1(next@16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       openid-client:
         specifier: ^6.8.7
         version: 6.8.7
@@ -402,7 +402,7 @@ importers:
         version: 16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       nuqs:
         specifier: ^2.10.1
-        version: 2.10.1(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+        version: 2.10.1(next@16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       openid-client:
         specifier: ^6.8.7
         version: 6.8.7
@@ -499,14 +499,14 @@ importers:
   packages/authz-rpc:
     dependencies:
       '@cratestack/api':
-        specifier: 0.10.0
-        version: 0.10.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
+        specifier: 0.11.0
+        version: 0.11.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)
       '@cratestack/cbor':
-        specifier: 0.10.0
-        version: 0.10.0
+        specifier: 0.11.0
+        version: 0.11.0
       '@cratestack/refine':
-        specifier: 0.10.0
-        version: 0.10.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        specifier: 0.11.0
+        version: 0.11.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@paralleldrive/cuid2':
         specifier: ^3.3.0
         version: 3.3.0
@@ -518,8 +518,8 @@ importers:
         version: 19.2.8
     devDependencies:
       '@cratestack/cli':
-        specifier: 0.10.0
-        version: 0.10.0
+        specifier: 0.11.0
+        version: 0.11.0
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@26.2.0)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(lightningcss@1.33.0)(terser@5.50.0)(yaml@2.9.0)
@@ -1488,8 +1488,8 @@ packages:
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
 
-  '@cratestack/adapter-rtk@0.10.0':
-    resolution: {integrity: sha512-ARstdCQYW24xRjb0H2rad5OcqXF10rDpS1rVN+gOJycZuveNFOU98zpQcUNMxT458OnG+MpFdCoA1f1ConKwDw==}
+  '@cratestack/adapter-rtk@0.11.0':
+    resolution: {integrity: sha512-45LxeyoG3kXi78HfjWqhof7lc4tXWhrCCqcQiclf7v6o1NcblCAfRV9NU7wPLs0MHbvA7GFW6xVdRxKUiRQZdw==}
     engines: {node: '>=24'}
     peerDependencies:
       '@reduxjs/toolkit': ^2.0.0
@@ -1497,8 +1497,8 @@ packages:
       '@reduxjs/toolkit':
         optional: true
 
-  '@cratestack/adapter-tanstack-query@0.10.0':
-    resolution: {integrity: sha512-+IhBnbE4otBi+KHtLEYOOcW4VfHIcY7e2qEJhaaLoNT0ezHzzAuRsDZI+ZaSGYRAR45ikaGOkJ5pxJVcIsEzKw==}
+  '@cratestack/adapter-tanstack-query@0.11.0':
+    resolution: {integrity: sha512-iijE+K7RtsZXWSv++qJe0ZAfqaKkPtxQg45qU5XnSQsaQZzey7N3nDcD6sv37MRauLklkVEZrsNgoD89uq0UwQ==}
     engines: {node: '>=24'}
     peerDependencies:
       '@tanstack/query-core': ^5.0.0
@@ -1506,77 +1506,91 @@ packages:
       '@tanstack/query-core':
         optional: true
 
-  '@cratestack/api@0.10.0':
-    resolution: {integrity: sha512-p6Z6MPsaLg+tBzaByrc1Elk6t+2Bx0p8CysuIUBlzVA6ahNIOWcMJWdoxdd4jBz7uwxuUN9yeGXRMQuthv2X3w==}
+  '@cratestack/api@0.11.0':
+    resolution: {integrity: sha512-NEXArtZpPh0Czees1ig0/2VLCqsd2xgCFvKIqrWKqpnNnNkrUY2DbHaFlsnycNHq0JwdU+9tvfzi7XHZCFY6uw==}
     engines: {node: '>=24'}
 
-  '@cratestack/cbor-node-darwin-arm64@0.10.0':
-    resolution: {integrity: sha512-kYkdV4kZy1prauk26o2ztxKgLr3Qy+3qGc3wyouBuQf15tYuBDfmFBzoUGvbKfDEAYec9+PQZgZBUFF0KmXEig==}
+  '@cratestack/cbor-node-darwin-arm64@0.11.0':
+    resolution: {integrity: sha512-o7H35tTvxofVRNxMKBKIRBMmnSpnwxRaNenb0s8Uwwa0hGiEQACMvzg9xMpBCY2Aj7G3z2rxOFHN2RYR6O4+Vg==}
     engines: {node: '>=24'}
     cpu: [arm64]
     os: [darwin]
 
-  '@cratestack/cbor-node-darwin-x64@0.10.0':
-    resolution: {integrity: sha512-yHPG2ttcSmy0FK5s+m6OQUs4YN8HTUrIFXh+Sr5y1ZqNU5cWvsK0K6UpgMZwfM51yQohuM/fms0YpsaNei+eBg==}
+  '@cratestack/cbor-node-darwin-x64@0.11.0':
+    resolution: {integrity: sha512-/hcFf/biMhPUJstHcp3H63a1E0ISlCqXVPhziCKiYQnE4sZqUCkMyuFOFbWuG8WVKPl2bFyMVqE1i6ZtZ5ea3g==}
     engines: {node: '>=24'}
     cpu: [x64]
     os: [darwin]
 
-  '@cratestack/cbor-node-linux-arm64-gnu@0.10.0':
-    resolution: {integrity: sha512-IBg5Yxt9bHMK6KBgtBUX0Z45ng7cbfIons3fUMfBewsG+8pE7s8IhYIAhCjyoIz+KGYDVqkpuy51kvtpj8aSkA==}
+  '@cratestack/cbor-node-linux-arm64-gnu@0.11.0':
+    resolution: {integrity: sha512-CvTlk/kbkNOUYTc0knxFpLGCKUJq4UeRRd74AZqFPAYpugcoY364gZmAEwFAvHibcdK3r06+RDUA0IYhiEOiNQ==}
     engines: {node: '>=24'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@cratestack/cbor-node-linux-x64-gnu@0.10.0':
-    resolution: {integrity: sha512-6/laxYJO59jY1WGLPduIBLFwxseuVNs7K2fYhydQD8P0z45uJsO9UAaf8BavCycEJI7Jn5uOZdU8NV/+CfdgJA==}
+  '@cratestack/cbor-node-linux-arm64-musl@0.11.0':
+    resolution: {integrity: sha512-p2536eCOYiozRjmEu+1TZJP2sXeOJGtmNlzFaWfRLdde5+L5NbHhZujhgIW7eCdTRa44T+AA71UkETWF0rYHuA==}
+    engines: {node: '>=24'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@cratestack/cbor-node-linux-x64-gnu@0.11.0':
+    resolution: {integrity: sha512-SqWfRcJVpV3Ar1n+dUbCy9ljYPBuS7yznpm9UJyPRHxj/O61awVfH/lUJTIloW22zPdOHQewApqPYIFPIaczJw==}
     engines: {node: '>=24'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@cratestack/cbor-node-win32-x64-msvc@0.10.0':
-    resolution: {integrity: sha512-ChEyhFAXUHsHCq2wbgjC0uHTzjCvhnsZfja/Gjiit8aDibMn+TbJ8W3/97bYWxaFA2xn4yJCWGDqtK1V+J6SZQ==}
+  '@cratestack/cbor-node-linux-x64-musl@0.11.0':
+    resolution: {integrity: sha512-+lOGT8Zkz0aEIf3X2IxoSJeKiZ7ljA+VrO8HfVkj22Ntif+hV/CtexbVjNPanLx6yv3nktw68voyENxos3p/8A==}
+    engines: {node: '>=24'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@cratestack/cbor-node-win32-x64-msvc@0.11.0':
+    resolution: {integrity: sha512-wacwR+PsptjueSIAnmyU1pJYCqKAEfvLr2dHR9nt/lOjHxudMZVKErpwaDeYTyUqHYospuTP38ue1BjflgWa9Q==}
     engines: {node: '>=24'}
     cpu: [x64]
     os: [win32]
 
-  '@cratestack/cbor-node@0.10.0':
-    resolution: {integrity: sha512-gakheFhekwUEbAP9hKZodrCzYf1aaL8c573Q0aywkHAY9kVekr8l4h5GohaG9cVXtIqznynyXxBuk43C1x53yg==}
+  '@cratestack/cbor-node@0.11.0':
+    resolution: {integrity: sha512-D8Ldhz+evge4xBzoS5BbhHQf8D5vjx/s2SbZyuRUbci00rRkyWoLaiXkwbEuIZnwH4zL3MFnhkEhOgCsx4RNjw==}
     engines: {node: '>=24'}
 
-  '@cratestack/cbor-web@0.10.0':
-    resolution: {integrity: sha512-Cs742xCY+J9NCCeDpajQEZf89W1db8obk2Au/tI17oR+CZ682S8FzlntuS0fHDnpevM2xScAqWlWoDr/1VE84w==}
+  '@cratestack/cbor-web@0.11.0':
+    resolution: {integrity: sha512-AHt2wQtk9W9qBI18KpHzS6MtyBe6pIsyeIehJXkvJLQzFCBcWiuIAV+sNsCrSz9UQhyVGhVQ+6s2x9f4Ur/LwQ==}
     engines: {node: '>=24'}
 
-  '@cratestack/cbor@0.10.0':
-    resolution: {integrity: sha512-BW9VN7eDkn4LdtuBO/4ekBvwk3VRFDYfub9nDEpEEBr9/TqPT5WXtdoQGunNdPAUqdZ2Zl/n4u5/K68JdTohgg==}
+  '@cratestack/cbor@0.11.0':
+    resolution: {integrity: sha512-dGYGyxqHyYRpTrhnFoVqqS1ij36HJeBpe6Q9u9SxWaBuhhbhWEcjGJyZbAccyy4oLlaPm/PvnpfIGbT0K09IPA==}
     engines: {node: '>=24'}
 
-  '@cratestack/cli@0.10.0':
-    resolution: {integrity: sha512-ZrMSXKtYt23V9kLvr72ljdGhSVD6TXfdRpNZpwBYxUk2qLrDlLOiocrn6da2C5Df2dDNukqJOshlrhNWYGy8Jg==}
+  '@cratestack/cli@0.11.0':
+    resolution: {integrity: sha512-O41Wq4HvAxWoZ+F4YERNLFEE5PEGnOZDwlgX44i/cdU5oSgb9YFtl0GWPMLABabA4tVMKju8xFgrPLSRJfwkjA==}
     engines: {node: '>=24'}
     cpu: [x64, arm64]
     os: [darwin, linux, win32]
     hasBin: true
 
-  '@cratestack/link-batch@0.10.0':
-    resolution: {integrity: sha512-CVOBnCbwF57EGO8ysPYht0IFhA0kEg6IXNz0inR70K+/uHJK6Ks4Qata1PstZM1vnzgKUCNdiFiZgXTmwHvGdQ==}
+  '@cratestack/link-batch@0.11.0':
+    resolution: {integrity: sha512-budZ7+1Y9YJ4uzn8RoE4zinZO0RkQgl7eMhQXrfI0r7Y5r6CEstqoGZIpGjNiIY90vp6SVqUxHxaowbCg70Maw==}
     engines: {node: '>=24'}
 
-  '@cratestack/link-logger@0.10.0':
-    resolution: {integrity: sha512-AGK7Sc+O3D1YctbubLDapsuzWOp3MlbhGy/MvtuYZ3I43fVlXyg3fGmhauSD9ASPHyKHMo9wANt5jURY3q2GSQ==}
+  '@cratestack/link-logger@0.11.0':
+    resolution: {integrity: sha512-IW9MVi96MWGOeBtaZl7m9yYXlXsADD88KrFN24YnOcve6SOsZYO5MYiHNJ6s+5/zyxuAB8h1BOr6zVUNtR3N7w==}
     engines: {node: '>=24'}
 
-  '@cratestack/refine@0.10.0':
-    resolution: {integrity: sha512-ajuMJ5a2fi3p3NkojxdaGKYHqeaJ8SGCaOAQD+MYdnF/d+donhPyyShiA1379WWasIAyfTcwfqPtUdEHLkHVxg==}
+  '@cratestack/refine@0.11.0':
+    resolution: {integrity: sha512-PW1xF5ipA3d/LDnlsBE7TAznBbIqpea2mH2YEcC9jEZeR4ecouWXaLqlkuAnmxjz3RvDbDIYRYyJ0bRADQhG9A==}
     engines: {node: '>=24'}
     peerDependencies:
       '@refinedev/core': ^5.0.0
 
-  '@cratestack/runtime-axios@0.10.0':
-    resolution: {integrity: sha512-zl2qmgWu/8vQG+TB7YSkwCz/gcDoZHBavJDcGpEW7xF4DzHqWQWREwiIiOQBEuoMlSZZZsL9BwS7JTdT2GpWaQ==}
+  '@cratestack/runtime-axios@0.11.0':
+    resolution: {integrity: sha512-B1UrRxUP5H3c+/GF6bR9iAkkL6WoJOO3jjb2sR27GfTxZCn3ZQX1dri8SIh061aBKhEhZPTDUEz5WAWKal4WWw==}
     engines: {node: '>=24'}
     peerDependencies:
       axios: ^1.18.0
@@ -1584,16 +1598,16 @@ packages:
       axios:
         optional: true
 
-  '@cratestack/runtime-fetch@0.10.0':
-    resolution: {integrity: sha512-dKPw5iybCuDJtTXHLWnsIIBIlEteb9zo1gkmhAdS813aC8/lw5sMVYeeY8MjqqCp+FXI88bSbFokhmDN4aHlBg==}
+  '@cratestack/runtime-fetch@0.11.0':
+    resolution: {integrity: sha512-NAjUJs2tiR2GYNsVohrLsCTwx5HsrzhPrDc+oaOBjgbCQcl6FqstEQcY01KSlpDzSJCPMTaH5XvJqx84Z1KIJQ==}
     engines: {node: '>=24'}
 
-  '@cratestack/ts-types@0.10.0':
-    resolution: {integrity: sha512-qZ61Jy4KGlu2NHc9U14bBIliOU9G8S9FQKgnTAtajR8tjRufVEsFBvnTat1ozbMHDSkHpQWqR6D2g80Hrzvz/Q==}
+  '@cratestack/ts-types@0.11.0':
+    resolution: {integrity: sha512-3wkGUArCzG5CS4FJMTg2PtG5eKSwD+Fl3/oHSRxyEzKcrlhRtCQQpTAAsU+A6thXG0UIp8rhq3nPq5EThLCyYg==}
     engines: {node: '>=24'}
 
-  '@cratestack/validator-yup@0.10.0':
-    resolution: {integrity: sha512-2LfT/clHKT0SwHzt3VqJ8jRy64AXPp87uSSpu4cX4i0oWIzEPm6cz1u1pDwMsWJ+7BUKWJ+co2JdduajYmGldA==}
+  '@cratestack/validator-yup@0.11.0':
+    resolution: {integrity: sha512-lqU0V+PJtkbJ4t1kG/0d2ijIicT0R9tifFYusqBLiRdtKEJ5avfIAPNaPUwfnIk8Dh20s7ovW6Yahsz7Zcay0Q==}
     engines: {node: '>=24'}
     peerDependencies:
       yup: ^1.4.0
@@ -1601,8 +1615,8 @@ packages:
       yup:
         optional: true
 
-  '@cratestack/validator-zod@0.10.0':
-    resolution: {integrity: sha512-/FEQyV2Adkuu0svIpJdkOfhs10wUf6ybG16IdPd5CMVINpe7ON/I86OA26rh/d1dsOambBC0h9J07aCaOym0LQ==}
+  '@cratestack/validator-zod@0.11.0':
+    resolution: {integrity: sha512-adAV5o5WjJxUMjPWzqHeJ81mrmLY0rQeiSnvE+QKcarkf4oX1cuOtRavp8n7GWRTnj9aekbOSglEqMQ4bmL+CA==}
     engines: {node: '>=24'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -9448,27 +9462,27 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  '@cratestack/adapter-rtk@0.10.0':
+  '@cratestack/adapter-rtk@0.11.0':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/adapter-tanstack-query@0.10.0(@tanstack/query-core@5.102.3)':
+  '@cratestack/adapter-tanstack-query@0.11.0(@tanstack/query-core@5.102.3)':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
     optionalDependencies:
       '@tanstack/query-core': 5.102.3
 
-  '@cratestack/api@0.10.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)':
+  '@cratestack/api@0.11.0(@tanstack/query-core@5.102.3)(axios@1.19.0)(zod@4.4.3)':
     dependencies:
-      '@cratestack/adapter-rtk': 0.10.0
-      '@cratestack/adapter-tanstack-query': 0.10.0(@tanstack/query-core@5.102.3)
-      '@cratestack/link-batch': 0.10.0
-      '@cratestack/link-logger': 0.10.0
-      '@cratestack/runtime-axios': 0.10.0(axios@1.19.0)
-      '@cratestack/runtime-fetch': 0.10.0
-      '@cratestack/ts-types': 0.10.0
-      '@cratestack/validator-yup': 0.10.0
-      '@cratestack/validator-zod': 0.10.0(zod@4.4.3)
+      '@cratestack/adapter-rtk': 0.11.0
+      '@cratestack/adapter-tanstack-query': 0.11.0(@tanstack/query-core@5.102.3)
+      '@cratestack/link-batch': 0.11.0
+      '@cratestack/link-logger': 0.11.0
+      '@cratestack/runtime-axios': 0.11.0(axios@1.19.0)
+      '@cratestack/runtime-fetch': 0.11.0
+      '@cratestack/ts-types': 0.11.0
+      '@cratestack/validator-yup': 0.11.0
+      '@cratestack/validator-zod': 0.11.0(zod@4.4.3)
     transitivePeerDependencies:
       - '@reduxjs/toolkit'
       - '@tanstack/query-core'
@@ -9476,68 +9490,76 @@ snapshots:
       - yup
       - zod
 
-  '@cratestack/cbor-node-darwin-arm64@0.10.0':
+  '@cratestack/cbor-node-darwin-arm64@0.11.0':
     optional: true
 
-  '@cratestack/cbor-node-darwin-x64@0.10.0':
+  '@cratestack/cbor-node-darwin-x64@0.11.0':
     optional: true
 
-  '@cratestack/cbor-node-linux-arm64-gnu@0.10.0':
+  '@cratestack/cbor-node-linux-arm64-gnu@0.11.0':
     optional: true
 
-  '@cratestack/cbor-node-linux-x64-gnu@0.10.0':
+  '@cratestack/cbor-node-linux-arm64-musl@0.11.0':
     optional: true
 
-  '@cratestack/cbor-node-win32-x64-msvc@0.10.0':
+  '@cratestack/cbor-node-linux-x64-gnu@0.11.0':
     optional: true
 
-  '@cratestack/cbor-node@0.10.0':
+  '@cratestack/cbor-node-linux-x64-musl@0.11.0':
+    optional: true
+
+  '@cratestack/cbor-node-win32-x64-msvc@0.11.0':
+    optional: true
+
+  '@cratestack/cbor-node@0.11.0':
     optionalDependencies:
-      '@cratestack/cbor-node-darwin-arm64': 0.10.0
-      '@cratestack/cbor-node-darwin-x64': 0.10.0
-      '@cratestack/cbor-node-linux-arm64-gnu': 0.10.0
-      '@cratestack/cbor-node-linux-x64-gnu': 0.10.0
-      '@cratestack/cbor-node-win32-x64-msvc': 0.10.0
+      '@cratestack/cbor-node-darwin-arm64': 0.11.0
+      '@cratestack/cbor-node-darwin-x64': 0.11.0
+      '@cratestack/cbor-node-linux-arm64-gnu': 0.11.0
+      '@cratestack/cbor-node-linux-arm64-musl': 0.11.0
+      '@cratestack/cbor-node-linux-x64-gnu': 0.11.0
+      '@cratestack/cbor-node-linux-x64-musl': 0.11.0
+      '@cratestack/cbor-node-win32-x64-msvc': 0.11.0
 
-  '@cratestack/cbor-web@0.10.0':
+  '@cratestack/cbor-web@0.11.0':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/cbor@0.10.0':
+  '@cratestack/cbor@0.11.0':
     dependencies:
-      '@cratestack/cbor-node': 0.10.0
-      '@cratestack/cbor-web': 0.10.0
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/cbor-node': 0.11.0
+      '@cratestack/cbor-web': 0.11.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/cli@0.10.0': {}
+  '@cratestack/cli@0.11.0': {}
 
-  '@cratestack/link-batch@0.10.0':
+  '@cratestack/link-batch@0.11.0':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/link-logger@0.10.0':
+  '@cratestack/link-logger@0.11.0':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/refine@0.10.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@cratestack/refine@0.11.0(@refinedev/core@5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
     dependencies:
       '@refinedev/core': 5.0.12(@tanstack/react-query@5.102.3(react@19.2.8))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
-  '@cratestack/runtime-axios@0.10.0(axios@1.19.0)':
+  '@cratestack/runtime-axios@0.11.0(axios@1.19.0)':
     optionalDependencies:
       axios: 1.19.0
 
-  '@cratestack/runtime-fetch@0.10.0': {}
+  '@cratestack/runtime-fetch@0.11.0': {}
 
-  '@cratestack/ts-types@0.10.0': {}
+  '@cratestack/ts-types@0.11.0': {}
 
-  '@cratestack/validator-yup@0.10.0':
+  '@cratestack/validator-yup@0.11.0':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
 
-  '@cratestack/validator-zod@0.10.0(zod@4.4.3)':
+  '@cratestack/validator-zod@0.11.0(zod@4.4.3)':
     dependencies:
-      '@cratestack/ts-types': 0.10.0
+      '@cratestack/ts-types': 0.11.0
     optionalDependencies:
       zod: 4.4.3
 
@@ -15557,7 +15579,7 @@ snapshots:
 
   nullthrows@1.1.1: {}
 
-  nuqs@2.10.1(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8):
+  nuqs@2.10.1(next@16.3.2(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-router@8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8):
     dependencies:
       '@standard-schema/spec': 1.1.0
       react: 19.2.8

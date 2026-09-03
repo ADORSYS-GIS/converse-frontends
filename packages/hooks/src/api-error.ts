@@ -17,6 +17,31 @@
  * itself is generated output and is not fixed here -- see PR #172's `api-key-create-screen.tsx`
  * for the same detection done locally, ahead of this shared fix, for status-driven copy instead
  * of a raw message.
+ *
+ * ## What cratestack 0.11.0 changed here (cratestack/cratestack#869)
+ *
+ * One whole CLASS of response stopped hitting that placeholder. Responses emitted by the tower
+ * middleware that wraps the generated router -- the rate limiter's 429, its store-failure refusal,
+ * the idempotency layer's conflicts -- used to be bare `text/plain` bodies, so the CBOR decoder
+ * threw and every one of them arrived as `"RPC call returned status 429 with an undecodable error
+ * body"` and was flattened to `GENERIC_ERROR_MESSAGE`. As of 0.11.0 they carry the same
+ * codec-negotiated `{code, message}` envelope as everything else, negotiated off the same `Accept`
+ * header, so they now decode cleanly and `body.message` is a real string.
+ *
+ * That is an improvement in the transport and a REGRESSION in the copy, which is why
+ * `INFRASTRUCTURE_CODE_MESSAGES` exists below. The messages those layers put on the wire are
+ * written for an operator reading a log, not for someone looking at the console: a throttle says
+ * `"rate limit exceeded"`, and a rate-limit store outage says `"rate limit store temporarily
+ * unavailable"` (`cratestack-redis`'s `STORE_UNAVAILABLE_MESSAGE`) -- which names an internal
+ * component the user has no idea exists and cannot act on. Surfacing those verbatim would be
+ * strictly worse than the generic fallback they used to get. So the error's `code` is consulted
+ * first, and for the codes only this class of response produces, the copy is ours.
+ *
+ * The 503 arm matters more than it looks: `lightbridge-authz` pins the rate limiter to
+ * `StoreErrorPolicy::Deny` (see that repo's `RATE_LIMIT_STORE_ERROR_POLICY`), so a Redis outage
+ * REFUSES rate-limited calls rather than serving them unthrottled. `unavailable` is what the
+ * console sees while that lasts, and "try again in a moment" is exactly the right thing to say
+ * about a condition that self-heals.
  */
 
 // readErrorBody's own fallback text (packages/authz-rpc/generated/src/runtime.ts) always starts
@@ -29,13 +54,54 @@ const RPC_PLACEHOLDER_MESSAGE_PATTERN = /^RPC call returned status \d+/;
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 
 /**
- * Extracts a human-readable message from an error thrown by the generated RPC client. Prefers
+ * Our own copy for the RPC error codes whose server-side message is written for an operator, not
+ * a user. Keyed on `CratestackRpcError.code` -- the gRPC-style lowercase vocabulary the `/rpc/*`
+ * binding emits (`RpcErrorBody`), NOT the screaming-snake `TOO_MANY_REQUESTS` the REST binding
+ * uses; every call this app makes goes through `/rpc/<op_id>`.
+ *
+ * Deliberately only these two. Both are produced by the tower middleware described in the module
+ * comment, both became decodable in cratestack 0.11.0, and both name infrastructure. Every other
+ * code in the union -- `not_found`, `permission_denied`, `conflict`, `invalid_argument` and the
+ * rest -- comes from a real handler whose message was written to be read by whoever made the call,
+ * so overriding those would lose information rather than protect anyone. `deadline_exceeded` and
+ * `canceled` exist in the generated union but nothing in this stack emits them; they are left out
+ * rather than mapped speculatively.
+ */
+const INFRASTRUCTURE_CODE_MESSAGES: Readonly<Record<string, string>> = {
+  // 429 from `RateLimitLayer`. Wire message: "rate limit exceeded".
+  resource_exhausted: 'Too many requests. Please wait a moment and try again.',
+  // 503. Wire message: "rate limit store temporarily unavailable" / "rate limit store timed out",
+  // or any other `CratestackError::Unavailable` a handler raises. Self-healing by definition.
+  unavailable: 'The service is temporarily unavailable. Please try again in a moment.',
+};
+
+/** The error's RPC code, when it is a `CratestackRpcError` (set directly on the instance). */
+function getApiErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object') {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string' && code.length > 0) {
+      return code;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extracts a human-readable message from an error thrown by the generated RPC client. Takes our
+ * own copy first for the infrastructure codes in `INFRASTRUCTURE_CODE_MESSAGES`; otherwise prefers
  * `CratestackRpcError.body.message` (the server's decoded error body); falls back to the error's
  * own `.message` for anything else thrown (e.g. `CratestackRpcTransportError` for a network
  * failure); falls back to `String(error)` as a last resort so this never throws.
  */
 export function getApiErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
+    // Before `body.message`, not after: for these codes the decoded server message is precisely
+    // what must NOT be shown (see `INFRASTRUCTURE_CODE_MESSAGES`), so reading it first and
+    // overriding afterwards would be the same logic written backwards.
+    const infrastructureMessage = INFRASTRUCTURE_CODE_MESSAGES[getApiErrorCode(error) ?? ''];
+    if (infrastructureMessage) {
+      return infrastructureMessage;
+    }
     const body = (error as { body?: unknown }).body;
     if (body && typeof body === 'object') {
       const bodyMessage = (body as { message?: unknown }).message;

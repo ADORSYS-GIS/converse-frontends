@@ -23,31 +23,37 @@ allowBuilds:
   protobufjs: false
 
 minimumReleaseAgeExclude:
-  - '@cratestack/adapter-rtk@0.10.0'
-  - '@cratestack/adapter-tanstack-query@0.10.0'
-  - '@cratestack/api@0.10.0'
-  - '@cratestack/cbor@0.10.0'
-  - '@cratestack/cli@0.10.0'
-  - '@cratestack/link-batch@0.10.0'
-  - '@cratestack/link-logger@0.10.0'
-  - '@cratestack/refine@0.10.0'
-  - '@cratestack/runtime-axios@0.10.0'
-  - '@cratestack/runtime-fetch@0.10.0'
-  - '@cratestack/ts-types@0.10.0'
-  - '@cratestack/validator-yup@0.10.0'
-  - '@cratestack/validator-zod@0.10.0'
+  - '@cratestack/adapter-rtk@0.11.0'
+  - '@cratestack/adapter-tanstack-query@0.11.0'
+  - '@cratestack/api@0.11.0'
+  - '@cratestack/cbor@0.11.0'
+  - '@cratestack/cli@0.11.0'
+  - '@cratestack/link-batch@0.11.0'
+  - '@cratestack/link-logger@0.11.0'
+  - '@cratestack/refine@0.11.0'
+  - '@cratestack/runtime-axios@0.11.0'
+  - '@cratestack/runtime-fetch@0.11.0'
+  - '@cratestack/ts-types@0.11.0'
+  - '@cratestack/validator-yup@0.11.0'
+  - '@cratestack/validator-zod@0.11.0'
   - '@tanstack/query-core@5.102.3'
   - '@tanstack/query-persist-client-core@5.102.3'
   - '@tanstack/react-query-persist-client@5.102.3'
   - '@tanstack/react-query@5.102.3'
   - nuqs@2.10.1
-  - '@cratestack/cbor-node-darwin-arm64@0.10.0'
-  - '@cratestack/cbor-node-darwin-x64@0.10.0'
-  - '@cratestack/cbor-node-linux-arm64-gnu@0.10.0'
-  - '@cratestack/cbor-node-linux-x64-gnu@0.10.0'
-  - '@cratestack/cbor-node-win32-x64-msvc@0.10.0'
-  - '@cratestack/cbor-node@0.10.0'
-  - '@cratestack/cbor-web@0.10.0'
+  - '@cratestack/cbor-node-darwin-arm64@0.11.0'
+  - '@cratestack/cbor-node-darwin-x64@0.11.0'
+  - '@cratestack/cbor-node-linux-arm64-gnu@0.11.0'
+  - '@cratestack/cbor-node-linux-x64-gnu@0.11.0'
+  # New in 0.11.0 (cratestack#868): musl/Alpine prebuilds. Listed because they are
+  # optionalDependencies of @cratestack/cbor-node and so enter the lockfile even on a glibc
+  # runner that never installs them. Nothing here USES them -- apps/console's runtime image is
+  # bookworm-slim (glibc); see that Dockerfile's base-image note.
+  - '@cratestack/cbor-node-linux-arm64-musl@0.11.0'
+  - '@cratestack/cbor-node-linux-x64-musl@0.11.0'
+  - '@cratestack/cbor-node-win32-x64-msvc@0.11.0'
+  - '@cratestack/cbor-node@0.11.0'
+  - '@cratestack/cbor-web@0.11.0'
 
 overrides:
   axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useCreateAccountDialogParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useUrlDialog } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { buildCreateAccountInput, normalizeAccountName } from './build-create-account-input';
 import { classifyCreateAccountError } from './rpc-field-error';
@@ -18,8 +18,8 @@ import { classifyCreateAccountError } from './rpc-field-error';
  * standing action reachable from two structurally separate places — the workspace switcher
  * (`console-chrome.tsx`, every route) and `/settings/account`'s own `PageHeader` — that must open
  * the SAME dialog instance. Mounted exactly once, in `app/(console)/layout.tsx` (console-ui skill
- * "Composition — chrome mounted once"), driven by `createAccountParsers.open` (`?new-account=`,
- * `url-state.ts`) so both trigger points read/write the identical URL flag rather than needing a
+ * "Composition — chrome mounted once"), driven by `?dialog=create-account`
+ * (`CONSOLE_DIALOGS`, `url-state.ts`) so both trigger points read/write the identical URL flag rather than needing a
  * context or a prop threaded through the layout into routed content it does not otherwise touch.
  *
  * `mode` is always `'create'` — `AccountNameDialogMode` still carries `'rename'` for
@@ -53,11 +53,11 @@ export function useCreateAccountDialog(): CreateAccountDialogController {
   const session = useConsoleSession();
   const client = useConsoleAuthzClient();
   const scope = useConsoleScope();
-  const [params, setParams] = useCreateAccountDialogParams();
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.createAccount);
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — "in-flight form drafts whose content must not
-   * leak into URLs or history"): the dialog's typed-but-unsent name. `?new-account=true` — WHETHER
+   * leak into URLs or history"): the dialog's typed-but-unsent name. `?dialog=create-account` — WHETHER
    * the dialog is open — is real view state and lives in the URL; this is its CONTENTS.
    */
   const [nameDraft, setNameDraft] = useState('');
@@ -76,7 +76,7 @@ export function useCreateAccountDialog(): CreateAccountDialogController {
       scope.refetch();
       scope.setValue({ accountId: account.id, projectId: null });
       setNameDraft('');
-      void setParams({ open: false });
+      dialog.close();
     },
   });
 
@@ -92,10 +92,10 @@ export function useCreateAccountDialog(): CreateAccountDialogController {
     open: () => {
       if (action.errorMessage) action.dismiss();
       setNameDraft('');
-      void setParams({ open: true });
+      dialog.openDialog();
     },
     dialog: {
-      open: params.open,
+      open: dialog.open,
       mode: 'create',
       subjectLabel: session.user?.sub ?? '—',
       currentlyNamed: false,
@@ -112,7 +112,7 @@ export function useCreateAccountDialog(): CreateAccountDialogController {
       onCancel: () => {
         if (action.errorMessage) action.dismiss();
         setNameDraft('');
-        void setParams({ open: false });
+        dialog.close();
       },
     },
   };
@@ -123,10 +123,7 @@ export function useCreateAccountDialog(): CreateAccountDialogController {
  * — see this module's own doc comment for why this is the lightweight half of the pair.
  */
 export function useOpenCreateAccountDialog(): () => void {
-  const [, setParams] = useCreateAccountDialogParams();
-  return () => {
-    void setParams({ open: true });
-  };
+  return useUrlDialog(CONSOLE_DIALOGS.createAccount).openDialog;
 }
 
 export { normalizeAccountName };

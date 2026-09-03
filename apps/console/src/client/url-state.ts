@@ -10,7 +10,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { UsageGroupBy } from '@lightbridge/api-rest';
 import type { ReportExportFormat } from '@lightbridge/ui-web';
 
@@ -111,106 +111,228 @@ export function useResolverParams() {
   return useQueryStates(resolverParsers, { urlKeys: resolverUrlKeys, history: 'replace' });
 }
 
-// ── shared: create-account dialog ───────────────────────────────────────────────────────────
+// ── every modal in the console: ONE shape (owner directive, 2026-09-03) ─────────────────────
 
 /**
- * `?new-account=true` — whether the create-account dialog is open, read from wherever it can be
- * triggered.
+ * **`?dialog=<name>` (+ `?dialog-id=<id>`) — the console's single modal-state contract.**
  *
- * ADR-0026 (lightbridge-authz#564, "one identity may own many accounts") turned "+ New account"
- * into a standing action reachable from two structurally separate places at once: the workspace
- * switcher (chrome — mounted once, present on every route, `console-chrome.tsx`) and
- * `/settings/account`'s own `PageHeader`. Both have to open the SAME dialog instance, the same way
- * `projectScopeParsers` above is the project scope every zone reads without knowing the others
- * exist. That rules out a lifted local `useState` (`useConsolePalette`'s own pattern): the palette
- * is only ever triggered from chrome, so lifting it to `app/(console)/layout.tsx` and threading a
- * prop down to the two chrome zones is enough — this dialog also needs to open from inside a
- * routed screen's own subtree, which the layout cannot hand a prop to. Real view state instead —
- * Back closes it, same as every other dialog flag in this module — declared here rather than
- * under `settingsParsers` because chrome is not itself a route.
+ * The owner's 2026-09-03 directive, verbatim: *"Egal which page, opening a modal should add the
+ * state into query params. And doing so should help adding e.g. pagination inside the modal, as
+ * well as table sorting filters."* Both halves matter, and the second is the reason this is one
+ * pair rather than a naming convention:
+ *
+ *  - **State, not a flag.** A modal that is a URL param can be deep-linked, reloaded, sent to a
+ *    colleague and closed with Back. That was already true here — every dialog in this console was
+ *    URL-driven before today — but each one had spelled it differently (`?new-account=true`,
+ *    `?export=true`, `?grant=1`, `?edit=<id>`, `?revoke=<id>`, `?rename=<id>`, `?simulate=<id>`),
+ *    which is eight conventions for one concept and eight chances for the ninth to invent a
+ *    tenth.
+ *  - **Room for the modal's OWN view state.** Because "which modal" is one param, everything
+ *    *inside* a modal is free to use the page's ordinary knob namespace — a table in a dialog
+ *    sorts and pages through the same `?<panel-id>-sort/-dir/-page` params it uses on the page
+ *    behind it (`useDashboardTableParams`), with no `dialog-` prefixed duplicates. That is the
+ *    directive's second sentence, and it falls out of the shape rather than needing a mechanism.
+ *
+ * **One at a time, by construction.** Two modals cannot be open at once — the second `openDialog`
+ * replaces the first — which is what a modal IS. The previous per-dialog booleans could each be
+ * true independently, and `?new-project=true&rename=abc` was a reachable URL that rendered two
+ * stacked dialogs.
+ *
+ * **`dialogId` is the target, not a second flag.** `?dialog=revoke-key&dialog-id=key_123` reads as
+ * one sentence; the `?revoke=<id>` idiom it replaces overloaded "which key" with "is it open",
+ * which is why every one of those parsers needed a `''`-means-closed comment.
+ *
+ * **What is NOT a dialog, and deliberately keeps its own param.** A row SELECTION that fills the
+ * inspector rail — `/admin`'s `?request=`, `/admin/sessions`' `?selected=` — is not a modal. The
+ * console layout contract (LOCKED) puts that content in a persistent, drag-resizable right rail at
+ * `lg+` and only collapses it to a bottom sheet below; at the majority breakpoint nothing is
+ * modal about it, the rail is never empty, and naming it `?dialog=` would be a lie about what the
+ * URL renders. Selection stays selection.
+ *
+ * `history: 'push'` — opening a modal is navigation-grade, and Back must close it rather than
+ * leave the screen. That is the rule every dialog param in this module already followed.
  */
-export const createAccountParsers = {
-  open: parseAsBoolean.withDefault(false),
+export const dialogParsers = {
+  name: parseAsString.withDefault(''),
+  id: parseAsString.withDefault(''),
 };
 
-const createAccountUrlKeys = { open: 'new-account' };
+const dialogUrlKeys = { name: 'dialog', id: 'dialog-id' };
 
-export function useCreateAccountDialogParams() {
-  return useQueryStates(createAccountParsers, {
-    urlKeys: createAccountUrlKeys,
-    history: 'push' as const,
+export const DIALOG_OPTIONS = { history: 'push' as const };
+
+/**
+ * **Every modal name the console can put in `?dialog=`, in one inspectable value.**
+ *
+ * A registry rather than free-form strings at the call sites, for the reason ADR 0011 gives about
+ * param names generally: these appear in URLs people bookmark and paste into tickets, so they are
+ * product surface and a rename is a breaking change. `url-state.test.ts` pins the wire names off
+ * this object, and a new modal that does not appear here is a visible diff on that test rather
+ * than a string typed twice and misspelled once.
+ *
+ * The 2026-09-03 migration, name for name — every one of these was already URL-driven, each in its
+ * own dialect:
+ *
+ * | was                      | is now                                    |
+ * | ------------------------ | ----------------------------------------- |
+ * | `?new-account=true`      | `?dialog=create-account`                  |
+ * | `?new-project=true`      | `?dialog=create-project`                  |
+ * | `?export=true`           | `?dialog=export` (+ the two export knobs) |
+ * | `?create=true`           | `?dialog=create-api-key`                  |
+ * | `?revoke=<key id>`       | `?dialog=revoke-key&dialog-id=<id>`       |
+ * | `?delete=<key id>`       | `?dialog=delete-key&dialog-id=<id>`       |
+ * | `?account-name=true`     | `?dialog=account-name`                    |
+ * | `?rename=true`           | `?dialog=rename-project`                  |
+ * | `?grant=true`            | `?dialog=grant-role`                      |
+ * | `?revoke=<grant id>`     | `?dialog=revoke-role&dialog-id=<id>`      |
+ * | `?preview=<schedule id>` | `?dialog=preview-schedule&dialog-id=<id>` |
+ * | `?delete=<schedule id>`  | `?dialog=delete-schedule&dialog-id=<id>`  |
+ *
+ * **What did NOT move, and why each is not a modal.**
+ *  - *Selections.* `/admin`'s `?request=`, `/admin/sessions`' `?selected=`, `/api-keys`' `?key=`,
+ *    `/settings/projects`' `?row=` name the row whose detail is showing. The console layout
+ *    contract (LOCKED) renders that in a persistent right rail at `lg+` and only collapses it to a
+ *    bottom sheet below — nothing is modal about it on the majority breakpoint, and the rail is
+ *    never empty. Calling those `?dialog=` would be a lie about what the URL renders.
+ *  - *Modes.* `/admin/refill-policies`' `?edit=`/`?simulate=` and `/admin/budget-schedules`'
+ *    `?edit=` swap the PAGE's own content for a form; there is no overlay and nothing to dismiss
+ *    back to. Both vocabularies were also specified by the owner verbatim in an earlier ruling.
+ *  - *The expanded dashboard panel.* `?expand=<panel-id>` — see `useDashboardExpandParams` for why
+ *    it keeps a param of its own rather than taking a `dialog-id`.
+ */
+export const CONSOLE_DIALOGS = {
+  createAccount: 'create-account',
+  createProject: 'create-project',
+  export: 'export',
+  createApiKey: 'create-api-key',
+  revokeApiKey: 'revoke-key',
+  deleteApiKey: 'delete-key',
+  accountName: 'account-name',
+  renameProject: 'rename-project',
+  grantRole: 'grant-role',
+  revokeRole: 'revoke-role',
+  previewSchedule: 'preview-schedule',
+  deleteSchedule: 'delete-schedule',
+} as const;
+
+export type ConsoleDialogName = (typeof CONSOLE_DIALOGS)[keyof typeof CONSOLE_DIALOGS];
+
+export interface UrlDialog {
+  /** `true` when `?dialog=` names THIS dialog. */
+  open: boolean;
+  /** `?dialog-id=`, or `''` — the row/entity this dialog is about, for the ones that have one. */
+  id: string;
+  /** Opens this dialog, optionally on a target id. Replaces whatever modal was open. */
+  openDialog: (id?: string) => void;
+  /** Closes it — clears BOTH params, so a stale `?dialog-id=` can never outlive its dialog. */
+  close: () => void;
+}
+
+/**
+ * One named modal's slice of `?dialog=`/`?dialog-id=`.
+ *
+ * Every modal opener in `apps/console` goes through this; `url-state-discipline.test.ts` asserts
+ * there is no local `open`/`isOpen` state left in a container to compete with it.
+ */
+export function useUrlDialog(name: ConsoleDialogName): UrlDialog {
+  const [dialog, setDialog] = useQueryStates(dialogParsers, {
+    urlKeys: dialogUrlKeys,
+    ...DIALOG_OPTIONS,
+  });
+
+  const open = dialog.name === name;
+  // `''` rather than the previous dialog's id when this one is not the open one: a component
+  // reading `id` while closed must never see a leftover target it could act on.
+  const id = open ? dialog.id : '';
+
+  const openDialog = useCallback(
+    (nextId?: string) => {
+      void setDialog({ name, id: nextId ?? '' });
+    },
+    [setDialog, name]
+  );
+
+  const close = useCallback(() => {
+    void setDialog({ name: '', id: '' });
+  }, [setDialog]);
+
+  return { open, id, openDialog, close };
+}
+
+/**
+ * `?expand=<panel-id>` — which `DashboardPanel` is open in its expanded dialog.
+ *
+ * Its own param rather than `?dialog=expand&dialog-id=<panel-id>`, for one concrete reason: the
+ * expanded panel is the ONE modal whose contents are steered by the page's existing per-panel
+ * knobs. `?expand=actors-table&actors-table-sort=cost&actors-table-page=2` reads as one URL about
+ * one panel, and the sort/page params in it are the same ones the panel behind the dialog uses —
+ * which is exactly the directive's "pagination inside the modal, as well as table sorting
+ * filters", achieved by NOT giving the dialog a namespace of its own.
+ *
+ * `history: 'push'`, like every other modal here: `v`/Expand pushes, Esc and the close button pop.
+ */
+export const dashboardExpandParsers = {
+  panelId: parseAsString.withDefault(''),
+};
+
+const dashboardExpandUrlKeys = { panelId: 'expand' };
+
+export function useDashboardExpandParams() {
+  return useQueryStates(dashboardExpandParsers, {
+    urlKeys: dashboardExpandUrlKeys,
+    ...DIALOG_OPTIONS,
   });
 }
+
+// ── shared: create-account / create-project dialogs ─────────────────────────────────────────
+//
+// Both used to declare a boolean of their own (`?new-account=true`, `?new-project=true`). Both are
+// now `?dialog=create-account` / `?dialog=create-project` (`CONSOLE_DIALOGS`, owner directive
+// 2026-09-03). Nothing else about them changed: each is still a CROSS-ROUTE dialog mounted once in
+// `app/(console)/layout.tsx` and openable from several structurally separate triggers — the
+// workspace switcher, a `PageHeader` action, the inspector rail — which is exactly why the flag
+// has to be in the URL rather than lifted into a layout that cannot hand a prop to routed content.
+// The shared `?dialog=` param serves that identically, and now also makes the two mutually
+// exclusive, which they always should have been: `?new-project=true&new-account=true` was a
+// reachable URL that stacked two dialogs.
 
 // ── shared: dashboard report export (converse-frontends#453) ─────────────────────────────────
 
 /**
- * `?export=true&export-format=pdf&export-tables=false` — the Export dialog on EVERY
+ * `?dialog=export&export-format=pdf&export-tables=false` — the Export dialog on EVERY
  * `dashboards.yaml`-driven page.
  *
- * Cross-route and shared, the same shape `createAccountParsers`/`createProjectParsers` established
- * and for the same reason: the button is owned by the dashboard engine's page shell
- * (`dashboards/dashboard-page-shell.tsx`), not by any one route, so there is exactly one
- * declaration rather than one per page — a fifth `?report=`-shaped flag per YAML page is precisely
- * the drift this module exists to prevent.
+ * WHETHER it is open moved to the shared `?dialog=` param on 2026-09-03 (`CONSOLE_DIALOGS.export`)
+ * along with every other modal in the console; what stayed here are the two knobs that decide
+ * WHICH DOCUMENT the Generate button produces. That split is the point of the new shape: the
+ * dialog's own view state keeps ordinary, readable param names beside `?dialog=`, rather than
+ * needing a `dialog-`-prefixed namespace of its own.
  *
- * All three are real view state under ADR 0011, not drafts. `open` is "what am I looking at" (Back
- * closes it, same as every other dialog flag here). `format` and `tables` are the two knobs that
- * decide WHICH DOCUMENT the Generate button produces, so a link to a page with an export in
- * progress must carry them — and the route's own `?format=`/`?tables=` mean the same two things,
- * which is what makes an exported report reproducible from a URL someone pasted.
- *
- * Distinct names from `manageParsers`/`overviewParsers`' `format`/`reportOpen`: those belong to the
- * CONSUMPTION report (a month, a scope, a group-by) which is a different document with different
- * inputs, and a page could in principle mount both.
+ * Both are real view state under ADR 0011, not drafts — a link to a page with an export in
+ * progress must carry them, which is what makes an exported report reproducible from a URL someone
+ * pasted. Their names stay distinct from `manageParsers`/`overviewParsers`' `format`/`reportOpen`:
+ * those belong to the CONSUMPTION report (a month, a scope, a group-by), a different document with
+ * different inputs, and a page could in principle mount both.
  */
 export const DASHBOARD_EXPORT_FORMATS = ['pdf', 'csv'] as const;
 
 export const dashboardExportParsers = {
-  open: parseAsBoolean.withDefault(false),
   format: parseAsStringLiteral(DASHBOARD_EXPORT_FORMATS).withDefault('pdf'),
   // Defaults ON: a chart in a document nobody can hover states nothing without its values.
   tables: parseAsBoolean.withDefault(true),
 };
 
 const dashboardExportUrlKeys = {
-  open: 'export',
   format: 'export-format',
   tables: 'export-tables',
 };
 
 export function useDashboardExportParams() {
-  // `push`, like every other dialog-open flag in this module — Back closes the dialog.
+  // `replace`: these are knobs inside an already-open dialog, and cycling PDF/CSV must not cost a
+  // Back press per press. Opening the dialog itself is the `push` (`DIALOG_OPTIONS`).
   return useQueryStates(dashboardExportParsers, {
     urlKeys: dashboardExportUrlKeys,
-    history: 'push' as const,
-  });
-}
-
-// ── shared: create-project dialog ───────────────────────────────────────────────────────────
-
-/**
- * `?new-project=true` — whether `CreateProjectDialog` is open. Lifted out of `manageParsers.
- * createOpen` (owner, 2026-08-30: "I create account in settings or in a raw dropdown, but project
- * only in projects? Not in settings?") into the SAME shared, cross-route shape
- * `createAccountParsers` above already established: `+ New project` is now reachable from
- * `/projects`' own `PageHeader` action, `/settings/projects`' own `PageHeader` action, AND the
- * inspector rail's quick-settings row (every route) — three structurally separate triggers that
- * must all open the ONE instance mounted in `app/(console)/layout.tsx`
- * (`use-create-project-dialog.ts`). The wire key changes (`create` on `/projects` meant this
- * specifically; `new-project` says so on every route it now opens from) — a genuine rename, not
- * a compatibility shim, since the flow itself moved cross-route.
- */
-export const createProjectParsers = {
-  open: parseAsBoolean.withDefault(false),
-};
-
-const createProjectUrlKeys = { open: 'new-project' };
-
-export function useCreateProjectDialogParams() {
-  return useQueryStates(createProjectParsers, {
-    urlKeys: createProjectUrlKeys,
-    history: 'push' as const,
+    history: 'replace',
   });
 }
 
@@ -391,24 +513,23 @@ export const API_KEY_SORT_KEYS = ['created', 'lastUsed', 'expires'] as const;
  * `q` is the ledger's free-text name filter, debounced onto the URL: the input stays responsive
  * per keystroke while the address bar (and the refine query it drives) settles once typing stops.
  *
- * `revoke` holds the id of the key whose revoke confirmation is open, and `delete` the same for
- * the (admin-gated, ticket #321) delete confirmation. A dialog *target* is view state — Back
- * closes the dialog, and a colleague can be sent straight to the confirmation. Neither dialog's
- * failure reason is here: it belongs to the mutation that failed.
+ * `key` is the SELECTION — which row's detail the rail (or, below `lg`, the sheet) is showing. It
+ * stays a param of its own: the layout contract makes that a persistent rail at `lg+`, not a modal
+ * (`CONSOLE_DIALOGS`' own note).
  *
- * `create` (ticket #319) is the same idea with no id to carry — the create-key dialog has exactly
- * one possible target (the active project), so a bare boolean is the whole contract. Its draft
- * inputs (name/expiry/plan) are NOT here: `use-api-keys-screen.ts`'s own "SANCTIONED LOCAL STATE"
- * comment explains why a typed-but-unsent form draft must not reach the URL or history.
+ * The screen's three MODALS are no longer here at all. `?create=true`, `?revoke=<id>` and
+ * `?delete=<id>` became `?dialog=create-api-key`, `?dialog=revoke-key&dialog-id=<id>` and
+ * `?dialog=delete-key&dialog-id=<id>` in the 2026-09-03 migration — one shape for every modal in
+ * the console. That also fixed a real reachable state this table allowed: `?revoke=k1&delete=k1`
+ * opened both confirmations at once, and `use-api-keys-screen.ts` had to clear each when opening
+ * the other by hand. Neither dialog's failure reason was ever here: it belongs to the mutation
+ * that failed, and their draft inputs (name/expiry/plan) stay local per ADR 0011 Decision 3.
  */
 export const apiKeysParsers = {
   page: parseAsInteger.withDefault(1),
   status: parseAsStringLiteral(API_KEY_STATUSES).withDefault('all'),
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   selectedKeyId: parseAsString.withDefault(''),
-  revokeKeyId: parseAsString.withDefault(''),
-  deleteKeyId: parseAsString.withDefault(''),
-  createOpen: parseAsBoolean.withDefault(false),
   // Default matches the ledger's pre-sortable hardcoded `sorters: [{ field: 'createdAt', order:
   // 'desc' }]` (`use-api-keys-screen.ts`) — newest key first, until a header is pressed.
   sortKey: parseAsStringLiteral(API_KEY_SORT_KEYS).withDefault('created'),
@@ -418,9 +539,6 @@ export const apiKeysParsers = {
 const apiKeysUrlKeys = {
   search: 'q',
   selectedKeyId: 'key',
-  revokeKeyId: 'revoke',
-  deleteKeyId: 'delete',
-  createOpen: 'create',
   sortKey: 'sort',
   sortDirection: 'dir',
 };
@@ -429,7 +547,8 @@ export function useApiKeysParams() {
   return useQueryStates(apiKeysParsers, { urlKeys: apiKeysUrlKeys, history: 'replace' });
 }
 
-/** Row selection and the revoke/delete dialogs are navigation-grade; the filters above them are not. */
+/** Picking a row retargets the detail rail — navigation-grade; the filters above it are not. (The
+ *  screen's dialogs went to `?dialog=`, which carries its own `push` in `DIALOG_OPTIONS`.) */
 export const API_KEYS_SELECTION_OPTIONS = { history: 'push' as const };
 
 // ── /projects (params still named 'manage*' internally — the route renamed, this module's own
@@ -564,17 +683,13 @@ export function useProjectsEntryParams() {
  * ledger search boxes are.
  */
 export const settingsParsers = {
-  accountNameOpen: parseAsBoolean.withDefault(false),
   renameProjectId: parseAsString.withDefault(''),
-  projectNameOpen: parseAsBoolean.withDefault(false),
   search: parseAsString.withDefault('').withOptions({ limitUrlUpdates: debounce(400) }),
   page: parseAsInteger.withDefault(1),
 };
 
 const settingsUrlKeys = {
-  accountNameOpen: 'account-name',
   renameProjectId: 'row',
-  projectNameOpen: 'rename',
   search: 'q',
   page: 'page',
 };
@@ -736,16 +851,12 @@ export const adminRolesParsers = {
   role: parseAsString.withDefault(''),
   includeRevoked: parseAsBoolean.withDefault(false),
   after: parseAsString.withDefault(''),
-  grantOpen: parseAsBoolean.withDefault(false),
-  revokeGrantId: parseAsString.withDefault(''),
 };
 
 const adminRolesUrlKeys = {
   role: 'role',
   includeRevoked: 'revoked',
   after: 'after',
-  grantOpen: 'grant',
-  revokeGrantId: 'revoke',
 };
 
 /** Filters and the cursor: `replace`. Paging is a knob on this screen, not a destination — the
@@ -1089,14 +1200,10 @@ export const ADMIN_REFILL_POLICIES_MODE_OPTIONS = { history: 'push' as const };
  */
 export const adminBudgetSchedulesParsers = {
   editScheduleId: parseAsString.withDefault(''),
-  previewScheduleId: parseAsString.withDefault(''),
-  deleteScheduleId: parseAsString.withDefault(''),
 };
 
 const adminBudgetSchedulesUrlKeys = {
   editScheduleId: 'edit',
-  previewScheduleId: 'preview',
-  deleteScheduleId: 'delete',
 };
 
 export function useAdminBudgetSchedulesParams() {
@@ -1123,8 +1230,8 @@ export const ADMIN_BUDGET_SCHEDULES_MODE_OPTIONS = { history: 'push' as const };
 export const URL_PARAM_CONTRACT = {
   projectScope: { parsers: projectScopeParsers, urlKeys: projectScopeUrlKeys },
   resolver: { parsers: resolverParsers, urlKeys: resolverUrlKeys },
-  createAccount: { parsers: createAccountParsers, urlKeys: createAccountUrlKeys },
-  createProject: { parsers: createProjectParsers, urlKeys: createProjectUrlKeys },
+  dialog: { parsers: dialogParsers, urlKeys: dialogUrlKeys },
+  dashboardExpand: { parsers: dashboardExpandParsers, urlKeys: dashboardExpandUrlKeys },
   dashboardExport: { parsers: dashboardExportParsers, urlKeys: dashboardExportUrlKeys },
   overview: { parsers: overviewParsers, urlKeys: overviewUrlKeys },
   settingsOverview: { parsers: settingsOverviewParsers, urlKeys: settingsOverviewUrlKeys },

@@ -5,6 +5,10 @@ import {
   MultiSeriesSpendChart,
   scaleAxisCaption,
 } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
+import {
+  StackedBarChart,
+  stackedBarCaption,
+} from '@lightbridge/ui-web/src/components/stacked-bar-chart';
 import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 
 /**
@@ -93,6 +97,30 @@ export function renderPanelChart(view: DashboardPanelView, span: 1 | 2): Rendere
 
   switch (view.kind) {
     case 'series':
+      // The SAME switch the on-screen renderer makes (`panel-renderers.tsx`), for the same
+      // reason this module exists at all: a report drawn by a different mark than the console is
+      // a rendering difference a reader cannot tell from a data difference. The stacked board's
+      // own caveat caption is carried here too — `static` mode drops every DOM caption, and a
+      // one-model-at-95% stack in a PDF with no note is exactly as misleading as one on screen.
+      if (view.style === 'stacked-bars') {
+        caption =
+          [stackedBarCaption(view.series, view.topN), view.truncationCaption]
+            .filter(Boolean)
+            .join(' ') || undefined;
+        element = (
+          <StackedBarChart
+            series={view.series}
+            width={width}
+            height={height}
+            topN={view.topN}
+            formatValue={view.formatValue}
+            formatYTick={view.formatYTick}
+            emptyMessage={view.emptyMessage}
+            static
+          />
+        );
+        break;
+      }
       caption =
         [scaleAxisCaption(view.scale), view.truncationCaption].filter(Boolean).join(' ') ||
         undefined;

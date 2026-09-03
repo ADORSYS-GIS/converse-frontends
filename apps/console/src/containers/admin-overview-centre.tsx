@@ -16,7 +16,7 @@ import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
-import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
 import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
@@ -46,7 +46,7 @@ import { useAdminEstateOperations } from './use-admin-estate-operations';
  * below is what they read afterwards.
  *
  * **Panel scale knobs stay in the URL** (ADR 0011), one per series panel, declared FROM the spec
- * (`useDashboardScaleParams`) rather than from a hand-written table — so a panel a deployment adds
+ * (`useDashboardKnobs`) rather than from a hand-written table — so a panel a deployment adds
  * through the config-volume override gets a real, shareable `?<panel-id>-scale=` knob like every
  * other, and this container holds no local state at all. The DEFAULT axis is stated once, in the
  * YAML (`options.scale`), never duplicated here.
@@ -74,15 +74,15 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
     [view.range, view.from, view.to]
   );
 
-  // One URL knob per SERIES panel, declared from the spec — see `useDashboardScales`.
-  const { scaleFor, onScaleChange } = useDashboardScales(page);
+  // One URL knob per panel, declared from the spec — the axis on each series board, and the
+  // sort/page on each table (`useDashboardKnobs`).
+  const knobs = useDashboardKnobs(page);
 
   const dashboard = useDashboard({
     page,
     window,
     resetCadence: operations.resetCadence,
-    scaleFor,
-    onScaleChange,
+    ...knobs,
   });
 
   return (

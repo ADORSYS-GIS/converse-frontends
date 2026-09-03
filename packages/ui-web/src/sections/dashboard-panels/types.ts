@@ -81,6 +81,24 @@ export type DashboardPanelView =
       series: MultiSeriesSpendSeries[];
       scale: MultiSeriesSpendScale;
       onScaleChange: (scale: MultiSeriesSpendScale) => void;
+      /**
+       * Which MARK a series panel draws (`options.style` in YAML). `'lines'` is the default and
+       * every panel's shape until 2026-09-03.
+       *
+       * `'stacked-bars'` is the owner's ruling of that date for daily spend × model, overruling
+       * ADR 0013/0015 D5's stacked-bar ban for that one question — see `StackedBarChart`'s own doc
+       * comment for what the ban measured and why this case is the exception. It is a STYLE on the
+       * existing `series` panel rather than a tenth panel type on purpose: the query, the
+       * adapter, the truncation caption and the export path are identical, and only the mark
+       * differs — a second type would have duplicated all four to change one.
+       *
+       * A stacked board has no axis TRANSFORM: a log or indexed stack does not sum to anything,
+       * so the panel's scale toggle is suppressed for it (`panelActionRenderers`).
+       */
+      style?: 'lines' | 'stacked-bars';
+      /** `stacked-bars` only — series kept before the tail folds into one summed `Other (N)`
+       *  segment. Omit to take the chart's own default. */
+      topN?: number;
       /** Pre-formats a y value in the tooltip; omit for the money default. */
       formatValue?: (value: number) => string;
       /** Pre-formats a y-axis tick; a COUNT board must override this or the axis fabricates `$`. */
@@ -131,6 +149,16 @@ export type DashboardPanelView =
        * in a dialog sized for fifty.
        */
       page?: number;
+      /**
+       * The panel's own rows-per-page at PANEL size (`options.pageSize` in YAML). Omit for the
+       * engine default (`PANEL_TABLE_PAGE_SIZE`), which is what every table takes unless its YAML
+       * says otherwise — paging is a property of the `table` TYPE since the owner's 2026-09-03
+       * directive, not something a page opts into.
+       *
+       * Stated at panel size and scaled for the dialog by `PANEL_TABLE_PAGE_SIZE_RATIO`, so one
+       * YAML number still produces the two densities the panel and its expanded twin need.
+       */
+      pageSize?: number;
       hasPrev?: boolean;
       hasNext?: boolean;
       onPrev?: () => void;

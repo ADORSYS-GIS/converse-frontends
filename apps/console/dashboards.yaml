@@ -129,14 +129,19 @@ pages:
           bucket: auto
           limit: 2000
 
+      # Owner ruling 2026-09-03: this board is a STACK. "What did we spend that day" is the first
+      # question here, and only a stack states it (as bar height) — a superposed line board states
+      # no total at all. ADR 0015 D5's stacked-bar ban is amended for exactly this question; the
+      # 95%-top-1 caveat travels with the mark as its own caption. No `scale` here: a log stack
+      # does not sum, so the panel renders no axis toggle.
       - id: spend-by-model
         type: series
         title: Spend by model over time
-        subtitle: Log axis by default — one model at ~95% share flattens every other line on a linear one.
+        subtitle: Daily spend, split by model. Bar height is the day's total; the tail past the top five is one summed Other segment, never dropped.
         span: 1
         metric: cost
         options:
-          scale: log
+          style: stacked-bars
           topN: 5
         query:
           scope: all
@@ -404,16 +409,16 @@ pages:
           limit: 2000
 
       # ── 7. Cost per period by model ───────────────────────────────────────────────────────
-      # Log by default: one model at ~95% share flattens every other line on a linear axis. The
-      # axis is a URL knob (`?cost-by-model-scale=`), so this is only the default.
+      # A STACK since the owner's 2026-09-03 ruling (see `/admin/overview`'s spend-by-model): the
+      # per-bucket TOTAL is the primary reading on this board and a line chart cannot state it.
       - id: cost-by-model
         type: series
         title: Cost per period by model
-        subtitle: Top five models plus the tail. Log axis by default — one dominant model flattens every other line on a linear one.
+        subtitle: Bar height is the period's total spend; segments are the top five models plus one summed Other.
         span: 2
         metric: cost
         options:
-          scale: log
+          style: stacked-bars
           topN: 5
         query:
           scope: all
@@ -1258,15 +1263,17 @@ pages:
           bucket: auto
           limit: 2000
 
+      # A STACK (owner ruling 2026-09-03). This account's spend per day, split by model — the
+      # height answers "what did this account cost that day", the segments answer "on what".
       - id: spend-by-model
         type: series
         title: Spend by model over time
-        subtitle: Log axis by default — one model at ~100% share flattens every other line on a linear one.
+        subtitle: Bar height is the day's total for this account; segments are the top five models plus one summed Other.
         span: 2
         metric: cost
         options:
           dimension: model
-          scale: log
+          style: stacked-bars
           topN: 5
         query:
           scope: account

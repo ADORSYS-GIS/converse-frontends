@@ -17,7 +17,7 @@ import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
-import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useDashboardLabels } from './use-dashboard-labels';
@@ -75,14 +75,13 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
     [zones.scopeId]
   );
 
-  const { scaleFor, onScaleChange } = useDashboardScales(page);
+  const knobs = useDashboardKnobs(page);
 
   const dashboard = useDashboard({
     page,
     window,
     filters,
-    scaleFor,
-    onScaleChange,
+    ...knobs,
     localLabels,
     // Never fired unscoped: the project lens has no project until one is picked, and the user lens
     // no subject until the session resolves.

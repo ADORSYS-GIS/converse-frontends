@@ -225,6 +225,48 @@ hide two of the three readings behind a click. `ShareBar` keeps the single sanct
 part-to-whole (`model-cost-share`); `RankedSeriesRows` remains the default for every per-key
 breakdown. Adding a _fourth_ ring is a decision, not a default.
 
+### D2b — The second D5 amendment: stacked bars, for daily spend x model only (2026-09-03)
+
+ADR 0013 D5 banned stacked bars outright, and the console-ui skill and
+`packages/ui-web/src/sections/dashboard-panels/panel-renderers.tsx` both restated it. The ban was
+not taste: past the first segment, a stack asks a reader to compare lengths that do not share a
+baseline — the second-worst perceptual channel after area — and this console's own measurement over
+726k rows found **one model at ~95% share to be the COMMON case**, under which every other segment
+is a sliver and the stack degenerates into one bar wearing a legend.
+
+**The owner overruled it on 2026-09-03 for one question**: _"'Spend by model over time' deserves a
+stacked bar chart (for daily spend x model)."_ That case is precisely the one a stack is the right
+mark for and a superposed line board is the wrong one: the reader's first question is _"what did we
+spend that day"_, which is the bucket TOTAL — a stack states it as bar height, and a line chart
+cannot state it at all. The per-model split is the second question, and it is what the segments are
+for.
+
+**The measurement was not retracted, so the caveat travels with the mark.**
+`stackDominanceCaption` (`packages/chart-core/src/stacks.ts`) returns a sentence whenever the top
+series exceeds `STACK_DOMINANT_SHARE` = 95% of the period, and `StackedBarChart` prints it above the
+board — on screen and, through `stackedBarCaption`, in the Typst report's own chrome, since `static`
+mode drops every DOM caption. A stack that is really one bar says so, in words, next to itself.
+
+Three further things the implementation holds rather than leaving to a caller:
+
+- **It is `options.style: stacked-bars` on the existing `series` panel, not a tenth panel type.**
+  The query, the adapter, the truncation caption and the server-side export path are identical; only
+  the mark differs. A tenth type would have duplicated four things to change one.
+- **No axis transform.** `log` and `indexed` transform each series independently, and transformed
+  segments do not sum — the bar's height would stop being the bucket's total, which is the one
+  reading the exception was granted for. The scale toggle is therefore suppressed for a stacked
+  panel (`panelActionRenderers`), rather than offered and ignored.
+- **The tail is SUMMED into `Other (N)`, never dropped.** A line board truncates at `topN` because a
+  sixth indistinguishable grey line is noise; a stack cannot, because bars short by the tail would
+  contradict the total stated beside them. `panel-adapters.tsx` passes the whole ranked list through
+  and `computeStackLayout` folds the tail per bucket.
+
+**The sanctioned use is named, and it is exactly three panels**: `/admin/overview`'s
+`spend-by-model`, `/admin/usage`'s `cost-by-model`, and `/accounts/[accountId]/overview`'s
+`spend-by-model` (`dashboards.yaml`). Every other series panel stays lines. A fourth stack is a
+decision, not a default — and stacked bars remain banned for every question whose primary reading is
+the per-series comparison rather than the total.
+
 **Latency, amended in the same breath.** D5 said latency is stat cards "until history depth
 justifies a series", on the grounds that whole-window aggregate percentiles cannot be validly
 combined across days. That premise no longer holds: the usage query API computes
@@ -590,7 +632,7 @@ stateDiagram-v2
     note left of Expanded
         Base UI Dialog; the body render-prop is called again
         with size:'expanded' — a taller chart, more ticks,
-        50 rows instead of 10 (sizes.ts:30). NOT a scaled-up
+        25 rows instead of 10 (sizes.ts). NOT a scaled-up
         screenshot: the two renderings differ in DATA density.
     end note
 

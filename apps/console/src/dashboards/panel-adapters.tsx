@@ -884,6 +884,7 @@ function tableView(input: PanelViewInput, groupBy: string[] | undefined): Dashbo
     sort: input.sort,
     onSortChange: input.onSortChange,
     page,
+    pageSize: spec.options?.pageSize,
     onPrev: input.onPageChange ? () => input.onPageChange?.(Math.max(page - 1, 0)) : undefined,
     onNext: input.onPageChange ? () => input.onPageChange?.(page + 1) : undefined,
   };
@@ -904,10 +905,16 @@ function seriesView(input: PanelViewInput): DashboardPanelView {
   const dimensions = input.groupBy ?? spec.query.group_by ?? [];
   const derived = derivedMetricName(spec.metric);
 
+  // `lines` unless the YAML says otherwise (`options.style`) — the mark, not the data.
+  const style = spec.options?.style ?? 'lines';
+  const stacked = style === 'stacked-bars';
+
   const base = {
     kind: 'series' as const,
     scale: input.scale,
     onScaleChange: input.onScaleChange,
+    style,
+    topN: spec.options?.topN,
   };
 
   if (derived === 'activeActorsPerBucket') {
@@ -919,14 +926,22 @@ function seriesView(input: PanelViewInput): DashboardPanelView {
     };
   }
 
-  const series = seriesByGroup(
+  const ranked = seriesByGroup(
     response,
     panelDimension(spec, dimensions),
     spec.metric,
     input.labelFor ?? IDENTITY_LABEL_FOR,
     input.localLabels
-  ).slice(0, spec.options?.topN ?? 5);
-  if (compareResponse && compareShiftMs !== undefined) {
+  );
+  // A LINE board drops the tail outright — a sixth indistinguishable grey line is noise. A STACK
+  // keeps it and hands the whole list to the chart, which folds the tail into one summed
+  // `Other (N)` SEGMENT: dropping it there would make every bar shorter than the total the panel's
+  // own stat card states, which is the one thing a stacked board must never do.
+  const series = stacked ? ranked : ranked.slice(0, spec.options?.topN ?? 5);
+  // No comparison overlay on a stack: the previous period is not a part of this period's total,
+  // so stacking it on top would inflate every bar. `compare: true` on a stacked panel is left to
+  // the delta on its sibling stat card, where it means something.
+  if (!stacked && compareResponse && compareShiftMs !== undefined) {
     series.push(comparisonSeries(compareResponse, spec.metric, compareShiftMs));
   }
 

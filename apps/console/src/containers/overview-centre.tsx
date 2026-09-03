@@ -15,7 +15,7 @@ import { DashboardExportButton } from '../dashboards/dashboard-export-button';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
-import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { useAccountId } from '../client/use-account-id';
 import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
@@ -56,7 +56,7 @@ import { useDashboardLabels } from './use-dashboard-labels';
  * one page.
  *
  * Panel scale knobs stay in the URL (ADR 0011), one per series panel, declared FROM the spec
- * (`useDashboardScales`) — so a panel a deployment adds through the config-volume override gets a
+ * (`useDashboardKnobs`) — so a panel a deployment adds through the config-volume override gets a
  * real, shareable `?<panel-id>-scale=` knob like every other, and this container holds no local
  * state at all.
  */
@@ -87,14 +87,13 @@ export function OverviewCentre({ page }: OverviewCentreProps) {
     [accountId, zones.projectId]
   );
 
-  const { scaleFor, onScaleChange } = useDashboardScales(page);
+  const knobs = useDashboardKnobs(page);
 
   const dashboard = useDashboard({
     page,
     window,
     filters,
-    scaleFor,
-    onScaleChange,
+    ...knobs,
     localLabels,
   });
 

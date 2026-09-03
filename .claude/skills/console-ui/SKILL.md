@@ -421,12 +421,23 @@ below follows from what reads honestly against that shape, not house taste.
     which is a large part of the point: a filled disk has nowhere to put that number. The sanctioned
     use is exactly three panels, `model-distribution-{requests,cost,tokens}` on `/admin/usage`; a
     fourth ring is a decision, not a default.
-- **Never build a stacked bar or an area fill for a usage/spend breakdown.** Tried against the same
-  sample and rejected for three measured reasons (ADR 0013 D5): top-1 dominance collapses
-  non-leading bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage
-  backend buckets by day, not continuously, so an area fill implies a slope between real gaps that
-  isn't there; and a stacked/layered chart needs a legend that scales with series count, which the
-  same measurement shows routinely running past a dozen entries.
+- **Never build an area fill for a usage/spend breakdown**, and **stacked bars only for daily
+  spend x model** (owner ruling 2026-09-03, ADR 0015 D2b — this narrows, and does not retire, ADR
+  0013 D5's ban). The three measured reasons still stand: top-1 dominance collapses non-leading
+  bands to sub-pixel slivers (the same donut failure, in a rectangle); the usage backend buckets by
+  day, not continuously, so an area fill implies a slope between real gaps that isn't there; and a
+  stacked/layered chart needs a legend that scales with series count, which the same measurement
+  shows routinely running past a dozen entries. The exception is granted for the one question where
+  the bucket TOTAL is the primary reading and the split is secondary — a stack states the total as
+  bar height, a line board cannot state it at all. Reach for it through `series` +
+  `options.style: stacked-bars`, never a new panel type, and know what the mark holds for you:
+  no scale toggle (a log stack does not sum), the tail SUMMED into `Other (N)` rather than dropped
+  (short bars would contradict the total beside them), values on hover listing every segment of the
+  hovered bucket plus that bucket's total, and `stackDominanceCaption` printing the 95%-top-1 caveat
+  above the board whenever the top series exceeds it — on screen and in the Typst report. The
+  sanctioned use is exactly three panels: `/admin/overview`'s `spend-by-model`, `/admin/usage`'s
+  `cost-by-model`, and the account overview's `spend-by-model`. A fourth stack is a decision, not a
+  default.
 - **Latency: cards for the window totals, and a series is now honest too** (amended 2026-09-02, ADR
   0015 D2). `LatencyStatCards` still owns per-model p50/p95/n (p99 only past a minimum sample
   count) for the whole window. The old "never a latency time series" clause rested on those
@@ -524,7 +535,13 @@ where a dashboard change is verified; the live deploy is confirmation, not disco
 - **`DashboardPanel`** — `Card` + `ZoneHeading` (title, subtitle, actions slot, and an Expand button
   the caller cannot opt out of) around a **body render-prop** `(ctx: { size }) => ReactNode`. It is a
   render-prop, not a node, because `'panel'` and `'expanded'` differ in **data** density, not only
-  pixels: chart height 200 → 460, top-N 6 → 12, table page 10 → 50 (`sizes.ts`).
+  pixels: chart height 200 → 460, top-N 6 → 12, table page 10 → 25 (`sizes.ts`; 25 rather than 50
+  so the dialog's pager stays above the fold of an 80vh dialog). **Which panel is expanded is in
+  the URL** — `?expand=<panel-id>`, `history: 'push'` (owner directive 2026-09-03, ADR 0011 D8):
+  a deep link opens the panel expanded, a reload keeps it open, and the dialog's contents are
+  steered by the page's OWN per-panel knobs, so `?expand=actors-table&actors-table-page=1` opens
+  the table on page 2 and sorting inside the dialog writes the same `-sort`/`-dir` the panel behind
+  it reads. `DashboardRenderer` holds one subscription for the whole grid; never a hook per panel.
 - **`usePanelHotkey`** (`packages/ui-web/src/lib/use-panel-hotkey.ts`) — `v` expands while focus is
   inside the panel; ignored while an input is focused, so typing "v" in a search box does nothing.
   Esc closes and focus returns to the panel. Base UI `Dialog` owns the modal behaviour.
@@ -534,6 +551,14 @@ where a dashboard change is verified; the live deploy is confirmation, not disco
   single numeral has nothing to reveal at 1280 × 80vh.
 - **`LedgerTable.rowHref`** turns the label cell into a real anchor (keyboard semantics intact),
   driven from `options.link`'s `:key` template. Use it instead of an `onClick` that pushes a route.
+- **Every `table` panel pages — there is no opt-in** (owner directive 2026-09-03). 10 rows per page,
+  25 in the dialog, overridable per panel with `options.pageSize` (stated at panel size, scaled for
+  the dialog). The cursor is `?<panel-id>-page=` beside the existing `-sort`/`-dir`, all three
+  declared FROM the spec by `useDashboardKnobs` — which every YAML page now goes through, because
+  `UseDashboardInput`'s sort/page knobs are required rather than optional. Sorting and paging are
+  CLIENT-side over the grouped rows (the usage API has no `OFFSET` and no `ORDER BY`), so a
+  `truncated: true` response says so in the panel's own caption: the pages you can walk are pages
+  of the truncated reading, not of the period.
 
 ### The export button
 
@@ -679,9 +704,16 @@ are devDependencies only.
   else through nuqs (`useQueryState`/`useQueryStates`, typed parsers, defaults kept out of the
   URL): `?project=` (absent means every project in the account — a query param, not a path
   segment, precisely because "absent means all" has no path vocabulary), filters,
-  range/bucket/group-by, selections, active tabs, `BottomSheet`/dialog open state. There is no
-  provider/context for either half — a route reads `useParams()` for the account and its own nuqs
-  params for everything else.
+  range/bucket/group-by, selections, active tabs, and modal state. There is no provider/context for
+  either half — a route reads `useParams()` for the account and its own nuqs params for everything
+  else.
+- **Every modal is `?dialog=<name>` (+ optional `?dialog-id=<id>`), through `useUrlDialog`** — ADR
+  0011 D7, owner directive 2026-09-03. `CONSOLE_DIALOGS` (`url-state.ts`) is the name registry; one
+  modal can be open at a time by construction. What is NOT a `?dialog=`: a row SELECTION that fills
+  the inspector rail (`?request=`, `?selected=`, `?key=`, `?row=` — at `lg+` that is a persistent
+  rail, not a modal), and a MODE that swaps the page's own content for a form
+  (`/admin/refill-policies`' `?edit=`/`?simulate=`, `/admin/budget-schedules`' `?edit=`). The
+  expanded dashboard panel keeps `?expand=<panel-id>` — see `DashboardPanel` above for why.
 - **`useState` in view code is a defect unless it is one of the sanctioned exceptions**:
   hover/tooltip tracking, focus management, pre-submit form drafts that must not enter URL or
   history (typed-confirm text, decision notes), animation/measurement state. Every surviving
@@ -708,8 +740,10 @@ UUID as a visible label · a **filled** pie/disk of any kind (rings only — `Do
 `chart-core`'s `donutGeometry` clamps open, ADR 0015 D2) · a fourth `donut` use site, or a NEW
 `ShareBar` use site for a per-row ranking (use `RankedSeriesRows`; `ShareBar` and the three
 `model-distribution-*` rings are the whole sanctioned part-to-whole set, ADR 0013 D5 as amended) ·
-a stacked bar or area fill for a usage/spend breakdown (ADR 0013 D5's three rejected-for-cause
-reasons) · a latency series built from **whole-window** percentiles (the sanctioned
+an area fill for a usage/spend breakdown, or a stacked bar for anything but daily spend x model
+(ADR 0013 D5 as narrowed by ADR 0015 D2b — three panels, named above) · a `?dialog=`-shaped param
+declared anywhere but `url-state.ts`, or a `const [open, setOpen] = useState(false)` behind a modal
+(ADR 0011 D7 — every modal is `?dialog=<name>` through `useUrlDialog`) · a latency series built from **whole-window** percentiles (the sanctioned
 `latency-series` reads the backend's per-bucket `percentile_cont` figures — never averaged or
 re-combined ones) · a hand-written dashboard container (add a `dashboards.yaml` entry — ADR 0015
 D1; there are zero left and it stays that way) · hex colours in components ·

@@ -14,7 +14,7 @@ import { useMemo, useState } from 'react';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useDebouncedValue } from '../client/use-debounced-value';
-import { ADMIN_ROLES_DIALOG_OPTIONS, useAdminRolesParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useAdminRolesParams, useUrlDialog } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { PLATFORM_ROLES } from '../shared/permissions';
 import { grantIdentityIdsOf, toPlatformRoleGrantRow } from './role-grant-rows';
@@ -85,6 +85,10 @@ export function useAdminRolesScreen(): AdminRolesScreen {
   const queryClient = useQueryClient();
   const session = useConsoleSession();
   const [view, setView] = useAdminRolesParams();
+  // Both of this screen's modals, on the console's one `?dialog=` contract (owner directive
+  // 2026-09-03): `?dialog=grant-role` and `?dialog=revoke-role&dialog-id=<grant id>`.
+  const grantDialogUrl = useUrlDialog(CONSOLE_DIALOGS.grantRole);
+  const revokeDialogUrl = useUrlDialog(CONSOLE_DIALOGS.revokeRole);
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — in-flight form drafts): the grant form. The
@@ -162,7 +166,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
   // Not searched once a person is chosen: Base UI's combobox fills the input with the selected
   // label on press, which would otherwise fire a fresh search for the name already picked.
   const searchEnabled =
-    view.grantOpen && selectedUser === null && debouncedQuery.length >= USER_SEARCH_MIN_LENGTH;
+    grantDialogUrl.open && selectedUser === null && debouncedQuery.length >= USER_SEARCH_MIN_LENGTH;
 
   const searchQuery = useQuery({
     queryKey: [...USER_SEARCH_QUERY_KEY, debouncedQuery, USER_SEARCH_LIMIT],
@@ -191,7 +195,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
   };
 
   const closeGrantDialog = () => {
-    void setView({ grantOpen: false }, ADMIN_ROLES_DIALOG_OPTIONS);
+    grantDialogUrl.close();
     setQuery('');
     setSelectedUser(null);
     setRole(PLATFORM_ROLES[0]);
@@ -210,8 +214,8 @@ export function useAdminRolesScreen(): AdminRolesScreen {
     },
   });
 
-  const revokeTargetRow = view.revokeGrantId
-    ? (rows.find((row) => row.id === view.revokeGrantId) ?? null)
+  const revokeTargetRow = revokeDialogUrl.id
+    ? (rows.find((row) => row.id === revokeDialogUrl.id) ?? null)
     : null;
 
   const revoke = useSharedMutation<
@@ -222,7 +226,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
     mutationFn: (variables) => client.procedures.revokePlatformRole({ args: variables }),
     onSuccess: () => {
       invalidateGrants();
-      void setView({ revokeGrantId: '' }, ADMIN_ROLES_DIALOG_OPTIONS);
+      revokeDialogUrl.close();
     },
   });
 
@@ -262,7 +266,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       },
       onRequestRevoke: (row) => {
         revoke.dismiss();
-        void setView({ revokeGrantId: row.id }, ADMIN_ROLES_DIALOG_OPTIONS);
+        revokeDialogUrl.openDialog(row.id);
       },
       identityStatus: identityQuery.isError ? IDENTITY_DEGRADED_MESSAGE : undefined,
       pagination: {
@@ -282,7 +286,7 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       },
     },
     grantDialog: {
-      open: view.grantOpen,
+      open: grantDialogUrl.open,
       query,
       onQueryChange: setQuery,
       minQueryLength: USER_SEARCH_MIN_LENGTH,
@@ -323,12 +327,12 @@ export function useAdminRolesScreen(): AdminRolesScreen {
       },
       onCancel: () => {
         revoke.dismiss();
-        void setView({ revokeGrantId: '' }, ADMIN_ROLES_DIALOG_OPTIONS);
+        revokeDialogUrl.close();
       },
     },
     openGrantDialog: () => {
       grant.dismiss();
-      void setView({ grantOpen: true }, ADMIN_ROLES_DIALOG_OPTIONS);
+      grantDialogUrl.openDialog();
     },
     outcome,
     dismissOutcome: () => {

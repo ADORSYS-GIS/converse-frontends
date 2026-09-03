@@ -206,8 +206,23 @@ export type DashboardQuerySpec = z.infer<typeof dashboardQuerySchema>;
 
 export const panelOptionsSchema = z
   .object({
-    /** `series`/`latency-series` only — the initial axis transform. */
+    /** `series`/`latency-series` only — the initial axis transform. Ignored by a
+     *  `style: stacked-bars` panel, which has no axis transform (see `style` below). */
     scale: z.enum(['linear', 'log', 'indexed']).optional(),
+    /**
+     * `series` only — WHICH MARK the panel draws. `lines` (the default) is the superposed
+     * one-line-per-series board every series panel drew before 2026-09-03.
+     *
+     * `stacked-bars` is the owner's ruling of that date, overruling ADR 0013/0015 D5's
+     * stacked-bar ban for one question: daily spend × model, where the total per bucket is the
+     * primary reading (a stack states it as bar height; a line board cannot state it at all) and
+     * the split is secondary. The ban's measurement was not retracted, so the mark carries the
+     * 95%-top-1 caveat as its own caption whenever the top series exceeds it.
+     *
+     * A STYLE on `series`, not a tenth panel type: the query, the adapter, the truncation caption
+     * and the server-side export path are identical — only the mark differs.
+     */
+    style: z.enum(['lines', 'stacked-bars']).optional(),
     /**
      * Which entity a breakdown ranks, and the panel's DEFAULT when the page's own `?lens=` knob is
      * unset. `user` first, per the owner's actor-identity rule.
@@ -235,6 +250,16 @@ export const panelOptionsSchema = z
     unit: z.string().min(1).optional(),
     /** `table` only — which columns the ledger draws, in order. Omit for `DEFAULT_TABLE_COLUMNS`. */
     columns: z.array(z.enum(DASHBOARD_TABLE_COLUMNS)).min(1).optional(),
+    /**
+     * `table` only — rows per page at PANEL size; the expanded dialog scales it
+     * (`PANEL_TABLE_PAGE_SIZE_RATIO`). Omit for the engine default of 10 / 25.
+     *
+     * There is no `paginated: true` beside it, and deliberately: the owner's 2026-09-03 directive
+     * ("all table panels in /admin/overview need pagination") made paging a property of the
+     * `table` TYPE, so every table pages whether or not its YAML says anything. This field only
+     * moves the density.
+     */
+    pageSize: z.number().int().positive().optional(),
     /**
      * Which of the query's `group_by` dimensions this panel READS, when it is not the first one.
      * `none` reads no dimension at all — the panel plots/sums the response's ungrouped total.

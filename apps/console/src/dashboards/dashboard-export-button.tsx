@@ -5,7 +5,7 @@ import { Button } from '@lightbridge/ui-web/src/components/button';
 import { ReportExportDialog } from '@lightbridge/ui-web/src/components/report-export-dialog';
 import type { ReportExportFormat } from '@lightbridge/ui-web/src/components/report-export-panel';
 
-import { useDashboardExportParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useDashboardExportParams, useUrlDialog } from '../client/url-state';
 import type { UsageWindow } from '../containers/comparison-window';
 import { downloadBlob, filenameFromContentDisposition } from '../containers/download-file';
 import {
@@ -78,6 +78,9 @@ export function DashboardExportButton({
   // The dialog and its two knobs are real view state (ADR 0011): Back closes the dialog, and
   // `format`/`tables` decide WHICH DOCUMENT Generate produces — the route reads the same two names,
   // which is what makes an exported report reproducible from a pasted URL.
+  // WHICH modal is open is the console's one shared `?dialog=` param; the two knobs INSIDE this
+  // one keep readable names of their own beside it (owner directive 2026-09-03).
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.export);
   const [view, setView] = useDashboardExportParams();
 
   // SANCTIONED LOCAL STATE (ADR 0011 Decision 3): in-flight request status, the same shape
@@ -131,7 +134,7 @@ export function DashboardExportButton({
         filenameFromContentDisposition(response.headers.get('content-disposition')) ??
         `report.${chosen}`;
       downloadBlob(blob, filename);
-      void setView({ open: false });
+      dialog.close();
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -141,13 +144,14 @@ export function DashboardExportButton({
 
   return (
     <>
-      <Button type="button" variant="secondary" onClick={() => void setView({ open: true })}>
+      <Button type="button" variant="secondary" onClick={() => dialog.openDialog()}>
         Export
       </Button>
       <ReportExportDialog
-        open={view.open}
+        open={dialog.open}
         onOpenChange={(next) => {
-          void setView({ open: next });
+          if (next) dialog.openDialog();
+          else dialog.close();
           // Re-armed on close, per §8.3: a stale failure must not greet the next reader who opens
           // the dialog for a window that may since have changed.
           if (!next) setError(null);

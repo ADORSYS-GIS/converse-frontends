@@ -7,6 +7,7 @@ import type { LedgerColumn } from '../../components/ledger-table';
 import { Pagination } from '../../components/pagination';
 import { SegmentedControl } from '../../components/segmented-control';
 import { ShareBar } from '../../components/share-bar';
+import { StackedBarChart } from '../../components/stacked-bar-chart';
 import { StatCard } from '../../components/stat-card';
 import { useResizeObserver } from '../../lib/use-resize-observer';
 import { LatencyStatCards } from '../latency-stat-cards';
@@ -17,6 +18,7 @@ import {
   PANEL_CHART_FALLBACK_WIDTH,
   PANEL_CHART_HEIGHT,
   PANEL_TABLE_PAGE_SIZE,
+  PANEL_TABLE_PAGE_SIZE_RATIO,
   PANEL_TOP_N,
 } from './sizes';
 import { DASHBOARD_PANEL_TYPES } from './types';
@@ -50,9 +52,12 @@ import type {
  *  - `size` is `'panel'` or `'expanded'`, and it changes DENSITY, not just pixels (chart height,
  *    ranked Top-N, table page size — see `sizes.ts`).
  *
- * Doctrine held here, not left to callers (ADR 0013 D5 as amended 2026-09-02):
+ * Doctrine held here, not left to callers (ADR 0013 D5 as amended 2026-09-02 and 2026-09-03):
  *  - no filled disks — `donut` renders `chart-core`'s clamped RING;
- *  - no stacked bars, no area fills anywhere in this file;
+ *  - no area fills anywhere in this file;
+ *  - stacked bars ONLY through `series` + `options.style: stacked-bars`, which is the single
+ *    question (daily spend × model) the owner lifted the D5 ban for on 2026-09-03 — and the mark
+ *    carries the 95%-top-1 caveat as its own caption, so a dominated stack says so;
  *  - no static per-series legend lists — every chart's values are on hover, through the shared
  *    Floating-UI `ChartTooltip`.
  */
@@ -93,6 +98,26 @@ function SeriesBody({
   );
 }
 
+/** The stacked mark, measuring its own box exactly as the line board does — `StackedBarChart`
+ *  takes real pixels, so the panel hands it the measured width and its size's chart height. */
+function StackedSeriesBody({ view, size }: PanelRendererProps<'series'>) {
+  const { ref, size: measured } = useResizeObserver<HTMLDivElement>();
+  return (
+    <div ref={ref} className="dashboard-panel-chart">
+      <StackedBarChart
+        series={view.series}
+        width={measured.width || PANEL_CHART_FALLBACK_WIDTH[size]}
+        height={PANEL_CHART_HEIGHT[size]}
+        topN={view.topN ?? PANEL_TOP_N[size]}
+        formatValue={view.formatValue}
+        formatYTick={view.formatYTick}
+        emptyMessage={view.emptyMessage}
+        truncationCaption={view.truncationCaption}
+      />
+    </div>
+  );
+}
+
 /** Latency is milliseconds, not dollars — overriding both the axis and the tooltip formatter,
  *  because `MultiSeriesSpendChart` defaults to money on each independently and a `$412` p95 would
  *  be a fabricated unit, the exact failure `formatYTick` was added for. */
@@ -127,7 +152,13 @@ function DonutBody({ view, size }: PanelRendererProps<'donut'>) {
 // ── table ────────────────────────────────────────────────────────────────────────────────────
 
 function TableBody({ view, size }: PanelRendererProps<'table'>) {
-  const pageSize = PANEL_TABLE_PAGE_SIZE[size];
+  // The panel's own `options.pageSize` when it declared one, else the engine default — and either
+  // way scaled for the dialog, so "expanded" always means more rows at once rather than the same
+  // ten in a bigger box.
+  const pageSize = Math.max(
+    1,
+    Math.round((view.pageSize ?? PANEL_TABLE_PAGE_SIZE.panel) * PANEL_TABLE_PAGE_SIZE_RATIO[size])
+  );
   // The page INDEX is the caller's (the console holds it in the URL); the page SIZE is this
   // panel's, and it doubles when the panel is expanded. Clamped so a `?…-page=9` deep-link into a
   // table that has since shrunk lands on a real page rather than on an empty one.
@@ -201,14 +232,17 @@ export const panelRenderers = {
       />
     ),
 
-  series: ({ view, size }: PanelRendererProps<'series'>) => (
-    <SeriesBody
-      view={view}
-      size={size}
-      formatValue={view.formatValue}
-      formatYTick={view.formatYTick}
-    />
-  ),
+  series: ({ view, size }: PanelRendererProps<'series'>) =>
+    view.style === 'stacked-bars' ? (
+      <StackedSeriesBody view={view} size={size} />
+    ) : (
+      <SeriesBody
+        view={view}
+        size={size}
+        formatValue={view.formatValue}
+        formatYTick={view.formatYTick}
+      />
+    ),
 
   ranked: ({ view, size }: PanelRendererProps<'ranked'>) => (
     <RankedSeriesRows
@@ -263,14 +297,18 @@ export const panelRenderers = {
 export const panelActionRenderers = {
   stat: () => null,
   'stat-group': () => null,
-  series: ({ view }: PanelRendererProps<'series'>) => (
-    <SegmentedControl
-      aria-label="Scale"
-      options={SCALE_OPTIONS}
-      value={view.scale}
-      onChange={view.onScaleChange}
-    />
-  ),
+  // No scale toggle on a stacked board: `log`/`indexed` transform each series independently, and
+  // transformed segments do not sum — the bar's height would stop being the bucket's total, which
+  // is the ONE reading the stack was allowed for. A toggle steering nothing is worse than none.
+  series: ({ view }: PanelRendererProps<'series'>) =>
+    view.style === 'stacked-bars' ? null : (
+      <SegmentedControl
+        aria-label="Scale"
+        options={SCALE_OPTIONS}
+        value={view.scale}
+        onChange={view.onScaleChange}
+      />
+    ),
   ranked: () => null,
   share: () => null,
   donut: () => null,

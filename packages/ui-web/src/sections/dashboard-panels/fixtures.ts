@@ -196,3 +196,46 @@ function panelFixturesColumns() {
   const table = panelFixtures.table;
   return table.kind === 'table' ? table.columns : [];
 }
+
+/**
+ * The `series` panel drawn as a STACK (`options.style: stacked-bars`, owner ruling 2026-09-03) —
+ * daily spend × model, the one question ADR 0015 D5's ban was lifted for.
+ *
+ * Eight models, not four: the whole point of the stack's `Other (N)` collapse is that the tail is
+ * SUMMED into the bar rather than dropped, so a fixture that fitted inside `topN` would not
+ * exercise it.
+ */
+export const stackedSeriesFixture: DashboardPanelView = {
+  kind: 'series',
+  style: 'stacked-bars',
+  topN: 5,
+  series: MODEL_TOTALS.map(([key, total], rank) => ({
+    key,
+    label: key,
+    points: days(21, (index) => (total / 21) * (0.7 + 0.4 * Math.sin(index / 2 + rank))),
+  })),
+  scale: 'linear',
+  onScaleChange: () => {},
+};
+
+/**
+ * The case the ban was measured on, and the reason the caveat caption exists: one model at ~99% of
+ * the period. Every other segment is a sliver, and the board says so above itself.
+ */
+export const dominatedStackedSeriesFixture: DashboardPanelView = {
+  kind: 'series',
+  style: 'stacked-bars',
+  topN: 5,
+  series: [
+    {
+      key: 'gpt-4o',
+      label: 'gpt-4o',
+      points: days(21, (index) => 40 * (0.8 + 0.3 * Math.sin(index / 3))),
+    },
+    { key: 'claude-sonnet-4', label: 'claude-sonnet-4', points: days(21, () => 0.35) },
+    { key: 'gpt-4o-mini', label: 'gpt-4o-mini', points: days(21, () => 0.12) },
+    { key: 'mistral-large', label: 'mistral-large', points: days(21, () => 0.04) },
+  ],
+  scale: 'linear',
+  onScaleChange: () => {},
+};

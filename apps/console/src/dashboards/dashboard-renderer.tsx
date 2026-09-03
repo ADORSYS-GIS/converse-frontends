@@ -16,6 +16,7 @@ import {
   renderPanelBody,
 } from '@lightbridge/ui-web/src/sections/dashboard-panels';
 
+import { dashboardExpandParsers, useDashboardExpandParams } from '../client/url-state';
 import type { DashboardPanelState, DashboardState } from './use-dashboard';
 
 /**
@@ -35,9 +36,18 @@ import type { DashboardPanelState, DashboardState } from './use-dashboard';
  * card while every other panel renders its data (an explicit AC). Loading is a skeleton of the
  * body's own geometry, not a spinner and not a disappearing card — the card, its title and its
  * Expand button stay put, so the page does not reflow when data lands.
+ *
+ * **Which panel is expanded lives in the URL** (`?expand=<panel-id>`, owner directive 2026-09-03 —
+ * see `useDashboardExpandParams`). `DashboardPanel` is driven CONTROLLED here rather than left to
+ * its own internal flag, which buys three things a local flag cannot: a deep link opens the panel
+ * already expanded, a reload keeps it open, and — the reason the directive gave — the dialog's
+ * contents are steered by the page's own per-panel knobs, so `?expand=actors-table&actors-table-
+ * page=1` opens the table at page 2 and sorting inside the dialog writes the same `-sort`/`-dir`
+ * params the panel behind it reads. The `v` hotkey and the Expand button write the param; Esc and
+ * the close button clear it.
  */
 
-export { panelRenderers, panelActionRenderers, DASHBOARD_PANEL_TYPES };
+export { panelRenderers, panelActionRenderers, DASHBOARD_PANEL_TYPES, dashboardExpandParsers };
 
 export interface DashboardRendererProps {
   state: DashboardState;
@@ -45,16 +55,35 @@ export interface DashboardRendererProps {
 }
 
 export function DashboardRenderer({ state, className }: DashboardRendererProps) {
+  // ONE subscription for the page, not one per panel: every slot reads the same `?expand=`, and a
+  // panel-level hook would mean N nuqs subscriptions re-rendering the whole grid on every open.
+  const [expand, setExpand] = useDashboardExpandParams();
+
   return (
     <DashboardGrid className={className}>
       {state.panels.map((panel) => (
-        <DashboardPanelSlot key={panel.id} panel={panel} />
+        <DashboardPanelSlot
+          key={panel.id}
+          panel={panel}
+          expanded={expand.panelId === panel.id}
+          onExpandedChange={(next) => {
+            void setExpand({ panelId: next ? panel.id : '' });
+          }}
+        />
       ))}
     </DashboardGrid>
   );
 }
 
-function DashboardPanelSlot({ panel }: { panel: DashboardPanelState }) {
+function DashboardPanelSlot({
+  panel,
+  expanded,
+  onExpandedChange,
+}: {
+  panel: DashboardPanelState;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+}) {
   // A BARE panel has no heading row of its own — its title is the `StatCard`'s own label, which
   // only exists once the data lands (`DashboardPanelProps.chrome`). So while it is loading or
   // failed, the panel would carry no title at all: a column of six identical "the usage service
@@ -72,6 +101,8 @@ function DashboardPanelSlot({ panel }: { panel: DashboardPanelState }) {
       // `stat`/`stat-group` bodies panel themselves (console-ui skill) — `panelChrome` is the one
       // place that list lives, so the console and Storybook cannot disagree about it.
       chrome={panelChrome(panel.type)}
+      expanded={expanded}
+      onExpandedChange={onExpandedChange}
       actions={panel.view ? renderPanelActions(panel.view, 'panel') : null}>
       {({ size }) => {
         if (panel.status === 'error') {

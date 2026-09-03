@@ -114,3 +114,73 @@ export const Mobile: Story = {
   render: SpanTwo.render,
   globals: { viewport: { value: 'base390' } },
 };
+
+/**
+ * The expanded panel as a deep link produces it: `?expand=actors-table&actors-table-page=1`
+ * (owner directive 2026-09-03, ADR 0011 D8). The console holds both params — `DashboardRenderer`
+ * reads `?expand=` and `useDashboardKnobs` reads `?<panel-id>-page=` — so this story stands in for
+ * that URL by passing the same two values those params resolve to.
+ *
+ * The thing to review: the dialog pages at its OWN density (25 rows) while the panel behind it
+ * pages at 10, from ONE page index. Page 2 here starts at row 25, not at row 10.
+ */
+export const ExpandedTablePageTwo: Story = {
+  name: 'Expanded table · ?expand=actors-table&actors-table-page=1',
+  render: () => {
+    const rows = Array.from({ length: 120 }, (_, index) => ({
+      key: `row-${index}`,
+      cells: {
+        label: `actor-${String(index).padStart(3, '0')}@adorsys.com`,
+        cost: `$${(1200 - index * 9).toFixed(2)}`,
+        requests: (18_402 - index * 137).toLocaleString('en-US'),
+        tokens: (41_208_113 - index * 301_991).toLocaleString('en-US'),
+      },
+    }));
+
+    return (
+      <DashboardGrid>
+        <DashboardPanel
+          id="actors-table"
+          title="Actors"
+          subtitle="Page 2 · deep-linked from the URL"
+          span={2}
+          expanded>
+          {({ size }) =>
+            renderPanelBody(
+              {
+                kind: 'table',
+                columns: [
+                  { key: 'label', header: 'Actor', sortable: true },
+                  { key: 'cost', header: 'Cost', align: 'right', kind: 'data', sortable: true },
+                  {
+                    key: 'requests',
+                    header: 'Requests',
+                    align: 'right',
+                    kind: 'data',
+                    sortable: true,
+                  },
+                  { key: 'tokens', header: 'Tokens', align: 'right', kind: 'data', sortable: true },
+                ],
+                rows,
+                unit: 'actors',
+                total: rows.length,
+                page: 1,
+                sort: { key: 'cost', direction: 'desc' },
+                onSortChange: () => {},
+                onPrev: () => {},
+                onNext: () => {},
+              },
+              size
+            )
+          }
+        </DashboardPanel>
+      </DashboardGrid>
+    );
+  },
+};
+
+export const ExpandedTablePageTwoLight: Story = {
+  name: 'Expanded table · page 2 — wireframe (light)',
+  render: ExpandedTablePageTwo.render,
+  globals: { theme: 'wireframe' },
+};

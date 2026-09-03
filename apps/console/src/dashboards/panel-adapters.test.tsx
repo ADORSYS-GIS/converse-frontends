@@ -720,6 +720,124 @@ describe('toPanelView — series', () => {
   });
 });
 
+/**
+ * `options.style: stacked-bars` — the owner's 2026-09-03 exception to ADR 0013/0015 D5. The
+ * adapter's job is two decisions the renderer cannot make for itself: keep the tail (the chart
+ * folds it into a summed `Other (N)` SEGMENT rather than dropping it), and refuse the comparison
+ * overlay (the previous period is not a part of this period's total).
+ */
+describe('toPanelView — series drawn as a stack', () => {
+  const modelPoints = [
+    point({ bucket_start: '2026-09-01T00:00:00Z', model: 'gpt-4o', total_cost: 90_000_000 }),
+    point({ bucket_start: '2026-09-01T00:00:00Z', model: 'claude', total_cost: 5_000_000 }),
+    point({ bucket_start: '2026-09-01T00:00:00Z', model: 'mistral', total_cost: 2_000_000 }),
+    point({ bucket_start: '2026-09-01T00:00:00Z', model: 'llama', total_cost: 1_000_000 }),
+  ];
+
+  it('carries the style and the topN through to the view', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+          options: { style: 'stacked-bars', topN: 2 },
+        }),
+        response: response(modelPoints),
+      })
+    );
+    expect(view.kind === 'series' && view.style).toBe('stacked-bars');
+    expect(view.kind === 'series' && view.topN).toBe(2);
+  });
+
+  it('keeps the whole tail — the chart SUMS it into Other, so dropping it would shorten every bar', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+          options: { style: 'stacked-bars', topN: 2 },
+        }),
+        response: response(modelPoints),
+      })
+    );
+    expect(view.kind === 'series' && view.series.map((s) => s.key)).toEqual([
+      'gpt-4o',
+      'claude',
+      'mistral',
+      'llama',
+    ]);
+  });
+
+  it('still truncates a LINE board at topN — a sixth grey line is noise, not data', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+          options: { topN: 2 },
+        }),
+        response: response(modelPoints),
+      })
+    );
+    expect(view.kind === 'series' && view.series).toHaveLength(2);
+    expect(view.kind === 'series' && view.style).toBe('lines');
+  });
+
+  it('drops the comparison overlay: last period is not a part of this period’s total', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'series',
+          metric: 'cost',
+          compare: true,
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+          options: { style: 'stacked-bars' },
+        }),
+        response: response(modelPoints),
+        compareResponse: response([
+          point({ bucket_start: '2026-08-01T00:00:00Z', model: 'gpt-4o', total_cost: 4_000_000 }),
+        ]),
+        compareShiftMs: 31 * DAY,
+      })
+    );
+    expect(view.kind === 'series' && view.series.map((s) => s.label)).not.toContain(
+      'Previous period'
+    );
+  });
+});
+
+describe('toPanelView — table pageSize', () => {
+  it('carries a panel’s own `options.pageSize` through, and omits it for the engine default', () => {
+    const withSize = toPanelView(
+      input({
+        spec: spec({
+          type: 'table',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['user_id'], limit: 10 },
+          options: { pageSize: 5 },
+        }),
+        response: response([point({ user_id: 'u1', total_cost: 1_000_000 })]),
+      })
+    );
+    expect(withSize.kind === 'table' && withSize.pageSize).toBe(5);
+
+    const withoutSize = toPanelView(
+      input({
+        spec: spec({
+          type: 'table',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['user_id'], limit: 10 },
+        }),
+        response: response([point({ user_id: 'u1', total_cost: 1_000_000 })]),
+      })
+    );
+    expect(withoutSize.kind === 'table' && withoutSize.pageSize).toBeUndefined();
+  });
+});
+
 describe('toPanelView — table labels', () => {
   it('says what a row IS when the panel declares it, and counts in that unit', () => {
     const view = toPanelView(

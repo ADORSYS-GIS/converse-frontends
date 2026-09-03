@@ -26,8 +26,25 @@ export const PANEL_TOP_N: Record<DashboardPanelSize, number> = {
   expanded: 12,
 };
 
-/** Ledger rows per page — the AC's "table page size 50" when expanded. */
+/**
+ * Ledger rows per page, and the ENGINE DEFAULT for every `table` panel — the owner's 2026-09-03
+ * directive ("all table panels in /admin/overview need pagination") made paging a property of the
+ * panel TYPE rather than something a page opts into, so there is no un-paginated table left to
+ * hold a different number.
+ *
+ * 25 in the dialog, not 50: at 50 the expanded ledger's own last rows sit below the fold of an
+ * 80vh dialog, so the pager is off screen exactly when a reader needs it, and "expanded" stops
+ * meaning "more of this at once" and starts meaning "scroll further". A YAML author who wants a
+ * different density says so per panel (`options.pageSize`), and the panel size still doubles it.
+ */
 export const PANEL_TABLE_PAGE_SIZE: Record<DashboardPanelSize, number> = {
   panel: 10,
-  expanded: 50,
+  expanded: 25,
+};
+
+/** How a panel's own `options.pageSize` (the PANEL-size figure) scales in the expanded dialog —
+ *  the same ratio the defaults above hold, so one YAML number still yields two honest densities. */
+export const PANEL_TABLE_PAGE_SIZE_RATIO: Record<DashboardPanelSize, number> = {
+  panel: 1,
+  expanded: PANEL_TABLE_PAGE_SIZE.expanded / PANEL_TABLE_PAGE_SIZE.panel,
 };

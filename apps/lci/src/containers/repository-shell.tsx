@@ -1,10 +1,11 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
-import { approveRepoAction, denyRepoAction } from './repository-actions';
+import { approveRepoAction } from './repository-actions';
 import { RepoTabsNav } from './repo-tabs-nav';
 
 /** Chrome shared by everything under one repository — the title row carries the approval status
@@ -29,7 +30,7 @@ export function RepositoryShell({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={repoSlug(repo)}
-        controls={
+        action={
           <div className="flex items-center gap-3">
             <StatusText tone={tone}>{label}</StatusText>
             {canApprove && repo.status !== 'approved' ? (
@@ -41,12 +42,13 @@ export function RepositoryShell({
               </form>
             ) : null}
             {canDeny && repo.status !== 'disabled' ? (
-              <form action={denyRepoAction}>
-                <input type="hidden" name="id" value={id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Deny
-                </Button>
-              </form>
+              <Button
+                variant="secondary"
+                size="sm"
+                render={<Link href={`/repositories/${id}/settings#danger`} />}
+                nativeButton={false}>
+                Deny…
+              </Button>
             ) : null}
           </div>
         }

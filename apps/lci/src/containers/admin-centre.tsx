@@ -1,22 +1,27 @@
-import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
-import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
-import { LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
-import { approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
+import type { Repository } from '../lib/domain/repos';
 import type { ApiResult } from '../lib/server/api';
-import { approveRepoAction, denyRepoAction } from './admin-actions';
+import { AdminRepoList } from './admin-repo-list';
+import { AdminTabsNav } from './admin-tabs-nav';
 
-/** Repository approvals: newly connected repositories stay pending until an approver acts, so
- *  they get indexed and reviewed only once someone has actually vetted them. */
+/**
+ * Repository approvals — one status per route (`/admin` = pending, `/admin/accepted`,
+ * `/admin/denied`), a shared subtitle and tab strip, and a paginated/searchable list of that
+ * status's repositories. Decisions are reversible: deny an approved repo from its own tab to take
+ * it back out of scope, or approve a denied one to bring it in — it then moves to the other tab.
+ */
 export function AdminCentre({
+  title,
+  emptyMessage,
   result,
   canApprove,
   canDeny,
 }: {
+  title: string;
+  emptyMessage: string;
   result: ApiResult<Repository[]> | null;
   canApprove: boolean;
   canDeny: boolean;
@@ -38,6 +43,7 @@ export function AdminCentre({
         title="Repository approvals"
         subtitle="Newly added repositories stay pending until approved — only then are they indexed or reviewed. Decisions are reversible: deny an approved repo to take it back out of scope, or approve a denied one to bring it in."
       />
+      <AdminTabsNav />
 
       {!result.ok ? (
         <Card>
@@ -52,109 +58,15 @@ export function AdminCentre({
           />
         </Card>
       ) : (
-        <RepoSections repos={result.data} canApprove={canApprove} canDeny={canDeny} />
+        <Card title={title}>
+          <AdminRepoList
+            repos={result.data}
+            emptyMessage={emptyMessage}
+            canApprove={canApprove}
+            canDeny={canDeny}
+          />
+        </Card>
       )}
     </div>
-  );
-}
-
-function RepoSections({
-  repos,
-  canApprove,
-  canDeny,
-}: {
-  repos: Repository[];
-  canApprove: boolean;
-  canDeny: boolean;
-}) {
-  const pending = repos.filter((r) => r.status === 'pending');
-  const approved = repos.filter((r) => r.status === 'approved');
-  const disabled = repos.filter((r) => r.status === 'disabled');
-
-  return (
-    <div className="flex flex-col gap-6">
-      <Section
-        title="Pending"
-        repos={pending}
-        empty="No repositories are awaiting approval."
-        canApprove={canApprove}
-        canDeny={canDeny}
-      />
-      {approved.length > 0 ? (
-        <Section title="Approved" repos={approved} canApprove={canApprove} canDeny={canDeny} />
-      ) : null}
-      {disabled.length > 0 ? (
-        <Section title="Denied" repos={disabled} canApprove={canApprove} canDeny={canDeny} />
-      ) : null}
-    </div>
-  );
-}
-
-function Section({
-  title,
-  repos,
-  empty,
-  canApprove,
-  canDeny,
-}: {
-  title: string;
-  repos: Repository[];
-  empty?: string;
-  canApprove: boolean;
-  canDeny: boolean;
-}) {
-  return (
-    <Card title={title}>
-      {repos.length === 0 ? (
-        <InlineStatus>{empty}</InlineStatus>
-      ) : (
-        <ul className="divide-raised divide-y">
-          {repos.map((repo) => (
-            <RepoRow key={repo.id} repo={repo} canApprove={canApprove} canDeny={canDeny} />
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-function RepoRow({
-  repo,
-  canApprove,
-  canDeny,
-}: {
-  repo: Repository;
-  canApprove: boolean;
-  canDeny: boolean;
-}) {
-  const { tone, label } = approvalTone(repo);
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-1 py-3">
-      <div className="min-w-0">
-        <div className="text-soft truncate text-sm font-medium">{repoSlug(repo)}</div>
-        <div className={`${LABEL_CLASS} mt-0.5`}>
-          {repo.platform} id {repo.platform_repo_id}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <StatusText tone={tone}>{label}</StatusText>
-        {canApprove && repo.status !== 'approved' ? (
-          <form action={approveRepoAction}>
-            <input type="hidden" name="id" value={repo.id} />
-            <Button type="submit" variant="primary" size="sm">
-              Approve
-            </Button>
-          </form>
-        ) : null}
-        {canDeny && repo.status !== 'disabled' ? (
-          <form action={denyRepoAction}>
-            <input type="hidden" name="id" value={repo.id} />
-            <Button type="submit" variant="ghost" size="sm">
-              Deny
-            </Button>
-          </form>
-        ) : null}
-      </div>
-    </li>
   );
 }

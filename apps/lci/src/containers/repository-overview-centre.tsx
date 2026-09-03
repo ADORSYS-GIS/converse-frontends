@@ -1,13 +1,12 @@
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
-import { LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 
 import { repoSlug, type Repository } from '../lib/domain/repos';
 import { absoluteTime, relativeTime } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
+import { Fact } from './fact';
 import { GrafanaPanel } from './grafana-panel';
 
 /** Every model, not just the ones a repo happened to use this window — the dashboard's own "all"
@@ -96,15 +95,6 @@ export function RepositoryOverviewCentre({
           <Fact label="Approved at">{repo.approved_at ? absoluteTime(repo.approved_at) : '—'}</Fact>
         </dl>
       </Card>
-    </div>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className={LABEL_CLASS}>{label}</dt>
-      <dd className="text-soft text-sm">{children}</dd>
     </div>
   );
 }

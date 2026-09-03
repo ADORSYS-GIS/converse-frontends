@@ -4,17 +4,21 @@ import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { DATA_CLASS, LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import Link from 'next/link';
 
 import {
+  absoluteTime,
   duration,
   relativeTime,
   repoLabel,
+  shortSha,
   statusTone,
   triggerLabel,
   type Review,
   type Task,
 } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
+import { Fact } from './fact';
 import { GrafanaPanel } from './grafana-panel';
 import { ReviewOutput } from './review-output';
 
@@ -59,9 +63,40 @@ export function RunDetailCentre({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={triggerLabel(task)}
-        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}${duration(task, now) ? ` · ${duration(task, now)}` : ''}`}
-        controls={<StatusText tone={tone}>{label}</StatusText>}
+        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}`}
+        action={<StatusText tone={tone}>{label}</StatusText>}
       />
+
+      <Card title="Overview">
+        <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <Fact label="Repository">
+            <Link href={`/repositories/${task.repository_id}`} className="text-primary hover:underline">
+              {repoLabel(task)}
+            </Link>
+          </Fact>
+          <Fact label="Branch">{task.repo_default_branch ?? '—'}</Fact>
+          <Fact label="Trigger">{triggerLabel(task)}</Fact>
+          <Fact label="Delivery">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {task.webhook_delivery_id ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Base SHA">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {shortSha(task.base_sha) ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Head SHA">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {shortSha(task.head_sha) ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Created">{absoluteTime(task.created_at)}</Fact>
+          <Fact label="Started">{task.started_at ? absoluteTime(task.started_at) : '—'}</Fact>
+          <Fact label="Completed">{task.completed_at ? absoluteTime(task.completed_at) : '—'}</Fact>
+          <Fact label="Duration">{duration(task, now) ?? '—'}</Fact>
+        </dl>
+      </Card>
 
       <Card title="Review">
         {!reviewResult.ok ? (

@@ -260,6 +260,18 @@ export function SignOutIcon(props: IconProps) {
   );
 }
 
+/** Runs — a play glyph in a circle, the "execution" mark. `apps/lci`'s own nav row for its list
+ *  of task runs; distinct from `ScheduleIcon`'s clock (that's recurrence — WHEN something runs
+ *  again — not a record of runs that already happened). */
+export function RunsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M6.5 5.5 11 8l-4.5 2.5v-5Z" />
+    </IconBase>
+  );
+}
+
 /** Back — a plain leftward arrow, the `settings`/`admin` areas' own "Back to console" row
  *  (`apps/console/src/client/console-chrome.tsx`'s `BackToConsoleRow`/`BackToConsoleCompact`).
  *  Owner review round 2 (2026-08-31, converse-frontends#368 finding #2, verbatim): "'Back to

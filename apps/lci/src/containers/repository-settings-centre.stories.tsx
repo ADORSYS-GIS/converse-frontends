@@ -7,14 +7,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { RepositorySettingsCentre } from './repository-settings-centre';
-import { RESOLVED_SETTINGS, withPagePadding } from './story-fixtures';
+import { repository, RESOLVED_SETTINGS, withPagePadding } from './story-fixtures';
 
 const meta = {
   title: 'Pages/LCI/RepositorySettings',
   component: RepositorySettingsCentre,
   parameters: { layout: 'fullscreen' },
   decorators: [withPagePadding],
-  args: { id: 1 },
+  args: { id: 1, repo: repository({ status: 'approved' }), canDeny: true },
 } satisfies Meta<typeof RepositorySettingsCentre>;
 
 export default meta;
@@ -30,6 +30,11 @@ export const Default: Story = {
 export const Wireframe: Story = {
   args: Default.args,
   globals: { theme: 'wireframe' },
+};
+
+/** No `repo:deny`: the settings card renders, but the Danger zone doesn't. */
+export const NoDanger: Story = {
+  args: { ...Default.args, canDeny: false },
 };
 
 /** No `repo:configure`: an inline read-only line above the card, and every control disabled. */

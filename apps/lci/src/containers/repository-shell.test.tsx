@@ -59,7 +59,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny…' })).not.toBeInTheDocument();
   });
 
   it('shows Approve for a pending repo when canApprove, and Deny when canDeny', () => {
@@ -70,7 +70,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deny…' })).toBeInTheDocument();
   });
 
   it('hides Approve for an already-approved repo even with canApprove, since there is nothing to approve', () => {
@@ -81,7 +81,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deny…' })).toBeInTheDocument();
   });
 
   it('hides Deny for an already-disabled repo even with canDeny, since there is nothing to deny', () => {
@@ -92,6 +92,6 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny…' })).not.toBeInTheDocument();
   });
 });

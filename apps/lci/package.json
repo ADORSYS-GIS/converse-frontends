@@ -33,6 +33,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@serwist/turbopack": "10.0.0-preview.14",
     "@storybook/react-vite": "^10.5.10",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
@@ -42,8 +43,10 @@
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.5",
     "@vitejs/plugin-react": "^5.2.0",
+    "esbuild-wasm": "^0.25.0",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.18",
+    "serwist": "10.0.0-preview.14",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "vitest": "^3.2.7"

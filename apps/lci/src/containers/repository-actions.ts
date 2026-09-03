@@ -13,6 +13,8 @@ async function mutate(formData: FormData, action: 'approve' | 'deny'): Promise<v
   }
   revalidatePath(`/repositories/${id}`);
   revalidatePath('/admin');
+  revalidatePath('/admin/accepted');
+  revalidatePath('/admin/denied');
 }
 
 export async function approveRepoAction(formData: FormData): Promise<void> {

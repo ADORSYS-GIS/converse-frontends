@@ -154,12 +154,12 @@ stateDiagram-v2
     Open --> NoModal: close() / Esc / Back — clears BOTH params
     Open --> Open: openDialog(other) — replaces, never stacks
 
-    NoModal --> Open: deep link / reload with ?dialog=<known name>
-    NoModal --> NoModal: reload with ?dialog=<unknown name><br/>(no modal matches; the page renders normally)
+    NoModal --> Open: deep link or reload with a KNOWN ?dialog= name
+    NoModal --> NoModal: reload with an UNKNOWN ?dialog= name<br/>no modal matches, the page renders normally
 
     state Open {
         [*] --> Body
-        Body --> Body: the modal's own knobs write ordinary params<br/>(?&lt;panel-id&gt;-sort / -dir / -page, ?export-format)
+        Body --> Body: the modal writes ordinary params<br/>panel-id-sort, -dir, -page, export-format
     }
 
     note right of Open

@@ -100,7 +100,7 @@ sequenceDiagram
     P-->>B: first paint, already German
 
     Note over B,S: later — the visitor switches to English
-    S->>B: document.cookie = "lb.locale=en; Path=/; Max-Age=1y"
+    S->>B: writes lb.locale=en (Path=/, Max-Age one year)
     S->>L: router.refresh()  (same URL, no navigation)
     L->>I: getServerLocale() → en
     L->>P: re-render with locale="en" + en bundle
@@ -114,11 +114,11 @@ stateDiagram-v2
 
     Unresolved --> FromCookie: lb.locale is en|de
     Unresolved --> FromHeader: no/invalid cookie, Accept-Language matches
-    Unresolved --> Default: neither
+    Unresolved --> Fallback: neither
 
     FromCookie --> Active
     FromHeader --> Active
-    Default --> Active: en
+    Fallback --> Active: en
 
     Active --> Switching: switcher pressed (a different locale)
     Switching --> Active: cookie written, router.refresh() resolves
@@ -130,7 +130,7 @@ stateDiagram-v2
         which is the whole point of D2.
     end note
 
-    note right of Default
+    note right of Fallback
         Also the branch taken when next/headers throws — no request
         scope at all (a Route Handler called directly, a build-time
         render). "Could not read a preference" and "none expressed"

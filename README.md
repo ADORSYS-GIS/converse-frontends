@@ -16,7 +16,8 @@ This repository exists to:
   - chart math (scales, bins, colour ramps) in `packages/chart-core`
   - generated RPC client in `packages/authz-rpc`
   - generated REST client (usage backend) in `packages/api-rest`
-  - translations in `packages/i18n`
+  - OpenTelemetry wiring in `packages/otel`
+  - translations in `apps/console/locales/` (there is no `packages/i18n` — ADR 0017 D7)
 - support runtime configuration per environment (no rebuild needed)
 
 ## Tech Stack
@@ -44,14 +45,16 @@ apps/
                        #   lightbridge-governance include_str!s at compile time into its
                        #   OAuth2 loopback redirect (no server, no CSP); shipped as an
                        #   OCI artifact, not a container image
+  lci/                 # Next.js code-intelligence app (ADR 0014)
+  typst-render/        # Node sidecar that compiles a .typ template to PDF (ADR 0015 D5)
 packages/
   ui-web/              # DOM UI primitives + screen sections
   chart-core/          # DOM-free chart math (scales, bins, colour ramp)
   authz-rpc/           # Generated RPC client (cratestack)
   api-rest/            # Generated REST client (usage backend, Hey API)
+  otel/                # OpenTelemetry SDK wiring for the two Next.js server apps
   hooks/               # Query/service hooks
   api-native/          # Native-capability wrappers (currently unused by apps/console)
-  i18n/                # i18n provider + resources
 openapi/
   usage.backend.yaml   # OpenAPI source for api-rest codegen
 packages/authz-rpc/schema/
@@ -162,3 +165,14 @@ pnpm --dir packages/api-rest codegen
 ```
 
 - Follow project conventions in `AGENTS.md` and the `console-ui` skill (`.claude/skills/console-ui/SKILL.md`) for architecture and coding rules.
+
+## Where to read next
+
+**[`AGENTS.md`](AGENTS.md) is the single entry point** — its §0 indexes every skill
+(`.claude/skills/`), every agent (`.claude/agents/`) and every page in
+[`docs/knowledge/`](docs/knowledge/). Decisions and their alternatives live in
+[`docs/adr/`](docs/adr/).
+
+Other harnesses reach the same files through committed symlinks
+(`.github/copilot-instructions.md`, `GEMINI.md`, `.cursorrules`, `.agents/skills/*`) — see
+[`docs/knowledge/agent-harnesses.md`](docs/knowledge/agent-harnesses.md).

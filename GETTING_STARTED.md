@@ -1,72 +1,72 @@
-# Getting Started with Converse-frontends
+# Getting started — the agent setup in this repo
 
-This document describes the AI-assisted development setup generated for your project.
+For building and running the apps, read [`README.md`](README.md). This file describes how AI
+coding assistants are wired up here, whichever one you use.
 
-## Configured AI Platforms
+## One entry point
 
-The following AI coding platforms have been configured:
+**[`AGENTS.md`](AGENTS.md)** is the definitive source for standards, architecture, and the index of
+skills, agents and knowledge pages. Read its §0 first.
 
-- **Cursor** -- Configuration in `.cursorrules`
-- **Windsurf** -- Configuration in `.windsurfrules`
-- **Antigravity** -- Configuration in `AGENTS.md`
-- **Roo Code** -- Configuration in `.roo/rules/project-rules.md`
-- **Kilo Code** -- Configuration in `.kilocode/rules/project-rules.md`
+Everything else is a **committed relative symlink** into `AGENTS.md` or `.claude/`. Git stores
+symlinks natively (mode `120000`), so nothing is duplicated and nothing can drift:
 
-## MCP Servers
+| Harness                  | File it reads                                   | What it is            |
+| ------------------------ | ----------------------------------------------- | --------------------- |
+| Claude Code              | `CLAUDE.md`, `.claude/skills`, `.claude/agents` | the originals         |
+| VS Code / GitHub Copilot | `.github/copilot-instructions.md`               | symlink → `AGENTS.md` |
+| OpenCode                 | `AGENTS.md`, `.claude/skills`                   | read natively         |
+| Antigravity / Gemini     | `GEMINI.md`, `.agents/skills/*`                 | symlinks              |
+| Cursor                   | `AGENTS.md` (and legacy `.cursorrules`)         | native + symlink      |
+| Windsurf                 | `.windsurfrules`                                | symlink → `AGENTS.md` |
+| Roo Code                 | `.roo/rules/project-rules.md`                   | symlink → `AGENTS.md` |
+| Kilo Code                | `.kilocode/rules/project-rules.md`              | symlink → `AGENTS.md` |
 
-Model Context Protocol (MCP) servers extend your AI assistant with additional capabilities.
-
-The following MCP servers have been configured:
-
-- **github**
-- **context7**
-
-To install MCP servers, refer to each server's documentation for setup instructions.
-Configuration fragments are stored in `.claude/settings.json`.
+Full reasoning, what is deliberately **not** linked, and the Windows `core.symlinks` caveat:
+[`docs/knowledge/agent-harnesses.md`](docs/knowledge/agent-harnesses.md).
 
 ## Skills
 
-Skills are reusable prompt templates that guide the AI through specific workflows.
+Reusable task recipes with the exact commands, the verification bar, and the pitfalls that have
+actually cost time here. Each lives at `.claude/skills/<name>/SKILL.md`.
 
-The following skills are available:
+Repo-specific: `console-ui`, `dashboard-panel`, `console-story-verify`, `i18n-copy`,
+`report-template`, `authz-schema-sync`, `console-release-verify`, `governance-pr`.
 
-- **pr-review** -- See `.claude/skills/pr-review/SKILL.md` for details
-- **testing** -- See `.claude/skills/testing/SKILL.md` for details
-- **documentation** -- See `.claude/skills/documentation/SKILL.md` for details
-- **debugging** -- See `.claude/skills/debugging/SKILL.md` for details
-- **ci-cd** -- See `.claude/skills/ci-cd/SKILL.md` for details
-- **containerization** -- See `.claude/skills/containerization/SKILL.md` for details
-- **refactoring** -- See `.claude/skills/refactoring/SKILL.md` for details
+Generic: `ci-cd`, `containerization`, `debugging`, `documentation`, `pr-review`, `refactoring`,
+`testing`.
 
-## Knowledge Files
+## Agents
 
-Knowledge files provide project-specific context to the AI assistant.
-They are located in `docs/knowledge/`.
+Role definitions at `.claude/agents/<name>.md`: `console-ui-builder`, `dashboard-author`,
+`console-verifier` (read-only), `docs-curator`.
 
-**Important:** These files contain placeholder content and should be updated
-with your actual project details, architecture decisions, and domain knowledge.
+## Knowledge base
 
-## Verification
+`docs/knowledge/` holds **contracts and how-tos**, verified against the tree with `file:line`
+citations and a mermaid pair per process. `docs/adr/` holds the **decisions** and the alternatives
+that were rejected. Knowledge pages link the ADRs rather than restating them.
 
-After setup, verify that everything is working:
+## MCP servers
 
-1. **Check project rules exist:**
+Configured in `.claude/settings.json`: `github`, `context7`. Refer to each server's own
+documentation to install it.
 
-   ```bash
-   ls CLAUDE.md .cursorrules .windsurfrules .github/copilot-instructions.md .codex/instructions.md 2>/dev/null
-   ```
+## Verify the setup
 
-2. **Check skills are in place:**
+```bash
+# every harness pointer is a symlink, not a copy
+git ls-files -s .agents .cursorrules .windsurfrules GEMINI.md \
+  .github/copilot-instructions.md .roo/rules .kilocode/rules
+#   every row must start with mode 120000
 
-   ```bash
-   ls -la .claude/skills/
-   ```
+# the skills and agents are where the index says
+ls .claude/skills .claude/agents
 
-3. **Check MCP configuration:**
+# each linked skill resolves
+ls .agents/skills/console-ui/SKILL.md
+```
 
-   ```bash
-   cat .claude/settings.json
-   ```
-
-4. **Test with your AI assistant:**
-   Open your configured AI coding tool and verify it picks up the project instructions.
+If any of those rows shows `100644`, a generator or an editor replaced a symlink with a file —
+re-link it before committing. See `agentic-config.conf` in
+[`docs/knowledge/agent-harnesses.md`](docs/knowledge/agent-harnesses.md).

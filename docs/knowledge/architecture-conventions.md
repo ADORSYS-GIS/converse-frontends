@@ -106,15 +106,26 @@ Three rules from it that are repo-wide enough to restate:
 
 ## Internationalisation — read this before adding `t()`
 
-**None of the applications uses i18n today.** `packages/i18n` has no importer in `apps/`; every
-user-visible string in the console, `apps/authz-ui`, and `apps/governance-auth` is a literal. Older
-documents in this repo (and `AGENTS.md` §1) state a "no plain visible text, all copy through
-`t('key')`" rule — that rule describes the deleted Expo app and is **not** the practice of this
-codebase.
+**Superseded 2026-09-03 by [ADR 0017](../adr/0017-i18n-app-router-i18next.md).** This section used
+to say that no application used i18n and that adding `t()` would half-adopt something nobody had
+decided. That is no longer true, and `packages/i18n` no longer exists (ADR 0017 D7 deleted it with
+the Expo app it served).
 
-Do not half-adopt it. Adding `useTranslation` to one component makes the codebase inconsistent
-without making it translatable. If i18n is wanted for the web surface, it needs a deliberate
-decision (an ADR) covering the apps, the key namespace, and who owns the resource files.
+What now holds:
+
+- **`apps/console` is translated — English and German.** Copy lives in
+  `apps/console/locales/<locale>/<namespace>.json`, resolved per request on the server and
+  synchronously on the client. Use `t()`; do not add a literal.
+- **`packages/ui-web` owns no translations, and never calls `t()`.** Copy arrives as a **prop**, or
+  through **`useCopy()`** for the handful of strings baked into a primitive's own behaviour, each
+  with an English default. There is deliberately no third path.
+- **`apps/authz-ui` and `apps/governance-auth` remain untranslated**, and consume `ui-web` with no
+  i18n runtime — which is exactly why `ui-web` cannot hold one.
+- A **ratchet** (`apps/console/src/i18n-hardcoded-copy.test.ts`) pins the number of remaining
+  hard-coded console strings: it may fall freely, and raising it fails the build.
+
+The how-to — adding a string, adding a language, the parity test — is
+[`i18n.md`](i18n.md) and the `i18n-copy` skill.
 
 ---
 

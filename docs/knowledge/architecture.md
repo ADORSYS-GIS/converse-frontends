@@ -1,6 +1,6 @@
 # Architecture Overview — converse-frontends
 
-> Verified against `main@c9b4aa6` (2026-08-31).
+> Verified against `main` on 2026-09-03 (the admin-console-v2 batch, #456–#499).
 >
 > **This document is a map, not a mirror.** It says what exists, how the pieces depend on each
 > other, and _where the authoritative description of each piece lives_. It deliberately does not
@@ -14,10 +14,20 @@
 ## What this repository is
 
 A **pnpm + Turborepo monorepo** (`pnpm@11.5.2`, Node 22) holding the web frontends for the
-LightBridge platform. Three deployable surfaces, all React 19, all talking to Rust backends that
-live in other repositories: the two browser-served applications (`apps/console` —
-`lightbridge-authz`/`lightbridge-ui`; `apps/authz-ui` — `lightbridge-authz`'s `authz-idp`) and a
-third compile-time surface (`apps/governance-auth` — embedded into `lightbridge-governance`).
+LightBridge platform. **Five deployable surfaces**, talking to Rust backends that live in other
+repositories:
+
+| Surface                | Shape                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/console`         | Browser-served Next.js app — the operator/customer console                                            |
+| `apps/lci`             | Browser-served Next.js app — code intelligence (ADR 0014)                                             |
+| `apps/authz-ui`        | Static SPA served by `lightbridge-authz`'s `authz-idp` under `/ui`                                    |
+| `apps/governance-auth` | A single compile-time-embedded HTML page inside `lightbridge-governance`                              |
+| `apps/typst-render`    | A **headless Node sidecar** — no UI at all; compiles a `.typ` template to PDF over HTTP (ADR 0015 D5) |
+
+The three tables and the dependency graph below describe the first four in detail; the sidecar is
+covered by [`export-pipeline.md`](export-pipeline.md) and its own README, because the console
+depends on nothing but its HTTP contract.
 
 There is **no React Native, no Expo, and no mobile surface** in this repository. The Expo
 self-service app (`apps/self-service`) and its design system (`packages/ui`) were removed in
@@ -50,40 +60,48 @@ against real import sites (2026-08-31):
 
 ```mermaid
 flowchart TD
-    console["apps/console<br/>(Next.js 16)"]
+    console["apps/console<br/>(Next.js, Node runtime)"]
+    lci["apps/lci<br/>(Next.js, code intelligence)"]
     authzui["apps/authz-ui<br/>(Vite SPA)"]
     govauth["apps/governance-auth<br/>(Vite static page)"]
+    typst["apps/typst-render<br/>(Node PDF sidecar, HTTP only)"]
     uiweb["packages/ui-web<br/>(design system: daisyUI 5 + Base UI)"]
     chart["packages/chart-core<br/>(DOM-free d3 chart math)"]
     authzrpc["packages/authz-rpc<br/>(generated cratestack RPC client, CBOR)"]
     apirest["packages/api-rest<br/>(generated OpenAPI client — usage backend)"]
+    otel["packages/otel<br/>(OpenTelemetry SDK wiring)"]
     hooks["packages/hooks<br/>⚠ mostly React-Native-era"]
-    i18n["packages/i18n<br/>⚠ no app imports it"]
     apinative["packages/api-native<br/>⚠ orphaned"]
 
     console --> uiweb
     console --> authzrpc
     console --> apirest
+    console --> otel
     console -.->|"two dependency-free<br/>subpaths only"| hooks
+    console -.->|"HTTP POST /render only"| typst
+    lci --> uiweb
+    lci --> otel
     authzui --> uiweb
     govauth --> uiweb
     uiweb --> chart
     hooks --> authzrpc
-    hooks --> i18n
     hooks --> apinative
 ```
 
-Two edges worth reading carefully, because both are easy to misread as healthier than they are:
+Three edges worth reading carefully, because each is easy to misread:
 
 - **`console → hooks` is a dotted line on purpose.** The console imports exactly two subpaths —
   `@lightbridge/hooks/api-error` and `@lightbridge/hooks/budget-tiers` — both dependency-free. It
   never imports the barrel, which would drag in `react-native`, `expo-auth-session`, and the rest of
   that package's Expo-era surface.
-- **`packages/i18n` has no application consumer.** Its only importers are inside `packages/hooks`
-  (`locale-sync.ts`, `projects.ts`). None of the three apps calls `useTranslation`; all copy in all
-  three apps is literal strings. See [Known residue](#known-residue) — this matters because several
-  older documents still state an "all strings must go through `t()`" rule that nothing enforces or
-  follows.
+- **`console → typst-render` is HTTP, not a package import.** The console speaks only the
+  `POST /render` contract to the sidecar, which is why the sidecar could move to its own repository
+  without touching the console. `format=csv` and `format=html` do not use it at all. See
+  [`export-pipeline.md`](export-pipeline.md).
+- **There is no `packages/i18n`.** It was deleted with the Expo app it served (ADR 0017 D7). The
+  console's copy lives in `apps/console/locales/<locale>/<namespace>.json` and is resolved by
+  `apps/console/src/i18n/`; `packages/ui-web` owns **no** translations — copy arrives as a prop or
+  through `useCopy()` with an English default. See [`i18n.md`](i18n.md).
 
 ---
 
@@ -96,7 +114,7 @@ Two edges worth reading carefully, because both are easy to misread as healthier
 | `packages/authz-rpc`  | Generated cratestack RPC client for the authz surface (accounts, projects, API keys, budget)                                                                                                                                           | `generated/` is **codegen output, gitignored, never hand-edited**. Its `@cratestack/cli` pin must stay in lockstep with `lightbridge-authz`'s Cargo pin — see `packages/authz-rpc/README.md` for the incident that makes this non-negotiable, and `rpc-and-codegen.md` for the mechanics |
 | `packages/api-rest`   | Generated OpenAPI client for the usage backend, from `openapi/usage.backend.yaml`                                                                                                                                                      | Also codegen output. Consumed by the console's usage dashboards through its `/api/usage/*` proxy leg                                                                                                                                                                                     |
 | `packages/hooks`      | Historically the shared data layer for the Expo app                                                                                                                                                                                    | ⚠ Now largely vestigial — see below                                                                                                                                                                                                                                                      |
-| `packages/i18n`       | i18next configuration and resources                                                                                                                                                                                                    | ⚠ No application consumer — see below                                                                                                                                                                                                                                                    |
+| `packages/otel`       | OpenTelemetry SDK wiring for the two Next.js server apps (`converse-console`, `converse-lci`)                                                                                                                                          | Node runtime only — the Edge runtime is skipped by design. See `observability.md`                                                                                                                                                                                                        |
 | `packages/api-native` | Expo clipboard/haptics wrappers                                                                                                                                                                                                        | ⚠ Orphaned: zero importers anywhere in `apps/` or `packages/`                                                                                                                                                                                                                            |
 
 ---
@@ -111,7 +129,7 @@ believing it is dead:
   Most of the package is unreachable from either app. **Do not delete it wholesale**: the console
   genuinely depends on `@lightbridge/hooks/api-error` and `@lightbridge/hooks/budget-tiers`. Any
   cleanup must preserve those two subpaths.
-- **`packages/i18n`** and **`packages/api-native`** have no application consumer at all.
+- **`packages/api-native`** has no application consumer at all. (`packages/i18n`, which used to be listed here, was deleted in ADR 0017 D7 along with the dead `packages/hooks` modules that consumed it.)
 - **`charts/converse-frontend`** is the legacy nginx chart for the deleted Expo app.
   `charts/converse-console` is the live one for `apps/console`. `apps/authz-ui` has no chart by
   design — it ships inside `authz-idp`'s image, not as its own workload. `apps/governance-auth`

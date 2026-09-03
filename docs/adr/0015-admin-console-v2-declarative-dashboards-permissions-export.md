@@ -880,6 +880,15 @@ renders through, so the first utility written into either is a visible diff.
    `/admin/overview`, `/accounts/<id>/overview` and `/settings/overview/*` only. C5 landed before
    C10 and said so in its own container comment ("no Export action yet, deliberately"); C10 added
    the button to the pages that existed at the time and did not go back. One import and one prop.
+
+   **Items 3 and 4 are DONE** (verified 2026-09-03): `DashboardExportButton` is mounted on
+   `admin-usage-centre.tsx`, `admin-usage-actor-centre.tsx`, `admin-usage-channel-centre.tsx` and
+   `admin-usage-chats-centre.tsx` as well as the three pages listed above. The one route that
+   deliberately still renders no Export action is `/settings/overview/usage`, because a `family`
+   fan-out has no session to resolve on the report side — `resolvePageReport` refuses it with
+   `400 unexportable_route` so a hand-built URL gets the same answer. The current mounting table is
+   in `docs/knowledge/export-pipeline.md`.
+
 5. **`packages/hooks/src/rbac.ts` is unconsumed residue.** It was the Expo self-service app's
    client-side permission mirror — a role → permission map with wildcard expansion, exactly the
    re-derivation D4 removes. That app no longer exists in this repository and nothing imports the
@@ -913,3 +922,14 @@ renders through, so the first utility written into either is a visible diff.
     `docs/adr/0012-console-visual-revamp.md` (block 3). Worth a mechanical sweep plus a CI check
     (`mermaid.parse` over every fenced block) rather than another accidental discovery: the house
     rule is that every process is a diagram pair, and a diagram nobody can render is not one.
+
+    **The sweep was done on 2026-09-03** (converse-frontends#443, the docs/skills slice). It found
+    **seven** broken blocks, not three: the three named above plus
+    `apps/authz-ui/README.md` (block 3), `docs/adr/0011-url-first-state-nuqs.md` (block 2),
+    `docs/adr/0016-session-cookie-iron-session.md` (block 1) and **both** blocks in
+    `docs/adr/0017-i18n-app-router-i18next.md` — i.e. two ADRs written the same week shipped
+    diagrams that never rendered, which is the argument for the CI check rather than the sweep.
+    All 95 fenced blocks in the repository now parse under `mermaid@11`. Two further traps beyond
+    the semicolon, both hit during the sweep: **`Default` is a reserved word in `stateDiagram-v2`**
+    (use another state name), and **raw `<...>` placeholders or HTML entities inside a transition
+    label are a lexical error**. The CI check itself is still outstanding.

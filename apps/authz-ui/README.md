@@ -175,14 +175,14 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Excluded: theme.css `exclude:` names all six data:-emitting daisy parts
+    [*] --> Excluded: theme.css excludes all six data-URI-emitting daisy parts
     Excluded --> CleanBundle: vite build
-    CleanBundle --> GateGreen: verify-css-csp.mjs sees 0 data:
+    CleanBundle --> GateGreen: verify-css-csp.mjs sees zero data URIs
     GateGreen --> [*]
-    Excluded --> Reintroduced: a daisy upgrade adds a 7th data: part,\nor our own CSS inlines a data: URI
+    Excluded --> Reintroduced: a daisy upgrade adds a seventh such part,\nor our own CSS inlines a data: URI
     Reintroduced --> GateRed: verify-css-csp.mjs names the selector + property
-    GateRed --> Excluded: add it to `exclude:` (after checking console/lci don't render it)
-    GateRed --> SelfHosted: our own asset -> ship it under /ui/assets, never data:
+    GateRed --> Excluded: add it to the exclude list, after checking console and lci do not render it
+    GateRed --> SelfHosted: our own asset — ship it under /ui/assets, never a data URI
     SelfHosted --> CleanBundle
     note right of GateRed
       Unreachable by design: "prose in another app moved the number".

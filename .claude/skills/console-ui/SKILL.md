@@ -267,7 +267,7 @@ decimals.
     resolve to "no rail" — do not rebuild that wiring or re-add a `rail`/`railWidth` prop pass in
     `apps/console`'s own layout without a genuine new selection-detail case to justify it; the
     right answer for any new selection-driven detail is `BottomSheet`, at every tier, the same
-    surface `/settings/refills-queue` and `/settings/accounts/<id>/projects` both use.
+    surface `/admin/refills-queue` and `/settings/accounts/<id>/projects` both use.
   - **The content column is the only stretching zone** (`SHELL_CENTRE_CLASS`'s `min-w-0 flex-1`
     — `min-w-0` is mandatory, without it a wide table/chart blows the row open into page-level
     horizontal scroll). Anything intrinsically wide scrolls inside its own `overflow-x-auto`
@@ -354,7 +354,7 @@ decimals.
 - **Row detail is `BottomSheet`, at every tier, everywhere — never a side sheet, and never the
   right rail** (ADR 0013's phase E amendment: the rail's one live case moved off the account area
   entirely). `DetailSheet` (a fixed-420px right-docked `Dialog`) is deleted, same as before.
-  `/settings/refills-queue`'s and `/settings/accounts/<id>/projects`' own row detail both use
+  `/admin/refills-queue`'s and `/settings/accounts/<id>/projects`' own row detail both use
   `BottomSheet` at every tier — settings has no rail to promote either into, at any tier.
   `BottomSheet` (Base UI `Drawer`, bottom-only) opens on selection: grab handle, header
   (title/subtitle/optional `headerAction`, e.g. `Rename` — never a stranded footer button for a

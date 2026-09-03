@@ -5,6 +5,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AUGMENTATION_STATUS } from './refill-rows';
+import { userProfilesQuery } from './user-profiles-query';
 
 /**
  * `/admin/refills-queue` — the ONE thing this hook's requester wiring must hold
@@ -69,12 +70,17 @@ function request(
   } as AugmentationRequest;
 }
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+function makeWrapper(
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+) {
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  }
+  return { client, Wrapper };
 }
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  makeWrapper().Wrapper({ children });
 
 async function renderScreen() {
   const rendered = renderHook(() => useRefillsQueueScreen(), { wrapper });
@@ -186,5 +192,44 @@ describe('useRefillsQueueScreen — requester resolution', () => {
       name: 'Maria Okonkwo',
       email: 'maria@brightline.dev',
     });
+  });
+  /**
+   * The 2026-09-03 production regression, at the level it actually bit: this hook is mounted by
+   * the console SHELL on every route (`console-chrome.tsx`), and `/admin/roles` resolves the same
+   * identities under the same key. Before `user-profiles-query.ts` the two disagreed on what that
+   * key holds — an array here, the `{ profiles }` envelope there — and whichever wrote first
+   * decided, so a visit to `/admin/roles` made `requesterQuery.data.map(...)` throw
+   * `TypeError: …data.map is not a function` on every subsequent page.
+   */
+  it('reads an entry another screen already wrote under the shared identity key', async () => {
+    const { client, Wrapper } = makeWrapper();
+    const ids = ['usr_a'];
+
+    // Exactly what `/admin/roles` puts in the cache now — through the same helper, so there is
+    // only one shape it CAN put there.
+    resolveUserProfiles.mockResolvedValue({
+      profiles: [{ userId: 'usr_a', displayName: 'Maria Okonkwo', email: 'maria@brightline.dev' }],
+    });
+    const authzClient = { procedures: { resolveUserProfiles } } as never;
+    await client.fetchQuery(userProfilesQuery(authzClient, ids));
+    expect(resolveUserProfiles).toHaveBeenCalledTimes(1);
+
+    listPendingAugmentationRequests.mockResolvedValue({
+      entries: [request('r1', 'usr_a')],
+      nextCursor: null,
+    });
+
+    const rendered = renderHook(() => useRefillsQueueScreen(), { wrapper: Wrapper });
+    await waitFor(() => expect(rendered.result.current.loading).toBe(false));
+    await waitFor(() => expect(rendered.result.current.pending[0]?.requester.kind).toBe('user'));
+
+    expect(rendered.result.current.pending[0]?.requester).toEqual({
+      kind: 'user',
+      name: 'Maria Okonkwo',
+      email: 'maria@brightline.dev',
+    });
+    // The shared entry itself: an array, whichever screen last wrote it. This is the assertion
+    // the incident makes non-negotiable — `.map` is called on exactly this value.
+    expect(client.getQueryData(userProfilesQuery(authzClient, ids).queryKey)).toBeInstanceOf(Array);
   });
 });

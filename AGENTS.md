@@ -48,6 +48,12 @@ verification bar, and the pitfalls that have actually cost time here.
 | `console-verifier`   | **Read-only** verification of a change or a claim of "done"                 |
 | `docs-curator`       | Writing or repairing docs with verified citations and parsing mermaid pairs |
 
+### Roadmap — [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+The state of every workstream, cited row by row. Read it before proposing work (the gap may already
+be recorded, with a reason), and **update your item's row in the same PR that changes it** — a merged
+PR that leaves its row stale is an incomplete PR.
+
 ### Knowledge base — `docs/knowledge/`
 
 Contracts and how-tos. **Decisions and their alternatives live in `docs/adr/`** — these pages link

@@ -3,6 +3,21 @@
 Frontend monorepo for Lightbridge/GIS's self-service console: a Next.js web application, its
 shared DOM component package, and the generated RPC/REST clients it talks through.
 
+## Roadmap
+
+[`docs/ROADMAP.md`](docs/ROADMAP.md) is the single matrix of what this repository has built and what
+it has not — grouped by workstream, with every row carrying a state (`Done`, `Done, unverified`,
+`Partial`, `Missing`, `Broken`, `Flaky`, `Not future-proof`, `Decision needed`) and a citation: a PR,
+an issue, a commit SHA, or a `path:line` in this tree. It deliberately records the unflattering rows
+too — the gates that pass without enforcing anything, the ratchets that will stop ratcheting, and the
+decisions still waiting on an owner.
+
+Two rules keep it from rotting. **A merged PR updates its row in the same PR** — the row is part of
+the change, like the ADR amendment or the test. **A newly-found gap gets a row before it gets an
+issue** — the row is cheap and immediately visible; the issue is the expensive follow-up. Never
+promote a row on a claim: `Done, unverified` becomes `Done` only when the Evidence column names a
+live probe or a green CI run.
+
 ## Why This Project
 
 This repository exists to:

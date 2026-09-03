@@ -459,15 +459,93 @@ zone renders here** (build brief §7, "`/` becomes purely the account-scoped use
 BUDGET PRESSURE and KEY HYGIENE live on the settings-area lenses (§5.5).
 
 **Two hand-written zones, first, then the grid.** `dashboards.yaml` describes usage queries over
-the page's RANGE. The stat row and the BUDGET card are measured over the BILLING PERIOD and read an
+the page's RANGE. The stat row and the BUDGET card are measured over the BUDGET PERIOD and read an
 RPC ceiling (`getMyBudgetBalance`), so neither is a panel; they render in their own `DashboardGrid`
 above the engine's, with the caption that states which window they are about. "How much of my
 allowance is left" is what a person opens this page to check.
 
 Top to bottom: `PageHeader` (title "Overview", scope subline, range picker + project scope inline,
 `mtd`/"This month" default, and an `Export` action opening `ReportExportDialog`) → the
-billing-period zones (`OverviewStatRow`, self-panelled; `Card` "Budget" with `BudgetPanel`) → the
+budget-period zones (`OverviewStatRow`, self-panelled; `Card` "Budget" with `BudgetPanel`) → the
 YAML grid.
+
+#### Ceiling vs reset period
+
+Owner question, 2026-09-03: _"We said ceiling is a fact of the budget period, right? What is
+ceiling vs reset period?"_ — asked of a caption this console carried on four surfaces, and which
+was wrong on both halves. The corrected wording is built once, by
+`apps/console/src/containers/budget-period-caption.ts`, and the two concepts are these.
+
+- **Budget period** — the ledger's `Period` (`lightbridge-authz`,
+  `crates/lightbridge-authz-budget/src/period.rs`): a clock-free `YYYY-MM` string, the CALENDAR
+  MONTH. Nothing bills against it, so the console no longer calls it a _billing_ period.
+- **Ceiling** — `budget_balances.effective_budget_micros`: the SUM of every grant booked into that
+  month. It is not an allowance somebody set; it is an accumulation.
+- **Reset period** — a reset schedule's cadence (backend ADR-0032, `reset_scheduler.rs`; §5.7). At
+  each tick the scheduler writes an `automatic` grant **into the current month**, sized so that
+  `remaining` (= ceiling − spend-to-date) lands exactly on the configured amount.
+
+So under a **daily** reset the ceiling is a monthly cumulative that **steps up once a day**, while
+`remaining` **saw-tooths** back to the configured amount. "A ceiling is a fact about this calendar
+month" was true before ADR-0032 and is false now: a $2/day account halfway through the month shows
+a ~$30 ceiling that nobody granted and that will read ~$32 tomorrow. The reset cadence does not
+give the ceiling a shorter period — it keeps adding to the same monthly one.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> MonthOpen: period rolls over — ceiling $0.00, remaining $0.00
+    MonthOpen --> Funded: tick 1 — automatic grant, ceiling $2.00, remaining $2.00
+    Funded --> Drawn: requests spend against it — remaining falls, ceiling unchanged
+    Drawn --> Funded: next tick — ceiling STEPS UP ($4.00, $6.00, …), remaining back to $2.00
+    Drawn --> MonthOpen: month rolls over — a NEW Period row, ceiling starts from zero again
+    note right of Funded
+      ceiling  = Σ grants this month   (monotonic staircase)
+      remaining = ceiling − spend-to-date (saw-tooth)
+    end note
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as reset_scheduler (authz-budget)
+    participant G as budget_grants
+    participant B as budget_balances (period YYYY-MM)
+    participant C as Console — Budget card
+    S->>S: tick due (cadence, run_at_utc)
+    S->>B: read effective_budget_micros + spend-to-date
+    S->>G: INSERT automatic grant (delta so remaining == amount)
+    G-->>B: trigger re-materialises effective_budget_micros (ceiling STEPS UP)
+    C->>B: getMyBudgetBalance{period} — the ceiling
+    C->>C: usage query over the budget period — month-to-date spend
+    C->>C: usage query since schedule.lastRunAt — spend this reset cycle
+    C-->>C: hero (month), "Spent since last reset" (cycle), "Next reset …" (cadence)
+```
+
+**What the card renders because of this** (owner, 2026-09-03). Under a schedule the Budget card
+carries two `meta` rows beneath the hero: **"Spent since last reset $0.84 · 2 h ago"** — one extra
+ungrouped `scope: account` usage query from `schedule.lastRunAt` (the budget-period start when it
+has never fired, in which case TanStack Query dedupes it into the month-to-date request) — and
+**"Next reset in 12 h → $2.00 (reset)"**. **"Budget remaining" stays ceiling − MONTH-to-date
+spend**: that is the ledger's own definition of remaining, and a console that redefined it would
+show a figure the backend would never agree with. The two windows are therefore two rows, each
+naming its own.
+
+The caption itself, in both shapes:
+
+> Budget figures follow the account's budget period (calendar month, 2026-09-01 → today); the range
+> picker above only changes the usage charts.
+
+> Budget figures follow the budget period (calendar month, 2026-09-01 → today). Reset remaining to
+> $2.00 every day at 00:00 UTC (next in 12 h) — each reset is booked into this month, so the
+> remaining balance returns to $2.00 while the ceiling grows by every reset. The range picker above
+> only changes the usage charts.
+
+A `top_up` schedule is worded apart ("Add $15.00 …", "the remaining balance rises by $15.00 and the
+ceiling grows with it") because "returns to $X" describes the opposite of what a top-up does. The
+same sentence is rendered by `/settings/overview/account`'s burn-down and by `/admin/overview`'s
+budget zones — the latter from a **global** schedule only, since an account- or plan-scoped one
+governs one account and would describe the estate by one member of it.
 
 The panels that entry declares today, in order — `stat` **Spend in this range** and **Requests in
 this range** (both `compare: true`), `series` **Spend over time** (the account TOTAL with the
@@ -1204,6 +1282,7 @@ diagram cannot: the `file:line` citations, why an edge is blocked, what the fix 
 | [8.4](#84-authoring-a-refill-policy-from-the-example-issue-445)                            | Authoring a refill policy from the example                | here                                                                                              |
 | [8.5](#85-resolving-an-analytics-lens-from-dashboardsyaml-story-c12-converse-frontends455) | Resolving an analytics lens from `dashboards.yaml`        | here                                                                                              |
 | [8.6](#86-reaching-settingstiers-owner-ruling-2026-09-03)                                  | Reaching `/settings/tiers` (the nav row and the gate)     | here                                                                                              |
+| §5.1                                                                                       | Ceiling vs reset period (a month under a daily reset)     | in its own screen spec                                                                            |
 | §5.7                                                                                       | A budget reset schedule's lifecycle                       | in its own screen spec                                                                            |
 | §5.8                                                                                       | A session's lifecycle, and where the screen touches it    | in its own screen spec                                                                            |
 | —                                                                                          | YAML → resolve → dedupe → render, and the export branch   | [ADR 0015](../../adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md) Diagrams |

@@ -49,7 +49,7 @@ import type { ReportExportFormat, ReportIncludeToggle } from '../components/repo
 import { SelectField } from '../components/select-field';
 import { SkeletonMetric } from '../components/skeleton-metric';
 import { BudgetPanel } from '../sections/budget-panel';
-import type { BudgetSummary } from '../sections/budget-panel';
+import type { BudgetNextReset, BudgetSinceReset, BudgetSummary } from '../sections/budget-panel';
 import {
   overviewBudget,
   overviewEmptyBudget,
@@ -84,15 +84,49 @@ const PAGE = specPage('/accounts/[accountId]/overview');
  */
 const ACCOUNT_DIMENSION_KEYS = { azp: ['console-ui', 'opencode-cli', 'ci-deploy'] };
 
-const BILLING_PERIOD_CAPTION =
-  'Spend this period, the remaining budget and the ceiling above are measured over the billing ' +
-  'period (2026-08-01 → today), not the range picked above — a ceiling is a fact about this ' +
-  'calendar month.';
+/**
+ * The Budget card's caption, in BOTH of the two shapes `budgetPeriodCaption`
+ * (`apps/console/src/containers/budget-period-caption.ts`) builds — the wording the owner asked
+ * for on 2026-09-03 ("We said ceiling is a fact of the budget period, right? What is ceiling vs
+ * reset period?").
+ *
+ * They are two fixtures rather than one because the SCHEDULED wording is the whole point of the
+ * fix: without a schedule the ceiling really is one month's grants, and with one it steps up at
+ * every tick while `remaining` saw-tooths back to the configured amount. A story that only showed
+ * the first would certify exactly the sentence the owner rejected.
+ *
+ * Verbatim strings, not a call into `apps/console` — `ui-web` never imports the app (the
+ * dependency runs the other way), and a story that recomputed the sentence could not catch it
+ * drifting. `budget-period-caption.test.ts` asserts the same two shapes against the builder.
+ */
+const BUDGET_PERIOD_CAPTION_NO_SCHEDULE =
+  "Budget figures follow the account's budget period (calendar month, 2026-08-01 → today); the " +
+  'range picker above only changes the usage charts.';
+
+const BUDGET_PERIOD_CAPTION_DAILY_RESET =
+  'Budget figures follow the budget period (calendar month, 2026-08-01 → today). Reset remaining ' +
+  'to $2.00 every day at 00:00 UTC (next in 12 h) — each reset is booked into this month, so the ' +
+  'remaining balance returns to $2.00 while the ceiling grows by every reset. The range picker ' +
+  'above only changes the usage charts.';
+
+/** The card's two schedule rows, in the pair the console renders them as: what this cycle has
+ *  drawn, then when the next cycle starts. */
+const SINCE_RESET: BudgetSinceReset = {
+  status: 'ready',
+  label: 'Spent since last reset $0.84 · 11 h ago',
+};
+const NEXT_RESET: BudgetNextReset = {
+  status: 'scheduled',
+  label: 'Next reset in 12 h → $2.00 (reset)',
+};
 
 interface OverviewScreenProps {
   statCards?: OverviewStatCardData[];
   statCardsLoading?: boolean;
   budget?: BudgetSummary;
+  /** `true` renders the account under a daily reset schedule: the two extra card rows and the
+   *  caption that explains why the ceiling above them is not a fixed monthly allowance. */
+  scheduled?: boolean;
   /** The account rail's permission-gated Operator group (owner directive, 2026-09-03) — see the
    *  `AdminNav` story below. Nothing on the PAGE differs by it; only the sidebar does. */
   showAdmin?: boolean;
@@ -102,6 +136,7 @@ function OverviewScreen({
   statCards = overviewStatCards,
   statCardsLoading = false,
   budget = overviewBudget,
+  scheduled = false,
   showAdmin = false,
 }: OverviewScreenProps) {
   // Storybook-only local state standing in for the page's nuqs URL params (ADR 0011).
@@ -177,7 +212,7 @@ function OverviewScreen({
           }}
         />
 
-        {/* The BILLING-PERIOD zones. `OverviewStatRow` is self-panelling, so it takes no `Card` —
+        {/* The BUDGET-PERIOD zones. `OverviewStatRow` is self-panelling, so it takes no `Card` —
             the same exemption `DashboardPanel`'s `chrome: 'bare'` encodes for the engine's own
             stat panels. `data-span` is what the grid reads, exactly as `DashboardPanel` sets it. */}
         <DashboardGrid>
@@ -185,8 +220,16 @@ function OverviewScreen({
             <OverviewStatRow cards={statCards} loading={statCardsLoading} />
           </div>
           <Card data-span="2">
-            <BudgetPanel className="w-full" label="Budget" budget={budget} />
-            <InlineStatus className="mt-2">{BILLING_PERIOD_CAPTION}</InlineStatus>
+            <BudgetPanel
+              className="w-full"
+              label="Budget"
+              budget={budget}
+              sinceReset={scheduled ? SINCE_RESET : { status: 'none' }}
+              nextReset={scheduled ? NEXT_RESET : { status: 'none' }}
+            />
+            <InlineStatus className="mt-2">
+              {scheduled ? BUDGET_PERIOD_CAPTION_DAILY_RESET : BUDGET_PERIOD_CAPTION_NO_SCHEDULE}
+            </InlineStatus>
           </Card>
         </DashboardGrid>
 
@@ -232,6 +275,28 @@ export const AdminNavLight: Story = {
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   render: () => <OverviewScreen />,
+  globals: { theme: 'wireframe' },
+};
+
+/**
+ * The same account under a DAILY RESET SCHEDULE (owner question, 2026-09-03).
+ *
+ * This is the story the fix exists for. `Populated` above shows the account nobody schedules: the
+ * ceiling is one month's grants and the caption can say so plainly. Here the scheduler writes an
+ * `automatic` grant into the SAME calendar month at 00:00 every day, so the ceiling is not an
+ * allowance anyone granted — it is one $2.00 day per tick already booked, and it steps up again
+ * tomorrow. The card grows the two rows that make that legible ("Spent since last reset", "Next
+ * reset …") and the caption states the mechanism rather than the flat, and now false, claim that
+ * "a ceiling is a fact about this calendar month".
+ */
+export const ScheduledReset: Story = {
+  name: 'Populated — under a daily reset',
+  render: () => <OverviewScreen scheduled />,
+};
+
+export const ScheduledResetLight: Story = {
+  name: 'Populated — under a daily reset, wireframe (light)',
+  render: () => <OverviewScreen scheduled />,
   globals: { theme: 'wireframe' },
 };
 
@@ -294,7 +359,11 @@ export const Loading: Story = { render: () => <OverviewLoadingScreen /> };
 export const BudgetBreached: Story = {
   render: () => (
     <OverviewScreen
-      budget={{ value: 478.2, ceiling: 500, caption: 'account ceiling · 96% used · resets 01 Sep' }}
+      budget={{
+        value: 478.2,
+        ceiling: 500,
+        caption: 'account ceiling · 96% used this budget period',
+      }}
     />
   ),
 };

@@ -7,7 +7,7 @@ import { formatUsdOf } from '../../lib/money';
 import { NO_RESET_SCHEDULED_LINE } from '../../lib/reset-schedule';
 import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
-import type { BudgetNextReset, BudgetPanelProps } from './types';
+import type { BudgetNextReset, BudgetPanelProps, BudgetSinceReset } from './types';
 
 /**
  * The next-reset line under the hero (converse-frontends#451, story C8).
@@ -30,6 +30,19 @@ function NextResetLine({ nextReset }: { nextReset: BudgetNextReset }) {
   return <p className={META_CLASS}>{text}</p>;
 }
 
+/**
+ * "Spent since last reset $0.84 · 2 h ago" — the row above the next-reset line.
+ *
+ * `'none'` renders NOTHING (unlike its sibling above): with no schedule the phrase names no
+ * window, and the hero's own numeral already IS the month-to-date spend a "since the period
+ * started" line would restate.
+ */
+function SinceResetLine({ sinceReset }: { sinceReset: BudgetSinceReset }) {
+  if (sinceReset.status === 'loading' || sinceReset.status === 'none') return null;
+  const text = sinceReset.status === 'ready' ? sinceReset.label : sinceReset.caption;
+  return <p className={META_CLASS}>{text}</p>;
+}
+
 // Contract: docs/design/console-redesign/README.md §5.1 (overview.svg, dashboard 3) — the BUDGET
 // zone: the account hero meter, then two optional blocks separated by `border` rules — NEEDS
 // ATTENTION (the project closest to its ceiling, with its refill action) and REFILL REQUESTS (a
@@ -44,6 +57,7 @@ export function BudgetPanel({
   budget,
   heroAction,
   nextReset,
+  sinceReset,
   needsAttentionProject,
   onRequestRefill,
   refillRequestStatus,
@@ -71,6 +85,7 @@ export function BudgetPanel({
           />
         )}
 
+        {sinceReset ? <SinceResetLine sinceReset={sinceReset} /> : null}
         {nextReset ? <NextResetLine nextReset={nextReset} /> : null}
 
         {needsAttentionProject ? (

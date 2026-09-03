@@ -168,10 +168,7 @@ export function SettingsOverviewCentre({ lens, page }: SettingsOverviewCentrePro
                     formatYTick={formatUsdAxis}
                     formatTooltipValue={formatUsd}
                   />
-                  <InlineStatus className="mt-2">
-                    Measured over the billing period, not the range picked above — a ceiling is a
-                    fact about this calendar month.
-                  </InlineStatus>
+                  <InlineStatus className="mt-2">{zones.budgetPeriodCaption}</InlineStatus>
                 </Card>
               ) : null}
 

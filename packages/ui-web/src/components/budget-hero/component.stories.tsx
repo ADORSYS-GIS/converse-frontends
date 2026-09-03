@@ -17,7 +17,7 @@ export const UnderCeiling: Story = {
   args: {
     value: 142.55,
     ceiling: 500,
-    caption: 'account ceiling · 28% used · resets 01 Mar',
+    caption: 'account ceiling · 28% used this budget period',
   },
 };
 
@@ -61,7 +61,7 @@ export const SubCentSpend: Story = {
   args: {
     value: 0.006338,
     ceiling: 12,
-    caption: 'account ceiling · 0.05% used · resets 01 Mar',
+    caption: 'account ceiling · 0.05% used this budget period',
   },
 };
 
@@ -70,7 +70,7 @@ export const MidValue: Story = {
   args: {
     value: 4.27,
     ceiling: 12,
-    caption: 'account ceiling · 36% used · resets 01 Mar',
+    caption: 'account ceiling · 36% used this budget period',
   },
 };
 
@@ -80,7 +80,7 @@ export const LargeValue: Story = {
   args: {
     value: 1131.8,
     ceiling: 1250,
-    caption: 'account ceiling · 91% used · resets 01 Mar',
+    caption: 'account ceiling · 91% used this budget period',
   },
 };
 

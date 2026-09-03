@@ -320,6 +320,7 @@ export { BudgetPanel } from './sections/budget-panel';
 export type {
   BudgetNeedsAttentionProject,
   BudgetNextReset,
+  BudgetSinceReset,
   BudgetPanelProps,
   BudgetRefillRequestStatus,
   BudgetSummary,

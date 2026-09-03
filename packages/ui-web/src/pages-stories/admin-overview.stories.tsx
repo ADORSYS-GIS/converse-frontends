@@ -89,9 +89,17 @@ const REFILL_DECISIONS_CAPTION =
   'Decision history and median time to decision are not available — the budget service only ' +
   'exposes the pending queue, not a listing of past decisions (lightbridge-authz#556).';
 
-const BILLING_PERIOD_CAPTION =
-  'Budget pressure and the queue above are measured over the billing period (2026-08-01 → today), ' +
-  'not the range picked above — a ceiling is a fact about this calendar month.';
+/**
+ * The estate caption, verbatim from `budgetPeriodCaption` (owner question, 2026-09-03).
+ *
+ * `/admin/overview` probes for a GLOBAL schedule only — an account- or plan-scoped one governs one
+ * account and would describe the estate by one member of it — and this deployment's fixture has
+ * none, so this is the no-schedule wording. The scheduled wording is on `Pages/Overview`, where an
+ * account-scoped page can honestly state a cadence.
+ */
+const BUDGET_PERIOD_CAPTION =
+  "Budget figures follow the account's budget period (calendar month, 2026-08-01 → today); the " +
+  'range picker above only changes the usage charts.';
 
 function AdminOverviewScreen() {
   const [rangePreset, setRangePreset] = React.useState<string | null>('mtd');
@@ -152,7 +160,7 @@ function AdminOverviewScreen() {
           <div data-span="2">
             <OverviewStatRow cards={REFILL_STAT_CARDS} />
             <InlineStatus className="mt-2">{REFILL_DECISIONS_CAPTION}</InlineStatus>
-            <InlineStatus className="mt-1">{BILLING_PERIOD_CAPTION}</InlineStatus>
+            <InlineStatus className="mt-1">{BUDGET_PERIOD_CAPTION}</InlineStatus>
           </div>
         </DashboardGrid>
 

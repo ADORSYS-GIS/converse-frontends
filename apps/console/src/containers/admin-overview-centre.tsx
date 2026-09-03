@@ -19,7 +19,7 @@ import { useDashboard } from '../dashboards/use-dashboard';
 import { useDashboardScales } from '../dashboards/use-dashboard-scales';
 import { REFILL_DECISIONS_UNAVAILABLE_CAPTION } from './admin-estate-operations-usage';
 import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
-import { currentPeriodRange, resolveOverviewWindow, toUrlDate } from './overview-usage';
+import { resolveOverviewWindow, toUrlDate } from './overview-usage';
 import { useAdminEstateOperations } from './use-admin-estate-operations';
 
 /**
@@ -84,8 +84,6 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
     scaleFor,
     onScaleChange,
   });
-
-  const billingPeriod = useMemo(() => currentPeriodRange(new Date()), []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -173,9 +171,7 @@ export function AdminOverviewCentre({ page }: AdminOverviewCentreProps) {
             loading={operations.refillStatCardsLoading}
           />
           <InlineStatus className="mt-2">{REFILL_DECISIONS_UNAVAILABLE_CAPTION}</InlineStatus>
-          <InlineStatus className="mt-1">
-            {`Budget pressure and the queue above are measured over the billing period (${toUrlDate(billingPeriod.start)} → today), not the range picked above — a ceiling is a fact about this calendar month.`}
-          </InlineStatus>
+          <InlineStatus className="mt-1">{operations.budgetPeriodCaption}</InlineStatus>
         </div>
       </DashboardGrid>
 

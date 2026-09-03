@@ -155,7 +155,7 @@ export function useActorBudget(actorId: string, type: string): ActorBudget {
       // The BILLING PERIOD, said out loud: every other figure on this page follows the range
       // picker and this one does not, so a reader who does not know that would read the two
       // against each other.
-      caption: `account ceiling · ${percent}% used this billing period (not the range above)`,
+      caption: `account ceiling · ${percent}% used this budget period (not the range above)`,
     };
   }, [consumptionQuery, balanceQuery]);
 

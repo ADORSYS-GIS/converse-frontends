@@ -1158,7 +1158,7 @@ pages:
       - id: spend-total
         type: stat
         title: Spend in this range
-        subtitle: The range picked above, not the billing period the BUDGET card states.
+        subtitle: The range picked above, not the budget period the BUDGET card states.
         span: 1
         metric: cost
         compare: true
